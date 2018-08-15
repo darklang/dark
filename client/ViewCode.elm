@@ -157,7 +157,6 @@ viewRopArrow vs =
     [svg]
 
 
-
 viewNExpr : Int -> ID -> Viewer NExpr
 viewNExpr d id vs config e =
   let vExpr d = viewExpr d vs []
@@ -416,8 +415,7 @@ viewNExpr d id vs config e =
         ([open] ++ List.map pexpr pairs ++ [close])
 
     FeatureFlag msg cond a b ->
-      let exprLabel msg =
-        Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
+      let exprLabel msg = Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
 
           isExpanded =
             let mv = Dict.get (deID id) vs.featureFlags
@@ -428,8 +426,8 @@ viewNExpr d id vs config e =
           pickA =
             Html.div
             [ Attrs.class "icon pick-a parameter-btn info"
-              , Attrs.attribute "data-content" "Cancel feature flag"
-              , Attrs.title "Close feature flag and USE CURRENT EXPRESSION"
+              , Attrs.attribute "data-content" "Use Case A"
+              , Attrs.title "delete Feature Flag & use Case A"
               , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickA)
             ] [ fontAwesome "check" ]
@@ -437,8 +435,8 @@ viewNExpr d id vs config e =
           pickB =
             Html.div
             [ Attrs.class "icon pick-b parameter-btn info"
-              , Attrs.attribute "data-content" "Pick new version"
-              , Attrs.title "Close feature flag and USE NEW EXPRESSION"
+              , Attrs.attribute "data-content" "Use Case B"
+              , Attrs.title "delete Feature Flag & use Case B"
               , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickB)
             ] [ fontAwesome "check" ]
@@ -475,7 +473,7 @@ viewNExpr d id vs config e =
             Html.div
             [ Attrs.class "row condition" ]
             [
-              exprLabel "Flag condition (when to use new code)"
+              exprLabel "Condition (run Case B if...)"
               , vExpr 0 cond
             ]
 
@@ -492,8 +490,8 @@ viewNExpr d id vs config e =
             Html.div
             [ Attrs.class "row expressions" ]
             [
-              exprBlock "Current Expression" pickA a
-              , exprBlock "New Expression" pickB b
+              exprBlock "Case A" pickA a
+              , exprBlock "Case B" pickB b
             ]
 
     in
