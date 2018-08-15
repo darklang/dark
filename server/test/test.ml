@@ -1027,6 +1027,44 @@ let t_db_deprecated_has_many_works () =
         | _ -> 1)
      | _ -> 1)
 
+let t_db_deprecated_fetch_by_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, 13, 14)
+            ; Op.SetDBColName (dbid, 13, "sort_by")
+            ; Op.SetDBColType (dbid, 14, "Int")
+            ]
+  in
+  (* sorting to ensure the test isn't flakey *)
+  let ast = "(let one (DB::insert (obj (x 'foo') (sort_by 0)) MyDB)
+              (let two (DB::insert (obj (x 'bar') (sort_by 1)) MyDB)
+               (let three (DB::insert (obj (x 'bar') (sort_by 2)) MyDB)
+                (let fetched (List::sortBy (DB::fetchBy 'bar' 'x' MyDB) (\\x -> (. x sort_by)))
+                (== (two three) fetched)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_deprecated_fetch_by_id_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
+  in
+  let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
+              (let fetched (DB::fetchOneBy (. one id) 'id' MyDB)
+                (== one fetched)))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
 
 (* ------------------- *)
 (* Test setup *)
@@ -1087,6 +1125,8 @@ let suite =
   ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
   ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
   ; "Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works
+  ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
+  ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
   ]
 
 let () =
