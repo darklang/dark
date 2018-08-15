@@ -31,6 +31,7 @@ import DarkKeyboard
 import Refactor exposing (WrapLoc(..))
 import Runtime as RT
 import Entry
+import Commands
 import Autocomplete as AC
 import Viewport
 import FeatureFlags
@@ -496,6 +497,8 @@ updateMod mod (m, cmd) =
         in
         processAutocompleteMods m3 [ ACRegenerate ]
 
+      SelectCommand tlid mId ->
+        { m | cursorState = SelectingCommand tlid mId } ! []
 
       SetUnlockedDBs unlockedDBs ->
         { m | unlockedDBs = unlockedDBs } ! []
@@ -835,6 +838,15 @@ update_ msg m =
                       Refactor.toggleOnRail m tl pd
                 else
                   NoChange
+              Key.Unknown c -> -- semicolon
+                if event.key == Just ":"
+                then
+                  Many [ SelectCommand tlid mId
+                       , AutocompleteMod <| ACSetQuery ":"
+                       , MakeCmd (Entry.focusEntry m)
+                       ]
+                else
+                  NoChange
               _ -> NoChange
 
           Entering cursor ->
@@ -1029,8 +1041,15 @@ update_ msg m =
                   _ -> NoChange
 
 
-          Dragging _ _ _ _ -> NoChange
+          SelectingCommand tlid mId ->
+            case event.keyCode of
+              Key.Escape ->
+                Select tlid mId
+              Key.Enter ->
+                Commands.executeCommand m tlid mId m.complete.value
+              _ -> NoChange
 
+          Dragging _ _ _ _ -> NoChange
 
     ------------------------
     -- entry node
@@ -1206,6 +1225,17 @@ update_ msg m =
                 Select targetTLID (Just targetID)
             Nothing ->
               Select targetTLID (Just targetID)
+        SelectingCommand _ maybeSelectingID ->
+          case maybeSelectingID of
+            Just selectingID ->
+              if selectingID == targetID
+              then
+                NoChange
+              else
+                Select targetTLID (Just targetID)
+            Nothing ->
+              Select targetTLID (Just targetID)
+
 
 
     BlankOrDoubleClick targetTLID targetID _ ->
@@ -1219,6 +1249,8 @@ update_ msg m =
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
         Selecting selectingTLID _ ->
+          Select targetTLID Nothing
+        SelectingCommand selectingTLID _ ->
           Select targetTLID Nothing
         Deselected ->
           Select targetTLID Nothing
