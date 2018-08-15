@@ -1160,7 +1160,7 @@ let suite =
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_works
-  ; "DB::set_v1 upserts", `Quick, t_db_new_query_works
+  ; "DB::set_v1 upserts", `Quick, t_db_set_does_upsert
   ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
   ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
   ; "Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works

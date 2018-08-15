@@ -305,15 +305,15 @@ and set ~state ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
   let query =
-    "INSERT into user_data as new
+    "INSERT INTO user_data
      (id, account_id, canvas_id, table_tlid, user_version, dark_version, key, data)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)"
     |> fun s ->
-    if upsert
-    then
-      (s ^ " ON CONFLICT (account_id, canvas_id, table_tlid, dark_version, user_version, key) DO UPDATE set data = new.data")
-    else
-      s
+      if upsert
+      then
+        (s ^ " ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data")
+      else
+        s
   in
   Db.run
     ~name:"user_set"
