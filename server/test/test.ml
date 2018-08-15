@@ -1005,7 +1005,6 @@ let t_db_deprecated_has_many_works () =
                (List::head (DB::fetchAll MyDB)))"
   in
   let result = exec_handler ~ops ast in
-  ignore (Log.inspect "result" result);
   AT.check AT.int
   "Deprecated HasMany works"
   0 (match result with
@@ -1015,13 +1014,18 @@ let t_db_deprecated_has_many_works () =
           (match inners with
            | [DObj fst; DObj snd] ->
              (try
-               (match List.sort ~compare:compare_dval [DvalMap.find_exn fst "y"; DvalMap.find_exn snd "y"] with
-                | [DInt 4; DInt 6] -> 0
-                | _ -> 1)
+                let sorted_list =
+                    List.sort
+                        ~compare:compare_dval
+                        [DvalMap.find_exn fst "y"; DvalMap.find_exn snd "y"]
+                in
+                (match sorted_list with
+                 | [DInt 4; DInt 6] -> 0
+                 | _ -> 1)
              with e -> 1)
-           | err -> Exception.internal ("nerr" ^ (Log.dump err)))
-        | err -> Exception.internal ("boo" ^ (Log.dump err)))
-     | err -> Exception.internal ("lol" ^ (Log.dump err)))
+           | _ -> 1)
+        | _ -> 1)
+     | _ -> 1)
 
 
 (* ------------------- *)
