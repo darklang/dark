@@ -405,6 +405,11 @@ updateMod mod (m, cmd) =
         in
         m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
 
+      SelectCommand tlid mId ->
+        let newM = { m | cursorState = SelectingCommand tlid mId } in
+        newM ! (closeBlanks newM ++ [Entry.focusEntry newM])
+
+
       SetGlobalVariables globals ->
         let m2 = { m | globals = globals } in
         processAutocompleteMods m2 [ ACRegenerate ]
@@ -496,9 +501,6 @@ updateMod mod (m, cmd) =
                      m2
         in
         processAutocompleteMods m3 [ ACRegenerate ]
-
-      SelectCommand tlid mId ->
-        { m | cursorState = SelectingCommand tlid mId } ! []
 
       SetUnlockedDBs unlockedDBs ->
         { m | unlockedDBs = unlockedDBs } ! []
@@ -843,7 +845,6 @@ update_ msg m =
                 then
                   Many [ SelectCommand tlid mId
                        , AutocompleteMod <| ACSetQuery ":"
-                       , MakeCmd (Entry.focusEntry m)
                        ]
                 else
                   NoChange
