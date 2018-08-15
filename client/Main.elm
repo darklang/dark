@@ -753,7 +753,7 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfCond
+                      Refactor.wrap WIfCond m tl pd
                 else if event.ctrlKey
                 then
                   let mPd = Maybe.map (TL.findExn tl) mId in
@@ -798,7 +798,7 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WLetBody
+                      Refactor.wrap WLetBody m tl pd
                 else
                   NoChange
               Key.L ->
@@ -814,7 +814,7 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WLetRHS
+                      Refactor.wrap WLetRHS m tl pd
                 else
                   NoChange
               Key.I ->
@@ -824,14 +824,14 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfElse
+                      Refactor.wrap WIfElse m tl pd
                 else if event.ctrlKey
                 then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfThen
+                      Refactor.wrap WIfThen m tl pd
                 else
                   NoChange
               Key.E ->
