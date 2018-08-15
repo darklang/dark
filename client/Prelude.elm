@@ -43,7 +43,7 @@ idOf s =
         Filling _ id  -> Just id
     Deselected -> Nothing
     Dragging _ _ _ _ -> Nothing
-    SelectingCommand _ id -> id
+    SelectingCommand _ id -> Just id
 
 
 --------------------------------------

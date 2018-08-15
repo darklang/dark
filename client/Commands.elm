@@ -8,21 +8,21 @@ module Commands exposing (..)
 -- import Prelude exposing (..)
 import Types exposing (..)
 
-executeCommand : Model -> TLID -> Maybe ID -> Maybe AutocompleteItem -> Modification
-executeCommand m tlid mId highlighted =
+executeCommand : Model -> TLID -> ID -> Maybe AutocompleteItem -> Modification
+executeCommand m tlid id highlighted =
   let successMods =
     case highlighted of
       Just (ACCommand command) ->
         [ Error ("Executing command: " ++ command.name) ]
       _ -> []
   in
-      Many (successMods ++ [endCommandExecution m tlid mId])
+      Many (successMods ++ [endCommandExecution m tlid id])
 
-endCommandExecution : Model -> TLID -> Maybe ID -> Modification
-endCommandExecution m tlid mId =
+endCommandExecution : Model -> TLID -> ID -> Modification
+endCommandExecution m tlid id =
   Many
     [ AutocompleteMod ACReset
-    , Select tlid mId
+    , Select tlid (Just id)
     ]
 
 
