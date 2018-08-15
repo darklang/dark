@@ -21,6 +21,7 @@ import Pointer as P
 import Analysis
 import Toplevel as TL
 import AST
+import Commands
 
 ----------------------------
 -- Focus
@@ -605,7 +606,7 @@ generateFromModel m a =
         ++ fields
 
       commands =
-        [ACCommand "test"]
+        List.map ACCommand Commands.commands
     in
         if a.isCommandMode
         then commands
@@ -681,3 +682,14 @@ findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
   parameters
   |> LE.find (\p -> RT.isCompatible p.tipe tipe)
+
+---------------------------
+-- Modifications
+---------------------------
+selectSharedPrefix: Autocomplete -> Modification
+selectSharedPrefix ac =
+  let sp = sharedPrefix ac in
+  if sp == "" then NoChange
+  else
+    AutocompleteMod <| ACSetQuery sp
+
