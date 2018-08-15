@@ -41,6 +41,8 @@ focusEntry m =
   case unwrapCursorState m.cursorState of
     Entering _ ->
       Dom.focus Defaults.entryID |> Task.attempt FocusEntry
+    SelectingCommand _ _ ->
+      Dom.focus Defaults.entryID |> Task.attempt FocusEntry
     _ ->
       Cmd.none
 
