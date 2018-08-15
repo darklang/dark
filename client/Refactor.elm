@@ -31,8 +31,8 @@ type WrapLoc = WLetRHS
              | WIfThen
              | WIfElse
 
-wrap : Model -> Toplevel -> PointerData -> WrapLoc -> Modification
-wrap m tl p wl =
+wrap : WrapLoc -> Model -> Toplevel -> PointerData -> Modification
+wrap wl m tl p =
   let wrapAst e ast wl =
         let (replacement, focus) =
           case wl of

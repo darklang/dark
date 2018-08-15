@@ -230,7 +230,7 @@ type Keyword = KLet
              | KLambda
 
 type alias Command = { name: String
-                     , modification : Modification
+                     , action : Model -> Toplevel -> PointerData -> Modification
                      , doc : String
                      , shortcut : String
                      }
