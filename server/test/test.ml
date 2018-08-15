@@ -1065,6 +1065,23 @@ let t_db_deprecated_fetch_by_id_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
+let t_db_get_many_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
+               (let fetched (DB::getMany_v1 ('first' 'second') MyDB)
+                (== (('first' one) ('second' two)) fetched))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
 
 (* ------------------- *)
 (* Test setup *)
@@ -1127,6 +1144,7 @@ let suite =
   ; "Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works
   ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
   ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
+  ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
   ]
 
 let () =
