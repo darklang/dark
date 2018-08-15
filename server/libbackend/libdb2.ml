@@ -67,7 +67,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "key" TStr; par "table" TDB]
   ; r = TNull
-  ; d = "Delete `value` from `table`"
+  ; d = "Delete `key` from `table`"
   ; f = InProcess
         (function
           | (state, [DStr key; DDB db]) ->
