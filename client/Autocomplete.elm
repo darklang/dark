@@ -242,8 +242,7 @@ update m mod a =
 ------------------------------------
 enableCommandMode : Model -> Autocomplete -> Autocomplete
 enableCommandMode m a =
-  let new = Debug.log "enable" True in
-  { a | isCommandMode = new }
+  { a | isCommandMode = True }
 
 ------------------------------------
 -- Dynamic Items
