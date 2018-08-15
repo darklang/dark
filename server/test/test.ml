@@ -1082,6 +1082,28 @@ let t_db_get_many_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
+let t_db_query_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, 13, 14)
+            ; Op.SetDBColName (dbid, 13, "sort_by")
+            ; Op.SetDBColType (dbid, 14, "Int")
+            ]
+  in
+  (* sorting to ensure the test isn't flakey *)
+  let ast = "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+               (let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
+                (let fetched (List::sortBy (DB::query_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
+                 (== (('two' two) ('three' three)) fetched)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
 
 (* ------------------- *)
 (* Test setup *)
@@ -1145,6 +1167,7 @@ let suite =
   ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
   ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
   ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
+  ; "DB::query_v1 works", `Quick, t_db_query_works
   ]
 
 let () =
