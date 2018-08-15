@@ -30,6 +30,7 @@ val exists : params: param list -> name:string -> ?subject:string -> string -> b
  * work, so we need to escape manually *)
 val escape : param -> string
 val cast_expression_for : Types.RuntimeT.dval -> string option
+val array_separator : string
 
 
 (* Misc *)

@@ -937,7 +937,7 @@ let t_db_set_does_upsert () =
     (DBool true)
     (exec_handler ~ops ast)
 
-let t_db_get_many_works () =
+let t_db_get_all_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid2)
@@ -985,6 +985,43 @@ let t_db_deprecated_belongs_to_works () =
            | _ -> 1)
         | _ -> 1)
      | _ -> 1)
+
+let t_db_deprecated_has_many_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.CreateDB (dbid2, pos, "SecondDB")
+            ; Op.AddDBCol (dbid2, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid2, colnameid2, "y")
+            ; Op.SetDBColType (dbid2, coltypeid2, "Int")
+            ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
+            ; Op.SetDBColName (dbid, colnameid3, "relations")
+            ; Op.SetDBColType (dbid, coltypeid3, "[SecondDB]")
+            ]
+  in
+  let ast = "(let oldin (DB::insert (obj (x 'foo') (relations ((obj (y 4)) (obj (y 6))))) MyDB)
+               (List::head (DB::fetchAll MyDB)))"
+  in
+  let result = exec_handler ~ops ast in
+  ignore (Log.inspect "result" result);
+  AT.check AT.int
+  "Deprecated HasMany works"
+  0 (match result with
+     | DObj o ->
+       (match (DvalMap.find o "x", DvalMap.find o "relations") with
+        | (Some (DStr "foo"), Some (DList inners)) ->
+          (match inners with
+           | [DObj fst; DObj snd] ->
+             (try
+               (match List.sort ~compare:compare_dval [DvalMap.find_exn fst "y"; DvalMap.find_exn snd "y"] with
+                | [DInt 4; DInt 6] -> 0
+                | _ -> 1)
+             with e -> 1)
+           | err -> Exception.internal ("nerr" ^ (Log.dump err)))
+        | err -> Exception.internal ("boo" ^ (Log.dump err)))
+     | err -> Exception.internal ("lol" ^ (Log.dump err)))
 
 
 (* ------------------- *)
@@ -1043,8 +1080,9 @@ let suite =
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_works
   ; "DB::set_v1 upserts", `Quick, t_db_new_query_works
-  ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
+  ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
   ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
+  ; "Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works
   ]
 
 let () =

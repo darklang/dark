@@ -5,20 +5,6 @@ open Lib
 open Runtime
 open Types.RuntimeT
 
-let coerce_key_value_pair_to_legacy_object pair =
-  match pair with
-  | [DStr s; DObj o] ->
-    let id =
-      (match Uuidm.of_string s with
-      | Some id -> DID id
-      | None -> DStr s)
-    in
-    DObj (Map.set ~key:"id" ~data:id o)
-  | err ->
-    Exception.internal
-      ("Unexpected shape, unable to coerce to legacy format: "
-       ^ (Libcommon.Log.dump err))
-
 let fetch_by_field ~state fieldname fieldvalue db =
   if fieldname = "id"
   then
@@ -124,18 +110,7 @@ let fns : Lib.shortfn list = [
         (function
           | (state, [value; DStr field; DDB db]) ->
             let result = fetch_by_field ~state field value db in
-            (match result with
-             | DList pairs ->
-               pairs
-               |> List.map
-                 ~f:(function
-                     | DList pair ->
-                       coerce_key_value_pair_to_legacy_object pair
-                     | _ ->
-                        Exception.internal
-                          "bad format from internal fetch, unable to coerce to legacy format")
-               |> DList
-             | _ -> Exception.internal "bad fetch in legacy fetchBy")
+            User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -154,7 +129,7 @@ let fns : Lib.shortfn list = [
             (match result with
              | DList (x :: xs) ->
                (match x with
-                | DList pair -> coerce_key_value_pair_to_legacy_object pair
+                | DList pair -> User_db.coerce_key_value_pair_to_legacy_object pair
                 | _ -> Exception.internal "bad fetch")
              | _ -> DNull)
           | args -> fail args)
@@ -174,19 +149,7 @@ let fns : Lib.shortfn list = [
             map
             |> DvalMap.to_alist
             |> User_db.query state db
-            |>
-            (function
-              | DList pairs ->
-                pairs
-                |> List.map
-                  ~f:(function
-                      | DList pair ->
-                        coerce_key_value_pair_to_legacy_object pair
-                      | _ ->
-                        Exception.internal
-                          "bad format from internal fetch, unable to coerce to legacy format")
-                |> DList
-              | _ -> Exception.internal "bad fetch in legacy fetchBy")
+            |> User_db.coerce_dlist_of_kv_pairs_to_legacy_object
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -207,7 +170,7 @@ let fns : Lib.shortfn list = [
             (match result with
              | DList (x :: xs) ->
                (match x with
-                | DList pair -> coerce_key_value_pair_to_legacy_object pair
+                | DList pair -> User_db.coerce_key_value_pair_to_legacy_object pair
                 | _ -> Exception.internal "bad fetch")
                (* TODO(ian): Maybe/Option *)
              | _ -> DNull)
@@ -227,20 +190,8 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            (match User_db.get_all state db with
-             | DList pairs ->
-               pairs
-               |> List.map
-                 ~f:(function
-                     | DList pair ->
-                       coerce_key_value_pair_to_legacy_object pair
-                     | _ ->
-                        Exception.internal
-                          "bad format from internal fetch, unable to coerce to legacy format")
-               |> DList
-             | _ ->
-               Exception.internal
-                 "bad format from internal fetch, unable to coerce to legacy format")
+            let result = User_db.get_all state db in
+            User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
           | args -> fail args)
   ; pr = None
   ; ps = true
