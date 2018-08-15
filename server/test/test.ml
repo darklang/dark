@@ -1082,7 +1082,7 @@ let t_db_get_many_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
-let t_db_query_works () =
+let t_db_query_works_with_many () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, 11, 12)
@@ -1167,7 +1167,7 @@ let suite =
   ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
   ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
   ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
-  ; "DB::query_v1 works", `Quick, t_db_query_works
+  ; "DB::query_v1 works with many items", `Quick, t_db_query_works_with_many
   ]
 
 let () =
