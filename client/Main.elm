@@ -558,6 +558,7 @@ processAutocompleteMods m mods =
         mods
       focus = case unwrapCursorState m.cursorState of
                 Entering _ -> AC.focusItem complete.index
+                SelectingCommand _ _ -> AC.focusItem complete.index
                 _ -> Cmd.none
       _ = if m.integrationTestState /= NoIntegrationTest
           then
