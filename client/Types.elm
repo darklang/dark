@@ -229,6 +229,12 @@ type Keyword = KLet
              | KIf
              | KLambda
 
+type alias Command = { name: String
+                     , modification : Modification
+                     , doc : String
+                     , shortcut : String
+                     }
+
 type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
@@ -236,7 +242,7 @@ type AutocompleteItem = ACFunction Function
                       | ACLiteral Literal
                       | ACOmniAction OmniAction
                       | ACKeyword Keyword
-                      | ACCommand String
+                      | ACCommand Command
 
 type alias Target = (TLID, PointerData)
 type AutocompleteMod = ACSetQuery String
