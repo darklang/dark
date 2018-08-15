@@ -31,6 +31,7 @@ tlidOf s =
         Filling tlid _ -> Just tlid
     Deselected -> Nothing
     Dragging _ _ _ _ -> Nothing
+    SelectingCommand tlid _ -> Just tlid
 
 idOf : CursorState -> Maybe ID
 idOf s =
@@ -42,6 +43,7 @@ idOf s =
         Filling _ id  -> Just id
     Deselected -> Nothing
     Dragging _ _ _ _ -> Nothing
+    SelectingCommand _ id -> id
 
 
 --------------------------------------

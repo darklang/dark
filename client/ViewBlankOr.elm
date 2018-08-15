@@ -321,6 +321,17 @@ viewBlankOr htmlFn pt vs c bo =
               ([ ViewEntry.entryHtml
                   allowStringEntry stringEntryWidth placeholder vs.ac] ++ (viewLiveValue vs))
       else thisText
+
+    SelectingCommand tlid mId ->
+      if mId == Just (B.toID bo)
+      then
+        Html.div
+          [Attrs.class "selecting-command"]
+          [ thisText
+          , ViewEntry.entryHtml StringEntryNotAllowed StringEntryNormalWidth "command" vs.ac]
+      else
+        thisText
+
     _ -> thisText
 
 

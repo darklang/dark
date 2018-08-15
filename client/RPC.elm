@@ -396,6 +396,8 @@ encodeCursorState cs =
   case cs of
     Selecting tlid mId ->
       ev "Selecting" [encodeTLID tlid, JSEE.maybe encodeID mId]
+    SelectingCommand tlid mId ->
+      ev "SelectingCommand" [encodeTLID tlid, JSEE.maybe encodeID mId]
     Entering (Creating pos) ->
       ev "Entering" [ev "Creating" [encodePos pos]]
     Entering (Filling tlid id) ->

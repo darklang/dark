@@ -83,6 +83,7 @@ type alias HasMoved = Bool
 type CursorState = Selecting TLID (Maybe ID)
                  | Entering EntryCursor
                  | Dragging TLID VPos HasMoved CursorState
+                 | SelectingCommand TLID (Maybe ID)
                  | Deselected
 
 
@@ -489,6 +490,7 @@ type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
 type Modification = Error String
                   | ClearError
                   | Select TLID (Maybe ID)
+                  | SelectCommand TLID (Maybe ID)
                   | SetHover ID
                   | ClearHover ID
                   | Deselect
