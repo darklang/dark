@@ -65,10 +65,7 @@ viewCanvas m =
           case m.currentPage of
             Toplevels _ -> [xaxis, yaxis]
             Fn _ _ -> []
-        routing =
-          case m.currentPage of
-            Toplevels _ -> [ViewRoutingTable.viewRoutingTable m]
-            Fn _ _ -> []
+        routing = [ViewRoutingTable.viewRoutingTable m]
         allDivs = axes ++ routing ++ asts ++ entry
     in
         Html.div [Attrs.id "canvas"] allDivs
