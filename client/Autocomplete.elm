@@ -620,7 +620,7 @@ asName aci =
     ACField name -> name
     ACVariable name -> name
     ACExtra name -> name
-    ACCommand name -> (":" ++ name)
+    ACCommand command -> (":" ++ command.name)
     ACLiteral lit -> lit
     ACOmniAction ac ->
       case ac of
