@@ -405,8 +405,8 @@ updateMod mod (m, cmd) =
         in
         m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
 
-      SelectCommand tlid mId ->
-        let m2 = { m | cursorState = SelectingCommand tlid mId }
+      SelectCommand tlid id ->
+        let m2 = { m | cursorState = SelectingCommand tlid id }
             (m3, acCmd) = processAutocompleteMods m2
                             [ ACEnableCommandMode
                             , ACRegenerate ]
@@ -845,13 +845,16 @@ update_ msg m =
                 else
                   NoChange
               Key.Unknown c -> -- semicolon
-                if event.key == Just ":"
-                then
-                  Many [ SelectCommand tlid mId
-                       , AutocompleteMod <| ACSetQuery ":"
-                       ]
-                else
-                  NoChange
+                case mId of
+                  Nothing -> NoChange
+                  Just id ->
+                    if event.key == Just ":"
+                    then
+                      Many [ SelectCommand tlid id
+                           , AutocompleteMod <| ACSetQuery ":"
+                           ]
+                    else
+                      NoChange
               _ -> NoChange
 
           Entering cursor ->
@@ -1043,12 +1046,12 @@ update_ msg m =
                   _ -> NoChange
 
 
-          SelectingCommand tlid mId ->
+          SelectingCommand tlid id ->
             case event.keyCode of
               Key.Escape ->
-                Commands.endCommandExecution m tlid mId
+                Commands.endCommandExecution m tlid id
               Key.Enter ->
-                Commands.executeCommand m tlid mId (AC.highlighted m.complete)
+                Commands.executeCommand m tlid id (AC.highlighted m.complete)
               Key.P ->
                 if event.ctrlKey
                 then AutocompleteMod ACSelectUp
@@ -1233,22 +1236,14 @@ update_ msg m =
           case maybeSelectingID of
             Just selectingID ->
               if selectingID == targetID
-              then
-                NoChange
-              else
-                Select targetTLID (Just targetID)
+              then NoChange
+              else Select targetTLID (Just targetID)
             Nothing ->
               Select targetTLID (Just targetID)
-        SelectingCommand _ maybeSelectingID ->
-          case maybeSelectingID of
-            Just selectingID ->
-              if selectingID == targetID
-              then
-                NoChange
-              else
-                Select targetTLID (Just targetID)
-            Nothing ->
-              Select targetTLID (Just targetID)
+        SelectingCommand _ selectingID ->
+          if selectingID == targetID
+          then NoChange
+          else Select targetTLID (Just targetID)
 
 
 
