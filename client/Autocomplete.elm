@@ -217,6 +217,7 @@ documentationForItem aci =
       if String.length f.description /= 0
       then Just f.description
       else Nothing
+    ACCommand c -> Just (c.doc ++ " (" ++ c.shortcut ++ ")")
     _ -> Nothing
 
 setTarget : Model -> Maybe (TLID, PointerData) -> Autocomplete -> Autocomplete
