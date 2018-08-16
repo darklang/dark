@@ -142,11 +142,12 @@ init {editorState, complete} location =
 
 
 -----------------------
--- ports, save Editor state in LocalStorage
+-- ports
 -----------------------
 port mousewheel : ((List Int) -> msg) -> Sub msg
-port recordError : (String -> msg) -> Sub msg
+port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
+port sendRollbar : String -> Cmd a
 
 -----------------------
 -- updates
@@ -326,7 +327,10 @@ updateMod mod (m, cmd) =
 
     in
     case mod of
-      Error e -> { m | error = Just e} ! []
+      DisplayError e -> { m | error = Just e} ! []
+      DisplayAndReportError e -> { m | error = Just e} ! [sendRollbar e]
+      ReportHttpError e ->
+        m ! [sendRollbar (toString e)]
       ClearError -> { m | error = Nothing} ! []
 
       RPC (ops, focus) ->
@@ -605,7 +609,7 @@ update_ msg m =
                 -- is a DB, then recreate the canvas with all the ops
                 -- (such that preprocess with the DB works). That way we
                 -- load from disk/db once, but still check server side.
-                then Error "Cannot undo/redo in locked DBs"
+                then DisplayError "Cannot undo/redo in locked DBs"
                 else undo
               Nothing -> undo
           Nothing -> NoChange
@@ -1348,7 +1352,7 @@ update_ msg m =
               ]
 
     SaveTestRPCCallback (Ok msg) ->
-      Error <| "Success! " ++ msg
+      DisplayError <| "Success! " ++ msg
 
     ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
       Many [ UpdateAnalysis new_analysis
@@ -1367,39 +1371,35 @@ update_ msg m =
     ------------------------
     -- plumbing
     ------------------------
-    RPCCallback _ _ (Err (Http.BadStatus error)) ->
-      Error <| error.body
+    RPCCallback _ _ (Err (Http.BadStatus error as httperror)) ->
+      Many [ DisplayError error.body, ReportHttpError httperror ]
 
     RPCCallback _ _ (Err (Http.NetworkError)) ->
-      Error <| "Network error: is the server running?"
+      DisplayError <| "Network error: is the server running?"
 
     RPCCallback _ _ (Err (Http.BadPayload err response)) ->
-      let { body } = response in
-      Error <| "RPC decoding error: " ++ err ++ " in " ++ body
+      DisplayAndReportError <| "RPC decoding error: " ++ err ++ " in " ++ response.body
 
     (RPCCallback _ _ _) as t ->
-      Error <| "Dark Client Error: unknown error: " ++ (toString t)
+      DisplayAndReportError <| "Dark Client Error: unknown error: " ++ (toString t)
 
     SaveTestRPCCallback (Err err) ->
-      Error <| "Error: " ++ (toString err)
+      DisplayError <| "Error: " ++ (toString err)
 
     (ExecuteFunctionRPCCallback _) as t ->
-      Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
+      DisplayAndReportError <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
 
     (InitialLoadRPCCallback _ _ _) as t ->
-      Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
-
-    GetAnalysisRPCCallback (Err (Http.NetworkError)) ->
-      NoChange
+      DisplayAndReportError <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
 
     GetAnalysisRPCCallback (Err (Http.BadStatus err)) ->
-      Error <| "Dark Client Get Analysis Error: " ++ err.status.message ++ " " ++ (toString err.status.code)
+      DisplayAndReportError <| "Dark Client Get Analysis Error: " ++ err.status.message ++ " " ++ (toString err.status.code)
 
     GetAnalysisRPCCallback (Err err) as t ->
-      Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
+      DisplayAndReportError <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
 
     JSError msg ->
-      Error ("Error in JS: " ++ msg)
+      DisplayError ("Error in JS: " ++ msg)
 
     WindowResize x y ->
       -- just receiving the subscription will cause a redraw, which uses
@@ -1517,7 +1517,7 @@ subscriptions m =
                else []
 
 
-      onError = [recordError JSError]
+      onError = [displayError JSError]
 
       visibility =
         [ PageVisibility.visibilityChanges PageVisibilityChange

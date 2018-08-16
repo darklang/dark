@@ -269,7 +269,7 @@ submit m cursor action =
       then NoChange
       else if result /= Nothing
       then
-        Error <| deMaybe "checked above" result
+        DisplayAndReportError <| deMaybe "checked above" result
       else
       let maybeH = TL.asHandler tl
           db = TL.asDB tl
@@ -330,7 +330,7 @@ submit m cursor action =
           if B.asF cn == Just value
           then Select tlid (Just id)
           else if DB.hasCol (db |> deMaybe "db") value
-          then Error ("Can't have two DB fields with the same name: " ++ value)
+          then DisplayError ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn
           then
             wrapID [SetDBColName tlid id value]
