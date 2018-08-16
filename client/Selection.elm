@@ -320,7 +320,7 @@ delete m tlid mId =
                       , RPC ([DeleteTL tlid], FocusNothing)
                       , Deselect
                       ]
-        TLFunc _ -> Error ("Cannot delete functions!")
+        TLFunc _ -> DisplayError "Cannot delete functions!"
     Just id ->
       let newID = gid ()
           focus = FocusExact tlid newID
