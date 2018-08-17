@@ -5,8 +5,10 @@ import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict exposing (Dict)
+import Http
 
 -- lib
+import Json.Encode.Extra as JSEE
 
 -- dark
 import Types exposing (..)
@@ -211,4 +213,36 @@ decodeException =
     |> JSDP.required "expected" (JSD.maybe JSD.string)
     |> JSDP.required "info" (JSD.dict JSD.string)
     |> JSDP.required "workarounds" (JSD.list JSD.string)
+
+
+encodeHttpError : Http.Error -> JSE.Value
+encodeHttpError e =
+  let encodeResponse r =
+      JSE.object [ ("url", JSE.string r.url)
+                 , ("status", JSE.object [ ("code", JSE.int r.status.code)
+                                         , ("message", JSE.string r.status.message)
+                                         ])
+                 , ("headers", JSEE.dict identity JSE.string r.headers)
+                 , ("body", JSE.string r.body)
+                 ]
+  in
+  case e of
+    Http.BadUrl url ->
+      JSE.object [ ("type", JSE.string "BadUrl")
+                 , ("url", JSE.string url)
+                 ]
+    Http.Timeout ->
+      JSE.object [ ("type", JSE.string "Timeout") ]
+    Http.NetworkError ->
+      JSE.object [ ("type", JSE.string "NetworkError") ]
+    Http.BadStatus response ->
+      JSE.object [ ("type", JSE.string "BadStatus")
+                 , ("response", encodeResponse response)
+                 ]
+    Http.BadPayload msg response ->
+      JSE.object [ ("type", JSE.string "BadPayload")
+                 , ("message", JSE.string msg)
+                 , ("response", encodeResponse response)
+                 ]
+
 

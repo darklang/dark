@@ -6,6 +6,8 @@ import Maybe
 
 -- lib
 import Json.Decode as JSD
+import Json.Encode as JSE
+import Json.Encode.Extra as JSEE
 import Http
 import Keyboard.Key as Key
 import Navigation
@@ -42,6 +44,7 @@ import Util
 import Pointer as P
 import Blank as B
 import AST
+import JSON
 import Selection
 import Sync
 import DB
@@ -147,7 +150,7 @@ init {editorState, complete} location =
 port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
-port sendRollbar : String -> Cmd a
+port sendRollbar : JSD.Value -> Cmd a
 
 -----------------------
 -- updates
@@ -328,9 +331,44 @@ updateMod mod (m, cmd) =
     in
     case mod of
       DisplayError e -> { m | error = Just e} ! []
-      DisplayAndReportError e -> { m | error = Just e} ! [sendRollbar e]
-      ReportHttpError e ->
-        m ! [sendRollbar (toString e)]
+      DisplayAndReportError e ->
+        let json = JSE.object [ ("message", JSE.string e)
+                              , ("url", JSE.null)
+                              , ("custom", JSE.object [])
+                              ]
+        in
+        { m | error = Just e} ! [sendRollbar json]
+      DisplayAndReportHttpError context e ->
+        let response =
+              case e of
+                Http.BadStatus r -> Just r
+                Http.BadPayload _ r -> Just r
+                _ -> Nothing
+            msg =
+              case e of
+                Http.BadUrl str  -> "Bad url: " ++ str
+                Http.Timeout -> "Timeout"
+                Http.NetworkError -> "Network error - is the server running?"
+                Http.BadStatus response -> "Bad status: " ++ response.status.message
+                Http.BadPayload msg _ -> "Bad payload: " ++ msg
+            url =
+              case e of
+                Http.BadUrl str  -> Just str
+                Http.Timeout -> Nothing
+                Http.NetworkError -> Nothing
+                Http.BadStatus response -> Just response.url
+                Http.BadPayload _ response -> Just response.url
+            shouldRollbar = e /= Http.NetworkError
+            json = JSE.object [ ("message"
+                                , JSE.string
+                                    (msg ++ " (" ++ context ++ ")"))
+                              , ("url", JSEE.maybe JSE.string url)
+                              , ("custom", JSON.encodeHttpError e)
+                              ]
+            cmds = if shouldRollbar then [sendRollbar json] else []
+        in
+        { m | error = Just msg } ! cmds
+
       ClearError -> { m | error = Nothing} ! []
 
       RPC (ops, focus) ->
@@ -1371,32 +1409,20 @@ update_ msg m =
     ------------------------
     -- plumbing
     ------------------------
-    RPCCallback _ _ (Err (Http.BadStatus error as httperror)) ->
-      Many [ DisplayError error.body, ReportHttpError httperror ]
-
-    RPCCallback _ _ (Err (Http.NetworkError)) ->
-      DisplayError <| "Network error: is the server running?"
-
-    RPCCallback _ _ (Err (Http.BadPayload err response)) ->
-      DisplayAndReportError <| "RPC decoding error: " ++ err ++ " in " ++ response.body
-
-    (RPCCallback _ _ _) as t ->
-      DisplayAndReportError <| "Dark Client Error: unknown error: " ++ (toString t)
+    RPCCallback _ _ (Err err) ->
+      DisplayAndReportHttpError "RPC" err
 
     SaveTestRPCCallback (Err err) ->
-      DisplayError <| "Error: " ++ (toString err)
+      DisplayError <| "Error: " ++ toString err
 
-    (ExecuteFunctionRPCCallback _) as t ->
-      DisplayAndReportError <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
+    ExecuteFunctionRPCCallback (Err err) ->
+      DisplayAndReportHttpError "ExecuteFunction" err
 
-    (InitialLoadRPCCallback _ _ _) as t ->
-      DisplayAndReportError <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
+    InitialLoadRPCCallback _ _ (Err err) ->
+      DisplayAndReportHttpError "InitialLoad" err
 
-    GetAnalysisRPCCallback (Err (Http.BadStatus err)) ->
-      DisplayAndReportError <| "Dark Client Get Analysis Error: " ++ err.status.message ++ " " ++ (toString err.status.code)
-
-    GetAnalysisRPCCallback (Err err) as t ->
-      DisplayAndReportError <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
+    GetAnalysisRPCCallback (Err err) ->
+      DisplayAndReportHttpError "GetAnalysis" err
 
     JSError msg ->
       DisplayError ("Error in JS: " ++ msg)
