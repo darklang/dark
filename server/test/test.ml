@@ -270,12 +270,13 @@ let t_undo () =
 
 let t_inserting_object_to_missing_col_gives_good_error () =
   clear_test_data ();
-  let check = fun (de: Exception.exception_data) ->
-    de.short = "Found but did not expect: [col]" in
-  check_exception "should get good error" ~check
-    ~f:(fun () ->
-      exec_handler "(DB::insert (obj (col (obj))) TestDB)"
-        ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
+  let result =
+    exec_handler "(DB::insert (obj (col (obj))) TestDB)"
+      ~ops:[Op.CreateDB (dbid, pos, "TestDB")]
+  in
+  AT.(check bool) "error is expected" true
+    (String.is_substring (Dval.as_string result)
+       ~substring:"Found but did not expect: [col]")
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
