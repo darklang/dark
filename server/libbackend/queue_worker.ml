@@ -85,11 +85,15 @@ let run execution_id : (unit, Exception.captured) Result.t =
                Ok ())
           with
           | e ->
+            (* exception occurred when processing an item,
+             * so put it back as an error *)
             let bt = Exception.get_backtrace () in
             ignore (Event_queue.put_back transaction event ~status:`Err);
             Error (bt, e)
       with
       | e ->
+        (* exception occurred while dequeuing,
+         * no item to put back *)
         let bt = Exception.get_backtrace () in
         Error (bt, e)
     )
