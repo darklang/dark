@@ -107,10 +107,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   module HandlerT = struct
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-    type n_dtdeprecated = Empty
-                        | Any
-                        [@@deriving eq, compare, show, yojson, sexp, bin_io]
-    and dtdeprecated = n_dtdeprecated or_blank
+    type dtdeprecated = int or_blank
                        [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
     type spec_types = { input : dtdeprecated
