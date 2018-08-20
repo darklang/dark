@@ -202,9 +202,9 @@ parseAst m str =
     ["{"] ->
       Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
-      if not (RT.isLiteral str)
-      then createFunction m str
-      else Just <| F eid (Value str)
+      if RT.isLiteral str
+      then Just <| F eid (Value str)
+      else createFunction m str
 
 type NextAction = StartThread | StayHere | GotoNext
 submit : Model -> EntryCursor -> NextAction -> Modification
