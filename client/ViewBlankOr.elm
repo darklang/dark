@@ -168,6 +168,12 @@ div vs configs content =
           Selecting _ (Just id) -> Just id
           _ -> Nothing
 
+      isCommandTarget =
+        case vs.cursorState of
+          SelectingCommand _ id ->
+            thisID == (Just id)
+          _ -> False
+
       selected =
         thisID == selectedID && ME.isJust thisID
 
@@ -192,6 +198,7 @@ div vs configs content =
       allClasses = classes
                   ++ idAttr
                   ++ (if selected then ["selected"] else [])
+                  ++ (if isCommandTarget then ["commandTarget"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
                   ++ (if incomplete then ["incomplete"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
