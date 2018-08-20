@@ -1077,7 +1077,7 @@ let fns : Lib.shortfn list = [
                   DStr (B64.decode ~alphabet:B64.default_alphabet s)
                 with
                 | Not_found_s _ | Caml.Not_found ->
-                  DError "Not a valid base64 string"))
+                  RT.error ~actual:(DStr s) "Not a valid base64 string"))
           | args -> fail args)
   ; pr = None
   ; ps = true
