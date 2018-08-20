@@ -1417,7 +1417,7 @@ let fns : Lib.shortfn list = [
               let f = fun a b ->
                 match (a, b) with
                   | (DList a, DList b) -> DList (List.append a b)
-                  | _ -> DIncomplete
+                  | _ -> RT.error ~actual:(DList [a; b]) "Flattening non-lists"
               in
               List.fold ~init:(DList []) ~f l
           | args -> fail args)
