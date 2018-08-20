@@ -11,7 +11,7 @@ let error
     ?(long="")
     (short: string) =
   Exception.raise_
-    DarkRuntime
+    UserCode
     ?bt
     ~actual:(actual |> Dval.dval_to_yojson |> Yojson.Safe.pretty_to_string)
     ~result:(result |> Dval.dval_to_yojson |> Yojson.Safe.pretty_to_string)
