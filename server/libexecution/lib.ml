@@ -53,7 +53,7 @@ let fail_fn (fnname: string) (fn:fn) (args:dval list) ?msg () : dval =
 
 
 let fail ?msg ((state, args): exec_state * dval list) : dval =
-  match state.fail_fn  with
+  match state.fail_fn with
   | Some fn -> fn ?msg ()
   | None -> DNull
 
