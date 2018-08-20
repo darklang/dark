@@ -71,6 +71,12 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
   in
   AT.check (AT.option AT.string) msg None e
 
+let check_error_contains (name: string) (result: dval) (substring: string) =
+  AT.(check bool) name true
+    (String.is_substring ~substring (Dval.as_string result))
+
+
+
 
 (* ------------------- *)
 (* Set up test data *)
@@ -270,13 +276,11 @@ let t_undo () =
 
 let t_inserting_object_to_missing_col_gives_good_error () =
   clear_test_data ();
-  let result =
-    exec_handler "(DB::insert (obj (col (obj))) TestDB)"
-      ~ops:[Op.CreateDB (dbid, pos, "TestDB")]
-  in
-  AT.(check bool) "error is expected" true
-    (String.is_substring (Dval.as_string result)
-       ~substring:"Found but did not expect: [col]")
+  check_error_contains "error is expected"
+    (exec_handler "(DB::insert (obj (col (obj))) TestDB)"
+      ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
+    "Found but did not expect: [col]"
+
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
@@ -289,9 +293,9 @@ let t_stdlib_works () =
   check_dval "uniqueBy2"
     (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> x))")
     (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
-  check_dval "base64decode"
+  check_error_contains "base64decode"
     (exec_ast "(String::base64Decode 'random string')")
-    (DError "Not a valid base64 string");
+    "Not a valid base64 string";
   ()
 
 
