@@ -1289,7 +1289,7 @@ update_ msg m =
       RPC ([DeleteFunction tlid], FocusNothing)
 
     RestoreToplevel tlid ->
-      RPC ([UndoTL tlid], FocusSame)
+      RPC ([UndoTL tlid], FocusNext tlid Nothing)
 
     -----------------
     -- RPCs stuff
