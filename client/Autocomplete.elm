@@ -21,6 +21,7 @@ import Pointer as P
 import Analysis
 import Toplevel as TL
 import AST
+import Commands
 
 ----------------------------
 -- Focus
@@ -148,6 +149,7 @@ init fns isAdmin =
   , value = ""
   , tipe = Nothing
   , target = Nothing
+  , isCommandMode = False
   }
 
 reset : Model -> Autocomplete -> Autocomplete
@@ -215,6 +217,7 @@ documentationForItem aci =
       if String.length f.description /= 0
       then Just f.description
       else Nothing
+    ACCommand c -> Just (c.doc ++ " (" ++ c.shortcut ++ ")")
     _ -> Nothing
 
 setTarget : Model -> Maybe (TLID, PointerData) -> Autocomplete -> Autocomplete
@@ -232,7 +235,15 @@ update m mod a =
      ACSelectUp -> selectUp a
      ACSetTarget target -> setTarget m target a
      ACRegenerate -> regenerate m a
+     ACEnableCommandMode -> enableCommandMode m a
   )
+
+------------------------------------
+-- Commands
+------------------------------------
+enableCommandMode : Model -> Autocomplete -> Autocomplete
+enableCommandMode m a =
+  { a | isCommandMode = True }
 
 ------------------------------------
 -- Dynamic Items
@@ -587,12 +598,20 @@ generateFromModel m a =
           List.map ACKeyword [KLet, KIf, KLambda]
         else
           []
+      regular =
+        List.map ACExtra extras
+        ++ List.map ACVariable varnames
+        ++ keywords
+        ++ functions
+        ++ fields
+
+      commands =
+        List.map ACCommand Commands.commands
     in
-    List.map ACExtra extras
-    ++ List.map ACVariable varnames
-    ++ keywords
-    ++ functions
-    ++ fields
+        if a.isCommandMode
+        then commands
+        else regular
+
 
 asName : AutocompleteItem -> String
 asName aci =
@@ -601,6 +620,7 @@ asName aci =
     ACField name -> name
     ACVariable name -> name
     ACExtra name -> name
+    ACCommand command -> (":" ++ command.name)
     ACLiteral lit -> lit
     ACOmniAction ac ->
       case ac of
@@ -626,6 +646,7 @@ asTypeString item =
     ACField _ -> "field"
     ACVariable _ -> "variable"
     ACExtra _ -> ""
+    ACCommand _ -> ""
     ACLiteral lit ->
       let tipe = lit |> RT.tipeOf |> RT.tipe2str in
       tipe ++ " literal"
@@ -661,3 +682,14 @@ findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
   parameters
   |> LE.find (\p -> RT.isCompatible p.tipe tipe)
+
+---------------------------
+-- Modifications
+---------------------------
+selectSharedPrefix: Autocomplete -> Modification
+selectSharedPrefix ac =
+  let sp = sharedPrefix ac in
+  if sp == "" then NoChange
+  else
+    AutocompleteMod <| ACSetQuery sp
+

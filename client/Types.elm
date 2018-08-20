@@ -83,6 +83,7 @@ type alias HasMoved = Bool
 type CursorState = Selecting TLID (Maybe ID)
                  | Entering EntryCursor
                  | Dragging TLID VPos HasMoved CursorState
+                 | SelectingCommand TLID ID
                  | Deselected
 
 
@@ -209,6 +210,7 @@ type alias Autocomplete = { functions : List Function
                           , value : String
                           , target : Maybe (TLID, PointerData)
                           , tipe : Maybe Tipe
+                          , isCommandMode : Bool
                           }
 
 type StringEntryPermission = StringEntryAllowed
@@ -227,6 +229,12 @@ type Keyword = KLet
              | KIf
              | KLambda
 
+type alias Command = { name: String
+                     , action : Model -> Toplevel -> PointerData -> Modification
+                     , doc : String
+                     , shortcut : String
+                     }
+
 type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
@@ -234,6 +242,7 @@ type AutocompleteItem = ACFunction Function
                       | ACLiteral Literal
                       | ACOmniAction OmniAction
                       | ACKeyword Keyword
+                      | ACCommand Command
 
 type alias Target = (TLID, PointerData)
 type AutocompleteMod = ACSetQuery String
@@ -243,6 +252,7 @@ type AutocompleteMod = ACSetQuery String
                      | ACSelectUp
                      | ACSetTarget (Maybe Target)
                      | ACRegenerate
+                     | ACEnableCommandMode
                      -- | ACFilterByParamType Tipe NodeList
 
 
@@ -489,6 +499,7 @@ type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
 type Modification = Error String
                   | ClearError
                   | Select TLID (Maybe ID)
+                  | SelectCommand TLID ID
                   | SetHover ID
                   | ClearHover ID
                   | Deselect

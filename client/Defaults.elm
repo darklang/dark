@@ -62,6 +62,7 @@ defaultModel = { error = Nothing
                             , value = ""
                             , tipe = Nothing
                             , target = Nothing
+                            , isCommandMode = False
                             }
                , userFunctions = []
                , builtInFunctions = []
