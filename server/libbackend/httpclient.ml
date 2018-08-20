@@ -155,7 +155,7 @@ let http_call (url: string) (query_params : (string * string list) list)
                ; "error", error
                ; "response", body]
     in
-    Exception.api ~info ("Bad response code (" ^ (string_of_int code) ^ ") in call to " ^ url);
+    Exception.user ~info ("Bad response code (" ^ (string_of_int code) ^ ") in call to " ^ url);
   else
     (body, !result_headers)
 
