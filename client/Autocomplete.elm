@@ -273,6 +273,8 @@ qLiteral s =
       then Just (ACLiteral "true")
       else if String.startsWith (String.toLower s) "false"
       then Just (ACLiteral "false")
+      else if String.startsWith (String.toLower s) "nothing"
+      then Just (ACLiteral "Nothing")
       else Nothing
     else Nothing
 

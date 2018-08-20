@@ -482,6 +482,8 @@ let parse (str : string) : dval =
        |> String.sub ~pos:1 ~len:(len - 2)
        |> Util.string_replace "\\\"" "\""
        |> fun s -> DStr s
+  else if String.Caseless.equal "nothing" str
+  then DOption OptNothing
   else
     try
       (* TODO: doesn't handle nested sequences at all unless they're
