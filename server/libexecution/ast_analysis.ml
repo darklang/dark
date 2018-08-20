@@ -486,11 +486,10 @@ and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argva
 and exec_fn ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
-  let paramsIncomplete args =
+  let paramsIncomplete args = List.exists args ~f:((=) DIncomplete) in
+  let paramsErroneous args =
     List.exists args
-      ~f:(fun x ->
-          match x with
-          | DIncomplete -> true
+      ~f:(function
           (* HACK: going to hardcode this special case because I don't trust myself
            * to enumerate the consequences of making all DErrors `complete`. In general
            * we have an 'incomplete problem', especially intersecting with production
@@ -510,6 +509,8 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 
     if paramsIncomplete arglist
     then DIncomplete
+    else if paramsErroneous arglist
+    then DError "Fn called with an error as an argument"
     else
       let executing_unsafe = not fn.preview_execution_safe
                              && (List.mem ~equal:(=) state.exe_fn_ids id
@@ -567,6 +568,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 
 
   | UserCreated (tlid, body) ->
+    (* TODO: unify with InProcess, esp paramsIncomplete and paramsErroneous *)
     let args_with_dbs =
       let db_dvals =
         state.dbs
