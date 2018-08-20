@@ -72,7 +72,10 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
   AT.check (AT.option AT.string) msg None e
 
 let check_error_contains (name: string) (result: dval) (substring: string) =
-  AT.(check bool) name true
+  let strresult = Dval.as_string result in
+  AT.(check bool)
+    (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
+    true
     (String.is_substring ~substring (Dval.as_string result))
 
 
@@ -427,10 +430,9 @@ let t_stored_event_roundtrip () =
 (*   () *)
 
 let t_bad_ssl_cert _ =
-  check_exception "should get bad_ssl"
-    ~f:(fun () ->
-        exec_ast
-          "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
+  check_error_contains "should get bad_ssl"
+    (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
+    "Bad HTTP request: Peer certificate cannot be authenticated with given CA certificates"
 
 
 let t_hmac_signing _ =
@@ -712,7 +714,7 @@ let t_curl_file_urls () =
        contents ended up in the error message. Now we've restricted the URL
        protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
        is even sent. *)
-    (Some "CURLE_UNSUPPORTED_PROTOCOL")
+    (Some "Unsupported protocol")
     (try
        ignore (Httpclient.http_call "file://localhost/etc/passwd"
                  [] Httpclient.GET [] "");
