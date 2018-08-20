@@ -154,7 +154,7 @@ body #grid * {
 
   &.selected {
     background-color: @selected-background;
-    outline: 0.4px darken(magenta, 25%) dotted;
+    outline: 0.4px darken(@cyan, 25%) dotted;
   }
 
 
@@ -167,7 +167,7 @@ body #grid * {
   }
 
   .selected {
-    outline: 0.5px magenta solid;
+    outline: 0.5px @cyan solid;
   }
 
   .blank {
@@ -182,12 +182,12 @@ body #grid * {
     position: absolute;
     width: 100%;
     .selected-value {
-      background: @black2;
+      background: @black1;
       color: magenta;
       display: block;
-      font-size: 0.8333em;
+      font-size: 0.6333em;
       max-width: 100%;
-      outline: 0.4px @green solid;
+      padding: 4px;
 
       width: max-content;
       word-break: break-all;
@@ -1135,10 +1135,12 @@ body #grid * {
   outline: 0.4px @green dotted;
   position: absolute;
   right: calc(~"100% + 20px");
+  padding: 4px;
   white-space: pre-wrap;
   width: max-content;
   word-break: break-all;
   word-wrap: break-word;
+  font-size: 0.6333em;
 }
 
 .nested-flag {
