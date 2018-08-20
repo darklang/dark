@@ -170,6 +170,10 @@ body #grid * {
     outline: 0.5px @cyan solid;
   }
 
+  .commandTarget {
+    .selected;
+  }
+
   .blank {
     min-width: 8ch;
     .blank-box-style;
@@ -835,6 +839,11 @@ body #grid * {
 .ast .entry form {
   position: relative;
   margin-top: 0px;
+}
+
+.selecting-command .entry {
+  margin-top: 4px;
+  display: block;
 }
 
 

@@ -168,6 +168,12 @@ div vs configs content =
           Selecting _ (Just id) -> Just id
           _ -> Nothing
 
+      isCommandTarget =
+        case vs.cursorState of
+          SelectingCommand _ id ->
+            thisID == (Just id)
+          _ -> False
+
       selected =
         thisID == selectedID && ME.isJust thisID
 
@@ -192,6 +198,7 @@ div vs configs content =
       allClasses = classes
                   ++ idAttr
                   ++ (if selected then ["selected"] else [])
+                  ++ (if isCommandTarget then ["commandTarget"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
                   ++ (if incomplete then ["incomplete"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
@@ -324,6 +331,17 @@ viewBlankOr htmlFn pt vs c bo =
                     allowStringEntry stringEntryWidth placeholder vs.ac] ++ (viewLiveValue vs))
         else Html.text vs.ac.value
       else thisText
+
+    SelectingCommand tlid id ->
+      if id == B.toID bo
+      then
+        Html.div
+          [Attrs.class "selecting-command"]
+          [ thisText
+          , ViewEntry.entryHtml StringEntryNotAllowed StringEntryNormalWidth "command" vs.ac]
+      else
+        thisText
+
     _ -> thisText
 
 

@@ -31,6 +31,7 @@ import DarkKeyboard
 import Refactor exposing (WrapLoc(..))
 import Runtime as RT
 import Entry
+import Commands
 import Autocomplete as AC
 import Viewport
 import FeatureFlags
@@ -404,6 +405,15 @@ updateMod mod (m, cmd) =
         in
         m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
 
+      SelectCommand tlid id ->
+        let m2 = { m | cursorState = SelectingCommand tlid id }
+            (m3, acCmd) = processAutocompleteMods m2
+                            [ ACEnableCommandMode
+                            , ACRegenerate ]
+        in
+        m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
+
+
       SetGlobalVariables globals ->
         let m2 = { m | globals = globals } in
         processAutocompleteMods m2 [ ACRegenerate ]
@@ -496,7 +506,6 @@ updateMod mod (m, cmd) =
         in
         processAutocompleteMods m3 [ ACRegenerate ]
 
-
       SetUnlockedDBs unlockedDBs ->
         { m | unlockedDBs = unlockedDBs } ! []
 
@@ -549,6 +558,7 @@ processAutocompleteMods m mods =
         mods
       focus = case unwrapCursorState m.cursorState of
                 Entering _ -> AC.focusItem complete.index
+                SelectingCommand _ _ -> AC.focusItem complete.index
                 _ -> Cmd.none
       _ = if m.integrationTestState /= NoIntegrationTest
           then
@@ -744,7 +754,7 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfCond
+                      Refactor.wrap WIfCond m tl pd
                 else if event.ctrlKey
                 then
                   let mPd = Maybe.map (TL.findExn tl) mId in
@@ -789,7 +799,7 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WLetBody
+                      Refactor.wrap WLetBody m tl pd
                 else
                   NoChange
               Key.L ->
@@ -805,7 +815,7 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WLetRHS
+                      Refactor.wrap WLetRHS m tl pd
                 else
                   NoChange
               Key.I ->
@@ -815,14 +825,14 @@ update_ msg m =
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfElse
+                      Refactor.wrap WIfElse m tl pd
                 else if event.ctrlKey
                 then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfThen
+                      Refactor.wrap WIfThen m tl pd
                 else
                   NoChange
               Key.E ->
@@ -835,6 +845,17 @@ update_ msg m =
                       Refactor.toggleOnRail m tl pd
                 else
                   NoChange
+              Key.Unknown c -> -- semicolon
+                case mId of
+                  Nothing -> NoChange
+                  Just id ->
+                    if event.key == Just ":"
+                    then
+                      Many [ SelectCommand tlid id
+                           , AutocompleteMod <| ACSetQuery ":"
+                           ]
+                    else
+                      NoChange
               _ -> NoChange
 
           Entering cursor ->
@@ -973,10 +994,7 @@ update_ msg m =
                 Key.Up -> AutocompleteMod ACSelectUp -- NB: see `stopKeys` in ui.html
                 Key.Down -> AutocompleteMod ACSelectDown -- NB: see `stopKeys` in ui.html
                 Key.Right ->
-                  let sp = AC.sharedPrefix m.complete in
-                  if sp == "" then NoChange
-                  else
-                    AutocompleteMod <| ACSetQuery sp
+                  AC.selectSharedPrefix m.complete
                 Key.Backspace ->
                   case cursor of
                     Filling tlid id ->
@@ -1029,8 +1047,27 @@ update_ msg m =
                   _ -> NoChange
 
 
-          Dragging _ _ _ _ -> NoChange
+          SelectingCommand tlid id ->
+            case event.keyCode of
+              Key.Escape ->
+                Commands.endCommandExecution m tlid id
+              Key.Enter ->
+                Commands.executeCommand m tlid id (AC.highlighted m.complete)
+              Key.P ->
+                if event.ctrlKey
+                then AutocompleteMod ACSelectUp
+                else NoChange
+              Key.N ->
+                if event.ctrlKey
+                then AutocompleteMod ACSelectDown
+                else NoChange
+              Key.Up -> AutocompleteMod ACSelectUp -- NB: see `stopKeys` in ui.html
+              Key.Down -> AutocompleteMod ACSelectDown -- NB: see `stopKeys` in ui.html
+              Key.Right -> AC.selectSharedPrefix m.complete
 
+              _ -> NoChange
+
+          Dragging _ _ _ _ -> NoChange
 
     ------------------------
     -- entry node
@@ -1200,12 +1237,15 @@ update_ msg m =
           case maybeSelectingID of
             Just selectingID ->
               if selectingID == targetID
-              then
-                NoChange
-              else
-                Select targetTLID (Just targetID)
+              then NoChange
+              else Select targetTLID (Just targetID)
             Nothing ->
               Select targetTLID (Just targetID)
+        SelectingCommand _ selectingID ->
+          if selectingID == targetID
+          then NoChange
+          else Select targetTLID (Just targetID)
+
 
 
     BlankOrDoubleClick targetTLID targetID _ ->
@@ -1219,6 +1259,8 @@ update_ msg m =
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
         Selecting selectingTLID _ ->
+          Select targetTLID Nothing
+        SelectingCommand selectingTLID _ ->
           Select targetTLID Nothing
         Deselected ->
           Select targetTLID Nothing
