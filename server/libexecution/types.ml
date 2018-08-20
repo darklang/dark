@@ -173,7 +173,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
        relying on an incomplete must itself be incomplete.
 
        Some examples:
-       - calling a function with an incomplete as a parameter in an
+       - calling a function with an incomplete as a parameter is an
          incomplete function call.
        - an if statement with an incomplete in the cond must be incomplete.
 
