@@ -546,16 +546,21 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
               | Some (result, _ts) -> result
               | _ -> DIncomplete)
          with
+         | Exception.DarkException de as e when de.tipe = UserCode ->
+           (* These are exceptions that come from an RT.error, which is all
+            * usercode problems. Non user-code problems should use different
+            * exception types.
+            *)
+           let result = Dval.exception_to_dval e in
+           maybe_store_result result;
+           result
          | e ->
-           (* After the rethrow, this gets eventually caught then shown
-            * to the user as a Dark Internal Exception. It's an internal
-            * exception because we didn't anticipate the problem, give
-            * it a nice error message, etc. It'll appear in Rollbar as
-            * "Unknown Err".  *)
-           Exception.reraise_after e
-             (fun bt ->
-               maybe_store_result (Dval.exception_to_dval e);
-             ))
+           (* After the rethrow, this gets eventually caught then shown to the
+            * user as a Dark Internal Exception. It's an internal exception
+            * because we didn't anticipate the problem, give it a nice error
+            * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
+            * this, give it a nice exception via RT.error.  *)
+           Exception.reraise e)
       in
       maybe_store_result result;
       result
