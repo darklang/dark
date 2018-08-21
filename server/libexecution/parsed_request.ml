@@ -27,11 +27,19 @@ let body_parser_type headers =
   then Form
   else Unknown
 
-let parser_fn p =
+let parser_fn p str =
   match p with
-  | Json -> Dval.parse
-  | Form -> Dval.from_form_encoding
-  | Unknown -> Dval.parse
+  | Json ->
+    (match Dval.parse_basic_json str with
+     | Some dv -> dv
+     | None ->
+       Exception.user ~actual:str "Invalid json")
+  | Form -> Dval.from_form_encoding str
+  | Unknown ->
+    (match Dval.parse_basic_json str with
+     | Some dv -> dv
+     | None ->
+       Exception.user ~actual:str ("Unknown Content-type -- we assumed application/json but invalid JSON was sent"))
 
 let parsed_body headers reqbody =
   let bdval =
