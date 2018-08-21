@@ -563,9 +563,13 @@ let server () =
         Log.erroR real_err ~bt ~params:["execution_id", Log.dump execution_id];
 
         let user_err =
-          if include_internals
-          then real_err
-          else "Dark Internal Error"
+          match e with
+          | Exception.DarkException e when e.tipe = EndUser ->
+            e.short
+          | _ ->
+            if include_internals
+            then real_err
+            else "Dark Internal Error"
         in
         let resp_headers = Cohttp.Header.of_list [cors] in
         respond ~resp_headers ~execution_id `Internal_server_error user_err

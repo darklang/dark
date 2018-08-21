@@ -37,6 +37,7 @@ type exception_tipe = DarkServer (* error while talking to the server *)
                     | DarkStorage (* error in User_db handling *)
                     | DarkClient (* Error made by client *)
                     | UserCode
+                    | EndUser
                     [@@deriving show, eq, yojson, sexp]
 
 let should_log (et: exception_tipe) : bool =
@@ -45,6 +46,7 @@ let should_log (et: exception_tipe) : bool =
   | DarkStorage -> true
   | DarkClient -> true
   | UserCode -> false
+  | EndUser -> false
 
 type exception_data = { short : string
                       ; long : string option
@@ -102,6 +104,7 @@ let internal = raise_ DarkServer
 let client = raise_ DarkClient
 let user = raise_ UserCode
 let storage = raise_ DarkStorage
+let enduser = raise_ EndUser
 
 let exn_to_string (e: exn) : string =
   match e with
