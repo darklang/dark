@@ -6,6 +6,8 @@ import Maybe
 
 -- lib
 import Json.Decode as JSD
+import Json.Encode as JSE
+import Json.Encode.Extra as JSEE
 import Http
 import Keyboard.Key as Key
 import Navigation
@@ -43,6 +45,7 @@ import Util
 import Pointer as P
 import Blank as B
 import AST
+import JSON
 import Selection
 import Sync
 import DB
@@ -143,11 +146,12 @@ init {editorState, complete} location =
 
 
 -----------------------
--- ports, save Editor state in LocalStorage
+-- ports
 -----------------------
 port mousewheel : ((List Int) -> msg) -> Sub msg
-port recordError : (String -> msg) -> Sub msg
+port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
+port sendRollbar : JSD.Value -> Cmd a
 
 -----------------------
 -- updates
@@ -327,7 +331,45 @@ updateMod mod (m, cmd) =
 
     in
     case mod of
-      Error e -> { m | error = Just e} ! []
+      DisplayError e -> { m | error = Just e} ! []
+      DisplayAndReportError e ->
+        let json = JSE.object [ ("message", JSE.string e)
+                              , ("url", JSE.null)
+                              , ("custom", JSE.object [])
+                              ]
+        in
+        { m | error = Just e} ! [sendRollbar json]
+      DisplayAndReportHttpError context e ->
+        let response =
+              case e of
+                Http.BadStatus r -> Just r
+                Http.BadPayload _ r -> Just r
+                _ -> Nothing
+            msg =
+              case e of
+                Http.BadUrl str  -> "Bad url: " ++ str
+                Http.Timeout -> "Timeout"
+                Http.NetworkError -> "Network error - is the server running?"
+                Http.BadStatus response -> "Bad status: " ++ response.status.message
+                Http.BadPayload msg _ -> "Bad payload: " ++ msg
+            url =
+              case e of
+                Http.BadUrl str  -> Just str
+                Http.Timeout -> Nothing
+                Http.NetworkError -> Nothing
+                Http.BadStatus response -> Just response.url
+                Http.BadPayload _ response -> Just response.url
+            shouldRollbar = e /= Http.NetworkError
+            json = JSE.object [ ("message"
+                                , JSE.string
+                                    (msg ++ " (" ++ context ++ ")"))
+                              , ("url", JSEE.maybe JSE.string url)
+                              , ("custom", JSON.encodeHttpError e)
+                              ]
+            cmds = if shouldRollbar then [sendRollbar json] else []
+        in
+        { m | error = Just msg } ! cmds
+
       ClearError -> { m | error = Nothing} ! []
 
       RPC (ops, focus) ->
@@ -615,7 +657,7 @@ update_ msg m =
                 -- is a DB, then recreate the canvas with all the ops
                 -- (such that preprocess with the DB works). That way we
                 -- load from disk/db once, but still check server side.
-                then Error "Cannot undo/redo in locked DBs"
+                then DisplayError "Cannot undo/redo in locked DBs"
                 else undo
               Nothing -> undo
           Nothing -> NoChange
@@ -1390,7 +1432,7 @@ update_ msg m =
               ]
 
     SaveTestRPCCallback (Ok msg) ->
-      Error <| "Success! " ++ msg
+      DisplayError <| "Success! " ++ msg
 
     ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
       Many [ UpdateAnalysis new_analysis
@@ -1409,39 +1451,23 @@ update_ msg m =
     ------------------------
     -- plumbing
     ------------------------
-    RPCCallback _ _ (Err (Http.BadStatus error)) ->
-      Error <| error.body
-
-    RPCCallback _ _ (Err (Http.NetworkError)) ->
-      Error <| "Network error: is the server running?"
-
-    RPCCallback _ _ (Err (Http.BadPayload err response)) ->
-      let { body } = response in
-      Error <| "RPC decoding error: " ++ err ++ " in " ++ body
-
-    (RPCCallback _ _ _) as t ->
-      Error <| "Dark Client Error: unknown error: " ++ (toString t)
+    RPCCallback _ _ (Err err) ->
+      DisplayAndReportHttpError "RPC" err
 
     SaveTestRPCCallback (Err err) ->
-      Error <| "Error: " ++ (toString err)
+      DisplayError <| "Error: " ++ toString err
 
-    (ExecuteFunctionRPCCallback _) as t ->
-      Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
+    ExecuteFunctionRPCCallback (Err err) ->
+      DisplayAndReportHttpError "ExecuteFunction" err
 
-    (InitialLoadRPCCallback _ _ _) as t ->
-      Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
+    InitialLoadRPCCallback _ _ (Err err) ->
+      DisplayAndReportHttpError "InitialLoad" err
 
-    GetAnalysisRPCCallback (Err (Http.NetworkError)) ->
-      NoChange
-
-    GetAnalysisRPCCallback (Err (Http.BadStatus err)) ->
-      Error <| "Dark Client Get Analysis Error: " ++ err.status.message ++ " " ++ (toString err.status.code)
-
-    GetAnalysisRPCCallback (Err err) as t ->
-      Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
+    GetAnalysisRPCCallback (Err err) ->
+      DisplayAndReportHttpError "GetAnalysis" err
 
     JSError msg ->
-      Error ("Error in JS: " ++ msg)
+      DisplayError ("Error in JS: " ++ msg)
 
     WindowResize x y ->
       -- just receiving the subscription will cause a redraw, which uses
@@ -1559,7 +1585,7 @@ subscriptions m =
                else []
 
 
-      onError = [recordError JSError]
+      onError = [displayError JSError]
 
       visibility =
         [ PageVisibility.visibilityChanges PageVisibilityChange

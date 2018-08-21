@@ -92,7 +92,7 @@ changeLocation m loc =
   case mPage of
     Just (Fn id pos) ->
       case Functions.find m id of
-        Nothing -> Error "No function"
+        Nothing -> DisplayError "No function"
         _ -> SetPage (Fn id pos)
     Just page -> SetPage page
     _ -> NoChange
