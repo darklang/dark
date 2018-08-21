@@ -83,11 +83,9 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* literals / variables *)
   | Sexp.Atom value ->
-    try
-      ignore (Dval.parse value);
-      f (Value value)
-    with e ->
-      f (Variable value)
+    match Dval.parse value with
+    | Some v -> f (Value value)
+    | None -> f (Variable value)
 
 let ast_for (ast: string) : expr =
   let quotes = (Re2.create_exn "'(.*)'") in
