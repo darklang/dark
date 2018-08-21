@@ -496,7 +496,9 @@ type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
 -----------------------------
 -- Modifications
 -----------------------------
-type Modification = Error String
+type Modification = DisplayAndReportHttpError String Http.Error
+                  | DisplayAndReportError String
+                  | DisplayError String
                   | ClearError
                   | Select TLID (Maybe ID)
                   | SelectCommand TLID ID

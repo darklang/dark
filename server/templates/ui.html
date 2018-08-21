@@ -62,9 +62,13 @@
          window.localStorage.setItem('editorState', editorState);
        })
 
+       elmapp.ports.sendRollbar.subscribe(function(obj) {
+         window.Rollbar.error(obj.message, obj.url, null, null, obj.custom);
+       })
+
        window.onerror = function (msg, url, line, col, error) {
          window.Rollbar.error(msg, error);
-         elmapp.ports.recordError.send(msg);
+         elmapp.ports.displayError.send(msg);
        };
 
        bundle.mousewheel(function(dx,dy, dz, ev){
