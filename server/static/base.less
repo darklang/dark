@@ -86,6 +86,7 @@ body #grid * {
   height: 100%;
   overflow: hidden;
   position: relative;
+  left: 330px;
   width: 100%;
   .node {
     position: absolute;
@@ -117,7 +118,12 @@ body #grid * {
 }
 
 #status {
+  min-height: 20px;
+  max-height: 50px;
+  overflow-y: scroll;
+
   &.error {
+    font-size: 0.7rem;
     color: @yellow;
     i.fa {
       padding-left: 10px;
@@ -243,9 +249,17 @@ body #grid * {
 //*************
 // Routing table
 //*************
-.viewing-table {
+
+.left-sidebar {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  height: calc(~"100% - 40px");
+  overflow-y: scroll;
   background-color: @black2;
-  border: 2px solid @blue;
+}
+
+.viewing-table {
   padding: 8px;
   position: relative;
   width: max-content;

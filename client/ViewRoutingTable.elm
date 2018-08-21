@@ -404,5 +404,4 @@ viewRoutingTable m =
                , nothingMouseEvent "mouseup"
                ]
                sections
-
-  in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
+  in Html.div [ Attrs.class "left-sidebar" ] [ html ]
