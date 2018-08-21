@@ -362,7 +362,7 @@ let t_case_insensitive_db_roundtrip () =
 
 
 let t_lambda_with_foreach () =
-  check_dval "lambda_wit_foreach"
+  check_dval "lambda_with_foreach"
     (DStr "SOME STRING")
     (exec_ast
        "(String::foreach 'some string'
