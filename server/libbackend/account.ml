@@ -395,6 +395,7 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcFhsLzhvQXJybjl5MFJVeEU0bWZ0dyRLZ1JpQUNMZm4xaG45TldWWnl6d2k1Ym1LYWNEZFJqaVlmMmRhZyt1aVFVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "tchang2017@gmail.com"
     ; name = "Tim Chang"};
+  (* end Horizons *)
   upsert_account
     { username = "jen"
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMWZ4MlNBc0tzOUNOYllMWEpSczBCUSRYMXZ3cEgrbVM3cUM4NWZhSEdMaklobUpjNDk0QVpQenhpbFRDdm1zZWlBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
@@ -415,5 +416,25 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkV1BrajJVWTd0eG1BYzFYd21NMHo5ZyRCcGFuOVBUSDZyRHBzenRybVZSOWF0ZUVZKytRY29uU2x6SjVjc3dvdERrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "elliot@venturemedias.com"
     ; name = "Elliot Nash"};
+  upsert_account
+    { username = "danielle"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZlhpcVdvc1FFbGVSN1B1K0xhZHl6QSQyU1FoZFgva2M0YUNqcjZFQ1VxMDBmN2RpeDB0bzBOM3hHRWl3ME5SblJFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "morrilldanielle@gmail.com"
+    ; name = "Danielle Morill"};
+  upsert_account
+    { username = "kevin"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTHdKMmlackdZem9MTkFCRE54U0gydyRBcjJsQ0NoNzJlTGRQbjgrTVNZbFpKOFNIKzF2eE1oL1RUbnF3SVUxNkpNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "morrillkevin@gmail.com"
+    ; name = "Kevin Morill"};
+  upsert_account
+    { username = "kate"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbEt3VWw0Y05vU0U4MWNyQmtyOUF5QSRxMllZaXJYdjhwdmZxKzZMUVM4WmsrUnJUb3I3YXQ4aU1MN2w5Mkl1NlpjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "kate.heddleston@gmail.com"
+    ; name = "Kate Heddleston"};
+  upsert_account
+    { username = "aaron"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZ1BmcDM5OStrTVR4VEdEU2dpamFmQSR0SjFsM3JtRUU1THhzc2ZYZXUyREVCblZIbXR2NHRLK3p1dEhvR0xJWHlvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "aaronjlevy@gmail.com"
+    ; name = "Aaron Levy"};
   ()
 
