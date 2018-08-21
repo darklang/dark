@@ -25,6 +25,10 @@ html {
 @blank-underline: 1px dashed @grey2;
 @code-font-size: 13.3333px;
 
+@vertical-spacing: 20px;
+@horizontal-padding: 8px;
+@icon-spacing: 6px;
+
 ::-webkit-scrollbar {
   -webkit-appearance: none;
   width: 7px;
@@ -102,7 +106,7 @@ body #grid * {
   padding: 4px;
 
   .specialButton {
-    margin-right: 8px;
+    margin-right: @horizontal-padding;
     padding: 4px;
     color: @orange;
 
@@ -118,7 +122,7 @@ body #grid * {
 }
 
 #status {
-  min-height: 20px;
+  min-height: @vertical-spacing;
   max-height: 50px;
   overflow-y: scroll;
 
@@ -250,9 +254,11 @@ body #grid * {
 // Routing table
 //*************
 
+@sidebar-width: 300px;
+
 .left-sidebar {
   position: absolute;
-  top: 20px;
+  top: @vertical-spacing;
   left: 0;
   height: calc(~"100% - 40px");
   overflow-y: scroll;
@@ -260,13 +266,13 @@ body #grid * {
 }
 
 .viewing-table {
-  padding: 8px;
+  padding: @horizontal-padding;
   position: relative;
   width: max-content;
 
   .routing-section {
     .header {
-      width: 300px;
+      width: @sidebar-width;
       color: @orange;
 
       .title {
@@ -288,10 +294,10 @@ body #grid * {
       }
     }
     &.deleted > .routing-section {
-      margin-left: 10px;
+      margin-left: @horizontal-padding;
 
       .header {
-        width: 290px;
+        width: @sidebar-width - @horizontal-padding;
       }
     }
 
@@ -378,7 +384,7 @@ body #grid * {
 
   .fa-lock, .fa-unlock {
     position: fixed;
-    margin-left: -20px;
+    margin-left: -1 * @vertical-spacing;
     margin-top: -22px;
     &.fa-lock {
       color: @red;
@@ -393,7 +399,7 @@ body #grid * {
     background-image: url('/static/_db.png');
     background-position: left center;
     background-repeat: no-repeat;
-    padding-left: 20px; /* Adjust according to image size to push text across. */
+    padding-left: @vertical-spacing; /* Adjust according to image size to push text across. */
     margin-bottom: 10px;
     margin: 0 auto; /* center the db name */
     &::before {
@@ -598,8 +604,8 @@ body #grid * {
 }
 
 .highlighted-indent() {
-  margin-left: 8px;
-  padding-left: 8px;
+  margin-left: @horizontal-padding;
+  padding-left: @horizontal-padding;
   border-left: 1px solid @orange;
 }
 
@@ -608,8 +614,8 @@ body #grid * {
 //*************
 .ast {
   font-size: 10pt;
-  padding-right: 8px;
-  padding-left: 8px;
+  padding-right: @horizontal-padding;
+  padding-left: @horizontal-padding;
   padding-top: 24px;
   padding-bottom: 24px;
   white-space: pre;
@@ -1099,7 +1105,7 @@ body #grid * {
 
 .expr-actions {
   position: absolute;
-  right: -20px;
+  right: -1 * @vertical-spacing;
   top: 50%;
   width: 16px;
 
@@ -1141,7 +1147,7 @@ body #grid * {
         content: attr(title);
         position: absolute;
         left: 0;
-        top: -20px;
+        top: -1 * @vertical-spacing;
         color: @blue;
         width: max-content;
       }
@@ -1183,10 +1189,6 @@ body #grid * {
   font-style: italic;
   font-size: 88%;
 }
-
-@vertical-spacing: 20px;
-@horizontal-padding: 8px;
-@icon-spacing: 6px;
 
 .flagged {
   .fa-flag {
@@ -1327,7 +1329,7 @@ body #grid * {
     }
     &.pick-a {
       color: @red;
-      margin-left: -20px;
+      margin-left: -1 * @vertical-spacing;
     }
   }
 
