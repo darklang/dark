@@ -39,7 +39,7 @@ let parser_fn p str =
     (match Dval.parse_basic_json str with
      | Some dv -> dv
      | None ->
-       Exception.user ~actual:str ("Unknown Content-type -- we assumed application/json but invalid JSON was sent"))
+       Exception.enduser ~actual:str ("Unknown Content-type -- we assumed application/json but invalid JSON was sent"))
 
 let parsed_body headers reqbody =
   let bdval =
