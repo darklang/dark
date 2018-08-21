@@ -973,7 +973,6 @@ let t_db_deprecated_belongs_to_works () =
                (List::head (DB::fetchAll MyDB)))"
   in
   let result = exec_handler ~ops ast in
-  ignore (Log.inspect "result" result);
   AT.check AT.int
   "Deprecated BelongsTo works"
   0 (match result with
