@@ -1119,6 +1119,22 @@ let t_db_deprecated_delete_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
+let t_db_deprecated_update_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
+  in
+  let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
+              (let update (DB::update (assoc one 'x' 'bar') MyDB)
+               (== 1 (List::length (DB::fetchAll MyDB)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
 
 (* ------------------- *)
 (* Test setup *)
@@ -1184,6 +1200,7 @@ let suite =
   ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
   ; "DB::query_v1 works with many items", `Quick, t_db_query_works_with_many
   ; "Deprecated delete works", `Quick, t_db_deprecated_delete_works
+  ; "Deprecated update works", `Quick, t_db_deprecated_update_works
   ]
 
 let () =
