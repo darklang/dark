@@ -155,7 +155,20 @@ to_obj ~state db (db_strings : string list)
   | [obj] ->
     let p_obj =
       match Dval.dval_of_json_string obj with
-      | DObj o -> o
+      | DObj o ->
+        (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
+         * data object itself. they got in the database on the `update` of
+         * an already present object as `update` did not remove the magic `id` field
+         * which had been injected on fetch. we need to remove magic `id` if we fetch them
+         * otherwise they will not type check on the way out any more and will not work.
+         * if they are re-saved with `update` they will have their ids removed.
+         * we consider an `id` key on the map to be a "magic" one if it is present in the map
+         * but not in the schema of the object. this is a deliberate weakening of our schema
+         * checker to deal with this case. *)
+        if not (List.exists ~f:((=) "id") (db |> cols_for |> List.map ~f:Tuple.T2.get1))
+        then Map.remove o "id"
+        else o
+        (* </HACK> *)
       | x -> Exception.internal ("failed format, expected DObj got: " ^ (obj))
     in
     (* <HACK>: because it's hard to migrate at the moment, we need to
@@ -327,9 +340,11 @@ and set ~state ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
             ; String key
             ; DvalmapJsonb merged];
   id
-and update ~state db (vals: dval_map) = (* deprecated: unneccessary in new world *)
+and update ~state db (vals: dval_map) =
+  (* deprecated: unneccessary in new world *)
   let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
-  let merged = type_check_and_upsert_dependents ~state db vals in
+  let removed = Map.remove vals "id" in
+  let merged = type_check_and_upsert_dependents ~state db removed in
   Db.run
     ~name:"user_update"
     "UPDATE user_data
