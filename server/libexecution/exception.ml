@@ -33,25 +33,18 @@ type exception_info = (string * string) list [@@deriving yojson, show]
 let exception_info_to_yojson info =
   `Assoc (List.map ~f:(fun (k,v) -> (k, `String v)) info)
 
-type exception_tipe = DarkServer
-                    | DarkStorage
-                    | DarkClient
-                    | DarkRuntime
-                    | Dependency
-                    | ExternalService
+type exception_tipe = DarkServer (* error while talking to the server *)
+                    | DarkStorage (* error in User_db handling *)
+                    | DarkClient (* Error made by client *)
                     | UserCode
-                    | Unknown [@@deriving show, eq, yojson, sexp]
+                    [@@deriving show, eq, yojson, sexp]
 
 let should_log (et: exception_tipe) : bool =
   match et with
   | DarkServer -> true
   | DarkStorage -> true
   | DarkClient -> true
-  | DarkRuntime -> true
-  | Dependency -> true
-  | ExternalService -> true
   | UserCode -> false
-  | Unknown -> true
 
 type exception_data = { short : string
                       ; long : string option
@@ -108,7 +101,6 @@ let raise_
 let internal = raise_ DarkServer
 let client = raise_ DarkClient
 let user = raise_ UserCode
-let api = raise_ ExternalService
 let storage = raise_ DarkStorage
 
 let exn_to_string (e: exn) : string =

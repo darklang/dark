@@ -44,7 +44,7 @@ let get_fn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn opti
 let get_fn_exn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn =
   match get_fn ~user_fns name with
   | Some fn -> fn
-  | None -> RT.error ("No function named '" ^ name ^ "' exists")
+  | None -> Exception.client ("No function named '" ^ name ^ "' exists")
 
 let init libs =
   List.iter ~f:add_short_fn (Libstd.fns @ Libstd2.fns @ libs )
