@@ -90,10 +90,14 @@ let v str = Filled (fid (), Value str)
 let b () = Blank (fid ())
 let f a = Filled (fid (), a)
 let fncall (a,b) = f (FnCall (a,b))
-let tlid = 7
-let dbid = 89
+let tlid = Int63.of_int 7
+let dbid = Int63.of_int 89
+let colnameid = Int63.of_int 11
+let coltypeid = Int63.of_int 12
+let colnameid2 = Int63.of_int 13
+let coltypeid2 = Int63.of_int 14
 let pos = {x=0;y=0}
-let execution_id = 6543
+let execution_id = Int63.of_int 6542
 
 let ast_for = Expr_dsl.ast_for
 
@@ -191,7 +195,7 @@ let exec_userfn (prog: string) : dval =
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
   let (c, state, env) = test_execution_data [SetFunction fn] in
-  Ast_analysis.execute_userfn state name 0 []
+  Ast_analysis.execute_userfn state name execution_id []
 
 
 
@@ -343,9 +347,9 @@ let t_case_insensitive_db_roundtrip () =
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
   let ops = [ Op.CreateDB (dbid, pos, "TestUnicode")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, colname)
-            ; Op.SetDBColType (dbid, 12, "Str")]
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, colname)
+            ; Op.SetDBColType (dbid, coltypeid, "Str")]
   in
   let ast =
       "(let _
@@ -512,9 +516,9 @@ let t_cron_just_ran () =
 let t_roundtrip_user_data () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let v 'lasd;04mr'
@@ -537,9 +541,9 @@ let t_escape_pg_escaping () =
 
 let t_nulls_allowed_in_db () =
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let old (DB::insert (obj (x null)) MyDB)
@@ -554,15 +558,15 @@ let t_nulls_added_to_missing_column () =
   (* Test for the hack that columns get null in all rows to start *)
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")]
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")]
   in
   ignore (exec_handler ~ops "(DB::insert (obj (x 'v')) MyDB)");
 
-  let ops = ops @ [ Op.AddDBCol (dbid, 13, 14)
-                  ; Op.SetDBColName (dbid, 13, "y")
-                  ; Op.SetDBColType (dbid, 14, "Str")]
+  let ops = ops @ [ Op.AddDBCol (dbid, colnameid2, coltypeid2)
+                  ; Op.SetDBColName (dbid, colnameid2, "y")
+                  ; Op.SetDBColType (dbid, coltypeid2, "Str")]
   in
   check_dval "equal_after_fetchall"
     (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))
@@ -604,9 +608,9 @@ let t_password_hashing_and_checking_works () =
 
 let t_password_hash_db_roundtrip () =
   let ops = [ Op.CreateDB (dbid, pos, "Passwords")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "password")
-            ; Op.SetDBColType (dbid, 12, "Password")]
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "password")
+            ; Op.SetDBColType (dbid, coltypeid, "Password")]
   in
   let ast = "(let pw (Password::hash 'password')
                (let _ (DB::insert (obj (password pw)) Passwords)
@@ -734,9 +738,9 @@ let t_authenticate_user () =
 let t_uuid_db_roundtrip () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "Ids")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "uu")
-            ; Op.SetDBColType (dbid, 12, "UUID")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "uu")
+            ; Op.SetDBColType (dbid, coltypeid, "UUID")
             ]
   in
   let ast = "(let i (Uuid::generate)

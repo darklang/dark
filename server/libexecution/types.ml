@@ -3,11 +3,29 @@ open Core_kernel
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type pos = { x:int; y:int }[@@deriving eq, compare, show, yojson, sexp, bin_io]
 
-type tlid = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
+(* We choose int63 so that we get the same type in jsoo, instead of 31 bit. Our
+ * client generated ids which are uint32, so we need to go bigger. *)
+type id = Int63.t [@@deriving eq, compare, show, sexp, bin_io]
 
-type host = string [@@deriving eq, compare, show, yojson, sexp, bin_io]
+let id_of_int = Int63.of_int
+let id_of_string = Int63.of_string
+let string_of_id = Int63.to_string
 
-type id = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
+let id_of_yojson (json: Yojson.Safe.json) : (id, string) result =
+  match json with
+  | `Int i -> Ok (id_of_int i)
+  | `Intlit i -> Ok (id_of_string i)
+  | _ -> Error "Types.id"
+
+let id_to_yojson (i: Int63.t) : Yojson.Safe.json =
+  `Intlit (Int63.to_string i)
+
+module IDTable = Int63.Table
+module IDMap = Int63.Map
+
+type host = string [@@deriving eq, compare, show, sexp, bin_io]
+
+type tlid = id [@@deriving eq, compare, show, yojson, sexp, bin_io]
 type id_list = id list [@@deriving eq, compare, show, yojson, sexp, bin_io]
 type 'a or_blank = Blank of id
                  | Filled of id * 'a
@@ -244,7 +262,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   module TipeMap = String.Map
   type tipe_map = tipe String.Map.t
 
-  module EnvMap = Int.Map
+  module EnvMap = IDMap
   type env_map = (dval_map list) EnvMap.t [@opaque]
 
   module Symtable = DvalMap
@@ -295,7 +313,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                     ; input_cursor : int
                     ; env: symtable
                     ; dbs: DbT.db list
-                    ; execution_id: int
+                    ; execution_id: id
                     ; load_fn_result :
                         function_desc -> dval list -> (dval * Time.t) option
                     ; store_fn_result :

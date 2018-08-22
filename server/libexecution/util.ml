@@ -4,12 +4,11 @@ open Core_kernel
 (* ------------------- *)
 (* random *)
 (* ------------------- *)
-let create_id  () : int =
-  Random.int (Int.pow 2 29)
+let create_id  () : Int63.t =
+  Int63.random Int63.max_value
 
 let create_uuid () : Uuidm.t =
   (Uuidm.v `V4)
-
 
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_all (String.Search_pattern.create search) ~in_:str ~with_:replace
