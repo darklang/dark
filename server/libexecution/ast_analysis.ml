@@ -235,7 +235,7 @@ let rec exec ~(engine: engine)
         let result = exe st exp in
         (match result with
          | DBlock blk -> blk [param]
-         | _ -> DIncomplete)
+         | _ -> Exception.internal "Should have got a block")
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
         let send_to_rail = should_send_to_rail fncall in
@@ -250,10 +250,7 @@ let rec exec ~(engine: engine)
            Dval.exception_to_dval e)
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
-      | Blank _ ->
-        (match param with
-         | DError _ -> DIncomplete (* dont repeat errors in threads *)
-         | _ -> param)
+      | Blank _ -> param
       | _ ->
         let _ = exe st exp in (* calculate the results inside this
                                  regardless *)
@@ -321,7 +318,6 @@ let rec exec ~(engine: engine)
      | Filled (_, Variable name) ->
        (match Symtable.find st name with
         | None -> DError ("There is no variable named: " ^ name)
-        | Some (DError _) -> DIncomplete
         | Some other -> other)
 
      | Filled (id, FnCallSendToRail (name, exprs)) ->
@@ -339,7 +335,7 @@ let rec exec ~(engine: engine)
           (* In the case of a preview trace execution, we want the 'if' expression as
            * a whole to evaluate to its correct value -- but we also want preview values
            * for _all_ sides of the if *)
-          (match (exe st cond) with
+          (match exe st cond with
            | DBool false | DNull ->
              (* execute the positive side just for the side-effect *)
              let _ = exe st ifbody in
@@ -351,7 +347,7 @@ let rec exec ~(engine: engine)
            | DError _ ->
              let _ = exe st ifbody in
              let _ = exe st elsebody in
-             DIncomplete
+             DError "Expected boolean, got error"
            | DErrorRail _ as er ->
              let _ = exe st ifbody in
              let _ = exe st elsebody in
@@ -363,12 +359,12 @@ let rec exec ~(engine: engine)
         | Real ->
           (* In the case of a 'real' evaluation, we shouldn't do unneccessary work and
            * as such should follow the proper evaluation semantics *)
-          (match (exe st cond) with
+          (match exe st cond with
            (* only false and 'null' are falsey *)
            | DBool false | DNull -> exe st elsebody
            | DIncomplete -> DIncomplete
            | DErrorRail _ as er -> er
-           | DError _ -> DIncomplete
+           | DError _ -> DError "Expected boolean, got error"
            | _ -> exe st ifbody))
      | Filled (id, Lambda (vars, body)) ->
        if ctx = Preview
@@ -412,17 +408,10 @@ let rec exec ~(engine: engine)
             (match field with
              | Blank _ -> DIncomplete
              | Filled (_, f) ->
-               (match e with
-                | Filled (_, Variable "request")
-                  when ctx = Preview
-                    && equal_dval obj (PReq.to_dval PReq.sample_request) ->
-                  DIncomplete
-                | _ ->
-                  (match Map.find o f with
-                    | Some v -> v
-                    | None -> DNull)))
+               (match Map.find o f with
+                | Some v -> v
+                | None -> DNull))
           | DIncomplete -> DIncomplete
-          | DError _ -> DIncomplete
           | DErrorRail _ -> obj
           | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
         in
@@ -486,11 +475,10 @@ and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argva
 and exec_fn ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
-  let paramsIncomplete args =
+  let paramsIncomplete args = List.exists args ~f:((=) DIncomplete) in
+  let paramsErroneous args =
     List.exists args
-      ~f:(fun x ->
-          match x with
-          | DIncomplete -> true
+      ~f:(function
           (* HACK: going to hardcode this special case because I don't trust myself
            * to enumerate the consequences of making all DErrors `complete`. In general
            * we have an 'incomplete problem', especially intersecting with production
@@ -510,6 +498,8 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 
     if paramsIncomplete arglist
     then DIncomplete
+    else if paramsErroneous arglist
+    then DError "Fn called with an error as an argument"
     else
       let executing_unsafe = not fn.preview_execution_safe
                              && (List.mem ~equal:(=) state.exe_fn_ids id
@@ -546,22 +536,28 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
               | Some (result, _ts) -> result
               | _ -> DIncomplete)
          with
+         | Exception.DarkException de as e when de.tipe = UserCode ->
+           (* These are exceptions that come from an RT.error, which is all
+            * usercode problems. Non user-code problems should use different
+            * exception types.
+            *)
+           let result = Dval.exception_to_dval e in
+           maybe_store_result result;
+           result
          | e ->
-           (* After the rethrow, this gets eventually caught then shown
-            * to the user as a Dark Internal Exception. It's an internal
-            * exception because we didn't anticipate the problem, give
-            * it a nice error message, etc. It'll appear in Rollbar as
-            * "Unknown Err".  *)
-           Exception.reraise_after e
-             (fun bt ->
-               maybe_store_result (Dval.exception_to_dval e);
-             ))
+           (* After the rethrow, this gets eventually caught then shown to the
+            * user as a Dark Internal Exception. It's an internal exception
+            * because we didn't anticipate the problem, give it a nice error
+            * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
+            * this, give it a nice exception via RT.error.  *)
+           Exception.reraise e)
       in
       maybe_store_result result;
       result
 
 
   | UserCreated (tlid, body) ->
+    (* TODO: unify with InProcess, esp paramsIncomplete and paramsErroneous *)
     let args_with_dbs =
       let db_dvals =
         state.dbs
@@ -649,7 +645,7 @@ let with_defaults (h: handler) (env: symtable) : symtable =
 
 let environment_for_user_fn (ufn: user_fn) : dval_map =
   let param_to_dval (p: param) : dval =
-    DIncomplete (* TODO(ian): we should trace these correctly *)
+    DIncomplete
   in
   ufn.metadata.parameters
   |> List.filter_map ~f:ufn_param_to_param

@@ -71,6 +71,15 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
   in
   AT.check (AT.option AT.string) msg None e
 
+let check_error_contains (name: string) (result: dval) (substring: string) =
+  let strresult = Dval.as_string result in
+  AT.(check bool)
+    (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
+    true
+    (String.is_substring ~substring (Dval.as_string result))
+
+
+
 
 (* ------------------- *)
 (* Set up test data *)
@@ -270,12 +279,11 @@ let t_undo () =
 
 let t_inserting_object_to_missing_col_gives_good_error () =
   clear_test_data ();
-  let check = fun (de: Exception.exception_data) ->
-    de.short = "Found but did not expect: [col]" in
-  check_exception "should get good error" ~check
-    ~f:(fun () ->
-      exec_handler "(DB::insert (obj (col (obj))) TestDB)"
-        ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
+  check_error_contains "error is expected"
+    (exec_handler "(DB::insert (obj (col (obj))) TestDB)"
+      ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
+    "Found but did not expect: [col]"
+
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
@@ -288,9 +296,9 @@ let t_stdlib_works () =
   check_dval "uniqueBy2"
     (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> x))")
     (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
-  check_dval "base64decode"
+  check_error_contains "base64decode"
     (exec_ast "(String::base64Decode 'random string')")
-    (DError "Not a valid base64 string");
+    "Not a valid base64 string";
   ()
 
 
@@ -422,10 +430,9 @@ let t_stored_event_roundtrip () =
 (*   () *)
 
 let t_bad_ssl_cert _ =
-  check_exception "should get bad_ssl"
-    ~f:(fun () ->
-        exec_ast
-          "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
+  check_error_contains "should get bad_ssl"
+    (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
+    "Bad HTTP request: Peer certificate cannot be authenticated with given CA certificates"
 
 
 let t_hmac_signing _ =
@@ -707,7 +714,7 @@ let t_curl_file_urls () =
        contents ended up in the error message. Now we've restricted the URL
        protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
        is even sent. *)
-    (Some "CURLE_UNSUPPORTED_PROTOCOL")
+    (Some "Unsupported protocol")
     (try
        ignore (Httpclient.http_call "file://localhost/etc/passwd"
                  [] Httpclient.GET [] "");

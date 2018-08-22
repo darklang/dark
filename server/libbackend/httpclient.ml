@@ -145,8 +145,13 @@ let http_call (url: string) (query_params : (string * string list) list)
       C.cleanup c;
       response
    with
-    | Curl.CurlException (_, code, s) ->
-      (code, s, Buffer.contents responsebuf)
+    | Curl.CurlException (curl_code, code, s) ->
+      let info = [ "url", url
+                 ; "error", Curl.strerror curl_code
+                 ; "curl_code", string_of_int code
+                 ; "response", Buffer.contents responsebuf]
+      in
+      Exception.user ~info ("Bad HTTP request: " ^ Curl.strerror curl_code);
   in
   if code < 200 || code >= 300
   then
@@ -155,7 +160,7 @@ let http_call (url: string) (query_params : (string * string list) list)
                ; "error", error
                ; "response", body]
     in
-    Exception.api ~info ("Bad response code (" ^ (string_of_int code) ^ ") in call to " ^ url);
+    Exception.user ~info ("Bad HTTP response (" ^ (string_of_int code) ^ ") in call to " ^ url);
   else
     (body, !result_headers)
 
