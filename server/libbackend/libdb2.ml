@@ -15,7 +15,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj value; DStr key; DDB db]) ->
-            ignore (User_db.set ~state ~upsert:true db key value);
+            ignore (User_db.set ~state ~magic:false ~upsert:true db key value);
             DObj value
           | args -> fail args)
   ; pr = None
@@ -31,7 +31,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DStr key; DDB db]) ->
-            User_db.get state db key
+            User_db.get ~state ~magic:false db key
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -56,7 +56,7 @@ let fns : Lib.shortfn list = [
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                 keys
             in
-            User_db.get_many state db skeys
+            User_db.get_many ~state ~magic:false db skeys
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -71,7 +71,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DStr key; DDB db]) ->
-            User_db.delete state db key;
+            User_db.delete ~state db key;
             DNull
           | args -> fail args)
   ; pr = None
@@ -106,7 +106,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj map; DDB db]) ->
             map
             |> DvalMap.to_alist
-            |> User_db.query state db
+            |> User_db.query ~state ~magic:false db
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -122,7 +122,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            User_db.get_all state db
+            User_db.get_all ~state ~magic:false db
           | args -> fail args)
   ; pr = None
   ; ps = true

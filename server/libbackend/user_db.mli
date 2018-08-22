@@ -7,12 +7,12 @@ open Types.RuntimeT
 val cols_for : DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
-val set : state:exec_state -> upsert:bool -> DbT.db -> string -> dval_map -> Uuidm.t
-val get : state:exec_state -> DbT.db -> string -> dval
-val get_many : state:exec_state -> DbT.db -> string list -> dval
-val get_all : state:exec_state -> DbT.db -> dval
-val query : state:exec_state -> DbT.db -> (string * dval) list -> dval
-val query_by_one : state:exec_state -> DbT.db -> string -> dval -> dval
+val set : state:exec_state -> magic:bool -> upsert:bool -> DbT.db -> string -> dval_map -> Uuidm.t
+val get : state:exec_state -> magic:bool -> DbT.db -> string -> dval
+val get_many : state:exec_state -> magic:bool -> DbT.db -> string list -> dval
+val get_all : state:exec_state -> magic:bool -> DbT.db -> dval
+val query : state:exec_state -> magic:bool -> DbT.db -> (string * dval) list -> dval
+val query_by_one : state:exec_state -> magic:bool -> DbT.db -> string -> dval -> dval
 val delete : state:exec_state -> DbT.db -> string -> unit
 val delete_all : state:exec_state -> DbT.db -> unit
 val count : DbT.db -> int

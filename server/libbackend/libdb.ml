@@ -17,9 +17,9 @@ let fetch_by_field ~state fieldname fieldvalue db =
             ("Expected an ID or a String at 'id' but got: "
             ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)))
     in
-    User_db.get_many state db [skey]
+    User_db.get_many ~state ~magic:true db [skey]
   else
-    User_db.query_by_one state db fieldname fieldvalue
+    User_db.query_by_one ~state ~magic:true db fieldname fieldvalue
 
 
 let fns : Lib.shortfn list = [
@@ -36,6 +36,7 @@ let fns : Lib.shortfn list = [
             ignore
               (User_db.set
                  ~state
+                 ~magic:true
                  ~upsert:false
                  db (Uuidm.to_string key) value);
             DObj (Map.set value "id" (DID key))
@@ -148,7 +149,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj map; DDB db]) ->
             map
             |> DvalMap.to_alist
-            |> User_db.query state db
+            |> User_db.query ~state ~magic:true db
             |> User_db.coerce_dlist_of_kv_pairs_to_legacy_object
           | args -> fail args)
   ; pr = None
@@ -165,7 +166,7 @@ let fns : Lib.shortfn list = [
         (function
           | (state, [DObj map; DDB db]) ->
             let result =
-              User_db.query state db (DvalMap.to_alist map)
+              User_db.query ~state ~magic:true db (DvalMap.to_alist map)
             in
             (match result with
              | DList (x :: xs) ->
@@ -190,7 +191,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            let result = User_db.get_all state db in
+            let result = User_db.get_all ~state ~magic:true db in
             User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
           | args -> fail args)
   ; pr = None
