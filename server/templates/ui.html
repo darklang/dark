@@ -63,10 +63,12 @@
        });
 
        elmapp.ports.requestAnalysis.subscribe(function(data) {
-         console.log("Requested analysis: " + data);
-         console.log(typeof(data));
+         console.log("Requested analysis");
+         console.log(data);
          var result = darkAnalysis.performAnalysis(data);
-         elmapp.ports.receiveAnalysis.send("Finished analysis: " + result);
+         console.log("Finished analysis");
+         console.log(result);
+         elmapp.ports.receiveAnalysis.send(result);
        })
 
        elmapp.ports.sendRollbar.subscribe(function(obj) {
