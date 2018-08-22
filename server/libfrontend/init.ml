@@ -8,6 +8,7 @@ module Analysis = Libexecution.Ast_analysis
 
 
 let init () =
+  Libs.init [];
   print_endline "libfrontend reporting in"
 
 let state env : Libexecution.Types.RuntimeT.exec_state =
