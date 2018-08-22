@@ -1,6 +1,7 @@
 open Core_kernel
 
 open Libexecution
+open Libcommon
 open Types.RuntimeT
 
 module Analysis = Libexecution.Ast_analysis
@@ -27,16 +28,19 @@ let state env : Libexecution.Types.RuntimeT.exec_state =
   ; store_fn_arguments = Ast_analysis.store_no_arguments
   }
 
+type handler_list = HandlerT.handler list [@@deriving yojson]
+type analysis_list = Ast_analysis.analysis list [@@deriving to_yojson]
+
 let perform_analysis (str : string) : string =
   let env = DvalMap.empty in
-  let handler =
+  let handlers =
     str
     |> Yojson.Safe.from_string
-    |> HandlerT.handler_of_yojson
+    |> handler_list_of_yojson
     |> Result.ok_or_failwith
   in
-  Ast_analysis.execute_handler_for_analysis (state env) handler
-  |> Ast_analysis.analysis_to_yojson
+  handlers
+  |> List.map ~f:(Ast_analysis.execute_handler_for_analysis (state env))
+  |> analysis_list_to_yojson
   |> Yojson.Safe.to_string
-
 
