@@ -531,6 +531,8 @@ updateMod mod (m, cmd) =
                     |> List.filterMap TL.asHandler
                     |> List.map RPC.encodeHandler
                     |> JSE.list
+                    |> JSE.encode 0
+                    |> JSE.string
         in
         m ! [ requestAnalysis param ]
 
