@@ -553,7 +553,7 @@ let t_nulls_allowed_in_db () =
             ]
   in
   let ast = "(let old (DB::set_v1 (obj (x null)) 'hello' MyDB)
-               (let new (DB::get_v1 'hello' MyDB)
+               (let new (`DB::get_v1 'hello' MyDB)
                  (== old new)))"
   in
   check_dval "equal_after_roundtrip"
@@ -871,7 +871,7 @@ let t_db_write_deprecated_read_new () =
    * the contract that the old DB functions return DID, so we have to stringify *)
   let ast = "(let old (DB::insert (obj (x 'foo')) MyDB)
               (let stringified_id (toString (. old id))
-               (let new (DB::get_v1 stringified_id MyDB)
+               (let new (`DB::get_v1 stringified_id MyDB)
                 (let mutated_new (assoc new 'id' stringified_id)
                  (let mutated_old (assoc old 'id' stringified_id)
                   (== mutated_new mutated_old))))))"
@@ -1135,6 +1135,18 @@ let t_db_deprecated_update_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
+let t_db_get_returns_nothing () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
+  in
+  check_dval "get_returns_nothing"
+    (DOption OptNothing)
+    (exec_handler ~ops "(DB::get_v1 'lol' MyDB)")
+
 
 (* ------------------- *)
 (* Test setup *)
@@ -1201,6 +1213,7 @@ let suite =
   ; "DB::query_v1 works with many items", `Quick, t_db_query_works_with_many
   ; "Deprecated delete works", `Quick, t_db_deprecated_delete_works
   ; "Deprecated update works", `Quick, t_db_deprecated_update_works
+  ; "DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing
   ]
 
 let () =
