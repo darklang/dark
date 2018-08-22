@@ -26,12 +26,17 @@ let fns : Lib.shortfn list = [
   { pns = ["DB::get_v1"]
   ; ins = []
   ; p = [par "key" TStr; par "table" TDB]
-  ; r = TObj
+  ; r = TOption
   ; d = "Finds a value in `table` by `key"
   ; f = InProcess
         (function
           | (state, [DStr key; DDB db]) ->
-            User_db.get ~state ~magic:false db key
+            (try
+               DOption (OptJust (User_db.get ~state ~magic:false db key))
+             with
+             | Exception.DarkException e when e.tipe = Exception.DarkStorage ->
+               DOption OptNothing
+             | e -> raise e)
           | args -> fail args)
   ; pr = None
   ; ps = true
