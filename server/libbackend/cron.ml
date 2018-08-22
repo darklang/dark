@@ -14,7 +14,7 @@ let last_ran_at (canvas_id: Uuidm.t) (h: handler) : Time.t option =
        AND canvas_id = $2
        ORDER BY id DESC
        LIMIT 1"
-    ~params:[Int h.tlid; Uuid canvas_id]
+    ~params:[ID h.tlid; Uuid canvas_id]
   |> Option.map ~f:List.hd_exn
   |> Option.map ~f:Dval.date_of_sqlstring
 
@@ -72,7 +72,7 @@ let record_execution (canvas_id: Uuidm.t) (h: handler) : unit =
     "INSERT INTO cron_records
     (tlid, canvas_id)
     VALUES ($1, $2)"
-    ~params:[Int h.tlid; Uuid canvas_id]
+    ~params:[ID h.tlid; Uuid canvas_id]
     ~name:"Cron.record_execution"
 
 let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
@@ -132,7 +132,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                     ~data:"enqueued event"
                     ~params:["execution_id", Log.dump execution_id
                             ;"host", endp
-                            ;"tlid", string_of_int cr.tlid
+                            ;"tlid", Types.string_of_id cr.tlid
                             ;"event_name", name
                             ;"cron_freq", modifier
                             ];

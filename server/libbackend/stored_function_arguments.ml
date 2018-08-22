@@ -15,7 +15,7 @@ let store (canvas_id, tlid) args =
      (canvas_id, tlid, timestamp, arguments_json)
      VALUES ($1, $2, CURRENT_TIMESTAMP, $3)"
     ~params:[ Uuid canvas_id
-            ; Int tlid
+            ; ID tlid
             ; String (args
                       |> Dval.dvalmap_to_yojson ~redact:false
                       |> Yojson.Safe.to_string)
@@ -31,7 +31,7 @@ let load (canvas_id, tlid) : (RTT.dval_map * Time.t) list =
      ORDER BY timestamp DESC
        LIMIT 10"
     ~params:[ Db.Uuid canvas_id
-            ; Db.Int tlid
+            ; Db.ID tlid
             ]
   |> List.map ~f:(function
       | [args; ts] ->

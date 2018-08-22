@@ -114,7 +114,7 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   Db.fetch
     ~name:"fetch_by"
     sql
-    ~params:[ Int db.tlid
+    ~params:[ ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
   |> List.map ~f:(to_obj ~state db)
@@ -325,7 +325,7 @@ and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
     ~params:[ Uuid id
             ; Uuid state.account_id
             ; Uuid state.canvas_id
-            ; Int db.tlid
+            ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version
             ; DvalmapJsonb merged];
@@ -347,7 +347,7 @@ and update ~state db (vals: dval_map) =
             ; Uuid id
             ; Uuid state.account_id
             ; Uuid state.canvas_id
-            ; Int db.tlid
+            ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
 
@@ -361,7 +361,7 @@ let fetch_all ~state (db: db) : dval =
      AND canvas_id = $3
      AND user_version = $4
      AND dark_version = $5"
-    ~params:[ Int db.tlid
+    ~params:[ ID db.tlid
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; Int db.version
@@ -384,7 +384,7 @@ let delete ~state (db: db) (vals: dval_map) =
     ~params:[ Uuid id
             ; Uuid state.account_id
             ; Uuid state.canvas_id
-            ; Int db.tlid
+            ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
 
@@ -401,7 +401,7 @@ let delete_all ~state (db: db) =
      AND dark_version = $5"
     ~params:[ Uuid state.account_id
             ; Uuid state.canvas_id
-            ; Int db.tlid
+            ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
 
@@ -414,7 +414,7 @@ let count (db: db) =
      WHERE table_tlid = $1
      AND user_version = $2
      AND dark_version = $3"
-    ~params:[ Int db.tlid
+    ~params:[ ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
   |> List.hd_exn
@@ -446,7 +446,7 @@ let unlocked canvas_id account_id (dbs: db list) : db list =
                 ; Uuid canvas_id
                 ; Uuid account_id]
       |> List.concat
-      |> List.map ~f:int_of_string
+      |> List.map ~f:id_of_string
     in
     List.filter dbs
       ~f:(fun db ->

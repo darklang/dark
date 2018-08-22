@@ -27,7 +27,7 @@ let run ~shutdown ~execution_id =
           (shutdown := true;
            Log.infO "shutdown"
              ~data:"Received shutdown request - shutting down"
-             ~params:["execution_id", string_of_int execution_id];
+             ~params:["execution_id", Int63.to_string execution_id];
           Server.respond_string
             ~status:`OK
             ~body:"Terminated"
@@ -35,7 +35,7 @@ let run ~shutdown ~execution_id =
         else
           (Log.infO "shutdown"
              ~data:"Received redundant shutdown request - already shutting down"
-             ~params:["execution_id", string_of_int execution_id];
+             ~params:["execution_id", Int63.to_string execution_id];
            Server.respond_string
              ~status:`OK
              ~body:"Terminated"

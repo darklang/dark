@@ -11,7 +11,7 @@ let init () =
   print_endline "libfrontend reporting in"
 
 let state env : Libexecution.Types.RuntimeT.exec_state =
-  { tlid = 0
+  { tlid = Libexecution.Types.id_of_int 0
   ; host = "test"
   ; account_id = Libexecution.Util.create_uuid ()
   ; canvas_id = Libexecution.Util.create_uuid ()
@@ -21,7 +21,7 @@ let state env : Libexecution.Types.RuntimeT.exec_state =
   ; fail_fn = None
   ; input_cursor = 0
   ; dbs = []
-  ; execution_id = 0
+  ; execution_id = Libexecution.Types.id_of_int 1
   ; load_fn_result = Ast_analysis.load_no_results
   ; store_fn_result = Ast_analysis.store_no_results
   ; load_fn_arguments = Ast_analysis.load_no_arguments

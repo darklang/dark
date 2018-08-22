@@ -24,7 +24,7 @@ type executable_fn_id = (tlid * id * int) [@@deriving to_yojson]
 type analysis_result = tlid * Ast_analysis.analysis list
 
 let analysis_result_to_yojson (id, results) =
-  `Assoc [ ("id", `Int id)
+  `Assoc [ ("id", id_to_yojson id)
          ; ("results", Ast_analysis.analysis_list_to_yojson results)
          ]
 let global_vars (c: canvas) : string list =

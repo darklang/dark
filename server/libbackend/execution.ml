@@ -68,9 +68,9 @@ let initial_envs_for_user_fn (c: canvas) (fn: RTT.user_fn)
 
 let state_for
     ~(c: canvas)
-    ~(execution_id: int)
-    ~(input_cursor: int )
-    ~(exe_fn_ids : int list)
+    ~(execution_id: id)
+    ~(input_cursor: int)
+    ~(exe_fn_ids : id list)
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
@@ -95,8 +95,8 @@ let state_for
 let state_for_analysis
     ~(c: canvas)
     ~(input_cursor: int )
-    ~(execution_id: int)
-    ~(exe_fn_ids: int list)
+    ~(execution_id: id)
+    ~(exe_fn_ids: id list)
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
@@ -109,7 +109,7 @@ let state_for_analysis
 
 let state_for_execution
     ~(c: canvas)
-    ~(execution_id: int)
+    ~(execution_id: id)
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
@@ -120,7 +120,7 @@ let state_for_execution
 
 let state_for_enqueue
   ~(c: canvas)
-  ~(execution_id: int)
+  ~(execution_id: id)
   (tlid: tlid)
   : RTT.exec_state =
   state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env:RTT.DvalMap.empty tlid
