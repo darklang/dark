@@ -365,9 +365,12 @@ updateMod mod (m, cmd) =
         then m ! []
         else
           case (page, m.currentPage) of
-            (Toplevels _, Toplevels _) ->
+            (Toplevels pos2, Toplevels _) ->
               -- scrolling
-              { m | currentPage = page } ! []
+              { m |
+                currentPage = page
+                , urlState = UrlState pos2 pos2
+              } ! []
             (Fn _ pos2, Toplevels pos1) ->
               { m |
                 currentPage = page
