@@ -2,7 +2,8 @@ module Refactor exposing (..)
 
 -- lib
 import List.Extra as LE
-import Set
+import Set exposing (Set)
+
 -- Dark
 import Types exposing (..)
 import Util
@@ -329,6 +330,14 @@ countFnUsage m name =
         TLFunc f -> isFunctionInExpr name f.ast
     )
   in List.length usedIn
+
+unusedDeprecatedFunctions : Model -> Set String
+unusedDeprecatedFunctions m =
+  m.builtInFunctions
+  |> List.filter .deprecated
+  |> List.map .name
+  |> List.filter (\n -> (countFnUsage m n) == 0)
+  |> Set.fromList
 
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
