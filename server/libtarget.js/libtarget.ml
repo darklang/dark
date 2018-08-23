@@ -19,5 +19,8 @@ let date_of_sqlstring (str: string) : Core_kernel.Time.t =
 let dump (_: 'a) : string =
   ""
 
+let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : string =
+  ""
+
 let string_split ~(sep: string) (s: string) : string list =
   []

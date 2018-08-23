@@ -26,6 +26,10 @@ let date_of_sqlstring (str: string) : Core_kernel.Time.t =
 
 let dump = Batteries.dump
 
+let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : string =
+  Re2.replace_exn (Re2.create_exn pattern) str
+    ~f:(fun _ -> replacement)
+
 let string_split ~sep s : string list =
   Str.split (Str.regexp_string sep) s
 

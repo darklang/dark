@@ -35,7 +35,6 @@
                 ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
                 ppx_sexp_conv
-                re2
                 session
                 session-postgresql-lwt
                 session-cohttp-lwt
