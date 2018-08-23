@@ -17,7 +17,7 @@
                 cstruct
                 base64
                 re2
-                batteries
+                str
                 core))))
 
 (rule (copy# ${lib:libtarget:libtarget.mli} libtarget.mli))
