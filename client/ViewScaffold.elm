@@ -39,7 +39,7 @@ viewButtons m =
         case m.currentPage of
           Fn _ _ ->
             [Url.linkFor
-              (Toplevels m.urlState.lastPos)
+              (Toplevels m.urlState.canvasPos)
               "specialButton default-link"
               [ Html.text "Return to Canvas"]]
           _ -> []
