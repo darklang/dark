@@ -26,6 +26,7 @@ let add_short_fn (s : shortfn) : unit =
                            ; func = s.f
                            ; preview = s.pr
                            ; preview_execution_safe = s.ps
+                           ; deprecated = s.dep
                            } in
   static_fns := add_fn !static_fns def
 

@@ -52,4 +52,5 @@ let fns =
              * for errors, rate-limiting, etc. We can't just run these
              * every second! *)
             ; ps = false
+            ; dep = false
             }))

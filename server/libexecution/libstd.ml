@@ -46,6 +46,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -60,6 +61,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -77,6 +79,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -94,6 +97,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -114,6 +118,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -129,6 +134,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -144,6 +150,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -159,6 +166,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -193,6 +201,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -208,6 +217,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -225,6 +235,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -240,6 +251,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -255,6 +267,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -270,6 +283,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -284,6 +298,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -299,6 +314,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -313,6 +329,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -327,6 +344,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -341,6 +359,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -355,6 +374,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -370,6 +390,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -384,6 +405,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -399,6 +421,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -418,6 +441,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -433,6 +457,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -448,6 +473,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -463,6 +489,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -477,6 +504,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -491,6 +519,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -505,6 +534,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -519,6 +549,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -545,6 +576,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -559,6 +591,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -573,6 +606,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -587,6 +621,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -601,6 +636,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -618,6 +654,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -632,6 +669,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -649,6 +687,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -666,6 +705,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -681,6 +721,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -699,6 +740,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -714,6 +756,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -729,6 +772,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -747,6 +791,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -764,6 +809,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -807,6 +853,7 @@ let fns : Lib.shortfn list = [
                 [DChar c]
           | args -> [DIncomplete])
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -822,6 +869,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -837,6 +885,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -852,6 +901,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -868,6 +918,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -883,6 +934,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -899,6 +951,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -916,6 +969,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -931,6 +985,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -956,6 +1011,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -970,6 +1026,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -989,6 +1046,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1010,6 +1068,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1029,6 +1088,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1044,6 +1104,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1060,6 +1121,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1084,6 +1146,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1100,6 +1163,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1114,6 +1178,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1129,6 +1194,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1150,6 +1216,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -1164,6 +1231,7 @@ let fns : Lib.shortfn list = [
            | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -1184,6 +1252,7 @@ let fns : Lib.shortfn list = [
            | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1199,6 +1268,7 @@ let fns : Lib.shortfn list = [
            | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1221,6 +1291,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1236,6 +1307,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1251,6 +1323,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1265,6 +1338,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1281,6 +1355,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1295,6 +1370,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1314,6 +1390,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1329,6 +1406,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1344,6 +1422,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1359,6 +1438,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1376,6 +1456,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1405,6 +1486,7 @@ let fns : Lib.shortfn list = [
             in [end_accum; next_elt]
           | args -> [DIncomplete])
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1426,6 +1508,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1444,6 +1527,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1459,6 +1543,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1477,6 +1562,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1495,6 +1581,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1510,6 +1597,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1539,6 +1627,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1554,6 +1643,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1569,6 +1659,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1588,6 +1679,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1609,6 +1701,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1623,6 +1716,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -1638,6 +1732,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1654,6 +1749,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1669,6 +1765,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1684,6 +1781,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1703,6 +1801,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1721,6 +1820,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1736,6 +1836,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1751,6 +1852,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1766,6 +1868,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -1782,6 +1885,7 @@ let fns : Lib.shortfn list = [
   (* similarly to Date::now, it's not particularly fun for this to change
    * when live programming *)
   ; ps = false
+  ; dep = false
   }
   ;
 ]

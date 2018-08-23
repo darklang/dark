@@ -565,6 +565,7 @@ type alias Function = { name: String
                       , description: String
                       , returnTipe: Tipe
                       , previewExecutionSafe: Bool
+                      , deprecated: Bool
                       , infix: Bool
                       }
 
@@ -599,5 +600,6 @@ type alias FlagFunction = { name: String
                           , description: String
                           , return_type: String
                           , preview_execution_safe: Bool
+                          , deprecated: Bool
                           , infix: Bool
                           }

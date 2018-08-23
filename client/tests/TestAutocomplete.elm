@@ -35,6 +35,7 @@ all =
                     , previewExecutionSafe = False
                     , description = ""
                     , infix = True
+                    , deprecated = False
                     })
           [ ("Twit::somefunc", TObj)
           , ("Twit::someOtherFunc", TObj)

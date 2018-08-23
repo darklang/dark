@@ -20,6 +20,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -40,6 +41,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -65,6 +67,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -81,6 +84,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -97,6 +101,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -115,6 +120,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -131,6 +137,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -149,6 +156,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -166,5 +174,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
 ]
