@@ -409,12 +409,24 @@ updateMod mod (m, cmd) =
         then m ! []
         else
           case (page, m.currentPage) of
-            (Toplevels pos1, Toplevels pos2) ->
+            (Toplevels pos2, Toplevels _) ->
               -- scrolling
-              { m | currentPage = page} ! []
+              { m |
+                currentPage = page
+                , urlState = UrlState pos2 pos2
+              } ! []
+            (Fn _ pos2, Toplevels pos1) ->
+              { m |
+                currentPage = page
+                , cursorState = Deselected
+                , urlState = UrlState pos2 pos1
+              } ! []
             _ ->
-              let newM = { m | currentPage = page
-                         , cursorState = Deselected }
+              let newM =
+                { m |
+                  currentPage = page
+                  , cursorState = Deselected
+                }
               in newM ! closeBlanks newM
 
       SetCenter center ->

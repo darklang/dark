@@ -41,12 +41,13 @@ linkFor page class content =
 -- and update the browser url periodically.
 maybeUpdateScrollUrl : Model -> Modification
 maybeUpdateScrollUrl m =
-  let pos = Viewport.pagePos m.currentPage in
-  if pos /= m.urlState.lastPos
-  then
-    Many [ TweakModel (\m -> { m | urlState = {lastPos = pos}})
-         , MakeCmd (Navigation.modifyUrl (urlFor m.currentPage))
-         ]
+  let pos = Viewport.pagePos m.currentPage
+      state = m.urlState
+  in
+  if pos /= state.lastPos
+  then Many [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
+            , MakeCmd (Navigation.modifyUrl (urlFor m.currentPage))
+            ]
   else NoChange
 
 
