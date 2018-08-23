@@ -441,6 +441,7 @@ type alias SyncState = { inFlight : Bool
                        }
 
 type alias UrlState = { lastPos : Pos
+                      , canvasPos: Pos
                       }
 type alias TLCursors = Dict Int Int
 type alias Model = { error : Maybe String

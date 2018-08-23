@@ -367,12 +367,12 @@ updateMod mod (m, cmd) =
           case (page, m.currentPage) of
             (Toplevels _, Toplevels _) ->
               -- scrolling
-              { m | currentPage = page} ! []
+              { m | currentPage = page } ! []
             (Fn _ pos2, Toplevels pos1) ->
               { m |
                 currentPage = page
                 , cursorState = Deselected
-                , urlState = UrlState pos1
+                , urlState = UrlState pos2 pos1
               } ! []
             _ ->
               let newM =
