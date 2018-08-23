@@ -35,6 +35,7 @@ ufmToF ufm =
           , returnTipe = tipe
           , infix = ufm.infix
           , previewExecutionSafe = False
+          , deprecated = False
           } |> Just
         _ -> Nothing
 
