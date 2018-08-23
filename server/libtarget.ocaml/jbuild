@@ -16,6 +16,7 @@
     (libraries (nocrypto
                 cstruct
                 base64
+                re2
                 batteries
                 core))))
 
