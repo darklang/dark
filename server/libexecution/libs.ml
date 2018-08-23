@@ -2,6 +2,7 @@ open Core_kernel
 
 open Types
 open Lib
+module RTT = RuntimeT
 module RT = Runtime
 
 module FnMap = String.Map
@@ -47,6 +48,25 @@ let get_fn_exn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn 
   | Some fn -> fn
   | None -> Exception.client ("No function named '" ^ name ^ "' exists")
 
-let init libs =
-  List.iter ~f:add_short_fn (Libstd.fns @ Libstd2.fns @ libs )
+type fn_replacement = string * RTT.funcimpl
+
+let replace_implementation ((name, impl): fn_replacement) : unit =
+  let fn = get_fn_exn ~user_fns:[] name in
+  let fn = { fn with func = impl } in
+  static_fns := add_fn !static_fns fn
+
+let init (replacements: fn_replacement list) : unit =
+  let libs = Libdb.fns
+               (* TODO-REPLACE *)
+             (* @ Libevent.fns *)
+             (* @ Libhttp.fns *)
+             (* @ Libhttpclient.fns *)
+             (* @ Libcrypto.fns *)
+             @ Libstd.fns
+             @ Libstd2.fns
+             (* @ Libtwitter.fns  *)
+  in
+  List.iter ~f:add_short_fn libs;
+  List.iter ~f:replace_implementation replacements;
+  ()
 

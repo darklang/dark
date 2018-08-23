@@ -14,16 +14,18 @@ let init ~run_side_effects =
       Exn.initialize_module ();
 
       (* libexecution *)
-      let libs = Libdb.fns
-                 @ Libdb2.fns
-                 @ Libevent.fns
-                 @ Libhttp.fns
-                 @ Libhttpclient.fns
-                 @ Libcrypto.fns
-                 (* @ Libtwitter.fns  *)
-      in
+      (* TODO-REPLACE *)
+      (* let libs = Libdb.fns *)
+      (*            @ Libdb2.fns *)
+      (*            @ Libevent.fns *)
+      (*            @ Libhttp.fns *)
+      (*            @ Libhttpclient.fns *)
+      (*            @ Libcrypto.fns *)
+      (*            (* @ Libtwitter.fns  *) *)
+      (* in *)
+      let replacements = Libdb.replacements in
 
-      Libexecution.Init.init Config.log_level Config.log_format libs;
+      Libexecution.Init.init Config.log_level Config.log_format replacements;
 
       (* init the Random module, will be seeded from /dev/urandom on Linux *)
       Random.self_init ();
