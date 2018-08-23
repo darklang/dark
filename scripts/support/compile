@@ -101,8 +101,7 @@ def ocaml_build():
                   , "bin/add_user.exe"
                   ])
 
-  if os.environ.get("CI"):
-    exes += " bin/darkjs.bc.js @darkjs"
+  exes += " bin/darkjs.bc.js @darkjs"
 
   # This is a temporary hack to force dune's "direct compilation" mode.
   # Indeed, separate compilation takes forever here for some reason.
@@ -191,22 +190,22 @@ def execute(should):
 
 
 def mark(should, f):
+  # Ocaml
+  if "test/test.ml" in f:
+    should.ocaml_test = True
+
+  elif (".mli" in f) or (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
+    should.ocaml_build = True
+
   # Frontend
-  if "client/elm-package.json" in f:
+  elif "client/elm-package.json" in f:
     should.elm_package = True
-  if "client/tests/elm-package.json" in f:
+  elif "client/tests/elm-package.json" in f:
     should.elm_test_package = True
   elif "client/tests" in f:
     should.elm_test = True
   elif ".elm" in f or ".js" in f or "client/DEBUG" in f:
     should.elm_make = True
-
-  # Ocaml
-  elif "test/test.ml" in f:
-    should.ocaml_test = True
-
-  elif (".mli" in f) or (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
-    should.ocaml_build = True
 
   # Web
   elif ".less" in f:

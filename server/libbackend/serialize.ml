@@ -109,7 +109,7 @@ let load_all_from_db ~host ~(canvas_id: Uuidm.t) () : Op.tlid_oplists =
 let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
     ~(tlids: Types.tlid list) () : Op.tlid_oplists =
   let tlid_params = tlids
-                    |> List.map ~f:Int.to_string
+                    |> List.map ~f:Types.string_of_id
                     |> String.concat ~sep:", "
   in
   Db.fetch
@@ -185,7 +185,7 @@ let save_toplevel_oplist
         data = $9;"
     ~params:[ Uuid canvas_id
             ; Uuid account_id
-            ; Int tlid
+            ; ID tlid
             ; String digest
             ; String tipe_str
             ; string_option name

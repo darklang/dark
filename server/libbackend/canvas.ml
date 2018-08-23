@@ -6,7 +6,6 @@ open Util
 open Types
 
 module RTT = Types.RuntimeT
-module RT = Runtime
 module TL = Toplevel
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
@@ -224,7 +223,7 @@ let serialize_only (tlids: tlid list) (c: canvas) : unit =
     |> Toplevel.handlers
     |> List.map ~f:handler_metadata
   in
-  let routes = Int.Map.of_alist_exn hmeta in
+  let routes = IDMap.of_alist_exn hmeta in
   let tipes_list =
     (List.map c.handlers ~f:(fun h -> (h.tlid, `Handler)))
     @ (List.map c.user_functions ~f:(fun f -> (f.tlid, `User_function)))
@@ -234,7 +233,7 @@ let serialize_only (tlids: tlid list) (c: canvas) : unit =
         | Handler  _ -> (t.tlid, `Handler)
         | DB _ -> (t.tlid, `DB)))
   in
-  let tipes = Int.Map.of_alist_exn tipes_list in
+  let tipes = IDMap.of_alist_exn tipes_list in
 
   (* Use ops rather than just set of toplevels, because toplevels may
    * have been deleted or undone, and therefore not appear, but it's
@@ -245,10 +244,10 @@ let serialize_only (tlids: tlid list) (c: canvas) : unit =
       if List.mem ~equal:(=) tlids tlid
       then
         let (name, module_, modifier) =
-          Int.Map.find routes tlid
+          IDMap.find routes tlid
           |> Option.value ~default:(None, None, None)
         in
-        let tipe = Int.Map.find tipes tlid
+        let tipe = IDMap.find tipes tlid
                    (* If the user calls Undo enough, we might not know
                     * the tipe here. In that case, set to handler cause
                     * it won't be used anyway *)

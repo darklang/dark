@@ -4,7 +4,7 @@ open Libexecution
 open Types
 open Types.RuntimeT
 
-type transaction = int
+type transaction = id
 type t = { id: int
          ; value: dval
          ; retries: int

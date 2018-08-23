@@ -17,7 +17,8 @@ let () =
       with e ->
         let bt = Libexecution.Exception.get_backtrace () in
         Lwt.async (fun () ->
-            Libbackend.Rollbar.report_lwt e bt (CronChecker) (string_of_int execution_id));
+            Libbackend.Rollbar.report_lwt e bt (CronChecker)
+              (Libexecution.Types.string_of_id execution_id));
         fail e
   end;
   let rec cron_checker () =
@@ -33,11 +34,11 @@ let () =
     | Error (bt, e) ->
       Libcommon.Log.erroR "cron_checker"
         ~data:"Uncaught error"
-        ~params:["execution_id", string_of_int execution_id
+        ~params:["execution_id", Libexecution.Types.string_of_id execution_id
                 ;"exn", Libexecution.Exception.exn_to_string e
                 ];
       Lwt.async (fun () ->
-         Libbackend.Rollbar.report_lwt e bt (CronChecker) (string_of_int execution_id));
+         Libbackend.Rollbar.report_lwt e bt (CronChecker) (Libexecution.Types.string_of_id execution_id));
       if not !shutdown
       then
         (cron_checker [@tailcall]) ()

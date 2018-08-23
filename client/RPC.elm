@@ -179,22 +179,28 @@ encodeOps ops =
   |> List.map encodeOp
   |> JSE.list
 
+encodeSpec : HandlerSpec -> JSE.Value
+encodeSpec spec =
+  JSE.object
+    [ ("name", encodeBlankOr JSE.string spec.name)
+    , ("module", encodeBlankOr JSE.string spec.module_)
+    , ("modifier", encodeBlankOr JSE.string spec.modifier)
+    , ("types", encodeSpecTypes spec.types)
+    ]
+
+encodeHandler : Handler -> JSE.Value
+encodeHandler h =
+  JSE.object [ ("tlid", encodeTLID h.tlid)
+             , ("spec", encodeSpec h.spec)
+             , ("ast", encodeExpr h.ast) ]
+
+
 encodeOp : Op -> JSE.Value
 encodeOp call =
-  let ev = encodeVariant
-  in
+  let ev = encodeVariant in
     case call of
       SetHandler id pos h ->
-        let hs = JSE.object
-                   [ ("name", encodeBlankOr JSE.string h.spec.name)
-                   , ("module", encodeBlankOr JSE.string h.spec.module_)
-                   , ("modifier", encodeBlankOr JSE.string h.spec.modifier)
-                   , ("types", encodeSpecTypes h.spec.types)
-                   ]
-            handler = JSE.object [ ("tlid", encodeTLID id)
-                                 , ("spec", hs)
-                                 , ("ast", encodeExpr h.ast) ] in
-        ev "SetHandler" [encodeTLID id, encodePos pos, handler]
+        ev "SetHandler" [encodeTLID id, encodePos pos, encodeHandler h]
 
       CreateDB id pos name ->
         ev "CreateDB" [encodeTLID id, encodePos pos, JSE.string name]
@@ -213,6 +219,7 @@ encodeOp call =
 
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
+
       InitDBMigration tlid id rbid rfid kind ->
         ev "InitDBMigration"
           [ encodeTLID tlid
@@ -584,10 +591,11 @@ decodeHandlerSpec =
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
-  let toHandler ast spec = {ast = ast, spec = spec} in
+  let toHandler ast spec tlid = {ast = ast, spec = spec, tlid = tlid } in
   JSDP.decode toHandler
   |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
+  |> JSDP.required "tlid" decodeTLID
 
 decodeTipeString : JSD.Decoder String
 decodeTipeString =

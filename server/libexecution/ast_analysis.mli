@@ -3,12 +3,12 @@ open Core_kernel
 (* ----------------- *)
 (* Types *)
 (* ----------------- *)
-type dval_store = Types.RuntimeT.dval Int.Table.t
+type dval_store = Types.RuntimeT.dval Types.IDTable.t
 
 module SymSet = String.Set
 
 type sym_set = SymSet.t
-type sym_store = sym_set Int.Table.t
+type sym_store = sym_set Types.IDTable.t
 
 type livevalue = { value: string
                  ; tipe: string [@key "type"]

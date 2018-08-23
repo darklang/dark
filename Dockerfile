@@ -264,6 +264,8 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+RUN opam update && opam install -y dune.1.1.0
+
 ############################
 # Finish
 ############################

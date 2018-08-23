@@ -4,6 +4,7 @@ open Libexecution
 (* Low-level API *)
 
 type param = Int of int
+           | ID of Types.id
            | String of string
            | Uuid of Uuidm.t
            | Binary of string (* only works for passed params *)

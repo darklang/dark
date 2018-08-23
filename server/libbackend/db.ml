@@ -17,6 +17,7 @@ let double_quote v = "\"" ^ v ^ "\""
 let cast_to ~tipe v = v ^ "::" ^ tipe
 
 type param = Int of int
+           | ID of Types.id
            | String of string
            | Uuid of Uuidm.t
            | Binary of string (* only works for passed params *)
@@ -37,6 +38,7 @@ let to_binary_bool param : bool =
 let rec escape (param: param) : string =
   match param with
   | Int i -> string_of_int i
+  | ID id -> Types.string_of_id id
   | String str -> str
                   |> escape_single
                   |> single_quote
@@ -72,6 +74,7 @@ let cast_expression_for (dv: Types.RuntimeT.dval) : string option =
 let to_sql param : string =
   match param with
   | Int i -> string_of_int i
+  | ID i -> Types.string_of_id i
   | String str -> str
   | Uuid uuid -> Uuidm.to_string uuid
   | Binary str -> str (* the to_binary_bool handled this *)
@@ -90,6 +93,7 @@ let rec to_log param : string =
   in
   match param with
   | Int i -> string_of_int i
+  | ID i -> Types.string_of_id i
   | String str -> abbrev str
   | Uuid uuid -> Uuidm.to_string uuid
   | Binary str -> "<binary>"
