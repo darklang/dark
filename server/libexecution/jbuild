@@ -17,7 +17,6 @@
                 libcommon
                 core_kernel
                 uuidm
-                re2
                 base64
                 uri
                 ppx_bin_prot
