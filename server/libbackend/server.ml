@@ -671,7 +671,7 @@ let server () =
                  (shutdown := true;
                   Log.infO "shutdown"
                     ~data:"Received shutdown request - shutting down"
-                    ~params:["execution_id", string_of_int execution_id];
+                    ~params:["execution_id", Types.string_of_id execution_id];
                   (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
                   Lwt_unix.sleep 28.0 >>= fun _ ->
                   Lwt.wakeup stopper ();
@@ -679,7 +679,7 @@ let server () =
                else
                  (Log.infO "shutdown"
                     ~data:"Received redundant shutdown request - already shutting down"
-                    ~params:["execution_id", string_of_int execution_id];
+                    ~params:["execution_id", Types.string_of_id execution_id];
                   respond ~execution_id `OK "Terminated")
             | (_, None) -> (* for GKE health check *)
                respond ~execution_id `Not_found "Not found"

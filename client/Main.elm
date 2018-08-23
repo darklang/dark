@@ -152,6 +152,8 @@ port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
+port requestAnalysis : JSE.Value -> Cmd msg
+port receiveAnalysis : (JSE.Value -> msg) -> Sub msg
 
 -----------------------
 -- updates
@@ -524,6 +526,15 @@ updateMod mod (m, cmd) =
 
 
 
+      RequestAnalysis tls ->
+        let param = tls
+                    |> List.filterMap TL.asHandler
+                    |> List.map RPC.encodeHandler
+                    |> JSE.list
+                    |> JSE.encode 0
+                    |> JSE.string
+        in
+        m ! [ requestAnalysis param ]
 
       UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
@@ -1390,6 +1401,7 @@ update_ msg m =
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
              , UpdateAnalysis newAnalysis
+             , RequestAnalysis newToplevels
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
@@ -1402,6 +1414,7 @@ update_ msg m =
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
                 , UpdateAnalysis newAnalysis
+                , RequestAnalysis newToplevels
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
@@ -1422,6 +1435,7 @@ update_ msg m =
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
               , UpdateAnalysis new_analysis
+              , RequestAnalysis toplevels
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
               , SetUnlockedDBs unlockedDBs
@@ -1447,6 +1461,12 @@ update_ msg m =
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
            ]
+
+    ReceiveAnalysis json ->
+      let analysis = JSD.decodeValue (JSD.list RPC.decodeTLAResult) json in
+      case analysis of
+        Ok analysis -> UpdateAnalysis analysis
+        Err str -> DisplayError str
 
     ------------------------
     -- plumbing
@@ -1520,6 +1540,7 @@ update_ msg m =
                 , output = B.new ()
                 }
               }
+            , tlid = anId
             }
       in
         RPC ([SetHandler anId aPos aHandler], FocusNothing)
@@ -1601,4 +1622,5 @@ subscriptions m =
                  , timers
                  , visibility
                  , onError
-                 , mousewheelSubs])
+                 , mousewheelSubs
+                 , [receiveAnalysis ReceiveAnalysis]])

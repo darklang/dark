@@ -23,9 +23,9 @@ let store (canvas_id, tlid, fnname, id) arglist result =
      (canvas_id, tlid, fnname, id, hash, timestamp, value)
      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)"
     ~params:[ Uuid canvas_id
-            ; Int tlid
+            ; ID tlid
             ; String fnname
-            ; Int id
+            ; ID id
             ; String (hash arglist)
             ; DvalJson result]
 
@@ -44,9 +44,9 @@ let load (canvas_id, tlid, fnname, id) arglist
      ORDER BY timestamp DESC
        LIMIT 1"
     ~params:[ Db.Uuid canvas_id
-            ; Db.Int tlid
+            ; Db.ID tlid
             ; Db.String fnname
-            ; Db.Int id
+            ; Db.ID id
             ; Db.String (hash arglist)]
   |> Option.map ~f:(function
       | [dval; ts] ->

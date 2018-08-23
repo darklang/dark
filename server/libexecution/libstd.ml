@@ -939,15 +939,15 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s]) ->
-            let re_compile = Re2.create_exn in
-            let re_replace = Re2.replace_exn in
-            let to_remove  = re_compile "[^\\w\\s$*_+~.()'\"!\\-:@]" in
-            let trim = re_compile "^\\s+|\\s+$" in
-            let spaces = re_compile "[-\\s]+" in
+            let replace = Libtarget.regexp_replace in
+            let to_remove  = "[^\\w\\s$*_+~.()'\"!\\-:@]" in
+            let trim = "^\\s+|\\s+$" in
+            let spaces = "[-\\s]+" in
+
             s
-            |> re_replace ~f:(fun _ -> "") to_remove
-            |> re_replace ~f:(fun _ -> "") trim
-            |> re_replace ~f:(fun _ -> "-") spaces
+            |> replace ~pattern:to_remove ~replacement:""
+            |> replace ~pattern:trim ~replacement:""
+            |> replace ~pattern:spaces ~replacement:"-"
             |> String.lowercase
             |> fun x -> DStr x
           | args -> fail args)
@@ -979,10 +979,10 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s; DStr sep]) ->
-            let split = (Str.split (Str.regexp_string sep) s)
-            in split
-               |> List.map ~f:(fun str -> DStr str)
-               |> DList
+            s
+            |> Libtarget.string_split ~sep
+            |> List.map ~f:(fun str -> DStr str)
+            |> DList
           | args -> fail args)
   ; pr = None
   ; ps = true

@@ -39,10 +39,10 @@ let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in
   `Assoc (
     List.map ~f:(fun (id, v) ->
-        (string_of_int id, f v))
+        (string_of_id id, f v))
       alist)
 
-type dval_store = dval Int.Table.t
+type dval_store = dval IDTable.t
 
 let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
   ht_to_json_dict ds ~f:livevalue_dval_to_yojson
@@ -51,7 +51,7 @@ let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
 (* Symstore - save available varnames at each point *)
 module SymSet = String.Set
 type sym_set = SymSet.t
-type sym_store = sym_set Int.Table.t
+type sym_store = sym_set IDTable.t
 
 let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
   ht_to_json_dict st ~f:(fun syms ->
@@ -166,7 +166,7 @@ let rec sym_exec
 
 
 let symbolic_execute (state: exec_state) (ast: expr) : sym_store =
-  let sym_store = Int.Table.create () in
+  let sym_store = IDTable.create () in
   let trace expr st =
     Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
   in
@@ -616,7 +616,7 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
             ; "exe_fn_ids", Log.dump state.exe_fn_ids
             ; "execution_id", Log.dump state.execution_id
             ];
-  let value_store = Int.Table.create () in
+  let value_store = IDTable.create () in
   let engine = analysis_engine value_store in
   (exec ~engine ~state state.env ast, value_store)
 
