@@ -3,9 +3,8 @@
 (library
  ((name libtarget_js)
   (wrapped false)
-  (libraries (core_kernel))
-  (flags (-warn-error (+A) :standard -no-keep-locs -opaque))
-  (modules_without_implementation (targetjs))
+  (libraries (core_kernel js_of_ocaml))
+  (flags (-warn-error (+A) :standard -no-keep-locs))
   (js_of_ocaml
     ((flags (+weak.js
              +dynlink.js
