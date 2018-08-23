@@ -490,6 +490,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
   in
 
   match fn.func with
+  | NotClientAvailable -> DIncomplete
   | InProcess f ->
     let arglist = fn.parameters
                   |> List.map ~f:(fun (p: param) -> p.name)
