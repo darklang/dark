@@ -194,6 +194,34 @@ encodeHandler h =
              , ("spec", encodeSpec h.spec)
              , ("ast", encodeExpr h.ast) ]
 
+encodeDBMigrationKind : DBMigrationKind -> JSE.Value
+encodeDBMigrationKind k =
+  let ev = encodeVariant in
+  case k of
+    ChangeColType -> ev "ChangeColType" []
+
+encodeDBMigration : DBMigration -> JSE.Value
+encodeDBMigration dbm =
+  JSE.object [ ("starting_version", JSE.int dbm.startingVersion)
+             , ("kind", encodeDBMigrationKind dbm.kind)
+             , ("rollforward", encodeExpr dbm.rollforward)
+             , ("rollback", encodeExpr dbm.rollback)
+             , ("target", encodeID dbm.target)
+             ]
+
+encodeDB : DB -> JSE.Value
+encodeDB db =
+  let encodeCol =
+        encodePair (encodeBlankOr JSE.string) (encodeBlankOr JSE.string)
+  in
+  JSE.object [ ("tlid", encodeTLID db.tlid)
+             , ("name", JSE.string db.name)
+             , ("cols", JSE.list (List.map encodeCol db.cols))
+             , ("version", JSE.int db.version)
+             , ("old_migrations", JSE.list (List.map encodeDBMigration db.oldMigrations))
+             , ("active_migration", Maybe.map encodeDBMigration db.activeMigration
+                                    |> Maybe.withDefault JSE.null)
+             ]
 
 encodeOp : Op -> JSE.Value
 encodeOp call =
@@ -418,11 +446,7 @@ encodeCursorState cs =
     Deselected ->
       ev "Deselected" []
 
-encodeDBMigrationKind : DBMigrationKind -> JSE.Value
-encodeDBMigrationKind k =
-  let ev = encodeVariant in
-  case k of
-    ChangeColType -> ev "ChangeColType" []
+
 
 encodeSerializableEditor : SerializableEditor -> JSE.Value
 encodeSerializableEditor se =
@@ -626,8 +650,9 @@ decodeDBMigration =
 
 decodeDB : JSD.Decoder DB
 decodeDB =
-  let toDB name cols version old active =
-      { name = name
+  let toDB tlid name cols version old active =
+      { tlid = TLID tlid
+      , name = name
       , cols = cols
       , version = version
       , oldMigrations = old
@@ -635,6 +660,7 @@ decodeDB =
       }
   in
   JSDP.decode toDB
+  |> JSDP.required "tlid" JSD.int
   |> JSDP.required "name" JSD.string
   |> JSDP.required "cols" (JSD.list
                             (decodePair
