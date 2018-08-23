@@ -1029,12 +1029,12 @@ let t_db_deprecated_has_many_works () =
 let t_db_deprecated_fetch_by_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
-            ; Op.AddDBCol (dbid, 13, 14)
-            ; Op.SetDBColName (dbid, 13, "sort_by")
-            ; Op.SetDBColType (dbid, 14, "Int")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "sort_by")
+            ; Op.SetDBColType (dbid, coltypeid2, "Int")
             ]
   in
   (* sorting to ensure the test isn't flakey *)
@@ -1051,9 +1051,9 @@ let t_db_deprecated_fetch_by_works () =
 let t_db_deprecated_fetch_by_id_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
@@ -1067,9 +1067,9 @@ let t_db_deprecated_fetch_by_id_works () =
 let t_db_get_many_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -1084,12 +1084,12 @@ let t_db_get_many_works () =
 let t_db_query_works_with_many () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
-            ; Op.AddDBCol (dbid, 13, 14)
-            ; Op.SetDBColName (dbid, 13, "sort_by")
-            ; Op.SetDBColType (dbid, 14, "Int")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "sort_by")
+            ; Op.SetDBColType (dbid, coltypeid2, "Int")
             ]
   in
   (* sorting to ensure the test isn't flakey *)
@@ -1106,9 +1106,9 @@ let t_db_query_works_with_many () =
 let t_db_deprecated_delete_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
@@ -1122,9 +1122,9 @@ let t_db_deprecated_delete_works () =
 let t_db_deprecated_update_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
@@ -1138,9 +1138,9 @@ let t_db_deprecated_update_works () =
 let t_db_get_returns_nothing () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   check_dval "get_returns_nothing"
