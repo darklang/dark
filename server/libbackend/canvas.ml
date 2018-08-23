@@ -112,7 +112,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       if name = ""
       then Exception.client "DB must have a name"
       else
-        let db = User_db.create !c.host name tlid in
+        let db = User_db.create name tlid in
         upsert_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(User_db.add_col colid typeid) tlid

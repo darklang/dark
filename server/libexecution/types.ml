@@ -113,7 +113,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                         }
                         [@@deriving eq, compare, show, yojson, sexp]
     type db = { tlid: tlid
-              ; host: string
               ; name: string
               ; cols: col list
               ; version: int

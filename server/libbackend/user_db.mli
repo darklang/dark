@@ -23,7 +23,7 @@ val coerce_key_value_pair_to_legacy_object : dval list -> dval
 val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval
 
 (* DB schema modifications *)
-val create : host -> string -> tlid -> DbT.db
+val create : string -> tlid -> DbT.db
 val add_col : id -> id -> DbT.db -> DbT.db
 val set_col_name : id -> string -> DbT.db -> DbT.db
 val set_col_type : id -> tipe -> DbT.db -> DbT.db
