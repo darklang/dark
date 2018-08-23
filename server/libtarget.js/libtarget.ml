@@ -1,5 +1,15 @@
+open Js_of_ocaml
+
+type js_string = Js.js_string Js.t
+
+external dark_targetjs_digest384 : js_string -> js_string = "dark_targetjs_digest384"
+(* external dark_targetjs_dump : 'a -> string = "dark_targetjs_dump" *)
+
 let digest384 (input: string) : string =
-  ""
+  input
+  |> Js.string
+  |> dark_targetjs_digest384
+  |> Js.to_string
 
 let digest256 (input: string) : string =
   ""
