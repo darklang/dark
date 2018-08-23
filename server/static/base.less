@@ -90,7 +90,6 @@ body #grid * {
   height: 100%;
   overflow: hidden;
   position: relative;
-  left: 330px;
   width: 100%;
   .node {
     position: absolute;
@@ -260,7 +259,7 @@ body #grid * {
   position: absolute;
   top: @vertical-spacing;
   left: 0;
-  height: calc(~"100% - 40px");
+  max-height: calc(~"100% - 40px");
   overflow-y: scroll;
   background-color: @black2;
 }
@@ -351,6 +350,8 @@ body #grid * {
 
       .external {
         color: @orange;
+        padding-left: 8px;
+
         &:hover {
           color: @yellow;
         }
@@ -1374,7 +1375,7 @@ body #grid * {
   z-index: 70;
 }
 
-.viewing-table {
+.left-sidebar {
   z-index: 55;
 }
 
