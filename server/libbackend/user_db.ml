@@ -529,9 +529,8 @@ let unlocked canvas_id account_id (dbs: db list) : db list =
 (* DB schema *)
 (* ------------------------- *)
 
-let create (host:host) (name:string) (id: tlid) : db =
+let create (name:string) (id: tlid) : db =
   { tlid = id
-  ; host = host
   ; name = name
   ; cols = []
   ; version = 0
