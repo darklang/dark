@@ -36,10 +36,11 @@ start m =
           msgId = gid ()
           newPd = P.exprmap (toFlagged msgId) pd
           newTL = TL.replace pd newPd tl
-      in
-      RPC ([SetHandler tl.id tl.pos
-                       (newTL |> TL.asHandler |> deMaybe "FF.start") ]
-           , FocusExact tl.id msgId)
+          focus = FocusExact tl.id msgId
+      in case newTL.data of
+        TLHandler h -> RPC ([SetHandler tl.id tl.pos h], focus)
+        TLFunc f -> RPC ([SetFunction f], focus)
+        _ -> NoChange
     _ -> NoChange
 
 end : Model -> ID -> Pick -> Modification
@@ -51,10 +52,11 @@ end m id pick =
           pd = TL.findExn tl id
           newPd = P.exprmap (fromFlagged pick) pd
           newTL = TL.replace pd newPd tl
-      in
-      RPC ([SetHandler tl.id tl.pos
-                       (newTL |> TL.asHandler |> deMaybe "FF.end") ]
-           , FocusExact tl.id (P.toID newPd))
+          focus = FocusExact tl.id (P.toID newPd)
+      in case newTL.data of
+        TLHandler h -> RPC ([SetHandler tl.id tl.pos h], focus)
+        TLFunc f -> RPC ([SetFunction f], focus)
+        _ -> NoChange
 
 toggle : Model -> ID ->  Bool -> Modification
 toggle m id isExpanded =
