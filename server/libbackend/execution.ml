@@ -69,7 +69,6 @@ let initial_envs_for_user_fn (c: canvas) (fn: RTT.user_fn)
 let state_for
     ~(c: canvas)
     ~(execution_id: id)
-    ~(input_cursor: int)
     ~(exe_fn_ids : id list)
     ~(env: RTT.dval_map)
     (tlid: tlid)
@@ -82,7 +81,6 @@ let state_for
   ; exe_fn_ids
   ; env
   ; fail_fn = None
-  ; input_cursor
   ; dbs = TL.dbs c.dbs
   ; execution_id
   ; load_fn_result = Ast_analysis.load_no_results
@@ -94,13 +92,12 @@ let state_for
 
 let state_for_analysis
     ~(c: canvas)
-    ~(input_cursor: int )
     ~(execution_id: id)
     ~(exe_fn_ids: id list)
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
-  let s = state_for ~c ~input_cursor ~execution_id ~exe_fn_ids ~env tlid in
+  let s = state_for ~c ~execution_id ~exe_fn_ids ~env tlid in
   { s with load_fn_result = Stored_function_result.load
          ; store_fn_result = Stored_function_result.store
          ; load_fn_arguments = Stored_function_arguments.load
@@ -113,7 +110,7 @@ let state_for_execution
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
-  let s = state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env tlid in
+  let s = state_for ~c ~execution_id ~exe_fn_ids:[] ~env tlid in
   { s with store_fn_result = Stored_function_result.store
          ; store_fn_arguments = Stored_function_arguments.store
   }
@@ -123,5 +120,5 @@ let state_for_enqueue
   ~(execution_id: id)
   (tlid: tlid)
   : RTT.exec_state =
-  state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env:RTT.DvalMap.empty tlid
+  state_for ~c ~execution_id ~exe_fn_ids:[] ~env:RTT.DvalMap.empty tlid
 

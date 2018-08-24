@@ -84,7 +84,7 @@ let user_fn_analysis
   in
   let state i env : RTT.exec_state =
     Execution.state_for_analysis f.tlid
-      ~c ~input_cursor:i ~exe_fn_ids:(fn_ids i) ~execution_id ~env
+      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
   let envs = Execution.initial_envs_for_user_fn c f in
   let values =
@@ -117,7 +117,7 @@ let handler_analysis
   in
   let state i env : RTT.exec_state =
     Execution.state_for_analysis h.tlid
-      ~c ~input_cursor:i ~exe_fn_ids:(fn_ids i) ~execution_id ~env
+      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
   let envs = Execution.initial_envs_for_handler c h in
   let values =

@@ -24,7 +24,6 @@ let state env : Libexecution.Types.RuntimeT.exec_state =
   ; exe_fn_ids = []
   ; env = env
   ; fail_fn = None
-  ; input_cursor = 0
   ; dbs = []
   ; execution_id = Libexecution.Types.id_of_int 1
   ; load_fn_result = Ast_analysis.load_no_results
