@@ -160,7 +160,6 @@ type Msg
     | RestoreToplevel TLID
     | LockHandler TLID Bool
     | ReceiveAnalysis JSD.Value
-    | SidebarFocus
     | SidebarFocus Bool
     | SidebarScrollTo (Result Dom.Error ())
 
