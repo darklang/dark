@@ -125,11 +125,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     respond `Internal_server_error ~resp_headers ~execution_id
       "500: More than one page matches"
   | [page] ->
-    let route = Handler.event_name_for_exn page in
     let input = PReq.from_request headers query body in
-    let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
-    let dbs = TL.dbs !c.dbs in
-    let dbs_env = User_db.dbs_as_exe_env (dbs) in
     (match (Handler.module_for page, Handler.modifier_for page) with
     | (Some m, Some mo) ->
       (* Store the event with the input path not the event name, because we
@@ -140,12 +136,18 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
       let desc = (m, Uri.path uri, mo) in
       Stored_event.store_event !c.id desc (PReq.to_dval input)
     | _-> ());
-    let env = Util.merge_left bound dbs_env in
-    let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
-    let state = Execution.state_for_execution ~c:!c
-        ~execution_id ~env page.tlid in
-    let result = Libexecution.Ast_analysis.execute_handler state page in
+    let route = Handler.event_name_for_exn page in
+    let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
+    let result = Libexecution.Handler_analysis.execute page
+        ~execution_id
+        ~account_id:!c.owner
+        ~canvas_id:!c.id
+        ~user_fns:!c.user_functions
+        ~tlid:page.tlid
+        ~dbs:(TL.dbs !c.dbs)
+        ~input_vars:([("request", PReq.to_dval input)] @ bound)
+    in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
@@ -166,7 +168,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
             "text/plain; charset=utf-8"
     in
     (match result with
-    | DResp (http, value) ->
+    | RTT.DResp (http, value) ->
       (match http with
        | Redirect url ->
          S.respond_redirect (Uri.of_string url) ()

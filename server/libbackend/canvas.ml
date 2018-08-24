@@ -112,6 +112,11 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       if name = ""
       then Exception.client "DB must have a name"
       else
+        List.iter (TL.dbs !c.dbs)
+          ~f:(fun db ->
+              if db.name = name
+              then Exception.client "Duplicate DB name");
+
         let db = User_db.create name tlid in
         upsert_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->

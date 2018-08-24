@@ -54,23 +54,6 @@ let coerce_dlist_of_kv_pairs_to_legacy_object dv =
     |> DList
   | _ -> Exception.internal "bad fetch"
 
-
-
-(* ------------------------- *)
-(* frontend stuff *)
-(* ------------------------- *)
-let dbs_as_env (dbs: db list) : dval_map =
-  dbs
-  |> List.map ~f:(fun (db: db) -> (db.name, DDB db))
-  |> function m ->
-        match DvalMap.of_alist m with
-        | `Ok r -> r
-        | `Duplicate_key name ->
-          Exception.client ("A DB named " ^ name ^ " already exists")
-
-let dbs_as_exe_env (dbs: db list) : dval_map =
-  dbs_as_env dbs
-
 (* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)

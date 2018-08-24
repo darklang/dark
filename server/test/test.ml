@@ -171,9 +171,24 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
 
 let test_execution_data ops =
   let c = ops2c "test" ops in
-  let dbs = TL.dbs !c.dbs in
-  let env = User_db.dbs_as_exe_env dbs in
-  let state = Execution.state_for_execution ~c:!c tlid ~execution_id ~env in
+  let vars = Handler_analysis.dbs_as_env (TL.dbs !c.dbs) in
+  let env = DvalMap.of_alist_exn vars in
+  let state =
+        { tlid
+        ; account_id = !c.owner
+        ; canvas_id = !c.id
+        ; user_fns = !c.user_functions
+        ; exe_fn_ids = []
+        ; env
+        ; fail_fn = None
+        ; dbs = TL.dbs !c.dbs
+        ; execution_id
+        ; load_fn_result = Ast_analysis.load_no_results
+        ; store_fn_result = Stored_function_result.store
+        ; load_fn_arguments = Ast_analysis.load_no_arguments
+        ; store_fn_arguments = Stored_function_arguments.store
+        }
+  in
   (c, state, env)
 
 let execute_ops (ops : Op.op list) : dval =
