@@ -27,15 +27,15 @@ let status_to_enum status : string =
 (* Public API *)
 (* ------------------------- *)
 
-let enqueue (state: exec_state) (space: string) (name: string) (modifier: string) (data: dval) : unit =
+let enqueue ~account_id ~canvas_id (space: string) (name: string) (modifier: string) (data: dval) : unit =
   Db.run
     ~name:"enqueue"
      "INSERT INTO events
      (status, dequeued_by, canvas_id, account_id,
       space, name, modifier, value, delay_until)
      VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)"
-     ~params:[ Uuid state.canvas_id
-             ; Uuid state.account_id
+     ~params:[ Uuid canvas_id
+             ; Uuid account_id
              ; String space
              ; String name
              ; String modifier

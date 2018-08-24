@@ -15,9 +15,12 @@ let fns : Lib.shortfn list = [
   ; d = "Emit event `name` in `space`, passing along `data` as a parameter"
   ; f = InProcess
         (function
-          | (state, [data; DStr space; DStr name]) ->
+          | ({ canvas_id; account_id } , [data; DStr space; DStr name]) ->
             (* See Entry.elm for the "_" *)
-            Event_queue.enqueue state space name "_" data;
+            Event_queue.enqueue
+              ~canvas_id
+              ~account_id
+              space name "_" data;
             data
           | args -> fail args)
   ; pr = None

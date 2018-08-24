@@ -122,11 +122,14 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
             ~f:(fun cr ->
                 if should_execute !c.id cr
                 then
-                  let exec_state = Execution.state_for_enqueue !c execution_id cr.tlid in
                   let space = Handler.module_for_exn cr in
                   let name = Handler.event_name_for_exn cr in
                   let modifier = Handler.modifier_for_exn cr in
-                  Event_queue.enqueue exec_state space name modifier DNull;
+                  Event_queue.enqueue
+                    ~account_id:!c.owner
+                    ~canvas_id:!c.id
+                    space name modifier DNull;
+
                   record_execution !c.id cr;
                   Log.infO "cron_checker"
                     ~data:"enqueued event"
