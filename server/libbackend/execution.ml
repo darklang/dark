@@ -106,10 +106,3 @@ let state_for_analysis
          ; store_fn_arguments = Stored_function_arguments.store
   }
 
-let state_for_enqueue
-  ~(c: canvas)
-  ~(execution_id: id)
-  (tlid: tlid)
-  : RTT.exec_state =
-  state_for ~c ~execution_id ~exe_fn_ids:[] ~env:RTT.DvalMap.empty tlid
-

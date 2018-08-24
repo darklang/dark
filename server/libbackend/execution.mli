@@ -24,9 +24,4 @@ val state_for_analysis :
   tlid ->
   RTT.exec_state
 
-val state_for_enqueue :
-  c : canvas ->
-  execution_id : id ->
-  tlid ->
-  RTT.exec_state
 
