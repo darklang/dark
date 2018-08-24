@@ -1208,8 +1208,7 @@ update_ msg m =
     BlankOrMouseLeave _ id _ ->
       ClearHover id
 
-    MouseWheel deltaCoords ->
-       Viewport.mouseMove m deltaCoords
+    MouseWheel deltaCoords -> Viewport.mouseMove m deltaCoords
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx

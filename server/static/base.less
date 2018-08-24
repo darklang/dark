@@ -253,8 +253,6 @@ body #grid * {
 // Routing table
 //*************
 
-@sidebar-width: 300px;
-
 #leftsidebar {
   position: absolute;
   top: @vertical-spacing;
@@ -274,13 +272,13 @@ body #grid * {
 }
 
 .viewing-table {
-  padding: @horizontal-padding;
   position: relative;
+  min-width: 300px;
   width: max-content;
+  padding: @horizontal-padding;
 
   .routing-section {
     .header {
-      width: @sidebar-width;
       color: @orange;
 
       .title {
@@ -304,9 +302,6 @@ body #grid * {
     &.deleted > .routing-section {
       margin-left: @horizontal-padding;
 
-      .header {
-        width: @sidebar-width - @horizontal-padding;
-      }
     }
 
     .button-link {

@@ -401,7 +401,7 @@ viewRoutingTable m =
   in Html.div
       [ Attrs.id "leftsidebar"
       , Attrs.classList [("scrollable", m.sidebar.isScrollable)]
-      , eventNoPropagation "mouseenter" (\_ -> SidebarFocus True )
+      , eventNoPropagation "mouseenter" (\_ -> SidebarFocus True)
       , eventNoPropagation "mouseleave" (\_ -> SidebarFocus False)
       ]
       [ html ]
