@@ -16,7 +16,8 @@ let execute
   ~user_fns
   ~account_id
   ~canvas_id
-  h
+  (h : RTT.HandlerT.handler)
+  : RTT.dval
   =
   let vars = (dbs_as_env dbs) @ input_vars  in
   (* TODO: better error *)
@@ -37,5 +38,12 @@ let execute
     ; store_fn_arguments = Ast_analysis.store_no_arguments
     }
   in
-  Ast_analysis.execute_handler state h
+  let result = Ast_analysis.execute_ast state env h.ast in
+  match result with
+  | DErrorRail (DOption OptNothing) ->
+    DResp ((Response (404, []), DStr "Not found"))
+  | DErrorRail _ ->
+    DResp ((Response (500, []), DStr "Invalid conversion from errorrail"))
+  | dv -> dv
+
 

@@ -192,11 +192,19 @@ let test_execution_data ops =
   (c, state, env)
 
 let execute_ops (ops : Op.op list) : dval =
-  let (c, state, env) = test_execution_data ops in
+  let (c, { tlid; execution_id ; dbs ; user_fns ; account_id ; canvas_id }, env) =
+    test_execution_data ops in
   let h = !c.handlers
           |> TL.handlers
           |> List.hd_exn in
-  Ast_analysis.execute_handler state h
+  Handler_analysis.execute h
+    ~tlid
+    ~execution_id
+    ~dbs
+    ~user_fns
+    ~account_id
+    ~canvas_id
+    ~input_vars:[]
 
 let exec_handler ?(ops=[]) (prog: string) : dval =
   prog
