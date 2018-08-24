@@ -306,8 +306,6 @@ fnLink fn isUsed text =
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text]
 
-
-
 view404s : List FourOhFour -> Html.Html Msg
 view404s f404s  =
   let thelink fof =
@@ -354,7 +352,6 @@ viewRestorableDBs tls =
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
 
-
 viewUserFunctions : Model -> Html.Html Msg
 viewUserFunctions m =
   let fns = m.userFunctions
@@ -389,8 +386,6 @@ viewUserFunctions m =
       routes = div "fns" (List.map fnHtml fns)
   in section "Functions" fns (Just CreateFunction) routes
 
-
-
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
   let sections = viewRoutes m.toplevels CollapseVerbs ShowLink DontShowUndo
@@ -400,7 +395,8 @@ viewRoutingTable m =
                  ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
-               , nothingMouseEvent "mouseup"
+               --, nothingMouseEvent "mouseup"
+               , eventNoPropagation "click" (\_ -> SidebarFocus)
                ]
                sections
-  in Html.div [ Attrs.class "left-sidebar" ] [ html ]
+  in Html.div [ Attrs.id "leftsidebar" ] [ html ]

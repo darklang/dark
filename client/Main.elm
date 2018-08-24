@@ -602,6 +602,9 @@ updateMod mod (m, cmd) =
         { m | executingFunctions = nexecutingFunctions } ! []
       SetLockedHandlers locked ->
         { m | lockedHandlers = locked } ! []
+      SidebarUpdateY y ->
+        let sidebar = m.sidebar
+        in { m | sidebar = { sidebar | yPos = y } } ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -1202,15 +1205,8 @@ update_ msg m =
     BlankOrMouseLeave _ id _ ->
       ClearHover id
 
-
     MouseWheel deltaCoords ->
-      let pos = Viewport.pagePos m.currentPage
-          delta = case deltaCoords of
-                        x::y::_ -> { x=x, y=y }
-                        _ -> { x=0, y=0 }
-          dest = { x=pos.x + delta.x, y=pos.y + delta.y }
-       in
-       Viewport.moveTo dest
+       Viewport.mouseMove m deltaCoords
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx
@@ -1565,6 +1561,9 @@ update_ msg m =
                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
+
+    SidebarFocus -> TweakModel (\m -> { m | sidebar = { isScrollable = True, yPos = m.sidebar.yPos } })
+
     _ -> NoChange
 
 findCenter : Model -> Pos
