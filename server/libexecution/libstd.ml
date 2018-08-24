@@ -642,7 +642,10 @@ let fns : Lib.shortfn list = [
   ; d = "Parses a json string and returns its value"
   ; f = InProcess
         (function
-          | (_, [DStr json]) -> Dval.parse json
+          | (_, [DStr json]) ->
+            (match Dval.parse_basic_json json with
+             | Some dv -> dv
+             | _ -> DNull)
           | args -> fail args)
   ; pr = None
   ; ps = true

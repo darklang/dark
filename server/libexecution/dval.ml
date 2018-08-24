@@ -462,7 +462,16 @@ let dvallist_to_string ?(redact=true) (l:dval list) : string =
 (* ------------------------- *)
 (* Parsing *)
 (* ------------------------- *)
-let parse (str : string) : dval =
+let parse_basic_json (str: string) : dval option =
+  try
+    str
+    |> Yojson.Safe.from_string
+    |> dval_of_yojson_
+    |> fun dv -> Some dv
+  with Yojson.Json_error e ->
+    None
+
+let parse (str : string) : dval option =
   (* str is a raw string that the user entered. It is not valid json,
    * or anything like it. We use the json parser to get values from int
    * and float literals, etc, but this is a total hack *)
@@ -470,7 +479,7 @@ let parse (str : string) : dval =
   (* TODO: Doesn't handle nested characters. Replace with a custom parser,
      using the one in RealWorldOcaml, or just ripped out of Yojson *)
   if len > 0 && String.get str 0 = '\''
-  then DChar (String.get str 1)
+  then Some (DChar (String.get str 1))
   else if len > 1
     && String.get str 0 = '"'
     && String.get str (len - 1) = '"'
@@ -481,16 +490,11 @@ let parse (str : string) : dval =
   then str
        |> String.sub ~pos:1 ~len:(len - 2)
        |> Util.string_replace "\\\"" "\""
-       |> fun s -> DStr s
+       |> fun s -> Some (DStr s)
+  else if String.Caseless.equal "nothing" str
+  then Some (DOption OptNothing)
   else
-    try
-      (* TODO: doesn't handle nested sequences at all unless they're
-       * valid json *)
-      str
-      |> Yojson.Safe.from_string
-      |> dval_of_yojson_
-    with Yojson.Json_error e ->
-      Exception.user ~actual:str ("Invalid json: '" ^ str ^ "'")
+    parse_basic_json str
 
 let query_to_dval (query: (string * string list) list) : dval =
   query

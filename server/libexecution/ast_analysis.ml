@@ -282,6 +282,7 @@ let rec exec ~(engine: engine)
 
      | Filled (_, Value s) ->
        Dval.parse s
+       |> Option.value ~default:(DError "Unparsable value")
 
      | Filled (_, ListLiteral exprs) ->
        exprs
