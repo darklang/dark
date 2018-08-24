@@ -161,6 +161,7 @@ type Msg
     | LockHandler TLID Bool
     | ReceiveAnalysis JSD.Value
     | SidebarFocus
+    | SidebarFocus Bool
     | SidebarScrollTo (Result Dom.Error ())
 
 type alias Predecessor = Maybe PointerData
@@ -548,7 +549,8 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
-                  | SidebarUpdateY Float
+                  | SidebarSetY Float
+                  | SidebarSetScrollable Bool
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

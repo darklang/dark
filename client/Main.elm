@@ -602,9 +602,12 @@ updateMod mod (m, cmd) =
         { m | executingFunctions = nexecutingFunctions } ! []
       SetLockedHandlers locked ->
         { m | lockedHandlers = locked } ! []
-      SidebarUpdateY y ->
+      SidebarSetY y ->
         let sidebar = m.sidebar
         in { m | sidebar = { sidebar | yPos = y } } ! []
+      SidebarSetScrollable scrollable ->
+        let sidebar = m.sidebar
+        in { m | sidebar = { sidebar | isScrollable = scrollable } } ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -1562,7 +1565,7 @@ update_ msg m =
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
 
-    SidebarFocus -> TweakModel (\m -> { m | sidebar = { isScrollable = True, yPos = m.sidebar.yPos } })
+    SidebarFocus scrollable -> SidebarSetScrollable scrollable
 
     _ -> NoChange
 

@@ -259,9 +259,18 @@ body #grid * {
   position: absolute;
   top: @vertical-spacing;
   left: 0;
-  max-height: calc(~"100% - 40px");
+  max-height: calc(~"100% - 50px");
   overflow-y: scroll;
-  background-color: @black2;
+  background-color: @black1;
+  border: 1px solid @black2;
+
+  &::-webkit-scrollbar-thumb {
+    background-color: @grey2;
+  } 
+
+  &.scrollable {
+    background-color: @black2;
+  }
 }
 
 .viewing-table {

@@ -73,15 +73,20 @@ mouseMove m deltaCoords =
         case deltaCoords of
           x::y::_ -> { x=x, y=y }
           _ -> { x=0, y=0 }
-  in if (m.sidebar.isScrollable && (abs delta.x) < 10)
+  in if m.sidebar.isScrollable
   then
-    let y = m.sidebar.yPos + (toFloat delta.y)
-        ny = if y < 0 then 0 else y
-        scroll = Dom.Scroll.toY "leftsidebar" ny
-    in Many
-      [ MakeCmd (Task.attempt SidebarScrollTo scroll)
-      , SidebarUpdateY ny
-      ]
+    if (abs delta.x) < 10
+    then
+      let sidebarId = "leftsidebar"
+          startY =  m.sidebar.yPos
+          y = startY + (toFloat delta.y)
+          ny = if y < 0 then 0 else y
+          scroll = Dom.Scroll.toY sidebarId ny
+      in Many
+        [ MakeCmd (Task.attempt SidebarScrollTo scroll)
+        , SidebarSetY ny
+        ]
+    else NoChange
   else moveTo {
         x = pos.x + delta.x
         , y = pos.y + delta.y

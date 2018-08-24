@@ -395,8 +395,13 @@ viewRoutingTable m =
                  ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
-               --, nothingMouseEvent "mouseup"
-               , eventNoPropagation "click" (\_ -> SidebarFocus)
+               , nothingMouseEvent "mouseup"
                ]
                sections
-  in Html.div [ Attrs.id "leftsidebar" ] [ html ]
+  in Html.div
+      [ Attrs.id "leftsidebar"
+      , Attrs.classList [("scrollable", m.sidebar.isScrollable)]
+      , eventNoPropagation "mouseenter" (\_ -> SidebarFocus True )
+      , eventNoPropagation "mouseleave" (\_ -> SidebarFocus False)
+      ]
+      [ html ]
