@@ -306,7 +306,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type exec_state = { tlid: tlid
                     ; canvas_id : Uuidm.t
                     ; account_id : Uuidm.t
-                    ; host: string
                     ; user_fns: user_fn list
                     ; exe_fn_ids: id list
                     ; env: symtable

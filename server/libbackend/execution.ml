@@ -74,7 +74,6 @@ let state_for
     (tlid: tlid)
   : RTT.exec_state =
   { tlid
-  ; host = c.host
   ; account_id = c.owner
   ; canvas_id = c.id
   ; user_fns = c.user_functions

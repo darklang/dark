@@ -17,7 +17,6 @@ let host = "test"
 
 let state env : Libexecution.Types.RuntimeT.exec_state =
   { tlid
-  ; host
   ; account_id = Libexecution.Util.create_uuid ()
   ; canvas_id = Libexecution.Util.create_uuid ()
   ; user_fns = []
