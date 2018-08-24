@@ -309,7 +309,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                     ; host: string
                     ; user_fns: user_fn list
                     ; exe_fn_ids: id list
-                    ; input_cursor : int
                     ; env: symtable
                     ; dbs: DbT.db list
                     ; execution_id: id

@@ -696,7 +696,6 @@ let execute_handler_for_analysis (state : exec_state) (h : handler) :
     analysis =
   Log.infO "Handler for analysis"
     ~params:[ "tlid", show_tlid state.tlid
-            ; "input", string_of_int state.input_cursor
             ; "execution_id", Log.dump state.execution_id];
   let default_env = with_defaults h state.env in
   let state = { state with env = default_env } in
