@@ -59,11 +59,6 @@ val execute_handler_for_analysis :
   Types.RuntimeT.HandlerT.handler ->
   analysis
 
-val execute_handler :
-  Types.RuntimeT.exec_state ->
-  Types.RuntimeT.HandlerT.handler ->
-  Types.RuntimeT.dval
-
 val execute_ast :
   Types.RuntimeT.exec_state ->
   Types.RuntimeT.dval_map ->
