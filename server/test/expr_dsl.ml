@@ -83,18 +83,9 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* literals / variables *)
   | Sexp.Atom value ->
-    if int_of_string_opt value = None
-    && float_of_string_opt value = None
-    && value <> "{}"
-    && value <> "[]"
-    && not (String.Caseless.equal value "null")
-    && not (String.Caseless.equal value "true")
-    && not (String.Caseless.equal value "false")
-    && not (String.is_prefix ~prefix:"\"" value)
-    then
-      f (Variable value)
-    else
-      f (Value value)
+    match Dval.parse value with
+    | Some v -> f (Value value)
+    | None -> f (Variable value)
 
 let ast_for (ast: string) : expr =
   let quotes = (Re2.create_exn "'(.*)'") in

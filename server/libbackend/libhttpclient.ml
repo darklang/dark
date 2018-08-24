@@ -24,11 +24,10 @@ let has_json_header (headers: headers) : bool =
          |> String.is_substring ~substring:"application/json")
 
 let read_json (json: string) : dval =
-  try
-    Dval.parse json
-  with e ->
-    Dval.exception_to_dval e
-
+  match Dval.parse_basic_json json with
+  | Some dv -> dv
+  | None ->
+    Exception.user ~actual:json "Invalid json"
 
 (* TODO: integrate with dark_request *)
 let call verb =

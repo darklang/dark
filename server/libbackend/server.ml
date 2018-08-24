@@ -561,14 +561,17 @@ let server () =
           with _ -> "UNHANDLED ERROR: real_err"
         in
         Log.erroR real_err ~bt ~params:["execution_id", Log.dump execution_id];
-
-        let user_err =
-          if include_internals
-          then real_err
-          else "Dark Internal Error"
-        in
         let resp_headers = Cohttp.Header.of_list [cors] in
-        respond ~resp_headers ~execution_id `Internal_server_error user_err
+        match e with
+        | Exception.DarkException e when e.tipe = EndUser ->
+          respond ~resp_headers ~execution_id `Bad_request e.short
+        | _ ->
+          let body =
+            if include_internals
+            then real_err
+            else "Dark Internal Error"
+          in
+          respond ~resp_headers ~execution_id `Internal_server_error body
       with e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);

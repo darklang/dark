@@ -366,7 +366,7 @@ let t_case_insensitive_db_roundtrip () =
 
 
 let t_lambda_with_foreach () =
-  check_dval "lambda_wit_foreach"
+  check_dval "lambda_with_foreach"
     (DStr "SOME STRING")
     (exec_ast
        "(String::foreach 'some string'
@@ -840,6 +840,17 @@ let t_errorrail_userfn () =
                    )");
   ()
 
+let t_nothing () =
+  check_dval "can specifiy nothing"
+    (DOption OptNothing)
+    (exec_ast "nothing");
+
+  check_dval "nothing works as expected"
+    (DBool true)
+    (exec_ast "(== (List::head_v1 []) nothing)");
+
+  ()
+
 
 
 (* ------------------- *)
@@ -893,6 +904,7 @@ let suite =
   ; "Errorrail simple", `Quick, t_errorrail_simple
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
+  ; "Handling nothing in code works", `Quick, t_nothing
   ]
 
 let () =

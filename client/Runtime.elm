@@ -54,7 +54,8 @@ isError : LiveValue -> Bool
 isError s =
   s.tipe == TError
 
-
+isNothing : String -> Bool
+isNothing s = String.toLower s == "nothing"
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
@@ -156,6 +157,7 @@ tipeOf s =
   else if isChar s then TChar
   else if isBool s then TBool
   else if isNull s then TNull
+  else if isNothing s then TOption
   else
     TIncomplete
 
@@ -167,6 +169,7 @@ isLiteral s =
   || isChar s
   || isBool s
   || isNull s
+  || isNothing s -- unsure about this
 
 
 extractErrorMessage : LiveValue -> String
