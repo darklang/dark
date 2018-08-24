@@ -13,7 +13,8 @@ type executable_fn_id = (tlid * id * int)
 let initial_env (c: canvas) : RTT.dval_map =
   c.dbs
   |> TL.dbs
-  |> User_db.dbs_as_env
+  |> Handler_analysis.dbs_as_env
+  |> RTT.DvalMap.of_alist_exn
 
 let sample_request =
   PReq.to_dval PReq.sample_request
@@ -51,7 +52,9 @@ let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
             | `Http ->
               let with_r = RTT.DvalMap.set init "request" e in
               let name = Handler.event_name_for_exn h in
-              let bound = Http.bind_route_params_exn path name in
+              let bound = Http.bind_route_params_exn path name
+                          |> RTT.DvalMap.of_alist_exn
+              in
               Util.merge_left with_r bound
             | `Event ->
               RTT.DvalMap.set init "event" e
@@ -100,17 +103,6 @@ let state_for_analysis
   { s with load_fn_result = Stored_function_result.load
          ; store_fn_result = Stored_function_result.store
          ; load_fn_arguments = Stored_function_arguments.load
-         ; store_fn_arguments = Stored_function_arguments.store
-  }
-
-let state_for_execution
-    ~(c: canvas)
-    ~(execution_id: id)
-    ~(env: RTT.dval_map)
-    (tlid: tlid)
-  : RTT.exec_state =
-  let s = state_for ~c ~execution_id ~exe_fn_ids:[] ~env tlid in
-  { s with store_fn_result = Stored_function_result.store
          ; store_fn_arguments = Stored_function_arguments.store
   }
 
