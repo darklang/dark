@@ -446,6 +446,9 @@ type alias UrlState = { lastPos : Pos
                       , canvasPos: Pos
                       }
 type alias TLCursors = Dict Int Int
+
+type alias CanvasProps = { offset: Pos }
+
 type alias Model = { error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
@@ -476,6 +479,7 @@ type alias Model = { error : Maybe String
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
+                   , canvas: CanvasProps
                    }
 
 -- Values that we serialize

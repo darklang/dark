@@ -67,4 +67,12 @@ moveTo : Pos -> Modification
 moveTo pos =
   SetCenter pos
 
-
+mouseMove : Model -> (List Int) -> Modification
+mouseMove m deltaCoords =
+  let d =
+        case deltaCoords of
+          x::y::_ -> { x=x, y=y }
+          _ -> { x=0, y=0 }
+      c = m.canvas
+      newPos = Pos (c.offset.x + d.x) (c.offset.y + d.y)
+  in TweakModel (\m -> { m | canvas = { c | offset = newPos } })

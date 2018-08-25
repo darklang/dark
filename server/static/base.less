@@ -82,11 +82,14 @@ body #grid * {
 }
 
 #canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
-  height: 100%;
-  overflow: hidden;
-  position: relative;
-  width: 100%;
+  min-height: 100%;
+  min-width: 100%;
+  overflow: visible;
+
   .node {
     position: absolute;
   }

@@ -50,6 +50,9 @@ defaultUrlState = { lastPos = {x=0, y=0},
                     canvasPos = {x=0, y=0}
                   }
 
+defaultCanvas : CanvasProps
+defaultCanvas = { offset = initialPos }
+
 defaultModel : Model
 defaultModel = { error = Nothing
                , lastMsg = Initialization
@@ -89,4 +92,5 @@ defaultModel = { error = Nothing
                , tlCursors = Dict.empty
                , featureFlags = Dict.empty
                , lockedHandlers = []
+               , canvas = defaultCanvas
                }
