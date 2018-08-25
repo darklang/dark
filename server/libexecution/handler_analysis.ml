@@ -21,14 +21,13 @@ let execute
   =
   let vars = (dbs_as_env dbs) @ input_vars  in
   (* TODO: better error *)
-  let env = RTT.DvalMap.of_alist_exn vars in
+  let st = RTT.DvalMap.of_alist_exn vars in
   let state : RTT.exec_state =
     { tlid = tlid
     ; account_id
     ; canvas_id
     ; user_fns
     ; dbs
-    ; env
     ; execution_id
     ; exe_fn_ids = []
     ; fail_fn = None
@@ -38,7 +37,7 @@ let execute
     ; store_fn_arguments = Ast_analysis.store_no_arguments
     }
   in
-  let result = Ast_analysis.execute_ast state env h.ast in
+  let result = Ast_analysis.execute_ast state st h.ast in
   match result with
   | DErrorRail (DOption OptNothing) ->
     DResp ((Response (404, []), DStr "Not found"))

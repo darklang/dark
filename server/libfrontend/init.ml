@@ -15,13 +15,12 @@ let init () =
 let tlid = Libexecution.Types.id_of_int 0
 let host = "test"
 
-let state env : Libexecution.Types.RuntimeT.exec_state =
+let state : Libexecution.Types.RuntimeT.exec_state =
   { tlid
   ; account_id = Libexecution.Util.create_uuid ()
   ; canvas_id = Libexecution.Util.create_uuid ()
   ; user_fns = []
   ; exe_fn_ids = []
-  ; env = env
   ; fail_fn = None
   ; dbs = []
   ; execution_id = Libexecution.Types.id_of_int 1
@@ -39,18 +38,17 @@ type analysis_param = { handlers : handler_list
                       } [@@deriving yojson]
 
 let perform_analysis (str : string) : string =
-  let env = DvalMap.empty in
   let { handlers ; dbs } =
     str
     |> Yojson.Safe.from_string
     |> analysis_param_of_yojson
     |> Result.ok_or_failwith
   in
-  let analysis_state = state env in
-  let analysis_state = { analysis_state with dbs = dbs } in
+  let input_vars = DvalMap.empty in
+  let state = { state with dbs = dbs } in
 
   handlers
-  |> List.map ~f:(Ast_analysis.execute_handler_for_analysis analysis_state)
+  |> List.map ~f:(Ast_analysis.execute_handler_for_analysis state ~input_vars)
   |> analysis_list_to_yojson
   |> Yojson.Safe.to_string
 

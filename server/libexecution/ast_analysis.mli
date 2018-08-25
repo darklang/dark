@@ -50,18 +50,20 @@ val environment_for_user_fn :
   Types.RuntimeT.dval_map
 
 val execute_user_fn_for_analysis :
+  input_vars: Types.RuntimeT.symtable ->
   Types.RuntimeT.exec_state ->
   Types.RuntimeT.user_fn ->
   analysis
 
 val execute_handler_for_analysis :
+  input_vars: Types.RuntimeT.symtable ->
   Types.RuntimeT.exec_state ->
   Types.RuntimeT.HandlerT.handler ->
   analysis
 
 val execute_ast :
   Types.RuntimeT.exec_state ->
-  Types.RuntimeT.dval_map ->
+  Types.RuntimeT.symtable ->
   Types.RuntimeT.expr ->
   Types.RuntimeT.dval
 
