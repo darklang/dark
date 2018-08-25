@@ -10,10 +10,10 @@ module SE = Stored_event
 type canvas = Canvas.canvas
 type executable_fn_id = (tlid * id * int)
 
-let initial_env (c: canvas) : RTT.dval_map =
+let global_vars (c: canvas) : RTT.symtable =
   c.dbs
   |> TL.dbs
-  |> Handler_analysis.dbs_as_env
+  |> Handler_analysis.dbs_as_input_vars
   |> RTT.DvalMap.of_alist_exn
 
 let sample_request =
@@ -22,14 +22,14 @@ let sample_request =
 let sample_event =
   RTT.DIncomplete
 
-let default_env (c: canvas) : RTT.dval_map =
-  initial_env c
+let default_input_vars (c: canvas) : RTT.symtable =
+  global_vars c
   |> RTT.DvalMap.set ~key:"request" ~data:sample_request
   |> RTT.DvalMap.set ~key:"event" ~data:sample_event
 
-let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
-  : RTT.dval_map list =
-  let init = initial_env c in
+let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
+  : RTT.symtable list =
+  let init = global_vars c in
   let default =
      match Handler.module_type h with
      | `Http ->
@@ -37,7 +37,7 @@ let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
      | `Event ->
        RTT.DvalMap.set init "event" sample_event
      | `Cron -> init
-     | `Unknown -> default_env c
+     | `Unknown -> default_input_vars c
   in
   (match Handler.event_desc_for h with
   | None -> [default]
@@ -62,9 +62,9 @@ let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
             | `Unknown -> init (* can't happen *)
         ))
 
-let initial_envs_for_user_fn (c: canvas) (fn: RTT.user_fn)
+let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   : RTT.dval_map list =
-  let init = initial_env c in
+  let init = global_vars c in
   Stored_function_arguments.load (c.id, fn.tlid)
   |> List.map ~f:(fun (m, _ts) -> Util.merge_left init m)
 

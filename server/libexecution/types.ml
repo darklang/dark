@@ -261,9 +261,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   module TipeMap = String.Map
   type tipe_map = tipe String.Map.t
 
-  module EnvMap = IDMap
-  type env_map = (dval_map list) EnvMap.t [@opaque]
-
   module Symtable = DvalMap
   type symtable = dval_map
 
