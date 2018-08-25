@@ -82,8 +82,6 @@ body #grid * {
 }
 
 @axis-style: dotted 1px @grey3;
-@axis-x: 5000px;
-@axis-y: 2400px;
 
 #canvas {
   position: absolute;
@@ -97,16 +95,20 @@ body #grid * {
   &::before { //y-axis
     content: "";
     display: block;
-    height: @axis-y;
-    transform: translateY(-50%);
+    position: absolute;
+    height: 2000%;
+    top: -1000%;
+    left: 0;
     border-left: @axis-style;
   }
 
   &::after { // x-axis
     content: "";
     display: block;
-    width: @axis-x;
-    transform: translate(-50%, -1*@axis-y);
+    position: absolute;
+    width: 2000%;
+    top: 0;
+    left: -1000%;
     border-top: @axis-style;
   }
 
