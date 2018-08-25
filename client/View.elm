@@ -62,15 +62,9 @@ viewCanvas m =
               case LE.find (\f -> f.tlid == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
-        yaxis = axisLine m {x=0, y=1}
-        xaxis = axisLine m {x=1, y=0}
-        axes =
-          case m.currentPage of
-            Toplevels _ -> [xaxis, yaxis]
-            Fn _ _ -> []
         canvasTransform offset = 
           "translate(" ++ (toString offset.x) ++ "px, " ++ (toString offset.y) ++ "px)"
-        allDivs = axes ++ asts ++ entry
+        allDivs = asts ++ entry
     in
         Html.div
         [ Attrs.id "canvas"
