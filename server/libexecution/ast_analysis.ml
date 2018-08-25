@@ -164,13 +164,15 @@ let rec sym_exec
               ]
 
 
-let symbolic_execute (state: exec_state) (ast: expr) : sym_store =
+let symbolic_execute (state: exec_state) (ast: expr)
+    ~(input_vars: symtable)
+  : sym_store =
   let sym_store = IDTable.create () in
   let trace expr st =
     Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
   in
   let init_set =
-    state.env
+    input_vars
     |> Symtable.keys
     |> SymSet.of_list
   in
@@ -610,6 +612,7 @@ let analysis_engine value_store : engine =
   }
 
 let execute_saving_intermediates (state : exec_state) (ast: expr)
+    ~(input_vars: symtable)
   : (dval * dval_store) =
   Log.infO "Executing for intermediates"
     ~params:[ "tlid", show_tlid state.tlid
@@ -618,7 +621,7 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
             ];
   let value_store = IDTable.create () in
   let engine = analysis_engine value_store in
-  (exec ~engine ~state state.env ast, value_store)
+  (exec ~engine ~state input_vars ast, value_store)
 
 let input_values st =
   st
@@ -682,34 +685,35 @@ let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) :
 (* -------------------- *)
 
 
-let execute_handler_for_analysis (state : exec_state) (h : handler) :
-    analysis =
+let execute_handler_for_analysis ~(input_vars: symtable)
+    (state : exec_state) (h : handler)
+  : analysis =
   Log.infO "Handler for analysis"
     ~params:[ "tlid", show_tlid state.tlid
             ; "execution_id", Log.dump state.execution_id];
-  let default_env = with_defaults h state.env in
-  let state = { state with env = default_env } in
+  let input_vars = with_defaults h input_vars in
   let traced_symbols =
-    symbolic_execute state h.ast in
+    symbolic_execute state ~input_vars h.ast in
   let (ast_value, traced_values) =
-    execute_saving_intermediates state h.ast in
+    execute_saving_intermediates state ~input_vars h.ast in
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = input_values state.env
+  ; input_values = input_values input_vars
   }
 
-let execute_user_fn_for_analysis (state : exec_state) (f : user_fn) :
-    analysis =
+let execute_user_fn_for_analysis ~(input_vars: symtable)
+    (state : exec_state) (f : user_fn)
+    : analysis =
   Log.infO "Function for analysis"
     ~data:(show_tlid state.tlid)
     ~params:["execution_id", Log.dump state.execution_id];
   let traced_symbols =
-    symbolic_execute state f.ast in
+    symbolic_execute state ~input_vars f.ast in
   let (ast_value, traced_values) =
-    execute_saving_intermediates state f.ast in
+    execute_saving_intermediates state ~input_vars f.ast in
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = input_values state.env
+  ; input_values = input_values input_vars
   }

@@ -20,7 +20,6 @@ val state_for_analysis :
   c : canvas ->
   execution_id : id ->
   exe_fn_ids : id list ->
-  env: RTT.dval_map ->
   tlid ->
   RTT.exec_state
 

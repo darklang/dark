@@ -87,11 +87,14 @@ let user_fn_analysis
           in
           let state =
             Execution.state_for_analysis f.tlid
-              ~c ~exe_fn_ids ~execution_id ~env
+              ~c ~exe_fn_ids ~execution_id
           in
-          Ast_analysis.execute_user_fn_for_analysis state h)
+          Ast_analysis.execute_user_fn_for_analysis state f
+            ~input_vars:env)
       envs
+  in
   (f.tlid, values)
+
 
 let handler_analysis
     ~(exe_fn_ids : executable_fn_id list)
@@ -118,9 +121,10 @@ let handler_analysis
           in
           let state =
             Execution.state_for_analysis h.tlid
-              ~c ~exe_fn_ids ~execution_id ~env
+              ~c ~exe_fn_ids ~execution_id
           in
-          Ast_analysis.execute_handler_for_analysis state h)
+          Ast_analysis.execute_handler_for_analysis state h
+            ~input_vars:env)
       envs
   in
   (h.tlid, values)

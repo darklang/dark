@@ -73,7 +73,6 @@ let state_for
     ~(c: canvas)
     ~(execution_id: id)
     ~(exe_fn_ids : id list)
-    ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
   { tlid
@@ -81,7 +80,6 @@ let state_for
   ; canvas_id = c.id
   ; user_fns = c.user_functions
   ; exe_fn_ids
-  ; env
   ; fail_fn = None
   ; dbs = TL.dbs c.dbs
   ; execution_id
@@ -96,10 +94,9 @@ let state_for_analysis
     ~(c: canvas)
     ~(execution_id: id)
     ~(exe_fn_ids: id list)
-    ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
-  let s = state_for ~c ~execution_id ~exe_fn_ids ~env tlid in
+  let s = state_for ~c ~execution_id ~exe_fn_ids tlid in
   { s with load_fn_result = Stored_function_result.load
          ; store_fn_result = Stored_function_result.store
          ; load_fn_arguments = Stored_function_arguments.load
