@@ -5,7 +5,7 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 
-let dbs_as_env (dbs: RTT.DbT.db list) : (string * RTT.dval) list =
+let dbs_as_input_vars (dbs: RTT.DbT.db list) : (string * RTT.dval) list =
   List.map dbs ~f:(fun db -> (db.name, RTT.DDB db))
 
 let execute
@@ -19,7 +19,7 @@ let execute
   (h : RTT.HandlerT.handler)
   : RTT.dval
   =
-  let vars = (dbs_as_env dbs) @ input_vars  in
+  let vars = (dbs_as_input_vars dbs) @ input_vars  in
   (* TODO: better error *)
   let st = RTT.DvalMap.of_alist_exn vars in
   let state : RTT.exec_state =

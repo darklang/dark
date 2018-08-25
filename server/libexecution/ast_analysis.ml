@@ -632,28 +632,28 @@ let input_values st =
 
 
 (* -------------------- *)
-(* Environments *)
+(* Input_vars *)
 (* -------------------- *)
-let handler_default_env (h: handler) : dval_map =
+let handler_default_input_vars (h: handler) : dval_map =
   match Handler.event_name_for h with
   | Some n ->
     n
     |> Http.route_variables
     |> List.map ~f:(fun k -> (k, DIncomplete))
-    |> DvalMap.of_alist_exn
-  | None -> DvalMap.empty
+    |> Symtable.of_alist_exn
+  | None -> Symtable.empty
 
-let with_defaults (h: handler) (env: symtable) : symtable =
-  Util.merge_left env (handler_default_env h)
+let with_defaults (h: handler) (input_vars: symtable) : symtable =
+  Util.merge_left input_vars (handler_default_input_vars h)
 
-let environment_for_user_fn (ufn: user_fn) : dval_map =
+let input_vars_for_user_fn (ufn: user_fn) : dval_map =
   let param_to_dval (p: param) : dval =
     DIncomplete
   in
   ufn.metadata.parameters
   |> List.filter_map ~f:ufn_param_to_param
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
-  |> DvalMap.of_alist_exn
+  |> Symtable.of_alist_exn
 
 
 (* -------------------- *)
@@ -668,11 +668,11 @@ let server_execution_engine : engine =
   ; ctx = Real
   }
 
-let execute_ast (state : exec_state) env expr : dval =
+let execute_ast (state : exec_state) st expr : dval =
   Log.infO "Executing for real"
     ~params:[ "tlid", show_tlid state.tlid
             ; "execution_id", Log.dump state.execution_id];
-  exec env expr
+  exec st expr
     ~engine:server_execution_engine
     ~state
 

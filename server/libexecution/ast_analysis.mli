@@ -45,7 +45,7 @@ val load_no_results:
   Types.RuntimeT.dval list ->
   (Types.RuntimeT.dval * Time.t) option
 
-val environment_for_user_fn :
+val input_vars_for_user_fn :
   Types.RuntimeT.user_fn ->
   Types.RuntimeT.dval_map
 

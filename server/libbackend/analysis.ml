@@ -28,7 +28,7 @@ let analysis_result_to_yojson (id, results) =
          ; ("results", Ast_analysis.analysis_list_to_yojson results)
          ]
 let global_vars (c: canvas) : string list =
-  RTT.DvalMap.keys (Execution.default_env c)
+  RTT.Symtable.keys (Execution.global_vars c)
 
 let unlocked (c: canvas) : tlid list =
   c.dbs
@@ -75,10 +75,10 @@ let user_fn_analysis
     (c: canvas)
     (f: RTT.user_fn)
   : analysis_result =
-  let envs = Execution.initial_envs_for_user_fn c f in
+  let all_inputs = Execution.initial_input_vars_for_user_fn c f in
   let values =
     List.mapi
-      ~f:(fun i env ->
+      ~f:(fun i input_vars ->
           let exe_fn_ids = List.filter_map exe_fn_ids
                         ~f:(fun (tlid, id, cursor) ->
                             if tlid = f.tlid && i = cursor
@@ -89,9 +89,8 @@ let user_fn_analysis
             Execution.state_for_analysis f.tlid
               ~c ~exe_fn_ids ~execution_id
           in
-          Ast_analysis.execute_user_fn_for_analysis state f
-            ~input_vars:env)
-      envs
+          Ast_analysis.execute_user_fn_for_analysis ~input_vars state f)
+      all_inputs
   in
   (f.tlid, values)
 
@@ -109,10 +108,10 @@ let handler_analysis
             ; "execution_id", show_id execution_id
             ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
-  let envs = Execution.initial_envs_for_handler c h in
+  let all_inputs = Execution.initial_input_vars_for_handler c h in
   let values =
     List.mapi
-      ~f:(fun i env ->
+      ~f:(fun i input_vars ->
           let exe_fn_ids = List.filter_map exe_fn_ids
                         ~f:(fun (tlid, id, cursor) ->
                             if tlid = h.tlid && i = cursor
@@ -123,9 +122,8 @@ let handler_analysis
             Execution.state_for_analysis h.tlid
               ~c ~exe_fn_ids ~execution_id
           in
-          Ast_analysis.execute_handler_for_analysis state h
-            ~input_vars:env)
-      envs
+          Ast_analysis.execute_handler_for_analysis ~input_vars state h)
+     all_inputs
   in
   (h.tlid, values)
 
