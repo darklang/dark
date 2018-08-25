@@ -75,24 +75,22 @@ let user_fn_analysis
     (c: canvas)
     (f: RTT.user_fn)
   : analysis_result =
-  let fn_ids i =
-    List.filter_map exe_fn_ids
-      ~f:(fun (tlid, id, cursor) ->
-          if tlid = f.tlid && i = cursor
-          then Some id
-          else None)
-  in
-  let state i env : RTT.exec_state =
-    Execution.state_for_analysis f.tlid
-      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
-  in
   let envs = Execution.initial_envs_for_user_fn c f in
   let values =
     List.mapi
       ~f:(fun i env ->
-          Ast_analysis.execute_user_fn_for_analysis (state i env) f)
+          let exe_fn_ids = List.filter_map exe_fn_ids
+                        ~f:(fun (tlid, id, cursor) ->
+                            if tlid = f.tlid && i = cursor
+                            then Some id
+                            else None)
+          in
+          let state =
+            Execution.state_for_analysis f.tlid
+              ~c ~exe_fn_ids ~execution_id ~env
+          in
+          Ast_analysis.execute_user_fn_for_analysis state h)
       envs
-  in
   (f.tlid, values)
 
 let handler_analysis
@@ -108,22 +106,21 @@ let handler_analysis
             ; "execution_id", show_id execution_id
             ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
-  let fn_ids i =
-    List.filter_map exe_fn_ids
-      ~f:(fun (tlid, id, cursor) ->
-          if tlid = h.tlid && i = cursor
-          then Some id
-          else None)
-  in
-  let state i env : RTT.exec_state =
-    Execution.state_for_analysis h.tlid
-      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
-  in
   let envs = Execution.initial_envs_for_handler c h in
   let values =
     List.mapi
       ~f:(fun i env ->
-          Ast_analysis.execute_handler_for_analysis (state i env) h)
+          let exe_fn_ids = List.filter_map exe_fn_ids
+                        ~f:(fun (tlid, id, cursor) ->
+                            if tlid = h.tlid && i = cursor
+                            then Some id
+                            else None)
+          in
+          let state =
+            Execution.state_for_analysis h.tlid
+              ~c ~exe_fn_ids ~execution_id ~env
+          in
+          Ast_analysis.execute_handler_for_analysis state h)
       envs
   in
   (h.tlid, values)
