@@ -1204,13 +1204,14 @@ update_ msg m =
 
 
     MouseWheel deltaCoords ->
-      let pos = Viewport.pagePos m.currentPage
-          delta = case deltaCoords of
-                        x::y::_ -> { x=x, y=y }
-                        _ -> { x=0, y=0 }
-          dest = { x=pos.x + delta.x, y=pos.y + delta.y }
-       in
-       Viewport.moveTo dest
+      --let pos = Viewport.pagePos m.currentPage
+      --    delta = case deltaCoords of
+      --                  x::y::_ -> { x=x, y=y }
+      --                  _ -> { x=0, y=0 }
+      --    dest = { x=pos.x + delta.x, y=pos.y + delta.y }
+      -- in
+      -- Viewport.moveTo dest
+      Viewport.mouseMove m deltaCoords
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx

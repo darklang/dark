@@ -39,10 +39,13 @@ view m =
         ViewScaffold.viewError m.error
       footer =
         ViewScaffold.viewButtons m
+      routing =
+        ViewRoutingTable.viewRoutingTable m
       body =
         viewCanvas m
       content =
         [ header
+        , routing
         , body
         , footer
         ]
@@ -65,10 +68,15 @@ viewCanvas m =
           case m.currentPage of
             Toplevels _ -> [xaxis, yaxis]
             Fn _ _ -> []
-        routing = [ViewRoutingTable.viewRoutingTable m]
-        allDivs = axes ++ routing ++ asts ++ entry
+        canvasTransform offset = 
+          "translate(" ++ (toString offset.x) ++ "px, " ++ (toString offset.y) ++ "px)"
+        allDivs = axes ++ asts ++ entry
     in
-        Html.div [Attrs.id "canvas"] allDivs
+        Html.div
+        [ Attrs.id "canvas"
+        , Attrs.style [ ("transform", canvasTransform m.canvas.offset) ]
+        ]
+        allDivs
 
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
