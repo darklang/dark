@@ -44,9 +44,6 @@ pageRight c =
   {x=c.x + Defaults.pageWidth, y=c.y } |> moveTo
 
 
-
-
-
 moveUp : Pos -> Modification
 moveUp c =
   {x=c.x, y=c.y - Defaults.moveSize } |> moveTo
