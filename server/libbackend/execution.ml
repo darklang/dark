@@ -10,11 +10,10 @@ module SE = Stored_event
 type canvas = Canvas.canvas
 type executable_fn_id = (tlid * id * int)
 
-let global_vars (c: canvas) : RTT.symtable =
+let global_vars (c: canvas) : RTT.input_vars =
   c.dbs
   |> TL.dbs
   |> Handler_analysis.dbs_as_input_vars
-  |> RTT.DvalMap.of_alist_exn
 
 let sample_request =
   PReq.to_dval PReq.sample_request
@@ -22,20 +21,19 @@ let sample_request =
 let sample_event =
   RTT.DIncomplete
 
-let default_input_vars (c: canvas) : RTT.symtable =
+let default_input_vars (c: canvas) : RTT.input_vars=
   global_vars c
-  |> RTT.DvalMap.set ~key:"request" ~data:sample_request
-  |> RTT.DvalMap.set ~key:"event" ~data:sample_event
+  @ [("request", sample_request); ("event", sample_event)]
 
 let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
-  : RTT.symtable list =
+  : RTT.input_vars list =
   let init = global_vars c in
   let default =
      match Handler.module_type h with
      | `Http ->
-       RTT.DvalMap.set init "request" sample_request
+       init @ [("request", sample_request)]
      | `Event ->
-       RTT.DvalMap.set init "event" sample_event
+       init @ [("event", sample_event)]
      | `Cron -> init
      | `Unknown -> default_input_vars c
   in
@@ -50,23 +48,21 @@ let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
         ~f:(fun e ->
             match Handler.module_type h with
             | `Http ->
-              let with_r = RTT.DvalMap.set init "request" e in
+              let with_r = [("request", e)] in
               let name = Handler.event_name_for_exn h in
-              let bound = Http.bind_route_params_exn path name
-                          |> RTT.DvalMap.of_alist_exn
-              in
-              Util.merge_left with_r bound
+              let bound = Http.bind_route_params_exn path name in
+              init @ with_r @ bound
             | `Event ->
-              RTT.DvalMap.set init "event" e
+              init @ [("event", e)]
             | `Cron  -> init
             | `Unknown -> init (* can't happen *)
         ))
 
 let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
-  : RTT.dval_map list =
+  : RTT.input_vars list =
   let init = global_vars c in
   Stored_function_arguments.load (c.id, fn.tlid)
-  |> List.map ~f:(fun (m, _ts) -> Util.merge_left init m)
+  |> List.map ~f:(fun (m, _ts) -> init @ (RTT.DvalMap.to_alist m))
 
 
 let state_for

@@ -44,7 +44,7 @@ let perform_analysis (str : string) : string =
     |> analysis_param_of_yojson
     |> Result.ok_or_failwith
   in
-  let input_vars = DvalMap.empty in
+  let input_vars = [] in
   let state = { state with dbs = dbs } in
 
   handlers
