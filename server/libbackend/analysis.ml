@@ -27,16 +27,15 @@ let analysis_result_to_yojson (id, results) =
   `Assoc [ ("id", id_to_yojson id)
          ; ("results", Ast_analysis.analysis_list_to_yojson results)
          ]
+
 let global_vars (c: canvas) : string list =
-  RTT.Symtable.keys (Execution.global_vars c)
+  List.map ~f:(Tuple.T2.get1) (Execution.global_vars c)
 
 let unlocked (c: canvas) : tlid list =
   c.dbs
   |> TL.dbs
   |> User_db.unlocked c.id c.owner
   |> List.map ~f:(fun x -> x.tlid)
-
-
 
 let get_404s (c: canvas) : SE.four_oh_four list =
   let events = SE.list_events c.id in

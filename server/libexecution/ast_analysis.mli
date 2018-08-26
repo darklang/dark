@@ -50,20 +50,20 @@ val input_vars_for_user_fn :
   Types.RuntimeT.dval_map
 
 val execute_user_fn_for_analysis :
-  input_vars: Types.RuntimeT.symtable ->
+  input_vars: Types.RuntimeT.input_vars ->
   Types.RuntimeT.exec_state ->
   Types.RuntimeT.user_fn ->
   analysis
 
 val execute_handler_for_analysis :
-  input_vars: Types.RuntimeT.symtable ->
+  input_vars: Types.RuntimeT.input_vars ->
   Types.RuntimeT.exec_state ->
   Types.RuntimeT.HandlerT.handler ->
   analysis
 
 val execute_ast :
+  input_vars : Types.RuntimeT.input_vars ->
   Types.RuntimeT.exec_state ->
-  Types.RuntimeT.symtable ->
   Types.RuntimeT.expr ->
   Types.RuntimeT.dval
 
@@ -73,6 +73,9 @@ val execute_userfn :
   Types.id ->
   Types.RuntimeT.dval list ->
   Types.RuntimeT.dval
+
+val input_vars2symtable :
+  Types.RuntimeT.input_vars -> Types.RuntimeT.symtable
 
 val store_no_arguments :
   Types.RuntimeT.user_fn_desc ->

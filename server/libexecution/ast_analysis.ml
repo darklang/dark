@@ -74,8 +74,7 @@ let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
 let symtable_to_sym_list (st : symtable) : sym_list =
   st
   |> Map.to_alist
-  |> List.map ~f:(Tuple.T2.map_snd
-                    ~f:dval_to_livevalue)
+  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
 
 
 (* Analysis result *)
@@ -165,7 +164,7 @@ let rec sym_exec
 
 
 let symbolic_execute (state: exec_state) (ast: expr)
-    ~(input_vars: symtable)
+    ~(input_vars: input_vars)
   : sym_store =
   let sym_store = IDTable.create () in
   let trace expr st =
@@ -173,7 +172,7 @@ let symbolic_execute (state: exec_state) (ast: expr)
   in
   let init_set =
     input_vars
-    |> Symtable.keys
+    |> List.map ~f:Tuple.T2.get1
     |> SymSet.of_list
   in
   sym_exec ~trace state init_set ast;
@@ -595,6 +594,34 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 
 
 (* -------------------- *)
+(* Input_vars *)
+(* -------------------- *)
+
+let input_vars2symtable vars =
+  Symtable.of_alist_exn vars
+
+let handler_default_input_vars (h: handler) : input_vars =
+  match Handler.event_name_for h with
+  | Some n ->
+    n
+    |> Http.route_variables
+    |> List.map ~f:(fun k -> (k, DIncomplete))
+  | None -> []
+
+let with_defaults (h: handler) (input_vars: input_vars) : input_vars =
+  input_vars @ (handler_default_input_vars h)
+
+let input_vars_for_user_fn (ufn: user_fn) : dval_map =
+  let param_to_dval (p: param) : dval =
+    DIncomplete
+  in
+  ufn.metadata.parameters
+  |> List.filter_map ~f:ufn_param_to_param
+  |> List.map ~f:(fun f -> (f.name, param_to_dval f))
+  |> Symtable.of_alist_exn
+
+
+(* -------------------- *)
 (* Analysis *)
 (* -------------------- *)
 
@@ -612,7 +639,7 @@ let analysis_engine value_store : engine =
   }
 
 let execute_saving_intermediates (state : exec_state) (ast: expr)
-    ~(input_vars: symtable)
+    ~(input_vars: input_vars)
   : (dval * dval_store) =
   Log.infO "Executing for intermediates"
     ~params:[ "tlid", show_tlid state.tlid
@@ -621,39 +648,14 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
             ];
   let value_store = IDTable.create () in
   let engine = analysis_engine value_store in
-  (exec ~engine ~state input_vars ast, value_store)
+  let st = input_vars2symtable input_vars in
+  (exec ~engine ~state st ast, value_store)
 
 let input_values st =
   st
-  |> Map.to_alist
   |> List.filter ~f:(fun (k,v) -> Dval.tipe_of v <> TDB)
   |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
 
-
-
-(* -------------------- *)
-(* Input_vars *)
-(* -------------------- *)
-let handler_default_input_vars (h: handler) : dval_map =
-  match Handler.event_name_for h with
-  | Some n ->
-    n
-    |> Http.route_variables
-    |> List.map ~f:(fun k -> (k, DIncomplete))
-    |> Symtable.of_alist_exn
-  | None -> Symtable.empty
-
-let with_defaults (h: handler) (input_vars: symtable) : symtable =
-  Util.merge_left input_vars (handler_default_input_vars h)
-
-let input_vars_for_user_fn (ufn: user_fn) : dval_map =
-  let param_to_dval (p: param) : dval =
-    DIncomplete
-  in
-  ufn.metadata.parameters
-  |> List.filter_map ~f:ufn_param_to_param
-  |> List.map ~f:(fun f -> (f.name, param_to_dval f))
-  |> Symtable.of_alist_exn
 
 
 (* -------------------- *)
@@ -668,11 +670,11 @@ let server_execution_engine : engine =
   ; ctx = Real
   }
 
-let execute_ast (state : exec_state) st expr : dval =
+let execute_ast ~input_vars (state : exec_state) expr : dval =
   Log.infO "Executing for real"
     ~params:[ "tlid", show_tlid state.tlid
             ; "execution_id", Log.dump state.execution_id];
-  exec st expr
+  exec (input_vars2symtable input_vars) expr
     ~engine:server_execution_engine
     ~state
 
@@ -685,7 +687,7 @@ let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) :
 (* -------------------- *)
 
 
-let execute_handler_for_analysis ~(input_vars: symtable)
+let execute_handler_for_analysis ~(input_vars: input_vars)
     (state : exec_state) (h : handler)
   : analysis =
   Log.infO "Handler for analysis"
@@ -702,7 +704,7 @@ let execute_handler_for_analysis ~(input_vars: symtable)
   ; input_values = input_values input_vars
   }
 
-let execute_user_fn_for_analysis ~(input_vars: symtable)
+let execute_user_fn_for_analysis ~(input_vars: input_vars)
     (state : exec_state) (f : user_fn)
     : analysis =
   Log.infO "Function for analysis"

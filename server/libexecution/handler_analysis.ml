@@ -20,8 +20,6 @@ let execute
   : RTT.dval
   =
   let vars = (dbs_as_input_vars dbs) @ input_vars  in
-  (* TODO: better error *)
-  let st = RTT.DvalMap.of_alist_exn vars in
   let state : RTT.exec_state =
     { tlid = tlid
     ; account_id
@@ -37,7 +35,7 @@ let execute
     ; store_fn_arguments = Ast_analysis.store_no_arguments
     }
   in
-  let result = Ast_analysis.execute_ast state st h.ast in
+  let result = Ast_analysis.execute_ast vars state h.ast in
   match result with
   | DErrorRail (DOption OptNothing) ->
     DResp ((Response (404, []), DStr "Not found"))

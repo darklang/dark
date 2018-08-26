@@ -169,10 +169,9 @@ let user_fn name params ast : user_fn =
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
-let test_execution_data ops : (C.canvas ref * exec_state * symtable) =
+let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
   let c = ops2c "test" ops in
   let vars = Handler_analysis.dbs_as_input_vars (TL.dbs !c.dbs) in
-  let symtable = Symtable.of_alist_exn vars in
   let state =
         { tlid
         ; account_id = !c.owner
@@ -188,7 +187,7 @@ let test_execution_data ops : (C.canvas ref * exec_state * symtable) =
         ; store_fn_arguments = Stored_function_arguments.store
         }
   in
-  (c, state, symtable)
+  (c, state, vars)
 
 let execute_ops (ops : Op.op list) : dval =
   let (c, { tlid; execution_id ; dbs ; user_fns ; account_id ; canvas_id }, input_vars) =
@@ -203,7 +202,7 @@ let execute_ops (ops : Op.op list) : dval =
     ~user_fns
     ~account_id
     ~canvas_id
-    ~input_vars:(DvalMap.to_alist input_vars)
+    ~input_vars
 
 let exec_handler ?(ops=[]) (prog: string) : dval =
   prog
@@ -215,7 +214,7 @@ let exec_handler ?(ops=[]) (prog: string) : dval =
 
 let exec_ast (prog: string) : dval =
   let (c, state, input_vars) = test_execution_data [] in
-  Ast_analysis.execute_ast state input_vars (ast_for prog)
+  Ast_analysis.execute_ast input_vars state (ast_for prog)
 
 let exec_userfn (prog: string) : dval =
   let name = "test_function" in

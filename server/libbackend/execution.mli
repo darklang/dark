@@ -10,11 +10,11 @@ module SE = Stored_event
 type canvas = Canvas.canvas
 type executable_fn_id = (tlid * id * int)
 
-val global_vars : canvas -> RTT.symtable
-val default_input_vars : canvas -> RTT.symtable
-val initial_input_vars_for_handler : canvas -> RTT.HandlerT.handler -> RTT.symtable list
+val global_vars : canvas -> RTT.input_vars
+val default_input_vars : canvas -> RTT.input_vars
+val initial_input_vars_for_handler : canvas -> RTT.HandlerT.handler -> RTT.input_vars list
 
-val initial_input_vars_for_user_fn : canvas -> RTT.user_fn -> RTT.symtable list
+val initial_input_vars_for_user_fn : canvas -> RTT.user_fn -> RTT.input_vars list
 
 val state_for_analysis :
   c : canvas ->
