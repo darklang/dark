@@ -3,15 +3,6 @@ open Core_kernel
 (* ----------------- *)
 (* Input vars *)
 (* ----------------- *)
-val handler_default_input_vars :
-  Types.RuntimeT.HandlerT.handler ->
-  Types.RuntimeT.input_vars
-
-val with_defaults :
-  Types.RuntimeT.HandlerT.handler ->
-  Types.RuntimeT.input_vars ->
-  Types.RuntimeT.input_vars
-
 val input_vars_for_user_fn :
   Types.RuntimeT.user_fn ->
   Types.RuntimeT.dval_map
@@ -20,7 +11,7 @@ val dbs_as_input_vars :
   Types.RuntimeT.DbT.db list ->
   (string * Types.RuntimeT.dval) list
 
-val http_input_vars :
+val http_route_input_vars :
   Types.RuntimeT.HandlerT.handler ->
   string ->
   Types.RuntimeT.input_vars
