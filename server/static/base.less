@@ -156,7 +156,7 @@ body #grid * {
 
   &.selected {
     background-color: @selected-background;
-    outline: 0.4px darken(@cyan, 25%) dotted;
+    outline: 2px darken(@cyan, 25%) solid;
   }
 
 
@@ -1136,6 +1136,10 @@ body #grid * {
   .right-button;
 }
 
+.computed-value {
+  margin-top: -4px;
+}
+
 .computed-value-value {
 
   .value-error & {
@@ -1143,7 +1147,7 @@ body #grid * {
   }
   .default;
   max-width: 100%;
-  outline: 0.4px @green dotted;
+  outline: 0.4px @grey2 dotted;
   position: absolute;
   right: calc(~"100% + 20px");
   padding: 4px;
@@ -1151,7 +1155,8 @@ body #grid * {
   width: max-content;
   word-break: break-all;
   word-wrap: break-word;
-  font-size: 0.6333em;
+  font-size: @code-font-size * 0.85;
+  color: @grey3;
 }
 
 .nested-flag {
