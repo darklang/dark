@@ -3,6 +3,7 @@ open Libcommon
 open Libexecution
 
 open Types
+open Analysis_types
 module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
@@ -21,11 +22,11 @@ let all_tlids (c: canvas) : tlid list =
 (* ------------------------- *)
 
 type executable_fn_id = (tlid * id * int) [@@deriving to_yojson]
-type analysis_result = tlid * Ast_analysis.analysis list
+type analysis_result = tlid * analysis list
 
 let analysis_result_to_yojson (id, results) =
   `Assoc [ ("id", id_to_yojson id)
-         ; ("results", Ast_analysis.analysis_list_to_yojson results)
+         ; ("results", analysis_list_to_yojson results)
          ]
 
 let global_vars (c: canvas) : string list =
@@ -88,7 +89,7 @@ let user_fn_analysis
             Backend_execution.state_for_analysis f.tlid
               ~c ~exe_fn_ids ~execution_id
           in
-          Ast_analysis.execute_user_fn_for_analysis ~input_vars state f)
+          Analysis.execute_user_fn_for_analysis ~input_vars state f)
       all_inputs
   in
   (f.tlid, values)
@@ -121,7 +122,7 @@ let handler_analysis
             Backend_execution.state_for_analysis h.tlid
               ~c ~exe_fn_ids ~execution_id
           in
-          Ast_analysis.execute_handler_for_analysis ~input_vars state h)
+          Analysis.execute_handler_for_analysis ~input_vars state h)
      all_inputs
   in
   (h.tlid, values)

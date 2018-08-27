@@ -2,6 +2,7 @@ open Core_kernel
 open Libexecution
 
 open Types
+open Analysis_types
 module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
@@ -79,10 +80,10 @@ let state_for
   ; fail_fn = None
   ; dbs = TL.dbs c.dbs
   ; execution_id
-  ; load_fn_result = Ast_analysis.load_no_results
-  ; store_fn_result = Ast_analysis.store_no_results
-  ; load_fn_arguments = Ast_analysis.load_no_arguments
-  ; store_fn_arguments = Ast_analysis.store_no_arguments
+  ; load_fn_result = Libexecution.Execution.load_no_results
+  ; store_fn_result = Libexecution.Execution.store_no_results
+  ; load_fn_arguments = Libexecution.Execution.load_no_arguments
+  ; store_fn_arguments = Libexecution.Execution.store_no_arguments
   ;
   }
 

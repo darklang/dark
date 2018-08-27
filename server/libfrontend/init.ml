@@ -5,33 +5,31 @@ open Libcommon
 open Types
 open Types.RuntimeT
 
-module Analysis = Libexecution.Ast_analysis
-
 
 let init () =
   Libs.init [];
   print_endline "libfrontend reporting in"
 
-let tlid = Libexecution.Types.id_of_int 0
+let tlid = Types.id_of_int 0
 let host = "test"
 
-let state : Libexecution.Types.RuntimeT.exec_state =
+let state : Types.RuntimeT.exec_state =
   { tlid
-  ; account_id = Libexecution.Util.create_uuid ()
-  ; canvas_id = Libexecution.Util.create_uuid ()
+  ; account_id = Util.create_uuid ()
+  ; canvas_id = Util.create_uuid ()
   ; user_fns = []
   ; exe_fn_ids = []
   ; fail_fn = None
   ; dbs = []
-  ; execution_id = Libexecution.Types.id_of_int 1
-  ; load_fn_result = Ast_analysis.load_no_results
-  ; store_fn_result = Ast_analysis.store_no_results
-  ; load_fn_arguments = Ast_analysis.load_no_arguments
-  ; store_fn_arguments = Ast_analysis.store_no_arguments
+  ; execution_id = Types.id_of_int 1
+  ; load_fn_result = Execution.load_no_results
+  ; store_fn_result = Execution.store_no_results
+  ; load_fn_arguments = Execution.load_no_arguments
+  ; store_fn_arguments = Execution.store_no_arguments
   }
 
 type handler_list = HandlerT.handler list [@@deriving yojson]
-type analysis_list = Ast_analysis.analysis list [@@deriving to_yojson]
+type analysis_list = Analysis_types.analysis list [@@deriving to_yojson]
 
 type analysis_param = { handlers : handler_list
                       ; dbs : DbT.db list
@@ -48,7 +46,7 @@ let perform_analysis (str : string) : string =
   let state = { state with dbs = dbs } in
 
   handlers
-  |> List.map ~f:(Ast_analysis.execute_handler_for_analysis state ~input_vars)
+  |> List.map ~f:(Analysis.execute_handler_for_analysis state ~input_vars)
   |> analysis_list_to_yojson
   |> Yojson.Safe.to_string
 

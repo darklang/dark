@@ -181,9 +181,9 @@ let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
         ; fail_fn = None
         ; dbs = TL.dbs !c.dbs
         ; execution_id
-        ; load_fn_result = Ast_analysis.load_no_results
+        ; load_fn_result = Execution.load_no_results
         ; store_fn_result = Stored_function_result.store
-        ; load_fn_arguments = Ast_analysis.load_no_arguments
+        ; load_fn_arguments = Execution.load_no_arguments
         ; store_fn_arguments = Stored_function_arguments.store
         }
   in
@@ -214,14 +214,14 @@ let exec_handler ?(ops=[]) (prog: string) : dval =
 
 let exec_ast (prog: string) : dval =
   let (c, state, input_vars) = test_execution_data [] in
-  Ast_analysis.execute_ast input_vars state (ast_for prog)
+  Ast.execute_ast input_vars state (ast_for prog)
 
 let exec_userfn (prog: string) : dval =
   let name = "test_function" in
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
   let (c, state, _) = test_execution_data [SetFunction fn] in
-  Ast_analysis.execute_userfn state name execution_id []
+  Ast.execute_userfn state name execution_id []
 
 
 
