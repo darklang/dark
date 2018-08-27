@@ -16,27 +16,17 @@ let global_vars (c: canvas) : RTT.input_vars =
   |> TL.dbs
   |> Execution.dbs_as_input_vars
 
-let sample_request =
-  PReq.to_dval PReq.sample_request
-
-let sample_event =
-  RTT.DIncomplete
-
-let default_input_vars (c: canvas) : RTT.input_vars=
-  global_vars c
-  @ [("request", sample_request); ("event", sample_event)]
-
 let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : RTT.input_vars list =
   let init = global_vars c in
   let default =
      match Handler.module_type h with
      | `Http ->
-       init @ [("request", sample_request)]
+       init @ Execution.sample_request_input_vars
      | `Event ->
-       init @ [("event", sample_event)]
+       init @ Execution.sample_event_input_vars
      | `Cron -> init
-     | `Unknown -> default_input_vars c
+     | `Unknown -> init @ Execution.sample_unknown_handler_input_vars
   in
   (match Handler.event_desc_for h with
   | None -> [default]

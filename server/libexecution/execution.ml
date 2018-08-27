@@ -35,6 +35,18 @@ let http_input_vars (h: HandlerT.handler) (path: string) : input_vars =
   let route = Handler.event_name_for_exn h in
   Http.bind_route_params_exn ~path ~route
 
+let sample_request_input_vars =
+  [("request", PReq.to_dval PReq.sample_request)]
+
+let sample_event_input_vars =
+  [("event", DIncomplete)]
+
+let sample_cron_input_vars =
+  []
+
+let sample_unknown_handler_input_vars = 
+  sample_request_input_vars @ sample_event_input_vars
+
 (* -------------------- *)
 (* For exec_state *)
 (* -------------------- *)
