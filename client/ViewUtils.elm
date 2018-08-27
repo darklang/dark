@@ -15,7 +15,6 @@ import Html.Events as Events
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
-import Viewport
 import Toplevel as TL
 import Analysis
 import DB
@@ -140,27 +139,11 @@ decodeClickEvent fn =
 placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
 placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
-      --vpos = Viewport.toViewport m pos
-  in
-  Html.div [ Attrs.class "node"
-           , Attrs.style [ ("left", (toString pos.x) ++ "px")
-                         , ("top", (toString pos.y) ++ "px")
-                         ]
-           ]
-           [ html ]
-
-axisLine : Model -> Pos -> Html.Html Msg
-axisLine m p =
-  let px = Viewport.toViewport m p
-  in
-  Html.div [ Attrs.classList [ ("axis", True)
-                             , ("horizontal", p.x > p.y)
-                             ]
-           , Attrs.style [ ("left", (toString px.vx) ++ "px")
-                         , ("top", (toString px.vy) ++ "px")
-                         ]
-           ] []
-
+  in Html.div
+    [ Attrs.class "node"
+    , Attrs.style [ ("left", (toString pos.x) ++ "px"), ("top", (toString pos.y) ++ "px") ]
+    ]
+    [ html ]
 
 inCh : Int -> String
 inCh w =
