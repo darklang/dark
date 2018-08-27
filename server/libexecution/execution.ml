@@ -8,7 +8,7 @@ module PReq = Parsed_request
 let dbs_as_input_vars (dbs: RTT.DbT.db list) : (string * RTT.dval) list =
   List.map dbs ~f:(fun db -> (db.name, RTT.DDB db))
 
-let execute
+let execute_handler
   ~tlid
   ~execution_id
   ~input_vars

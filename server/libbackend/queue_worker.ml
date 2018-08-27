@@ -48,7 +48,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
                          ;"event", Log.dump desc
                          ;"host", host
                          ;"handler_id", Log.dump h.tlid];
-               let result = Handler_analysis.execute h
+               let result = Execution.execute_handler h
                    ~execution_id
                    ~tlid:h.tlid
                    ~input_vars:[("event", event.value)]

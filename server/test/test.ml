@@ -171,7 +171,7 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
 
 let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
   let c = ops2c "test" ops in
-  let vars = Handler_analysis.dbs_as_input_vars (TL.dbs !c.dbs) in
+  let vars = Libexecution.Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
   let state =
         { tlid
         ; account_id = !c.owner
@@ -195,7 +195,7 @@ let execute_ops (ops : Op.op list) : dval =
   let h = !c.handlers
           |> TL.handlers
           |> List.hd_exn in
-  Handler_analysis.execute h
+  Libexecution.Execution.execute_handler h
     ~tlid
     ~execution_id
     ~dbs

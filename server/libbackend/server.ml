@@ -139,7 +139,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
 
     let route = Handler.event_name_for_exn page in
     let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
-    let result = Libexecution.Handler_analysis.execute page
+    let result = Libexecution.Execution.execute_handler page
         ~execution_id
         ~account_id:!c.owner
         ~canvas_id:!c.id
