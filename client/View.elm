@@ -62,13 +62,19 @@ viewCanvas m =
               case LE.find (\f -> f.tlid == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
-        canvasTransform offset = 
-          "translate(" ++ (toString offset.x) ++ "px, " ++ (toString offset.y) ++ "px)"
+
+        canvasTransform =
+          let offset =
+            case m.currentPage of
+              Toplevels _ -> m.canvas.offset
+              Fn _ _ -> m.canvas.fnOffset
+          in "translate(" ++ (toString offset.x) ++ "px, " ++ (toString offset.y) ++ "px)"
+
         allDivs = asts ++ entry
     in
         Html.div
         [ Attrs.id "canvas"
-        , Attrs.style [ ("transform", canvasTransform m.canvas.offset) ]
+        , Attrs.style [ ("transform", canvasTransform) ]
         ]
         allDivs
 
