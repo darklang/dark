@@ -26,6 +26,8 @@ toAbsolute m pos =
   { x = pos.vx + center.x - default.x
   , y = pos.vy + center.y - default.y}
 
+addPos: Pos -> Pos -> Pos
+addPos a b = { x = a.x + b.x, y = a.y + b.y }
 
 pageUp : Pos -> Modification
 pageUp c =
@@ -63,6 +65,10 @@ moveRight c =
 moveTo : Pos -> Modification
 moveTo pos =
   SetCenter pos
+
+centerOn : Pos -> Pos
+centerOn pos =
+  addPos (Pos (-1*pos.x) (-1*pos.y)) Defaults.initialPos
 
 mouseMove : Model -> (List Int) -> Modification
 mouseMove m deltaCoords =
