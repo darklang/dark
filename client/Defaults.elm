@@ -46,12 +46,14 @@ defaultSyncState = { inFlight = False
                    }
 
 defaultUrlState : UrlState
-defaultUrlState = { lastPos = {x=0, y=0},
-                    canvasPos = {x=0, y=0}
+defaultUrlState = { lastPos = {x=0, y=0}
                   }
 
 defaultCanvas : CanvasProps
-defaultCanvas = { offset = initialPos }
+defaultCanvas =
+  { offset = initialPos
+  , fnOffset = fnPos
+  }
 
 defaultModel : Model
 defaultModel = { error = Nothing

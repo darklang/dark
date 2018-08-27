@@ -413,13 +413,21 @@ updateMod mod (m, cmd) =
               -- scrolling
               { m |
                 currentPage = page
-                , urlState = UrlState pos2 pos2
+                , urlState = UrlState pos2
               } ! []
             (Fn _ pos2, Toplevels pos1) ->
               { m |
                 currentPage = page
                 , cursorState = Deselected
-                , urlState = UrlState pos2 pos1
+                , urlState = UrlState pos2
+                , canvas = CanvasProps pos1 Defaults.initialPos
+              } ! []
+            (Fn _ pos2, Fn pos1) ->
+               { m |
+                currentPage = page
+                , cursorState = Deselected
+                , urlState = UrlState pos2
+                , canvas = CanvasProps m.canvas.offset Defaults.initialPos
               } ! []
             _ ->
               let newM =
@@ -1204,13 +1212,6 @@ update_ msg m =
 
 
     MouseWheel deltaCoords ->
-      --let pos = Viewport.pagePos m.currentPage
-      --    delta = case deltaCoords of
-      --                  x::y::_ -> { x=x, y=y }
-      --                  _ -> { x=0, y=0 }
-      --    dest = { x=pos.x + delta.x, y=pos.y + delta.y }
-      -- in
-      -- Viewport.moveTo dest
       Viewport.mouseMove m deltaCoords
 
     DataMouseEnter tlid idx _ ->

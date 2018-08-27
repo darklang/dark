@@ -139,12 +139,12 @@ decodeClickEvent fn =
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
 placeHtml m pos html =
-  let rcpos = Viewport.toViewport m pos
-      div class subs = Html.div [Attrs.class class] subs
+  let div class subs = Html.div [Attrs.class class] subs
+      --vpos = Viewport.toViewport m pos
   in
   Html.div [ Attrs.class "node"
-           , Attrs.style [ ("left", (toString rcpos.vx) ++ "px")
-                         , ("top", (toString rcpos.vy) ++ "px")
+           , Attrs.style [ ("left", (toString pos.x) ++ "px")
+                         , ("top", (toString pos.y) ++ "px")
                          ]
            ]
            [ html ]
