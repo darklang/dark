@@ -415,15 +415,8 @@ updateMod mod (m, cmd) =
                 currentPage = page
                 , urlState = UrlState pos2
               } ! []
-            (Fn _ pos2, Toplevels pos1) ->
+            (Fn _ pos2, _) ->
               { m |
-                currentPage = page
-                , cursorState = Deselected
-                , urlState = UrlState pos2
-                , canvas = CanvasProps pos1 Defaults.initialPos
-              } ! []
-            (Fn _ pos2, Fn pos1) ->
-               { m |
                 currentPage = page
                 , cursorState = Deselected
                 , urlState = UrlState pos2
