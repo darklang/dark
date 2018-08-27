@@ -29,7 +29,7 @@ let analysis_result_to_yojson (id, results) =
          ]
 
 let global_vars (c: canvas) : string list =
-  List.map ~f:(Tuple.T2.get1) (Execution.global_vars c)
+  List.map ~f:(Tuple.T2.get1) (Backend_execution.global_vars c)
 
 let unlocked (c: canvas) : tlid list =
   c.dbs
@@ -74,7 +74,7 @@ let user_fn_analysis
     (c: canvas)
     (f: RTT.user_fn)
   : analysis_result =
-  let all_inputs = Execution.initial_input_vars_for_user_fn c f in
+  let all_inputs = Backend_execution.initial_input_vars_for_user_fn c f in
   let values =
     List.mapi
       ~f:(fun i input_vars ->
@@ -85,7 +85,7 @@ let user_fn_analysis
                             else None)
           in
           let state =
-            Execution.state_for_analysis f.tlid
+            Backend_execution.state_for_analysis f.tlid
               ~c ~exe_fn_ids ~execution_id
           in
           Ast_analysis.execute_user_fn_for_analysis ~input_vars state f)
@@ -107,7 +107,7 @@ let handler_analysis
             ; "execution_id", show_id execution_id
             ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
-  let all_inputs = Execution.initial_input_vars_for_handler c h in
+  let all_inputs = Backend_execution.initial_input_vars_for_handler c h in
   let values =
     List.mapi
       ~f:(fun i input_vars ->
@@ -118,7 +118,7 @@ let handler_analysis
                             else None)
           in
           let state =
-            Execution.state_for_analysis h.tlid
+            Backend_execution.state_for_analysis h.tlid
               ~c ~exe_fn_ids ~execution_id
           in
           Ast_analysis.execute_handler_for_analysis ~input_vars state h)

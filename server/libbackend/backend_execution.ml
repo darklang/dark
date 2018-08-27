@@ -13,7 +13,7 @@ type executable_fn_id = (tlid * id * int)
 let global_vars (c: canvas) : RTT.input_vars =
   c.dbs
   |> TL.dbs
-  |> Handler_analysis.dbs_as_input_vars
+  |> Execution.dbs_as_input_vars
 
 let sample_request =
   PReq.to_dval PReq.sample_request
