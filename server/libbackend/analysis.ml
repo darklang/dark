@@ -89,7 +89,7 @@ let user_fn_analysis
             Backend_execution.state_for_analysis f.tlid
               ~c ~exe_fn_ids ~execution_id
           in
-          Analysis.execute_user_fn_for_analysis ~input_vars state f)
+          Analysis.analyse_user_fn ~input_vars state f)
       all_inputs
   in
   (f.tlid, values)
@@ -122,7 +122,7 @@ let handler_analysis
             Backend_execution.state_for_analysis h.tlid
               ~c ~exe_fn_ids ~execution_id
           in
-          Analysis.execute_handler_for_analysis ~input_vars state h)
+          Analysis.analyse_handler ~input_vars state h)
      all_inputs
   in
   (h.tlid, values)
