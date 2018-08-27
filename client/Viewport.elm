@@ -20,11 +20,13 @@ toViewport m pos =
 
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
-  let default = pagePos (Defaults.defaultModel |> .currentPage)
-      center = pagePos m.currentPage
+  let center =
+        case m.currentPage of
+          Toplevels _ -> m.canvas.offset
+          Fn _ _ -> m.canvas.fnOffset
   in
-  { x = pos.vx + center.x - default.x
-  , y = pos.vy + center.y - default.y}
+  { x = pos.vx - center.x
+  , y = pos.vy - center.y}
 
 addPos: Pos -> Pos -> Pos
 addPos a b = { x = a.x + b.x, y = a.y + b.y }
