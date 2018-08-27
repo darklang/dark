@@ -107,6 +107,12 @@ init {editorState, complete} location =
         Url.parseLocation m location
         |> Maybe.withDefault m.currentPage
 
+      canvas = m.canvas
+      newCanvas = 
+        case page of
+          Toplevels pos -> { canvas | offset = pos }
+          Fn _ pos -> { canvas | fnOffset = pos }
+
       visibilityTask =
         Task.perform PageVisibilityChange PageVisibility.visibility
 
@@ -132,6 +138,7 @@ init {editorState, complete} location =
                , tests = tests
                , toplevels = []
                , currentPage = page
+               , canvas = newCanvas
            }
 
   in
@@ -414,6 +421,7 @@ updateMod mod (m, cmd) =
               { m |
                 currentPage = page
                 , urlState = UrlState pos2
+                , canvas = CanvasProps (Viewport.centerOn pos2) m.canvas.fnOffset
               } ! []
             (Fn _ pos2, _) ->
               { m |
