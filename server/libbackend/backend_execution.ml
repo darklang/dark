@@ -32,7 +32,7 @@ let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
             match Handler.module_type h with
             | `Http ->
               let with_r = [("request", e)] in
-              let bound = Libexecution.Execution.http_input_vars h path in
+              let bound = Libexecution.Execution.http_route_input_vars h path in
               init @ with_r @ bound
             | `Event ->
               init @ [("event", e)]

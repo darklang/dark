@@ -8,17 +8,6 @@ module PReq = Parsed_request
 (* -------------------- *)
 (* Input_vars *)
 (* -------------------- *)
-let handler_default_input_vars (h: HandlerT.handler) : input_vars =
-  match Handler.event_name_for h with
-  | Some n ->
-    n
-    |> Http.route_variables
-    |> List.map ~f:(fun k -> (k, DIncomplete))
-  | None -> []
-
-let with_defaults (h: HandlerT.handler) (input_vars: input_vars) : input_vars =
-  input_vars @ (handler_default_input_vars h)
-
 let input_vars_for_user_fn (ufn: user_fn) : dval_map =
   let param_to_dval (p: param) : dval =
     DIncomplete
@@ -31,7 +20,7 @@ let input_vars_for_user_fn (ufn: user_fn) : dval_map =
 let dbs_as_input_vars (dbs: DbT.db list) : (string * dval) list =
   List.map dbs ~f:(fun db -> (db.name, DDB db))
 
-let http_input_vars (h: HandlerT.handler) (path: string) : input_vars =
+let http_route_input_vars (h: HandlerT.handler) (path: string) : input_vars =
   let route = Handler.event_name_for_exn h in
   Http.bind_route_params_exn ~path ~route
 
@@ -50,12 +39,23 @@ let sample_cron_input_vars =
 let sample_unknown_handler_input_vars =
   sample_request_input_vars @ sample_event_input_vars
 
-let sample_input_vars h =
+let sample_module_input_vars h : input_vars =
   match Handler.module_type h with
   | `Http -> sample_request_input_vars
   | `Event -> sample_event_input_vars
   | `Cron -> sample_cron_input_vars
   | `Unknown -> sample_unknown_handler_input_vars
+
+let sample_route_input_vars (h: HandlerT.handler) : input_vars =
+  match Handler.event_name_for h with
+  | Some n ->
+    n
+    |> Http.route_variables
+    |> List.map ~f:(fun k -> (k, DIncomplete))
+  | None -> []
+
+let sample_input_vars h =
+  sample_module_input_vars h @ sample_route_input_vars h
 
 
 

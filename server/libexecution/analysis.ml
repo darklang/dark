@@ -28,7 +28,6 @@ let analyse_handler ~(input_vars: input_vars)
   Log.infO "Handler for analysis"
     ~data:(show_tlid state.tlid)
     ~params:["execution_id", Log.dump state.execution_id];
-  let input_vars = Execution.with_defaults h input_vars in
   analyse_ast ~input_vars state h.ast
 
 let analyse_user_fn ~(input_vars: input_vars)
