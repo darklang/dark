@@ -436,5 +436,10 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZ1BmcDM5OStrTVR4VEdEU2dpamFmQSR0SjFsM3JtRUU1THhzc2ZYZXUyREVCblZIbXR2NHRLK3p1dEhvR0xJWHlvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "aaronjlevy@gmail.com"
     ; name = "Aaron Levy"};
+  upsert_account
+    { username = "logan"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQnh1UUlqRmxjd2JCdjhZcXJpdWxDdyRVVTZyZFhKYzAvSEJDN0pFeXVEWk1DdjdFbm9ZVHdjZWZTZHlkazhwMEVBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "loganm1881@gmail.com"
+    ; name = "Logan McPhail"};
   ()
 
