@@ -330,7 +330,7 @@ let rec exec ~(engine: engine)
        call name id argvals false
 
      | Filled (id, If (cond, ifbody, elsebody))
-     | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
+     | Filled (id, FeatureFlag (_, cond, elsebody, ifbody)) ->
        (match ctx with
         | Preview ->
           (* In the case of a preview trace execution, we want the 'if' expression as
