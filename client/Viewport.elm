@@ -70,6 +70,12 @@ centerOn : Pos -> Pos
 centerOn pos =
   addPos (Pos (-1*pos.x) (-1*pos.y)) Defaults.initialPos
 
+setCanvasOffset : CanvasProps -> Page -> Pos -> CanvasProps
+setCanvasOffset canvas page pos =
+  case page of
+    Toplevels _ -> { canvas | offset = pos }
+    Fn _ _ -> { canvas | fnOffset = pos }
+
 mouseMove : Model -> (List Int) -> Modification
 mouseMove m deltaCoords =
   let d =
@@ -77,8 +83,5 @@ mouseMove m deltaCoords =
           x::y::_ -> { x=x, y=y }
           _ -> { x=0, y=0 }
       c = m.canvas
-      newCanvas =
-        case m.currentPage of
-          Toplevels _ -> { c | offset = Pos (c.offset.x - d.x) (c.offset.y + d.y) }
-          Fn _ _ -> { c | fnOffset =  Pos (c.fnOffset.x - d.x) (c.fnOffset.y + d.y) }
+      newCanvas = setCanvasOffset c m.currentPage (Pos (c.offset.x - d.x) (c.offset.y + d.y))
   in TweakModel (\m -> { m | canvas = newCanvas })

@@ -421,14 +421,14 @@ updateMod mod (m, cmd) =
               { m |
                 currentPage = page
                 , urlState = UrlState pos2
-                , canvas = CanvasProps (Viewport.centerOn pos2) m.canvas.fnOffset
+                , canvas = Viewport.setCanvasOffset m.canvas page (Viewport.centerOn pos2)
               } ! []
             (Fn _ pos2, _) ->
               { m |
                 currentPage = page
                 , cursorState = Deselected
                 , urlState = UrlState pos2
-                , canvas = CanvasProps m.canvas.offset Defaults.initialPos
+                , canvas = Viewport.setCanvasOffset m.canvas page Defaults.initialPos
               } ! []
             _ ->
               let newM =
