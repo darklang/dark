@@ -20,6 +20,23 @@ val dbs_as_input_vars :
   Types.RuntimeT.DbT.db list ->
   (string * Types.RuntimeT.dval) list
 
+val http_input_vars :
+  Types.RuntimeT.HandlerT.handler ->
+  string ->
+  Types.RuntimeT.input_vars
+
+val sample_request_input_vars : 
+  Types.RuntimeT.input_vars
+
+val sample_event_input_vars :
+  Types.RuntimeT.input_vars
+
+val sample_cron_input_vars :
+  Types.RuntimeT.input_vars
+
+val sample_unknown_handler_input_vars : 
+  Types.RuntimeT.input_vars
+
 
 
 (* ----------------- *)
