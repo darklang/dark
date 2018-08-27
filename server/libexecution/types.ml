@@ -261,15 +261,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   module TipeMap = String.Map
   type tipe_map = tipe String.Map.t
 
-  module Symtable = DvalMap
-  type symtable = dval_map
-
   type input_vars = (string * dval) list
 
-  (* this is _why_ we're executing the AST, to allow us to not
-   * emit certain side-effects (eg. DB writes) when showing previews *)
-  type context = Preview
-               | Real [@@deriving eq, show, yojson]
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type param = { name: string

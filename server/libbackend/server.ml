@@ -10,11 +10,15 @@ module Cookie = Cohttp.Cookie
 
 module C = Canvas
 
-open Libexecution
-module PReq = Parsed_request
+module Exception = Libexecution.Exception
+module Util = Libexecution.Util
+module Dval = Libexecution.Dval
+module PReq = Libexecution.Parsed_request
+module Types = Libexecution.Types
+module Http = Libexecution.Http
 module RTT = Types.RuntimeT
-module Handler = Handler
-module TL = Toplevel
+module Handler = Libexecution.Handler
+module TL = Libexecution.Toplevel
 
 module Dbconnection = Libservice.Dbconnection
 
