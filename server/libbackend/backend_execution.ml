@@ -50,8 +50,7 @@ let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
             match Handler.module_type h with
             | `Http ->
               let with_r = [("request", e)] in
-              let name = Handler.event_name_for_exn h in
-              let bound = Http.bind_route_params_exn path name in
+              let bound = Libexecution.Execution.http_input_vars h path in
               init @ with_r @ bound
             | `Event ->
               init @ [("event", e)]

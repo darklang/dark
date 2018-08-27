@@ -141,8 +141,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
       Stored_event.store_event !c.id desc (PReq.to_dval input)
     | _-> ());
 
-    let route = Handler.event_name_for_exn page in
-    let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
+    let bound = Libexecution.Execution.http_input_vars page (Uri.path uri) in
     let result = Libexecution.Execution.execute_handler page
         ~execution_id
         ~account_id:!c.owner
