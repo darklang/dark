@@ -19,21 +19,13 @@ let global_vars (c: canvas) : RTT.input_vars =
 let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : RTT.input_vars list =
   let init = global_vars c in
-  let default =
-     match Handler.module_type h with
-     | `Http ->
-       init @ Execution.sample_request_input_vars
-     | `Event ->
-       init @ Execution.sample_event_input_vars
-     | `Cron -> init
-     | `Unknown -> init @ Execution.sample_unknown_handler_input_vars
-  in
+  let samples = Execution.sample_input_vars h in
   (match Handler.event_desc_for h with
-  | None -> [default]
+  | None -> [init @ samples]
   | Some (space, path, modifier as d) ->
     let events = SE.load_events c.id d in
     if events = []
-    then [default]
+    then [init @ samples]
     else
       List.map events
         ~f:(fun e ->

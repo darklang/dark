@@ -25,16 +25,8 @@ val http_input_vars :
   string ->
   Types.RuntimeT.input_vars
 
-val sample_request_input_vars : 
-  Types.RuntimeT.input_vars
-
-val sample_event_input_vars :
-  Types.RuntimeT.input_vars
-
-val sample_cron_input_vars :
-  Types.RuntimeT.input_vars
-
-val sample_unknown_handler_input_vars : 
+val sample_input_vars :
+  Types.RuntimeT.HandlerT.handler ->
   Types.RuntimeT.input_vars
 
 
