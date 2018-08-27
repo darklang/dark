@@ -402,12 +402,15 @@ replace p replacement tl =
       tl
       -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
     PFFMsg bo ->
-      let h = ha ()
-          -- replace everywhere
-          -- spec = SpecTypes.replace p replacement h.spec
-          spec2 = SpecHeaders.replace id bo h.spec
-          ast = AST.replace p replacement h.ast
-      in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
+      case tl.data of
+        TLHandler h ->
+          let spec2 = SpecHeaders.replace id bo h.spec
+              ast = AST.replace p replacement h.ast
+          in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
+        TLFunc f ->
+          let ast = AST.replace p replacement f.ast
+          in { tl | data = TLFunc { f | ast = ast } }
+        _ -> tl
     PFnName _ -> fnMetadataReplace ()
     PParamName _ -> fnMetadataReplace ()
     PParamTipe _ -> fnMetadataReplace ()
