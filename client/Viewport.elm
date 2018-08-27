@@ -4,6 +4,12 @@ module Viewport exposing (..)
 import Defaults
 import Types exposing (..)
 
+addPos: Pos -> Pos -> Pos
+addPos a b = { x = a.x + b.x, y = a.y + b.y }
+
+subPos: Pos -> Pos -> Pos
+subPos a b = { x = a.x - b.x, y = a.y - b.y }
+
 pagePos : Page -> Pos
 pagePos page =
   case page of
@@ -27,9 +33,6 @@ toAbsolute m pos =
   in
   { x = pos.vx - center.x
   , y = pos.vy - center.y}
-
-addPos: Pos -> Pos -> Pos
-addPos a b = { x = a.x + b.x, y = a.y + b.y }
 
 pageUp : Pos -> Modification
 pageUp c =
@@ -85,5 +88,6 @@ mouseMove m deltaCoords =
           x::y::_ -> { x=x, y=y }
           _ -> { x=0, y=0 }
       c = m.canvas
-      newCanvas = setCanvasOffset c m.currentPage (Pos (c.offset.x - d.x) (c.offset.y + d.y))
+      pos = subPos c.offset d
+      newCanvas = setCanvasOffset c m.currentPage pos
   in TweakModel (\m -> { m | canvas = newCanvas })
