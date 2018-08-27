@@ -229,4 +229,5 @@ npm dependencies are managed in development, bundled up via browserify, tracked 
 
 # Important docs which we believe are up-to-date:
 
-- docs/oplist-serialization.md
+- [docs/add-user.md](docs/add-user.md)
+- [docs/oplist-serialization.md](docs/add-user.md)
