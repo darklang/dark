@@ -47,37 +47,3 @@ let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
 
 
-let state_for
-    ~(c: canvas)
-    ~(execution_id: id)
-    ~(exe_fn_ids : id list)
-    (tlid: tlid)
-  : RTT.exec_state =
-  { tlid
-  ; account_id = c.owner
-  ; canvas_id = c.id
-  ; user_fns = c.user_functions
-  ; exe_fn_ids
-  ; fail_fn = None
-  ; dbs = TL.dbs c.dbs
-  ; execution_id
-  ; load_fn_result = Libexecution.Execution.load_no_results
-  ; store_fn_result = Libexecution.Execution.store_no_results
-  ; load_fn_arguments = Libexecution.Execution.load_no_arguments
-  ; store_fn_arguments = Libexecution.Execution.store_no_arguments
-  ;
-  }
-
-let state_for_analysis
-    ~(c: canvas)
-    ~(execution_id: id)
-    ~(exe_fn_ids: id list)
-    (tlid: tlid)
-  : RTT.exec_state =
-  let s = state_for ~c ~execution_id ~exe_fn_ids tlid in
-  { s with load_fn_result = Stored_function_result.load
-         ; store_fn_result = Stored_function_result.store
-         ; load_fn_arguments = Stored_function_arguments.load
-         ; store_fn_arguments = Stored_function_arguments.store
-  }
-

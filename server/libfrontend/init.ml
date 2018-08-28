@@ -10,23 +10,7 @@ let init () =
   Libs.init [];
   print_endline "libfrontend reporting in"
 
-let tlid = Types.id_of_int 0
 let host = "test"
-
-let state : Types.RuntimeT.exec_state =
-  { tlid
-  ; account_id = Util.create_uuid ()
-  ; canvas_id = Util.create_uuid ()
-  ; user_fns = []
-  ; exe_fn_ids = []
-  ; fail_fn = None
-  ; dbs = []
-  ; execution_id = Types.id_of_int 1
-  ; load_fn_result = Execution.load_no_results
-  ; store_fn_result = Execution.store_no_results
-  ; load_fn_arguments = Execution.load_no_arguments
-  ; store_fn_arguments = Execution.store_no_arguments
-  }
 
 type handler_list = HandlerT.handler list [@@deriving yojson]
 type analysis_list = Analysis_types.analysis list [@@deriving to_yojson]
@@ -43,10 +27,23 @@ let perform_analysis (str : string) : string =
     |> Result.ok_or_failwith
   in
   let input_vars = [] in
-  let state = { state with dbs = dbs } in
 
   handlers
-  |> List.map ~f:(fun h -> Analysis.analyse_ast state ~input_vars h.ast)
+  |> List.map ~f:(fun h ->
+      Analysis.analyse_ast h.ast
+        ~tlid:h.tlid
+        ~exe_fn_ids:[]
+        ~execution_id:(Types.id_of_int 1)
+        ~account_id:(Util.create_uuid ())
+        ~canvas_id:(Util.create_uuid ())
+        ~user_fns:[]
+        ~input_vars
+        ~dbs
+        ~load_fn_result:Execution.load_no_results
+        ~store_fn_result:Execution.store_no_results
+        ~load_fn_arguments:Execution.load_no_arguments
+        ~store_fn_arguments:Execution.store_no_arguments
+    )
   |> analysis_list_to_yojson
   |> Yojson.Safe.to_string
 

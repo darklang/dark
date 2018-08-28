@@ -294,6 +294,16 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type function_desc = Uuidm.t * tlid * string * id
   type user_fn_desc = Uuidm.t * tlid
+  type load_fn_result_type =
+    function_desc -> dval list -> (dval * Time.t) option
+  type store_fn_result_type =
+    function_desc -> dval list -> dval -> unit
+  type load_fn_arguments_type =
+    user_fn_desc -> (dval_map * Time.t) list
+  type store_fn_arguments_type =
+    user_fn_desc -> dval_map -> unit
+  type fail_fn_type =
+    (?msg : string -> unit -> dval) option
 
   type exec_state = { tlid: tlid
                     ; canvas_id : Uuidm.t
@@ -302,20 +312,11 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                     ; exe_fn_ids: id list
                     ; dbs: DbT.db list
                     ; execution_id: id
-                    ; load_fn_result :
-                        function_desc -> dval list -> (dval * Time.t) option
-                    ; store_fn_result :
-                        function_desc ->
-                        dval list ->
-                        dval ->
-                        unit
-                    ; load_fn_arguments :
-                        user_fn_desc -> (dval_map * Time.t) list
-                    ; store_fn_arguments :
-                        user_fn_desc ->
-                        dval_map ->
-                        unit
-                    ; fail_fn : (?msg : string -> unit -> dval) option
+                    ; load_fn_result : load_fn_result_type
+                    ; store_fn_result : store_fn_result_type
+                    ; load_fn_arguments : load_fn_arguments_type
+                    ; store_fn_arguments : store_fn_arguments_type
+                    ; fail_fn : fail_fn_type
                     }
 
 
