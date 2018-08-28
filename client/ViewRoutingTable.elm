@@ -12,7 +12,6 @@ import Tuple2 as T2
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
-import Viewport
 import Toplevel as TL
 import Blank as B
 import Toplevel
@@ -307,8 +306,6 @@ fnLink fn isUsed text =
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text]
 
-
-
 view404s : List FourOhFour -> Html.Html Msg
 view404s f404s  =
   let thelink fof =
@@ -355,7 +352,6 @@ viewRestorableDBs tls =
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
 
-
 viewUserFunctions : Model -> Html.Html Msg
 viewUserFunctions m =
   let fns = m.userFunctions
@@ -390,8 +386,6 @@ viewUserFunctions m =
       routes = div "fns" (List.map fnHtml fns)
   in section "Functions" fns (Just CreateFunction) routes
 
-
-
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
   let sections = viewRoutes m.toplevels CollapseVerbs ShowLink DontShowUndo
@@ -404,5 +398,10 @@ viewRoutingTable m =
                , nothingMouseEvent "mouseup"
                ]
                sections
-
-  in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
+  in Html.div
+      [ Attrs.id "leftsidebar"
+      , Attrs.classList [("scrollable", m.sidebar.isScrollable)]
+      , eventNoPropagation "mouseenter" (\_ -> SidebarFocus True)
+      , eventNoPropagation "mouseleave" (\_ -> SidebarFocus False)
+      ]
+      [ html ]

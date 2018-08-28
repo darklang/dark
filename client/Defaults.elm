@@ -50,6 +50,12 @@ defaultUrlState = { lastPos = {x=0, y=0},
                     canvasPos = {x=0, y=0}
                   }
 
+defaultSidebarProps : SidebarProps
+defaultSidebarProps =
+  { isScrollable = False
+  , yPos = 0.0
+  }
+
 defaultModel : Model
 defaultModel = { error = Nothing
                , lastMsg = Initialization
@@ -89,4 +95,5 @@ defaultModel = { error = Nothing
                , tlCursors = Dict.empty
                , featureFlags = Dict.empty
                , lockedHandlers = []
+               , sidebar = defaultSidebarProps
                }

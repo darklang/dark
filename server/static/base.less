@@ -25,6 +25,10 @@ html {
 @blank-underline: 1px dashed @grey2;
 @code-font-size: 13.3333px;
 
+@vertical-spacing: 20px;
+@horizontal-padding: 8px;
+@icon-spacing: 6px;
+
 ::-webkit-scrollbar {
   -webkit-appearance: none;
   width: 7px;
@@ -101,7 +105,7 @@ body #grid * {
   padding: 4px;
 
   .specialButton {
-    margin-right: 8px;
+    margin-right: @horizontal-padding;
     padding: 4px;
     color: @orange;
 
@@ -117,7 +121,12 @@ body #grid * {
 }
 
 #status {
+  min-height: @vertical-spacing;
+  max-height: 50px;
+  overflow-y: scroll;
+
   &.error {
+    font-size: 0.7rem;
     color: @yellow;
     i.fa {
       padding-left: 10px;
@@ -243,16 +252,33 @@ body #grid * {
 //*************
 // Routing table
 //*************
+
+#leftsidebar {
+  position: absolute;
+  top: @vertical-spacing;
+  left: 0;
+  max-height: calc(~"100% - 50px");
+  overflow-y: scroll;
+  background-color: @black1;
+  border: 1px solid @black2;
+
+  &::-webkit-scrollbar-thumb {
+    background-color: @grey2;
+  } 
+
+  &.scrollable {
+    background-color: @black2;
+  }
+}
+
 .viewing-table {
-  background-color: @black2;
-  border: 2px solid @blue;
-  padding: 8px;
   position: relative;
+  min-width: 300px;
   width: max-content;
+  padding: @horizontal-padding;
 
   .routing-section {
     .header {
-      width: 300px;
       color: @orange;
 
       .title {
@@ -274,7 +300,8 @@ body #grid * {
       }
     }
     &.deleted > .routing-section {
-      margin-left: 10px;
+      margin-left: @horizontal-padding;
+
     }
 
     .button-link {
@@ -327,6 +354,8 @@ body #grid * {
 
       .external {
         color: @orange;
+        padding-left: 8px;
+
         &:hover {
           color: @yellow;
         }
@@ -360,7 +389,7 @@ body #grid * {
 
   .fa-lock, .fa-unlock {
     position: fixed;
-    margin-left: -20px;
+    margin-left: -1 * @vertical-spacing;
     margin-top: -22px;
     &.fa-lock {
       color: @red;
@@ -375,7 +404,7 @@ body #grid * {
     background-image: url('/static/_db.png');
     background-position: left center;
     background-repeat: no-repeat;
-    padding-left: 20px; /* Adjust according to image size to push text across. */
+    padding-left: @vertical-spacing; /* Adjust according to image size to push text across. */
     margin-bottom: 10px;
     margin: 0 auto; /* center the db name */
     &::before {
@@ -580,8 +609,8 @@ body #grid * {
 }
 
 .highlighted-indent() {
-  margin-left: 8px;
-  padding-left: 8px;
+  margin-left: @horizontal-padding;
+  padding-left: @horizontal-padding;
   border-left: 1px solid @orange;
 }
 
@@ -590,8 +619,8 @@ body #grid * {
 //*************
 .ast {
   font-size: 10pt;
-  padding-right: 8px;
-  padding-left: 8px;
+  padding-right: @horizontal-padding;
+  padding-left: @horizontal-padding;
   padding-top: 24px;
   padding-bottom: 24px;
   white-space: pre;
@@ -1081,7 +1110,7 @@ body #grid * {
 
 .expr-actions {
   position: absolute;
-  right: -20px;
+  right: -1 * @vertical-spacing;
   top: 50%;
   width: 16px;
 
@@ -1123,7 +1152,7 @@ body #grid * {
         content: attr(title);
         position: absolute;
         left: 0;
-        top: -20px;
+        top: -1 * @vertical-spacing;
         color: @blue;
         width: max-content;
       }
@@ -1170,10 +1199,6 @@ body #grid * {
   font-style: italic;
   font-size: 88%;
 }
-
-@vertical-spacing: 20px;
-@horizontal-padding: 8px;
-@icon-spacing: 6px;
 
 .flagged {
   .fa-flag {
@@ -1314,7 +1339,7 @@ body #grid * {
     }
     &.pick-a {
       color: @red;
-      margin-left: -20px;
+      margin-left: -1 * @vertical-spacing;
     }
   }
 
@@ -1359,7 +1384,7 @@ body #grid * {
   z-index: 70;
 }
 
-.viewing-table {
+#leftsidebar {
   z-index: 55;
 }
 

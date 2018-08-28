@@ -1,5 +1,8 @@
 module Viewport exposing (..)
 
+import Dom.Scroll
+import Task
+
 -- dark
 import Defaults
 import Types exposing (..)
@@ -43,10 +46,6 @@ pageRight : Pos -> Modification
 pageRight c =
   {x=c.x + Defaults.pageWidth, y=c.y } |> moveTo
 
-
-
-
-
 moveUp : Pos -> Modification
 moveUp c =
   {x=c.x, y=c.y - Defaults.moveSize } |> moveTo
@@ -67,4 +66,32 @@ moveTo : Pos -> Modification
 moveTo pos =
   SetCenter pos
 
+scrollSidebar : Pos -> SidebarProps -> Modification
+scrollSidebar delta sidebar =
+  if (abs delta.x) < 10
+  then
+    let sidebarId = "leftsidebar"
+        startY =  sidebar.yPos
+        y = startY + (toFloat delta.y)
+        ny = if y < 0 then 0 else y
+        scroll = Dom.Scroll.toY sidebarId ny
+    in Many
+      [ MakeCmd (Task.attempt SidebarScrollTo scroll)
+      , SidebarSetY ny
+      ]
+  else NoChange
+
+mouseMove : Model -> (List Int) -> Modification
+mouseMove m deltaCoords =
+  let pos = pagePos m.currentPage
+      delta =
+        case deltaCoords of
+          x::y::_ -> { x=x, y=y }
+          _ -> { x=0, y=0 }
+  in if m.sidebar.isScrollable
+  then scrollSidebar delta m.sidebar
+  else moveTo
+    { x = pos.x + delta.x
+    , y = pos.y + delta.y
+    }
 

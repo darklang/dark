@@ -160,6 +160,8 @@ type Msg
     | RestoreToplevel TLID
     | LockHandler TLID Bool
     | ReceiveAnalysis JSD.Value
+    | SidebarFocus Bool
+    | SidebarScrollTo (Result Dom.Error ())
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -446,6 +448,12 @@ type alias UrlState = { lastPos : Pos
                       , canvasPos: Pos
                       }
 type alias TLCursors = Dict Int Int
+
+type alias SidebarProps =
+  { isScrollable: Bool
+  , yPos: Float
+  }
+
 type alias Model = { error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
@@ -476,6 +484,7 @@ type alias Model = { error : Maybe String
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
+                   , sidebar: SidebarProps
                    }
 
 -- Values that we serialize
@@ -539,6 +548,8 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
+                  | SidebarSetY Float
+                  | SidebarSetScrollable Bool
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

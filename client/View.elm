@@ -41,8 +41,10 @@ view m =
         ViewScaffold.viewButtons m
       body =
         viewCanvas m
+      routing = ViewRoutingTable.viewRoutingTable m
       content =
         [ header
+        , routing
         , body
         , footer
         ]
@@ -65,8 +67,8 @@ viewCanvas m =
           case m.currentPage of
             Toplevels _ -> [xaxis, yaxis]
             Fn _ _ -> []
-        routing = [ViewRoutingTable.viewRoutingTable m]
-        allDivs = axes ++ routing ++ asts ++ entry
+        
+        allDivs = axes ++ asts ++ entry
     in
         Html.div [Attrs.id "canvas"] allDivs
 
