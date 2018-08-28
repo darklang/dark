@@ -104,7 +104,7 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "date" -> Exception.internal "todo"
   | "title" -> Exception.internal "todo"
   | "url" -> Exception.internal "todo"
-  | table -> THasMany table
+  | table -> THasMany list_tipe
 
 let rec tipe_of (dv : dval) : tipe =
   match dv with

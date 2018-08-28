@@ -84,6 +84,7 @@ flag2function fn =
                           fn.parameters
   , infix = fn.infix
   , previewExecutionSafe = fn.preview_execution_safe
+  , deprecated = fn.deprecated
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )

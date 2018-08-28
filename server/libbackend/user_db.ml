@@ -24,7 +24,35 @@ let find_db (tables: db list) (table_name: string) : db option =
 
 let find_db_exn (tables: db list) (table_name: string) : db =
   find_db tables table_name
-  |> Option.value_exn ~message:("table not found " ^ table_name)
+  |> Option.value_exn ~message:("table not found " ^ table_name ^ " in tables: " ^ (Libcommon.Log.dump tables))
+
+let coerce_key_value_pair_to_legacy_object pair =
+  match pair with
+  | [DStr s; DObj o] ->
+    let id =
+      (match Uuidm.of_string s with
+      | Some id -> DID id
+      | None -> DStr s)
+    in
+    DObj (Map.set ~key:"id" ~data:id o)
+  | err ->
+    Exception.internal
+      ("Unexpected shape, unable to coerce to legacy format: "
+       ^ (Libcommon.Log.dump err))
+
+let coerce_dlist_of_kv_pairs_to_legacy_object dv =
+  match dv with
+  | DList pairs ->
+    pairs
+    |> List.map
+      ~f:(function
+          | DList pair ->
+            coerce_key_value_pair_to_legacy_object pair
+          | _ ->
+            Exception.internal
+              "bad format from internal fetch, unable to coerce to legacy format")
+    |> DList
+  | _ -> Exception.internal "bad fetch"
 
 
 
@@ -64,7 +92,6 @@ let cols_for (db: db) : (string * tipe) list =
       Some (name, tipe)
     | _ ->
       None)
-  |> fun l -> ("id", TID) :: l
 
 let dv_to_id col (dv: dval) : Uuidm.t =
     match dv with
@@ -79,23 +106,15 @@ let dv_to_id col (dv: dval) : Uuidm.t =
       uuid
     | _ -> Exception.user (type_error_msg col TID dv)
 
-
 let query_for (col: string) (dv: dval) : string =
-  if col = "id" (* the id is not stored in the jsonb *)
-  then
-    let id = dv_to_id col dv in
-    Printf.sprintf
-      "AND id = %s"
-      (Db.escape (Uuid id))
-  else
-    Printf.sprintf
-      "AND (data->%s)%s = %s" (* compare against json in a string *)
-      (Db.escape (String col))
-      (Db.cast_expression_for dv
-       |> Option.value ~default:"")
-      (Db.escape (DvalJson dv))
+  Printf.sprintf
+    "AND (data->%s)%s = %s" (* compare against json in a string *)
+    (Db.escape (String col))
+    (Db.cast_expression_for dv
+     |> Option.value ~default:"")
+    (Db.escape (DvalJson dv))
 
-let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
+let rec query ~state ~magic db (pairs:(string*dval) list) : dval =
   let conds =
     pairs
     |> List.map ~f:(fun (k,v) -> query_for k v)
@@ -103,7 +122,7 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   in
   let sql =
     Printf.sprintf
-      "SELECT id, data
+      "SELECT key, data
        FROM user_data
        WHERE table_tlid = $1
        AND user_version = $2
@@ -117,62 +136,40 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
     ~params:[ ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
-  |> List.map ~f:(to_obj ~state db)
+  |> List.map
+    ~f:(fun return_val ->
+        match return_val with
+        (* TODO(ian): change `to_obj` to just take a string *)
+        | [key; data] -> DList [DStr key; to_obj ~state ~magic db [data]]
+        | _ -> Exception.internal "bad format received in fetch_all")
   |> DList
 and
-fetch_by ~state db (col: string) (dv: dval) : dval =
-  fetch_by_many ~state db [(col, dv)]
-and
-find ~state db id  =
-  Db.fetch_one
-    ~name:"find"
-    "SELECT DISTINCT id, data
-     FROM user_data
-     WHERE id = $1
-     AND user_version = $2
-     AND dark_version = $3"
-    ~params:[ Uuid id
-            ; Int db.version
-            ; Int current_dark_version]
-  |> to_obj ~state db
-and
-find_many ~state db ids =
-  let sql =
-    Printf.sprintf
-      "SELECT DISTINCT id, data
-       FROM user_data
-       WHERE id IN (%s)
-       AND user_version = $1
-       AND dark_version = $2"
-      (Db.escape (List (List.map ~f:(fun u -> Uuid u) ids)))
-  in
-  if List.is_empty ids
-  then DList []
-  else
-    Db.fetch
-      ~name:"find_many"
-      sql
-      ~params:[ Int db.version
-              ; Int current_dark_version]
-    |> List.map ~f:(to_obj ~state db)
-    |> DList
+query_by_one ~state ~magic db (col: string) (dv: dval) : dval =
+  query ~state ~magic db [(col, dv)]
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-to_obj ~state db (db_strings : string list)
+to_obj ~state ~magic db (db_strings : string list)
   : dval =
   match db_strings with
-  | [id; obj] ->
-    let p_id =
-      id |> Uuidm.of_string |> Option.value_exn |> DID
-    in
+  | [obj] ->
     let p_obj =
       match Dval.dval_of_json_string obj with
-      | DObj o -> o
+      | DObj o ->
+        (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
+         * data object itself. they got in the database on the `update` of
+         * an already present object as `update` did not remove the magic `id` field
+         * which had been injected on fetch. we need to remove magic `id` if we fetch them
+         * otherwise they will not type check on the way out any more and will not work.
+         * if they are re-saved with `update` they will have their ids removed.
+         * we consider an `id` key on the map to be a "magic" one if it is present in the map
+         * but not in the schema of the object. this is a deliberate weakening of our schema
+         * checker to deal with this case. *)
+        if not (List.exists ~f:((=) "id") (db |> cols_for |> List.map ~f:Tuple.T2.get1))
+        then Map.remove o "id"
+        else o
+        (* </HACK> *)
       | x -> Exception.internal ("failed format, expected DObj got: " ^ (obj))
-    in
-    let merged =
-      Map.set ~key:"id" ~data:p_id p_obj
     in
     (* <HACK>: because it's hard to migrate at the moment, we need to
      * have default values when someone adds a col. We can remove this
@@ -183,26 +180,22 @@ to_obj ~state db (db_strings : string list)
         |> List.map ~f:(fun (k, _) -> (k, DNull))
         |> DvalMap.of_alist_exn
     in
-    let merged = Util.merge_left merged default_keys in
+    let merged = Util.merge_left p_obj default_keys in
     (* </HACK> *)
 
     let type_checked =
-      type_check_and_fetch_dependents ~state db merged
+      type_check_and_fetch_dependents ~state ~magic db merged
     in
     DObj type_checked
   | _ -> Exception.internal "Got bad format from db fetch"
-and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dval_map) : dval_map =
+and type_check_and_map_dependents ~belongs_to ~has_many ~state ~magic (db: db) (obj: dval_map) : dval_map =
   let cols = cols_for db |> TipeMap.of_alist_exn in
   let tipe_keys = cols
                   |> TipeMap.keys
-                  |> List.filter
-                    ~f:(fun k -> not (String.Caseless.equal k "id"))
                   |> String.Set.of_list
   in
   let obj_keys = obj
                  |> DvalMap.keys
-                 |> List.filter
-                   ~f:(fun k -> not (String.Caseless.equal k "id"))
                  |> String.Set.of_list
   in
   let same_keys = String.Set.equal tipe_keys obj_keys in
@@ -223,12 +216,24 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
           | (TDbList _, DList _) -> data
           | (TPassword, DPassword _) -> data
           | (TUuid, DUuid _) -> data
-          | (TBelongsTo table, any_dval) ->
+          | (TBelongsTo table, any_dval) when magic = true ->
             (* the belongs_to function needs to type check any_dval *)
             belongs_to table any_dval
-          | (THasMany table, DList any_list) ->
+          | (TBelongsTo table, DID i) when magic = false ->
+            DStr (Uuidm.to_string i)
+          | (TBelongsTo table, DStr _) when magic = false ->
+            data
+          | (THasMany table, DList any_list) when magic = true ->
             (* the has_many function needs to type check any_list *)
             has_many table any_list
+          | (THasMany table, DList any_list) when magic = false ->
+            any_list
+            |> List.map
+              ~f:(function
+                  | DID i -> DStr (Uuidm.to_string i)
+                  | DStr _ as d -> d
+                  | err -> Exception.user (type_error_msg key TID err))
+            |> DList
           | (_, DNull) -> data (* allow nulls for now *)
           | (expected_type, value_of_actual_type) ->
             Exception.user (type_error_msg key expected_type value_of_actual_type)
@@ -255,13 +260,12 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
     | (true, true) ->
       Exception.internal
         "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
-and type_check_and_fetch_dependents ~state db obj : dval_map =
+and type_check_and_fetch_dependents ~state ~magic db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
         let dep_table = find_db_exn state.dbs table in
         (match dv with
          | DID _ | DStr _ ->
-           let id = dv_to_id table dv in
            (* TODO: temporary, need to add this to coerce not found
             * dependents to null. We should probably propagate the
             * deletion to the owning records, but this is very much a
@@ -269,7 +273,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             * than child->parent. child->parent seems hard with our
             * single-table, json blob approach though *)
            (try
-              find ~state dep_table id
+              get ~state ~magic:true dep_table (dv |> dv_to_id "key" |> Uuidm.to_string)
             with
             | Exception.DarkException e as original ->
               (match e.tipe with
@@ -283,10 +287,15 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
          | err -> Exception.user (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db_exn state.dbs table in
-        let uuids = List.map ~f:(dv_to_id table) ids in
-        find_many ~state dep_table uuids)
-    ~state db obj
-and type_check_and_upsert_dependents ~state db obj : dval_map =
+        let skeys =
+          List.map
+            ~f:(fun i -> i |> dv_to_id "has_many key" |> Uuidm.to_string)
+            ids
+        in
+        let result = get_many ~state ~magic:true dep_table skeys in
+        coerce_dlist_of_kv_pairs_to_legacy_object result)
+    ~state ~magic db obj
+and type_check_and_upsert_dependents ~state ~magic db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
       let dep_table = find_db_exn state.dbs table in
@@ -294,7 +303,10 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
        | DObj m ->
          (match DvalMap.find m "id" with
           | Some existing -> update ~state dep_table m; existing
-          | None -> insert ~state dep_table m |> DID)
+          | None ->
+            let key = Util.create_uuid () in
+            ignore (set ~state ~magic:true ~upsert:false dep_table (key |> Uuidm.to_string) m);
+            DID key)
        | DNull -> (* allow nulls for now *)
          DNull
        | err -> Exception.user (type_error_msg table TObj err)))
@@ -305,34 +317,46 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           ~f:(fun o ->
               (match o with
                | DObj m ->
-                 type_check_and_upsert_dependents ~state dep_table m
-                 |> fun o -> DvalMap.find o "id"
-                 |> (function
-                      | Some i -> i
-                      | None -> Exception.internal "upsert returned id-less object")
+                (match DvalMap.find m "id" with
+                  | Some existing -> update ~state dep_table m; existing
+                  | None ->
+                    let key = Util.create_uuid () in
+                    ignore (set ~state ~magic:true ~upsert:false dep_table (key |> Uuidm.to_string) m);
+                    DID key)
                | err -> Exception.user (type_error_msg table TObj err)))
         |> DList)
-    ~state db obj
-and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
-  (* TODO: what if it has an id already *)
+    ~state ~magic db obj
+and set ~state ~magic ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
   let id = Util.create_uuid () in
-  let merged = type_check_and_upsert_dependents ~state db vals in
+  let merged = type_check_and_upsert_dependents ~state ~magic db vals in
+  let query =
+    "INSERT INTO user_data
+     (id, account_id, canvas_id, table_tlid, user_version, dark_version, key, data)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)"
+    |> fun s ->
+      if upsert
+      then
+        (s ^ " ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data")
+      else
+        s
+  in
   Db.run
-    ~name:"user_insert"
-    "INSERT into user_data
-     (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)"
+    ~name:"user_set"
+    query
     ~params:[ Uuid id
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version
+            ; String key
             ; DvalmapJsonb merged];
   id
 and update ~state db (vals: dval_map) =
+  (* deprecated: unneccessary in new world *)
   let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
-  let merged = type_check_and_upsert_dependents ~state db vals in
+  let removed = Map.remove vals "id" in
+  let merged = type_check_and_upsert_dependents ~state ~magic:true db removed in
   Db.run
     ~name:"user_update"
     "UPDATE user_data
@@ -350,11 +374,56 @@ and update ~state db (vals: dval_map) =
             ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
-
-let fetch_all ~state (db: db) : dval =
+and get ~state ~magic (db: db) (key: string) : dval =
+  Db.fetch_one
+    ~name:"get"
+    "SELECT data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     AND key = $6"
+    ~params:[ ID db.tlid
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.version
+            ; Int current_dark_version
+            ; String key
+            ]
+  |> to_obj ~state ~magic db
+and get_many ~state ~magic (db: db) (keys: string list) : dval =
   Db.fetch
-    ~name:"fetch_all"
-    "SELECT id, data
+    ~name:"get_many"
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     AND key = ANY (string_to_array($6, $7)::text[])"
+    ~params:[ ID db.tlid
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.version
+            ; Int current_dark_version
+            ; List (List.map ~f:(fun s -> String s) keys)
+            ; String Db.array_separator
+            ]
+  |> List.map
+    ~f:(fun return_val ->
+        match return_val with
+        (* TODO(ian): change `to_obj` to just take a string *)
+        | [key; data] -> DList [DStr key; to_obj ~state ~magic db [data]]
+        | _ -> Exception.internal "bad format received in get_many")
+  |> DList
+
+let get_all ~state ~magic (db: db) : dval =
+  Db.fetch
+    ~name:"get_all"
+    "SELECT key, data
      FROM user_data
      WHERE table_tlid = $1
      AND account_id = $2
@@ -366,22 +435,26 @@ let fetch_all ~state (db: db) : dval =
             ; Uuid state.canvas_id
             ; Int db.version
             ; Int current_dark_version]
-  |> List.map ~f:(to_obj ~state db)
+  |> List.map
+    ~f:(fun return_val ->
+        match return_val with
+        (* TODO(ian): change `to_obj` to just take a string *)
+        | [key; data] -> DList [DStr key; to_obj ~state ~magic db [data]]
+        | _ -> Exception.internal "bad format received in get_all")
   |> DList
 
-let delete ~state (db: db) (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
+let delete ~state (db: db) (key: string) =
   (* covered by composite PK index *)
   Db.run
     ~name:"user_delete"
     "DELETE FROM user_data
-     WHERE id = $1
+     WHERE key = $1
      AND account_id = $2
      AND canvas_id = $3
      AND table_tlid = $4
      AND user_version = $5
      AND dark_version = $6"
-    ~params:[ Uuid id
+    ~params:[ String key
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; ID db.tlid

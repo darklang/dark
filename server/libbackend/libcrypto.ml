@@ -48,6 +48,7 @@ let fns : Lib.shortfn list = [
 
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -69,6 +70,7 @@ let fns : Lib.shortfn list = [
          | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 ]

@@ -108,53 +108,52 @@ let rec sym_exec
   : unit =
   let sexe = sym_exec ~trace state in
   try
-    let _ =
-      (match expr with
-       | Blank _ -> ()
-       | Filled (_, Value s) -> ()
-       | Filled (_, Variable name) -> ()
+    ignore
+      ((match expr with
+        | Blank _ -> ()
+        | Filled (_, Value s) -> ()
+        | Filled (_, Variable name) -> ()
 
-       | Filled (_, Let (lhs, rhs, body)) ->
-         let bound = match lhs with
-           | Filled (_, name) ->
-             sexe st rhs;
-             SymSet.add st name
-           | Blank _ -> st
-         in sexe bound body
+        | Filled (_, Let (lhs, rhs, body)) ->
+          let bound = match lhs with
+            | Filled (_, name) ->
+              sexe st rhs;
+              SymSet.add st name
+            | Blank _ -> st
+          in sexe bound body
 
-       | Filled (_, FnCall (name, exprs))
-       | Filled (_, FnCallSendToRail (name, exprs)) ->
-         List.iter ~f:(sexe st) exprs
+        | Filled (_, FnCall (name, exprs))
+        | Filled (_, FnCallSendToRail (name, exprs)) ->
+          List.iter ~f:(sexe st) exprs
 
-       | Filled (_, If (cond, ifbody, elsebody))
-       | Filled (_, FeatureFlag(_, cond, elsebody, ifbody)) ->
-         sexe st cond;
-         sexe st ifbody;
-         sexe st elsebody;
+        | Filled (_, If (cond, ifbody, elsebody))
+        | Filled (_, FeatureFlag(_, cond, elsebody, ifbody)) ->
+          sexe st cond;
+          sexe st ifbody;
+          sexe st elsebody;
 
-       | Filled (_, Lambda (vars, body)) ->
-         let new_st =
-           vars
-           |> List.filter_map ~f:blank_to_content
-           |> SymSet.of_list
-           |> SymSet.union st
-         in
-         sexe new_st body
+        | Filled (_, Lambda (vars, body)) ->
+          let new_st =
+            vars
+            |> List.filter_map ~f:blank_to_content
+            |> SymSet.of_list
+            |> SymSet.union st
+          in
+          sexe new_st body
 
-       | Filled (_, Thread (exprs)) ->
-         List.iter ~f:(sexe st) exprs
+        | Filled (_, Thread (exprs)) ->
+          List.iter ~f:(sexe st) exprs
 
-       | Filled (_, FieldAccess (obj, field)) ->
-         sexe st obj
+        | Filled (_, FieldAccess (obj, field)) ->
+          sexe st obj
 
-       | Filled (_, ListLiteral exprs) ->
-         List.iter ~f:(sexe st) exprs
+        | Filled (_, ListLiteral exprs) ->
+          List.iter ~f:(sexe st) exprs
 
-       | Filled (_, ObjectLiteral exprs) ->
-         exprs
-         |> List.map ~f:Tuple.T2.get2
-         |> List.iter ~f:(sexe st))
-    in
+        | Filled (_, ObjectLiteral exprs) ->
+          exprs
+          |> List.map ~f:Tuple.T2.get2
+          |> List.iter ~f:(sexe st)));
     trace expr st
   with
   | e ->
@@ -252,8 +251,7 @@ let rec exec ~(engine: engine)
        * if it wasn't there*)
       | Blank _ -> param
       | _ ->
-        let _ = exe st exp in (* calculate the results inside this
-                                 regardless *)
+        ignore (exe st exp); (* calculate the results inside this regardless *)
         DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
     in
     trace exp result st;
@@ -307,7 +305,7 @@ let rec exec ~(engine: engine)
                 | DIncomplete -> None (* ignore unfinished subexpr *)
                 | _ -> Some (k, expr))
              | (_, v) ->
-               let _ = exe st v in
+               ignore (exe st v);
                None
            )
        |> fun ps ->
@@ -339,23 +337,23 @@ let rec exec ~(engine: engine)
           (match exe st cond with
            | DBool false | DNull ->
              (* execute the positive side just for the side-effect *)
-             let _ = exe st ifbody in
+             ignore (exe st ifbody);
              exe st elsebody
            | DIncomplete ->
-             let _ = exe st ifbody in
-             let _ = exe st elsebody in
+             ignore (exe st ifbody);
+             ignore (exe st elsebody);
              DIncomplete
            | DError _ ->
-             let _ = exe st ifbody in
-             let _ = exe st elsebody in
+             ignore (exe st ifbody);
+             ignore (exe st elsebody);
              DError "Expected boolean, got error"
            | DErrorRail _ as er ->
-             let _ = exe st ifbody in
-             let _ = exe st elsebody in
+             ignore (exe st ifbody);
+             ignore (exe st elsebody);
              er
            | _ ->
              (* execute the negative side just for the side-effect *)
-             let _ = exe st elsebody in
+             ignore (exe st elsebody);
              exe st ifbody)
         | Real ->
           (* In the case of a 'real' evaluation, we shouldn't do unneccessary work and
@@ -376,7 +374,7 @@ let rec exec ~(engine: engine)
          let fake_st = Util.merge_left
                         (Symtable.singleton "var" DIncomplete)
                         st in
-         let _ = exe fake_st body in ()
+         ignore (exe fake_st body)
        else ();
 
        (* TODO: this will error if the number of args and vars arent equal *)

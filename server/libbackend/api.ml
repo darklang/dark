@@ -56,6 +56,7 @@ type function_metadata = { name: string
                          ; return_type : string
                          ; infix : bool
                          ; preview_execution_safe: bool
+                         ; deprecated : bool
                          } [@@deriving yojson]
 
 let functions () =
@@ -76,6 +77,7 @@ let functions () =
             ; return_type = Dval.tipe_to_string v.return_type
             ; preview_execution_safe = v.preview_execution_safe
             ; infix = List.mem ~equal:(=) v.infix_names k
+            ; deprecated = v.deprecated
             })
   |> fun l -> `List (List.map ~f:function_metadata_to_yojson l)
   |> Yojson.Safe.pretty_to_string

@@ -73,6 +73,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.POST
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -84,6 +85,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.PUT
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -96,6 +98,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.GET
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -107,6 +110,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.DELETE
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -118,6 +122,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.OPTIONS
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -129,6 +134,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.HEAD
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -140,6 +146,7 @@ let fns : Lib.shortfn list = [
   ; f = call Httpclient.PATCH
   ; pr = None
   ; ps = false
+  ; dep = false
   }
   ;
 
@@ -156,6 +163,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -173,6 +181,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -189,6 +198,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -205,6 +215,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -237,6 +248,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
   ;
 
@@ -254,6 +266,7 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = None
   ; ps = true
+  ; dep = false
   }
 ]
 
