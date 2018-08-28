@@ -5,6 +5,7 @@ import Dict
 import Json.Decode as JSD
 import Dom.Scroll
 import Task
+import Set
 
 -- lib
 import List.Extra as LE
@@ -22,6 +23,7 @@ import Analysis
 import Toplevel as TL
 import AST
 import Commands
+import Refactor
 
 ----------------------------
 -- Focus
@@ -158,10 +160,13 @@ reset m a =
         m.userFunctions
         |> List.map .metadata
         |> List.filterMap Functions.ufmToF
+      unusedDeprecatedFns =
+        Refactor.unusedDeprecatedFunctions m
       functions =
         m.builtInFunctions
         |> List.filter
           (\f -> not (List.member f.name (List.map .name userFunctionMetadata)))
+        |> List.filter (\f -> not (Set.member f.name unusedDeprecatedFns))
         |> List.append userFunctionMetadata
   in
       init functions a.admin |> regenerate m
@@ -558,18 +563,12 @@ generateFromModel m a =
                   , "Password"
                   , "UUID"
                   ]
-                    dbs =
-                      m.toplevels
-                      |> TL.dbs
-                      |> List.map .name
-                    simple =
-                      builtins ++ dbs
                     compound =
                       List.map
                         (\s -> "[" ++ s ++ "]")
-                        simple
+                        builtins
                 in
-                    simple ++ compound
+                    builtins ++ compound
 
               DarkType ->
                 [ "Any"

@@ -7,16 +7,20 @@ open Types.RuntimeT
 val cols_for : DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
-val insert : state:exec_state -> DbT.db -> dval_map -> Uuidm.t
-val fetch_all : state:exec_state -> DbT.db -> dval
-val fetch_by : state:exec_state -> DbT.db -> string -> dval -> dval
-val fetch_by_many : state:exec_state -> DbT.db -> (string * dval) list -> dval
-val find : state:exec_state -> DbT.db -> Uuidm.t -> dval
-val find_many : state:exec_state -> DbT.db -> Uuidm.t list -> dval
-val delete : state:exec_state -> DbT.db -> dval_map -> unit
+val set : state:exec_state -> magic:bool -> upsert:bool -> DbT.db -> string -> dval_map -> Uuidm.t
+val get : state:exec_state -> magic:bool -> DbT.db -> string -> dval
+val get_many : state:exec_state -> magic:bool -> DbT.db -> string list -> dval
+val get_all : state:exec_state -> magic:bool -> DbT.db -> dval
+val query : state:exec_state -> magic:bool -> DbT.db -> (string * dval) list -> dval
+val query_by_one : state:exec_state -> magic:bool -> DbT.db -> string -> dval -> dval
+val delete : state:exec_state -> DbT.db -> string -> unit
 val delete_all : state:exec_state -> DbT.db -> unit
-val update : state:exec_state -> DbT.db -> dval_map -> unit
 val count : DbT.db -> int
+
+(* Deprecated: only used in legacy in deprecated libdb *)
+val update : state:exec_state -> DbT.db -> dval_map -> unit
+val coerce_key_value_pair_to_legacy_object : dval list -> dval
+val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval
 
 (* DB schema modifications *)
 val create : host -> string -> tlid -> DbT.db

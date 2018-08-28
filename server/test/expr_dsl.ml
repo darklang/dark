@@ -88,7 +88,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
     | None -> f (Variable value)
 
 let ast_for (ast: string) : expr =
-  let quotes = (Re2.create_exn "'(.*)'") in
+  let quotes = (Re2.create_exn "'(.*?)'") in
   ast
   |> (fun s ->
     (* dunno whether it's a bug or just annoying, but we need to specify

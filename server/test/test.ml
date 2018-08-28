@@ -32,6 +32,8 @@ let clear_test_data () : unit =
     "DELETE FROM cron_records where canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_toplevel_oplists_test_data"
     "DELETE FROM toplevel_oplists WHERE canvas_id = $1";
+  Db.run ~params:[Uuid canvas] ~name:"clear_function_arguments"
+    "DELETE FROM function_arguments WHERE canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = $1";
   ()
@@ -92,10 +94,13 @@ let f a = Filled (fid (), a)
 let fncall (a,b) = f (FnCall (a,b))
 let tlid = Int63.of_int 7
 let dbid = Int63.of_int 89
+let dbid2 = Int63.of_int 189
 let colnameid = Int63.of_int 11
 let coltypeid = Int63.of_int 12
 let colnameid2 = Int63.of_int 13
 let coltypeid2 = Int63.of_int 14
+let colnameid3 = Int63.of_int 15
+let coltypeid3 = Int63.of_int 16
 let pos = {x=0;y=0}
 let execution_id = Int63.of_int 6542
 
@@ -513,7 +518,7 @@ let t_cron_just_ran () =
   ()
 
 
-let t_roundtrip_user_data () =
+let t_roundtrip_user_data_using_deprecated_functions () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
@@ -540,14 +545,15 @@ let t_escape_pg_escaping () =
   ()
 
 let t_nulls_allowed_in_db () =
+  clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
             ; Op.SetDBColName (dbid, colnameid, "x")
             ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
-  let ast = "(let old (DB::insert (obj (x null)) MyDB)
-               (let new (DB::fetchOneBy null 'x' MyDB)
+  let ast = "(let old (DB::set_v1 (obj (x null)) 'hello' MyDB)
+               (let new (`DB::get_v1 'hello' MyDB)
                  (== old new)))"
   in
   check_dval "equal_after_roundtrip"
@@ -562,15 +568,15 @@ let t_nulls_added_to_missing_column () =
             ; Op.SetDBColName (dbid, colnameid, "x")
             ; Op.SetDBColType (dbid, coltypeid, "Str")]
   in
-  ignore (exec_handler ~ops "(DB::insert (obj (x 'v')) MyDB)");
+  ignore (exec_handler ~ops "(DB::set_v1 (obj (x 'v')) 'i' MyDB)");
 
   let ops = ops @ [ Op.AddDBCol (dbid, colnameid2, coltypeid2)
                   ; Op.SetDBColName (dbid, colnameid2, "y")
                   ; Op.SetDBColType (dbid, coltypeid2, "Str")]
   in
   check_dval "equal_after_fetchall"
-    (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))
-    (exec_handler ~ops "(dissoc (List::head (DB::fetchAll MyDB)) 'id')")
+    (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
+    (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
 
 let t_analysis_not_empty () =
   clear_test_data ();
@@ -708,8 +714,10 @@ let t_incomplete_propagation () =
 
 let t_html_escaping () =
   check_dval "html escaping works"
-    (DStr "test&lt;&gt;&amp;&quot;&#x27;")
-    (exec_ast "(String::htmlEscape 'test<>&\\\"\\\'')")
+    (* TODO: add back in check that `'` is correctly escaped. It didn't
+     * play nice with our hacky `'` removal in the DSL parser *)
+    (DStr "test&lt;&gt;&amp;&quot;")
+    (exec_ast "(String::htmlEscape 'test<>&\\\"')")
 
 let t_curl_file_urls () =
   AT.check (AT.option AT.string) "aaa"
@@ -851,6 +859,293 @@ let t_nothing () =
 
   ()
 
+let t_db_write_deprecated_read_new () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  (* DID and DUUID deliberately do not unify, but we don't want to break
+   * the contract that the old DB functions return DID, so we have to stringify *)
+  let ast = "(let old (DB::insert (obj (x 'foo')) MyDB)
+              (let stringified_id (toString (. old id))
+               (let new (`DB::get_v1 stringified_id MyDB)
+                (let mutated_new (assoc new 'id' stringified_id)
+                 (let mutated_old (assoc old 'id' stringified_id)
+                  (== mutated_new mutated_old))))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_read_deprecated_write_new_duuid () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let new_write (DB::set_v1 (obj (x 'foo')) (toString (Uuid::generate)) MyDB)
+               (let old_read (DB::fetchOneBy 'foo' 'x' MyDB)
+                 (let mutated_old_read (dissoc old_read 'id')
+                   ((== new_write mutated_old_read) (. old_read id)))))"
+  in
+  let result = exec_handler ~ops ast in
+  AT.check AT.int
+  "Deprecated reads from an object with a new write give expected value and right type"
+  0 (match result with
+     | DList [DBool true; a] when Dval.tipe_of a = TID -> 0
+     | _ -> 1)
+
+let t_db_new_query_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "y")
+            ; Op.SetDBColType (dbid, coltypeid2, "Str")
+            ]
+  in
+  let ast = "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
+               (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
+                (let results (DB::query_v1 (obj (x 'bar')) MyDB)
+                 (== (('findme' hopetofind)) results))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_set_does_upsert () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
+               (let new (DB::set_v1 (obj (x 'bar')) 'hello' MyDB)
+                (let results (DB::getAll_v1 MyDB)
+                 (== (('hello' new)) results))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_get_all_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid2, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
+               (let results (DB::getAll_v1 MyDB)
+                (== (('one' one) ('two' two)) results))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_deprecated_belongs_to_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.CreateDB (dbid2, pos, "SecondDB")
+            ; Op.AddDBCol (dbid2, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid2, colnameid2, "y")
+            ; Op.SetDBColType (dbid2, coltypeid2, "Int")
+            ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
+            ; Op.SetDBColName (dbid, colnameid3, "relation")
+            ; Op.SetDBColType (dbid, coltypeid3, "SecondDB")
+            ]
+  in
+  let ast = "(let oldin (DB::insert (obj (x 'foo') (relation (obj (y 4)))) MyDB)
+               (List::head (DB::fetchAll MyDB)))"
+  in
+  let result = exec_handler ~ops ast in
+  AT.check AT.int
+  "Deprecated BelongsTo works"
+  0 (match result with
+     | DObj o ->
+       (match (DvalMap.find o "x", DvalMap.find o "relation") with
+        | (Some (DStr "foo"), Some (DObj inner)) ->
+          (match (DvalMap.find inner "y") with
+           | Some (DInt 4) -> 0
+           | _ -> 1)
+        | _ -> 1)
+     | _ -> 1)
+
+let t_db_deprecated_has_many_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.CreateDB (dbid2, pos, "SecondDB")
+            ; Op.AddDBCol (dbid2, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid2, colnameid2, "y")
+            ; Op.SetDBColType (dbid2, coltypeid2, "Int")
+            ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
+            ; Op.SetDBColName (dbid, colnameid3, "relations")
+            ; Op.SetDBColType (dbid, coltypeid3, "[SecondDB]")
+            ]
+  in
+  let ast = "(let oldin (DB::insert (obj (x 'foo') (relations ((obj (y 4)) (obj (y 6))))) MyDB)
+               (List::head (DB::fetchAll MyDB)))"
+  in
+  let result = exec_handler ~ops ast in
+  AT.check AT.int
+  "Deprecated HasMany works"
+  0 (match result with
+     | DObj o ->
+       (match (DvalMap.find o "x", DvalMap.find o "relations") with
+        | (Some (DStr "foo"), Some (DList inners)) ->
+          (match inners with
+           | [DObj fst; DObj snd] ->
+             (try
+                let sorted_list =
+                    List.sort
+                        ~compare:compare_dval
+                        [DvalMap.find_exn fst "y"; DvalMap.find_exn snd "y"]
+                in
+                (match sorted_list with
+                 | [DInt 4; DInt 6] -> 0
+                 | _ -> 1)
+             with e -> 1)
+           | _ -> 1)
+        | _ -> 1)
+     | _ -> 1)
+
+let t_db_deprecated_fetch_by_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "sort_by")
+            ; Op.SetDBColType (dbid, coltypeid2, "Int")
+            ]
+  in
+  (* sorting to ensure the test isn't flakey *)
+  let ast = "(let one (DB::insert (obj (x 'foo') (sort_by 0)) MyDB)
+              (let two (DB::insert (obj (x 'bar') (sort_by 1)) MyDB)
+               (let three (DB::insert (obj (x 'bar') (sort_by 2)) MyDB)
+                (let fetched (List::sortBy (DB::fetchBy 'bar' 'x' MyDB) (\\x -> (. x sort_by)))
+                (== (two three) fetched)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_deprecated_fetch_by_id_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
+              (let fetched (DB::fetchOneBy (. one id) 'id' MyDB)
+                (== one fetched)))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_get_many_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
+               (let fetched (DB::getMany_v1 ('first' 'second') MyDB)
+                (== (('first' one) ('second' two)) fetched))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_query_works_with_many () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "sort_by")
+            ; Op.SetDBColType (dbid, coltypeid2, "Int")
+            ]
+  in
+  (* sorting to ensure the test isn't flakey *)
+  let ast = "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+               (let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
+                (let fetched (List::sortBy (DB::query_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
+                 (== (('two' two) ('three' three)) fetched)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_deprecated_delete_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
+              (let fetched (DB::delete one MyDB)
+               (== 0 (List::length (DB::fetchAll MyDB)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_deprecated_update_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::insert (obj (x 'foo')) MyDB)
+              (let update (DB::update (assoc one 'x' 'bar') MyDB)
+               (== 1 (List::length (DB::fetchAll MyDB)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+let t_db_get_returns_nothing () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  check_dval "get_returns_nothing"
+    (DOption OptNothing)
+    (exec_handler ~ops "(DB::get_v1 'lol' MyDB)")
 
 
 (* ------------------- *)
@@ -876,7 +1171,7 @@ let suite =
   ; "Stdlib fns work", `Quick, t_stdlib_works
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
-  ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
+  ; "Roundtrip user_data into jsonb using deprecated funcs", `Quick, t_roundtrip_user_data_using_deprecated_functions
   ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
@@ -905,6 +1200,20 @@ let suite =
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ; "Handling nothing in code works", `Quick, t_nothing
+  ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
+  ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
+  ; "New query function works", `Quick, t_db_new_query_works
+  ; "DB::set_v1 upserts", `Quick, t_db_set_does_upsert
+  ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
+  ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
+  ; "Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works
+  ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
+  ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
+  ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
+  ; "DB::query_v1 works with many items", `Quick, t_db_query_works_with_many
+  ; "Deprecated delete works", `Quick, t_db_deprecated_delete_works
+  ; "Deprecated update works", `Quick, t_db_deprecated_update_works
+  ; "DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing
   ]
 
 let () =

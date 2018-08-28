@@ -15,6 +15,7 @@ let escape_double s = Util.string_replace "\"" "\\\"" s
 let single_quote v = "'" ^ v ^ "'"
 let double_quote v = "\"" ^ v ^ "\""
 let cast_to ~tipe v = v ^ "::" ^ tipe
+let array_separator = ", "
 
 type param = Int of int
            | ID of Types.id
@@ -71,7 +72,7 @@ let cast_expression_for (dv: Types.RuntimeT.dval) : string option =
   else Some "::jsonb"
 
 
-let to_sql param : string =
+let rec to_sql param : string =
   match param with
   | Int i -> string_of_int i
   | ID i -> Types.string_of_id i
@@ -82,7 +83,10 @@ let to_sql param : string =
   | DvalJson dv -> Dval.dval_to_json_string ~redact:false dv
   | DvalmapJsonb dvm -> Dval.dvalmap_to_string ~redact:false dvm
   | Null -> Postgresql.null
-  | List _ -> Exception.internal "Cannot pass List to be escaped"
+  | List xs ->
+    xs
+    |> List.map ~f:to_sql
+    |> String.concat ~sep:array_separator
 
 let rec to_log param : string =
   let max_length = 600 in
@@ -103,7 +107,7 @@ let rec to_log param : string =
   | Null -> "NULL"
   | List params -> params
                    |> List.map ~f:to_log
-                   |> String.concat ~sep:", "
+                   |> String.concat ~sep:array_separator
                    |> fun s -> "[" ^ s ^ "]"
 
 (* ------------------------- *)

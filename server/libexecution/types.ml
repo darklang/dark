@@ -344,6 +344,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
             ; preview : (dval list -> int -> dval list) option
             ; func : funcimpl
             ; preview_execution_safe : bool
+            ; deprecated: bool
             }
 
   let ufn_param_to_param (p : ufn_param) : param option =
@@ -384,6 +385,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
       ; preview_execution_safe = false
       ; preview = None
       ; func = UserCreated (uf.tlid, uf.ast)
+      ; deprecated = false
       } |> Some
     | _ -> None
 end
