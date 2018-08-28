@@ -46,7 +46,7 @@ let perform_analysis (str : string) : string =
   let state = { state with dbs = dbs } in
 
   handlers
-  |> List.map ~f:(Analysis.analyse_handler state ~input_vars)
+  |> List.map ~f:(fun h -> Analysis.analyse_ast state ~input_vars h.ast)
   |> analysis_list_to_yojson
   |> Yojson.Safe.to_string
 
