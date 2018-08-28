@@ -30,7 +30,7 @@ let perform_analysis (str : string) : string =
 
   handlers
   |> List.map ~f:(fun h ->
-      Analysis.analyse_ast h.ast
+      Execution.analyse_ast h.ast
         ~tlid:h.tlid
         ~exe_fn_ids:[]
         ~execution_id:(Types.id_of_int 1)
