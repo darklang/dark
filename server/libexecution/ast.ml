@@ -451,19 +451,7 @@ let rec exec ~(engine: engine)
         trace_blank field result st;
         result
     ) in
-  (* Only catch if we're tracing *)
-  let execed_value =
-    if ctx = Real
-    then value ()
-    else
-      try
-        value ()
-      with e ->
-        Log.log_exception
-             ~pp:Exception.to_string
-             "exec_execution" (Types.show_id state.execution_id) e;
-        Dval.exception_to_dval e
-  in
+  let execed_value = value () in
   trace expr execed_value st;
   execed_value
   (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
