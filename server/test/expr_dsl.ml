@@ -50,8 +50,8 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
     f (If (ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
 
   (* feature-flag: (flag a 1 2) *)
-  | Sexp.List [Sexp.Atom "flag"; Sexp.Atom name; cond; ifbody; elsebody] ->
-    f (FeatureFlag (b_or_f name, ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
+  | Sexp.List [Sexp.Atom "flag"; Sexp.Atom name; cond; oldcode; newcode] ->
+    f (FeatureFlag (b_or_f name, ast_for_ cond, ast_for_ oldcode, ast_for_ newcode))
 
   (* thread: (| 5 (+ 4) (+ 3))  *)
   | Sexp.List (Sexp.Atom "|" :: exprs) ->
