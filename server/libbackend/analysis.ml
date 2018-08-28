@@ -18,10 +18,10 @@ let all_tlids (c: canvas) : tlid list =
   List.map ~f:(fun tl -> tl.tlid) (c.dbs @ c.handlers)
 
 (* ------------------------- *)
-(* Execution/analysis *)
+(* Analysis types *)
 (* ------------------------- *)
 
-type executable_fn_id = (tlid * id * int) [@@deriving to_yojson]
+type executable_fn_id = tlid * id * int [@@deriving to_yojson]
 type analysis_result = tlid * analysis list
 
 let analysis_result_to_yojson (id, results) =
@@ -29,8 +29,9 @@ let analysis_result_to_yojson (id, results) =
          ; ("results", analysis_list_to_yojson results)
          ]
 
-let global_vars (c: canvas) : string list =
-  List.map ~f:(Tuple.T2.get1) (Backend_execution.global_vars c)
+(* ------------------------- *)
+(* Non-execution analysis *)
+(* ------------------------- *)
 
 let unlocked (c: canvas) : tlid list =
   c.dbs
@@ -68,6 +69,52 @@ let get_404s (c: canvas) : SE.four_oh_four list =
         not (List.exists handlers
                ~f:(fun h -> match_event h e)))
   |> List.map ~f:(fun e -> (e, SE.load_events c.id e))
+
+let global_vars (c: canvas) : string list =
+  c.dbs
+  |> TL.dbs
+  |> List.map ~f:(fun db -> db.name)
+
+
+
+(* ------------------------- *)
+(* Input vars *)
+(* ------------------------- *)
+let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) =
+  match Handler.event_desc_for h with
+  | None -> []
+  | Some (space, path, modifier as d) ->
+    List.map (SE.load_events c.id d)
+      ~f:(fun e ->
+          match Handler.module_type h with
+          | `Http ->
+            let with_r = [("request", e)] in
+            let bound = Libexecution.Execution.http_route_input_vars h path in
+            with_r @ bound
+          | `Event ->
+            [("event", e)]
+          | `Cron  -> []
+          | `Unknown -> [] (* can't happen *)
+      )
+
+let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
+  : RTT.input_vars list =
+  let saved = saved_input_vars c h in
+  let samples = Execution.sample_input_vars h in
+  if saved = []
+  then [samples]
+  else saved
+
+let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
+  : RTT.input_vars list =
+  Stored_function_arguments.load (c.id, fn.tlid)
+  |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
+
+
+
+(* ------------------------- *)
+(* Execution-based analysis *)
+(* ------------------------- *)
 
 let ast_analysis
     ~(exe_fn_ids: executable_fn_id list)
@@ -112,7 +159,7 @@ let user_fn_analysis
             ; "execution_id", show_id execution_id
             ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
-  let all_inputs = Backend_execution.initial_input_vars_for_user_fn c f in
+  let all_inputs = initial_input_vars_for_user_fn c f in
   let values = ast_analysis all_inputs c f.ast f.tlid
       ~exe_fn_ids ~execution_id
   in
@@ -130,7 +177,7 @@ let handler_analysis
             ; "execution_id", show_id execution_id
             ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
-  let all_inputs = Backend_execution.initial_input_vars_for_handler c h in
+  let all_inputs = initial_input_vars_for_handler c h in
   let values = ast_analysis all_inputs c h.ast h.tlid
       ~exe_fn_ids ~execution_id
   in
