@@ -231,15 +231,7 @@ let rec exec ~(engine: engine)
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
         let send_to_rail = should_send_to_rail fncall in
-        (try
-           call name id (param :: (List.map ~f:(exe st) exprs)) send_to_rail
-         with e ->
-           (* making the error local looks better than making the whole
-            * thread fail. *)
-           Log.log_exception
-             ~pp:Exception.to_string
-             "threaded_execution" (Types.show_id state.execution_id) e;
-           Dval.exception_to_dval e)
+        call name id (param :: (List.map ~f:(exe st) exprs)) send_to_rail
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
       | Blank _ -> param
@@ -371,7 +363,7 @@ let rec exec ~(engine: engine)
           let newresult = exe st newcode in
           let oldresult = exe st oldcode in
           let condresult =
-            try
+            try (* under no circumstances should this cause code to fail *)
               exe st cond
             with e ->
               Dval.exception_to_dval e
@@ -386,7 +378,7 @@ let rec exec ~(engine: engine)
           (* In the case of a 'real' evaluation, we shouldn't do unneccessary
            * work and as such should follow the proper evaluation semantics *)
           let condresult =
-            try
+            try (* under no circumstances should this cause code to fail *)
               exe st cond
             with e ->
               DBool false
