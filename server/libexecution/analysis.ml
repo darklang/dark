@@ -9,10 +9,37 @@ open Types.RuntimeT.HandlerT
 module RT = Runtime
 module PReq = Parsed_request
 
-let analyse_ast ~(input_vars: input_vars)
-    (state : exec_state) (ast : expr)
-    : analysis =
-  let input_vars = Execution.dbs_as_input_vars state.dbs @ input_vars in
+let analyse_ast
+  ~tlid
+  ~exe_fn_ids
+  ~execution_id
+  ~input_vars
+  ~dbs
+  ~user_fns
+  ~account_id
+  ~canvas_id
+  ?(load_fn_result = Execution.load_no_results)
+  ?(store_fn_result = Execution.store_no_results)
+  ?(load_fn_arguments = Execution.load_no_arguments)
+  ?(store_fn_arguments = Execution.store_no_arguments)
+  (ast : expr)
+  : analysis =
+  let input_vars = (Execution.dbs_as_input_vars dbs) @ input_vars  in
+  let state : exec_state =
+    { tlid = tlid
+    ; account_id
+    ; canvas_id
+    ; user_fns
+    ; dbs
+    ; execution_id
+    ; exe_fn_ids = []
+    ; fail_fn = None
+    ; load_fn_result
+    ; store_fn_result
+    ; load_fn_arguments
+    ; store_fn_arguments
+    }
+  in
   let traced_symbols =
     Ast.symbolic_execute state ~input_vars ast in
   let (ast_value, traced_values) =

@@ -85,11 +85,20 @@ let ast_analysis
                 then Some id
                 else None)
         in
-        let state =
-          Backend_execution.state_for_analysis tlid
-            ~c ~exe_fn_ids ~execution_id
-        in
-        Analysis.analyse_ast ~input_vars state ast)
+        Analysis.analyse_ast ast
+          ~tlid
+          ~exe_fn_ids
+          ~execution_id
+          ~input_vars
+          ~dbs:(TL.dbs c.dbs)
+          ~user_fns:c.user_functions
+          ~account_id:c.owner
+          ~canvas_id:c.id
+          ~load_fn_result:Stored_function_result.load
+          ~store_fn_result:Stored_function_result.store
+          ~load_fn_arguments:Stored_function_arguments.load
+          ~store_fn_arguments:Stored_function_arguments.store
+      )
 
 let user_fn_analysis
     ~(exe_fn_ids: executable_fn_id list)

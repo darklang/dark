@@ -15,11 +15,3 @@ val initial_input_vars_for_handler : canvas -> RTT.HandlerT.handler -> RTT.input
 
 val initial_input_vars_for_user_fn : canvas -> RTT.user_fn -> RTT.input_vars list
 
-val state_for_analysis :
-  c : canvas ->
-  execution_id : id ->
-  exe_fn_ids : id list ->
-  tlid ->
-  RTT.exec_state
-
-
