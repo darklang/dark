@@ -408,8 +408,8 @@ viewNExpr d id vs config e =
 
                                     Just (Ok val) ->
                                         not
-                                            (Runtime.isIncomplete val
-                                                || Runtime.isError val
+                                            (RT.isIncomplete val
+                                                || RT.isError val
                                             )
                            )
 
@@ -683,7 +683,7 @@ viewNExpr d id vs config e =
                 condResult =
                     case condValue of
                         Just (Ok lv) ->
-                            Runtime.isTrue lv.value
+                            RT.isTrue lv.value
 
                         _ ->
                             False

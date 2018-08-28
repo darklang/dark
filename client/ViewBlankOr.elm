@@ -98,7 +98,7 @@ keyword vs c name =
 
 tipe : ViewState -> List HtmlConfig -> Tipe -> Html.Html Msg
 tipe vs c t =
-    text vs c (Runtime.tipe2str t)
+    text vs c (RT.tipe2str t)
 
 
 withFeatureFlag : ViewState -> BlankOr a -> List HtmlConfig
@@ -135,8 +135,8 @@ getLiveValue lvs (ID id) =
         |> Dict.get id
         |> Maybe.map
             (\lv ->
-                if Runtime.isError lv then
-                    Err (Runtime.extractErrorMessage lv)
+                if RT.isError lv then
+                    Err (RT.extractErrorMessage lv)
 
                 else
                     Ok lv
@@ -323,7 +323,7 @@ div vs configs content =
                     False
 
                 Just (Ok lv) ->
-                    Runtime.isIncomplete lv
+                    RT.isIncomplete lv
 
         idAttr =
             case thisID of

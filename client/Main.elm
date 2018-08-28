@@ -765,7 +765,7 @@ updateMod mod ( m, cmd ) =
                     processAutocompleteMods m2 [ ACRegenerate ]
 
                 RemoveToplevel tl ->
-                    Toplevel.remove m tl ! []
+                    TL.remove m tl ! []
 
                 SetToplevels tls updateCurrent ->
                     let
@@ -1051,7 +1051,7 @@ isFieldAccessDot m baseStr =
             Util.replace "\\.*$" "" baseStr
 
         intOrString =
-            String.startsWith "\"" str || Runtime.isInt str
+            String.startsWith "\"" str || RT.isInt str
     in
     case m.cursorState of
         Entering (Creating _) ->
