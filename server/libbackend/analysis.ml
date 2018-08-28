@@ -69,39 +69,52 @@ let get_404s (c: canvas) : SE.four_oh_four list =
                ~f:(fun h -> match_event h e)))
   |> List.map ~f:(fun e -> (e, SE.load_events c.id e))
 
+let ast_analysis
+    ~(exe_fn_ids: executable_fn_id list)
+    ~(execution_id: id)
+    (all_inputs: RTT.input_vars list)
+    (c: canvas)
+    (ast : RTT.expr)
+    tlid =
+  List.mapi all_inputs
+    ~f:(fun i input_vars ->
+        let exe_fn_ids =
+          List.filter_map exe_fn_ids
+            ~f:(fun (exe_tlid, id, cursor) ->
+                if exe_tlid = tlid && i = cursor
+                then Some id
+                else None)
+        in
+        let state =
+          Backend_execution.state_for_analysis tlid
+            ~c ~exe_fn_ids ~execution_id
+        in
+        Analysis.analyse_ast ~input_vars state ast)
+
 let user_fn_analysis
     ~(exe_fn_ids: executable_fn_id list)
     ~(execution_id: id)
     (c: canvas)
     (f: RTT.user_fn)
   : analysis_result =
+  Log.infO "user_fn_analysis"
+    ~params:[ "user_fn", show_tlid f.tlid
+            ; "host", c.host
+            ; "execution_id", show_id execution_id
+            ; "exe_fn_ids", Log.dump exe_fn_ids
+            ];
   let all_inputs = Backend_execution.initial_input_vars_for_user_fn c f in
-  let values =
-    List.mapi
-      ~f:(fun i input_vars ->
-          let exe_fn_ids = List.filter_map exe_fn_ids
-                        ~f:(fun (tlid, id, cursor) ->
-                            if tlid = f.tlid && i = cursor
-                            then Some id
-                            else None)
-          in
-          let state =
-            Backend_execution.state_for_analysis f.tlid
-              ~c ~exe_fn_ids ~execution_id
-          in
-          Analysis.analyse_user_fn ~input_vars state f)
-      all_inputs
+  let values = ast_analysis all_inputs c f.ast f.tlid
+      ~exe_fn_ids ~execution_id
   in
   (f.tlid, values)
-
 
 let handler_analysis
     ~(exe_fn_ids : executable_fn_id list)
     ~(execution_id: id)
     (c: canvas)
     (h : RTT.HandlerT.handler)
-  : analysis_result
-   =
+  : analysis_result =
   Log.infO "handler_analysis"
     ~params:[ "handler", show_tlid h.tlid
             ; "host", c.host
@@ -109,21 +122,8 @@ let handler_analysis
             ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
   let all_inputs = Backend_execution.initial_input_vars_for_handler c h in
-  let values =
-    List.mapi
-      ~f:(fun i input_vars ->
-          let exe_fn_ids = List.filter_map exe_fn_ids
-                        ~f:(fun (tlid, id, cursor) ->
-                            if tlid = h.tlid && i = cursor
-                            then Some id
-                            else None)
-          in
-          let state =
-            Backend_execution.state_for_analysis h.tlid
-              ~c ~exe_fn_ids ~execution_id
-          in
-          Analysis.analyse_handler ~input_vars state h)
-     all_inputs
+  let values = ast_analysis all_inputs c h.ast h.tlid
+      ~exe_fn_ids ~execution_id
   in
   (h.tlid, values)
 
