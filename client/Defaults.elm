@@ -1,92 +1,132 @@
-module Defaults exposing (..)
+module Defaults exposing
+    ( defaultEditor
+    , defaultModel
+    , defaultSyncState
+    , defaultUrlState
+    , entryID
+    , fnPos
+    , initialPos
+    , initialVPos
+    , leftButton
+    , moveSize
+    , pageHeight
+    , pageWidth
+    )
 
--- builtin
--- lib
 import Dict
-
--- dark
-import Types exposing (..)
 import PageVisibility
+import Types exposing (..)
 
 
 entryID : String
-entryID = "entry-box"
+entryID =
+    "entry-box"
+
+
 leftButton : Int
-leftButton = 0
+leftButton =
+    0
+
+
 
 -- UI
+
+
 initialVPos : VPos
-initialVPos = {vx=475, vy=325}
+initialVPos =
+    { vx = 475, vy = 325 }
+
 
 initialPos : Pos
-initialPos = {x=475, y=325}
+initialPos =
+    { x = 475, y = 325 }
+
 
 fnPos : Pos
-fnPos = {x=0, y=0}
+fnPos =
+    { x = 0, y = 0 }
+
 
 moveSize : Int
-moveSize = 50
+moveSize =
+    50
+
 
 pageHeight : Int
-pageHeight = 400
+pageHeight =
+    400
+
 
 pageWidth : Int
-pageWidth = 500
+pageWidth =
+    500
+
 
 defaultEditor : SerializableEditor
-defaultEditor = { clipboard = Nothing
-                , timersEnabled = True
-                , cursorState = Deselected
-                , lockedHandlers = []
-                }
+defaultEditor =
+    { clipboard = Nothing
+    , timersEnabled = True
+    , cursorState = Deselected
+    , lockedHandlers = []
+    }
+
 
 defaultSyncState : SyncState
-defaultSyncState = { inFlight = False
-                   , ticks = 0
-                   }
+defaultSyncState =
+    { inFlight = False
+    , ticks = 0
+    }
+
 
 defaultUrlState : UrlState
-defaultUrlState = { lastPos = {x=0, y=0},
-                    canvasPos = {x=0, y=0}
-                  }
+defaultUrlState =
+    { lastPos = { x = 0, y = 0 }
+    , canvasPos = { x = 0, y = 0 }
+    }
+
 
 defaultModel : Model
-defaultModel = { error = Nothing
-               , lastMsg = Initialization
-               , lastMod = NoChange
-               -- this is awkward, but avoids circular deps
-               , complete = { functions = []
-                            , admin = False
-                            , completions = [[],[],[],[]]
-                            , allCompletions = []
-                            , index = -1
-                            , value = ""
-                            , tipe = Nothing
-                            , target = Nothing
-                            , isCommandMode = False
-                            }
-               , userFunctions = []
-               , builtInFunctions = []
-               , currentPage = Toplevels initialPos
-               , hovering = []
-               , tests = []
-               , toplevels = []
-               , deletedToplevels = []
-               , analysis = []
-               , globals = []
-               , f404s = []
-               , unlockedDBs = []
-               , integrationTestState = NoIntegrationTest
-               , visibility = PageVisibility.Hidden
-               -- partially saved in editor
-               , syncState = defaultSyncState
-               , urlState = defaultUrlState
-               , timersEnabled = True
-               -- saved in editor
-               , clipboard = Nothing
-               , cursorState = Deselected
-               , executingFunctions = []
-               , tlCursors = Dict.empty
-               , featureFlags = Dict.empty
-               , lockedHandlers = []
-               }
+defaultModel =
+    { error = Nothing
+    , lastMsg = Initialization
+    , lastMod = NoChange
+
+    -- this is awkward, but avoids circular deps
+    , complete =
+        { functions = []
+        , admin = False
+        , completions = [ [], [], [], [] ]
+        , allCompletions = []
+        , index = -1
+        , value = ""
+        , tipe = Nothing
+        , target = Nothing
+        , isCommandMode = False
+        }
+    , userFunctions = []
+    , builtInFunctions = []
+    , currentPage = Toplevels initialPos
+    , hovering = []
+    , tests = []
+    , toplevels = []
+    , deletedToplevels = []
+    , analysis = []
+    , globals = []
+    , f404s = []
+    , unlockedDBs = []
+    , integrationTestState = NoIntegrationTest
+    , visibility = PageVisibility.Hidden
+
+    -- partially saved in editor
+    , syncState = defaultSyncState
+    , urlState = defaultUrlState
+    , timersEnabled = True
+
+    -- saved in editor
+    , clipboard = Nothing
+    , cursorState = Deselected
+    , executingFunctions = []
+    , tlCursors = Dict.empty
+    , featureFlags = Dict.empty
+    , lockedHandlers = []
+    }

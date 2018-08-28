@@ -1,9 +1,9 @@
--- Taken from https://raw.githubusercontent.com/Gizra/elm-keyboard-event/master/examples/Window/Events.elm
-
 effect module Window.Events where { subscription = MySub } exposing (onWindow)
 
 {-| This module lets you subscribe to events received by the Javascript
 `window` object.
+
+Taken from <https://raw.githubusercontent.com/Gizra/elm-keyboard-event/master/examples/Window/Events.elm>
 
 @docs onWindow
 
@@ -11,7 +11,7 @@ effect module Window.Events where { subscription = MySub } exposing (onWindow)
 
 import Dict exposing (Dict)
 import Dom.LowLevel
-import Json.Decode exposing (Value, Decoder, value, decodeValue)
+import Json.Decode exposing (Decoder, Value, decodeValue, value)
 import Process
 import Task exposing (Task)
 
@@ -54,7 +54,7 @@ groupByEventName =
                 >> Maybe.withDefault [ value ]
                 >> Just
     in
-        List.foldl go Dict.empty
+    List.foldl go Dict.empty
 
 
 init : Task Never (State msg)
@@ -98,13 +98,13 @@ onEffects router newSubs oldState =
                             )
                 )
     in
-        Dict.merge
-            leftStep
-            bothStep
-            rightStep
-            oldState
-            (groupByEventName newSubs)
-            (Task.succeed Dict.empty)
+    Dict.merge
+        leftStep
+        bothStep
+        rightStep
+        oldState
+        (groupByEventName newSubs)
+        (Task.succeed Dict.empty)
 
 
 onSelfMsg : Platform.Router msg Msg -> Msg -> State msg -> Task Never (State msg)
@@ -120,9 +120,9 @@ onSelfMsg router { eventName, event } state =
                         Err err ->
                             Nothing
             in
-                List.filterMap try decoders
-                    |> Task.sequence
-                    |> Task.andThen (always (Task.succeed state))
+            List.filterMap try decoders
+                |> Task.sequence
+                |> Task.andThen (always (Task.succeed state))
 
         Nothing ->
             Task.succeed state
