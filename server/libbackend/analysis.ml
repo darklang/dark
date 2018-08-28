@@ -132,7 +132,7 @@ let ast_analysis
                 then Some id
                 else None)
         in
-        Analysis.analyse_ast ast
+        Execution.analyse_ast ast
           ~tlid
           ~exe_fn_ids
           ~execution_id
