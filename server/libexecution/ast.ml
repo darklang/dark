@@ -320,44 +320,85 @@ let rec exec ~(engine: engine)
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals false
 
-     | Filled (id, If (cond, ifbody, elsebody))
-     | Filled (id, FeatureFlag (_, cond, elsebody, ifbody)) ->
+     | Filled (id, If (cond, ifbody, elsebody)) ->
        (match ctx with
         | Preview ->
-          (* In the case of a preview trace execution, we want the 'if' expression as
-           * a whole to evaluate to its correct value -- but we also want preview values
-           * for _all_ sides of the if *)
+          (* In the case of a preview trace execution, we want the 'if'
+           * expression as a whole to evaluate to its correct value -- but we
+           * also want preview values for _all_ sides of the if *)
+          let ifresult = exe st ifbody in
+          let elseresult = exe st elsebody in
           (match exe st cond with
-           | DBool false | DNull ->
-             (* execute the positive side just for the side-effect *)
-             ignore (exe st ifbody);
-             exe st elsebody
-           | DIncomplete ->
-             ignore (exe st ifbody);
-             ignore (exe st elsebody);
-             DIncomplete
-           | DError _ ->
-             ignore (exe st ifbody);
-             ignore (exe st elsebody);
-             DError "Expected boolean, got error"
-           | DErrorRail _ as er ->
-             ignore (exe st ifbody);
-             ignore (exe st elsebody);
-             er
-           | _ ->
-             (* execute the negative side just for the side-effect *)
-             ignore (exe st elsebody);
-             exe st ifbody)
+           | DBool false | DNull -> elseresult
+           | DIncomplete -> DIncomplete
+           | DError _ -> DError "Expected boolean, got error"
+           | DErrorRail _ as er -> er
+           | _ -> ifresult)
         | Real ->
-          (* In the case of a 'real' evaluation, we shouldn't do unneccessary work and
-           * as such should follow the proper evaluation semantics *)
+          (* In the case of a 'real' evaluation, we shouldn't do unneccessary
+           * work and as such should follow the proper evaluation semantics *)
           (match exe st cond with
            (* only false and 'null' are falsey *)
            | DBool false | DNull -> exe st elsebody
            | DIncomplete -> DIncomplete
-           | DErrorRail _ as er -> er
            | DError _ -> DError "Expected boolean, got error"
+           | DErrorRail _ as er -> er
            | _ -> exe st ifbody))
+
+     | Filled (id, FeatureFlag (_, cond, oldcode, newcode)) ->
+       (* True gives newexpr, unlike in If statements *)
+
+       (* In If statements, we use a false/null as false, and anything else is
+        * true. But this won't work for feature flags. If statements are built
+        * as you build you code, with no existing users. But feature flags are
+        * created when you have users and don't want to break your code. As a
+        * result, anything that isn't an explicitly signalling to use the new
+        * code, should use the old code:
+        * - errors should be ignored: use old code
+        * - incompletes should be ignored: use old code
+        * - errorrail should not be propaged: use old code
+        * - values which are "truthy" in if statements are not truthy here:
+        * imagine you are writing the FF cond and you get a list or object,
+        * and you're about to do some other work on it. Should we immediately
+        * start serving the new code to all your traffic? No. So only `true`
+        * gets new code.
+        *)
+       (match ctx with
+        | Preview ->
+          (* In the case of a preview trace execution, we want the expression
+           * as a whole to evaluate to its correct value -- but we also want
+           * preview values for both sides *)
+          let newresult = exe st newcode in
+          let oldresult = exe st oldcode in
+          let condresult =
+            try
+              exe st cond
+            with e ->
+              Dval.exception_to_dval e
+          in
+          (match condresult with
+           | DBool true -> newresult
+           | DIncomplete -> oldresult
+           | DError _ -> oldresult
+           | DErrorRail _ -> oldresult
+           | _ -> oldresult)
+        | Real ->
+          (* In the case of a 'real' evaluation, we shouldn't do unneccessary
+           * work and as such should follow the proper evaluation semantics *)
+          let condresult =
+            try
+              exe st cond
+            with e ->
+              DBool false
+          in
+          (match condresult with
+           (* only false and 'null' are falsey *)
+           | DBool true -> exe st newcode
+           | DErrorRail _ -> exe st oldcode
+           | DIncomplete -> exe st oldcode
+           | DError _ -> exe st oldcode
+           | _ -> exe st oldcode))
+
      | Filled (id, Lambda (vars, body)) ->
        if ctx = Preview
        then
