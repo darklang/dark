@@ -1,74 +1,132 @@
-module Selection exposing (..)
+module Selection exposing
+    ( HtmlSizing
+    , JSSide
+    , LRDirection(..)
+    , UDDirection(..)
+    , body
+    , delete
+    , enter
+    , enterNextBlank
+    , enterPrevBlank
+    , jsToHtmlSizing
+    , move
+    , moveCursorBackInTime
+    , moveCursorForwardInTime
+    , moveDown
+    , moveLeft
+    , moveLeftRight
+    , moveRight
+    , moveUp
+    , moveUpDown
+    , selectDownLevel
+    , selectNextBlank
+    , selectNextSibling
+    , selectNextToplevel
+    , selectPrevBlank
+    , selectPrevToplevel
+    , selectPreviousSibling
+    , selectUpLevel
+    , tlToSizes
+    )
 
--- builtins
-import Maybe
-
--- lib
-import Maybe.Extra as ME
+import Analysis
+import Blank as B
+import DB
 import List.Extra as LE
-
--- dark
-import Types exposing (..)
+import Maybe
+import Maybe.Extra as ME
+import Pointer as P
 import Prelude exposing (..)
 import Toplevel as TL
-import DB
-import Analysis
-import Pointer as P
-import Blank as B
+import Types exposing (..)
 import Util
 import ViewUtils exposing (isLocked)
+
+
 
 -------------------------------
 -- Cursors
 -------------------------------
+
+
 moveCursorBackInTime : Model -> TLID -> Modification
 moveCursorBackInTime m tlid =
-  let maxCursor = List.length (Analysis.getAnalysisResults m tlid) - 1
-      current = Analysis.cursor m tlid
-      newCursor = max 0 (min (current + 1) maxCursor)
-  in
-      SetCursor tlid newCursor
+    let
+        maxCursor =
+            List.length (Analysis.getAnalysisResults m tlid) - 1
+
+        current =
+            Analysis.cursor m tlid
+
+        newCursor =
+            max 0 (min (current + 1) maxCursor)
+    in
+    SetCursor tlid newCursor
+
 
 moveCursorForwardInTime : Model -> TLID -> Modification
 moveCursorForwardInTime m tlid =
-  let maxCursor = List.length (Analysis.getAnalysisResults m tlid) - 1
-      current = Analysis.cursor m tlid
-      newCursor = max 0 (min (current - 1) maxCursor)
-  in
-      SetCursor tlid newCursor
+    let
+        maxCursor =
+            List.length (Analysis.getAnalysisResults m tlid) - 1
+
+        current =
+            Analysis.cursor m tlid
+
+        newCursor =
+            max 0 (min (current - 1) maxCursor)
+    in
+    SetCursor tlid newCursor
+
+
 
 -------------------------------
 -- Toplevels
 -------------------------------
-selectNextToplevel : Model -> (Maybe TLID) -> Modification
-selectNextToplevel m cur =
-  let tls = List.map .id m.toplevels
-      next =
-        cur
-        |> Maybe.andThen (\cur -> Util.listNextWrap cur tls)
-  in
-  case next of
-    Just nextId -> Select nextId Nothing
-    Nothing -> Deselect
 
-selectPrevToplevel : Model -> (Maybe TLID) -> Modification
+
+selectNextToplevel : Model -> Maybe TLID -> Modification
+selectNextToplevel m cur =
+    let
+        tls =
+            List.map .id m.toplevels
+
+        next =
+            cur
+                |> Maybe.andThen (\cur -> Util.listNextWrap cur tls)
+    in
+    case next of
+        Just nextId ->
+            Select nextId Nothing
+
+        Nothing ->
+            Deselect
+
+
+selectPrevToplevel : Model -> Maybe TLID -> Modification
 selectPrevToplevel m cur =
-  let tls = List.map .id m.toplevels
-      next =
-        cur
-        |> Maybe.andThen (\cur -> Util.listPreviousWrap cur tls)
-  in
-  case next of
-    Just nextId -> Select nextId Nothing
-    Nothing -> Deselect
+    let
+        tls =
+            List.map .id m.toplevels
+
+        next =
+            cur
+                |> Maybe.andThen (\cur -> Util.listPreviousWrap cur tls)
+    in
+    case next of
+        Just nextId ->
+            Select nextId Nothing
+
+        Nothing ->
+            Deselect
+
+
 
 -------------------------------
 -- Move direction-wise
 -------------------------------
-
 -- This is not an easy problem.
 -- We want to move to the _thing_ above us, to the right of us, etc.
-
 -- Left and right are pretty straightforward, until you hit interesting
 -- edge cases:
 --   (1 |> + 2) + (4 |> + 5)
@@ -93,209 +151,346 @@ selectPrevToplevel m cur =
 -- the TL, draw it, get the sizes and positions of the elements and use
 -- them to figure out what's "above" and "below".
 
-type alias JSSide = { x: Float
-                    , y: Float
-                    , width: Float
-                    , height: Float
-                    , top: Float
-                    , right: Float
-                    , bottom: Float
-                    , left: Float
-                    , id: Int
-                    }
 
-type alias HtmlSizing = { centerX: Float
-                        , centerY: Float
-                        , id: ID
-                        }
+type alias JSSide =
+    { x : Float
+    , y : Float
+    , width : Float
+    , height : Float
+    , top : Float
+    , right : Float
+    , bottom : Float
+    , left : Float
+    , id : Int
+    }
+
+
+type alias HtmlSizing =
+    { centerX : Float
+    , centerY : Float
+    , id : ID
+    }
+
+
 jsToHtmlSizing : JSSide -> HtmlSizing
 jsToHtmlSizing obj =
-  { centerX = (obj.left + obj.right) / 2
-  , centerY = (obj.top + obj.bottom) / 2
-  , id = ID obj.id
-  }
+    { centerX = (obj.left + obj.right) / 2
+    , centerY = (obj.top + obj.bottom) / 2
+    , id = ID obj.id
+    }
 
-tlToSizes : Model -> TLID -> (List HtmlSizing, List HtmlSizing)
+
+tlToSizes : Model -> TLID -> ( List HtmlSizing, List HtmlSizing )
 tlToSizes m tlid =
-  let poses = Native.Size.positions (deTLID tlid) in
-  ( List.map jsToHtmlSizing poses.nested
-  , List.map jsToHtmlSizing poses.atoms)
+    let
+        poses =
+            Native.Size.positions (deTLID tlid)
+    in
+    ( List.map jsToHtmlSizing poses.nested
+    , List.map jsToHtmlSizing poses.atoms
+    )
 
-type UDDirection = Up | Down
+
+type UDDirection
+    = Up
+    | Down
+
+
 moveUpDown : UDDirection -> List HtmlSizing -> ID -> Maybe ID
 moveUpDown direction sizes id =
-  -- TODO: if we store the original position, we can allow the user to
-  -- go up in a straight line, like in vim, word, etc.
-  let dir = if direction == Up then -1 else 1 in
-  case List.filter (\o -> o.id == id) sizes of
-    [this] ->
-      sizes
-      |> List.filter (\o -> o.centerY /= this.centerY
-                            && dir * this.centerY < dir * o.centerY)
-      |> LE.minimumBy (\o ->
-           let majorDist = dir * (o.centerY - this.centerY)
-               minorDist = abs (o.centerX - this.centerX)
-           in majorDist * 100000 + minorDist)
-      |> Maybe.withDefault this
-      |> .id
-      |> Just
-    _ -> Nothing
+    -- TODO: if we store the original position, we can allow the user to
+    -- go up in a straight line, like in vim, word, etc.
+    let
+        dir =
+            if direction == Up then
+                -1
 
-type LRDirection = Left | Right
+            else
+                1
+    in
+    case List.filter (\o -> o.id == id) sizes of
+        [ this ] ->
+            sizes
+                |> List.filter
+                    (\o ->
+                        o.centerY
+                            /= this.centerY
+                            && dir
+                            * this.centerY
+                            < dir
+                            * o.centerY
+                    )
+                |> LE.minimumBy
+                    (\o ->
+                        let
+                            majorDist =
+                                dir * (o.centerY - this.centerY)
+
+                            minorDist =
+                                abs (o.centerX - this.centerX)
+                        in
+                        majorDist * 100000 + minorDist
+                    )
+                |> Maybe.withDefault this
+                |> .id
+                |> Just
+
+        _ ->
+            Nothing
+
+
+type LRDirection
+    = Left
+    | Right
+
+
 moveLeftRight : LRDirection -> List HtmlSizing -> ID -> Maybe ID
 moveLeftRight direction sizes id =
-  -- I seem to recall some of these values seemed weird, and now I see
-  -- that moveLeft passes Right and moveRight passes Left. Whoops.
-  let dir = if direction == Left then -1 else 1 in
-  case List.filter (\o -> o.id == id) sizes  of
-    [this] ->
-      sizes
-      |> List.filter (\o -> o.centerY == this.centerY
-                            && dir * this.centerX > dir * o.centerX)
-      |> LE.minimumBy (\o ->
-           dir * (this.centerX - o.centerX))
-      |> Maybe.withDefault this
-      |> .id
-      |> Just
-    _ -> Nothing
+    -- I seem to recall some of these values seemed weird, and now I see
+    -- that moveLeft passes Right and moveRight passes Left. Whoops.
+    let
+        dir =
+            if direction == Left then
+                -1
 
-move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID)
-    -> Maybe ID ->
-  Modification
+            else
+                1
+    in
+    case List.filter (\o -> o.id == id) sizes of
+        [ this ] ->
+            sizes
+                |> List.filter
+                    (\o ->
+                        o.centerY
+                            == this.centerY
+                            && dir
+                            * this.centerX
+                            > dir
+                            * o.centerX
+                    )
+                |> LE.minimumBy
+                    (\o ->
+                        dir * (this.centerX - o.centerX)
+                    )
+                |> Maybe.withDefault this
+                |> .id
+                |> Just
+
+        _ ->
+            Nothing
+
+
+move :
+    Model
+    -> TLID
+    -> Maybe ID
+    -> (List HtmlSizing -> ID -> Maybe ID)
+    -> Maybe ID
+    -> Modification
 move m tlid mId fn default =
-  let (nested, atoms) = tlToSizes m tlid in
+    let
+        ( nested, atoms ) =
+            tlToSizes m tlid
+    in
     Maybe.andThen (fn atoms) mId
-    |> ME.orElse (Maybe.andThen (fn nested) mId)
-    -- TODO: if neither, check nested+atoms. this would allow us to
-    -- press Left on the expr of a let and go to the varbind. I think we
-    -- would need to switch to use .left and .right instead of .centerX.
-    |> ME.orElse mId
-    |> ME.orElse default
-    |> Select tlid
+        |> ME.orElse (Maybe.andThen (fn nested) mId)
+        -- TODO: if neither, check nested+atoms. this would allow us to
+        -- press Left on the expr of a let and go to the varbind. I think we
+        -- would need to switch to use .left and .right instead of .centerX.
+        |> ME.orElse mId
+        |> ME.orElse default
+        |> Select tlid
+
 
 body : Model -> TLID -> Maybe ID
 body m tlid =
-  let tl = TL.getTL m tlid in
-  case tl.data of
-    TLHandler h -> Just (B.toID h.ast)
-    -- TODO
-    _ -> Nothing
+    let
+        tl =
+            TL.getTL m tlid
+    in
+    case tl.data of
+        TLHandler h ->
+            Just (B.toID h.ast)
+
+        -- TODO
+        _ ->
+            Nothing
+
 
 moveUp : Model -> TLID -> Maybe ID -> Modification
 moveUp m tlid mId =
-  let default = body m tlid in
-  move m tlid mId (moveUpDown Up) default
+    let
+        default =
+            body m tlid
+    in
+    move m tlid mId (moveUpDown Up) default
 
-moveDown : Model -> TLID -> (Maybe ID) -> Modification
+
+moveDown : Model -> TLID -> Maybe ID -> Modification
 moveDown m tlid mId =
-  let default = TL.getTL m tlid
+    let
+        default =
+            TL.getTL m tlid
                 |> TL.allData
                 |> List.head
                 |> Maybe.map P.toID
-  in
-  move m tlid mId (moveUpDown Down) default
+    in
+    move m tlid mId (moveUpDown Down) default
 
-moveRight : Model -> TLID -> (Maybe ID) -> Modification
+
+moveRight : Model -> TLID -> Maybe ID -> Modification
 moveRight m tlid mId =
-  let default = body m tlid in
-  move m tlid mId (moveLeftRight Left) default
+    let
+        default =
+            body m tlid
+    in
+    move m tlid mId (moveLeftRight Left) default
 
-moveLeft : Model -> TLID -> (Maybe ID) -> Modification
+
+moveLeft : Model -> TLID -> Maybe ID -> Modification
 moveLeft m tlid mId =
-  let default = body m tlid in
-  move m tlid mId (moveLeftRight Right) default
+    let
+        default =
+            body m tlid
+    in
+    move m tlid mId (moveLeftRight Right) default
+
 
 
 -------------------------------
 -- Move AST-wide
 -------------------------------
-selectUpLevel : Model -> TLID -> (Maybe ID) -> Modification
+
+
+selectUpLevel : Model -> TLID -> Maybe ID -> Modification
 selectUpLevel m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> Maybe.andThen (TL.getParentOf tl)
-  |> Maybe.map P.toID
-  |> Select tlid
+    let
+        tl =
+            TL.getTL m tlid
 
-selectDownLevel : Model -> TLID -> (Maybe ID) -> Modification
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> Maybe.andThen (TL.getParentOf tl)
+        |> Maybe.map P.toID
+        |> Select tlid
+
+
+selectDownLevel : Model -> TLID -> Maybe ID -> Modification
 selectDownLevel m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> ME.orElse (TL.rootOf tl)
-  |> Maybe.andThen (TL.firstChild tl)
-  |> ME.orElse pd
-  |> Maybe.map P.toID
-  |> Select tlid
+    let
+        tl =
+            TL.getTL m tlid
 
-selectNextSibling : Model -> TLID -> (Maybe ID) -> Modification
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> ME.orElse (TL.rootOf tl)
+        |> Maybe.andThen (TL.firstChild tl)
+        |> ME.orElse pd
+        |> Maybe.map P.toID
+        |> Select tlid
+
+
+selectNextSibling : Model -> TLID -> Maybe ID -> Modification
 selectNextSibling m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> Maybe.map (TL.getNextSibling tl)
-  |> ME.orElse pd
-  |> Maybe.map P.toID
-  |> Select tlid
+    let
+        tl =
+            TL.getTL m tlid
 
-selectPreviousSibling : Model -> TLID -> (Maybe ID) -> Modification
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> Maybe.map (TL.getNextSibling tl)
+        |> ME.orElse pd
+        |> Maybe.map P.toID
+        |> Select tlid
+
+
+selectPreviousSibling : Model -> TLID -> Maybe ID -> Modification
 selectPreviousSibling m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> Maybe.map (TL.getPrevSibling tl)
-  |> ME.orElse pd
-  |> Maybe.map P.toID
-  |> Select tlid
+    let
+        tl =
+            TL.getTL m tlid
+
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> Maybe.map (TL.getPrevSibling tl)
+        |> ME.orElse pd
+        |> Maybe.map P.toID
+        |> Select tlid
+
+
 
 -------------------------------
 -- Blanks
 -------------------------------
 
-selectNextBlank : Model -> TLID -> (Maybe ID) -> Modification
+
+selectNextBlank : Model -> TLID -> Maybe ID -> Modification
 selectNextBlank m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> TL.getNextBlank tl
-  |> Maybe.map P.toID
-  |> Select tlid
+    let
+        tl =
+            TL.getTL m tlid
 
-enterNextBlank : Model -> TLID -> (Maybe ID) -> Modification
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> TL.getNextBlank tl
+        |> Maybe.map P.toID
+        |> Select tlid
+
+
+enterNextBlank : Model -> TLID -> Maybe ID -> Modification
 enterNextBlank m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> TL.getNextBlank tl
-  |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
-  |> Maybe.withDefault NoChange
+    let
+        tl =
+            TL.getTL m tlid
 
-selectPrevBlank : Model -> TLID -> (Maybe ID) -> Modification
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> TL.getNextBlank tl
+        |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
+        |> Maybe.withDefault NoChange
+
+
+selectPrevBlank : Model -> TLID -> Maybe ID -> Modification
 selectPrevBlank m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> TL.getPrevBlank tl
-  |> Maybe.map P.toID
-  |> Select tlid
+    let
+        tl =
+            TL.getTL m tlid
 
-enterPrevBlank : Model -> TLID -> (Maybe ID) -> Modification
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> TL.getPrevBlank tl
+        |> Maybe.map P.toID
+        |> Select tlid
+
+
+enterPrevBlank : Model -> TLID -> Maybe ID -> Modification
 enterPrevBlank m tlid cur =
-  let tl = TL.getTL m tlid
-      pd = Maybe.map (TL.findExn tl) cur
-  in
-  pd
-  |> TL.getPrevBlank tl
-  |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
-  |> Maybe.withDefault NoChange
+    let
+        tl =
+            TL.getTL m tlid
+
+        pd =
+            Maybe.map (TL.findExn tl) cur
+    in
+    pd
+        |> TL.getPrevBlank tl
+        |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
+        |> Maybe.withDefault NoChange
+
 
 
 -------------------------------
@@ -305,75 +500,126 @@ enterPrevBlank m tlid cur =
 
 delete : Model -> TLID -> Maybe ID -> Modification
 delete m tlid mId =
-  case mId of
-    Nothing ->
-      let tl = TL.getTL m tlid in
-      case tl.data of
-        TLHandler h ->
-          if isLocked tlid m then NoChange
-          else Many [
-            RemoveToplevel tl
-            , RPC ([DeleteTL tlid], FocusNothing)
-            , Deselect
-          ]
-        TLDB _ -> Many [ RemoveToplevel tl
-                      , RPC ([DeleteTL tlid], FocusNothing)
-                      , Deselect
-                      ]
-        TLFunc _ -> DisplayError "Cannot delete functions!"
-    Just id ->
-      let newID = gid ()
-          focus = FocusExact tlid newID
-          tl = TL.getTL m tlid
-          pd = TL.findExn tl id
-      in
-      case P.typeOf pd of
-        DBColType ->
-          NoChange
-        DBColName ->
-          NoChange
-        VarBind ->
-          let newTL = TL.replace pd (PVarBind (F newID "")) tl in
-          case newTL.data of
-            TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
-            TLFunc f -> RPC ([SetFunction f], focus)
-            TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
-        FnName ->
-          Many [ Enter (Filling tlid id)
-               , AutocompleteMod (ACSetQuery "")
-               ]
-        _ ->
-          let newTL = TL.delete tl pd newID in
-          case newTL.data of
-            TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
-            TLFunc f -> RPC ([SetFunction f], focus)
-            TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
+    case mId of
+        Nothing ->
+            let
+                tl =
+                    TL.getTL m tlid
+            in
+            case tl.data of
+                TLHandler h ->
+                    if isLocked tlid m then
+                        NoChange
+
+                    else
+                        Many
+                            [ RemoveToplevel tl
+                            , RPC ( [ DeleteTL tlid ], FocusNothing )
+                            , Deselect
+                            ]
+
+                TLDB _ ->
+                    Many
+                        [ RemoveToplevel tl
+                        , RPC ( [ DeleteTL tlid ], FocusNothing )
+                        , Deselect
+                        ]
+
+                TLFunc _ ->
+                    DisplayError "Cannot delete functions!"
+
+        Just id ->
+            let
+                newID =
+                    gid ()
+
+                focus =
+                    FocusExact tlid newID
+
+                tl =
+                    TL.getTL m tlid
+
+                pd =
+                    TL.findExn tl id
+            in
+            case P.typeOf pd of
+                DBColType ->
+                    NoChange
+
+                DBColName ->
+                    NoChange
+
+                VarBind ->
+                    let
+                        newTL =
+                            TL.replace pd (PVarBind (F newID "")) tl
+                    in
+                    case newTL.data of
+                        TLHandler h ->
+                            RPC ( [ SetHandler tlid tl.pos h ], focus )
+
+                        TLFunc f ->
+                            RPC ( [ SetFunction f ], focus )
+
+                        TLDB _ ->
+                            impossible ( "pointer type mismatch", newTL.data, pd )
+
+                FnName ->
+                    Many
+                        [ Enter (Filling tlid id)
+                        , AutocompleteMod (ACSetQuery "")
+                        ]
+
+                _ ->
+                    let
+                        newTL =
+                            TL.delete tl pd newID
+                    in
+                    case newTL.data of
+                        TLHandler h ->
+                            RPC ( [ SetHandler tlid tl.pos h ], focus )
+
+                        TLFunc f ->
+                            RPC ( [ SetFunction f ], focus )
+
+                        TLDB _ ->
+                            impossible ( "pointer type mismatch", newTL.data, pd )
 
 
 enter : Model -> TLID -> ID -> Modification
 enter m tlid id =
-  let tl = TL.getTL m tlid
-      pd = TL.findExn tl id
-  in
-  if TL.getChildrenOf tl pd /= []
-  then selectDownLevel m tlid (Just id)
-  else
-    let enterMods =
-          Many [ Enter (Filling tlid id)
-               , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-          ]
+    let
+        tl =
+            TL.getTL m tlid
+
+        pd =
+            TL.findExn tl id
     in
-    case pd of
-      PDBColName d ->
-        if DB.isLocked m tlid && not (B.isBlank d)
-        then NoChange
-        else enterMods
-      PDBColType d ->
-        if DB.isLocked m tlid && not (B.isBlank d)
-        then
-          DB.initFieldTypeMigration m tl d
-        else enterMods
-      pd -> enterMods
+    if TL.getChildrenOf tl pd /= [] then
+        selectDownLevel m tlid (Just id)
 
+    else
+        let
+            enterMods =
+                Many
+                    [ Enter (Filling tlid id)
+                    , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
+                    ]
+        in
+        case pd of
+            PDBColName d ->
+                if DB.isLocked m tlid && not (B.isBlank d) then
+                    NoChange
 
+                else
+                    enterMods
 
+            PDBColType d ->
+                if DB.isLocked m tlid && not (B.isBlank d) then
+                    DB.initFieldTypeMigration m tl d
+
+                else
+                    enterMods
+
+            pd ->
+                enterMods

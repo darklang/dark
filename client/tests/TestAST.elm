@@ -1,132 +1,181 @@
 module TestAST exposing (all)
 
--- tests
-import Test exposing (describe)
-import Expect exposing (Expectation)
-
--- builtins
-
--- libs
-
--- dark
-import Types exposing (..)
 import AST
 import Blank as B
+import Expect exposing (Expectation)
+import Test exposing (describe)
+import Types exposing (..)
 
-id1 = ID 5
-id2 = ID 10
+
+id1 =
+    ID 5
+
+
+id2 =
+    ID 10
+
 
 pass : TestResult
-pass = Ok ()
+pass =
+    Ok ()
+
 
 fail : a -> TestResult
-fail v = Err (toString v)
+fail v =
+    Err (toString v)
+
 
 expectOk : TestResult -> Expectation
 expectOk r =
-  case r of
-    Ok () -> Expect.pass
-    Err msg -> Expect.fail msg
+    case r of
+        Ok () ->
+            Expect.pass
+
+        Err msg ->
+            Expect.fail msg
+
 
 expectTrue : Bool -> Expectation
-expectTrue = Expect.true ""
+expectTrue =
+    Expect.true ""
+
 
 expectFalse : Bool -> Expectation
-expectFalse = Expect.false ""
+expectFalse =
+    Expect.false ""
+
 
 test : String -> Expectation -> Test.Test
 test msg e =
-  Test.test msg (\_ -> e)
+    Test.test msg (\_ -> e)
 
 
 all : Test.Test
 all =
-  Test.describe "ast"
-    [ test "isThreadBlank for thread" <|
-        expectTrue
-          (AST.isThreadBlank
-            (F id1 (Thread [Blank id2]))
-            id2)
+    Test.describe "ast"
+        [ test "isThreadBlank for thread" <|
+            expectTrue
+                (AST.isThreadBlank
+                    (F id1 (Thread [ Blank id2 ]))
+                    id2
+                )
+        , test "isThreadBlank for blank" <|
+            expectFalse
+                (AST.isThreadBlank
+                    (Blank id1)
+                    id1
+                )
+        , test "isThreadBlank for thread non-blank" <|
+            expectFalse
+                (AST.isThreadBlank
+                    (F id1 (Thread [ F id2 (Value "") ]))
+                    id2
+                )
+        , test "replacing a function in a thread works" <|
+            expectOk <|
+                let
+                    replacement =
+                        B.newF (FnCall "+" [ B.new (), B.new () ] NoRail)
 
-    , test "isThreadBlank for blank" <|
-        expectFalse
-          (AST.isThreadBlank
-            (Blank id1)
-            id1)
+                    orig =
+                        B.new ()
 
-    , test "isThreadBlank for thread non-blank" <|
-        expectFalse
-          (AST.isThreadBlank
-            (F id1 (Thread [F id2 (Value "")]))
-            id2)
+                    result =
+                        AST.replace
+                            (PExpr orig)
+                            (PExpr replacement)
+                            (B.newF (Thread [ orig, B.new () ]))
+                in
+                case result of
+                    F _ (Thread [ r, _ ]) ->
+                        if r == replacement then
+                            pass
 
-    , test "replacing a function in a thread works" <|
-        expectOk <|
-          let replacement = B.newF (FnCall "+" [B.new (), B.new ()] NoRail)
-              orig = B.new ()
-              result =
-                AST.replace
-                 (PExpr orig)
-                 (PExpr replacement)
-                 (B.newF (Thread [orig, B.new ()]))
-          in
-            case result of
-              F _ (Thread [r, _]) ->
-                if r == replacement
-                then pass
-                else fail (orig, result)
-              _ -> fail (orig, result)
+                        else
+                            fail ( orig, result )
 
-    , test "promoting a threaded FnCall by removing the Thread, re-adds the missing argument" <|
-        expectOk <|
-          let threaded = B.newF (
-                           Thread [ B.new ()
-                                  , B.new ()
-                                  , F (ID 6) (FnCall "+" [Blank (ID 5)] NoRail)
-                                  , B.new ()])
-          in
-            case AST.closeThreads threaded of
-              F (ID 6) (FnCall "+" [Blank _, Blank (ID 5)] NoRail) -> pass
-              r -> fail r
+                    _ ->
+                        fail ( orig, result )
+        , test "promoting a threaded FnCall by removing the Thread, re-adds the missing argument" <|
+            expectOk <|
+                let
+                    threaded =
+                        B.newF
+                            (Thread
+                                [ B.new ()
+                                , B.new ()
+                                , F (ID 6) (FnCall "+" [ Blank (ID 5) ] NoRail)
+                                , B.new ()
+                                ]
+                            )
+                in
+                case AST.closeThreads threaded of
+                    F (ID 6) (FnCall "+" [ Blank _, Blank (ID 5) ] NoRail) ->
+                        pass
 
-    , test "don't readd the argument if it was already in the right place" <|
-      expectOk <|
-        let fn = B.newF
-                   (FnCall "+"
-                     [ B.newF (Value "3")
-                     , B.newF (Value "5")]
-                     NoRail)
-            open = B.newF
-                     (Thread
-                       [ fn
-                       , B.new ()])
-            closed = AST.closeThreads open
-        in
-        if closed == fn
-        then pass
-        else fail ({open=open, fn=fn, closed=closed})
+                    r ->
+                        fail r
+        , test "don't readd the argument if it was already in the right place" <|
+            expectOk <|
+                let
+                    fn =
+                        B.newF
+                            (FnCall "+"
+                                [ B.newF (Value "3")
+                                , B.newF (Value "5")
+                                ]
+                                NoRail
+                            )
 
+                    open =
+                        B.newF
+                            (Thread
+                                [ fn
+                                , B.new ()
+                                ]
+                            )
 
+                    closed =
+                        AST.closeThreads open
+                in
+                if closed == fn then
+                    pass
 
-    , test "simple thread is closed properly" <|
-      expectOk <|
-        let open = (B.newF (Thread [ B.newF (Value "3"), B.new ()]))
-            closed = AST.closeThreads open
-        in
-        case closed of
-          F _ (Value "3") -> pass
-          _ -> fail (open, closed)
+                else
+                    fail { open = open, fn = fn, closed = closed }
+        , test "simple thread is closed properly" <|
+            expectOk <|
+                let
+                    open =
+                        B.newF (Thread [ B.newF (Value "3"), B.new () ])
 
-    , test "parent of a field is the expr" <|
-      expectOk <|
-        let obj = B.newF (Variable "obj")
-            fieldname = B.newF "field"
-            expr = B.newF (FieldAccess obj fieldname)
-            parent = AST.parentOf (B.toID fieldname) expr
-        in
-            if parent == expr
-            then pass
-            else fail (parent, expr)
-    ]
+                    closed =
+                        AST.closeThreads open
+                in
+                case closed of
+                    F _ (Value "3") ->
+                        pass
 
+                    _ ->
+                        fail ( open, closed )
+        , test "parent of a field is the expr" <|
+            expectOk <|
+                let
+                    obj =
+                        B.newF (Variable "obj")
 
+                    fieldname =
+                        B.newF "field"
+
+                    expr =
+                        B.newF (FieldAccess obj fieldname)
+
+                    parent =
+                        AST.parentOf (B.toID fieldname) expr
+                in
+                if parent == expr then
+                    pass
+
+                else
+                    fail ( parent, expr )
+        ]
