@@ -2,9 +2,6 @@ open Core_kernel
 
 module RT = Types.RuntimeT
 
-module RouteParamMap = String.Map
-type route_param_map = RT.dval RouteParamMap.t
-
 let split_uri_path (path: string) : string list =
   let subs = String.split ~on:'/' path in
   List.filter ~f:(fun x -> String.length x > 0) subs
@@ -44,30 +41,15 @@ let route_variables (route: string) : string list =
 let has_route_variables (route: string) : bool =
   List.length (route_variables route) > 0
 
-let sample_bound_route_params ~(route: string) : route_param_map =
-  let rpm = RouteParamMap.empty in
-  let vars = route_variables route in
-  List.fold_left
-    ~init:rpm
-    ~f:(fun rpm1 v -> Map.set rpm1 ~key:v ~data:(RT.DStr ""))
-    vars
-
 (* assumes route and path match *)
-let bind_route_params_exn ~(path: string) ~(route: string) : route_param_map =
+let bind_route_params_exn ~(path: string) ~(route: string) : (string * RT.dval) list =
   if path_matches_route ~path route
   then
     let split_path = split_uri_path path in
-    let pairs =
-      route
-      |> route_variable_pairs
-      |> List.map
-           ~f:(fun (i, r) -> (r, List.nth_exn split_path i))
-    in
-    let rpm = RouteParamMap.empty in
-    List.fold_left
-      ~init:rpm
-      ~f:(fun rpm1 (r,p) -> Map.set rpm1 ~key:r ~data:(RT.DStr p))
-      pairs
+    route
+    |> route_variable_pairs
+    |> List.map
+         ~f:(fun (i, r) -> (r, RT.DStr (List.nth_exn split_path i)))
   else
     Exception.internal "path/route mismatch"
 

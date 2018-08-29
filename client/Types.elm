@@ -395,7 +395,8 @@ type alias DBMigration = { startingVersion : Int
                          , target : ID
                          }
 
-type alias DB = { name : DBName
+type alias DB = { tlid : TLID
+                , name : DBName
                 , cols : List (BlankOr DBColName, BlankOr DBColType)
                 , version : Int
                 , oldMigrations : List DBMigration

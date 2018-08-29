@@ -169,19 +169,40 @@ let user_fn name params ast : user_fn =
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
-let test_execution_data ops =
+let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
   let c = ops2c "test" ops in
-  let dbs = TL.dbs !c.dbs in
-  let env = User_db.dbs_as_exe_env dbs in
-  let state = Execution.state_for_execution ~c:!c tlid ~execution_id ~env in
-  (c, state, env)
+  let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
+  let state =
+        { tlid
+        ; account_id = !c.owner
+        ; canvas_id = !c.id
+        ; user_fns = !c.user_functions
+        ; exe_fn_ids = []
+        ; fail_fn = None
+        ; dbs = TL.dbs !c.dbs
+        ; execution_id
+        ; load_fn_result = Execution.load_no_results
+        ; store_fn_result = Stored_function_result.store
+        ; load_fn_arguments = Execution.load_no_arguments
+        ; store_fn_arguments = Stored_function_arguments.store
+        }
+  in
+  (c, state, vars)
 
 let execute_ops (ops : Op.op list) : dval =
-  let (c, state, env) = test_execution_data ops in
+  let (c, { tlid; execution_id ; dbs ; user_fns ; account_id ; canvas_id }, input_vars) =
+    test_execution_data ops in
   let h = !c.handlers
           |> TL.handlers
           |> List.hd_exn in
-  Ast_analysis.execute_handler state h
+  Execution.execute_handler h
+    ~tlid
+    ~execution_id
+    ~dbs
+    ~user_fns
+    ~account_id
+    ~canvas_id
+    ~input_vars:[] (* already provided in execute_handler *)
 
 let exec_handler ?(ops=[]) (prog: string) : dval =
   prog
@@ -192,15 +213,15 @@ let exec_handler ?(ops=[]) (prog: string) : dval =
   |> fun h -> execute_ops (ops @ [h])
 
 let exec_ast (prog: string) : dval =
-  let (c, state, env) = test_execution_data [] in
-  Ast_analysis.execute_ast state env (ast_for prog)
+  let (c, state, input_vars) = test_execution_data [] in
+  Ast.execute_ast input_vars state (ast_for prog)
 
 let exec_userfn (prog: string) : dval =
   let name = "test_function" in
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
-  let (c, state, env) = test_execution_data [SetFunction fn] in
-  Ast_analysis.execute_userfn state name execution_id []
+  let (c, state, _) = test_execution_data [SetFunction fn] in
+  Ast.execute_userfn state name execution_id []
 
 
 

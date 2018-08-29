@@ -549,12 +549,21 @@ updateMod mod (m, cmd) =
 
 
       RequestAnalysis tls ->
-        let param = tls
-                    |> List.filterMap TL.asHandler
-                    |> List.map RPC.encodeHandler
-                    |> JSE.list
+        let handlers = tls
+                       |> List.filterMap TL.asHandler
+                       |> List.map RPC.encodeHandler
+                       |> JSE.list
+            dbs = tls
+                  |> List.filterMap TL.asDB
+                  |> List.map RPC.encodeDB
+                  |> JSE.list
+            obj = JSE.object [ ("handlers", handlers)
+                             , ("dbs", dbs)
+                             ]
+            param = obj
                     |> JSE.encode 0
                     |> JSE.string
+
         in
         m ! [ requestAnalysis param ]
 
