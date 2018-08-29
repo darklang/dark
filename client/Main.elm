@@ -161,8 +161,8 @@ port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
-port requestAnalysis : JSE.Value -> Cmd msg
-port receiveAnalysis : (JSE.Value -> msg) -> Sub msg
+port requestAnalysis : String -> Cmd msg
+port receiveAnalysis : (String -> msg) -> Sub msg
 
 -----------------------
 -- updates
@@ -564,7 +564,6 @@ updateMod mod (m, cmd) =
                              ]
             param = obj
                     |> JSE.encode 0
-                    |> JSE.string
 
         in
         (m, requestAnalysis param)
@@ -1490,7 +1489,7 @@ update_ msg m =
            ]
 
     ReceiveAnalysis json ->
-      let analysis = JSD.decodeValue (JSD.list RPC.decodeTLAResult) json in
+      let analysis = JSD.decodeString (JSD.list RPC.decodeTLAResult) json in
       case analysis of
         Ok analysis -> UpdateAnalysis analysis
         Err str -> DisplayError str

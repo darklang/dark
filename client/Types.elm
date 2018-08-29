@@ -160,7 +160,7 @@ type Msg
     | DeleteUserFunction TLID
     | RestoreToplevel TLID
     | LockHandler TLID Bool
-    | ReceiveAnalysis JSD.Value
+    | ReceiveAnalysis String
     | EnablePanning Bool
 
 type alias Predecessor = Maybe PointerData
