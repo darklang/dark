@@ -13,6 +13,7 @@ import Pointer as P
 import Prelude exposing (..)
 import Toplevel as TL
 import Types exposing (..)
+import Util exposing (randomNumber)
 
 
 copy : Model -> Toplevel -> Maybe PointerData -> Modification
@@ -54,11 +55,15 @@ cut m tl p =
 
         TLHandler h ->
             let
+                ( randomNum, nextSeed ) =
+                    Util.randomNumber m.seed
+
                 newClipboard =
                     TL.find tl pid
 
                 newH =
-                    TL.delete tl p (gid ())
+                    ID randomNum
+                        |> TL.delete tl p
                         |> TL.asHandler
                         |> deMaybe "cut"
             in
@@ -68,15 +73,20 @@ cut m tl p =
                     ( [ SetHandler tl.id tl.pos newH ]
                     , FocusNext tl.id pred
                     )
+                , SetSeed nextSeed
                 ]
 
         TLFunc f ->
             let
+                ( randomNum, nextSeed ) =
+                    Util.randomNumber m.seed
+
                 newClipboard =
                     TL.find tl pid
 
                 newF =
-                    TL.delete tl p (gid ())
+                    ID randomNum
+                        |> TL.delete tl p
                         |> TL.asUserFunction
                         |> deMaybe "cut"
             in
@@ -86,6 +96,7 @@ cut m tl p =
                     ( [ SetFunction newF ]
                     , FocusNext tl.id pred
                     )
+                , SetSeed nextSeed
                 ]
 
 
@@ -143,8 +154,11 @@ peek m =
 newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
     let
+        ( randomNum, nextSeed ) =
+            Util.randomNumber m.seed
+
         nid =
-            gtlid ()
+            TLID randomNum
 
         ast =
             case peek m of
@@ -165,4 +179,7 @@ newFromClipboard m pos =
         handler =
             { ast = ast, spec = spec, tlid = nid }
     in
-    RPC ( [ SetHandler nid pos handler ], FocusNext nid Nothing )
+    Many
+        [ RPC ( [ SetHandler nid pos handler ], FocusNext nid Nothing )
+        , SetSeed nextSeed
+        ]
