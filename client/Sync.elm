@@ -85,7 +85,7 @@ toAnalyse m =
 
         _ ->
             let
-                ( randomNum, newSeed ) =
+                ( randomNum, nextSeed ) =
                     Util.randomNumber m.seed
 
                 ids =
@@ -106,4 +106,4 @@ toAnalyse m =
                 |> Maybe.andThen (\i -> LE.getAt i ids)
                 |> Maybe.map (\e -> [ e ])
                 |> Maybe.withDefault []
-                |> (\a -> ( { m | seed = newSeed }, a ))
+                |> (\a -> ( { m | seed = nextSeed }, a ))
