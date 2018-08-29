@@ -22,12 +22,6 @@ let all_tlids (c: canvas) : tlid list =
 (* ------------------------- *)
 
 type executable_fn_id = tlid * id * int [@@deriving to_yojson]
-type analysis_result = tlid * analysis list
-
-let analysis_result_to_yojson (id, results) =
-  `Assoc [ ("id", id_to_yojson id)
-         ; ("results", analysis_list_to_yojson results)
-         ]
 
 (* ------------------------- *)
 (* Non-execution analysis *)
