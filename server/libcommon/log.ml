@@ -168,7 +168,7 @@ let format_string ~level (str: string) =
   in
   str
 
-let dump = Libtarget.dump
+let dump = Vendor.dump
 
 let print_console_log
        ?(bt:Caml.Printexc.raw_backtrace option=None)

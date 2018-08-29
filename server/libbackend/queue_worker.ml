@@ -48,12 +48,15 @@ let run execution_id : (unit, Exception.captured) Result.t =
                          ;"event", Log.dump desc
                          ;"host", host
                          ;"handler_id", Log.dump h.tlid];
-               let dbs = TL.dbs !c.dbs in
-               let dbs_env = User_db.dbs_as_exe_env (dbs) in
-               let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
-               let state = Execution.state_for_execution h.tlid
-                   ~c:!c ~execution_id ~env in
-               let result = Ast_analysis.execute_handler state h in
+               let result = Execution.execute_handler h
+                   ~execution_id
+                   ~tlid:h.tlid
+                   ~input_vars:[("event", event.value)]
+                   ~dbs:(TL.dbs !c.dbs)
+                   ~user_fns:!c.user_functions
+                   ~account_id:!c.owner
+                   ~canvas_id:!c.id
+               in
                (match result with
                 | RTT.DIncomplete ->
                   Log.infO "queue_worker"

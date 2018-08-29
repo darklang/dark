@@ -10,11 +10,15 @@ module Cookie = Cohttp.Cookie
 
 module C = Canvas
 
-open Libexecution
-module PReq = Parsed_request
+module Exception = Libexecution.Exception
+module Util = Libexecution.Util
+module Dval = Libexecution.Dval
+module PReq = Libexecution.Parsed_request
+module Types = Libexecution.Types
+module Http = Libexecution.Http
 module RTT = Types.RuntimeT
-module Handler = Handler
-module TL = Toplevel
+module Handler = Libexecution.Handler
+module TL = Libexecution.Toplevel
 
 module Dbconnection = Libservice.Dbconnection
 
@@ -125,11 +129,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     respond `Internal_server_error ~resp_headers ~execution_id
       "500: More than one page matches"
   | [page] ->
-    let route = Handler.event_name_for_exn page in
     let input = PReq.from_request headers query body in
-    let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
-    let dbs = TL.dbs !c.dbs in
-    let dbs_env = User_db.dbs_as_exe_env (dbs) in
     (match (Handler.module_for page, Handler.modifier_for page) with
     | (Some m, Some mo) ->
       (* Store the event with the input path not the event name, because we
@@ -140,12 +140,19 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
       let desc = (m, Uri.path uri, mo) in
       Stored_event.store_event !c.id desc (PReq.to_dval input)
     | _-> ());
-    let env = Util.merge_left bound dbs_env in
-    let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
-    let state = Execution.state_for_execution ~c:!c
-        ~execution_id ~env page.tlid in
-    let result = Libexecution.Ast_analysis.execute_handler state page in
+    let bound = Libexecution.Execution.http_route_input_vars
+        page (Uri.path uri)
+    in
+    let result = Libexecution.Execution.execute_handler page
+        ~execution_id
+        ~account_id:!c.owner
+        ~canvas_id:!c.id
+        ~user_fns:!c.user_functions
+        ~tlid:page.tlid
+        ~dbs:(TL.dbs !c.dbs)
+        ~input_vars:([("request", PReq.to_dval input)] @ bound)
+    in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
@@ -165,39 +172,35 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
             "Content-Type"
             "text/plain; charset=utf-8"
     in
-    (match result with
-    | DResp (http, value) ->
-      (match http with
-       | Redirect url ->
-         S.respond_redirect (Uri.of_string url) ()
-       | Response (code, resp_headers) ->
-         let body =
-           if List.exists resp_headers ~f:(fun (name, value) ->
-              String.lowercase name = "content-type"
-              && String.is_prefix value ~prefix:"text/html")
-           then Dval.to_human_repr value
-           (* TODO: only pretty print for a webbrowser *)
-           else
-             Dval.dval_to_pretty_json_string value
-         in
-         let resp_headers = maybe_infer_headers resp_headers value in
-         let status = Cohttp.Code.status_of_code code in
-         let resp_headers = Cohttp.Header.of_list ([cors]
-                                                   @ resp_headers)
-         in
-         respond ~resp_headers ~execution_id status body)
+    match result with
+    | DIncomplete ->
+      respond ~execution_id `Internal_server_error
+        "Program error: program was incomplete"
+    | RTT.DResp (Redirect url, value) ->
+      S.respond_redirect (Uri.of_string url) ()
+    | RTT.DResp (Response (code, resp_headers), value) ->
+      let body =
+        if List.exists resp_headers ~f:(fun (name, value) ->
+           String.lowercase name = "content-type"
+           && String.is_prefix value ~prefix:"text/html")
+        then Dval.to_human_repr value
+        (* TODO: only pretty print for a webbrowser *)
+        else
+          Dval.dval_to_pretty_json_string value
+      in
+      let resp_headers = maybe_infer_headers resp_headers value in
+      let status = Cohttp.Code.status_of_code code in
+      let resp_headers = Cohttp.Header.of_list ([cors]
+                                                @ resp_headers)
+      in
+      respond ~resp_headers ~execution_id status body
     | _ ->
-      (match result with
-      | DIncomplete ->
-        respond ~execution_id `Internal_server_error
-          "Program error: program was incomplete"
-      | _ ->
-        let body = Dval.dval_to_pretty_json_string result in
-        let ct_headers = maybe_infer_headers [] result in
-        let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
-        (* for demonstrations sake, let's return 200 Okay when
-         * no HTTP response object is returned *)
-        respond ~resp_headers ~execution_id `OK body))
+      let body = Dval.dval_to_pretty_json_string result in
+      let ct_headers = maybe_infer_headers [] result in
+      let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
+      (* for demonstrations sake, let's return 200 Okay when
+       * no HTTP response object is returned *)
+      respond ~resp_headers ~execution_id `OK body
 
 
 (* -------------------------------------------- *)

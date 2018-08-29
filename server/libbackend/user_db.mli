@@ -23,7 +23,7 @@ val coerce_key_value_pair_to_legacy_object : dval list -> dval
 val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval
 
 (* DB schema modifications *)
-val create : host -> string -> tlid -> DbT.db
+val create : string -> tlid -> DbT.db
 val add_col : id -> id -> DbT.db -> DbT.db
 val set_col_name : id -> string -> DbT.db -> DbT.db
 val set_col_type : id -> tipe -> DbT.db -> DbT.db
@@ -35,9 +35,4 @@ val db_locked : DbT.db -> bool
 
 val find_db : DbT.db list -> string -> DbT.db option
 val find_db_exn : DbT.db list -> string -> DbT.db
-
-(* DBs as values for execution *)
-val dbs_as_env : DbT.db list -> dval_map
-val dbs_as_exe_env : DbT.db list -> dval_map
-
 

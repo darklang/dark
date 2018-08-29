@@ -113,7 +113,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                         }
                         [@@deriving eq, compare, show, yojson, sexp]
     type db = { tlid: tlid
-              ; host: string
               ; name: string
               ; cols: col list
               ; version: int
@@ -262,16 +261,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   module TipeMap = String.Map
   type tipe_map = tipe String.Map.t
 
-  module EnvMap = IDMap
-  type env_map = (dval_map list) EnvMap.t [@opaque]
+  type input_vars = (string * dval) list
 
-  module Symtable = DvalMap
-  type symtable = dval_map
-
-  (* this is _why_ we're executing the AST, to allow us to not
-   * emit certain side-effects (eg. DB writes) when showing previews *)
-  type context = Preview
-               | Real [@@deriving eq, show, yojson]
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type param = { name: string
@@ -303,37 +294,36 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type function_desc = Uuidm.t * tlid * string * id
   type user_fn_desc = Uuidm.t * tlid
+  type load_fn_result_type =
+    function_desc -> dval list -> (dval * Time.t) option
+  type store_fn_result_type =
+    function_desc -> dval list -> dval -> unit
+  type load_fn_arguments_type =
+    user_fn_desc -> (dval_map * Time.t) list
+  type store_fn_arguments_type =
+    user_fn_desc -> dval_map -> unit
+  type fail_fn_type =
+    (?msg : string -> unit -> dval) option
 
   type exec_state = { tlid: tlid
                     ; canvas_id : Uuidm.t
                     ; account_id : Uuidm.t
-                    ; host: string
                     ; user_fns: user_fn list
                     ; exe_fn_ids: id list
-                    ; input_cursor : int
-                    ; env: symtable
                     ; dbs: DbT.db list
                     ; execution_id: id
-                    ; load_fn_result :
-                        function_desc -> dval list -> (dval * Time.t) option
-                    ; store_fn_result :
-                        function_desc ->
-                        dval list ->
-                        dval ->
-                        unit
-                    ; load_fn_arguments :
-                        user_fn_desc -> (dval_map * Time.t) list
-                    ; store_fn_arguments :
-                        user_fn_desc ->
-                        dval_map ->
-                        unit
-                    ; fail_fn : (?msg : string -> unit -> dval) option
+                    ; load_fn_result : load_fn_result_type
+                    ; store_fn_result : store_fn_result_type
+                    ; load_fn_arguments : load_fn_arguments_type
+                    ; store_fn_arguments : store_fn_arguments_type
+                    ; fail_fn : fail_fn_type
                     }
 
 
   type funcimpl = InProcess of (exec_state * dval list -> dval)
                 | API of (dval_map -> dval)
                 | UserCreated of (tlid * expr)
+                | NotClientAvailable
 
   (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list

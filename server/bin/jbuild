@@ -27,6 +27,7 @@
     (name darkjs)
     (public_name darkjs)
     (modules darkjs)
+    (flags (-no-check-prims))
     (js_of_ocaml
       ((flags (--opt=1
                +nat.js

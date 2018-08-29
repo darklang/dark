@@ -265,6 +265,7 @@ ENV TERM=xterm-256color
 ######################
 
 RUN opam update && opam install -y dune.1.1.0
+RUN opam remove batteries.2.8.0
 
 ############################
 # Finish

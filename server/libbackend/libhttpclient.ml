@@ -64,171 +64,40 @@ let call verb =
     | args -> fail args)
 
 
-let fns : Lib.shortfn list = [
-  { pns = ["HttpClient::post"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP POST call to `uri`"
-  ; f = call Httpclient.POST
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
+let replacements = [
+  ( "HttpClient::post"
+  , call Httpclient.POST)
   ;
 
-  { pns = ["HttpClient::put"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP PUT call to `uri`"
-  ; f = call Httpclient.PUT
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
+  ( "HttpClient::put"
+  , call Httpclient.PUT)
   ;
 
 
-  { pns = ["HttpClient::get"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP GET call to `uri`"
-  ; f = call Httpclient.GET
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
+  ( "HttpClient::get"
+  , call Httpclient.GET)
   ;
 
-  { pns = ["HttpClient::delete"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP DELETE call to `uri`"
-  ; f = call Httpclient.DELETE
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
+  ( "HttpClient::delete"
+  , call Httpclient.DELETE)
   ;
 
-  { pns = ["HttpClient::options"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP OPTIONS call to `uri`"
-  ; f = call Httpclient.OPTIONS
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
+  ( "HttpClient::options"
+  , call Httpclient.OPTIONS)
   ;
 
-  { pns = ["HttpClient::head"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP HEAD call to `uri`"
-  ; f = call Httpclient.HEAD
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
+  ( "HttpClient::head"
+  , call Httpclient.HEAD)
   ;
 
-  { pns = ["HttpClient::patch"]
-  ; ins = []
-  ; p = params
-  ; r = TObj
-  ; d = "Make blocking HTTP PATCH call to `uri`"
-  ; f = call Httpclient.PATCH
-  ; pr = None
-  ; ps = false
-  ; dep = false
-  }
-  ;
-
-  { pns = ["HttpClient::formContentType"]
-  ; ins = []
-  ; p = []
-  ; r = TObj
-  ; d = ""
-  ; f = InProcess
-        (function
-        | (_, []) ->
-          DObj (DvalMap.of_alist_exn
-                  [("Content-Type", DStr "application/x-www-form-urlencoded")])
-        | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
+  ( "HttpClient::patch"
+  , call Httpclient.PATCH)
   ;
 
 
-  { pns = ["HttpClient::jsonContentType"]
-  ; ins = []
-  ; p = []
-  ; r = TObj
-  ; d = ""
-  ; f = InProcess
-        (function
-        | (_, []) ->
-          DObj (DvalMap.of_alist_exn
-                  [("Content-Type", DStr "application/json; charset=utf-8")])
-        | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
-  ;
-
-  { pns = ["HttpClient::plainTextContentType"]
-  ; ins = []
-  ; p = []
-  ; r = TObj
-  ; d = ""
-  ; f = InProcess
-        (function
-        | (_, []) ->
-          DObj (DvalMap.of_alist_exn
-                  [("Content-Type", DStr "text/plain; charset=utf-8")])
-        | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
-  ;
-
-  { pns = ["HttpClient::htmlContentType"]
-  ; ins = []
-  ; p = []
-  ; r = TObj
-  ; d = ""
-  ; f = InProcess
-        (function
-        | (_, []) ->
-          DObj (DvalMap.of_alist_exn
-                  [("Content-Type", DStr "text/html; charset=utf-8")])
-        | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
-  ;
-
-
-
-
-  { pns = ["HttpClient::basicAuth"]
-  ; ins = []
-  ; p = [par "username" TStr; par "password" TStr]
-  ; r = TObj
-  ; d = ""
-  ; f = InProcess
-        (function
+  ( "HttpClient::basicAuth"
+  , InProcess
+      (function
           | (_, [DStr u; DStr p]) ->
             let auth_string =
               let input =
@@ -245,28 +114,6 @@ let fns : Lib.shortfn list = [
             in
             DObj (DvalMap.of_alist_exn
                     [("Authorization", DStr auth_string)])
-        | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
-  ;
-
-  { pns = ["HttpClient::bearerToken"]
-  ; ins = []
-  ; p = [par "token" TStr]
-  ; r = TObj
-  ; d = ""
-  ; f = InProcess
-        (function
-          | (_, [DStr token]) ->
-            let auth_string = "Bearer " ^ token in
-            DObj (DvalMap.of_alist_exn
-                    [("Authorization", DStr auth_string)])
-        | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
+        | args -> fail args))
 ]
 
