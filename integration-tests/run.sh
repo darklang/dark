@@ -54,6 +54,12 @@ SPEED=0.8
 if [[ -v CI ]]; then
   SPEED=0.4
 fi
+
+CONCURRENCY=4
+if [[ -v CI ]]; then
+  CONCURRENCY=1
+fi
+
 # Set up test reporters for CircleCI
 TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results"
 TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
@@ -99,7 +105,7 @@ TEST_HOST="integration-tests:$PORT" \
     --speed $SPEED \
     --screenshots-on-fails \
     --screenshots ${DARK_CONFIG_RUN_DIR}/screenshots/ \
-    --concurrency 4 \
+    --concurrency "$CONCURRENCY" \
     --reporter $REPORTERS \
     --test-grep "$PATTERN" \
     "chrome:headless" \
