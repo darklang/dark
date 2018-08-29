@@ -557,8 +557,13 @@ updateMod mod (m, cmd) =
                   |> List.filterMap TL.asDB
                   |> List.map RPC.encodeDB
                   |> JSE.list
+            userFunctions = m.userFunctions
+                            |> List.map RPC.encodeUserFunction
+                            |> JSE.list
+
             obj = JSE.object [ ("handlers", handlers)
                              , ("dbs", dbs)
+                             , ("user_fns", userFunctions)
                              ]
             param = obj
                     |> JSE.encode 0
