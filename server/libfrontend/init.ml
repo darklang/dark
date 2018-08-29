@@ -17,10 +17,11 @@ type analysis_list = Analysis_types.analysis list [@@deriving to_yojson]
 
 type analysis_param = { handlers : handler_list
                       ; dbs : DbT.db list
+                      ; user_fns : user_fn
                       } [@@deriving yojson]
 
 let perform_analysis (str : string) : string =
-  let { handlers ; dbs } =
+  let { handlers ; dbs ; user_fns } =
     str
     |> Yojson.Safe.from_string
     |> analysis_param_of_yojson
@@ -37,9 +38,9 @@ let perform_analysis (str : string) : string =
           ~execution_id:(Types.id_of_int 1)
           ~account_id:(Util.create_uuid ())
           ~canvas_id:(Util.create_uuid ())
-          ~user_fns:[]
           ~input_vars
           ~dbs
+          ~user_fns
           ~load_fn_result:Execution.load_no_results
           ~store_fn_result:Execution.store_no_results
           ~load_fn_arguments:Execution.load_no_arguments
