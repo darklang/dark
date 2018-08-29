@@ -1168,6 +1168,40 @@ let t_db_get_returns_nothing () =
     (DOption OptNothing)
     (exec_handler ~ops "(DB::get_v1 'lol' MyDB)")
 
+let t_feature_flags_work () =
+  check_dval "flag shows new for true"
+    (DInt 1)
+    (exec_ast "(flag _ true 2 1)");
+
+  check_dval "flag shows old for false"
+    (DInt 2)
+    (exec_ast "(flag _ false 2 1)");
+
+  check_dval "flag shows old for incomplete cond"
+    (DInt 2)
+    (exec_ast "(flag _ _ 2 1)");
+
+  check_dval "flag shows old for null"
+    (DInt 2)
+    (exec_ast "(flag _ null 2 1)");
+
+  check_dval "flag shows old for error"
+    (DInt 2)
+    (exec_ast "(flag _ (List::head) 2 1)");
+
+  check_dval "flag shows old for errorrail"
+    (DInt 2)
+    (exec_ast "(flag _ (`List::head []) 2 1)");
+
+  check_dval "flag shows old for object"
+    (DInt 2)
+    (exec_ast "(flag _ (obj (x true)) 2 1)");
+
+  check_dval "flag shows old for list"
+    (DInt 2)
+    (exec_ast "(flag _ [] 2 1)");
+
+  ()
 
 (* ------------------- *)
 (* Test setup *)
@@ -1190,6 +1224,7 @@ let suite =
   ; "Good error when inserting badly", `Quick,
     t_inserting_object_to_missing_col_gives_good_error
   ; "Stdlib fns work", `Quick, t_stdlib_works
+  ; "Feature flags work", `Quick, t_feature_flags_work
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
   ; "Roundtrip user_data into jsonb using deprecated funcs", `Quick, t_roundtrip_user_data_using_deprecated_functions
