@@ -108,6 +108,12 @@ init {editorState, complete} location =
         Url.parseLocation m location
         |> Maybe.withDefault m.currentPage
 
+      canvas = m.canvas
+      newCanvas = 
+        case page of
+          Toplevels pos -> { canvas | offset = pos }
+          Fn _ pos -> { canvas | fnOffset = pos }
+
       visibilityTask =
         Task.perform PageVisibilityChange PageVisibility.visibility
 
@@ -133,6 +139,7 @@ init {editorState, complete} location =
                , tests = tests
                , toplevels = []
                , currentPage = page
+               , canvas = newCanvas
            }
 
   in
@@ -414,13 +421,15 @@ updateMod mod (m, cmd) =
               -- scrolling
               { m |
                 currentPage = page
-                , urlState = UrlState pos2 pos2
+                , urlState = UrlState pos2
+                , canvas = Viewport.setCanvasOffset m.canvas page (Viewport.centerOnPos pos2)
               } ! []
-            (Fn _ pos2, Toplevels pos1) ->
+            (Fn _ pos2, _) ->
               { m |
                 currentPage = page
                 , cursorState = Deselected
-                , urlState = UrlState pos2 pos1
+                , urlState = UrlState pos2
+                , canvas = Viewport.setCanvasOffset m.canvas page Defaults.initialPos
               } ! []
             _ ->
               let newM =
@@ -1205,13 +1214,7 @@ update_ msg m =
 
 
     MouseWheel deltaCoords ->
-      let pos = Viewport.pagePos m.currentPage
-          delta = case deltaCoords of
-                        x::y::_ -> { x=x, y=y }
-                        _ -> { x=0, y=0 }
-          dest = { x=pos.x + delta.x, y=pos.y + delta.y }
-       in
-       Viewport.moveTo dest
+      Viewport.mouseMove m deltaCoords
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx

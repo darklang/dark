@@ -4,6 +4,12 @@ module Viewport exposing (..)
 import Defaults
 import Types exposing (..)
 
+addPos: Pos -> Pos -> Pos
+addPos a b = { x = a.x + b.x, y = a.y + b.y }
+
+subPos: Pos -> Pos -> Pos
+subPos a b = { x = a.x - b.x, y = a.y - b.y }
+
 pagePos : Page -> Pos
 pagePos page =
   case page of
@@ -20,12 +26,13 @@ toViewport m pos =
 
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
-  let default = pagePos (Defaults.defaultModel |> .currentPage)
-      center = pagePos m.currentPage
+  let center =
+        case m.currentPage of
+          Toplevels _ -> m.canvas.offset
+          Fn _ _ -> m.canvas.fnOffset
   in
-  { x = pos.vx + center.x - default.x
-  , y = pos.vy + center.y - default.y}
-
+  { x = pos.vx - center.x
+  , y = pos.vy - center.y}
 
 pageUp : Pos -> Modification
 pageUp c =
@@ -42,9 +49,6 @@ pageLeft c =
 pageRight : Pos -> Modification
 pageRight c =
   {x=c.x + Defaults.pageWidth, y=c.y } |> moveTo
-
-
-
 
 
 moveUp : Pos -> Modification
@@ -67,4 +71,23 @@ moveTo : Pos -> Modification
 moveTo pos =
   SetCenter pos
 
+centerOnPos : Pos -> Pos
+centerOnPos pos =
+  subPos Defaults.initialPos pos
 
+setCanvasOffset : CanvasProps -> Page -> Pos -> CanvasProps
+setCanvasOffset canvas page pos =
+  case page of
+    Toplevels _ -> { canvas | offset = pos }
+    Fn _ _ -> { canvas | fnOffset = pos }
+
+mouseMove : Model -> (List Int) -> Modification
+mouseMove m deltaCoords =
+  let d =
+        case deltaCoords of
+          x::y::_ -> { x=x, y=y }
+          _ -> { x=0, y=0 }
+      c = m.canvas
+      pos = subPos c.offset d
+      newCanvas = setCanvasOffset c m.currentPage pos
+  in TweakModel (\m -> { m | canvas = newCanvas })

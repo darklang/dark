@@ -39,10 +39,13 @@ view m =
         ViewScaffold.viewError m.error
       footer =
         ViewScaffold.viewButtons m
+      routing =
+        ViewRoutingTable.viewRoutingTable m
       body =
         viewCanvas m
       content =
         [ header
+        , routing
         , body
         , footer
         ]
@@ -59,16 +62,21 @@ viewCanvas m =
               case LE.find (\f -> f.tlid == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
-        yaxis = axisLine m {x=0, y=1}
-        xaxis = axisLine m {x=1, y=0}
-        axes =
-          case m.currentPage of
-            Toplevels _ -> [xaxis, yaxis]
-            Fn _ _ -> []
-        routing = [ViewRoutingTable.viewRoutingTable m]
-        allDivs = axes ++ routing ++ asts ++ entry
+
+        canvasTransform =
+          let offset =
+            case m.currentPage of
+              Toplevels _ -> m.canvas.offset
+              Fn _ _ -> m.canvas.fnOffset
+          in "translate(" ++ (toString offset.x) ++ "px, " ++ (toString offset.y) ++ "px)"
+
+        allDivs = asts ++ entry
     in
-        Html.div [Attrs.id "canvas"] allDivs
+        Html.div
+        [ Attrs.id "canvas"
+        , Attrs.style [ ("transform", canvasTransform) ]
+        ]
+        allDivs
 
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
