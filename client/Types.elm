@@ -54,6 +54,7 @@ type Tipe = TInt
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
 -- within the viewport and we map Absolute positions back to the
 -- viewport to display in the browser.
+-- TODO: Can we depreciate VPos?
 type alias Pos = {x: Int, y: Int }
 type alias VPos = {vx: Int, vy: Int }
 
@@ -443,9 +444,14 @@ type alias SyncState = { inFlight : Bool
                        }
 
 type alias UrlState = { lastPos : Pos
-                      , canvasPos: Pos
                       }
 type alias TLCursors = Dict Int Int
+
+type alias CanvasProps =
+  { offset: Pos
+  , fnOffset: Pos
+  }
+
 type alias Model = { error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
@@ -476,6 +482,7 @@ type alias Model = { error : Maybe String
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
+                   , canvas: CanvasProps
                    }
 
 -- Values that we serialize
