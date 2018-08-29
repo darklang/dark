@@ -421,7 +421,7 @@ updateMod mod (m, cmd) =
               { m |
                 currentPage = page
                 , urlState = UrlState pos2
-                , canvas = Viewport.setCanvasOffset m.canvas page (Viewport.centerOn pos2)
+                , canvas = Viewport.setCanvasOffset m.canvas page (Viewport.centerOnPos pos2)
               } ! []
             (Fn _ pos2, _) ->
               { m |
