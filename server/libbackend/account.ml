@@ -90,6 +90,8 @@ let get_permissions ~(auth_domain:string) ~(username:username) () : permissions 
   then CanAccessOperations
   else if String.Caseless.equal username auth_domain
   then CanEdit
+  else if String.Caseless.equal "demo" auth_domain
+  then CanEdit
   else NoPermission
 
 let can_access_operations ~(username:username) : bool =
