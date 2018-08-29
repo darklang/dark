@@ -899,6 +899,7 @@ type Modification
     | SetLockedHandlers (List TLID)
       -- designed for one-off small changes
     | TweakModel (Model -> Model)
+    | SetSeed Random.Seed
 
 
 
