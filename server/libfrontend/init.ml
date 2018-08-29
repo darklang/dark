@@ -26,10 +26,10 @@ let perform_analysis (str : string) : string =
     |> analysis_param_of_yojson
     |> Result.ok_or_failwith
   in
-  let input_vars = [] in
 
   handlers
   |> List.map ~f:(fun h ->
+      let input_vars = Execution.sample_input_vars h in
       ( h.tlid
       , [Execution.analyse_ast h.ast
           ~tlid:h.tlid
