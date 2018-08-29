@@ -71,9 +71,9 @@ moveTo : Pos -> Modification
 moveTo pos =
   SetCenter pos
 
-centerOn : Pos -> Pos
-centerOn pos =
-  addPos (Pos (-1*pos.x) (-1*pos.y)) Defaults.initialPos
+centerOnPos : Pos -> Pos
+centerOnPos pos =
+  subPos Defaults.initialPos pos
 
 setCanvasOffset : CanvasProps -> Page -> Pos -> CanvasProps
 setCanvasOffset canvas page pos =
