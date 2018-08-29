@@ -20,6 +20,8 @@ val sample_input_vars :
   Types.RuntimeT.HandlerT.handler ->
   Types.RuntimeT.input_vars
 
+val sample_unknown_handler_input_vars :
+  Types.RuntimeT.input_vars
 
 
 (* ----------------- *)
