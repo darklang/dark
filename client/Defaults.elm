@@ -15,6 +15,7 @@ module Defaults exposing
 
 import Dict
 import PageVisibility
+import Random
 import Types exposing (..)
 
 
@@ -129,4 +130,5 @@ defaultModel =
     , tlCursors = Dict.empty
     , featureFlags = Dict.empty
     , lockedHandlers = []
+    , seed = Random.initialSeed 0
     }

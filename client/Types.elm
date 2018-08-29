@@ -109,6 +109,7 @@ import Keyboard.Event exposing (KeyboardEvent)
 import Mouse
 import Navigation
 import PageVisibility
+import Random
 import Time exposing (Time)
 
 
@@ -816,6 +817,7 @@ type alias Model =
     , tlCursors : TLCursors
     , featureFlags : FlagsVS
     , lockedHandlers : List TLID
+    , seed : Random.Seed
     }
 
 
