@@ -23,6 +23,7 @@ let init ~run_side_effects =
       in
 
       Libexecution.Init.init Config.log_level Config.log_format replacements;
+      Libexecution.Libs.assert_all_libs_available ();
 
       (* init the Random module, will be seeded from /dev/urandom on Linux *)
       Random.self_init ();

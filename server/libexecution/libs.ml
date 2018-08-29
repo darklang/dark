@@ -55,6 +55,15 @@ let replace_implementation ((name, impl): fn_replacement) : unit =
   let fn = { fn with func = impl } in
   static_fns := add_fn !static_fns fn
 
+let assert_all_libs_available () =
+  FnMap.iteri !static_fns
+     ~f:(fun ~key ~data ->
+         match data.func with
+         | NotClientAvailable ->
+           Exception.internal (key ^ " has no implementation in the backend.")
+         | _ -> ());
+  ()
+
 let init (replacements: fn_replacement list) : unit =
   let libs = Libdb.fns
              @ Libdb2.fns
