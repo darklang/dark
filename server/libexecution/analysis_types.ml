@@ -105,4 +105,14 @@ type analysis =
 type analysis_list = analysis list
                      [@@deriving to_yojson]
 
+type analysis_result = tlid * analysis list
+
+let analysis_result_to_yojson (id, results) =
+  `Assoc [ ("id", id_to_yojson id)
+         ; ("results", analysis_list_to_yojson results)
+         ]
+
+type analysis_result_list = analysis_result list
+                          [@@deriving to_yojson]
+
 
