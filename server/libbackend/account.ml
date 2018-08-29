@@ -441,5 +441,10 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQnh1UUlqRmxjd2JCdjhZcXJpdWxDdyRVVTZyZFhKYzAvSEJDN0pFeXVEWk1DdjdFbm9ZVHdjZWZTZHlkazhwMEVBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "loganm1881@gmail.com"
     ; name = "Logan McPhail"};
+  upsert_account
+    { username = "demo"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQVYrR3RxRVhFa3owRi92YnpDNmVJdyR4T2tTblMvUFZVK3JCUDJVRm5WaVU1MUZNakxFYzBxeFg0d2d5K2dmbUxJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "ops+demo@darklang.com"
+    ; name = "Demo McDemoFace"};
   ()
 
