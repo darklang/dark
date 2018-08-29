@@ -73,7 +73,9 @@ let get_404s (c: canvas) : SE.four_oh_four list =
 let global_vars (c: canvas) : string list =
   c.dbs
   |> TL.dbs
-  |> List.map ~f:(fun db -> db.name)
+  |> Execution.dbs_as_input_vars
+  |> (@) Execution.sample_unknown_handler_input_vars
+  |> List.map ~f:Tuple.T2.get1
 
 
 
