@@ -592,6 +592,33 @@ test('feature_flag_works', async t => {
 
 });
 
+test('feature_flag_in_function', async t => {
+  await t
+    // Go to function
+    .click(".fun1")
+    .click(".fa-edit")
+
+    .expect(available(".tl-2296485551")).ok()
+    .click(".tl-2296485551")
+    .pressKey("enter")
+
+    // Make feature Flag
+    .click('.expr-actions .flag')
+
+    .expect(available(".feature-flag")).ok()
+    .typeText("#entry-box", "myflag")
+    .pressKey("enter")
+
+    // Set condition
+    .typeText("#entry-box", "true", slow)
+    .pressKey("enter")
+
+    // Case B
+    .typeText("#entry-box", "3")
+    .pressKey("enter")
+
+});
+
 test('simple_tab_ordering', async t => {
   await t
     .pressKey("enter")
