@@ -54,7 +54,7 @@ type Tipe = TInt
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
 -- within the viewport and we map Absolute positions back to the
 -- viewport to display in the browser.
--- WHAT?!
+-- TODO: Can we depreciate VPos?
 type alias Pos = {x: Int, y: Int }
 type alias VPos = {vx: Int, vy: Int }
 
