@@ -13,6 +13,7 @@ module Util exposing
     , listPrevious
     , listPreviousWrap
     , random
+    , randomNumber
     , reContains
     , reExactly
     , replace
@@ -33,6 +34,7 @@ import Native.Cache
 import Native.Random
 import Native.Size
 import Native.Window
+import Random
 import Regex
 
 
@@ -52,6 +54,16 @@ windowSize a =
 random : () -> Int
 random a =
     Native.Random.random a
+
+
+{-| A generator for a random number, used throughout the app to add
+random IDs to things like windows and form elements. Must be passed a seed,
+and the new seed must be returned to be used to generate the next
+random number
+-}
+randomNumber : Random.Seed -> ( Int, Random.Seed )
+randomNumber seed =
+    Random.step (Random.int 0 2147483647) seed
 
 
 htmlSize : String -> ( Float, Float )
