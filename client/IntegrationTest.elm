@@ -519,7 +519,7 @@ feature_flag_in_function m =
   in case fun of
     Just f ->
       case f.ast of
-        F _
+        F id
           (FnCall "+" (
             [F _
             (FeatureFlag
@@ -529,6 +529,11 @@ feature_flag_in_function m =
               (F _ (Value "3")))
             ,F _ (Value "5")]) NoRail
         ) -> pass
+          -- TODO: validate result should evaluate true turnging  5 + 5 --> 3 + 5 == 8
+          -- let res = Analysis.getLiveValue m f.tlid id
+          -- in case res of
+          --   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value)
+          --   _ -> fail (f.ast, res)
         _ -> fail (f.ast, Nothing)
     Nothing -> fail ("Cant find function", Nothing)
 
