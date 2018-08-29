@@ -14,16 +14,13 @@ let init ~run_side_effects =
       Exn.initialize_module ();
 
       (* libexecution *)
-      (* TODO-REPLACE *)
-      (* let libs = Libdb.fns *)
-      (*            @ Libdb2.fns *)
-      (*            @ Libevent.fns *)
-      (*            @ Libhttp.fns *)
-      (*            @ Libhttpclient.fns *)
-      (*            @ Libcrypto.fns *)
-      (*            (* @ Libtwitter.fns  *) *)
-      (* in *)
-      let replacements = Libdb.replacements in
+      let replacements = Libdb.replacements
+                         @ Libdb2.replacements
+                         @ Libevent.replacements
+                         @ Libhttpclient.replacements
+                         @ Libcrypto.replacements
+                         (* @ Libtwitter.fns  *)
+      in
 
       Libexecution.Init.init Config.log_level Config.log_format replacements;
 

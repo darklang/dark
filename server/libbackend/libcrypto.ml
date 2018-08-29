@@ -8,19 +8,13 @@ open Types.RuntimeT
 module Hash = Sodium.Password_hash.Bytes
 
 
-let fns : Lib.shortfn list = [
+let replacements = [
   (* ====================================== *)
   (* Password *)
   (* ====================================== *)
-  { pns = ["Password::hash"]
-  ; ins = []
-  ; p = [par "pw" TStr]
-  ; r = TPassword
-  ; d = "Hash a password into a Password by salting and hashing it. \
-         This uses libsodium's crypto_pwhash_str under the hood, which is \
-         based on argon2."
-  ; f = InProcess
-          (function
+  ( "Password::hash"
+  , InProcess
+      (function
            | (_, [DStr s]) -> s
                              |> Bytes.of_string
                              (* wipe_to_password is a confusing name
@@ -44,34 +38,18 @@ let fns : Lib.shortfn list = [
                                 https://github.com/jedisct1/libsodium/blob/d49d7e8d4f4dd8df593beb9e715e7bc87bc74108/src/libsodium/crypto_pwhash/argon2/pwhash_argon2i.c#L187 *)
                              |> Hash.hash_password Sodium.Password_hash.interactive
                              |> DPassword
-           | args -> fail args)
+           | args -> fail args))
 
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
   ;
-
-  { pns = ["Password::check"]
-  ; ins = []
-  ; p = [par "existingpwr" TPassword; par "rawpw" TStr]
-  ; r = TBool
-  ; d = "Check whether a Password matches a raw password String \
-         safely. This uses libsodium's pwhash under the hood, which is \
-         based on argon2."
-  ; f = InProcess
-        (function
+  ( "Password::check"
+  , InProcess
+      (function
          | (_, [DPassword existingpw; DStr rawpw])
            -> rawpw
              |> Bytes.of_string
              |> Hash.wipe_to_password
              |> Hash.verify_password_hash existingpw
              |> DBool
-         | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; dep = false
-  }
-  ;
+         | args -> fail args))
 ]
 
