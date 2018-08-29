@@ -1433,7 +1433,6 @@ update_ msg m =
       then
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
-             , UpdateAnalysis newAnalysis
              , RequestAnalysis newToplevels
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
@@ -1446,7 +1445,6 @@ update_ msg m =
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
-                , UpdateAnalysis newAnalysis
                 , RequestAnalysis newToplevels
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
@@ -1467,7 +1465,6 @@ update_ msg m =
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
-              , UpdateAnalysis new_analysis
               , RequestAnalysis toplevels
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
@@ -1482,14 +1479,11 @@ update_ msg m =
       DisplayError <| "Success! " ++ msg
 
     ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
-      Many [ UpdateAnalysis new_analysis
-           , ExecutingFunctionComplete targets
-           ]
+      ExecutingFunctionComplete targets
 
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
-           , UpdateAnalysis analysis
            , SetGlobalVariables globals
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
