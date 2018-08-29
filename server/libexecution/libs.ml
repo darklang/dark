@@ -57,13 +57,14 @@ let replace_implementation ((name, impl): fn_replacement) : unit =
 
 let init (replacements: fn_replacement list) : unit =
   let libs = Libdb.fns
-               (* TODO-REPLACE *)
-             (* @ Libevent.fns *)
-             (* @ Libhttp.fns *)
-             (* @ Libhttpclient.fns *)
-             (* @ Libcrypto.fns *)
+             @ Libdb2.fns
+             @ Libevent.fns
+             @ Libhttpclient.fns
+             @ Libcrypto.fns
+             (* client-only *)
              @ Libstd.fns
              @ Libstd2.fns
+             @ Libhttp.fns
              (* @ Libtwitter.fns  *)
   in
   List.iter ~f:add_short_fn libs;
