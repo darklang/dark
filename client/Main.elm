@@ -109,7 +109,7 @@ init {editorState, complete} location =
         |> Maybe.withDefault m.currentPage
 
       canvas = m.canvas
-      newCanvas = 
+      newCanvas =
         case page of
           Toplevels pos -> { canvas | offset = pos }
           Fn _ pos -> { canvas | fnOffset = pos }
@@ -555,7 +555,7 @@ updateMod mod (m, cmd) =
               List.map (\h -> Analysis.getInputVars m h.tlid) handlers
 
             encodedIVs =
-              JSON.encodeList (JSON.encodeList RPC.encodeInputDict) inputVars
+              JSON.encodeList (JSON.encodeList RPC.encodeInputValueDict) inputVars
 
             dbs = TL.dbs tls
             userFns = m.userFunctions
@@ -1426,7 +1426,7 @@ update_ msg m =
     RPCCallback focus calls
       (Ok ( newToplevels
           , newDeletedToplevels
-          , newAnalysis
+          , newInputValues
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1434,7 +1434,7 @@ update_ msg m =
       then
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
-             , UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
+             , UpdateInputVars newInputValues
              , RequestAnalysis newToplevels
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
@@ -1447,7 +1447,7 @@ update_ msg m =
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
-                , UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
+                , UpdateInputVars newInputValues
                 , RequestAnalysis newToplevels
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
@@ -1460,7 +1460,7 @@ update_ msg m =
     InitialLoadRPCCallback focus extraMod
       (Ok ( toplevels
           , deletedToplevels
-          , newAnalysis
+          , newInputValues
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1468,7 +1468,7 @@ update_ msg m =
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
-              , UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
+              , UpdateInputVars newInputValues
               , RequestAnalysis toplevels
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
@@ -1482,14 +1482,14 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       DisplayError <| "Success! " ++ msg
 
-    ExecuteFunctionRPCCallback (Ok (targets, newAnalysis)) ->
-      Many [ UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
+    ExecuteFunctionRPCCallback (Ok (targets, newInputValues)) ->
+      Many [ UpdateInputVars newInputValues
            , ExecutingFunctionComplete targets ]
 
 
-    GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
+    GetAnalysisRPCCallback (Ok (newInputValues, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
-           , UpdateInputVars (Analysis.tlarToInputVars analysis)
+           , UpdateInputVars newInputValues
            , RequestAnalysis m.toplevels
            , SetGlobalVariables globals
            , Set404s f404s
