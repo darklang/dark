@@ -7,12 +7,13 @@ module Clipboard exposing
     )
 
 import AST
-import Blank
 import Entry
 import Pointer as P
 import Prelude exposing (..)
+import Random
 import Toplevel as TL
 import Types exposing (..)
+import Util
 
 
 copy : Model -> Toplevel -> Maybe PointerData -> Modification
@@ -54,11 +55,15 @@ cut m tl p =
 
         TLHandler h ->
             let
+                ( randomInt, nextSeed ) =
+                    Random.step Util.randomInt m.seed
+
                 newClipboard =
                     TL.find tl pid
 
                 newH =
-                    TL.delete tl p (gid ())
+                    ID randomInt
+                        |> TL.delete tl p
                         |> TL.asHandler
                         |> deMaybe "cut"
             in
@@ -68,15 +73,20 @@ cut m tl p =
                     ( [ SetHandler tl.id tl.pos newH ]
                     , FocusNext tl.id pred
                     )
+                , SetSeed nextSeed
                 ]
 
         TLFunc f ->
             let
+                ( randomInt, nextSeed ) =
+                    Random.step Util.randomInt m.seed
+
                 newClipboard =
                     TL.find tl pid
 
                 newF =
-                    TL.delete tl p (gid ())
+                    ID randomInt
+                        |> TL.delete tl p
                         |> TL.asUserFunction
                         |> deMaybe "cut"
             in
@@ -86,6 +96,7 @@ cut m tl p =
                     ( [ SetFunction newF ]
                     , FocusNext tl.id pred
                     )
+                , SetSeed nextSeed
                 ]
 
 
@@ -143,13 +154,21 @@ peek m =
 newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
     let
+        ( randomNum, firstSeed ) =
+            Random.step Util.randomInt m.seed
+
+        ( newBlank, nextSeed ) =
+            Random.step Util.randomInt firstSeed
+                |> Tuple.mapFirst ID
+                |> Tuple.mapFirst Blank
+
         nid =
-            gtlid ()
+            TLID randomNum
 
         ast =
             case peek m of
                 Nothing ->
-                    Blank.new ()
+                    newBlank
 
                 Just a ->
                     case a of
@@ -157,7 +176,7 @@ newFromClipboard m pos =
                             exp
 
                         _ ->
-                            Blank.new ()
+                            newBlank
 
         spec =
             Entry.newHandlerSpec ()
@@ -165,4 +184,7 @@ newFromClipboard m pos =
         handler =
             { ast = ast, spec = spec, tlid = nid }
     in
-    RPC ( [ SetHandler nid pos handler ], FocusNext nid Nothing )
+    Many
+        [ RPC ( [ SetHandler nid pos handler ], FocusNext nid Nothing )
+        , SetSeed nextSeed
+        ]

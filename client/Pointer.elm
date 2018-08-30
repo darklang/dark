@@ -1,6 +1,5 @@
 module Pointer exposing
     ( dtmap
-    , emptyD
     , emptyD_
     , exprmap
     , isBlank
@@ -13,7 +12,6 @@ module Pointer exposing
 
 import Blank as B
 import Maybe
-import Prelude exposing (..)
 import Runtime
 import Types exposing (..)
 
@@ -120,11 +118,6 @@ typeOf pd =
 
         PParamTipe _ ->
             ParamTipe
-
-
-emptyD : PointerType -> PointerData
-emptyD pt =
-    emptyD_ (gid ()) pt
 
 
 toID : PointerData -> ID

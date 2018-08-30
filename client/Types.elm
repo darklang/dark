@@ -109,6 +109,7 @@ import Keyboard.Event exposing (KeyboardEvent)
 import Mouse
 import Navigation
 import PageVisibility
+import Random
 import Time exposing (Time)
 
 
@@ -816,6 +817,7 @@ type alias Model =
     , tlCursors : TLCursors
     , featureFlags : FlagsVS
     , lockedHandlers : List TLID
+    , seed : Random.Seed
     }
 
 
@@ -897,6 +899,7 @@ type Modification
     | SetLockedHandlers (List TLID)
       -- designed for one-off small changes
     | TweakModel (Model -> Model)
+    | SetSeed Random.Seed
 
 
 

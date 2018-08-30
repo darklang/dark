@@ -4,7 +4,6 @@ module Entry exposing
     , createFunction
     , focusEntry
     , newHandlerSpec
-    , parseAst
     , replaceExpr
     , submit
     , submitOmniAction
@@ -21,6 +20,8 @@ import Dom
 import List.Extra as LE
 import Pointer as P
 import Prelude exposing (..)
+import Random
+import Random.Steps
 import Refactor
 import Runtime as RT
 import SpecHeaders
@@ -97,29 +98,36 @@ createFunction m name =
 
 submitOmniAction : Model -> Pos -> OmniAction -> Modification
 submitOmniAction m pos action =
+    let
+        ( randomInts, nextSeed ) =
+            Random.Steps.three Util.randomInt m.seed
+    in
     case action of
         NewDB dbname ->
             let
                 next =
-                    gid ()
+                    ID randomInts.first
 
                 tlid =
-                    gtlid ()
+                    TLID randomInts.second
             in
-            RPC
-                ( [ CreateDB tlid pos dbname
-                  , AddDBCol tlid next (gid ())
-                  ]
-                , FocusExact tlid next
-                )
+            Many
+                [ RPC
+                    ( [ CreateDB tlid pos dbname
+                      , AddDBCol tlid next (ID randomInts.third)
+                      ]
+                    , FocusExact tlid next
+                    )
+                , SetSeed nextSeed
+                ]
 
         NewHTTPHandler ->
             let
                 next =
-                    gid ()
+                    ID randomInts.first
 
                 tlid =
-                    gtlid ()
+                    TLID randomInts.second
 
                 spec =
                     newHandlerSpec ()
@@ -134,19 +142,22 @@ submitOmniAction m pos action =
                     , tlid = tlid
                     }
             in
-            RPC
-                ( [ SetHandler tlid pos handler
-                  ]
-                , FocusExact tlid next
-                )
+            Many
+                [ RPC
+                    ( [ SetHandler tlid pos handler
+                      ]
+                    , FocusExact tlid next
+                    )
+                , SetSeed nextSeed
+                ]
 
         NewEventSpace name ->
             let
                 next =
-                    gid ()
+                    ID randomInts.first
 
                 tlid =
-                    gtlid ()
+                    TLID randomInts.second
 
                 spec =
                     newHandlerSpec ()
@@ -161,19 +172,22 @@ submitOmniAction m pos action =
                     , tlid = tlid
                     }
             in
-            RPC
-                ( [ SetHandler tlid pos handler
-                  ]
-                , FocusExact tlid next
-                )
+            Many
+                [ RPC
+                    ( [ SetHandler tlid pos handler
+                      ]
+                    , FocusExact tlid next
+                    )
+                , SetSeed nextSeed
+                ]
 
         NewHTTPRoute route ->
             let
                 next =
-                    gid ()
+                    ID randomInts.first
 
                 tlid =
-                    gtlid ()
+                    TLID randomInts.second
 
                 spec =
                     newHandlerSpec ()
@@ -189,11 +203,14 @@ submitOmniAction m pos action =
                     , tlid = tlid
                     }
             in
-            RPC
-                ( [ SetHandler tlid pos handler
-                  ]
-                , FocusExact tlid next
-                )
+            Many
+                [ RPC
+                    ( [ SetHandler tlid pos handler
+                      ]
+                    , FocusExact tlid next
+                    )
+                , SetSeed nextSeed
+                ]
 
 
 
@@ -207,8 +224,9 @@ replaceExpr :
     -> Expr
     -> NextAction
     -> String
+    -> ID
     -> ( Expr, Expr )
-replaceExpr m tlid ast old_ action value =
+replaceExpr m tlid ast old_ action value newID =
     let
         id =
             B.toID old_
@@ -258,7 +276,7 @@ replaceExpr m tlid ast old_ action value =
 
             else
                 ( old_
-                , parseAst m value
+                , parseAst m value newID
                     |> Maybe.withDefault old_
                 )
 
@@ -278,12 +296,9 @@ replaceExpr m tlid ast old_ action value =
     ( newAst, new )
 
 
-parseAst : Model -> String -> Maybe Expr
-parseAst m str =
+parseAst : Model -> String -> ID -> Maybe Expr
+parseAst m str eid =
     let
-        eid =
-            gid ()
-
         b1 =
             B.new ()
 
@@ -342,13 +357,26 @@ submit m cursor action =
     let
         value =
             AC.getValue m.complete
+
+        ( newTLID, firstSeed ) =
+            Random.step Util.randomInt m.seed
+                |> Tuple.mapFirst TLID
+
+        ( firstNewID, secondSeed ) =
+            Random.step Util.randomInt firstSeed
+                |> Tuple.mapFirst ID
+
+        ( secondNewID, thirdSeed ) =
+            Random.step Util.randomInt secondSeed
+                |> Tuple.mapFirst ID
+
+        ( thirdNewID, nextSeed ) =
+            Random.step Util.randomInt thirdSeed
+                |> Tuple.mapFirst ID
     in
     case cursor of
         Creating pos ->
             let
-                tlid =
-                    gtlid ()
-
                 threadIt expr =
                     case action of
                         StartThread ->
@@ -371,23 +399,26 @@ submit m cursor action =
                                 |> List.filter P.isBlank
                                 |> List.head
                                 |> Maybe.map P.toID
-                                |> Maybe.map (FocusExact tlid)
-                                |> Maybe.withDefault (FocusNext tlid Nothing)
+                                |> Maybe.map (FocusExact newTLID)
+                                |> Maybe.withDefault (FocusNext newTLID Nothing)
 
                         -- NB: these pos magic numbers position the tl body
                         -- where the click was
                         op =
-                            SetHandler tlid
+                            SetHandler newTLID
                                 { pos
                                     | x = pos.x - 17
                                     , y = pos.y - 70
                                 }
                                 { ast = newAst
                                 , spec = newHandlerSpec ()
-                                , tlid = tlid
+                                , tlid = newTLID
                                 }
                     in
-                    RPC ( [ op ], focus )
+                    Many
+                        [ RPC ( [ op ], focus )
+                        , SetSeed nextSeed
+                        ]
             in
             -- field access
             if String.endsWith "." value then
@@ -404,7 +435,7 @@ submit m cursor action =
                 -- start new AST
 
             else
-                case parseAst m value of
+                case parseAst m value firstNewID of
                     Nothing ->
                         NoChange
 
@@ -453,7 +484,10 @@ submit m cursor action =
                                 else
                                     FocusNext tl.id next
                         in
-                        RPC ( ops, focus )
+                        Many
+                            [ RPC ( ops, focus )
+                            , SetSeed nextSeed
+                            ]
 
                     wrapID ops =
                         wrap ops (Just id)
@@ -503,7 +537,7 @@ submit m cursor action =
                         else if B.isBlank ct then
                             wrapID
                                 [ SetDBColType tlid id value
-                                , AddDBCol tlid (gid ()) (gid ())
+                                , AddDBCol tlid firstNewID secondNewID
                                 ]
 
                         else
@@ -640,14 +674,14 @@ submit m cursor action =
                             TLHandler h ->
                                 let
                                     ( newast, newexpr ) =
-                                        replaceExpr m tl.id h.ast e action value
+                                        replaceExpr m tl.id h.ast e action value thirdNewID
                                 in
                                 saveAst newast (PExpr newexpr)
 
                             TLFunc f ->
                                 let
                                     ( newast, newexpr ) =
-                                        replaceExpr m tl.id f.ast e action value
+                                        replaceExpr m tl.id f.ast e action value thirdNewID
                                 in
                                 saveAst newast (PExpr newexpr)
 
@@ -660,14 +694,14 @@ submit m cursor action =
                                         if List.member pd (AST.allData am.rollback) then
                                             let
                                                 ( newast, newexpr ) =
-                                                    replaceExpr m tl.id am.rollback e action value
+                                                    replaceExpr m tl.id am.rollback e action value thirdNewID
                                             in
                                             wrapNew [ SetExpr tl.id id newast ] (PExpr newexpr)
 
                                         else if List.member pd (AST.allData am.rollforward) then
                                             let
                                                 ( newast, newexpr ) =
-                                                    replaceExpr m tl.id am.rollforward e action value
+                                                    replaceExpr m tl.id am.rollforward e action value thirdNewID
                                             in
                                             wrapNew [ SetExpr tl.id id newast ] (PExpr newexpr)
 

@@ -48,6 +48,8 @@ import PageVisibility
 import Pointer as P
 import Prelude exposing (..)
 import RPC
+import Random
+import Random.Steps
 import Refactor exposing (WrapLoc(..))
 import Runtime as RT
 import Selection
@@ -984,6 +986,9 @@ updateMod mod ( m, cmd ) =
                 AutocompleteMod mod ->
                     processAutocompleteMods m [ mod ]
 
+                SetSeed seed ->
+                    ( { m | seed = seed }, Cmd.none )
+
                 -- applied from left to right
                 Many mods ->
                     List.foldl updateMod ( m, Cmd.none ) mods
@@ -1154,10 +1159,23 @@ update_ msg m =
                                 if event.shiftKey then
                                     case tl.data of
                                         TLDB _ ->
-                                            RPC
-                                                ( [ AddDBCol tlid (gid ()) (gid ()) ]
-                                                , FocusNext tlid Nothing
-                                                )
+                                            let
+                                                ( randomInts, nextSeed ) =
+                                                    Random.Steps.two Util.randomInt m.seed
+
+                                                firstID =
+                                                    ID randomInts.first
+
+                                                secondID =
+                                                    ID randomInts.second
+                                            in
+                                            Many
+                                                [ RPC
+                                                    ( [ AddDBCol tlid firstID secondID ]
+                                                    , FocusNext tlid Nothing
+                                                    )
+                                                , SetSeed nextSeed
+                                                ]
 
                                         TLHandler h ->
                                             case mId of
@@ -2387,8 +2405,9 @@ update_ msg m =
                 center =
                     findCenter m
 
-                anId =
-                    gtlid ()
+                ( anID, nextSeed ) =
+                    Random.step Util.randomInt m.seed
+                        |> Tuple.mapFirst TLID
 
                 aPos =
                     center
@@ -2404,10 +2423,13 @@ update_ msg m =
                             , output = B.new ()
                             }
                         }
-                    , tlid = anId
+                    , tlid = anID
                     }
             in
-            RPC ( [ SetHandler anId aPos aHandler ], FocusNothing )
+            Many
+                [ RPC ( [ SetHandler anID aPos aHandler ], FocusNothing )
+                , SetSeed nextSeed
+                ]
 
         CreateRouteHandler ->
             let
@@ -2418,13 +2440,18 @@ update_ msg m =
 
         CreateFunction ->
             let
-                ufun =
-                    Refactor.generateEmptyFunction ()
+                ( ufun, nextSeed ) =
+                    Refactor.generateEmptyFunction m.seed
             in
-            RPC
-                ( [ SetFunction ufun ]
-                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState
-                )
+            Many
+                [ RPC
+                    ( [ SetFunction ufun ]
+                    , FocusPageAndCursor
+                        (Fn ufun.tlid Defaults.fnPos)
+                        m.cursorState
+                    )
+                , SetSeed nextSeed
+                ]
 
         LockHandler tlid isLocked ->
             Editor.updateLockedHandlers tlid isLocked m

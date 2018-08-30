@@ -37,6 +37,7 @@ import Maybe
 import Maybe.Extra as ME
 import Pointer as P
 import Prelude exposing (..)
+import Random
 import Toplevel as TL
 import Types exposing (..)
 import Util
@@ -530,8 +531,11 @@ delete m tlid mId =
 
         Just id ->
             let
+                ( randomNum, nextSeed ) =
+                    Random.step Util.randomInt m.seed
+
                 newID =
-                    gid ()
+                    ID randomNum
 
                 focus =
                     FocusExact tlid newID
@@ -556,10 +560,16 @@ delete m tlid mId =
                     in
                     case newTL.data of
                         TLHandler h ->
-                            RPC ( [ SetHandler tlid tl.pos h ], focus )
+                            Many
+                                [ RPC ( [ SetHandler tlid tl.pos h ], focus )
+                                , SetSeed nextSeed
+                                ]
 
                         TLFunc f ->
-                            RPC ( [ SetFunction f ], focus )
+                            Many
+                                [ RPC ( [ SetFunction f ], focus )
+                                , SetSeed nextSeed
+                                ]
 
                         TLDB _ ->
                             impossible ( "pointer type mismatch", newTL.data, pd )
@@ -568,6 +578,7 @@ delete m tlid mId =
                     Many
                         [ Enter (Filling tlid id)
                         , AutocompleteMod (ACSetQuery "")
+                        , SetSeed nextSeed
                         ]
 
                 _ ->

@@ -11,6 +11,7 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
+import Nineteen.String
 import Prelude exposing (..)
 import Runtime as RT
 import SpecHeaders
@@ -217,8 +218,12 @@ viewRopArrow vs =
     Html.node
         "rop-arrow"
         -- Force the rop-webcomponent to update to fix the size
-        [ VirtualDom.attribute "update" (Util.random () |> toString)
-        , VirtualDom.attribute "tlid" (toString (deTLID vs.tl.id))
+        -- TODO: fix this in the component, as it's too expensive to generate a
+        -- new random number for every view and pass it in if we call this function.
+        [ VirtualDom.attribute "update" "true"
+        , deTLID vs.tl.id
+            |> Nineteen.String.fromInt
+            |> VirtualDom.attribute "tlid"
         ]
         [ svg ]
 

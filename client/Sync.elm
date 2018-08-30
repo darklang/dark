@@ -9,6 +9,7 @@ module Sync exposing
 
 import List.Extra as LE
 import RPC
+import Random
 import Toplevel
 import Types exposing (..)
 import Util
@@ -61,26 +62,33 @@ fetch m =
         not m.syncState.inFlight
             || timedOut m.syncState
     then
-        markRequestInModel m ! [ RPC.getAnalysisRPC (toAnalyse m) ]
+        let
+            ( newModel, tlids ) =
+                toAnalyse m
+        in
+        ( markRequestInModel newModel, RPC.getAnalysisRPC tlids )
 
     else
         markTickInModel m ! []
 
 
-toAnalyse : Model -> List TLID
+toAnalyse : Model -> ( Model, List TLID )
 toAnalyse m =
     case m.cursorState of
         Selecting tlid _ ->
-            [ tlid ]
+            ( m, [ tlid ] )
 
         Entering (Filling tlid _) ->
-            [ tlid ]
+            ( m, [ tlid ] )
 
         Dragging tlid _ _ _ ->
-            [ tlid ]
+            ( m, [ tlid ] )
 
         _ ->
             let
+                ( randomNum, nextSeed ) =
+                    Random.step Util.randomInt m.seed
+
                 ids =
                     List.map .id (Toplevel.all m)
 
@@ -90,7 +98,7 @@ toAnalyse m =
                             List.length ids
                     in
                     if length > 0 then
-                        Just (Util.random () % length)
+                        Just (randomNum % length)
 
                     else
                         Nothing
@@ -99,3 +107,4 @@ toAnalyse m =
                 |> Maybe.andThen (\i -> LE.getAt i ids)
                 |> Maybe.map (\e -> [ e ])
                 |> Maybe.withDefault []
+                |> (\a -> ( { m | seed = nextSeed }, a ))

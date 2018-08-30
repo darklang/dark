@@ -13,6 +13,7 @@ module Util exposing
     , listPrevious
     , listPreviousWrap
     , random
+    , randomInt
     , reContains
     , reExactly
     , replace
@@ -33,6 +34,7 @@ import Native.Cache
 import Native.Random
 import Native.Size
 import Native.Window
+import Random
 import Regex
 
 
@@ -52,6 +54,14 @@ windowSize a =
 random : () -> Int
 random a =
     Native.Random.random a
+
+
+{-| A `Random` generator for `Int`s within the app
+used throughout the app for things like new IDs, new Blanks, etc
+-}
+randomInt : Random.Generator Int
+randomInt =
+    Random.int 0 2147483647
 
 
 htmlSize : String -> ( Float, Float )
