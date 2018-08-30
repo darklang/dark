@@ -400,6 +400,7 @@ viewRoutingTable m =
                  ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
+               , nothingMouseEvent "mouseup"
                , eventNoPropagation "mouseover" (\_ -> EnablePanning False)
                , eventNoPropagation "mouseout" (\_ -> EnablePanning True)
                ]
