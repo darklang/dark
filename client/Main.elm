@@ -1443,10 +1443,10 @@ update_ msg m =
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
              , UpdateInputVars newInputValues
-             , RequestAnalysis newToplevels
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
+             , RequestAnalysis newToplevels
              , MakeCmd (Entry.focusEntry m)
              ]
       else
@@ -1456,10 +1456,10 @@ update_ msg m =
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
                 , UpdateInputVars newInputValues
-                , RequestAnalysis newToplevels
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
+                , RequestAnalysis newToplevels
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -1477,10 +1477,10 @@ update_ msg m =
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
               , UpdateInputVars newInputValues
-              , RequestAnalysis toplevels
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
               , SetUnlockedDBs unlockedDBs
+              , RequestAnalysis toplevels
               , AutocompleteMod ACReset
               , ClearError
               , extraMod -- for integration tests, maybe more
@@ -1498,10 +1498,10 @@ update_ msg m =
     GetAnalysisRPCCallback (Ok (newInputValues, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
            , UpdateInputVars newInputValues
-           , RequestAnalysis m.toplevels
            , SetGlobalVariables globals
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
+           , RequestAnalysis m.toplevels
            ]
 
     ReceiveAnalysis json ->
