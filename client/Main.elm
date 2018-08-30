@@ -2406,8 +2406,9 @@ update_ msg m =
                 center =
                     findCenter m
 
-                anId =
-                    gtlid ()
+                ( anID, nextSeed ) =
+                    Util.randomNumber m.seed
+                        |> Tuple.mapFirst TLID
 
                 aPos =
                     center
@@ -2423,10 +2424,13 @@ update_ msg m =
                             , output = B.new ()
                             }
                         }
-                    , tlid = anId
+                    , tlid = anID
                     }
             in
-            RPC ( [ SetHandler anId aPos aHandler ], FocusNothing )
+            Many
+                [ RPC ( [ SetHandler anID aPos aHandler ], FocusNothing )
+                , SetSeed nextSeed
+                ]
 
         CreateRouteHandler ->
             let
