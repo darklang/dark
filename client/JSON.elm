@@ -214,6 +214,24 @@ decodeException =
     |> JSDP.required "info" (JSD.dict JSD.string)
     |> JSDP.required "workarounds" (JSD.list JSD.string)
 
+encodeException : Exception -> JSE.Value
+encodeException e =
+  JSE.object [ ( "short", JSE.string e.short)
+             , ( "long", JSEE.maybe JSE.string e.long)
+             , ( "actual", JSEE.maybe JSE.string e.actual)
+             , ( "actual_tipe", JSEE.maybe JSE.string e.actual)
+             , ( "result", JSEE.maybe JSE.string e.actual)
+             , ( "result_tipe", JSEE.maybe JSE.string e.actual)
+             , ( "expected", JSEE.maybe JSE.string e.actual)
+             , ( "info", JSEE.dict identity JSE.string e.info)
+             , ( "workarounds", JSE.list (List.map JSE.string e.workarounds))
+             ]
+
+encodeList : (a -> JSE.Value) -> List a -> JSE.Value
+encodeList enc l =
+  List.map enc l
+  |> JSE.list
+
 
 encodeHttpError : Http.Error -> JSE.Value
 encodeHttpError e =
