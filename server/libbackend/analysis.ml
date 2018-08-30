@@ -107,87 +107,13 @@ let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
 
 
-
-(* ------------------------- *)
-(* Execution-based analysis *)
-(* ------------------------- *)
-
-let ast_analysis
-    ~(exe_fn_ids: executable_fn_id list)
-    ~(execution_id: id)
-    (all_inputs: RTT.input_vars list)
-    (c: canvas)
-    (ast : RTT.expr)
-    tlid =
-  List.mapi all_inputs
-    ~f:(fun i input_vars ->
-        let exe_fn_ids =
-          List.filter_map exe_fn_ids
-            ~f:(fun (exe_tlid, id, cursor) ->
-                if exe_tlid = tlid && i = cursor
-                then Some id
-                else None)
-        in
-        Execution.analyse_ast ast
-          ~tlid
-          ~exe_fn_ids
-          ~execution_id
-          ~input_vars
-          ~dbs:(TL.dbs c.dbs)
-          ~user_fns:c.user_functions
-          ~account_id:c.owner
-          ~canvas_id:c.id
-          ~load_fn_result:Stored_function_result.load
-          ~store_fn_result:Stored_function_result.store
-          ~load_fn_arguments:Stored_function_arguments.load
-          ~store_fn_arguments:Stored_function_arguments.store
-      )
-
-let user_fn_analysis
-    ~(exe_fn_ids: executable_fn_id list)
-    ~(execution_id: id)
-    (c: canvas)
-    (f: RTT.user_fn)
-  : analysis_result =
-  Log.infO "user_fn_analysis"
-    ~params:[ "user_fn", show_tlid f.tlid
-            ; "host", c.host
-            ; "execution_id", show_id execution_id
-            ; "exe_fn_ids", Log.dump exe_fn_ids
-            ];
-  let all_inputs = initial_input_vars_for_user_fn c f in
-  let values = ast_analysis all_inputs c f.ast f.tlid
-      ~exe_fn_ids ~execution_id
-  in
-  (f.tlid, values)
-
-let handler_analysis
-    ~(exe_fn_ids : executable_fn_id list)
-    ~(execution_id: id)
-    (c: canvas)
-    (h : RTT.HandlerT.handler)
-  : analysis_result =
-  Log.infO "handler_analysis"
-    ~params:[ "handler", show_tlid h.tlid
-            ; "host", c.host
-            ; "execution_id", show_id execution_id
-            ; "exe_fn_ids", Log.dump exe_fn_ids
-            ];
-  let all_inputs = initial_input_vars_for_handler c h in
-  let values = ast_analysis all_inputs c h.ast h.tlid
-      ~exe_fn_ids ~execution_id
-  in
-  (h.tlid, values)
-
-
-
 (* --------------------- *)
 (* JSONable response *)
 (* --------------------- *)
 
 (* The full response with everything *)
 type get_analysis_response =
-  { analyses: analysis_result list
+  { tlid_input_values : tlid_input_values list
   ; global_varnames : string list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list [@key "404s"]
@@ -200,7 +126,7 @@ type get_analysis_response =
 
 (* A subset of responses to be merged in *)
 type rpc_response =
-  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
+  { new_tlid_input_values : tlid_input_values list (* merge: overwrite existing analyses *)
   ; global_varnames : string list (* replace *)
   ; toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
@@ -209,16 +135,16 @@ type rpc_response =
   } [@@deriving to_yojson]
 
 type execute_function_response =
-  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
+  { new_tlid_input_values : tlid_input_values list (* merge: overwrite existing analyses *)
   ; targets : executable_fn_id list
   } [@@deriving to_yojson]
 
 
-let to_getanalysis_frontend (vals : analysis_result list)
+let to_getanalysis_frontend (vals : tlid_input_values list)
       (unlocked : tlid list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
-  { analyses = vals
+  { tlid_input_values = vals
   ; global_varnames = global_vars c
   ; unlocked_dbs = unlocked
   ; fofs = f404s
@@ -227,10 +153,10 @@ let to_getanalysis_frontend (vals : analysis_result list)
   |> Yojson.Safe.to_string ~std:true
 
 
-let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
+let to_rpc_response_frontend (c : canvas) (vals : tlid_input_values list)
     (unlocked : tlid list)
   : string =
-  { new_analyses = vals
+  { new_tlid_input_values = vals
   ; global_varnames = global_vars c
   ; toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted
@@ -240,9 +166,9 @@ let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
-let to_execute_function_response_frontend (targets : executable_fn_id list) (vals : analysis_result list)
+let to_execute_function_response_frontend (targets : executable_fn_id list) (vals : tlid_input_values list)
   : string =
-  { new_analyses = vals
+  { new_tlid_input_values = vals
   ; targets = targets
   }
   |> execute_function_response_to_yojson
