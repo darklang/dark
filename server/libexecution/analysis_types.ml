@@ -26,7 +26,7 @@ type livevalue = { value: string
                  ; tipe: string [@key "type"]
                  ; json: string
                  ; exc: Exception.exception_data option
-                 } [@@deriving to_yojson, show]
+                 } [@@deriving yojson, show]
 
 let dval_to_livevalue (dv: dval) : livevalue =
   { value = Dval.to_livevalue_repr dv

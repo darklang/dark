@@ -79,6 +79,7 @@ defaultModel = { error = Nothing
                , toplevels = []
                , deletedToplevels = []
                , analysis = []
+               , inputVars = Dict.empty
                , globals = []
                , f404s = []
                , unlockedDBs = []
