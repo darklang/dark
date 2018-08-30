@@ -1,6 +1,5 @@
 module Pointer exposing
     ( dtmap
-    , emptyD
     , emptyD_
     , exprmap
     , isBlank
@@ -120,11 +119,6 @@ typeOf pd =
 
         PParamTipe _ ->
             ParamTipe
-
-
-emptyD : PointerType -> PointerData
-emptyD pt =
-    emptyD_ (gid ()) pt
 
 
 toID : PointerData -> ID
