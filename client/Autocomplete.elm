@@ -300,6 +300,12 @@ qHTTPHandler s =
   then Just (ACOmniAction NewHTTPHandler)
   else Nothing
 
+qHandler : String -> Maybe AutocompleteItem
+qHandler s =
+  if (String.length s) == 0
+  then Just (ACOmniAction NewHandler)
+  else Nothing
+
 qHTTPRoute : String -> Maybe AutocompleteItem
 qHTTPRoute s =
   if String.startsWith "/" s
@@ -317,7 +323,7 @@ toDynamicItems isOmni query =
   let always = [qLiteral]
       omni =
         if isOmni
-        then [ qNewDB, qHTTPHandler, qHTTPRoute, qEventSpace ]
+        then [ qNewDB, qHandler, qHTTPHandler, qHTTPRoute, qEventSpace ]
         else []
       items = always ++ omni
   in
@@ -461,7 +467,7 @@ generateFromModel m a =
       isExpression =
         case a.target of
           Just (_, p) -> P.typeOf p == Expr
-          Nothing -> True
+          Nothing -> False
 
       isThreadMember =
         case a.target of
@@ -626,6 +632,7 @@ asName aci =
     ACOmniAction ac ->
       case ac of
         NewDB name -> "Create new database: " ++ name
+        NewHandler -> "Create new handler"
         NewHTTPHandler -> "Create new HTTP handler"
         NewHTTPRoute name -> "Create new HTTP handler for " ++ name
         NewEventSpace name -> "Create new " ++ name ++ " handler"

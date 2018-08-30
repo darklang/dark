@@ -105,6 +105,10 @@ createCreating role =
       init sampleFunctions (isAdmin role)
       |> setTarget m Nothing
 
+itemPresent : AutocompleteItem -> Autocomplete -> Bool
+itemPresent aci ac =
+  List.member aci (List.concat ac.completions)
+
 all : Test
 all =
   describe "autocomplete"
@@ -400,6 +404,9 @@ all =
       |> setQuery "/asasdasd"
       |> highlighted
       |> (==) (Just (ACOmniAction (NewHTTPRoute "/asasdasd")))
+
+      , \_ -> createCreating User
+      |> itemPresent (ACOmniAction NewHandler)
 
       ]
     ]

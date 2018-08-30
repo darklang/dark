@@ -224,6 +224,7 @@ type StringEntryWidth = StringEntryNormalWidth
 
 type alias Literal = String
 type OmniAction = NewDB DBName
+                | NewHandler
                 | NewHTTPHandler
                 | NewHTTPRoute String
                 | NewEventSpace String
