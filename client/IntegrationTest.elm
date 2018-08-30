@@ -3,6 +3,7 @@ module IntegrationTest exposing (..)
 -- builtin
 import Result exposing (Result (..))
 import Result.Extra as RE
+import List exposing (head)
 
 -- dark
 import Types exposing (..)
@@ -59,6 +60,7 @@ trigger test_name =
     "object_literals_work" -> object_literals_work
     "rename_function" -> rename_function
     "sending_to_rail_works" -> sending_to_rail_works
+    "feature_flag_in_function" -> feature_flag_in_function
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -485,13 +487,14 @@ nochange_for_failed_paste m =
 
 feature_flag_works : Model -> TestResult
 feature_flag_works m =
-  let ast = onlyHandler m |> .ast in
-  case ast of
+  let h = onlyHandler m
+      ast = h.ast
+  in case ast of
     F _
       (Let
         (F _ "a")
         (F _ (Value "13"))
-        (F _ (FeatureFlag
+        (F id (FeatureFlag
                (F _ "myflag")
                (F _ (FnCall "Int::greaterThan"
                       [ F _ (Variable "a")
@@ -500,8 +503,39 @@ feature_flag_works m =
                (F _ (Value "\"A\""))
                (F _ (Value "\"B\""))))
       )
-      -> pass
+      ->
+        let res = Analysis.getLiveValue m h.tlid id
+        in case res of
+          Just val ->
+             if val.value == "\"B\""
+             then pass
+             else fail (ast, val.value)
+          _ -> fail (ast, res)
     _ -> fail (ast, m.cursorState)
+
+feature_flag_in_function : Model -> TestResult
+feature_flag_in_function m =
+  let fun = head m.userFunctions
+  in case fun of
+    Just f ->
+      case f.ast of
+        F id
+          (FnCall "+" (
+            [F _
+            (FeatureFlag
+              (F _ "myflag")
+              (F _ (Value "true"))
+              (F _ (Value "5"))
+              (F _ (Value "3")))
+            ,F _ (Value "5")]) NoRail
+        ) -> pass
+          -- TODO: validate result should evaluate true turnging  5 + 5 --> 3 + 5 == 8
+          -- let res = Analysis.getLiveValue m f.tlid id
+          -- in case res of
+          --   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value)
+          --   _ -> fail (f.ast, res)
+        _ -> fail (f.ast, Nothing)
+    Nothing -> fail ("Cant find function", Nothing)
 
 simple_tab_ordering : Model -> TestResult
 simple_tab_ordering m =
