@@ -268,12 +268,23 @@ body #grid * {
 //*************
 // Routing table
 //*************
+
+#sidebar-left {
+  height: calc(~"100% - 50px");
+  width: max-content;
+  overflow: scroll;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
 .viewing-table {
   background-color: @black2;
   border: 2px solid @blue;
   padding: 8px;
   position: relative;
   width: max-content;
+  overflow: visible;
 
   .routing-section {
     .header {
@@ -1384,7 +1395,7 @@ body #grid * {
   z-index: 70;
 }
 
-.viewing-table {
+#sidebar-left {
   z-index: 55;
 }
 

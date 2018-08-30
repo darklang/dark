@@ -401,8 +401,7 @@ viewRoutingTable m =
                  ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
-               , nothingMouseEvent "mouseup"
                ]
                sections
 
-  in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
+  in Html.div [ Attrs.id "sidebar-left" ] [html]
