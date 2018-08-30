@@ -551,30 +551,35 @@ updateMod mod (m, cmd) =
 
 
       RequestAnalysis tls ->
-        let handlers = tls
-                       |> List.filterMap TL.asHandler
-                       |> List.map RPC.encodeHandler
-                       |> JSE.list
-            dbs = tls
-                  |> List.filterMap TL.asDB
-                  |> List.map RPC.encodeDB
-                  |> JSE.list
-            userFunctions = m.userFunctions
-                            |> List.map RPC.encodeUserFunction
-                            |> JSE.list
+        let handlers = TL.handlers tls
 
-            obj = JSE.object [ ("handlers", handlers)
-                             , ("dbs", dbs)
-                             , ("user_fns", userFunctions)
-                             ]
-            param = obj
-                    |> JSE.encode 0
+            inputVars =
+              List.map (\h -> Analysis.getInputVars m h.tlid) handlers
 
+            encodedIVs =
+              JSON.encodeList (JSON.encodeList RPC.encodeInputDict) inputVars
+
+            dbs = TL.dbs tls
+            userFns = m.userFunctions
+
+            param =
+              JSE.object [ ( "handlers"
+                           , JSON.encodeList RPC.encodeHandler handlers)
+                         , ( "input_vars"
+                           , encodedIVs)
+                         , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
+                         , ( "user_fns"
+                           , JSON.encodeList RPC.encodeUserFunction userFns)
+                         ]
         in
-        (m, requestAnalysis param)
+        (m, requestAnalysis (JSE.encode 0 param))
 
       UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+      UpdateInputVars inputVars ->
+        let m2 = { m | inputVars = inputVars } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
       SetUserFunctions userFuncs updateCurrent ->
@@ -1437,6 +1442,7 @@ update_ msg m =
       then
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
+             , UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
              , RequestAnalysis newToplevels
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
@@ -1449,6 +1455,7 @@ update_ msg m =
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
+                , UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
                 , RequestAnalysis newToplevels
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
@@ -1461,7 +1468,7 @@ update_ msg m =
     InitialLoadRPCCallback focus extraMod
       (Ok ( toplevels
           , deletedToplevels
-          , new_analysis
+          , newAnalysis
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1469,6 +1476,7 @@ update_ msg m =
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
+              , UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
               , RequestAnalysis toplevels
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
@@ -1482,12 +1490,15 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       DisplayError <| "Success! " ++ msg
 
-    ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
-      ExecutingFunctionComplete targets
+    ExecuteFunctionRPCCallback (Ok (targets, newAnalysis)) ->
+      Many [ UpdateInputVars (Analysis.tlarToInputVars newAnalysis)
+           , ExecutingFunctionComplete targets ]
 
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
+           , UpdateInputVars (Analysis.tlarToInputVars analysis)
+           , RequestAnalysis m.toplevels
            , SetGlobalVariables globals
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
