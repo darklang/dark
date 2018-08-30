@@ -306,6 +306,14 @@ qHandler s =
   then Just (ACOmniAction NewHandler)
   else Nothing
 
+qFunction : String -> Maybe AutocompleteItem
+qFunction s =
+  if (String.length s) == 0
+  then Just (ACOmniAction (NewFunction Nothing))
+  else if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s
+  then Just (ACOmniAction (NewFunction (Just s)))
+  else Nothing
+
 qHTTPRoute : String -> Maybe AutocompleteItem
 qHTTPRoute s =
   if String.startsWith "/" s
@@ -323,7 +331,14 @@ toDynamicItems isOmni query =
   let always = [qLiteral]
       omni =
         if isOmni
-        then [ qNewDB, qHandler, qHTTPHandler, qHTTPRoute, qEventSpace ]
+        then
+          [ qNewDB
+          , qHandler
+          , qFunction
+          , qHTTPHandler
+          , qHTTPRoute
+          , qEventSpace
+          ]
         else []
       items = always ++ omni
   in
@@ -633,6 +648,10 @@ asName aci =
       case ac of
         NewDB name -> "Create new database: " ++ name
         NewHandler -> "Create new handler"
+        NewFunction maybeName ->
+          case maybeName of
+            Just name -> "Create new function: " ++ name
+            Nothing -> "Create new function"
         NewHTTPHandler -> "Create new HTTP handler"
         NewHTTPRoute name -> "Create new HTTP handler for " ++ name
         NewEventSpace name -> "Create new " ++ name ++ " handler"

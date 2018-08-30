@@ -396,6 +396,13 @@ all =
       , \_ -> createCreating User
       |> itemPresent (ACOmniAction NewHandler)
 
+      , \_ -> createCreating User
+      |> itemPresent (ACOmniAction (NewFunction Nothing))
+
+      , \_ -> createCreating User
+      |> setQuery "myFunction"
+      |> itemPresent (ACOmniAction (NewFunction (Just "myFunction")))
+
       ]
     ]
 
