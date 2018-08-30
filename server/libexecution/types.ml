@@ -292,16 +292,11 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 
-  type function_desc = Uuidm.t * tlid * string * id
-  type user_fn_desc = Uuidm.t * tlid
-  type load_fn_result_type =
-    function_desc -> dval list -> (dval * Time.t) option
-  type store_fn_result_type =
-    function_desc -> dval list -> dval -> unit
-  type load_fn_arguments_type =
-    user_fn_desc -> (dval_map * Time.t) list
-  type store_fn_arguments_type =
-    user_fn_desc -> dval_map -> unit
+  type function_desc = tlid * string * id
+  type load_fn_result_type = function_desc -> dval list -> (dval * Time.t) option
+  type store_fn_result_type = function_desc -> dval list -> dval -> unit
+  type load_fn_arguments_type = tlid -> (dval_map * Time.t) list
+  type store_fn_arguments_type = tlid -> dval_map -> unit
   type fail_fn_type =
     (?msg : string -> unit -> dval) option
 

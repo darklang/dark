@@ -527,7 +527,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
                                                    ; "execution_id", Log.dump state.execution_id
                                                    ];
 
-      let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
+      let sfr_desc = (state.tlid, fnname, id) in
       let maybe_store_result result =
         if executing_unsafe
           (* TODO: add an execution ID here so that multiple requests
@@ -585,7 +585,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 
     let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids id in
     if engine.ctx = Real || fn_clicked
-    then state.store_fn_arguments (state.canvas_id, tlid) args;
+    then state.store_fn_arguments tlid args;
 
     exec ~engine ~state args_with_dbs body
 

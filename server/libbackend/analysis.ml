@@ -34,7 +34,7 @@ let unlocked (c: canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 let get_404s (c: canvas) : SE.four_oh_four list =
-  let events = SE.list_events c.id in
+  let events = SE.list_events ~canvas_id:c.id () in
   let handlers =
     Db.fetch
       ~name:"get_404s"
@@ -103,7 +103,7 @@ let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
 
 let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   : RTT.input_vars list =
-  Stored_function_arguments.load (c.id, fn.tlid)
+  Stored_function_arguments.load ~canvas_id:c.id fn.tlid
   |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
 
 

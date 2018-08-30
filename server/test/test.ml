@@ -172,6 +172,8 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
 let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
   let c = ops2c "test" ops in
   let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
+  let canvas_id = !c.id in
+  let trace_id = Util.create_uuid () in
   let state =
         { tlid
         ; account_id = !c.owner
@@ -182,9 +184,9 @@ let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
         ; dbs = TL.dbs !c.dbs
         ; execution_id
         ; load_fn_result = Execution.load_no_results
-        ; store_fn_result = Stored_function_result.store
+        ; store_fn_result = Stored_function_result.store ~canvas_id ~trace_id
         ; load_fn_arguments = Execution.load_no_arguments
-        ; store_fn_arguments = Stored_function_arguments.store
+        ; store_fn_arguments = Stored_function_arguments.store ~canvas_id ~trace_id
         }
   in
   (c, state, vars)
@@ -405,35 +407,40 @@ let t_stored_event_roundtrip () =
                         |> fun x -> Option.value_exn x in
   let id1 = Serialize.fetch_canvas_id owner "host" in
   let id2 = Serialize.fetch_canvas_id owner "host2" in
-  SE.clear_events id1;
-  SE.clear_events id2;
+  let t1 = Util.create_uuid () in
+  let t2 = Util.create_uuid () in
+  let t3 = Util.create_uuid () in
+  let t4 = Util.create_uuid () in
+  let t5 = Util.create_uuid () in
+  SE.clear_events ~canvas_id:id1 ();
+  SE.clear_events ~canvas_id:id2 ();
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
-  SE.store_event id1 desc1 (DStr "1");
-  SE.store_event id1 desc1 (DStr "2");
-  SE.store_event id1 desc3 (DStr "3");
-  SE.store_event id1 desc2 (DStr "3");
-  SE.store_event id2 desc2 (DStr "3");
+  SE.store_event ~canvas_id:id1 ~trace_id:t1 desc1 (DStr "1");
+  SE.store_event ~canvas_id:id1 ~trace_id:t2 desc1 (DStr "2");
+  SE.store_event ~canvas_id:id1 ~trace_id:t3 desc3 (DStr "3");
+  SE.store_event ~canvas_id:id1 ~trace_id:t4 desc2 (DStr "3");
+  SE.store_event ~canvas_id:id2 ~trace_id:t5 desc2 (DStr "3");
 
   let at_desc = AT.of_pp SE.pp_event_desc in
 
-  let listed = SE.list_events id1 in
+  let listed = SE.list_events ~canvas_id:id1 () in
   AT.check
     (AT.list at_desc) "list host events"
     (List.sort ~compare [desc1; desc2; desc3])
     (List.sort ~compare listed);
 
-  let loaded1 = SE.load_events id1 desc1 in
+  let loaded1 = SE.load_events ~canvas_id:id1 desc1 in
   check_dval_list "load GET events" [DStr "2"; DStr "1"] loaded1;
 
-  let loaded2 = SE.load_events id1 desc3 in
+  let loaded2 = SE.load_events ~canvas_id:id1 desc3 in
   check_dval_list "load POST events" [DStr "3"] loaded2;
 
-  let loaded3 = SE.load_events id2 desc3 in
+  let loaded3 = SE.load_events ~canvas_id:id2 desc3 in
   check_dval_list "load no host2 events" [] loaded3;
 
-  let loaded4 = SE.load_events id2 desc2 in
+  let loaded4 = SE.load_events ~canvas_id:id2 desc2 in
   check_dval_list "load host2 events" [DStr "3"] loaded4;
 
   ()
