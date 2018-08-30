@@ -24,7 +24,9 @@ let run execution_id : (unit, Exception.captured) Result.t =
             let c = Canvas.load_for_event event in
             let host = !c.host in
             let desc = Event_queue.to_event_desc event in
-            Stored_event.store_event !c.id desc event.value;
+            let trace_id = Util.create_uuid () in
+            let canvas_id = !c.id in
+            Stored_event.store_event ~trace_id ~canvas_id desc event.value;
             let h =
               !c.handlers
               |> List.filter_map ~f:TL.as_handler
@@ -55,7 +57,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
                    ~dbs:(TL.dbs !c.dbs)
                    ~user_fns:!c.user_functions
                    ~account_id:!c.owner
-                   ~canvas_id:!c.id
+                   ~canvas_id
                in
                (match result with
                 | RTT.DIncomplete ->
