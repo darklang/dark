@@ -6,7 +6,6 @@ module Refactor exposing
     , extractFunction
     , extractVariable
     , generateEmptyFunction
-    , generateFnName
     , isFunctionInExpr
     , removeFunctionParameter
     , renameFunction
@@ -19,17 +18,19 @@ import AST
 import Analysis
 import Blank as B
 import List.Extra as LE
+import Nineteen.String
 import Pointer as P
 import Prelude exposing (..)
+import Random
 import Set
 import Toplevel as TL
 import Types exposing (..)
 import Util
 
 
-generateFnName : () -> String
-generateFnName _ =
-    "fn_" ++ (() |> Util.random |> toString)
+functionNameFromInt : Int -> String
+functionNameFromInt int =
+    "fn_" ++ Nineteen.String.fromInt int
 
 
 convertTipe : Tipe -> Tipe
@@ -171,10 +172,13 @@ toggleOnRail m tl p =
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
     let
+        ( randomNum, nextSeed ) =
+            Util.randomNumber m.seed
+
         extractVarInAst e ast =
             let
                 varname =
-                    "var" ++ toString (Util.random ())
+                    "var" ++ toString randomNum
 
                 freeVariables =
                     AST.freeVariables e
@@ -248,6 +252,7 @@ extractVariable m tl p =
                     , FocusNoChange
                     )
                 , Enter (Filling tl.id enterTarget)
+                , SetSeed nextSeed
                 ]
 
         ( PExpr e, TLFunc f ) ->
@@ -264,6 +269,7 @@ extractVariable m tl p =
                     , FocusNoChange
                     )
                 , Enter (Filling tl.id enterTarget)
+                , SetSeed nextSeed
                 ]
 
         _ ->
@@ -283,17 +289,39 @@ extractFunction m tl p =
                         TL.getPrevBlank tl (Just p)
                             |> Maybe.map P.toID
 
-                    name =
-                        generateFnName ()
+                    ( name, firstSeed ) =
+                        Util.randomNumber m.seed
+                            |> Tuple.mapFirst functionNameFromInt
+
+                    ( firstRandomNum, secondSeed ) =
+                        Util.randomNumber firstSeed
+
+                    ( secondRandomNum, thirdSeed ) =
+                        Util.randomNumber secondSeed
+
+                    ( thirdRandomNum, fourthSeed ) =
+                        Util.randomNumber thirdSeed
+
+                    ( fourthRandomNum, fifthSeed ) =
+                        Util.randomNumber fourthSeed
+
+                    ( fifthRandomNum, sixthSeed ) =
+                        Util.randomNumber fifthSeed
+
+                    ( sixthRandomNum, seventhSeed ) =
+                        Util.randomNumber sixthSeed
+
+                    ( seventhRandomNum, nextSeed ) =
+                        Util.randomNumber seventhSeed
 
                     freeVars =
                         AST.freeVariables body
 
                     paramExprs =
-                        List.map (\( _, name ) -> F (gid ()) (Variable name)) freeVars
+                        List.map (\( _, name ) -> F (ID firstRandomNum) (Variable name)) freeVars
 
                     replacement =
-                        PExpr (F (gid ()) (FnCall name paramExprs NoRail))
+                        PExpr (F (ID secondRandomNum) (FnCall name paramExprs NoRail))
 
                     h =
                         deMaybe
@@ -315,8 +343,8 @@ extractFunction m tl p =
                                             |> Maybe.withDefault TAny
                                             |> convertTipe
                                 in
-                                { name = F (gid ()) name
-                                , tipe = F (gid ()) tipe
+                                { name = F (ID thirdRandomNum) name
+                                , tipe = F (ID fourthRandomNum) tipe
                                 , block_args = []
                                 , optional = False
                                 , description = ""
@@ -325,23 +353,26 @@ extractFunction m tl p =
                             freeVars
 
                     metadata =
-                        { name = F (gid ()) name
+                        { name = F (ID fifthRandomNum) name
                         , parameters = params
                         , description = ""
-                        , returnTipe = F (gid ()) TAny
+                        , returnTipe = F (ID sixthRandomNum) TAny
                         , infix = False
                         }
 
                     newF =
-                        { tlid = gtlid ()
+                        { tlid = TLID seventhRandomNum
                         , metadata = metadata
                         , ast = AST.clone body
                         }
                 in
-                RPC
-                    ( [ SetFunction newF, SetHandler tl.id tl.pos newH ]
-                    , FocusExact tl.id (P.toID replacement)
-                    )
+                Many
+                    [ RPC
+                        ( [ SetFunction newF, SetHandler tl.id tl.pos newH ]
+                        , FocusExact tl.id (P.toID replacement)
+                        )
+                    , SetSeed nextSeed
+                    ]
 
             _ ->
                 NoChange
@@ -622,18 +653,37 @@ removeFunctionParameter m uf ufp =
     transformFnCalls m uf fn
 
 
-generateEmptyFunction : () -> UserFunction
-generateEmptyFunction _ =
+generateEmptyFunction : Random.Seed -> ( UserFunction, Random.Seed )
+generateEmptyFunction seed =
     let
-        funcName =
-            generateFnName ()
+        ( funcName, firstSeed ) =
+            Util.randomNumber seed
+                |> Tuple.mapFirst functionNameFromInt
+
+        ( firstRandomNum, secondSeed ) =
+            Util.randomNumber firstSeed
+
+        ( secondRandomNum, thirdSeed ) =
+            Util.randomNumber secondSeed
+
+        ( thirdRandomNum, fourthSeed ) =
+            Util.randomNumber thirdSeed
+
+        ( fourthRandomNum, fifthSeed ) =
+            Util.randomNumber fourthSeed
+
+        ( fifthRandomNum, sixthSeed ) =
+            Util.randomNumber fifthSeed
+
+        ( sixthRandomNum, nextSeed ) =
+            Util.randomNumber sixthSeed
 
         tlid =
-            gtlid ()
+            TLID firstRandomNum
 
         params =
-            [ { name = F (gid ()) "var"
-              , tipe = F (gid ()) TAny
+            [ { name = F (ID secondRandomNum) "var"
+              , tipe = F (ID thirdRandomNum) TAny
               , block_args = []
               , optional = True
               , description = ""
@@ -641,11 +691,14 @@ generateEmptyFunction _ =
             ]
 
         metadata =
-            { name = F (gid ()) funcName
+            { name = F (ID fourthRandomNum) funcName
             , parameters = params
             , description = ""
-            , returnTipe = F (gid ()) TAny
+            , returnTipe = F (ID fifthRandomNum) TAny
             , infix = False
             }
+
+        ast =
+            ID sixthRandomNum |> Blank
     in
-    UserFunction tlid metadata (Blank (gid ()))
+    ( UserFunction tlid metadata ast, nextSeed )

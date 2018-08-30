@@ -984,6 +984,9 @@ updateMod mod ( m, cmd ) =
                 AutocompleteMod mod ->
                     processAutocompleteMods m [ mod ]
 
+                SetSeed seed ->
+                    ( { m | seed = seed }, Cmd.none )
+
                 -- applied from left to right
                 Many mods ->
                     List.foldl updateMod ( m, Cmd.none ) mods
@@ -1154,10 +1157,26 @@ update_ msg m =
                                 if event.shiftKey then
                                     case tl.data of
                                         TLDB _ ->
-                                            RPC
-                                                ( [ AddDBCol tlid (gid ()) (gid ()) ]
-                                                , FocusNext tlid Nothing
-                                                )
+                                            let
+                                                ( firstRandomNum, firstSeed ) =
+                                                    Util.randomNumber m.seed
+
+                                                ( secondRandomNum, nextSeed ) =
+                                                    Util.randomNumber firstSeed
+
+                                                firstID =
+                                                    ID firstRandomNum
+
+                                                secondID =
+                                                    ID secondRandomNum
+                                            in
+                                            Many
+                                                [ RPC
+                                                    ( [ AddDBCol tlid firstID secondID ]
+                                                    , FocusNext tlid Nothing
+                                                    )
+                                                , SetSeed nextSeed
+                                                ]
 
                                         TLHandler h ->
                                             case mId of
@@ -2418,13 +2437,18 @@ update_ msg m =
 
         CreateFunction ->
             let
-                ufun =
-                    Refactor.generateEmptyFunction ()
+                ( ufun, nextSeed ) =
+                    Refactor.generateEmptyFunction m.seed
             in
-            RPC
-                ( [ SetFunction ufun ]
-                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState
-                )
+            Many
+                [ RPC
+                    ( [ SetFunction ufun ]
+                    , FocusPageAndCursor
+                        (Fn ufun.tlid Defaults.fnPos)
+                        m.cursorState
+                    )
+                , SetSeed nextSeed
+                ]
 
         LockHandler tlid isLocked ->
             Editor.updateLockedHandlers tlid isLocked m
