@@ -27,6 +27,7 @@ import Pointer as P
 import SpecHeaders
 import Blank as B
 import Autocomplete as AC
+import Url
 
 
 createFindSpace : Model -> Modification
@@ -91,6 +92,22 @@ submitOmniAction m pos action =
       in
           RPC ([ SetHandler tlid pos handler
                ], FocusExact tlid next)
+    NewFunction name ->
+      let blankfn = Refactor.generateEmptyFunction ()
+          newfn =
+            case name of
+              Just n ->
+                let metadata = blankfn.metadata
+                    newMetadata =
+                      { metadata | name = F (gid ()) n }
+                in
+                    { blankfn | metadata = newMetadata }
+              Nothing ->
+                blankfn
+      in
+          Many ([RPC ([ SetFunction newfn ], FocusNothing)
+                , MakeCmd (Url.navigateTo (Fn newfn.tlid Viewport.origin))
+                ])
     NewHTTPHandler ->
       let next = gid ()
           tlid = gtlid ()
