@@ -7,6 +7,7 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict.Extra as DE
 import Json.Encode.Extra as JSEE
+import Dict
 
 -- lib
 
@@ -277,21 +278,28 @@ encodeExecuteFunctionRPCParams params =
   let fns = [params.function] in
   JSE.object
     [ ("executable_fns"
-      , JSE.list (List.map (encodeTriple encodeTLID encodeID JSE.int) fns)
+      , JSON.encodeList (encodeTriple encodeTLID encodeID JSE.int) fns
       )
     ]
 
 encodeAnalysisParams : AnalysisParams -> JSE.Value
 encodeAnalysisParams params =
-  JSE.list (List.map encodeTLID params)
+  encodeList encodeTLID params
 
 encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
   JSE.object
-  [("tlid", encodeTLID uf.tlid)
-  ,("metadata", encodeUserFunctionMetadata uf.metadata)
-  ,("ast", encodeExpr uf.ast)
-  ]
+    [("tlid", encodeTLID uf.tlid)
+    ,("metadata", encodeUserFunctionMetadata uf.metadata)
+    ,("ast", encodeExpr uf.ast)
+    ]
+
+encodeInputDict : InputDict -> JSE.Value
+encodeInputDict dict =
+  dict
+  |> Dict.toList
+  |> encodeList (\(k, lv) -> encodePair JSE.string JSE.string (k, lv.json))
+
 
 encodeUserFunctionMetadata : UserFunctionMetadata -> JSE.Value
 encodeUserFunctionMetadata f =
@@ -566,6 +574,15 @@ decodeLiveValue =
     |> JSDP.required "type" JSD.string
     |> JSDP.required "json" JSD.string
     |> JSDP.optional "exc" (JSD.maybe JSON.decodeException) Nothing
+
+encodeLiveValue : LiveValue -> JSE.Value
+encodeLiveValue lv =
+  JSE.object [ ( "value", JSE.string lv.value)
+             , ( "tipe", JSE.string (RT.tipe2str lv.tipe))
+             , ( "json", JSE.string lv.json)
+             , ( "exc", JSEE.maybe JSON.encodeException lv.exc) ]
+
+
 
 decodeAResult : JSD.Decoder AResult
 decodeAResult =
