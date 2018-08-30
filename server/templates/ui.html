@@ -81,7 +81,6 @@
        };
 
        bundle.mousewheel(function(dx,dy, dz, ev){
-         ev.preventDefault();
          // NB: rounding values here because Elm wants ints
          elmapp.ports.mousewheel.send([Math.round(dx),Math.round(dy)]);
        });
