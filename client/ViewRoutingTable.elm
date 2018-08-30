@@ -12,7 +12,6 @@ import Tuple2 as T2
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
-import Viewport
 import Toplevel as TL
 import Blank as B
 import Toplevel
@@ -401,6 +400,8 @@ viewRoutingTable m =
                  ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
+               , eventNoPropagation "mouseover" (\_ -> EnablePanning False)
+               , eventNoPropagation "mouseout" (\_ -> EnablePanning True)
                ]
                sections
 

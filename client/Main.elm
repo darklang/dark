@@ -1223,7 +1223,9 @@ update_ msg m =
 
 
     MouseWheel deltaCoords ->
-      Viewport.mouseMove m deltaCoords
+      if m.canvas.enablePan
+      then Viewport.mouseMove m deltaCoords
+      else NoChange
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx
@@ -1578,6 +1580,11 @@ update_ msg m =
                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
+    
+    EnablePanning pan ->
+      let c = m.canvas
+      in TweakModel (\m -> { m | canvas = { c | enablePan = pan } } )
+
     _ -> NoChange
 
 findCenter : Model -> Pos

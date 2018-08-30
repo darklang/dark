@@ -270,17 +270,20 @@ body #grid * {
 //*************
 
 #sidebar-left {
-  height: calc(~"100% - 50px");
   width: max-content;
-  overflow: scroll;
+  max-height: calc(~"100% - 50px");
+  overflow-y: scroll;
   position: fixed;
   top: 0;
   left: 0;
+
+  &:hover {
+    border: 2px solid @blue;
+  }
 }
 
 .viewing-table {
   background-color: @black2;
-  border: 2px solid @blue;
   padding: 8px;
   position: relative;
   width: max-content;
