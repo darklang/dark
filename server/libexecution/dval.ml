@@ -73,6 +73,7 @@ let rec tipe_of_string str : tipe =
   | "url" -> TUrl
   | "password" -> TPassword
   | "uuid" -> TUuid
+  | "option" -> TOption
   | "errorrail" -> TErrorRail
   | _ -> (* otherwise *)
     if String.is_prefix str "["  && String.is_suffix str "]"
