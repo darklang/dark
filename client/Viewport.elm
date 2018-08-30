@@ -24,6 +24,10 @@ toViewport m pos =
   { vx = default.x + pos.x - center.x
   , vy = default.y + pos.y - center.y}
 
+origin : Pos
+origin =
+  { x = 0, y = 0 }
+
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
   let center =

@@ -29,6 +29,10 @@ urlFor page =
     Fn tlid pos ->
       "#fn=" ++ toString (deTLID tlid) ++ "&" ++ posStr pos
 
+navigateTo : Page -> Cmd Msg
+navigateTo page =
+  Navigation.newUrl (urlFor page)
+
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
   Html.a
