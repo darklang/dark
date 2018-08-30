@@ -4,6 +4,7 @@ open Libcommon
 open Types
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
+open Dval
 
 module RT = Runtime
 module PReq = Parsed_request
@@ -106,6 +107,11 @@ type analysis_list = analysis list
                      [@@deriving to_yojson]
 
 type analysis_result = tlid * analysis list
+
+type input_vars = (string * dval) list
+                  [@@deriving to_yojson]
+type tlid_input_values = tlid * input_vars list
+                         [@@deriving to_yojson]
 
 let analysis_result_to_yojson (id, results) =
   `Assoc [ ("id", id_to_yojson id)
