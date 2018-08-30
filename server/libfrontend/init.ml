@@ -15,15 +15,7 @@ let host = "test"
 type handler_list = HandlerT.handler list [@@deriving yojson]
 type analysis_list = Analysis_types.analysis list [@@deriving to_yojson]
 
-(* This is sent as a json string, so do extra parsing step *)
-let dval_of_yojson (json: Yojson.Safe.json ) =
-  match json with
-  | `String str ->
-    str
-    |> Yojson.Safe.from_string
-    |> Dval.dval_of_yojson
-  | _ -> Exception.internal "wrong format"
-
+let dval_of_yojson = Dval.dval_of_yojson
 type input_vars = (string * dval) list (* list of vars *)
                   [@@deriving of_yojson]
 

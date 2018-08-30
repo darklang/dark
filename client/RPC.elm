@@ -294,12 +294,6 @@ encodeUserFunction uf =
     ,("ast", encodeExpr uf.ast)
     ]
 
-encodeInputDict : InputDict -> JSE.Value
-encodeInputDict dict =
-  dict
-  |> Dict.toList
-  |> encodeList (\(k, lv) -> encodePair JSE.string JSE.string (k, lv.json))
-
 
 encodeUserFunctionMetadata : UserFunctionMetadata -> JSE.Value
 encodeUserFunctionMetadata f =
@@ -792,6 +786,22 @@ decode404 =
     (JSD.index 2 JSD.string)
     (JSD.index 3 (JSD.list JSD.value))
 
+encodeInputValueDict : InputValueDict -> JSE.Value
+encodeInputValueDict dict =
+  dict
+  |> Dict.toList
+  |> encodeList (encodePair JSE.string identity)
+
+decodeInputValueDict : JSD.Decoder InputValueDict
+decodeInputValueDict =
+  JSD.map Dict.fromList
+    (JSD.list (decodePair JSD.string JSD.value))
+
+decodeTLIDInputValues : JSD.Decoder InputValues
+decodeTLIDInputValues =
+  JSD.map Dict.fromList
+    (JSD.list (decodePair JSD.int (JSD.list decodeInputValueDict)))
+
 decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
 decodeExecuteFunctionTarget =
   JSD.map2 (,)
@@ -803,7 +813,7 @@ decodeRPC =
   JSDP.decode (,,,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
-  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "new_tlid_input_values" decodeTLIDInputValues
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
@@ -811,7 +821,7 @@ decodeRPC =
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisResult
 decodeGetAnalysisRPC =
   JSDP.decode (,,,)
-  |> JSDP.required "analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "tlid_input_values" decodeTLIDInputValues
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
@@ -823,4 +833,4 @@ decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
 decodeExecuteFunctionRPC =
   JSDP.decode (,)
   |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
-  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "new_tlid_input_values" decodeTLIDInputValues

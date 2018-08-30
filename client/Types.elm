@@ -98,12 +98,12 @@ type TimerAction = RefreshAnalysis
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
                        , List Toplevel -- deleted
-                       , List TLAResult
+                       , InputValues
                        , List GlobalVariable
                        , List UserFunction
                        , List TLID)
-type alias ExecuteFunctionRPCResult = (List (TLID, ID), List TLAResult)
-type alias GetAnalysisResult = ( List TLAResult
+type alias ExecuteFunctionRPCResult = (List (TLID, ID), InputValues)
+type alias GetAnalysisResult = ( InputValues
                                , List GlobalVariable
                                , List FourOhFour
                                , List TLID)
@@ -420,7 +420,7 @@ type alias Toplevel = { id : TLID
 -----------------------------
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
-type alias InputDict = Dict VarName LiveValue
+type alias InputDict = Dict VarName LiveValue -- single set of input values
 type alias AResult = { astValue: LiveValue
                      , liveValues : LVDict
                      , availableVarnames : AVDict
@@ -429,7 +429,12 @@ type alias AResult = { astValue: LiveValue
 type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
-type alias InputValues = Dict Int (List InputDict)
+
+-----------------------------
+-- From the server
+-----------------------------
+type alias InputValueDict = Dict VarName JSD.Value
+type alias InputValues = Dict Int (List InputValueDict) -- tlid -> inputvalue list
 
 -- space i.e. "HTTP", path i.e. "/foo", modifier i.e. "GET/PATCH/PUT"
 type alias FourOhFour = { space: String
@@ -439,6 +444,9 @@ type alias FourOhFour = { space: String
                         }
 
 
+-----------------------------
+-- Canvas position
+-----------------------------
 type alias Name = String
 type Page = Toplevels Pos
           | Fn TLID Pos
@@ -475,8 +483,10 @@ type alias Model = { error : Maybe String
                    , hovering : List ID
                    , toplevels : List Toplevel
                    , deletedToplevels : List Toplevel
-                   , analysis : List TLAResult
+                   -- These are read direct from the server. The ones that are
+                   -- analysed are in analysis
                    , inputVars : InputValues
+                   , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
                    , unlockedDBs : List TLID
