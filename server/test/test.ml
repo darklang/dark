@@ -599,17 +599,6 @@ let t_nulls_added_to_missing_column () =
     (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
     (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
 
-let t_analysis_not_empty () =
-  clear_test_data ();
-  (* in a filled-in HTTP env, there wasn't a default environment, so we
-   * got no variables in the analysis. *)
-  let h = http_handler (ast_for "_") in
-  let c = ops2c "test" [ hop h ] in
-  AT.check AT.int "equal_after_roundtrip" 1
-    (Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c h
-     |> Tuple.T2.get2
-     |> List.length)
-
 let t_dval_of_yojson_doesnt_care_about_order () =
   check_dval "dval_of_json_string doesn't care about key order"
     (Dval.dval_of_json_string
@@ -634,6 +623,7 @@ let t_password_hashing_and_checking_works () =
     (DBool true)
 
 let t_password_hash_db_roundtrip () =
+  clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "Passwords")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
             ; Op.SetDBColName (dbid, colnameid, "password")
@@ -647,8 +637,12 @@ let t_password_hash_db_roundtrip () =
   AT.check AT.int
     "A Password::hash'd string can get stored in and retrieved from a user database."
     0 (match exec_handler ~ops ast with
-         DList [p1; p2;] -> compare_dval p1 p2
-       | _ -> 1)
+         DList [p1; p2;] as v ->
+         Log.inspecT "test value to be compared" ~f:show_dval v;
+         compare_dval p1 p2
+       | v ->
+         Log.inspecT "test value" ~f:show_dval v;
+         1)
 
 
 let t_passwords_dont_serialize () =
@@ -1231,7 +1225,6 @@ let suite =
   ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
-  ; "Analysis not empty", `Quick, t_analysis_not_empty
   ; "Parsing JSON to DVals doesn't care about key order", `Quick,
     t_dval_of_yojson_doesnt_care_about_order
   ; "End-user password hashing and checking works", `Quick,
