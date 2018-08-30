@@ -80,6 +80,17 @@ submitOmniAction m pos action =
           RPC ([ CreateDB tlid pos dbname
                , AddDBCol tlid next (gid ())
                ] , FocusExact tlid next)
+    NewHandler ->
+      let next = gid ()
+          tlid = gtlid ()
+          spec = newHandlerSpec ()
+          handler = { ast = Blank next
+                    , spec = spec
+                    , tlid = tlid
+                    }
+      in
+          RPC ([ SetHandler tlid pos handler
+               ], FocusExact tlid next)
     NewHTTPHandler ->
       let next = gid ()
           tlid = gtlid ()

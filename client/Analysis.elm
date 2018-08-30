@@ -12,7 +12,7 @@ import Pointer as P
 varnamesFor : Model -> Maybe (TLID, PointerData) -> List VarName
 varnamesFor m target =
   case target of
-    Nothing -> m.globals
+    Nothing -> []
     Just (tlid, pd) ->
       getAvailableVarnames m tlid (P.toID pd)
 
