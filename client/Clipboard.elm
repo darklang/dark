@@ -154,8 +154,13 @@ peek m =
 newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
     let
-        ( randomNum, nextSeed ) =
+        ( randomNum, firstSeed ) =
             Util.randomNumber m.seed
+
+        ( newBlank, nextSeed ) =
+            Util.randomNumber firstSeed
+                |> Tuple.mapFirst ID
+                |> Tuple.mapFirst Blank
 
         nid =
             TLID randomNum
@@ -163,7 +168,7 @@ newFromClipboard m pos =
         ast =
             case peek m of
                 Nothing ->
-                    Blank.new ()
+                    newBlank
 
                 Just a ->
                     case a of
@@ -171,7 +176,7 @@ newFromClipboard m pos =
                             exp
 
                         _ ->
-                            Blank.new ()
+                            newBlank
 
         spec =
             Entry.newHandlerSpec ()
