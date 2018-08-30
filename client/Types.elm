@@ -426,6 +426,7 @@ type alias AResult = { astValue: LiveValue
 type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
+type alias InputValues = Dict Int (List InputDict)
 
 type alias FourOhFour = (String, String, String, List JSD.Value)
 
@@ -466,6 +467,7 @@ type alias Model = { error : Maybe String
                    , toplevels : List Toplevel
                    , deletedToplevels : List Toplevel
                    , analysis : List TLAResult
+                   , inputVars : InputValues
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
                    , unlockedDBs : List TLID
@@ -547,6 +549,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
+                  | UpdateInputVars InputValues
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

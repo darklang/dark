@@ -90,3 +90,23 @@ getAvailableVarnames m tlid (ID id) =
   |> Dict.get id
   |> Maybe.withDefault []
 
+getInputVars : Model -> TLID -> List InputDict
+getInputVars m tlid =
+  Dict.get (deTLID tlid) m.inputVars
+  |> Maybe.withDefault []
+
+
+tlarToInputVars : List TLAResult -> InputValues
+tlarToInputVars tlar =
+  tlar
+  |> Debug.log "tlar"
+  |> List.map (\tlar -> (deTLID tlar.id
+                        , List.map .inputValues tlar.results))
+  |> Debug.log "mapped"
+  |> Dict.fromList
+  |> Debug.log "dict"
+
+
+
+
+
