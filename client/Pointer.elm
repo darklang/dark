@@ -12,7 +12,6 @@ module Pointer exposing
 
 import Blank as B
 import Maybe
-import Prelude exposing (..)
 import Runtime
 import Types exposing (..)
 

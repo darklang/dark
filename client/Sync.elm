@@ -9,6 +9,7 @@ module Sync exposing
 
 import List.Extra as LE
 import RPC
+import Random
 import Toplevel
 import Types exposing (..)
 import Util
@@ -86,7 +87,7 @@ toAnalyse m =
         _ ->
             let
                 ( randomNum, nextSeed ) =
-                    Util.randomNumber m.seed
+                    Random.step Util.randomInt m.seed
 
                 ids =
                     List.map .id (Toplevel.all m)

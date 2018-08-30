@@ -20,6 +20,8 @@ import Dom
 import List.Extra as LE
 import Pointer as P
 import Prelude exposing (..)
+import Random
+import Random.Steps
 import Refactor
 import Runtime as RT
 import SpecHeaders
@@ -97,28 +99,22 @@ createFunction m name =
 submitOmniAction : Model -> Pos -> OmniAction -> Modification
 submitOmniAction m pos action =
     let
-        ( firstRandomNum, firstSeed ) =
-            Util.randomNumber m.seed
-
-        ( secondRandomNum, secondSeed ) =
-            Util.randomNumber firstSeed
-
-        ( thirdRandomNum, nextSeed ) =
-            Util.randomNumber secondSeed
+        ( randomInts, nextSeed ) =
+            Random.Steps.three Util.randomInt m.seed
     in
     case action of
         NewDB dbname ->
             let
                 next =
-                    ID firstRandomNum
+                    ID randomInts.first
 
                 tlid =
-                    TLID secondRandomNum
+                    TLID randomInts.second
             in
             Many
                 [ RPC
                     ( [ CreateDB tlid pos dbname
-                      , AddDBCol tlid next (ID thirdRandomNum)
+                      , AddDBCol tlid next (ID randomInts.third)
                       ]
                     , FocusExact tlid next
                     )
@@ -128,10 +124,10 @@ submitOmniAction m pos action =
         NewHTTPHandler ->
             let
                 next =
-                    ID firstRandomNum
+                    ID randomInts.first
 
                 tlid =
-                    TLID secondRandomNum
+                    TLID randomInts.second
 
                 spec =
                     newHandlerSpec ()
@@ -158,10 +154,10 @@ submitOmniAction m pos action =
         NewEventSpace name ->
             let
                 next =
-                    ID firstRandomNum
+                    ID randomInts.first
 
                 tlid =
-                    TLID secondRandomNum
+                    TLID randomInts.second
 
                 spec =
                     newHandlerSpec ()
@@ -188,10 +184,10 @@ submitOmniAction m pos action =
         NewHTTPRoute route ->
             let
                 next =
-                    ID firstRandomNum
+                    ID randomInts.first
 
                 tlid =
-                    TLID secondRandomNum
+                    TLID randomInts.second
 
                 spec =
                     newHandlerSpec ()
@@ -363,19 +359,19 @@ submit m cursor action =
             AC.getValue m.complete
 
         ( newTLID, firstSeed ) =
-            Util.randomNumber m.seed
+            Random.step Util.randomInt m.seed
                 |> Tuple.mapFirst TLID
 
         ( firstNewID, secondSeed ) =
-            Util.randomNumber firstSeed
+            Random.step Util.randomInt firstSeed
                 |> Tuple.mapFirst ID
 
         ( secondNewID, thirdSeed ) =
-            Util.randomNumber secondSeed
+            Random.step Util.randomInt secondSeed
                 |> Tuple.mapFirst ID
 
         ( thirdNewID, nextSeed ) =
-            Util.randomNumber thirdSeed
+            Random.step Util.randomInt thirdSeed
                 |> Tuple.mapFirst ID
     in
     case cursor of

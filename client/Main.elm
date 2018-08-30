@@ -48,6 +48,8 @@ import PageVisibility
 import Pointer as P
 import Prelude exposing (..)
 import RPC
+import Random
+import Random.Steps
 import Refactor exposing (WrapLoc(..))
 import Runtime as RT
 import Selection
@@ -1158,17 +1160,14 @@ update_ msg m =
                                     case tl.data of
                                         TLDB _ ->
                                             let
-                                                ( firstRandomNum, firstSeed ) =
-                                                    Util.randomNumber m.seed
-
-                                                ( secondRandomNum, nextSeed ) =
-                                                    Util.randomNumber firstSeed
+                                                ( randomInts, nextSeed ) =
+                                                    Random.Steps.two Util.randomInt m.seed
 
                                                 firstID =
-                                                    ID firstRandomNum
+                                                    ID randomInts.first
 
                                                 secondID =
-                                                    ID secondRandomNum
+                                                    ID randomInts.second
                                             in
                                             Many
                                                 [ RPC
@@ -2407,7 +2406,7 @@ update_ msg m =
                     findCenter m
 
                 ( anID, nextSeed ) =
-                    Util.randomNumber m.seed
+                    Random.step Util.randomInt m.seed
                         |> Tuple.mapFirst TLID
 
                 aPos =

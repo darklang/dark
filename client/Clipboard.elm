@@ -7,13 +7,13 @@ module Clipboard exposing
     )
 
 import AST
-import Blank
 import Entry
 import Pointer as P
 import Prelude exposing (..)
+import Random
 import Toplevel as TL
 import Types exposing (..)
-import Util exposing (randomNumber)
+import Util
 
 
 copy : Model -> Toplevel -> Maybe PointerData -> Modification
@@ -55,14 +55,14 @@ cut m tl p =
 
         TLHandler h ->
             let
-                ( randomNum, nextSeed ) =
-                    Util.randomNumber m.seed
+                ( randomInt, nextSeed ) =
+                    Random.step Util.randomInt m.seed
 
                 newClipboard =
                     TL.find tl pid
 
                 newH =
-                    ID randomNum
+                    ID randomInt
                         |> TL.delete tl p
                         |> TL.asHandler
                         |> deMaybe "cut"
@@ -78,14 +78,14 @@ cut m tl p =
 
         TLFunc f ->
             let
-                ( randomNum, nextSeed ) =
-                    Util.randomNumber m.seed
+                ( randomInt, nextSeed ) =
+                    Random.step Util.randomInt m.seed
 
                 newClipboard =
                     TL.find tl pid
 
                 newF =
-                    ID randomNum
+                    ID randomInt
                         |> TL.delete tl p
                         |> TL.asUserFunction
                         |> deMaybe "cut"
@@ -155,10 +155,10 @@ newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
     let
         ( randomNum, firstSeed ) =
-            Util.randomNumber m.seed
+            Random.step Util.randomInt m.seed
 
         ( newBlank, nextSeed ) =
-            Util.randomNumber firstSeed
+            Random.step Util.randomInt firstSeed
                 |> Tuple.mapFirst ID
                 |> Tuple.mapFirst Blank
 

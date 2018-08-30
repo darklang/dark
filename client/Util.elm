@@ -13,7 +13,7 @@ module Util exposing
     , listPrevious
     , listPreviousWrap
     , random
-    , randomNumber
+    , randomInt
     , reContains
     , reExactly
     , replace
@@ -56,14 +56,12 @@ random a =
     Native.Random.random a
 
 
-{-| A generator for a random number, used throughout the app to add
-random IDs to things like windows and form elements. Must be passed a seed,
-and the new seed must be returned to be used to generate the next
-random number
+{-| A `Random` generator for `Int`s within the app
+used throughout the app for things like new IDs, new Blanks, etc
 -}
-randomNumber : Random.Seed -> ( Int, Random.Seed )
-randomNumber seed =
-    Random.step (Random.int 0 2147483647) seed
+randomInt : Random.Generator Int
+randomInt =
+    Random.int 0 2147483647
 
 
 htmlSize : String -> ( Float, Float )

@@ -37,6 +37,7 @@ import Maybe
 import Maybe.Extra as ME
 import Pointer as P
 import Prelude exposing (..)
+import Random
 import Toplevel as TL
 import Types exposing (..)
 import Util
@@ -531,7 +532,7 @@ delete m tlid mId =
         Just id ->
             let
                 ( randomNum, nextSeed ) =
-                    Util.randomNumber m.seed
+                    Random.step Util.randomInt m.seed
 
                 newID =
                     ID randomNum

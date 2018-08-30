@@ -22,7 +22,7 @@ import Nineteen.String
 import Pointer as P
 import Prelude exposing (..)
 import Random
-import Random.Int
+import Random.Steps
 import Set
 import Toplevel as TL
 import Types exposing (..)
@@ -174,7 +174,7 @@ extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
     let
         ( randomNum, nextSeed ) =
-            Util.randomNumber m.seed
+            Random.step Util.randomInt m.seed
 
         extractVarInAst e ast =
             let
@@ -291,20 +291,20 @@ extractFunction m tl p =
                             |> Maybe.map P.toID
 
                     ( name, firstSeed ) =
-                        Util.randomNumber m.seed
+                        Random.step Util.randomInt m.seed
                             |> Tuple.mapFirst functionNameFromInt
 
-                    ( { r1, r2, r3, r4, r5, r6, r7 }, nextSeed ) =
-                        Random.Int.seven firstSeed
+                    ( randomInts, nextSeed ) =
+                        Random.Steps.seven Util.randomInt firstSeed
 
                     freeVars =
                         AST.freeVariables body
 
                     paramExprs =
-                        List.map (\( _, name ) -> F (ID r1) (Variable name)) freeVars
+                        List.map (\( _, name ) -> F (ID randomInts.first) (Variable name)) freeVars
 
                     replacement =
-                        PExpr (F (ID r2) (FnCall name paramExprs NoRail))
+                        PExpr (F (ID randomInts.second) (FnCall name paramExprs NoRail))
 
                     h =
                         deMaybe
@@ -326,8 +326,8 @@ extractFunction m tl p =
                                             |> Maybe.withDefault TAny
                                             |> convertTipe
                                 in
-                                { name = F (ID r3) name
-                                , tipe = F (ID r4) tipe
+                                { name = F (ID randomInts.third) name
+                                , tipe = F (ID randomInts.fourth) tipe
                                 , block_args = []
                                 , optional = False
                                 , description = ""
@@ -336,15 +336,15 @@ extractFunction m tl p =
                             freeVars
 
                     metadata =
-                        { name = F (ID r5) name
+                        { name = F (ID randomInts.fifth) name
                         , parameters = params
                         , description = ""
-                        , returnTipe = F (ID r6) TAny
+                        , returnTipe = F (ID randomInts.sixth) TAny
                         , infix = False
                         }
 
                     newF =
-                        { tlid = TLID r7
+                        { tlid = TLID randomInts.seventh
                         , metadata = metadata
                         , ast = AST.clone body
                         }
@@ -640,18 +640,18 @@ generateEmptyFunction : Random.Seed -> ( UserFunction, Random.Seed )
 generateEmptyFunction seed =
     let
         ( funcName, firstSeed ) =
-            Util.randomNumber seed
+            Random.step Util.randomInt seed
                 |> Tuple.mapFirst functionNameFromInt
 
-        ( { r1, r2, r3, r4, r5, r6 }, nextSeed ) =
-            Random.Int.six firstSeed
+        ( randomInts, nextSeed ) =
+            Random.Steps.six Util.randomInt firstSeed
 
         tlid =
-            TLID r1
+            TLID randomInts.first
 
         params =
-            [ { name = F (ID r2) "var"
-              , tipe = F (ID r3) TAny
+            [ { name = F (ID randomInts.second) "var"
+              , tipe = F (ID randomInts.third) TAny
               , block_args = []
               , optional = True
               , description = ""
@@ -659,14 +659,14 @@ generateEmptyFunction seed =
             ]
 
         metadata =
-            { name = F (ID r4) funcName
+            { name = F (ID randomInts.fourth) funcName
             , parameters = params
             , description = ""
-            , returnTipe = F (ID r5) TAny
+            , returnTipe = F (ID randomInts.fifth) TAny
             , infix = False
             }
 
         ast =
-            ID r6 |> Blank
+            ID randomInts.sixth |> Blank
     in
     ( UserFunction tlid metadata ast, nextSeed )
