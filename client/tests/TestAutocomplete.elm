@@ -109,6 +109,10 @@ itemPresent : AutocompleteItem -> Autocomplete -> Bool
 itemPresent aci ac =
   List.member aci (List.concat ac.completions)
 
+itemMissing : AutocompleteItem -> Autocomplete -> Bool
+itemMissing aci ac =
+  not (itemPresent aci ac)
+
 all : Test
 all =
   describe "autocomplete"
@@ -349,61 +353,45 @@ all =
     , d "queryWhenCreating"
       [ \_ -> createCreating User
       |> setQuery "Mydbname"
-      |> selectDown
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewDB "Mydbname")))
+      |> itemPresent (ACOmniAction (NewDB "Mydbname"))
 
       -- db names can be multicase
       , \_ -> createCreating User
       |> setQuery "MyDBnaMe"
-      |> selectDown
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewDB "MyDBnaMe")))
+      |> itemPresent (ACOmniAction (NewDB "MyDBnaMe"))
 
       -- alphabetical only #1
       , \_ -> createCreating User
       |> setQuery "dbname1234::"
-      |> selectDown
-      |> highlighted
-      |> (==) Nothing
+      |> itemMissing (ACOmniAction (NewDB "dbname1234::"))
 
       -- alphabetical only #2
       , \_ -> createCreating User
       |> setQuery "db_name::"
-      |> selectDown
-      |> highlighted
-      |> (==) Nothing
+      |> itemMissing (ACOmniAction (NewDB "db_name::"))
 
       -- require capital
       , \_ -> createCreating User
       |> setQuery "mydbname"
-      |> selectDown
-      |> highlighted
-      |> (==) Nothing
+      |> itemMissing (ACOmniAction (NewDB "mydbname"))
 
       -- No HTTP handler in general
       , \_ -> createCreating User
       |> setQuery "asdkkasd"
-      |> .completions
-      |> List.concat
-      |> List.member (ACOmniAction NewHTTPHandler)
-      |> (==) False
+      |> itemMissing (ACOmniAction NewHTTPHandler)
 
       -- HTTP handler
       , \_ -> createCreating User
       |> setQuery "HTT"
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewEventSpace "HTT")))
+      |> itemPresent (ACOmniAction (NewEventSpace "HTT"))
 
       , \_ -> createCreating User
       |> setQuery "/"
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewHTTPRoute "/")))
+      |> itemPresent (ACOmniAction (NewHTTPRoute "/"))
 
       , \_ -> createCreating User
       |> setQuery "/asasdasd"
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewHTTPRoute "/asasdasd")))
+      |> itemPresent (ACOmniAction (NewHTTPRoute "/asasdasd"))
 
       , \_ -> createCreating User
       |> itemPresent (ACOmniAction NewHandler)
