@@ -137,13 +137,15 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
                    (Handler.event_name_for_exn h)))
     else pages in
 
+  let trace_id = Util.create_uuid () in
+  let canvas_id = !c.id in
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler ~execution_id !c req
   | [] ->
     PReq.from_request headers query body
     |> PReq.to_dval
-    |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
+    |> Stored_event.store_event ~trace_id ~canvas_id ("HTTP", Uri.path uri, verb) ;
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers ~execution_id `Not_found "404: No page matches"
   | a :: b :: _ ->
@@ -160,7 +162,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
        *    b) use the input url params in the analysis for this handler
        *)
       let desc = (m, Uri.path uri, mo) in
-      Stored_event.store_event !c.id desc (PReq.to_dval input)
+      Stored_event.store_event ~trace_id ~canvas_id desc (PReq.to_dval input)
     | _-> ());
 
     let bound = Libexecution.Execution.http_route_input_vars
@@ -169,7 +171,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     let result = Libexecution.Execution.execute_handler page
         ~execution_id
         ~account_id:!c.owner
-        ~canvas_id:!c.id
+        ~canvas_id
         ~user_fns:!c.user_functions
         ~tlid:page.tlid
         ~dbs:(TL.dbs !c.dbs)

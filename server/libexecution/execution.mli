@@ -40,12 +40,12 @@ val load_no_results:
   (Types.RuntimeT.dval * Time.t) option
 
 val store_no_arguments :
-  Types.RuntimeT.user_fn_desc ->
+  Types.tlid ->
   Types.RuntimeT.dval_map ->
   unit
 
 val load_no_arguments :
-  Types.RuntimeT.user_fn_desc ->
+  Types.tlid ->
   (Types.RuntimeT.dval_map * Time.t) list
 
 

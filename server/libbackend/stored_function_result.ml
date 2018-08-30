@@ -16,20 +16,21 @@ let hash (arglist : RTT.dval list) : string =
 (* External *)
 (* ------------------------- *)
 
-let store (canvas_id, tlid, fnname, id) arglist result =
+let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
   Db.run
     ~name:"stored_function_result.store"
     "INSERT INTO function_results
-     (canvas_id, tlid, fnname, id, hash, timestamp, value)
-     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)"
+     (canvas_id, trace_id, tlid, fnname, id, hash, timestamp, value)
+     VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)"
     ~params:[ Uuid canvas_id
+            ; Uuid trace_id
             ; ID tlid
             ; String fnname
             ; ID id
             ; String (hash arglist)
             ; DvalJson result]
 
-let load (canvas_id, tlid, fnname, id) arglist
+let load ~canvas_id (tlid, fnname, id) arglist
   : (RTT.dval * Time.t) option =
   (* TODO: sort by timestamp *)
   Db.fetch_one_option
