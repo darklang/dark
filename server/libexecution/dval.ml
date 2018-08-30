@@ -342,6 +342,13 @@ let is_obj (dv : dval) : bool =
 let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
   `String (t |> tipe_to_string |> String.lowercase)
 
+let tipe_of_yojson (json: Yojson.Safe.json) =
+  match json with
+  | `String s -> Ok (s |> String.lowercase |> tipe_of_string)
+  | _ -> Exception.user "Invalid tipe"
+
+
+
 let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* sort so this isn't key-order-dependent. *)
   match Yojson.Safe.sort json with
