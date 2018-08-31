@@ -16,13 +16,13 @@ leftButton = 0
 
 -- UI
 initialVPos : VPos
-initialVPos = {vx=475, vy=325}
+initialVPos = {vx=475, vy=200}
 
 initialPos : Pos
-initialPos = {x=475, y=325}
+initialPos = {x=475, y=200}
 
 fnPos : Pos
-fnPos = {x=475, y=325}
+fnPos = {x=475, y=200}
 
 moveSize : Int
 moveSize = 50
