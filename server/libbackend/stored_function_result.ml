@@ -1,5 +1,6 @@
 open Core_kernel
 open Libexecution
+open Analysis_types
 
 open Types
 module RTT = Types.RuntimeT
@@ -30,27 +31,20 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
             ; String (hash arglist)
             ; DvalJson result]
 
-let load ~canvas_id (tlid, fnname, id) arglist
-  : (RTT.dval * Time.t) option =
-  (* TODO: sort by timestamp *)
-  Db.fetch_one_option
+let load ~canvas_id ~trace_id tlid : function_result list =
+  Db.fetch
     ~name:"sfr_load"
-    "SELECT value, timestamp
+    "SELECT fnname, id, hash, value, timestamp
      FROM function_results
      WHERE canvas_id = $1
-       AND tlid = $2
-       AND fnname = $3
-       AND id = $4
-       AND hash = $5
-     ORDER BY timestamp DESC
-       LIMIT 1"
+       AND trace_id = $2
+       AND tlid = $3"
     ~params:[ Db.Uuid canvas_id
+            ; Db.Uuid trace_id
             ; Db.ID tlid
-            ; Db.String fnname
-            ; Db.ID id
-            ; Db.String (hash arglist)]
-  |> Option.map ~f:(function
-      | [dval; ts] ->
-        (Dval.dval_of_json_string dval, Dval.date_of_sqlstring ts)
+            ]
+  |> List.map ~f:(function
+      | [fnname; id; hash; dval; ts] ->
+        (fnname, id_of_string id, hash, Dval.dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_functions_results.load")
 
