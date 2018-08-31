@@ -28,26 +28,10 @@ val sample_unknown_handler_input_vars :
 (* Exec_state *)
 (* ----------------- *)
 
-val store_no_results :
-  Types.RuntimeT.function_desc ->
-  Types.RuntimeT.dval list ->
-  Types.RuntimeT.dval ->
-  unit
-
-val load_no_results:
-  Types.RuntimeT.function_desc ->
-  Types.RuntimeT.dval list ->
-  (Types.RuntimeT.dval * Time.t) option
-
-val store_no_arguments :
-  Types.tlid ->
-  Types.RuntimeT.dval_map ->
-  unit
-
-val load_no_arguments :
-  Types.tlid ->
-  (Types.RuntimeT.dval_map * Time.t) list
-
+val store_no_results : Types.RuntimeT.store_fn_result_type
+val store_no_arguments : Types.RuntimeT.store_fn_arguments_type
+val load_no_results : Types.RuntimeT.load_fn_result_type
+val load_no_arguments : Types.RuntimeT.load_fn_arguments_type
 
 (* ----------------- *)
 (* Execution *)
@@ -60,6 +44,8 @@ val execute_handler :
   user_fns : Types.RuntimeT.user_fn list ->
   account_id : Uuidm.t ->
   canvas_id : Uuidm.t ->
+  ?store_fn_result: Types.RuntimeT.store_fn_result_type ->
+  ?store_fn_arguments: Types.RuntimeT.store_fn_arguments_type ->
   Types.RuntimeT.HandlerT.handler ->
   Types.RuntimeT.dval
 
@@ -77,8 +63,6 @@ val analyse_ast :
   account_id : Uuidm.t ->
   canvas_id : Uuidm.t ->
   ?load_fn_result: Types.RuntimeT.load_fn_result_type ->
-  ?store_fn_result: Types.RuntimeT.store_fn_result_type ->
   ?load_fn_arguments: Types.RuntimeT.load_fn_arguments_type ->
-  ?store_fn_arguments: Types.RuntimeT.store_fn_arguments_type ->
   Types.RuntimeT.expr ->
   Analysis_types.analysis

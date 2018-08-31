@@ -154,6 +154,8 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
         ~tlid:page.tlid
         ~dbs:(TL.dbs !c.dbs)
         ~input_vars:([("request", PReq.to_dval input)] @ bound)
+        ~store_fn_arguments:(Stored_function_arguments.store ~canvas_id ~trace_id)
+        ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
     in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"

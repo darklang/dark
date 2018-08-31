@@ -96,9 +96,7 @@ let perform_analysis (str : string) : string =
                 ~dbs
                 ~user_fns
                 ~load_fn_result:Execution.load_no_results
-                ~store_fn_result:Execution.store_no_results
-                ~load_fn_arguments:Execution.load_no_arguments
-                ~store_fn_arguments:Execution.store_no_arguments)))
+                ~load_fn_arguments:Execution.load_no_arguments)))
   |> Analysis_types.analysis_result_list_to_yojson
   |> Yojson.Safe.to_string
 
