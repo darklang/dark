@@ -431,11 +431,10 @@ type alias TLAResult = { id: TLID
 -- From the server
 -----------------------------
 type alias InputValueDict = Dict VarName JSD.Value
-type alias FunctionResult = { tlid: TLID
-                            , fnName : String
+type alias FunctionResult = { fnName : String
                             , callerID : ID
                             , argHash : String
-                            , value : String
+                            , value : JSD.Value
                             }
 type alias Trace = (InputValueDict, List FunctionResult)
 type alias Traces = Dict Int (List Trace)

@@ -161,6 +161,21 @@ encodeTriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (a, b
 encodeTriple encA encB encC (a, b, c) =
   JSE.list [encA a, encB b, encC c]
 
+decodeQuadriple : JSD.Decoder a -> JSD.Decoder b -> JSD.Decoder c -> JSD.Decoder d ->
+  JSD.Decoder (a,b,c,d)
+decodeQuadriple d1 d2 d3 d4 =
+  JSD.map4 (,,,)
+    (JSD.index 0 d1)
+    (JSD.index 1 d2)
+    (JSD.index 2 d3)
+    (JSD.index 3 d4)
+
+encodeQuadriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (d -> JSE.Value) -> (a, b, c, d) -> JSE.Value
+encodeQuadriple encA encB encC encD (a, b, c, d) =
+  JSE.list [encA a, encB b, encC c, encD d]
+
+
+
 
 encodePos : Pos -> JSE.Value
 encodePos {x,y} =
