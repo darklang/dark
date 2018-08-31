@@ -80,6 +80,8 @@ let execute_handler
   ~user_fns
   ~account_id
   ~canvas_id
+  ?(store_fn_result = store_no_results)
+  ?(store_fn_arguments = store_no_arguments)
   (h : HandlerT.handler)
   : dval
   =
@@ -94,9 +96,9 @@ let execute_handler
     ; exe_fn_ids = []
     ; fail_fn = None
     ; load_fn_result = load_no_results
-    ; store_fn_result = store_no_results
     ; load_fn_arguments = load_no_arguments
-    ; store_fn_arguments = store_no_arguments
+    ; store_fn_result
+    ; store_fn_arguments
     }
   in
   let result = Ast.execute_ast vars state h.ast in
@@ -121,9 +123,7 @@ let analyse_ast
   ~account_id
   ~canvas_id
   ?(load_fn_result = load_no_results)
-  ?(store_fn_result = store_no_results)
   ?(load_fn_arguments = load_no_arguments)
-  ?(store_fn_arguments = store_no_arguments)
   (ast : expr)
   : analysis =
   let input_vars = dbs_as_input_vars dbs @ input_vars  in
@@ -137,9 +137,9 @@ let analyse_ast
     ; exe_fn_ids = []
     ; fail_fn = None
     ; load_fn_result
-    ; store_fn_result
     ; load_fn_arguments
-    ; store_fn_arguments
+    ; store_fn_result = store_no_results
+    ; store_fn_arguments = store_no_arguments
     }
   in
   let traced_symbols =
