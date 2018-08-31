@@ -84,6 +84,11 @@ mouseMove m deltaCoords =
           x::y::_ -> { x=x, y=y }
           _ -> { x=0, y=0 }
       c = m.canvas
-      pos = subPos c.offset d
-      newCanvas = setCanvasOffset c m.currentPage pos
-  in TweakModel (\m -> { m | canvas = newCanvas })
+      offset =
+        case m.currentPage of
+          Toplevels _ -> c.offset
+          Fn _ _ -> c.fnOffset
+      pos = subPos offset d
+  in TweakModel (\m -> { m |
+    canvas = (setCanvasOffset c m.currentPage pos)
+    })

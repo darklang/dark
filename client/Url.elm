@@ -37,19 +37,15 @@ linkFor page class content =
 -- and update the browser url periodically.
 maybeUpdateScrollUrl : Model -> Modification
 maybeUpdateScrollUrl m =
-  let pos =
+  let (pos, urlBase) =
         case m.currentPage of
-          Toplevels _ -> m.canvas.offset
-          Fn _ _ -> m.canvas.fnOffset
+          Toplevels _ -> (m.canvas.offset, "#")
+          Fn tlid _ -> (m.canvas.fnOffset, "#fn=" ++ toString (deTLID tlid) ++ "&")
       state = m.urlState
   in
   if pos /= state.lastPos
   then
-    let posStr = "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
-        url =
-          case m.currentPage of
-            Toplevels _ -> "#" ++ posStr
-            Fn tlid _ -> "#fn=" ++ toString (deTLID tlid) ++ "&" ++ posStr
+    let url = urlBase ++ "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
     in Many [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
             , MakeCmd (Navigation.modifyUrl url)
             ]
