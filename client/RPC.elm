@@ -797,10 +797,33 @@ decodeInputValueDict =
   JSD.map Dict.fromList
     (JSD.list (decodePair JSD.string JSD.value))
 
-decodeTLIDInputValues : JSD.Decoder InputValues
-decodeTLIDInputValues =
+decodeFunctionResult : JSD.Decoder FunctionResult
+decodeFunctionResult =
+  let toFunctionResult ((tlid, fnName, id), hash, value) =
+        { tlid = tlid
+        , fnName = fnName
+        , callerID = id
+        , argHash = hash
+        , value = value
+        }
+  in
+  JSD.map toFunctionResult
+    (decodeTriple
+      (decodeTriple decodeTLID JSD.string decodeID)
+      JSD.string
+      JSD.string)
+
+decodeTraces : JSD.Decoder Traces
+decodeTraces =
   JSD.map Dict.fromList
-    (JSD.list (decodePair JSD.int (JSD.list decodeInputValueDict)))
+    (JSD.list (decodePair JSD.int (JSD.list decodeTrace)))
+
+decodeTrace : JSD.Decoder Trace
+decodeTrace =
+  JSDP.decode (,)
+  |> JSDP.required "input" decodeInputValueDict
+  |> JSDP.required "function_results" (JSD.list decodeFunctionResult)
+
 
 decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
 decodeExecuteFunctionTarget =
@@ -813,7 +836,7 @@ decodeRPC =
   JSDP.decode (,,,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
-  |> JSDP.required "new_tlid_input_values" decodeTLIDInputValues
+  |> JSDP.required "new_traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
@@ -821,7 +844,7 @@ decodeRPC =
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisResult
 decodeGetAnalysisRPC =
   JSDP.decode (,,,)
-  |> JSDP.required "tlid_input_values" decodeTLIDInputValues
+  |> JSDP.required "traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
@@ -833,4 +856,4 @@ decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
 decodeExecuteFunctionRPC =
   JSDP.decode (,)
   |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
-  |> JSDP.required "new_tlid_input_values" decodeTLIDInputValues
+  |> JSDP.required "new_traces" decodeTraces

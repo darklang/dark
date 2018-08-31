@@ -98,12 +98,12 @@ type TimerAction = RefreshAnalysis
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
                        , List Toplevel -- deleted
-                       , InputValues
+                       , Traces
                        , List GlobalVariable
                        , List UserFunction
                        , List TLID)
-type alias ExecuteFunctionRPCResult = (List (TLID, ID), InputValues)
-type alias GetAnalysisResult = ( InputValues
+type alias ExecuteFunctionRPCResult = (List (TLID, ID), Traces)
+type alias GetAnalysisResult = ( Traces
                                , List GlobalVariable
                                , List FourOhFour
                                , List TLID)
@@ -431,7 +431,15 @@ type alias TLAResult = { id: TLID
 -- From the server
 -----------------------------
 type alias InputValueDict = Dict VarName JSD.Value
-type alias InputValues = Dict Int (List InputValueDict) -- tlid -> inputvalue list
+type alias FunctionResult = { tlid: TLID
+                            , fnName : String
+                            , callerID : ID
+                            , argHash : String
+                            , value : String
+                            }
+type alias Trace = (InputValueDict, List FunctionResult)
+type alias Traces = Dict Int (List Trace)
+
 
 type alias FourOhFour = (String, String, String, List JSD.Value)
 
@@ -476,7 +484,7 @@ type alias Model = { error : Maybe String
                    , deletedToplevels : List Toplevel
                    -- These are read direct from the server. The ones that are
                    -- analysed are in analysis
-                   , inputVars : InputValues
+                   , traces : Traces
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
@@ -559,7 +567,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
-                  | UpdateInputVars InputValues
+                  | UpdateTraces Traces
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 
