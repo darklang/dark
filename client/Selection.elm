@@ -2,6 +2,7 @@ module Selection exposing (..)
 
 -- builtins
 import Maybe
+import Random
 
 -- lib
 import Maybe.Extra as ME
@@ -322,7 +323,8 @@ delete m tlid mId =
                       ]
         TLFunc _ -> DisplayError "Cannot delete functions!"
     Just id ->
-      let newID = gid ()
+      let (randomInt, nextSeed) = Random.step Util.randomInt m.seed
+          newID = ID randomInt
           focus = FocusExact tlid newID
           tl = TL.getTL m tlid
           pd = TL.findExn tl id
@@ -335,18 +337,27 @@ delete m tlid mId =
         VarBind ->
           let newTL = TL.replace pd (PVarBind (F newID "")) tl in
           case newTL.data of
-            TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
-            TLFunc f -> RPC ([SetFunction f], focus)
+            TLHandler h -> Many [ RPC ([SetHandler tlid tl.pos h], focus)
+                                , SetSeed nextSeed
+                                ]
+            TLFunc f -> Many [ RPC ([SetFunction f], focus)
+                             , SetSeed nextSeed
+                             ]
             TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
         FnName ->
           Many [ Enter (Filling tlid id)
                , AutocompleteMod (ACSetQuery "")
+               , SetSeed nextSeed
                ]
         _ ->
           let newTL = TL.delete tl pd newID in
           case newTL.data of
-            TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
-            TLFunc f -> RPC ([SetFunction f], focus)
+            TLHandler h -> Many [ RPC ([SetHandler tlid tl.pos h], focus)
+                                , SetSeed nextSeed
+                                ]
+            TLFunc f -> Many [ RPC ([SetFunction f], focus)
+                             , SetSeed nextSeed
+                             ]
             TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
 
 
@@ -374,6 +385,3 @@ enter m tlid id =
           DB.initFieldTypeMigration m tl d
         else enterMods
       pd -> enterMods
-
-
-

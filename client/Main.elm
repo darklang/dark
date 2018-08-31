@@ -2,7 +2,51 @@ port module Main exposing (..)
 
 
 -- builtins
+import AST
+import Analysis
+import Autocomplete as AC
+import Blank as B
+import Clipboard
+import Commands
+import DB
+import DarkKeyboard
+import Defaults
+import Editor
+import Entry
+import FeatureFlags
+import Functions
+import Http
+import IntegrationTest
+import JSON
+import Json.Decode as JSD
+import Json.Encode as JSE
+import Json.Encode.Extra as JSEE
+import Keyboard.Key as Key
 import Maybe
+import Mouse
+import Navigation
+import PageVisibility
+import Pointer as P
+import Prelude exposing (..)
+import RPC
+import Random.Steps
+import Refactor exposing (WrapLoc(..))
+import Random
+import Runtime
+import Selection
+import String.Extra as SE
+import Sync
+import Task
+import Time
+import Toplevel as TL
+import Types exposing (..)
+import Url
+import Util
+import VariantTesting exposing (parseVariantTestsFromQueryString)
+import View
+import Viewport
+import Window
+import Window.Events exposing (onWindow)
 
 -- lib
 import Json.Decode as JSD
@@ -109,7 +153,7 @@ init {editorState, complete} location =
         |> Maybe.withDefault m.currentPage
 
       canvas = m.canvas
-      newCanvas = 
+      newCanvas =
         case page of
           Toplevels pos -> { canvas | offset = pos }
           Fn _ pos -> { canvas | fnOffset = pos }
@@ -625,6 +669,8 @@ updateMod mod (m, cmd) =
         fn m ! []
       AutocompleteMod mod ->
         processAutocompleteMods m [mod]
+      SetSeed seed ->
+        ({m | seed = seed}, Cmd.none)
       -- applied from left to right
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
 
@@ -724,8 +770,15 @@ update_ msg m =
                 then
                   case tl.data of
                     TLDB _ ->
-                      RPC ([ AddDBCol tlid (gid ()) (gid ())]
-                          , FocusNext tlid Nothing)
+                      let
+                          (randomInts, nextSeed) = Random.Steps.two Util.randomInt m.seed
+                          firstID = ID randomInts.first
+                          secondID = ID randomInts.second
+                      in
+                      Many [ RPC ([ AddDBCol tlid firstID secondID]
+                                  , FocusNext tlid Nothing)
+                           , SetSeed nextSeed
+                           ]
                     TLHandler h ->
                       case mId of
                         Just id ->
@@ -1554,7 +1607,8 @@ update_ msg m =
 
     CreateHandlerFrom404 (space, path, modifier, _) ->
       let center = findCenter m
-          anId = gtlid ()
+          (randomInt, nextSeed) = Random.step Util.randomInt m.seed
+          anId = TLID randomInt
           aPos = center
           aHandler =
             { ast = B.new ()
@@ -1570,14 +1624,18 @@ update_ msg m =
             , tlid = anId
             }
       in
-        RPC ([SetHandler anId aPos aHandler], FocusNothing)
+        Many [ RPC ([SetHandler anId aPos aHandler], FocusNothing)
+             , SetSeed nextSeed
+             ]
     CreateRouteHandler ->
       let center = findCenter m
         in Entry.submitOmniAction m center NewHTTPHandler
     CreateFunction ->
-      let ufun = Refactor.generateEmptyFunction ()
-        in RPC ( [ SetFunction ufun ]
-               , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
+      let (ufun, nextSeed) = Refactor.generateEmptyFunction m.seed
+        in Many [ RPC ( [ SetFunction ufun ]
+                      , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
+                , SetSeed nextSeed
+                ]
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
     

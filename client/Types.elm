@@ -2,13 +2,15 @@ module Types exposing (..)
 
 -- builtin
 import Dict exposing (Dict)
-import Http
 import Dom
-import Navigation
-import Mouse
-import Time exposing (Time)
-import PageVisibility
+import Http
 import Json.Decode as JSD
+import Keyboard.Event exposing (KeyboardEvent)
+import Mouse
+import Navigation
+import PageVisibility
+import Random
+import Time exposing (Time)
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -486,6 +488,7 @@ type alias Model = { error : Maybe String
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
+                   , seed: Random.Seed
                    }
 
 -- Values that we serialize
@@ -551,6 +554,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | SetLockedHandlers (List TLID)
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
+                  | SetSeed Random.Seed
 
 -----------------------------
 -- Flags / function types

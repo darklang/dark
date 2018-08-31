@@ -2,13 +2,15 @@ module Clipboard exposing (..)
 
 
 -- Dark
-import Types exposing (..)
-import Prelude exposing (..)
-import Toplevel as TL
-import Pointer as P
 import AST
 import Entry
-import Blank
+import Pointer as P
+import Prelude exposing (..)
+import Random
+import Toplevel as TL
+import Types exposing (..)
+import Util
+import Random.Steps
 
 copy : Model -> Toplevel -> (Maybe PointerData) -> Modification
 copy m tl mp =
@@ -34,24 +36,30 @@ cut m tl p =
         TLDB _ ->
           NoChange
         TLHandler h ->
-          let newClipboard = TL.find tl pid
-              newH = TL.delete tl p (gid ())
+          let (randomInt, nextSeed) = Random.step Util.randomInt m.seed
+              newClipboard = TL.find tl pid
+              newH = ID randomInt
+                    |> TL.delete tl p
                     |> TL.asHandler
                     |> deMaybe "cut"
 
           in Many [ CopyToClipboard newClipboard
                   , RPC ( [ SetHandler tl.id tl.pos newH ]
                           , FocusNext tl.id pred)
+                  , SetSeed nextSeed
                   ]
         TLFunc f ->
-          let newClipboard = TL.find tl pid
-              newF = TL.delete tl p (gid ())
+          let (randomInt, nextSeed) = Random.step Util.randomInt m.seed
+              newClipboard = TL.find tl pid
+              newF = ID randomInt
+                    |> TL.delete tl p
                     |> TL.asUserFunction
                     |> deMaybe "cut"
 
           in Many [ CopyToClipboard newClipboard
                   , RPC ( [ SetFunction newF ]
                           , FocusNext tl.id pred)
+                  , SetSeed nextSeed
                   ]
 
 paste : Model -> Toplevel -> ID -> Modification
@@ -84,16 +92,18 @@ peek m =
 
 newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
-  let nid = gtlid ()
+  let (randomInts, nextSeed) = Random.Steps.two Util.randomInt m.seed
+      nid = TLID randomInts.first
       ast =
         case peek m of
-          Nothing -> Blank.new ()
+          Nothing -> Blank (ID randomInts.second)
           Just a ->
             case a of
               PExpr exp -> exp
-              _ -> Blank.new ()
+              _ -> Blank (ID randomInts.second)
       spec = Entry.newHandlerSpec ()
       handler = { ast = ast, spec = spec, tlid = nid }
   in
-      RPC ([SetHandler nid pos handler], FocusNext nid Nothing)
-
+      Many [ RPC ([SetHandler nid pos handler], FocusNext nid Nothing)
+           , SetSeed nextSeed
+           ]
