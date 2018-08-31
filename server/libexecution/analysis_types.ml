@@ -112,7 +112,8 @@ type input_vars = (string * dval) list
                   [@@deriving to_yojson]
 
 type function_arg_hash = string [@@deriving yojson]
-type function_result = function_desc * function_arg_hash * dval
+type fnname = string [@@deriving yojson]
+type function_result = fnname * id * function_arg_hash * dval
                      [@@deriving to_yojson]
 type trace = { input: input_vars
              ; function_results: function_result list

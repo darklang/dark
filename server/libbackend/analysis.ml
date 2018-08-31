@@ -117,7 +117,12 @@ let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   | ivs ->
     List.map ivs
       ~f:(fun (trace_id, input_vars) ->
-          let function_results = [] in
+          let function_results =
+            Stored_function_result.load
+              ~trace_id
+              ~canvas_id:c.id
+              h.tlid
+          in
           { input = input_vars
           ; function_results
           })
