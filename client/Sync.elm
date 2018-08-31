@@ -39,9 +39,9 @@ fetch m =
   if (not m.syncState.inFlight)
       || (timedOut m.syncState)
   then
-    (markRequestInModel m) ! [RPC.getAnalysisRPC (toAnalyse m)]
+    ((markRequestInModel m), RPC.getAnalysisRPC (toAnalyse m))
   else
-    (markTickInModel m) ! []
+    ((markTickInModel m), Cmd.none)
 
 toAnalyse : Model -> List TLID
 toAnalyse m =

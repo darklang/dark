@@ -109,7 +109,7 @@ init {editorState, complete} location =
         |> Maybe.withDefault m.currentPage
 
       canvas = m.canvas
-      newCanvas = 
+      newCanvas =
         case page of
           Toplevels pos -> { canvas | offset = pos }
           Fn _ pos -> { canvas | fnOffset = pos }
@@ -144,13 +144,13 @@ init {editorState, complete} location =
 
   in
     if shouldRunIntegrationTest
-    then m2 ! [ RPC.integrationRPC m integrationTestName
-              , visibilityTask]
-    else m2 ! [ RPC.initialLoadRPC
+    then (m2, Cmd.batch [ RPC.integrationRPC m integrationTestName
+              , visibilityTask])
+    else (m2, Cmd.batch [ RPC.initialLoadRPC
                   (FocusPageAndCursor page savedCursorState)
               -- load the analysis even if the timers are off
               , RPC.getAnalysisRPC []
-              , visibilityTask]
+              , visibilityTask])
 
 
 -----------------------
@@ -316,7 +316,7 @@ updateMod mod (m, cmd) =
           in
           if hasNonHandlers
           then
-            m ! [RPC.rpc m focus params]
+            (m , RPC.rpc m focus params)
           else
             let localM =
                   List.foldl (\call m ->
@@ -337,18 +337,18 @@ updateMod mod (m, cmd) =
                                   ])
                             (localM, Cmd.none)
              in
-             withFocus ! [wfCmd, RPC.rpc withFocus FocusNoChange params]
+             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus FocusNoChange params])
 
     in
     case mod of
-      DisplayError e -> { m | error = Just e} ! []
+      DisplayError e -> ({ m | error = Just e}, Cmd.none)
       DisplayAndReportError e ->
         let json = JSE.object [ ("message", JSE.string e)
                               , ("url", JSE.null)
                               , ("custom", JSE.object [])
                               ]
         in
-        { m | error = Just e} ! [sendRollbar json]
+        ({ m | error = Just e}, sendRollbar json)
       DisplayAndReportHttpError context e ->
         let response =
               case e of
@@ -378,9 +378,9 @@ updateMod mod (m, cmd) =
                               ]
             cmds = if shouldRollbar then [sendRollbar json] else []
         in
-        { m | error = Just msg } ! cmds
+        ({ m | error = Just msg } , Cmd.batch cmds)
 
-      ClearError -> { m | error = Nothing} ! []
+      ClearError -> ({ m | error = Nothing} , Cmd.none)
 
       RPC (ops, focus) ->
         handleRPC (RPC.opsParams ops) focus
@@ -390,10 +390,10 @@ updateMod mod (m, cmd) =
       GetAnalysisRPC ->
         Sync.fetch m
 
-      NoChange -> m ! []
+      NoChange -> (m, Cmd.none)
       TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
-        { m | integrationTestState = expect } ! []
+        ({ m | integrationTestState = expect }, Cmd.none)
       EndIntegrationTest ->
         let expectationFn =
             case m.integrationTestState of
@@ -404,56 +404,56 @@ updateMod mod (m, cmd) =
                 impossible "Attempted to end integration test but none was running"
             result = expectationFn m
         in
-        { m | integrationTestState = IntegrationTestFinished result } ! []
+        ({ m | integrationTestState = IntegrationTestFinished result }, Cmd.none)
 
-      MakeCmd cmd -> m ! [cmd]
+      MakeCmd cmd -> (m, cmd)
 
       SetCursorState cursorState ->
         let newM = { m | cursorState = cursorState } in
-        newM ! [Entry.focusEntry newM]
+        (newM, Entry.focusEntry newM)
 
       SetPage page ->
         if m.currentPage == page
-        then m ! []
+        then (m, Cmd.none)
         else
           case (page, m.currentPage) of
             (Toplevels pos2, Toplevels _) ->
               -- scrolling
-              { m |
+              ({ m |
                 currentPage = page
                 , urlState = UrlState pos2
                 , canvas = Viewport.setCanvasOffset m.canvas page (Viewport.centerOnPos pos2)
-              } ! []
+              }, Cmd.none)
             (Fn _ pos2, _) ->
-              { m |
+              ({ m |
                 currentPage = page
                 , cursorState = Deselected
                 , urlState = UrlState pos2
                 , canvas = Viewport.setCanvasOffset m.canvas page Defaults.initialPos
-              } ! []
+              }, Cmd.none)
             _ ->
               let newM =
                 { m |
                   currentPage = page
                   , cursorState = Deselected
                 }
-              in newM ! closeBlanks newM
+              in (newM, Cmd.batch (closeBlanks newM))
 
       SetCenter center ->
         case m.currentPage of
           Toplevels pos ->
-            { m | currentPage = Toplevels center } ! []
+            ({ m | currentPage = Toplevels center }, Cmd.none)
           Fn id pos ->
-            { m | currentPage = Fn id center } ! []
+            ({ m | currentPage = Fn id center }, Cmd.none)
 
 
       Select tlid p ->
         let newM = { m | cursorState = Selecting tlid p } in
-        newM ! closeBlanks newM
+        (newM , Cmd.batch (closeBlanks newM))
 
       Deselect ->
         let newM = { m | cursorState = Deselected }
-        in newM ! (closeBlanks newM)
+        in (newM, Cmd.batch (closeBlanks newM))
 
       Enter entry ->
         let target =
@@ -469,7 +469,7 @@ updateMod mod (m, cmd) =
               processAutocompleteMods m [ ACSetTarget target ]
             m3 = { m2 | cursorState = Entering entry }
         in
-        m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
+        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
 
       SelectCommand tlid id ->
         let m2 = { m | cursorState = SelectingCommand tlid id }
@@ -477,7 +477,7 @@ updateMod mod (m, cmd) =
                             [ ACEnableCommandMode
                             , ACRegenerate ]
         in
-        m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
+        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
 
 
       SetGlobalVariables globals ->
@@ -485,7 +485,7 @@ updateMod mod (m, cmd) =
         processAutocompleteMods m2 [ ACRegenerate ]
 
       RemoveToplevel tl ->
-        Toplevel.remove m tl ! []
+        (Toplevel.remove m tl, Cmd.none)
 
       SetToplevels tls updateCurrent ->
         let m2 = { m | toplevels = tls }
@@ -565,7 +565,7 @@ updateMod mod (m, cmd) =
                     |> JSE.string
 
         in
-        m ! [ requestAnalysis param ]
+        (m, requestAnalysis param)
 
       UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
@@ -591,38 +591,38 @@ updateMod mod (m, cmd) =
         processAutocompleteMods m3 [ ACRegenerate ]
 
       SetUnlockedDBs unlockedDBs ->
-        { m | unlockedDBs = unlockedDBs } ! []
+        ({ m | unlockedDBs = unlockedDBs }, Cmd.none)
 
       Set404s f404s ->
-        { m | f404s = f404s } ! []
+        ({ m | f404s = f404s }, Cmd.none)
 
       SetHover p ->
         let nhovering = (p :: m.hovering) in
-        { m | hovering = nhovering } ! []
+        ({ m | hovering = nhovering }, Cmd.none)
       ClearHover p ->
         let nhovering = List.filter (\m -> m /= p) m.hovering in
-        { m | hovering = nhovering } ! []
+        ({ m | hovering = nhovering }, Cmd.none)
       SetCursor tlid cur ->
         let m2 = Analysis.setCursor m tlid cur in
-        m2 ! []
+        (m2, Cmd.none)
       CopyToClipboard clipboard ->
-        { m | clipboard = clipboard } ! []
+        ({ m | clipboard = clipboard }, Cmd.none)
       Drag tlid offset hasMoved state ->
-        { m | cursorState = Dragging tlid offset hasMoved state } ! []
+        ({ m | cursorState = Dragging tlid offset hasMoved state }, Cmd.none)
       ExecutingFunctionBegan tlid id ->
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
-        { m | executingFunctions = nexecutingFunctions } ! []
+        ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
       ExecutingFunctionRPC tlid id ->
         let params = { function = (tlid, id, Analysis.cursor m tlid) } in
-        m ! [RPC.executeFunctionRPC params]
+        (m, RPC.executeFunctionRPC params)
       ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
-        { m | executingFunctions = nexecutingFunctions } ! []
+        ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
       SetLockedHandlers locked ->
-        { m | lockedHandlers = locked } ! []
+        ({ m | lockedHandlers = locked }, Cmd.none)
       TweakModel fn ->
-        fn m ! []
+        (fn m, Cmd.none)
       AutocompleteMod mod ->
         processAutocompleteMods m [mod]
       -- applied from left to right
@@ -1580,7 +1580,7 @@ update_ msg m =
                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
-    
+
     EnablePanning pan ->
       let c = m.canvas
       in TweakModel (\m -> { m | canvas = { c | enablePan = pan } } )
