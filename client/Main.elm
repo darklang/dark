@@ -578,8 +578,8 @@ updateMod mod (m, cmd) =
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
-      UpdateInputVars inputVars ->
-        let m2 = { m | inputVars = inputVars } in
+      UpdateTraces traces ->
+        let m2 = { m | traces = traces } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
       SetUserFunctions userFuncs updateCurrent ->
@@ -1434,7 +1434,7 @@ update_ msg m =
     RPCCallback focus calls
       (Ok ( newToplevels
           , newDeletedToplevels
-          , newInputValues
+          , newTraces
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1442,7 +1442,7 @@ update_ msg m =
       then
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
-             , UpdateInputVars newInputValues
+             , UpdateTraces newTraces
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
@@ -1455,7 +1455,7 @@ update_ msg m =
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
-                , UpdateInputVars newInputValues
+                , UpdateTraces newTraces
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
@@ -1468,7 +1468,7 @@ update_ msg m =
     InitialLoadRPCCallback focus extraMod
       (Ok ( toplevels
           , deletedToplevels
-          , newInputValues
+          , newTraces
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1476,7 +1476,7 @@ update_ msg m =
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
-              , UpdateInputVars newInputValues
+              , UpdateTraces newTraces
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
               , SetUnlockedDBs unlockedDBs
@@ -1490,14 +1490,14 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       DisplayError <| "Success! " ++ msg
 
-    ExecuteFunctionRPCCallback (Ok (targets, newInputValues)) ->
-      Many [ UpdateInputVars newInputValues
+    ExecuteFunctionRPCCallback (Ok (targets, newTraces)) ->
+      Many [ UpdateTraces newTraces
            , ExecutingFunctionComplete targets ]
 
 
-    GetAnalysisRPCCallback (Ok (newInputValues, globals, f404s, unlockedDBs)) ->
+    GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
-           , UpdateInputVars newInputValues
+           , UpdateTraces newTraces
            , SetGlobalVariables globals
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
