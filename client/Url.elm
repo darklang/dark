@@ -14,16 +14,22 @@ import Prelude exposing (..)
 import Functions
 import Defaults
 
+urlOf : Pos -> Page -> String
+urlOf pos page =
+  let url =
+        case page of
+          Toplevels _ -> "#"
+          Fn tlid _ -> "#fn=" ++ toString (deTLID tlid) ++ "&"
+      params = "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
+  in url ++ params
+
 urlFor : Page -> String
 urlFor page =
-  let posStr pos =
-    "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
-  in
-  case page of
-    Toplevels pos ->
-      "#" ++  posStr pos
-    Fn tlid pos ->
-      "#fn=" ++ toString (deTLID tlid) ++ "&" ++ posStr pos
+  let pos =
+    case page of
+      Toplevels pos -> pos
+      Fn _ pos -> pos
+  in urlOf pos page
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
@@ -37,18 +43,18 @@ linkFor page class content =
 -- and update the browser url periodically.
 maybeUpdateScrollUrl : Model -> Modification
 maybeUpdateScrollUrl m =
-  let (pos, urlBase) =
+  let pos =
         case m.currentPage of
-          Toplevels _ -> (m.canvas.offset, "#")
-          Fn tlid _ -> (m.canvas.fnOffset, "#fn=" ++ toString (deTLID tlid) ++ "&")
+          Toplevels _ -> m.canvas.offset
+          Fn tlid _ -> m.canvas.fnOffset
       state = m.urlState
   in
   if pos /= state.lastPos
   then
-    let url = urlBase ++ "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
-    in Many [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
-            , MakeCmd (Navigation.modifyUrl url)
-            ]
+    Many
+      [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
+      , MakeCmd (Navigation.modifyUrl (urlOf pos m.currentPage))
+      ]
   else NoChange
 
 
