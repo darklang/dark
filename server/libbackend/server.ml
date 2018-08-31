@@ -249,15 +249,17 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(fun h -> (h.tlid, Analysis.initial_input_vars_for_handler !c h)))
+           ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)))
     in
 
     let (t4, fvals) = time "4-user-fn-analyses"
       (fun _ ->
-        !c.user_functions
-        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
-        |> List.map
-          ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)))
+        []
+        (* !c.user_functions *)
+        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
+        (* |> List.map *)
+        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        )
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
       (fun _ -> Analysis.unlocked !c) in
@@ -315,15 +317,17 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(fun h -> (h.tlid, Analysis.initial_input_vars_for_handler !c h)))
+           ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)))
     in
 
     let (t4, fvals) = time "4-user-fn-analyses"
       (fun _ ->
-        !c.user_functions
-        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
-        |> List.map
-          ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)))
+        []
+        (* !c.user_functions *)
+        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
+        (* |> List.map *)
+        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        )
     in
 
     let (t5, result) = time "5-to-frontend"
@@ -351,15 +355,17 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(fun h -> (h.tlid, Analysis.initial_input_vars_for_handler !c h)))
+           ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)))
     in
 
     let (t5, fvals) = time "5-user-fn-analyses"
       (fun _ ->
-        !c.user_functions
-        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
-        |> List.map
-          ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)))
+        []
+        (* !c.user_functions *)
+        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
+        (* |> List.map *)
+        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        )
     in
 
     let (t6, unlocked) = time "6-analyze-unlocked-dbs"

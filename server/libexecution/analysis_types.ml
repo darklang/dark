@@ -110,8 +110,16 @@ type analysis_result = tlid * analysis list
 
 type input_vars = (string * dval) list
                   [@@deriving to_yojson]
-type tlid_input_values = tlid * input_vars list
-                         [@@deriving to_yojson]
+
+type function_arg_hash = string [@@deriving yojson]
+type function_result = function_desc * function_arg_hash * dval
+                     [@@deriving to_yojson]
+type trace = { input: input_vars
+             ; function_results: function_result list
+             } [@@deriving to_yojson]
+
+type tlid_trace = tlid * trace list
+                [@@deriving to_yojson]
 
 let analysis_result_to_yojson (id, results) =
   `Assoc [ ("id", id_to_yojson id)
