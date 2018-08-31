@@ -53,6 +53,7 @@ defaultCanvas : CanvasProps
 defaultCanvas =
   { offset = initialPos
   , fnOffset = fnPos
+  , enablePan = True
   }
 
 defaultModel : Model

@@ -12,7 +12,6 @@ import Tuple2 as T2
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
-import Viewport
 import Toplevel as TL
 import Blank as B
 import Toplevel
@@ -402,7 +401,9 @@ viewRoutingTable m =
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
+               , eventNoPropagation "mouseover" (\_ -> EnablePanning False)
+               , eventNoPropagation "mouseout" (\_ -> EnablePanning True)
                ]
                sections
 
-  in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
+  in Html.div [ Attrs.id "sidebar-left" ] [html]

@@ -161,6 +161,7 @@ type Msg
     | RestoreToplevel TLID
     | LockHandler TLID Bool
     | ReceiveAnalysis JSD.Value
+    | EnablePanning Bool
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -451,6 +452,7 @@ type alias TLCursors = Dict Int Int
 type alias CanvasProps =
   { offset: Pos
   , fnOffset: Pos
+  , enablePan: Bool
   }
 
 type alias Model = { error : Maybe String
