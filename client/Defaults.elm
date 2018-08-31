@@ -3,6 +3,7 @@ module Defaults exposing (..)
 -- builtin
 -- lib
 import Dict
+import Random
 
 -- dark
 import Types exposing (..)
@@ -95,4 +96,5 @@ defaultModel = { error = Nothing
                , featureFlags = Dict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
+               , seed = Random.initialSeed 0
                }

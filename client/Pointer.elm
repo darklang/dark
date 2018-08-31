@@ -6,7 +6,6 @@ import Maybe
 -- dark
 import Types exposing (..)
 import Blank as B
-import Prelude exposing (..)
 import Runtime
 
 ------------------------
@@ -50,10 +49,6 @@ typeOf pd =
     PParamName _ -> ParamName
     PParamTipe _ -> ParamTipe
 
-
-emptyD : PointerType -> PointerData
-emptyD pt =
-  emptyD_ (gid()) pt
 
 toID : PointerData -> ID
 toID pd =
@@ -158,4 +153,3 @@ strmap fn pd =
     PFnName d -> PFnName (fn FnName d)
     PParamName d -> PParamName (fn ParamName d)
     PParamTipe _ -> pd
-

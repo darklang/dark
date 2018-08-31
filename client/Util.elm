@@ -3,6 +3,7 @@ module Util exposing (..)
 -- builtin
 import Regex
 import Char
+import Random
 
 -- lib
 import List.Extra as LE
@@ -20,6 +21,13 @@ windowSize a = let size = Native.Window.size a
 
 random : () -> Int
 random a = Native.Random.random a
+
+{-| A `Random` generator for `Int`s within the app
+used throughout the app for things like new IDs, new Blanks, etc
+-}
+randomInt : Random.Generator Int
+randomInt =
+    Random.int 0 2147483647
 
 htmlSize : String -> (Float, Float)
 htmlSize str = let size = Native.Size.size str

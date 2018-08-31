@@ -1,8 +1,19 @@
 module Refactor exposing (..)
 
 -- lib
+import AST
+import Analysis
+import Blank as B
 import List.Extra as LE
+import Nineteen.String
+import Pointer as P
+import Prelude exposing (..)
+import Random
 import Set exposing (Set)
+import Toplevel as TL
+import Types exposing (..)
+import Util
+import Random.Steps
 
 -- Dark
 import Types exposing (..)
@@ -15,9 +26,9 @@ import Blank as B
 import Analysis
 import Util
 
-generateFnName : () -> String
-generateFnName _ =
-  "fn_" ++ (() |> Util.random |> toString)
+functionNameFromInt : Int -> String
+functionNameFromInt int =
+  "fn_" ++ Nineteen.String.fromInt int
 
 convertTipe : Tipe -> Tipe
 convertTipe tipe =
@@ -108,8 +119,9 @@ toggleOnRail m tl p =
 
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
-  let extractVarInAst e ast  =
-      let varname = "var" ++ toString (Util.random())
+  let (randomInt, nextSeed) = Random.step Util.randomInt m.seed
+      extractVarInAst e ast  =
+      let varname = "var" ++ Nineteen.String.fromInt randomInt
           freeVariables =
             AST.freeVariables e
             |> List.map Tuple.second
@@ -161,6 +173,7 @@ extractVariable m tl p =
               Many [ RPC ([SetHandler tl.id tl.pos newHandler]
                          , FocusNoChange)
                    , Enter (Filling tl.id enterTarget)
+                   , SetSeed nextSeed
                    ]
         (PExpr e, TLFunc f) ->
           let (newAst, enterTarget) =
@@ -171,6 +184,7 @@ extractVariable m tl p =
               Many [ RPC ([SetFunction newF]
                          , FocusNoChange)
                    , Enter (Filling tl.id enterTarget)
+                   , SetSeed nextSeed
                    ]
         _ -> NoChange
 
@@ -183,13 +197,15 @@ extractFunction m tl p =
     PExpr body ->
       let pred = TL.getPrevBlank tl (Just p)
                |> Maybe.map P.toID
-          name = generateFnName ()
+          (name, firstSeed) = Random.step Util.randomInt m.seed
+                            |> Tuple.mapFirst functionNameFromInt
+          (randomInts, nextSeed) = Random.Steps.seven Util.randomInt firstSeed
           freeVars =
             AST.freeVariables body
           paramExprs =
-            List.map (\(_, name) -> F (gid ()) (Variable name)) freeVars
+            List.map (\(_, name) -> F (ID randomInts.first) (Variable name)) freeVars
           replacement =
-            PExpr (F (gid ()) (FnCall name paramExprs NoRail))
+            PExpr (F (ID randomInts.second) (FnCall name paramExprs NoRail))
           h =
             deMaybe
             "PointerData is a PExpr and isValidID for this TL"
@@ -204,28 +220,30 @@ extractFunction m tl p =
                           |> Maybe.withDefault TAny
                           |> convertTipe
               in
-                  { name = F (gid ()) name
-                  , tipe = F (gid ()) tipe
+                  { name = F (ID randomInts.third) name
+                  , tipe = F (ID randomInts.fourth) tipe
                   , block_args = []
                   , optional = False
                   , description = ""
                   })
                   freeVars
           metadata =
-            { name = F (gid ()) name
+            { name = F (ID randomInts.fifth) name
             , parameters = params
             , description = ""
-            , returnTipe = F (gid ()) TAny
+            , returnTipe = F (ID randomInts.sixth) TAny
             , infix = False
             }
           newF =
-            { tlid = gtlid ()
+            { tlid = TLID randomInts.seventh
             , metadata = metadata
             , ast = AST.clone body
             }
       in
-          RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
-              , FocusExact tl.id (P.toID replacement))
+          Many [ RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
+               , FocusExact tl.id (P.toID replacement))
+               , SetSeed nextSeed
+               ]
     _ -> NoChange
 
 renameFunction : Model -> UserFunction -> UserFunction -> List Op
@@ -417,23 +435,25 @@ removeFunctionParameter m uf ufp =
   in
       transformFnCalls m uf fn
 
-generateEmptyFunction : () -> UserFunction
-generateEmptyFunction _ =
-  let funcName = generateFnName ()
-      tlid = gtlid ()
+generateEmptyFunction : Random.Seed -> (UserFunction, Random.Seed)
+generateEmptyFunction seed =
+  let (funcName, firstSeed) = Random.step Util.randomInt seed
+                            |> Tuple.mapFirst functionNameFromInt
+      (randomInts, nextSeed) = Random.Steps.six Util.randomInt firstSeed
+      tlid = TLID randomInts.first
       params = [
-          { name = F (gid ()) "var"
-          , tipe = F (gid ()) TAny
+          { name = F (ID randomInts.second) "var"
+          , tipe = F (ID randomInts.third) TAny
           , block_args = []
           , optional = True
           , description = ""
           }
         ]
       metadata = {
-        name = F (gid ()) funcName
+        name = F (ID randomInts.fourth) funcName
         , parameters = params
         , description = ""
-        , returnTipe = F (gid ()) TAny
+        , returnTipe = F (ID randomInts.fifth) TAny
         , infix = False
       }
-  in (UserFunction tlid metadata (Blank (gid ())))
+  in (UserFunction tlid metadata (Blank (ID randomInts.sixth)), nextSeed)

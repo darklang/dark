@@ -58,9 +58,6 @@ deTLID (TLID i) = i
 gid : () -> ID -- Generate ID
 gid unit = ID (Util.random unit)
 
-gtlid : () -> TLID -- Generate ID
-gtlid unit = TLID (Util.random unit)
-
 
 --------------------------------------
 -- Crashing
