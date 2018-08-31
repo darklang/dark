@@ -799,19 +799,19 @@ decodeInputValueDict =
 
 decodeFunctionResult : JSD.Decoder FunctionResult
 decodeFunctionResult =
-  let toFunctionResult ((tlid, fnName, id), hash, value) =
-        { tlid = tlid
-        , fnName = fnName
+  let toFunctionResult (fnName, id, hash, value) =
+        { fnName = fnName
         , callerID = id
         , argHash = hash
         , value = value
         }
   in
   JSD.map toFunctionResult
-    (decodeTriple
-      (decodeTriple decodeTLID JSD.string decodeID)
+    (JSON.decodeQuadriple
       JSD.string
-      JSD.string)
+      decodeID
+      JSD.string
+      JSD.value)
 
 decodeTraces : JSD.Decoder Traces
 decodeTraces =
