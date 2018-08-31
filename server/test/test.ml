@@ -438,16 +438,24 @@ let t_stored_event_roundtrip () =
     (List.sort ~compare [desc1; desc2; desc3])
     (List.sort ~compare listed);
 
-  let loaded1 = SE.load_events ~canvas_id:id1 desc1 in
+  let loaded1 = SE.load_events ~canvas_id:id1 desc1
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load GET events" [DStr "2"; DStr "1"] loaded1;
 
-  let loaded2 = SE.load_events ~canvas_id:id1 desc3 in
+  let loaded2 = SE.load_events ~canvas_id:id1 desc3
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load POST events" [DStr "3"] loaded2;
 
-  let loaded3 = SE.load_events ~canvas_id:id2 desc3 in
+  let loaded3 = SE.load_events ~canvas_id:id2 desc3
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load no host2 events" [] loaded3;
 
-  let loaded4 = SE.load_events ~canvas_id:id2 desc2 in
+  let loaded4 = SE.load_events ~canvas_id:id2 desc2
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load host2 events" [DStr "3"] loaded4;
 
   ()

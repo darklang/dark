@@ -34,10 +34,10 @@ let list_events ~(canvas_id: Uuidm.t) () : event_desc list =
       | [module_; path; modifier] -> (module_, path, modifier)
       | _ -> Exception.internal "Bad DB format for stored_events")
 
-let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : RTT.dval list =
+let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : (Uuidm.t * RTT.dval) list =
   Db.fetch
     ~name:"load_events"
-    "SELECT value, timestamp FROM stored_events
+    "SELECT value, timestamp, trace_id FROM stored_events
     WHERE canvas_id = $1
       AND module = $2
       AND path = $3
@@ -49,7 +49,11 @@ let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : 
             ; String path
             ; String modifier]
   |> List.map ~f:(function
-      | [dval; _ts] -> Dval.dval_of_json_string dval
+      | [dval; _ts; trace_id] ->
+        let trace_id = Uuidm.of_string trace_id
+                       |> Option.value_exn ~message:("Bad UUID: " ^ trace_id)
+        in
+        (trace_id, Dval.dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_events")
 
 let clear_events ~(canvas_id: Uuidm.t) () : unit =
