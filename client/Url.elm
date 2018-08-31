@@ -2,6 +2,8 @@ module Url exposing (..)
 
 -- builtin
 import Dict
+import List
+import String
 
 -- lib
 import Html
@@ -14,22 +16,30 @@ import Prelude exposing (..)
 import Functions
 import Defaults
 
-urlOf : Pos -> Page -> String
-urlOf pos page =
-  let url =
+
+hashUrlParams : List (String, String) -> String
+hashUrlParams params =
+  let merged = List.map (\(k, v) -> k ++ "=" ++ v) params
+  in "#" ++ (String.join "&" merged) 
+
+urlOf : Page -> Pos -> String
+urlOf page pos =
+  let head =
         case page of
-          Toplevels _ -> "#"
-          Fn tlid _ -> "#fn=" ++ toString (deTLID tlid) ++ "&"
-      params = "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
-  in url ++ params
+          Toplevels _ -> []
+          Fn tlid _ -> [("fn", toString (deTLID tlid))]
+      tail =
+        [ ("x", toString pos.x)
+        , ("y", toString pos.y) ]
+  in hashUrlParams (head ++ tail)
 
 urlFor : Page -> String
 urlFor page =
-  let pos =
-    case page of
+  urlOf page
+    (case page of
       Toplevels pos -> pos
       Fn _ pos -> pos
-  in urlOf pos page
+    )
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
@@ -53,7 +63,7 @@ maybeUpdateScrollUrl m =
   then
     Many
       [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
-      , MakeCmd (Navigation.modifyUrl (urlOf pos m.currentPage))
+      , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
       ]
   else NoChange
 
