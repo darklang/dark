@@ -18,7 +18,7 @@ val store_event :
 val load_events :
   canvas_id:Uuidm.t ->
   event_desc ->
-  Types.RuntimeT.dval list
+  (Uuidm.t * Types.RuntimeT.dval) list
 
 val list_events :
   canvas_id:Uuidm.t ->

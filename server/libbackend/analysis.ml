@@ -62,7 +62,11 @@ let get_404s (c: canvas) : SE.four_oh_four list =
     ~f:(fun e ->
         not (List.exists handlers
                ~f:(fun h -> match_event h e)))
-  |> List.map ~f:(fun e -> (e, SE.load_events c.id e))
+  |> List.map ~f:(fun e ->
+      let events = SE.load_events c.id e
+                   |> List.map ~f:Tuple.T2.get2
+      in
+      (e, events))
 
 let global_vars (c: canvas) : string list =
   c.dbs
@@ -76,35 +80,48 @@ let global_vars (c: canvas) : string list =
 (* ------------------------- *)
 (* Input vars *)
 (* ------------------------- *)
-let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) =
+let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) : (Uuidm.t * input_vars) list =
   match Handler.event_desc_for h with
   | None -> []
   | Some (space, path, modifier as d) ->
     List.map (SE.load_events c.id d)
-      ~f:(fun e ->
+      ~f:(fun (id, e) ->
           match Handler.module_type h with
           | `Http ->
             let with_r = [("request", e)] in
             let bound = Libexecution.Execution.http_route_input_vars h path in
-            with_r @ bound
+            (id, with_r @ bound)
           | `Event ->
-            [("event", e)]
-          | `Cron  -> []
-          | `Unknown -> [] (* can't happen *)
+            (id, [("event", e)])
+          | `Cron  -> (id, [])
+          | `Unknown -> (id, []) (* can't happen *)
       )
 
 let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : RTT.input_vars list =
-  let saved = saved_input_vars c h in
-  let samples = Execution.sample_input_vars h in
-  if saved = []
-  then [samples]
-  else saved
+  match saved_input_vars c h with
+  | [] -> [Execution.sample_input_vars h]
+  | l -> List.map ~f:Tuple.T2.get2 l
 
 let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   : RTT.input_vars list =
   Stored_function_arguments.load ~canvas_id:c.id fn.tlid
   |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
+
+let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
+  : trace list =
+  match saved_input_vars c h with
+  | [] ->
+    [{ input = Execution.sample_input_vars h
+     ; function_results = []}]
+  | ivs ->
+    List.map ivs
+      ~f:(fun (trace_id, input_vars) ->
+          let function_results = [] in
+          { input = input_vars
+          ; function_results
+          })
+
 
 
 (* --------------------- *)
@@ -113,7 +130,7 @@ let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
 
 (* The full response with everything *)
 type get_analysis_response =
-  { tlid_input_values : tlid_input_values list
+  { traces : tlid_trace list
   ; global_varnames : string list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list [@key "404s"]
@@ -126,7 +143,7 @@ type get_analysis_response =
 
 (* A subset of responses to be merged in *)
 type rpc_response =
-  { new_tlid_input_values : tlid_input_values list (* merge: overwrite existing analyses *)
+  { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
   ; global_varnames : string list (* replace *)
   ; toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
@@ -135,16 +152,16 @@ type rpc_response =
   } [@@deriving to_yojson]
 
 type execute_function_response =
-  { new_tlid_input_values : tlid_input_values list (* merge: overwrite existing analyses *)
+  { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
   ; targets : executable_fn_id list
   } [@@deriving to_yojson]
 
 
-let to_getanalysis_frontend (vals : tlid_input_values list)
+let to_getanalysis_frontend (traces: tlid_trace list)
       (unlocked : tlid list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
-  { tlid_input_values = vals
+  { traces
   ; global_varnames = global_vars c
   ; unlocked_dbs = unlocked
   ; fofs = f404s
@@ -153,10 +170,10 @@ let to_getanalysis_frontend (vals : tlid_input_values list)
   |> Yojson.Safe.to_string ~std:true
 
 
-let to_rpc_response_frontend (c : canvas) (vals : tlid_input_values list)
+let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
     (unlocked : tlid list)
   : string =
-  { new_tlid_input_values = vals
+  { new_traces = traces
   ; global_varnames = global_vars c
   ; toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted
@@ -166,9 +183,9 @@ let to_rpc_response_frontend (c : canvas) (vals : tlid_input_values list)
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
-let to_execute_function_response_frontend (targets : executable_fn_id list) (vals : tlid_input_values list)
+let to_execute_function_response_frontend (targets : executable_fn_id list) (traces: tlid_trace list)
   : string =
-  { new_tlid_input_values = vals
+  { new_traces = traces
   ; targets = targets
   }
   |> execute_function_response_to_yojson
