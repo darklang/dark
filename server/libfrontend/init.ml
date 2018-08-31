@@ -56,10 +56,8 @@ let convert_db (db : our_db) : DbT.db =
   ; active_migration = db.active_migration
   }
 
-type analysis_param = { handlers : handler_list
-                      (* for each handler, list of input_vars each representing
-                       * a single request *)
-                      ; input_vars : input_vars list list
+type analysis_param = { handler : HandlerT.handler
+                      ; trace: Analysis_types.trace
                       ; dbs : our_db list
                       ; user_fns : user_fn list
                       } [@@deriving of_yojson]
@@ -67,36 +65,26 @@ type analysis_param = { handlers : handler_list
 
 
 let perform_analysis (str : string) : string =
-  let { handlers; dbs; user_fns; input_vars } =
+  let { handler; dbs; user_fns; trace } =
     str
     |> Yojson.Safe.from_string
     |> analysis_param_of_yojson
     |> Result.ok_or_failwith
   in
   let dbs : DbT.db list = List.map ~f:convert_db dbs in
+  let input_vars = trace.input in
 
-  handlers
-  |> List.zip_exn input_vars
-  |> List.map ~f:(fun (input_vars_list, h) ->
-      let input_vars_list =
-        if input_vars_list = []
-        then [Execution.sample_input_vars h]
-        else input_vars_list
-      in
-      ( h.tlid
-      , List.map input_vars_list
-          ~f:(fun input_vars ->
-              Execution.analyse_ast h.ast
-                ~tlid:h.tlid
-                ~exe_fn_ids:[]
-                ~execution_id:(Types.id_of_int 1)
-                ~account_id:(Util.create_uuid ())
-                ~canvas_id:(Util.create_uuid ())
-                ~input_vars
-                ~dbs
-                ~user_fns
-                ~load_fn_result:Execution.load_no_results
-                ~load_fn_arguments:Execution.load_no_arguments)))
-  |> Analysis_types.analysis_result_list_to_yojson
+  Execution.analyse_ast handler.ast
+    ~tlid:handler.tlid
+    ~exe_fn_ids:[]
+    ~execution_id:(Types.id_of_int 1)
+    ~account_id:(Util.create_uuid ())
+    ~canvas_id:(Util.create_uuid ())
+    ~input_vars
+    ~dbs
+    ~user_fns
+    ~load_fn_result:Execution.load_no_results
+    ~load_fn_arguments:Execution.load_no_arguments
+  |> Analysis_types.analysis_to_yojson
   |> Yojson.Safe.to_string
 

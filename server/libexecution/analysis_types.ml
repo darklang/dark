@@ -109,15 +109,15 @@ type analysis_list = analysis list
 type analysis_result = tlid * analysis list
 
 type input_vars = (string * dval) list
-                  [@@deriving to_yojson]
+                  [@@deriving yojson]
 
 type function_arg_hash = string [@@deriving yojson]
 type fnname = string [@@deriving yojson]
 type function_result = fnname * id * function_arg_hash * dval
-                     [@@deriving to_yojson]
+                     [@@deriving yojson]
 type trace = { input: input_vars
              ; function_results: function_result list
-             } [@@deriving to_yojson]
+             } [@@deriving yojson]
 
 type tlid_trace = tlid * trace list
                 [@@deriving to_yojson]
