@@ -13,7 +13,7 @@ import Blank as B
 import Pointer as P
 import AST
 import Analysis
-import Nineteen.Debug
+import Nineteen.Debug as Debug
 
 
 trigger : String -> IntegrationTestState
@@ -63,7 +63,7 @@ trigger test_name =
     "rename_function" -> rename_function
     "sending_to_rail_works" -> sending_to_rail_works
     "feature_flag_in_function" -> feature_flag_in_function
-    n -> Nineteen.Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
+    n -> Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
 pass = Ok ()
@@ -75,9 +75,9 @@ onlyTL : Model -> Toplevel
 onlyTL m =
   let len = List.length m.toplevels
       _ = if len == 0
-          then Nineteen.Debug.todo ("no toplevels")
+          then Debug.todo ("no toplevels")
           else if len > 1
-          then Nineteen.Debug.todo ("too many toplevels: " ++ (toString m.toplevels))
+          then Debug.todo ("too many toplevels: " ++ (toString m.toplevels))
           else "nothing to see here" in
   m.toplevels
   |> List.head

@@ -3,7 +3,7 @@ module Prelude exposing (..)
 -- dark
 import Types exposing (..)
 import Util
-import Nineteen.Debug
+import Nineteen.Debug as Debug
 
 --------------------------------------
 -- CursorState
@@ -90,7 +90,7 @@ assert fn a =
 --   impossible ("The widges can't arrive in this order:", myVar)
 impossible : a -> b
 impossible a =
-  Nineteen.Debug.todo ("something impossible occurred: " ++ (toString a))
+  Debug.todo ("something impossible occurred: " ++ (toString a))
 
 
 -- Like impossible but has a different semantic meaning. If you have a
@@ -105,11 +105,11 @@ recoverable msg val =
             ++ toString val
       -- TODO: surface the error to the user and in rollbar and
       -- continue.
-      _ = Nineteen.Debug.todo error
+      _ = Debug.todo error
   in
   val
 
 -- Like impossible but with the message TODO
 todo : a -> b
 todo a =
-  Nineteen.Debug.todo ("TODO: " ++ (toString a))
+  Debug.todo ("TODO: " ++ (toString a))
