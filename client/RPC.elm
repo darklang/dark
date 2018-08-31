@@ -824,6 +824,23 @@ decodeTrace =
   |> JSDP.required "input" decodeInputValueDict
   |> JSDP.required "function_results" (JSD.list decodeFunctionResult)
 
+encodeTrace : Trace -> JSE.Value
+encodeTrace (input, functionResults) =
+  JSE.object [ ( "input"
+               , JSON.encodeList
+                   (encodePair JSE.string identity)
+                   (Dict.toList input))
+             , ( "function_results"
+               , JSON.encodeList encodeFunctionResult functionResults)
+            ]
+
+encodeFunctionResult : FunctionResult -> JSE.Value
+encodeFunctionResult fr =
+  JSE.list [ JSE.string fr.fnName
+           , encodeID fr.callerID
+           , JSE.string fr.argHash
+           , fr.value
+           ]
 
 decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
 decodeExecuteFunctionTarget =

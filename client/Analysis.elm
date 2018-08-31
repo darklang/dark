@@ -90,9 +90,8 @@ getAvailableVarnames m tlid (ID id) =
   |> Dict.get id
   |> Maybe.withDefault []
 
-getInputVars : Model -> TLID -> List InputValueDict
-getInputVars m tlid =
+getTraces : Model -> TLID -> List Trace
+getTraces m tlid =
   Dict.get (deTLID tlid) m.traces
-  |> Maybe.map (List.map Tuple.first)
   |> Maybe.withDefault []
 

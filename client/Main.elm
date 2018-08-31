@@ -545,32 +545,29 @@ updateMod mod (m, cmd) =
         processAutocompleteMods m2 [ ACRegenerate ]
 
 
-
-
-
       RequestAnalysis tls ->
         let handlers = TL.handlers tls
-
-            inputVars =
-              List.map (\h -> Analysis.getInputVars m h.tlid) handlers
-
-            encodedIVs =
-              JSON.encodeList (JSON.encodeList RPC.encodeInputValueDict) inputVars
-
             dbs = TL.dbs tls
             userFns = m.userFunctions
 
-            param =
-              JSE.object [ ( "handlers"
-                           , JSON.encodeList RPC.encodeHandler handlers)
-                         , ( "input_vars"
-                           , encodedIVs)
-                         , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
-                         , ( "user_fns"
-                           , JSON.encodeList RPC.encodeUserFunction userFns)
-                         ]
+            req h =
+              let traces = Analysis.getTraces m h.tlid
+                  param t =
+                    JSE.object [ ( "handler" , RPC.encodeHandler h)
+                               , ( "trace" , RPC.encodeTrace t)
+                               , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
+                               , ( "user_fns"
+                                 , JSON.encodeList RPC.encodeUserFunction userFns)
+                               ]
+              in
+              List.map
+                (\t -> requestAnalysis (JSE.encode 0 (param t)))
+                traces
+
         in
-        m ! [ requestAnalysis (JSE.encode 0 param) ]
+        m ! (handlers
+             |> List.map req
+             |> List.concat)
 
       UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
