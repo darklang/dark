@@ -22,7 +22,7 @@ initialPos : Pos
 initialPos = {x=475, y=325}
 
 fnPos : Pos
-fnPos = {x=0, y=0}
+fnPos = {x=475, y=325}
 
 moveSize : Int
 moveSize = 50

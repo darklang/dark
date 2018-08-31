@@ -71,10 +71,6 @@ moveTo : Pos -> Modification
 moveTo pos =
   SetCenter pos
 
-centerOnPos : Pos -> Pos
-centerOnPos pos =
-  subPos Defaults.initialPos pos
-
 setCanvasOffset : CanvasProps -> Page -> Pos -> CanvasProps
 setCanvasOffset canvas page pos =
   case page of

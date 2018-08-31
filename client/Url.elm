@@ -7,16 +7,12 @@ import Dict
 import Html
 import Html.Attributes as Attrs
 import Navigation
--- import Maybe.Extra as ME
-
 
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
 import Defaults
-import Viewport
-
 
 urlFor : Page -> String
 urlFor page =
@@ -41,12 +37,21 @@ linkFor page class content =
 -- and update the browser url periodically.
 maybeUpdateScrollUrl : Model -> Modification
 maybeUpdateScrollUrl m =
-  let pos = Viewport.pagePos m.currentPage
+  let pos =
+        case m.currentPage of
+          Toplevels _ -> m.canvas.offset
+          Fn _ _ -> m.canvas.fnOffset
       state = m.urlState
   in
   if pos /= state.lastPos
-  then Many [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
-            , MakeCmd (Navigation.modifyUrl (urlFor m.currentPage))
+  then
+    let posStr = "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
+        url =
+          case m.currentPage of
+            Toplevels _ -> "#" ++ posStr
+            Fn tlid _ -> "#fn=" ++ toString (deTLID tlid) ++ "&" ++ posStr
+    in Many [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
+            , MakeCmd (Navigation.modifyUrl url)
             ]
   else NoChange
 

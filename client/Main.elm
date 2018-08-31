@@ -422,15 +422,15 @@ updateMod mod (m, cmd) =
               ({ m |
                 currentPage = page
                 , urlState = UrlState pos2
-                , canvas = Viewport.setCanvasOffset m.canvas page (Viewport.centerOnPos pos2)
-              }, Cmd.none)
+                , canvas = Viewport.setCanvasOffset m.canvas page pos2
+                }, Cmd.none)
             (Fn _ pos2, _) ->
               ({ m |
                 currentPage = page
                 , cursorState = Deselected
                 , urlState = UrlState pos2
-                , canvas = Viewport.setCanvasOffset m.canvas page Defaults.initialPos
-              }, Cmd.none)
+                , canvas = Viewport.setCanvasOffset m.canvas page pos2
+                }, Cmd.none)
             _ ->
               let newM =
                 { m |
