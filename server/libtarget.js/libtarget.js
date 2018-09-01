@@ -2,3 +2,10 @@
 function dark_targetjs_digest384(s){
   return "not implemented yet"
 }
+
+// Temporary, should be fixed in js_of_ocaml >3.2.1:
+// https://github.com/ocsigen/js_of_ocaml/issues/693
+// https://github.com/ocsigen/js_of_ocaml/commit/390fd5f1d2bbaed8d9da3df2a77a6b67f248ebbb
+
+//Provides: caml_restore_raw_backtrace
+function caml_restore_raw_backtrace(exn, bt) { return 0 }
