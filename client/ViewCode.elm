@@ -16,6 +16,7 @@ import Svg.Attributes as SA
 import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
+import RPC
 import AST
 import Blank as B
 import ViewBlankOr exposing (..)
@@ -176,10 +177,10 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RT.typeOfString |> toString |> String.toLower
+      let cssClass = v |> RPC.typeOfString |> toString |> String.toLower
           value =
             -- TODO: remove
-            if RT.typeOfString v == TStr
+            if RPC.typeOfString v == TStr
             then transformToStringEntry v
             else v
           computedValue =

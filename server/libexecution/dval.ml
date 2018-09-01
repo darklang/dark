@@ -364,8 +364,11 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Tuple v -> Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
     DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
-  | `Assoc [("type", `String "incomplete"); ("value", `Null)] ->
-    DIncomplete
+  | `Assoc [("type", `String tipe); ("value", `Null)] ->
+    (match tipe with
+     | "incomplete" -> DIncomplete
+     | "block" -> Exception.user "Can't deserialize blocks"
+     | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from null"))
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     (match tipe with
     | "date" -> DDate (date_of_isostring v)
@@ -376,9 +379,8 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "char" -> DChar (Char.of_string v)
     | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
     | "db" -> Exception.user "Can't deserialize DBs"
-    | "block" -> Exception.user "Can't deserialize blocks"
     | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
-    | _ -> Exception.user ("Can't deserialize type: " ^ tipe))
+    | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from " ^ v))
   | `Assoc _ -> DObj (dvalmap_of_yojson json)
 and dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
   match json with
