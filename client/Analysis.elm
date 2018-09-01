@@ -9,36 +9,38 @@ import Prelude exposing (..)
 import Types exposing (..)
 import Pointer as P
 
-varnamesFor : Model -> Maybe (TLID, PointerData) -> List VarName
-varnamesFor m target =
+-- "current" in this indicates that it uses the cursor to pick the right inputValue
+
+currentVarnamesFor : Model -> Maybe (TLID, PointerData) -> List VarName
+currentVarnamesFor m target =
   case target of
     Nothing -> m.globals
     Just (tlid, pd) ->
-      getAvailableVarnames m tlid (P.toID pd)
+      getCurrentAvailableVarnames m tlid (P.toID pd)
 
+defaultResults : AnalysisResults
+defaultResults =
+  { liveValues = Dict.empty
+  , availableVarnames = Dict.empty
+  }
 
-getAnalysisResults : Model -> TLID -> List AResult
-getAnalysisResults m tlid =
-  m.analysis
-  |> List.filter (\tlar -> tlar.id == tlid)
-  |> List.head
+getCurrentAnalysisResults : Model -> TLID -> AnalysisResults
+getCurrentAnalysisResults m tlid =
+  let traceIndex = cursor m tlid
+      traceID = Dict.get (deTLID tlid) m.traces
+                |> Maybe.andThen (LE.getAt traceIndex)
+                |> Maybe.map .id
+                |> Maybe.withDefault "invalid trace key"
+  in
   -- only handlers have analysis results, but lots of stuff expect this
   -- data to exist. It may be better to not do that, but this is fine
   -- for now.
-  |> Maybe.map .results
-  |> Maybe.withDefault [{ astValue = { value = "null"
-                                     , tipe = TNull
-                                     , json = "null"
-                                     , exc = Nothing
-                                     }
-                        , liveValues = Dict.empty
-                        , availableVarnames = Dict.empty
-                        , inputValues = Dict.empty
-                        }]
+  Dict.get traceID m.analyses
+  |> Maybe.withDefault defaultResults
 
-replace : List TLAResult -> List TLAResult -> List TLAResult
-replace old new =
-  LE.uniqueBy (\tlar -> deTLID tlar.id) (new ++ old)
+record : Analyses -> TraceID -> AnalysisResults -> Analyses
+record old id result =
+  Dict.insert id result old
 
 cursor : Model -> TLID -> Int
 cursor m tlid =
@@ -57,36 +59,32 @@ setCursor m tlid cursor =
   { m | tlCursors =  newCursors}
 
 
-getLiveValuesDict : Model -> TLID -> LVDict
-getLiveValuesDict m tlid =
-  getAnalysisResults m tlid
-  |> LE.getAt (cursor m tlid)
-  |> Maybe.map .liveValues
-  |> Maybe.withDefault (Dict.empty)
+getCurrentLiveValuesDict : Model -> TLID -> LVDict
+getCurrentLiveValuesDict m tlid =
+  getCurrentAnalysisResults m tlid
+  |> .liveValues
 
-getLiveValue : Model -> TLID -> ID -> Maybe LiveValue
-getLiveValue m tlid (ID id) =
+getCurrentLiveValue : Model -> TLID -> ID -> Maybe LiveValue
+getCurrentLiveValue m tlid (ID id) =
   tlid
-  |> getLiveValuesDict m
+  |> getCurrentLiveValuesDict m
   |> Dict.get id
 
-getTipeOf : Model -> TLID -> ID -> Maybe Tipe
-getTipeOf m tlid id =
-  case getLiveValue m tlid id of
+getCurrentTipeOf : Model -> TLID -> ID -> Maybe Tipe
+getCurrentTipeOf m tlid id =
+  case getCurrentLiveValue m tlid id of
     Nothing -> Nothing
     Just lv -> Just lv.tipe
 
-getAvailableVarnamesDict : Model -> TLID -> AVDict
-getAvailableVarnamesDict m tlid =
-  getAnalysisResults m tlid
-  |> LE.getAt (cursor m tlid)
-  |> Maybe.map .availableVarnames
-  |> Maybe.withDefault (Dict.empty)
+getCurrentAvailableVarnamesDict : Model -> TLID -> AVDict
+getCurrentAvailableVarnamesDict m tlid =
+  getCurrentAnalysisResults m tlid
+  |> .availableVarnames
 
-getAvailableVarnames : Model -> TLID -> ID -> List VarName
-getAvailableVarnames m tlid (ID id) =
+getCurrentAvailableVarnames : Model -> TLID -> ID -> List VarName
+getCurrentAvailableVarnames m tlid (ID id) =
   tlid
-  |> getAvailableVarnamesDict m
+  |> getCurrentAvailableVarnamesDict m
   |> Dict.get id
   |> Maybe.withDefault []
 

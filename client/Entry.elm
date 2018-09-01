@@ -156,7 +156,7 @@ replaceExpr m tlid ast old_ action value =
                 (B.new ())))
 
         -- variables
-        else if List.member value (Analysis.varnamesFor m target)
+        else if List.member value (Analysis.currentVarnamesFor m target)
         then (old_, B.newF (Variable value))
 
         -- parsed exprs
@@ -257,7 +257,7 @@ submit m cursor action =
                (B.new ()))
 
       -- varnames
-      else if List.member value (Analysis.varnamesFor m Nothing)
+      else if List.member value (Analysis.currentVarnamesFor m Nothing)
       then wrapExpr <| B.newF (Variable value)
 
       -- start new AST

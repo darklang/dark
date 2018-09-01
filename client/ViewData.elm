@@ -8,6 +8,7 @@ import Html
 import Html.Attributes as Attrs
 
 -- dark
+import Blank as B
 import Types exposing (..)
 import Prelude exposing (..)
 import ViewUtils exposing (..)
@@ -30,7 +31,7 @@ viewInput tlid idx value isActive isHover tipe =
   Html.li ([(Attrs.attribute "data-content" value)] ++ classes ++ events)
           [Html.text "•"]
 
-asValue : InputDict -> String
+asValue : InputValueDict -> String
 asValue inputValue =
   inputValue
   |> Dict.toList
@@ -40,28 +41,34 @@ asValue inputValue =
                          ++ Util.replace "\n" "\n  " v.value)
   |> String.join "\n"
 
-viewInputs : ViewState -> List (Html.Html Msg)
-viewInputs vs =
-  let resultToHtml idx result =
-    let value = asValue result.inputValues
+viewInputs : ViewState -> ID -> List (Html.Html Msg)
+viewInputs vs (ID astID) =
+  let traceToHtml idx trace =
+    let value = asValue trace.input
         -- Note: the following tlCursors are very different things.
         isActive = (Analysis.cursor_ vs.tlCursors vs.tl.id) == idx
         -- Note: this is not the same tlCursor as above
         hoverID = tlCursorID vs.tl.id idx
         isHover = vs.hovering == Just hoverID
+        astTipe = Dict.get trace.id vs.analyses
+                  |> Maybe.map .liveValues
+                  |> Maybe.andThen (Dict.get astID)
+                  |> Maybe.map .tipe
+                  |> Maybe.withDefault TIncomplete
     in
-    viewInput vs.tl.id idx value isActive isHover result.astValue.tipe
+    viewInput vs.tl.id idx value isActive isHover astTipe
   in
-  List.indexedMap resultToHtml vs.results
+  List.indexedMap traceToHtml vs.traces
 
 
-viewData : ViewState -> List (Html.Html Msg)
-viewData vs =
-  let requestEls = viewInputs vs
+viewData : ViewState -> Expr -> List (Html.Html Msg)
+viewData vs ast =
+  let astID = B.toID ast
+      requestEls = viewInputs vs astID
       selectedValue =
         case vs.cursorState of
           Selecting tlid (Just (ID id)) ->
-            Dict.get id vs.lvs
+            Dict.get id vs.currentResults.liveValues
           _ -> Nothing
   in
   case selectedValue of

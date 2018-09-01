@@ -31,7 +31,7 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
             ; String (hash arglist)
             ; DvalJson result]
 
-let load ~canvas_id ~trace_id tlid : function_result list =
+let load ~canvas_id ~trace_id tlid : (RTT.dval function_result) list =
   Db.fetch
     ~name:"sfr_load"
     "SELECT fnname, id, hash, value, timestamp

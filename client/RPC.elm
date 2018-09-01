@@ -578,32 +578,23 @@ encodeLiveValue lv =
 
 
 
-decodeAResult : JSD.Decoder AResult
-decodeAResult =
-  let toAResult astValue liveValues availableVarnames inputValues =
-        { astValue = astValue
-        , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
+decodeAnalysisResults : JSD.Decoder AnalysisResults
+decodeAnalysisResults =
+  let toAResult liveValues availableVarnames =
+        { liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
         , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
-        , inputValues = inputValues
         }
   in
-      JSDP.decode toAResult
-      |> JSDP.required "ast_value" decodeLiveValue
-      |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
-      |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
-      |> JSDP.required "input_values" (JSD.dict decodeLiveValue)
+  JSDP.decode toAResult
+  |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
+  |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
 
-decodeTLAResult : JSD.Decoder TLAResult
-decodeTLAResult =
-  let toTLAResult tlid results =
-        { id = TLID tlid
-        , results = results
-        }
-  in
-      JSDP.decode toTLAResult
-      |> JSDP.required "id" JSD.int
-      |> JSDP.required "results" (JSD.list decodeAResult)
+decodeAnalysisEnvelope : JSD.Decoder (TraceID, AnalysisResults)
+decodeAnalysisEnvelope =
+  JSDP.decode (,)
+  |> JSDP.required "trace_id" JSD.string
+  |> JSDP.required "analysis_results" decodeAnalysisResults
 
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
@@ -790,12 +781,12 @@ encodeInputValueDict : InputValueDict -> JSE.Value
 encodeInputValueDict dict =
   dict
   |> Dict.toList
-  |> encodeList (encodePair JSE.string identity)
+  |> encodeList (encodePair JSE.string encodeLiveValue)
 
 decodeInputValueDict : JSD.Decoder InputValueDict
 decodeInputValueDict =
   JSD.map Dict.fromList
-    (JSD.list (decodePair JSD.string JSD.value))
+    (JSD.list (decodePair JSD.string decodeLiveValue))
 
 decodeFunctionResult : JSD.Decoder FunctionResult
 decodeFunctionResult =
@@ -820,18 +811,23 @@ decodeTraces =
 
 decodeTrace : JSD.Decoder Trace
 decodeTrace =
-  JSDP.decode (,)
+  let toTrace id input functionResults =
+    { id = id, input = input, functionResults = functionResults }
+  in
+  JSDP.decode toTrace
+  |> JSDP.required "id" JSD.string
   |> JSDP.required "input" decodeInputValueDict
   |> JSDP.required "function_results" (JSD.list decodeFunctionResult)
 
 encodeTrace : Trace -> JSE.Value
-encodeTrace (input, functionResults) =
+encodeTrace t =
   JSE.object [ ( "input"
                , JSON.encodeList
-                   (encodePair JSE.string identity)
-                   (Dict.toList input))
+                   (encodePair JSE.string encodeLiveValue)
+                   (Dict.toList t.input))
              , ( "function_results"
-               , JSON.encodeList encodeFunctionResult functionResults)
+               , JSON.encodeList encodeFunctionResult t.functionResults)
+             , ( "id", JSE.string t.id)
             ]
 
 encodeFunctionResult : FunctionResult -> JSE.Value

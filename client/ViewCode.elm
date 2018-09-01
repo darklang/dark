@@ -270,7 +270,7 @@ viewNExpr d id vs config e =
           allExprs = previous ++ exprs
           isComplete v =
             v
-            |> getLiveValue vs.lvs
+            |> getLiveValue vs.currentResults.liveValues
             |> \v ->
                  case v of
                    Nothing -> False
@@ -464,7 +464,7 @@ viewNExpr d id vs config e =
               [ if isExpanded then hideModal else expandModal ]
             ]
 
-          condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
+          condValue = ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
           condResult =
             case condValue of
               Just (Ok lv) -> Runtime.isTrue lv.value

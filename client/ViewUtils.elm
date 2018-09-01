@@ -31,10 +31,11 @@ type alias ViewState =
   , ac: Autocomplete
   , handlerSpace: HandlerSpace
   , showEntry : Bool
-  , lvs: LVDict
   , dbLocked : Bool
+  , currentResults : AnalysisResults -- for current selected cursor/trace
+  , traces : List Trace
+  , analyses : Analyses
   , ufns: List UserFunction
-  , results: List AResult
   , relatedBlankOrs: List ID
   , tooWide: Bool
   , executingFunctions: List ID
@@ -72,10 +73,11 @@ createVS m tl = { tl = tl
                 , showEntry = True
                 , handlerSpace = TL.spaceOf tl
                                |> Maybe.withDefault HSOther
-                , lvs = Analysis.getLiveValuesDict m tl.id
                 , dbLocked = DB.isLocked m tl.id
                 , ufns = m.userFunctions
-                , results = Analysis.getAnalysisResults m tl.id
+                , currentResults = Analysis.getCurrentAnalysisResults m tl.id
+                , traces = Analysis.getTraces m tl.id
+                , analyses = m.analyses
                 , relatedBlankOrs =
                     case unwrapCursorState m.cursorState of
                       Entering (Filling _ id) ->

@@ -348,7 +348,7 @@ case_sensitivity m =
                                      (F _ (Variable "var"))
                                      (F _ "cOlUmNnAmE"))))]) ->
 
-                     Analysis.getLiveValue m tl.id id
+                     Analysis.getCurrentLiveValue m tl.id id
                      |> Maybe.map (\lv ->
                        if lv.value == "\"some value\""
                        then pass

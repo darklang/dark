@@ -442,7 +442,7 @@ generateFromModel m a =
             |> Maybe.map .ast
             |> Maybe.andThen (AST.getValueParent p)
             |> Maybe.map P.toID
-            |> Maybe.andThen (Analysis.getLiveValue m tlid)
+            |> Maybe.andThen (Analysis.getCurrentLiveValue m tlid)
             -- don't filter on incomplete values
             |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
                                      then Nothing
@@ -592,7 +592,7 @@ generateFromModel m a =
               _ -> []
           _ -> []
 
-      varnames = Analysis.varnamesFor m a.target
+      varnames = Analysis.currentVarnamesFor m a.target
       keywords =
         if isExpression
         then

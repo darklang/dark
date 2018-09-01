@@ -108,9 +108,9 @@ viewLiveValue vs =
   let cursorLiveValue =
         case vs.cursorState of
           Selecting tlid (Just (ID id)) ->
-            Dict.get id vs.lvs
+            Dict.get id vs.currentResults.liveValues
           Entering (Filling tlid (ID id)) ->
-            Dict.get id vs.lvs
+            Dict.get id vs.currentResults.liveValues
           _ -> Nothing
   in
       case cursorLiveValue of
@@ -161,7 +161,7 @@ div vs configs content =
                                  _ -> Nothing)
 
 
-      value = getLiveValue vs.lvs
+      value = getLiveValue vs.currentResults.liveValues
 
       selectedID =
         case vs.cursorState of

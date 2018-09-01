@@ -361,7 +361,7 @@ updateMod mod (m, cmd) =
                 Http.Timeout -> "Timeout"
                 Http.NetworkError -> "Network error - is the server running?"
                 Http.BadStatus response -> "Bad status: " ++ response.status.message
-                Http.BadPayload msg _ -> "Bad payload: " ++ msg
+                Http.BadPayload msg _ -> "Bad payload (" ++context ++ "): " ++ msg
             url =
               case e of
                 Http.BadUrl str  -> Just str
@@ -569,8 +569,8 @@ updateMod mod (m, cmd) =
              |> List.map req
              |> List.concat)
 
-      UpdateAnalysis tlars ->
-        let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
+      UpdateAnalysis id analysis ->
+        let m2 = { m | analyses = Analysis.record m.analyses id analysis } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
       UpdateTraces traces ->
@@ -1494,9 +1494,9 @@ update_ msg m =
            ]
 
     ReceiveAnalysis json ->
-      let analysis = JSD.decodeString (JSD.list RPC.decodeTLAResult) json in
-      case analysis of
-        Ok analysis -> UpdateAnalysis analysis
+      let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
+      case envelope of
+        Ok (id, analysisResults) -> UpdateAnalysis id analysisResults
         Err str -> DisplayError str
 
     ------------------------
