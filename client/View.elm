@@ -119,7 +119,7 @@ viewTL_ m tlid =
         case tl.data of
           TLHandler h ->
             ( ViewCode.viewHandler vs h
-            , ViewData.viewData vs
+            , ViewData.viewData vs h.ast
             )
           TLDB db ->
             ( ViewDB.viewDB vs db
@@ -127,7 +127,7 @@ viewTL_ m tlid =
             )
           TLFunc f ->
             ( [ViewFunction.viewFunction vs f]
-            , ViewData.viewData vs
+            , ViewData.viewData vs f.ast
             )
       events =
         [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)

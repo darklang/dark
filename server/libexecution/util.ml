@@ -10,6 +10,15 @@ let create_id  () : Int63.t =
 let create_uuid () : Uuidm.t =
   (Uuidm.v `V4)
 
+let uuid_of_string (id: string) : Uuidm.t =
+  Uuidm.of_string id
+  |> Option.value_exn ~message:("Bad UUID: " ^ id)
+
+let uuid_of_yojson (json: Yojson.Safe.json) : (Uuidm.t, string) result =
+  match json with
+  | `String s -> Ok (uuid_of_string s)
+  | _ -> Error "Converting from invalid json"
+
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_all (String.Search_pattern.create search) ~in_:str ~with_:replace
 

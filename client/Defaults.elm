@@ -78,7 +78,7 @@ defaultModel = { error = Nothing
                , tests = []
                , toplevels = []
                , deletedToplevels = []
-               , analysis = []
+               , analyses = Dict.empty
                , traces = Dict.empty
                , globals = []
                , f404s = []
