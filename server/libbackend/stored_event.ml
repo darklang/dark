@@ -50,8 +50,10 @@ let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : 
             ; String modifier]
   |> List.map ~f:(function
       | [dval; _ts; trace_id] ->
-        let trace_id = Uuidm.of_string trace_id
-                       |> Option.value_exn ~message:("Bad UUID: " ^ trace_id)
+        let trace_id =
+          if trace_id = ""
+          then Util.create_uuid ()
+          else Util.uuid_of_string trace_id
         in
         (trace_id, Dval.dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_events")
