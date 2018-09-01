@@ -115,7 +115,7 @@ viewLiveValue vs =
               [Attrs.class "computed-value"]
               [Html.div
                 [Attrs.class "computed-value-value"]
-                [Html.text (RT.toString dv)]
+                [Html.text (RT.toRepr dv)]
               ]
           ]
         _ -> []

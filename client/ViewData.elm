@@ -38,7 +38,7 @@ asValue inputValue =
   |> List.filter (\(k,dv) -> RT.typeOf dv /= TDB)
   |> List.map (\(k,dv) -> k
                          ++ ":\n  "
-                         ++ Util.replace "\n" "\n  " (RT.toString dv))
+                         ++ Util.replace "\n" "\n  " (RT.toRepr dv))
   |> String.join "\n"
 
 viewInputs : ViewState -> ID -> List (Html.Html Msg)

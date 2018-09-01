@@ -1,10 +1,11 @@
 module Runtime exposing (..)
 
 -- stldib
-import Json.Decode as JSD
+-- import Json.Decode as JSD
+import Dict
 
 -- libs
-import List.Extra as LE
+-- import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -153,9 +154,58 @@ isTrue : Dval -> Bool
 isTrue dv =
   dv == DBool True
 
-toString : Dval -> String
-toString dv =
-  "TODO"
+-- Copied from Dval.to_repr in backend code
+toRepr : Dval -> String
+toRepr dv =
+  let wrap value =
+        "<" ++ (dv |> typeOf |> tipe2str) ++ ": " ++ value ++ ">"
+      asType =
+        "<" ++ (dv |> typeOf |> tipe2str) ++ ">"
+  in
+  case dv of
+    DInt i -> toString i
+    DFloat f -> toString f
+    DStr s -> "\"" ++ s ++ "\""
+    DBool True -> "true"
+    DBool False -> "false"
+    DChar c -> "'" ++ String.fromList [c] ++ "'"
+    DNull -> "null"
+    DID s -> wrap s
+    DDate s -> wrap s
+    DTitle s -> wrap s
+    DUrl s -> wrap s
+    DDB s -> wrap s
+    DUuid s -> wrap s
+    DError s -> wrap s
+    DPassword s -> wrap s
+    DBlock -> asType
+    DIncomplete -> asType
+    DResp (Redirect url, dv) -> "302 " ++ url ++ "\n" ++ toRepr dv
+    DResp (Response (code, hs), dv) ->
+      let headers = hs
+                    |> List.map (\(k,v) -> k ++ ": " ++ v)
+                    |> String.join ","
+                    |> \s -> "{ " ++ s ++ " }"
+      in toString code ++ " " ++ headers ++ "\n" ++ toRepr dv
+    DOption Nothing -> "Nothing"
+    DOption (Just dv) -> "Some " ++ (toRepr dv)
+    DErrorRail dv -> wrap (toRepr dv)
+    -- TODO: newlines and indentation
+    DList l ->
+      if l == []
+      then "[]"
+      else "[ " ++ String.join ", " (List.map toRepr l) ++ " ]"
+    DObj o ->
+      if o == Dict.empty
+      then "{}"
+      else
+        "{ "
+        ++ (o
+            |> Dict.toList
+            |> List.map (\(k,v) -> k ++ ": " ++ toRepr v)
+            |> String.join ", ")
+        ++ " }"
+
 
 extractErrorMessage : Dval -> String
 extractErrorMessage lv =
