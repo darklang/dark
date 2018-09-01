@@ -93,15 +93,9 @@ withEditFn vs v =
       _ -> []
   else []
 
-getLiveValue : LVDict -> ID -> Maybe (Result String LiveValue)
+getLiveValue : LVDict -> ID -> Maybe Dval
 getLiveValue lvs (ID id) =
-  lvs
-  |> Dict.get id
-  |> Maybe.map (\lv -> if Runtime.isError lv
-                       then Err (Runtime.extractErrorMessage lv)
-                       else Ok lv)
-
-
+  Dict.get id lvs
 
 viewLiveValue : ViewState -> List (Html.Html Msg)
 viewLiveValue vs =
@@ -114,13 +108,13 @@ viewLiveValue vs =
           _ -> Nothing
   in
       case cursorLiveValue of
-        Just sv->
+        Just dv ->
           [
             Html.div
               [Attrs.class "computed-value"]
               [Html.div
                 [Attrs.class "computed-value-value"]
-                [Html.text sv.value]
+                [Html.text (RT.toString dv)]
               ]
           ]
         _ -> []
@@ -188,9 +182,8 @@ div vs configs content =
 
       incomplete =
         case computedValueData of
-          Nothing -> False
-          Just (Err _) -> False
-          Just (Ok lv) -> Runtime.isIncomplete lv
+          Nothing -> True
+          Just dv -> dv == DIncomplete
 
       idAttr = case thisID of
                  Just id -> ["blankOr", "id-" ++ toString (deID id)]

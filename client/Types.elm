@@ -46,9 +46,36 @@ type Tipe = TInt
           | TPassword
           | TUuid
           | TOption
+          | TErrorRail
           | TBelongsTo String
           | THasMany String
           | TDbList Tipe
+
+type Dhttp = Redirect String
+           | Response (Int, (List (String, String)))
+
+type Dval = DInt Int
+          | DFloat Float
+          | DBool Bool
+          | DNull
+          | DChar Char
+          | DStr String
+          | DList (List Dval)
+          | DObj (Dict String Dval)
+          | DIncomplete
+          | DError String
+          | DBlock
+          | DErrorRail Dval
+          | DResp (Dhttp, Dval)
+          | DDB String
+          | DID String
+          | DDate String
+          | DTitle String
+          | DUrl String
+          | DPassword String
+          | DUuid String
+          | DOption (Maybe Dval)
+
 
 -- There are two coordinate systems. Pos is an absolute position in the
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
@@ -61,10 +88,6 @@ type alias VPos = {vx: Int, vy: Int }
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
-type alias LiveValue = { value : String
-                       , tipe : Tipe
-                       , json : String
-                       , exc : Maybe Exception}
 type alias Special = Int
 type TLID = TLID Int
 type ID = ID Int
@@ -415,7 +438,7 @@ type alias Toplevel = { id : TLID
 -----------------------------
 -- Analysis
 -----------------------------
-type alias LVDict = Dict Int LiveValue
+type alias LVDict = Dict Int Dval
 type alias AVDict = Dict Int (List VarName)
 type alias AnalysisResults = { liveValues : LVDict
                              , availableVarnames : AVDict
@@ -425,11 +448,11 @@ type alias Analyses = Dict TraceID AnalysisResults
 -----------------------------
 -- From the server
 -----------------------------
-type alias InputValueDict = Dict VarName LiveValue
+type alias InputValueDict = Dict VarName Dval
 type alias FunctionResult = { fnName : String
                             , callerID : ID
                             , argHash : String
-                            , value : JSD.Value
+                            , value : Dval
                             }
 type alias TraceID = String
 type alias Trace = { id: TraceID

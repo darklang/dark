@@ -121,11 +121,6 @@ let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
               ~canvas_id:c.id
               h.tlid
           in
-          let function_results =
-            List.map function_results
-              ~f:(fun (name, id, hash, dval) ->
-                (name, id, hash, dval_to_livevalue dval))
-          in
           { input = input_vars
           ; function_results
           ; id = trace_id

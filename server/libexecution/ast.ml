@@ -610,11 +610,6 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 (* Analysis *)
 (* -------------------- *)
 
-let input_values st =
-  st
-  |> List.filter ~f:(fun (k,v) -> Dval.tipe_of v <> TDB)
-  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
-
 (* Trace everything and save it *)
 let analysis_engine value_store : engine =
   let trace expr dval st =

@@ -205,7 +205,7 @@ parseAst m str =
     ["{"] ->
       Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
-      if RT.isLiteral str
+      if RT.isLiteralString str
       then Just <| F eid (Value str)
       else createFunction m str
 

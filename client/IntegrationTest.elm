@@ -350,7 +350,7 @@ case_sensitivity m =
 
                      Analysis.getCurrentLiveValue m tl.id id
                      |> Maybe.map (\lv ->
-                       if lv.value == "\"some value\""
+                       if lv == DStr "some value"
                        then pass
                        else fail lv)
                      |> Maybe.withDefault (fail h.ast)
