@@ -2,32 +2,44 @@ module Url exposing (..)
 
 -- builtin
 import Dict
+import List
+import String
 
 -- lib
 import Html
 import Html.Attributes as Attrs
 import Navigation
--- import Maybe.Extra as ME
-
 
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
 import Defaults
-import Viewport
 
+
+hashUrlParams : List (String, String) -> String
+hashUrlParams params =
+  let merged = List.map (\(k, v) -> k ++ "=" ++ v) params
+  in "#" ++ (String.join "&" merged) 
+
+urlOf : Page -> Pos -> String
+urlOf page pos =
+  let head =
+        case page of
+          Toplevels _ -> []
+          Fn tlid _ -> [("fn", toString (deTLID tlid))]
+      tail =
+        [ ("x", toString pos.x)
+        , ("y", toString pos.y) ]
+  in hashUrlParams (head ++ tail)
 
 urlFor : Page -> String
 urlFor page =
-  let posStr pos =
-    "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
-  in
-  case page of
-    Toplevels pos ->
-      "#" ++  posStr pos
-    Fn tlid pos ->
-      "#fn=" ++ toString (deTLID tlid) ++ "&" ++ posStr pos
+  urlOf page
+    (case page of
+      Toplevels pos -> pos
+      Fn _ pos -> pos
+    )
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
@@ -41,13 +53,18 @@ linkFor page class content =
 -- and update the browser url periodically.
 maybeUpdateScrollUrl : Model -> Modification
 maybeUpdateScrollUrl m =
-  let pos = Viewport.pagePos m.currentPage
+  let pos =
+        case m.currentPage of
+          Toplevels _ -> m.canvas.offset
+          Fn tlid _ -> m.canvas.fnOffset
       state = m.urlState
   in
   if pos /= state.lastPos
-  then Many [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
-            , MakeCmd (Navigation.modifyUrl (urlFor m.currentPage))
-            ]
+  then
+    Many
+      [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
+      , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
+      ]
   else NoChange
 
 
