@@ -234,13 +234,6 @@ let rec to_repr ?(pp=true) ?(open_="<") ?(close_=">")
     | _ -> failwith ("printing an unprintable value:" ^ to_simple_repr dv)
     in to_repr_ 0 pp dv
 
-(* For livevalue representation in the frontend *)
-let rec to_livevalue_repr (dv : dval) : string =
-  match dv with
-  | dv when is_primitive dv -> as_literal dv
-  | dv when is_stringable dv -> as_string dv
-  | _ -> to_repr ~reprfn:to_livevalue_repr dv
-
 
 (* Not for external consumption *)
 let rec to_internal_repr (dv : dval) : string =
@@ -398,14 +391,11 @@ let rec dvalmap_to_yojson ?(redact=true) (dvalmap: dval_map) : Yojson.Safe.json 
   |> DvalMap.to_alist
   |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson ~redact v))
   |> (fun a -> `Assoc a)
-and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.json =
+and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value =
-    if livevalue
-    then value
-    else
-      `Assoc [ ("type", tipe)
-             ; ("value", value)]
+    `Assoc [ ("type", tipe)
+           ; ("value", value)]
   in
   let wrap_user_str value = wrap_user_type (`String value) in
   match dv with
@@ -441,7 +431,7 @@ and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.j
   | DOption opt ->
     (match opt with
      | OptNothing -> wrap_user_type `Null
-     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact ~livevalue dv))
+     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact dv))
   | DErrorRail _ -> wrap_user_type `Null
 
 let is_json_primitive (dv: dval) : bool =
