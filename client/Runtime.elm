@@ -4,10 +4,10 @@ module Runtime exposing (..)
 import Json.Decode as JSD
 
 -- libs
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
-import RPC
 -- import Prelude exposing (..)
 -- import Util
 -- import JSON
@@ -17,7 +17,35 @@ isCompatible t1 t2 =
   t1 == TAny || t2 == TAny || t1 == t2
 
 tipe2str : Tipe -> String
-tipe2str = RPC.tipe2str
+tipe2str t =
+  case t of
+    TAny -> "Any"
+    TInt -> "Int"
+    TFloat -> "Float"
+    TBool -> "Bool"
+    TNull -> "Null"
+    TChar -> "Char"
+    TStr -> "String"
+    TList -> "List"
+    TObj -> "Obj"
+    TBlock -> "Block"
+    TIncomplete -> "Incomplete"
+    TError -> "Error"
+    TResp -> "Response"
+    TDB -> "Datastore"
+    TID -> "ID"
+    TDate -> "Date"
+    TTitle -> "Title"
+    TUrl -> "Url"
+    TOption -> "Option"
+    TPassword -> "Password"
+    TUuid -> "UUID"
+    TErrorRail -> "ErrorRail"
+    TBelongsTo s -> s
+    THasMany s -> "[" ++ s ++ "]"
+    TDbList a -> "[" ++ (tipe2str a) ++ "]"
+
+
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -114,18 +142,6 @@ isLiteral dv =
     DStr _ -> True
     _ -> False
 
-isLiteralString : String -> Bool
-isLiteralString s =
-  case parseDval s of
-    Nothing -> False
-    Just dv -> isLiteral dv
-
-typeOfString : String -> Tipe
-typeOfString s =
-  case parseDval s of
-    Nothing -> TIncomplete
-    Just dv -> typeOf dv
-
 isComplete : Dval -> Bool
 isComplete dv =
   case dv of
@@ -136,11 +152,6 @@ isComplete dv =
 isTrue : Dval -> Bool
 isTrue dv =
   dv == DBool True
-
-parseDval : String -> Maybe Dval
-parseDval s =
-  JSD.decodeString RPC.decodeDval s
-  |> Result.toMaybe
 
 toString : Dval -> String
 toString dv =

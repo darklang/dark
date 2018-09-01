@@ -24,6 +24,7 @@ import Toplevel as TL
 import AST
 import Commands
 import Refactor
+import RPC
 
 ----------------------------
 -- Focus
@@ -266,7 +267,7 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  if RT.isLiteralString s
+  if RPC.isLiteralString s
   then Just (ACLiteral s)
   else
     -- isLiteral only works for the full word
@@ -676,7 +677,7 @@ asTypeString item =
     ACCommand _ -> ""
     ACLiteral lit ->
       let tipe = lit
-                 |> RT.parseDval
+                 |> RPC.parseDval
                  |> Maybe.withDefault DIncomplete
                  |> RT.typeOf
                  |> RT.tipe2str
