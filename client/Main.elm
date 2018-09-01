@@ -8,6 +8,7 @@ import Maybe
 import Json.Decode as JSD
 import Json.Encode as JSE
 import Json.Encode.Extra as JSEE
+import Maybe.Extra as ME
 import Http
 import Keyboard.Key as Key
 import Navigation
@@ -549,11 +550,12 @@ updateMod mod (m, cmd) =
 
       RequestAnalysis tls ->
         let handlers = TL.handlers tls
+                       |> List.take 1
             dbs = TL.dbs tls
             userFns = m.userFunctions
 
             req h =
-              let traces = Analysis.getTraces m h.tlid
+              let trace = Analysis.getCurrentTrace m h.tlid
                   param t =
                     JSE.object [ ( "handler" , RPC.encodeHandler h)
                                , ( "trace" , RPC.encodeTrace t)
@@ -562,9 +564,10 @@ updateMod mod (m, cmd) =
                                  , JSON.encodeList RPC.encodeUserFunction userFns)
                                ]
               in
-              List.map
-                (\t -> requestAnalysis (JSE.encode 0 (param t)))
-                traces
+              trace
+              |> Maybe.map
+                   (\t -> requestAnalysis (JSE.encode 0 (param t)))
+              |> ME.toList
 
         in
         (m, Cmd.batch
