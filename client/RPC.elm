@@ -15,6 +15,8 @@ import Dict
 import Types exposing (..)
 import Util
 import JSON exposing (..)
+import Runtime as RT
+import List.Extra as LE
 -- import Blank as B
 -- import Prelude exposing (..)
 
@@ -570,10 +572,7 @@ decodeAnalysisResults =
 
 decodeAnalysisEnvelope : JSD.Decoder (TraceID, AnalysisResults)
 decodeAnalysisEnvelope =
-  JSDP.decode (,)
-  |> JSDP.required "trace_id" JSD.string
-  |> JSDP.required "analysis_results" decodeAnalysisResults
-
+  JSON.decodePair JSD.string decodeAnalysisResults
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
@@ -601,39 +600,9 @@ decodeHandler =
   |> JSDP.required "spec" decodeHandlerSpec
   |> JSDP.required "tlid" decodeTLID
 
-tipe2str : Tipe -> String
-tipe2str t =
-  case t of
-    TAny -> "Any"
-    TInt -> "Int"
-    TFloat -> "Float"
-    TBool -> "Bool"
-    TNull -> "Null"
-    TChar -> "Char"
-    TStr -> "String"
-    TList -> "List"
-    TObj -> "Obj"
-    TBlock -> "Block"
-    TIncomplete -> "Incomplete"
-    TError -> "Error"
-    TResp -> "Response"
-    TDB -> "Datastore"
-    TID -> "ID"
-    TDate -> "Date"
-    TTitle -> "Title"
-    TUrl -> "Url"
-    TOption -> "Option"
-    TPassword -> "Password"
-    TUuid -> "UUID"
-    TErrorRail -> "ErrorRail"
-    TBelongsTo s -> s
-    THasMany s -> "[" ++ s ++ "]"
-    TDbList a -> "[" ++ (tipe2str a) ++ "]"
-
 decodeTipeString : JSD.Decoder String
 decodeTipeString =
-  decodeTipe
-  |> JSD.map tipe2str
+  JSD.map RT.tipe2str decodeTipe
 
 decodeDBMigrationKind : JSD.Decoder DBMigrationKind
 decodeDBMigrationKind =
@@ -880,14 +849,139 @@ decodeExecuteFunctionRPC =
 
 
 --------------------------
--- Dval
+-- Dval (some here because of cyclic dependencies)
 -------------------------
+
+-- Ported directly from Dval.parse in the backend
+parseDval : String -> Maybe Dval
+parseDval str =
+  let len = String.length str
+      firstChar = String.uncons str
+                  |> Maybe.map Tuple.first
+  in
+  if String.toLower str == "nothing"
+  then Just (DOption Nothing)
+  else
+    case String.toList str of
+      ['\'', c, '\'' ] -> Just (DChar c)
+      '"' :: rest ->
+        if LE.last rest == Just '"'
+        then LE.init rest
+             |> Maybe.withDefault []
+             |> String.fromList
+             |> DStr
+             |> Just
+        else Nothing
+      _ ->
+        JSD.decodeString decodeDval str
+        |> Result.toMaybe
+
+isLiteralString : String -> Bool
+isLiteralString s =
+  case parseDval s of
+    Nothing -> False
+    Just dv -> RT.isLiteral dv
+
+typeOfString : String -> Tipe
+typeOfString s =
+  case parseDval s of
+    Nothing -> TIncomplete
+    Just dv -> RT.typeOf dv
+
+
+
+
 encodeDval : Dval -> JSE.Value
 encodeDval dv =
-  JSE.string "TODO"
+  let tipe = dv |> RT.typeOf |> RT.tipe2str |> String.toLower |> JSE.string
+      ev = encodeVariant
+      encodeDhttp h =
+        case h of
+          Redirect s -> ev "Redirect" [JSE.string  s]
+          Response resp  -> ev "Response"
+            [encodePair
+              JSE.int
+              (encodeList (encodePair JSE.string JSE.string))
+              resp]
+
+      wrapUserType value =
+        JSE.object [ ("type", tipe)
+                   , ("value", value)]
+
+      wrapUserStr value = wrapUserType (JSE.string value)
+  in
+  case dv of
+    DInt i -> JSE.int i
+    DFloat f -> JSE.float f
+    DBool b -> JSE.bool b
+    DNull -> JSE.null
+    DStr s -> JSE.string s
+    DList l -> encodeList encodeDval l
+    DObj o -> JSEE.dict identity encodeDval o
+
+    -- opaque types
+    DBlock -> wrapUserType JSE.null
+    DIncomplete -> wrapUserType JSE.null
+
+    -- user-ish types
+    DChar c -> wrapUserStr (String.fromList [c])
+    DError msg -> wrapUserStr msg
+
+    DResp (h, hdv) ->
+      wrapUserType (JSE.list [ encodeDhttp h, encodeDval hdv])
+
+    DDB name -> wrapUserStr name
+    DID id -> wrapUserStr id
+    DUrl url -> wrapUserStr url
+    DTitle title -> wrapUserStr title
+    DDate date -> wrapUserStr date
+    DPassword hashed -> wrapUserStr hashed
+    DUuid uuid -> wrapUserStr uuid
+    DOption opt ->
+      case opt of
+        Nothing -> wrapUserType JSE.null
+        Just dv -> wrapUserType (encodeDval dv)
+    DErrorRail _ -> wrapUserType JSE.null
+
+
+processObject : Dict.Dict String Dval -> Dval
+processObject dict =
+  case (Dict.get "type" dict, Dict.get "value" dict) of
+    (Just (DStr tipe), Just DNull) ->
+      case tipe of
+        "incomplete" -> DIncomplete
+        _ -> DObj dict
+
+    (Just (DStr tipe), Just (DStr value)) ->
+      case tipe of
+        "date" -> DDate value
+        "id" -> DID value
+        "title" -> DTitle value
+        "url" -> DUrl value
+        "error" -> DError value
+        "char" ->
+          case String.uncons value of
+            Just (c, "") -> DChar c
+            _ -> DObj dict
+        "password" -> DPassword value
+        "db" -> DDB value
+        "block" -> DBlock
+        "uuid" -> DUuid value
+        _ -> DObj dict
+    _ -> DObj dict
 
 decodeDval : JSD.Decoder Dval
 decodeDval =
-  JSD.succeed (DStr "TODO")
+  let dd = JSD.lazy (\_ -> decodeDval) in
+  JSD.oneOf
+  [ JSD.map DInt JSD.int
+  , JSD.map DFloat JSD.float
+  , JSD.map DBool JSD.bool
+  , JSD.null DNull
+  , JSD.map DStr JSD.string
+  , JSD.map DList (JSD.list dd)
+  , JSD.map processObject (JSD.dict dd)
+  ]
+
 
 
