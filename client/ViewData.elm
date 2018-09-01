@@ -35,10 +35,10 @@ asValue : InputValueDict -> String
 asValue inputValue =
   inputValue
   |> Dict.toList
-  |> List.filter (\(k,v) -> v.tipe /= TDB)
-  |> List.map (\(k,v) -> k
+  |> List.filter (\(k,dv) -> RT.typeOf dv /= TDB)
+  |> List.map (\(k,dv) -> k
                          ++ ":\n  "
-                         ++ Util.replace "\n" "\n  " v.value)
+                         ++ Util.replace "\n" "\n  " (RT.toString dv))
   |> String.join "\n"
 
 viewInputs : ViewState -> ID -> List (Html.Html Msg)
@@ -53,7 +53,7 @@ viewInputs vs (ID astID) =
         astTipe = Dict.get trace.id vs.analyses
                   |> Maybe.map .liveValues
                   |> Maybe.andThen (Dict.get astID)
-                  |> Maybe.map .tipe
+                  |> Maybe.map RT.typeOf
                   |> Maybe.withDefault TIncomplete
     in
     viewInput vs.tl.id idx value isActive isHover astTipe

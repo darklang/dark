@@ -8,6 +8,7 @@ import List.Extra as LE
 import Prelude exposing (..)
 import Types exposing (..)
 import Pointer as P
+import Runtime as RT
 
 -- "current" in this indicates that it uses the cursor to pick the right inputValue
 
@@ -64,7 +65,7 @@ getCurrentLiveValuesDict m tlid =
   getCurrentAnalysisResults m tlid
   |> .liveValues
 
-getCurrentLiveValue : Model -> TLID -> ID -> Maybe LiveValue
+getCurrentLiveValue : Model -> TLID -> ID -> Maybe Dval
 getCurrentLiveValue m tlid (ID id) =
   tlid
   |> getCurrentLiveValuesDict m
@@ -74,7 +75,7 @@ getCurrentTipeOf : Model -> TLID -> ID -> Maybe Tipe
 getCurrentTipeOf m tlid id =
   case getCurrentLiveValue m tlid id of
     Nothing -> Nothing
-    Just lv -> Just lv.tipe
+    Just dv -> Just (RT.typeOf dv)
 
 getCurrentAvailableVarnamesDict : Model -> TLID -> AVDict
 getCurrentAvailableVarnamesDict m tlid =

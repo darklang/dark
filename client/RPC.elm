@@ -13,7 +13,6 @@ import Dict
 
 -- dark
 import Types exposing (..)
-import Runtime as RT
 import Util
 import JSON exposing (..)
 -- import Blank as B
@@ -334,6 +333,7 @@ encodeTipe t =
         TPassword -> ev "TPassword" []
         TUuid -> ev "TUuid" []
         TOption -> ev "TOption" []
+        TErrorRail -> ev "TErrorRail" []
 
 encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
 encodeUserFunctionParameter p =
@@ -555,28 +555,6 @@ decodeNExpr =
     , ("FeatureFlag", dv4 FeatureFlag (decodeBlankOr JSD.string) de de de)
     ]
 
-decodeLiveValue : JSD.Decoder LiveValue
-decodeLiveValue =
-  let toLiveValue value tipe json exc =
-      { value = value
-      , tipe = RT.str2tipe tipe
-      , json = json
-      , exc = exc}
-  in
-  JSDP.decode toLiveValue
-    |> JSDP.required "value" JSD.string
-    |> JSDP.required "type" JSD.string
-    |> JSDP.required "json" JSD.string
-    |> JSDP.optional "exc" (JSD.maybe JSON.decodeException) Nothing
-
-encodeLiveValue : LiveValue -> JSE.Value
-encodeLiveValue lv =
-  JSE.object [ ( "value", JSE.string lv.value)
-             , ( "tipe", JSE.string (RT.tipe2str lv.tipe))
-             , ( "json", JSE.string lv.json)
-             , ( "exc", JSEE.maybe JSON.encodeException lv.exc) ]
-
-
 
 decodeAnalysisResults : JSD.Decoder AnalysisResults
 decodeAnalysisResults =
@@ -586,7 +564,7 @@ decodeAnalysisResults =
         }
   in
   JSDP.decode toAResult
-  |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
+  |> JSDP.required "live_values" (JSD.dict decodeDval)
   |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
 
@@ -623,10 +601,39 @@ decodeHandler =
   |> JSDP.required "spec" decodeHandlerSpec
   |> JSDP.required "tlid" decodeTLID
 
+tipe2str : Tipe -> String
+tipe2str t =
+  case t of
+    TAny -> "Any"
+    TInt -> "Int"
+    TFloat -> "Float"
+    TBool -> "Bool"
+    TNull -> "Null"
+    TChar -> "Char"
+    TStr -> "String"
+    TList -> "List"
+    TObj -> "Obj"
+    TBlock -> "Block"
+    TIncomplete -> "Incomplete"
+    TError -> "Error"
+    TResp -> "Response"
+    TDB -> "Datastore"
+    TID -> "ID"
+    TDate -> "Date"
+    TTitle -> "Title"
+    TUrl -> "Url"
+    TOption -> "Option"
+    TPassword -> "Password"
+    TUuid -> "UUID"
+    TErrorRail -> "ErrorRail"
+    TBelongsTo s -> s
+    THasMany s -> "[" ++ s ++ "]"
+    TDbList a -> "[" ++ (tipe2str a) ++ "]"
+
 decodeTipeString : JSD.Decoder String
 decodeTipeString =
   decodeTipe
-  |> JSD.map (RT.tipe2str)
+  |> JSD.map tipe2str
 
 decodeDBMigrationKind : JSD.Decoder DBMigrationKind
 decodeDBMigrationKind =
@@ -781,12 +788,12 @@ encodeInputValueDict : InputValueDict -> JSE.Value
 encodeInputValueDict dict =
   dict
   |> Dict.toList
-  |> encodeList (encodePair JSE.string encodeLiveValue)
+  |> encodeList (encodePair JSE.string encodeDval)
 
 decodeInputValueDict : JSD.Decoder InputValueDict
 decodeInputValueDict =
   JSD.map Dict.fromList
-    (JSD.list (decodePair JSD.string decodeLiveValue))
+    (JSD.list (decodePair JSD.string decodeDval))
 
 decodeFunctionResult : JSD.Decoder FunctionResult
 decodeFunctionResult =
@@ -802,7 +809,7 @@ decodeFunctionResult =
       JSD.string
       decodeID
       JSD.string
-      JSD.value)
+      decodeDval)
 
 decodeTraces : JSD.Decoder Traces
 decodeTraces =
@@ -823,7 +830,7 @@ encodeTrace : Trace -> JSE.Value
 encodeTrace t =
   JSE.object [ ( "input"
                , JSON.encodeList
-                   (encodePair JSE.string encodeLiveValue)
+                   (encodePair JSE.string encodeDval)
                    (Dict.toList t.input))
              , ( "function_results"
                , JSON.encodeList encodeFunctionResult t.functionResults)
@@ -835,7 +842,7 @@ encodeFunctionResult fr =
   JSE.list [ JSE.string fr.fnName
            , encodeID fr.callerID
            , JSE.string fr.argHash
-           , fr.value
+           , encodeDval fr.value
            ]
 
 decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
@@ -870,3 +877,17 @@ decodeExecuteFunctionRPC =
   JSDP.decode (,)
   |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
   |> JSDP.required "new_traces" decodeTraces
+
+
+--------------------------
+-- Dval
+-------------------------
+encodeDval : Dval -> JSE.Value
+encodeDval dv =
+  JSE.string "TODO"
+
+decodeDval : JSD.Decoder Dval
+decodeDval =
+  JSD.succeed (DStr "TODO")
+
+

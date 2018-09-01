@@ -178,10 +178,10 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RT.tipeOf |> Debug.toString |> String.toLower
-          valu =
+      let cssClass = v |> RT.typeOfString |> Debug.toString |> String.toLower
+          value =
             -- TODO: remove
-            if RT.isString v
+            if RT.typeOfString v == TStr
             then transformToStringEntry v
             else v
           computedValue =
@@ -192,7 +192,7 @@ viewNExpr d id vs config e =
                     then [wc "short-strings"]
                     else []
       in
-      a (wc cssClass :: wc "value" :: all ++ tooWide ++ computedValue) valu
+      a (wc cssClass :: wc "value" :: all ++ tooWide ++ computedValue) value
 
     Variable name ->
       if List.member id vs.relatedBlankOrs
@@ -276,10 +276,9 @@ viewNExpr d id vs config e =
             |> \v ->
                  case v of
                    Nothing -> False
-                   Just (Err _) -> True
-                   Just (Ok val) ->
-                     not (Runtime.isIncomplete val
-                         || Runtime.isError val)
+                   Just (DError _) -> False
+                   Just DIncomplete -> False
+                   Just _ -> True
 
           ropArrow =
             if sendToRail == NoRail
@@ -467,10 +466,9 @@ viewNExpr d id vs config e =
             ]
 
           condValue = ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
-          condResult =
-            case condValue of
-              Just (Ok lv) -> Runtime.isTrue lv.value
-              _ -> False
+          condResult = condValue
+                       |> Maybe.map Runtime.isTrue
+                       |> Maybe.withDefault False
 
           blockCondition =
             Html.div
