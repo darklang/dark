@@ -676,7 +676,7 @@ isFieldAccessDot m baseStr =
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
   let str = Util.replace "\\.*$" "" baseStr
-      intOrString = String.startsWith "\"" str || Runtime.isInt str
+      intOrString = String.startsWith "\"" str || Runtime.typeOfString str == TInt
   in
   case m.cursorState of
     Entering (Creating _) -> not intOrString

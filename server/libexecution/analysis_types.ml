@@ -21,29 +21,6 @@ let input_vars2symtable vars =
 
 
 (* -------------------- *)
-(* Live values *)
-(* -------------------- *)
-type livevalue = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving yojson, show]
-
-let dval_to_livevalue (dv: dval) : livevalue =
-  { value = Dval.to_livevalue_repr dv
-  ; tipe = Dval.tipename dv
-  ; json = dv
-           |> Dval.dval_to_yojson ~livevalue:true
-           |> Yojson.Safe.to_string
-  ; exc = None
-  }
-
-let livevalue_dval_to_yojson v = v
-                                 |> dval_to_livevalue
-                                 |> livevalue_to_yojson
-
-
-(* -------------------- *)
 (* Dval store - save per-tl analysis results *)
 (* -------------------- *)
 let ht_to_json_dict ds ~f =
@@ -56,7 +33,7 @@ let ht_to_json_dict ds ~f =
 type dval_store = dval IDTable.t
 
 let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
-  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
+  ht_to_json_dict ds ~f:dval_to_yojson
 
 
 (* -------------------- *)
@@ -71,25 +48,6 @@ let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
       `List (syms
              |> SymSet.to_list
              |> List.map ~f:(fun s -> `String s)))
-
-
-
-
-(* -------------------- *)
-(* Sym lists - list of the input values *)
-(* -------------------- *)
-type sym_list = (string * livevalue) list
-                [@@deriving to_yojson]
-
-let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
-  `Assoc (sl
-          |> List.map ~f:(Tuple.T2.map_snd
-                           ~f:livevalue_to_yojson))
-
-let symtable_to_sym_list (st : symtable) : sym_list =
-  st
-  |> Map.to_alist
-  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
 
 
 (* -------------------- *)
@@ -111,10 +69,10 @@ type input_vars = (string * dval) list
 
 type function_arg_hash = string [@@deriving yojson]
 type fnname = string [@@deriving yojson]
-type 'dvalrep function_result = fnname * id * function_arg_hash * 'dvalrep
-                              [@@deriving yojson]
+type function_result = fnname * id * function_arg_hash * dval
+                       [@@deriving yojson]
 type trace = { input: input_vars
-             ; function_results: (livevalue function_result) list
+             ; function_results: function_result list
              ; id: uuid
              } [@@deriving yojson]
 

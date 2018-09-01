@@ -14,4 +14,4 @@ val load :
   canvas_id:Uuidm.t ->
   trace_id:Uuidm.t ->
   Types.tlid ->
-  (Types.RuntimeT.dval Analysis_types.function_result) list
+  Analysis_types.function_result list
