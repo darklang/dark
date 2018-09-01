@@ -13,7 +13,6 @@ let init () =
 let host = "test"
 
 type handler_list = HandlerT.handler list [@@deriving yojson]
-type analysis_list = Analysis_types.analysis list [@@deriving to_yojson]
 
 let dval_of_yojson = Dval.dval_of_yojson
 type input_vars = (string * dval) list (* list of vars *)
@@ -62,6 +61,8 @@ type analysis_param = { handler : HandlerT.handler
                       ; user_fns : user_fn list
                       } [@@deriving of_yojson]
 
+type analysis_envelope = Analysis_types.uuid * Analysis_types.analysis
+                       [@@deriving to_yojson]
 
 
 let perform_analysis (str : string) : string =
@@ -73,18 +74,18 @@ let perform_analysis (str : string) : string =
   in
   let dbs : DbT.db list = List.map ~f:convert_db dbs in
   let input_vars = trace.input in
-
-  Execution.analyse_ast handler.ast
-    ~tlid:handler.tlid
-    ~exe_fn_ids:[]
-    ~execution_id:(Types.id_of_int 1)
-    ~account_id:(Util.create_uuid ())
-    ~canvas_id:(Util.create_uuid ())
-    ~input_vars
-    ~dbs
-    ~user_fns
-    ~load_fn_result:Execution.load_no_results
-    ~load_fn_arguments:Execution.load_no_arguments
-  |> Analysis_types.analysis_to_yojson
+  ( trace.id
+  , Execution.analyse_ast handler.ast
+      ~tlid:handler.tlid
+      ~exe_fn_ids:[]
+      ~execution_id:(Types.id_of_int 1)
+      ~account_id:(Util.create_uuid ())
+      ~canvas_id:(Util.create_uuid ())
+      ~input_vars
+      ~dbs
+      ~user_fns
+      ~load_fn_result:Execution.load_no_results
+      ~load_fn_arguments:Execution.load_no_arguments)
+  |> analysis_envelope_to_yojson
   |> Yojson.Safe.to_string
 

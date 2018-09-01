@@ -420,28 +420,26 @@ type alias Toplevel = { id : TLID
 -----------------------------
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
-type alias InputDict = Dict VarName LiveValue -- single set of input values
-type alias AResult = { astValue: LiveValue
-                     , liveValues : LVDict
-                     , availableVarnames : AVDict
-                     , inputValues : InputDict
-                     }
-type alias TLAResult = { id: TLID
-                       , results: List AResult
-                       }
+type alias AnalysisResults = { liveValues : LVDict
+                             , availableVarnames : AVDict
+                             }
+type alias Analyses = Dict TraceID AnalysisResults
 
 -----------------------------
 -- From the server
 -----------------------------
-type alias InputValueDict = Dict VarName JSD.Value
+type alias InputValueDict = Dict VarName LiveValue
 type alias FunctionResult = { fnName : String
                             , callerID : ID
                             , argHash : String
                             , value : JSD.Value
                             }
-type alias Trace = (InputValueDict, List FunctionResult)
-type alias Traces = Dict Int (List Trace)
-
+type alias TraceID = String
+type alias Trace = { id: TraceID
+                   , input: InputValueDict
+                   , functionResults : List FunctionResult
+                   }
+type alias Traces = Dict Int (List Trace) -- tlid -> one trace per inputvalue
 
 -- space i.e. "HTTP", path i.e. "/foo", modifier i.e. "GET/PATCH/PUT"
 type alias FourOhFour = { space: String
@@ -493,7 +491,7 @@ type alias Model = { error : Maybe String
                    -- These are read direct from the server. The ones that are
                    -- analysed are in analysis
                    , traces : Traces
-                   , analysis : List TLAResult
+                   , analyses : Analyses
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
                    , unlockedDBs : List TLID
@@ -549,7 +547,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | UpdateToplevels (List Toplevel) Bool
                   | SetDeletedToplevels (List Toplevel)
                   | UpdateDeletedToplevels (List Toplevel)
-                  | UpdateAnalysis (List TLAResult)
+                  | UpdateAnalysis TraceID AnalysisResults
                   | RequestAnalysis (List Toplevel)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool

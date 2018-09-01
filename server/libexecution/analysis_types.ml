@@ -95,39 +95,30 @@ let symtable_to_sym_list (st : symtable) : sym_list =
 (* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
+type uuid = Uuidm.t
+let uuid_to_yojson uuid = `String (Uuidm.to_string uuid)
+let uuid_of_yojson = Util.uuid_of_yojson
+
+
 type analysis =
-  { ast_value: livevalue
-  ; live_values : dval_store
+  { live_values : dval_store
   ; available_varnames : sym_store
-  ; input_values : sym_list
   } [@@deriving to_yojson]
-
-
-type analysis_list = analysis list
-                     [@@deriving to_yojson]
-
-type analysis_result = tlid * analysis list
 
 type input_vars = (string * dval) list
                   [@@deriving yojson]
 
+
 type function_arg_hash = string [@@deriving yojson]
 type fnname = string [@@deriving yojson]
-type function_result = fnname * id * function_arg_hash * dval
-                     [@@deriving yojson]
+type 'dvalrep function_result = fnname * id * function_arg_hash * 'dvalrep
+                              [@@deriving yojson]
 type trace = { input: input_vars
-             ; function_results: function_result list
+             ; function_results: (livevalue function_result) list
+             ; id: uuid
              } [@@deriving yojson]
 
 type tlid_trace = tlid * trace list
                 [@@deriving to_yojson]
-
-let analysis_result_to_yojson (id, results) =
-  `Assoc [ ("id", id_to_yojson id)
-         ; ("results", analysis_list_to_yojson results)
-         ]
-
-type analysis_result_list = analysis_result list
-                          [@@deriving to_yojson]
 
 
