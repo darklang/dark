@@ -94,3 +94,8 @@ getTraces m tlid =
   Dict.get (deTLID tlid) m.traces
   |> Maybe.withDefault []
 
+getCurrentTrace : Model -> TLID -> Maybe Trace
+getCurrentTrace m tlid =
+  Dict.get (deTLID tlid) m.traces
+  |> Maybe.andThen (LE.getAt (cursor m tlid))
+
