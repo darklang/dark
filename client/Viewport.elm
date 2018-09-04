@@ -68,7 +68,7 @@ moveRight m =
 
 moveToOrigin : Model -> Modification
 moveToOrigin m =
-  MoveCanvasToPos m.canvas m.currentPage Defaults.initialPos
+  MoveCanvasTo m.canvas m.currentPage Defaults.initialPos
 
 moveCanvasBy : Model -> (List Int) -> Modification
 moveCanvasBy m deltaCoords =
@@ -82,4 +82,4 @@ moveCanvasBy m deltaCoords =
           Toplevels _ -> c.offset
           Fn _ _ -> c.fnOffset
       pos = subPos offset d
-  in MoveCanvasToPos c m.currentPage pos
+  in MoveCanvasTo c m.currentPage pos
