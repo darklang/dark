@@ -155,7 +155,7 @@ tlidOf op =
     ChangeDBColName tlid _ _ -> tlid
     SetDBColType tlid _ _ -> tlid
     ChangeDBColType tlid _ _ -> tlid
-    InitDBMigration tlid _ _ _ _ -> tlid
+    DeprecatedInitDbm tlid _ _ _ _ -> tlid
     TLSavepoint tlid -> tlid
     UndoTL tlid -> tlid
     RedoTL tlid -> tlid
@@ -250,8 +250,8 @@ encodeOp call =
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
 
-      InitDBMigration tlid id rbid rfid kind ->
-        ev "InitDBMigration"
+      DeprecatedInitDbm tlid id rbid rfid kind ->
+        ev "DeprecatedInitDbm"
           [ encodeTLID tlid
           , encodeID id
           , encodeID rbid

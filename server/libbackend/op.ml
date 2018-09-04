@@ -16,7 +16,7 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | ChangeDBColType of tlid * id * string
         | UndoTL of tlid
         | RedoTL of tlid
-        | InitDBMigration of tlid * id * id * id * RuntimeT.DbT.migration_kind
+        | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
         | DeleteFunction of tlid
@@ -47,7 +47,7 @@ let tlidOf (op: op) : tlid option =
   | ChangeDBColName (tlid, _, _) -> Some tlid
   | SetDBColType (tlid, _, _) -> Some tlid
   | ChangeDBColType (tlid, _, _) -> Some tlid
-  | InitDBMigration (tlid, _, _, _, _) -> Some tlid
+  | DeprecatedInitDbm (tlid, _, _, _, _) -> Some tlid
   | SetExpr (tlid, _, _) -> Some tlid
   | TLSavepoint tlid -> Some tlid
   | UndoTL tlid -> Some tlid
