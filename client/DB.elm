@@ -5,7 +5,6 @@ module DB exposing (..)
 
 -- dark
 import Types exposing (..)
-import Prelude exposing (..)
 import Blank as B
 import AST
 
@@ -20,19 +19,15 @@ allData db =
   let migrationData m =
         [AST.allData m.rollforward, AST.allData m.rollback]
         |> List.concat
-      migrationBlanks lhs rhs =
+      migrationBlanks  =
         db.activeMigration
-        |> Maybe.andThen
-          (\am ->
-            if am.target == B.toID lhs
-            || am.target == B.toID rhs
-            then Just (migrationData am)
-            else Nothing)
+        |> Maybe.map migrationData
         |> Maybe.withDefault []
   in
   db.cols
-  |> List.map (\(lhs,rhs) -> [PDBColName lhs, PDBColType rhs] ++ (migrationBlanks lhs rhs))
+  |> List.map (\(lhs,rhs) -> [PDBColName lhs, PDBColType rhs])
   |> List.concat
+  |> (++) migrationBlanks
 
 
 siblings : PointerData -> DB -> List PointerData
@@ -50,6 +45,3 @@ hasCol db name =
 isLocked : Model -> TLID -> Bool
 isLocked m tlid =
   not (List.member tlid m.unlockedDBs)
-
-initFieldTypeMigration : Model -> Toplevel -> (BlankOr String) -> Modification
-initFieldTypeMigration m tl tipe = NoChange
