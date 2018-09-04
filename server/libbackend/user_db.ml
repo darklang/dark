@@ -555,20 +555,7 @@ let change_col_type id newtipe db =
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
+(* deprecated *)
 let initialize_migration id rbid rfid kind (db : db) =
-  if Option.is_some db.active_migration
-  then
-    Exception.internal
-      ("Attempted to init a migration for a table with an active one: " ^ db.name);
-  match kind with
-  | ChangeColType ->
-    let new_migration =
-      { starting_version = db.version
-      ; kind = kind
-      ; rollback = Blank rbid
-      ; rollforward = Blank rfid
-      ; target = id
-      }
-    in
-    { db with active_migration = Some new_migration }
+  db
 

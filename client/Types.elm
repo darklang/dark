@@ -421,12 +421,13 @@ type alias Handler = { ast : Expr
 type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
-type DBMigrationKind = ChangeColType
+
+-- this is deprecated
+type DBMigrationKind = DeprecatedMigrationKind
+
 type alias DBMigration = { startingVersion : Int
-                         , kind : DBMigrationKind
                          , rollforward : Expr
                          , rollback : Expr
-                         , target : ID
                          }
 
 type alias DB = { tlid : TLID

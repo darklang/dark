@@ -101,14 +101,12 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
     type col = string or_blank * tipe_ or_blank
               [@@deriving eq, compare, show, yojson]
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-    type migration_kind = ChangeColType
-                          [@@deriving eq, compare, show, yojson, bin_io]
+    type migration_kind = DeprecatedMigrationKind
+                          [@@deriving eq, compare, show, yojson, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
     type db_migration = { starting_version : int
-                        ; kind : migration_kind
                         ; rollforward : expr
                         ; rollback : expr
-                        ; target : id
                         }
                         [@@deriving eq, compare, show, yojson]
     type db = { tlid: tlid

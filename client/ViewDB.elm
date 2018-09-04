@@ -7,7 +7,6 @@ import Html
 import Html.Attributes as Attrs
 import Maybe.Extra as ME
 import Nineteen.String as String
--- import List.Extra as LE
 
 -- dark
 import Blank as B
@@ -51,21 +50,11 @@ viewDB vs db =
       coldivs =
         db.cols
         |> List.map (\(n, t) ->
-          let migration =
-                db.activeMigration
-                |> Maybe.andThen
-                     (\am ->
-                       if am.target == B.toID n
-                       || am.target == B.toID t
-                       then Just (viewDBMigration vs am)
-                       else Nothing)
-                |> ME.toList
-          in
           Html.div
             [ Attrs.class "col" ]
             ([ viewDBColName vs [wc "name"] n
             , viewDBColType vs [wc "type"] t
-            ] ++ migration ))
+            ]))
   in
   [
     Html.div

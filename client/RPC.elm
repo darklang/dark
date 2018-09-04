@@ -200,15 +200,13 @@ encodeDBMigrationKind : DBMigrationKind -> JSE.Value
 encodeDBMigrationKind k =
   let ev = encodeVariant in
   case k of
-    ChangeColType -> ev "ChangeColType" []
+    DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
 
 encodeDBMigration : DBMigration -> JSE.Value
 encodeDBMigration dbm =
   JSE.object [ ("starting_version", JSE.int dbm.startingVersion)
-             , ("kind", encodeDBMigrationKind dbm.kind)
              , ("rollforward", encodeExpr dbm.rollforward)
              , ("rollback", encodeExpr dbm.rollback)
-             , ("target", encodeID dbm.target)
              ]
 
 encodeDB : DB -> JSE.Value
@@ -607,25 +605,21 @@ decodeTipeString =
 
 decodeDBMigrationKind : JSD.Decoder DBMigrationKind
 decodeDBMigrationKind =
-  decodeVariant0 ChangeColType
+  decodeVariant0 DeprecatedMigrationKind
 
 
 decodeDBMigration : JSD.Decoder DBMigration
 decodeDBMigration =
-  let toDBM v kind rollf rollb target =
+  let toDBM v rollf rollb =
         { startingVersion = v
-        , kind = kind
         , rollforward = rollf
         , rollback = rollb
-        , target = target
         }
   in
   JSDP.decode toDBM
   |> JSDP.required "starting_version" JSD.int
-  |> JSDP.required "kind" decodeDBMigrationKind
   |> JSDP.required "rollforward" decodeExpr
   |> JSDP.required "rollback" decodeExpr
-  |> JSDP.required "target" decodeID
 
 decodeDB : JSD.Decoder DB
 decodeDB =
