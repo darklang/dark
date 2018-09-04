@@ -60,11 +60,11 @@ upsert m tl =
 
 upsertAllByTLID : List Toplevel -> List Toplevel -> List Toplevel
 upsertAllByTLID tls new =
-  List.foldl (flip upsertByTLID) tls new
+  List.foldl (\a b -> upsertByTLID b a) tls new
 
 upsertAll : Model -> List Toplevel -> Model
 upsertAll m tls =
-  List.foldl (flip upsert) m tls
+  List.foldl (\a b -> upsert b a) m tls
 
 containsByTLID : List Toplevel -> Toplevel -> Bool
 containsByTLID tls elem =
@@ -445,5 +445,3 @@ find tl id =
   |> List.filter (\d -> id == P.toID d)
   |> assert (\r -> List.length r <= 1) -- guard against dups
   |> List.head
-
-
