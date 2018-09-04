@@ -622,7 +622,7 @@ updateMod mod (m, cmd) =
         ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
       SetLockedHandlers locked ->
         ({ m | lockedHandlers = locked }, Cmd.none)
-      MoveCanvasToPos canvas page pos ->
+      MoveCanvasTo canvas page pos ->
         let canvas2 =
           case page of
             Toplevels _ -> { canvas | offset = pos }
