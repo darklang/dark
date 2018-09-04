@@ -368,6 +368,7 @@ let save_test_handler ~(execution_id: Types.id) host =
 let auth_then_handle ~(execution_id: Types.id) req host handler =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
+  let https_only_cookie = host = "builtwithdark" in
   if not (String.is_prefix ~prefix:"/admin" path)
   then
     handler (Header.init ())
@@ -412,7 +413,10 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
            let%lwt session = Auth.Session.new_for_username username in
            let headers =
              Header.of_list
-               (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session)
+               (Auth.Session.to_cookie_hdrs
+                  ~http_only:true
+                  ~secure:https_only_cookie
+                  Auth.Session.cookie_key session)
            in
            run_handler ~auth_domain ~username headers
          else
