@@ -36,42 +36,42 @@ toAbsolute m pos =
 
 pageUp : Model -> Modification
 pageUp m =
-  mouseMove m [0, -1 * Defaults.pageHeight]
+  moveCanvasBy m [0, -1 * Defaults.pageHeight]
 
 pageDown : Model -> Modification
 pageDown m =
-  mouseMove m [0, Defaults.pageHeight]
+  moveCanvasBy m [0, Defaults.pageHeight]
 
 pageLeft : Model -> Modification
 pageLeft m =
-  mouseMove m [-1 * Defaults.pageWidth, 0]
+  moveCanvasBy m [-1 * Defaults.pageWidth, 0]
 
 pageRight : Model -> Modification
 pageRight m =
-  mouseMove m [Defaults.pageWidth, 0]
+  moveCanvasBy m [Defaults.pageWidth, 0]
 
 moveUp : Model -> Modification
 moveUp m =
-  mouseMove m [0, -1*Defaults.moveSize] 
+  moveCanvasBy m [0, -1*Defaults.moveSize] 
 
 moveDown : Model -> Modification
 moveDown m =
-  mouseMove m [0, Defaults.moveSize] 
+  moveCanvasBy m [0, Defaults.moveSize] 
 
 moveLeft : Model -> Modification
 moveLeft m =
-  mouseMove m [-1*Defaults.moveSize, 0] 
+  moveCanvasBy m [-1*Defaults.moveSize, 0] 
 
 moveRight : Model -> Modification
 moveRight m =
-  mouseMove m [Defaults.moveSize, 0] 
+  moveCanvasBy m [Defaults.moveSize, 0] 
 
 moveToOrigin : Model -> Modification
 moveToOrigin m =
   MoveCanvasToPos m.canvas m.currentPage Defaults.initialPos
 
-mouseMove : Model -> (List Int) -> Modification
-mouseMove m deltaCoords =
+moveCanvasBy : Model -> (List Int) -> Modification
+moveCanvasBy m deltaCoords =
   let d =
         case deltaCoords of
           x::y::_ -> { x=x, y=y }

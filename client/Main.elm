@@ -1229,7 +1229,7 @@ update_ msg m =
 
     MouseWheel deltaCoords ->
       if m.canvas.enablePan
-      then Viewport.mouseMove m deltaCoords
+      then Viewport.moveCanvasBy m deltaCoords
       else NoChange
 
     DataMouseEnter tlid idx _ ->
