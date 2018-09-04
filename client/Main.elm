@@ -416,20 +416,21 @@ updateMod mod (m, cmd) =
         if m.currentPage == page
         then (m, Cmd.none)
         else
-          case (page, m.currentPage) of
+          let canvas = m.canvas
+          in case (page, m.currentPage) of
             (Toplevels pos2, Toplevels _) ->
               -- scrolling
               ({ m |
                 currentPage = page
                 , urlState = UrlState pos2
-                , canvas = Viewport.setCanvasOffset m.canvas page pos2
+                , canvas = { canvas | offset = pos2 }
                 }, Cmd.none)
             (Fn _ pos2, _) ->
               ({ m |
                 currentPage = page
                 , cursorState = Deselected
                 , urlState = UrlState pos2
-                , canvas = Viewport.setCanvasOffset m.canvas page pos2
+                , canvas = { canvas | fnOffset = pos2 }
                 }, Cmd.none)
             _ ->
               let newM =
@@ -621,6 +622,12 @@ updateMod mod (m, cmd) =
         ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
       SetLockedHandlers locked ->
         ({ m | lockedHandlers = locked }, Cmd.none)
+      MoveCanvasToPos canvas page pos ->
+        let canvas2 =
+          case page of
+            Toplevels _ -> { canvas | offset = pos }
+            Fn _ _ -> { canvas | fnOffset = pos }
+        in ({ m | canvas = canvas2 }, Cmd.none)
       TweakModel fn ->
         (fn m, Cmd.none)
       AutocompleteMod mod ->
@@ -1093,40 +1100,38 @@ update_ msg m =
 
 
           Deselected ->
-            -- Don't move viewport when editing fns
             case m.currentPage of
-              Fn _ _ -> NoChange
+              Fn _ _ -> NoChange -- Don't move viewport when editing fns
               Toplevels center ->
                 case event.keyCode of
                   Key.Enter -> Entry.createFindSpace m
 
                   Key.A ->
                     if event.ctrlKey
-                    then Viewport.pageLeft center
+                    then Viewport.pageLeft m
                     else NoChange
                   Key.E ->
                     if event.ctrlKey
-                    then Viewport.pageRight center
+                    then Viewport.pageRight m
                     else NoChange
                   Key.F ->
                     if event.ctrlKey
-                    then Viewport.pageDown center
+                    then Viewport.pageDown m
                     else NoChange
                   Key.B ->
                     if event.ctrlKey
-                    then Viewport.pageUp center
+                    then Viewport.pageUp m
                     else NoChange
 
-                  Key.PageUp -> Viewport.pageUp center
-                  Key.PageDown -> Viewport.pageDown center
+                  Key.PageUp -> Viewport.pageUp m
+                  Key.PageDown -> Viewport.pageDown m
 
-                  Key.Up -> Viewport.moveUp center -- NB: see `stopKeys` in ui.html
-                  Key.Down -> Viewport.moveDown center -- NB: see `stopKeys` in ui.html
-                  Key.Left -> Viewport.moveLeft center
-                  Key.Right -> Viewport.moveRight center
+                  Key.Up -> Viewport.moveUp m -- NB: see `stopKeys` in ui.html
+                  Key.Down -> Viewport.moveDown m -- NB: see `stopKeys` in ui.html
+                  Key.Left -> Viewport.moveLeft m
+                  Key.Right -> Viewport.moveRight m
 
-                  Key.Zero -> Viewport.moveTo { x=0, y=0 }
-
+                  Key.Zero -> Viewport.moveToOrigin m
                   Key.Tab -> Selection.selectNextToplevel m Nothing -- NB: see `stopKeys` in ui.html
                   _ -> NoChange
 

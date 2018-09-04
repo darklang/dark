@@ -549,6 +549,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
+                  | MoveCanvasToPos CanvasProps Page Pos
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 
