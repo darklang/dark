@@ -217,7 +217,7 @@ type Op
     | DeleteFunction TLID
     | ChangeDBColName TLID ID DBColName
     | ChangeDBColType TLID ID DBColType
-    | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind
+    | DeprecatedInitDbm TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
 
 type alias RPCParams = { ops : List Op }

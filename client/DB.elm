@@ -52,6 +52,4 @@ isLocked m tlid =
   not (List.member tlid m.unlockedDBs)
 
 initFieldTypeMigration : Model -> Toplevel -> (BlankOr String) -> Modification
-initFieldTypeMigration m tl tipe =
-  RPC ([InitDBMigration tl.id (B.toID tipe) (gid ()) (gid ()) ChangeColType]
-      , FocusSame)
+initFieldTypeMigration m tl tipe = NoChange
