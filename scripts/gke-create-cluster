@@ -1,26 +1,172 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container $0 $@
 
 set -euo pipefail
 
-set -x
+. ./scripts/support/assert-in-container "$0" "$@"
 
-# Create the cluster
-# gcloud beta container clusters create darkcluster1 \
-#   --zone=us-west1 \
-#   --project="balmy-ground-195100" \
-#   --cluster-version=1.10.2-gke.3 \
-#   --enable-stackdriver-kubernetes \
-#   --enable-autorepair
 
-# Get the creds to run kubectl
-gcloud container clusters get-credentials projects/balmy-ground-195100/zones/us-west1/clusters/darkcluster1
+# these are in the old gke-deploy-cluster -- we should probably
+# remove them at some point, but I don't know where else to store
+# them.
+DARK_CLUSTER_CLOUDSQL_USER="${DARK_CLUSTER_CLOUDSQL_USER:-$(printf postgres | base64)}"
+DARK_CLUSTER_CLOUDSQL_PASS="${DARK_CLUSTER_CLOUDSQL_PASS:-$(printf 6gCtEAKElJFpNCdw | base64)}"
 
-# add secrets for the cloudsql proxy
-kubectl create secret generic cloudsql-db-credentials --from-literal=username=postgres --from-literal=password=6gCtEAKElJFpNCdw
+
+DARK_ZONE="${DARK_ZONE:-us-west1}"
+DARK_PROJECT="${DARK_PROJECT:-balmy-ground-195100}"
+DARK_CLUSTER="${DARK_CLUSTER:-darkcluster$(date +"%s")}"
+# This is the number of nodes _per zone_, so it will be 3x this amount by default.
+DARK_CLUSTER_NODES="${DARK_CLUSTER_NODES:-4}"
+# darkcluster1 was on 1.10.2-gke.3. That's no longer supported.
+DARK_CLUSTER_VERSION="${DARK_CLUSTER_VERSION:-1.10.2-gke.4}"
+
+
+function print_step () {
+    tput setab 6 && echo "=>" "$@" && tput sgr0
+}
+
+
+if [ ! -v DARK_CLUSTER_TLS_KEY ] || [ ! -v DARK_CLUSTER_TLS_CRT ]; then
+    cat <<EOF >&2
+We need a base64-encoded TLS key and certificate as DARK_CLUSTER_TLS_KEY and
+DARK_CLUSTER_TLS_CRT. These should be base64-encoded pem files. If you have a
+copy of the .crt and .key files; you can run this like
+
+	DARK_CLUSTER_TLS_CRT="\$(base64 -w 0 < builtwithdark.com.crt)" \\
+	DARK_CLUSTER_TLS_KEY="\$(base64 -w 0 < builtwithdark.com.key)" \\
+	$0
+
+in a pinch you can swipe creds from the current cluster. e.g.
+
+       gcloud container clusters get-credentials darkcluster1
+       DARK_CLUSTER_TLS_CRT="\$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.crt"]')" \\
+       DARK_CLUSTER_TLS_KEY="\$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]')" \\
+       $0
+
+EOF
+    exit 1
+fi
+
+if [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
+    cat <<EOF
+We need base64-encoded cloudsql instance creds in DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS and
+DARK_CLUSTER_CLOUDSQL_PASS. These are from a file in Paul's Downloads directory:
+
+       DARK_CLUSTER_CLOUDSQL_USER="\$(base64 balmy-ground-195100-cf744744111f.json)" \\
+       $0
+
+in a pinch you can swipe creds from the current cluster. e.g.
+
+       gcloud container clusters get-credentials darkcluster1
+       DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS="\$(kubectl get secret cloudsql-instance-credentials -o json | jq -r '.data["credentials.json"]')" \\
+       $0
+
+EOF
+    exit 1
+fi
+
+print_step "starting a new cluster named $DARK_CLUSTER"
+
+gcloud beta container clusters create "$DARK_CLUSTER" \
+     --num-nodes="$DARK_CLUSTER_NODES" \
+     --zone="$DARK_ZONE" \
+     --project="$DARK_PROJECT" \
+     --cluster-version="$DARK_CLUSTER_VERSION" \
+     --enable-stackdriver-kubernetes \
+     --enable-autorepair \
+     --enable-network-policy
+
+print_step "getting creds for the new cluster"
+gcloud container clusters get-credentials projects/"$DARK_PROJECT"/zones/"$DARK_ZONE"/clusters/"$DARK_CLUSTER"
+
+print_step "installing secrets"
+# add tls secrets
+kubectl create -f - <<EOF
+{
+	"apiVersion": "v1",
+	"kind": "Secret",
+	"type": "kubernetes.io/tls",
+	"data": {
+		"tls.crt": "$DARK_CLUSTER_TLS_CRT",
+		"tls.key": "$DARK_CLUSTER_TLS_KEY"
+	},
+	"metadata": {
+		    "name": "bwd-tls"
+	}
+}
+EOF
 
 # add secrets for the cloudsql proxy service account
-# Do this from outside the container cause it's not in the container
-# kubectl create secret generic cloudsql-instance-credentials --from-file=credentials.json=/Users/paulbiggar/Downloads/balmy-ground-195100-cf744744111f.json
+kubectl create -f - <<EOF
+{
+	"apiVersion": "v1",
+	"kind": "Secret",
+	"type": "Opaque",
+	"data": {
+		"username": "$DARK_CLUSTER_CLOUDSQL_USER",
+		"password": "$DARK_CLUSTER_CLOUDSQL_PASS"
+	},
+	"metadata": {
+		    "name": "cloudsql-db-credentials"
+	}
+}
+EOF
+
+# cloudsql instance creds
+kubectl create -f - <<EOF
+{
+	"apiVersion": "v1",
+	"kind": "Secret",
+	"type": "Opaque",
+	"data": {
+		"credentials.json": "$DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS"
+	},
+	"metadata": {
+		    "name": "cloudsql-instance-credentials"
+	}
+}
+EOF
+
+print_step "deploying code and containers"
+
+DARK_ZONE="$DARK_ZONE" DARK_CLUSTER="$DARK_CLUSTER" DARK_PROJECT="$DARK_PROJECT" \
+	 ./scripts/gke-deploy
+
+print_step "waiting for a new ip..."
 
 
+NEW_IP=null
+while [ "$NEW_IP" == "null" ]; do
+    NEW_IP="$(kubectl get Ingress bwd-tls-ingress -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
+done
+
+print_step "your new cluster is deployed!"
+cat <<EOF
+Your new IP is $(tput rev)$NEW_IP$(tput sgr0). Wait a little for the containers to come up...
+
+   watch -d -n 0.2 kubectl get pods
+
+and check it out one of the following ways:
+
+  + edit your /etc/hosts to point builtwithdark.com and *.builtwithdark.com to that IP
+
+    $NEW_IP    builtwithdark.com
+    $NEW_IP    some-subdomain.builtwithdark.com
+
+  + use --resolve in 'curl', e.g.
+
+    curl --resolve "builtwithdark.com:443:$NEW_IP" builtwithdark.com
+
+Once you're happy with the status of the new cluster, you can move the static IP to it:
+
+  TODO
+
+and make a pull request changing the deploy scripts in this repository to point
+to your new cluster:
+
+
+  TODO (also, make all of the deploy scripts use a common file to store the current cluster)
+
+
+
+EOF

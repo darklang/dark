@@ -8,15 +8,17 @@ set -x
 ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
 ENVIRONMENT=production
 LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'account' | awk '{print $3}' | awk -F "@" '{print $1}'`
-PROJECT="balmy-ground-195100"
-ZONE="us-west1"
-CLUSTER="darkcluster1"
-GCR="gcr.io/$PROJECT"
+
+DARK_ZONE="${DARK_ZONE:-us-west1}"
+DARK_PROJECT="${DARK_PROJECT:-balmy-ground-195100}"
+DARK_CLUSTER="${DARK_CLUSTER:-darkcluster1}"
+
+GCR="gcr.io/$DARK_PROJECT"
 
 ## Only fetch if we haven't just built, which we do on CI
 if [[ "$CI" == "" ]]; then
   echo "Not on CI: fetching latest containers"
-  ./scripts/gcp-fetch-latest-containers $PROJECT
+  ./scripts/gcp-fetch-latest-containers "$DARK_PROJECT"
 else
   echo "On CI: not fetching latest containers"
 fi
@@ -33,7 +35,7 @@ CRON_IMAGE="$GCR/dark-gcp-cron:$CRON_IMAGE_ID"
 
 
 # get creds
-gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER --zone=$ZONE
+gcloud container clusters get-credentials projects/"$DARK_PROJECT"/zones/"$DARK_ZONE"/clusters/"$DARK_CLUSTER" --zone="$DARK_ZONE"
 
 # env vars (replace existing configmap or make a new one)
 (kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
