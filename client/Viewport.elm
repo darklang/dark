@@ -34,51 +34,44 @@ toAbsolute m pos =
   { x = pos.vx - center.x
   , y = pos.vy - center.y}
 
-pageUp : Pos -> Modification
-pageUp c =
-  {x=c.x, y=c.y - Defaults.pageHeight } |> moveTo
+pageUp : Model -> Modification
+pageUp m =
+  moveCanvasBy m [0, -1 * Defaults.pageHeight]
 
-pageDown : Pos -> Modification
-pageDown c =
-  {x=c.x, y=c.y + Defaults.pageHeight } |> moveTo
+pageDown : Model -> Modification
+pageDown m =
+  moveCanvasBy m [0, Defaults.pageHeight]
 
-pageLeft : Pos -> Modification
-pageLeft c =
-  {x=c.x - Defaults.pageWidth, y=c.y } |> moveTo
+pageLeft : Model -> Modification
+pageLeft m =
+  moveCanvasBy m [-1 * Defaults.pageWidth, 0]
 
-pageRight : Pos -> Modification
-pageRight c =
-  {x=c.x + Defaults.pageWidth, y=c.y } |> moveTo
+pageRight : Model -> Modification
+pageRight m =
+  moveCanvasBy m [Defaults.pageWidth, 0]
 
+moveUp : Model -> Modification
+moveUp m =
+  moveCanvasBy m [0, -1*Defaults.moveSize] 
 
-moveUp : Pos -> Modification
-moveUp c =
-  {x=c.x, y=c.y - Defaults.moveSize } |> moveTo
+moveDown : Model -> Modification
+moveDown m =
+  moveCanvasBy m [0, Defaults.moveSize] 
 
-moveDown : Pos -> Modification
-moveDown c =
-  {x=c.x, y=c.y + Defaults.moveSize } |> moveTo
+moveLeft : Model -> Modification
+moveLeft m =
+  moveCanvasBy m [-1*Defaults.moveSize, 0] 
 
-moveLeft : Pos -> Modification
-moveLeft c =
-  {x=c.x - Defaults.moveSize, y=c.y } |> moveTo
+moveRight : Model -> Modification
+moveRight m =
+  moveCanvasBy m [Defaults.moveSize, 0] 
 
-moveRight : Pos -> Modification
-moveRight c =
-  {x=c.x + Defaults.moveSize, y=c.y } |> moveTo
+moveToOrigin : Model -> Modification
+moveToOrigin m =
+  MoveCanvasTo m.canvas m.currentPage Defaults.initialPos
 
-moveTo : Pos -> Modification
-moveTo pos =
-  SetCenter pos
-
-setCanvasOffset : CanvasProps -> Page -> Pos -> CanvasProps
-setCanvasOffset canvas page pos =
-  case page of
-    Toplevels _ -> { canvas | offset = pos }
-    Fn _ _ -> { canvas | fnOffset = pos }
-
-mouseMove : Model -> (List Int) -> Modification
-mouseMove m deltaCoords =
+moveCanvasBy : Model -> (List Int) -> Modification
+moveCanvasBy m deltaCoords =
   let d =
         case deltaCoords of
           x::y::_ -> { x=x, y=y }
@@ -89,6 +82,4 @@ mouseMove m deltaCoords =
           Toplevels _ -> c.offset
           Fn _ _ -> c.fnOffset
       pos = subPos offset d
-  in TweakModel (\m -> { m |
-    canvas = (setCanvasOffset c m.currentPage pos)
-    })
+  in MoveCanvasTo c m.currentPage pos
