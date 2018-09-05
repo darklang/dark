@@ -58,8 +58,11 @@ viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
   let locked =
           if vs.dbLocked && (vs.dbMigration == Nothing)
-          then fontAwesome "lock" (Just (StartMigration db))
-          else fontAwesome "unlock" Nothing
+          then
+            Html.div
+              [ eventNoPropagation "click" (\_ -> StartMigration db) ]
+              [ fontAwesome "lock" ]
+          else fontAwesome "unlock"
       namediv = viewDBName db.name (db.version)
       coldivs = List.map (viewDBCol vs) db.cols
       migrations =
