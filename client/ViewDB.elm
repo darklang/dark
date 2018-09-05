@@ -13,7 +13,16 @@ import Blank as B
 import Types exposing (..)
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
-import ViewCode
+
+viewDBName : String -> Int -> Html.Html Msg
+viewDBName name version =
+  Html.div
+    [ Attrs.class "dbname" ]
+    [ Html.span [ Attrs.class "name"] [ Html.text name]
+      , Html.span
+          [ Attrs.class "version" ]
+          [ Html.text (".v" ++ (toString version)) ]
+    ]
 
 viewDBColName : BlankViewer String
 viewDBColName vs c v =
@@ -28,36 +37,38 @@ viewDBColType vs c v =
   let configs = idConfigs ++ c in
   viewText DBColType vs configs v
 
-viewDBMigration : ViewState -> DBMigration -> Html.Html Msg
-viewDBMigration vs m =
+viewDBCol : ViewState -> (BlankOr DBColName, BlankOr DBColType) -> Html.Html Msg
+viewDBCol vs (n, t) =
   Html.div
-    [ Attrs.class "migration-view" ]
-    [
-      Html.text ("new version: " ++ String.fromInt (m.startingVersion + 1))
-    , ViewCode.viewExpr 0 vs [] m.rollforward
-    , ViewCode.viewExpr 0 vs [] m.rollback
+    [ Attrs.class "col" ]
+    [ viewDBColName vs [wc "name"] n
+    , viewDBColType vs [wc "type"] t
     ]
+
+viewDBMigration : DBSchemaMigration -> DBName -> ViewState -> Html.Html Msg
+viewDBMigration migra dbname vs =
+  let name = viewDBName dbname (migra.version)
+      cols = List.map (viewDBCol vs) migra.cols
+  in Html.div
+    [ Attrs.class "db migration-view" ]
+    (name :: cols)
 
 
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
-  let locked = if vs.dbLocked
-               then fontAwesome "lock"
-               else fontAwesome "unlock"
-      namediv = Html.div
-                 [ Attrs.class "dbname"]
-                 [ Html.text (db.name ++ ".v" ++ (String.fromInt db.version)) ]
-      coldivs =
-        db.cols
-        |> List.map (\(n, t) ->
-          Html.div
-            [ Attrs.class "col" ]
-            ([ viewDBColName vs [wc "name"] n
-            , viewDBColType vs [wc "type"] t
-            ]))
+  let locked =
+          if vs.dbLocked && (vs.dbMigration == Nothing)
+          then fontAwesome "lock" (Just (StartMigration db))
+          else fontAwesome "unlock" Nothing
+      namediv = viewDBName db.name (db.version)
+      coldivs = List.map (viewDBCol vs) db.cols
+      migrations =
+        case vs.dbMigration of
+          Just migra -> [viewDBMigration migra db.name vs]
+          Nothing -> []
   in
   [
     Html.div
       [ Attrs.class "db"]
       (locked :: namediv :: coldivs)
-  ]
+  ] ++ migrations

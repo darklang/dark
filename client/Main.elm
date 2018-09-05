@@ -16,7 +16,6 @@ import Mouse
 import PageVisibility
 import String
 import Nineteen.String as String
--- import List.Extra as LE
 import String.Extra as SE
 import Time
 import Task
@@ -676,6 +675,9 @@ updateMod mod (m, cmd) =
 
       SetUnlockedDBs unlockedDBs ->
         ({ m | unlockedDBs = unlockedDBs }, Cmd.none)
+
+      AddDBMigration name migra ->
+        ({ m | dbMigrations = Dict.insert name migra m.dbMigrations }, Cmd.none)
 
       Set404s f404s ->
         ({ m | f404s = f404s }, Cmd.none)
@@ -1474,6 +1476,11 @@ update_ msg m =
           SetCursorState origCursorState
         _ -> SetCursor tlid idx
 
+    -----------
+    -- DBs
+    -----------
+
+    StartMigration db -> DB.startMigration db
 
     -----------------
     -- Buttons
