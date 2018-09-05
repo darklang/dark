@@ -5,14 +5,6 @@ open Analysis_types
 open Types
 module RTT = Types.RuntimeT
 
-(* By hashing the filename, it's cheap to know if anything has changed,
- * without security implication of saving passwords to disk *)
-let hash (arglist : RTT.dval list) : string =
-  arglist
-  |> List.map ~f:Dval.to_internal_repr
-  |> String.concat
-  |> Crypto.hash
-
 (* ------------------------- *)
 (* External *)
 (* ------------------------- *)
@@ -28,7 +20,7 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
             ; ID tlid
             ; String fnname
             ; ID id
-            ; String (hash arglist)
+            ; String (Dval.hash arglist)
             ; DvalJson result]
 
 let load ~canvas_id ~trace_id tlid : function_result list =

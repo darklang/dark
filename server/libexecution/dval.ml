@@ -534,3 +534,11 @@ let from_form_encoding (f: string) : dval =
 let exception_to_dval exc =
   DError (Exception.to_string exc)
 
+(* Originally to prevent storing sensitive data to disk, this also reduces the size of the data stored by only storing a hash *)
+let hash (arglist : dval list) : string =
+  arglist
+  |> List.map ~f:to_internal_repr
+  |> String.concat
+  |> Util.hash
+
+
