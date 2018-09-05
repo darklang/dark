@@ -64,6 +64,19 @@ type analysis_param = { handler : HandlerT.handler
 type analysis_envelope = Analysis_types.uuid * Analysis_types.analysis
                        [@@deriving to_yojson]
 
+let load_from_trace results (tlid, fnname, caller_id) args : (dval * Time.t) option =
+  results
+  |> List.filter_map
+      ~f:(fun (rfnname, rcaller_id, hash, dval) ->
+          if fnname = rfnname
+          && caller_id = rcaller_id
+          && hash = Dval.hash args
+          then Some dval
+          else None)
+  |> List.hd
+  (* We don't use the time, so just hack it to get the interface right. *)
+  |> Option.map ~f:(fun dv -> (dv, Time.now ()))
+
 
 let perform_analysis (str : string) : string =
   let { handler; dbs; user_fns; trace } =
@@ -84,7 +97,7 @@ let perform_analysis (str : string) : string =
       ~input_vars
       ~dbs
       ~user_fns
-      ~load_fn_result:Execution.load_no_results
+      ~load_fn_result:(load_from_trace trace.function_results)
       ~load_fn_arguments:Execution.load_no_arguments)
   |> analysis_envelope_to_yojson
   |> Yojson.Safe.to_string
