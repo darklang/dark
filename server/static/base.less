@@ -25,6 +25,42 @@ html {
 @blank-underline: 1px dashed @grey2;
 @code-font-size: 13.3333px;
 
+/* Mixins */
+ .from (colors, @color) {
+  color: @color;
+}
+.to (colors, @color) {
+  color: @color;
+}
+ .keyframes (@name, @from, @to, @vendor:"", @bind:"") {
+  @keyf: ~"@{bind}@@{vendor}keyframes @{name} { `'\n'`from ";
+  @{keyf} {
+      .from(@name,@from);
+        }
+      to {
+        .to(@name,@to);
+      }
+}
+ .animation-keyframes (@name, @from, @to, @anim-selector, @anim-props) {
+  @bind: "} `'\n'`";
+  .keyframes (@name, @from, @to, "-moz-");
+  .keyframes (@name, @from, @to, "-webkit-", @bind);
+  .keyframes (@name, @from, @to, "-o-", @bind);
+  .keyframes (@name, @from, @to, "-ms-", @bind);
+  .keyframes (@name, @from, @to, "", @bind);
+  @anim: ~"} `'\n'`.@{anim-selector}";
+  @{anim} {
+    -moz-animation: ~"@{name} @{anim-props}";
+    -webkit-animation: ~"@{name} @{anim-props}";
+    -o-animation: ~"@{name} @{anim-props}";
+    -ms-animation: ~"@{name} @{anim-props}";
+    animation: ~"@{name} @{anim-props}";
+  }
+}
+ .animation-keyframes(colors, @red, @grey3, db-lock-hover, 1s 1 normal);
+ 
+ /* Body */
+
 ::-webkit-scrollbar {
   -webkit-appearance: none;
   width: 7px;
@@ -436,13 +472,46 @@ body #grid * {
   display: flex;
   flex-direction: column;
 
+  &.migration-view {
+    position: absolute;
+    top: -12px;
+    left: calc(~"100% + 20px");
+    min-width: 245px;
+    padding: 24px;
+    border: @top-border;
+    border-color: darken(@yellow, 30%);
+     .dbname {
+      .version {
+        color: @yellow;
+      }
+    }
+  }
+
   .fa-lock, .fa-unlock {
     position: fixed;
     margin-left: -20px;
     margin-top: -22px;
     &.fa-lock {
       color: @red;
+
+      &::after {
+        content: "To migrate schema, click on the lock";
+        color: @grey3;
+        font-family: 'Fira Code', monospace;
+        font-size: 8px;
+        font-weight: 300;
+        position: relative;
+        top: -10px;
+        left: 4px;
+        font-style: italic;
+      }
+
+       &:hover {
+        .db-lock-hover;
+        color: @grey3;
+      }
     }
+
     &.fa-unlock {
       color: @green;
     }
@@ -1211,7 +1280,14 @@ body #grid * {
 
 .edit-fn {
   position: absolute;
+  right: -16px;
+  bottom: 0;
   .right-button;
+
+  &.flagged {
+    right: 0;
+    bottom: -32px;
+  }
 }
 
 .computed-value {
