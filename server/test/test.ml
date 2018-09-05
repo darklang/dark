@@ -794,6 +794,21 @@ let t_uuid_string_roundtrip () =
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
+let t_should_use_https () =
+  AT.check (AT.list AT.bool) "should_use_https works"
+    (List.map
+       ~f:(fun x -> Server.should_use_https (Uri.of_string x))
+       [ "http://builtwithdark.com"
+       ; "http://test.builtwithdark.com"
+       ; "http://localhost"
+       ; "http://test.localhost"
+    ])
+    [ true
+    ; true
+    ; false
+    ; false
+    ]
+
 let t_redirect_to () =
   AT.check (AT.list (AT.option AT.string)) "redirect_to works"
     (List.map
@@ -1251,6 +1266,7 @@ let suite =
     t_authenticate_user
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
+  ; "Server.should_use_https works", `Quick,  t_should_use_https
   ; "Server.redirect_to works", `Quick, t_redirect_to
   ; "Errorrail simple", `Quick, t_errorrail_simple
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
