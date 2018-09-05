@@ -5,7 +5,7 @@ module Runtime exposing (..)
 import Dict
 
 -- libs
--- import List.Extra as LE
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -154,13 +154,40 @@ isTrue : Dval -> Bool
 isTrue dv =
   dv == DBool True
 
+inputValueAsString : InputValueDict -> String
+inputValueAsString iv =
+  iv
+  |> DObj
+  |> toRepr
+  |> String.split "\n"
+  |> List.drop 1
+  |> LE.init
+  |> Maybe.withDefault []
+  |> List.map (String.dropLeft 2)
+  |> String.join "\n"
+
 -- Copied from Dval.to_repr in backend code
 toRepr : Dval -> String
 toRepr dv =
+  toRepr_ 0 dv
+
+toRepr_ : Int -> Dval -> String
+toRepr_ oldIndent dv =
   let wrap value =
         "<" ++ (dv |> typeOf |> tipe2str) ++ ": " ++ value ++ ">"
       asType =
         "<" ++ (dv |> typeOf |> tipe2str) ++ ">"
+      nl = "\n" ++ (String.repeat oldIndent " ")
+      inl = "\n" ++ (String.repeat (oldIndent + 2) " ")
+      indent = oldIndent + 2
+      objToString l =
+        if l == []
+        then "{}"
+        else
+          l
+          |> List.map (\(k,v) -> k ++ ": " ++ toRepr_ indent v)
+          |> String.join ("," ++ inl)
+          |> \s -> "{" ++ inl ++ s ++ nl ++ " }"
   in
   case dv of
     DInt i -> toString i
@@ -180,13 +207,10 @@ toRepr dv =
     DPassword s -> wrap s
     DBlock -> asType
     DIncomplete -> asType
-    DResp (Redirect url, dv) -> "302 " ++ url ++ "\n" ++ toRepr dv
+    DResp (Redirect url, dv) -> "302 " ++ url ++ nl ++ toRepr_ indent dv
     DResp (Response (code, hs), dv) ->
-      let headers = hs
-                    |> List.map (\(k,v) -> k ++ ": " ++ v)
-                    |> String.join ","
-                    |> \s -> "{ " ++ s ++ " }"
-      in toString code ++ " " ++ headers ++ "\n" ++ toRepr dv
+      let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
+      toString code ++ " " ++ headers ++ nl ++ toRepr dv
     DOption Nothing -> "Nothing"
     DOption (Just dv) -> "Some " ++ (toRepr dv)
     DErrorRail dv -> wrap (toRepr dv)
@@ -194,17 +218,9 @@ toRepr dv =
     DList l ->
       if l == []
       then "[]"
-      else "[ " ++ String.join ", " (List.map toRepr l) ++ " ]"
+      else "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ " ]"
     DObj o ->
-      if o == Dict.empty
-      then "{}"
-      else
-        "{ "
-        ++ (o
-            |> Dict.toList
-            |> List.map (\(k,v) -> k ++ ": " ++ toRepr v)
-            |> String.join ", ")
-        ++ " }"
+      objToString (Dict.toList o)
 
 
 extractErrorMessage : Dval -> String
