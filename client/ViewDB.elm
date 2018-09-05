@@ -13,6 +13,7 @@ import Blank as B
 import Types exposing (..)
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
+import ViewCode exposing (viewExpr)
 
 viewDBName : String -> Int -> Html.Html Msg
 viewDBName name version =
@@ -45,14 +46,32 @@ viewDBCol vs (n, t) =
     , viewDBColType vs [wc "type"] t
     ]
 
+viewMigraFuncs : ViewState -> Expr -> FnName -> VarName -> Html.Html Msg
+viewMigraFuncs vs expr fnName varName =
+  Html.div
+    [ Attrs.class "col roll-fn" ]
+    [ Html.div [ Attrs.class "fn-title" ]
+      [ Html.span [] [Html.text fnName]
+      , Html.span [] [Html.text " : "]
+      , Html.span [Attrs.class "varname"] [Html.text varName]
+      ]
+    , viewExpr 0 vs [] expr ]
+
 viewDBMigration : DBSchemaMigration -> DBName -> ViewState -> Html.Html Msg
 viewDBMigration migra dbname vs =
   let name = viewDBName dbname (migra.version)
-      cols = List.map (viewDBCol vs) migra.cols
+      cols =
+        (List.map (viewDBCol vs) migra.cols) ++
+          [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
+          , viewMigraFuncs vs migra.rollback "Rollback"  "newObj"
+          , Html.div
+            [Attrs.class "col actions"]
+            [ Html.button [Attrs.disabled False] [ Html.text "cancel"]
+            , Html.button [Attrs.disabled True] [ Html.text "migration"] ]
+          ]
   in Html.div
     [ Attrs.class "db migration-view" ]
     (name :: cols)
-
 
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =

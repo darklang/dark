@@ -480,11 +480,50 @@ body #grid * {
     padding: 24px;
     border: @top-border;
     border-color: darken(@yellow, 30%);
+    background-color: @black2;
+
      .dbname {
       .version {
         color: @yellow;
       }
     }
+
+    .col {
+
+      &.roll-fn {
+        margin-top: 12px;
+        flex-direction: column;
+
+        .fn-title {
+          font-size: 0.8rem;
+
+          .varname {
+            color: @grey2;
+          }
+        }
+      }
+
+      &.actions {
+        margin-top: 25px;
+        flex-wrap: nowrap;
+        justify-content: space-around;
+
+        button {
+          padding: 8px;
+          font-size: 10px;
+          background-color: @grey1;
+          color: @yellow;
+          border: 1px solid @yellow;
+          text-transform: uppercase;
+
+          &:disabled {
+            color: @grey2;
+            border-color: @grey2;
+          }
+        }
+      }
+    }
+
   }
 
   .fa-lock, .fa-unlock {
