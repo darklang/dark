@@ -2,6 +2,7 @@ module Selection exposing (..)
 
 -- builtins
 import Maybe
+import Dict exposing (Dict)
 
 -- lib
 import Maybe.Extra as ME
@@ -350,27 +351,44 @@ delete m tlid mId =
             TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
 
 
+enterDB : Model -> DB -> TLID -> ID -> PointerData -> Modification
+enterDB m db tlid id pd =
+  let isLocked = DB.isLocked m tlid
+      isMigrationCol =
+        if DB.isMigrating m db.name
+        then
+          let migra = Dict.get db.name m.dbMigrations
+          in case migra of
+            Just m -> DB.isMigrationCol id m
+            Nothing -> False
+        else False
+      enterMods =
+          Many [ Enter (Filling tlid id)
+               , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
+          ]
+      updateDB =
+        if isLocked
+        then
+          if isMigrationCol
+          then AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
+          else NoChange
+        else enterMods
+  in
+    case pd of
+      PDBColName d -> updateDB
+      PDBColType d -> updateDB
+      _ -> NoChange
+
+
 enter : Model -> TLID -> ID -> Modification
 enter m tlid id =
   let tl = TL.getTL m tlid
       pd = TL.findExn tl id
-  in
-  if TL.getChildrenOf tl pd /= []
-  then selectDownLevel m tlid (Just id)
-  else
-    let enterMods =
-          Many [ Enter (Filling tlid id)
-               , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-          ]
-    in
-    case pd of
-      PDBColName d ->
-        if DB.isLocked m tlid && not (B.isBlank d)
-        then NoChange
-        else enterMods
-      PDBColType d ->
-        if DB.isLocked m tlid && not (B.isBlank d)
-        then
-          NoChange
-        else enterMods
-      _ -> enterMods
+  in case tl.data of
+    TLDB db -> enterDB m db tlid id pd
+    _ ->
+      if TL.getChildrenOf tl pd /= []
+      then selectDownLevel m tlid (Just id)
+      else Many [ Enter (Filling tlid id)
+                , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
+                ]

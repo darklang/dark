@@ -1,7 +1,7 @@
 module DB exposing (..)
 
 -- lib
--- import List.Extra as LE
+import Dict exposing (Dict)
 
 -- dark
 import Types exposing (..)
@@ -45,3 +45,25 @@ hasCol db name =
 isLocked : Model -> TLID -> Bool
 isLocked m tlid =
   not (List.member tlid m.unlockedDBs)
+
+initFieldTypeMigration : Model -> Toplevel -> (BlankOr String) -> Modification
+initFieldTypeMigration m tl tipe =
+  RPC ([InitDBMigration tl.id (B.toID tipe) (gid ()) (gid ()) ChangeColType]
+      , FocusSame)
+
+isMigrating : Model -> DBName -> Bool
+isMigrating m name = Dict.member name m.dbMigrations
+
+isMigrationCol : ID -> DBSchemaMigration -> Bool
+isMigrationCol id schema =
+  let inCols = schema.cols
+               |> List.filter (\(n, t) -> (B.toID n) == id || (B.toID t) == id )
+  in not (List.isEmpty inCols)
+
+startMigration : DB -> Modification
+startMigration db =
+  let newCols = db.cols
+                |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
+      migra = DBSchemaMigration newCols (db.version + 1) (B.new ()) (B.new ())
+  in AddDBMigration db.name migra
+

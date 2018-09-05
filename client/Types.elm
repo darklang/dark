@@ -187,6 +187,7 @@ type Msg
     | ReceiveAnalysis String
     | EnablePanning Bool
     | ShowErrorDetails Bool
+    | StartMigration DB
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -438,6 +439,13 @@ type alias DB = { tlid : TLID
                 , activeMigration : Maybe DBMigration
                 }
 
+type alias DBSchemaMigration =
+  { cols : List (BlankOr DBColName, BlankOr DBColType)
+  , version : Int
+  , rollforward : Expr
+  , rollback : Expr
+  }
+
 type TLData = TLHandler Handler
             | TLDB DB
             | TLFunc UserFunction
@@ -541,6 +549,7 @@ type alias Model = { error : DarkError
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
+                   , dbMigrations: Dict DBName DBSchemaMigration
                    }
 
 -- Values that we serialize

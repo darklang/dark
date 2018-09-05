@@ -98,4 +98,5 @@ defaultModel = { error = { message = Nothing
                , featureFlags = Dict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
+               , dbMigrations = Dict.empty
                }
