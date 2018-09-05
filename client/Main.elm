@@ -1557,7 +1557,7 @@ update_ msg m =
     PageFocusChange vis ->
       TweakModel (\m -> { m | visibility = vis })
 
-    CreateHandlerFrom404 (space, path, modifier, _) ->
+    CreateHandlerFrom404 {space, path, modifier} ->
       let center = findCenter m
           anId = gtlid ()
           aPos = center
