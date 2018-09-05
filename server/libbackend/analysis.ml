@@ -110,8 +110,12 @@ let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
 
 let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : trace list =
+  (* It's really awkward to do this on the client, so just do it here for now *)
   match saved_input_vars c h with
-  | [] -> []
+  | [] -> [{ id = Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
+           ; function_results = []
+           ; input = Execution.sample_input_vars h
+           }]
   | ivs ->
     List.map ivs
       ~f:(fun (trace_id, input_vars) ->
