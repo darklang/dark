@@ -14,7 +14,7 @@ import Prelude exposing (..)
 import ViewUtils exposing (..)
 import Analysis
 import Runtime as RT
-import Util
+-- import Util
 
 viewInput : TLID -> Int -> String -> Bool -> Bool -> Tipe -> Html.Html Msg
 viewInput tlid idx value isActive isHover tipe =
@@ -33,13 +33,7 @@ viewInput tlid idx value isActive isHover tipe =
 
 asValue : InputValueDict -> String
 asValue inputValue =
-  inputValue
-  |> Dict.toList
-  |> List.filter (\(k,dv) -> RT.typeOf dv /= TDB)
-  |> List.map (\(k,dv) -> k
-                         ++ ":\n  "
-                         ++ Util.replace "\n" "\n  " (RT.toRepr dv))
-  |> String.join "\n"
+  RT.inputValueAsString inputValue
 
 viewInputs : ViewState -> ID -> List (Html.Html Msg)
 viewInputs vs (ID astID) =
