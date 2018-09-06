@@ -18,7 +18,7 @@ let fns : Lib.shortfn list = [
          based on argon2."
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
@@ -32,7 +32,7 @@ let fns : Lib.shortfn list = [
          based on argon2."
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
 ]

@@ -174,7 +174,7 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
