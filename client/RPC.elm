@@ -769,7 +769,7 @@ decodeUserFunction =
 
 decode404 : JSD.Decoder FourOhFour
 decode404 =
-  JSD.map4 (,,,)
+  JSD.map4 FourOhFour
     (JSD.index 0 JSD.string)
     (JSD.index 1 JSD.string)
     (JSD.index 2 JSD.string)

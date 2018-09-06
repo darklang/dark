@@ -317,12 +317,12 @@ view404s f404s  =
           (CreateHandlerFrom404 fof)
           Nothing
 
-      fofHtml (space, path, modifier, values) =
+      fofHtml ({space, path, modifier, values} as fof) =
         div "fof"
           [ text "path" path
           , (if space == "HTTP" then text "" "" else text "space" space)
           , text "modifier" modifier
-          , thelink (space, path, modifier, values)
+          , thelink fof
           ]
       routes = div "404s" (List.map fofHtml f404s)
   in section "404s" f404s Nothing routes

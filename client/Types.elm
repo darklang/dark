@@ -224,6 +224,8 @@ type StringEntryWidth = StringEntryNormalWidth
 
 type alias Literal = String
 type OmniAction = NewDB DBName
+                | NewHandler
+                | NewFunction (Maybe String)
                 | NewHTTPHandler
                 | NewHTTPRoute String
                 | NewEventSpace String
@@ -428,7 +430,12 @@ type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
 
-type alias FourOhFour = (String, String, String, List JSD.Value)
+-- space i.e. "HTTP", path i.e. "/foo", modifier i.e. "GET/PATCH/PUT"
+type alias FourOhFour = { space: String
+                        , path: String
+                        , modifier: String
+                        , values: List JSD.Value
+                        }
 
 
 type alias Name = String

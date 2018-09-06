@@ -9,6 +9,8 @@ import Autocomplete exposing (..)
 import Types exposing (..)
 import Defaults
 import Nineteen.String as String
+import Blank as B
+import Prelude exposing (..)
 
 
 d : String -> List (() -> Bool) -> Test
@@ -20,62 +22,114 @@ d s fs = describe s (List.indexedMap
                        fs
                     )
 
+sampleFunctions : List Function
+sampleFunctions =
+  [ ("Twit::somefunc", TObj)
+  , ("Twit::someOtherFunc", TObj)
+  , ("Twit::yetAnother", TObj)
+  , ("+", TInt)
+  , ("Int::add", TInt)
+  , ("Dict::keys", TObj)
+  , ("List::head", TList)
+  , ("withlower", TObj)
+  , ("withLower", TObj)
+  , ("SomeModule::withLower", TObj)
+  , ("SomeOtherModule::withlower", TObj)
+  , ("HTTP::post", TAny)
+  , ("HTTP::head", TAny)
+  , ("HTTP::get", TAny)
+  , ("HTTP::options", TAny)
+  ]
+  |> List.map
+    (\(name,tipe) ->
+      { name = name
+      , parameters = [{ name = "x"
+      , tipe = tipe
+      , block_args = []
+      , optional = False
+      , description = ""
+      }]
+      , returnTipe = TBool
+      , previewExecutionSafe = False
+      , description = ""
+      , infix = True
+      , deprecated = False
+      })
+
+debug : String -> Autocomplete -> Autocomplete
+debug msg ac =
+  let _  = Debug.log msg (highlighted ac) in
+  ac
+
+type Role = Admin | User
+
+isAdmin : Role -> Bool
+isAdmin r =
+  case r of
+    Admin -> True
+    _ -> False
+
+createEntering : Role -> Autocomplete
+createEntering role =
+  let targetBlankID = gid ()
+      tlid = gtlid ()
+      spec = { module_ = B.new ()
+             , name = B.new ()
+             , modifier = B.new ()
+             , types = { input = B.new (), output = B.new () }
+             }
+      toplevel =
+        { id = tlid
+        , pos = { x = 0, y = 0 }
+        , data =
+          TLHandler ({ ast = Blank targetBlankID, spec = spec, tlid = tlid })
+        }
+      cursor =
+        Entering (Filling tlid targetBlankID)
+      default =
+        Defaults.defaultModel
+      m =
+        { default | toplevels = [toplevel], cursorState = cursor }
+  in
+      init sampleFunctions (isAdmin role)
+      |> setTarget m (Just (tlid, PExpr (Blank targetBlankID)))
+
+createCreating : Role -> Autocomplete
+createCreating role =
+  let cursor =
+        Entering (Creating { x = 0, y = 0 })
+      default =
+        Defaults.defaultModel
+      m =
+        { default | cursorState = cursor }
+  in
+      init sampleFunctions (isAdmin role)
+      |> setTarget m Nothing
+
+itemPresent : AutocompleteItem -> Autocomplete -> Bool
+itemPresent aci ac =
+  List.member aci (List.concat ac.completions)
+
+itemMissing : AutocompleteItem -> Autocomplete -> Bool
+itemMissing aci ac =
+  not (itemPresent aci ac)
 
 all : Test
 all =
-  let completes =
-        List.map (\(name,tipe) ->
-                    { name = name
-                    , parameters = [{ name = "x"
-                                    , tipe = tipe
-                                    , block_args = []
-                                    , optional = False
-                                    , description = ""
-                                    }]
-                    , returnTipe = TBool
-                    , previewExecutionSafe = False
-                    , description = ""
-                    , infix = True
-                    , deprecated = False
-                    })
-          [ ("Twit::somefunc", TObj)
-          , ("Twit::someOtherFunc", TObj)
-          , ("Twit::yetAnother", TObj)
-          , ("+", TInt)
-          , ("Int::add", TInt)
-          , ("Dict::keys", TObj)
-          , ("List::head", TList)
-          , ("withlower", TObj)
-          , ("withLower", TObj)
-          , ("SomeModule::withLower", TObj)
-          , ("SomeOtherModule::withlower", TObj)
-          , ("HTTP::post", TAny)
-          , ("HTTP::head", TAny)
-          , ("HTTP::get", TAny)
-          , ("HTTP::options", TAny)
-          ]
-      m = Defaults.defaultModel
-      create () = init completes False |> regenerate m
-      debug msg ac =
-        let _ = Debug.log "10" (highlighted ac) in
-        ac
-  in
-
   describe "autocomplete"
     [ d "sharedPrefix"
       [ \_ -> sharedPrefixList ["aaaab", "aab", "aaxb"] == "aa"
       , \_ -> sharedPrefixList ["abcdd", "abcdde"] == "abcdd"
       , \_ -> sharedPrefixList ["abcdd", "bcddee"] == ""
       ]
-    , d "query" -- numbered from 0
+    , d "queryWhenEntering" -- numbered from 0
       -- Empty autocomplete doesn't highlight
-      [ \_ -> (create ())
+      [ \_ -> (createEntering User)
       |> .index
       |> (==) -1
 
       -- Press a letter from the selected entry keeps the entry selected
-      , \_ -> create ()
-      |> selectDown
+      , \_ -> createEntering User
       |> selectDown
       |> selectDown
       |> selectDown
@@ -87,13 +141,13 @@ all =
       |> (==) (Just "Twit::someOtherFunc")
 
       -- Returning to empty unselects
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "lis"
       |> setQuery ""
       |> highlighted
       |> (==) Nothing
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Twit::somefunc"
       |> setQuery "Twit::some"
       |> selectDown
@@ -102,15 +156,15 @@ all =
       |> (==) (Just "Twit::someOtherFunc")
 
       -- Lowercase search still finds uppercase results
-      , \_ -> create ()
-      |> update m (ACSetQuery "lis")
+      , \_ -> createEntering User
+      |> setQuery "lis"
       |> .completions
       |> List.concat
       |> List.map asName
       |> (==) ["List::head"]
 
       -- Search finds multiple prefixes
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "twit::"
       |> .completions
       |> List.concat
@@ -119,7 +173,7 @@ all =
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
 
       -- Search finds only prefixed
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "twit::y"
       |> .completions
       |> List.concat
@@ -128,7 +182,7 @@ all =
       |> (==) ["Twit::yetAnother"]
 
       -- Search anywhere
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Another"
       |> .completions
       |> List.concat
@@ -137,7 +191,7 @@ all =
       |> (==) ["Twit::yetAnother"]
 
       -- Show results when the only option is the setQuery
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "List::head"
       |> .completions
       |> List.concat
@@ -147,7 +201,7 @@ all =
       |> (==) 1
 
       -- Scrolling down a bit works
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
@@ -155,7 +209,7 @@ all =
       |> (==) 2
 
       -- Scrolling loops one way
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Twit:"
       |> selectDown
       |> selectDown
@@ -164,7 +218,7 @@ all =
       |> (==) 0
 
       -- Scrolling loops the other way
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Twit:"
       |> selectDown
       |> selectUp
@@ -173,7 +227,7 @@ all =
       |> (==) 2
 
       -- Scrolling loops the other way without going forward first
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Twit:"
       |> selectUp
       |> selectUp
@@ -181,8 +235,7 @@ all =
       |> (==) 1
 
       -- Scrolling backward works if we haven't searched yet
-      , \_ -> create ()
-      |> selectUp
+      , \_ -> createEntering User
       |> selectUp
       |> selectUp
       |> selectUp
@@ -192,7 +245,7 @@ all =
       |> (==) 13
 
       -- Don't highlight when the list is empty
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
@@ -201,7 +254,7 @@ all =
       |> (==) -1
 
       -- Filter by method signature for typed values
-      -- , \_ -> create ()
+      -- , \_ -> createEntering User
       -- |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
       -- |> setQuery ""
       -- |> .completions
@@ -210,7 +263,7 @@ all =
       -- |> (==) (Set.fromList ["List::head"])
 
       -- Show allowed fields for objects
-      -- , \_ -> create ()
+      -- , \_ -> createEntering User
       -- |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
       -- |> setQuery ""
       -- |> .completions
@@ -219,7 +272,7 @@ all =
       -- |> (==) (Set.fromList ["Int::add", "+"])
 
       -- By default the list shows results
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery ""
       |> .completions
       |> List.concat
@@ -227,7 +280,7 @@ all =
       |> (/=) 0
 
       -- ordering: startsWith, then case match, then case insensitive match
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "withL"
       |> .completions
       |> List.concat
@@ -239,87 +292,15 @@ all =
               ,"SomeOtherModule::withlower"]
 
       -- typing literals works
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "21434234"
       |> selectDown
       |> highlighted
       |> Maybe.map asName
       |> (==) (Just "21434234")
 
-      -- typing db names works
-      , \_ -> create ()
-      |> setQuery "Mydbname"
-      |> selectDown
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewDB "Mydbname")))
 
-      -- db names can be multicase
-      , \_ -> create ()
-      |> setQuery "MyDBnaMe"
-      |> selectDown
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewDB "MyDBnaMe")))
-
-      -- alphabetical only #1
-      , \_ -> create ()
-      |> setQuery "dbname1234::"
-      |> selectDown
-      |> highlighted
-      |> (==) Nothing
-
-      -- alphabetical only #2
-      , \_ -> create ()
-      |> setQuery "db_name::"
-      |> selectDown
-      |> highlighted
-      |> (==) Nothing
-
-      -- require capital
-      , \_ -> create ()
-      |> setQuery "mydbname"
-      |> selectDown
-      |> highlighted
-      |> (==) Nothing
-
-      -- No HTTP handler in general
-      , \_ -> create ()
-      |> setQuery "asdkkasd"
-      |> .completions
-      |> List.concat
-      |> List.member (ACOmniAction NewHTTPHandler)
-      |> (==) False
-
-      -- HTTP handler
-      , \_ -> create ()
-      |> setQuery "HTT"
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewEventSpace "HTT")))
-
-      -- Adding a dynamic item doesnt mess with the previous selection
-      , \_ ->
-        let old = create ()
-                  |> setQuery "HTTP:"
-                  |> selectDown
-                  |> selectDown
-                  |> selectDown
-                  |> selectDown
-        in
-        old
-        |> setQuery "HTTP"
-        |> highlighted
-        |> (==) (highlighted old)
-
-      , \_ -> create ()
-      |> setQuery "/"
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewHTTPRoute "/")))
-
-      , \_ -> create ()
-      |> setQuery "/asasdasd"
-      |> highlighted
-      |> (==) (Just (ACOmniAction (NewHTTPRoute "/asasdasd")))
-
-      , \_ -> create ()
+      , \_ -> createEntering User
       -- A specific bug where + is interpreted as an ACLiteral
       |> setQuery "+"
       |> highlighted
@@ -327,47 +308,101 @@ all =
       |> (==) (Just "+")
 
       -- A few different kinds of literals
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "nu"
       |> highlighted
       |> (==) (Just (ACLiteral "null"))
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "tr"
       |> highlighted
       |> (==) (Just (ACLiteral "true"))
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "tR" -- case insensitive
       |> highlighted
       |> (==) (Just (ACLiteral "true"))
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "false"
       |> highlighted
       |> (==) (Just (ACLiteral "false"))
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "3.452"
       |> highlighted
       |> (==) (Just (ACLiteral "3.452"))
 
       -- keywords appear in autocomplete
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "if"
       |> highlighted
       |> (==) (Just (ACKeyword KIf))
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "let"
       |> highlighted
       |> (==) (Just (ACKeyword KLet))
 
-      , \_ -> create ()
+      , \_ -> createEntering User
       |> setQuery "lambda"
       |> highlighted
       |> (==) (Just (ACKeyword KLambda))
 
+
+      ]
+    , d "queryWhenCreating"
+      [ \_ -> createCreating User
+      |> setQuery "Mydbname"
+      |> itemPresent (ACOmniAction (NewDB "Mydbname"))
+
+      -- db names can be multicase
+      , \_ -> createCreating User
+      |> setQuery "MyDBnaMe"
+      |> itemPresent (ACOmniAction (NewDB "MyDBnaMe"))
+
+      -- alphabetical only #1
+      , \_ -> createCreating User
+      |> setQuery "dbname1234::"
+      |> itemMissing (ACOmniAction (NewDB "dbname1234::"))
+
+      -- alphabetical only #2
+      , \_ -> createCreating User
+      |> setQuery "db_name::"
+      |> itemMissing (ACOmniAction (NewDB "db_name::"))
+
+      -- require capital
+      , \_ -> createCreating User
+      |> setQuery "mydbname"
+      |> itemMissing (ACOmniAction (NewDB "mydbname"))
+
+      -- No HTTP handler in general
+      , \_ -> createCreating User
+      |> setQuery "asdkkasd"
+      |> itemMissing (ACOmniAction NewHTTPHandler)
+
+      -- HTTP handler
+      , \_ -> createCreating User
+      |> setQuery "HTT"
+      |> itemPresent (ACOmniAction (NewEventSpace "HTT"))
+
+      , \_ -> createCreating User
+      |> setQuery "/"
+      |> itemPresent (ACOmniAction (NewHTTPRoute "/"))
+
+      , \_ -> createCreating User
+      |> setQuery "/asasdasd"
+      |> itemPresent (ACOmniAction (NewHTTPRoute "/asasdasd"))
+
+      , \_ -> createCreating User
+      |> itemPresent (ACOmniAction NewHandler)
+
+      , \_ -> createCreating User
+      |> itemPresent (ACOmniAction (NewFunction Nothing))
+
+      , \_ -> createCreating User
+      |> setQuery "myFunction"
+      |> itemPresent (ACOmniAction (NewFunction (Just "myFunction")))
 
       ]
     ]
