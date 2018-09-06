@@ -65,7 +65,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch all the values in `table` whose `field` is `value`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
@@ -77,7 +77,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch exactly one value in `table` whose `field` is `value`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
@@ -89,7 +89,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch all the values from `table` which have the same fields and values that `spec` has"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
@@ -101,7 +101,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch exactly one value from `table`, which have the samea fields and values that `spec` has"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
@@ -115,7 +115,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch all the values in `table`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
@@ -127,7 +127,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch all the keys in `table`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
@@ -139,7 +139,7 @@ let fns : Lib.shortfn list = [
   ; d = "DEPRECATED: Fetch all the values in `table`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = true
   }
   ;
