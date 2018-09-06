@@ -368,21 +368,19 @@ enterDB m db tl id =
           let migra = deMaybe "enterDB" (Dict.get db.name m.dbMigrations)
           in DB.findMigraExpr migra  id
         else TL.findExn tl id
-      enterMods =
-          Many [ Enter (Filling tl.id id)
-               , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-          ]
-      updateDB =
-        if isLocked
+      updateDB autocomplete =
+        if autocomplete
         then
-          if isMigrationCol
-          then AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-          else NoChange
-        else enterMods
+          Many
+            [ Enter (Filling tl.id id)
+            , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
+        else Enter (Filling tl.id id)
+        -- if isLocked & isMigrationCol
+      _ = Debug.log "enterDB" (isMigrationCol, pd)
   in
     case pd of
-      PDBColName d -> updateDB
-      PDBColType d -> updateDB
+      PDBColName d -> updateDB False
+      PDBColType d -> updateDB True
       _ -> NoChange
 
 

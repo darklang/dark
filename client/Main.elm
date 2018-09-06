@@ -530,7 +530,16 @@ updateMod mod (m, cmd) =
                 Creating _ -> Nothing
                 Filling tlid id ->
                   let tl = TL.getTL m tlid
-                      pd = TL.findExn tl id
+                      pd = -- a little sloppy for now. We will later put the migration object in TLDB db
+                        case tl.data of
+                          TLDB db ->
+                            case (Dict.get db.name m.dbMigrations) of
+                              Just migra ->
+                                if DB.isMigrationCol id migra
+                                then DB.findMigraExpr migra id
+                                else TL.findExn tl id
+                              Nothing -> TL.findExn tl id
+                          _ -> TL.findExn tl id
                   in
                   Just (tlid, pd)
 
