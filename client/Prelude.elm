@@ -4,6 +4,7 @@ module Prelude exposing (..)
 import Types exposing (..)
 import Util
 import Nineteen.Debug as Debug
+import Nineteen.String as String
 
 --------------------------------------
 -- CursorState
@@ -11,7 +12,7 @@ import Nineteen.Debug as Debug
 
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
-  let stringID = (toString (deTLID tlid)) ++ (toString idx)
+  let stringID = (String.fromInt (deTLID tlid)) ++ (String.fromInt idx)
       intID = Result.withDefault 0 (String.toInt stringID)
   in
     (ID intID)
@@ -90,7 +91,7 @@ assert fn a =
 --   impossible ("The widges can't arrive in this order:", myVar)
 impossible : a -> b
 impossible a =
-  Debug.todo ("something impossible occurred: " ++ (toString a))
+  Debug.todo ("something impossible occurred: " ++ (Debug.toString a))
 
 
 -- Like impossible but has a different semantic meaning. If you have a
@@ -100,9 +101,9 @@ recoverable msg val =
   let error = "An unexpected but recoverable error happened. "
             ++ "For now we crash. "
             ++ "Message: "
-            ++ toString msg
+            ++ Debug.toString msg
             ++ "Value: "
-            ++ toString val
+            ++ Debug.toString val
       -- TODO: surface the error to the user and in rollbar and
       -- continue.
       _ = Debug.todo error
@@ -112,4 +113,4 @@ recoverable msg val =
 -- Like impossible but with the message TODO
 todo : a -> b
 todo a =
-  Debug.todo ("TODO: " ++ (toString a))
+  Debug.todo ("TODO: " ++ (Debug.toString a))

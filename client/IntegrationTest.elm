@@ -69,7 +69,7 @@ pass : TestResult
 pass = Ok ()
 
 fail : a -> TestResult
-fail v = Err (toString v)
+fail v = Err (Debug.toString v)
 
 onlyTL : Model -> Toplevel
 onlyTL m =
@@ -77,7 +77,7 @@ onlyTL m =
       _ = if len == 0
           then Debug.todo ("no toplevels")
           else if len > 1
-          then Debug.todo ("too many toplevels: " ++ (toString m.toplevels))
+          then Debug.todo ("too many toplevels: " ++ (Debug.toString m.toplevels))
           else "nothing to see here" in
   m.toplevels
   |> List.head

@@ -3,6 +3,8 @@ module ViewUtils exposing (..)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Nineteen.Debug as Debug
+import Nineteen.String as String
 
 -- lib
 import Html
@@ -141,14 +143,14 @@ placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
   in Html.div
     [ Attrs.class "node"
-    , Attrs.style [ ("left", (toString pos.x) ++ "px"), ("top", (toString pos.y) ++ "px") ]
+    , Attrs.style [ ("left", (String.fromInt pos.x) ++ "px"), ("top", (String.fromInt pos.y) ++ "px") ]
     ]
     [ html ]
 
 inCh : Int -> String
 inCh w =
   w
-  |> toString
+  |> String.fromInt
   |> \s -> s ++ "ch"
 
 widthInCh : Int -> Html.Attribute Msg
@@ -181,7 +183,7 @@ approxNWidth ne =
   case ne of
     Value v ->
       -- TODO: calculate visual width here
-      toString v |> String.length
+      Debug.toString v |> String.length
 
     Variable name ->
       String.length name
