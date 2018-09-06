@@ -7,7 +7,6 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
-import Tuple2 as T2
 
 -- dark
 import Types exposing (..)
@@ -217,12 +216,12 @@ viewRoutes tls collapse showLink showUndo =
   tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
-  |> List.map (T2.map tl2entry)
+  |> List.map (Tuple.mapSecond ( a, b ) tl2entry)
   |> (\entries ->
        if collapse == CollapseVerbs
-       then List.map (T2.map collapseByVerb) entries
+       then List.map (Tuple.mapSecond ( a, b ) collapseByVerb) entries
        else entries)
-  |> List.map (T2.map prefixify)
+  |> List.map (Tuple.mapSecond ( a, b ) prefixify)
   |> List.map (viewGroup showLink showUndo)
 
 viewDeletedTLs : List Toplevel -> Html.Html Msg
