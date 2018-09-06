@@ -1289,6 +1289,22 @@ let t_feature_flags_work () =
 
   ()
 
+let t_db_queryone_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let fetched (DB::queryOne (obj (x 'foo')) MyDB)
+                (== (('first' one) ('second' two)) fetched))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1357,6 +1373,9 @@ let suite =
   ; "Deprecated delete works", `Quick, t_db_deprecated_delete_works
   ; "Deprecated update works", `Quick, t_db_deprecated_update_works
   ; "DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing
+  ; "DB::queryOne returns Some obj if found", `Quick, t_db_get_returns_nothing
+  ; "DB::queryOne returns Nothing if not found", `Quick, t_db_get_returns_nothing
+  ; "DB::queryOne returns Nothing if more than one found", `Quick, t_db_get_returns_nothing
   ]
 
 let () =
