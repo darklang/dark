@@ -3,7 +3,7 @@ let sha (input: string) ~f : string =
   |> Cstruct.of_string
   |> f
   |> Cstruct.to_string
-  |> B64.encode ~pad:true
+  |> B64.encode ~pad:true ~alphabet:B64.uri_safe_alphabet
 
 let digest256 (input: string) : string =
   sha ~f:Nocrypto.Hash.SHA256.digest input
