@@ -9,10 +9,10 @@ import List.Extra as LE
 import Maybe.Extra as ME
 
 -- dark
-import Native.Window
-import Native.Random
-import Native.Size
-import Native.Cache
+-- import Native.Window
+-- import Native.Random
+-- import Native.Size
+-- import Native.Cache
 
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
