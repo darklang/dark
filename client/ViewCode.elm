@@ -11,6 +11,8 @@ import Maybe.Extra as ME
 import Svg
 import VirtualDom
 import Svg.Attributes as SA
+import Nineteen.Debug as Debug
+import Nineteen.String as String
 
 -- dark
 import Types exposing (..)
@@ -48,7 +50,7 @@ viewDarkType vs c dt =
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
   let width = approxWidth e
-      widthClass = [wc ("width-" ++ toString width)]
+      widthClass = [wc ("width-" ++ String.fromInt width)]
                    ++ (if width > 120 then [wc "too-wide"] else [])
       configs = idConfigs
                 ++ c
@@ -109,7 +111,7 @@ viewNFieldName vs config f =
   text vs config f
 
 depthString : Int -> String
-depthString n = "precedence-" ++ (toString n)
+depthString n = "precedence-" ++ (String.fromInt n)
 
 viewRopArrow : ViewState -> Html.Html Msg
 viewRopArrow vs =
@@ -152,8 +154,8 @@ viewRopArrow vs =
   Html.node
     "rop-arrow"
     -- Force the rop-webcomponent to update to fix the size
-    [ VirtualDom.attribute "update" (Util.random () |> toString)
-    , VirtualDom.attribute "tlid" (toString (deTLID vs.tl.id))]
+    [ VirtualDom.attribute "update" (Util.random () |> String.fromInt)
+    , VirtualDom.attribute "tlid" (String.fromInt (deTLID vs.tl.id))]
     [svg]
 
 
@@ -176,7 +178,7 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
+      let cssClass = v |> RT.tipeOf |> Debug.toString |> String.toLower
           valu =
             -- TODO: remove
             if RT.isString v

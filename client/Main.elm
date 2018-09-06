@@ -14,6 +14,7 @@ import Navigation
 import Mouse
 import PageVisibility
 import String
+import Nineteen.String as String
 -- import List.Extra as LE
 import String.Extra as SE
 import Time
@@ -656,7 +657,7 @@ processAutocompleteMods m mods =
             let i = complete.index
                 val = AC.getValue complete
             in Debug.log "autocompletemod result: "
-                (toString complete.index ++ " => " ++ val)
+                (String.fromInt complete.index ++ " => " ++ val)
           else ""
   in ({m | complete = complete}, focus)
 
