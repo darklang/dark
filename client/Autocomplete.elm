@@ -3,7 +3,7 @@ module Autocomplete exposing (..)
 -- builtin
 import Dict
 import Json.Decode as JSD
-import Dom.Scroll
+import Browser.Dom as Dom
 import Task
 import Set
 
@@ -36,9 +36,13 @@ height i = if i < 4
            then 0
            else 14 * (i - 4)
 
+-- TODO: check that this works?
 focusItem : Int -> Cmd Msg
-focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
-            |> Task.attempt FocusAutocompleteItem
+focusItem i = let id = "autocomplete-holder"
+                  offset = i |> height |> toFloat in
+            Dom.getViewportOf id
+            |> Task.andThen (\el -> Dom.setViewportOf id el.viewport.x (el.viewport.y + offset))
+            |> Task.perform FocusAutocompleteItem
 
 
 ----------------------------
@@ -693,4 +697,3 @@ selectSharedPrefix ac =
   if sp == "" then NoChange
   else
     AutocompleteMod <| ACSetQuery sp
-
