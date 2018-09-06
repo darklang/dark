@@ -57,9 +57,9 @@ viewMigraFuncs vs expr fnName varName =
       ]
     , viewExpr 0 vs [] expr ]
 
-viewDBMigration : DBSchemaMigration -> DBName -> ViewState -> Html.Html Msg
-viewDBMigration migra dbname vs =
-  let name = viewDBName dbname (migra.version)
+viewDBMigration : DBSchemaMigration -> DB -> ViewState -> Html.Html Msg
+viewDBMigration migra db vs =
+  let name = viewDBName db.name (migra.version)
       cols =
         (List.map (viewDBCol vs) migra.cols) ++
           [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
@@ -68,7 +68,7 @@ viewDBMigration migra dbname vs =
             [Attrs.class "col actions"]
             [ Html.button
               [ Attrs.disabled False
-              , eventNoPropagation "click" (\_ -> CancelMigration dbname) ]
+              , eventNoPropagation "click" (\_ -> CancelMigration db) ]
               [ Html.text "cancel"]
             , Html.button [Attrs.disabled True] [ Html.text "migration"] ]
           ]
@@ -92,8 +92,8 @@ viewDB vs db =
         else db.cols
       coldivs = List.map (viewDBCol vs) cols
       migrations =
-        case vs.dbMigration of
-          Just migra -> [viewDBMigration migra db.name vs]
+        case db.newMigration of
+          Just migra -> [viewDBMigration migra db vs]
           Nothing -> []
   in
   [

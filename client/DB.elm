@@ -66,8 +66,11 @@ initFieldTypeMigration m tl tipe =
   RPC ([InitDBMigration tl.id (B.toID tipe) (gid ()) (gid ()) ChangeColType]
       , FocusSame)
 
-isMigrating : Model -> DBName -> Bool
-isMigrating m name = Dict.member name m.dbMigrations
+isMigrating : DB -> Bool
+isMigrating db =
+  case db.newMigration of
+    Just _ -> True
+    Nothing -> False
 
 isMigrationCol : ID -> DBSchemaMigration -> Bool
 isMigrationCol id schema =
@@ -80,4 +83,6 @@ startMigration db =
   let newCols = db.cols
                 |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
       migra = DBSchemaMigration newCols (db.version + 1) (B.new ()) (B.new ())
-  in AddDBMigration db.name migra
+      newDB = { db | newMigration = Just migra }
+  in UpdateDB newDB
+
