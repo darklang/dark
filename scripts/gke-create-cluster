@@ -38,7 +38,7 @@ copy of the .crt and .key files; you can run this like
 
 in a pinch you can swipe creds from the current cluster. e.g.
 
-       gcloud container clusters get-credentials darkcluster1
+       gcloud container clusters get-credentials "$(< current-cluster)"
        DARK_CLUSTER_TLS_CRT="\$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.crt"]')" \\
        DARK_CLUSTER_TLS_KEY="\$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]')" \\
        $0
@@ -57,7 +57,7 @@ DARK_CLUSTER_CLOUDSQL_PASS. These are from a file in Paul's Downloads directory:
 
 in a pinch you can swipe creds from the current cluster. e.g.
 
-       gcloud container clusters get-credentials darkcluster1
+       gcloud container clusters get-credentials "$(< current-cluster)"
        DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS="\$(kubectl get secret cloudsql-instance-credentials -o json | jq -r '.data["credentials.json"]')" \\
        $0
 
@@ -161,12 +161,9 @@ Once you're happy with the status of the new cluster, you can move the static IP
 
   TODO
 
-and make a pull request changing the deploy scripts in this repository to point
-to your new cluster:
+and make a pull request changing the file 'current-cluster' in the root of this
+repository to the new name.
 
-
-  TODO (also, make all of the deploy scripts use a common file to store the current cluster)
-
-
+  echo "$DARK_CLUSTER" > current-cluster
 
 EOF
