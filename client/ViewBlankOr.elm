@@ -102,9 +102,9 @@ viewLiveValue : ViewState -> List (Html.Html Msg)
 viewLiveValue vs =
   let cursorLiveValue =
         case vs.cursorState of
-          Selecting tlid (Just (ID id)) ->
+          Selecting _ (Just (ID id)) ->
             Dict.get id vs.currentResults.liveValues
-          Entering (Filling tlid (ID id)) ->
+          Entering (Filling _ (ID id)) ->
             Dict.get id vs.currentResults.liveValues
           _ -> Nothing
   in
