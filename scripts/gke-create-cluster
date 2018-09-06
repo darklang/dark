@@ -159,7 +159,12 @@ and check it out one of the following ways:
 
 Once you're happy with the status of the new cluster, you can move the static IP to it:
 
-  TODO
+  kubectl annotate ingress bwd-tls-ingress kubernetes.io/ingress.global-static-ip-name=bwd-tls-ip
+  # remove it from the old one
+  gcloud container clusters get-credentials "$(< current-cluster)"
+  kubectl annotate ingress bwd-tls-ingress kubernetes.io/ingress.global-static-ip-name-
+  # go back to the new cluster
+  gcloud container clusters get-credentials "$DARK_CLUSTER"
 
 and make a pull request changing the file 'current-cluster' in the root of this
 repository to the new name.
