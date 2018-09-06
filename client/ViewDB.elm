@@ -79,14 +79,18 @@ viewDBMigration migra dbname vs =
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
   let locked =
-          if vs.dbLocked && (vs.dbMigration == Nothing)
+          if vs.dbLocked
           then
             Html.div
               [ eventNoPropagation "click" (\_ -> StartMigration db) ]
               [ fontAwesome "lock" ]
           else fontAwesome "unlock"
       namediv = viewDBName db.name (db.version)
-      coldivs = List.map (viewDBCol vs) db.cols
+      cols =
+        if vs.dbLocked
+        then List.filter (\(n, t) -> (B.isF n) && (B.isF t)) db.cols 
+        else db.cols
+      coldivs = List.map (viewDBCol vs) cols
       migrations =
         case vs.dbMigration of
           Just migra -> [viewDBMigration migra db.name vs]
