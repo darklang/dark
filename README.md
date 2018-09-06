@@ -220,14 +220,21 @@ the preprocessed version.
 
 # Importing packages from npm
 
-npm dependencies are managed in development, bundled up via browserify, tracked in git, and included in `ui.html`.
+When writing JS, we use some packages from NPM. To add a new package:
 
-* `yarn install`
-* $`yarn add PACKAGE_NAME`
-* Use the package in `server/src/main.js` or whatever
-* $`yarn build` manages `/server/static/bundle.js`
+- Add the package to package.json, perhaps using `yarn add`
+- Add the library to module.exports in server/src/main.js. 
+- Run `yarn install` and `yarn build`. This puts the code in bundle.js.
+- Check in bundle.js
+
+For example, to add js-sha512:
+- `yarn add js-sha512@^0.8.0`
+- `yarn install`
+- in server/src/main.js, add `var sha512 = require('js-sha512');`
+- `yarn build`
+- then use `sha512.sha384("test value")` in js.
 
 # Important docs which we believe are up-to-date:
 
 - [docs/add-user.md](docs/add-user.md)
-- [docs/oplist-serialization.md](docs/add-user.md)
+- [docs/oplist-serialization.md](docs/oplist-serialization.md)

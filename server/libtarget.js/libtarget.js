@@ -1,6 +1,6 @@
 //Provides: dark_targetjs_digest384
 function dark_targetjs_digest384(s){
-  return "not implemented yet"
+  return bundle.sha512.sha384(s);
 }
 
 // Temporary, should be fixed in js_of_ocaml >3.2.1:
