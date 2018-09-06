@@ -79,6 +79,19 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["DB::queryOne_v1"]
+  ; ins = []
+  ; p = [par "spec" TObj; par "table" TDB]
+  ; r = TOption
+  ; d = "Fetch exactly one values from `table` which have the same fields and values that `spec` has
+        , returning a [key, value] pair. Returns Nothing if none or more than 1 found"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = true
+  ; dep = false
+  }
+  ;
+
   { pns = ["DB::getAll_v1"]
   ; ins = []
   ; p = [par "table" TDB]

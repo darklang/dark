@@ -76,6 +76,21 @@ let replacements = [
           | args -> fail args))
 
   ;
+  ( "DB::queryOne_v1"
+  , InProcess
+      (function
+          | (state, [DObj map; DDB db]) ->
+            let results =
+              map
+              |> DvalMap.to_alist
+              |> User_db.query ~state ~magic:false db
+            in
+            (match results with
+             | DList (res :: []) -> DOption (OptJust res)
+             | _ -> DOption (OptNothing))
+          | args -> fail args))
+
+  ;
   ( "DB::getAll_v1"
   , InProcess
       (function
