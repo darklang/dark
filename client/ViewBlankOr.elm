@@ -8,6 +8,7 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
+import Nineteen.String as String
 
 -- dark
 import Types exposing (..)
@@ -193,7 +194,7 @@ div vs configs content =
           Just (Ok lv) -> Runtime.isIncomplete lv
 
       idAttr = case thisID of
-                 Just id -> ["blankOr", "id-" ++ toString (deID id)]
+                 Just id -> ["blankOr", "id-" ++ String.fromInt (deID id)]
                  _ -> []
       allClasses = classes
                   ++ idAttr

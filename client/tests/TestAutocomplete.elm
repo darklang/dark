@@ -8,6 +8,7 @@ import Expect exposing (Expectation)
 import Autocomplete exposing (..)
 import Types exposing (..)
 import Defaults
+import Nineteen.String as String
 import Blank as B
 import Prelude exposing (..)
 
@@ -16,7 +17,7 @@ d : String -> List (() -> Bool) -> Test
 d s fs = describe s (List.indexedMap
                        (\i f ->
                           test
-                          ("test " ++ (toString i))
+                          ("test " ++ (String.fromInt i))
                           (\_ -> Expect.true "" (f ())))
                        fs
                     )
@@ -405,5 +406,3 @@ all =
 
       ]
     ]
-
-

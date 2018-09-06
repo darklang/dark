@@ -4,6 +4,7 @@ module Url exposing (..)
 import Dict
 import List
 import String
+import Nineteen.String as String
 
 -- lib
 import Html
@@ -20,17 +21,17 @@ import Defaults
 hashUrlParams : List (String, String) -> String
 hashUrlParams params =
   let merged = List.map (\(k, v) -> k ++ "=" ++ v) params
-  in "#" ++ (String.join "&" merged) 
+  in "#" ++ (String.join "&" merged)
 
 urlOf : Page -> Pos -> String
 urlOf page pos =
   let head =
         case page of
           Toplevels _ -> []
-          Fn tlid _ -> [("fn", toString (deTLID tlid))]
+          Fn tlid _ -> [("fn", String.fromInt (deTLID tlid))]
       tail =
-        [ ("x", toString pos.x)
-        , ("y", toString pos.y) ]
+        [ ("x", String.fromInt pos.x)
+        , ("y", String.fromInt pos.y) ]
   in hashUrlParams (head ++ tail)
 
 urlFor : Page -> String
@@ -118,4 +119,3 @@ changeLocation m loc =
         _ -> SetPage (Fn id pos)
     Just page -> SetPage page
     _ -> NoChange
-

@@ -5,3 +5,10 @@ module Nineteen.Debug exposing (..)
 todo : String -> a
 todo =
   Debug.crash
+
+
+{-| This can be removed in favor of `Debug.toString` in 0.19
+-}
+toString : a -> String
+toString =
+  Basics.toString
