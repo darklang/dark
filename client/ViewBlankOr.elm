@@ -35,11 +35,7 @@ type HtmlConfig =
                 -- highlight this node as if it were ID
                 | MouseoverAs ID
                 | Mouseover
-                -- display the value from this ID
-                | DisplayValueOf ID
-                | DisplayValue
-                -- use this as ID for Mouseover, ClickSelect and
-                -- DisplayValue
+                -- use this as ID for Mouseover, ClickSelect
                 | WithID ID
                 -- show a featureflag
                 | WithFF
@@ -55,7 +51,7 @@ wc = WithClass
 
 idConfigs : List HtmlConfig
 idConfigs =
-  [ClickSelect, DisplayValue, Mouseover]
+  [ClickSelect, Mouseover]
 
 atom : HtmlConfig
 atom = wc "atom"
@@ -133,10 +129,6 @@ div vs configs content =
                                   ClickSelectAs id -> Just id
                                   ClickSelect -> thisID
                                   _ -> Nothing)
-      hoverAs = getFirst (\a -> case a of
-                                  DisplayValueOf id -> Just id
-                                  DisplayValue -> thisID
-                                  _ -> Nothing)
       mouseoverAs = getFirst (\a -> case a of
                                       MouseoverAs id -> Just id
                                       Mouseover -> thisID
@@ -175,7 +167,6 @@ div vs configs content =
         if selected then viewLiveValue vs else []
 
       computedValueData = Maybe.andThen value computedValueAs
-      hoverdata = Maybe.andThen value hoverAs
 
       mouseover =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs

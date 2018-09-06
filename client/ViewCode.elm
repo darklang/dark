@@ -169,7 +169,6 @@ viewNExpr d id vs config e =
       a c = text vs (atom :: c)
       kw = keyword vs
       all = idConfigs ++ config
-      dv = DisplayValue
       cs = ClickSelect
       mo = Mouseover
       incD = d + 1
@@ -208,7 +207,7 @@ viewNExpr d id vs config e =
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
         , a [wc "letbind", ComputedValueAs lhsID] "="
-        , n [wc "letrhs", dv, cs] [vExpr d rhs]
+        , n [wc "letrhs", cs] [vExpr d rhs]
         , n [wc "letbody"] [vExpr d body]
         ]
 
@@ -363,13 +362,13 @@ viewNExpr d id vs config e =
             let id = B.toID e
                 dopts =
                   if d == 0
-                  then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
-                  else [DisplayValueOf id, ClickSelectAs id]
+                  then [ClickSelectAs id, ComputedValueAs id]
+                  else [ClickSelectAs id]
             in
             n ([wc "threadmember"] ++ dopts)
               [pipe, vExpr 0 e]
       in
-      n (wc "threadexpr" :: mo :: dv :: config)
+      n (wc "threadexpr" :: mo :: config)
         (List.map texpr exprs)
 
     FieldAccess obj field ->
@@ -379,7 +378,6 @@ viewNExpr d id vs config e =
         , viewFieldName vs
             [ wc "fieldname"
             , atom
-            , DisplayValueOf id
             , ComputedValueAs id
             ]
             field
@@ -393,15 +391,15 @@ viewNExpr d id vs config e =
             let id = B.toID e
                 dopts =
                   if d == 0
-                  then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
-                  else [DisplayValueOf id, ClickSelectAs id]
+                  then [ClickSelectAs id, ComputedValueAs id]
+                  else [ClickSelectAs id]
             in
             n ([wc "listelem"] ++ dopts)
               [vExpr 0 e]
           new = List.map lexpr exprs
                 |> List.intersperse comma
       in
-      n (wc "list" :: mo :: dv :: config)
+      n (wc "list" :: mo :: config)
         ([open] ++ new ++ [close])
 
     ObjectLiteral pairs ->
@@ -412,7 +410,7 @@ viewNExpr d id vs config e =
             n ([wc "objectpair"])
               [viewKey vs [] k, colon, vExpr 0 v]
       in
-      n (wc "object" :: mo :: dv :: config)
+      n (wc "object" :: mo :: config)
         ([open] ++ List.map pexpr pairs ++ [close])
 
     FeatureFlag msg cond a b ->
