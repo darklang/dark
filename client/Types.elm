@@ -188,6 +188,7 @@ type Msg
     | EnablePanning Bool
     | ShowErrorDetails Bool
     | StartMigration DB
+    | CancelMigration DBName
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData

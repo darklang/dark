@@ -1482,6 +1482,9 @@ update_ msg m =
 
     StartMigration db -> DB.startMigration db
 
+    CancelMigration dbName ->
+      TweakModel (\m -> { m | dbMigrations =  Dict.remove dbName m.dbMigrations })
+
     -----------------
     -- Buttons
     -----------------

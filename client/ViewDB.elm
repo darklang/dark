@@ -66,7 +66,10 @@ viewDBMigration migra dbname vs =
           , viewMigraFuncs vs migra.rollback "Rollback"  "newObj"
           , Html.div
             [Attrs.class "col actions"]
-            [ Html.button [Attrs.disabled False] [ Html.text "cancel"]
+            [ Html.button
+              [ Attrs.disabled False
+              , eventNoPropagation "click" (\_ -> CancelMigration dbname) ]
+              [ Html.text "cancel"]
             , Html.button [Attrs.disabled True] [ Html.text "migration"] ]
           ]
   in Html.div
