@@ -108,15 +108,6 @@ spec:
 
 ---
 apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: bwd-ingress
-spec:
-  backend:
-    serviceName: bwd-nodeport
-    servicePort: 80
----
-apiVersion: extensions/v1beta1
 kind: NetworkPolicy
 metadata:
   name: bwd-network-policy
