@@ -25,7 +25,7 @@ let fns : Lib.shortfn list = [
   ; d = "Finds a value in `table` by `key"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
@@ -37,7 +37,7 @@ let fns : Lib.shortfn list = [
   ; d = "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
@@ -74,7 +74,7 @@ let fns : Lib.shortfn list = [
         , returning a [[key, value]] list of lists"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
@@ -87,7 +87,7 @@ let fns : Lib.shortfn list = [
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
@@ -100,7 +100,7 @@ let fns : Lib.shortfn list = [
   ; d = "Fetch all the fieldNames in `table`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
   ;
@@ -112,7 +112,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns an `Obj` representing { fieldName: fieldType } in `table`"
   ; f = NotClientAvailable
   ; pr = None
-  ; ps = true
+  ; ps = false
   ; dep = false
   }
 ]
