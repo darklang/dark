@@ -967,6 +967,7 @@ processObject dict =
         "db" -> DDB value
         "block" -> DBlock
         "uuid" -> DUuid value
+        "datastore" -> DDB value
         _ -> DObj dict
     _ -> DObj dict
 
