@@ -16,34 +16,17 @@ astsFor db =
 
 allData : DB -> List PointerData
 allData db =
-  let migrationData m =
-        [AST.allData m.rollforward, AST.allData m.rollback]
-        |> List.concat
-      migrationBlanks  =
-        db.activeMigration
-        |> Maybe.map migrationData
-        |> Maybe.withDefault []
-  in
-  db.cols
-  |> List.map (\(lhs,rhs) -> [PDBColName lhs, PDBColType rhs])
-  |> List.concat
-  |> (++) migrationBlanks
-
-
-findMigraExpr : DBSchemaMigration -> ID -> PointerData
-findMigraExpr migra id =
-  -- TODO find roll/back forward functions too
-  let selectCols =
-        migra.cols
-        |> List.filterMap
-          (\(cn, ct) ->
-            if (B.toID cn) == id then Just (PDBColName cn)
-            else if (B.toID ct) == id then Just (PDBColType ct)
-            else Nothing
-          )
-      foundFirst = List.head selectCols
-  in deMaybe "findMigraExpr" foundFirst
-
+  let (cols, rolls) =
+        case db.newMigration of
+          Just migra ->
+            ( db.cols ++ migra.cols
+            , List.concat [AST.allData migra.rollforward, AST.allData migra.rollback])
+          Nothing -> (db.cols, [])
+      colpointers =
+        cols
+          |> List.map (\(lhs,rhs) -> [PDBColName lhs, PDBColType rhs] )
+          |> List.concat
+  in colpointers ++ rolls
 
 siblings : PointerData -> DB -> List PointerData
 siblings _ db = allData db
