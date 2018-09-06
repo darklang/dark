@@ -49,7 +49,6 @@ type alias ViewState =
   , testVariants: List VariantTest
   , featureFlags: FlagsVS
   , handlerLocked : Bool
-  , dbMigration : Maybe DBSchemaMigration
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -81,13 +80,6 @@ createVS m tl = { tl = tl
                 , handlerSpace = TL.spaceOf tl
                                |> Maybe.withDefault HSOther
                 , dbLocked = DB.isLocked m tl.id
-                , dbMigration =
-                    case tl.data of
-                      TLDB db ->
-                        if DB.isMigrating m db.name
-                        then Dict.get db.name m.dbMigrations
-                        else Nothing
-                      _ -> Nothing
                 , ufns = m.userFunctions
                 , currentResults = Analysis.getCurrentAnalysisResults m tl.id
                 , traces = Analysis.getTraces m tl.id

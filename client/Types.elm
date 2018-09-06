@@ -188,7 +188,7 @@ type Msg
     | EnablePanning Bool
     | ShowErrorDetails Bool
     | StartMigration DB
-    | CancelMigration DBName
+    | CancelMigration DB
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -438,6 +438,7 @@ type alias DB = { tlid : TLID
                 , version : Int
                 , oldMigrations : List DBMigration
                 , activeMigration : Maybe DBMigration
+                , newMigration: Maybe DBSchemaMigration
                 }
 
 type alias DBSchemaMigration =
@@ -550,7 +551,7 @@ type alias Model = { error : DarkError
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
-                   , dbMigrations: Dict DBName DBSchemaMigration
+                   --, dbMigrations: Dict DBName DBSchemaMigration
                    }
 
 -- Values that we serialize
@@ -626,6 +627,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | MoveCanvasTo CanvasProps Page Pos
                   | UpdateTraces Traces
                   | UpdateTraceFunctionResult TLID TraceID ID FnName DvalArgsHash Dval
+                  | UpdateDB DB
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

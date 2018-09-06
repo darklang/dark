@@ -355,19 +355,10 @@ enterDB : Model -> DB -> Toplevel -> ID -> Modification
 enterDB m db tl id =
   let isLocked = DB.isLocked m tl.id
       isMigrationCol =
-        if DB.isMigrating m db.name
-        then
-          let migra = Dict.get db.name m.dbMigrations
-          in case migra of
-            Just m -> DB.isMigrationCol id m
-            Nothing -> False
-        else False
-      pd =
-        if isMigrationCol
-        then
-          let migra = deMaybe "enterDB" (Dict.get db.name m.dbMigrations)
-          in DB.findMigraExpr migra  id
-        else TL.findExn tl id
+        case db.newMigration of
+          Just migra -> DB.isMigrationCol id migra
+          Nothing -> False
+      pd = TL.findExn tl id
       updateDB autocomplete =
         if autocomplete
         then

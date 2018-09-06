@@ -528,18 +528,9 @@ updateMod mod (m, cmd) =
         let target =
               case entry of
                 Creating _ -> Nothing
-                Filling tlid id ->
+                Filling tlid id -> 
                   let tl = TL.getTL m tlid
-                      pd = -- a little sloppy for now. We will later put the migration object in TLDB db
-                        case tl.data of
-                          TLDB db ->
-                            case (Dict.get db.name m.dbMigrations) of
-                              Just migra ->
-                                if DB.isMigrationCol id migra
-                                then DB.findMigraExpr migra id
-                                else TL.findExn tl id
-                              Nothing -> TL.findExn tl id
-                          _ -> TL.findExn tl id
+                      pd = TL.findExn tl id
                   in
                   Just (tlid, pd)
 
@@ -685,8 +676,12 @@ updateMod mod (m, cmd) =
       SetUnlockedDBs unlockedDBs ->
         ({ m | unlockedDBs = unlockedDBs }, Cmd.none)
 
-      AddDBMigration name migra ->
-        ({ m | dbMigrations = Dict.insert name migra m.dbMigrations }, Cmd.none)
+      UpdateDB db ->
+        let tl = TL.getTL m db.tlid
+            tl2 = { tl | data = TLDB db }
+            m2 = TL.upsert m tl2
+        in
+          (m2, Cmd.none)
 
       Set404s f404s ->
         ({ m | f404s = f404s }, Cmd.none)
@@ -1491,8 +1486,9 @@ update_ msg m =
 
     StartMigration db -> DB.startMigration db
 
-    CancelMigration dbName ->
-      TweakModel (\m -> { m | dbMigrations =  Dict.remove dbName m.dbMigrations })
+    CancelMigration db ->
+      let db2 = { db | newMigration = Nothing }
+      in UpdateDB db2
 
     -----------------
     -- Buttons
