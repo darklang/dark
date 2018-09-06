@@ -11,7 +11,7 @@ LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'accou
 
 DARK_ZONE="${DARK_ZONE:-us-west1}"
 DARK_PROJECT="${DARK_PROJECT:-balmy-ground-195100}"
-DARK_CLUSTER="${DARK_CLUSTER:-darkcluster1}"
+DARK_CLUSTER="${DARK_CLUSTER:-$(< current-cluster)}"
 
 GCR="gcr.io/$DARK_PROJECT"
 
