@@ -1581,8 +1581,10 @@ update_ msg m =
         in Entry.submitOmniAction m center NewHTTPHandler
     CreateFunction ->
       let ufun = Refactor.generateEmptyFunction ()
-        in RPC ( [ SetFunction ufun ]
-               , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
+      in
+          Many ([RPC ([SetFunction ufun], FocusNothing)
+                , MakeCmd (Url.navigateTo (Fn ufun.tlid Viewport.origin))
+                ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
 
