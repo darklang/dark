@@ -530,9 +530,6 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
       let sfr_desc = (state.tlid, fnname, id) in
       let maybe_store_result result =
         if executing_unsafe
-          (* TODO: add an execution ID here so that multiple requests
-           * with the same parameter (from a user) don't pollute old
-           * requests. *)
         then state.store_fn_result sfr_desc arglist result
         else ();
       in
