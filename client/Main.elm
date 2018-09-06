@@ -548,7 +548,6 @@ updateMod mod (m, cmd) =
 
       RequestAnalysis tls ->
         let handlers = TL.handlers tls
-                       |> List.take 1
             dbs = TL.dbs tls
             userFns = m.userFunctions
 
