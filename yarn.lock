@@ -417,10 +417,6 @@ evp_bytestokey@^1.0.0, evp_bytestokey@^1.0.3:
     md5.js "^1.3.4"
     safe-buffer "^5.1.1"
 
-extend@3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/extend/-/extend-3.0.0.tgz#5a474353b9f3353ddd8176dfd37b91c83a46f1d4"
-
 find@^0.2.4:
   version "0.2.9"
   resolved "https://registry.yarnpkg.com/find/-/find-0.2.9.tgz#4b73f1ff9e56ad91b76e716407fe5ffe6554bb8c"
@@ -545,6 +541,10 @@ isarray@^2.0.4:
 isarray@~1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/isarray/-/isarray-1.0.0.tgz#bb935d48582cba168c06834957a54a3e07124f11"
+
+js-sha512@^0.8.0:
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/js-sha512/-/js-sha512-0.8.0.tgz#dd22db8d02756faccf19f218e3ed61ec8249f7d4"
 
 json-stable-stringify@~0.0.0:
   version "0.0.1"
@@ -812,15 +812,14 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^2.0.0"
     inherits "^2.0.1"
 
-rollbar@^2.3.9:
-  version "2.3.9"
-  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.3.9.tgz#46dc6c5531177ae282c8622ad8e930dad9cf2305"
+rollbar@^2.4.2:
+  version "2.4.5"
+  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.4.5.tgz#aa12924bb7c45c79c9fbc6ee2921f73c72235bed"
   dependencies:
     async "~1.2.1"
     console-polyfill "0.3.0"
     debug "2.6.9"
     error-stack-parser "1.3.3"
-    extend "3.0.0"
     json-stringify-safe "~5.0.0"
     lru-cache "~2.2.1"
     request-ip "~2.0.1"

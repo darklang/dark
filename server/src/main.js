@@ -9,6 +9,9 @@ var rollbar = require('rollbar');
 var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
 
+var sha512 = require('js-sha512');
+
 module.exports = {
-  mousewheel: mousewheel
+  mousewheel: mousewheel,
+  sha512: sha512
 };
