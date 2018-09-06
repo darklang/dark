@@ -1,5 +1,7 @@
 open Core_kernel
 
+open Libcommon
+
 
 (* ------------------- *)
 (* random *)
@@ -58,9 +60,7 @@ let maybe_chop_prefix ~prefix msg =
   |> Option.value ~default:msg
 
 let hash (str : string) =
-  str
-  |> Libtarget.digest384
-  |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+  Libtarget.digest384 str
 
 
 (* ------------------- *)

@@ -1,5 +1,9 @@
+(* Returns base64 encoding of the sha384 of the string *)
 val digest384 : string -> string
+
+(* Returns base64 encoding of the sha256 of the string *)
 val digest256 : string -> string
+
 
 val date_of_isostring : string -> Core_kernel.Time.t
 val date_to_isostring : Core_kernel.Time.t -> string
