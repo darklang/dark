@@ -351,9 +351,9 @@ delete m tlid mId =
             TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
 
 
-enterDB : Model -> DB -> TLID -> ID -> PointerData -> Modification
-enterDB m db tlid id pd =
-  let isLocked = DB.isLocked m tlid
+enterDB : Model -> DB -> Toplevel -> ID -> Modification
+enterDB m db tl id =
+  let isLocked = DB.isLocked m tl.id
       isMigrationCol =
         if DB.isMigrating m db.name
         then
@@ -362,8 +362,14 @@ enterDB m db tlid id pd =
             Just m -> DB.isMigrationCol id m
             Nothing -> False
         else False
+      pd =
+        if isMigrationCol
+        then
+          let migra = deMaybe "enterDB" (Dict.get db.name m.dbMigrations)
+          in DB.findMigraExpr migra  id
+        else TL.findExn tl id
       enterMods =
-          Many [ Enter (Filling tlid id)
+          Many [ Enter (Filling tl.id id)
                , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
           ]
       updateDB =
@@ -383,11 +389,11 @@ enterDB m db tlid id pd =
 enter : Model -> TLID -> ID -> Modification
 enter m tlid id =
   let tl = TL.getTL m tlid
-      pd = TL.findExn tl id
   in case tl.data of
-    TLDB db -> enterDB m db tlid id pd
+    TLDB db -> enterDB m db tl id
     _ ->
-      if TL.getChildrenOf tl pd /= []
+      let pd = TL.findExn tl id
+      in if TL.getChildrenOf tl pd /= []
       then selectDownLevel m tlid (Just id)
       else Many [ Enter (Filling tlid id)
                 , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))

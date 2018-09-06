@@ -30,6 +30,21 @@ allData db =
   |> (++) migrationBlanks
 
 
+findMigraExpr : DBSchemaMigration -> ID -> PointerData
+findMigraExpr migra id =
+  -- TODO find roll/back forward functions too
+  let selectCols =
+        migra.cols
+        |> List.filterMap
+          (\(cn, ct) ->
+            if (B.toID cn) == id then Just (PDBColName cn)
+            else if (B.toID ct) == id then Just (PDBColType ct)
+            else Nothing
+          )
+      foundFirst = List.head selectCols
+  in deMaybe "findMigraExpr" foundFirst
+
+
 siblings : PointerData -> DB -> List PointerData
 siblings _ db = allData db
 
@@ -66,4 +81,3 @@ startMigration db =
                 |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
       migra = DBSchemaMigration newCols (db.version + 1) (B.new ()) (B.new ())
   in AddDBMigration db.name migra
-
