@@ -128,6 +128,14 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       apply_to_db ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe)) tlid
     | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
       ident
+    | CreateDBMigration (tlid, rbid, rfid, cols) ->
+      ident
+    | AddDBColToDBMigration (tlid, colid, typeid) ->
+      ident
+    | SetDBColNameInDBMigration (tlid, id, name) ->
+      ident
+    | SetDBColTypeInDBMigration (tlid, id, tipe) ->
+      ident
     | SetExpr (tlid, id, e) ->
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid ->

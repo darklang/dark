@@ -222,6 +222,10 @@ type Op
     | ChangeDBColType TLID ID DBColType
     | DeprecatedInitDbm TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
+    | CreateDBMigration TLID RollbackID RollforwardID (List DBColList)
+    | AddDBColToDBMigration TLID ID ID
+    | SetDBColNameInDBMigration TLID ID DBColName
+    | SetDBColTypeInDBMigration TLID ID DBColType
 
 type alias RPCParams = { ops : List Op }
 
@@ -425,13 +429,19 @@ type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
 type alias DBColumn = (BlankOr DBColName, BlankOr DBColType)
+
 -- this is deprecated
 type DBMigrationKind = DeprecatedMigrationKind
 
+type DBMigrationState = DBMigrationAbandoned
+                      | DBMigrationInitialized
 
 type alias DBMigration = { startingVersion : Int
+                         , version : Int
+                         , state : DBMigrationState
                          , rollforward : Expr
                          , rollback : Expr
+                         , cols : List DBColumn
                          }
 
 type alias DB = { tlid : TLID
