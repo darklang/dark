@@ -3,19 +3,25 @@ open Libexecution
 
 
 open Types
+open Analysis_types
 
 type oplist = Op.op list [@@deriving yojson]
-
-type executable_fn_ids = (tlid * id * int) list
-                    [@@deriving eq, show, yojson, sexp]
 
 type rpc_params = { ops: oplist }
                   [@@deriving yojson]
 
 type analysis_params = tlid list [@@deriving eq, show, yojson, sexp]
 
-type execute_function_params = { executable_fns: executable_fn_ids }
-                               [@@deriving yojson]
+type dval = RuntimeT.dval
+let dval_to_yojson = Dval.dval_to_yojson
+let dval_of_yojson = Dval.dval_of_yojson
+
+type execute_function_params = { tlid : tlid
+                               ; trace_id : uuid
+                               ; caller_id : id
+                               ; args : dval list
+                               ; fnname : string
+                               } [@@deriving yojson]
 
 let to_rpc_params (payload: string) : rpc_params =
   payload

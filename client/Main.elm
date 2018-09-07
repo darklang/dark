@@ -169,6 +169,11 @@ port receiveAnalysis : (String -> msg) -> Sub msg
 -- updates
 -----------------------
 
+sendTask : Msg -> Cmd Msg
+sendTask t =
+  Task.succeed t
+  |> Task.perform identity
+
 processFocus : Model -> Focus -> Modification
 processFocus m focus =
   case focus of
@@ -582,6 +587,12 @@ updateMod mod (m, cmd) =
         let m2 = { m | traces = traces } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
+      UpdateTraceFunctionResult tlid traceID callerID fnName hash dval ->
+        let m2 =
+              Analysis.replaceFunctionResult m tlid traceID callerID fnName hash dval
+        in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
       SetUserFunctions userFuncs updateCurrent ->
         let m2 = { m | userFunctions = userFuncs }
             -- Bring back the TL being edited, so we don't lose work
@@ -623,9 +634,21 @@ updateMod mod (m, cmd) =
       ExecutingFunctionBegan tlid id ->
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
-      ExecutingFunctionRPC tlid id ->
-        let params = { function = (tlid, id, Analysis.cursor m tlid) } in
-        (m, RPC.executeFunctionRPC params)
+      ExecutingFunctionRPC tlid id name ->
+        let trace = Analysis.getCurrentTrace m tlid in
+        case trace of
+          Nothing -> m ! [sendTask (ExecuteFunctionCancel tlid id)]
+          Just t ->
+            let traceID = t.id
+                args = []
+                params = { tlid = tlid
+                         , callerID = id
+                         , traceID = traceID
+                         , fnName = name
+                         , args = args
+                         }
+            in
+            (m, RPC.executeFunctionRPC params)
       ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
@@ -1363,10 +1386,10 @@ update_ msg m =
           Select targetTLID Nothing
 
 
-    ExecuteFunctionButton tlid id ->
+    ExecuteFunctionButton tlid id name ->
       let tl = TL.getTL m tlid in
       Many [ ExecutingFunctionBegan tlid id
-           , ExecutingFunctionRPC tlid id
+           , ExecutingFunctionRPC tlid id name
            ]
 
 
@@ -1490,9 +1513,15 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       DisplayError <| "Success! " ++ msg
 
-    ExecuteFunctionRPCCallback (Ok (targets, newTraces)) ->
-      Many [ UpdateTraces newTraces
-           , ExecutingFunctionComplete targets ]
+    ExecuteFunctionRPCCallback params (Ok (dval, hash)) ->
+      Many [ UpdateTraceFunctionResult params.tlid params.traceID params.callerID params.fnName hash dval
+           , ExecutingFunctionComplete [(params.tlid, params.callerID)]
+           ]
+
+    ExecuteFunctionCancel tlid id ->
+      Many [ DisplayError "No trace"
+           , ExecutingFunctionComplete [(tlid, id)]
+           ]
 
 
     GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
@@ -1519,7 +1548,7 @@ update_ msg m =
     SaveTestRPCCallback (Err err) ->
       DisplayError <| "Error: " ++ toString err
 
-    ExecuteFunctionRPCCallback (Err err) ->
+    ExecuteFunctionRPCCallback _ (Err err) ->
       DisplayAndReportHttpError "ExecuteFunction" err
 
     InitialLoadRPCCallback _ _ (Err err) ->

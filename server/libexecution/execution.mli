@@ -49,13 +49,25 @@ val execute_handler :
   Types.RuntimeT.HandlerT.handler ->
   Types.RuntimeT.dval
 
+val call_function :
+  tlid : Types.tlid ->
+  execution_id : Types.tlid ->
+  trace_id : Uuidm.t ->
+  dbs : Types.RuntimeT.DbT.db list ->
+  user_fns : Types.RuntimeT.user_fn list ->
+  account_id : Uuidm.t ->
+  canvas_id : Uuidm.t ->
+  caller_id : Types.id ->
+  args : Types.RuntimeT.dval list ->
+  string ->
+  Types.RuntimeT.dval
+
 
 (* ----------------- *)
 (* Analysis *)
 (* ----------------- *)
 val analyse_ast :
   tlid : Types.tlid ->
-  exe_fn_ids : Types.id list ->
   execution_id : Types.tlid ->
   input_vars : Types.RuntimeT.input_vars ->
   dbs : Types.RuntimeT.DbT.db list ->

@@ -186,7 +186,6 @@ let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
         ; account_id = !c.owner
         ; canvas_id = !c.id
         ; user_fns = !c.user_functions
-        ; exe_fn_ids = []
         ; fail_fn = None
         ; dbs = TL.dbs !c.dbs
         ; execution_id

@@ -35,3 +35,12 @@ val execute_saving_intermediates :
   Types.RuntimeT.expr ->
   Types.RuntimeT.dval * Analysis_types.dval_store
 
+
+val execute_fn :
+  Types.RuntimeT.exec_state ->
+  string ->
+  Types.id ->
+  Types.RuntimeT.dval list ->
+  Types.RuntimeT.dval
+
+
