@@ -6,7 +6,7 @@ import Task
 -- import Set
 
 -- lib
-import Dom
+import Browser.Dom as Dom
 -- import Result.Extra as RE
 -- import Maybe.Extra as ME
 import List.Extra as LE

@@ -3,7 +3,7 @@ module Types exposing (..)
 -- builtin
 import Dict exposing (Dict)
 import Http
-import Dom
+import Browser.Dom as Dom
 import Navigation
 import Mouse
 import Time exposing (Time)
