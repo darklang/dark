@@ -79,7 +79,7 @@ viewDBMigration migra db vs =
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
   let locked =
-          if vs.dbLocked
+          if vs.dbLocked && (db.newMigration == Nothing)
           then
             Html.div
               [ eventNoPropagation "click" (\_ -> StartMigration db) ]
