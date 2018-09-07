@@ -73,6 +73,28 @@ let respond ?(resp_headers=Header.init ()) ~(execution_id: Types.id) status (bod
             ];
   S.respond_string ~status ~body ~headers:resp_headers ()
 
+let should_use_https uri =
+  let parts = uri
+              |> Uri.host
+              |> Option.value ~default:""
+              |> (fun h -> String.split h '.')
+  in
+  match parts with
+  | ["builtwithdark"; "com"; ]
+  | [_; "builtwithdark"; "com"; ] -> true
+  | _ -> false
+
+let redirect_to uri =
+  let proto = uri
+              |> Uri.scheme
+              |> Option.value ~default:"" in
+  (* If it's http and on a domain that can be served with https,
+     we want to redirect to the same url but with the scheme
+     replaced by "https". *)
+  if proto = "http" && should_use_https uri
+  then Some "https" |> Uri.with_scheme uri |> Some
+  else None
+
 (* -------------------------------------------- *)
 (* handlers for end users *)
 (* -------------------------------------------- *)
@@ -410,9 +432,13 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
         (if Account.authenticate ~username ~password
          then
            let%lwt session = Auth.Session.new_for_username username in
+           let https_only_cookie = req |> CRequest.uri |> should_use_https in
            let headers =
              Header.of_list
-               (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session)
+               (Auth.Session.to_cookie_hdrs
+                  ~http_only:true
+                  ~secure:https_only_cookie
+                  Auth.Session.cookie_key session)
            in
            run_handler ~auth_domain ~username headers
          else
@@ -514,24 +540,6 @@ let with_x_forwarded_proto req =
                    (CRequest.uri req)
                    (Some proto)
   | None -> CRequest.uri req
-
-let redirect_to uri =
-  let proto = uri
-              |> Uri.scheme
-              |> Option.value ~default:"" in
-  let parts = uri
-              |> Uri.host
-              |> Option.value ~default:""
-              |> (fun h -> String.split h '.')
-  in
-  match (proto, parts) with
-  | ("http", ["builtwithdark"; "com"; ])
-  | ("http", [_; "builtwithdark"; "com"; ]) ->
-     (* If it's http and on a domain that can be served with https,
-        we want to redirect to the same url but with the scheme
-        replaced by "https". *)
-     Some "https" |> Uri.with_scheme uri |> Some
-  | _ -> None
 
 let server () =
   let stop,stopper = Lwt.wait () in
