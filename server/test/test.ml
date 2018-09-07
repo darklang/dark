@@ -7,12 +7,19 @@ open Types
 open Types.RuntimeT
 open Ast
 
+open Lwt
+module Resp = Cohttp_lwt_unix.Response
+module Req = Cohttp_lwt_unix.Request
+module Header = Cohttp.Header
+module Code = Cohttp.Code
 
 module C = Canvas
 module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
+
+
 
 (* ------------------- *)
 (* Misc fns *)
@@ -794,6 +801,21 @@ let t_uuid_string_roundtrip () =
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
+let t_should_use_https () =
+  AT.check (AT.list AT.bool) "should_use_https works"
+    (List.map
+       ~f:(fun x -> Server.should_use_https (Uri.of_string x))
+       [ "http://builtwithdark.com"
+       ; "http://test.builtwithdark.com"
+       ; "http://localhost"
+       ; "http://test.localhost"
+    ])
+    [ true
+    ; true
+    ; false
+    ; false
+    ]
+
 let t_redirect_to () =
   AT.check (AT.list (AT.option AT.string)) "redirect_to works"
     (List.map
@@ -879,6 +901,66 @@ let t_nothing () =
     (exec_ast "(== (List::head_v1 []) nothing)");
 
   ()
+
+let t_auth_then_handle_code_and_cookie () =
+  (* basic auth headers *)
+  let basic a b = Header.add_authorization (Header.init ()) (`Basic (a, b)) in
+  (* sample execution id, makes grepping test logs easier *)
+  let test_id = Types.id_of_int 1234 in
+  (* takes a req, returns the status code and the  parameters for Set-cookie: __session=whatever; [...] *)
+  let ath_cookie (req : Req.t) : int * string option =
+    Lwt_main.run
+      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let%lwt (resp, _) =  Server.auth_then_handle
+                              ~execution_id:test_id
+                              req
+                              "test"
+                              (fun resp_headers ->
+                                Server.respond
+                                  ~resp_headers
+                                  ~execution_id:test_id
+                                  `OK
+                                  "test handler") in
+       let code = resp |> Resp.status |> Code.code_of_status in
+       resp
+       |> Resp.headers
+       |> (fun x -> Header.get x "set-cookie")
+       |> (fun x -> Option.bind x
+                   ~f:(fun sc -> let (first, params) = String.lsplit2_exn ~on:';' sc in
+                              let (name, value) = String.lsplit2_exn ~on:'=' first in
+                              (* make sure some other cookie isn't getting set *)
+                              if name = "__session" then Some (String.lstrip params) else None))
+       |> (fun x -> return (code, x)))
+  in
+  AT.check (AT.list  (AT.pair AT.int (AT.option AT.string)))
+    "auth_then_handle sets status codes and cookies correctly"
+    (List.map
+       ~f:ath_cookie
+
+       (* valid basic auth login on builtwithdark.com *)
+       [ Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+
+       (* valid basic auth login on localhost *)
+       ; Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+           (Uri.of_string "http://test.localhost/admin/ui")
+
+       (* invalid basic auth logins *)
+       ; Req.make ~headers:(basic "test" "")
+           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+       ; Req.make ~headers:(basic "" "fVm2CUePzGKCwoEQQdNJktUQ")
+           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+
+       (* plain request, no auth *)
+       ; Req.make (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+    ])
+
+    [ 200, Some "Max-Age=604800; secure; httponly"
+    ; 200, Some "Max-Age=604800; httponly"
+    ; 401, None
+    ; 401, None
+    ; 401, None
+    ]
 
 let t_db_write_deprecated_read_new () =
   clear_test_data ();
@@ -1251,11 +1333,13 @@ let suite =
     t_authenticate_user
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
+  ; "Server.should_use_https works", `Quick,  t_should_use_https
   ; "Server.redirect_to works", `Quick, t_redirect_to
   ; "Errorrail simple", `Quick, t_errorrail_simple
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ; "Handling nothing in code works", `Quick, t_nothing
+  ; "auth_then_handle sets status codes and cookies correctly ", `Quick, t_auth_then_handle_code_and_cookie
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_works
