@@ -354,7 +354,7 @@ delete m tlid mId =
 enterDB : Model -> DB -> Toplevel -> ID -> Modification
 enterDB m db tl id =
   let isLocked = DB.isLocked m tl.id
-      isMigrationCol = DB.isMigrationCol id db
+      isMigrationCol = DB.isMigrationCol db id
       pd = TL.findExn tl id
       updateDB autocomplete =
         if autocomplete
@@ -364,7 +364,6 @@ enterDB m db tl id =
             , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
         else Enter (Filling tl.id id)
         -- if isLocked & isMigrationCol
-      _ = Debug.log "enterDB" (isMigrationCol, pd)
   in
     case pd of
       PDBColName d -> updateDB False

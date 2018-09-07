@@ -356,7 +356,7 @@ submit m cursor action =
         PDBColType ct ->
           if B.asF ct == Just value
           then Select tlid (Just id)
-          else if DB.isMigrationCol id (db |> deMaybe "db")
+          else if DB.isMigrationCol (db |> deMaybe "db") id
           then DB.updateMigrationCol (db |> deMaybe "db") id value
           else if B.isBlank ct
           then
@@ -368,7 +368,7 @@ submit m cursor action =
         PDBColName cn ->
           if B.asF cn == Just value
           then Select tlid (Just id)
-          else if DB.isMigrationCol id (db |> deMaybe "db")
+          else if DB.isMigrationCol (db |> deMaybe "db") id
           then DB.updateMigrationCol (db |> deMaybe "db") id value
           else if DB.hasCol (db |> deMaybe "db") value
           then DisplayError ("Can't have two DB fields with the same name: " ++ value)
