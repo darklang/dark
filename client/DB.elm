@@ -50,8 +50,8 @@ isMigrating db =
     Just _ -> True
     Nothing -> False
 
-isMigrationCol : ID -> DB -> Bool
-isMigrationCol id db =
+isMigrationCol : DB -> ID -> Bool
+isMigrationCol db id =
   case db.newMigration of
     Just schema ->
       let inCols = schema.cols
