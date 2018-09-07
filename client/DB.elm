@@ -64,6 +64,12 @@ isMigrationCol id db =
       in not (List.isEmpty inCols)
     Nothing -> False
 
+addBlankField : DBColumns -> DBColumns
+addBlankField cols =
+  if List.any (\(n, t) -> (B.isBlank n) || (B.isBlank t) ) cols
+  then cols
+  else cols ++ [(B.new (), B.new ())]
+
 startMigration : DB -> Modification
 startMigration db =
   let newCols = db.cols
@@ -80,6 +86,7 @@ updateMigrationCol db id val =
           replacer = B.replace id value
           newCols = migra.cols
                     |> List.map (\(n, t) -> (replacer n, replacer t))
+                    |> addBlankField
           _ = Debug.log "updateMigrationCol" newCols
       in UpdateDB { db | newMigration = Just ({ migra | cols = newCols }) }
     _ -> NoChange

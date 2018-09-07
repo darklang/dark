@@ -423,9 +423,10 @@ type alias Handler = { ast : Expr
 type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
-
+type alias DBColumns = List (BlankOr DBColName, BlankOr DBColType)
 -- this is deprecated
 type DBMigrationKind = DeprecatedMigrationKind
+
 
 type alias DBMigration = { startingVersion : Int
                          , rollforward : Expr
@@ -434,7 +435,7 @@ type alias DBMigration = { startingVersion : Int
 
 type alias DB = { tlid : TLID
                 , name : DBName
-                , cols : List (BlankOr DBColName, BlankOr DBColType)
+                , cols : DBColumns
                 , version : Int
                 , oldMigrations : List DBMigration
                 , activeMigration : Maybe DBMigration
@@ -442,7 +443,7 @@ type alias DB = { tlid : TLID
                 }
 
 type alias DBSchemaMigration =
-  { cols : List (BlankOr DBColName, BlankOr DBColType)
+  { cols : DBColumns
   , rollback : Expr
   , rollforward : Expr
   , version : Int
