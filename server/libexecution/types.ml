@@ -304,7 +304,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                     ; canvas_id : Uuidm.t
                     ; account_id : Uuidm.t
                     ; user_fns: user_fn list
-                    ; exe_fn_ids: id list
                     ; dbs: DbT.db list
                     ; execution_id: id
                     ; load_fn_result : load_fn_result_type

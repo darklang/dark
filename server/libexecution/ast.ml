@@ -554,10 +554,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (args)
     in
 
-    let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids id in
-    if engine.ctx = Real || fn_clicked
-    then state.store_fn_arguments tlid args;
-
+    state.store_fn_arguments tlid args;
     exec ~engine ~state args_with_dbs body
 
 
@@ -601,7 +598,6 @@ let execute_saving_intermediates
   : (dval * dval_store) =
   Log.infO "Executing for intermediates"
     ~params:[ "tlid", show_tlid state.tlid
-            ; "exe_fn_ids", Log.dump state.exe_fn_ids
             ; "execution_id", Log.dump state.execution_id
             ];
   let value_store = IDTable.create () in
@@ -634,4 +630,8 @@ let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) :
   call_fn name id args false
     ~engine:server_execution_engine ~state
 
+
+let execute_fn (state: exec_state) (name:string) (id:id) (args: dval list) : dval =
+  call_fn name id args false
+    ~engine:server_execution_engine ~state
 

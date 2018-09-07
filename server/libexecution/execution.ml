@@ -93,7 +93,6 @@ let execute_handler
     ; user_fns
     ; dbs
     ; execution_id
-    ; exe_fn_ids = []
     ; fail_fn = None
     ; load_fn_result = load_no_results
     ; load_fn_arguments = load_no_arguments
@@ -109,13 +108,39 @@ let execute_handler
     DResp ((Response (500, []), DStr "Invalid conversion from errorrail"))
   | dv -> dv
 
+let call_function
+  ~tlid
+  ~execution_id
+  ~trace_id
+  ~dbs
+  ~user_fns
+  ~account_id
+  ~canvas_id
+  ~caller_id
+  ~args
+  fnname
+  =
+  let state : exec_state =
+    { tlid = tlid
+    ; account_id
+    ; canvas_id
+    ; user_fns
+    ; dbs
+    ; execution_id
+    ; fail_fn = None
+    ; load_fn_result = load_no_results
+    ; load_fn_arguments = load_no_arguments
+    ; store_fn_result = store_no_results
+    ; store_fn_arguments = store_no_arguments
+    }
+  in
+  Ast.execute_fn state fnname caller_id args
 
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
 let analyse_ast
   ~tlid
-  ~exe_fn_ids
   ~execution_id
   ~input_vars
   ~dbs
@@ -134,7 +159,6 @@ let analyse_ast
     ; user_fns
     ; dbs
     ; execution_id
-    ; exe_fn_ids = []
     ; fail_fn = None
     ; load_fn_result
     ; load_fn_arguments

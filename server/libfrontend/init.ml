@@ -90,7 +90,6 @@ let perform_analysis (str : string) : string =
   ( trace.id
   , Execution.analyse_ast handler.ast
       ~tlid:handler.tlid
-      ~exe_fn_ids:[]
       ~execution_id:(Types.id_of_int 1)
       ~account_id:(Util.create_uuid ())
       ~canvas_id:(Util.create_uuid ())

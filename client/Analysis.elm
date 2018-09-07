@@ -99,3 +99,28 @@ getCurrentTrace m tlid =
   Dict.get (deTLID tlid) m.traces
   |> Maybe.andThen (LE.getAt (cursor m tlid))
 
+replaceFunctionResult : Model -> TLID -> TraceID -> ID -> String -> DvalArgsHash -> Dval -> Model
+replaceFunctionResult m tlid traceID callerID fnName hash dval =
+  let traces =
+        m.traces
+        |> Dict.update (deTLID tlid)
+             (Maybe.map
+               (List.map
+                 (\t ->
+                   if t.id == traceID
+                   then
+                     let newResult =
+                         { fnName = fnName
+                         , callerID = callerID
+                         , argHash = hash
+                         , value = dval }
+                     in
+                     { t | functionResults =
+                              newResult :: t.functionResults
+                     }
+                   else t)))
+  in
+  { m | traces = traces }
+
+
+

@@ -10,18 +10,8 @@ module PReq = Parsed_request
 module SE = Stored_event
 
 type canvas = Canvas.canvas
-
-(* ------------------------- *)
-(* Events *)
-(* ------------------------- *)
-let all_tlids (c: canvas) : tlid list =
-  List.map ~f:(fun tl -> tl.tlid) (c.dbs @ c.handlers)
-
-(* ------------------------- *)
-(* Analysis types *)
-(* ------------------------- *)
-
-type executable_fn_id = tlid * id * int [@@deriving to_yojson]
+type dval = RTT.dval
+let dval_to_yojson = Dval.dval_to_yojson
 
 (* ------------------------- *)
 (* Non-execution analysis *)
@@ -131,18 +121,48 @@ let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
           })
 
 
+(* ------------------------- *)
+(* function execution *)
+(* ------------------------- *)
+let call_function (c: canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
+  (* TODO: Should we return a trace for the userfn? *)
+  (* TODO: Should this save over the existing analysis results? *)
+  Execution.call_function fnname
+    ~tlid
+    ~execution_id
+    ~trace_id
+    ~dbs:(TL.dbs c.dbs)
+    ~user_fns:c.user_functions
+    ~account_id:c.owner
+    ~canvas_id:c.id
+    ~caller_id
+    ~args
 
 (* --------------------- *)
 (* JSONable response *)
 (* --------------------- *)
 
-(* The full response with everything *)
+(* Response with miscellaneous stuff, and specific responses from tlids *)
 type get_analysis_response =
   { traces : tlid_trace list
   ; global_varnames : string list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list [@key "404s"]
   } [@@deriving to_yojson]
+
+let to_getanalysis_frontend (traces: tlid_trace list)
+      (unlocked : tlid list)
+      (f404s: SE.four_oh_four list)
+      (c : canvas) : string =
+  { traces
+  ; global_varnames = global_vars c
+  ; unlocked_dbs = unlocked
+  ; fofs = f404s
+  }
+  |> get_analysis_response_to_yojson
+  |> Yojson.Safe.to_string ~std:true
+
+
 
 (* Toplevel deletion:
  * The server announces that a toplevel is deleted by it appearing in
@@ -159,24 +179,6 @@ type rpc_response =
   ; unlocked_dbs : tlid list (* replace *)
   } [@@deriving to_yojson]
 
-type execute_function_response =
-  { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
-  ; targets : executable_fn_id list
-  } [@@deriving to_yojson]
-
-
-let to_getanalysis_frontend (traces: tlid_trace list)
-      (unlocked : tlid list)
-      (f404s: SE.four_oh_four list)
-      (c : canvas) : string =
-  { traces
-  ; global_varnames = global_vars c
-  ; unlocked_dbs = unlocked
-  ; fofs = f404s
-  }
-  |> get_analysis_response_to_yojson
-  |> Yojson.Safe.to_string ~std:true
-
 
 let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
     (unlocked : tlid list)
@@ -191,10 +193,19 @@ let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
-let to_execute_function_response_frontend (targets : executable_fn_id list) (traces: tlid_trace list)
+type execute_function_response =
+  { result : dval
+  ; hash : string
+  } [@@deriving to_yojson]
+
+
+
+let to_execute_function_response_frontend hash dv
   : string =
-  { new_traces = traces
-  ; targets = targets
+  { result = dv
+  ; hash
   }
   |> execute_function_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
+
+

@@ -51,7 +51,7 @@ executeFunctionRPC params =
       payload = encodeExecuteFunctionRPCParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeExecuteFunctionRPC
-  in Http.send ExecuteFunctionRPCCallback request
+  in Http.send (ExecuteFunctionRPCCallback params) request
 
 getAnalysisRPC : AnalysisParams -> Cmd Msg
 getAnalysisRPC params =
@@ -276,11 +276,12 @@ encodeRPCParams params =
 
 encodeExecuteFunctionRPCParams : ExecuteFunctionRPCParams -> JSE.Value
 encodeExecuteFunctionRPCParams params =
-  let fns = [params.function] in
   JSE.object
-    [ ("executable_fns"
-      , JSON.encodeList (encodeTriple encodeTLID encodeID JSE.int) fns
-      )
+    [ ("tlid", encodeTLID params.tlid)
+    , ("trace_id", JSE.string params.traceID)
+    , ("caller_id", encodeID params.callerID)
+    , ("args", encodeList encodeDval params.args)
+    , ("fnname", JSE.string params.fnName)
     ]
 
 encodeAnalysisParams : AnalysisParams -> JSE.Value
@@ -844,9 +845,8 @@ decodeInitialLoadRPC = decodeRPC
 decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
 decodeExecuteFunctionRPC =
   JSDP.decode (,)
-  |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
-  |> JSDP.required "new_traces" decodeTraces
-
+  |> JSDP.required "result" decodeDval
+  |> JSDP.required "hash" JSD.string
 
 --------------------------
 -- Dval (some here because of cyclic dependencies)

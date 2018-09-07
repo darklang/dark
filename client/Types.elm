@@ -125,7 +125,8 @@ type alias RPCResult = ( List Toplevel
                        , List GlobalVariable
                        , List UserFunction
                        , List TLID)
-type alias ExecuteFunctionRPCResult = (List (TLID, ID), Traces)
+type alias DvalArgsHash = String
+type alias ExecuteFunctionRPCResult = (Dval, DvalArgsHash)
 type alias GetAnalysisResult = ( Traces
                                , List GlobalVariable
                                , List FourOhFour
@@ -147,7 +148,6 @@ type Msg
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallback Focus RPCParams (Result Http.Error RPCResult)
-    | ExecuteFunctionRPCCallback (Result Http.Error ExecuteFunctionRPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
     | InitialLoadRPCCallback Focus Modification (Result Http.Error InitialLoadResult)
@@ -156,7 +156,9 @@ type Msg
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleTimers
-    | ExecuteFunctionButton TLID ID
+    | ExecuteFunctionRPCCallback ExecuteFunctionRPCParams (Result Http.Error ExecuteFunctionRPCResult)
+    | ExecuteFunctionButton TLID ID String
+    | ExecuteFunctionCancel TLID ID
     | Initialization
     | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
@@ -220,7 +222,13 @@ type Op
 
 type alias RPCParams = { ops : List Op }
 
-type alias ExecuteFunctionRPCParams = { function: (TLID, ID, Int) }
+type alias ExecuteFunctionRPCParams =
+  { tlid: TLID
+  , traceID : String
+  , callerID : ID
+  , args : List Dval
+  , fnName : String
+  }
 
 type alias AnalysisParams = List TLID
 
@@ -593,11 +601,12 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   | ExecutingFunctionBegan TLID ID
-                  | ExecutingFunctionRPC TLID ID
+                  | ExecutingFunctionRPC TLID ID String
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
                   | MoveCanvasTo CanvasProps Page Pos
                   | UpdateTraces Traces
+                  | UpdateTraceFunctionResult TLID TraceID ID FnName DvalArgsHash Dval
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 
