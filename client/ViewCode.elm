@@ -293,7 +293,7 @@ viewNExpr d id vs config e =
           exeIcon = "play"
 
           events = [ eventNoPropagation "click"
-                     (\_ -> ExecuteFunctionButton vs.tl.id id)
+                     (\_ -> ExecuteFunctionButton vs.tl.id id name)
                    , nothingMouseEvent "mouseup"
                    , nothingMouseEvent "mousedown"
                    , nothingMouseEvent "dblclick"

@@ -280,42 +280,31 @@ let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.
 
 
 let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
-  try
-    let (t1, params) = time "1-read-api-ops"
-      (fun _ -> Api.to_execute_function_params body) in
+  let (t1, params) = time "1-read-api-ops"
+    (fun _ -> Api.to_execute_function_params body)
+  in
 
-    let exe_fn_ids = params.executable_fns in
-    let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1 in
+  let (t2, c) = time "2-load-saved-ops"
+    (fun _ -> C.load_only ~tlids:[params.tlid] host [])
+  in
 
-    let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load_only ~tlids host []) in
+  let (t3, result) = time "3-execute"
+    (fun _ ->
+       Analysis.call_function !c params.fnname
+         ~execution_id
+         ~tlid:params.tlid
+         ~trace_id:params.trace_id
+         ~caller_id:params.caller_id
+         ~args:params.args)
+  in
 
-    let (t3, hvals) = time "3-handler-analyses"
-      (fun _ ->
-         !c.handlers
-         |> List.filter_map ~f:TL.as_handler
-         |> List.map
-           ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)))
-    in
-
-    let (t4, fvals) = time "4-user-fn-analyses"
-      (fun _ ->
-        []
-        (* !c.user_functions *)
-        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
-        (* |> List.map *)
-        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
-        )
-    in
-
-    let (t5, result) = time "5-to-frontend"
-      (fun _ ->
-        Analysis.to_execute_function_response_frontend exe_fn_ids (hvals @ fvals)) in
-
-  (server_timing [t1; t2; t3; t4; t5], result)
-  with
-  | e ->
-    raise e
+  let (t4, response) = time "4-to-frontend"
+    (fun _ ->
+      Analysis.to_execute_function_response_frontend
+        (Dval.hash params.args)
+        result)
+  in
+  (server_timing [t1; t2; t3; t4], response)
 
 let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Cohttp.Header.t * string) =
   try
