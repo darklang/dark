@@ -243,8 +243,9 @@ submit : Model -> EntryCursor -> NextAction -> Modification
 submit m cursor action =
   -- TODO: replace parsing with taking the autocomplete suggestion and
   -- doing what we're told with it.
-  let value = AC.getValue m.complete in
-  case cursor of
+  let value = AC.getValue m.complete
+      _ = Debug.log "Entry.submit" (cursor, value)
+  in case cursor of
     Creating pos ->
       let tlid = gtlid ()
           threadIt expr =
@@ -354,6 +355,8 @@ submit m cursor action =
         PDBColType ct ->
           if B.asF ct == Just value
           then Select tlid (Just id)
+          else if DB.isMigrationCol id (db |> deMaybe "db")
+          then DB.updateMigrationCol (db |> deMaybe "db") id result
           else if B.isBlank ct
           then
             wrapID [ SetDBColType tlid id value
@@ -364,6 +367,8 @@ submit m cursor action =
         PDBColName cn ->
           if B.asF cn == Just value
           then Select tlid (Just id)
+          else if DB.isMigrationCol id (db |> deMaybe "db")
+          then DB.updateMigrationCol (db |> deMaybe "db") id result
           else if DB.hasCol (db |> deMaybe "db") value
           then DisplayError ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn

@@ -354,10 +354,7 @@ delete m tlid mId =
 enterDB : Model -> DB -> Toplevel -> ID -> Modification
 enterDB m db tl id =
   let isLocked = DB.isLocked m tl.id
-      isMigrationCol =
-        case db.newMigration of
-          Just migra -> DB.isMigrationCol id migra
-          Nothing -> False
+      isMigrationCol = DB.isMigrationCol id db
       pd = TL.findExn tl id
       updateDB autocomplete =
         if autocomplete
