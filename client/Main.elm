@@ -1490,6 +1490,13 @@ update_ msg m =
       let db2 = { db | newMigration = Nothing }
       in UpdateDB db2
 
+    DeleteColInDB col tlid ->
+      let tl = TL.getTL m tlid
+      in case tl.data of
+        TLDB db -> DB.deleteCol db col
+        _ -> NoChange
+
+
     -----------------
     -- Buttons
     -----------------

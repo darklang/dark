@@ -38,13 +38,26 @@ viewDBColType vs c v =
   let configs = idConfigs ++ c in
   viewText DBColType vs configs v
 
-viewDBCol : ViewState -> (BlankOr DBColName, BlankOr DBColType) -> Html.Html Msg
-viewDBCol vs (n, t) =
-  Html.div
+viewDBCol : ViewState -> Bool -> TLID -> DBColumn -> Html.Html Msg
+viewDBCol vs isMigra tlid (n, t) =
+  let deleteButton =
+        if isMigra
+        then
+          if (B.isF n) || (B.isF t)
+          then
+            [ Html.div
+              [ Attrs.class "delete-col"
+              , eventNoPropagation "click" (\_ -> DeleteColInDB (n, t) tlid) ]
+              [ fontAwesome "minus-circle" ]
+            ]
+          else []
+        else []
+      row =
+        [ viewDBColName vs [wc "name"] n
+        , viewDBColType vs [wc "type"] t ]
+  in Html.div
     [ Attrs.class "col" ]
-    [ viewDBColName vs [wc "name"] n
-    , viewDBColType vs [wc "type"] t
-    ]
+    (row ++ deleteButton)
 
 viewMigraFuncs : ViewState -> Expr -> FnName -> VarName -> Html.Html Msg
 viewMigraFuncs vs expr fnName varName =
@@ -61,7 +74,7 @@ viewDBMigration : DBSchemaMigration -> DB -> ViewState -> Html.Html Msg
 viewDBMigration migra db vs =
   let name = viewDBName db.name (migra.version)
       cols =
-        (List.map (viewDBCol vs) migra.cols) ++
+        (List.map (viewDBCol vs True db.tlid) migra.cols) ++
           [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
           , viewMigraFuncs vs migra.rollback "Rollback"  "newObj"
           , Html.div
@@ -90,7 +103,7 @@ viewDB vs db =
         if vs.dbLocked
         then List.filter (\(n, t) -> (B.isF n) && (B.isF t)) db.cols 
         else db.cols
-      coldivs = List.map (viewDBCol vs) cols
+      coldivs = List.map (viewDBCol vs False db.tlid) cols
       migrations =
         case db.newMigration of
           Just migra -> [viewDBMigration migra db vs]

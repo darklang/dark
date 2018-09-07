@@ -169,7 +169,7 @@ div vs configs content =
 
       computedValueData = Maybe.andThen value computedValueAs
 
-      mouseover =
+      mouseover = 
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
       incomplete =

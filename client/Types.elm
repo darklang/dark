@@ -189,6 +189,7 @@ type Msg
     | ShowErrorDetails Bool
     | StartMigration DB
     | CancelMigration DB
+    | DeleteColInDB DBColumn TLID
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -423,7 +424,7 @@ type alias Handler = { ast : Expr
 type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
-type alias DBColumns = List (BlankOr DBColName, BlankOr DBColType)
+type alias DBColumn = (BlankOr DBColName, BlankOr DBColType)
 -- this is deprecated
 type DBMigrationKind = DeprecatedMigrationKind
 
@@ -435,7 +436,7 @@ type alias DBMigration = { startingVersion : Int
 
 type alias DB = { tlid : TLID
                 , name : DBName
-                , cols : DBColumns
+                , cols : List DBColumn
                 , version : Int
                 , oldMigrations : List DBMigration
                 , activeMigration : Maybe DBMigration
@@ -443,7 +444,7 @@ type alias DB = { tlid : TLID
                 }
 
 type alias DBSchemaMigration =
-  { cols : DBColumns
+  { cols : List DBColumn
   , rollback : Expr
   , rollforward : Expr
   , version : Int
