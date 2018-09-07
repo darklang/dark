@@ -443,9 +443,9 @@ type alias DB = { tlid : TLID
 
 type alias DBSchemaMigration =
   { cols : List (BlankOr DBColName, BlankOr DBColType)
-  , version : Int
-  , rollforward : Expr
   , rollback : Expr
+  , rollforward : Expr
+  , version : Int
   }
 
 type TLData = TLHandler Handler

@@ -55,17 +55,33 @@ isMigrating db =
     Just _ -> True
     Nothing -> False
 
-isMigrationCol : ID -> DBSchemaMigration -> Bool
-isMigrationCol id schema =
-  let inCols = schema.cols
-               |> List.filter (\(n, t) -> (B.toID n) == id || (B.toID t) == id )
-  in not (List.isEmpty inCols)
+isMigrationCol : ID -> DB -> Bool
+isMigrationCol id db =
+  case db.newMigration of
+    Just schema ->
+      let inCols = schema.cols
+          |> List.filter (\(n, t) -> (B.toID n) == id || (B.toID t) == id )
+      in not (List.isEmpty inCols)
+    Nothing -> False
 
 startMigration : DB -> Modification
 startMigration db =
   let newCols = db.cols
                 |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
-      migra = DBSchemaMigration newCols (db.version + 1) (B.new ()) (B.new ())
+      migra = DBSchemaMigration newCols (B.new ()) (B.new ()) (db.version + 1)
       newDB = { db | newMigration = Just migra }
   in UpdateDB newDB
 
+updateMigrationCol : DB -> ID -> Maybe String -> Modification
+updateMigrationCol db id val =
+  case db.newMigration of
+    Just migra ->
+      let value =
+            case val of
+              Just str -> B.newF str
+              Nothing -> B.new ()
+          replacer = B.replace id value
+          newCols = migra.cols
+                    |> List.map (\(n, t) -> (replacer n, replacer t))
+      in UpdateDB { db | newMigration = Just ({ migra | cols = newCols }) }
+    _ -> NoChange
