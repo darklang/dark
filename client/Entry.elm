@@ -300,6 +300,7 @@ submit m cursor action =
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
           result = validate tl pd value
+          _ = Debug.log "result" (pd, result)
       in
       if String.length value < 1
       then NoChange
@@ -356,7 +357,7 @@ submit m cursor action =
           if B.asF ct == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol id (db |> deMaybe "db")
-          then DB.updateMigrationCol (db |> deMaybe "db") id result
+          then DB.updateMigrationCol (db |> deMaybe "db") id value
           else if B.isBlank ct
           then
             wrapID [ SetDBColType tlid id value
@@ -368,7 +369,7 @@ submit m cursor action =
           if B.asF cn == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol id (db |> deMaybe "db")
-          then DB.updateMigrationCol (db |> deMaybe "db") id result
+          then DB.updateMigrationCol (db |> deMaybe "db") id value
           else if DB.hasCol (db |> deMaybe "db") value
           then DisplayError ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn

@@ -1,7 +1,7 @@
 module DB exposing (..)
 
 -- lib
-import Dict exposing (Dict)
+import String
 
 -- dark
 import Types exposing (..)
@@ -72,16 +72,14 @@ startMigration db =
       newDB = { db | newMigration = Just migra }
   in UpdateDB newDB
 
-updateMigrationCol : DB -> ID -> Maybe String -> Modification
+updateMigrationCol : DB -> ID -> String -> Modification
 updateMigrationCol db id val =
   case db.newMigration of
     Just migra ->
-      let value =
-            case val of
-              Just str -> B.newF str
-              Nothing -> B.new ()
+      let value = if (String.isEmpty val) then B.new () else B.newF val
           replacer = B.replace id value
           newCols = migra.cols
                     |> List.map (\(n, t) -> (replacer n, replacer t))
+          _ = Debug.log "updateMigrationCol" newCols
       in UpdateDB { db | newMigration = Just ({ migra | cols = newCols }) }
     _ -> NoChange
