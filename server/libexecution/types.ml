@@ -153,11 +153,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
              | Response of int * (string * string) list
              [@@deriving show, eq, yojson, sexp, eq, compare]
 
-  type feature_flag = Analysis
-                    | RealKey of string
-                    [@@deriving yojson]
-
-
   type 'a block = 'a list -> 'a [@opaque][@@deriving show, sexp]
   let equal_block _ _ _ = false
   let compare_block _ _ _ = -1
