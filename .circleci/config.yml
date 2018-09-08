@@ -66,7 +66,7 @@ jobs:
             docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
             # set the ownership of all this
-            docker run -i --volumes-from vols dark sudo chown -R dark /home/dark/app
+            docker run -i --volumes-from vols alpine sudo chown -R dark /home/dark/app
 
       - run: scripts/builder --compile --test
 
