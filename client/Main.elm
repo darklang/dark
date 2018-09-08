@@ -11,14 +11,12 @@ import Json.Encode.Extra as JSEE
 import Http
 import Keyboard.Key as Key
 import Navigation
-import Mouse
 import Browser.Events
 import String
 -- import List.Extra as LE
 import String.Extra as SE
 import Time
 import Task
-import Window
 
 -- dark
 import Analysis
@@ -1615,8 +1613,7 @@ subscriptions m =
   let keySubs =
         [onWindow "keydown"
            (JSD.map GlobalKeyPress DarkKeyboard.decodeDarkKeyboardEvent)]
-      resizes = [Window.resizes (\{height,width} ->
-                                    WindowResize height width)]
+      resizes = [ Browser.Events.onResize WindowResize ]
       dragSubs =
         case m.cursorState of
           -- we use IDs here because the node will change

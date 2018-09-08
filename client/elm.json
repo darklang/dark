@@ -19,7 +19,8 @@
             "elm-community/dict-extra": "2.3.1",
             "elm-community/json-extra": "4.0.0",
             "elm-community/list-extra": "8.0.0",
-            "elm-community/maybe-extra": "5.0.0"
+            "elm-community/maybe-extra": "5.0.0",
+            "elm-community/string-extra": "3.0.0"
         },
         "indirect": {
             "elm/parser": "1.1.0",
