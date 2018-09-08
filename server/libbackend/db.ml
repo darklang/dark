@@ -11,7 +11,6 @@ module PG = Postgresql
 let conn = Libservice.Dbconnection.conn
 
 let escape_single s = conn#escape_string s
-let escape_double s = Util.string_replace "\"" "\\\"" s
 let single_quote v = "'" ^ v ^ "'"
 let cast_to ~tipe v = v ^ "::" ^ tipe
 let array_separator = ", "
