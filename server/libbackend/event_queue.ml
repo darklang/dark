@@ -17,12 +17,6 @@ type t = { id: int
 let to_event_desc t =
   (t.space, t.name, t.modifier)
 
-let status_to_enum status : string =
-  match status with
-  | `OK -> "done"
-  | `Err -> "error"
-  | `Incomplete -> "error"
-
 (* ------------------------- *)
 (* Public API *)
 (* ------------------------- *)

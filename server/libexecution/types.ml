@@ -26,7 +26,6 @@ module IDMap = Int63.Map
 type host = string [@@deriving eq, compare, show, sexp, bin_io]
 
 type tlid = id [@@deriving eq, compare, show, yojson, sexp, bin_io]
-type id_list = id list [@@deriving eq, compare, show, yojson, sexp, bin_io]
 type 'a or_blank = Blank of id
                  | Filled of id * 'a
                  [@@deriving eq, compare, show, yojson, sexp, bin_io]
