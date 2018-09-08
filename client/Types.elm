@@ -5,13 +5,12 @@ import Dict exposing (Dict)
 import Http
 import Browser.Dom as Dom
 import Navigation
-import Mouse
-import Time exposing (Time)
 import Browser.Events
 import Json.Decode as JSD
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
+
 
 type alias Exception =
   { short : String
@@ -116,7 +115,7 @@ type Msg
     -- but by the time we use it the proper node will be changed
     | ToplevelMouseUp TLID MouseEvent
     | ToplevelClick TLID MouseEvent
-    | DragToplevel TLID Mouse.Position
+    | DragToplevel TLID MousePosition
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress DarkKeyboardEvent
@@ -619,3 +618,14 @@ type alias FlagFunction = { name: String
                           , deprecated: Bool
                           , infix: Bool
                           }
+
+-----------------------------
+-- Types from 0.18
+-----------------------------
+
+type alias Time = Float
+
+type alias MousePosition =
+  { x : Int
+  , y : Int
+  }

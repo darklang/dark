@@ -39,7 +39,6 @@ import Viewport
 import FeatureFlags
 import Functions
 import Toplevel
-import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import Pointer as P
@@ -1623,7 +1622,12 @@ subscriptions m =
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging id offset _ _ ->
-            [ Mouse.moves (DragToplevel id)]
+            [ Browser.Events.onMouseMove
+                JSD.map2
+                  (\x y -> (DragToplevel (MousePosition x y) id))
+                  (JSD.field "pageX" JSD.int)
+                  (JSD.field "pageY" JSD.int)
+            ]
           _ -> []
 
       syncTimer =
