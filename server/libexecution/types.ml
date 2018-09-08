@@ -151,14 +151,24 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   (* ------------------------ *)
   type dhttp = Redirect of string
              | Response of int * (string * string) list
-             [@@deriving show, eq, yojson, sexp, eq, compare]
+             [@@deriving show, eq, yojson, sexp, compare]
 
-  type 'a block = 'a list -> 'a [@opaque][@@deriving show, sexp]
+  (* block *)
+  type 'a block = 'a list -> 'a [@@deriving show, sexp]
   let equal_block _ _ _ = false
   let compare_block _ _ _ = -1
+  let block_to_yojson x _ = failwith "Cant serialize blocks"
+  let block_of_yojson _ _ = failwith "Cant deserialize blocks"
 
-  type uuid = Uuidm.t [@opaque][@@deriving show, eq, compare]
-
+  (* uuid *)
+  type uuid = Uuidm.t [@@deriving show, eq, compare]
+  let uuid_to_yojson uuid = `String (Uuidm.to_string uuid)
+  let uuid_of_yojson json =
+    match json with
+    | `String s ->
+      Uuidm.of_string s
+      |> Result.of_option ~error:"can't be parsed"
+    | _ -> Error "not a string"
   let uuid_of_sexp st =
     match st with
     | Sexp.Atom s ->
@@ -168,10 +178,24 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | _ -> failwith "failure uuid_of_sexp"
   let sexp_of_uuid u = Sexp.Atom (Uuidm.to_string u)
 
+
+  (* time *)
   type time = Time.Stable.With_utc_sexp.V2.t
-              [@opaque]
-              [@@deriving compare, sexp, show]
+            [@opaque][@@deriving compare, sexp, show]
   let equal_time t1 t2 = t1 = t2
+  let time_to_yojson time = `String (Util.isostring_of_date time)
+  let time_of_yojson json =
+    match json with
+    | `String s -> Ok (Util.date_of_isostring s)
+    | _ -> Error "Invalid time"
+
+
+  (* Bytes *)
+  module PasswordBytes = struct
+    include Bytes
+    let to_yojson a = failwith "todo"
+    let of_yojson a = failwith "todo"
+  end
 
   (* Special types:
      DIncomplete:
@@ -243,7 +267,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DDate of time
     | DTitle of string
     | DUrl of string
-    | DPassword of Bytes.t
+    | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
     [@@deriving show, sexp, eq, compare]

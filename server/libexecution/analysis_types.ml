@@ -53,11 +53,6 @@ let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
 (* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
-type uuid = Uuidm.t
-let uuid_to_yojson uuid = `String (Uuidm.to_string uuid)
-let uuid_of_yojson = Util.uuid_of_yojson
-
-
 type analysis =
   { live_values : dval_store
   ; available_varnames : sym_store

@@ -61,7 +61,7 @@ type analysis_param = { handler : HandlerT.handler
                       ; user_fns : user_fn list
                       } [@@deriving of_yojson]
 
-type analysis_envelope = Analysis_types.uuid * Analysis_types.analysis
+type analysis_envelope = uuid * Analysis_types.analysis
                        [@@deriving to_yojson]
 
 let load_from_trace results (tlid, fnname, caller_id) args : (dval * Time.t) option =

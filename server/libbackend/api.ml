@@ -17,7 +17,7 @@ let dval_to_yojson = Dval.dval_to_yojson
 let dval_of_yojson = Dval.dval_of_yojson
 
 type execute_function_params = { tlid : tlid
-                               ; trace_id : uuid
+                               ; trace_id : RuntimeT.uuid
                                ; caller_id : id
                                ; args : dval list
                                ; fnname : string
