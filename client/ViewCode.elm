@@ -176,10 +176,10 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RPC.typeOfString |> toString |> String.toLower
+      let cssClass = v |> RPC.typeOfLiteralString |> toString |> String.toLower
           value =
             -- TODO: remove
-            if RPC.typeOfString v == TStr
+            if RPC.typeOfLiteralString v == TStr
             then transformToStringEntry v
             else v
           computedValue =

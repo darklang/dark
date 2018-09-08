@@ -472,7 +472,7 @@ let parse_basic_json (str: string) : dval option =
   with Yojson.Json_error e ->
     None
 
-let parse (str : string) : dval option =
+let parse_literal (str : string) : dval option =
   (* str is a raw string that the user entered. It is not valid json,
    * or anything like it. We use the json parser to get values from int
    * and float literals, etc, but this is a total hack *)
