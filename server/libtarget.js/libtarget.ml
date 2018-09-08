@@ -23,7 +23,7 @@ let date_of_isostring (str: string) : Core_kernel.Time.t =
   Core_kernel.Time.now ()
 
 let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : string =
-  ""
+  Regexp.global_replace (Regexp.regexp pattern) str replacement
 
 let string_split ~(sep: string) (s: string) : string list =
   (* Although this uses a different regex engine than the server side, we only
