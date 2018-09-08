@@ -146,12 +146,6 @@ let isostring_of_date (d: Time.t) : string =
 let date_of_isostring (str: string) : Time.t =
   Libtarget.date_of_isostring str
 
-let sqlstring_of_date (d: Time.t) : string =
-  Libtarget.date_to_sqlstring d
-
-let date_of_sqlstring (str: string) : Time.t =
-  Libtarget.date_of_sqlstring str
-
 (* Returns the string within string-ish values, without adornment. *)
 let as_string (dv : dval) : string =
   match dv with
