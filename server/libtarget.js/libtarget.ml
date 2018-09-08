@@ -32,4 +32,6 @@ let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : str
   ""
 
 let string_split ~(sep: string) (s: string) : string list =
-  []
+  (* Although this uses a different regex engine than the server side, we only
+   * match on an exact string, so this should work fine. *)
+  Regexp.split (Regexp.regexp_string sep) s
