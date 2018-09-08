@@ -7,7 +7,7 @@ import Browser.Dom as Dom
 import Navigation
 import Mouse
 import Time exposing (Time)
-import PageVisibility
+import Browser.Events
 import Json.Decode as JSD
 
 -- libs
@@ -139,8 +139,8 @@ type Msg
     | WindowResize Int Int
     | TimerFire TimerAction Time
     | JSError String
-    | PageVisibilityChange PageVisibility.Visibility
-    | PageFocusChange PageVisibility.Visibility
+    | PageVisibilityChange Browser.Events.Visibility
+    | PageFocusChange Browser.Events.Visibility
     | StartFeatureFlag
     | EndFeatureFlag ID Pick
     | ToggleFeatureFlag ID Bool
@@ -477,7 +477,7 @@ type alias Model = { error : Maybe String
                    , f404s : List FourOhFour
                    , unlockedDBs : List TLID
                    , integrationTestState : IntegrationTestState
-                   , visibility : PageVisibility.Visibility
+                   , visibility : Browser.Events.Visibility
                    , clipboard : Clipboard
                    , syncState : SyncState
                    , urlState : UrlState

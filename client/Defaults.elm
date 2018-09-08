@@ -6,7 +6,7 @@ import Dict
 
 -- dark
 import Types exposing (..)
-import PageVisibility
+import Browser.Events
 
 
 entryID : String
@@ -83,7 +83,7 @@ defaultModel = { error = Nothing
                , f404s = []
                , unlockedDBs = []
                , integrationTestState = NoIntegrationTest
-               , visibility = PageVisibility.Hidden
+               , visibility = Browser.Events.Hidden
                -- partially saved in editor
                , syncState = defaultSyncState
                , urlState = defaultUrlState

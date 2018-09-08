@@ -12,7 +12,7 @@ import Http
 import Keyboard.Key as Key
 import Navigation
 import Mouse
-import PageVisibility
+import Browser.Events
 import String
 -- import List.Extra as LE
 import String.Extra as SE
@@ -114,9 +114,6 @@ init {editorState, complete} location =
           Toplevels pos -> { canvas | offset = pos }
           Fn _ pos -> { canvas | fnOffset = pos }
 
-      visibilityTask =
-        Task.perform PageVisibilityChange PageVisibility.visibility
-
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
 
@@ -150,7 +147,7 @@ init {editorState, complete} location =
                   (FocusPageAndCursor page savedCursorState)
               -- load the analysis even if the timers are off
               , RPC.getAnalysisRPC []
-              , visibilityTask])
+              ])
 
 
 -----------------------
@@ -1631,8 +1628,8 @@ subscriptions m =
 
       syncTimer =
         case m.visibility of
-          PageVisibility.Hidden -> []
-          PageVisibility.Visible ->
+          Browser.Events.Hidden -> []
+          Browser.Events.Visible ->
             [ Time.every Time.second (TimerFire RefreshAnalysis) ]
 
       urlTimer =
@@ -1646,9 +1643,9 @@ subscriptions m =
       onError = [displayError JSError]
 
       visibility =
-        [ PageVisibility.visibilityChanges PageVisibilityChange
-        , onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))
-        , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
+        [ Browser.Events.onVisibilityChange PageVisibilityChange
+        , onWindow "focus" (JSD.succeed (PageFocusChange Browser.Events.Visible))
+        , onWindow "blur" (JSD.succeed (PageFocusChange Browser.Events.Hidden))]
 
       mousewheelSubs = [mousewheel MouseWheel]
 
