@@ -140,12 +140,6 @@ let tipename (dv: dval) : string =
 (* Representation *)
 (* ------------------------- *)
 
-let isostring_of_date (d: Time.t) : string =
-  Libtarget.date_to_isostring d
-
-let date_of_isostring (str: string) : Time.t =
-  Libtarget.date_of_isostring str
-
 (* Returns the string within string-ish values, without adornment. *)
 let as_string (dv : dval) : string =
   match dv with
@@ -157,7 +151,7 @@ let as_string (dv : dval) : string =
   | DChar c -> Char.to_string c
   | DNull -> "null"
   | DID id -> Uuidm.to_string id
-  | DDate d -> d |> isostring_of_date
+  | DDate d -> Util.isostring_of_date d
   | DTitle t -> t
   | DUrl url -> url
   | DDB db -> db.name
@@ -358,8 +352,8 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
      | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from null"))
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     (match tipe with
-    | "date" -> DDate (date_of_isostring v)
-    | "id" -> DID (Uuidm.of_string v |> Option.value_exn)
+    | "date" -> DDate (Util.date_of_isostring v)
+    | "id" -> DID (Util.uuid_of_string v)
     | "title" -> DTitle v
     | "url" -> DUrl v
     | "error" -> DError v
@@ -417,7 +411,7 @@ and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   | DID id -> wrap_user_str (Uuidm.to_string id)
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title
-  | DDate date -> wrap_user_str (isostring_of_date date)
+  | DDate date -> wrap_user_str (Util.isostring_of_date date)
   | DPassword hashed -> if redact
                        then wrap_user_type `Null
                        else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
