@@ -677,7 +677,7 @@ asTypeString item =
     ACCommand _ -> ""
     ACLiteral lit ->
       let tipe = lit
-                 |> RPC.parseDval
+                 |> RPC.parseDvalLiteral
                  |> Maybe.withDefault DIncomplete
                  |> RT.typeOf
                  |> RT.tipe2str

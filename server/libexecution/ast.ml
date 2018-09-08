@@ -264,7 +264,7 @@ let rec exec ~(engine: engine)
           exe bound body)
 
      | Filled (_, Value s) ->
-       Dval.parse s
+       Dval.parse_literal s
        |> Option.value ~default:(DError "Unparsable value")
 
      | Filled (_, ListLiteral exprs) ->

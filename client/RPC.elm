@@ -852,39 +852,17 @@ decodeExecuteFunctionRPC =
 -- Dval (some here because of cyclic dependencies)
 -------------------------
 
--- Ported directly from Dval.parse in the backend
-parseDval : String -> Maybe Dval
-parseDval str =
-  let len = String.length str
-      firstChar = String.uncons str
-                  |> Maybe.map Tuple.first
-  in
-  if String.toLower str == "nothing"
-  then Just (DOption Nothing)
-  else
-    case String.toList str of
-      ['\'', c, '\'' ] -> Just (DChar c)
-      '"' :: rest ->
-        if LE.last rest == Just '"'
-        then LE.init rest
-             |> Maybe.withDefault []
-             |> String.fromList
-             |> DStr
-             |> Just
-        else Nothing
-      _ ->
-        JSD.decodeString decodeDval str
-        |> Result.toMaybe
+
 
 isLiteralString : String -> Bool
 isLiteralString s =
-  case parseDval s of
+  case parseDvalLiteral s of
     Nothing -> False
     Just dv -> RT.isLiteral dv
 
-typeOfString : String -> Tipe
-typeOfString s =
-  case parseDval s of
+typeOfLiteralString : String -> Tipe
+typeOfLiteralString s =
+  case parseDvalLiteral s of
     Nothing -> TIncomplete
     Just dv -> RT.typeOf dv
 
@@ -970,6 +948,29 @@ processObject dict =
         "datastore" -> DDB value
         _ -> DObj dict
     _ -> DObj dict
+
+-- Ported directly from Dval.parse in the backend
+parseDvalLiteral : String -> Maybe Dval
+parseDvalLiteral str =
+  let firstChar = String.uncons str
+                  |> Maybe.map Tuple.first
+  in
+  if String.toLower str == "nothing"
+  then Just (DOption Nothing)
+  else
+    case String.toList str of
+      ['\'', c, '\'' ] -> Just (DChar c)
+      '"' :: rest ->
+        if LE.last rest == Just '"'
+        then LE.init rest
+             |> Maybe.withDefault []
+             |> String.fromList
+             |> DStr
+             |> Just
+        else Nothing
+      _ ->
+        JSD.decodeString decodeDval str
+        |> Result.toMaybe
 
 decodeDval : JSD.Decoder Dval
 decodeDval =
