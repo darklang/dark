@@ -2,7 +2,6 @@ module Selection exposing (..)
 
 -- builtins
 import Maybe
-import Dict exposing (Dict)
 
 -- lib
 import Maybe.Extra as ME

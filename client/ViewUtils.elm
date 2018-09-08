@@ -3,20 +3,13 @@ module ViewUtils exposing (..)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-<<<<<<< HEAD
 import Nineteen.Debug as Debug
 import Nineteen.String as String
-=======
-import Dict exposing (Dict)
->>>>>>> copy over db stuff
 
 -- lib
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
--- import String.Extra as SE
--- import List.Extra as LE
--- import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
