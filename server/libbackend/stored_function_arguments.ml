@@ -38,7 +38,8 @@ let load ~canvas_id tlid : (RTT.dval_map * Time.t) list =
       | [args; ts] ->
         (args
          |> Yojson.Safe.from_string
-         |> Dval.dvalmap_of_yojson
+         |> RTT.dval_map_of_yojson
+         |> Result.ok_or_failwith
         , Dval.date_of_sqlstring ts)
       | _ -> Exception.internal "Bad DB format for stored_functions.load_arguments")
 

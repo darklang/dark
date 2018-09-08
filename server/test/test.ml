@@ -336,8 +336,8 @@ let t_stdlib_works () =
 let t_derror_roundtrip () =
   let x = DError "test" in
   let converted = x
-                |> Dval.dval_to_yojson
-                |> Dval.dval_of_yojson
+                |> dval_to_yojson
+                |> dval_of_yojson
                 |> Result.ok_or_failwith in
   check_dval "roundtrip" converted x
 
@@ -651,12 +651,8 @@ let t_password_hash_db_roundtrip () =
   AT.check AT.int
     "A Password::hash'd string can get stored in and retrieved from a user database."
     0 (match exec_handler ~ops ast with
-         DList [p1; p2;] as v ->
-         Log.inspecT "test value to be compared" ~f:show_dval v;
-         compare_dval p1 p2
-       | v ->
-         Log.inspecT "test value" ~f:show_dval v;
-         1)
+         DList [p1; p2;] -> compare_dval p1 p2
+       | v -> 1)
 
 
 let t_passwords_dont_serialize () =

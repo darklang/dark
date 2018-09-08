@@ -1,4 +1,5 @@
 open Core_kernel
+open Extensions
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type pos = { x:int; y:int }[@@deriving eq, compare, show, yojson, sexp, bin_io]
@@ -145,7 +146,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
-
   (* ------------------------ *)
   (* Dvals*)
   (* ------------------------ *)
@@ -153,30 +153,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
              | Response of int * (string * string) list
              [@@deriving show, eq, yojson, sexp, eq, compare]
 
-  type feature_flag = Analysis
-                    | RealKey of string
-                    [@@deriving yojson]
 
-
-  type 'a block = 'a list -> 'a [@opaque][@@deriving show, sexp]
-  let equal_block _ _ _ = false
-  let compare_block _ _ _ = -1
-
-  type uuid = Uuidm.t [@opaque][@@deriving show, eq, compare]
-
-  let uuid_of_sexp st =
-    match st with
-    | Sexp.Atom s ->
-      Option.value_exn
-        ~message:"failure uuid_of_sexp"
-        (Uuidm.of_string s)
-    | _ -> failwith "failure uuid_of_sexp"
-  let sexp_of_uuid u = Sexp.Atom (Uuidm.to_string u)
-
-  type time = Time.Stable.With_utc_sexp.V2.t
-              [@opaque]
-              [@@deriving compare, sexp, show]
-  let equal_time t1 t2 = t1 = t2
 
   (* Special types:
      DIncomplete:
@@ -221,8 +198,14 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
       - a list containing a derrorrail is a derrorail
 
   *)
-  module DvalMap = String.Map
-  type dval_map = dval DvalMap.t [@opaque]
+  module DvalMap = struct
+    include Map.Make(String)
+    let to_yojson x = failwith "TODO"
+    let of_yojson x = failwith "TODO"
+  end
+
+  type dval_map = dval DvalMap.t
+
   and optionT = OptJust of dval
               | OptNothing
   and dval =
@@ -230,7 +213,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DInt of int
     | DFloat of float
     | DBool of bool
-    | DNull (* TODO: make null more like option *)
+    | DNull
     | DChar of char
     | DStr of string
     (* compound types *)
@@ -248,11 +231,12 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DDate of time
     | DTitle of string
     | DUrl of string
-    | DPassword of Bytes.t
+    | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
-    [@@deriving show, sexp, eq, compare]
-  type dval_list = dval list [@@deriving show]
+    [@@deriving eq, yojson, compare, sexp]
+  type dval_list = dval list
+                 [@@deriving eq, compare, sexp]
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type tipe = tipe_ [@@deriving eq, show, yojson, sexp, bin_io]

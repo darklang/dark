@@ -13,8 +13,8 @@ let error
   Exception.raise_
     UserCode
     ?bt
-    ~actual:(actual |> Dval.dval_to_yojson |> Yojson.Safe.pretty_to_string)
-    ~result:(result |> Dval.dval_to_yojson |> Yojson.Safe.pretty_to_string)
+    ~actual:(actual |> Dval.dval_to_pretty_json_string)
+    ~result:(result |> Dval.dval_to_pretty_json_string)
     ~actual_tipe:(actual |> Dval.tipename)
     ~result_tipe:(result |> Dval.tipename)
     ~info

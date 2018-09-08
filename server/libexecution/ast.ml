@@ -257,7 +257,7 @@ let rec exec ~(engine: engine)
           let bound =
             (match lhs with
             | Filled (_, name) ->
-              String.Map.set ~key:name ~data:data st
+              DvalMap.set ~key:name ~data:data st
             | Blank _ ->
               st)
           in

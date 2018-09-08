@@ -12,14 +12,10 @@ type rpc_params = { ops: oplist }
 
 type analysis_params = tlid list [@@deriving eq, show, yojson, sexp]
 
-type dval = RuntimeT.dval
-let dval_to_yojson = Dval.dval_to_yojson
-let dval_of_yojson = Dval.dval_of_yojson
-
 type execute_function_params = { tlid : tlid
                                ; trace_id : uuid
                                ; caller_id : id
-                               ; args : dval list
+                               ; args : RuntimeT.dval list
                                ; fnname : string
                                } [@@deriving yojson]
 

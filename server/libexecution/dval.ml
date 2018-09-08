@@ -331,6 +331,9 @@ let is_obj (dv : dval) : bool =
 
 (* ------------------------- *)
 (* JSON *)
+(* These functions are for speaking to external sources: reading and writing
+ * basic json. For serialization, either to communicate with the client or
+ * store in the DB, look in Types.ml *)
 (* ------------------------- *)
 
 let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
@@ -341,50 +344,6 @@ let tipe_of_yojson (json: Yojson.Safe.json) =
   | `String s -> Ok (s |> String.lowercase |> tipe_of_string)
   | _ -> Exception.user "Invalid tipe"
 
-
-
-let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
-  (* sort so this isn't key-order-dependent. *)
-  match Yojson.Safe.sort json with
-  | `Int i -> DInt i
-  | `Float f -> DFloat f
-  | `Bool b -> DBool b
-  | `Null -> DNull
-  | `String s -> DStr s
-  | `List l -> DList (List.map ~f:dval_of_yojson_ l)
-  | `Variant v -> Exception.internal "We dont use variants"
-  | `Intlit v -> DStr v
-  | `Tuple v -> Exception.internal "We dont use tuples"
-  | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
-    DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
-  | `Assoc [("type", `String tipe); ("value", `Null)] ->
-    (match tipe with
-     | "incomplete" -> DIncomplete
-     | "block" -> Exception.user "Can't deserialize blocks"
-     | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from null"))
-  | `Assoc [("type", `String tipe); ("value", `String v)] ->
-    (match tipe with
-    | "date" -> DDate (date_of_isostring v)
-    | "id" -> DID (Uuidm.of_string v |> Option.value_exn)
-    | "title" -> DTitle v
-    | "url" -> DUrl v
-    | "error" -> DError v
-    | "char" -> DChar (Char.of_string v)
-    | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
-    | "db" -> Exception.user "Can't deserialize DBs"
-    | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
-    | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from " ^ v))
-  | `Assoc _ -> DObj (dvalmap_of_yojson json)
-and dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
-  match json with
-  | `Assoc alist ->
-    (List.fold_left alist
-       ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
-       ~init:DvalMap.empty)
-  | _ -> Exception.internal "Not a json object"
-
-let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
-  Result.Ok (dval_of_yojson_ json)
 
 let rec dvalmap_to_yojson ?(redact=true) (dvalmap: dval_map) : Yojson.Safe.json =
   dvalmap
@@ -463,11 +422,31 @@ let dvallist_to_string ?(redact=true) (l:dval list) : string =
 (* ------------------------- *)
 (* Parsing *)
 (* ------------------------- *)
+let rec dval_of_basic_yojson_ (json : Yojson.Safe.json) : dval =
+  (* sort so this isn't key-order-dependent. *)
+  match Yojson.Safe.sort json with
+  | `Int i -> DInt i
+  | `Float f -> DFloat f
+  | `Bool b -> DBool b
+  | `Null -> DNull
+  | `String s -> DStr s
+  | `List l -> DList (List.map ~f:dval_of_basic_yojson_ l)
+  | `Variant v -> Exception.internal "We dont use variants"
+  | `Intlit v -> DStr v
+  | `Tuple v -> Exception.internal "We dont use tuples"
+  | `Assoc alist ->
+      alist
+      |> List.fold_left
+        ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_basic_yojson_ v))
+        ~init:DvalMap.empty
+      |> DObj
+
+
 let parse_basic_json (str: string) : dval option =
   try
     str
     |> Yojson.Safe.from_string
-    |> dval_of_yojson_
+    |> dval_of_basic_yojson_
     |> fun dv -> Some dv
   with Yojson.Json_error e ->
     None

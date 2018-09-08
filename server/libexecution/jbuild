@@ -10,6 +10,7 @@
                       ppx_deriving_yojson
                       ppx_fields_conv
                       ppx_sexp_conv
+                      ppx_hash
                       ppx_pipebang)))
     (libraries (
                 ; note that libtarget.{ocaml,js} are not included here
@@ -20,6 +21,7 @@
                 base64
                 uri
                 ppx_bin_prot
+                ppx_hash
                 ppx_derivers
                 ppx_deriving.std
                 ppx_deriving_yojson

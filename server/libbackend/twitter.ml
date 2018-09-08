@@ -118,7 +118,9 @@ let call (endpoint: string) (verb: Httpclient.verb) (args: dval_map) : dval =
         Httpclient.call url verb [header] body
     | _ -> Exception.internal "not implemented yet"
   in
-  result |> Yojson.Safe.from_string |> Dval.dval_of_yojson_
+  result
+  |> Dval.parse_basic_json
+  |> Option.value ~default:(DError "Invalid json")
 
 let get (url: string) (args: dval_map) : dval =
   call url GET args

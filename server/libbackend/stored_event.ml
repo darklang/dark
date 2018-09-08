@@ -6,7 +6,6 @@ module RTT = Types.RuntimeT
 type event_desc = string * string * string
                 [@@deriving show, yojson]
 type four_oh_four = (event_desc * Types.RuntimeT.dval list)
-                  [@@deriving show]
 
 (* ------------------------- *)
 (* Event data *)
@@ -69,6 +68,6 @@ let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Y
   `List [ `String space
         ; `String path
         ; `String modifier
-        ; `List (List.map ~f:Dval.dval_to_yojson dvals)
+        ; `List (List.map ~f:RTT.dval_to_yojson dvals)
         ]
 
