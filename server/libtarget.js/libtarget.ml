@@ -22,12 +22,6 @@ let date_to_isostring (d: Core_kernel.Time.t) : string =
 let date_of_isostring (str: string) : Core_kernel.Time.t =
   Core_kernel.Time.now ()
 
-let date_to_sqlstring (d: Core_kernel.Time.t) : string =
-  ""
-
-let date_of_sqlstring (str: string) : Core_kernel.Time.t =
-  Core_kernel.Time.now ()
-
 let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : string =
   ""
 
