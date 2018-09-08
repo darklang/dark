@@ -92,9 +92,6 @@ let apply_to_db ~(f:(RTT.DbT.db -> RTT.DbT.db)) (tlid: tlid) (c:canvas) : canvas
   in { c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs }
 
 
-let apply_to_handler  ~f tlid c =
-  { c with handlers = apply_to_toplevel ~f tlid c.handlers}
-
 let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
   apply_to_all_toplevels ~f:(fun tl -> { tl with pos = pos }) tlid c
 

@@ -37,11 +37,6 @@ type our_db = { tlid: tlid
               ; active_migration : DbT.db_migration option
               } [@@deriving of_yojson]
 
-let convert_tipe (tipe: our_tipe or_blank) : tipe_ or_blank =
-  match tipe with
-  | Blank _ -> tipe
-  | Filled (id, t) -> Filled (id, t)
-
 let convert_col ((name, tipe): our_col) : DbT.col =
   (name, tipe)
 

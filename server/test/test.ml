@@ -53,7 +53,6 @@ let clear_test_data () : unit =
 let at_dval = AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
     (fun a b -> compare_dval a b = 0)
-let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_dval_list = AT.check (AT.list at_dval)
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)

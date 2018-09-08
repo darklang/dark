@@ -87,12 +87,6 @@ let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) : (Uuidm.t * input_va
           | `Unknown -> (id, []) (* can't happen *)
       )
 
-let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
-  : RTT.input_vars list =
-  match saved_input_vars c h with
-  | [] -> [Execution.sample_input_vars h]
-  | l -> List.map ~f:Tuple.T2.get2 l
-
 let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   : RTT.input_vars list =
   Stored_function_arguments.load ~canvas_id:c.id fn.tlid

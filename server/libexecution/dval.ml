@@ -311,12 +311,6 @@ let obj_merge (l: dval) (r: dval) : dval =
 let empty_dobj : dval =
   DObj (DvalMap.empty)
 
-let is_obj (dv : dval) : bool =
-  match dv with
-  | DObj _ -> true
-  | _ -> false
-
-
 (* ------------------------- *)
 (* JSON *)
 (* ------------------------- *)
@@ -442,9 +436,6 @@ let dval_to_pretty_json_string ?(redact=true) (v: dval) : string =
 
 let dvalmap_to_string ?(redact=true) (m:dval_map) : string =
   DObj m |> dval_to_yojson ~redact |> Yojson.Safe.to_string
-
-let dvallist_to_string ?(redact=true) (l:dval list) : string =
-  DList l |> dval_to_yojson ~redact |> Yojson.Safe.to_string
 
 
 
