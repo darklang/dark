@@ -3,12 +3,15 @@ open Libexecution
 
 
 val store :
-  Types.RuntimeT.user_fn_desc ->
+  canvas_id:Uuidm.t ->
+  trace_id:Uuidm.t ->
+  Types.tlid ->
   Types.RuntimeT.dval_map ->
   unit
 
 val load :
-  Types.RuntimeT.user_fn_desc ->
+  canvas_id:Uuidm.t ->
+  Types.tlid ->
   (Types.RuntimeT.dval_map * Time.t) list
 
 

@@ -257,14 +257,14 @@ let rec exec ~(engine: engine)
           let bound =
             (match lhs with
             | Filled (_, name) ->
-              String.Map.set ~key:name ~data:data st
+              DvalMap.set ~key:name ~data:data st
             | Blank _ ->
               st)
           in
           exe bound body)
 
      | Filled (_, Value s) ->
-       Dval.parse s
+       Dval.parse_literal s
        |> Option.value ~default:(DError "Unparsable value")
 
      | Filled (_, ListLiteral exprs) ->
@@ -492,72 +492,43 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
   let paramsErroneous args =
     List.exists args
       ~f:(function
-          (* HACK: going to hardcode this special case because I don't trust myself
-           * to enumerate the consequences of making all DErrors `complete`. In general
-           * we have an 'incomplete problem', especially intersecting with production
-           * errors. it seems to me that it is something with simply side-step with
-           * a proper type-system so I hope this small hack is enough to tide
-           * us over relatively safely until then *)
           | DError _ when String.Caseless.equal fnname "Bool::isError" -> false
           | DError _  -> true
           | _ -> false)
   in
 
-  match fn.func with
-  | NotClientAvailable -> DIncomplete
-  | InProcess f ->
-    let arglist = fn.parameters
-                  |> List.map ~f:(fun (p: param) -> p.name)
-                  |> List.map ~f:(DvalMap.find_exn args) in
+  let arglist = fn.parameters
+                |> List.map ~f:(fun (p: param) -> p.name)
+                |> List.map ~f:(DvalMap.find_exn args) in
 
+  let sfr_desc = (state.tlid, fnname, id) in
+
+  match fn.func with
+  | NotClientAvailable ->
+    (match state.load_fn_result sfr_desc arglist with
+    | Some (result, _ts) -> result
+    | _ -> DIncomplete)
+
+  | InProcess f ->
     if paramsIncomplete arglist
     then DIncomplete
     else if paramsErroneous arglist
     then DError "Fn called with an error as an argument"
     else
-      let executing_unsafe = not fn.preview_execution_safe
-                             && (List.mem ~equal:(=) state.exe_fn_ids id
-                                 || engine.ctx = Real)
-      in
-      if executing_unsafe
-      then
-        Log.infO "executing unsafe result" ~params:[ "fn", fnname
-                                                   ; "ctx", Log.dump engine.ctx
-                                                   ; "id", Log.dump id
-                                                   ; "execution_id", Log.dump state.execution_id
-                                                   ];
-
-      let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
-      let maybe_store_result result =
-        if executing_unsafe
-          (* TODO: add an execution ID here so that multiple requests
-           * with the same parameter (from a user) don't pollute old
-           * requests. *)
-        then state.store_fn_result sfr_desc arglist result
-        else ();
-      in
-
       let state =
         { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
       in
 
       let result =
         (try
-           if engine.ctx = Real || fn.preview_execution_safe || executing_unsafe
-           then f (state, arglist)
-           else
-             (match state.load_fn_result sfr_desc arglist with
-              | Some (result, _ts) -> result
-              | _ -> DIncomplete)
+           f (state, arglist)
          with
          | Exception.DarkException de as e when de.tipe = UserCode ->
            (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-           let result = Dval.exception_to_dval e in
-           maybe_store_result result;
-           result
+           Dval.exception_to_dval e
          | e ->
            (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
@@ -566,7 +537,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
             * this, give it a nice exception via RT.error.  *)
            Exception.reraise e)
       in
-      maybe_store_result result;
+      state.store_fn_result sfr_desc arglist result;
       result
 
 
@@ -583,10 +554,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (args)
     in
 
-    let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids id in
-    if engine.ctx = Real || fn_clicked
-    then state.store_fn_arguments (state.canvas_id, tlid) args;
-
+    state.store_fn_arguments tlid args;
     exec ~engine ~state args_with_dbs body
 
 
@@ -610,11 +578,6 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 (* Analysis *)
 (* -------------------- *)
 
-let input_values st =
-  st
-  |> List.filter ~f:(fun (k,v) -> Dval.tipe_of v <> TDB)
-  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
-
 (* Trace everything and save it *)
 let analysis_engine value_store : engine =
   let trace expr dval st =
@@ -635,7 +598,6 @@ let execute_saving_intermediates
   : (dval * dval_store) =
   Log.infO "Executing for intermediates"
     ~params:[ "tlid", show_tlid state.tlid
-            ; "exe_fn_ids", Log.dump state.exe_fn_ids
             ; "execution_id", Log.dump state.execution_id
             ];
   let value_store = IDTable.create () in
@@ -668,4 +630,8 @@ let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) :
   call_fn name id args false
     ~engine:server_execution_engine ~state
 
+
+let execute_fn (state: exec_state) (name:string) (id:id) (args: dval list) : dval =
+  call_fn name id args false
+    ~engine:server_execution_engine ~state
 

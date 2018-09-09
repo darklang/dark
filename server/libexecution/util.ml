@@ -1,5 +1,7 @@
 open Core_kernel
 
+open Libcommon
+
 
 (* ------------------- *)
 (* random *)
@@ -9,6 +11,16 @@ let create_id  () : Int63.t =
 
 let create_uuid () : Uuidm.t =
   (Uuidm.v `V4)
+
+let uuid_of_string (id: string) : Uuidm.t =
+  Uuidm.of_string id
+  |> Option.value_exn ~message:("Bad UUID: " ^ id)
+
+let isostring_of_date (d: Time.t) : string =
+  Libtarget.date_to_isostring d
+
+let date_of_isostring (str: string) : Time.t =
+  Libtarget.date_of_isostring str
 
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_all (String.Search_pattern.create search) ~in_:str ~with_:replace
@@ -47,6 +59,9 @@ let int_sum (l: int list) : int =
 let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
   |> Option.value ~default:msg
+
+let hash (str : string) =
+  Libtarget.digest384 str
 
 
 (* ------------------- *)

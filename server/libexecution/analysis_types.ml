@@ -4,6 +4,7 @@ open Libcommon
 open Types
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
+open Dval
 
 module RT = Runtime
 module PReq = Parsed_request
@@ -20,29 +21,6 @@ let input_vars2symtable vars =
 
 
 (* -------------------- *)
-(* Live values *)
-(* -------------------- *)
-type livevalue = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving to_yojson, show]
-
-let dval_to_livevalue (dv: dval) : livevalue =
-  { value = Dval.to_livevalue_repr dv
-  ; tipe = Dval.tipename dv
-  ; json = dv
-           |> Dval.dval_to_yojson ~livevalue:true
-           |> Yojson.Safe.to_string
-  ; exc = None
-  }
-
-let livevalue_dval_to_yojson v = v
-                                 |> dval_to_livevalue
-                                 |> livevalue_to_yojson
-
-
-(* -------------------- *)
 (* Dval store - save per-tl analysis results *)
 (* -------------------- *)
 let ht_to_json_dict ds ~f =
@@ -55,7 +33,7 @@ let ht_to_json_dict ds ~f =
 type dval_store = dval IDTable.t
 
 let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
-  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
+  ht_to_json_dict ds ~f:dval_to_yojson
 
 
 (* -------------------- *)
@@ -72,37 +50,28 @@ let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
              |> List.map ~f:(fun s -> `String s)))
 
 
-
-
-(* -------------------- *)
-(* Sym lists - list of the input values *)
-(* -------------------- *)
-type sym_list = (string * livevalue) list
-                [@@deriving to_yojson]
-
-let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
-  `Assoc (sl
-          |> List.map ~f:(Tuple.T2.map_snd
-                           ~f:livevalue_to_yojson))
-
-let symtable_to_sym_list (st : symtable) : sym_list =
-  st
-  |> Map.to_alist
-  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
-
-
 (* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
 type analysis =
-  { ast_value: livevalue
-  ; live_values : dval_store
+  { live_values : dval_store
   ; available_varnames : sym_store
-  ; input_values : sym_list
   } [@@deriving to_yojson]
 
+type input_vars = (string * dval) list
+                  [@@deriving yojson]
 
-type analysis_list = analysis list
-                     [@@deriving to_yojson]
+
+type function_arg_hash = string [@@deriving yojson]
+type fnname = string [@@deriving yojson]
+type function_result = fnname * id * function_arg_hash * dval
+                       [@@deriving yojson]
+type trace = { input: input_vars
+             ; function_results: function_result list
+             ; id: uuid
+             } [@@deriving yojson]
+
+type tlid_trace = tlid * trace list
+                [@@deriving to_yojson]
 
 

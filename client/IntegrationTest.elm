@@ -352,9 +352,9 @@ case_sensitivity m =
                                      (F _ (Variable "var"))
                                      (F _ "cOlUmNnAmE"))))]) ->
 
-                     Analysis.getLiveValue m tl.id id
+                     Analysis.getCurrentLiveValue m tl.id id
                      |> Maybe.map (\lv ->
-                       if lv.value == "\"some value\""
+                       if lv == DStr "some value"
                        then pass
                        else fail lv)
                      |> Maybe.withDefault (fail h.ast)
@@ -506,12 +506,12 @@ feature_flag_works m =
                (F _ (Value "\"B\""))))
       )
       ->
-        let res = Analysis.getLiveValue m h.tlid id
+        let res = Analysis.getCurrentLiveValue m h.tlid id
         in case res of
           Just val ->
-             if val.value == "\"B\""
+             if val == DStr "B"
              then pass
-             else fail (ast, val.value)
+             else fail (ast, val)
           _ -> fail (ast, res)
     _ -> fail (ast, m.cursorState)
 

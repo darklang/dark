@@ -2,7 +2,7 @@ module Autocomplete exposing (..)
 
 -- builtin
 import Dict
-import Json.Decode as JSD
+-- import Json.Decode as JSD
 import Dom.Scroll
 import Task
 import Set
@@ -13,7 +13,7 @@ import List.Extra as LE
 -- import String.Extra as SE
 
 -- dark
-import Prelude exposing (..)
+-- import Prelude exposing (..)
 import Util exposing (int2letter, letter2int)
 import Types exposing (..)
 import Functions
@@ -24,6 +24,7 @@ import Toplevel as TL
 import AST
 import Commands
 import Refactor
+import RPC
 
 ----------------------------
 -- Focus
@@ -266,7 +267,7 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  if RT.isLiteral s
+  if RPC.isLiteralString s
   then Just (ACLiteral s)
   else
     -- isLiteral only works for the full word
@@ -454,7 +455,7 @@ filter list query =
 
 generateFromModel : Model -> Autocomplete -> List AutocompleteItem
 generateFromModel m a =
-  let lv =
+  let dv =
         case a.target of
           Nothing -> Nothing
           Just (tlid, p) ->
@@ -463,18 +464,18 @@ generateFromModel m a =
             |> Maybe.map .ast
             |> Maybe.andThen (AST.getValueParent p)
             |> Maybe.map P.toID
-            |> Maybe.andThen (Analysis.getLiveValue m tlid)
+            |> Maybe.andThen (Analysis.getCurrentLiveValue m tlid)
             -- don't filter on incomplete values
-            |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
+            |> Maybe.andThen (\dv -> if dv == DIncomplete
                                      then Nothing
-                                     else Just lv)
+                                     else Just dv)
       fields =
-        case lv of
-          Just lv ->
-            case (a.target, lv.tipe) of
+        case dv of
+          Just dv ->
+            case (a.target, RT.typeOf dv) of
               (Just (_, p), TObj) ->
                 if P.typeOf p == Field
-                then jsonFields lv.json
+                then dvalFields dv
                 else []
               _ -> []
           Nothing -> []
@@ -533,13 +534,13 @@ generateFromModel m a =
                     Nothing -> True)
         |> List.filter
           (\fn ->
-             case lv of
-               Just {tipe} ->
+             case dv of
+               Just dv ->
                  if isThreadMember
                  then
-                   Nothing /= findCompatibleThreadParam fn tipe
+                   Nothing /= findCompatibleThreadParam fn (RT.typeOf dv)
                  else
-                   Nothing /= findParamByType fn tipe
+                   Nothing /= findParamByType fn (RT.typeOf dv)
                Nothing -> True)
         |> List.map ACFunction
 
@@ -613,7 +614,7 @@ generateFromModel m a =
               _ -> []
           _ -> []
 
-      varnames = Analysis.varnamesFor m a.target
+      varnames = Analysis.currentVarnamesFor m a.target
       keywords =
         if isExpression
         then
@@ -675,7 +676,12 @@ asTypeString item =
     ACExtra _ -> ""
     ACCommand _ -> ""
     ACLiteral lit ->
-      let tipe = lit |> RT.tipeOf |> RT.tipe2str in
+      let tipe = lit
+                 |> RPC.parseDvalLiteral
+                 |> Maybe.withDefault DIncomplete
+                 |> RT.typeOf
+                 |> RT.tipe2str
+      in
       tipe ++ " literal"
     ACOmniAction _ -> ""
     ACKeyword _ -> "keyword"
@@ -684,16 +690,13 @@ asString : AutocompleteItem -> String
 asString aci =
   asName aci ++ asTypeString aci
 
--- parse the json, take the list of keys, add a . to the front of it
--- TODO: this needs refactoring
-jsonFields : String -> List AutocompleteItem
-jsonFields json =
-  json
-    |> JSD.decodeString (JSD.dict JSD.value)
-    |> Result.toMaybe
-    |> deMaybe "json decode result"
-    |> Dict.keys
-    |> List.map ACField
+dvalFields : Dval -> List AutocompleteItem
+dvalFields dv =
+  case dv of
+    DObj dict ->
+      Dict.keys dict
+      |> List.map ACField
+    _ -> []
 
 findCompatibleThreadParam : Function -> Tipe -> Maybe Parameter
 findCompatibleThreadParam {parameters} tipe =

@@ -194,7 +194,11 @@ def mark(should, f):
   if "test/test.ml" in f:
     should.ocaml_test = True
 
-  elif (".mli" in f) or (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
+  elif (".mli" in f) \
+       or (".ml" in f) \
+       or ("jbuild" in f) \
+       or ("_tags" in f) \
+       or ("libtarget.js" in f):
     should.ocaml_build = True
 
   # Frontend

@@ -23,7 +23,7 @@ import ViewUtils exposing (isLocked)
 -------------------------------
 moveCursorBackInTime : Model -> TLID -> Modification
 moveCursorBackInTime m tlid =
-  let maxCursor = List.length (Analysis.getAnalysisResults m tlid) - 1
+  let maxCursor = List.length (Analysis.getTraces m tlid) - 1
       current = Analysis.cursor m tlid
       newCursor = max 0 (min (current + 1) maxCursor)
   in
@@ -31,7 +31,7 @@ moveCursorBackInTime m tlid =
 
 moveCursorForwardInTime : Model -> TLID -> Modification
 moveCursorForwardInTime m tlid =
-  let maxCursor = List.length (Analysis.getAnalysisResults m tlid) - 1
+  let maxCursor = List.length (Analysis.getTraces m tlid) - 1
       current = Analysis.cursor m tlid
       newCursor = max 0 (min (current - 1) maxCursor)
   in
