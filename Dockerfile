@@ -260,6 +260,7 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
+RUN yarn add testcafe@0.22.0
 
 ############################
 # Finish
