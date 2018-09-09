@@ -42,7 +42,7 @@
 (alias
  (
   (name darkjs)
-  (deps (darkjs.bc.js))
+  (deps (darkjs.bc.js (universe)))
   (action (system "cp darkjs.bc.js ../../../static/"))))
 
 
