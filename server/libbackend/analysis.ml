@@ -10,24 +10,8 @@ module PReq = Parsed_request
 module SE = Stored_event
 
 type canvas = Canvas.canvas
-
-(* ------------------------- *)
-(* Events *)
-(* ------------------------- *)
-let all_tlids (c: canvas) : tlid list =
-  List.map ~f:(fun tl -> tl.tlid) (c.dbs @ c.handlers)
-
-(* ------------------------- *)
-(* Analysis types *)
-(* ------------------------- *)
-
-type executable_fn_id = tlid * id * int [@@deriving to_yojson]
-type analysis_result = tlid * analysis list
-
-let analysis_result_to_yojson (id, results) =
-  `Assoc [ ("id", id_to_yojson id)
-         ; ("results", analysis_list_to_yojson results)
-         ]
+type dval = RTT.dval
+let dval_to_yojson = Dval.dval_to_yojson
 
 (* ------------------------- *)
 (* Non-execution analysis *)
@@ -40,7 +24,7 @@ let unlocked (c: canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 let get_404s (c: canvas) : SE.four_oh_four list =
-  let events = SE.list_events c.id in
+  let events = SE.list_events ~canvas_id:c.id () in
   let handlers =
     Db.fetch
       ~name:"get_404s"
@@ -68,7 +52,11 @@ let get_404s (c: canvas) : SE.four_oh_four list =
     ~f:(fun e ->
         not (List.exists handlers
                ~f:(fun h -> match_event h e)))
-  |> List.map ~f:(fun e -> (e, SE.load_events c.id e))
+  |> List.map ~f:(fun e ->
+      let events = SE.load_events c.id e
+                   |> List.map ~f:Tuple.T2.get2
+      in
+      (e, events))
 
 let global_vars (c: canvas) : string list =
   c.dbs
@@ -82,149 +70,91 @@ let global_vars (c: canvas) : string list =
 (* ------------------------- *)
 (* Input vars *)
 (* ------------------------- *)
-let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) =
+let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) : (Uuidm.t * input_vars) list =
   match Handler.event_desc_for h with
   | None -> []
   | Some (space, path, modifier as d) ->
     List.map (SE.load_events c.id d)
-      ~f:(fun e ->
+      ~f:(fun (id, e) ->
           match Handler.module_type h with
           | `Http ->
             let with_r = [("request", e)] in
             let bound = Libexecution.Execution.http_route_input_vars h path in
-            with_r @ bound
+            (id, with_r @ bound)
           | `Event ->
-            [("event", e)]
-          | `Cron  -> []
-          | `Unknown -> [] (* can't happen *)
+            (id, [("event", e)])
+          | `Cron  -> (id, [])
+          | `Unknown -> (id, []) (* can't happen *)
       )
 
 let initial_input_vars_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : RTT.input_vars list =
-  let saved = saved_input_vars c h in
-  let samples = Execution.sample_input_vars h in
-  if saved = []
-  then [samples]
-  else saved
+  match saved_input_vars c h with
+  | [] -> [Execution.sample_input_vars h]
+  | l -> List.map ~f:Tuple.T2.get2 l
 
 let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
   : RTT.input_vars list =
-  Stored_function_arguments.load (c.id, fn.tlid)
+  Stored_function_arguments.load ~canvas_id:c.id fn.tlid
   |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
 
+let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
+  : trace list =
+  (* It's really awkward to do this on the client, so just do it here for now *)
+  match saved_input_vars c h with
+  | [] -> [{ id = Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
+           ; function_results = []
+           ; input = Execution.sample_input_vars h
+           }]
+  | ivs ->
+    List.map ivs
+      ~f:(fun (trace_id, input_vars) ->
+          let function_results =
+            Stored_function_result.load
+              ~trace_id
+              ~canvas_id:c.id
+              h.tlid
+          in
+          { input = input_vars
+          ; function_results
+          ; id = trace_id
+          })
 
 
 (* ------------------------- *)
-(* Execution-based analysis *)
+(* function execution *)
 (* ------------------------- *)
-
-let ast_analysis
-    ~(exe_fn_ids: executable_fn_id list)
-    ~(execution_id: id)
-    (all_inputs: RTT.input_vars list)
-    (c: canvas)
-    (ast : RTT.expr)
-    tlid =
-  List.mapi all_inputs
-    ~f:(fun i input_vars ->
-        let exe_fn_ids =
-          List.filter_map exe_fn_ids
-            ~f:(fun (exe_tlid, id, cursor) ->
-                if exe_tlid = tlid && i = cursor
-                then Some id
-                else None)
-        in
-        Execution.analyse_ast ast
-          ~tlid
-          ~exe_fn_ids
-          ~execution_id
-          ~input_vars
-          ~dbs:(TL.dbs c.dbs)
-          ~user_fns:c.user_functions
-          ~account_id:c.owner
-          ~canvas_id:c.id
-          ~load_fn_result:Stored_function_result.load
-          ~store_fn_result:Stored_function_result.store
-          ~load_fn_arguments:Stored_function_arguments.load
-          ~store_fn_arguments:Stored_function_arguments.store
-      )
-
-let user_fn_analysis
-    ~(exe_fn_ids: executable_fn_id list)
-    ~(execution_id: id)
-    (c: canvas)
-    (f: RTT.user_fn)
-  : analysis_result =
-  Log.infO "user_fn_analysis"
-    ~params:[ "user_fn", show_tlid f.tlid
-            ; "host", c.host
-            ; "execution_id", show_id execution_id
-            ; "exe_fn_ids", Log.dump exe_fn_ids
-            ];
-  let all_inputs = initial_input_vars_for_user_fn c f in
-  let values = ast_analysis all_inputs c f.ast f.tlid
-      ~exe_fn_ids ~execution_id
-  in
-  (f.tlid, values)
-
-let handler_analysis
-    ~(exe_fn_ids : executable_fn_id list)
-    ~(execution_id: id)
-    (c: canvas)
-    (h : RTT.HandlerT.handler)
-  : analysis_result =
-  Log.infO "handler_analysis"
-    ~params:[ "handler", show_tlid h.tlid
-            ; "host", c.host
-            ; "execution_id", show_id execution_id
-            ; "exe_fn_ids", Log.dump exe_fn_ids
-            ];
-  let all_inputs = initial_input_vars_for_handler c h in
-  let values = ast_analysis all_inputs c h.ast h.tlid
-      ~exe_fn_ids ~execution_id
-  in
-  (h.tlid, values)
-
-
+let call_function (c: canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
+  (* TODO: Should we return a trace for the userfn? *)
+  (* TODO: Should this save over the existing analysis results? *)
+  Execution.call_function fnname
+    ~tlid
+    ~execution_id
+    ~trace_id
+    ~dbs:(TL.dbs c.dbs)
+    ~user_fns:c.user_functions
+    ~account_id:c.owner
+    ~canvas_id:c.id
+    ~caller_id
+    ~args
 
 (* --------------------- *)
 (* JSONable response *)
 (* --------------------- *)
 
-(* The full response with everything *)
+(* Response with miscellaneous stuff, and specific responses from tlids *)
 type get_analysis_response =
-  { analyses: analysis_result list
+  { traces : tlid_trace list
   ; global_varnames : string list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list [@key "404s"]
   } [@@deriving to_yojson]
 
-(* Toplevel deletion:
- * The server announces that a toplevel is deleted by it appearing in
- * deleted_toplevels. The server announces it is no longer deleted by it
- * appearing in toplevels again. *)
-
-(* A subset of responses to be merged in *)
-type rpc_response =
-  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
-  ; global_varnames : string list (* replace *)
-  ; toplevels : TL.toplevel_list (* replace *)
-  ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
-  ; user_functions : RTT.user_fn list (* replace *)
-  ; unlocked_dbs : tlid list (* replace *)
-  } [@@deriving to_yojson]
-
-type execute_function_response =
-  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
-  ; targets : executable_fn_id list
-  } [@@deriving to_yojson]
-
-
-let to_getanalysis_frontend (vals : analysis_result list)
+let to_getanalysis_frontend (traces: tlid_trace list)
       (unlocked : tlid list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
-  { analyses = vals
+  { traces
   ; global_varnames = global_vars c
   ; unlocked_dbs = unlocked
   ; fofs = f404s
@@ -233,10 +163,27 @@ let to_getanalysis_frontend (vals : analysis_result list)
   |> Yojson.Safe.to_string ~std:true
 
 
-let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
+
+(* Toplevel deletion:
+ * The server announces that a toplevel is deleted by it appearing in
+ * deleted_toplevels. The server announces it is no longer deleted by it
+ * appearing in toplevels again. *)
+
+(* A subset of responses to be merged in *)
+type rpc_response =
+  { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
+  ; global_varnames : string list (* replace *)
+  ; toplevels : TL.toplevel_list (* replace *)
+  ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
+  ; user_functions : RTT.user_fn list (* replace *)
+  ; unlocked_dbs : tlid list (* replace *)
+  } [@@deriving to_yojson]
+
+
+let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
     (unlocked : tlid list)
   : string =
-  { new_analyses = vals
+  { new_traces = traces
   ; global_varnames = global_vars c
   ; toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted
@@ -246,10 +193,19 @@ let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
-let to_execute_function_response_frontend (targets : executable_fn_id list) (vals : analysis_result list)
+type execute_function_response =
+  { result : dval
+  ; hash : string
+  } [@@deriving to_yojson]
+
+
+
+let to_execute_function_response_frontend hash dv
   : string =
-  { new_analyses = vals
-  ; targets = targets
+  { result = dv
+  ; hash
   }
   |> execute_function_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
+
+

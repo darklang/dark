@@ -28,6 +28,7 @@ import SpecHeaders
 import Blank as B
 import Autocomplete as AC
 import Url
+import RPC
 
 
 createFindSpace : Model -> Modification
@@ -184,7 +185,7 @@ replaceExpr m tlid ast old_ action value =
                 (B.new ())))
 
         -- variables
-        else if List.member value (Analysis.varnamesFor m target)
+        else if List.member value (Analysis.currentVarnamesFor m target)
         then (old_, B.newF (Variable value))
 
         -- parsed exprs
@@ -233,7 +234,7 @@ parseAst m str =
     ["{"] ->
       Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
-      if RT.isLiteral str
+      if RPC.isLiteralString str
       then Just <| F eid (Value str)
       else createFunction m str
 
@@ -285,7 +286,7 @@ submit m cursor action =
                (B.new ()))
 
       -- varnames
-      else if List.member value (Analysis.varnamesFor m Nothing)
+      else if List.member value (Analysis.currentVarnamesFor m Nothing)
       then wrapExpr <| B.newF (Variable value)
 
       -- start new AST

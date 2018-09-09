@@ -83,7 +83,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* literals / variables *)
   | Sexp.Atom value ->
-    match Dval.parse value with
+    match Dval.parse_literal value with
     | Some v -> f (Value value)
     | None -> f (Variable value)
 

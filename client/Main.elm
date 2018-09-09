@@ -8,6 +8,7 @@ import Maybe
 import Json.Decode as JSD
 import Json.Encode as JSE
 import Json.Encode.Extra as JSEE
+import Maybe.Extra as ME
 import Http
 import Keyboard.Key as Key
 import Navigation
@@ -161,12 +162,17 @@ port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
-port requestAnalysis : JSE.Value -> Cmd msg
-port receiveAnalysis : (JSE.Value -> msg) -> Sub msg
+port requestAnalysis : String -> Cmd msg
+port receiveAnalysis : (String -> msg) -> Sub msg
 
 -----------------------
 -- updates
 -----------------------
+
+sendTask : Msg -> Cmd Msg
+sendTask t =
+  Task.succeed t
+  |> Task.perform identity
 
 processFocus : Model -> Focus -> Modification
 processFocus m focus =
@@ -362,7 +368,7 @@ updateMod mod (m, cmd) =
                 Http.Timeout -> "Timeout"
                 Http.NetworkError -> "Network error - is the server running?"
                 Http.BadStatus response -> "Bad status: " ++ response.status.message
-                Http.BadPayload msg _ -> "Bad payload: " ++ msg
+                Http.BadPayload msg _ -> "Bad payload (" ++context ++ "): " ++ msg
             url =
               case e of
                 Http.BadUrl str  -> Just str
@@ -547,30 +553,44 @@ updateMod mod (m, cmd) =
         processAutocompleteMods m2 [ ACRegenerate ]
 
 
-
-
-
       RequestAnalysis tls ->
-        let handlers = tls
-                       |> List.filterMap TL.asHandler
-                       |> List.map RPC.encodeHandler
-                       |> JSE.list
-            dbs = tls
-                  |> List.filterMap TL.asDB
-                  |> List.map RPC.encodeDB
-                  |> JSE.list
-            obj = JSE.object [ ("handlers", handlers)
-                             , ("dbs", dbs)
-                             ]
-            param = obj
-                    |> JSE.encode 0
-                    |> JSE.string
+        let handlers = TL.handlers tls
+            dbs = TL.dbs tls
+            userFns = m.userFunctions
+
+            req h =
+              let trace = Analysis.getCurrentTrace m h.tlid
+                  param t =
+                    JSE.object [ ( "handler" , RPC.encodeHandler h)
+                               , ( "trace" , RPC.encodeTrace t)
+                               , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
+                               , ( "user_fns"
+                                 , JSON.encodeList RPC.encodeUserFunction userFns)
+                               ]
+              in
+              trace
+              |> Maybe.map
+                   (\t -> requestAnalysis (JSE.encode 0 (param t)))
+              |> ME.toList
 
         in
-        (m, requestAnalysis param)
+        (m, Cmd.batch
+              (handlers
+                 |> List.map req
+                 |> List.concat))
 
-      UpdateAnalysis tlars ->
-        let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
+      UpdateAnalysis id analysis ->
+        let m2 = { m | analyses = Analysis.record m.analyses id analysis } in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+      UpdateTraces traces ->
+        let m2 = { m | traces = traces } in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+      UpdateTraceFunctionResult tlid traceID callerID fnName hash dval ->
+        let m2 =
+              Analysis.replaceFunctionResult m tlid traceID callerID fnName hash dval
+        in
         processAutocompleteMods m2 [ ACRegenerate ]
 
       SetUserFunctions userFuncs updateCurrent ->
@@ -614,9 +634,21 @@ updateMod mod (m, cmd) =
       ExecutingFunctionBegan tlid id ->
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
-      ExecutingFunctionRPC tlid id ->
-        let params = { function = (tlid, id, Analysis.cursor m tlid) } in
-        (m, RPC.executeFunctionRPC params)
+      ExecutingFunctionRPC tlid id name ->
+        let trace = Analysis.getCurrentTrace m tlid in
+        case trace of
+          Nothing -> m ! [sendTask (ExecuteFunctionCancel tlid id)]
+          Just t ->
+            let traceID = t.id
+                args = []
+                params = { tlid = tlid
+                         , callerID = id
+                         , traceID = traceID
+                         , fnName = name
+                         , args = args
+                         }
+            in
+            (m, RPC.executeFunctionRPC params)
       ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
@@ -669,7 +701,8 @@ isFieldAccessDot m baseStr =
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
   let str = Util.replace "\\.*$" "" baseStr
-      intOrString = String.startsWith "\"" str || Runtime.isInt str
+      intOrString = String.startsWith "\"" str
+                    || RPC.typeOfLiteralString str == TInt
   in
   case m.cursorState of
     Entering (Creating _) -> not intOrString
@@ -1354,10 +1387,10 @@ update_ msg m =
           Select targetTLID Nothing
 
 
-    ExecuteFunctionButton tlid id ->
+    ExecuteFunctionButton tlid id name ->
       let tl = TL.getTL m tlid in
       Many [ ExecutingFunctionBegan tlid id
-           , ExecutingFunctionRPC tlid id
+           , ExecutingFunctionRPC tlid id name
            ]
 
 
@@ -1425,7 +1458,7 @@ update_ msg m =
     RPCCallback focus calls
       (Ok ( newToplevels
           , newDeletedToplevels
-          , newAnalysis
+          , newTraces
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1433,11 +1466,11 @@ update_ msg m =
       then
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
-             , UpdateAnalysis newAnalysis
-             , RequestAnalysis newToplevels
+             , UpdateTraces newTraces
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
+             , RequestAnalysis newToplevels
              , MakeCmd (Entry.focusEntry m)
              ]
       else
@@ -1446,11 +1479,11 @@ update_ msg m =
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
-                , UpdateAnalysis newAnalysis
-                , RequestAnalysis newToplevels
+                , UpdateTraces newTraces
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
+                , RequestAnalysis newToplevels
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -1459,7 +1492,7 @@ update_ msg m =
     InitialLoadRPCCallback focus extraMod
       (Ok ( toplevels
           , deletedToplevels
-          , new_analysis
+          , newTraces
           , globals
           , userFuncs
           , unlockedDBs)) ->
@@ -1467,11 +1500,11 @@ update_ msg m =
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
-              , UpdateAnalysis new_analysis
-              , RequestAnalysis toplevels
+              , UpdateTraces newTraces
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
               , SetUnlockedDBs unlockedDBs
+              , RequestAnalysis toplevels
               , AutocompleteMod ACReset
               , ClearError
               , extraMod -- for integration tests, maybe more
@@ -1481,24 +1514,30 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       DisplayError <| "Success! " ++ msg
 
-    ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
-      Many [ UpdateAnalysis new_analysis
-           , ExecutingFunctionComplete targets
+    ExecuteFunctionRPCCallback params (Ok (dval, hash)) ->
+      Many [ UpdateTraceFunctionResult params.tlid params.traceID params.callerID params.fnName hash dval
+           , ExecutingFunctionComplete [(params.tlid, params.callerID)]
+           ]
+
+    ExecuteFunctionCancel tlid id ->
+      Many [ DisplayError "No trace"
+           , ExecutingFunctionComplete [(tlid, id)]
            ]
 
 
-    GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
+    GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
-           , UpdateAnalysis analysis
+           , UpdateTraces newTraces
            , SetGlobalVariables globals
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
+           , RequestAnalysis m.toplevels
            ]
 
     ReceiveAnalysis json ->
-      let analysis = JSD.decodeValue (JSD.list RPC.decodeTLAResult) json in
-      case analysis of
-        Ok analysis -> UpdateAnalysis analysis
+      let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
+      case envelope of
+        Ok (id, analysisResults) -> UpdateAnalysis id analysisResults
         Err str -> DisplayError str
 
     ------------------------
@@ -1510,7 +1549,7 @@ update_ msg m =
     SaveTestRPCCallback (Err err) ->
       DisplayError <| "Error: " ++ toString err
 
-    ExecuteFunctionRPCCallback (Err err) ->
+    ExecuteFunctionRPCCallback _ (Err err) ->
       DisplayAndReportHttpError "ExecuteFunction" err
 
     InitialLoadRPCCallback _ _ (Err err) ->

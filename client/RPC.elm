@@ -7,14 +7,16 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict.Extra as DE
 import Json.Encode.Extra as JSEE
+import Dict
 
 -- lib
 
 -- dark
 import Types exposing (..)
-import Runtime as RT
 import Util
 import JSON exposing (..)
+import Runtime as RT
+import List.Extra as LE
 -- import Blank as B
 -- import Prelude exposing (..)
 
@@ -49,7 +51,7 @@ executeFunctionRPC params =
       payload = encodeExecuteFunctionRPCParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeExecuteFunctionRPC
-  in Http.send ExecuteFunctionRPCCallback request
+  in Http.send (ExecuteFunctionRPCCallback params) request
 
 getAnalysisRPC : AnalysisParams -> Cmd Msg
 getAnalysisRPC params =
@@ -274,24 +276,26 @@ encodeRPCParams params =
 
 encodeExecuteFunctionRPCParams : ExecuteFunctionRPCParams -> JSE.Value
 encodeExecuteFunctionRPCParams params =
-  let fns = [params.function] in
   JSE.object
-    [ ("executable_fns"
-      , JSE.list (List.map (encodeTriple encodeTLID encodeID JSE.int) fns)
-      )
+    [ ("tlid", encodeTLID params.tlid)
+    , ("trace_id", JSE.string params.traceID)
+    , ("caller_id", encodeID params.callerID)
+    , ("args", encodeList encodeDval params.args)
+    , ("fnname", JSE.string params.fnName)
     ]
 
 encodeAnalysisParams : AnalysisParams -> JSE.Value
 encodeAnalysisParams params =
-  JSE.list (List.map encodeTLID params)
+  encodeList encodeTLID params
 
 encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
   JSE.object
-  [("tlid", encodeTLID uf.tlid)
-  ,("metadata", encodeUserFunctionMetadata uf.metadata)
-  ,("ast", encodeExpr uf.ast)
-  ]
+    [("tlid", encodeTLID uf.tlid)
+    ,("metadata", encodeUserFunctionMetadata uf.metadata)
+    ,("ast", encodeExpr uf.ast)
+    ]
+
 
 encodeUserFunctionMetadata : UserFunctionMetadata -> JSE.Value
 encodeUserFunctionMetadata f =
@@ -332,6 +336,7 @@ encodeTipe t =
         TPassword -> ev "TPassword" []
         TUuid -> ev "TUuid" []
         TOption -> ev "TOption" []
+        TErrorRail -> ev "TErrorRail" []
 
 encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
 encodeUserFunctionParameter p =
@@ -553,47 +558,22 @@ decodeNExpr =
     , ("FeatureFlag", dv4 FeatureFlag (decodeBlankOr JSD.string) de de de)
     ]
 
-decodeLiveValue : JSD.Decoder LiveValue
-decodeLiveValue =
-  let toLiveValue value tipe json exc =
-      { value = value
-      , tipe = RT.str2tipe tipe
-      , json = json
-      , exc = exc}
-  in
-  JSDP.decode toLiveValue
-    |> JSDP.required "value" JSD.string
-    |> JSDP.required "type" JSD.string
-    |> JSDP.required "json" JSD.string
-    |> JSDP.optional "exc" (JSD.maybe JSON.decodeException) Nothing
 
-decodeAResult : JSD.Decoder AResult
-decodeAResult =
-  let toAResult astValue liveValues availableVarnames inputValues =
-        { astValue = astValue
-        , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
+decodeAnalysisResults : JSD.Decoder AnalysisResults
+decodeAnalysisResults =
+  let toAResult liveValues availableVarnames =
+        { liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
         , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
-        , inputValues = inputValues
         }
   in
-      JSDP.decode toAResult
-      |> JSDP.required "ast_value" decodeLiveValue
-      |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
-      |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
-      |> JSDP.required "input_values" (JSD.dict decodeLiveValue)
+  JSDP.decode toAResult
+  |> JSDP.required "live_values" (JSD.dict decodeDval)
+  |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
 
-decodeTLAResult : JSD.Decoder TLAResult
-decodeTLAResult =
-  let toTLAResult tlid results =
-        { id = TLID tlid
-        , results = results
-        }
-  in
-      JSDP.decode toTLAResult
-      |> JSDP.required "id" JSD.int
-      |> JSDP.required "results" (JSD.list decodeAResult)
-
+decodeAnalysisEnvelope : JSD.Decoder (TraceID, AnalysisResults)
+decodeAnalysisEnvelope =
+  JSON.decodePair JSD.string decodeAnalysisResults
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
@@ -623,8 +603,7 @@ decodeHandler =
 
 decodeTipeString : JSD.Decoder String
 decodeTipeString =
-  decodeTipe
-  |> JSD.map (RT.tipe2str)
+  JSD.map RT.tipe2str decodeTipe
 
 decodeDBMigrationKind : JSD.Decoder DBMigrationKind
 decodeDBMigrationKind =
@@ -775,6 +754,67 @@ decode404 =
     (JSD.index 2 JSD.string)
     (JSD.index 3 (JSD.list JSD.value))
 
+encodeInputValueDict : InputValueDict -> JSE.Value
+encodeInputValueDict dict =
+  dict
+  |> Dict.toList
+  |> encodeList (encodePair JSE.string encodeDval)
+
+decodeInputValueDict : JSD.Decoder InputValueDict
+decodeInputValueDict =
+  JSD.map Dict.fromList
+    (JSD.list (decodePair JSD.string decodeDval))
+
+decodeFunctionResult : JSD.Decoder FunctionResult
+decodeFunctionResult =
+  let toFunctionResult (fnName, id, hash, value) =
+        { fnName = fnName
+        , callerID = id
+        , argHash = hash
+        , value = value
+        }
+  in
+  JSD.map toFunctionResult
+    (JSON.decodeQuadriple
+      JSD.string
+      decodeID
+      JSD.string
+      decodeDval)
+
+decodeTraces : JSD.Decoder Traces
+decodeTraces =
+  JSD.map Dict.fromList
+    (JSD.list (decodePair JSD.int (JSD.list decodeTrace)))
+
+decodeTrace : JSD.Decoder Trace
+decodeTrace =
+  let toTrace id input functionResults =
+    { id = id, input = input, functionResults = functionResults }
+  in
+  JSDP.decode toTrace
+  |> JSDP.required "id" JSD.string
+  |> JSDP.required "input" decodeInputValueDict
+  |> JSDP.required "function_results" (JSD.list decodeFunctionResult)
+
+encodeTrace : Trace -> JSE.Value
+encodeTrace t =
+  JSE.object [ ( "input"
+               , JSON.encodeList
+                   (encodePair JSE.string encodeDval)
+                   (Dict.toList t.input))
+             , ( "function_results"
+               , JSON.encodeList encodeFunctionResult t.functionResults)
+             , ( "id", JSE.string t.id)
+            ]
+
+encodeFunctionResult : FunctionResult -> JSE.Value
+encodeFunctionResult fr =
+  JSE.list [ JSE.string fr.fnName
+           , encodeID fr.callerID
+           , JSE.string fr.argHash
+           , encodeDval fr.value
+           ]
+
 decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
 decodeExecuteFunctionTarget =
   JSD.map2 (,)
@@ -786,7 +826,7 @@ decodeRPC =
   JSDP.decode (,,,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
-  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "new_traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
@@ -794,7 +834,7 @@ decodeRPC =
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisResult
 decodeGetAnalysisRPC =
   JSDP.decode (,,,)
-  |> JSDP.required "analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
@@ -805,5 +845,145 @@ decodeInitialLoadRPC = decodeRPC
 decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
 decodeExecuteFunctionRPC =
   JSDP.decode (,)
-  |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
-  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "result" decodeDval
+  |> JSDP.required "hash" JSD.string
+
+--------------------------
+-- Dval (some here because of cyclic dependencies)
+-------------------------
+
+
+
+isLiteralString : String -> Bool
+isLiteralString s =
+  case parseDvalLiteral s of
+    Nothing -> False
+    Just dv -> RT.isLiteral dv
+
+typeOfLiteralString : String -> Tipe
+typeOfLiteralString s =
+  case parseDvalLiteral s of
+    Nothing -> TIncomplete
+    Just dv -> RT.typeOf dv
+
+
+
+
+encodeDval : Dval -> JSE.Value
+encodeDval dv =
+  let tipe = dv |> RT.typeOf |> RT.tipe2str |> String.toLower |> JSE.string
+      ev = encodeVariant
+      encodeDhttp h =
+        case h of
+          Redirect s -> ev "Redirect" [JSE.string  s]
+          Response resp  -> ev "Response"
+            [encodePair
+              JSE.int
+              (encodeList (encodePair JSE.string JSE.string))
+              resp]
+
+      wrapUserType value =
+        JSE.object [ ("type", tipe)
+                   , ("value", value)]
+
+      wrapUserStr value = wrapUserType (JSE.string value)
+  in
+  case dv of
+    DInt i -> JSE.int i
+    DFloat f -> JSE.float f
+    DBool b -> JSE.bool b
+    DNull -> JSE.null
+    DStr s -> JSE.string s
+    DList l -> encodeList encodeDval l
+    DObj o -> JSEE.dict identity encodeDval o
+
+    -- opaque types
+    DBlock -> wrapUserType JSE.null
+    DIncomplete -> wrapUserType JSE.null
+
+    -- user-ish types
+    DChar c -> wrapUserStr (String.fromList [c])
+    DError msg -> wrapUserStr msg
+
+    DResp (h, hdv) ->
+      wrapUserType (JSE.list [ encodeDhttp h, encodeDval hdv])
+
+    DDB name -> wrapUserStr name
+    DID id -> wrapUserStr id
+    DUrl url -> wrapUserStr url
+    DTitle title -> wrapUserStr title
+    DDate date -> wrapUserStr date
+    DPassword hashed -> wrapUserStr hashed
+    DUuid uuid -> wrapUserStr uuid
+    DOption opt ->
+      case opt of
+        Nothing -> wrapUserType JSE.null
+        Just dv -> wrapUserType (encodeDval dv)
+    DErrorRail _ -> wrapUserType JSE.null
+
+
+processObject : Dict.Dict String Dval -> Dval
+processObject dict =
+  case (Dict.get "type" dict, Dict.get "value" dict) of
+    (Just (DStr tipe), Just DNull) ->
+      case tipe of
+        "incomplete" -> DIncomplete
+        _ -> DObj dict
+
+    (Just (DStr tipe), Just (DStr value)) ->
+      case tipe of
+        "date" -> DDate value
+        "id" -> DID value
+        "title" -> DTitle value
+        "url" -> DUrl value
+        "error" -> DError value
+        "char" ->
+          case String.uncons value of
+            Just (c, "") -> DChar c
+            _ -> DObj dict
+        "password" -> DPassword value
+        "db" -> DDB value
+        "block" -> DBlock
+        "uuid" -> DUuid value
+        "datastore" -> DDB value
+        _ -> DObj dict
+    _ -> DObj dict
+
+-- Ported directly from Dval.parse in the backend
+parseDvalLiteral : String -> Maybe Dval
+parseDvalLiteral str =
+  let firstChar = String.uncons str
+                  |> Maybe.map Tuple.first
+  in
+  if String.toLower str == "nothing"
+  then Just (DOption Nothing)
+  else
+    case String.toList str of
+      ['\'', c, '\'' ] -> Just (DChar c)
+      '"' :: rest ->
+        if LE.last rest == Just '"'
+        then LE.init rest
+             |> Maybe.withDefault []
+             |> String.fromList
+             |> DStr
+             |> Just
+        else Nothing
+      _ ->
+        JSD.decodeString decodeDval str
+        |> Result.toMaybe
+
+decodeDval : JSD.Decoder Dval
+decodeDval =
+  let dd = JSD.lazy (\_ -> decodeDval) in
+  JSD.oneOf
+  [ JSD.map DInt JSD.int
+  , JSD.map DFloat JSD.float
+  , JSD.map DBool JSD.bool
+  , JSD.null DNull
+  , JSD.map DStr JSD.string
+  , JSD.map DList (JSD.list dd)
+  , JSD.map processObject (JSD.dict dd)
+  ]
+
+
+

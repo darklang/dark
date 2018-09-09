@@ -18,6 +18,7 @@ import Nineteen.String as String
 import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
+import RPC
 import AST
 import Blank as B
 import ViewBlankOr exposing (..)
@@ -170,7 +171,6 @@ viewNExpr d id vs config e =
       a c = text vs (atom :: c)
       kw = keyword vs
       all = idConfigs ++ config
-      dv = DisplayValue
       cs = ClickSelect
       mo = Mouseover
       incD = d + 1
@@ -178,10 +178,10 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RT.tipeOf |> Debug.toString |> String.toLower
-          valu =
+      let cssClass = v |> RPC.typeOfLiteralString |> Debug.toString |> String.toLower
+          value =
             -- TODO: remove
-            if RT.isString v
+            if RPC.typeOfLiteralString v == TStr
             then transformToStringEntry v
             else v
           computedValue =
@@ -192,7 +192,7 @@ viewNExpr d id vs config e =
                     then [wc "short-strings"]
                     else []
       in
-      a (wc cssClass :: wc "value" :: all ++ tooWide ++ computedValue) valu
+      a (wc cssClass :: wc "value" :: all ++ tooWide ++ computedValue) value
 
     Variable name ->
       if List.member id vs.relatedBlankOrs
@@ -209,7 +209,7 @@ viewNExpr d id vs config e =
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
         , a [wc "letbind", ComputedValueAs lhsID] "="
-        , n [wc "letrhs", dv, cs] [vExpr d rhs]
+        , n [wc "letrhs", cs] [vExpr d rhs]
         , n [wc "letbody"] [vExpr d body]
         ]
 
@@ -272,14 +272,13 @@ viewNExpr d id vs config e =
           allExprs = previous ++ exprs
           isComplete v =
             v
-            |> getLiveValue vs.lvs
+            |> getLiveValue vs.currentResults.liveValues
             |> \v ->
                  case v of
                    Nothing -> False
-                   Just (Err _) -> True
-                   Just (Ok val) ->
-                     not (Runtime.isIncomplete val
-                         || Runtime.isError val)
+                   Just (DError _) -> False
+                   Just DIncomplete -> False
+                   Just _ -> True
 
           ropArrow =
             if sendToRail == NoRail
@@ -296,7 +295,7 @@ viewNExpr d id vs config e =
           exeIcon = "play"
 
           events = [ eventNoPropagation "click"
-                     (\_ -> ExecuteFunctionButton vs.tl.id id)
+                     (\_ -> ExecuteFunctionButton vs.tl.id id name)
                    , nothingMouseEvent "mouseup"
                    , nothingMouseEvent "mousedown"
                    , nothingMouseEvent "dblclick"
@@ -365,13 +364,13 @@ viewNExpr d id vs config e =
             let id = B.toID e
                 dopts =
                   if d == 0
-                  then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
-                  else [DisplayValueOf id, ClickSelectAs id]
+                  then [ClickSelectAs id, ComputedValueAs id]
+                  else [ClickSelectAs id]
             in
             n ([wc "threadmember"] ++ dopts)
               [pipe, vExpr 0 e]
       in
-      n (wc "threadexpr" :: mo :: dv :: config)
+      n (wc "threadexpr" :: mo :: config)
         (List.map texpr exprs)
 
     FieldAccess obj field ->
@@ -381,7 +380,6 @@ viewNExpr d id vs config e =
         , viewFieldName vs
             [ wc "fieldname"
             , atom
-            , DisplayValueOf id
             , ComputedValueAs id
             ]
             field
@@ -395,15 +393,15 @@ viewNExpr d id vs config e =
             let id = B.toID e
                 dopts =
                   if d == 0
-                  then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
-                  else [DisplayValueOf id, ClickSelectAs id]
+                  then [ClickSelectAs id, ComputedValueAs id]
+                  else [ClickSelectAs id]
             in
             n ([wc "listelem"] ++ dopts)
               [vExpr 0 e]
           new = List.map lexpr exprs
                 |> List.intersperse comma
       in
-      n (wc "list" :: mo :: dv :: config)
+      n (wc "list" :: mo :: config)
         ([open] ++ new ++ [close])
 
     ObjectLiteral pairs ->
@@ -414,7 +412,7 @@ viewNExpr d id vs config e =
             n ([wc "objectpair"])
               [viewKey vs [] k, colon, vExpr 0 v]
       in
-      n (wc "object" :: mo :: dv :: config)
+      n (wc "object" :: mo :: config)
         ([open] ++ List.map pexpr pairs ++ [close])
 
     FeatureFlag msg cond a b ->
@@ -466,11 +464,10 @@ viewNExpr d id vs config e =
               [ if isExpanded then hideModal else expandModal ]
             ]
 
-          condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
-          condResult =
-            case condValue of
-              Just (Ok lv) -> Runtime.isTrue lv.value
-              _ -> False
+          condValue = ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
+          condResult = condValue
+                       |> Maybe.map Runtime.isTrue
+                       |> Maybe.withDefault False
 
           blockCondition =
             Html.div

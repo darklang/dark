@@ -161,6 +161,21 @@ encodeTriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (a, b
 encodeTriple encA encB encC (a, b, c) =
   JSE.list [encA a, encB b, encC c]
 
+decodeQuadriple : JSD.Decoder a -> JSD.Decoder b -> JSD.Decoder c -> JSD.Decoder d ->
+  JSD.Decoder (a,b,c,d)
+decodeQuadriple d1 d2 d3 d4 =
+  JSD.map4 (,,,)
+    (JSD.index 0 d1)
+    (JSD.index 1 d2)
+    (JSD.index 2 d3)
+    (JSD.index 3 d4)
+
+encodeQuadriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (d -> JSE.Value) -> (a, b, c, d) -> JSE.Value
+encodeQuadriple encA encB encC encD (a, b, c, d) =
+  JSE.list [encA a, encB b, encC c, encD d]
+
+
+
 
 encodePos : Pos -> JSE.Value
 encodePos {x,y} =
@@ -213,6 +228,24 @@ decodeException =
     |> JSDP.required "expected" (JSD.maybe JSD.string)
     |> JSDP.required "info" (JSD.dict JSD.string)
     |> JSDP.required "workarounds" (JSD.list JSD.string)
+
+encodeException : Exception -> JSE.Value
+encodeException e =
+  JSE.object [ ( "short", JSE.string e.short)
+             , ( "long", JSEE.maybe JSE.string e.long)
+             , ( "actual", JSEE.maybe JSE.string e.actual)
+             , ( "actual_tipe", JSEE.maybe JSE.string e.actual)
+             , ( "result", JSEE.maybe JSE.string e.actual)
+             , ( "result_tipe", JSEE.maybe JSE.string e.actual)
+             , ( "expected", JSEE.maybe JSE.string e.actual)
+             , ( "info", JSEE.dict identity JSE.string e.info)
+             , ( "workarounds", JSE.list (List.map JSE.string e.workarounds))
+             ]
+
+encodeList : (a -> JSE.Value) -> List a -> JSE.Value
+encodeList enc l =
+  List.map enc l
+  |> JSE.list
 
 
 encodeHttpError : Http.Error -> JSE.Value

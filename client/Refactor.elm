@@ -123,7 +123,7 @@ extractVariable m tl p =
               (\elem ->
                 let id = B.toID elem
                     availableVars =
-                      Analysis.getAvailableVarnames m tl.id id
+                      Analysis.getCurrentAvailableVarnames m tl.id id
                       |> Set.fromList
                     allRequiredVariablesAvailable =
                       Set.diff freeVariables availableVars
@@ -201,9 +201,9 @@ extractFunction m tl p =
           params =
             List.map
             (\(id, name) ->
-              let tipe = Analysis.getTipeOf m tl.id id
-                          |> Maybe.withDefault TAny
-                          |> convertTipe
+              let tipe = Analysis.getCurrentTipeOf m tl.id id
+                         |> Maybe.withDefault TAny
+                         |> convertTipe
               in
                   { name = F (gid ()) name
                   , tipe = F (gid ()) tipe

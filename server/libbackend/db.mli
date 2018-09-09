@@ -32,6 +32,8 @@ val escape : param -> string
 val cast_expression_for : Types.RuntimeT.dval -> string option
 val array_separator : string
 
+val date_of_sqlstring : string -> Core_kernel.Time.t
+
 
 (* Misc *)
 val delete_benchmarking_data : unit -> unit
