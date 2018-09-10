@@ -10,7 +10,7 @@ type oplist = Op.op list [@@deriving yojson]
 type rpc_params = { ops: oplist }
                   [@@deriving yojson]
 
-type analysis_params = tlid list [@@deriving eq, show, yojson, sexp]
+type analysis_params = tlid list [@@deriving eq, show, yojson]
 
 type dval = RuntimeT.dval
 let dval_to_yojson = Dval.dval_to_yojson
