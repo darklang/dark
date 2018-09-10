@@ -3,7 +3,7 @@
 (library
   (
     (name libexecution)
-    (flags (-warn-error (+A) -opaque))
+    (flags (-warn-error (+A)))
     (preprocess (pps (ppx_bin_prot
                       ppx_compare
                       ppx_deriving.std
