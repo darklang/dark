@@ -17,7 +17,12 @@
                 uuidm
                 base64
                 uri
-                ppx_bin_prot
+
+                ; We don't include the ppx_bin_prot derivers, as they're not
+                ; used in js_of_ocaml, and they add an extra 800k to the
+                ; js_of_ocaml output. They are included in libbackend, which
+                ; provides what they linker needs.
+
                 ppx_derivers
                 ppx_deriving.std
                 ppx_deriving_yojson
