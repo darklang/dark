@@ -10,7 +10,6 @@ open Libservice.Config_dsl
 (* ------------------------- *)
 
 let run_dir = absolute_dir "DARK_CONFIG_RUN_DIR"
-let persist_dir = absolute_dir "DARK_CONFIG_PERSIST_DIR"
 let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 
 let server_dir = root_dir ^ "server/"
