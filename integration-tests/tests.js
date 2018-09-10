@@ -11,7 +11,7 @@ fixture `Integration Tests`
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
-      .expect(pageLoaded).ok("page timed out", {timeout: 1500})
+      .expect(pageLoaded).ok("page timed out", {timeout: 5000})
       .takeScreenshot()
       ;
   })
