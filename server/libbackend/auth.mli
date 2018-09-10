@@ -1,5 +1,4 @@
 open Core
-open Types
 
 module Session : sig
   module Backend = Session_postgresql_lwt

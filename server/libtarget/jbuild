@@ -2,6 +2,6 @@
  ((name libtarget)
   (public_name libtarget)
   (wrapped false)
-  (flags (:standard -no-keep-locs -opaque))
+  (flags (:standard -no-keep-locs))
   (libraries (core_kernel))
   (modules_without_implementation (libtarget))))
