@@ -64,8 +64,7 @@ viewMigraFuncs vs expr fnName varName =
   Html.div
     [ Attrs.class "col roll-fn" ]
     [ Html.div [ Attrs.class "fn-title" ]
-      [ Html.span [] [Html.text fnName]
-      , Html.span [] [Html.text " : "]
+      [ Html.span [] [Html.text (fnName ++ " : ")]
       , Html.span [Attrs.class "varname"] [Html.text varName]
       ]
     , viewExpr 0 vs [] expr ]
@@ -73,21 +72,25 @@ viewMigraFuncs vs expr fnName varName =
 viewDBMigration : DBSchemaMigration -> DB -> ViewState -> Html.Html Msg
 viewDBMigration migra db vs =
   let name = viewDBName db.name (migra.version)
-      cols =
-        (List.map (viewDBCol vs True db.tlid) migra.cols) ++
-          [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
-          , viewMigraFuncs vs migra.rollback "Rollback"  "newObj"
-          , Html.div
-            [Attrs.class "col actions"]
-            [ Html.button
-              [ Attrs.disabled False
-              , eventNoPropagation "click" (\_ -> CancelMigration db) ]
-              [ Html.text "cancel"]
-            , Html.button [Attrs.disabled True] [ Html.text "migration"] ]
-          ]
+      cols = (List.map (viewDBCol vs True db.tlid) migra.cols)
+      funcs = 
+        [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
+        , viewMigraFuncs vs migra.rollback "Rollback"  "newObj" ]
+      cancelBtn =
+        Html.button
+          [ Attrs.disabled False
+          , eventNoPropagation "click" (\_ -> CancelMigration db) ]
+          [ Html.text "cancel"]
+      migrateBtn =
+        Html.button [Attrs.disabled True] [ Html.text "migration"]
+      actions =
+        [ Html.div
+          [Attrs.class "col actions"]
+          [ cancelBtn, migrateBtn ]
+        ]
   in Html.div
     [ Attrs.class "db migration-view" ]
-    (name :: cols)
+    (name :: cols ++ funcs ++ actions)
 
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
@@ -104,7 +107,7 @@ viewDB vs db =
         then List.filter (\(n, t) -> (B.isF n) && (B.isF t)) db.cols 
         else db.cols
       coldivs = List.map (viewDBCol vs False db.tlid) cols
-      migrations =
+      migrationView =
         case db.newMigration of
           Just migra -> [viewDBMigration migra db vs]
           Nothing -> []
@@ -113,4 +116,5 @@ viewDB vs db =
     Html.div
       [ Attrs.class "db"]
       (locked :: namediv :: coldivs)
-  ] ++ migrations
+  ] ++ migrationView
+

@@ -244,7 +244,6 @@ submit m cursor action =
   -- TODO: replace parsing with taking the autocomplete suggestion and
   -- doing what we're told with it.
   let value = AC.getValue m.complete
-      _ = Debug.log "Entry.submit" (cursor, value)
   in case cursor of
     Creating pos ->
       let tlid = gtlid ()
@@ -300,7 +299,6 @@ submit m cursor action =
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
           result = validate tl pd value
-          _ = Debug.log "result" (pd, result)
       in
       if String.length value < 1
       then NoChange
@@ -354,10 +352,11 @@ submit m cursor action =
       in
       case pd of
         PDBColType ct ->
-          if B.asF ct == Just value
+          let db1 = deMaybe "db" db
+          in if B.asF ct == Just value
           then Select tlid (Just id)
-          else if DB.isMigrationCol (db |> deMaybe "db") id
-          then DB.updateMigrationCol (db |> deMaybe "db") id value
+          else if DB.isMigrationCol db1 id
+          then DB.updateMigrationCol db1 id value
           else if B.isBlank ct
           then
             wrapID [ SetDBColType tlid id value
@@ -366,11 +365,12 @@ submit m cursor action =
             wrapID [ ChangeDBColType tlid id value]
 
         PDBColName cn ->
-          if B.asF cn == Just value
+          let db1 = deMaybe "db" db
+          in if B.asF cn == Just value
           then Select tlid (Just id)
-          else if DB.isMigrationCol (db |> deMaybe "db") id
-          then DB.updateMigrationCol (db |> deMaybe "db") id value
-          else if DB.hasCol (db |> deMaybe "db") value
+          else if DB.isMigrationCol db1 id
+          then DB.updateMigrationCol db1 id value
+          else if DB.hasCol db1 value
           then DisplayError ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn
           then

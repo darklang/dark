@@ -361,8 +361,8 @@ enterDB m db tl id =
           Many
             [ Enter (Filling tl.id id)
             , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
-        else Enter (Filling tl.id id)
-        -- if isLocked & isMigrationCol
+        else
+          Enter (Filling tl.id id)
   in
     case pd of
       PDBColName d -> updateDB False
@@ -379,6 +379,6 @@ enter m tlid id =
       let pd = TL.findExn tl id
       in if TL.getChildrenOf tl pd /= []
       then selectDownLevel m tlid (Just id)
-      else Many [ Enter (Filling tlid id)
-                , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-                ]
+      else Many
+            [ Enter (Filling tlid id)
+            , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
