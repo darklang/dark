@@ -6,13 +6,8 @@
   (libraries (core_kernel js_of_ocaml))
   (flags (-warn-error (+A) :standard -no-keep-locs))
   (js_of_ocaml
-    ((flags (+weak.js
-             +dynlink.js
-             +nat.js
-             +base/runtime.js
-             +core_kernel/runtime.js
-             +bin_prot/runtime.js
-             --runtime-only))
+    ((flags (+nat.js
+             --opt 1))
     (javascript_files (libtarget.js))))))
 
 
