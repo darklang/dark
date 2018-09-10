@@ -84,18 +84,18 @@ let valid_user ~(username:username) ~(password:string) : bool =
                          |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
   | _ -> false
 
+let can_access_operations ~(username:username) : bool =
+  is_admin ~username
+
 type permissions = CanEdit | CanAccessOperations | NoPermission
 let get_permissions ~(auth_domain:string) ~(username:username) () : permissions =
-  if is_admin ~username
+  if can_access_operations ~username
   then CanAccessOperations
   else if String.Caseless.equal username auth_domain
   then CanEdit
   else if String.Caseless.equal "demo" auth_domain
   then CanEdit
   else NoPermission
-
-let can_access_operations ~(username:username) : bool =
-  is_admin ~username
 
 let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password

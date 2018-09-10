@@ -53,7 +53,6 @@ let clear_test_data () : unit =
 let at_dval = AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
     (fun a b -> compare_dval a b = 0)
-let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_dval_list = AT.check (AT.list at_dval)
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
@@ -581,9 +580,6 @@ let t_escape_pg_escaping () =
   AT.check AT.string "no quotes" "asdd" (Db.escape_single "asdd");
   AT.check AT.string "single" "as''dd" (Db.escape_single "as'dd");
   AT.check AT.string "double" "as\"dd" (Db.escape_single "as\"dd");
-  AT.check AT.string "no quotes" "asdd" (Db.escape_double "asdd");
-  AT.check AT.string "single" "as'dd" (Db.escape_double "as'dd");
-  AT.check AT.string "double" "as\\\"dd" (Db.escape_double "as\"dd");
   ()
 
 let t_nulls_allowed_in_db () =
