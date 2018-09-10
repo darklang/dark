@@ -206,7 +206,7 @@ encodeDBMigrationKind k =
   case k of
     DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
 
-encodeColList : List DBColList -> JSE.Value
+encodeColList : List DBColumn -> JSE.Value
 encodeColList cols =
   let encodeCol =
         encodePair (encodeBlankOr JSE.string) (encodeBlankOr JSE.string)
@@ -639,7 +639,7 @@ decodeTipeString : JSD.Decoder String
 decodeTipeString =
   JSD.map RT.tipe2str decodeTipe
 
-decodeDBColList : JSD.Decoder (List DBColList)
+decodeDBColList : JSD.Decoder (List DBColumn)
 decodeDBColList =
   (JSD.list
   (decodePair
