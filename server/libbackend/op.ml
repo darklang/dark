@@ -20,12 +20,12 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
         | DeleteFunction of tlid
-        [@@deriving eq, yojson, show, sexp, bin_io]
+        [@@deriving eq, yojson, show, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
-type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
+type oplist = op list [@@deriving eq, yojson, show, bin_io]
 type tlid_oplists = (tlid * oplist) list
-                    [@@deriving eq, yojson, show, sexp, bin_io]
+                    [@@deriving eq, yojson, show, bin_io]
 
 type expr = RuntimeT.expr
 
