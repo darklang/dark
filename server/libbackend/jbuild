@@ -28,12 +28,7 @@
                 nocrypto
                 nocrypto.lwt
                 postgresql
-                ppx_bin_prot
-                ppx_derivers
-                ppx_deriving.std
-                ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
-                ppx_sexp_conv
                 session
                 session-postgresql-lwt
                 session-cohttp-lwt
