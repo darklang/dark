@@ -5,8 +5,8 @@ module RTT = Types.RuntimeT
 
 type event_desc = string * string * string
                 [@@deriving show, yojson]
-type four_oh_four = (event_desc * Types.RuntimeT.dval list)
-                  [@@deriving show]
+type four_oh_four = event_desc
+                  [@@deriving show, yojson]
 
 (* ------------------------- *)
 (* Event data *)
@@ -65,10 +65,4 @@ let clear_events ~(canvas_id: Uuidm.t) () : unit =
      WHERE canvas_id = $1"
     ~params:[ Uuid canvas_id]
 
-let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Yojson.Safe.json =
-  `List [ `String space
-        ; `String path
-        ; `String modifier
-        ; `List (List.map ~f:Dval.dval_to_yojson dvals)
-        ]
 

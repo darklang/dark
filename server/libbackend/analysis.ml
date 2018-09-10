@@ -52,9 +52,6 @@ let get_404s (c: canvas) : SE.four_oh_four list =
     ~f:(fun e ->
         not (List.exists handlers
                ~f:(fun h -> match_event h e)))
-  |> List.map ~f:(fun e ->
-      (* TODO: Removing this entirely, including on the frontend *)
-      (e, []))
 
 let global_vars (c: canvas) : string list =
   c.dbs
