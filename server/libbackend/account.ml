@@ -79,9 +79,9 @@ let valid_user ~(username:username) ~(password:string) : bool =
   (* Temporarily allow passwords that either equal what's in
      the database, or that hash to what's in the database. *)
   | Some [db_password] -> password
-                         |> Bytes.of_string
-                         |> Hash.wipe_to_password
-                         |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
+                          |> Bytes.of_string
+                          |> Hash.wipe_to_password
+                          |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
   | _ -> false
 
 let can_access_operations ~(username:username) : bool =
@@ -282,7 +282,7 @@ let init () : unit =
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSVlId3hDT2p2RlJHTkl4LzVObUlQdyQ1M1ZINmJSbUpvRXRCWnJHM3lMM0NzYTlGNk1VRzVIQ1VEYVhUTG9UUmtJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "xinglydia@gmail.com"
     ; name = "Lydia Xing"};
-upsert_account
+  upsert_account
     { username = "ronil"
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTRERW5DL0VBSjNwTUNMZnJMVUZ3dyRnT09ZS29FZUJkd1g4K0o0VU9jR3k0aDFMYzBXRjVDR1RnVytNS2pOb1RNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ronil.awale@gmail.com"
@@ -448,5 +448,15 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQVYrR3RxRVhFa3owRi92YnpDNmVJdyR4T2tTblMvUFZVK3JCUDJVRm5WaVU1MUZNakxFYzBxeFg0d2d5K2dmbUxJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops+demo@darklang.com"
     ; name = "Demo McDemoFace"};
+  upsert_account
+    { username = "darragh"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkaFlQYjZ3RGtrTVk5SzNpdzhJUmNMZyRCV0VaU0hrd1FKVG1wZEZhL0s1ZEI5VG8zcEQ3dkNzeXBlaHlRdm1PdjZRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "darragh.buckley@gmail.com"
+    ; name = "Darragh Buckley"};
+  upsert_account
+    { username = "jacob"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSkhyRjlrbEgzUWpjdkZCamg3dGtMQSRvdFVJTjF2UCs4d21FYWFVU1ZCR1ZSRWJ4TTRlZ3diYWtQakZGSDVEL0kwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "wenger.jacob@gmail.com"
+    ; name = "Jacob Wenger"};
   ()
 
