@@ -75,6 +75,31 @@ let fns : Lib.shortfn list = [
   ; f = NotClientAvailable
   ; pr = None
   ; ps = false
+  ; dep = true (* see query_v2 *)
+  }
+  ;
+
+  { pns = ["DB::query_v2"]
+  ; ins = []
+  ; p = [par "spec" TObj; par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = false
+  }
+  ;
+
+  { pns = ["DB::queryWithKey_v1"]
+  ; ins = []
+  ; p = [par "spec" TObj; par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the values from `table` which have the same fields and values that `spec` has
+        , returning a [[key, value]] list of lists"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
   ; dep = false
   }
   ;
@@ -83,14 +108,26 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "spec" TObj; par "table" TDB]
   ; r = TOption
-  ; d = "Fetch exactly one values from `table` which have the same fields and values that `spec` has
-        , returning a [key, value] pair. Returns Nothing if none or more than 1 found"
+  ; d = "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
   ; f = NotClientAvailable
   ; pr = None
   ; ps = true
   ; dep = false
   }
   ;
+
+  { pns = ["DB::queryOneWithKey_v1"]
+  ; ins = []
+  ; p = [par "spec" TObj; par "table" TDB]
+  ; r = TList
+  ; d = "Fetch exactly one value table` which have the same fields and values that `spec` has, returning a [[key, value]] list of lists"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = false
+  }
+  ;
+
 
   { pns = ["DB::getAll_v1"]
   ; ins = []
