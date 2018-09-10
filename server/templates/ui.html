@@ -63,8 +63,14 @@
        });
 
        elmapp.ports.requestAnalysis.subscribe(function(data) {
-         var result = darkAnalysis.performAnalysis(data);
-         elmapp.ports.receiveAnalysis.send(result);
+         try {
+           var result = darkAnalysis.performAnalysis(data);
+           elmapp.ports.receiveAnalysis.send(result);
+         }
+         catch (error) {
+           // TODO: send error to client, rollbar, and give a better error here.
+           console.log("Error processing analysis");
+         }
        })
 
        elmapp.ports.sendRollbar.subscribe(function(obj) {
