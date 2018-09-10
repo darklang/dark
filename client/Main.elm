@@ -634,21 +634,25 @@ updateMod mod (m, cmd) =
       ExecutingFunctionBegan tlid id ->
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
+
       ExecutingFunctionRPC tlid id name ->
-        let trace = Analysis.getCurrentTrace m tlid in
-        case trace of
-          Nothing -> m ! [sendTask (ExecuteFunctionCancel tlid id)]
-          Just t ->
-            let traceID = t.id
-                args = []
-                params = { tlid = tlid
-                         , callerID = id
-                         , traceID = traceID
-                         , fnName = name
-                         , args = args
-                         }
-            in
-            (m, RPC.executeFunctionRPC params)
+        case Analysis.getCurrentTrace m tlid of
+          Just trace ->
+            case Analysis.getArguments m tlid trace.id id of
+              Just args ->
+                let params = { tlid = tlid
+                             , callerID = id
+                             , traceID = trace.id
+                             , fnName = name
+                             , args = args
+                             }
+                in
+                (m, RPC.executeFunctionRPC params)
+              Nothing ->
+                m ! [sendTask (ExecuteFunctionCancel tlid id)]
+          Nothing ->
+            m ! [sendTask (ExecuteFunctionCancel tlid id)]
+
       ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
