@@ -76,7 +76,59 @@ let replacements = [
           | args -> fail args))
 
   ;
+  ( "DB::query_v2"
+  , InProcess
+      (function
+          | (state, [DObj map; DDB db]) ->
+            let results =
+              map
+              |> DvalMap.to_alist
+              |> User_db.query ~state ~magic:false db
+            in
+            (match results with
+             | DList xs ->
+               xs
+               |> List.map
+                 ~f:(function
+                     | DList [x;y] -> y
+                     | _ ->
+                       Exception.internal "bad format from User_db.query")
+               |> DList
+             | _ ->
+               Exception.internal "bad format from User_db.query")
+          | args -> fail args))
+
+  ;
+  ( "DB::queryWithKey_v1"
+  , InProcess
+      (function
+          | (state, [DObj map; DDB db]) ->
+            map
+            |> DvalMap.to_alist
+            |> User_db.query ~state ~magic:false db
+          | args -> fail args))
+
+  ;
   ( "DB::queryOne_v1"
+  , InProcess
+      (function
+          | (state, [DObj map; DDB db]) ->
+            let results =
+              map
+              |> DvalMap.to_alist
+              |> User_db.query ~state ~magic:false db
+            in
+            (match results with
+             | DList (res :: []) ->
+               (match res with
+                | DList [_; v] -> DOption (OptJust v)
+                | _ ->
+                  Exception.internal "Bad format from query in queryOneWithKey_v1")
+             | _ -> DOption (OptNothing))
+          | args -> fail args))
+
+  ;
+  ( "DB::queryOneWithKey_v1"
   , InProcess
       (function
           | (state, [DObj map; DDB db]) ->
