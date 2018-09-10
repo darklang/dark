@@ -222,7 +222,7 @@ type Op
     | ChangeDBColType TLID ID DBColType
     | DeprecatedInitDbm TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
-    | CreateDBMigration TLID RollbackID RollforwardID (List DBColList)
+    | CreateDBMigration TLID RollbackID RollforwardID (List DBColumn)
     | AddDBColToDBMigration TLID ID ID
     | SetDBColNameInDBMigration TLID ID DBColName
     | SetDBColTypeInDBMigration TLID ID DBColType
