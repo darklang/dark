@@ -44,11 +44,11 @@ postString url =
 
 rpc : Model -> Focus -> RPCParams -> Cmd Msg
 rpc m focus params =
-  rpc_ m "/admin/api/rpc" (RPCCallback focus) params
+  rpc_ m "/api/rpc" (RPCCallback focus) params
 
 executeFunctionRPC : ExecuteFunctionRPCParams -> Cmd Msg
 executeFunctionRPC params =
-  let url = "/admin/api/execute_function"
+  let url = "/api/execute_function"
       payload = encodeExecuteFunctionRPCParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeExecuteFunctionRPC
@@ -56,7 +56,7 @@ executeFunctionRPC params =
 
 getAnalysisRPC : AnalysisParams -> Cmd Msg
 getAnalysisRPC params =
-  let url = "/admin/api/get_analysis"
+  let url = "/api/get_analysis"
       payload = encodeAnalysisParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeGetAnalysisRPC
@@ -64,13 +64,13 @@ getAnalysisRPC params =
 
 initialLoadRPC : Focus -> Cmd Msg
 initialLoadRPC focus =
-  let url = "/admin/api/initial_load"
+  let url = "/api/initial_load"
       request = Http.post url Http.emptyBody decodeInitialLoadRPC
   in Http.send (InitialLoadRPCCallback focus NoChange) request
 
 saveTestRPC : Cmd Msg
 saveTestRPC =
-  let url = "/admin/api/save_test"
+  let url = "/api/save_test"
       request = postString url
   in Http.send SaveTestRPCCallback request
 
@@ -84,7 +84,7 @@ opsParams ops =
 
 integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
-  let url = "/admin/api/initial_load"
+  let url = "/api/initial_load"
       request = Http.post url Http.emptyBody decodeInitialLoadRPC
   in Http.send
       (InitialLoadRPCCallback FocusNothing (TriggerIntegrationTest name))
