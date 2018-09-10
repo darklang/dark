@@ -32,7 +32,6 @@
       ((flags (--opt=1
                --setenv FORCE_DROP_INLINE_TEST=true
                +nat.js
-               +core_kernel/runtime.js
                +dynlink.js
                +toplevel.js))))
     (libraries (js_of_ocaml libfrontend))
