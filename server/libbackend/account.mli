@@ -1,5 +1,4 @@
 open Core
-open Types
 
 type username = string
 
