@@ -3,7 +3,7 @@ open Libexecution
 
 (* space, path, modifier *)
 type event_desc = string * string * string [@@deriving show]
-type four_oh_four = event_desc * Types.RuntimeT.dval list [@@deriving show]
+type four_oh_four = event_desc [@@deriving show, yojson]
 
 (* We store a set of events for each host. The events may or may not
  * belong to a toplevel. We provide a list in advance so that they can
@@ -29,5 +29,3 @@ val clear_events :
   canvas_id:Uuidm.t ->
   unit ->
   unit
-
-val four_oh_four_to_yojson : four_oh_four -> Yojson.Safe.json
