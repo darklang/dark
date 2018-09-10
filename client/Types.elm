@@ -553,7 +553,6 @@ type alias Model = { error : DarkError
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
-                   --, dbMigrations: Dict DBName DBSchemaMigration
                    }
 
 -- Values that we serialize

@@ -32,7 +32,9 @@ html {
 .to (colors, @color) {
   color: @color;
 }
- .keyframes (@name, @from, @to, @vendor:"", @bind:"") {
+
+/* TODO really ugly in LESS, during our tech debt week, I may attempt to migrate our to SASS. */
+.keyframes (@name, @from, @to, @vendor:"", @bind:"") {
   @keyf: ~"@{bind}@@{vendor}keyframes @{name} { `'\n'`from ";
   @{keyf} {
       .from(@name,@from);

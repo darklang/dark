@@ -55,7 +55,7 @@ isMigrationCol db id =
   case db.newMigration of
     Just schema ->
       let inCols = schema.cols
-          |> List.filter (\(n, t) -> (B.toID n) == id || (B.toID t) == id )
+        |> List.filter (\(n, t) -> (B.toID n) == id || (B.toID t) == id )
       in not (List.isEmpty inCols)
     Nothing -> False
 
@@ -68,7 +68,7 @@ maybeAddBlankField cols =
 startMigration : DB -> Modification
 startMigration db =
   let newCols = db.cols
-                |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
+    |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
       migra = DBSchemaMigration newCols (B.new ()) (B.new ()) (db.version + 1)
       newDB = { db | newMigration = Just migra }
   in UpdateDB newDB
@@ -80,8 +80,8 @@ updateMigrationCol db id val =
       let value = if (String.isEmpty val) then B.new () else B.newF val
           replacer = B.replace id value
           newCols = migra.cols
-                    |> List.map (\(n, t) -> (replacer n, replacer t))
-                    |> maybeAddBlankField
+            |> List.map (\(n, t) -> (replacer n, replacer t))
+            |> maybeAddBlankField
       in UpdateDB { db | newMigration = Just ({ migra | cols = newCols }) }
     _ -> NoChange
 
@@ -92,6 +92,6 @@ deleteCol db (n, t) =
       let nid = B.toID n
           tid = B.toID t
           cols = migra.cols
-                 |> List.filter (\(cn, ct) -> (B.toID cn) /= nid && (B.toID ct) /= tid )
+            |> List.filter (\(cn, ct) -> (B.toID cn) /= nid && (B.toID ct) /= tid )
       in UpdateDB { db | newMigration = Just ({ migra | cols = cols }) }
     _ -> NoChange
