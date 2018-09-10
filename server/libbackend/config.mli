@@ -24,6 +24,8 @@ val should_write_shape_data : bool
 val allow_server_shutdown : bool
 val allow_test_routes : bool
 
+val static_base_url : string
+
 val rollbar_enabled : bool
 val rollbar_environment : string
 val rollbar_client_access_token : string option

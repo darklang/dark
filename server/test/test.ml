@@ -984,20 +984,20 @@ let t_auth_then_handle_code_and_cookie () =
 
        (* valid basic auth login on builtwithdark.com *)
        [ Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+           (Uri.of_string "http://test.builtwithdark.com/ui")
 
        (* valid basic auth login on localhost *)
        ; Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-           (Uri.of_string "http://test.localhost/admin/ui")
+           (Uri.of_string "http://test.localhost/ui")
 
        (* invalid basic auth logins *)
        ; Req.make ~headers:(basic "test" "")
-           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+           (Uri.of_string "http://test.builtwithdark.com/ui")
        ; Req.make ~headers:(basic "" "fVm2CUePzGKCwoEQQdNJktUQ")
-           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+           (Uri.of_string "http://test.builtwithdark.com/ui")
 
        (* plain request, no auth *)
-       ; Req.make (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+       ; Req.make (Uri.of_string "http://test.builtwithdark.com/ui")
     ])
 
     [ 200, Some "Max-Age=604800; secure; httponly"

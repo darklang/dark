@@ -80,9 +80,11 @@ let should_use_https uri =
               |> (fun h -> String.split h '.')
   in
   match parts with
+  | ["darklang"; "com"; ]
   | ["builtwithdark"; "com"; ]
   | [_; "builtwithdark"; "com"; ] -> true
   | _ -> false
+
 
 let redirect_to uri =
   let proto = uri
@@ -374,6 +376,7 @@ let admin_ui_handler ~(debug:bool) () =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
+  >|= Util.string_replace "{STATIC}" Config.static_base_url
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{ELMDEBUG}" (if debug
                                       then "-debug"
@@ -388,45 +391,38 @@ let save_test_handler ~(execution_id: Types.id) host =
 let auth_then_handle ~(execution_id: Types.id) req host handler =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
-  if not (String.is_prefix ~prefix:"/admin" path)
-  then
-    handler (Header.init ())
-  else
-    let run_handler ~auth_domain ~username headers =
-      let permission = Account.get_permissions ~auth_domain ~username () in
-      let permission_needed =
-        if (String.is_prefix ~prefix:"/admin/ops/" path)
-        then `Operations
-        else if (String.is_prefix ~prefix:"/admin" path)
-        then `Edit
-        else `None
-      in
-      match (permission_needed, permission) with
-      | (_, Account.CanAccessOperations)
+  let run_handler ~auth_domain ~username headers =
+    let permission = Account.get_permissions ~auth_domain ~username () in
+    let permission_needed =
+      if (String.is_prefix ~prefix:"/ops/" path)
+      then `Operations
+      else `Edit
+    in
+    match (permission_needed, permission) with
+    | (_, Account.CanAccessOperations)
       | (`None, _)
       | (`Edit, Account.CanEdit) ->
-        handler headers
-      | _ -> respond ~execution_id `Unauthorized "Unauthorized"
-    in
-
-    (* only handle auth for admin routes *)
-    (* let users use their domain as a prefix for scratch work *)
-    let auth_domain = Account.auth_domain_for host in
-    match%lwt Auth.Session.of_request req with
-    | Ok (Some session) ->
-      if path = "/admin/logout"
-      then
-        (Auth.Session.clear Auth.Session.backend session;%lwt
+       handler headers
+    | _ -> respond ~execution_id `Unauthorized "Unauthorized"
+  in
+  (* only handle auth for admin routes *)
+  (* let users use their domain as a prefix for scratch work *)
+  let auth_domain = Account.auth_domain_for host in
+  match%lwt Auth.Session.of_request req with
+  | Ok (Some session) ->
+     if path = "/logout"
+     then
+       (Auth.Session.clear Auth.Session.backend session;%lwt
         let headers =
           (Header.of_list
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-        S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ())
-      else
-        let username = Auth.Session.username_for session in
-        run_handler ~auth_domain ~username (Header.init ())
-    | _ ->
-      match Header.get_authorization headers with
-      | (Some (`Basic (username, password))) ->
+            S.respond_redirect ~headers ~uri:(Uri.of_string "/ui") ())
+     else
+       let username = Auth.Session.username_for session in
+       run_handler ~auth_domain ~username (Header.init ())
+  | _ ->
+     match Header.get_authorization headers with
+     | (Some (`Basic (username, password))) ->
         (if Account.authenticate ~username ~password
          then
            let%lwt session = Auth.Session.new_for_username username in
@@ -440,10 +436,10 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
            in
            run_handler ~auth_domain ~username headers
          else
-          respond ~execution_id `Unauthorized "Bad credentials")
-      | None ->
+           respond ~execution_id `Unauthorized "Bad credentials")
+     | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
-      | _ ->
+     | _ ->
         respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper
@@ -469,55 +465,55 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ]
   in
   match (verb, Uri.path uri) with
-  | (`POST, "/admin/api/rpc") ->
+  | (`POST, "/api/rpc") ->
     let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
     respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/admin/api/initial_load") ->
+  | (`POST, "/api/initial_load") ->
     let (resp_headers, response_body) = initial_load ~execution_id host body in
     respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/admin/api/execute_function") ->
+  | (`POST, "/api/execute_function") ->
     let (resp_headers, response_body) = execute_function ~execution_id host body in
     respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/admin/api/get_analysis") ->
+  | (`POST, "/api/get_analysis") ->
     let (resp_headers, response_body) = get_analysis ~execution_id host body in
     respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/admin/api/shutdown") when Config.allow_server_shutdown ->
+  | (`POST, "/api/shutdown") when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond ~execution_id `OK "Disembowelment"
-  | (`POST, "/admin/api/clear-benchmarking-data") ->
+  | (`POST, "/api/clear-benchmarking-data") ->
     Db.delete_benchmarking_data ();
     respond ~execution_id `OK "Cleared"
-  | (`POST, "/admin/api/save_test") when Config.allow_test_routes ->
-    save_test_handler ~execution_id host
-  | (`GET, "/admin/ui-debug") ->
+  | (`POST, "/api/save_test") when Config.allow_test_routes ->
+     save_test_handler ~execution_id host
+  | (`GET, "/ui-debug") ->
     let%lwt body = admin_ui_handler ~debug:true () in
     respond
       ~resp_headers:html_hdrs
       ~execution_id
       `OK body
-  | (`GET, "/admin/ui") ->
+  | (`GET, "/ui") ->
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
       ~resp_headers:html_hdrs
       ~execution_id
       `OK body
-  | (`GET, "/admin/integration_test") when Config.allow_test_routes ->
+  | (`GET, "/integration_test") when Config.allow_test_routes ->
     Canvas.load_and_resave_from_test_file host;
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
       ~resp_headers:html_hdrs
       ~execution_id
       `OK body
-  | (`POST, "/admin/ops/migrate-all-canvases") ->
+  | (`POST, "/ops/migrate-all-canvases") ->
     Canvas.migrate_all_hosts ();
     respond ~execution_id `OK "Migrated"
-  | (`POST, "/admin/ops/check-all-canvases") ->
+  | (`POST, "/ops/check-all-canvases") ->
     Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
-  | (`POST, "/admin/ops/cleanup-old-traces") ->
+  | (`POST, "/ops/cleanup-old-traces") ->
     Canvas.cleanup_old_traces ();
     respond ~execution_id `OK "Cleanedup"
-  | (`GET, "/admin/ops/check-all-canvases") ->
+  | (`GET, "/ops/check-all-canvases") ->
     respond ~execution_id `OK "<html>
     <body>
     <form action='/admin/ops/check-all-canvases' method='post'>
@@ -539,7 +535,7 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
 
 let static_handler uri =
   let fname = S.resolve_file ~docroot:(Config.dir Config.Webroot) ~uri in
-  S.respond_file ~fname ()
+  S.respond_file ~headers:(Header.of_list [cors])  ~fname ()
 
 
 (* Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
@@ -553,12 +549,107 @@ let with_x_forwarded_proto req =
                    (Some proto)
   | None -> CRequest.uri req
 
+
+type host_route =
+  | Canvas of string
+  | Static
+  | Admin
+
+let route_host req =
+  match req
+        |> CRequest.uri
+        |> Uri.host
+        |> Option.value ~default:""
+        |> (fun h -> String.split h '.') with
+  | ["static"; "darklang"; "localhost" ]
+  | [ "static" ; "darklang"; "com" ]
+  | [ "static" ; "integration-tests" ]
+  -> Some Static
+
+  (* Dark canvases *)
+  | [a; "builtwithdark"; "com" ; ]
+  | [a; "builtwithdark"; "localhost" ; ]
+  | [a; "integration-tests"]
+  | [a; "darksingleinstance"; "com"]
+    -> Some (Canvas a)
+
+  (* Specific Dark canvas: builtwithdark *)
+  | ["builtwithdark"; "localhost" ; ]
+  | ["builtwithdark"; "com" ; ]
+    -> Some (Canvas "builtwithdark")
+  (* Specific Dark canvas: darksingleinstance *)
+  | ["darksingleinstance"; "com"]
+    -> Some (Canvas "darksingleinstance")
+  | [a; "dabblefox"; "com" ]
+    -> Some (Canvas ("dabblefox-" ^ a))
+
+  (* admin interface *)
+  | ["integration-tests"]
+  | ["darklang" ; "com" ]
+  | ["darklang" ; "localhost" ]
+    -> Some Admin
+
+  (* Not a match... *)
+  | _ -> None
+
+(* TODO handle sitemap, favicon, etc *)
+
+let k8s_handler req ~execution_id ~stopper =
+  match req |> CRequest.uri |> Uri.path with
+  (* For GKE health check *)
+  | "/" ->
+     (match Dbconnection.status () with
+      | `Healthy ->
+         if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
+         then begin
+             Log.infO "Liveness check found unready service, returning unavailable";
+             respond ~execution_id `Service_unavailable "Service not ready"
+           end
+         else
+           respond ~execution_id `OK "Hello internal overlord"
+      | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+  | "/ready" ->
+     (match Dbconnection.status () with
+        | `Healthy ->
+           if !ready
+           then
+             respond ~execution_id `OK "Hello internal overlord"
+           else begin
+               (* exception here caught by handle_error *)
+               Canvas.check_tier_one_hosts ();
+               Log.infO "All canvases loaded correctly - Service ready";
+               ready := true;
+               respond ~execution_id `OK "Hello internal overlord"
+             end
+        | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+  (* For GKE graceful termination *)
+  | "/pkill" ->
+     if !shutdown (* note: this is a ref, not a boolean `not` *)
+     then
+       (shutdown := true;
+        Log.infO "shutdown"
+          ~data:"Received shutdown request - shutting down"
+          ~params:["execution_id", Types.string_of_id execution_id];
+          (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
+        Lwt_unix.sleep 28.0 >>= fun _ ->
+        Lwt.wakeup stopper ();
+        respond ~execution_id `OK "Terminated")
+     else
+       (Log.infO "shutdown"
+          ~data:"Received redundant shutdown request - already shutting down"
+          ~params:["execution_id", Types.string_of_id execution_id];
+        respond ~execution_id `OK "Terminated")
+  | _ -> respond ~execution_id `Not_found ""
+
 let server () =
   let stop,stopper = Lwt.wait () in
 
   let callback (ch, conn) req body =
     let execution_id = Util.create_id () in
-    if !shutdown then respond ~execution_id `Service_unavailable "Shutting down" else
+    let uri = CRequest.uri req in
+    let ip = get_ip_address ch in
+    (* TODO: derive this dynamically *)
+    let host = "lizzie" in
 
     let handle_error ~(include_internals:bool) (e:exn) =
       try
@@ -573,13 +664,13 @@ let server () =
         let real_err =
           try
             match e with
-             | Exception.DarkException e ->
+            | Exception.DarkException e ->
                e
                |> Exception.exception_data_to_yojson
                |> Yojson.Safe.pretty_to_string
-             | Yojson.Json_error msg ->
+            | Yojson.Json_error msg ->
                "Not a valid JSON value: '" ^ msg ^ "'"
-             | _ ->
+            | _ ->
                "Dark Internal Error: " ^ Exn.to_string e
           with _ -> "UNHANDLED ERROR: real_err"
         in
@@ -587,128 +678,47 @@ let server () =
         let resp_headers = Cohttp.Header.of_list [cors] in
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
-          respond ~resp_headers ~execution_id `Bad_request e.short
+           respond ~resp_headers ~execution_id `Bad_request e.short
         | _ ->
-          let body =
-            if include_internals
-            then real_err
-            else "Dark Internal Error"
-          in
-          respond ~resp_headers ~execution_id `Internal_server_error body
+           let body =
+             if include_internals
+             then real_err
+             else "Dark Internal Error"
+           in
+           respond ~resp_headers ~execution_id `Internal_server_error body
       with e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);
         respond ~execution_id `Internal_server_error "unhandled error"
     in
 
-
     try
-      let host =
-        req
-        |> CRequest.uri
-        |> Uri.host
-        |> Option.bind
-          ~f:(fun host ->
-              match String.split host '.' with
-              (* For production *)
-              | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
-              | ["builtwithdark"; "com"] -> Some "builtwithdark"
-              | [a; "darksingleinstance"; "com"] -> Some a
-              | [a; "builtwithdark"; "com"] -> Some a
+         Log.infO "request"
+           ~params:[ "host", Option.value ~default:"none" (Some host)
+                   ; "ip", ip
+                   ; "method", req
+                               |> CRequest.meth
+                               |> Cohttp.Code.string_of_method
+                   ; "uri", Uri.to_string uri
+                   ; "execution_id", Log.dump execution_id
+           ];
+         (* first: if this isn't https and should be, redirect *)
+         match redirect_to (with_x_forwarded_proto req) with
+           Some x -> S.respond_redirect ~uri:x ()
+         | None ->
+            (* figure out what handler to dispatch to... *)
+            match route_host req with
+            | Some (Canvas a) ->
+               user_page_handler ~execution_id ~host ~ip ~uri ~body req
 
-              (* For customers *)
-              | [a; "dabblefox"; "com"] -> Some ("dabblefox-" ^ a)
+            | Some Static -> static_handler uri
 
-              (* For development and testing *)
-              | ["localhost"] -> Some "localhost"
-              | [a; "integration-tests"] -> Some a
-              | [a; "localhost"] -> Some a
-
-              | _ -> None)
-      in
-
-      let handler resp_headers =
-        let ip = get_ip_address ch in
-        let uri = req |> CRequest.uri in
-
-        Log.infO "request"
-          ~params:[ "host", Option.value ~default:"none" host
-                  ; "ip", ip
-                  ; "method", req
-                              |> CRequest.meth
-                              |> Cohttp.Code.string_of_method
-                  ; "uri", Uri.to_string uri
-                  ; "execution_id", Log.dump execution_id
-                  ];
-
-        match (Uri.path uri, host) with
-        | (_, None) ->
-          respond ~execution_id `Not_found "Not found"
-        | ("/sitemap.xml", _)
-        | ("/favicon.ico", _) ->
-         respond ~execution_id `OK ""
-        | (p, _) when (String.is_prefix ~prefix:"/static/" p) ->
-          static_handler uri
-        | (p, Some host) ->
-          if String.is_prefix ~prefix:"/admin/" p
-          then
-            try
-              admin_handler ~execution_id ~host ~uri ~body ~stopper req resp_headers
-            with e -> handle_error ~include_internals:true e
-          else
-            (* caught by a handle_error a bit lower *)
-            user_page_handler ~execution_id ~host ~ip ~uri ~body req
-      in
-      match redirect_to (with_x_forwarded_proto req) with
-      | Some x -> S.respond_redirect ~uri:x ()
-      | _ -> match (req |> CRequest.uri |> Uri.path, host) with
-            (* This seems like it should be moved closer to the admin handler,
-             * but don't do that - that makes Lwt swallow our exceptions. *)
-            | (_, Some host) ->
-               auth_then_handle ~execution_id req host handler
-            | ("/", None) -> (* for GKE health check *)
-               (match Dbconnection.status () with
-                | `Healthy ->
-                   if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
-                   then begin
-                       Log.infO "Liveness check found unready service, returning unavailable";
-                       respond ~execution_id `Service_unavailable "Service not ready"
-                     end
-                   else
-                     respond ~execution_id `OK "Hello internal overlord"
-                | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
-            | ("/ready", None) ->
-               (match Dbconnection.status () with
-                | `Healthy ->
-                   if !ready
-                   then
-                     respond ~execution_id `OK "Hello internal overlord"
-                   else begin
-                       (* exception here caught by handle_error *)
-                       Canvas.check_tier_one_hosts ();
-                       Log.infO "All canvases loaded correctly - Service ready";
-                       ready := true;
-                       respond ~execution_id `OK "Hello internal overlord"
-                     end
-                | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
-            | ("/pkill", None) -> (* for GKE graceful termination *)
-               if !shutdown (* note: this is a ref, not a boolean `not` *)
-               then
-                 (shutdown := true;
-                  Log.infO "shutdown"
-                    ~data:"Received shutdown request - shutting down"
-                    ~params:["execution_id", Types.string_of_id execution_id];
-                  (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
-                  Lwt_unix.sleep 28.0 >>= fun _ ->
-                  Lwt.wakeup stopper ();
-                  respond ~execution_id `OK "Terminated")
-               else
-                 (Log.infO "shutdown"
-                    ~data:"Received redundant shutdown request - already shutting down"
-                    ~params:["execution_id", Types.string_of_id execution_id];
-                  respond ~execution_id `OK "Terminated")
-            | (_, None) -> (* for GKE health check *)
-               respond ~execution_id `Not_found "Not found"
+            | Some Admin ->
+               (try
+                  auth_then_handle ~execution_id req host
+                    (admin_handler ~execution_id ~host ~uri ~body ~stopper req)
+                with e ->  handle_error ~include_internals:false e)
+            | None -> k8s_handler req ~execution_id ~stopper
     with e -> handle_error ~include_internals:false e
 
   in

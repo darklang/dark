@@ -120,7 +120,7 @@ init {editorState, complete} location =
         Task.perform PageVisibilityChange PageVisibility.visibility
 
       shouldRunIntegrationTest =
-        "/admin/integration_test" == location.pathname
+        "/integration_test" == location.pathname
 
       integrationTestName =
         location.hostname

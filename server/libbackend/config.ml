@@ -29,6 +29,11 @@ let migrations_dir = absolute_dir "DARK_CONFIG_MIGRATIONS_DIR"
 let bin_root_dir = absolute_dir "DARK_CONFIG_BIN_ROOT_DIR"
 let __unused_bin_scripts_dir = absolute_dir "DARK_CONFIG_SCRIPTS_DIR"
 
+(* ------------------------- *)
+(* Web configuration *)
+(* ------------------------- *)
+let static_base_url = string "DARK_CONFIG_STATIC_BASE_URL"
+
 
 (* -------------------- *)
 (* For use in Util *)
