@@ -480,9 +480,6 @@ let count (db: db) =
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 
-let db_locked (db: db) : bool =
-  (count db) <> 0
-
 let unlocked canvas_id account_id (dbs: db list) : db list =
   match dbs with
   | [] -> []
