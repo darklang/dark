@@ -30,6 +30,7 @@
     (flags (-no-check-prims))
     (js_of_ocaml
       ((flags (--opt=1
+               --setenv FORCE_DROP_INLINE_TEST=true
                +nat.js
                +dynlink.js
                +toplevel.js))))
