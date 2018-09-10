@@ -12,6 +12,7 @@
              +base/runtime.js
              +core_kernel/runtime.js
              +bin_prot/runtime.js
+             --setenv FORCE_DROP_INLINE_TEST=true
              --runtime-only))
     (javascript_files (libtarget.js))))))
 
