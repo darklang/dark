@@ -363,10 +363,13 @@ enterDB m db tl id =
             , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
         else
           Enter (Filling tl.id id)
+      _ = Debug.log "enterDB pd" pd
   in
     case pd of
       PDBColName d -> updateDB False
       PDBColType d -> updateDB True
+      PExpr ex -> updateDB True
+      -- TODO validate ex.id is in either rollback or rollforward function if there's a migration in progreess
       _ -> NoChange
 
 
