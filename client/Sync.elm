@@ -32,7 +32,7 @@ markResponseInModel m =
 
 timedOut : SyncState -> Bool
 timedOut s =
- (s.ticks % 10) == 0 && s.ticks /= 0
+ (modBy s.ticks 10) == 0 && s.ticks /= 0
 
 fetch : Model -> (Model, Cmd Msg)
 fetch m =
@@ -55,7 +55,7 @@ toAnalyse m =
             let length = List.length ids
             in
                 if length > 0
-                then Just ((Util.random ()) % length)
+                then Just (modBy (Util.random ()) length)
                 else Nothing
       in
           index

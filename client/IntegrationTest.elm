@@ -273,13 +273,10 @@ ellen_hello_world_demo m =
              |> deMaybe "hw2"
              |> .spec
   in
-  case (spec.module_, spec.name, spec.modifier, onlyExpr m) of
-    ( F _ "HTTP"
-    , F _ "/hello"
-    , F _ "GET"
-    , Value "\"Hello world!\"") ->
-      pass
-    other -> fail other
+  case ((spec.module_, spec.name), (spec.modifier, onlyExpr m)) of
+          ((F _ "HTTP", F _ "/hello"), (F _ "GET", Value "\"Hello world!\"")) ->
+              pass
+          other -> fail other
 
 editing_does_not_deselect : Model -> TestResult
 editing_does_not_deselect m =
@@ -299,9 +296,7 @@ editing_headers m =
              |> .spec
   in
   case (spec.module_, spec.name, spec.modifier) of
-    ( F _ "HTTP"
-    , F _ "/myroute"
-    , F _ "GET") ->
+    ( F _ "HTTP", F _ "/myroute", F _ "GET") ->
       pass
     other -> fail other
 
@@ -324,10 +319,10 @@ case_sensitivity m =
                TLDB {name, cols} ->
                  case (name, cols) of
                    ( "TestUnicode"
-                   , [ (F _ "cOlUmNnAmE", F _ "Str")
+                    , [ (F _ "cOlUmNnAmE", F _ "Str")
                      , (Blank _, Blank _)
                      ]
-                   ) -> pass
+                    ) -> pass
                    other -> fail other
                TLHandler h ->
                  case h.ast of
@@ -412,8 +407,8 @@ rename_db_fields m =
       TLDB {name, cols} ->
         case cols of
           [ (F id "field6", F _ "String")
-          , (F _ "field2", F _ "String")
-          , (Blank _, Blank _)] ->
+           , (F _ "field2", F _ "String")
+           , (Blank _, Blank _)] ->
             case m.cursorState of
               Selecting _ (Just sid) ->
                 if sid == id
@@ -433,8 +428,8 @@ rename_db_type m =
       TLDB {name, cols} ->
         case cols of
           [ (F id "field1", F _ "String")
-          , (F _ "field2", F _ "Int")
-          , (Blank _, Blank _)] ->
+           , (F _ "field2", F _ "Int")
+           , (Blank _, Blank _)] ->
             case m.cursorState of
               Selecting _ (Just sid) ->
                 if sid == id
@@ -529,7 +524,7 @@ feature_flag_in_function m =
               (F _ (Value "5"))
               (F _ (Value "3")))
             ,F _ (Value "5")]) NoRail
-        ) -> pass
+         ) -> pass
           -- TODO: validate result should evaluate true turnging  5 + 5 --> 3 + 5 == 8
           -- let res = Analysis.getLiveValue m f.tlid id
           -- in case res of
@@ -624,11 +619,11 @@ editing_starts_a_thread_with_shift_enter : Model -> TestResult
 editing_starts_a_thread_with_shift_enter m =
   case (m.cursorState, onlyExpr m) of
     ( Entering (Filling _ id1)
-    , Let _ (F _ (Thread [ F _ (Value "52")
+     , Let _ (F _ (Thread [ F _ (Value "52")
                            , Blank id2
                            ]))
             _
-    ) ->
+     ) ->
       if id1 == id2
       then pass
       else fail (m.cursorState, onlyExpr m)
@@ -639,7 +634,7 @@ object_literals_work : Model -> TestResult
 object_literals_work m =
   case (m.cursorState, onlyExpr m) of
     (Entering (Filling tlid id)
-    , ObjectLiteral [ (F _ "k1", Blank _)
+     , ObjectLiteral [ (F _ "k1", Blank _)
                     , (F _ "k2", F _ (Value "2"))
                     , (F _ "k3", F _ (Value "3"))
                     , (F _ "k4", Blank _ )

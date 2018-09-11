@@ -66,7 +66,7 @@ maybeUpdateScrollUrl m =
   if pos /= state.lastPos
   then
     Many
-      [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
+      [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
       , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
       ]
   else NoChange
@@ -88,7 +88,7 @@ parseLocation m loc =
         case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
           (Just x, Just y) ->
             case (String.toInt x, String.toInt y) of
-              (Ok x, Ok y) -> Just { x = x, y = y }
+              (Ok x_, Ok y_) -> Just { x = x_, y = y_ }
               _  -> Nothing
           _ -> Nothing
       editedFn =

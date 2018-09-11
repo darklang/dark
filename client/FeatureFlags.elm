@@ -60,6 +60,6 @@ end m id pick =
 
 toggle : Model -> ID ->  Bool -> Modification
 toggle m id isExpanded =
-  TweakModel (\m -> {
-    m | featureFlags = Dict.insert (deID id) isExpanded m.featureFlags
+  TweakModel (\m_ -> {
+    m_ | featureFlags = Dict.insert (deID id) isExpanded m_.featureFlags
   })

@@ -59,10 +59,10 @@ createVS m tl = { tl = tl
                           case TL.find tl i of
                             Just (PExpr exp) ->
                               let cursorSubsumedByHover =
-                                exp
-                                |> AST.allData
-                                |> List.map P.toID
-                                |> List.member cur
+                                    exp
+                                    |> AST.allData
+                                    |> List.map P.toID
+                                    |> List.member cur
                               in
                                   if cursorSubsumedByHover
                                   then Nothing
@@ -110,17 +110,11 @@ fontAwesome name =
 
 eventNoPropagation : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
 eventNoPropagation event constructor =
-  Events.onWithOptions
-    event
-    { stopPropagation = True, preventDefault = False}
-    (decodeClickEvent constructor)
+  Events.stopPropagationOn event (JSD.map (\a -> (a, True)) (decodeClickEvent constructor))
 
 eventNoDefault : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
 eventNoDefault event constructor =
-  Events.onWithOptions
-    event
-    { stopPropagation = False, preventDefault = True}
-    (decodeClickEvent constructor)
+  Events.preventDefaultOn event (JSD.map (\a -> (a, True)) (decodeClickEvent constructor))
 
 
 
@@ -143,7 +137,8 @@ placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
   in Html.div
     [ Attrs.class "node"
-    , Attrs.style [ ("left", (String.fromInt pos.x) ++ "px"), ("top", (String.fromInt pos.y) ++ "px") ]
+    , Attrs.style "left" ((String.fromInt pos.x) ++ "px")
+    , Attrs.style "top" ((String.fromInt pos.y) ++ "px")
     ]
     [ html ]
 
@@ -157,7 +152,7 @@ widthInCh : Int -> Html.Attribute Msg
 widthInCh w =
   w
   |> inCh
-  |> \w -> Attrs.style [("width", w)]
+  |> \w_ -> Attrs.style "width" w_
 
 
 blankOrLength : BlankOr String -> Int
