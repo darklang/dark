@@ -162,7 +162,7 @@ port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
-port requestAnalysis : String -> Cmd msg
+port requestAnalysis : JSE.Value -> Cmd msg
 port receiveAnalysis : (String -> msg) -> Sub msg
 
 -----------------------
@@ -570,7 +570,7 @@ updateMod mod (m, cmd) =
               in
               trace
               |> Maybe.map
-                   (\t -> requestAnalysis (JSE.encode 0 (param t)))
+                   (\t -> requestAnalysis (param t))
               |> ME.toList
 
         in

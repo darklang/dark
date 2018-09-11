@@ -62,14 +62,33 @@
          window.localStorage.setItem('editorState', editorState);
        });
 
-       elmapp.ports.requestAnalysis.subscribe(function(data) {
+       elmapp.ports.requestAnalysis.subscribe(function(params) {
          try {
-           var result = darkAnalysis.performAnalysis(data);
+           var result = darkAnalysis.performAnalysis(JSON.stringify(params));
            elmapp.ports.receiveAnalysis.send(result);
          }
          catch (error) {
-           // TODO: send error to client, rollbar, and give a better error here.
-           console.log("Error processing analysis");
+           function bToString (blankOr) { return blankOr[2] || null; }
+           const spec = params.handler.spec;
+           const route =
+             `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
+           const errorName = error[1][1].c;
+           const errorMsg = error[2][1].c;
+           const errString = `${errorName} - ${errorMsg}`;
+
+           // send to rollbar
+           window.Rollbar.error(errString, error, { route: route
+                                                  , tlid: params.handler.tlid});
+
+           // log to console
+           console.log(`Error processing analysis in (${route}): ${errString}`);
+           if (!errorName || !errorMsg) {
+             console.log(error);
+           }
+
+           // send to client
+           elmapp.ports.displayError.send(
+             `Error while executing (${route}): ${errString}`);
          }
        })
 

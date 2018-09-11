@@ -8,7 +8,6 @@ import Navigation
 import Mouse
 import Time exposing (Time)
 import PageVisibility
-import Json.Decode as JSD
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -476,7 +475,6 @@ type alias Traces = Dict Int (List Trace) -- tlid -> one trace per inputvalue
 type alias FourOhFour = { space: String
                         , path: String
                         , modifier: String
-                        , values: List JSD.Value
                         }
 
 
