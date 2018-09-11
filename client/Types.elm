@@ -450,15 +450,7 @@ type alias DB = { tlid : TLID
                 , version : Int
                 , oldMigrations : List DBMigration
                 , activeMigration : Maybe DBMigration
-                , newMigration: Maybe DBSchemaMigration
                 }
-
-type alias DBSchemaMigration =
-  { cols : List DBColumn
-  , rollback : Expr
-  , rollforward : Expr
-  , version : Int
-  }
 
 type TLData = TLHandler Handler
             | TLDB DB

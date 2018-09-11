@@ -17,7 +17,7 @@ astsFor db =
 allData : DB -> List PointerData
 allData db =
   let (cols, rolls) =
-        case db.newMigration of
+        case db.activeMigration of
           Just migra ->
             ( db.cols ++ migra.cols
             , List.concat [AST.allData migra.rollforward, AST.allData migra.rollback])
@@ -46,13 +46,13 @@ isLocked m tlid =
 
 isMigrating : DB -> Bool
 isMigrating db =
-  case db.newMigration of
+  case db.activeMigration of
     Just _ -> True
     Nothing -> False
 
 isMigrationCol : DB -> ID -> Bool
 isMigrationCol db id =
-  case db.newMigration of
+  case db.activeMigration of
     Just schema ->
       let inCols = schema.cols
         |> List.filter (\(n, t) -> (B.toID n) == id || (B.toID t) == id )
@@ -69,29 +69,35 @@ startMigration : DB -> Modification
 startMigration db =
   let newCols = db.cols
     |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
-      migra = DBSchemaMigration newCols (B.new ()) (B.new ()) (db.version + 1)
-      newDB = { db | newMigration = Just migra }
+      migra =
+        { startingVersion = db.version
+        , version = db.version + 1
+        , state = DBMigrationInitialized
+        , rollforward = B.new ()
+        , rollback = B.new ()
+        , cols = newCols }
+      newDB = { db | activeMigration = Just migra }
   in UpdateDB newDB
 
 updateMigrationCol : DB -> ID -> String -> Modification
 updateMigrationCol db id val =
-  case db.newMigration of
+  case db.activeMigration of
     Just migra ->
       let value = if (String.isEmpty val) then B.new () else B.newF val
           replacer = B.replace id value
           newCols = migra.cols
             |> List.map (\(n, t) -> (replacer n, replacer t))
             |> maybeAddBlankField
-      in UpdateDB { db | newMigration = Just ({ migra | cols = newCols }) }
+      in UpdateDB { db | activeMigration = Just ({ migra | cols = newCols }) }
     _ -> NoChange
 
 deleteCol : DB -> DBColumn -> Modification
 deleteCol db (n, t) =
-  case db.newMigration of
+  case db.activeMigration of
     Just migra ->
       let nid = B.toID n
           tid = B.toID t
           cols = migra.cols
             |> List.filter (\(cn, ct) -> (B.toID cn) /= nid && (B.toID ct) /= tid )
-      in UpdateDB { db | newMigration = Just ({ migra | cols = cols }) }
+      in UpdateDB { db | activeMigration = Just ({ migra | cols = cols }) }
     _ -> NoChange

@@ -1487,8 +1487,9 @@ update_ msg m =
     StartMigration db -> DB.startMigration db
 
     CancelMigration db ->
-      let db2 = { db | newMigration = Nothing }
+      let db2 = { db | activeMigration = Nothing }
       in UpdateDB db2
+      -- TODO propogate back to backend change STATE and put it in the history
 
     DeleteColInDB col tlid ->
       let tl = TL.getTL m tlid
