@@ -317,7 +317,7 @@ view404s f404s  =
           (CreateHandlerFrom404 fof)
           Nothing
 
-      fofHtml ({space, path, modifier, values} as fof) =
+      fofHtml ({space, path, modifier} as fof) =
         div "fof"
           [ text "path" path
           , (if space == "HTTP" then text "" "" else text "space" space)
