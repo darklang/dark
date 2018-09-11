@@ -59,6 +59,9 @@ isMigrationCol db id =
       in not (List.isEmpty inCols)
     Nothing -> False
 
+isMigrationLockReady : DBMigration -> Bool
+isMigrationLockReady m = B.isF m.rollforward && B.isF m.rollback
+
 maybeAddBlankField : List DBColumn -> List DBColumn
 maybeAddBlankField cols =
   if List.any (\(n, t) -> (B.isBlank n) || (B.isBlank t) ) cols
@@ -95,6 +98,8 @@ updateMigrationCol db id val =
             |> maybeAddBlankField
       in UpdateDB { db | activeMigration = Just ({ migra | cols = newCols }) }
     _ -> NoChange
+
+
 
 deleteCol : DB -> DBColumn -> Modification
 deleteCol db (n, t) =
