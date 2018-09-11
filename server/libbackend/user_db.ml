@@ -137,7 +137,7 @@ to_obj ~state ~magic db (db_strings : string list)
   match db_strings with
   | [obj] ->
     let p_obj =
-      match Dval.dval_of_json_string obj with
+      match Dval.unsafe_dval_of_json_string obj with
       | DObj o ->
         (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
          * data object itself. they got in the database on the `update` of

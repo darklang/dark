@@ -41,7 +41,7 @@ let call verb =
           | DObj obj ->
               if has_form_header headers
               then Dval.to_form_encoding body
-              else Dval.dval_to_json_string body
+              else Dval.unsafe_dval_to_json_string body
           | _ -> Dval.to_repr body in
         let (result, headers) = Httpclient.http_call uri query verb headers body in
         let parsed_result =

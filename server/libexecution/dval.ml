@@ -324,8 +324,18 @@ let tipe_of_yojson (json: Yojson.Safe.json) =
   | _ -> Exception.user "Invalid tipe"
 
 
+(* The "unsafe" variations here are bad. They encode data ambiguously, and
+ * though we mostly have the decoding right, it's brittle and unsafe.
+ *
+ * The first fix is to use derived encoders, and use those anywhere we want to
+ * roundtrip data. We can't use them for user_db because of queries, but
+ * anywhere else should be fine.
+ *
+ * The only fit-for-purpose use of the unsafe json encoders/decoders is for
+ * showing to users. However, even then our random types and their weird
+ * encoding are a bad fit. We need to fix our type-system. *)
 
-let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
+let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* sort so this isn't key-order-dependent. *)
   match Yojson.Safe.sort json with
   | `Int i -> DInt i
@@ -333,12 +343,12 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Bool b -> DBool b
   | `Null -> DNull
   | `String s -> DStr s
-  | `List l -> DList (List.map ~f:dval_of_yojson_ l)
+  | `List l -> DList (List.map ~f:unsafe_dval_of_yojson_ l)
   | `Variant v -> Exception.internal "We dont use variants"
   | `Intlit v -> DStr v
   | `Tuple v -> Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
-    DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
+    DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_ b)
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
     (match tipe with
      | "incomplete" -> DIncomplete
@@ -356,24 +366,24 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "db" -> Exception.user "Can't deserialize DBs"
     | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
     | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from " ^ v))
-  | `Assoc _ -> DObj (dvalmap_of_yojson json)
-and dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
+  | `Assoc _ -> DObj (unsafe_dvalmap_of_yojson json)
+and unsafe_dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
   match json with
   | `Assoc alist ->
     (List.fold_left alist
-       ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
+       ~f:(fun m (k,v) -> DvalMap.set m k (unsafe_dval_of_yojson_ v))
        ~init:DvalMap.empty)
   | _ -> Exception.internal "Not a json object"
 
-let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
-  Result.Ok (dval_of_yojson_ json)
+let unsafe_dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
+  Result.Ok (unsafe_dval_of_yojson_ json)
 
-let rec dvalmap_to_yojson ?(redact=true) (dvalmap: dval_map) : Yojson.Safe.json =
+let rec unsafe_dvalmap_to_yojson ?(redact=true) (dvalmap: dval_map) : Yojson.Safe.json =
   dvalmap
   |> DvalMap.to_alist
-  |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson ~redact v))
+  |> List.map ~f:(fun (k,v) -> (k, unsafe_dval_to_yojson ~redact v))
   |> (fun a -> `Assoc a)
-and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
+and unsafe_dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value =
     `Assoc [ ("type", tipe)
@@ -387,8 +397,8 @@ and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   | DBool b -> `Bool b
   | DNull -> `Null
   | DStr s -> `String s
-  | DList l -> `List (List.map l (dval_to_yojson ~redact))
-  | DObj o -> dvalmap_to_yojson ~redact o
+  | DList l -> `List (List.map l (unsafe_dval_to_yojson ~redact))
+  | DObj o -> unsafe_dvalmap_to_yojson ~redact o
 
   (* opaque types *)
   | DBlock _ | DIncomplete ->
@@ -399,7 +409,7 @@ and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   | DError msg -> wrap_user_str msg
 
   | DResp (h, hdv) ->
-    wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson ~redact hdv])
+    wrap_user_type (`List [ dhttp_to_yojson h ; unsafe_dval_to_yojson ~redact hdv])
 
   | DDB db -> wrap_user_str db.name
   | DID id -> wrap_user_str (Uuidm.to_string id)
@@ -413,7 +423,7 @@ and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   | DOption opt ->
     (match opt with
      | OptNothing -> wrap_user_type `Null
-     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact dv))
+     | OptJust dv -> wrap_user_type (unsafe_dval_to_yojson ~redact dv))
   | DErrorRail _ -> wrap_user_type `Null
 
 let is_json_primitive (dv: dval) : bool =
@@ -422,20 +432,20 @@ let is_json_primitive (dv: dval) : bool =
   (* everything else is a list, an actual object, or a wrapped object *)
   | _ -> false
 
-let dval_to_json_string ?(redact=true) (v: dval) : string =
-  v |> dval_to_yojson ~redact |> Yojson.Safe.to_string
+let unsafe_dval_to_json_string ?(redact=true) (v: dval) : string =
+  v |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
 
-let dval_of_json_string (s: string) : dval =
+let unsafe_dval_of_json_string (s: string) : dval =
   s
   |> Yojson.Safe.from_string
-  |> dval_of_yojson
+  |> unsafe_dval_of_yojson
   |> Result.ok_or_failwith
 
-let dval_to_pretty_json_string ?(redact=true) (v: dval) : string =
-  v |> dval_to_yojson ~redact |> Yojson.Safe.pretty_to_string
+let unsafe_dval_to_pretty_json_string ?(redact=true) (v: dval) : string =
+  v |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.pretty_to_string
 
-let dvalmap_to_string ?(redact=true) (m:dval_map) : string =
-  DObj m |> dval_to_yojson ~redact |> Yojson.Safe.to_string
+let unsafe_dvalmap_to_string ?(redact=true) (m:dval_map) : string =
+  DObj m |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
 
 
 
@@ -446,7 +456,7 @@ let parse_basic_json (str: string) : dval option =
   try
     str
     |> Yojson.Safe.from_string
-    |> dval_of_yojson_
+    |> unsafe_dval_of_yojson_
     |> fun dv -> Some dv
   with Yojson.Json_error e ->
     None

@@ -14,7 +14,7 @@ let host = "test"
 
 type handler_list = HandlerT.handler list [@@deriving yojson]
 
-let dval_of_yojson = Dval.dval_of_yojson
+let dval_of_yojson = Dval.unsafe_dval_of_yojson
 type input_vars = (string * dval) list (* list of vars *)
                   [@@deriving of_yojson]
 

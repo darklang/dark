@@ -55,7 +55,7 @@ let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : 
           then Util.create_uuid ()
           else Util.uuid_of_string trace_id
         in
-        (trace_id, Dval.dval_of_json_string dval)
+        (trace_id, Dval.unsafe_dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_events")
 
 let clear_events ~(canvas_id: Uuidm.t) () : unit =
