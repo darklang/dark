@@ -576,3 +576,14 @@ let create_migration rbid rfid cols db =
            }
     }
 
+let add_col_to_migration nameid typeid db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let mutated_migration =
+      { migration with cols = migration.cols @ [(Blank nameid, Blank typeid)]}
+    in
+    { db with active_migration = Some mutated_migration }
+
+
