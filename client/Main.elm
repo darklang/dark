@@ -1490,12 +1490,12 @@ update_ msg m =
                 ]
 
     InitialLoadRPCCallback focus extraMod
-      (Ok ( toplevels
+      (Ok { toplevels
           , deletedToplevels
           , newTraces
           , globals
           , userFuncs
-          , unlockedDBs)) ->
+          , unlockedDBs}) ->
       let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
@@ -1525,7 +1525,7 @@ update_ msg m =
            ]
 
 
-    GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
+    GetAnalysisRPCCallback (Ok {newTraces, globals, f404s, unlockedDBs}) ->
       Many [ TweakModel Sync.markResponseInModel
            , UpdateTraces newTraces
            , SetGlobalVariables globals

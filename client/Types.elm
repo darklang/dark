@@ -118,18 +118,20 @@ type TimerAction = RefreshAnalysis
                  | CheckUrlHashPosition
 
 type alias GlobalVariable = String
-type alias RPCResult = ( List Toplevel
-                       , List Toplevel -- deleted
-                       , Traces
-                       , List GlobalVariable
-                       , List UserFunction
-                       , List TLID)
+type alias RPCResult = { toplevls: List Toplevel
+                       , deletedToplevels: List Toplevel -- deleted
+                       , newTraces: Traces
+                       , globals: List GlobalVariable
+                       , userFuncs: List UserFunction
+                       , unlockedDBs: List TLID
+                       }
 type alias DvalArgsHash = String
 type alias ExecuteFunctionRPCResult = (Dval, DvalArgsHash)
-type alias GetAnalysisResult = ( Traces
-                               , List GlobalVariable
-                               , List FourOhFour
-                               , List TLID)
+type alias GetAnalysisResult = { newTraces: Traces
+                               , globals: List GlobalVariable
+                               , f404s: List FourOhFour
+                               , unlockedDBs: List TLID
+                               }
 type alias InitialLoadResult = RPCResult
 type Msg
     = GlobalClick MouseEvent
