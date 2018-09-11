@@ -10,8 +10,6 @@ module PReq = Parsed_request
 module SE = Stored_event
 
 type canvas = Canvas.canvas
-type dval = RTT.dval
-let dval_to_yojson = Dval.unsafe_dval_to_yojson
 
 (* ------------------------- *)
 (* Non-execution analysis *)
@@ -183,7 +181,7 @@ let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
   |> Yojson.Safe.to_string ~std:true
 
 type execute_function_response =
-  { result : dval
+  { result : RTT.dval
   ; hash : string
   } [@@deriving to_yojson]
 
