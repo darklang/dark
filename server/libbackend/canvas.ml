@@ -139,7 +139,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       in
       apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
     | AddDBColToDBMigration (tlid, colid, typeid) ->
-      ident
+      apply_to_db ~f:(User_db.add_col_to_migration colid typeid) tlid
     | SetDBColNameInDBMigration (tlid, id, name) ->
       ident
     | SetDBColTypeInDBMigration (tlid, id, tipe) ->

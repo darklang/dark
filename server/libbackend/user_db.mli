@@ -35,3 +35,4 @@ val find_db : DbT.db list -> string -> DbT.db option
 val find_db_exn : DbT.db list -> string -> DbT.db
 
 val create_migration : id -> id -> DbT.col list -> DbT.db -> DbT.db
+val add_col_to_migration : id -> id -> DbT.db -> DbT.db
