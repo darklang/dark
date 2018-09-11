@@ -27,8 +27,7 @@ import Autocomplete
 
 view : Model -> Html.Html Msg
 view m =
-  let (w, h) = Util.windowSize ()
-      attributes =
+  let attributes =
         [ Attrs.id "grid"
         , Events.onWithOptions
         "mouseup"

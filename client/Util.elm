@@ -8,11 +8,6 @@ import Char
 import List.Extra as LE
 import Maybe.Extra as ME
 
-
--- windowSize : () -> (Int, Int)
--- windowSize a = let size = Native.Window.size a
---                in (size.width, size.height - 45) -- TODO: fix this
-
 -- TODO: Paul's hack
 random : () -> Int
 random a = 0
