@@ -947,7 +947,7 @@ let t_nothing () =
 
   ()
 
-let t_auth_then_handle_code_and_cookie () =
+let t_authenticate_then_handle_code_and_cookie () =
   (* basic auth headers *)
   let basic a b = Header.add_authorization (Header.init ()) (`Basic (a, b)) in
   (* sample execution id, makes grepping test logs easier *)
@@ -956,11 +956,10 @@ let t_auth_then_handle_code_and_cookie () =
   let ath_cookie (req : Req.t) : int * string option =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let%lwt (resp, _) =  Server.auth_then_handle
+       let%lwt (resp, _) =  Server.authenticate_then_handle
                               ~execution_id:test_id
                               req
-                              "test"
-                              (fun resp_headers ->
+                              (fun username resp_headers ->
                                 Server.respond
                                   ~resp_headers
                                   ~execution_id:test_id
@@ -978,7 +977,7 @@ let t_auth_then_handle_code_and_cookie () =
        |> (fun x -> return (code, x)))
   in
   AT.check (AT.list  (AT.pair AT.int (AT.option AT.string)))
-    "auth_then_handle sets status codes and cookies correctly"
+    "authenticate_then_handle sets status codes and cookies correctly"
     (List.map
        ~f:ath_cookie
 
@@ -1488,7 +1487,7 @@ let suite =
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ; "Handling nothing in code works", `Quick, t_nothing
-  ; "auth_then_handle sets status codes and cookies correctly ", `Quick, t_auth_then_handle_code_and_cookie
+  ; "authenticate_then_handle sets status codes and cookies correctly ", `Quick, t_authenticate_then_handle_code_and_cookie
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_v2_works

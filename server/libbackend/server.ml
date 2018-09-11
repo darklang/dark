@@ -387,27 +387,20 @@ let save_test_handler ~(execution_id: Types.id) host =
   let filename = C.save_test !g in
   respond ~execution_id `OK ("Saved as: " ^ filename)
 
+(* Checks for a cookie, prompts for basic auth if there isn't one,
+   returns Unauthorized if basic auth doesn't work.
 
-let auth_then_handle ~(execution_id: Types.id) req host handler =
+   Importantly this performs no authorization. Just authentication.
+
+   Also implements logout (!).
+
+   TODO instead of passing headers around, run the handler and then
+   add in the headers we want (if any).
+
+   TODO maybe a better way to pass the username around? *)
+let authenticate_then_handle ~(execution_id: Types.id) req handler =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
-  let run_handler ~auth_domain ~username headers =
-    let permission = Account.get_permissions ~auth_domain ~username () in
-    let permission_needed =
-      if (String.is_prefix ~prefix:"/ops/" path)
-      then `Operations
-      else `Edit
-    in
-    match (permission_needed, permission) with
-    | (_, Account.CanAccessOperations)
-      | (`None, _)
-      | (`Edit, Account.CanEdit) ->
-       handler headers
-    | _ -> respond ~execution_id `Unauthorized "Unauthorized"
-  in
-  (* only handle auth for admin routes *)
-  (* let users use their domain as a prefix for scratch work *)
-  let auth_domain = Account.auth_domain_for host in
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) ->
      if path = "/logout"
@@ -418,8 +411,7 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
             S.respond_redirect ~headers ~uri:(Uri.of_string "/ui") ())
      else
-       let username = Auth.Session.username_for session in
-       run_handler ~auth_domain ~username (Header.init ())
+       handler (Auth.Session.username_for session) (Header.init ())
   | _ ->
      match Header.get_authorization headers with
      | (Some (`Basic (username, password))) ->
@@ -434,7 +426,7 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
                   ~secure:https_only_cookie
                   Auth.Session.cookie_key session)
            in
-           run_handler ~auth_domain ~username headers
+           handler username headers
          else
            respond ~execution_id `Unauthorized "Bad credentials")
      | None ->
@@ -443,8 +435,11 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
         respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper
-  ~(body: string) (req: CRequest.t) resp_headers =
+      ~(body: string) (req: CRequest.t) username resp_headers =
   let verb = req |> CRequest.meth in
+  let path = Uri.path uri in
+
+  (* headers for different routes *)
   let json_hdrs hdrs =
     Header.add_list resp_headers
       (hdrs
@@ -464,70 +459,113 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ; ("Content-security-policy", "frame-ancestors 'none';")
       ]
   in
-  match (verb, Uri.path uri) with
-  | (`POST, "/api/rpc") ->
-    let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
-    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/api/initial_load") ->
-    let (resp_headers, response_body) = initial_load ~execution_id host body in
-    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/api/execute_function") ->
-    let (resp_headers, response_body) = execute_function ~execution_id host body in
-    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/api/get_analysis") ->
-    let (resp_headers, response_body) = get_analysis ~execution_id host body in
-    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
-  | (`POST, "/api/shutdown") when Config.allow_server_shutdown ->
-    Lwt.wakeup stopper ();
-    respond ~execution_id `OK "Disembowelment"
-  | (`POST, "/api/clear-benchmarking-data") ->
-    Db.delete_benchmarking_data ();
-    respond ~execution_id `OK "Cleared"
-  | (`POST, "/api/save_test") when Config.allow_test_routes ->
-     save_test_handler ~execution_id host
-  | (`GET, "/ui-debug") ->
-    let%lwt body = admin_ui_handler ~debug:true () in
-    respond
-      ~resp_headers:html_hdrs
-      ~execution_id
-      `OK body
-  | (`GET, "/ui") ->
-    let%lwt body = admin_ui_handler ~debug:false () in
-    respond
-      ~resp_headers:html_hdrs
-      ~execution_id
-      `OK body
-  | (`GET, "/integration_test") when Config.allow_test_routes ->
-    Canvas.load_and_resave_from_test_file host;
-    let%lwt body = admin_ui_handler ~debug:false () in
-    respond
-      ~resp_headers:html_hdrs
-      ~execution_id
-      `OK body
-  | (`POST, "/ops/migrate-all-canvases") ->
-    Canvas.migrate_all_hosts ();
-    respond ~execution_id `OK "Migrated"
-  | (`POST, "/ops/check-all-canvases") ->
-    Canvas.check_all_hosts ();
-    respond ~execution_id `OK "Checked"
-  | (`POST, "/ops/cleanup-old-traces") ->
-    Canvas.cleanup_old_traces ();
-    respond ~execution_id `OK "Cleanedup"
-  | (`GET, "/ops/check-all-canvases") ->
-    respond ~execution_id `OK "<html>
-    <body>
-    <form action='/admin/ops/check-all-canvases' method='post'>
-      <input type='submit' value='Check all canvases'>
-    </form>
-    <form action='/admin/ops/migrate-all-canvases' method='post'>
-      <input type='submit' value='Migrate all canvases'>
-    </form>
-    <form action='/admin/ops/cleanup-old-traces' method='post'>
-      <input type='submit' value='Cleanup old traces (done nightly by cron)'>
-    </form>
-    </body></html>"
-  | _ ->
-    respond ~execution_id `Not_found "Not found"
+  (* routing *)
+  if (String.is_prefix ~prefix:"/ops/" path)
+  then
+    if Account.can_access_operations username
+    then
+      match (verb, path) with
+      | (`POST, "/ops/migrate-all-canvases") ->
+         Canvas.migrate_all_hosts ();
+         respond ~execution_id `OK "Migrated"
+      | (`POST, "/ops/check-all-canvases") ->
+         Canvas.check_all_hosts ();
+         respond ~execution_id `OK "Checked"
+      | (`POST, "/ops/cleanup-old-traces") ->
+         Canvas.cleanup_old_traces ();
+         respond ~execution_id `OK "Cleanedup"
+      | (`GET, "/ops/check-all-canvases") ->
+         respond ~execution_id `OK "<html>
+         <body>
+         <form action='/admin/ops/check-all-canvases' method='post'>
+         <input type='submit' value='Check all canvases'>
+         </form>
+         <form action='/admin/ops/migrate-all-canvases' method='post'>
+         <input type='submit' value='Migrate all canvases'>
+         </form>
+         <form action='/admin/ops/cleanup-old-traces' method='post'>
+         <input type='submit' value='Cleanup old traces (done nightly by cron)'>
+         </form>
+         </body></html>"
+      | _ ->
+         respond ~execution_id `Not_found "Not found"
+    else
+      (* The duplication here is unfortunate, but we need to determine
+         whether we should 404 or 401. *)
+      match (verb, path) with
+      | (`POST, "/ops/migrate-all-canvases")
+      | (`POST, "/ops/check-all-canvases")
+      | (`GET, "/ops/check-all-canvases")
+      | (`POST, "/ops/cleanup-old-traces") ->
+          respond ~execution_id `Unauthorized "Unauthorized"
+      | _ ->
+         respond ~execution_id `Not_found "Not found"
+  else
+    (* canvas routes *)
+    if Account.can_edit_canvas ~auth_domain:(Account.auth_domain_for host) ~username
+    then
+      match (verb, path) with
+      | (`POST, "/api/rpc") ->
+         let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
+         respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+      | (`POST, "/api/initial_load") ->
+         let (resp_headers, response_body) = initial_load ~execution_id host body in
+         respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+      | (`POST, "/api/execute_function") ->
+         let (resp_headers, response_body) = execute_function ~execution_id host body in
+         respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+      | (`POST, "/api/get_analysis") ->
+         let (resp_headers, response_body) = get_analysis ~execution_id host body in
+         respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+      | (`POST, "/api/shutdown") when Config.allow_server_shutdown ->
+         Lwt.wakeup stopper ();
+         respond ~execution_id `OK "Disembowelment"
+      | (`POST, "/api/clear-benchmarking-data") ->
+         Db.delete_benchmarking_data ();
+         respond ~execution_id `OK "Cleared"
+      | (`POST, "/api/save_test") when Config.allow_test_routes ->
+         save_test_handler ~execution_id host
+      | (`GET, "/ui-debug") ->
+         let%lwt body = admin_ui_handler ~debug:true () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      | (`GET, "/ui") ->
+         let%lwt body = admin_ui_handler ~debug:false () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      | (`GET, "/integration_test") when Config.allow_test_routes ->
+         Canvas.load_and_resave_from_test_file host;
+         let%lwt body = admin_ui_handler ~debug:false () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      | _ -> respond ~execution_id `Not_found "Not found"
+    else
+      (* The duplication here is unfortunate, but we need to determine
+         whether we should 404 or 401. *)
+      match (verb, path) with
+      | (`POST, "/api/shutdown")
+        when Config.allow_server_shutdown
+        -> respond ~execution_id `Unauthorized "Unauthorized"
+
+      | (`POST, "/api/save_test")
+      | (`GET, "/integration_test")
+        when Config.allow_test_routes
+        -> respond ~execution_id `Unauthorized "Unauthorized"
+
+      | (`POST, "/api/rpc")
+      | (`POST, "/api/initial_load")
+      | (`POST, "/api/execute_function")
+      | (`POST, "/api/get_analysis")
+      | (`POST, "/api/clear-benchmarking-data")
+      | (`GET, "/ui-debug")
+      | (`GET, "/ui")
+      | _ -> respond ~execution_id `Not_found "Not found"
 
 (* -------------------------------------------- *)
 (* The server *)
@@ -715,7 +753,7 @@ let server () =
 
             | Some Admin ->
                (try
-                  auth_then_handle ~execution_id req host
+                  authenticate_then_handle ~execution_id req
                     (admin_handler ~execution_id ~host ~uri ~body ~stopper req)
                 with e ->  handle_error ~include_internals:false e)
             | None -> k8s_handler req ~execution_id ~stopper
