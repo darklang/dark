@@ -69,15 +69,20 @@ startMigration : DB -> Modification
 startMigration db =
   let newCols = db.cols
     |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
+      rb = B.new ()
+      rf = B.new ()
       migra =
         { startingVersion = db.version
         , version = db.version + 1
         , state = DBMigrationInitialized
-        , rollforward = B.new ()
-        , rollback = B.new ()
+        , rollforward = rb
+        , rollback = rf
         , cols = newCols }
       newDB = { db | activeMigration = Just migra }
-  in UpdateDB newDB
+  in Many
+    [ UpdateDB newDB,
+      RPC ([ CreateDBMigration db.tlid (B.toID rb) (B.toID rf) newCols ], FocusSame)
+    ]
 
 updateMigrationCol : DB -> ID -> String -> Modification
 updateMigrationCol db id val =
