@@ -164,6 +164,7 @@ viewGroup showLink showUndo (spacename, entries) =
         then
           case h.name of
             Just n ->
+              -- TODO point this to the real URL
               let source = String.join "" (h.prefix ++ [n]) in
               Html.a [ Attrs.class "external"
                      , Attrs.href source

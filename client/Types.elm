@@ -560,6 +560,7 @@ type alias Model = { error : DarkError
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
+                   , canvasName: String
                    }
 
 -- Values that we serialize
