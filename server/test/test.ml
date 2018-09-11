@@ -1303,7 +1303,7 @@ let t_db_queryOne_works () =
   check_dval "equal_after_roundtrip"
     (DOption
        (OptJust
-          (DObj ([("x", DStr "foo")] |> DvalMap.of_alist_exn))
+          (DObj (DvalMap.singleton "x" (DStr "foo")))
        )
     )
     (exec_handler ~ops ast)
@@ -1355,7 +1355,7 @@ let t_db_queryOneWithKey_works () =
        (OptJust
           (DList
              [DStr "first"
-             ;DObj ([("x", DStr "foo")] |> DvalMap.of_alist_exn)
+             ;DObj (DvalMap.singleton "x" (DStr "foo"))
              ]
           )
        )
