@@ -586,4 +586,36 @@ let add_col_to_migration nameid typeid db =
     in
     { db with active_migration = Some mutated_migration }
 
+let set_col_name_in_migration id name db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let set col =
+      match col with
+      | (Blank hid, tipe) when hid = id ->
+        (Filled (hid, name), tipe)
+      | (Filled (nameid, oldname), tipe) when nameid = id ->
+        (Filled (nameid, name), tipe)
+      | _ -> col in
+    let newcols = List.map ~f:set migration.cols in
+    let mutated_migration = { migration with cols = newcols } in
+    { db with active_migration = Some mutated_migration }
+
+let set_col_type_in_migration id tipe db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let set col =
+      match col with
+      | (name, Blank blankid) when blankid = id ->
+        (name, Filled (blankid, tipe))
+      | (name, Filled (tipeid, oldtipe)) when tipeid = id ->
+        (name, Filled (tipeid, tipe))
+      | _ -> col in
+    let newcols = List.map ~f:set migration.cols in
+    let mutated_migration = { migration with cols = newcols } in
+    { db with active_migration = Some mutated_migration }
+
 

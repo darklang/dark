@@ -36,3 +36,5 @@ val find_db_exn : DbT.db list -> string -> DbT.db
 
 val create_migration : id -> id -> DbT.col list -> DbT.db -> DbT.db
 val add_col_to_migration : id -> id -> DbT.db -> DbT.db
+val set_col_name_in_migration : id -> string -> DbT.db -> DbT.db
+val set_col_type_in_migration : id -> tipe -> DbT.db -> DbT.db

@@ -141,9 +141,9 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | AddDBColToDBMigration (tlid, colid, typeid) ->
       apply_to_db ~f:(User_db.add_col_to_migration colid typeid) tlid
     | SetDBColNameInDBMigration (tlid, id, name) ->
-      ident
+      apply_to_db ~f:(User_db.set_col_name_in_migration id name) tlid
     | SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      ident
+      apply_to_db ~f:(User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe)) tlid
     | SetExpr (tlid, id, e) ->
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid ->
