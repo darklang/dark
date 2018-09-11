@@ -29,9 +29,9 @@ val set_col_name : id -> string -> DbT.db -> DbT.db
 val set_col_type : id -> tipe -> DbT.db -> DbT.db
 val change_col_name : id -> string -> DbT.db -> DbT.db
 val change_col_type : id -> tipe -> DbT.db -> DbT.db
-val initialize_migration : id -> id -> id -> DbT.migration_kind -> DbT.db -> DbT.db
 val unlocked : Uuidm.t -> Uuidm.t -> DbT.db list -> DbT.db list
 
 val find_db : DbT.db list -> string -> DbT.db option
 val find_db_exn : DbT.db list -> string -> DbT.db
 
+val create_migration : id -> id -> DbT.col list -> DbT.db -> DbT.db

@@ -105,9 +105,17 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
     type migration_kind = DeprecatedMigrationKind
                           [@@deriving eq, compare, show, yojson, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+
+    type db_migration_state = DBMigrationAbandoned
+                            | DBMigrationInitialized
+                            [@@deriving eq, compare, show, yojson]
+
     type db_migration = { starting_version : int
+                        ; version: int
+                        ; state: db_migration_state
                         ; rollforward : expr
                         ; rollback : expr
+                        ; cols: col list
                         }
                         [@@deriving eq, compare, show, yojson]
     type db = { tlid: tlid
