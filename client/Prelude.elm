@@ -11,7 +11,7 @@ import Util
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
   let stringID = (String.fromInt (deTLID tlid)) ++ (String.fromInt idx)
-      intID = Result.withDefault 0 (String.toInt stringID)
+      intID = Maybe.withDefault 0 (String.toInt stringID)
   in
     (ID intID)
 
