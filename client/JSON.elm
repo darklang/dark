@@ -141,41 +141,13 @@ decodeBlankOr d =
 ------------------------------------
 decodePair : JSD.Decoder a -> JSD.Decoder b -> JSD.Decoder (a,b)
 decodePair d1 d2 =
-  JSD.map2 (,)
+  JSD.map2 Tuple.pair
     (JSD.index 0 d1)
     (JSD.index 1 d2)
 
 encodePair : (a -> JSE.Value) -> (b -> JSE.Value) -> (a, b) -> JSE.Value
 encodePair encA encB (a, b) =
-  JSE.list [encA a, encB b]
-
-decodeTriple : JSD.Decoder a -> JSD.Decoder b -> JSD.Decoder c ->
-  JSD.Decoder (a,b,c)
-decodeTriple d1 d2 d3 =
-  JSD.map3 (,,)
-    (JSD.index 0 d1)
-    (JSD.index 1 d2)
-    (JSD.index 2 d3)
-
-encodeTriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (a, b, c) -> JSE.Value
-encodeTriple encA encB encC (a, b, c) =
-  JSE.list [encA a, encB b, encC c]
-
-decodeQuadriple : JSD.Decoder a -> JSD.Decoder b -> JSD.Decoder c -> JSD.Decoder d ->
-  JSD.Decoder (a,b,c,d)
-decodeQuadriple d1 d2 d3 d4 =
-  JSD.map4 (,,,)
-    (JSD.index 0 d1)
-    (JSD.index 1 d2)
-    (JSD.index 2 d3)
-    (JSD.index 3 d4)
-
-encodeQuadriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (d -> JSE.Value) -> (a, b, c, d) -> JSE.Value
-encodeQuadriple encA encB encC encD (a, b, c, d) =
-  JSE.list [encA a, encB b, encC c, encD d]
-
-
-
+  JSE.list always [encA a, encB b]
 
 encodePos : Pos -> JSE.Value
 encodePos {x,y} =
@@ -189,13 +161,13 @@ encodeVPos {vx,vy} =
 
 decodePos : JSD.Decoder Pos
 decodePos =
-  JSDP.decode Pos
+  JSD.succeed Pos
   |> JSDP.required "x" JSD.int
   |> JSDP.required "y" JSD.int
 
 decodeVPos : JSD.Decoder VPos
 decodeVPos =
-  JSDP.decode VPos
+  JSD.succeed VPos
   |> JSDP.required "vx" JSD.int
   |> JSDP.required "vy" JSD.int
 
@@ -217,7 +189,7 @@ decodeException =
         , info=info
         , workarounds=workarounds }
   in
-  JSDP.decode toExc
+  JSD.succeed toExc
     |> JSDP.required "short" JSD.string
     |> JSDP.required "long" (JSD.maybe JSD.string)
     |> JSDP.required "tipe" JSD.string
@@ -238,7 +210,7 @@ encodeException e =
              , ( "result", JSEE.maybe JSE.string e.actual)
              , ( "result_tipe", JSEE.maybe JSE.string e.actual)
              , ( "expected", JSEE.maybe JSE.string e.actual)
-             , ( "info", JSEE.dict identity JSE.string e.info)
+             , ( "info", JSE.dict identity JSE.string e.info)
              , ( "workarounds", JSE.list (List.map JSE.string e.workarounds))
              ]
 
@@ -251,13 +223,13 @@ encodeList enc l =
 encodeHttpError : Http.Error -> JSE.Value
 encodeHttpError e =
   let encodeResponse r =
-      JSE.object [ ("url", JSE.string r.url)
-                 , ("status", JSE.object [ ("code", JSE.int r.status.code)
-                                         , ("message", JSE.string r.status.message)
-                                         ])
-                 , ("headers", JSEE.dict identity JSE.string r.headers)
-                 , ("body", JSE.string r.body)
-                 ]
+        JSE.object [ ("url", JSE.string r.url)
+                   , ("status", JSE.object [ ("code", JSE.int r.status.code)
+                                           , ("message", JSE.string r.status.message)
+                                           ])
+                   , ("headers", JSE.dict identity JSE.string r.headers)
+                   , ("body", JSE.string r.body)
+                   ]
   in
   case e of
     Http.BadUrl url ->
@@ -277,5 +249,3 @@ encodeHttpError e =
                  , ("message", JSE.string msg)
                  , ("response", encodeResponse response)
                  ]
-
-

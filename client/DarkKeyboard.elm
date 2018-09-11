@@ -16,7 +16,7 @@ decodeDarkKeyboardEvent =
                                                    , selectionEnd = selectionEnd
                                                    }
   in
-    JSDP.decode toDEvent
+    JSD.succeed toDEvent
     |> JSDP.requiredAt [] Keyboard.Event.decodeKeyboardEvent
     |> JSDP.optionalAt ["target", "selectionStart"] (JSD.map Just JSD.int) Nothing
     |> JSDP.optionalAt ["target", "selectionEnd"] (JSD.map Just JSD.int) Nothing
