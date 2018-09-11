@@ -129,7 +129,15 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
       ident
     | CreateDBMigration (tlid, rbid, rfid, cols) ->
-      ident
+      let typed_cols =
+        List.map
+          cols
+          ~f:(fun (n, t) ->
+              (match t with
+               | Filled (id, ts) -> (n, Filled (id, (Dval.tipe_of_string ts)))
+               | Blank id as b -> (n, b)))
+      in
+      apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
     | AddDBColToDBMigration (tlid, colid, typeid) ->
       ident
     | SetDBColNameInDBMigration (tlid, id, name) ->

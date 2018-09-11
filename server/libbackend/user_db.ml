@@ -555,7 +555,24 @@ let change_col_type id newtipe db =
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
-(* deprecated *)
-let initialize_migration id rbid rfid kind (db : db) =
-  db
+let create_migration rbid rfid cols db =
+  match db.active_migration with
+  | Some migration ->
+    Exception.internal "TODO(ian)"
+  | None ->
+    let max_version =
+      db.old_migrations
+      |> List.map
+        ~f:(fun m -> m.version)
+      |> List.fold_left ~init:0 ~f:max
+    in
+    { db with active_migration =
+      Some { starting_version = db.version
+           ; version = max_version + 1
+           ; cols = cols
+           ; state = DBMigrationInitialized
+           ; rollback = Blank rbid
+           ; rollforward = Blank rfid
+           }
+    }
 
