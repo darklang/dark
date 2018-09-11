@@ -8,6 +8,7 @@ import Html.Attributes as Attrs
 
 -- dark
 import Blank as B
+import DB exposing (isMigrationLockReady)
 import Types exposing (..)
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
@@ -74,13 +75,20 @@ viewDBMigration migra db vs =
       funcs = 
         [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
         , viewMigraFuncs vs migra.rollback "Rollback"  "newObj" ]
+      lockReady = isMigrationLockReady migra
+      errorMsg =
+        if (not lockReady)
+        then [ Html.div
+          [ Attrs.class "col err" ]
+          [ Html.text "Fill in rollback and rollforward functions to activate your migration" ] ]
+        else []
       cancelBtn =
         Html.button
           [ Attrs.disabled False
           , eventNoPropagation "click" (\_ -> CancelMigration db) ]
           [ Html.text "cancel"]
       migrateBtn =
-        Html.button [Attrs.disabled True] [ Html.text "migration"]
+        Html.button [Attrs.disabled (not lockReady)] [ Html.text "activate"]
       actions =
         [ Html.div
           [Attrs.class "col actions"]
@@ -88,7 +96,7 @@ viewDBMigration migra db vs =
         ]
   in Html.div
     [ Attrs.class "db migration-view" ]
-    (name :: cols ++ funcs ++ actions)
+    (name :: cols ++ funcs ++ errorMsg ++ actions)
 
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
