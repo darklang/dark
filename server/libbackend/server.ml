@@ -5,6 +5,7 @@ open Lwt
 module Clu = Cohttp_lwt_unix
 module S = Clu.Server
 module CRequest = Clu.Request
+module CResponse = Clu.Response
 module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
 
@@ -96,6 +97,16 @@ let redirect_to uri =
   if proto = "http" && should_use_https uri
   then Some "https" |> Uri.with_scheme uri |> Some
   else None
+
+(* there might be some better way to do this... *)
+let over_headers (r : CResponse.t) ~(f : Header.t -> Header.t) : CResponse.t  =
+  CResponse.make
+    ~version:(CResponse.version r)
+    ~status:(CResponse.status r)
+    ~flush:(CResponse.flush r)
+    ~encoding:(CResponse.encoding r)
+    ~headers:(r |> CResponse.headers |> f)
+    ()
 
 (* -------------------------------------------- *)
 (* handlers for end users *)
@@ -380,7 +391,7 @@ let admin_ui_handler ~(debug:bool) () =
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{ELMDEBUG}" (if debug
                                       then "-debug"
-                                      else "")
+                                        else "")
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
@@ -393,9 +404,6 @@ let save_test_handler ~(execution_id: Types.id) host =
    Importantly this performs no authorization. Just authentication.
 
    Also implements logout (!).
-
-   TODO instead of passing headers around, run the handler and then
-   add in the headers we want (if any).
 
    TODO maybe a better way to pass the username around? *)
 let authenticate_then_handle ~(execution_id: Types.id) req handler =
@@ -411,7 +419,7 @@ let authenticate_then_handle ~(execution_id: Types.id) req handler =
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
             S.respond_redirect ~headers ~uri:(Uri.of_string "/ui") ())
      else
-       handler (Auth.Session.username_for session) (Header.init ())
+       handler (Auth.Session.username_for session)
   | _ ->
      match Header.get_authorization headers with
      | (Some (`Basic (username, password))) ->
@@ -419,14 +427,13 @@ let authenticate_then_handle ~(execution_id: Types.id) req handler =
          then
            let%lwt session = Auth.Session.new_for_username username in
            let https_only_cookie = req |> CRequest.uri |> should_use_https in
-           let headers =
-             Header.of_list
-               (Auth.Session.to_cookie_hdrs
-                  ~http_only:true
-                  ~secure:https_only_cookie
-                  Auth.Session.cookie_key session)
+           let headers = Auth.Session.to_cookie_hdrs
+                           ~http_only:true
+                           ~secure:https_only_cookie
+                           Auth.Session.cookie_key session
            in
-           handler username headers
+           let%lwt (resp, body) = handler username in
+           return (over_headers ~f:(fun h -> Header.add_list h headers) resp, body)
          else
            respond ~execution_id `Unauthorized "Bad credentials")
      | None ->
@@ -435,19 +442,17 @@ let authenticate_then_handle ~(execution_id: Types.id) req handler =
         respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper
-      ~(body: string) (req: CRequest.t) username resp_headers =
+      ~(body: string) (req: CRequest.t) username =
   let verb = req |> CRequest.meth in
   let path = Uri.path uri in
 
   (* headers for different routes *)
-  let json_hdrs hdrs =
-    Header.add_list resp_headers
-      (hdrs
-       |> Header.to_list
-       |> List.cons ("Content-type",  "application/json; charset=utf-8"))
+  let json_hdrs h =
+    Header.add_list h
+      [("Content-type",  "application/json; charset=utf-8") ]
   in
   let html_hdrs =
-    Header.add_list resp_headers
+    Header.of_list
       [ ("Content-type", "text/html; charset=utf-8")
       (* Don't allow any other websites to put this in an iframe;
          this prevents "clickjacking" at tacks.

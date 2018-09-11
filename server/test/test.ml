@@ -959,9 +959,8 @@ let t_authenticate_then_handle_code_and_cookie () =
        let%lwt (resp, _) =  Server.authenticate_then_handle
                               ~execution_id:test_id
                               req
-                              (fun username resp_headers ->
+                              (fun username ->
                                 Server.respond
-                                  ~resp_headers
                                   ~execution_id:test_id
                                   `OK
                                   "test handler") in
