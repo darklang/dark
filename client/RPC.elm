@@ -766,19 +766,18 @@ decodeInputValueDict =
 
 decodeFunctionResult : JSD.Decoder FunctionResult
 decodeFunctionResult =
-  let toFunctionResult (fnName, id, hash, value) =
+  let toFunctionResult fnName id hash value =
         { fnName = fnName
         , callerID = id
         , argHash = hash
         , value = value
         }
   in
-  JSD.map toFunctionResult
-    (JSON.decodeQuadriple
-      JSD.string
-      decodeID
-      JSD.string
-      decodeDval)
+  JSD.map4 toFunctionResult
+      JSD.index 0 JSD.string
+      JSD.index 1 decodeID
+      JSD.index 2 JSD.string
+      JSD.index 3 decodeDval
 
 decodeTraces : JSD.Decoder Traces
 decodeTraces =
@@ -822,7 +821,7 @@ decodeExecuteFunctionTarget =
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,,,,,)
+  JSDP.decode RPCResult
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "new_traces" decodeTraces
@@ -832,7 +831,7 @@ decodeRPC =
 
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisResult
 decodeGetAnalysisRPC =
-  JSDP.decode (,,,)
+  JSDP.decode GetAnalysisResult
   |> JSDP.required "traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
@@ -983,6 +982,3 @@ decodeDval =
   , JSD.map DList (JSD.list dd)
   , JSD.map processObject (JSD.dict dd)
   ]
-
-
-

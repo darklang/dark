@@ -19,7 +19,7 @@ import Types exposing (..)
 ------------------------------------
 encodeVariant : String -> List JSE.Value -> JSE.Value
 encodeVariant name vals =
-  JSE.list (JSE.string name :: vals)
+  JSE.list identity (JSE.string name :: vals)
 
 decodeVariant5 : (b -> c -> d -> e -> f -> a) ->
                  JSD.Decoder b ->
@@ -147,7 +147,7 @@ decodePair d1 d2 =
 
 encodePair : (a -> JSE.Value) -> (b -> JSE.Value) -> (a, b) -> JSE.Value
 encodePair encA encB (a, b) =
-  JSE.list always [encA a, encB b]
+  JSE.list identity [encA a, encB b]
 
 encodePos : Pos -> JSE.Value
 encodePos {x,y} =
@@ -211,13 +211,13 @@ encodeException e =
              , ( "result_tipe", JSEE.maybe JSE.string e.actual)
              , ( "expected", JSEE.maybe JSE.string e.actual)
              , ( "info", JSE.dict identity JSE.string e.info)
-             , ( "workarounds", JSE.list (List.map JSE.string e.workarounds))
+             , ( "workarounds", JSE.list JSE.string e.workarounds)
              ]
 
 encodeList : (a -> JSE.Value) -> List a -> JSE.Value
 encodeList enc l =
   List.map enc l
-  |> JSE.list
+  |> JSE.list identity
 
 
 encodeHttpError : Http.Error -> JSE.Value
