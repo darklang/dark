@@ -91,8 +91,6 @@ jobs:
           key: v1-build-{{ checksum "today-timestamp" }}
 
 
-      # TODO: actually wait until the container is waiting rather than
-      # relying on caches taking their time
       - run: scripts/run-in-docker integration-tests/run.sh
 
       - run:
