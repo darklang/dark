@@ -74,6 +74,9 @@ jobs:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
 
+      # The 2nd invocation of builder isn't free.
+      - run: scripts/wait-until-server-ready.sh
+
       - run:
           name: Copy out caches
           when: always
