@@ -403,10 +403,8 @@ let save_test_handler ~(execution_id: Types.id) host =
 
    Importantly this performs no authorization. Just authentication.
 
-   Also implements logout (!).
-
-   TODO maybe a better way to pass the username around? *)
-let authenticate_then_handle ~(execution_id: Types.id) req handler =
+   Also implements logout (!). *)
+let authenticate_then_handle ~(execution_id: Types.id) handler req =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
   match%lwt Auth.Session.of_request req with
@@ -419,7 +417,7 @@ let authenticate_then_handle ~(execution_id: Types.id) req handler =
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
             S.respond_redirect ~headers ~uri:(Uri.of_string "/ui") ())
      else
-       handler (Auth.Session.username_for session)
+       handler ~username:(Auth.Session.username_for session) req
   | _ ->
      match Header.get_authorization headers with
      | (Some (`Basic (username, password))) ->
@@ -432,7 +430,7 @@ let authenticate_then_handle ~(execution_id: Types.id) req handler =
                            ~secure:https_only_cookie
                            Auth.Session.cookie_key session
            in
-           let%lwt (resp, body) = handler username in
+           let%lwt (resp, body) = handler ~username req in
            return (over_headers ~f:(fun h -> Header.add_list h headers) resp, body)
          else
            respond ~execution_id `Unauthorized "Bad credentials")
@@ -442,7 +440,7 @@ let authenticate_then_handle ~(execution_id: Types.id) req handler =
         respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper
-      ~(body: string) (req: CRequest.t) username =
+      ~(body: string) ~(username:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
   let path = Uri.path uri in
 
@@ -758,8 +756,9 @@ let server () =
 
             | Some Admin ->
                (try
-                  authenticate_then_handle ~execution_id req
-                    (admin_handler ~execution_id ~host ~uri ~body ~stopper req)
+                  authenticate_then_handle ~execution_id
+                    (admin_handler ~execution_id ~host ~uri ~body ~stopper)
+                    req
                 with e ->  handle_error ~include_internals:false e)
             | None -> k8s_handler req ~execution_id ~stopper
     with e -> handle_error ~include_internals:false e

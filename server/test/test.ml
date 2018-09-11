@@ -952,18 +952,19 @@ let t_authenticate_then_handle_code_and_cookie () =
   let basic a b = Header.add_authorization (Header.init ()) (`Basic (a, b)) in
   (* sample execution id, makes grepping test logs easier *)
   let test_id = Types.id_of_int 1234 in
+  (* uri doesn't matter very much since this should be uri-agnostic *)
   (* takes a req, returns the status code and the  parameters for Set-cookie: __session=whatever; [...] *)
   let ath_cookie (req : Req.t) : int * string option =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt (resp, _) =  Server.authenticate_then_handle
                               ~execution_id:test_id
-                              req
-                              (fun username ->
+                              (fun ~username req ->
                                 Server.respond
                                   ~execution_id:test_id
                                   `OK
-                                  "test handler") in
+                                  "test handler")
+                              req in
        let code = resp |> Resp.status |> Code.code_of_status in
        resp
        |> Resp.headers
@@ -980,22 +981,23 @@ let t_authenticate_then_handle_code_and_cookie () =
     (List.map
        ~f:ath_cookie
 
-       (* valid basic auth login on builtwithdark.com *)
-       [ Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-           (Uri.of_string "http://test.builtwithdark.com/ui")
+       (* valid basic auth login on darklang.com *)
+       [  Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+            (Uri.of_string "http://darklang.com/a/test")
 
        (* valid basic auth login on localhost *)
-       ; Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-           (Uri.of_string "http://test.localhost/ui")
+        ; Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+            (Uri.of_string "http://darklang.localhost/a/test")
 
        (* invalid basic auth logins *)
        ; Req.make ~headers:(basic "test" "")
-           (Uri.of_string "http://test.builtwithdark.com/ui")
+           (Uri.of_string "http://darklang.com/a/test")
+
        ; Req.make ~headers:(basic "" "fVm2CUePzGKCwoEQQdNJktUQ")
-           (Uri.of_string "http://test.builtwithdark.com/ui")
+           (Uri.of_string "http://darklang.com/a/test")
 
        (* plain request, no auth *)
-       ; Req.make (Uri.of_string "http://test.builtwithdark.com/ui")
+       ; Req.make (Uri.of_string "http://test.builtwithdark.com/a/test")
     ])
 
     [ 200, Some "Max-Age=604800; secure; httponly"
