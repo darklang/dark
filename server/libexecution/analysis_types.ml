@@ -4,9 +4,6 @@ open Libcommon
 open Types
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
-open Dval
-let dval_of_yojson = unsafe_dval_of_yojson
-let dval_to_yojson = unsafe_dval_to_yojson
 
 module RT = Runtime
 module PReq = Parsed_request
