@@ -39,7 +39,7 @@ fetch m =
   if (not m.syncState.inFlight)
       || (timedOut m.syncState)
   then
-    ((markRequestInModel m), RPC.getAnalysisRPC (toAnalyse m))
+    ((markRequestInModel m), RPC.getAnalysisRPC m.canvasName (toAnalyse m))
   else
     ((markTickInModel m), Cmd.none)
 

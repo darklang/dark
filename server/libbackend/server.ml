@@ -444,7 +444,6 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
 
 let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
       ~(body: string) ~(username:string) (req: CRequest.t) =
-  let canvas = "lizzie" in
   let verb = req |> CRequest.meth in
   let path = uri
              |> Uri.path
@@ -526,9 +525,9 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
     | (`POST, [ "api" ; "clear-benchmarking-data" ] ) ->
        Db.delete_benchmarking_data ();
        respond ~execution_id `OK "Cleared"
-    | (`POST, [ "api" ; "save_test" ]) when Config.allow_test_routes ->
+    | (`POST, [ "api" ; canvas; "save_test" ]) when Config.allow_test_routes ->
        save_test_handler ~execution_id canvas
-    | (`GET, [ "integration_test" ]) when Config.allow_test_routes ->
+    | (`GET, [ canvas ; "integration_test" ]) when Config.allow_test_routes ->
        when_can_edit ~canvas
          (fun _ ->
            Canvas.load_and_resave_from_test_file canvas;
@@ -539,23 +538,22 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
              `OK body)
 
     (* Canvas API *)
-    (* TODO all of these need to derive the canvas name somehow *)
-    | (`POST, [ "api" ; "rpc" ]) ->
+    | (`POST, [ "api" ; canvas ;  "rpc" ]) ->
        when_can_edit ~canvas
          (fun _ ->
            let (resp_headers, response_body) = admin_rpc_handler ~execution_id canvas body in
            respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
-    | (`POST, [ "api" ; "initial_load" ]) ->
+    | (`POST, [ "api" ; canvas ; "initial_load" ]) ->
        when_can_edit ~canvas
          (fun _ ->
            let (resp_headers, response_body) = initial_load ~execution_id canvas body in
            respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
-    | (`POST, [ "api" ; "execute_function" ]) ->
+    | (`POST, [ "api" ; canvas ; "execute_function" ]) ->
        when_can_edit ~canvas
          (fun _ ->
            let (resp_headers, response_body) = execute_function ~execution_id canvas body in
            respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
-    | (`POST, [ "api" ; "get_analysis" ]) ->
+    | (`POST, [ "api" ; canvas ; "get_analysis" ]) ->
        when_can_edit ~canvas
          (fun _ ->
            let (resp_headers, response_body) = get_analysis ~execution_id canvas body in

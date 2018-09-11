@@ -123,3 +123,10 @@ changeLocation m loc =
         _ -> SetPage (Fn id pos)
     Just page -> SetPage page
     _ -> NoChange
+
+parseCanvasName : Navigation.Location -> String
+parseCanvasName loc = loc.pathname
+                |> String.dropLeft 1 -- remove leading "/"
+                |> String.split "/"
+                |> List.head
+                |> Maybe.withDefault "builtwithdark"
