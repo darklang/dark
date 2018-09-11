@@ -12,9 +12,10 @@ import Maybe.Extra as ME
 -- windowSize : () -> (Int, Int)
 -- windowSize a = let size = Native.Window.size a
 --                in (size.width, size.height - 45) -- TODO: fix this
---
--- random : () -> Int
--- random a = Native.Random.random a
+
+-- TODO: Paul's hack
+random : () -> Int
+random a = 0
 --
 -- htmlSize : String -> (Float, Float)
 -- htmlSize str = let size = Native.Size.size str
@@ -26,11 +27,11 @@ toIntWithDefault d s =
   |> String.toInt
   |> Maybe.withDefault d
 
--- reContains : String -> String -> Bool
--- reContains  re s = Regex.contains (Regex.regex re) s
---
--- reExactly : String -> String -> Bool
--- reExactly re s = reContains ("^" ++ re ++ "$") s
+reContains : String -> String -> Bool
+reContains  re s = Regex.contains (regex re) s
+
+reExactly : String -> String -> Bool
+reExactly re s = reContains ("^" ++ re ++ "$") s
 
 replace : String -> String -> String -> String
 replace re repl str = Regex.replace (regex re) (\_ -> repl) str
