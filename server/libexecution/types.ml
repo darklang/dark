@@ -261,7 +261,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
     | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
-    | DDB of DbT.db
+    | DDB of string
     | DID of uuid
     | DDate of time
     | DTitle of string

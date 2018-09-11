@@ -5,6 +5,11 @@ open Lib
 open Runtime
 open Types.RuntimeT
 
+let find_db (dbs: DbT.db list) (name: string) : DbT.db =
+  dbs
+  |> List.filter ~f:(fun db -> db.name = name)
+  |> List.hd_exn
+
 let fetch_by_field ~state fieldname fieldvalue db =
   if fieldname = "id"
   then
@@ -26,7 +31,8 @@ let replacements =
   ( "DB::insert"
   , InProcess
       (function
-          | (state, [DObj value; DDB db]) ->
+          | (state, [DObj value; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let key = Util.create_uuid () in
             ignore
               (User_db.set
@@ -41,7 +47,8 @@ let replacements =
   ( "DB::delete"
   , InProcess
       (function
-          | (state, [DObj vals; DDB db]) ->
+          | (state, [DObj vals; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let key =
               match Map.find_exn vals "id" with
               | DID id -> Uuidm.to_string id
@@ -55,7 +62,8 @@ let replacements =
   ( "DB::deleteAll"
   , InProcess
       (function
-          | (state, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.delete_all state db;
             DNull
           | args -> fail args))
@@ -64,7 +72,8 @@ let replacements =
   ( "DB::update"
   , InProcess
       (function
-          | (state, [DObj vals; DDB db]) ->
+          | (state, [DObj vals; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.update state db vals;
             DObj vals
           | args -> fail args))
@@ -73,7 +82,8 @@ let replacements =
   ( "DB::fetchBy"
   , InProcess
       (function
-          | (state, [value; DStr field; DDB db]) ->
+          | (state, [value; DStr field; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let result = fetch_by_field ~state field value db in
             User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
           | args -> fail args))
@@ -82,7 +92,8 @@ let replacements =
   ( "DB::fetchOneBy"
   , InProcess
       (function
-          | (state, [value; DStr field; DDB db]) ->
+          | (state, [value; DStr field; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let result = fetch_by_field ~state field value db in
             (match result with
              | DList (x :: xs) ->
@@ -96,7 +107,8 @@ let replacements =
   ( "DB::fetchByMany"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             map
             |> DvalMap.to_alist
             |> User_db.query ~state ~magic:true db
@@ -107,7 +119,8 @@ let replacements =
   ( "DB::fetchOneByMany"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let result =
               User_db.query ~state ~magic:true db (DvalMap.to_alist map)
             in
@@ -125,7 +138,8 @@ let replacements =
   ( "DB::fetchAll"
   , InProcess
       (function
-          | (state, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let result = User_db.get_all ~state ~magic:true db in
             User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
           | args -> fail args))
@@ -134,7 +148,8 @@ let replacements =
   ( "DB::keys"
   , InProcess
       (function
-          | (_, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.cols_for db
             |> List.map ~f:(fun (k,v) -> DStr k)
             |> DList
@@ -144,7 +159,8 @@ let replacements =
   ( "DB::schema"
   , InProcess
       (function
-          | (_, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.cols_for db
             |> List.map ~f:(fun (k,v) -> (k, DStr (Dval.tipe_to_string v)))
             |> Dval.to_dobj

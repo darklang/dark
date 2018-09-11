@@ -1,17 +1,21 @@
 open Core_kernel
-open Libexecution
 
-open Lib
-open Runtime
-open Types.RuntimeT
+open Libexecution.Lib
+open Libexecution.Runtime
+open Libexecution.Types.RuntimeT
 
+module Exception = Libexecution.Exception
+module Dval = Libexecution.Dval
+
+let find_db = Libdb.find_db
 
 let replacements = [
 
   ( "DB::set_v1"
     , InProcess
         (function
-          | (state, [DObj value; DStr key; DDB db]) ->
+          | (state, [DObj value; DStr key; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             ignore (User_db.set ~state ~magic:false ~upsert:true db key value);
             DObj value
           | args -> fail args))
@@ -20,8 +24,9 @@ let replacements = [
   ( "DB::get_v1"
   , InProcess
       (function
-          | (state, [DStr key; DDB db]) ->
+          | (state, [DStr key; DDB dbname]) ->
             (try
+            let db = find_db state.dbs dbname in
                DOption (OptJust (User_db.get ~state ~magic:false db key))
              with
              | Exception.DarkException e when e.tipe = Exception.DarkStorage ->
@@ -33,7 +38,8 @@ let replacements = [
   ( "DB::getMany_v1"
   , InProcess
       (function
-          | (state, [DList keys; DDB db]) ->
+          | (state, [DList keys; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             let skeys =
               List.map
                 ~f:(function
@@ -51,7 +57,8 @@ let replacements = [
   ( "DB::delete_v1"
   , InProcess
       (function
-          | (state, [DStr key; DDB db]) ->
+          | (state, [DStr key; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.delete ~state db key;
             DNull
           | args -> fail args))
@@ -60,7 +67,8 @@ let replacements = [
   ( "DB::deleteAll_v1"
   , InProcess
       (function
-          | (state, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.delete_all state db;
             DNull
           | args -> fail args))
@@ -69,7 +77,8 @@ let replacements = [
   ( "DB::query_v1"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             map
             |> DvalMap.to_alist
             |> User_db.query ~state ~magic:false db
@@ -79,7 +88,8 @@ let replacements = [
   ( "DB::getAll_v1"
   , InProcess
       (function
-          | (state, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.get_all ~state ~magic:false db
           | args -> fail args))
 
@@ -88,7 +98,8 @@ let replacements = [
   ( "DB::schemaFields_v1"
   , InProcess
       (function
-          | (_, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.cols_for db
             |> List.map ~f:(fun (k,v) -> DStr k)
             |> DList
@@ -98,7 +109,8 @@ let replacements = [
   ( "DB::schema_v1"
   , InProcess
       (function
-          | (_, [DDB db]) ->
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             User_db.cols_for db
             |> List.map ~f:(fun (k,v) -> (k, DStr (Dval.tipe_to_string v)))
             |> Dval.to_dobj
