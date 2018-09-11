@@ -8,37 +8,35 @@ import Char
 import List.Extra as LE
 import Maybe.Extra as ME
 
--- dark
--- import Native.Window
--- import Native.Random
--- import Native.Size
--- import Native.Cache
 
-windowSize : () -> (Int, Int)
-windowSize a = let size = Native.Window.size a
-               in (size.width, size.height - 45) -- TODO: fix this
-
-random : () -> Int
-random a = Native.Random.random a
-
-htmlSize : String -> (Float, Float)
-htmlSize str = let size = Native.Size.size str
-               in (size.width, size.height)
+-- windowSize : () -> (Int, Int)
+-- windowSize a = let size = Native.Window.size a
+--                in (size.width, size.height - 45) -- TODO: fix this
+--
+-- random : () -> Int
+-- random a = Native.Random.random a
+--
+-- htmlSize : String -> (Float, Float)
+-- htmlSize str = let size = Native.Size.size str
+--                in (size.width, size.height)
 
 toIntWithDefault : Int -> String -> Int
 toIntWithDefault d s =
   s
   |> String.toInt
-  |> Result.withDefault d
+  |> Maybe.withDefault d
 
-reContains : String -> String -> Bool
-reContains  re s = Regex.contains (Regex.regex re) s
-
-reExactly : String -> String -> Bool
-reExactly re s = reContains ("^" ++ re ++ "$") s
+-- reContains : String -> String -> Bool
+-- reContains  re s = Regex.contains (Regex.regex re) s
+--
+-- reExactly : String -> String -> Bool
+-- reExactly re s = reContains ("^" ++ re ++ "$") s
 
 replace : String -> String -> String -> String
-replace re repl str = Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str
+replace re repl str = Regex.replace (regex re) (\_ -> repl) str
+
+regex : String -> Regex.Regex
+regex str = Regex.fromString str |> Maybe.withDefault Regex.never
 
 findIndex : (a -> Bool) -> List a -> Maybe (Int, a)
 findIndex fn l =

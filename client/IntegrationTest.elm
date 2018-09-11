@@ -13,7 +13,6 @@ import Blank as B
 import Pointer as P
 import AST
 import Analysis
-import Nineteen.Debug as Debug
 
 
 trigger : String -> IntegrationTestState

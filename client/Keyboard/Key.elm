@@ -73,7 +73,7 @@ type Side = LeftHand | RightHand
 {-| Transform a Int to a Key -}
 -- TODO | - Use array instead?
 fromCode : Int -> Key
-fromCode code = case code of
+fromCode c = case c of
 
   --
   8 -> Backspace
@@ -193,7 +193,7 @@ fromCode code = case code of
   145 -> ScrollLock
 
   -- Miscellaneous
-  _ -> Unknown code
+  _ -> Unknown c
 
 
 {-| Attempts to transform a key into a keycode -}
@@ -279,7 +279,7 @@ code key = case key of
   Z -> Just 90
 
   -- System
-  Ambiguous choices -> if List.all (flip List.member [Windows, Command, ChromeSearch]) choices then Just 91 else Nothing
+  Ambiguous choices -> if List.all ((\f a b -> f b a) List.member [Windows, Command, ChromeSearch]) choices then Just 91 else Nothing
   Windows -> Just 91
   Command -> Just 91
   ChromeSearch -> Just 91
