@@ -374,6 +374,3 @@ enter m tlid id =
           DB.initFieldTypeMigration m tl d
         else enterMods
       pd -> enterMods
-
-
-

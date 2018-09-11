@@ -145,6 +145,3 @@ getArguments m tlid traceID callerID =
   if List.length dvals == List.length argIDs
   then Just dvals
   else Nothing
-
-
-

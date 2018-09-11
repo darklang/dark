@@ -132,7 +132,7 @@ decodeClickEvent fn =
   let toA : Int -> Int -> Int -> a
       toA px py button =
         fn {pos= {vx=px, vy=py}, button = button}
-  in JSDP.decode toA
+  in JSD.succeed toA
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int

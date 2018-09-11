@@ -96,4 +96,3 @@ newFromClipboard m pos =
       handler = { ast = ast, spec = spec, tlid = nid }
   in
       RPC ([SetHandler nid pos handler], FocusNext nid Nothing)
-

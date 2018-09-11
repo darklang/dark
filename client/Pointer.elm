@@ -158,4 +158,3 @@ strmap fn pd =
     PFnName d -> PFnName (fn FnName d)
     PParamName d -> PParamName (fn ParamName d)
     PParamTipe _ -> pd
-

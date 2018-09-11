@@ -63,4 +63,3 @@ toggle m id isExpanded =
   TweakModel (\m -> {
     m | featureFlags = Dict.insert (deID id) isExpanded m.featureFlags
   })
-  
