@@ -677,13 +677,13 @@ decodeDBMigration =
 decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB tlid name cols version old active =
-        { tlid = TLID tlid
-        , name = name
-        , cols = cols
-        , version = version
-        , oldMigrations = old
-        , activeMigration = active
-        }
+      { tlid = TLID tlid
+      , name = name
+      , cols = cols
+      , version = version
+      , oldMigrations = old
+      , activeMigration = active
+      }
   in
   JSDP.decode toDB
   |> JSDP.required "tlid" JSD.int

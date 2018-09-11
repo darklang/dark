@@ -67,7 +67,7 @@ viewMigraFuncs vs expr fnName varName =
       ]
     , viewExpr 0 vs [] expr ]
 
-viewDBMigration : DBSchemaMigration -> DB -> ViewState -> Html.Html Msg
+viewDBMigration : DBMigration -> DB -> ViewState -> Html.Html Msg
 viewDBMigration migra db vs =
   let name = viewDBName db.name (migra.version)
       cols = (List.map (viewDBCol vs True db.tlid) migra.cols)
@@ -93,7 +93,7 @@ viewDBMigration migra db vs =
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
   let locked =
-          if vs.dbLocked && (db.newMigration == Nothing)
+          if vs.dbLocked && (db.activeMigration == Nothing)
           then
             Html.div
               [ eventNoPropagation "click" (\_ -> StartMigration db) ]
@@ -106,7 +106,7 @@ viewDB vs db =
         else db.cols
       coldivs = List.map (viewDBCol vs False db.tlid) cols
       migrationView =
-        case db.newMigration of
+        case db.activeMigration of
           Just migra -> [viewDBMigration migra db vs]
           Nothing -> []
   in
