@@ -42,11 +42,11 @@ replace re repl str = Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str
 
 findIndex : (a -> Bool) -> List a -> Maybe (Int, a)
 findIndex fn l =
-  LE.find (\(_, a) -> fn a) (List.indexedMap (,) l)
+  LE.find (\(_, a) -> fn a) (List.indexedMap Tuple.pair l)
 
 
 zip : List a -> List b -> List (a, b)
-zip a b = List.map2 (,) a b
+zip a b = List.map2 Tuple.pair a b
 
 resultIsOk : Result a b -> Bool
 resultIsOk r =
@@ -131,20 +131,20 @@ listNextWrap a l =
   |> listNext a
   |> ME.orElse (List.head l)
 
-cacheSet : k -> v -> Maybe v
-cacheSet k v =
-  -- let _ = Debug.log "setting cache" k in
-  Native.Cache.set k v
-
-cacheGet : k -> v
-cacheGet k =
-  -- let _ = Debug.log "reading cache" k in
-  Native.Cache.get k
-
-cacheClear : k -> ()
-cacheClear k =
-  -- let _ = Debug.log "clearing cache" k in
-  Native.Cache.clear k
+-- cacheSet : k -> v -> Maybe v
+-- cacheSet k v =
+--   -- let _ = Debug.log "setting cache" k in
+--   Native.Cache.set k v
+--
+-- cacheGet : k -> v
+-- cacheGet k =
+--   -- let _ = Debug.log "reading cache" k in
+--   Native.Cache.get k
+--
+-- cacheClear : k -> ()
+-- cacheClear k =
+--   -- let _ = Debug.log "clearing cache" k in
+--   Native.Cache.clear k
 
 -- The view we see is different from the value representation in a few
 -- ways:

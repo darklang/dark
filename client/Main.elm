@@ -10,7 +10,7 @@ import Json.Encode as JSE
 import Json.Encode.Extra as JSEE
 import Http
 import Keyboard.Key as Key
-import Navigation
+import Browser
 import Browser.Events
 import String
 -- import List.Extra as LE
@@ -49,6 +49,7 @@ import DB
 import Runtime
 import Toplevel as TL
 import Util
+import DarkUrl
 import Url
 import IntegrationTest
 
@@ -57,12 +58,14 @@ import IntegrationTest
 -- TOP-LEVEL
 -----------------------
 main : Program Flags Model Msg
-main = Navigation.programWithFlags
-         LocationChange
+main = Browser.application
          { init = init
          , view = View.view
          , update = update
-         , subscriptions = subscriptions}
+         , subscriptions = subscriptions
+         , onUrlRequest = always Cmd.none
+         , onUrlChange = LocationChange
+         }
 
 
 -----------------------
@@ -84,7 +87,7 @@ flag2function fn =
   , deprecated = fn.deprecated
   }
 
-init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init : Flags -> Url -> ( Model, Cmd Msg )
 init {editorState, complete} location =
   let savedEditor = Editor.fromString editorState
 
@@ -102,7 +105,7 @@ init {editorState, complete} location =
           Nothing -> []
 
       page =
-        Url.parseLocation m location
+        DarkUrl.parseLocation m location
         |> Maybe.withDefault m.currentPage
 
       canvas = m.canvas
@@ -1530,14 +1533,14 @@ update_ msg m =
       NoChange
 
     LocationChange loc ->
-      Url.changeLocation m loc
+      DarkUrl.changeLocation m loc
 
     TimerFire action time  ->
       case action of
         RefreshAnalysis ->
           GetAnalysisRPC
         CheckUrlHashPosition ->
-          Url.maybeUpdateScrollUrl m
+          DarkUrl.maybeUpdateScrollUrl m
 
     Initialization ->
       NoChange

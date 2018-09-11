@@ -1,4 +1,4 @@
-module Url exposing (..)
+module DarkUrl exposing (..)
 
 -- builtin
 import Dict
@@ -8,7 +8,7 @@ import String
 -- lib
 import Html
 import Html.Attributes as Attrs
-import Navigation
+import Url
 
 -- dark
 import Types exposing (..)
@@ -20,7 +20,7 @@ import Defaults
 hashUrlParams : List (String, String) -> String
 hashUrlParams params =
   let merged = List.map (\(k, v) -> k ++ "=" ++ v) params
-  in "#" ++ (String.join "&" merged) 
+  in "#" ++ (String.join "&" merged)
 
 urlOf : Page -> Pos -> String
 urlOf page pos =
@@ -68,7 +68,7 @@ maybeUpdateScrollUrl m =
   else NoChange
 
 
-parseLocation : Model -> Navigation.Location -> Maybe Page
+parseLocation : Model -> Url.Url -> Maybe Page
 parseLocation m loc =
   let unstructured = loc.hash
                    |> String.dropLeft 1 -- remove "#"
@@ -104,7 +104,7 @@ parseLocation m loc =
     _ -> Nothing
 
 
-changeLocation : Model -> Navigation.Location -> Modification
+changeLocation : Model -> Url.Url -> Modification
 changeLocation m loc =
   let mPage = parseLocation m loc in
   case mPage of
@@ -114,4 +114,3 @@ changeLocation m loc =
         _ -> SetPage (Fn id pos)
     Just page -> SetPage page
     _ -> NoChange
-

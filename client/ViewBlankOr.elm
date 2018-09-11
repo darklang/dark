@@ -20,7 +20,7 @@ import Runtime as RT
 import Blank as B
 import Runtime
 import Toplevel
-import Url
+import DarkUrl as Url
 import ViewEntry
 import ViewUtils exposing (..)
 import Defaults

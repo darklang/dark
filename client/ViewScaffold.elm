@@ -11,7 +11,7 @@ import Json.Decode as JSD
 import Types exposing (..)
 import ViewUtils exposing (..)
 import JSON
-import Url
+import DarkUrl as Url
 
 
 
@@ -94,6 +94,3 @@ viewError mMsg =
               ]
               []
             ]
-
-
-

@@ -4,7 +4,7 @@ module Types exposing (..)
 import Dict exposing (Dict)
 import Http
 import Browser.Dom as Dom
-import Navigation
+import Url
 import Browser.Events
 import Json.Decode as JSD
 
@@ -127,7 +127,7 @@ type Msg
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
     | InitialLoadRPCCallback Focus Modification (Result Http.Error InitialLoadResult)
-    | LocationChange Navigation.Location
+    | LocationChange Url.Url
     | AddRandom
     | FinishIntegrationTest
     | SaveTestButton
