@@ -213,7 +213,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DObj o]) ->
-            DStr (Dval.dval_to_json_string (DObj o))
+            DStr (Dval.unsafe_dval_to_json_string (DObj o))
           | args -> fail args)
   ; pr = None
   ; ps = true

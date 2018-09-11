@@ -11,7 +11,7 @@ module SE = Stored_event
 
 type canvas = Canvas.canvas
 type dval = RTT.dval
-let dval_to_yojson = Dval.dval_to_yojson
+let dval_to_yojson = Dval.unsafe_dval_to_yojson
 
 (* ------------------------- *)
 (* Non-execution analysis *)
