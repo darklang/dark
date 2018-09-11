@@ -20,10 +20,10 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
         | DeleteFunction of tlid
-        | CreateDBMigration of tlid * id * id * (RuntimeT.DbT.col list)
+        | CreateDBMigration of tlid * id * id * (string or_blank * string or_blank) list
         | AddDBColToDBMigration of tlid * id * id
-        | SetDBColNameInDBMigration of tlid * id * id
-        | SetDBColTypeInDBMigration  of tlid * id * id
+        | SetDBColNameInDBMigration of tlid * id * string
+        | SetDBColTypeInDBMigration of tlid * id * string
         [@@deriving eq, yojson, show,  bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 

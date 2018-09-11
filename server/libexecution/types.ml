@@ -98,10 +98,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module DbT = struct
-(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type col = string or_blank * tipe_ or_blank
-              [@@deriving eq, compare, show, yojson, bin_io]
-(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+              [@@deriving eq, compare, show, yojson]
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type migration_kind = DeprecatedMigrationKind
