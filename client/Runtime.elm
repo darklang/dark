@@ -187,8 +187,8 @@ toRepr_ oldIndent dv =
           |> \s -> "{" ++ inl ++ s ++ nl ++ " }"
   in
   case dv of
-    DInt i -> toString i
-    DFloat f -> toString f
+    DInt i -> String.fromInt i
+    DFloat f -> String.fromFloat f
     DStr s -> "\"" ++ s ++ "\""
     DBool True -> "true"
     DBool False -> "false"
@@ -204,13 +204,13 @@ toRepr_ oldIndent dv =
     DPassword s -> wrap s
     DBlock -> asType
     DIncomplete -> asType
-    DResp (Redirect url, dv) -> "302 " ++ url ++ nl ++ toRepr_ indent dv
-    DResp (Response (code, hs), dv) ->
+    DResp (Redirect url, dvv) -> "302 " ++ url ++ nl ++ toRepr_ indent dvv
+    DResp (Response (code, hs), dvv) ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
-      toString code ++ " " ++ headers ++ nl ++ toRepr dv
+      String.fromInt code ++ " " ++ headers ++ nl ++ toRepr dvv
     DOption Nothing -> "Nothing"
-    DOption (Just dv) -> "Some " ++ (toRepr dv)
-    DErrorRail dv -> wrap (toRepr dv)
+    DOption (Just dvv) -> "Some " ++ (toRepr dvv)
+    DErrorRail dvv -> wrap (toRepr dvv)
     -- TODO: newlines and indentation
     DList l ->
       if l == []
@@ -232,5 +232,3 @@ extractErrorMessage lv =
   --   |> Maybe.map .short
   --   |> Maybe.withDefault lv.value
   -- else lv.value
-
-
