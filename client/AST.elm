@@ -121,12 +121,12 @@ closeThreads expr =
             case newExprs of
               -- if an fncall moved into the first slot, we need to add a
               -- blank in front.
-              F id (FnCall name args r) :: rest ->
+              F id2 (FnCall name args r) :: rest ->
                 if addBlank
                 then
-                  [F id (FnCall name (B.new () :: args) r)] ++ rest
+                  [F id2 (FnCall name (B.new () :: args) r)] ++ rest
                 else
-                  [F id (FnCall name args r)] ++ rest
+                  [F id2 (FnCall name args r)] ++ rest
               _ -> newExprs
       in
       case adjusted of
@@ -196,7 +196,7 @@ addLambdaBlank id expr =
   case parentOf_ id expr of
     Just (F lid (Lambda vars body)) as old ->
       let r =
-          F lid (Lambda (vars ++ [B.new ()]) body)
+            F lid (Lambda (vars ++ [B.new ()]) body)
       in
           replace
             (old |> deMaybe "impossible" |> PExpr)
@@ -781,9 +781,9 @@ replace_ search replacement parent expr =
                   F _ var -> Just var
               newBody =
                 let usesOf =
-                    case orig of
-                      Just var -> uses var body |> List.map PExpr
-                      _ -> []
+                      case orig of
+                        Just var -> uses var body |> List.map PExpr
+                        _ -> []
                     transformUse replacementContent old =
                       case old of
                         PExpr (F _ _) ->
@@ -952,4 +952,3 @@ freeVariables ast =
             _ -> Nothing)
       |> LE.uniqueBy
         (\(_, name) -> name)
-
