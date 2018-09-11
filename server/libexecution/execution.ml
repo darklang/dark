@@ -19,7 +19,7 @@ let input_vars_for_user_fn (ufn: user_fn) : dval_map =
   |> Analysis_types.Symtable.of_alist_exn
 
 let dbs_as_input_vars (dbs: DbT.db list) : (string * dval) list =
-  List.map dbs ~f:(fun db -> (db.name, DDB db))
+  List.map dbs ~f:(fun db -> (db.name, DDB db.name))
 
 let http_route_input_vars (h: HandlerT.handler) (path: string) : input_vars =
   let route = Handler.event_name_for_exn h in
