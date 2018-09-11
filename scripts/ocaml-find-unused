@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+
+FILES=$(ls server/*/*.ml{,i})
+MLFILES=$(ls server/*/*.ml | grep -v test.ml)
+
+LETS=$(grep -P -h '^let ' $FILES \
+        | sed 's/\s*let\s*//' \
+        | awk '{print $1;}' \
+        | sort \
+        | uniq)
+
+for z in $LETS; do
+  echo -en "$z: " ;
+  (grep $z $MLFILES || true ) | wc -l;
+done | grep " 1$"

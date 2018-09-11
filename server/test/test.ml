@@ -7,12 +7,19 @@ open Types
 open Types.RuntimeT
 open Ast
 
+open Lwt
+module Resp = Cohttp_lwt_unix.Response
+module Req = Cohttp_lwt_unix.Request
+module Header = Cohttp.Header
+module Code = Cohttp.Code
 
 module C = Canvas
 module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
+
+
 
 (* ------------------- *)
 (* Misc fns *)
@@ -46,7 +53,6 @@ let clear_test_data () : unit =
 let at_dval = AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
     (fun a b -> compare_dval a b = 0)
-let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_dval_list = AT.check (AT.list at_dval)
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
@@ -172,19 +178,20 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
 let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
   let c = ops2c "test" ops in
   let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
+  let canvas_id = !c.id in
+  let trace_id = Util.create_uuid () in
   let state =
         { tlid
         ; account_id = !c.owner
         ; canvas_id = !c.id
         ; user_fns = !c.user_functions
-        ; exe_fn_ids = []
         ; fail_fn = None
         ; dbs = TL.dbs !c.dbs
         ; execution_id
         ; load_fn_result = Execution.load_no_results
-        ; store_fn_result = Stored_function_result.store
+        ; store_fn_result = Stored_function_result.store ~canvas_id ~trace_id
         ; load_fn_arguments = Execution.load_no_arguments
-        ; store_fn_arguments = Stored_function_arguments.store
+        ; store_fn_arguments = Stored_function_arguments.store ~canvas_id ~trace_id
         }
   in
   (c, state, vars)
@@ -405,35 +412,48 @@ let t_stored_event_roundtrip () =
                         |> fun x -> Option.value_exn x in
   let id1 = Serialize.fetch_canvas_id owner "host" in
   let id2 = Serialize.fetch_canvas_id owner "host2" in
-  SE.clear_events id1;
-  SE.clear_events id2;
+  let t1 = Util.create_uuid () in
+  let t2 = Util.create_uuid () in
+  let t3 = Util.create_uuid () in
+  let t4 = Util.create_uuid () in
+  let t5 = Util.create_uuid () in
+  SE.clear_events ~canvas_id:id1 ();
+  SE.clear_events ~canvas_id:id2 ();
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
-  SE.store_event id1 desc1 (DStr "1");
-  SE.store_event id1 desc1 (DStr "2");
-  SE.store_event id1 desc3 (DStr "3");
-  SE.store_event id1 desc2 (DStr "3");
-  SE.store_event id2 desc2 (DStr "3");
+  SE.store_event ~canvas_id:id1 ~trace_id:t1 desc1 (DStr "1");
+  SE.store_event ~canvas_id:id1 ~trace_id:t2 desc1 (DStr "2");
+  SE.store_event ~canvas_id:id1 ~trace_id:t3 desc3 (DStr "3");
+  SE.store_event ~canvas_id:id1 ~trace_id:t4 desc2 (DStr "3");
+  SE.store_event ~canvas_id:id2 ~trace_id:t5 desc2 (DStr "3");
 
   let at_desc = AT.of_pp SE.pp_event_desc in
 
-  let listed = SE.list_events id1 in
+  let listed = SE.list_events ~canvas_id:id1 () in
   AT.check
     (AT.list at_desc) "list host events"
     (List.sort ~compare [desc1; desc2; desc3])
     (List.sort ~compare listed);
 
-  let loaded1 = SE.load_events id1 desc1 in
+  let loaded1 = SE.load_events ~canvas_id:id1 desc1
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load GET events" [DStr "2"; DStr "1"] loaded1;
 
-  let loaded2 = SE.load_events id1 desc3 in
+  let loaded2 = SE.load_events ~canvas_id:id1 desc3
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load POST events" [DStr "3"] loaded2;
 
-  let loaded3 = SE.load_events id2 desc3 in
+  let loaded3 = SE.load_events ~canvas_id:id2 desc3
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load no host2 events" [] loaded3;
 
-  let loaded4 = SE.load_events id2 desc2 in
+  let loaded4 = SE.load_events ~canvas_id:id2 desc2
+                |> List.map ~f:Tuple.T2.get2
+  in
   check_dval_list "load host2 events" [DStr "3"] loaded4;
 
   ()
@@ -560,9 +580,6 @@ let t_escape_pg_escaping () =
   AT.check AT.string "no quotes" "asdd" (Db.escape_single "asdd");
   AT.check AT.string "single" "as''dd" (Db.escape_single "as'dd");
   AT.check AT.string "double" "as\"dd" (Db.escape_single "as\"dd");
-  AT.check AT.string "no quotes" "asdd" (Db.escape_double "asdd");
-  AT.check AT.string "single" "as'dd" (Db.escape_double "as'dd");
-  AT.check AT.string "double" "as\\\"dd" (Db.escape_double "as\"dd");
   ()
 
 let t_nulls_allowed_in_db () =
@@ -599,17 +616,6 @@ let t_nulls_added_to_missing_column () =
     (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
     (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
 
-let t_analysis_not_empty () =
-  clear_test_data ();
-  (* in a filled-in HTTP env, there wasn't a default environment, so we
-   * got no variables in the analysis. *)
-  let h = http_handler (ast_for "_") in
-  let c = ops2c "test" [ hop h ] in
-  AT.check AT.int "equal_after_roundtrip" 1
-    (Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c h
-     |> Tuple.T2.get2
-     |> List.length)
-
 let t_dval_of_yojson_doesnt_care_about_order () =
   check_dval "dval_of_json_string doesn't care about key order"
     (Dval.dval_of_json_string
@@ -634,6 +640,7 @@ let t_password_hashing_and_checking_works () =
     (DBool true)
 
 let t_password_hash_db_roundtrip () =
+  clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "Passwords")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
             ; Op.SetDBColName (dbid, colnameid, "password")
@@ -647,8 +654,12 @@ let t_password_hash_db_roundtrip () =
   AT.check AT.int
     "A Password::hash'd string can get stored in and retrieved from a user database."
     0 (match exec_handler ~ops ast with
-         DList [p1; p2;] -> compare_dval p1 p2
-       | _ -> 1)
+         DList [p1; p2;] as v ->
+         Log.inspecT "test value to be compared" ~f:show_dval v;
+         compare_dval p1 p2
+       | v ->
+         Log.inspecT "test value" ~f:show_dval v;
+         1)
 
 
 let t_passwords_dont_serialize () =
@@ -794,6 +805,21 @@ let t_uuid_string_roundtrip () =
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
+let t_should_use_https () =
+  AT.check (AT.list AT.bool) "should_use_https works"
+    (List.map
+       ~f:(fun x -> Server.should_use_https (Uri.of_string x))
+       [ "http://builtwithdark.com"
+       ; "http://test.builtwithdark.com"
+       ; "http://localhost"
+       ; "http://test.localhost"
+    ])
+    [ true
+    ; true
+    ; false
+    ; false
+    ]
+
 let t_redirect_to () =
   AT.check (AT.list (AT.option AT.string)) "redirect_to works"
     (List.map
@@ -879,6 +905,66 @@ let t_nothing () =
     (exec_ast "(== (List::head_v1 []) nothing)");
 
   ()
+
+let t_auth_then_handle_code_and_cookie () =
+  (* basic auth headers *)
+  let basic a b = Header.add_authorization (Header.init ()) (`Basic (a, b)) in
+  (* sample execution id, makes grepping test logs easier *)
+  let test_id = Types.id_of_int 1234 in
+  (* takes a req, returns the status code and the  parameters for Set-cookie: __session=whatever; [...] *)
+  let ath_cookie (req : Req.t) : int * string option =
+    Lwt_main.run
+      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let%lwt (resp, _) =  Server.auth_then_handle
+                              ~execution_id:test_id
+                              req
+                              "test"
+                              (fun resp_headers ->
+                                Server.respond
+                                  ~resp_headers
+                                  ~execution_id:test_id
+                                  `OK
+                                  "test handler") in
+       let code = resp |> Resp.status |> Code.code_of_status in
+       resp
+       |> Resp.headers
+       |> (fun x -> Header.get x "set-cookie")
+       |> (fun x -> Option.bind x
+                   ~f:(fun sc -> let (first, params) = String.lsplit2_exn ~on:';' sc in
+                              let (name, value) = String.lsplit2_exn ~on:'=' first in
+                              (* make sure some other cookie isn't getting set *)
+                              if name = "__session" then Some (String.lstrip params) else None))
+       |> (fun x -> return (code, x)))
+  in
+  AT.check (AT.list  (AT.pair AT.int (AT.option AT.string)))
+    "auth_then_handle sets status codes and cookies correctly"
+    (List.map
+       ~f:ath_cookie
+
+       (* valid basic auth login on builtwithdark.com *)
+       [ Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+
+       (* valid basic auth login on localhost *)
+       ; Req.make ~headers:(basic "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+           (Uri.of_string "http://test.localhost/admin/ui")
+
+       (* invalid basic auth logins *)
+       ; Req.make ~headers:(basic "test" "")
+           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+       ; Req.make ~headers:(basic "" "fVm2CUePzGKCwoEQQdNJktUQ")
+           (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+
+       (* plain request, no auth *)
+       ; Req.make (Uri.of_string "http://test.builtwithdark.com/admin/ui")
+    ])
+
+    [ 200, Some "Max-Age=604800; secure; httponly"
+    ; 200, Some "Max-Age=604800; httponly"
+    ; 401, None
+    ; 401, None
+    ; 401, None
+    ]
 
 let t_db_write_deprecated_read_new () =
   clear_test_data ();
@@ -1231,7 +1317,6 @@ let suite =
   ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
-  ; "Analysis not empty", `Quick, t_analysis_not_empty
   ; "Parsing JSON to DVals doesn't care about key order", `Quick,
     t_dval_of_yojson_doesnt_care_about_order
   ; "End-user password hashing and checking works", `Quick,
@@ -1251,11 +1336,13 @@ let suite =
     t_authenticate_user
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
+  ; "Server.should_use_https works", `Quick,  t_should_use_https
   ; "Server.redirect_to works", `Quick, t_redirect_to
   ; "Errorrail simple", `Quick, t_errorrail_simple
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ; "Handling nothing in code works", `Quick, t_nothing
+  ; "auth_then_handle sets status codes and cookies correctly ", `Quick, t_auth_then_handle_code_and_cookie
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_works

@@ -27,10 +27,10 @@ urlOf page pos =
   let head =
         case page of
           Toplevels _ -> []
-          Fn tlid _ -> [("fn", toString (deTLID tlid))]
+          Fn tlid _ -> [("fn", String.fromInt (deTLID tlid))]
       tail =
-        [ ("x", toString pos.x)
-        , ("y", toString pos.y) ]
+        [ ("x", String.fromInt pos.x)
+        , ("y", String.fromInt pos.y) ]
   in hashUrlParams (head ++ tail)
 
 urlFor : Page -> String
@@ -40,6 +40,10 @@ urlFor page =
       Toplevels pos -> pos
       Fn _ pos -> pos
     )
+
+navigateTo : Page -> Cmd Msg
+navigateTo page =
+  Navigation.newUrl (urlFor page)
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =

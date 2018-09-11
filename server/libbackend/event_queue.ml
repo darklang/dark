@@ -17,12 +17,6 @@ type t = { id: int
 let to_event_desc t =
   (t.space, t.name, t.modifier)
 
-let status_to_enum status : string =
-  match status with
-  | `OK -> "done"
-  | `Err -> "error"
-  | `Incomplete -> "error"
-
 (* ------------------------- *)
 (* Public API *)
 (* ------------------------- *)
@@ -62,7 +56,7 @@ let dequeue transaction : t option =
     Some { id = int_of_string id
          ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
-         ; canvas_id = Uuidm.of_string canvas_id |> Option.value_exn ~message:("Bad UUID: " ^ canvas_id)
+         ; canvas_id = Util.uuid_of_string canvas_id
          ; host = host
          ; space = space
          ; name = name

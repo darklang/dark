@@ -4,7 +4,7 @@
   (
     (name libbackend)
     (modes (native))
-    (flags (-warn-error (+A) -opaque))
+    (flags (-warn-error (+A)))
     (preprocess (pps (
                       landmarks.ppx
                       lwt.ppx
@@ -20,7 +20,6 @@
                 libexecution
                 libservice
                 cohttp.lwt
-                core
                 core_extended
                 cstruct
                 curl
@@ -29,17 +28,11 @@
                 nocrypto
                 nocrypto.lwt
                 postgresql
-                ppx_bin_prot
-                ppx_derivers
-                ppx_deriving.std
-                ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
-                ppx_sexp_conv
                 session
                 session-postgresql-lwt
                 session-cohttp-lwt
                 sodium
-                threads
                 uutf
                 yojson
                 ))

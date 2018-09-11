@@ -48,10 +48,6 @@ let lsdir ~root dir : string list =
   let dir = check_filename ~root ~mode:`Dir dir in
   Sys.ls_dir dir
 
-let rmRF ~root dir : unit =
-  let dir = check_filename ~root ~mode:`Dir dir in
-  Core_extended.Shell.rm ~r:() ~f:() dir
-
 let rm ~root file : unit =
   let file = check_filename ~root ~mode:`Write file in
   Core_extended.Shell.rm ~f:() file
@@ -80,9 +76,6 @@ let writefile ~root (f: string) (str: string) : unit =
   Unix.with_file ~perm:0o600 ~mode:flags f
     ~f:(fun desc -> ignore (Unix.write desc ~buf:(Bytes.of_string str)))
 
-let log_to_file ~(filename: string) (value: string)  : 'a =
-  writefile ~root:Log filename value;
-  value
 (* ------------------- *)
 (* json *)
 (* ------------------- *)
@@ -106,13 +99,6 @@ let maybereadjsonfile ~root
   then Some (readjsonfile ~root ~stringconv ~conv filename)
   else None
 
-
-let writejsonfile ~root ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
-  : unit =
-  value
-  |> conv
-  |> Yojson.Safe.to_string
-  |> writefile ~root filename
 
 (* ------------------- *)
 (* spawning *)

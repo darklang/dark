@@ -16,7 +16,7 @@ let last_ran_at (canvas_id: Uuidm.t) (h: handler) : Time.t option =
        LIMIT 1"
     ~params:[ID h.tlid; Uuid canvas_id]
   |> Option.map ~f:List.hd_exn
-  |> Option.map ~f:Dval.date_of_sqlstring
+  |> Option.map ~f:Db.date_of_sqlstring
 
 let parse_interval (h: handler) : Time.Span.t option =
   let open Option in

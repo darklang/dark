@@ -45,9 +45,36 @@ type Tipe = TInt
           | TPassword
           | TUuid
           | TOption
+          | TErrorRail
           | TBelongsTo String
           | THasMany String
           | TDbList Tipe
+
+type Dhttp = Redirect String
+           | Response (Int, (List (String, String)))
+
+type Dval = DInt Int
+          | DFloat Float
+          | DBool Bool
+          | DNull
+          | DChar Char
+          | DStr String
+          | DList (List Dval)
+          | DObj (Dict String Dval)
+          | DIncomplete
+          | DError String
+          | DBlock
+          | DErrorRail Dval
+          | DResp (Dhttp, Dval)
+          | DDB String
+          | DID String
+          | DDate String
+          | DTitle String
+          | DUrl String
+          | DPassword String
+          | DUuid String
+          | DOption (Maybe Dval)
+
 
 -- There are two coordinate systems. Pos is an absolute position in the
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
@@ -60,10 +87,6 @@ type alias VPos = {vx: Int, vy: Int }
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
-type alias LiveValue = { value : String
-                       , tipe : Tipe
-                       , json : String
-                       , exc : Maybe Exception}
 type alias Special = Int
 type TLID = TLID Int
 type ID = ID Int
@@ -97,12 +120,13 @@ type TimerAction = RefreshAnalysis
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
                        , List Toplevel -- deleted
-                       , List TLAResult
+                       , Traces
                        , List GlobalVariable
                        , List UserFunction
                        , List TLID)
-type alias ExecuteFunctionRPCResult = (List (TLID, ID), List TLAResult)
-type alias GetAnalysisResult = ( List TLAResult
+type alias DvalArgsHash = String
+type alias ExecuteFunctionRPCResult = (Dval, DvalArgsHash)
+type alias GetAnalysisResult = ( Traces
                                , List GlobalVariable
                                , List FourOhFour
                                , List TLID)
@@ -123,7 +147,6 @@ type Msg
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallback Focus RPCParams (Result Http.Error RPCResult)
-    | ExecuteFunctionRPCCallback (Result Http.Error ExecuteFunctionRPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
     | InitialLoadRPCCallback Focus Modification (Result Http.Error InitialLoadResult)
@@ -132,7 +155,9 @@ type Msg
     | FinishIntegrationTest
     | SaveTestButton
     | ToggleTimers
-    | ExecuteFunctionButton TLID ID
+    | ExecuteFunctionRPCCallback ExecuteFunctionRPCParams (Result Http.Error ExecuteFunctionRPCResult)
+    | ExecuteFunctionButton TLID ID String
+    | ExecuteFunctionCancel TLID ID
     | Initialization
     | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
@@ -159,7 +184,7 @@ type Msg
     | DeleteUserFunction TLID
     | RestoreToplevel TLID
     | LockHandler TLID Bool
-    | ReceiveAnalysis JSD.Value
+    | ReceiveAnalysis String
     | EnablePanning Bool
 
 type alias Predecessor = Maybe PointerData
@@ -196,7 +221,13 @@ type Op
 
 type alias RPCParams = { ops : List Op }
 
-type alias ExecuteFunctionRPCParams = { function: (TLID, ID, Int) }
+type alias ExecuteFunctionRPCParams =
+  { tlid: TLID
+  , traceID : String
+  , callerID : ID
+  , args : List Dval
+  , fnName : String
+  }
 
 type alias AnalysisParams = List TLID
 
@@ -223,6 +254,8 @@ type StringEntryWidth = StringEntryNormalWidth
 
 type alias Literal = String
 type OmniAction = NewDB DBName
+                | NewHandler
+                | NewFunction (Maybe String)
                 | NewHTTPHandler
                 | NewHTTPRoute String
                 | NewEventSpace String
@@ -415,26 +448,39 @@ type alias Toplevel = { id : TLID
 -----------------------------
 -- Analysis
 -----------------------------
-type alias LVDict = Dict Int LiveValue
+type alias LVDict = Dict Int Dval
 type alias AVDict = Dict Int (List VarName)
-type alias InputDict = Dict VarName LiveValue
-type alias AResult = { astValue: LiveValue
-                     , liveValues : LVDict
-                     , availableVarnames : AVDict
-                     , inputValues : InputDict
-                     }
-type alias TLAResult = { id: TLID
-                       , results: List AResult
-                       }
+type alias AnalysisResults = { liveValues : LVDict
+                             , availableVarnames : AVDict
+                             }
+type alias Analyses = Dict TraceID AnalysisResults
+
+-----------------------------
+-- From the server
+-----------------------------
+type alias InputValueDict = Dict VarName Dval
+type alias FunctionResult = { fnName : String
+                            , callerID : ID
+                            , argHash : String
+                            , value : Dval
+                            }
+type alias TraceID = String
+type alias Trace = { id: TraceID
+                   , input: InputValueDict
+                   , functionResults : List FunctionResult
+                   }
+type alias Traces = Dict Int (List Trace) -- tlid -> one trace per inputvalue
 
 -- space i.e. "HTTP", path i.e. "/foo", modifier i.e. "GET/PATCH/PUT"
 type alias FourOhFour = { space: String
                         , path: String
                         , modifier: String
-                        , values: List JSD.Value
                         }
 
 
+-----------------------------
+-- Canvas position
+-----------------------------
 type alias Name = String
 type Page = Toplevels Pos
           | Fn TLID Pos
@@ -471,7 +517,10 @@ type alias Model = { error : Maybe String
                    , hovering : List ID
                    , toplevels : List Toplevel
                    , deletedToplevels : List Toplevel
-                   , analysis : List TLAResult
+                   -- These are read direct from the server. The ones that are
+                   -- analysed are in analysis
+                   , traces : Traces
+                   , analyses : Analyses
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
                    , unlockedDBs : List TLID
@@ -527,7 +576,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | UpdateToplevels (List Toplevel) Bool
                   | SetDeletedToplevels (List Toplevel)
                   | UpdateDeletedToplevels (List Toplevel)
-                  | UpdateAnalysis (List TLAResult)
+                  | UpdateAnalysis TraceID AnalysisResults
                   | RequestAnalysis (List Toplevel)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool
@@ -550,10 +599,12 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   | ExecutingFunctionBegan TLID ID
-                  | ExecutingFunctionRPC TLID ID
+                  | ExecutingFunctionRPC TLID ID String
                   | ExecutingFunctionComplete (List (TLID, ID))
                   | SetLockedHandlers (List TLID)
                   | MoveCanvasTo CanvasProps Page Pos
+                  | UpdateTraces Traces
+                  | UpdateTraceFunctionResult TLID TraceID ID FnName DvalArgsHash Dval
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

@@ -11,11 +11,12 @@ module PG = Postgresql
 let conn = Libservice.Dbconnection.conn
 
 let escape_single s = conn#escape_string s
-let escape_double s = Util.string_replace "\"" "\\\"" s
 let single_quote v = "'" ^ v ^ "'"
-let double_quote v = "\"" ^ v ^ "\""
 let cast_to ~tipe v = v ^ "::" ^ tipe
 let array_separator = ", "
+
+let date_of_sqlstring (str: string) : Core_kernel.Time.t =
+  Core.Time.parse str ~fmt:"%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
 
 type param = Int of int
            | ID of Types.id

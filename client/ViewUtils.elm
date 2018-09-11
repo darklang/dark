@@ -31,10 +31,11 @@ type alias ViewState =
   , ac: Autocomplete
   , handlerSpace: HandlerSpace
   , showEntry : Bool
-  , lvs: LVDict
   , dbLocked : Bool
+  , currentResults : AnalysisResults -- for current selected cursor/trace
+  , traces : List Trace
+  , analyses : Analyses
   , ufns: List UserFunction
-  , results: List AResult
   , relatedBlankOrs: List ID
   , tooWide: Bool
   , executingFunctions: List ID
@@ -72,10 +73,11 @@ createVS m tl = { tl = tl
                 , showEntry = True
                 , handlerSpace = TL.spaceOf tl
                                |> Maybe.withDefault HSOther
-                , lvs = Analysis.getLiveValuesDict m tl.id
                 , dbLocked = DB.isLocked m tl.id
                 , ufns = m.userFunctions
-                , results = Analysis.getAnalysisResults m tl.id
+                , currentResults = Analysis.getCurrentAnalysisResults m tl.id
+                , traces = Analysis.getTraces m tl.id
+                , analyses = m.analyses
                 , relatedBlankOrs =
                     case unwrapCursorState m.cursorState of
                       Entering (Filling _ id) ->
@@ -141,14 +143,14 @@ placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
   in Html.div
     [ Attrs.class "node"
-    , Attrs.style [ ("left", (toString pos.x) ++ "px"), ("top", (toString pos.y) ++ "px") ]
+    , Attrs.style [ ("left", (String.fromInt pos.x) ++ "px"), ("top", (String.fromInt pos.y) ++ "px") ]
     ]
     [ html ]
 
 inCh : Int -> String
 inCh w =
   w
-  |> toString
+  |> String.fromInt
   |> \s -> s ++ "ch"
 
 widthInCh : Int -> Html.Attribute Msg
@@ -181,7 +183,7 @@ approxNWidth ne =
   case ne of
     Value v ->
       -- TODO: calculate visual width here
-      toString v |> String.length
+      Debug.toString v |> String.length
 
     Variable name ->
       String.length name

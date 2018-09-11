@@ -1,66 +1,18 @@
 module Runtime exposing (..)
 
 -- stldib
-import Json.Decode as JSD
+import Dict
 
 -- libs
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
-import Prelude exposing (..)
-import Util
-import JSON
 
-
-
-isInt : String -> Bool
-isInt s = (String.toInt s |> Util.resultIsOk)
-          -- https://github.com/elm-lang/core/issues/919
-          && s /= "+"
-          && s /= "-"
-          && s /= "0x"
-
-isFloat : String -> Bool
-isFloat s = String.toFloat s |> Util.resultIsOk
-
-isString : String -> Bool
-isString s =
-  String.startsWith "\"" s
-  && String.endsWith "\"" s
-
-isTrue : String -> Bool
-isTrue s = String.toLower s == "true"
-
-isFalse : String -> Bool
-isFalse s = String.toLower s == "false"
-
-isBool : String -> Bool
-isBool s = isTrue s || isFalse s
-
-isChar : String -> Bool
-isChar s =
-  String.length s == 3
-  && String.startsWith s "\'"
-  && String.endsWith s "\'"
-
-isNull : String -> Bool
-isNull s = String.toLower s == "null"
-
-isIncomplete : LiveValue -> Bool
-isIncomplete s =
-  s.tipe == TIncomplete
-
-isError : LiveValue -> Bool
-isError s =
-  s.tipe == TError
-
-isNothing : String -> Bool
-isNothing s = String.toLower s == "nothing"
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
   t1 == TAny || t2 == TAny || t1 == t2
-
 
 tipe2str : Tipe -> String
 tipe2str t =
@@ -86,9 +38,12 @@ tipe2str t =
     TOption -> "Option"
     TPassword -> "Password"
     TUuid -> "UUID"
+    TErrorRail -> "ErrorRail"
     TBelongsTo s -> s
     THasMany s -> "[" ++ s ++ "]"
     TDbList a -> "[" ++ (tipe2str a) ++ "]"
+
+
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -105,83 +60,177 @@ str2tipe t =
           "id" -> TID
           "uuid" -> TUuid
           "option" -> TOption
-          "null" -> todo "not implemented yet"
-          "any" -> todo "not implemented yet"
-          "list" -> todo "not implemented yet"
-          "obj" -> todo "not implemented yet"
-          "block" -> todo "not implemented yet"
-          "incomplete" -> todo "not implemented yet"
-          "response" -> todo "not implemented yet"
-          "datastore" -> todo "not implemented yet"
-          "date" -> todo "not implemented yet"
-          "error" -> todo "not implemented yet"
+          "null" -> TNull
+          "any" -> TAny
+          "list" -> TList
+          "obj" -> TObj
+          "block" -> TBlock
+          "incomplete" -> TIncomplete
+          "response" -> TResp
+          "datastore" -> TDB
+          "date" -> TDate
+          "error" -> TError
           table -> THasMany table
   in
   case String.toLower t of
-  "any" -> TAny
-  "int" -> TInt
-  "float" -> TFloat
-  "bool" -> TBool
-  "boolean" -> TBool
-  "null" -> TNull
-  "char" -> TChar
-  "str" -> TStr
-  "string" -> TStr
-  "list" -> TList
-  "obj" -> TObj
-  "block" -> TBlock
-  "incomplete" -> TIncomplete
-  "response" -> TResp
-  "datastore" -> TDB
-  "date" -> TDate
-  "error" -> TError
-  "option" -> TOption
-  "password" -> TPassword
-  "id" -> TID
-  "uuid" -> TUuid
-  other ->
-    if String.startsWith "[" other && String.endsWith "]" other
-    then
-      other
-      |> String.dropLeft 1
-      |> String.dropRight 1
-      |> parseListTipe
-    else
-      TBelongsTo other
+    "any" -> TAny
+    "int" -> TInt
+    "float" -> TFloat
+    "bool" -> TBool
+    "boolean" -> TBool
+    "null" -> TNull
+    "char" -> TChar
+    "str" -> TStr
+    "string" -> TStr
+    "list" -> TList
+    "obj" -> TObj
+    "block" -> TBlock
+    "incomplete" -> TIncomplete
+    "response" -> TResp
+    "datastore" -> TDB
+    "date" -> TDate
+    "error" -> TError
+    "option" -> TOption
+    "password" -> TPassword
+    "id" -> TID
+    "uuid" -> TUuid
+    other ->
+      if String.startsWith "[" other && String.endsWith "]" other
+      then
+        other
+        |> String.dropLeft 1
+        |> String.dropRight 1
+        |> parseListTipe
+      else
+        TBelongsTo other
 
-tipeOf : String -> Tipe
-tipeOf s =
-  if isInt s then TInt
-  else if isFloat s then TFloat
-  else if isString s then TStr
-  else if isChar s then TChar
-  else if isBool s then TBool
-  else if isNull s then TNull
-  else if isNothing s then TOption
-  else
-    TIncomplete
+typeOf : Dval -> Tipe
+typeOf dv =
+  case dv of
+    DInt _ -> TInt
+    DFloat _ -> TFloat
+    DBool _ -> TBool
+    DNull -> TNull
+    DChar _ -> TChar
+    DStr _ -> TStr
+    DList _ -> TList
+    DObj _ -> TObj
+    DBlock -> TBlock
+    DIncomplete -> TIncomplete
+    DError _ -> TError
+    DResp _ -> TResp
+    DDB _ -> TDB
+    DID _ -> TID
+    DDate _ -> TDate
+    DTitle _ -> TTitle
+    DUrl _ -> TUrl
+    DOption _ -> TOption
+    DErrorRail _ -> TErrorRail
+    DPassword _ -> TPassword
+    DUuid _ -> TUuid
 
-isLiteral : String -> Bool
-isLiteral s =
-     isInt s
-  || isFloat s
-  || isString s
-  || isChar s
-  || isBool s
-  || isNull s
-  || isNothing s -- unsure about this
+isLiteral : Dval -> Bool
+isLiteral dv =
+  case dv of
+    DInt _ -> True
+    DFloat _ -> True
+    DBool _ -> True
+    DNull -> True
+    DChar _ -> True
+    DStr _ -> True
+    _ -> False
+
+isComplete : Dval -> Bool
+isComplete dv =
+  case dv of
+    DError _ -> False
+    DIncomplete -> False
+    _ -> True
+
+isTrue : Dval -> Bool
+isTrue dv =
+  dv == DBool True
+
+inputValueAsString : InputValueDict -> String
+inputValueAsString iv =
+  iv
+  |> DObj
+  |> toRepr
+  |> String.split "\n"
+  |> List.drop 1
+  |> LE.init
+  |> Maybe.withDefault []
+  |> List.map (String.dropLeft 2)
+  |> String.join "\n"
+
+-- Copied from Dval.to_repr in backend code
+toRepr : Dval -> String
+toRepr dv =
+  toRepr_ 0 dv
+
+toRepr_ : Int -> Dval -> String
+toRepr_ oldIndent dv =
+  let wrap value =
+        "<" ++ (dv |> typeOf |> tipe2str) ++ ": " ++ value ++ ">"
+      asType =
+        "<" ++ (dv |> typeOf |> tipe2str) ++ ">"
+      nl = "\n" ++ (String.repeat oldIndent " ")
+      inl = "\n" ++ (String.repeat (oldIndent + 2) " ")
+      indent = oldIndent + 2
+      objToString l =
+        if l == []
+        then "{}"
+        else
+          l
+          |> List.map (\(k,v) -> k ++ ": " ++ toRepr_ indent v)
+          |> String.join ("," ++ inl)
+          |> \s -> "{" ++ inl ++ s ++ nl ++ " }"
+  in
+  case dv of
+    DInt i -> toString i
+    DFloat f -> toString f
+    DStr s -> "\"" ++ s ++ "\""
+    DBool True -> "true"
+    DBool False -> "false"
+    DChar c -> "'" ++ String.fromList [c] ++ "'"
+    DNull -> "null"
+    DID s -> wrap s
+    DDate s -> wrap s
+    DTitle s -> wrap s
+    DUrl s -> wrap s
+    DDB s -> wrap s
+    DUuid s -> wrap s
+    DError s -> wrap s
+    DPassword s -> wrap s
+    DBlock -> asType
+    DIncomplete -> asType
+    DResp (Redirect url, dv) -> "302 " ++ url ++ nl ++ toRepr_ indent dv
+    DResp (Response (code, hs), dv) ->
+      let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
+      toString code ++ " " ++ headers ++ nl ++ toRepr dv
+    DOption Nothing -> "Nothing"
+    DOption (Just dv) -> "Some " ++ (toRepr dv)
+    DErrorRail dv -> wrap (toRepr dv)
+    -- TODO: newlines and indentation
+    DList l ->
+      if l == []
+      then "[]"
+      else "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ " ]"
+    DObj o ->
+      objToString (Dict.toList o)
 
 
-extractErrorMessage : LiveValue -> String
+extractErrorMessage : Dval -> String
 extractErrorMessage lv =
-  if isError lv
-  then
-    lv
-    |> .json
-    |> JSD.decodeString JSON.decodeException
-    |> Result.toMaybe
-    |> Maybe.map .short
-    |> Maybe.withDefault lv.value
-  else lv.value
+  "TODO"
+  -- if isError lv
+  -- then
+  --   lv
+  --   |> .json
+  --   |> JSD.decodeString JSON.decodeException
+  --   |> Result.toMaybe
+  --   |> Maybe.map .short
+  --   |> Maybe.withDefault lv.value
+  -- else lv.value
 
 

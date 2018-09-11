@@ -3,13 +3,11 @@
 (library
   (
     (name libexecution)
-    (flags (-warn-error (+A) -opaque))
+    (flags (-warn-error (+A)))
     (preprocess (pps (ppx_bin_prot
                       ppx_compare
                       ppx_deriving.std
                       ppx_deriving_yojson
-                      ppx_fields_conv
-                      ppx_sexp_conv
                       ppx_pipebang)))
     (libraries (
                 ; note that libtarget.{ocaml,js} are not included here
@@ -19,12 +17,7 @@
                 uuidm
                 base64
                 uri
-                ppx_bin_prot
-                ppx_derivers
-                ppx_deriving.std
-                ppx_deriving_yojson
-                ppx_deriving_yojson.runtime
-                ppx_sexp_conv))
+                ppx_deriving_yojson.runtime))
   )
 )
 

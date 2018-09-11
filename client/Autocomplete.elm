@@ -2,7 +2,6 @@ module Autocomplete exposing (..)
 
 -- builtin
 import Dict
-import Json.Decode as JSD
 import Browser.Dom as Dom
 import Task
 import Set
@@ -13,7 +12,7 @@ import List.Extra as LE
 -- import String.Extra as SE
 
 -- dark
-import Prelude exposing (..)
+-- import Prelude exposing (..)
 import Util exposing (int2letter, letter2int)
 import Types exposing (..)
 import Functions
@@ -24,6 +23,7 @@ import Toplevel as TL
 import AST
 import Commands
 import Refactor
+import RPC
 
 ----------------------------
 -- Focus
@@ -270,7 +270,7 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  if RT.isLiteral s
+  if RPC.isLiteralString s
   then Just (ACLiteral s)
   else
     -- isLiteral only works for the full word
@@ -304,6 +304,20 @@ qHTTPHandler s =
   then Just (ACOmniAction NewHTTPHandler)
   else Nothing
 
+qHandler : String -> Maybe AutocompleteItem
+qHandler s =
+  if (String.length s) == 0
+  then Just (ACOmniAction NewHandler)
+  else Nothing
+
+qFunction : String -> Maybe AutocompleteItem
+qFunction s =
+  if (String.length s) == 0
+  then Just (ACOmniAction (NewFunction Nothing))
+  else if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s
+  then Just (ACOmniAction (NewFunction (Just s)))
+  else Nothing
+
 qHTTPRoute : String -> Maybe AutocompleteItem
 qHTTPRoute s =
   if String.startsWith "/" s
@@ -321,7 +335,14 @@ toDynamicItems isOmni query =
   let always = [qLiteral]
       omni =
         if isOmni
-        then [ qNewDB, qHTTPHandler, qHTTPRoute, qEventSpace ]
+        then
+          [ qNewDB
+          , qHandler
+          , qFunction
+          , qHTTPHandler
+          , qHTTPRoute
+          , qEventSpace
+          ]
         else []
       items = always ++ omni
   in
@@ -437,7 +458,7 @@ filter list query =
 
 generateFromModel : Model -> Autocomplete -> List AutocompleteItem
 generateFromModel m a =
-  let lv =
+  let dv =
         case a.target of
           Nothing -> Nothing
           Just (tlid, p) ->
@@ -446,18 +467,18 @@ generateFromModel m a =
             |> Maybe.map .ast
             |> Maybe.andThen (AST.getValueParent p)
             |> Maybe.map P.toID
-            |> Maybe.andThen (Analysis.getLiveValue m tlid)
+            |> Maybe.andThen (Analysis.getCurrentLiveValue m tlid)
             -- don't filter on incomplete values
-            |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
+            |> Maybe.andThen (\dv -> if dv == DIncomplete
                                      then Nothing
-                                     else Just lv)
+                                     else Just dv)
       fields =
-        case lv of
-          Just lv ->
-            case (a.target, lv.tipe) of
+        case dv of
+          Just dv ->
+            case (a.target, RT.typeOf dv) of
               (Just (_, p), TObj) ->
                 if P.typeOf p == Field
-                then jsonFields lv.json
+                then dvalFields dv
                 else []
               _ -> []
           Nothing -> []
@@ -465,7 +486,7 @@ generateFromModel m a =
       isExpression =
         case a.target of
           Just (_, p) -> P.typeOf p == Expr
-          Nothing -> True
+          Nothing -> False
 
       isThreadMember =
         case a.target of
@@ -516,13 +537,13 @@ generateFromModel m a =
                     Nothing -> True)
         |> List.filter
           (\fn ->
-             case lv of
-               Just {tipe} ->
+             case dv of
+               Just dv ->
                  if isThreadMember
                  then
-                   Nothing /= findCompatibleThreadParam fn tipe
+                   Nothing /= findCompatibleThreadParam fn (RT.typeOf dv)
                  else
-                   Nothing /= findParamByType fn tipe
+                   Nothing /= findParamByType fn (RT.typeOf dv)
                Nothing -> True)
         |> List.map ACFunction
 
@@ -596,7 +617,7 @@ generateFromModel m a =
               _ -> []
           _ -> []
 
-      varnames = Analysis.varnamesFor m a.target
+      varnames = Analysis.currentVarnamesFor m a.target
       keywords =
         if isExpression
         then
@@ -630,6 +651,11 @@ asName aci =
     ACOmniAction ac ->
       case ac of
         NewDB name -> "Create new database: " ++ name
+        NewHandler -> "Create new handler"
+        NewFunction maybeName ->
+          case maybeName of
+            Just name -> "Create new function: " ++ name
+            Nothing -> "Create new function"
         NewHTTPHandler -> "Create new HTTP handler"
         NewHTTPRoute name -> "Create new HTTP handler for " ++ name
         NewEventSpace name -> "Create new " ++ name ++ " handler"
@@ -653,7 +679,12 @@ asTypeString item =
     ACExtra _ -> ""
     ACCommand _ -> ""
     ACLiteral lit ->
-      let tipe = lit |> RT.tipeOf |> RT.tipe2str in
+      let tipe = lit
+                 |> RPC.parseDvalLiteral
+                 |> Maybe.withDefault DIncomplete
+                 |> RT.typeOf
+                 |> RT.tipe2str
+      in
       tipe ++ " literal"
     ACOmniAction _ -> ""
     ACKeyword _ -> "keyword"
@@ -662,16 +693,13 @@ asString : AutocompleteItem -> String
 asString aci =
   asName aci ++ asTypeString aci
 
--- parse the json, take the list of keys, add a . to the front of it
--- TODO: this needs refactoring
-jsonFields : String -> List AutocompleteItem
-jsonFields json =
-  json
-    |> JSD.decodeString (JSD.dict JSD.value)
-    |> Result.toMaybe
-    |> deMaybe "json decode result"
-    |> Dict.keys
-    |> List.map ACField
+dvalFields : Dval -> List AutocompleteItem
+dvalFields dv =
+  case dv of
+    DObj dict ->
+      Dict.keys dict
+      |> List.map ACField
+    _ -> []
 
 findCompatibleThreadParam : Function -> Tipe -> Maybe Parameter
 findCompatibleThreadParam {parameters} tipe =

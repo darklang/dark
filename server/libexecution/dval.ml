@@ -73,6 +73,7 @@ let rec tipe_of_string str : tipe =
   | "url" -> TUrl
   | "password" -> TPassword
   | "uuid" -> TUuid
+  | "option" -> TOption
   | "errorrail" -> TErrorRail
   | _ -> (* otherwise *)
     if String.is_prefix str "["  && String.is_suffix str "]"
@@ -139,18 +140,6 @@ let tipename (dv: dval) : string =
 (* Representation *)
 (* ------------------------- *)
 
-let isostring_of_date (d: Time.t) : string =
-  Libtarget.date_to_isostring d
-
-let date_of_isostring (str: string) : Time.t =
-  Libtarget.date_of_isostring str
-
-let sqlstring_of_date (d: Time.t) : string =
-  Libtarget.date_to_sqlstring d
-
-let date_of_sqlstring (str: string) : Time.t =
-  Libtarget.date_of_sqlstring str
-
 (* Returns the string within string-ish values, without adornment. *)
 let as_string (dv : dval) : string =
   match dv with
@@ -162,7 +151,7 @@ let as_string (dv : dval) : string =
   | DChar c -> Char.to_string c
   | DNull -> "null"
   | DID id -> Uuidm.to_string id
-  | DDate d -> d |> isostring_of_date
+  | DDate d -> Util.isostring_of_date d
   | DTitle t -> t
   | DUrl url -> url
   | DDB db -> db.name
@@ -232,13 +221,6 @@ let rec to_repr ?(pp=true) ?(open_="<") ?(close_=">")
     | DErrorRail dv -> "ErrorRail: " ^ (to_repr_ indent pp dv)
     | _ -> failwith ("printing an unprintable value:" ^ to_simple_repr dv)
     in to_repr_ 0 pp dv
-
-(* For livevalue representation in the frontend *)
-let rec to_livevalue_repr (dv : dval) : string =
-  match dv with
-  | dv when is_primitive dv -> as_literal dv
-  | dv when is_stringable dv -> as_string dv
-  | _ -> to_repr ~reprfn:to_livevalue_repr dv
 
 
 (* Not for external consumption *)
@@ -329,18 +311,19 @@ let obj_merge (l: dval) (r: dval) : dval =
 let empty_dobj : dval =
   DObj (DvalMap.empty)
 
-let is_obj (dv : dval) : bool =
-  match dv with
-  | DObj _ -> true
-  | _ -> false
-
-
 (* ------------------------- *)
 (* JSON *)
 (* ------------------------- *)
 
 let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
   `String (t |> tipe_to_string |> String.lowercase)
+
+let tipe_of_yojson (json: Yojson.Safe.json) =
+  match json with
+  | `String s -> Ok (s |> String.lowercase |> tipe_of_string)
+  | _ -> Exception.user "Invalid tipe"
+
+
 
 let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* sort so this isn't key-order-dependent. *)
@@ -356,20 +339,23 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Tuple v -> Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
     DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
+  | `Assoc [("type", `String tipe); ("value", `Null)] ->
+    (match tipe with
+     | "incomplete" -> DIncomplete
+     | "block" -> Exception.user "Can't deserialize blocks"
+     | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from null"))
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     (match tipe with
-    | "date" -> DDate (date_of_isostring v)
-    | "id" -> DID (Uuidm.of_string v |> Option.value_exn)
+    | "date" -> DDate (Util.date_of_isostring v)
+    | "id" -> DID (Util.uuid_of_string v)
     | "title" -> DTitle v
     | "url" -> DUrl v
     | "error" -> DError v
-    | "incomplete" -> DIncomplete
     | "char" -> DChar (Char.of_string v)
     | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
     | "db" -> Exception.user "Can't deserialize DBs"
-    | "block" -> Exception.user "Can't deserialize blocks"
     | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
-    | _ -> Exception.user ("Can't deserialize type: " ^ tipe))
+    | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from " ^ v))
   | `Assoc _ -> DObj (dvalmap_of_yojson json)
 and dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
   match json with
@@ -387,14 +373,11 @@ let rec dvalmap_to_yojson ?(redact=true) (dvalmap: dval_map) : Yojson.Safe.json 
   |> DvalMap.to_alist
   |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson ~redact v))
   |> (fun a -> `Assoc a)
-and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.json =
+and dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value =
-    if livevalue
-    then value
-    else
-      `Assoc [ ("type", tipe)
-             ; ("value", value)]
+    `Assoc [ ("type", tipe)
+           ; ("value", value)]
   in
   let wrap_user_str value = wrap_user_type (`String value) in
   match dv with
@@ -422,7 +405,7 @@ and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.j
   | DID id -> wrap_user_str (Uuidm.to_string id)
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title
-  | DDate date -> wrap_user_str (isostring_of_date date)
+  | DDate date -> wrap_user_str (Util.isostring_of_date date)
   | DPassword hashed -> if redact
                        then wrap_user_type `Null
                        else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
@@ -430,7 +413,7 @@ and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.j
   | DOption opt ->
     (match opt with
      | OptNothing -> wrap_user_type `Null
-     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact ~livevalue dv))
+     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact dv))
   | DErrorRail _ -> wrap_user_type `Null
 
 let is_json_primitive (dv: dval) : bool =
@@ -454,9 +437,6 @@ let dval_to_pretty_json_string ?(redact=true) (v: dval) : string =
 let dvalmap_to_string ?(redact=true) (m:dval_map) : string =
   DObj m |> dval_to_yojson ~redact |> Yojson.Safe.to_string
 
-let dvallist_to_string ?(redact=true) (l:dval list) : string =
-  DList l |> dval_to_yojson ~redact |> Yojson.Safe.to_string
-
 
 
 (* ------------------------- *)
@@ -471,7 +451,7 @@ let parse_basic_json (str: string) : dval option =
   with Yojson.Json_error e ->
     None
 
-let parse (str : string) : dval option =
+let parse_literal (str : string) : dval option =
   (* str is a raw string that the user entered. It is not valid json,
    * or anything like it. We use the json parser to get values from int
    * and float literals, etc, but this is a total hack *)
@@ -532,4 +512,12 @@ let from_form_encoding (f: string) : dval =
 
 let exception_to_dval exc =
   DError (Exception.to_string exc)
+
+(* Originally to prevent storing sensitive data to disk, this also reduces the size of the data stored by only storing a hash *)
+let hash (arglist : dval list) : string =
+  arglist
+  |> List.map ~f:to_internal_repr
+  |> String.concat
+  |> Util.hash
+
 

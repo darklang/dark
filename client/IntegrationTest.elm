@@ -68,7 +68,7 @@ pass : TestResult
 pass = Ok ()
 
 fail : a -> TestResult
-fail v = Err (toString v)
+fail v = Err (Debug.toString v)
 
 onlyTL : Model -> Toplevel
 onlyTL m =
@@ -76,7 +76,7 @@ onlyTL m =
       _ = if len == 0
           then Debug.todo ("no toplevels")
           else if len > 1
-          then Debug.todo ("too many toplevels: " ++ (toString m.toplevels))
+          then Debug.todo ("too many toplevels: " ++ (Debug.toString m.toplevels))
           else "nothing to see here" in
   m.toplevels
   |> List.head
@@ -351,9 +351,9 @@ case_sensitivity m =
                                      (F _ (Variable "var"))
                                      (F _ "cOlUmNnAmE"))))]) ->
 
-                     Analysis.getLiveValue m tl.id id
+                     Analysis.getCurrentLiveValue m tl.id id
                      |> Maybe.map (\lv ->
-                       if lv.value == "\"some value\""
+                       if lv == DStr "some value"
                        then pass
                        else fail lv)
                      |> Maybe.withDefault (fail h.ast)
@@ -505,12 +505,12 @@ feature_flag_works m =
                (F _ (Value "\"B\""))))
       )
       ->
-        let res = Analysis.getLiveValue m h.tlid id
+        let res = Analysis.getCurrentLiveValue m h.tlid id
         in case res of
           Just val ->
-             if val.value == "\"B\""
+             if val == DStr "B"
              then pass
-             else fail (ast, val.value)
+             else fail (ast, val)
           _ -> fail (ast, res)
     _ -> fail (ast, m.cursorState)
 

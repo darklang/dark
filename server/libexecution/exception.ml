@@ -38,7 +38,7 @@ type exception_tipe = DarkServer (* error while talking to the server *)
                     | DarkClient (* Error made by client *)
                     | UserCode
                     | EndUser
-                    [@@deriving show, eq, yojson, sexp]
+                    [@@deriving show, eq, yojson]
 
 let should_log (et: exception_tipe) : bool =
   match et with
@@ -58,9 +58,9 @@ type exception_data = { short : string
                       ; result_tipe : string option
                       ; info : exception_info
                       ; workarounds : string list
-                      } [@@deriving yojson, show][@@deriving_inline sexp][@@@deriving.end]
+                      } [@@deriving yojson, show]
 
-exception DarkException of exception_data [@@deriving show][@@deriving_inline sexp][@@@deriving.end]
+exception DarkException of exception_data [@@deriving show]
 
 let to_string exc =
   match exc with

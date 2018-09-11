@@ -68,7 +68,7 @@ viewCanvas m =
             case m.currentPage of
               Toplevels _ -> m.canvas.offset
               Fn _ _ -> m.canvas.fnOffset
-          in "translate(" ++ (toString offset.x) ++ "px, " ++ (toString offset.y) ++ "px)"
+          in "translate(" ++ (String.fromInt offset.x) ++ "px, " ++ (String.fromInt offset.y) ++ "px)"
 
         allDivs = asts ++ entry
     in
@@ -118,7 +118,7 @@ viewTL_ m tlid =
         case tl.data of
           TLHandler h ->
             ( ViewCode.viewHandler vs h
-            , ViewData.viewData vs
+            , ViewData.viewData vs h.ast
             )
           TLDB db ->
             ( ViewDB.viewDB vs db
@@ -126,7 +126,7 @@ viewTL_ m tlid =
             )
           TLFunc f ->
             ( [ViewFunction.viewFunction vs f]
-            , ViewData.viewData vs
+            , ViewData.viewData vs f.ast
             )
       events =
         [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)
@@ -144,9 +144,9 @@ viewTL_ m tlid =
           _ -> []
       class =
         [ selected
-        , "tl-" ++ toString (deTLID tl.id)
+        , "tl-" ++ String.fromInt (deTLID tl.id)
         , "toplevel"
-        , "cursor-" ++ (toString (Analysis.cursor m tl.id))
+        , "cursor-" ++ (String.fromInt (Analysis.cursor m tl.id))
         ]
         |> String.join " "
 

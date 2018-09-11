@@ -1696,7 +1696,7 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DStr s]) ->
               (try
-                DDate (Dval.date_of_isostring s)
+                DDate (Util.date_of_isostring s)
               with e -> RT.error "Invalid date format")
           | args -> fail args)
   ; pr = None

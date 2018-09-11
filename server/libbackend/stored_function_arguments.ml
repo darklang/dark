@@ -8,20 +8,21 @@ module RTT = Types.RuntimeT
 (* External *)
 (* ------------------------- *)
 
-let store (canvas_id, tlid) args =
+let store ~canvas_id ~trace_id tlid args =
   Db.run
     ~name:"stored_function_arguments.store"
     "INSERT INTO function_arguments
-     (canvas_id, tlid, timestamp, arguments_json)
-     VALUES ($1, $2, CURRENT_TIMESTAMP, $3)"
+     (canvas_id, trace_id, tlid, timestamp, arguments_json)
+     VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)"
     ~params:[ Uuid canvas_id
+            ; Uuid trace_id
             ; ID tlid
             ; String (args
                       |> Dval.dvalmap_to_yojson ~redact:false
                       |> Yojson.Safe.to_string)
             ]
 
-let load (canvas_id, tlid) : (RTT.dval_map * Time.t) list =
+let load ~canvas_id tlid : (RTT.dval_map * Time.t) list =
   Db.fetch
     ~name:"stored_function_arguments.load"
     "SELECT arguments_json, timestamp
@@ -38,7 +39,7 @@ let load (canvas_id, tlid) : (RTT.dval_map * Time.t) list =
         (args
          |> Yojson.Safe.from_string
          |> Dval.dvalmap_of_yojson
-        , Dval.date_of_sqlstring ts)
+        , Db.date_of_sqlstring ts)
       | _ -> Exception.internal "Bad DB format for stored_functions.load_arguments")
 
 

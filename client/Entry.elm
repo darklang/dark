@@ -27,6 +27,8 @@ import Pointer as P
 import SpecHeaders
 import Blank as B
 import Autocomplete as AC
+import DarkUrl as Url
+import RPC
 
 
 createFindSpace : Model -> Modification
@@ -80,6 +82,33 @@ submitOmniAction m pos action =
           RPC ([ CreateDB tlid pos dbname
                , AddDBCol tlid next (gid ())
                ] , FocusExact tlid next)
+    NewHandler ->
+      let next = gid ()
+          tlid = gtlid ()
+          spec = newHandlerSpec ()
+          handler = { ast = Blank next
+                    , spec = spec
+                    , tlid = tlid
+                    }
+      in
+          RPC ([ SetHandler tlid pos handler
+               ], FocusExact tlid next)
+    NewFunction name ->
+      let blankfn = Refactor.generateEmptyFunction ()
+          newfn =
+            case name of
+              Just n ->
+                let metadata = blankfn.metadata
+                    newMetadata =
+                      { metadata | name = F (gid ()) n }
+                in
+                    { blankfn | metadata = newMetadata }
+              Nothing ->
+                blankfn
+      in
+          Many ([RPC ([ SetFunction newfn ], FocusNothing)
+                , MakeCmd (Url.navigateTo (Fn newfn.tlid Viewport.origin))
+                ])
     NewHTTPHandler ->
       let next = gid ()
           tlid = gtlid ()
@@ -156,7 +185,7 @@ replaceExpr m tlid ast old_ action value =
                 (B.new ())))
 
         -- variables
-        else if List.member value (Analysis.varnamesFor m target)
+        else if List.member value (Analysis.currentVarnamesFor m target)
         then (old_, B.newF (Variable value))
 
         -- parsed exprs
@@ -205,7 +234,7 @@ parseAst m str =
     ["{"] ->
       Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
-      if RT.isLiteral str
+      if RPC.isLiteralString str
       then Just <| F eid (Value str)
       else createFunction m str
 
@@ -257,7 +286,7 @@ submit m cursor action =
                (B.new ()))
 
       -- varnames
-      else if List.member value (Analysis.varnamesFor m Nothing)
+      else if List.member value (Analysis.currentVarnamesFor m Nothing)
       then wrapExpr <| B.newF (Variable value)
 
       -- start new AST

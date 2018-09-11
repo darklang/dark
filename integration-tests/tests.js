@@ -11,7 +11,7 @@ fixture `Integration Tests`
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
-      .expect(pageLoaded).ok("page timed out", {timeout: 1500})
+      .expect(pageLoaded).ok("page timed out", {timeout: 5000})
       .takeScreenshot()
       ;
   })
@@ -85,6 +85,7 @@ test('enter_changes_state', async t => {
 test('field_access', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
@@ -103,6 +104,7 @@ test('field_access_closes', async t => {
 
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
@@ -119,6 +121,7 @@ test('field_access_pipes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
+    .pressKey("enter")
 
     .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
@@ -132,6 +135,7 @@ test('field_access_pipes', async t => {
 
 test('field_access_nested', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
 
     .typeText("#entry-box", "req", slow)
@@ -152,6 +156,7 @@ test('field_access_nested', async t => {
 test('pipeline_let_equals', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
     .typeText("#entry-box", "=value", slow)
@@ -161,6 +166,7 @@ test('pipeline_let_equals', async t => {
 
 test('pipe_within_let', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
@@ -177,6 +183,7 @@ test('pipe_within_let', async t => {
 test('tabbing_works', async t => {
   // Fill in "then" box in if stmt
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "if")
     .pressKey("enter")
@@ -220,6 +227,7 @@ test('editing_does_not_deselect', async t => {
 test('editing_request_edits_request', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "req")
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
@@ -232,6 +240,7 @@ test('editing_request_edits_request', async t => {
 
 test('autocomplete_highlights_on_partial_match', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "nt::add", slow)
     .expect(acHighlighted("Int::add")).ok()
@@ -255,6 +264,7 @@ test('no_request_global_in_non_http_space', async t => {
 test('hover_values_for_varnames', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
     .typeText("#entry-box", "myvar", slow)
@@ -266,6 +276,7 @@ test('hover_values_for_varnames', async t => {
 
 test('pressing_up_doesnt_return_to_start', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "Char::", slow)
     .expect(acHighlighted("Char::toASCIIChar")).ok()
@@ -279,6 +290,7 @@ test('pressing_up_doesnt_return_to_start', async t => {
 test('deleting_selects_the_blank', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
     .click(".ast .value")
@@ -289,6 +301,7 @@ test('deleting_selects_the_blank', async t => {
 
 test('right_number_of_blanks', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "assoc", slow)
     .pressKey("enter")
@@ -360,6 +373,7 @@ test('editing_headers', async t => {
 test('tabbing_through_let', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
 
@@ -404,6 +418,7 @@ test('focus_on_ast_in_new_empty_tl', async t => {
 test('focus_on_path_in_new_filled_tl', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
 });
@@ -411,12 +426,14 @@ test('focus_on_path_in_new_filled_tl', async t => {
 test('focus_on_cond_in_new_tl_with_if', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "if")
     .pressKey("enter")
 });
 
 test('dont_shift_focus_after_filling_last_blank', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
@@ -522,6 +539,7 @@ test('paste_right_number_of_blanks', async t => {
 test('paste_keeps_focus', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .pressKey("+")
     .pressKey("enter")
     .pressKey("3")
@@ -537,6 +555,7 @@ test('paste_keeps_focus', async t => {
 
 test('nochange_for_failed_paste', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
@@ -554,6 +573,7 @@ test('nochange_for_failed_paste', async t => {
 test('feature_flag_works', async t => {
   await t
     // Create an empty let
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
@@ -622,6 +642,7 @@ test('feature_flag_in_function', async t => {
 test('simple_tab_ordering', async t => {
   await t
     .pressKey("enter")
+    .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
     .pressKey("tab")
@@ -674,6 +695,7 @@ test('editing_starts_a_thread_with_shift_enter', async t => {
 
 test('object_literals_work', async t => {
   await t
+    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "{")
     .pressKey("enter")

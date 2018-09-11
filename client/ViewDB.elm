@@ -33,7 +33,7 @@ viewDBMigration vs m =
   Html.div
     [ Attrs.class "migration-view" ]
     [
-      Html.text ("new version: " ++ toString (m.startingVersion + 1))
+      Html.text ("new version: " ++ String.fromInt (m.startingVersion + 1))
     , ViewCode.viewExpr 0 vs [] m.rollforward
     , ViewCode.viewExpr 0 vs [] m.rollback
     ]
@@ -46,7 +46,7 @@ viewDB vs db =
                else fontAwesome "unlock"
       namediv = Html.div
                  [ Attrs.class "dbname"]
-                 [ Html.text (db.name ++ ".v" ++ (toString db.version)) ]
+                 [ Html.text (db.name ++ ".v" ++ (String.fromInt db.version)) ]
       coldivs =
         db.cols
         |> List.map (\(n, t) ->
@@ -71,4 +71,3 @@ viewDB vs db =
       [ Attrs.class "db"]
       (locked :: namediv :: coldivs)
   ]
-

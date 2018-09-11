@@ -73,6 +73,28 @@ let respond ?(resp_headers=Header.init ()) ~(execution_id: Types.id) status (bod
             ];
   S.respond_string ~status ~body ~headers:resp_headers ()
 
+let should_use_https uri =
+  let parts = uri
+              |> Uri.host
+              |> Option.value ~default:""
+              |> (fun h -> String.split h '.')
+  in
+  match parts with
+  | ["builtwithdark"; "com"; ]
+  | [_; "builtwithdark"; "com"; ] -> true
+  | _ -> false
+
+let redirect_to uri =
+  let proto = uri
+              |> Uri.scheme
+              |> Option.value ~default:"" in
+  (* If it's http and on a domain that can be served with https,
+     we want to redirect to the same url but with the scheme
+     replaced by "https". *)
+  if proto = "http" && should_use_https uri
+  then Some "https" |> Uri.with_scheme uri |> Some
+  else None
+
 (* -------------------------------------------- *)
 (* handlers for end users *)
 (* -------------------------------------------- *)
@@ -115,13 +137,15 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
                    (Handler.event_name_for_exn h)))
     else pages in
 
+  let trace_id = Util.create_uuid () in
+  let canvas_id = !c.id in
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler ~execution_id !c req
   | [] ->
     PReq.from_request headers query body
     |> PReq.to_dval
-    |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
+    |> Stored_event.store_event ~trace_id ~canvas_id ("HTTP", Uri.path uri, verb) ;
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers ~execution_id `Not_found "404: No page matches"
   | a :: b :: _ ->
@@ -138,7 +162,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
        *    b) use the input url params in the analysis for this handler
        *)
       let desc = (m, Uri.path uri, mo) in
-      Stored_event.store_event !c.id desc (PReq.to_dval input)
+      Stored_event.store_event ~trace_id ~canvas_id desc (PReq.to_dval input)
     | _-> ());
 
     let bound = Libexecution.Execution.http_route_input_vars
@@ -147,11 +171,13 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     let result = Libexecution.Execution.execute_handler page
         ~execution_id
         ~account_id:!c.owner
-        ~canvas_id:!c.id
+        ~canvas_id
         ~user_fns:!c.user_functions
         ~tlid:page.tlid
         ~dbs:(TL.dbs !c.dbs)
         ~input_vars:([("request", PReq.to_dval input)] @ bound)
+        ~store_fn_arguments:(Stored_function_arguments.store ~canvas_id ~trace_id)
+        ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
     in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
@@ -211,7 +237,6 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
 
-    let exe_fn_ids = [] in
     let tlids = List.filter_map ~f:Op.tlidOf params.ops in
 
     let (t2, c) = time "2-load-saved-ops"
@@ -224,15 +249,17 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
+           ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)))
     in
 
     let (t4, fvals) = time "4-user-fn-analyses"
       (fun _ ->
-        !c.user_functions
-        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
-        |> List.map
-          ~f:(Analysis.user_fn_analysis ~exe_fn_ids ~execution_id !c))
+        []
+        (* !c.user_functions *)
+        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
+        (* |> List.map *)
+        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        )
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
       (fun _ -> Analysis.unlocked !c) in
@@ -275,40 +302,31 @@ let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.
 
 
 let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
-  try
-    let (t1, params) = time "1-read-api-ops"
-      (fun _ -> Api.to_execute_function_params body) in
+  let (t1, params) = time "1-read-api-ops"
+    (fun _ -> Api.to_execute_function_params body)
+  in
 
-    let exe_fn_ids = params.executable_fns in
-    let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1 in
+  let (t2, c) = time "2-load-saved-ops"
+    (fun _ -> C.load_only ~tlids:[params.tlid] host [])
+  in
 
-    let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load_only ~tlids host []) in
+  let (t3, result) = time "3-execute"
+    (fun _ ->
+       Analysis.call_function !c params.fnname
+         ~execution_id
+         ~tlid:params.tlid
+         ~trace_id:params.trace_id
+         ~caller_id:params.caller_id
+         ~args:params.args)
+  in
 
-    let (t3, hvals) = time "3-handler-analyses"
-      (fun _ ->
-         !c.handlers
-         |> List.filter_map ~f:TL.as_handler
-         |> List.map
-           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
-    in
-
-    let (t4, fvals) = time "4-user-fn-analyses"
-      (fun _ ->
-        !c.user_functions
-        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
-        |> List.map
-          ~f:(Analysis.user_fn_analysis ~exe_fn_ids ~execution_id !c))
-    in
-
-    let (t5, result) = time "5-to-frontend"
-      (fun _ ->
-        Analysis.to_execute_function_response_frontend exe_fn_ids (hvals @ fvals)) in
-
-  (server_timing [t1; t2; t3; t4; t5], result)
-  with
-  | e ->
-    raise e
+  let (t4, response) = time "4-to-frontend"
+    (fun _ ->
+      Analysis.to_execute_function_response_frontend
+        (Dval.hash params.args)
+        result)
+  in
+  (server_timing [t1; t2; t3; t4], response)
 
 let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Cohttp.Header.t * string) =
   try
@@ -326,15 +344,17 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
+           ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)))
     in
 
     let (t5, fvals) = time "5-user-fn-analyses"
       (fun _ ->
-        !c.user_functions
-        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
-        |> List.map
-          ~f:(Analysis.user_fn_analysis ~exe_fn_ids:[] ~execution_id !c))
+        []
+        (* !c.user_functions *)
+        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
+        (* |> List.map *)
+        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        )
     in
 
     let (t6, unlocked) = time "6-analyze-unlocked-dbs"
@@ -410,9 +430,13 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
         (if Account.authenticate ~username ~password
          then
            let%lwt session = Auth.Session.new_for_username username in
+           let https_only_cookie = req |> CRequest.uri |> should_use_https in
            let headers =
              Header.of_list
-               (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session)
+               (Auth.Session.to_cookie_hdrs
+                  ~http_only:true
+                  ~secure:https_only_cookie
+                  Auth.Session.cookie_key session)
            in
            run_handler ~auth_domain ~username headers
          else
@@ -514,24 +538,6 @@ let with_x_forwarded_proto req =
                    (CRequest.uri req)
                    (Some proto)
   | None -> CRequest.uri req
-
-let redirect_to uri =
-  let proto = uri
-              |> Uri.scheme
-              |> Option.value ~default:"" in
-  let parts = uri
-              |> Uri.host
-              |> Option.value ~default:""
-              |> (fun h -> String.split h '.')
-  in
-  match (proto, parts) with
-  | ("http", ["builtwithdark"; "com"; ])
-  | ("http", [_; "builtwithdark"; "com"; ]) ->
-     (* If it's http and on a domain that can be served with https,
-        we want to redirect to the same url but with the scheme
-        replaced by "https". *)
-     Some "https" |> Uri.with_scheme uri |> Some
-  | _ -> None
 
 let server () =
   let stop,stopper = Lwt.wait () in

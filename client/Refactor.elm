@@ -17,7 +17,7 @@ import Util
 
 generateFnName : () -> String
 generateFnName _ =
-  "fn_" ++ (() |> Util.random |> toString)
+  "fn_" ++ (() |> Util.random |> String.fromInt)
 
 convertTipe : Tipe -> Tipe
 convertTipe tipe =
@@ -109,7 +109,7 @@ toggleOnRail m tl p =
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
   let extractVarInAst e ast  =
-      let varname = "var" ++ toString (Util.random())
+      let varname = "var" ++ String.fromInt (Util.random())
           freeVariables =
             AST.freeVariables e
             |> List.map Tuple.second
@@ -122,7 +122,7 @@ extractVariable m tl p =
               (\elem ->
                 let id = B.toID elem
                     availableVars =
-                      Analysis.getAvailableVarnames m tl.id id
+                      Analysis.getCurrentAvailableVarnames m tl.id id
                       |> Set.fromList
                     allRequiredVariablesAvailable =
                       Set.diff freeVariables availableVars
@@ -200,9 +200,9 @@ extractFunction m tl p =
           params =
             List.map
             (\(id, name) ->
-              let tipe = Analysis.getTipeOf m tl.id id
-                          |> Maybe.withDefault TAny
-                          |> convertTipe
+              let tipe = Analysis.getCurrentTipeOf m tl.id id
+                         |> Maybe.withDefault TAny
+                         |> convertTipe
               in
                   { name = F (gid ()) name
                   , tipe = F (gid ()) tipe

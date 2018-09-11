@@ -17,7 +17,7 @@
     (public_name add_user)
     (modules add_user)
     (flags (-warn-error (+A)))
-    (libraries (libbackend sodium))
+    (libraries (libbackend))
     (package dark)
   )
 )
@@ -30,6 +30,7 @@
     (flags (-no-check-prims))
     (js_of_ocaml
       ((flags (--opt=1
+               --setenv FORCE_DROP_INLINE_TEST=true
                +nat.js
                +dynlink.js
                +toplevel.js))))
@@ -42,7 +43,7 @@
 (alias
  (
   (name darkjs)
-  (deps (darkjs.bc.js))
+  (deps (darkjs.bc.js (universe)))
   (action (system "cp darkjs.bc.js ../../../static/"))))
 
 
@@ -63,7 +64,7 @@
     (public_name queue_worker)
     (modules queue_worker)
     (flags (-warn-error (+A)))
-    (libraries (libbackend core lwt.unix lwt.ppx))
+    (libraries (libbackend))
     (preprocess (pps (lwt.ppx)))
     (package dark)
   )
@@ -75,7 +76,7 @@
     (public_name cron_checker)
     (modules cron_checker)
     (flags (-warn-error (+A)))
-    (libraries (libbackend core lwt.unix lwt.ppx))
+    (libraries (libbackend))
     (preprocess (pps (lwt.ppx)))
     (package dark)
   )

@@ -3,12 +3,15 @@ open Libexecution
 
 
 val store :
+  canvas_id:Uuidm.t ->
+  trace_id:Uuidm.t ->
   Types.RuntimeT.function_desc ->
   Types.RuntimeT.dval list ->
   Types.RuntimeT.dval ->
   unit
 
 val load :
-  Types.RuntimeT.function_desc ->
-  Types.RuntimeT.dval list ->
-  (Types.RuntimeT.dval * Time.t) option
+  canvas_id:Uuidm.t ->
+  trace_id:Uuidm.t ->
+  Types.tlid ->
+  Analysis_types.function_result list

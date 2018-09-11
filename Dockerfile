@@ -203,16 +203,16 @@ RUN pip install -U crcmod
 # Ocaml
 ############################
 USER dark
-ENV FORCE_OCAML_BUILD 4
+ENV FORCE_OCAML_BUILD 5
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
-RUN opam init --comp 4.06.1 --auto-setup --disable-sandboxing
-ENV PATH "/home/dark/.opam/4.06.1/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.1/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/4.06.1/man:"
-ENV PERL5LIB "/home/dark/.opam/4.06.1/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.1/lib/toplevel"
+RUN opam init --comp 4.07.0 --auto-setup --disable-sandboxing
+ENV PATH "/home/dark/.opam/4.07.0/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.07.0/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/4.07.0/man:"
+ENV PERL5LIB "/home/dark/.opam/4.07.0/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.07.0/lib/toplevel"
 ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
@@ -220,22 +220,20 @@ RUN opam update
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 RUN opam install -y \
   ppx_deriving.4.2.1 \
-  core.v0.11.1  \
+  core.v0.11.2  \
   core_extended.v0.11.0 \
-  dune.1.0.0 \
+  dune.1.1.1 \
   re2.v0.11.0 \
-  conf-libev \
+  conf-libev.4-11 \
   lwt.3.3.0 \
   yojson.1.4.1 \
   postgresql.4.4.0 \
   ppx_deriving_yojson.3.1 \
   cohttp-lwt-unix.1.0.2 \
-  ocurl.0.8.1 \
+  ocurl.0.8.2 \
   alcotest.0.8.3 \
   merlin.3.1.0 \
-  utop.2.1.0 \
   ocp-indent.1.6.1 \
-  batteries.2.8.0 \
   landmarks.1.1 \
   cstruct.3.2.1 \
   nocrypto.0.5.4-1 \
@@ -250,7 +248,6 @@ RUN opam install -y \
   js_of_ocaml.3.2.0 \
   js_of_ocaml-ppx.3.2.0 \
   js_of_ocaml-lwt.3.2.0 \
-  lambda-term.1.13 \
   sodium.0.6.0
 
 
@@ -263,9 +260,7 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-RUN opam update && opam install -y dune.1.1.0
-RUN opam remove batteries.2.8.0
+RUN yarn add testcafe@0.22.0
 
 ############################
 # Finish

@@ -35,11 +35,7 @@ type HtmlConfig =
                 -- highlight this node as if it were ID
                 | MouseoverAs ID
                 | Mouseover
-                -- display the value from this ID
-                | DisplayValueOf ID
-                | DisplayValue
-                -- use this as ID for Mouseover, ClickSelect and
-                -- DisplayValue
+                -- use this as ID for Mouseover, ClickSelect
                 | WithID ID
                 -- show a featureflag
                 | WithFF
@@ -55,7 +51,7 @@ wc = WithClass
 
 idConfigs : List HtmlConfig
 idConfigs =
-  [ClickSelect, DisplayValue, Mouseover]
+  [ClickSelect, Mouseover]
 
 atom : HtmlConfig
 atom = wc "atom"
@@ -93,34 +89,28 @@ withEditFn vs v =
       _ -> []
   else []
 
-getLiveValue : LVDict -> ID -> Maybe (Result String LiveValue)
+getLiveValue : LVDict -> ID -> Maybe Dval
 getLiveValue lvs (ID id) =
-  lvs
-  |> Dict.get id
-  |> Maybe.map (\lv -> if Runtime.isError lv
-                       then Err (Runtime.extractErrorMessage lv)
-                       else Ok lv)
-
-
+  Dict.get id lvs
 
 viewLiveValue : ViewState -> List (Html.Html Msg)
 viewLiveValue vs =
   let cursorLiveValue =
         case vs.cursorState of
-          Selecting tlid (Just (ID id)) ->
-            Dict.get id vs.lvs
-          Entering (Filling tlid (ID id)) ->
-            Dict.get id vs.lvs
+          Selecting _ (Just (ID id)) ->
+            Dict.get id vs.currentResults.liveValues
+          Entering (Filling _ (ID id)) ->
+            Dict.get id vs.currentResults.liveValues
           _ -> Nothing
   in
       case cursorLiveValue of
-        Just sv->
+        Just dv ->
           [
             Html.div
               [Attrs.class "computed-value"]
               [Html.div
                 [Attrs.class "computed-value-value"]
-                [Html.text sv.value]
+                [Html.text (RT.toRepr dv)]
               ]
           ]
         _ -> []
@@ -138,10 +128,6 @@ div vs configs content =
       clickAs = getFirst (\a -> case a of
                                   ClickSelectAs id -> Just id
                                   ClickSelect -> thisID
-                                  _ -> Nothing)
-      hoverAs = getFirst (\a -> case a of
-                                  DisplayValueOf id -> Just id
-                                  DisplayValue -> thisID
                                   _ -> Nothing)
       mouseoverAs = getFirst (\a -> case a of
                                       MouseoverAs id -> Just id
@@ -161,7 +147,7 @@ div vs configs content =
                                  _ -> Nothing)
 
 
-      value = getLiveValue vs.lvs
+      value = getLiveValue vs.currentResults.liveValues
 
       selectedID =
         case vs.cursorState of
@@ -181,19 +167,17 @@ div vs configs content =
         if selected then viewLiveValue vs else []
 
       computedValueData = Maybe.andThen value computedValueAs
-      hoverdata = Maybe.andThen value hoverAs
 
       mouseover =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
       incomplete =
         case computedValueData of
-          Nothing -> False
-          Just (Err _) -> False
-          Just (Ok lv) -> Runtime.isIncomplete lv
+          Nothing -> True
+          Just dv -> dv == DIncomplete
 
       idAttr = case thisID of
-                 Just id -> ["blankOr", "id-" ++ toString (deID id)]
+                 Just id -> ["blankOr", "id-" ++ String.fromInt (deID id)]
                  _ -> []
       allClasses = classes
                   ++ idAttr

@@ -66,7 +66,7 @@ jobs:
             docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
             # set the ownership of all this
-            docker run -i --volumes-from vols dark sudo chown -R dark /home/dark/app
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
 
       - run: scripts/builder --compile --test
 
@@ -100,7 +100,6 @@ jobs:
           when: always
           command: |
             mkdir -p artifacts
-            docker cp vols:/home/dark/app/persistdir artifacts/persistdir1
             docker cp vols:/home/dark/app/rundir artifacts/rundir1/
 
 
@@ -121,7 +120,6 @@ jobs:
       #     name: Copy out artifacts
       #     when: always
       #     command: |
-      #       docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
       #       docker cp vols:/home/dark/app/rundir artifacts/rundir2
 
       - store_artifacts:
