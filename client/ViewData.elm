@@ -37,19 +37,19 @@ asValue inputValue =
 viewInputs : ViewState -> ID -> List (Html.Html Msg)
 viewInputs vs (ID astID) =
   let traceToHtml idx trace =
-    let value = asValue trace.input
-        -- Note: the following tlCursors are very different things.
-        isActive = (Analysis.cursor_ vs.tlCursors vs.tl.id) == idx
-        -- Note: this is not the same tlCursor as above
-        hoverID = tlCursorID vs.tl.id idx
-        isHover = vs.hovering == Just hoverID
-        astTipe = Dict.get trace.id vs.analyses
-                  |> Maybe.map .liveValues
-                  |> Maybe.andThen (Dict.get astID)
-                  |> Maybe.map RT.typeOf
-                  |> Maybe.withDefault TIncomplete
-    in
-    viewInput vs.tl.id idx value isActive isHover astTipe
+        let value = asValue trace.input
+            -- Note: the following tlCursors are very different things.
+            isActive = (Analysis.cursor_ vs.tlCursors vs.tl.id) == idx
+            -- Note: this is not the same tlCursor as above
+            hoverID = tlCursorID vs.tl.id idx
+            isHover = vs.hovering == Just hoverID
+            astTipe = Dict.get trace.id vs.analyses
+                      |> Maybe.map .liveValues
+                      |> Maybe.andThen (Dict.get astID)
+                      |> Maybe.map RT.typeOf
+                      |> Maybe.withDefault TIncomplete
+        in
+        viewInput vs.tl.id idx value isActive isHover astTipe
   in
   List.indexedMap traceToHtml vs.traces
 
@@ -65,7 +65,7 @@ viewData vs ast =
           _ -> Nothing
   in
   case selectedValue of
-    Just selectedValue ->
+    Just _ ->
       [ Html.div
           [Attrs.class "view-data live-view-selection-active"]
           [ Html.ul
@@ -81,4 +81,3 @@ viewData vs ast =
               requestEls
           ]
       ]
-
