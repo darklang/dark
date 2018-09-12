@@ -356,7 +356,9 @@ submit m cursor action =
           in if B.asF ct == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol db1 id
-          then DB.updateMigrationCol db1 id value
+          then wrapID 
+            [ SetDBColTypeInDBMigration tlid id value
+            , AddDBColToDBMigration tlid (gid ()) (gid ()) ]
           else if B.isBlank ct
           then
             wrapID [ SetDBColType tlid id value
@@ -369,7 +371,7 @@ submit m cursor action =
           in if B.asF cn == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol db1 id
-          then DB.updateMigrationCol db1 id value
+          then wrapID [SetDBColNameInDBMigration tlid id value]
           else if DB.hasCol db1 value
           then DisplayError ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn
