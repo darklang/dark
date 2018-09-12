@@ -1,7 +1,6 @@
 module DB exposing (..)
 
 -- lib
-import String
 
 -- dark
 import Types exposing (..)
@@ -62,12 +61,6 @@ isMigrationCol db id =
 isMigrationLockReady : DBMigration -> Bool
 isMigrationLockReady m = B.isF m.rollforward && B.isF m.rollback
 
-maybeAddBlankField : List DBColumn -> List DBColumn
-maybeAddBlankField cols =
-  if List.any (\(n, t) -> (B.isBlank n) || (B.isBlank t) ) cols
-  then cols
-  else cols ++ [(B.new (), B.new ())]
-
 startMigration : DB -> Modification
 startMigration db =
   let newCols = db.cols
@@ -82,24 +75,7 @@ startMigration db =
         , rollback = rf
         , cols = newCols }
       newDB = { db | activeMigration = Just migra }
-  in Many
-    [ UpdateDB newDB,
-      RPC ([ CreateDBMigration db.tlid (B.toID rb) (B.toID rf) newCols ], FocusSame)
-    ]
-
-updateMigrationCol : DB -> ID -> String -> Modification
-updateMigrationCol db id val =
-  case db.activeMigration of
-    Just migra ->
-      let value = if (String.isEmpty val) then B.new () else B.newF val
-          replacer = B.replace id value
-          newCols = migra.cols
-            |> List.map (\(n, t) -> (replacer n, replacer t))
-            |> maybeAddBlankField
-      in UpdateDB { db | activeMigration = Just ({ migra | cols = newCols }) }
-    _ -> NoChange
-
-
+  in RPC ([ CreateDBMigration db.tlid (B.toID rb) (B.toID rf) newCols ], FocusSame)
 
 deleteCol : DB -> DBColumn -> Modification
 deleteCol db (n, t) =
