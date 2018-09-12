@@ -624,5 +624,5 @@ let abandon_migration db =
     Exception.internal "TODO(ian)"
   | Some migration ->
     let mutated_migration = { migration with state = DBMigrationAbandoned } in
-    let db2 = { db with old_migrations = [mutated_migration] } in
+    let db2 = { db with old_migrations = db.old_migrations @ [mutated_migration] } in
     { db2 with active_migration = None }
