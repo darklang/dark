@@ -618,4 +618,11 @@ let set_col_type_in_migration id tipe db =
     let mutated_migration = { migration with cols = newcols } in
     { db with active_migration = Some mutated_migration }
 
-
+let abandon_migration db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let mutated_migration = { migration with state = DBMigrationAbandoned } in
+    let db2 = { db with old_migrations = [mutated_migration] } in
+    { db2 with active_migration = None }
