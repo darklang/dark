@@ -366,8 +366,14 @@ enterDB m db tl id =
       _ = Debug.log "enterDB pd" pd
   in
     case pd of
-      PDBColName d -> updateDB False
-      PDBColType d -> updateDB True
+      PDBColName d ->
+        if isLocked && not isMigrationCol
+        then NoChange
+        else updateDB False
+      PDBColType d ->
+        if isLocked && not isMigrationCol
+        then NoChange
+        else updateDB True
       PExpr ex -> updateDB True
       -- TODO validate ex.id is in either rollback or rollforward function if there's a migration in progreess
       _ -> NoChange

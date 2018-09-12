@@ -458,7 +458,7 @@ test('rename_db_fields', async t => {
   await t
     .doubleClick(Selector('.name').withText('field1'))
     .pressKey("backspace")
-    .pressKey("6")
+    .typeText("#entry-box", "field6")
     .pressKey("tab")
     .pressKey("esc")
     ;
@@ -477,8 +477,7 @@ test('rename_db_fields', async t => {
   await t.expect(Selector('.fa-lock').exists).ok();
 
   await t
-    .pressKey("up")
-    .pressKey("up")
+    .doubleClick(Selector('.name').withText('field6'))
     .pressKey("enter")
     ;
 });
@@ -496,9 +495,6 @@ test('rename_db_type', async t => {
   // rename
   await t
     .doubleClick(Selector('.type').withText('Int'))
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
@@ -520,8 +516,7 @@ test('rename_db_type', async t => {
   await t.expect(Selector('.fa-lock').exists).ok();
 
   await t
-    .pressKey("up")
-    .pressKey("left")
+    .doubleClick(Selector('.type').withText('String'))
     .pressKey("enter")
     ;
 });
