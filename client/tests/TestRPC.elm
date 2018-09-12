@@ -1,4 +1,4 @@
-module TestRPC exposing (all)
+module TestRPC exposing (..)
 
 -- tests
 import Test exposing (describe)
@@ -34,9 +34,20 @@ rtDval = testRoundtrip decodeDval encodeDval
 
 
 
-all : Test.Test
-all =
-  Test.describe "ast"
+serverCompatible : Test.Test
+serverCompatible =
+  Test.describe "compatible with server JSON encoding"
+    [ test "obj uses list" <|
+        (Expect.equal "[\"DObj\",{\"foo\":[\"DInt\",5]}]"
+          (DObj (Dict.fromList [("foo", DInt 5)])
+           |> encodeDval
+           |> JSE.encode 0))
+    ]
+
+
+roundtrips : Test.Test
+roundtrips =
+  Test.describe "roundtrips"
     [ rtDval "int" (DInt 5)
     , rtDval "obj" (DObj (Dict.fromList [("foo", DInt 5)]))
     , rtDval "date" (DDate "can be anything atm")
