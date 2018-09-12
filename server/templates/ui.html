@@ -72,9 +72,17 @@
            const spec = params.handler.spec;
            const route =
              `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-           const errorName = error[1][1].c;
-           const errorMsg = error[2][1].c;
-           const errString = `${errorName} - ${errorMsg}`;
+           var errorName = null;
+           var errorMsg = null;
+           var errString = null;
+
+           try {
+             // OCaml errors come in a few constructs - get the data we can
+             try { errorName = error[1][1].c; } catch (_) {}
+             try { errorMsg = error[2][1].c; } catch (_) {}
+             try { errorMsg = error[2].c; } catch (_) {}
+             errString = `${errorName} - ${errorMsg}`;
+           } catch (_) { }
 
            // send to rollbar
            window.Rollbar.error(errString, error, { route: route
