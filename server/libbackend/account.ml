@@ -134,7 +134,7 @@ let for_host (host:string) : Uuidm.t =
 
 let init_testing () : unit =
   upsert_account
-    { username = "test-unhashed"
+    { username = "test_unhashed"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests with Unhashed Password"};
@@ -143,7 +143,14 @@ let init_testing () : unit =
     { username = "test"
     ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"};;
+    ; name = "Dark OCaml Tests"};
+
+  upsert_admin
+    { username = "test_admin"
+    ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; email = "test@darklang.com"
+    ; name = "Dark OCaml Test Admin"};;
+
 
 let init () : unit =
   init_testing ();

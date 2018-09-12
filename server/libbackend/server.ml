@@ -108,6 +108,17 @@ let over_headers (r : CResponse.t) ~(f : Header.t -> Header.t) : CResponse.t  =
     ~headers:(r |> CResponse.headers |> f)
     ()
 
+let over_headers_promise
+      (resp_promise: (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t)
+      ~(f : Header.t -> Header.t)
+    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  let%lwt (resp, body) = resp_promise in
+  return (over_headers ~f resp, body)
+
+let wrap_json_headers =
+  let json_headers = [("Content-type",  "application/json; charset=utf-8") ] in
+  over_headers_promise ~f:(fun h -> Header.add_list h json_headers)
+
 (* -------------------------------------------- *)
 (* handlers for end users *)
 (* -------------------------------------------- *)
@@ -245,7 +256,8 @@ let user_page_handler ~(execution_id: Types.id) ~(canvas: string) ~(ip: string) 
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
+let admin_rpc_handler ~(execution_id: Types.id) (host: string) body
+    :  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
@@ -290,12 +302,13 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
         else ()
       ) in
 
-  (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
+    respond ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7]) ~execution_id `OK result
   with
   | e ->
     raise e
 
-let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
+let initial_load ~(execution_id: Types.id) (host: string) body
+  : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let (t1, c) = time "1-load-saved-ops"
       (fun _ ->
@@ -307,14 +320,15 @@ let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.
     let (t3, result) = time "3-to-frontend"
         (fun _ -> Analysis.to_rpc_response_frontend !c [] unlocked) in
 
-  (server_timing [t1; t2; t3], result)
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
   with
   | e ->
     raise e
 
 
 
-let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
+let execute_function ~(execution_id: Types.id) (host: string) body
+  : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let (t1, params) = time "1-read-api-ops"
     (fun _ -> Api.to_execute_function_params body)
   in
@@ -332,16 +346,16 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
          ~caller_id:params.caller_id
          ~args:params.args)
   in
-
   let (t4, response) = time "4-to-frontend"
     (fun _ ->
       Analysis.to_execute_function_response_frontend
         (Dval.hash params.args)
         result)
   in
-  (server_timing [t1; t2; t3; t4], response)
+  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4]) `OK response
 
-let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Cohttp.Header.t * string) =
+let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
+        : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let (t1, tlids) = time "1-read-api-tlids"
       (fun _ -> Api.to_analysis_params body) in
@@ -376,14 +390,14 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
     let (t7, result) = time "7-to-frontend"
       (fun _ -> Analysis.to_getanalysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
-  (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7]) `OK result
   with
   | e ->
     raise e
 
 
 
-let admin_ui_handler ~(debug:bool) () =
+let admin_ui_html ~(debug:bool) () =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
@@ -433,8 +447,8 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
                            ~secure:https_only_cookie
                            Auth.Session.cookie_key session
            in
-           let%lwt (resp, body) = handler ~username req in
-           return (over_headers ~f:(fun h -> Header.add_list h headers) resp, body)
+           over_headers_promise ~f:(fun h -> Header.add_list h headers)
+             (handler ~username req)
          else
            respond ~execution_id `Unauthorized "Bad credentials")
      | None ->
@@ -442,20 +456,10 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
      | _ ->
         respond ~execution_id `Unauthorized "Invalid session"
 
-let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
+
+let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
       ~(body: string) ~(username:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
-  let path = uri
-             |> Uri.path
-             |> String.lstrip ~drop:((=) '/')
-             |> String.rstrip ~drop:((=) '/')
-             |> String.split ~on:'/' in
-
-  (* headers for different routes *)
-  let json_hdrs h =
-    Header.add_list h
-      [("Content-type",  "application/json; charset=utf-8") ]
-  in
   let html_hdrs =
     Header.of_list
       [ ("Content-type", "text/html; charset=utf-8")
@@ -469,35 +473,109 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
       ; ("Content-security-policy", "frame-ancestors 'none';")
       ]
   in
+  (* this could be more middleware like in the future *if and only if* we
+     only make changes in promises .*)
   let when_can_edit ~canvas f =
     if Account.can_edit_canvas ~auth_domain:(Account.auth_domain_for canvas) ~username
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
+  match (verb, path) with
+  (* Canvas webpages... *)
+  | (`GET, [ canvas ; "integration_test" ]) when Config.allow_test_routes ->
+     when_can_edit ~canvas
+       (fun _ ->
+         Canvas.load_and_resave_from_test_file canvas;
+         let%lwt body = admin_ui_html ~debug:false () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body)
+  | (`GET, [ canvas; "ui-debug" ]) ->
+     when_can_edit ~canvas
+       (fun _ ->
+         let%lwt body = admin_ui_html ~debug:true () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body)
+  | (`GET, [ canvas; ]) ->
+     when_can_edit ~canvas
+       (fun _ ->
+         let%lwt body = admin_ui_html ~debug:false () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body)
+  | _ -> respond ~execution_id `Not_found "Not found"
+
+let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
+      ~(body: string) ~(username:string) (req: CRequest.t) =
+  let verb = req |> CRequest.meth in
+  (* this could be more middleware like in the future *if and only if* we
+     only make changes in promises .*)
+  let when_can_edit ~canvas f =
+    if Account.can_edit_canvas ~auth_domain:(Account.auth_domain_for canvas) ~username
+    then f ()
+    else respond ~execution_id `Unauthorized "Unauthorized"
+  in
+  match (verb, path) with
+  (* Operational APIs.... maybe these shouldn't be here, but
+     they start with /api so they need to be. *)
+  | (`POST, [ "api" ; "shutdown" ]) when Config.allow_server_shutdown ->
+     Lwt.wakeup stopper ();
+     respond ~execution_id `OK "Disembowelment"
+  | (`POST, [ "api" ; "clear-benchmarking-data" ] ) ->
+     Db.delete_benchmarking_data ();
+     respond ~execution_id `OK "Cleared"
+  | (`POST, [ "api" ; canvas; "save_test" ]) when Config.allow_test_routes ->
+     save_test_handler ~execution_id canvas
+
+  (* Canvas API *)
+  | (`POST, [ "api" ; canvas ;  "rpc" ]) ->
+     when_can_edit ~canvas
+       (fun _ ->
+         wrap_json_headers (admin_rpc_handler ~execution_id canvas body))
+  | (`POST, [ "api" ; canvas ; "initial_load" ]) ->
+     when_can_edit ~canvas
+       (fun _ ->
+         wrap_json_headers (initial_load ~execution_id canvas body))
+  | (`POST, [ "api" ; canvas ; "execute_function" ]) ->
+     when_can_edit ~canvas
+       (fun _ ->
+         wrap_json_headers (execute_function ~execution_id canvas body))
+  | (`POST, [ "api" ; canvas ; "get_analysis" ]) ->
+     when_can_edit ~canvas
+       (fun _ ->
+         wrap_json_headers (get_analysis ~execution_id canvas body))
+  | _ -> respond ~execution_id `Not_found "Not found"
+
+let ops_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
+      ~(body: string) ~(username:string) (req: CRequest.t) =
+  let verb = req |> CRequest.meth in
+  (* this could be more middleware like in the future *if and only if* we
+     only make changes in promises .*)
   let when_can_ops f =
     if Account.can_access_operations username
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  (* routing *)
-  if List.nth path 0 = Some "ops"
-  then
-    match (verb, List.drop path 1) with
-    | (`POST, [ "migrate-all-canvases" ]) ->
-       when_can_ops
-         (fun _ ->
-           Canvas.migrate_all_hosts ();
-           respond ~execution_id `OK "Migrated")
-    | (`POST, [ "check-all-canvases" ]) ->
-       when_can_ops
-         (fun _ ->
-           Canvas.check_all_hosts ();
-           respond ~execution_id `OK "Checked")
-    | (`POST, [ "cleanup-old-traces" ]) ->
-       when_can_ops
-         (fun _ ->
-           Canvas.cleanup_old_traces ();
-           respond ~execution_id `OK "Cleanedup")
+  match (verb, List.drop path 1) with
+  | (`POST, [ "migrate-all-canvases" ]) ->
+     when_can_ops
+       (fun _ ->
+         Canvas.migrate_all_hosts ();
+         respond ~execution_id `OK "Migrated")
+  | (`POST, [ "check-all-canvases" ]) ->
+     when_can_ops
+       (fun _ ->
+         Canvas.check_all_hosts ();
+         respond ~execution_id `OK "Checked")
+  | (`POST, [ "cleanup-old-traces" ]) ->
+     when_can_ops
+       (fun _ ->
+         Canvas.cleanup_old_traces ();
+         respond ~execution_id `OK "Cleanedup")
     | (`GET, [ "check-all-canvases" ]) ->
        when_can_ops
          (fun _ ->
@@ -512,72 +590,23 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
            <form action='/admin/ops/cleanup-old-traces' method='post'>
            <input type='submit' value='Cleanup old traces (done nightly by cron)'>
            </form>
-           </body></html>"
-           )
-    | _ ->
-       respond ~execution_id `Not_found "Not found"
-  else
-    match (verb, path) with
-    (* Operational APIs.... *)
-    | (`POST, [ "api" ; "shutdown" ]) when Config.allow_server_shutdown ->
-       Lwt.wakeup stopper ();
-       respond ~execution_id `OK "Disembowelment"
-    | (`POST, [ "api" ; "clear-benchmarking-data" ] ) ->
-       Db.delete_benchmarking_data ();
-       respond ~execution_id `OK "Cleared"
-    | (`POST, [ "api" ; canvas; "save_test" ]) when Config.allow_test_routes ->
-       save_test_handler ~execution_id canvas
-    | (`GET, [ canvas ; "integration_test" ]) when Config.allow_test_routes ->
-       when_can_edit ~canvas
-         (fun _ ->
-           Canvas.load_and_resave_from_test_file canvas;
-           let%lwt body = admin_ui_handler ~debug:false () in
-           respond
-             ~resp_headers:html_hdrs
-             ~execution_id
-             `OK body)
+           </body></html>")
+  | _ ->
+     respond ~execution_id `Not_found "Not found"
 
-    (* Canvas API *)
-    | (`POST, [ "api" ; canvas ;  "rpc" ]) ->
-       when_can_edit ~canvas
-         (fun _ ->
-           let (resp_headers, response_body) = admin_rpc_handler ~execution_id canvas body in
-           respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
-    | (`POST, [ "api" ; canvas ; "initial_load" ]) ->
-       when_can_edit ~canvas
-         (fun _ ->
-           let (resp_headers, response_body) = initial_load ~execution_id canvas body in
-           respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
-    | (`POST, [ "api" ; canvas ; "execute_function" ]) ->
-       when_can_edit ~canvas
-         (fun _ ->
-           let (resp_headers, response_body) = execute_function ~execution_id canvas body in
-           respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
-    | (`POST, [ "api" ; canvas ; "get_analysis" ]) ->
-       when_can_edit ~canvas
-         (fun _ ->
-           let (resp_headers, response_body) = get_analysis ~execution_id canvas body in
-           respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body)
+let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
+      ~(body: string) ~(username:string) (req: CRequest.t) =
+  let path = uri
+             |> Uri.path
+             |> String.lstrip ~drop:((=) '/')
+             |> String.rstrip ~drop:((=) '/')
+             |> String.split ~on:'/' in
 
-    (* Canvas webpages... *)
-    | (`GET, [ canvas; "ui-debug" ]) ->
-       when_can_edit ~canvas
-         (fun _ ->
-           let%lwt body = admin_ui_handler ~debug:true () in
-           respond
-             ~resp_headers:html_hdrs
-             ~execution_id
-             `OK body)
-    | (`GET, [ canvas; ]) ->
-       when_can_edit ~canvas
-         (fun _ ->
-           let%lwt body = admin_ui_handler ~debug:false () in
-           respond
-             ~resp_headers:html_hdrs
-             ~execution_id
-             `OK body)
-
-    | _ -> respond ~execution_id `Not_found "Not found"
+  (* routing *)
+  match path with
+  | "ops" :: _ ->  ops_api_handler ~execution_id ~path ~stopper ~body ~username req
+  | "api" :: _ ->  admin_api_handler ~execution_id ~path ~stopper ~body ~username req
+  |  _ ->  admin_ui_handler ~execution_id ~path ~stopper ~body ~username req
 
 (* -------------------------------------------- *)
 (* The server *)

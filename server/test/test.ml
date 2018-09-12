@@ -812,9 +812,9 @@ let t_authenticate_user () =
   AT.check AT.bool "Account.authenticate_user works for the test user"
     true
     (Account.authenticate "test" "fVm2CUePzGKCwoEQQdNJktUQ"
-     && not (Account.authenticate "test-unhashed" "fVm2CUePzGKCwoEQQdNJktUQ")
+     && not (Account.authenticate "test_unhashed" "fVm2CUePzGKCwoEQQdNJktUQ")
      && not (Account.authenticate "test" "no")
-     && not (Account.authenticate "test-unhashed" "no"))
+     && not (Account.authenticate "test_unhashed" "no"))
 
 let t_uuid_db_roundtrip () =
   clear_test_data ();
@@ -1005,6 +1005,71 @@ let t_authenticate_then_handle_code_and_cookie () =
     ; 401, None
     ; 401, None
     ; 401, None
+    ]
+
+let admin_handler_code ?(meth=`GET) ?(body="") (username, endpoint) =
+  (* sample execution id, makes grepping test logs easier *)
+  let test_id = Types.id_of_int 1234 in
+    Lwt_main.run
+      (let stop, stopper = Lwt.wait () in
+       let uri = Uri.of_string ("http://builtwithdark.localhost:8000" ^ endpoint) in
+       let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let%lwt (resp, _) =  Server.admin_handler
+                              ~execution_id:test_id
+                              ~uri
+                              ~stopper
+                              ~body
+                              ~username
+                              (Req.make ~meth uri) in
+       resp |> Resp.status |> Code.code_of_status |> return)
+
+let t_admin_handler_ui () =
+  let ah_ui_response (username, canvas)  = admin_handler_code (username, "/" ^ canvas ^ "/")
+  in
+  AT.check (AT.list AT.int)
+    "UI routes in admin_handler check authorization correctly."
+    (List.map
+       ~f:ah_ui_response
+       [ "test", "test"
+       (* everyone can edit demo *)
+       ; "test", "demo"
+       (* a la dabblefox *)
+       ; "test", "test-something"
+       (* arbitrary canvas belonging to another user *)
+       ; "test", "test_admin"
+       ])
+
+    [ 200
+    ; 200
+    ; 200
+    ; 401
+    ]
+
+let t_admin_handler_ops () =
+  AT.check (AT.list AT.int)
+    "/ops/ routes in admin_handler check authorization correctly."
+    (List.map
+       ~f:admin_handler_code
+       [ "test", "/ops/check-all-canvases"
+       ; "test_admin", "/ops/check-all-canvases"
+    ])
+    [ 401
+    ; 200
+    ]
+
+let t_admin_handler_api () =
+  let ah_api_response (username, endpoint, body) =
+    admin_handler_code ~meth:`POST ~body (username, endpoint)
+  in
+  AT.check (AT.list AT.int)
+    "/api/ routes in admin_handler check authorization correctly."
+    (List.map
+       ~f:ah_api_response
+       [ "test", "/api/test/initial_load", ""
+       ; "test", "/api/test_admin/initial_load", ""
+    ])
+    [ 200
+    ; 401
     ]
 
 let t_db_write_deprecated_read_new () =
@@ -1489,6 +1554,9 @@ let suite =
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ; "Handling nothing in code works", `Quick, t_nothing
   ; "authenticate_then_handle sets status codes and cookies correctly ", `Quick, t_authenticate_then_handle_code_and_cookie
+  ; "UI routes in admin_handler work ", `Quick, t_admin_handler_ui
+  ; "/ops/ routes in admin_handler work ", `Quick, t_admin_handler_ops
+  ; "/api/ routes in admin_handler work ", `Quick, t_admin_handler_api
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_v2_works
