@@ -74,6 +74,11 @@ jobs:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
 
+      # The 2nd invocation of builder isn't free.
+      - run: |
+          scripts/wait-until-container-ready
+          scripts/wait-until-server-ready
+
       - run:
           name: Copy out caches
           when: always
@@ -91,8 +96,6 @@ jobs:
           key: v1-build-{{ checksum "today-timestamp" }}
 
 
-      # TODO: actually wait until the container is waiting rather than
-      # relying on caches taking their time
       - run: scripts/run-in-docker integration-tests/run.sh
 
       - run:
