@@ -676,13 +676,6 @@ updateMod mod (m, cmd) =
       SetUnlockedDBs unlockedDBs ->
         ({ m | unlockedDBs = unlockedDBs }, Cmd.none)
 
-      UpdateDB db ->
-        let tl = TL.getTL m db.tlid
-            tl2 = { tl | data = TLDB db }
-            m2 = TL.upsert m tl2
-        in
-          (m2, Cmd.none)
-
       Set404s f404s ->
         ({ m | f404s = f404s }, Cmd.none)
 

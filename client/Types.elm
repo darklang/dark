@@ -631,7 +631,6 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | MoveCanvasTo CanvasProps Page Pos
                   | UpdateTraces Traces
                   | UpdateTraceFunctionResult TLID TraceID ID FnName DvalArgsHash Dval
-                  | UpdateDB DB
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

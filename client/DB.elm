@@ -76,14 +76,3 @@ startMigration db =
         , cols = newCols }
       newDB = { db | activeMigration = Just migra }
   in RPC ([ CreateDBMigration db.tlid (B.toID rb) (B.toID rf) newCols ], FocusSame)
-
-deleteCol : DB -> DBColumn -> Modification
-deleteCol db (n, t) =
-  case db.activeMigration of
-    Just migra ->
-      let nid = B.toID n
-          tid = B.toID t
-          cols = migra.cols
-            |> List.filter (\(cn, ct) -> (B.toID cn) /= nid && (B.toID ct) /= tid )
-      in UpdateDB { db | activeMigration = Just ({ migra | cols = cols }) }
-    _ -> NoChange
