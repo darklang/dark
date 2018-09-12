@@ -115,7 +115,10 @@ viewDB vs db =
       coldivs = List.map (viewDBCol vs False db.tlid) cols
       migrationView =
         case db.activeMigration of
-          Just migra -> [viewDBMigration migra db vs]
+          Just migra ->
+            if migra.state /= DBMigrationAbandoned 
+            then [viewDBMigration migra db vs]
+            else []
           Nothing -> []
   in
   [

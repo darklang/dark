@@ -471,18 +471,12 @@ submit m cursor action =
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollback e action value
-                    in
-                    UpdateDB { db | activeMigration = Just ({ am | rollback = newexpr }) }
-                    -- TODO make these RPC calls valid again
-                    -- wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
+                    in wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else if List.member pd (AST.allData am.rollforward)
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollforward e action value
-                    in
-                      UpdateDB { db | activeMigration = Just ({ am | rollforward = newexpr }) }
-                    -- TODO make these RPC calls valid again
-                    -- wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
+                    in wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else
                     NoChange
         PDarkType _ ->

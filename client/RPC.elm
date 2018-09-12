@@ -168,6 +168,7 @@ tlidOf op =
     AddDBColToDBMigration tlid _ _ -> tlid
     SetDBColNameInDBMigration tlid _ _ -> tlid
     SetDBColTypeInDBMigration  tlid _ _ -> tlid
+    AbandonDBMigration tlid -> tlid
 
 encodeOps : List Op -> JSE.Value
 encodeOps ops =
@@ -291,6 +292,9 @@ encodeOp call =
 
       SetDBColTypeInDBMigration tlid id tipe ->
         ev "SetDBColTypeInDBMigration" [encodeTLID tlid, encodeID id, JSE.string tipe]
+
+      AbandonDBMigration tlid ->
+        ev "AbandonDBMigration" [encodeTLID tlid]
 
       TLSavepoint tlid ->
         ev "TLSavepoint" [encodeTLID tlid]
