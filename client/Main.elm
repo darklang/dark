@@ -13,6 +13,7 @@ import Http
 import Keyboard.Key as Key
 import Browser
 import Browser.Events
+import Browser.Navigation as Navigation
 import String
 -- import List.Extra as LE
 import String.Extra as SE
@@ -64,7 +65,7 @@ main = Browser.application
          , view = View.view
          , update = update
          , subscriptions = subscriptions
-         , onUrlRequest = always Cmd.none
+         , onUrlRequest = (\urlRequest -> LocationChange)
          , onUrlChange = LocationChange
          }
 
@@ -88,8 +89,8 @@ flag2function fn =
   , deprecated = fn.deprecated
   }
 
-init : Flags -> Url.Url -> ( Model, Cmd Msg )
-init {editorState, complete} location =
+init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
+init {editorState, complete} location navKey  =
   let savedEditor = Editor.fromString editorState
 
       m0 = Editor.editor2model savedEditor
@@ -98,10 +99,11 @@ init {editorState, complete} location =
       savedCursorState = m0.cursorState
       savedCurrentPage = m0.currentPage
       m = { m0 | cursorState = Deselected
-               , currentPage = Defaults.defaultModel |> .currentPage}
+               , currentPage = Defaults.defaultModel |> .currentPage
+               }
 
       tests =
-        case parseVariantTestsFromQueryString location.search of
+        case parseVariantTestsFromQueryString (Maybe.withDefault "" location.query) of
           Just t  -> t
           Nothing -> []
 
@@ -116,10 +118,10 @@ init {editorState, complete} location =
           Fn _ pos -> { canvas | fnOffset = pos }
 
       shouldRunIntegrationTest =
-        "/admin/integration_test" == location.pathname
+        "/admin/integration_test" == location.path
 
       integrationTestName =
-        location.hostname
+        location.host
         |> SE.replace ".localhost" ""
         |> SE.replace ".integration-tests" ""
         |> SE.replace ".dark-dev" ""
