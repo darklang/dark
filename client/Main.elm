@@ -90,7 +90,7 @@ flag2function fn =
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
-init {editorState, complete} location =
+init {editorState, complete, userContentHost} location =
   let savedEditor = Editor.fromString editorState
 
       m0 = Editor.editor2model savedEditor
@@ -137,6 +137,7 @@ init {editorState, complete} location =
                , currentPage = page
                , canvas = newCanvas
                , canvasName = canvasName
+               , userContentHost = userContentHost
            }
 
   in

@@ -33,6 +33,7 @@ let __unused_bin_scripts_dir = absolute_dir "DARK_CONFIG_SCRIPTS_DIR"
 (* Web configuration *)
 (* ------------------------- *)
 let static_base_url = string "DARK_CONFIG_STATIC_BASE_URL"
+let user_content_host = string "DARK_CONFIG_USER_CONTENT_HOST"
 
 
 (* -------------------- *)
