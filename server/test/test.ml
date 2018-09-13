@@ -1007,7 +1007,7 @@ let t_db_read_deprecated_write_new_duuid () =
      | DList [DBool true; a] when Dval.tipe_of a = TID -> 0
      | _ -> 1)
 
-let t_db_new_query_works () =
+let t_db_new_query_v2_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
@@ -1020,8 +1020,8 @@ let t_db_new_query_works () =
   in
   let ast = "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
                (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
-                (let results (DB::query_v1 (obj (x 'bar')) MyDB)
-                 (== (('findme' hopetofind)) results))))"
+                (let results (DB::query_v2 (obj (x 'bar')) MyDB)
+                 (== (hopetofind) results))))"
   in
   check_dval "equal_after_roundtrip"
     (DBool true)
@@ -1188,7 +1188,7 @@ let t_db_get_many_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
-let t_db_query_works_with_many () =
+let t_db_queryWithKey_works_with_many () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
@@ -1203,7 +1203,7 @@ let t_db_query_works_with_many () =
   let ast = "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
               (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
                (let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::query_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
+                (let fetched (List::sortBy (DB::queryWithKey_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
                  (== (('two' two) ('three' three)) fetched)))))"
   in
   check_dval "equal_after_roundtrip"
@@ -1289,6 +1289,111 @@ let t_feature_flags_work () =
 
   ()
 
+let t_db_queryOne_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOne_v1 (obj (x 'foo')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption
+       (OptJust
+          (DObj (DvalMap.singleton "x" (DStr "foo")))
+       )
+    )
+    (exec_handler ~ops ast)
+
+let t_db_queryOne_returns_nothing_if_none () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOne_v1 (obj (x 'bar')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+let t_db_queryOne_returns_nothing_multiple () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
+               (DB::queryOne_v1 (obj (x 'foo')) MyDB)))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+let t_db_queryOneWithKey_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption
+       (OptJust
+          (DList
+             [DStr "first"
+             ;DObj (DvalMap.singleton "x" (DStr "foo"))
+             ]
+          )
+       )
+    )
+    (exec_handler ~ops ast)
+
+let t_db_queryOneWithKey_returns_nothing_if_none () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOneWithKey_v1 (obj (x 'bar')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+let t_db_queryOneWithKey_returns_nothing_multiple () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
+               (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB)))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1345,7 +1450,7 @@ let suite =
   ; "auth_then_handle sets status codes and cookies correctly ", `Quick, t_auth_then_handle_code_and_cookie
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
-  ; "New query function works", `Quick, t_db_new_query_works
+  ; "New query function works", `Quick, t_db_new_query_v2_works
   ; "DB::set_v1 upserts", `Quick, t_db_set_does_upsert
   ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
   ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
@@ -1353,10 +1458,16 @@ let suite =
   ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
   ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
   ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
-  ; "DB::query_v1 works with many items", `Quick, t_db_query_works_with_many
+  ; "DB::queryWithKey_v1 works with many items", `Quick, t_db_queryWithKey_works_with_many
   ; "Deprecated delete works", `Quick, t_db_deprecated_delete_works
   ; "Deprecated update works", `Quick, t_db_deprecated_update_works
   ; "DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing
+  ; "DB::queryOne returns Some obj if found", `Quick, t_db_queryOne_works
+  ; "DB::queryOne returns Nothing if not found", `Quick, t_db_queryOne_returns_nothing_if_none
+  ; "DB::queryOne returns Nothing if more than one found", `Quick, t_db_queryOne_returns_nothing_multiple
+  ; "DB::queryOneWithKey returns Just obj if found", `Quick, t_db_queryOneWithKey_works
+  ; "DB::queryOneWithKey returns Nothing if not found", `Quick, t_db_queryOneWithKey_returns_nothing_if_none
+  ; "DB::queryOneWithKey returns Nothing if more than one found", `Quick, t_db_queryOneWithKey_returns_nothing_multiple
   ]
 
 let () =
