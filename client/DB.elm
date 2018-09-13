@@ -61,10 +61,10 @@ isMigrationCol db id =
 isMigrationLockReady : DBMigration -> Bool
 isMigrationLockReady m = B.isF m.rollforward && B.isF m.rollback
 
-startMigration : DB -> Modification
-startMigration db =
-  let newCols = db.cols
+startMigration : TLID -> List DBColumn -> Modification
+startMigration tlid cols =
+  let newCols = cols
                 |> List.map (\(n, t) -> (B.clone identity n, B.clone identity t))
       rb = B.new ()
       rf = B.new ()
-  in RPC ([ CreateDBMigration db.tlid (B.toID rb) (B.toID rf) newCols ], FocusSame)
+  in RPC ([ CreateDBMigration tlid (B.toID rb) (B.toID rf) newCols ], FocusSame)
