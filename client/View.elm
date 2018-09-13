@@ -24,6 +24,7 @@ import ViewDB
 import ViewData
 import ViewFunction
 import Autocomplete
+import Defaults
 
 
 view : Model -> Html.Html Msg
@@ -91,12 +92,8 @@ viewTL m tl =
               _ -> False
       pos =
         case m.currentPage of
-            Toplevels _ ->
-              tl.pos
-            Fn tLID _ ->
-              -- the pos here is not where we draw the TL, but rather
-              -- where we position the fn.
-              {x = 20, y = 20}
+          Toplevels _ -> tl.pos
+          Fn tLID _ -> Defaults.fnPos
       html =
         if Just tl.id == tlidOf m.cursorState || isDB
         then
