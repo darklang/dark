@@ -401,8 +401,8 @@ viewRoutingTable m =
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
-               , eventNoPropagation "mouseover" (\_ -> EnablePanning False)
-               , eventNoPropagation "mouseout" (\_ -> EnablePanning True)
+               , eventNoPropagation "mouseenter" (\_ -> EnablePanning False)
+               , eventNoPropagation "mouseleave" (\_ -> EnablePanning True)
                ]
                sections
 
