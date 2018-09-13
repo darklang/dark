@@ -121,7 +121,7 @@ typeOf dv =
     DBlock -> TBlock
     DIncomplete -> TIncomplete
     DError _ -> TError
-    DResp _ -> TResp
+    DResp _ _ -> TResp
     DDB _ -> TDB
     DID _ -> TID
     DDate _ -> TDate
@@ -207,10 +207,10 @@ toRepr_ oldIndent dv =
     DPassword s -> wrap s
     DBlock -> asType
     DIncomplete -> asType
-    DResp (Redirect url, dv_) -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
-    DResp (Response (code, hs), dv_) ->
+    DResp (Redirect url) dv_ -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
+    DResp (Response code hs) dv_ ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
-      toString code ++ " " ++ headers ++ nl ++ toRepr dv
+      toString code ++ " " ++ headers ++ nl ++ toRepr dv_
     DOption Nothing -> "Nothing"
     DOption (Just dv_) -> "Some " ++ (toRepr dv_)
     DErrorRail dv_ -> wrap (toRepr dv_)
