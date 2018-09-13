@@ -158,7 +158,7 @@ init {editorState, complete} location =
 -----------------------
 -- ports
 -----------------------
-port mousewheel : ((List Int) -> msg) -> Sub msg
+port mousewheel : ((Int, Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
@@ -1265,9 +1265,9 @@ update_ msg m =
       ClearHover id
 
 
-    MouseWheel deltaCoords ->
+    MouseWheel (x, y) ->
       if m.canvas.enablePan
-      then Viewport.moveCanvasBy m deltaCoords
+      then Viewport.moveCanvasBy m x y
       else NoChange
 
     DataMouseEnter tlid idx _ ->
