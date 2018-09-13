@@ -84,6 +84,7 @@ collapseByVerb : List Entry -> List Entry
 collapseByVerb es =
   es
   |> LE.groupWhile (\a b -> a.name == b.name)
+  |> List.map (\(a, b) -> a :: b)
   |> List.map (List.foldr (\curr list ->
                    if curr.name == Nothing
                    then curr :: list
