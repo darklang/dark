@@ -303,7 +303,7 @@ tlLink pos class name =
 fnLink : UserFunction -> Bool -> String -> Html.Html Msg
 fnLink fn isUsed text_ =
   Url.linkFor
-    (Fn fn.tlid Defaults.fnPos)
+    (Fn fn.tlid (Viewport.toCenteredOn Defaults.fnPos))
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
