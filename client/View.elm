@@ -29,7 +29,7 @@ view : Model -> Html.Html Msg
 view m =
   let attributes =
         [ Attrs.id "grid"
-        , eventNoPropagation "mouseup" (decodeClickEvent GlobalClick)
+        , eventNoPropagation "mouseup" GlobalClick
         ]
       header =
         ViewScaffold.viewError m.error
@@ -70,7 +70,7 @@ viewCanvas m =
     in
         Html.div
         [ Attrs.id "canvas"
-        , Attrs.style [ ("transform", canvasTransform) ]
+        , Attrs.style "transform" canvasTransform
         ]
         allDivs
 
