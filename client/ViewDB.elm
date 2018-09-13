@@ -51,14 +51,14 @@ viewDB vs db =
         db.cols
         |> List.map (\(n, t) ->
           let migration =
-              db.activeMigration
-              |> Maybe.andThen
-                   (\am ->
-                     if am.target == B.toID n
-                     || am.target == B.toID t
-                     then Just (viewDBMigration vs am)
-                     else Nothing)
-              |> ME.toList
+                db.activeMigration
+                |> Maybe.andThen
+                     (\am ->
+                       if am.target == B.toID n
+                       || am.target == B.toID t
+                       then Just (viewDBMigration vs am)
+                       else Nothing)
+                |> ME.toList
           in
           Html.div
             [ Attrs.class "col" ]
