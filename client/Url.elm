@@ -125,8 +125,8 @@ changeLocation m loc =
     _ -> NoChange
 
 parseCanvasName : Navigation.Location -> String
-parseCanvasName loc = loc.pathname
-                |> String.dropLeft 1 -- remove leading "/"
-                |> String.split "/"
-                |> List.head
-                |> Maybe.withDefault "builtwithdark"
+parseCanvasName loc = case loc.pathname
+                           |> String.dropLeft 1 -- remove leading "/"
+                           |> String.split "/" of
+                        "a" :: canvasName :: _ -> canvasName
+                        _ -> "builtwithdark"
