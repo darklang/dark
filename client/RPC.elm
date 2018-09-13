@@ -1012,7 +1012,7 @@ encodeDval dv =
     DFloat f -> ev "DFloat" [JSE.float f]
     DBool b -> ev "DBool" [JSE.bool b]
     DNull -> ev "DNull" []
-    DStr s -> ev "DString" [JSE.string s]
+    DStr s -> ev "DStr" [JSE.string s]
     DList l -> ev "DList" [encodeList encodeDval l]
     DObj o -> ev "DObj" [JSEE.dict identity encodeDval o]
 

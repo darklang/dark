@@ -55,6 +55,7 @@ roundtrips =
     , rtDval "float" (DFloat 7.2)
     , rtDval "true" (DBool True)
     , rtDval "false" (DBool False)
+    , rtDval "string" (DStr "incredibly this was broken")
     , rtDval "null" DNull
     , rtDval "id" (DID "1232345346456")
     , rtDval "title" (DTitle "some title")
