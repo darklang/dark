@@ -259,10 +259,3 @@ let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   |> Uuidm.of_string
   |> Option.value_exn
 
-let name_for_id (id: Uuidm.t) : string =
-  Db.fetch_one
-    ~name:"fetch_canvas_name"
-    "SELECT name FROM canvases WHERE id = $1"
-    ~params:[ Uuid id ]
-  |> List.hd_exn
-
