@@ -24,7 +24,7 @@ val should_write_shape_data : bool
 val allow_server_shutdown : bool
 val allow_test_routes : bool
 
-val static_base_url : string
+val static_host : string
 val user_content_host : string
 
 val rollbar_enabled : bool
