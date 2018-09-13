@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+until [[ "$(docker ps --last 1 --filter "ancestor=dark" --filter status=running --quiet)" != "" ]]; do
+    printf '.'
+    sleep 1
+done
+
+
+
