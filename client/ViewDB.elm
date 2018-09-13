@@ -85,7 +85,7 @@ viewDBMigration migra db vs =
       cancelBtn =
         Html.button
           [ Attrs.disabled False
-          , eventNoPropagation "click" (\_ -> CancelMigration db) ]
+          , eventNoPropagation "click" (\_ -> AbandonMigration db.tlid) ]
           [ Html.text "cancel"]
       migrateBtn =
         Html.button [Attrs.disabled (not lockReady)] [ Html.text "activate"]

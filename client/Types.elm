@@ -188,8 +188,8 @@ type Msg
     | EnablePanning Bool
     | ShowErrorDetails Bool
     | StartMigration DB
-    | CancelMigration DB
-    | DeleteColInDB DBColumn TLID
+    | AbandonMigration TLID
+    | DeleteColInDB TLID ID
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
