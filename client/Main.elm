@@ -1477,7 +1477,7 @@ update_ msg m =
     -- DBs
     -----------
 
-    StartMigration db -> DB.startMigration db
+    StartMigration tlid cols -> DB.startMigration tlid cols
 
     AbandonMigration tlid ->
       RPC ([AbandonDBMigration tlid], FocusNothing)
