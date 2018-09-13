@@ -68,7 +68,10 @@ viewCanvas m =
                 case m.currentPage of
                   Toplevels _ -> m.canvas.offset
                   Fn _ _ -> m.canvas.fnOffset
-          in "translate(" ++ (String.fromInt offset.x) ++ "px, " ++ (String.fromInt offset.y) ++ "px)"
+              x = String.fromInt (-offset.x)
+              y = String.fromInt (-offset.y)
+          in
+          "translate(" ++ x ++ "px, " ++ y ++ "px)"
 
         allDivs = asts ++ entry
     in
