@@ -402,7 +402,7 @@ let admin_ui_html ~(debug:bool) () =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
-  >|= Util.string_replace "{STATIC}" Config.static_base_url
+  >|= Util.string_replace "{STATIC}" Config.static_host
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ELMDEBUG}" (if debug

@@ -40,8 +40,8 @@ fi
 # domains, and Docker doesn't make qualified domains.
 echo "Setting up DNS for integration-tests -> $IP"
 echo "address=/integration-tests/$IP" | sudo tee /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-# TODO Dynamically chose this from the config file?
-echo "address=/static.darklang.localhost/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+echo "address=/$DARK_CONFIG_STATIC_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+echo "address=/$DARK_CONFIG_USER_CONTENT_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
 # When the container starts up, the first --full-restart takes 35s. This
 # pkill fixes that.
 sudo pkill dnsmasq
