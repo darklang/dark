@@ -201,8 +201,8 @@ div vs configs content =
                         then [viewFeatureFlag]
                         else []
       editFnHtml = case editFn of
-                     Just editFn ->
-                       [viewEditFn editFn showFeatureFlag]
+                     Just editFn_ ->
+                       [viewEditFn editFn_ showFeatureFlag]
                      Nothing -> if showFeatureFlag then [viewCreateFn] else []
       rightSideHtml =
         Html.div
@@ -352,7 +352,7 @@ viewEditFn tlid hasFlagAlso =
   in
   Html.a
     [ Attrs.class "edit-fn"
-    , Attrs.style [("right", rightOffset)]
+    , Attrs.style "right" rightOffset
     , Attrs.href (Url.urlFor (Fn tlid Defaults.fnPos))
     ]
     [ fontAwesome "edit"]
