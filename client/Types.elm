@@ -8,6 +8,7 @@ import Browser.Navigation as Navigation
 import Url
 import Browser.Events
 import Json.Decode as JSD
+import Time
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -119,7 +120,7 @@ type TimerAction = RefreshAnalysis
                  | CheckUrlHashPosition
 
 type alias GlobalVariable = String
-type alias RPCResult = { toplevls: List Toplevel
+type alias RPCResult = { toplevels: List Toplevel
                        , deletedToplevels: List Toplevel -- deleted
                        , newTraces: Traces
                        , globals: List GlobalVariable
@@ -164,7 +165,7 @@ type Msg
     | Initialization
     | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
-    | TimerFire TimerAction Time
+    | TimerFire TimerAction Time.Posix
     | JSError String
     | PageVisibilityChange Browser.Events.Visibility
     | PageFocusChange Browser.Events.Visibility
@@ -683,8 +684,6 @@ type alias FlagFunction = { name: String
 -----------------------------
 -- Types from 0.18
 -----------------------------
-
-type alias Time = Float
 
 type alias MousePosition =
   { x : Int
