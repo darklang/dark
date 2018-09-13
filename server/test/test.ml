@@ -342,8 +342,8 @@ let t_stdlib_works () =
 let t_derror_roundtrip () =
   let x = DError "test" in
   let converted = x
-                |> Dval.dval_to_yojson
-                |> Dval.dval_of_yojson
+                |> Dval.unsafe_dval_to_yojson
+                |> Dval.unsafe_dval_of_yojson
                 |> Result.ok_or_failwith in
   check_dval "roundtrip" converted x
 
@@ -616,14 +616,14 @@ let t_nulls_added_to_missing_column () =
     (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
     (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
 
-let t_dval_of_yojson_doesnt_care_about_order () =
+let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
   check_dval "dval_of_json_string doesn't care about key order"
-    (Dval.dval_of_json_string
+    (Dval.unsafe_dval_of_json_string
        "{
          \"type\": \"url\",
          \"value\": \"https://example.com\"
         }")
-    (Dval.dval_of_json_string
+    (Dval.unsafe_dval_of_json_string
        "{
          \"value\": \"https://example.com\",
          \"type\": \"url\"
@@ -654,12 +654,8 @@ let t_password_hash_db_roundtrip () =
   AT.check AT.int
     "A Password::hash'd string can get stored in and retrieved from a user database."
     0 (match exec_handler ~ops ast with
-         DList [p1; p2;] as v ->
-         Log.inspecT "test value to be compared" ~f:show_dval v;
-         compare_dval p1 p2
-       | v ->
-         Log.inspecT "test value" ~f:show_dval v;
-         1)
+         DList [p1; p2;] -> compare_dval p1 p2
+       | _ -> 1)
 
 
 let t_passwords_dont_serialize () =
@@ -667,7 +663,7 @@ let t_passwords_dont_serialize () =
   AT.check AT.bool "Passwords don't serialize by default"
     true
     (let serialized = password
-                      |> Dval.dval_to_yojson (* ~redact:true by default *)
+                      |> Dval.unsafe_dval_to_yojson (* ~redact:true by default *)
                       |> Yojson.Safe.sort in
      match serialized with
        `Assoc [("type", `String "password");
@@ -679,7 +675,7 @@ let t_passwords_serialize () =
   AT.check (AT.option AT.string) "Passwords serialize if you turn off redaction "
     (Some "x")
     (let serialized = password
-                      |> Dval.dval_to_yojson ~redact:false
+                      |> Dval.unsafe_dval_to_yojson ~redact:false
                       |> Yojson.Safe.sort in
      match serialized with
        `Assoc [("type", `String "password");
@@ -692,21 +688,21 @@ let t_password_json_round_trip_forwards () =
     "Passwords serialize and deserialize if there's no redaction."
     password
     (password
-     |> Dval.dval_to_json_string ~redact:false
-     |> Dval.dval_of_json_string)
+     |> Dval.unsafe_dval_to_json_string ~redact:false
+     |> Dval.unsafe_dval_of_json_string)
 
 let t_password_json_round_trip_backwards () =
   let json = "x"
       |> Bytes.of_string
       |> fun p -> DPassword p
-      |> Dval.dval_to_json_string ~redact:false
+      |> Dval.unsafe_dval_to_json_string ~redact:false
   in
   AT.check AT.string
     "Passwords deserialize and serialize if there's no redaction."
     json
     (json
-     |> Dval.dval_of_json_string
-     |> Dval.dval_to_json_string ~redact:false)
+     |> Dval.unsafe_dval_of_json_string
+     |> Dval.unsafe_dval_to_json_string ~redact:false)
 
 let t_incomplete_propagation () =
   check_dval "Fn with incomplete return incomplete"
@@ -1423,7 +1419,7 @@ let suite =
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
   ; "Parsing JSON to DVals doesn't care about key order", `Quick,
-    t_dval_of_yojson_doesnt_care_about_order
+    t_unsafe_dval_of_yojson_doesnt_care_about_order
   ; "End-user password hashing and checking works", `Quick,
     t_password_hashing_and_checking_works
   ; "Password hashes can be stored in and retrieved from the DB", `Quick,
