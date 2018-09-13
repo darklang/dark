@@ -81,5 +81,5 @@ moveCanvasBy m x y =
         case m.currentPage of
           Toplevels _ -> c.offset
           Fn _ _ -> c.fnOffset
-      pos = subPos offset { x=x, y=y }
+      pos = addPos offset { x=x, y=y }
   in MoveCanvasTo c m.currentPage pos
