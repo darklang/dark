@@ -1623,7 +1623,7 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
       in
           Many ([RPC ([SetFunction ufun], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn ufun.tlid Viewport.origin))
+                , MakeCmd (Url.navigateTo m.navKey (Fn ufun.tlid Viewport.origin))
                 ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m

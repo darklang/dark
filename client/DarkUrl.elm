@@ -6,6 +6,7 @@ import List
 import String
 
 -- lib
+import Browser.Navigation as Navigation
 import Html
 import Html.Attributes as Attrs
 import Url
@@ -41,9 +42,9 @@ urlFor page =
       Fn _ pos -> pos
     )
 
-navigateTo : Page -> Cmd Msg
-navigateTo page =
-  Navigation.newUrl (urlFor page)
+navigateTo : Navigation.Key -> Page -> Cmd Msg
+navigateTo navKey page =
+  Navigation.pushUrl navKey (urlFor page)
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
@@ -67,14 +68,15 @@ maybeUpdateScrollUrl m =
   then
     Many
       [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
-      , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
+      , MakeCmd (Navigation.replaceUrl m.navKey (urlOf m.currentPage pos))
       ]
   else NoChange
 
 
 parseLocation : Model -> Url.Url -> Maybe Page
 parseLocation m loc =
-  let unstructured = loc.hash
+  let unstructured = loc.fragment
+                   |> Maybe.withDefault "#"
                    |> String.dropLeft 1 -- remove "#"
                    |> String.split "&"
                    |> List.map (String.split "=")
@@ -88,14 +90,14 @@ parseLocation m loc =
         case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
           (Just x, Just y) ->
             case (String.toInt x, String.toInt y) of
-              (Ok x_, Ok y_) -> Just { x = x_, y = y_ }
+              (Just x_, Just y_) -> Just { x = x_, y = y_ }
               _  -> Nothing
           _ -> Nothing
       editedFn =
         case (Dict.get "fn" unstructured) of
           Just sid ->
             case String.toInt sid of
-              Ok id ->
+              Just id ->
                 Just <|
                   Fn (TLID id)
                      (Maybe.withDefault Defaults.fnPos center)

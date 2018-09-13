@@ -107,7 +107,7 @@ submitOmniAction m pos action =
                 blankfn
       in
           Many ([RPC ([ SetFunction newfn ], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn newfn.tlid Viewport.origin))
+                , MakeCmd (Url.navigateTo m.navKey (Fn newfn.tlid Viewport.origin))
                 ])
     NewHTTPHandler ->
       let next = gid ()

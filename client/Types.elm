@@ -4,6 +4,7 @@ module Types exposing (..)
 import Dict exposing (Dict)
 import Http
 import Browser.Dom as Dom
+import Browser.Navigation as Navigation
 import Url
 import Browser.Events
 import Json.Decode as JSD
@@ -507,7 +508,8 @@ type alias CanvasProps =
   , enablePan: Bool
   }
 
-type alias Model = { error : Maybe String
+-- model without navKey
+type alias AppModel = { error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
                    , tests : List VariantTest
@@ -542,6 +544,12 @@ type alias Model = { error : Maybe String
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
                    }
+
+-- extensible record for adding navKey to the model
+type alias NavKeyed a = {a | navKey : Navigation.Key}
+
+-- model including navKey
+type alias Model = NavKeyed AppModel
 
 -- Values that we serialize
 type alias SerializableEditor = { clipboard : Maybe PointerData

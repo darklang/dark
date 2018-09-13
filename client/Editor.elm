@@ -26,7 +26,7 @@ toString se =
   |> JSE.encode 0
 
 
-editor2model : SerializableEditor -> Model
+editor2model : SerializableEditor -> AppModel
 editor2model e =
   let m = Defaults.defaultModel
   in

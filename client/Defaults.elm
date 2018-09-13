@@ -56,7 +56,7 @@ defaultCanvas =
   , enablePan = True
   }
 
-defaultModel : Model
+defaultModel : AppModel
 defaultModel = { error = Nothing
                , lastMsg = Initialization
                , lastMod = NoChange
