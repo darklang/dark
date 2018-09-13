@@ -132,3 +132,6 @@ let rollbar_js =
   | _ ->
     "{enabled:false}"
 
+let public_domain =
+  string "DARK_CONFIG_PUBLIC_DOMAIN"
+

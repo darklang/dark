@@ -166,6 +166,10 @@ let init (host: string) (ops: Op.op list): canvas ref =
   add_ops c [] ops;
   c
 
+let url_for (id : Uuidm.t) : string =
+  let canvas_name = Serialize.name_for_id id in
+  "http://" ^ canvas_name ^ "." ^ Config.public_domain
+
 (* ------------------------- *)
 (* Loading/saving *)
 (* ------------------------- *)

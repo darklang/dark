@@ -19,6 +19,7 @@ let init ~run_side_effects =
                          @ Libevent.replacements
                          @ Libhttpclient.replacements
                          @ Libcrypto.replacements
+                         @ Libtwilio.replacements
                          (* @ Libtwitter.fns  *)
       in
 

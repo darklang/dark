@@ -70,6 +70,7 @@ let init (replacements: fn_replacement list) : unit =
              @ Libevent.fns
              @ Libhttpclient.fns
              @ Libcrypto.fns
+             @ Libtwilio.fns
              (* client-only *)
              @ Libstd.fns
              @ Libstd2.fns
