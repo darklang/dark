@@ -43,6 +43,7 @@ stringEntryHtml ac width =
                           |> List.map visualStringLength
                           |> List.foldr max 1
                           |> min maxWidthChars
+                          |> (+) 1
       rowCount = value
                  |> String.split "\n"
                  |> List.map (\line ->
