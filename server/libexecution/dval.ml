@@ -347,7 +347,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Variant v -> Exception.internal "We dont use variants"
   | `Intlit v -> DStr v
   | `Tuple v -> Exception.internal "We dont use tuples"
-  | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
+  | `Assoc [("type", `String "response"); ("value", `List [a;b])] ->
     DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_ b)
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
     (match tipe with
