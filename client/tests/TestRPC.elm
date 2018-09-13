@@ -42,6 +42,12 @@ serverCompatible =
           (DObj (Dict.fromList [("foo", DInt 5)])
            |> encodeDval
            |> JSE.encode 0))
+    , test "dresp shape" <|
+        (Expect.equal "[\"DResp\",[\"Response\",401,[]],[\"DNull\"]]"
+          (DResp (Response 401 []) DNull
+           |> encodeDval
+           |> JSE.encode 0))
+
     ]
 
 
@@ -62,4 +68,6 @@ roundtrips =
     , rtDval "errorrail" (DErrorRail (DInt 5))
     , rtDval "db" (DDB "Visitors")
     , rtDval "list" (DList [DDB "Visitors", DInt 4])
+    , rtDval "redirect" (DResp (Redirect "/home") DNull)
+    , rtDval "httpresponse" (DResp (Response 200 []) (DStr "success"))
     ]
