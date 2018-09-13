@@ -143,7 +143,7 @@ extractVariable m tl p =
                       AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p_
                     nlet = B.newF (Let newVar e nbody)
                 in
-                    (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
+                    (AST.replace (PExpr p_) (PExpr nlet) ast, B.toID newVar)
               Nothing ->
                 -- something weird is happening because we couldn't find anywhere to
                 -- extract to, we can just wrap the entire AST in a Let
@@ -230,26 +230,26 @@ extractFunction m tl p =
 
 renameFunction : Model -> UserFunction -> UserFunction -> List Op
 renameFunction m old new =
-  let renameFnCalls ast old new =
-        let transformCall newName old =
-              let transformExpr name old =
-                    case old of
+  let renameFnCalls ast old_ new_ =
+        let transformCall newName_ oldCall =
+              let transformExpr name oldExpr =
+                    case oldExpr of
                       F id (FnCall _ params r) ->
                         F id (FnCall name params r)
                       _ ->
-                        old
+                        oldExpr
               in
-                  case old of
+                  case oldCall of
                     PExpr e ->
-                      PExpr (transformExpr newName e)
-                    _ -> old
+                      PExpr (transformExpr newName_ e)
+                    _ -> oldCall
             (origName, calls) =
-              case old.metadata.name of
+              case old_.metadata.name of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
             newName =
-              case new.metadata.name of
+              case new_.metadata.name of
                 Blank _ -> Nothing
                 F _ n -> Just n
         in
@@ -341,7 +341,8 @@ unusedDeprecatedFunctions m =
 
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
-  let transformCallsInAst f_ ast old =
+  let transformCallsInAst : (NExpr -> NExpr) -> Expr -> UserFunction -> Expr
+      transformCallsInAst f_ ast old =
         let transformCall old_ =
               let transformExpr o =
                     case o of
@@ -350,10 +351,10 @@ transformFnCalls m uf f =
                       _ ->
                         o
               in
-                  case old of
+                  case old_ of
                     PExpr e ->
                       PExpr (transformExpr e)
-                    _ -> old
+                    _ -> old_
             (origName, calls) =
               case old.metadata.name of
                 Blank _ -> (Nothing, [])
