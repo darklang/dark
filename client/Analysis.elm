@@ -103,24 +103,29 @@ getCurrentTrace m tlid =
 
 replaceFunctionResult : Model -> TLID -> TraceID -> ID -> String -> DvalArgsHash -> Dval -> Model
 replaceFunctionResult m tlid traceID callerID fnName hash dval =
-  let traces =
+  let newResult =
+        { fnName = fnName
+        , callerID = callerID
+        , argHash = hash
+        , value = dval
+        }
+      traces =
         m.traces
         |> Dict.update (deTLID tlid)
-             (Maybe.map
-               (List.map
-                 (\t ->
-                   if t.id == traceID
-                   then
-                     let newResult =
-                         { fnName = fnName
-                         , callerID = callerID
-                         , argHash = hash
-                         , value = dval }
-                     in
-                     { t | functionResults =
-                              newResult :: t.functionResults
-                     }
-                   else t)))
+             (\ml ->
+               ml
+               |> Maybe.withDefault [{ id = traceID
+                                     , input = Dict.empty
+                                     , functionResults = [newResult]
+                                     }]
+               |> List.map (\t ->
+                              if t.id == traceID
+                              then
+                                { t | functionResults =
+                                         newResult :: t.functionResults
+                                }
+                              else t)
+               |> Just)
   in
   { m | traces = traces }
 

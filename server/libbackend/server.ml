@@ -212,7 +212,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
         then Dval.to_human_repr value
         (* TODO: only pretty print for a webbrowser *)
         else
-          Dval.dval_to_pretty_json_string value
+          Dval.unsafe_dval_to_pretty_json_string value
       in
       let resp_headers = maybe_infer_headers resp_headers value in
       let status = Cohttp.Code.status_of_code code in
@@ -221,7 +221,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
       in
       respond ~resp_headers ~execution_id status body
     | _ ->
-      let body = Dval.dval_to_pretty_json_string result in
+      let body = Dval.unsafe_dval_to_pretty_json_string result in
       let ct_headers = maybe_infer_headers [] result in
       let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
       (* for demonstrations sake, let's return 200 Okay when

@@ -37,6 +37,6 @@ let load ~canvas_id ~trace_id tlid : function_result list =
             ]
   |> List.map ~f:(function
       | [fnname; id; hash; dval; ts] ->
-        (fnname, id_of_string id, hash, Dval.dval_of_json_string dval)
+        (fnname, id_of_string id, hash, Dval.unsafe_dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_functions_results.load")
 

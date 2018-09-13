@@ -54,11 +54,11 @@ let rec escape (param: param) : string =
                   |> escape_single
                   |> single_quote
   | DvalJson dv -> dv
-                   |> Dval.dval_to_json_string
+                   |> Dval.unsafe_dval_to_json_string
                    |> escape_single
                    |> single_quote
   | DvalmapJsonb dvm -> dvm
-                        |> Dval.dvalmap_to_string
+                        |> Dval.unsafe_dvalmap_to_string
                         |> escape_single
                         |> single_quote
                         |> cast_to ~tipe:"jsonb"
@@ -81,8 +81,8 @@ let rec to_sql param : string =
   | Uuid uuid -> Uuidm.to_string uuid
   | Binary str -> str (* the to_binary_bool handled this *)
   | Secret str -> str
-  | DvalJson dv -> Dval.dval_to_json_string ~redact:false dv
-  | DvalmapJsonb dvm -> Dval.dvalmap_to_string ~redact:false dvm
+  | DvalJson dv -> Dval.unsafe_dval_to_json_string ~redact:false dv
+  | DvalmapJsonb dvm -> Dval.unsafe_dvalmap_to_string ~redact:false dvm
   | Null -> Postgresql.null
   | List xs ->
     xs
@@ -103,8 +103,8 @@ let rec to_log param : string =
   | Uuid uuid -> Uuidm.to_string uuid
   | Binary str -> "<binary>"
   | Secret str -> "<secret>"
-  | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
-  | DvalmapJsonb dvm -> abbrev (Dval.dvalmap_to_string dvm)
+  | DvalJson dv -> abbrev (Dval.unsafe_dval_to_json_string dv)
+  | DvalmapJsonb dvm -> abbrev (Dval.unsafe_dvalmap_to_string dvm)
   | Null -> "NULL"
   | List params -> params
                    |> List.map ~f:to_log

@@ -239,8 +239,32 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
       - a list containing a derrorrail is a derrorail
 
   *)
-  module DvalMap = String.Map
-  type dval_map = dval DvalMap.t [@opaque]
+  module DvalMap = struct
+    module T = struct
+      include Map.Make(String)
+    end
+    include T
+    let to_yojson fn map =
+      map
+      |> T.map ~f:fn
+      |> T.to_alist
+      |> fun l -> `Assoc l
+    let of_yojson fn json =
+      match json with
+      | `Assoc l ->
+        l
+      |> List.map ~f:(fun (k,v) ->
+            Result.map (fn v) ~f:(fun dv -> (k, dv)))
+      |> Result.combine_errors
+      |> Result.map_error ~f:(String.concat ~sep:", ")
+      |> Result.bind ~f:(fun l ->
+        (match T.of_alist l with
+         | `Duplicate_key k -> Error ("duplicate key: " ^ k)
+         | `Ok m -> Ok m))
+      | _ -> Error "Expected an object"
+  end
+
+  type dval_map = dval DvalMap.t
   and optionT = OptJust of dval
               | OptNothing
   and dval =
@@ -248,7 +272,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
     | DInt of int
     | DFloat of float
     | DBool of bool
-    | DNull (* TODO: make null more like option *)
+    | DNull
     | DChar of char
     | DStr of string
     (* compound types *)
@@ -261,7 +285,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
     | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
-    | DDB of DbT.db
+    | DDB of string
     | DID of uuid
     | DDate of time
     | DTitle of string
@@ -269,8 +293,9 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
     | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
-    [@@deriving show, eq, compare]
-  type dval_list = dval list [@@deriving show]
+
+    [@@deriving eq, yojson, compare]
+  type dval_list = dval list
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type tipe = tipe_ [@@deriving eq, show, yojson, bin_io]

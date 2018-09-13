@@ -4,7 +4,6 @@ open Libcommon
 open Types
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
-open Dval
 
 module RT = Runtime
 module PReq = Parsed_request
