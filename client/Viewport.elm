@@ -38,6 +38,10 @@ toAbsolute m pos =
   { x = pos.vx - center.x
   , y = pos.vy - center.y}
 
+toCenteredOn : Pos -> Pos
+toCenteredOn pos =
+  subPos pos Defaults.initialPos
+
 pageUp : Model -> Modification
 pageUp m =
   moveCanvasBy m 0 (-1 * Defaults.pageHeight)

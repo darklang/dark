@@ -19,6 +19,7 @@ import ViewUtils exposing (..)
 import Url
 import Defaults
 import Refactor exposing (countFnUsage)
+import Viewport
 
 
 type alias Entry = { name: Maybe String
@@ -295,7 +296,7 @@ buttonLink content handler page =
 tlLink : Pos -> String -> String -> Html.Html Msg
 tlLink pos class name =
   Url.linkFor
-    (Toplevels pos)
+    (Toplevels (Viewport.toCenteredOn pos))
     class
     [Html.text name]
 
