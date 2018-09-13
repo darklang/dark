@@ -88,8 +88,9 @@ let replacements = [
   ( "DB::query_v2"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
             let results =
+              let db = find_db state.dbs dbname in
               map
               |> DvalMap.to_alist
               |> User_db.query ~state ~magic:false db
@@ -111,7 +112,8 @@ let replacements = [
   ( "DB::queryWithKey_v1"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
+            let db = find_db state.dbs dbname in
             map
             |> DvalMap.to_alist
             |> User_db.query ~state ~magic:false db
@@ -121,8 +123,9 @@ let replacements = [
   ( "DB::queryOne_v1"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
             let results =
+              let db = find_db state.dbs dbname in
               map
               |> DvalMap.to_alist
               |> User_db.query ~state ~magic:false db
@@ -140,8 +143,9 @@ let replacements = [
   ( "DB::queryOneWithKey_v1"
   , InProcess
       (function
-          | (state, [DObj map; DDB db]) ->
+          | (state, [DObj map; DDB dbname]) ->
             let results =
+              let db = find_db state.dbs dbname in
               map
               |> DvalMap.to_alist
               |> User_db.query ~state ~magic:false db
