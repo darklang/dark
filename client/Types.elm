@@ -173,7 +173,7 @@ type Msg
     | BlankOrDoubleClick TLID ID MouseEvent
     | BlankOrMouseEnter TLID ID MouseEvent
     | BlankOrMouseLeave TLID ID MouseEvent
-    | MouseWheel (List Int)
+    | MouseWheel (Int, Int)
     | DataClick TLID Int MouseEvent
     | DataMouseEnter TLID Int MouseEvent
     | DataMouseLeave TLID Int MouseEvent
