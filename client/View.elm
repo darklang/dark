@@ -29,10 +29,7 @@ view : Model -> Html.Html Msg
 view m =
   let attributes =
         [ Attrs.id "grid"
-        , Events.onWithOptions
-        "mouseup"
-        { stopPropagation = False, preventDefault = True }
-        (decodeClickEvent GlobalClick)
+        , eventNoPropagation "mouseup" (decodeClickEvent GlobalClick)
         ]
       header =
         ViewScaffold.viewError m.error
@@ -64,9 +61,9 @@ viewCanvas m =
 
         canvasTransform =
           let offset =
-            case m.currentPage of
-              Toplevels _ -> m.canvas.offset
-              Fn _ _ -> m.canvas.fnOffset
+                case m.currentPage of
+                  Toplevels _ -> m.canvas.offset
+                  Fn _ _ -> m.canvas.fnOffset
           in "translate(" ++ (String.fromInt offset.x) ++ "px, " ++ (String.fromInt offset.y) ++ "px)"
 
         allDivs = asts ++ entry
@@ -100,7 +97,7 @@ viewTL m tl =
           recalc ()
         else
           case Util.cacheGet id of
-            Just html -> html
+            Just html_ -> html_
             Nothing ->
               let result = recalc ()
                   _ = Util.cacheSet id result
@@ -138,8 +135,8 @@ viewTL_ m tlid =
         else ""
       boxClasses =
         case m.cursorState of
-          Dragging tlid _ _ _ ->
-            if tlid == tl.id then ["dragging"] else []
+          Dragging tlid_ _ _ _ ->
+            if tlid_ == tl.id then ["dragging"] else []
           _ -> []
       class =
         [ selected
