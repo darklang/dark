@@ -691,8 +691,6 @@ let route_host req =
   (* Not a match... *)
   | _ -> None
 
-(* TODO handle sitemap, favicon, etc *)
-
 let k8s_handler req ~execution_id ~stopper =
   match req |> CRequest.uri |> Uri.path with
   (* For GKE health check *)
@@ -811,24 +809,31 @@ let server () =
          match redirect_to (with_x_forwarded_proto req) with
            Some x -> S.respond_redirect ~uri:x ()
          | None ->
-            (* figure out what handler to dispatch to... *)
-            match route_host req with
-            | Some (Canvas canvas) ->
-               user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
 
-            | Some Static -> static_handler uri
+            match Uri.to_string uri with
+            | "/sitemap.xml"
+            | "/favicon.ico" ->
+               respond ~execution_id `OK ""
 
-            | Some Outer -> outer_handler ~execution_id uri
+            | _ ->
+             (* figure out what handler to dispatch to... *)
+             match route_host req with
+             | Some (Canvas canvas) ->
+                user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
 
-            | Some Admin ->
-               (try
-                  authenticate_then_handle ~execution_id
-                    (admin_handler ~execution_id ~uri ~body ~stopper)
-                    req
-                with e ->  handle_error ~include_internals:false e)
-            | None -> k8s_handler req ~execution_id ~stopper
+             | Some Static -> static_handler uri
+
+             | Some Outer -> outer_handler ~execution_id uri
+
+             | Some Admin ->
+                (try
+                   authenticate_then_handle ~execution_id
+                     (admin_handler ~execution_id ~uri ~body ~stopper)
+                     req
+                 with e ->  handle_error ~include_internals:false e)
+             | None -> k8s_handler req ~execution_id ~stopper
+
     with e -> handle_error ~include_internals:false e
-
   in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
