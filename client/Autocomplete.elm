@@ -578,16 +578,16 @@ generateFromModel m a =
                 ]
               DBColType ->
                 let builtins =
-                  [ "String"
-                  , "Int"
-                  , "Boolean"
-                  , "Float"
-                  , "Title"
-                  , "Url"
-                  , "Date"
-                  , "Password"
-                  , "UUID"
-                  ]
+                      [ "String"
+                      , "Int"
+                      , "Boolean"
+                      , "Float"
+                      , "Title"
+                      , "Url"
+                      , "Date"
+                      , "Password"
+                      , "UUID"
+                      ]
                     compound =
                       List.map
                         (\s -> "[" ++ s ++ "]")
