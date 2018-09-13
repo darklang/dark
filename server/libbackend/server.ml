@@ -8,6 +8,7 @@ module CRequest = Clu.Request
 module CResponse = Clu.Response
 module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
+module Client = Clu.Client
 
 module C = Canvas
 
@@ -431,7 +432,7 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
         let headers =
           (Header.of_list
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-            let uri = Uri.of_string ("/" ^ Uri.pct_encode username) in
+            let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
             S.respond_redirect ~headers ~uri ())
      else
        handler ~username req
@@ -482,7 +483,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   in
   match (verb, path) with
   (* Canvas webpages... *)
-  | (`GET, [ canvas ; "integration_test" ]) when Config.allow_test_routes ->
+  | (`GET, [ "a" ; canvas ; "integration_test" ]) when Config.allow_test_routes ->
      when_can_edit ~canvas
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
@@ -491,7 +492,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
            ~resp_headers:html_hdrs
            ~execution_id
            `OK body)
-  | (`GET, [ canvas; "ui-debug" ]) ->
+  | (`GET, [ "a"; canvas; "ui-debug" ]) ->
      when_can_edit ~canvas
        (fun _ ->
          let%lwt body = admin_ui_html ~debug:true () in
@@ -499,7 +500,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
            ~resp_headers:html_hdrs
            ~execution_id
            `OK body)
-  | (`GET, [ canvas; ]) ->
+  | (`GET, [ "a" ; canvas; ]) ->
      when_can_edit ~canvas
        (fun _ ->
          let%lwt body = admin_ui_html ~debug:false () in
@@ -606,7 +607,8 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
   match path with
   | "ops" :: _ ->  ops_api_handler ~execution_id ~path ~stopper ~body ~username req
   | "api" :: _ ->  admin_api_handler ~execution_id ~path ~stopper ~body ~username req
-  |  _ ->  admin_ui_handler ~execution_id ~path ~stopper ~body ~username req
+  | "a" :: _ ->  admin_ui_handler ~execution_id ~path ~stopper ~body ~username req
+  | _ -> respond ~execution_id `Not_found "Not found"
 
 (* -------------------------------------------- *)
 (* The server *)
@@ -633,14 +635,28 @@ type host_route =
   | Canvas of string
   | Static
   | Admin
+  | Outer
 
 let route_host req =
+  let is_admin_path () =
+    let path = req
+               |> CRequest.uri
+               |> Uri.path
+               |> String.lstrip ~drop:((=) '/')
+               |> String.rstrip ~drop:((=) '/')
+               |> String.split ~on:'/'
+    in match path with
+    | "api" :: _ -> true
+    | "ops" :: _ -> true
+    | "a"   :: _ -> true
+    | _ -> false
+  in
   match req
         |> CRequest.uri
         |> Uri.host
         |> Option.value ~default:""
         |> (fun h -> String.split h '.') with
-  | ["static"; "darklang"; "localhost" ]
+  | [ "static"; "darklang"; "localhost" ]
   | [ "static" ; "darklang"; "com" ]
   | [ "static" ; "integration-tests" ]
   -> Some Static
@@ -662,11 +678,14 @@ let route_host req =
   | [a; "dabblefox"; "com" ]
     -> Some (Canvas ("dabblefox-" ^ a))
 
-  (* admin interface *)
+  (* admin interface + outer site, conditionally *)
   | ["integration-tests"]
   | ["darklang" ; "com" ]
   | ["darklang" ; "localhost" ]
-    -> Some Admin
+  | ["dark_dev" ; "com" ]
+    -> if is_admin_path ()
+      then Some Admin
+      else Some Outer
 
   (* Not a match... *)
   | _ -> None
@@ -719,6 +738,15 @@ let k8s_handler req ~execution_id ~stopper =
           ~params:["execution_id", Types.string_of_id execution_id];
         respond ~execution_id `OK "Terminated")
   | _ -> respond ~execution_id `Not_found ""
+
+(* Proxy requests to darklang-com.netlify.com.
+   Don't include any headers or anything.
+   Once we use a different load-balancer we should use that instead;
+   this is pretty slow, unfortunately. *)
+let outer_handler ~execution_id uri =
+  let path = Uri.path uri in
+  Log.infO "outer_handler" ~params:["path", path];
+  Client.get (Uri.make ~scheme:"https" ~host:"darklang-com.netlify.com" ~path ())
 
 let server () =
   let stop,stopper = Lwt.wait () in
@@ -788,6 +816,8 @@ let server () =
                user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
 
             | Some Static -> static_handler uri
+
+            | Some Outer -> outer_handler ~execution_id uri
 
             | Some Admin ->
                (try

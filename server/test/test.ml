@@ -1024,7 +1024,7 @@ let admin_handler_code ?(meth=`GET) ?(body="") (username, endpoint) =
        resp |> Resp.status |> Code.code_of_status |> return)
 
 let t_admin_handler_ui () =
-  let ah_ui_response (username, canvas)  = admin_handler_code (username, "/" ^ canvas ^ "/")
+  let ah_ui_response (username, canvas)  = admin_handler_code (username, "/a/" ^ canvas ^ "/")
   in
   AT.check (AT.list AT.int)
     "UI routes in admin_handler check authorization correctly."
