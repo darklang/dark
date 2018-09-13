@@ -99,4 +99,5 @@ defaultModel = { error = { message = Nothing
                , lockedHandlers = []
                , canvas = defaultCanvas
                , canvasName = "builtwithdark"
+               , userContentHost = "builtwithdark.com"
                }

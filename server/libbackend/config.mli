@@ -25,6 +25,7 @@ val allow_server_shutdown : bool
 val allow_test_routes : bool
 
 val static_base_url : string
+val user_content_host : string
 
 val rollbar_enabled : bool
 val rollbar_environment : string
