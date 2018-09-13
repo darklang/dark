@@ -1479,8 +1479,8 @@ update_ msg m =
 
     StartMigration db -> DB.startMigration db
 
-    CancelMigration db ->
-      RPC ([AbandonDBMigration db.tlid], FocusNothing)
+    AbandonMigration tlid ->
+      RPC ([AbandonDBMigration tlid], FocusNothing)
 
     DeleteColInDB col tlid ->
       let tl = TL.getTL m tlid

@@ -355,7 +355,7 @@ enterDB m db tl id =
   let isLocked = DB.isLocked m tl.id
       isMigrationCol = DB.isMigrationCol db id
       pd = TL.findExn tl id
-      updateDB autocomplete =
+      enterField autocomplete =
         if autocomplete
         then
           Many
@@ -369,12 +369,12 @@ enterDB m db tl id =
       PDBColName d ->
         if isLocked && not isMigrationCol
         then NoChange
-        else updateDB False
+        else enterField False
       PDBColType d ->
         if isLocked && not isMigrationCol
         then NoChange
-        else updateDB True
-      PExpr ex -> updateDB True
+        else enterField True
+      PExpr ex -> enterField True
       -- TODO validate ex.id is in either rollback or rollforward function if there's a migration in progreess
       _ -> NoChange
 
