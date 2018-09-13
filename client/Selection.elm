@@ -117,7 +117,8 @@ jsToHtmlSizing obj =
 
 tlToSizes : Model -> TLID -> (List HtmlSizing, List HtmlSizing)
 tlToSizes m tlid =
-  let poses = Native.Size.positions (deTLID tlid) in
+  -- TODO: let poses = Native.Size.positions (deTLID tlid) in
+  let poses = {nested = [], atoms = []} in
   ( List.map jsToHtmlSizing poses.nested
   , List.map jsToHtmlSizing poses.atoms)
 

@@ -77,7 +77,6 @@ viewCanvas m =
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let id = deTLID tl.id
-      recalc () = viewTL_ m tl.id
       -- Allow the DB locked status to update
       isDB = case tl.data of
               TLDB _ -> True
@@ -90,21 +89,9 @@ viewTL m tl =
               -- the pos here is not where we draw the TL, but rather
               -- where we position the fn.
               {x = 20, y = 20}
-      html =
-        if Just tl.id == tlidOf m.cursorState || isDB
-        then
-          let _ = Util.cacheClear id in
-          recalc ()
-        else
-          case Util.cacheGet id of
-            Just html_ -> html_
-            Nothing ->
-              let result = recalc ()
-                  _ = Util.cacheSet id result
-              in
-              result
+
    in
-   placeHtml m pos html
+   placeHtml m pos (viewTL_ m tl.id)
 
 viewTL_ : Model -> TLID -> Html.Html Msg
 viewTL_ m tlid =
