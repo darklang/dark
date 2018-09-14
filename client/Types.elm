@@ -186,6 +186,7 @@ type Msg
     | LockHandler TLID Bool
     | ReceiveAnalysis String
     | EnablePanning Bool
+    | ShowErrorDetails Bool
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -505,7 +506,7 @@ type alias CanvasProps =
   , enablePan: Bool
   }
 
-type alias Model = { error : Maybe String
+type alias Model = { error : DarkError
                    , lastMsg : Msg
                    , lastMod : Modification
                    , tests : List VariantTest
@@ -547,6 +548,15 @@ type alias SerializableEditor = { clipboard : Maybe PointerData
                                 , cursorState : CursorState
                                 , lockedHandlers: List TLID
                                 }
+
+--------------------
+-- Error Handling
+--------------------
+
+type alias DarkError  =
+  { message : Maybe String
+  , showDetails : Bool
+  }
 
 -----------------------------
 -- Testing

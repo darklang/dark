@@ -57,7 +57,8 @@ defaultCanvas =
   }
 
 defaultModel : Model
-defaultModel = { error = Nothing
+defaultModel = { error = { message = Nothing
+                        , showDetails = False }
                , lastMsg = Initialization
                , lastMod = NoChange
                -- this is awkward, but avoids circular deps

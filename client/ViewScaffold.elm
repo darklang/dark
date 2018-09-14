@@ -71,27 +71,41 @@ viewButtons m =
       [Html.text ("Active tests: " ++ Debug.toString m.tests)]
     ] ++ integrationTestButton ++ returnButton)
 
-viewError : Maybe String -> Html.Html Msg
-viewError mMsg =
-  case mMsg of
+viewError : DarkError -> Html.Html Msg
+viewError err =
+  case err.message of
     Nothing ->
       Html.div [Attrs.id "status"] [Html.text "Dark"]
     Just msg ->
+      let cutMessageAt = 50
+          error msg =
+            if String.length msg < cutMessageAt
+            then
+              [ Html.text ("Error: " ++ msg) ]
+            else
+              let shortMsg = String.left cutMessageAt msg
+                  btnText =
+                    if err.showDetails
+                    then "Hide Details"
+                    else "Show Details"
+              in
+              [ Html.text ("Error: " ++ shortMsg ++ " ... ")
+              , Html.a
+                  [ Attrs.class "link"
+                  , Attrs.href "#"
+                  , eventNoPropagation "mouseup" (\_ -> ShowErrorDetails (not err.showDetails)) ]
+                  [ Html.text btnText ]
+              , Html.div [Attrs.class "more"] [ Html.text msg ]
+              ]
+      in
       case JSD.decodeString JSON.decodeException msg of
         Err _ -> -- not json, just a regular string
           Html.div
-            [Attrs.id "status", Attrs.class "error"]
-            [Html.text ("Error: " ++ msg)]
+            [ Attrs.id "status"
+            , Attrs.classList [("error", True), ("show-details", err.showDetails)] ]
+            (error msg)
         Ok exc ->
           Html.div
             [ Attrs.id "status"
             , Attrs.class "error" ]
-            [ Html.span
-                [ Attrs.class "message" ]
-                [ Html.text ("Error: " ++ exc.short)]
-            , Html.i
-              [ Attrs.class "fa fa-info-circle"
-              , Attrs.title msg
-              ]
-              []
-            ]
+            (fontAwesome "info-circle" :: error exc.short)
