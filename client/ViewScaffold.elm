@@ -46,7 +46,8 @@ viewButtons m =
           _ -> []
       status =
         case m.error.message of
-          Nothing -> Html.div [Attrs.class "status"] [Html.text "Dark"]
+          Nothing ->
+            Html.div [Attrs.class "status"] [Html.text "Dark"]
           Just msg ->
             Html.div
               [ Attrs.class "status error"]

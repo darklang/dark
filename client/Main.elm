@@ -348,14 +348,23 @@ updateMod mod (m, cmd) =
 
     in
     case mod of
-      DisplayError e -> ({ m | error = { message = Just e, showDetails = False } }, Cmd.none)
+      DisplayError e ->
+        ( { m | error =
+                        { message = Just e
+                        , showDetails = False }
+          }
+        , Cmd.none)
       DisplayAndReportError e ->
         let json = JSE.object [ ("message", JSE.string e)
                               , ("url", JSE.null)
                               , ("custom", JSE.object [])
                               ]
         in
-        ({ m | error = { message = Just e, showDetails = False } }, sendRollbar json)
+        ( { m | error =
+                        { message = Just e
+                        , showDetails = False }
+          }
+        , sendRollbar json)
       DisplayAndReportHttpError context e ->
         let response =
               case e of
@@ -385,9 +394,18 @@ updateMod mod (m, cmd) =
                               ]
             cmds = if shouldRollbar then [sendRollbar json] else []
         in
-        ({ m | error = { message = Just msg, showDetails = False } } , Cmd.batch cmds)
+        ( { m | error =
+                        { message = Just msg
+                        , showDetails = False }
+          }
+        , Cmd.batch cmds)
 
-      ClearError -> ({ m | error = { message = Nothing, showDetails = False } } , Cmd.none)
+      ClearError ->
+        ( { m | error =
+                        { message = Nothing
+                        , showDetails = False }
+          }
+        , Cmd.none)
 
       RPC (ops, focus) ->
         handleRPC (RPC.opsParams ops) focus
