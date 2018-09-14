@@ -73,7 +73,7 @@ defaultModel = { error = Nothing
                             }
                , userFunctions = []
                , builtInFunctions = []
-               , currentPage = Toplevels initialPos
+               , currentPage = Toplevels {x=0,y=0}
                , hovering = []
                , tests = []
                , toplevels = []
