@@ -664,8 +664,14 @@ let t_dval_yojson_roundtrips () =
   check "option" (DOption (OptJust (DInt 15)));
   check "db" (DDB "Visitors");
   check "list" (DList [DDB "Visitors"; DInt 4]);
-  (* check "redirect" (DResp (Redirect "/home") DNull); *)
-  (* check "httpresponse" (DResp (Response 200 []) (DStr "success")); *)
+  check "redirect" (DResp (Redirect "/home", DNull));
+  check "httpresponse" (DResp (Response (200, []), DStr "success"));
+  check "weird assoc 1" (DObj
+                           (DvalMap.of_alist_exn [ ("type", DStr "weird")
+                                                 ; ("value", DNull)]));
+  check "weird assoc 2" (DObj
+                           (DvalMap.of_alist_exn [ ("type", DStr "weird")
+                                                 ; ("value", DStr "x")]));
   ()
 
 
