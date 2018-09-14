@@ -41,6 +41,11 @@ html {
   color: @grey3;
 }
 
+@keyframes heightexpand {
+  from { max-height: 20px; }
+  to {max-height: 100%; }
+}
+
 body {
   .default;
   height: 100%;
@@ -142,11 +147,35 @@ body #grid * {
 }
 
 #status {
+  max-height: 20px;
+  overflow: hidden;
+  padding: 0 8px;
+  background-color: @black1;
+  float: right;
+  text-align: right;
+
   &.error {
     color: @yellow;
+
+    &.show-details {
+      max-height: 100%;
+      animation-name: heightexpand;
+      animation-duration: 2s;
+    }
+
+
     i.fa {
       padding-left: 10px;
       color: @red;
+    }
+
+    a {
+      .default-link
+    }
+
+    .more {
+      color: lighten(@yellow, 15%);
+      font-size: 12px;
     }
   }
 }
@@ -274,7 +303,7 @@ body #grid * {
   max-height: calc(~"100% - 50px");
   overflow-y: scroll;
   position: fixed;
-  top: 0;
+  top: 20px;
   left: 0;
 
   &:hover {
@@ -1396,6 +1425,10 @@ body #grid * {
 
 #buttons {
   z-index: 70;
+}
+
+#status {
+  z-index: 60;
 }
 
 #sidebar-left {
