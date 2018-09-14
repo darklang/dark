@@ -1,143 +1,194 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-
 . ./scripts/support/assert-in-container "$0" "$@"
 
+set -euo pipefail
 
-# these are in the old gke-deploy-cluster -- we should probably
-# remove them at some point, but I don't know where else to store
-# them.
-DARK_CLUSTER_CLOUDSQL_USER="${DARK_CLUSTER_CLOUDSQL_USER:-$(printf postgres | base64)}"
-DARK_CLUSTER_CLOUDSQL_PASS="${DARK_CLUSTER_CLOUDSQL_PASS:-$(printf 6gCtEAKElJFpNCdw | base64)}"
+# Defaults
+DARK_CLUSTER_REGION="us-west1"
+DARK_CLUSTER_PROJECT="balmy-ground-195100"
+DARK_CLUSTER="darkcluster$(date +"%s")"
+DARK_CLUSTER_NUM_NODES="4"
+DARK_CLUSTER_VERSION="1.10.7-gke.1"
+DARK_CLUSTER_CLOUDSQL_USER="postgres"
+DARK_CLUSTER_CLOUDSQL_PASS="6gCtEAKElJFpNCdw"
+# no defaults
+DARK_CLUSTER_TLS_CRT=""
+DARK_CLUSTER_TLS_KEY=""
+DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS=""
+
+HELP="$(cat <<EOF
+Usage: $0 REQUIRED_ARGS [OPTIONS]
+
+A script that deploys a Dark-production-like cluster to Google Kubernetes Engine.
+
+Required arguments:
+
+  --tls-crt=...          A base64-encoded TLS .crt file to use for the TLS-enabled ingress.
+                         You can swipe creds from the current cluster with something like
+                         the following:
+                           kubectl get secrets bwd-tls -o json | jq -r '.data["tls.crt"]'
+  --tls-key=...          A base64-encoded TLS .key file to use for the TLS-enabled ingress.
+                         You can swipe creds from the current cluster with something like
+                         the following:
+                         kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]'
+  --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
+                         instance. You can swipe creds from the current cluster with something
+                         like the following:
+                           kubectl get secret cloudsql-instance-credentials -o json \
+                             | jq -r '.data["credentials.json"]'
+
+Options:
+
+  --region=...           The Google cloud region to deploy into (default $DARK_CLUSTER_REGION).
+  --project=...          The Google cloud project to deploy into (default $DARK_CLUSTER_PROJECT).
+  --cluster=...          The name of the new cluster (default is to append unix time to
+                         'darkcluster', a la $DARK_CLUSTER).
+  --num-nodes=...        The number of nodes *per zone* in the cluster. GKE default is to deploy
+                         to three zones, so the actual number of deployed nodes will be 3x this
+                         amount (default $DARK_CLUSTER_NUM_NODES).
+  --version=...          The Kubernetes version to run on the master and nodes. New versions are
+                         released and old versions are obsoleted on GKE quickly, so you will
+                         probably need to find the newest version (default $DARK_CLUSTER_VERSION).
+  --cloudsql-user=...    The username for the  cloudsql DB (default $DARK_CLUSTER_CLOUDSQL_USER).
+  --cloudsql-pass=...    The password for the cloudql DB (default $DARK_CLUSTER_CLOUDSQL_PASS)
+  --help                 Display this menu.
+
+EOF
+)"
 
 
-DARK_ZONE="${DARK_ZONE:-us-west1}"
-DARK_PROJECT="${DARK_PROJECT:-balmy-ground-195100}"
-DARK_CLUSTER="${DARK_CLUSTER:-darkcluster$(date +"%s")}"
-# This is the number of nodes _per zone_, so it will be 3x this amount by default.
-DARK_CLUSTER_NODES="${DARK_CLUSTER_NODES:-4}"
-# darkcluster1 was on 1.10.2-gke.3. That's no longer supported.
-DARK_CLUSTER_VERSION="${DARK_CLUSTER_VERSION:-1.10.2-gke.4}"
+for i in "$@"
+do
+  case "${i}" in
+    --region=*)
+      DARK_CLUSTER_REGION="${i/--region=/''}"
+      ;;
+    --project=*)
+      DARK_CLUSTER_PROJECT="${i/--project=/''}"
+      ;;
+    --cluster=*)
+      DARK_CLUSTER="${i/--cluster=/''}"
+      ;;
+    --num-nodes=*)
+      DARK_CLUSTER_NUM_NODES="${i/--num-nodes=/''}"
+      ;;
+    --version=*)
+      DARK_CLUSTER_VERSION="${i/--version=/''}"
+      ;;
+    --cloudsql-user=*)
+      DARK_CLUSTER_CLOUDSQL_USER="${i/--cloudsql-user=/''}"
+      ;;
+    --cloudsql-pass=*)
+      DARK_CLUSTER_CLOUDSQL_PASS="${i/--cloudsql-pass=/''}"
+      ;;
+    --tls-crt=*)
+      DARK_CLUSTER_TLS_CRT="${i/--tls-crt=/''}"
+      ;;
+    --tls-key=*)
+      DARK_CLUSTER_TLS_KEY="${i/--tls-key=/''}"
+      ;;
+    --cloudsql-creds=*)
+      DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS="${i/--cloudsql-creds=/''}"
+      ;;
+    --help)
+      echo "$HELP"
+      exit 0
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      echo "$HELP"
+      exit 1
+      ;;
+  esac
+done
 
+if [ ! -v DARK_CLUSTER_TLS_KEY ] || [ ! -v DARK_CLUSTER_TLS_CRT ] \
+     || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
+  echo "$USAGE"
+  exit 1
+fi
 
 function print_step () {
-    tput setab 6 && echo "=>" "$@" && tput sgr0
+  tput setab 6 && echo "=>" "$@" && tput sgr0
 }
-
-
-if [ ! -v DARK_CLUSTER_TLS_KEY ] || [ ! -v DARK_CLUSTER_TLS_CRT ]; then
-    cat <<EOF >&2
-We need a base64-encoded TLS key and certificate as DARK_CLUSTER_TLS_KEY and
-DARK_CLUSTER_TLS_CRT. These should be base64-encoded pem files. If you have a
-copy of the .crt and .key files; you can run this like
-
-	DARK_CLUSTER_TLS_CRT="\$(base64 -w 0 < builtwithdark.com.crt)" \\
-	DARK_CLUSTER_TLS_KEY="\$(base64 -w 0 < builtwithdark.com.key)" \\
-	$0
-
-in a pinch you can swipe creds from the current cluster. e.g.
-
-       gcloud container clusters get-credentials "$(< current-cluster)"
-       DARK_CLUSTER_TLS_CRT="\$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.crt"]')" \\
-       DARK_CLUSTER_TLS_KEY="\$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]')" \\
-       $0
-
-EOF
-    exit 1
-fi
-
-if [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
-    cat <<EOF
-We need base64-encoded cloudsql instance creds in DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS and
-DARK_CLUSTER_CLOUDSQL_PASS. These are from a file in Paul's Downloads directory:
-
-       DARK_CLUSTER_CLOUDSQL_USER="\$(base64 balmy-ground-195100-cf744744111f.json)" \\
-       $0
-
-in a pinch you can swipe creds from the current cluster. e.g.
-
-       gcloud container clusters get-credentials "$(< current-cluster)"
-       DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS="\$(kubectl get secret cloudsql-instance-credentials -o json | jq -r '.data["credentials.json"]')" \\
-       $0
-
-EOF
-    exit 1
-fi
 
 print_step "starting a new cluster named $DARK_CLUSTER"
 
 gcloud beta container clusters create "$DARK_CLUSTER" \
-     --num-nodes="$DARK_CLUSTER_NODES" \
-     --zone="$DARK_ZONE" \
-     --project="$DARK_PROJECT" \
-     --cluster-version="$DARK_CLUSTER_VERSION" \
-     --enable-stackdriver-kubernetes \
-     --enable-autorepair \
-     --enable-network-policy
+  "--num-nodes=${DARK_CLUSTER_NUM_NODES}" \
+  "--zone=${DARK_CLUSTER_REGION}" \
+  "--project=${DARK_CLUSTER_PROJECT}" \
+  "--cluster-version=${DARK_CLUSTER_VERSION}" \
+  --enable-stackdriver-kubernetes \
+  --enable-autorepair \
+  --enable-network-policy
 
 print_step "getting creds for the new cluster"
-gcloud container clusters get-credentials projects/"$DARK_PROJECT"/zones/"$DARK_ZONE"/clusters/"$DARK_CLUSTER"
+gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}"
 
 print_step "installing secrets"
 # add tls secrets
 kubectl create -f - <<EOF
 {
-	"apiVersion": "v1",
-	"kind": "Secret",
-	"type": "kubernetes.io/tls",
-	"data": {
-		"tls.crt": "$DARK_CLUSTER_TLS_CRT",
-		"tls.key": "$DARK_CLUSTER_TLS_KEY"
-	},
-	"metadata": {
-		    "name": "bwd-tls"
-	}
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "kubernetes.io/tls",
+  "data": {
+    "tls.crt": "$DARK_CLUSTER_TLS_CRT",
+    "tls.key": "$DARK_CLUSTER_TLS_KEY"
+  },
+  "metadata": {
+        "name": "bwd-tls"
+  }
 }
 EOF
 
 # add secrets for the cloudsql proxy service account
+# printf | base64 here because, unlike the rest of the secrets,
+# this username and password are sensitive to trailing whitespace.
 kubectl create -f - <<EOF
 {
-	"apiVersion": "v1",
-	"kind": "Secret",
-	"type": "Opaque",
-	"data": {
-		"username": "$DARK_CLUSTER_CLOUDSQL_USER",
-		"password": "$DARK_CLUSTER_CLOUDSQL_PASS"
-	},
-	"metadata": {
-		    "name": "cloudsql-db-credentials"
-	}
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "Opaque",
+  "data": {
+    "username": "$(printf "%s" "$DARK_CLUSTER_CLOUDSQL_USER" | base64)",
+    "password": "$(printf "%s" "$DARK_CLUSTER_CLOUDSQL_PASS" | base64)"
+  },
+  "metadata": {
+    "name": "cloudsql-db-credentials"
+  }
 }
 EOF
 
 # cloudsql instance creds
 kubectl create -f - <<EOF
 {
-	"apiVersion": "v1",
-	"kind": "Secret",
-	"type": "Opaque",
-	"data": {
-		"credentials.json": "$DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS"
-	},
-	"metadata": {
-		    "name": "cloudsql-instance-credentials"
-	}
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "Opaque",
+  "data": {
+    "credentials.json": "$DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS"
+  },
+  "metadata": {
+    "name": "cloudsql-instance-credentials"
+  }
 }
 EOF
 
 print_step "deploying code and containers"
 
-DARK_ZONE="$DARK_ZONE" DARK_CLUSTER="$DARK_CLUSTER" DARK_PROJECT="$DARK_PROJECT" \
-	 ./scripts/gke-deploy
+./scripts/gke-deploy \
+  "--region=${DARK_CLUSTER_REGION}" \
+  "--project=${DARK_CLUSTER_PROJECT}" \
+  "--cluster=${DARK_CLUSTER}"
 
 print_step "waiting for a new ip..."
 
-
 NEW_IP=null
 while [ "$NEW_IP" == "null" ]; do
-    NEW_IP="$(kubectl get Ingress bwd-tls-ingress -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
+  NEW_IP="$(kubectl get Ingress bwd-tls-ingress -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
 done
 
 print_step "your new cluster is deployed!"
