@@ -351,7 +351,7 @@ updateMod mod (m, cmd) =
       DisplayError e ->
         ( { m | error =
                         { message = Just e
-                        , showDetails = False }
+                        , showDetails = True }
           }
         , Cmd.none)
       DisplayAndReportError e ->
@@ -362,7 +362,7 @@ updateMod mod (m, cmd) =
         in
         ( { m | error =
                         { message = Just e
-                        , showDetails = False }
+                        , showDetails = True }
           }
         , sendRollbar json)
       DisplayAndReportHttpError context e ->
@@ -396,7 +396,7 @@ updateMod mod (m, cmd) =
         in
         ( { m | error =
                         { message = Just msg
-                        , showDetails = False }
+                        , showDetails = True }
           }
         , Cmd.batch cmds)
 
