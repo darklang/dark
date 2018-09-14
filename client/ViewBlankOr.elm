@@ -202,8 +202,8 @@ div vs configs content =
                         then [viewFeatureFlag]
                         else []
       editFnHtml = case editFn of
-                     Just editFn ->
-                       [viewEditFn editFn showFeatureFlag]
+                     Just editFn_ ->
+                       [viewEditFn editFn_ showFeatureFlag]
                      Nothing -> if showFeatureFlag then [viewCreateFn] else []
       rightSideHtml =
         Html.div

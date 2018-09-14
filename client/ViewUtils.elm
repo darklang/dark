@@ -61,10 +61,10 @@ createVS m tl = { tl = tl
                           case TL.find tl i of
                             Just (PExpr exp) ->
                               let cursorSubsumedByHover =
-                                exp
-                                |> AST.allData
-                                |> List.map P.toID
-                                |> List.member cur
+                                    exp
+                                    |> AST.allData
+                                    |> List.map P.toID
+                                    |> List.member cur
                               in
                                   if cursorSubsumedByHover
                                   then Nothing
@@ -159,7 +159,7 @@ widthInCh : Int -> Html.Attribute Msg
 widthInCh w =
   w
   |> inCh
-  |> \w -> Attrs.style [("width", w)]
+  |> \w_ -> Attrs.style [("width", w_)]
 
 
 blankOrLength : BlankOr String -> Int

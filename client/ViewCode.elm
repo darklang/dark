@@ -162,10 +162,10 @@ viewRopArrow vs =
 
 viewNExpr : Int -> ID -> Viewer NExpr
 viewNExpr d id vs config e =
-  let vExpr d = viewExpr d vs []
-      vExprTw d =
+  let vExpr d_ = viewExpr d_ vs []
+      vExprTw d_ =
         let vs2 = { vs | tooWide = True } in
-        viewExpr d vs2 []
+        viewExpr d_ vs2 []
       t = text vs
       n c = div vs (nested :: c)
       a c = text vs (atom :: c)
@@ -224,17 +224,17 @@ viewNExpr d id vs config e =
 
     FnCall name exprs sendToRail ->
       let width = approxNWidth e
-          viewTooWideArg name d e =
+          viewTooWideArg name_ d_ e_ =
             Html.div
-              [ Attrs.attribute "param-name" name
+              [ Attrs.attribute "param-name" name_
               ,  Attrs.class "arg-on-new-line"
               ]
-              [ vExprTw d e ]
-          ve name = if width > 120
-                    then viewTooWideArg name
+              [ vExprTw d_ e_ ]
+          ve name_ = if width > 120
+                    then viewTooWideArg name_
                     else vExpr
           fnname parens =
-            let withP name = if parens then "(" ++ name ++ ")" else name in
+            let withP name_ = if parens then "(" ++ name_ ++ ")" else name_ in
             case String.split "::" name of
               [mod, justname] ->
                 n [wc "namegroup", atom]
@@ -273,8 +273,8 @@ viewNExpr d id vs config e =
           isComplete v =
             v
             |> getLiveValue vs.currentResults.liveValues
-            |> \v ->
-                 case v of
+            |> \v_ ->
+                 case v_ of
                    Nothing -> False
                    Just (DError _) -> False
                    Just DIncomplete -> False
@@ -300,32 +300,32 @@ viewNExpr d id vs config e =
                    , nothingMouseEvent "mousedown"
                    , nothingMouseEvent "dblclick"
                    ]
-          (bClass, bEvent, bTitle, bIcon) =
+          {class, event, title, icon} =
             if buttonUnavailable
-            then ("execution-button-unavailable"
-                 , []
-                 , "Cannot run: some parameters are incomplete"
-                 , exeIcon)
+            then { class = "execution-button-unavailable"
+                 , event = []
+                 , title = "Cannot run: some parameters are incomplete"
+                 , icon = exeIcon }
             else if buttonNeeded
-            then ("execution-button-needed"
-                  , events
-                  , "Click to execute function"
-                  , exeIcon)
+            then { class = "execution-button-needed"
+                 , event = events
+                 , title = "Click to execute function"
+                 , icon = exeIcon }
             else
-              ("execution-button-repeat"
-              , events
-              , "Click to execute function again"
-              , "redo")
+              { class = "execution-button-repeat"
+              , event = events
+              , title = "Click to execute function again"
+              , icon = "redo" }
           executingClass = if showExecuting then " is-executing" else ""
           button =
             if not showButton
             then []
             else
               [ Html.div
-                ([ Attrs.class ("execution-button " ++ bClass ++ executingClass)
-                 , Attrs.title bTitle
-                 ] ++ bEvent)
-                [fontAwesome bIcon]
+                ([ Attrs.class ("execution-button " ++ class ++ executingClass)
+                 , Attrs.title title
+                 ] ++ event)
+                [fontAwesome icon]
               ]
 
           fnDiv parens =
@@ -342,7 +342,7 @@ viewNExpr d id vs config e =
           ]
         _ ->
           let args = List.map2
-                       (\p e -> ve p.name incD e)
+                       (\p e_ -> ve p.name incD e_)
                        fn.parameters
                        exprs
 
@@ -360,15 +360,15 @@ viewNExpr d id vs config e =
 
     Thread exprs ->
       let pipe = a [wc "thread pipe"] "|>"
-          texpr e =
-            let id = B.toID e
+          texpr e_ =
+            let id_ = B.toID e_
                 dopts =
                   if d == 0
-                  then [ClickSelectAs id, ComputedValueAs id]
-                  else [ClickSelectAs id]
+                  then [ClickSelectAs id_, ComputedValueAs id_]
+                  else [ClickSelectAs id_]
             in
             n ([wc "threadmember"] ++ dopts)
-              [pipe, vExpr 0 e]
+              [pipe, vExpr 0 e_]
       in
       n (wc "threadexpr" :: mo :: config)
         (List.map texpr exprs)
@@ -389,15 +389,15 @@ viewNExpr d id vs config e =
       let open = a [wc "openbracket"] "["
           close = a [wc "closebracket"] "]"
           comma = a [wc "comma"] ","
-          lexpr e =
-            let id = B.toID e
+          lexpr e_ =
+            let id_ = B.toID e_
                 dopts =
                   if d == 0
-                  then [ClickSelectAs id, ComputedValueAs id]
-                  else [ClickSelectAs id]
+                  then [ClickSelectAs id_, ComputedValueAs id_]
+                  else [ClickSelectAs id_]
             in
             n ([wc "listelem"] ++ dopts)
-              [vExpr 0 e]
+              [vExpr 0 e_]
           new = List.map lexpr exprs
                 |> List.intersperse comma
       in
@@ -415,8 +415,8 @@ viewNExpr d id vs config e =
       n (wc "object" :: mo :: config)
         ([open] ++ List.map pexpr pairs ++ [close])
 
-    FeatureFlag msg cond a b ->
-      let exprLabel msg = Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
+    FeatureFlag msg cond a_ b_ ->
+      let exprLabel msg_ = Html.label [ Attrs.class "expr-label" ] [ Html.text msg_ ]
 
           isExpanded =
             let mv = Dict.get (deID id) vs.featureFlags
@@ -490,25 +490,25 @@ viewNExpr d id vs config e =
             Html.div
             [ Attrs.class "row expressions" ]
             [
-              exprBlock "Case A" pickA a
-              , exprBlock "Case B" pickB b
+              exprBlock "Case A" pickA a_
+              , exprBlock "Case B" pickB b_
             ]
 
-    in
-      div vs
-        [ wc "flagged shown"]
-        [ viewExpr 0 { vs | showEntry = False } [] (if condResult then b else a)
-        , fontAwesome "flag"
-        , Html.div
-          [
-            Attrs.class ("feature-flag" ++ (if isExpanded then " expand" else ""))
+      in
+        div vs
+          [ wc "flagged shown"]
+          [ viewExpr 0 { vs | showEntry = False } [] (if condResult then b_ else a_)
+          , fontAwesome "flag"
+          , Html.div
+            [
+              Attrs.class ("feature-flag" ++ (if isExpanded then " expand" else ""))
+            ]
+            [
+              titleBar
+              , blockCondition
+              , expressions
+            ]
           ]
-          [
-            titleBar
-            , blockCondition
-            , expressions
-          ]
-        ]
 
 
 isExecuting : ViewState -> ID -> Bool

@@ -127,8 +127,8 @@ replaceParamName search replacement uf =
               case replacement of
                 PParamName new ->
                   let newP =
-                    metadata.parameters
-                    |> List.map (\p -> { p | name = B.replace sId new p.name })
+                        metadata.parameters
+                        |> List.map (\p -> { p | name = B.replace sId new p.name })
                   in
                       { metadata | parameters = newP }
                 _ -> metadata
@@ -180,8 +180,8 @@ replaceParamTipe search replacement uf =
               case replacement of
                 PParamTipe new ->
                   let newP =
-                    metadata.parameters
-                    |> List.map (\p -> { p | tipe = B.replace sId new p.tipe })
+                        metadata.parameters
+                        |> List.map (\p -> { p | tipe = B.replace sId new p.tipe })
                   in
                       { metadata | parameters = newP }
                 _ -> metadata
@@ -200,12 +200,12 @@ replaceMetadataField old new uf =
 extend : UserFunction -> UserFunction
 extend uf =
   let newParam =
-      { name = B.new ()
-      , tipe = B.new ()
-      , block_args = []
-      , optional = False
-      , description = ""
-      }
+        { name = B.new ()
+        , tipe = B.new ()
+        , block_args = []
+        , optional = False
+        , description = ""
+        }
       metadata = uf.metadata
       newMetadata =
         { metadata | parameters = (uf.metadata.parameters ++ [newParam]) }
@@ -222,5 +222,3 @@ removeParameter uf ufp =
         { metadata | parameters = params }
   in
       { uf | metadata = newM }
-
-

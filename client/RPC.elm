@@ -168,13 +168,13 @@ tlidOf op =
 encodeOps : List Op -> JSE.Value
 encodeOps ops =
   ops
-  |> (\ops ->
-        case ops of
-          [UndoTL _] -> ops
-          [RedoTL _] -> ops
-          [] -> ops
+  |> (\ops_ ->
+        case ops_ of
+          [UndoTL _] -> ops_
+          [RedoTL _] -> ops_
+          [] -> ops_
           _ ->
-            let savepoints = ops
+            let savepoints = ops_
                              |> List.map tlidOf
                              |> List.map TLSavepoint
             in savepoints ++ ops)
@@ -630,13 +630,13 @@ decodeDBMigration =
 decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB tlid name cols version old active =
-      { tlid = TLID tlid
-      , name = name
-      , cols = cols
-      , version = version
-      , oldMigrations = old
-      , activeMigration = active
-      }
+        { tlid = TLID tlid
+        , name = name
+        , cols = cols
+        , version = version
+        , oldMigrations = old
+        , activeMigration = active
+        }
   in
   JSDP.decode toDB
   |> JSDP.required "tlid" JSD.int
@@ -736,10 +736,10 @@ decodeUserFunctionMetadata =
 decodeUserFunction : JSD.Decoder UserFunction
 decodeUserFunction =
   let toUserFn id meta ast =
-      { tlid = id
-      , metadata = meta
-      , ast = ast
-      }
+        { tlid = id
+        , metadata = meta
+        , ast = ast
+        }
   in
       JSDP.decode toUserFn
       |> JSDP.required "tlid" decodeTLID
@@ -788,7 +788,7 @@ decodeTraces =
 decodeTrace : JSD.Decoder Trace
 decodeTrace =
   let toTrace id input functionResults =
-    { id = id, input = input, functionResults = functionResults }
+        { id = id, input = input, functionResults = functionResults }
   in
   JSDP.decode toTrace
   |> JSDP.required "id" JSD.string
@@ -917,7 +917,7 @@ printDval dv =
     DOption opt ->
       case opt of
         Nothing -> wrapUserType JSE.null
-        Just dv -> wrapUserType (encodeDval dv)
+        Just dv_ -> wrapUserType (encodeDval dv_)
     DErrorRail _ -> wrapUserType JSE.null
 
 
@@ -1039,5 +1039,3 @@ encodeDval dv =
         Just dv -> ev "Just" [encodeDval dv]
       ]
     DErrorRail dv -> ev "DErrorRail" [encodeDval dv]
-
-

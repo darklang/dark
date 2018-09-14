@@ -45,7 +45,7 @@ selectNextToplevel m cur =
   let tls = List.map .id m.toplevels
       next =
         cur
-        |> Maybe.andThen (\cur -> Util.listNextWrap cur tls)
+        |> Maybe.andThen (\cur_ -> Util.listNextWrap cur_ tls)
   in
   case next of
     Just nextId -> Select nextId Nothing
@@ -56,7 +56,7 @@ selectPrevToplevel m cur =
   let tls = List.map .id m.toplevels
       next =
         cur
-        |> Maybe.andThen (\cur -> Util.listPreviousWrap cur tls)
+        |> Maybe.andThen (\cur_ -> Util.listPreviousWrap cur_ tls)
   in
   case next of
     Just nextId -> Select nextId Nothing
@@ -274,7 +274,7 @@ enterNextBlank m tlid cur =
   in
   pd
   |> TL.getNextBlank tl
-  |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
+  |> Maybe.map (\pd_ -> Enter (Filling tlid (P.toID pd_)))
   |> Maybe.withDefault NoChange
 
 selectPrevBlank : Model -> TLID -> (Maybe ID) -> Modification
@@ -294,7 +294,7 @@ enterPrevBlank m tlid cur =
   in
   pd
   |> TL.getPrevBlank tl
-  |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
+  |> Maybe.map (\pd_ -> Enter (Filling tlid (P.toID pd_)))
   |> Maybe.withDefault NoChange
 
 
@@ -373,7 +373,4 @@ enter m tlid id =
         then
           DB.initFieldTypeMigration m tl d
         else enterMods
-      pd -> enterMods
-
-
-
+      _ -> enterMods

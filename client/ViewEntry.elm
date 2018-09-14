@@ -34,9 +34,9 @@ viewEntry m =
 stringEntryHtml : Autocomplete -> StringEntryWidth -> Html.Html Msg
 stringEntryHtml ac width =
   let maxWidthChars =
-      case width of -- max-width rules from CSS
-        StringEntryNormalWidth -> 120
-        StringEntryShortWidth -> 40
+        case width of -- max-width rules from CSS
+          StringEntryNormalWidth -> 120
+          StringEntryShortWidth -> 40
       value = Util.transformToStringEntry ac.value
       longestLineLength = value
                           |> String.split "\n"

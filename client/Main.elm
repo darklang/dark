@@ -681,7 +681,7 @@ processAutocompleteMods m mods =
           then Debug.log "autocompletemod update" mods
           else mods
       complete = List.foldl
-        (\mod complete -> AC.update m mod complete)
+        (\mod complete_ -> AC.update m mod complete_)
         m.complete
         mods
       focus = case unwrapCursorState m.cursorState of
@@ -1090,10 +1090,10 @@ update_ msg m =
                   if event.key == Just "."
                   && isFieldAccessDot m m.complete.value
                   then
-                    let c = m.complete
+                    let c_ = m.complete
                         -- big hack to for Entry.submit to see field
                         -- access
-                        newC = { c | value = AC.getValue c ++ "."
+                        newC = { c_ | value = AC.getValue c_ ++ "."
                                            , index = -1}
                         newM = { m | complete = newC }
                     in
@@ -1515,8 +1515,8 @@ update_ msg m =
               , newState
               ]
 
-    SaveTestRPCCallback (Ok msg) ->
-      DisplayError <| "Success! " ++ msg
+    SaveTestRPCCallback (Ok msg_) ->
+      DisplayError <| "Success! " ++ msg_
 
     ExecuteFunctionRPCCallback params (Ok (dval, hash)) ->
       Many [ UpdateTraceFunctionResult params.tlid params.traceID params.callerID params.fnName hash dval
@@ -1562,8 +1562,8 @@ update_ msg m =
     GetAnalysisRPCCallback (Err err) ->
       DisplayAndReportHttpError "GetAnalysis" err
 
-    JSError msg ->
-      DisplayError ("Error in JS: " ++ msg)
+    JSError msg_ ->
+      DisplayError ("Error in JS: " ++ msg_)
 
     WindowResize x y ->
       -- just receiving the subscription will cause a redraw, which uses
@@ -1596,10 +1596,10 @@ update_ msg m =
       NoChange
 
     PageVisibilityChange vis ->
-      TweakModel (\m -> { m | visibility = vis })
+      TweakModel (\m_ -> { m_ | visibility = vis })
 
     PageFocusChange vis ->
-      TweakModel (\m -> { m | visibility = vis })
+      TweakModel (\m_ -> { m_ | visibility = vis })
 
     CreateHandlerFrom404 {space, path, modifier} ->
       let center = findCenter m
@@ -1634,7 +1634,7 @@ update_ msg m =
 
     EnablePanning pan ->
       let c = m.canvas
-      in TweakModel (\m -> { m | canvas = { c | enablePan = pan } } )
+      in TweakModel (\m_ -> { m_ | canvas = { c | enablePan = pan } } )
 
     _ -> NoChange
 
