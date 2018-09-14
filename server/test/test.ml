@@ -629,6 +629,45 @@ let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
          \"type\": \"url\"
         }")
 
+let t_dval_yojson_roundtrips () =
+  let unsafe_rt v = v
+                    |> Dval.unsafe_dval_to_yojson
+                    |> Dval.unsafe_dval_of_yojson
+                    |> Result.ok_or_failwith
+  in
+  (* Don't really need to check this but what harm *)
+  let safe_rt v = v
+                  |> dval_to_yojson
+                  |> dval_of_yojson
+                  |> Result.ok_or_failwith
+  in
+  let check name (v: dval) =
+    check_dval name v (safe_rt v);
+    check_dval ("unsafe " ^ name) v (unsafe_rt v);
+    ()
+  in
+  check "int" (DInt 5);
+  check "int" (DInt 5);
+  check "obj" (DObj (DvalMap.of_alist_exn [("foo", DInt 5)]));
+  check "date" (DDate (Time.of_string "2018-09-14T00:31:41Z"));
+  check "incomplete" DIncomplete;
+  check "float" (DFloat 7.2);
+  check "true" (DBool true);
+  check "false" (DBool false);
+  check "string" (DStr "incredibly this was broken");
+  check "null" DNull;
+  check "id" (DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"));
+  check "uuid" (DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"));
+  check "title" (DTitle "some title");
+  check "errorrail" (DErrorRail (DInt 5));
+  check "option" (DOption OptNothing);
+  check "option" (DOption (OptJust (DInt 15)));
+  check "db" (DDB "Visitors");
+  check "list" (DList [DDB "Visitors"; DInt 4]);
+  (* check "redirect" (DResp (Redirect "/home") DNull); *)
+  (* check "httpresponse" (DResp (Response 200 []) (DStr "success")); *)
+  ()
+
 
 let t_password_hashing_and_checking_works () =
   let ast = "(let password 'password'
@@ -1464,6 +1503,7 @@ let suite =
   ; "DB::queryOneWithKey returns Just obj if found", `Quick, t_db_queryOneWithKey_works
   ; "DB::queryOneWithKey returns Nothing if not found", `Quick, t_db_queryOneWithKey_returns_nothing_if_none
   ; "DB::queryOneWithKey returns Nothing if more than one found", `Quick, t_db_queryOneWithKey_returns_nothing_multiple
+  ; "Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips
   ]
 
 let () =
