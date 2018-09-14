@@ -251,13 +251,13 @@ encodeList enc l =
 encodeHttpError : Http.Error -> JSE.Value
 encodeHttpError e =
   let encodeResponse r =
-      JSE.object [ ("url", JSE.string r.url)
-                 , ("status", JSE.object [ ("code", JSE.int r.status.code)
-                                         , ("message", JSE.string r.status.message)
-                                         ])
-                 , ("headers", JSEE.dict identity JSE.string r.headers)
-                 , ("body", JSE.string r.body)
-                 ]
+        JSE.object [ ("url", JSE.string r.url)
+                   , ("status", JSE.object [ ("code", JSE.int r.status.code)
+                                           , ("message", JSE.string r.status.message)
+                                           ])
+                   , ("headers", JSEE.dict identity JSE.string r.headers)
+                   , ("body", JSE.string r.body)
+                   ]
   in
   case e of
     Http.BadUrl url ->
@@ -277,5 +277,3 @@ encodeHttpError e =
                  , ("message", JSE.string msg)
                  , ("response", encodeResponse response)
                  ]
-
-

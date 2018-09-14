@@ -57,8 +57,8 @@ cursor_ cursors tlid =
   |> Maybe.withDefault 0
 
 setCursor : Model -> TLID -> Int -> Model
-setCursor m tlid cursor =
-  let newCursors = Dict.insert (deTLID tlid) cursor m.tlCursors in
+setCursor m tlid cursorNum =
+  let newCursors = Dict.insert (deTLID tlid) cursorNum m.tlCursors in
   { m | tlCursors =  newCursors}
 
 
@@ -141,15 +141,12 @@ getArguments m tlid traceID callerID =
       analyses = Dict.get traceID m.analyses
       dvals =
         case analyses of
-          Just analyses ->
+          Just analyses_ ->
             List.filterMap
-              (\id -> Dict.get (deID id) analyses.liveValues)
+              (\id -> Dict.get (deID id) analyses_.liveValues)
               argIDs
           Nothing -> []
   in
   if List.length dvals == List.length argIDs
   then Just dvals
   else Nothing
-
-
-

@@ -28,8 +28,7 @@ import Autocomplete
 
 view : Model -> Html.Html Msg
 view m =
-  let (w, h) = Util.windowSize ()
-      attributes =
+  let attributes =
         [ Attrs.id "grid"
         , Events.onWithOptions
         "mouseup"
@@ -66,9 +65,9 @@ viewCanvas m =
 
         canvasTransform =
           let offset =
-            case m.currentPage of
-              Toplevels _ -> m.canvas.offset
-              Fn _ _ -> m.canvas.fnOffset
+                case m.currentPage of
+                  Toplevels _ -> m.canvas.offset
+                  Fn _ _ -> m.canvas.fnOffset
           in "translate(" ++ (String.fromInt offset.x) ++ "px, " ++ (String.fromInt offset.y) ++ "px)"
 
         allDivs = asts ++ entry
@@ -140,8 +139,8 @@ viewTL_ m tlid =
         else ""
       boxClasses =
         case m.cursorState of
-          Dragging tlid _ _ _ ->
-            if tlid == tl.id then ["dragging"] else []
+          Dragging tlid_ _ _ _ ->
+            if tlid_ == tl.id then ["dragging"] else []
           _ -> []
       class =
         [ selected

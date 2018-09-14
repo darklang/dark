@@ -35,37 +35,37 @@ type WrapLoc = WLetRHS
 
 wrap : WrapLoc -> Model -> Toplevel -> PointerData -> Modification
 wrap wl m tl p =
-  let wrapAst e ast wl =
+  let wrapAst e ast wl_ =
         let (replacement, focus) =
-          case wl of
-            WLetRHS ->
-              let lhs = B.new ()
-                  replacement = PExpr (B.newF (Let lhs e (B.new ())))
-              in
-                  (replacement, FocusExact tl.id (B.toID lhs))
-            WLetBody ->
-              let lhs = B.new ()
-                  replacement = PExpr (B.newF (Let lhs (B.new ()) e))
-              in
-                  (replacement, FocusExact tl.id (B.toID lhs))
-            WIfCond ->
-              let thenBlank = B.new ()
-                  replacement =
-                    PExpr (B.newF (If e thenBlank (B.new ())))
-              in
-                  (replacement, FocusExact tl.id (B.toID thenBlank))
-            WIfThen ->
-              let condBlank = B.new ()
-                  replacement =
-                    PExpr (B.newF (If condBlank e (B.new ())))
-              in
-                  (replacement, FocusExact tl.id (B.toID condBlank))
-            WIfElse ->
-              let condBlank = B.new ()
-                  replacement =
-                    PExpr (B.newF (If condBlank (B.new ()) e))
-              in
-                  (replacement, FocusExact tl.id (B.toID condBlank))
+              case wl_ of
+                WLetRHS ->
+                  let lhs = B.new ()
+                      replacement_ = PExpr (B.newF (Let lhs e (B.new ())))
+                  in
+                      (replacement_, FocusExact tl.id (B.toID lhs))
+                WLetBody ->
+                  let lhs = B.new ()
+                      replacement_ = PExpr (B.newF (Let lhs (B.new ()) e))
+                  in
+                      (replacement_, FocusExact tl.id (B.toID lhs))
+                WIfCond ->
+                  let thenBlank = B.new ()
+                      replacement_ =
+                        PExpr (B.newF (If e thenBlank (B.new ())))
+                  in
+                      (replacement_, FocusExact tl.id (B.toID thenBlank))
+                WIfThen ->
+                  let condBlank = B.new ()
+                      replacement_ =
+                        PExpr (B.newF (If condBlank e (B.new ())))
+                  in
+                      (replacement_, FocusExact tl.id (B.toID condBlank))
+                WIfElse ->
+                  let condBlank = B.new ()
+                      replacement_ =
+                        PExpr (B.newF (If condBlank (B.new ()) e))
+                  in
+                      (replacement_, FocusExact tl.id (B.toID condBlank))
         in
             (AST.replace (PExpr e) replacement ast, focus)
 
@@ -92,12 +92,12 @@ wrap wl m tl p =
 toggleOnRail : Model -> Toplevel -> PointerData -> Modification
 toggleOnRail m tl p =
   let new =
-    case p of
-      PExpr (F id (FnCall name exprs Rail)) ->
-        PExpr (F id (FnCall name exprs NoRail))
-      PExpr (F id (FnCall name exprs NoRail)) ->
-        PExpr (F id (FnCall name exprs Rail))
-      _ -> p
+        case p of
+          PExpr (F id (FnCall name exprs Rail)) ->
+            PExpr (F id (FnCall name exprs NoRail))
+          PExpr (F id (FnCall name exprs NoRail)) ->
+            PExpr (F id (FnCall name exprs Rail))
+          _ -> p
   in
       if p == new
       then NoChange
@@ -110,47 +110,47 @@ toggleOnRail m tl p =
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
   let extractVarInAst e ast  =
-      let varname = "var" ++ String.fromInt (Util.random())
-          freeVariables =
-            AST.freeVariables e
-            |> List.map Tuple.second
-            |> Set.fromList
-          ancestors =
-            AST.ancestors (B.toID e) ast
-          lastPlaceWithSameVarsAndValues =
-            ancestors
-            |> LE.takeWhile
-              (\elem ->
-                let id = B.toID elem
-                    availableVars =
-                      Analysis.getCurrentAvailableVarnames m tl.id id
-                      |> Set.fromList
-                    allRequiredVariablesAvailable =
-                      Set.diff freeVariables availableVars
-                      |> Set.isEmpty
-                    noVariablesAreRedefined =
-                       freeVariables
-                       |> Set.toList
-                       |> List.all (not << (\v -> AST.isDefinitionOf v elem))
-                in
-                    allRequiredVariablesAvailable
-                    && noVariablesAreRedefined)
-            |> LE.last
-          newVar = B.newF varname
-      in
-          case lastPlaceWithSameVarsAndValues of
-            Just p ->
-              let nbody =
-                    AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
-                  nlet = B.newF (Let newVar e nbody)
-              in
-                  (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
-            Nothing ->
-              -- something weird is happening because we couldn't find anywhere to
-              -- extract to, we can just wrap the entire AST in a Let
-              let newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
-              in
-                  (B.newF (Let newVar e newAST), B.toID newVar)
+        let varname = "var" ++ String.fromInt (Util.random())
+            freeVariables =
+              AST.freeVariables e
+              |> List.map Tuple.second
+              |> Set.fromList
+            ancestors =
+              AST.ancestors (B.toID e) ast
+            lastPlaceWithSameVarsAndValues =
+              ancestors
+              |> LE.takeWhile
+                (\elem ->
+                  let id = B.toID elem
+                      availableVars =
+                        Analysis.getCurrentAvailableVarnames m tl.id id
+                        |> Set.fromList
+                      allRequiredVariablesAvailable =
+                        Set.diff freeVariables availableVars
+                        |> Set.isEmpty
+                      noVariablesAreRedefined =
+                         freeVariables
+                         |> Set.toList
+                         |> List.all (not << (\v -> AST.isDefinitionOf v elem))
+                  in
+                      allRequiredVariablesAvailable
+                      && noVariablesAreRedefined)
+              |> LE.last
+            newVar = B.newF varname
+          in
+              case lastPlaceWithSameVarsAndValues of
+                Just p ->
+                  let nbody =
+                        AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
+                      nlet = B.newF (Let newVar e nbody)
+                  in
+                      (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
+                Nothing ->
+                  -- something weird is happening because we couldn't find anywhere to
+                  -- extract to, we can just wrap the entire AST in a Let
+                  let newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
+                  in
+                      (B.newF (Let newVar e newAST), B.toID newVar)
   in
       case (p, tl.data) of
         (PExpr e, TLHandler h) ->
@@ -188,7 +188,7 @@ extractFunction m tl p =
           freeVars =
             AST.freeVariables body
           paramExprs =
-            List.map (\(_, name) -> F (gid ()) (Variable name)) freeVars
+            List.map (\(_, name_) -> F (gid ()) (Variable name_)) freeVars
           replacement =
             PExpr (F (gid ()) (FnCall name paramExprs NoRail))
           h =
@@ -200,12 +200,12 @@ extractFunction m tl p =
           newH = { h | ast = newAst }
           params =
             List.map
-            (\(id, name) ->
+            (\(id, name_) ->
               let tipe = Analysis.getCurrentTipeOf m tl.id id
                          |> Maybe.withDefault TAny
                          |> convertTipe
               in
-                  { name = F (gid ()) name
+                  { name = F (gid ()) name_
                   , tipe = F (gid ()) tipe
                   , block_args = []
                   , optional = False
@@ -231,26 +231,26 @@ extractFunction m tl p =
 
 renameFunction : Model -> UserFunction -> UserFunction -> List Op
 renameFunction m old new =
-  let renameFnCalls ast old new =
-        let transformCall newName old =
-              let transformExpr name old =
-                    case old of
+  let renameFnCalls ast old_ new_ =
+        let transformCall newName_ oldCall =
+              let transformExpr name oldExpr =
+                    case oldExpr of
                       F id (FnCall _ params r) ->
                         F id (FnCall name params r)
                       _ ->
-                        old
+                        oldExpr
               in
-                  case old of
+                  case oldCall of
                     PExpr e ->
-                      PExpr (transformExpr newName e)
-                    _ -> old
+                      PExpr (transformExpr newName_ e)
+                    _ -> oldCall
             (origName, calls) =
-              case old.metadata.name of
+              case old_.metadata.name of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
             newName =
-              case new.metadata.name of
+              case new_.metadata.name of
                 Blank _ -> Nothing
                 F _ n -> Just n
         in
@@ -324,12 +324,12 @@ isFunctionInExpr fnName expr =
 countFnUsage : Model -> String -> Int
 countFnUsage m name =
   let usedIn = TL.all m
-    |> List.filter (\tl ->
-      case tl.data of
-        TLHandler h -> isFunctionInExpr name h.ast
-        TLDB _ -> False
-        TLFunc f -> isFunctionInExpr name f.ast
-    )
+                |> List.filter (\tl ->
+                  case tl.data of
+                    TLHandler h -> isFunctionInExpr name h.ast
+                    TLDB _ -> False
+                    TLFunc f -> isFunctionInExpr name f.ast
+                )
   in List.length usedIn
 
 unusedDeprecatedFunctions : Model -> Set String
@@ -342,19 +342,19 @@ unusedDeprecatedFunctions m =
 
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
-  let transformCallsInAst f ast old =
-        let transformCall old =
-              let transformExpr old =
-                    case old of
+  let transformCallsInAst f_ ast old =
+        let transformCall old_ =
+              let transformExpr oldExpr =
+                    case oldExpr of
                       F id (FnCall name params r) ->
                         F id (f (FnCall name params r))
                       _ ->
-                        old
+                        oldExpr
               in
-                  case old of
+                  case old_ of
                     PExpr e ->
                       PExpr (transformExpr e)
-                    _ -> old
+                    _ -> old_
             (origName, calls) =
               case old.metadata.name of
                 Blank _ -> (Nothing, [])
@@ -385,12 +385,12 @@ transformFnCalls m uf f =
           newFunctions =
               m.userFunctions
               |> List.filterMap
-                (\uf ->
-                  let newAst = transformCallsInAst f uf.ast uf
+                (\uf_ ->
+                  let newAst = transformCallsInAst f uf_.ast uf_
                   in
-                      if newAst /= uf.ast
+                      if newAst /= uf_.ast
                       then
-                        Just (SetFunction { uf | ast = newAst })
+                        Just (SetFunction { uf_ | ast = newAst })
                       else Nothing)
       in
           newHandlers ++ newFunctions
@@ -436,5 +436,5 @@ generateEmptyFunction _ =
         , description = ""
         , returnTipe = F (gid ()) TAny
         , infix = False
-      }
+        }
   in (UserFunction tlid metadata (Blank (gid ())))

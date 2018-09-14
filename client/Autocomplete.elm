@@ -466,16 +466,16 @@ generateFromModel m a =
             |> Maybe.map P.toID
             |> Maybe.andThen (Analysis.getCurrentLiveValue m tlid)
             -- don't filter on incomplete values
-            |> Maybe.andThen (\dv -> if dv == DIncomplete
+            |> Maybe.andThen (\dv_ -> if dv_ == DIncomplete
                                      then Nothing
-                                     else Just dv)
+                                     else Just dv_)
       fields =
         case dv of
-          Just dv ->
-            case (a.target, RT.typeOf dv) of
+          Just dv_ ->
+            case (a.target, RT.typeOf dv_) of
               (Just (_, p), TObj) ->
                 if P.typeOf p == Field
-                then dvalFields dv
+                then dvalFields dv_
                 else []
               _ -> []
           Nothing -> []
@@ -535,12 +535,12 @@ generateFromModel m a =
         |> List.filter
           (\fn ->
              case dv of
-               Just dv ->
+               Just dv_ ->
                  if isThreadMember
                  then
-                   Nothing /= findCompatibleThreadParam fn (RT.typeOf dv)
+                   Nothing /= findCompatibleThreadParam fn (RT.typeOf dv_)
                  else
-                   Nothing /= findParamByType fn (RT.typeOf dv)
+                   Nothing /= findParamByType fn (RT.typeOf dv_)
                Nothing -> True)
         |> List.map ACFunction
 
@@ -575,16 +575,16 @@ generateFromModel m a =
                 ]
               DBColType ->
                 let builtins =
-                  [ "String"
-                  , "Int"
-                  , "Boolean"
-                  , "Float"
-                  , "Title"
-                  , "Url"
-                  , "Date"
-                  , "Password"
-                  , "UUID"
-                  ]
+                      [ "String"
+                      , "Int"
+                      , "Boolean"
+                      , "Float"
+                      , "Title"
+                      , "Url"
+                      , "Date"
+                      , "Password"
+                      , "UUID"
+                      ]
                     compound =
                       List.map
                         (\s -> "[" ++ s ++ "]")
@@ -722,4 +722,3 @@ selectSharedPrefix ac =
   if sp == "" then NoChange
   else
     AutocompleteMod <| ACSetQuery sp
-

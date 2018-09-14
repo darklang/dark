@@ -121,12 +121,12 @@ closeThreads expr =
             case newExprs of
               -- if an fncall moved into the first slot, we need to add a
               -- blank in front.
-              F id (FnCall name args r) :: rest ->
+              F id_ (FnCall name args r) :: rest ->
                 if addBlank
                 then
-                  [F id (FnCall name (B.new () :: args) r)] ++ rest
+                  [F id_ (FnCall name (B.new () :: args) r)] ++ rest
                 else
-                  [F id (FnCall name args r)] ++ rest
+                  [F id_ (FnCall name args r)] ++ rest
               _ -> newExprs
       in
       case adjusted of
@@ -196,7 +196,7 @@ addLambdaBlank id expr =
   case parentOf_ id expr of
     Just (F lid (Lambda vars body)) as old ->
       let r =
-          F lid (Lambda (vars ++ [B.new ()]) body)
+            F lid (Lambda (vars ++ [B.new ()]) body)
       in
           replace
             (old |> deMaybe "impossible" |> PExpr)
@@ -502,9 +502,9 @@ ancestors : ID -> Expr -> List Expr
 ancestors id expr =
   let rec_ancestors : ID -> List Expr -> Expr -> List Expr
       rec_ancestors tofind walk exp =
-        let rec id e walk = rec_ancestors id (e :: walk)
-            reclist id e walk exprs =
-              exprs |> List.map (rec id e walk) |> List.concat
+        let rec id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_)
+            reclist id_ e_ walk_ exprs =
+              exprs |> List.map (rec id_ e_ walk_) |> List.concat
         in
         if B.toID exp == tofind
         then walk
@@ -754,10 +754,10 @@ replace_ search replacement parent expr =
                 -- if pasting it into a thread, make the shape fit
                 Just (F _ (Thread (first :: _))) ->
                   case e of
-                    F id (FnCall fn (_ :: rest as args) r) ->
+                    F id (FnCall fn (_ :: rest as args) r_) ->
                       if B.toID first == sId
-                      then (F id (FnCall fn args r))
-                      else (F id (FnCall fn rest r))
+                      then (F id (FnCall fn args r_))
+                      else (F id (FnCall fn rest r_))
                     _ -> e
                 _ -> e
         in B.replace sId repl_ expr
@@ -768,11 +768,11 @@ replace_ search replacement parent expr =
         if B.toID msg == sId
         then F id (FeatureFlag newMsg cond a b)
         else traverse r expr
-      (F id (Let lhs rhs body), PVarBind replacement) ->
+      (F id (Let lhs rhs body), PVarBind replacement_) ->
         if B.toID lhs == sId
         then
           let replacementContent =
-                case replacement of
+                case replacement_ of
                   Blank _ -> Nothing
                   F _ var -> Just var
               orig =
@@ -781,32 +781,32 @@ replace_ search replacement parent expr =
                   F _ var -> Just var
               newBody =
                 let usesOf =
-                    case orig of
-                      Just var -> uses var body |> List.map PExpr
-                      _ -> []
-                    transformUse replacementContent old =
+                      case orig of
+                        Just var -> uses var body |> List.map PExpr
+                        _ -> []
+                    transformUse replacementContent_ old =
                       case old of
                         PExpr (F _ _) ->
-                          PExpr (F (gid ()) (Variable replacementContent))
+                          PExpr (F (gid ()) (Variable replacementContent_))
                         _ -> impossible old
                 in
                 case (orig, replacementContent) of
-                  (Just o, Just r) ->
+                  (Just o, Just r_) ->
                     List.foldr
                       (\use acc ->
-                        replace_ use (transformUse r use) (Just expr) acc)
+                        replace_ use (transformUse r_ use) (Just expr) acc)
                       body
                       usesOf
                   _ -> body
           in
-              F id (Let (B.replace sId replacement lhs) rhs newBody)
+              F id (Let (B.replace sId replacement_ lhs) rhs newBody)
         else traverse r expr
-      (F id (Lambda vars body), PVarBind replacement) ->
+      (F id (Lambda vars body), PVarBind replacement_) ->
         case LE.findIndex (\v -> B.toID v == sId) vars of
           Nothing -> traverse r expr
           Just i ->
             let replacementContent =
-                    case replacement of
+                    case replacement_ of
                       Blank _ -> Nothing
                       F _ var -> Just var
                 orig =
@@ -819,36 +819,36 @@ replace_ search replacement parent expr =
                           Just v ->
                             uses v body |> List.map PExpr
                           Nothing -> []
-                      transformUse replacementContent old =
+                      transformUse replacementContent_ old =
                         case old of
                           PExpr (F _ _) ->
-                            PExpr (F (gid ()) (Variable replacementContent))
+                            PExpr (F (gid ()) (Variable replacementContent_))
                           _ -> impossible old
                   in
                   case (orig, replacementContent) of
-                    (Just o, Just r) ->
+                    (Just o, Just r_) ->
                       List.foldr
                         (\use acc ->
-                          replace_ use (transformUse r use) (Just expr) acc)
+                          replace_ use (transformUse r_ use) (Just expr) acc)
                         body
                         usesInBody
                     _ -> body
                 newVars =
-                  LE.updateAt i (\old  -> B.replace sId replacement old) vars
+                  LE.updateAt i (\old  -> B.replace sId replacement_ old) vars
             in
                 F id (Lambda newVars newBody)
 
-      (F id (FieldAccess obj field), PField replacement) ->
+      (F id (FieldAccess obj field), PField replacement_) ->
         if B.toID field == sId
-        then F id (FieldAccess obj (B.replace sId replacement field))
+        then F id (FieldAccess obj (B.replace sId replacement_ field))
         else traverse r expr
 
-      (F id (ObjectLiteral pairs), PKey replacement) ->
+      (F id (ObjectLiteral pairs), PKey replacement_) ->
         pairs
         |> List.map (\(k,v) ->
           let newK =
                 if B.toID k == sId
-                then replacement
+                then replacement_
                 else k
           in
               (newK, r v))
@@ -952,4 +952,3 @@ freeVariables ast =
             _ -> Nothing)
       |> LE.uniqueBy
         (\(_, name) -> name)
-

@@ -7,7 +7,6 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
-import Tuple2 as T2
 import Nineteen.String as String
 
 -- dark
@@ -41,7 +40,7 @@ spaceName tl =
 
 splitBySpace : List Toplevel -> List (String, List Toplevel)
 splitBySpace tls =
-  let spaceName tl = tl
+  let spaceName_ tl = tl
                      |> TL.asHandler
                      |> Maybe.map .spec
                      |> Maybe.map .module_
@@ -49,13 +48,13 @@ splitBySpace tls =
                      |> Maybe.withDefault missingEventSpaceDesc
   in
   tls
-  |> List.sortBy spaceName
-  |> LE.groupWhile (\a b -> spaceName a == spaceName b)
+  |> List.sortBy spaceName_
+  |> LE.groupWhile (\a b -> spaceName_ a == spaceName_ b)
   |> List.map (\hs ->
                  let space = hs
                              |> List.head
                              |> deMaybe "splitBySpace"
-                             |> spaceName
+                             |> spaceName_
                 in
                  (space, hs))
 
@@ -96,7 +95,7 @@ collapseByVerb es =
                        [] -> [curr]
                        prev :: rest ->
                          let new =
-                           { prev | verbs = prev.verbs ++ curr.verbs }
+                               { prev | verbs = prev.verbs ++ curr.verbs }
                          in new :: rest
                 ) [])
   |> List.concat
@@ -142,7 +141,7 @@ ordering a b =
     ("HTTP", _) -> LT
     (_, "HTTP") -> GT
     -- to the end
-    (a, b) ->
+    _ ->
       if a == missingEventRouteDesc
       then GT
       else if b == missingEventRouteDesc
@@ -218,12 +217,12 @@ viewRoutes tls collapse showLink showUndo =
   tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
-  |> List.map (T2.map tl2entry)
+  |> List.map (Tuple.mapSecond tl2entry)
   |> (\entries ->
        if collapse == CollapseVerbs
-       then List.map (T2.map collapseByVerb) entries
+       then List.map (Tuple.mapSecond collapseByVerb) entries
        else entries)
-  |> List.map (T2.map prefixify)
+  |> List.map (Tuple.mapSecond prefixify)
   |> List.map (viewGroup showLink showUndo)
 
 viewDeletedTLs : List Toplevel -> Html.Html Msg
@@ -301,11 +300,11 @@ tlLink pos class name =
     [Html.text name]
 
 fnLink : UserFunction -> Bool -> String -> Html.Html Msg
-fnLink fn isUsed text =
+fnLink fn isUsed text_ =
   Url.linkFor
     (Fn fn.tlid Defaults.fnPos)
     (if isUsed then "default-link" else "default-link unused")
-    [Html.text text]
+    [Html.text text_]
 
 
 

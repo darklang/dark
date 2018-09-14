@@ -26,7 +26,10 @@ replaceInType : PointerData -> PointerData -> DarkType -> DarkType
 replaceInType pd replacement dt =
   -- This needs to check the entire Flagged structure, as in
   -- AST.replace.
-  let _ = todo ("replaceInType", pd, replacement, dt) in
+  let _ = todo { msg = "replaceInType"
+               , pointerData = pd
+               , replacement = replacement
+               , darkType= dt } in
   if B.toID dt == P.toID pd
   then
     case replacement of
@@ -107,5 +110,3 @@ siblings p t =
         |> List.concat
 
     _ -> []
-
-
