@@ -337,7 +337,8 @@ let tipe_of_yojson (json: Yojson.Safe.json) =
 
 let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* sort so this isn't key-order-dependent. *)
-  match Yojson.Safe.sort json with
+  let json = Yojson.Safe.sort json in
+  match json with
   | `Int i -> DInt i
   | `Float f -> DFloat f
   | `Bool b -> DBool b
@@ -355,7 +356,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
      | "option" -> DOption OptNothing
      | "block" -> Exception.user "Can't deserialize blocks"
      | "errorrail" -> DErrorRail DNull
-     | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from null"))
+     | _ -> DObj (unsafe_dvalmap_of_yojson json))
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     (match tipe with
     | "date" -> DDate (Util.date_of_isostring v)
@@ -367,7 +368,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" -> DDB v
     | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
-    | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from " ^ v))
+    | _ -> DObj (unsafe_dvalmap_of_yojson json))
   | `Assoc [("type", `String "option"); ("value", dv)] ->
     DOption (OptJust (unsafe_dval_of_yojson_ dv))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
