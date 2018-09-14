@@ -37,6 +37,7 @@ gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters
 
 # env vars (replace existing configmap or make a new one)
 (kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
+(kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
 
 # make sure deployment matches current understanding
