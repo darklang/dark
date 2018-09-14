@@ -43,7 +43,7 @@ serverCompatible =
            |> encodeDval
            |> JSE.encode 0))
     , test "dresp shape" <|
-        (Expect.equal "[\"DResp\",[\"Response\",401,[]],[\"DNull\"]]"
+        (Expect.equal "[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]"
           (DResp (Response 401 []) DNull
            |> encodeDval
            |> JSE.encode 0))

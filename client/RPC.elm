@@ -929,7 +929,7 @@ decodeDval =
     , ("DError", dv1 DError JSD.string)
     , ("DBlock", dv0 DBlock)
     , ("DErrorRail", dv1 DErrorRail dd)
-    , ("DResp", dv2 DResp decodeDhttp dd)
+    , ("DResp", dv1 (\(h, dv) -> DResp h dv) (JSON.decodePair decodeDhttp dd))
     , ("DDB", dv1 DDB JSD.string)
     , ("DID", dv1 DID JSD.string)
     , ("DDate", dv1 DDate JSD.string)
@@ -969,7 +969,7 @@ encodeDval dv =
     DChar c -> ev "DChar" [JSE.string (String.fromList [c])]
     DError msg -> ev "DError" [JSE.string msg]
 
-    DResp h hdv -> ev "DResp" [ encodeDhttp h, encodeDval hdv]
+    DResp h hdv -> ev "DResp" [(JSON.encodePair encodeDhttp encodeDval (h, hdv))]
 
     DDB name -> ev "DDB" [JSE.string name]
     DID id -> ev "DID" [JSE.string id]
