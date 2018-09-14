@@ -44,6 +44,21 @@ viewButtons m =
               "specialButton default-link"
               [ Html.text "Return to Canvas"]]
           _ -> []
+      status =
+        case m.error.message of
+          Nothing -> Html.div [Attrs.class "status"] [Html.text "Dark"]
+          Just msg ->
+            Html.div
+              [ Attrs.class "status error"]
+              [ Html.text "Server Error : "
+              , Html.a
+                  [ Attrs.class "link"
+                  , Attrs.href "#"
+                  , eventNoPropagation "mouseup"
+                      (\_ -> ShowErrorDetails (not m.error.showDetails)) ]
+                  [ Html.text
+                      (if m.error.showDetails then "hide details" else "see details") ]
+              ]
 
   in
   Html.div [Attrs.id "buttons"]
@@ -69,43 +84,19 @@ viewButtons m =
     , Html.span
       [ Attrs.class "specialButton"]
       [Html.text ("Active tests: " ++ Debug.toString m.tests)]
-    ] ++ integrationTestButton ++ returnButton)
+    ] ++ integrationTestButton ++ returnButton ++ [status])
 
 viewError : DarkError -> Html.Html Msg
 viewError err =
-  case err.message of
-    Nothing ->
-      Html.div [Attrs.id "status"] [Html.text "Dark"]
-    Just msg ->
-      let cutMessageAt = 50
-          error msg =
-            if String.length msg < cutMessageAt
-            then
-              [ Html.text ("Error: " ++ msg) ]
-            else
-              let shortMsg = String.left cutMessageAt msg
-                  btnText =
-                    if err.showDetails
-                    then "Hide Details"
-                    else "Show Details"
-              in
-              [ Html.text ("Error: " ++ shortMsg ++ " ... ")
-              , Html.a
-                  [ Attrs.class "link"
-                  , Attrs.href "#"
-                  , eventNoPropagation "mouseup" (\_ -> ShowErrorDetails (not err.showDetails)) ]
-                  [ Html.text btnText ]
-              , Html.div [Attrs.class "more"] [ Html.text msg ]
-              ]
-      in
-      case JSD.decodeString JSON.decodeException msg of
-        Err _ -> -- not json, just a regular string
-          Html.div
-            [ Attrs.id "status"
-            , Attrs.classList [("error", True), ("show-details", err.showDetails)] ]
-            (error msg)
-        Ok exc ->
-          Html.div
-            [ Attrs.id "status"
-            , Attrs.class "error" ]
-            (fontAwesome "info-circle" :: error exc.short)
+  Html.div
+    [ Attrs.classList
+      [ ("error-panel", True)
+      , ("show", err.showDetails)]
+      ]
+    ( case err.message of
+      Nothing -> []
+      Just msg ->
+        case JSD.decodeString JSON.decodeException msg of
+          Err _ -> [ Html.text msg ]
+          Ok exc -> [ Html.text exc.short ]
+    )

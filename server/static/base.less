@@ -41,9 +41,14 @@ html {
   color: @grey3;
 }
 
-@keyframes heightexpand {
-  from { max-height: 20px; }
-  to {max-height: 100%; }
+@keyframes showErrorPanel {
+  from { bottom: -70px; }
+  to { bottom: 0; }
+}
+
+@keyframes hideErrorPanel {
+  from { bottom: 0; }
+  to { bottom: 70px; }
 }
 
 body {
@@ -144,39 +149,38 @@ body #grid * {
       display: inline-block;
     }
   }
+
+  .status {
+    float: right;
+    margin-right: 8px;
+
+    &.error {
+      color: lighten(@red, 20%);
+
+      a {
+        .default-link
+      }
+    }
+  }
 }
 
-#status {
-  max-height: 20px;
-  overflow: hidden;
-  padding: 0 8px;
-  background-color: @black1;
-  float: right;
-  text-align: right;
+.error-panel {
+  width: 100%;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 20px;
+  padding-bottom: 50px;
+  background-color: @red;
+  color: @white1;
+  position: absolute;
+  left: 0;
+  bottom: -70px;
 
-  &.error {
-    color: @yellow;
+  animation-duration: 2s;
 
-    &.show-details {
-      max-height: 100%;
-      animation-name: heightexpand;
-      animation-duration: 2s;
-    }
-
-
-    i.fa {
-      padding-left: 10px;
-      color: @red;
-    }
-
-    a {
-      .default-link
-    }
-
-    .more {
-      color: lighten(@yellow, 15%);
-      font-size: 12px;
-    }
+  &.show {
+    bottom: 0;
+    animation-name: showErrorPanel;
   }
 }
 
@@ -303,7 +307,7 @@ body #grid * {
   max-height: calc(~"100% - 50px");
   overflow-y: scroll;
   position: fixed;
-  top: 20px;
+  top: 0;
   left: 0;
 
   &:hover {
@@ -1427,7 +1431,7 @@ body #grid * {
   z-index: 70;
 }
 
-#status {
+.error-panel {
   z-index: 60;
 }
 
