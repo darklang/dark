@@ -49,10 +49,10 @@ updateLockedHandlers tlid lockHandler m =
   let tl = TL.getTL m tlid
   in case tl.data of
     TLHandler _ ->
-    let lockedList =
-      if lockHandler then
-        tlid :: m.lockedHandlers
-      else
-        List.filter (\t -> t /= tlid) m.lockedHandlers
-    in SetLockedHandlers lockedList
+      let lockedList =
+            if lockHandler then
+              tlid :: m.lockedHandlers
+            else
+              List.filter (\t -> t /= tlid) m.lockedHandlers
+      in SetLockedHandlers lockedList
     _ -> NoChange

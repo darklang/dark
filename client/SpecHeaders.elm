@@ -13,7 +13,7 @@ spaceOf : HandlerSpec -> HandlerSpace
 spaceOf hs =
   let spaceOfStr s =
         let lwr =
-            String.toLower s
+              String.toLower s
         in
             if lwr == "http"
             then HSHTTP
@@ -61,6 +61,3 @@ allData spec =
   [ PEventName spec.name
   , PEventSpace spec.module_
   , PEventModifier spec.modifier]
-
-
-

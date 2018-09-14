@@ -185,8 +185,8 @@ clonePointerData pd =
     PDarkType dt -> todo ("clonePointerData", pd)
     PDarkTypeField dt -> todo ("clonePointerData", pd)
     PFFMsg msg -> PFFMsg (B.clone identity msg)
-    PFnName name -> PFnName (B.clone identity name)
-    PParamName name -> PParamName (B.clone identity name)
+    PFnName name_ -> PFnName (B.clone identity name_)
+    PParamName name_ -> PParamName (B.clone identity name_)
     PParamTipe tipe -> PParamTipe (B.clone identity tipe)
 
 -------------------------
@@ -207,9 +207,9 @@ blanksWhere fn tl =
 getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
   case pred of
-    Just pred ->
+    Just pred_ ->
       let ps = allData tl
-          index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
+          index = LE.elemIndex pred_ ps |> Maybe.withDefault (-1)
           remaining = List.drop (index+1) ps
           blanks = List.filter P.isBlank remaining in
       blanks
@@ -220,9 +220,9 @@ getNextBlank tl pred =
 getPrevBlank : Toplevel -> Successor -> Predecessor
 getPrevBlank tl next =
   case next of
-    Just next ->
+    Just next_ ->
       let ps = allData tl
-          index = LE.elemIndex next ps |> Maybe.withDefault (List.length ps)
+          index = LE.elemIndex next_ ps |> Maybe.withDefault (List.length ps)
           remaining = List.take index ps
           blanks = List.filter P.isBlank remaining in
       blanks
@@ -398,7 +398,7 @@ replace p replacement tl =
     PDBColType tipe ->
       tl
       -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
-    PDBColName name ->
+    PDBColName _ ->
       tl
       -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
     PFFMsg bo ->

@@ -207,13 +207,13 @@ toRepr_ oldIndent dv =
     DPassword s -> wrap s
     DBlock -> asType
     DIncomplete -> asType
-    DResp (Redirect url, dv) -> "302 " ++ url ++ nl ++ toRepr_ indent dv
-    DResp (Response (code, hs), dv) ->
+    DResp (Redirect url, dv_) -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
+    DResp (Response (code, hs), dv_) ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
       toString code ++ " " ++ headers ++ nl ++ toRepr dv
     DOption Nothing -> "Nothing"
-    DOption (Just dv) -> "Some " ++ (toRepr dv)
-    DErrorRail dv -> wrap (toRepr dv)
+    DOption (Just dv_) -> "Some " ++ (toRepr dv_)
+    DErrorRail dv_ -> wrap (toRepr dv_)
     -- TODO: newlines and indentation
     DList l ->
       if l == []
@@ -235,5 +235,3 @@ extractErrorMessage lv =
   --   |> Maybe.map .short
   --   |> Maybe.withDefault lv.value
   -- else lv.value
-
-

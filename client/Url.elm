@@ -67,7 +67,7 @@ maybeUpdateScrollUrl m =
   if pos /= state.lastPos
   then
     Many
-      [ TweakModel (\m -> { m | urlState = { state | lastPos = pos } })
+      [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
       , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
       ]
   else NoChange

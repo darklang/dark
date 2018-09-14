@@ -62,7 +62,7 @@ createFunction : Model -> FnName -> Maybe Expr
 createFunction m name =
   let blanks count = LE.initialize count (\_ -> B.new ())
       fn = m.complete.functions
-           |> List.filter (\fn -> fn.name == name)
+           |> List.filter (\fn_ -> fn_.name == name)
            |> List.head
   in
     case fn of
@@ -348,7 +348,7 @@ submit m cursor action =
           replace new =
             tl
             |> TL.replace pd new
-            |> \tl -> save tl new
+            |> \tl_ -> save tl_ new
       in
       case pd of
         PDBColType ct ->
@@ -408,10 +408,10 @@ submit m cursor action =
                 -- blank. Then get the parent structure from the new ID
                 wrapped =
                   case parent of
-                    F id (FieldAccess lhs rhs) ->
+                    F id_ (FieldAccess lhs rhs) ->
                       B.newF (
                         FieldAccess
-                          (F id (FieldAccess lhs (B.newF fieldname)))
+                          (F id_ (FieldAccess lhs (B.newF fieldname)))
                           (B.new ()))
                     _ -> impossible ("should be a field", parent)
                 new = PExpr wrapped
@@ -440,7 +440,7 @@ submit m cursor action =
           ast
           |> AST.replace pd new
           |> AST.maybeExtendObjectLiteralAt new
-          |> \ast -> saveAst ast new
+          |> \ast_ -> saveAst ast_ new
         PExpr e ->
           case tl.data of
             TLHandler h ->
@@ -455,8 +455,8 @@ submit m cursor action =
               in
               saveAst newast (PExpr newexpr)
 
-            TLDB db ->
-              case db.activeMigration of
+            TLDB db_ ->
+              case db_.activeMigration of
                 Nothing -> NoChange
                 Just am ->
                   if List.member pd (AST.allData am.rollback)
