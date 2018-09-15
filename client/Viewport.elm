@@ -16,23 +16,14 @@ pagePos page =
     Toplevels pos -> pos
     Fn _ pos -> pos
 
-toViewport : Model -> Pos -> VPos
-toViewport m pos =
-  let default = pagePos (Defaults.defaultModel |> .currentPage)
-      center = pagePos m.currentPage
-  in
-  { vx = default.x + pos.x - center.x
-  , vy = default.y + pos.y - center.y}
-
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
-  let center =
+  let topleft =
         case m.currentPage of
           Toplevels _ -> m.canvas.offset
           Fn _ _ -> m.canvas.fnOffset
   in
-  { x = pos.vx - center.x
-  , y = pos.vy - center.y}
+  addPos {x = pos.vx, y = pos.vy} topleft
 
 toCenteredOn : Pos -> Pos
 toCenteredOn pos =
