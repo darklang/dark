@@ -769,16 +769,22 @@ update_ msg m =
                 then
                   case tl.data of
                     TLDB _ ->
-                      RPC ([ AddDBCol tlid (gid ()) (gid ())]
-                          , FocusNext tlid Nothing)
+                      let blankid = gid () in
+                      RPC ([ AddDBCol tlid blankid (gid ())]
+                           , FocusExact tlid blankid)
                     TLHandler h ->
                       case mId of
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id h.ast in
-                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
-                                  , FocusNext tlid (Just id))
+                              let blank = B.new ()
+                                  replacement = AST.addThreadBlank id blank h.ast
+                              in
+                              if h.ast == replacement
+                              then NoChange
+                              else
+                                RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                    , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
                               case AST.parentOf_ id h.ast of
                                 Just (F _ (Lambda _ _)) ->
@@ -801,9 +807,14 @@ update_ msg m =
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id f.ast in
-                              RPC ( [ SetFunction { f | ast = replacement}]
-                                  , FocusNext tlid (Just id))
+                              let blank = B.new ()
+                                  replacement = AST.addThreadBlank id blank f.ast
+                              in
+                              if f.ast == replacement
+                              then NoChange
+                              else
+                                RPC ( [ SetFunction { f | ast = replacement}]
+                                    , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
                               case AST.parentOf_ id f.ast of
                                 Just (F _ (Lambda _ _)) ->
