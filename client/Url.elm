@@ -16,6 +16,7 @@ import Types exposing (..)
 import Prelude exposing (..)
 import Functions
 import Defaults
+import Viewport
 
 
 hashUrlParams : List (String, String) -> String
@@ -36,11 +37,14 @@ urlOf page pos =
 
 urlFor : Page -> String
 urlFor page =
-  urlOf page
-    (case page of
-      Toplevels pos -> pos
-      Fn _ pos -> pos
-    )
+  let pos =
+        (case page of
+          Toplevels pos -> pos
+          Fn _ pos -> pos)
+        |> Viewport.toCenteredOn
+  in
+  urlOf page pos
+
 
 navigateTo : Page -> Cmd Msg
 navigateTo page =
@@ -99,7 +103,7 @@ parseLocation m loc =
               Ok id ->
                 Just <|
                   Fn (TLID id)
-                     (Maybe.withDefault Defaults.fnPos center)
+                     (Maybe.withDefault Defaults.centerPos center)
               _ -> Nothing
           _ -> Nothing
   in

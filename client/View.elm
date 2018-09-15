@@ -93,7 +93,7 @@ viewTL m tl =
       pos =
         case m.currentPage of
           Toplevels _ -> tl.pos
-          Fn tLID _ -> Defaults.fnPos
+          Fn tLID _ -> Defaults.centerPos
       html =
         if Just tl.id == tlidOf m.cursorState || isDB
         then

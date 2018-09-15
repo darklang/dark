@@ -101,7 +101,7 @@ moveTL xOffset yOffset tl =
 
 ufToTL : Model -> UserFunction -> Toplevel
 ufToTL m uf = { id = uf.tlid
-              , pos = Defaults.fnPos
+              , pos = Defaults.centerPos
               , data = TLFunc uf
               }
 

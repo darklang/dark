@@ -1627,7 +1627,7 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
       in
           Many ([RPC ([SetFunction ufun], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn ufun.tlid Viewport.origin))
+                , MakeCmd (Url.navigateTo (Fn ufun.tlid Defaults.centerPos))
                 ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
@@ -1642,7 +1642,7 @@ findCenter : Model -> Pos
 findCenter m =
   case m.currentPage of
     Toplevels center -> center
-    _ -> Defaults.initialPos
+    _ -> Defaults.centerPos
 
 enableTimers : Model -> Model
 enableTimers m =
