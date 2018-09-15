@@ -82,10 +82,21 @@ spec:
               mountPath: /secrets/cloudsql
               readOnly: true
 
+        - name: http-proxy
+          image: nginx:1.15.3
+          ports:
+            - name: http-proxy-port
+              containerPort: 8000
+          volumeMounts:
+            - mountPath: /etc/nginx/conf.d
+              name: nginx-conf
       volumes:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+        - name: nginx-conf
+          configMap:
+            name: nginx
 
 #########################
 # End postgres proxy config
@@ -103,7 +114,7 @@ spec:
     - name: bwd-nodeport-port
       protocol: TCP
       port: 80
-      targetPort: bwd-ctr-port
+      targetPort: http-proxy-port
 
 
 ---

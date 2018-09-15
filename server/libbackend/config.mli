@@ -29,3 +29,5 @@ val rollbar_environment : string
 val rollbar_client_access_token : string option
 val rollbar_js : string
 
+
+val public_domain : string

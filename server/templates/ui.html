@@ -7,11 +7,10 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
     <link rel="stylesheet"
-          href="https://use.fontawesome.com/releases/v5.0.10/css/all.css"
-          integrity="sha384-+d0P83n9kaQMCwj8F4RJB66tzIwOKmrdb46+porD/OvrJ+37WqIM7UoBtwHO6Nlg"
+          href="/static/vendor/fontawesome-free-5.3.1-web/css/all.css"
           crossorigin="anonymous">
     <link rel="stylesheet"
-          href="https://cdn.rawgit.com/tonsky/FiraCode/1.204/distr/fira_code.css">
+          href="/static/vendor/firacode/fira_code.css">
     <link rel="stylesheet"
           type="text/css"
           href="/static/reset-normalize.css" />
@@ -63,18 +62,29 @@
        });
 
        elmapp.ports.requestAnalysis.subscribe(function(params) {
+         function bToString (blankOr) { return blankOr[2] || null; }
+         const spec = params.handler.spec;
+         const route =
+           `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
          try {
+           <!-- console.log("Performing analysis for: " + route); -->
+           <!-- console.log(params); -->
            var result = darkAnalysis.performAnalysis(JSON.stringify(params));
+           <!-- console.log(JSON.parse(result)); -->
            elmapp.ports.receiveAnalysis.send(result);
          }
          catch (error) {
-           function bToString (blankOr) { return blankOr[2] || null; }
-           const spec = params.handler.spec;
-           const route =
-             `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-           const errorName = error[1][1].c;
-           const errorMsg = error[2][1].c;
-           const errString = `${errorName} - ${errorMsg}`;
+           var errorName = null;
+           var errorMsg = null;
+           var errString = null;
+
+           try {
+             // OCaml errors come in a few constructs - get the data we can
+             try { errorName = error[1][1].c; } catch (_) {}
+             try { errorMsg = error[2][1].c; } catch (_) {}
+             try { errorMsg = error[2].c; } catch (_) {}
+             errString = `${errorName} - ${errorMsg}`;
+           } catch (_) { }
 
            // send to rollbar
            window.Rollbar.error(errString, error, { route: route

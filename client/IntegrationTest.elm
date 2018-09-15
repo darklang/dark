@@ -274,9 +274,9 @@ ellen_hello_world_demo m =
              |> .spec
   in
   case ((spec.module_, spec.name), (spec.modifier, onlyExpr m)) of
-          ((F _ "HTTP", F _ "/hello"), (F _ "GET", Value "\"Hello world!\"")) ->
-              pass
-          other -> fail other
+    ((F _ "HTTP", F _ "/hello"), (F _ "GET", Value "\"Hello world!\"")) ->
+      pass
+    other -> fail other
 
 editing_does_not_deselect : Model -> TestResult
 editing_does_not_deselect m =
@@ -319,10 +319,10 @@ case_sensitivity m =
                TLDB {name, cols} ->
                  case (name, cols) of
                    ( "TestUnicode"
-                    , [ (F _ "cOlUmNnAmE", F _ "Str")
+                     , [ (F _ "cOlUmNnAmE", F _ "Str")
                      , (Blank _, Blank _)
                      ]
-                    ) -> pass
+                     ) -> pass
                    other -> fail other
                TLHandler h ->
                  case h.ast of
@@ -524,7 +524,7 @@ feature_flag_in_function m =
               (F _ (Value "5"))
               (F _ (Value "3")))
             ,F _ (Value "5")]) NoRail
-         ) -> pass
+            ) -> pass
           -- TODO: validate result should evaluate true turnging  5 + 5 --> 3 + 5 == 8
           -- let res = Analysis.getLiveValue m f.tlid id
           -- in case res of

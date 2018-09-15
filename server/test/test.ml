@@ -342,8 +342,8 @@ let t_stdlib_works () =
 let t_derror_roundtrip () =
   let x = DError "test" in
   let converted = x
-                |> Dval.dval_to_yojson
-                |> Dval.dval_of_yojson
+                |> Dval.unsafe_dval_to_yojson
+                |> Dval.unsafe_dval_of_yojson
                 |> Result.ok_or_failwith in
   check_dval "roundtrip" converted x
 
@@ -616,18 +616,63 @@ let t_nulls_added_to_missing_column () =
     (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
     (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
 
-let t_dval_of_yojson_doesnt_care_about_order () =
+let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
   check_dval "dval_of_json_string doesn't care about key order"
-    (Dval.dval_of_json_string
+    (Dval.unsafe_dval_of_json_string
        "{
          \"type\": \"url\",
          \"value\": \"https://example.com\"
         }")
-    (Dval.dval_of_json_string
+    (Dval.unsafe_dval_of_json_string
        "{
          \"value\": \"https://example.com\",
          \"type\": \"url\"
         }")
+
+let t_dval_yojson_roundtrips () =
+  let unsafe_rt v = v
+                    |> Dval.unsafe_dval_to_yojson
+                    |> Dval.unsafe_dval_of_yojson
+                    |> Result.ok_or_failwith
+  in
+  (* Don't really need to check this but what harm *)
+  let safe_rt v = v
+                  |> dval_to_yojson
+                  |> dval_of_yojson
+                  |> Result.ok_or_failwith
+  in
+  let check name (v: dval) =
+    check_dval name v (safe_rt v);
+    check_dval ("unsafe " ^ name) v (unsafe_rt v);
+    ()
+  in
+  check "int" (DInt 5);
+  check "int" (DInt 5);
+  check "obj" (DObj (DvalMap.of_alist_exn [("foo", DInt 5)]));
+  check "date" (DDate (Time.of_string "2018-09-14T00:31:41Z"));
+  check "incomplete" DIncomplete;
+  check "float" (DFloat 7.2);
+  check "true" (DBool true);
+  check "false" (DBool false);
+  check "string" (DStr "incredibly this was broken");
+  check "null" DNull;
+  check "id" (DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"));
+  check "uuid" (DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"));
+  check "title" (DTitle "some title");
+  check "errorrail" (DErrorRail (DInt 5));
+  check "option" (DOption OptNothing);
+  check "option" (DOption (OptJust (DInt 15)));
+  check "db" (DDB "Visitors");
+  check "list" (DList [DDB "Visitors"; DInt 4]);
+  check "redirect" (DResp (Redirect "/home", DNull));
+  check "httpresponse" (DResp (Response (200, []), DStr "success"));
+  check "weird assoc 1" (DObj
+                           (DvalMap.of_alist_exn [ ("type", DStr "weird")
+                                                 ; ("value", DNull)]));
+  check "weird assoc 2" (DObj
+                           (DvalMap.of_alist_exn [ ("type", DStr "weird")
+                                                 ; ("value", DStr "x")]));
+  ()
 
 
 let t_password_hashing_and_checking_works () =
@@ -654,12 +699,8 @@ let t_password_hash_db_roundtrip () =
   AT.check AT.int
     "A Password::hash'd string can get stored in and retrieved from a user database."
     0 (match exec_handler ~ops ast with
-         DList [p1; p2;] as v ->
-         Log.inspecT "test value to be compared" ~f:show_dval v;
-         compare_dval p1 p2
-       | v ->
-         Log.inspecT "test value" ~f:show_dval v;
-         1)
+         DList [p1; p2;] -> compare_dval p1 p2
+       | _ -> 1)
 
 
 let t_passwords_dont_serialize () =
@@ -667,7 +708,7 @@ let t_passwords_dont_serialize () =
   AT.check AT.bool "Passwords don't serialize by default"
     true
     (let serialized = password
-                      |> Dval.dval_to_yojson (* ~redact:true by default *)
+                      |> Dval.unsafe_dval_to_yojson (* ~redact:true by default *)
                       |> Yojson.Safe.sort in
      match serialized with
        `Assoc [("type", `String "password");
@@ -679,7 +720,7 @@ let t_passwords_serialize () =
   AT.check (AT.option AT.string) "Passwords serialize if you turn off redaction "
     (Some "x")
     (let serialized = password
-                      |> Dval.dval_to_yojson ~redact:false
+                      |> Dval.unsafe_dval_to_yojson ~redact:false
                       |> Yojson.Safe.sort in
      match serialized with
        `Assoc [("type", `String "password");
@@ -692,21 +733,21 @@ let t_password_json_round_trip_forwards () =
     "Passwords serialize and deserialize if there's no redaction."
     password
     (password
-     |> Dval.dval_to_json_string ~redact:false
-     |> Dval.dval_of_json_string)
+     |> Dval.unsafe_dval_to_json_string ~redact:false
+     |> Dval.unsafe_dval_of_json_string)
 
 let t_password_json_round_trip_backwards () =
   let json = "x"
       |> Bytes.of_string
       |> fun p -> DPassword p
-      |> Dval.dval_to_json_string ~redact:false
+      |> Dval.unsafe_dval_to_json_string ~redact:false
   in
   AT.check AT.string
     "Passwords deserialize and serialize if there's no redaction."
     json
     (json
-     |> Dval.dval_of_json_string
-     |> Dval.dval_to_json_string ~redact:false)
+     |> Dval.unsafe_dval_of_json_string
+     |> Dval.unsafe_dval_to_json_string ~redact:false)
 
 let t_incomplete_propagation () =
   check_dval "Fn with incomplete return incomplete"
@@ -1007,7 +1048,7 @@ let t_db_read_deprecated_write_new_duuid () =
      | DList [DBool true; a] when Dval.tipe_of a = TID -> 0
      | _ -> 1)
 
-let t_db_new_query_works () =
+let t_db_new_query_v2_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
@@ -1020,8 +1061,8 @@ let t_db_new_query_works () =
   in
   let ast = "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
                (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
-                (let results (DB::query_v1 (obj (x 'bar')) MyDB)
-                 (== (('findme' hopetofind)) results))))"
+                (let results (DB::query_v2 (obj (x 'bar')) MyDB)
+                 (== (hopetofind) results))))"
   in
   check_dval "equal_after_roundtrip"
     (DBool true)
@@ -1188,7 +1229,7 @@ let t_db_get_many_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
-let t_db_query_works_with_many () =
+let t_db_queryWithKey_works_with_many () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid)
@@ -1203,7 +1244,7 @@ let t_db_query_works_with_many () =
   let ast = "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
               (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
                (let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::query_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
+                (let fetched (List::sortBy (DB::queryWithKey_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
                  (== (('two' two) ('three' three)) fetched)))))"
   in
   check_dval "equal_after_roundtrip"
@@ -1289,6 +1330,111 @@ let t_feature_flags_work () =
 
   ()
 
+let t_db_queryOne_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOne_v1 (obj (x 'foo')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption
+       (OptJust
+          (DObj (DvalMap.singleton "x" (DStr "foo")))
+       )
+    )
+    (exec_handler ~ops ast)
+
+let t_db_queryOne_returns_nothing_if_none () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOne_v1 (obj (x 'bar')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+let t_db_queryOne_returns_nothing_multiple () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
+               (DB::queryOne_v1 (obj (x 'foo')) MyDB)))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+let t_db_queryOneWithKey_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption
+       (OptJust
+          (DList
+             [DStr "first"
+             ;DObj (DvalMap.singleton "x" (DStr "foo"))
+             ]
+          )
+       )
+    )
+    (exec_handler ~ops ast)
+
+let t_db_queryOneWithKey_returns_nothing_if_none () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (DB::queryOneWithKey_v1 (obj (x 'bar')) MyDB))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+let t_db_queryOneWithKey_returns_nothing_multiple () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
+               (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB)))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DOption OptNothing)
+    (exec_handler ~ops ast)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1318,7 +1464,7 @@ let suite =
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
   ; "Parsing JSON to DVals doesn't care about key order", `Quick,
-    t_dval_of_yojson_doesnt_care_about_order
+    t_unsafe_dval_of_yojson_doesnt_care_about_order
   ; "End-user password hashing and checking works", `Quick,
     t_password_hashing_and_checking_works
   ; "Password hashes can be stored in and retrieved from the DB", `Quick,
@@ -1345,7 +1491,7 @@ let suite =
   ; "auth_then_handle sets status codes and cookies correctly ", `Quick, t_auth_then_handle_code_and_cookie
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
-  ; "New query function works", `Quick, t_db_new_query_works
+  ; "New query function works", `Quick, t_db_new_query_v2_works
   ; "DB::set_v1 upserts", `Quick, t_db_set_does_upsert
   ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
   ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
@@ -1353,10 +1499,17 @@ let suite =
   ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
   ; "Deprecated fetchBy works with an id", `Quick, t_db_deprecated_fetch_by_id_works
   ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
-  ; "DB::query_v1 works with many items", `Quick, t_db_query_works_with_many
+  ; "DB::queryWithKey_v1 works with many items", `Quick, t_db_queryWithKey_works_with_many
   ; "Deprecated delete works", `Quick, t_db_deprecated_delete_works
   ; "Deprecated update works", `Quick, t_db_deprecated_update_works
   ; "DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing
+  ; "DB::queryOne returns Some obj if found", `Quick, t_db_queryOne_works
+  ; "DB::queryOne returns Nothing if not found", `Quick, t_db_queryOne_returns_nothing_if_none
+  ; "DB::queryOne returns Nothing if more than one found", `Quick, t_db_queryOne_returns_nothing_multiple
+  ; "DB::queryOneWithKey returns Just obj if found", `Quick, t_db_queryOneWithKey_works
+  ; "DB::queryOneWithKey returns Nothing if not found", `Quick, t_db_queryOneWithKey_returns_nothing_if_none
+  ; "DB::queryOneWithKey returns Nothing if more than one found", `Quick, t_db_queryOneWithKey_returns_nothing_multiple
+  ; "Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips
   ]
 
 let () =

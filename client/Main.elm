@@ -155,7 +155,7 @@ init {editorState, complete} location navKey  =
 -----------------------
 -- ports
 -----------------------
-port mousewheel : ((List Int) -> msg) -> Sub msg
+port mousewheel : ((Int, Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
@@ -306,16 +306,187 @@ updateMod mod (m, cmd) =
                    else rpc
   in
   let (newm, newcmd) =
-        let handleRPC params focus =
-              -- immediately update the model based on SetHandler and focus, if
-              -- possible
-              let hasNonHandlers =
-                    List.any (\c -> case c of
-                                      SetHandler _ _ _ ->
-                                        False
-                                      SetFunction _ ->
-                                        False
-                                      _ -> True) params.ops
+    let handleRPC params focus =
+          -- immediately update the model based on SetHandler and focus, if
+          -- possible
+          let hasNonHandlers =
+                List.any (\c -> case c of
+                                  SetHandler _ _ _ ->
+                                    False
+                                  SetFunction _ ->
+                                    False
+                                  _ -> True) params.ops
+
+          in
+          if hasNonHandlers
+          then
+            (m , RPC.rpc m focus params)
+          else
+            let localM =
+                  List.foldl (\call m ->
+                    case call of
+                      SetHandler tlid pos h ->
+                        TL.upsert m
+                          { id = tlid
+                          , pos = pos
+                          , data = TLHandler h
+                          }
+                      SetFunction f ->
+                        Functions.upsert m f
+                      _ -> m) m params.ops
+
+                (withFocus, wfCmd) =
+                  updateMod (Many [ AutocompleteMod ACReset
+                                  , processFocus localM focus
+                                  ])
+                            (localM, Cmd.none)
+             in
+             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus FocusNoChange params])
+
+    in
+    case mod of
+      DisplayError e ->
+        ( { m | error =
+                        { message = Just e
+                        , showDetails = True }
+          }
+        , Cmd.none)
+      DisplayAndReportError e ->
+        let json = JSE.object [ ("message", JSE.string e)
+                              , ("url", JSE.null)
+                              , ("custom", JSE.object [])
+                              ]
+        in
+        ( { m | error =
+                        { message = Just e
+                        , showDetails = True }
+          }
+        , sendRollbar json)
+      DisplayAndReportHttpError context e ->
+        let response =
+              case e of
+                Http.BadStatus r -> Just r
+                Http.BadPayload _ r -> Just r
+                _ -> Nothing
+            msg =
+              case e of
+                Http.BadUrl str  -> "Bad url: " ++ str
+                Http.Timeout -> "Timeout"
+                Http.NetworkError -> "Network error - is the server running?"
+                Http.BadStatus response -> "Bad status: " ++ response.status.message
+                Http.BadPayload msg _ -> "Bad payload (" ++context ++ "): " ++ msg
+            url =
+              case e of
+                Http.BadUrl str  -> Just str
+                Http.Timeout -> Nothing
+                Http.NetworkError -> Nothing
+                Http.BadStatus response -> Just response.url
+                Http.BadPayload _ response -> Just response.url
+            shouldRollbar = e /= Http.NetworkError
+            json = JSE.object [ ("message"
+                                , JSE.string
+                                    (msg ++ " (" ++ context ++ ")"))
+                              , ("url", JSEE.maybe JSE.string url)
+                              , ("custom", JSON.encodeHttpError e)
+                              ]
+            cmds = if shouldRollbar then [sendRollbar json] else []
+        in
+        ( { m | error =
+                        { message = Just msg
+                        , showDetails = True }
+          }
+        , Cmd.batch cmds)
+
+      ClearError ->
+        ( { m | error =
+                        { message = Nothing
+                        , showDetails = False }
+          }
+        , Cmd.none)
+
+      RPC (ops, focus) ->
+        handleRPC (RPC.opsParams ops) focus
+      RPCFull (params, focus) ->
+        handleRPC params focus
+
+      GetAnalysisRPC ->
+        Sync.fetch m
+
+      NoChange -> (m, Cmd.none)
+      TriggerIntegrationTest name ->
+        let expect = IntegrationTest.trigger name in
+        ({ m | integrationTestState = expect }, Cmd.none)
+      EndIntegrationTest ->
+        let expectationFn =
+            case m.integrationTestState of
+              IntegrationTestExpectation fn -> fn
+              IntegrationTestFinished _ ->
+                impossible "Attempted to end integration test but one ran + was already finished"
+              NoIntegrationTest ->
+                impossible "Attempted to end integration test but none was running"
+            result = expectationFn m
+        in
+        ({ m | integrationTestState = IntegrationTestFinished result }, Cmd.none)
+
+      MakeCmd cmd -> (m, cmd)
+
+      SetCursorState cursorState ->
+        let newM = { m | cursorState = cursorState } in
+        (newM, Entry.focusEntry newM)
+
+      SetPage page ->
+        if m.currentPage == page
+        then (m, Cmd.none)
+        else
+          let canvas = m.canvas
+          in case (page, m.currentPage) of
+            (Toplevels pos2, Toplevels _) ->
+              -- scrolling
+              ({ m |
+                currentPage = page
+                , urlState = UrlState pos2
+                , canvas = { canvas | offset = pos2 }
+                }, Cmd.none)
+            (Fn _ pos2, _) ->
+              ({ m |
+                currentPage = page
+                , cursorState = Deselected
+                , urlState = UrlState pos2
+                , canvas = { canvas | fnOffset = pos2 }
+                }, Cmd.none)
+            _ ->
+              let newM =
+                { m |
+                  currentPage = page
+                  , cursorState = Deselected
+                }
+              in (newM, Cmd.batch (closeBlanks newM))
+
+      SetCenter center ->
+        case m.currentPage of
+          Toplevels pos ->
+            ({ m | currentPage = Toplevels center }, Cmd.none)
+          Fn id pos ->
+            ({ m | currentPage = Fn id center }, Cmd.none)
+
+
+      Select tlid p ->
+        let newM = { m | cursorState = Selecting tlid p } in
+        (newM , Cmd.batch (closeBlanks newM))
+
+      Deselect ->
+        let newM = { m | cursorState = Deselected }
+        in (newM, Cmd.batch (closeBlanks newM))
+
+      Enter entry ->
+        let target =
+              case entry of
+                Creating _ -> Nothing
+                Filling tlid id ->
+                  let tl = TL.getTL m tlid
+                      pd = TL.findExn tl id
+                  in
+                  Just (tlid, pd)
 
               in
                 if hasNonHandlers
@@ -766,16 +937,22 @@ update_ msg m =
                 then
                   case tl.data of
                     TLDB _ ->
-                      RPC ([ AddDBCol tlid (gid ()) (gid ())]
-                          , FocusNext tlid Nothing)
+                      let blankid = gid () in
+                      RPC ([ AddDBCol tlid blankid (gid ())]
+                           , FocusExact tlid blankid)
                     TLHandler h ->
                       case mId of
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id h.ast in
-                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
-                                  , FocusNext tlid (Just id))
+                              let blank = B.new ()
+                                  replacement = AST.addThreadBlank id blank h.ast
+                              in
+                              if h.ast == replacement
+                              then NoChange
+                              else
+                                RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                    , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
                               case AST.parentOf_ id h.ast of
                                 Just (F _ (Lambda _ _)) ->
@@ -798,9 +975,14 @@ update_ msg m =
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id f.ast in
-                              RPC ( [ SetFunction { f | ast = replacement}]
-                                  , FocusNext tlid (Just id))
+                              let blank = B.new ()
+                                  replacement = AST.addThreadBlank id blank f.ast
+                              in
+                              if f.ast == replacement
+                              then NoChange
+                              else
+                                RPC ( [ SetFunction { f | ast = replacement}]
+                                    , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
                               case AST.parentOf_ id f.ast of
                                 Just (F _ (Lambda _ _)) ->
@@ -817,17 +999,20 @@ update_ msg m =
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             PParamName _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             PFnName _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             _ ->
                               NoChange
                         Nothing -> NoChange
@@ -1262,9 +1447,9 @@ update_ msg m =
       ClearHover id
 
 
-    MouseWheel deltaCoords ->
+    MouseWheel (x, y) ->
       if m.canvas.enablePan
-      then Viewport.moveCanvasBy m deltaCoords
+      then Viewport.moveCanvasBy m x y
       else NoChange
 
     DataMouseEnter tlid idx _ ->
@@ -1445,7 +1630,8 @@ update_ msg m =
       let replacement = Functions.removeParameter uf upf
           newCalls = Refactor.removeFunctionParameter m uf upf
       in
-          RPC ([SetFunction replacement] ++ newCalls, FocusNext uf.tlid Nothing)
+          RPC ([ SetFunction replacement] ++ newCalls
+               , FocusNext uf.tlid Nothing)
 
     DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusNothing)
@@ -1624,7 +1810,7 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
       in
           Many ([RPC ([SetFunction ufun], FocusNothing)
-                , MakeCmd (DarkUrl.navigateTo m.navKey (Fn ufun.tlid Viewport.origin))
+                , MakeCmd (DarkUrl.navigateTo m.navKey (Fn ufun.tlid Defaults.centerPos))
                 ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
@@ -1633,13 +1819,17 @@ update_ msg m =
       let c = m.canvas
       in TweakModel (\m_ -> { m_ | canvas = { c | enablePan = pan } } )
 
+    ShowErrorDetails show ->
+      let e = m.error
+      in TweakModel (\m_ -> {m_ | error = { e | showDetails = show } } )
+
     _ -> NoChange
 
 findCenter : Model -> Pos
 findCenter m =
   case m.currentPage of
     Toplevels center -> center
-    _ -> Defaults.initialPos
+    _ -> Defaults.centerPos
 
 enableTimers : Model -> Model
 enableTimers m =

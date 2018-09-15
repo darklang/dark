@@ -323,12 +323,12 @@ isFunctionInExpr fnName expr =
 countFnUsage : Model -> String -> Int
 countFnUsage m name =
   let usedIn = TL.all m
-               |> List.filter (\tl ->
-                 case tl.data of
-                   TLHandler h -> isFunctionInExpr name h.ast
-                   TLDB _ -> False
-                   TLFunc f -> isFunctionInExpr name f.ast
-               )
+                |> List.filter (\tl ->
+                  case tl.data of
+                    TLHandler h -> isFunctionInExpr name h.ast
+                    TLDB _ -> False
+                    TLFunc f -> isFunctionInExpr name f.ast
+                )
   in List.length usedIn
 
 unusedDeprecatedFunctions : Model -> Set String
@@ -341,15 +341,14 @@ unusedDeprecatedFunctions m =
 
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
-  let transformCallsInAst : (NExpr -> NExpr) -> Expr -> UserFunction -> Expr
-      transformCallsInAst f_ ast old =
+  let transformCallsInAst f_ ast old =
         let transformCall old_ =
-              let transformExpr o =
-                    case o of
+              let transformExpr oldExpr =
+                    case oldExpr of
                       F id (FnCall name params r) ->
-                        F id (f (FnCall name params r))
+                        F id (f_ (FnCall name params r))
                       _ ->
-                        o
+                        oldExpr
               in
                   case old_ of
                     PExpr e ->

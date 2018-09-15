@@ -41,6 +41,16 @@ html {
   color: @grey3;
 }
 
+@keyframes showErrorPanel {
+  from { bottom: -70px; }
+  to { bottom: 0; }
+}
+
+@keyframes hideErrorPanel {
+  from { bottom: 0; }
+  to { bottom: 70px; }
+}
+
 body {
   .default;
   height: 100%;
@@ -139,15 +149,38 @@ body #grid * {
       display: inline-block;
     }
   }
+
+  .status {
+    float: right;
+    margin-right: 8px;
+
+    &.error {
+      color: lighten(@red, 20%);
+
+      a {
+        .default-link
+      }
+    }
+  }
 }
 
-#status {
-  &.error {
-    color: @yellow;
-    i.fa {
-      padding-left: 10px;
-      color: @red;
-    }
+.error-panel {
+  width: 100%;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 20px;
+  padding-bottom: 50px;
+  background-color: @red;
+  color: @white1;
+  position: absolute;
+  left: 0;
+  bottom: -70px;
+
+  animation-duration: 0.5s;
+
+  &.show {
+    bottom: 0;
+    animation-name: showErrorPanel;
   }
 }
 
@@ -235,30 +268,36 @@ body #grid * {
       li {
         float: left;
         &.mouseovered {
-          color: orange;
+          color: @orange;
           cursor: pointer;
           &:before {
-            background-color: @grey1;
-            bottom: calc(~"-100% + 37px");
             content: attr(data-content);
+            background-color: @grey1;
+
             display: block;
-            font-size: 0.7em;
-            max-width: 100%;
-            overflow: auto;
             position: absolute;
-            width: auto;
+            left: -4px;
+            bottom: calc(~"-100% + 37px");
+
+            height: auto;
+            width: max-content;
+            max-width: 100%;
+            padding: 4px;
+
+            font-size: 0.7em;
+            white-space: pre-wrap;
+            word-break: break-all;
             word-wrap: break-word;
-            white-space: pre;
           }
         }
         &.active {
-          border-bottom: 1px solid orange;
+          border-bottom: 1px solid @orange;
         }
         &.tipe-Error {
-          color: red;
+          color: @red;
         }
         &.tipe-Incomplete {
-          color: orange;
+          color: @orange;
         }
       }
     }
@@ -1012,7 +1051,7 @@ body #grid * {
     bottom: 0;
     display: inline-block;
     position: absolute;
-    right: 0;
+    right: 1ch;
     width: 1.5ch;
   }
   &.big-string-entry {
@@ -1396,6 +1435,10 @@ body #grid * {
 
 #buttons {
   z-index: 70;
+}
+
+.error-panel {
+  z-index: 60;
 }
 
 #sidebar-left {

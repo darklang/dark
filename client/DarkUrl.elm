@@ -16,6 +16,7 @@ import Types exposing (..)
 import Prelude exposing (..)
 import Functions
 import Defaults
+import Viewport
 
 
 hashUrlParams : List (String, String) -> String
@@ -36,11 +37,14 @@ urlOf page pos =
 
 urlFor : Page -> String
 urlFor page =
-  urlOf page
-    (case page of
-      Toplevels pos -> pos
-      Fn _ pos -> pos
-    )
+  let pos =
+        (case page of
+          Toplevels pos -> pos
+          Fn _ pos -> pos)
+        |> Viewport.toCenteredOn
+  in
+  urlOf page pos
+
 
 navigateTo : Navigation.Key -> Page -> Cmd Msg
 navigateTo navKey page =
@@ -68,7 +72,7 @@ maybeUpdateScrollUrl m =
   then
     Many
       [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
-      , MakeCmd (Navigation.replaceUrl m.navKey (urlOf m.currentPage pos))
+      , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
       ]
   else NoChange
 
@@ -100,7 +104,7 @@ parseLocation m loc =
               Just id ->
                 Just <|
                   Fn (TLID id)
-                     (Maybe.withDefault Defaults.fnPos center)
+                     (Maybe.withDefault Defaults.centerPos center)
               _ -> Nothing
           _ -> Nothing
   in

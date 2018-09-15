@@ -6,10 +6,15 @@
 - Install Homebrew for Mac from https://brew.sh/
 - Run `brew install bash`
 - Run `brew install fswatch`
-- Run `scripts/builder --compile --watch --test` (if don't have time to debug docker issues, `NEVER_REBUILD_DOCKER=1 scripts/builder --compile --watch --test` is your friend)
+- Run `scripts/builder --compile --watch --test`
 - Wait til the terminal says "Finished initial compile" - this means the build server is ready
 - Open your browser to http://YOURNAME.localhost:8000/admin/ui
 - Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
+
+## If you're interviewing:
+
+- run `scripts/builder --compile --test` and leave it for 30-60mins to compile the Docker image.
+- If there's any issues, let us know when we start and we can fix it in the background.
 
 ## Just serve it, not constantly recompiling
 
@@ -71,6 +76,11 @@ Project in your email. If you have and it's still not working, or you don't
 have an invitation, then ping Paul or Ian.
 
 
+## Troubleshooting container issues:
+
+If don't have time to debug docker issues, try:
+
+- `NEVER_REBUILD_DOCKER=1 scripts/builder ...`
 
 # Adding an account to the DB
 
@@ -223,7 +233,7 @@ the preprocessed version.
 When writing JS, we use some packages from NPM. To add a new package:
 
 - Add the package to package.json, perhaps using `yarn add`
-- Add the library to module.exports in server/src/main.js. 
+- Add the library to module.exports in server/src/main.js.
 - Run `yarn install` and `yarn build`. This puts the code in bundle.js.
 - Check in bundle.js
 

@@ -53,7 +53,7 @@ type Tipe = TInt
           | TDbList Tipe
 
 type Dhttp = Redirect String
-           | Response (Int, (List (String, String)))
+           | Response Int (List (String, String))
 
 type Dval = DInt Int
           | DFloat Float
@@ -67,7 +67,7 @@ type Dval = DInt Int
           | DError String
           | DBlock
           | DErrorRail Dval
-          | DResp (Dhttp, Dval)
+          | DResp Dhttp Dval
           | DDB String
           | DID String
           | DDate String
@@ -177,7 +177,7 @@ type Msg
     | BlankOrDoubleClick TLID ID MouseEvent
     | BlankOrMouseEnter TLID ID MouseEvent
     | BlankOrMouseLeave TLID ID MouseEvent
-    | MouseWheel (List Int)
+    | MouseWheel (Int, Int)
     | DataClick TLID Int MouseEvent
     | DataMouseEnter TLID Int MouseEvent
     | DataMouseLeave TLID Int MouseEvent
@@ -190,6 +190,7 @@ type Msg
     | LockHandler TLID Bool
     | ReceiveAnalysis String
     | EnablePanning Bool
+    | ShowErrorDetails Bool
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -509,8 +510,7 @@ type alias CanvasProps =
   , enablePan: Bool
   }
 
--- model without navKey
-type alias AppModel = { error : Maybe String
+type alias Model = { error : DarkError
                    , lastMsg : Msg
                    , lastMod : Modification
                    , tests : List VariantTest
@@ -543,14 +543,8 @@ type alias AppModel = { error : Maybe String
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
-                   , canvas: CanvasProps
+                   , canvas : CanvasProps
                    }
-
--- extensible record for adding navKey to the model
-type alias NavKeyed a = {a | navKey : Navigation.Key}
-
--- model including navKey
-type alias Model = NavKeyed AppModel
 
 -- Values that we serialize
 type alias SerializableEditor = { clipboard : Maybe PointerData
@@ -558,6 +552,15 @@ type alias SerializableEditor = { clipboard : Maybe PointerData
                                 , cursorState : CursorState
                                 , lockedHandlers: List TLID
                                 }
+
+--------------------
+-- Error Handling
+--------------------
+
+type alias DarkError  =
+  { message : Maybe String
+  , showDetails : Bool
+  }
 
 -----------------------------
 -- Testing

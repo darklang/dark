@@ -17,10 +17,11 @@ let uuid_of_string (id: string) : Uuidm.t =
   |> Option.value_exn ~message:("Bad UUID: " ^ id)
 
 let isostring_of_date (d: Time.t) : string =
-  Libtarget.date_to_isostring d
+  let date, sec = Time.to_date_ofday ~zone:Time.Zone.utc d in
+  (Date.to_string date) ^ "T" ^ (Time.Ofday.to_sec_string sec) ^ "Z"
 
 let date_of_isostring (str: string) : Time.t =
-  Libtarget.date_of_isostring str
+  Time.of_string str
 
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_all (String.Search_pattern.create search) ~in_:str ~with_:replace

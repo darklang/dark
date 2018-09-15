@@ -107,7 +107,7 @@ submitOmniAction m pos action =
                 blankfn
       in
           Many ([RPC ([ SetFunction newfn ], FocusNothing)
-                , MakeCmd (Url.navigateTo m.navKey (Fn newfn.tlid Viewport.origin))
+                , MakeCmd (Url.navigateTo m.navKey (Fn newfn.tlid Defaults.centerPos))
                 ])
     NewHTTPHandler ->
       let next = gid ()
@@ -204,7 +204,7 @@ replaceExpr m tlid ast old_ action value =
           _ ->
             ast
             |> AST.replace (PExpr old) (PExpr new)
-            |> AST.maybeExtendThreadAt (B.toID new)
+            |> AST.maybeExtendThreadAt (B.toID new) (B.new ())
             |> AST.maybeExtendListLiteralAt (PExpr new)
   in
   (newAst, new)

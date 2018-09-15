@@ -54,7 +54,7 @@ let dequeue transaction : t option =
   | None -> None
   | Some [id; value; retries; canvas_id; host; space; name; modifier] ->
     Some { id = int_of_string id
-         ; value = Dval.dval_of_json_string value
+         ; value = Dval.unsafe_dval_of_json_string value
          ; retries = int_of_string retries
          ; canvas_id = Util.uuid_of_string canvas_id
          ; host = host

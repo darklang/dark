@@ -10,8 +10,6 @@ module PReq = Parsed_request
 module SE = Stored_event
 
 type canvas = Canvas.canvas
-type dval = RTT.dval
-let dval_to_yojson = Dval.dval_to_yojson
 
 (* ------------------------- *)
 (* Non-execution analysis *)
@@ -90,24 +88,24 @@ let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
 let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : trace list =
   (* It's really awkward to do this on the client, so just do it here for now *)
-  match saved_input_vars c h with
-  | [] -> [{ id = Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
-           ; function_results = []
-           ; input = Execution.sample_input_vars h
-           }]
-  | ivs ->
-    List.map ivs
-      ~f:(fun (trace_id, input_vars) ->
-          let function_results =
-            Stored_function_result.load
-              ~trace_id
-              ~canvas_id:c.id
-              h.tlid
-          in
-          { input = input_vars
-          ; function_results
-          ; id = trace_id
-          })
+  let ivs = 
+    match saved_input_vars c h with
+    | [] -> [ ( Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
+              , Execution.sample_input_vars h)]
+    | ivs -> ivs
+  in
+  List.map ivs
+    ~f:(fun (trace_id, input_vars) ->
+        let function_results =
+          Stored_function_result.load
+            ~trace_id
+            ~canvas_id:c.id
+            h.tlid
+        in
+        { input = input_vars
+        ; function_results
+        ; id = trace_id
+        })
 
 
 (* ------------------------- *)
@@ -115,17 +113,22 @@ let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
 (* ------------------------- *)
 let call_function (c: canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
   (* TODO: Should we return a trace for the userfn? *)
-  (* TODO: Should this save over the existing analysis results? *)
-  Execution.call_function fnname
-    ~tlid
-    ~execution_id
-    ~trace_id
-    ~dbs:(TL.dbs c.dbs)
-    ~user_fns:c.user_functions
-    ~account_id:c.owner
-    ~canvas_id:c.id
-    ~caller_id
-    ~args
+  let result =
+    Execution.call_function fnname
+      ~tlid
+      ~execution_id
+      ~trace_id
+      ~dbs:(TL.dbs c.dbs)
+      ~user_fns:c.user_functions
+      ~account_id:c.owner
+      ~canvas_id:c.id
+      ~caller_id
+      ~args
+  in
+  Stored_function_result.store (tlid, fnname, caller_id) args result
+    ~canvas_id:c.id ~trace_id;
+  result
+
 
 (* --------------------- *)
 (* JSONable response *)
@@ -183,7 +186,7 @@ let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
   |> Yojson.Safe.to_string ~std:true
 
 type execute_function_response =
-  { result : dval
+  { result : RTT.dval
   ; hash : string
   } [@@deriving to_yojson]
 
