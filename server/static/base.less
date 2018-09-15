@@ -235,30 +235,36 @@ body #grid * {
       li {
         float: left;
         &.mouseovered {
-          color: orange;
+          color: @orange;
           cursor: pointer;
           &:before {
-            background-color: @grey1;
-            bottom: calc(~"-100% + 37px");
             content: attr(data-content);
+            background-color: @grey1;
+
             display: block;
-            font-size: 0.7em;
-            max-width: 100%;
-            overflow: auto;
             position: absolute;
-            width: auto;
+            left: -4px;
+            bottom: calc(~"-100% + 37px");
+
+            height: auto;
+            width: max-content;
+            max-width: 100%;
+            padding: 4px;
+
+            font-size: 0.7em;
+            white-space: pre-wrap;
+            word-break: break-all;
             word-wrap: break-word;
-            white-space: pre;
           }
         }
         &.active {
-          border-bottom: 1px solid orange;
+          border-bottom: 1px solid @orange;
         }
         &.tipe-Error {
-          color: red;
+          color: @red;
         }
         &.tipe-Incomplete {
-          color: orange;
+          color: @orange;
         }
       }
     }
