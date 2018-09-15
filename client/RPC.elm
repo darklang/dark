@@ -866,61 +866,6 @@ typeOfLiteralString s =
     Just dv -> RT.typeOf dv
 
 
-
-
-printDval : Dval -> JSE.Value
-printDval dv =
-  let tipe = dv |> RT.typeOf |> RT.tipe2str |> String.toLower |> JSE.string
-      ev = encodeVariant
-      encodeDhttp h =
-        case h of
-          Redirect s -> ev "Redirect" [JSE.string  s]
-          Response resp  -> ev "Response"
-            [encodePair
-              JSE.int
-              (encodeList (encodePair JSE.string JSE.string))
-              resp]
-
-      wrapUserType value =
-        JSE.object [ ("type", tipe)
-                   , ("value", value)]
-
-      wrapUserStr value = wrapUserType (JSE.string value)
-  in
-  case dv of
-    DInt i -> JSE.int i
-    DFloat f -> JSE.float f
-    DBool b -> JSE.bool b
-    DNull -> JSE.null
-    DStr s -> JSE.string s
-    DList l -> encodeList encodeDval l
-    DObj o -> JSEE.dict identity encodeDval o
-
-    -- opaque types
-    DBlock -> wrapUserType JSE.null
-    DIncomplete -> wrapUserType JSE.null
-
-    -- user-ish types
-    DChar c -> wrapUserStr (String.fromList [c])
-    DError msg -> wrapUserStr msg
-
-    DResp (h, hdv) ->
-      wrapUserType (JSE.list [ encodeDhttp h, encodeDval hdv])
-
-    DDB name -> wrapUserStr name
-    DID id -> wrapUserStr id
-    DUrl url -> wrapUserStr url
-    DTitle title -> wrapUserStr title
-    DDate date -> wrapUserStr date
-    DPassword hashed -> wrapUserStr hashed
-    DUuid uuid -> wrapUserStr uuid
-    DOption opt ->
-      case opt of
-        Nothing -> wrapUserType JSE.null
-        Just dv_ -> wrapUserType (encodeDval dv_)
-    DErrorRail _ -> wrapUserType JSE.null
-
-
 -- Ported directly from Dval.parse in the backend
 parseDvalLiteral : String -> Maybe Dval
 parseDvalLiteral str =
@@ -962,14 +907,14 @@ decodeDval : JSD.Decoder Dval
 decodeDval =
   let dv0 = decodeVariant0
       dv1 = decodeVariant1
+      dv2 = decodeVariant2
       dd = JSD.lazy (\_ -> decodeDval)
       decodeDhttp =
         decodeVariants
           [ ("Redirect", dv1 Redirect JSD.string)
-          , ("Response", dv1 Response
-                             (JSON.decodePair JSD.int
+          , ("Response", dv2 Response JSD.int
                                (JSD.list
-                                 (JSON.decodePair JSD.string JSD.string))))]
+                                 (JSON.decodePair JSD.string JSD.string)))]
   in
   decodeVariants
     [ ("DInt", dv1 DInt JSD.int)
@@ -984,7 +929,7 @@ decodeDval =
     , ("DError", dv1 DError JSD.string)
     , ("DBlock", dv0 DBlock)
     , ("DErrorRail", dv1 DErrorRail dd)
-    , ("DResp", dv1 DResp (JSON.decodePair decodeDhttp dd))
+    , ("DResp", dv1 (\(h, dv) -> DResp h dv) (JSON.decodePair decodeDhttp dd))
     , ("DDB", dv1 DDB JSD.string)
     , ("DID", dv1 DID JSD.string)
     , ("DDate", dv1 DDate JSD.string)
@@ -1001,11 +946,11 @@ encodeDval dv =
       encodeDhttp h =
         case h of
           Redirect s -> ev "Redirect" [JSE.string s]
-          Response resp  -> ev "Response"
-            [encodePair
-              JSE.int
-              (encodeList (encodePair JSE.string JSE.string))
-              resp]
+          Response code headers ->
+            ev "Response"
+              [ JSE.int code
+              , encodeList (encodePair JSE.string JSE.string) headers
+              ]
   in
   case dv of
     DInt i -> ev "DInt" [JSE.int i]
@@ -1024,7 +969,7 @@ encodeDval dv =
     DChar c -> ev "DChar" [JSE.string (String.fromList [c])]
     DError msg -> ev "DError" [JSE.string msg]
 
-    DResp (h, hdv) -> ev "DResp" [ encodeDhttp h, encodeDval hdv]
+    DResp h hdv -> ev "DResp" [(JSON.encodePair encodeDhttp encodeDval (h, hdv))]
 
     DDB name -> ev "DDB" [JSE.string name]
     DID id -> ev "DID" [JSE.string id]

@@ -51,7 +51,7 @@ type Tipe = TInt
           | TDbList Tipe
 
 type Dhttp = Redirect String
-           | Response (Int, (List (String, String)))
+           | Response Int (List (String, String))
 
 type Dval = DInt Int
           | DFloat Float
@@ -65,7 +65,7 @@ type Dval = DInt Int
           | DError String
           | DBlock
           | DErrorRail Dval
-          | DResp (Dhttp, Dval)
+          | DResp Dhttp Dval
           | DDB String
           | DID String
           | DDate String
