@@ -302,7 +302,7 @@ tlLink pos class name =
 fnLink : UserFunction -> Bool -> String -> Html.Html Msg
 fnLink fn isUsed text_ =
   Url.linkFor
-    (Fn fn.tlid Defaults.fnPos)
+    (Fn fn.tlid Defaults.centerPos)
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
@@ -401,8 +401,8 @@ viewRoutingTable m =
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
-               , eventNoPropagation "mouseover" (\_ -> EnablePanning False)
-               , eventNoPropagation "mouseout" (\_ -> EnablePanning True)
+               , eventNoPropagation "mouseenter" (\_ -> EnablePanning False)
+               , eventNoPropagation "mouseleave" (\_ -> EnablePanning True)
                ]
                sections
 
