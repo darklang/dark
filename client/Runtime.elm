@@ -222,16 +222,3 @@ toRepr_ oldIndent dv =
     DObj o ->
       objToString (Dict.toList o)
 
-
-extractErrorMessage : Dval -> String
-extractErrorMessage lv =
-  "TODO"
-  -- if isError lv
-  -- then
-  --   lv
-  --   |> .json
-  --   |> JSD.decodeString JSON.decodeException
-  --   |> Result.toMaybe
-  --   |> Maybe.map .short
-  --   |> Maybe.withDefault lv.value
-  -- else lv.value

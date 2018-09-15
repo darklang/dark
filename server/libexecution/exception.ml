@@ -38,7 +38,15 @@ type exception_tipe = DarkServer (* error while talking to the server *)
                     | DarkClient (* Error made by client *)
                     | UserCode
                     | EndUser
-                    [@@deriving show, eq, yojson]
+                    [@@deriving show, eq]
+
+let exception_tipe_to_yojson t =
+  match t with
+  | DarkServer -> `String "server"
+  | DarkStorage -> `String "storage"
+  | DarkClient -> `String "client"
+  | UserCode -> `String "userCode"
+  | EndUser -> `String "endUser"
 
 let should_log (et: exception_tipe) : bool =
   match et with
@@ -58,7 +66,7 @@ type exception_data = { short : string
                       ; result_tipe : string option
                       ; info : exception_info
                       ; workarounds : string list
-                      } [@@deriving yojson, show]
+                      } [@@deriving to_yojson, show]
 
 exception DarkException of exception_data [@@deriving show]
 

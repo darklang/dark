@@ -21,6 +21,7 @@ import String.Extra as SE
 import Time
 import Task
 import Window
+import Dict
 
 -- dark
 import Analysis
@@ -371,13 +372,56 @@ updateMod mod (m, cmd) =
                 Http.BadStatus r -> Just r
                 Http.BadPayload _ r -> Just r
                 _ -> Nothing
+
+            body str =
+              let maybe name m =
+                    case m of
+                      Just s -> ", " ++ name ++ ": " ++ s
+                      Nothing -> ""
+              in
+              str
+              |> JSD.decodeString JSON.decodeException
+              |> Result.toMaybe
+              |> Maybe.map
+                   (\{ short
+                     , long
+                     , tipe
+                     , actual
+                     , actualType
+                     , expected
+                     , result
+                     , resultType
+                     , info
+                     , workarounds
+                     } ->
+                       " ("
+                       ++ tipe
+                       ++ "): "
+                       ++ short
+                       |> (++) (maybe "message" long)
+                       |> (++) (maybe "actual value" actual)
+                       |> (++) (maybe "actual type" actualType)
+                       |> (++) (maybe "result" result)
+                       |> (++) (maybe "result type" resultType)
+                       |> (++) (maybe "expected" expected)
+                       |> (++) (if info == Dict.empty
+                                then ""
+                                else ", info: " ++ toString info)
+                       |> (++) (if workarounds == []
+                                then ""
+                                else ", workarounds: " ++ toString workarounds))
+              |> Maybe.withDefault str
+
             msg =
               case e of
                 Http.BadUrl str  -> "Bad url: " ++ str
                 Http.Timeout -> "Timeout"
                 Http.NetworkError -> "Network error - is the server running?"
-                Http.BadStatus response -> "Bad status: " ++ response.status.message
-                Http.BadPayload msg _ -> "Bad payload (" ++context ++ "): " ++ msg
+                Http.BadStatus response ->
+                  "Bad status: "
+                  ++ response.status.message
+                  ++ (body response.body)
+                Http.BadPayload msg _ -> "Bad payload (" ++ context ++ "): " ++ msg
             url =
               case e of
                 Http.BadUrl str  -> Just str
@@ -1275,7 +1319,6 @@ update_ msg m =
 
 
     GlobalClick event ->
-      let _ = Debug.log "globalClick" event in
       case m.currentPage of
         Toplevels _ ->
           if event.button == Defaults.leftButton
@@ -1330,7 +1373,6 @@ update_ msg m =
 
 
     ToplevelMouseDown targetTLID event ->
-      let _ = Debug.log "tlmousedown" event in
       if event.button == Defaults.leftButton
       then
         let tl = TL.getTL m targetTLID in
@@ -1341,7 +1383,6 @@ update_ msg m =
 
 
     ToplevelMouseUp targetTLID event ->
-      let _ = Debug.log "tlmouseup" event in
       if event.button == Defaults.leftButton
       then
         case m.cursorState of
@@ -1372,7 +1413,6 @@ update_ msg m =
     -- clicking
     ------------------------
     BlankOrClick targetTLID targetID _ ->
-      let _ = Debug.log "blankorclick " (targetTLID, targetID) in
       case m.cursorState of
         Deselected ->
           Select targetTLID (Just targetID)
@@ -1404,12 +1444,10 @@ update_ msg m =
 
 
     BlankOrDoubleClick targetTLID targetID _ ->
-      let _ = Debug.log "blankorDclick " (targetTLID, targetID) in
       Selection.enter m targetTLID targetID
 
 
     ToplevelClick targetTLID _ ->
-      let _ = Debug.log "tlclick" targetTLID in
       case m.cursorState of
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
@@ -1431,7 +1469,6 @@ update_ msg m =
 
 
     DataClick tlid idx _ ->
-      let _ = Debug.log "dataclick" (tlid, idx) in
       case m.cursorState of
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
