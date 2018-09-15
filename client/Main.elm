@@ -21,6 +21,7 @@ import String.Extra as SE
 import Time
 import Task
 import Window
+import Dict
 
 -- dark
 import Analysis
@@ -371,13 +372,56 @@ updateMod mod (m, cmd) =
                 Http.BadStatus r -> Just r
                 Http.BadPayload _ r -> Just r
                 _ -> Nothing
+
+            body str =
+              let maybe name m =
+                    case m of
+                      Just s -> ", " ++ name ++ ": " ++ s
+                      Nothing -> ""
+              in
+              str
+              |> JSD.decodeString JSON.decodeException
+              |> Result.toMaybe
+              |> Maybe.map
+                   (\{ short
+                     , long
+                     , tipe
+                     , actual
+                     , actualType
+                     , expected
+                     , result
+                     , resultType
+                     , info
+                     , workarounds
+                     } ->
+                       " ("
+                       ++ tipe
+                       ++ "): "
+                       ++ short
+                       |> (++) (maybe "message" long)
+                       |> (++) (maybe "actual value" actual)
+                       |> (++) (maybe "actual type" actualType)
+                       |> (++) (maybe "result" result)
+                       |> (++) (maybe "result type" resultType)
+                       |> (++) (maybe "expected" expected)
+                       |> (++) (if info == Dict.empty
+                                then ""
+                                else ", info: " ++ toString info)
+                       |> (++) (if workarounds == []
+                                then ""
+                                else ", workarounds: " ++ toString workarounds))
+              |> Maybe.withDefault str
+
             msg =
               case e of
                 Http.BadUrl str  -> "Bad url: " ++ str
                 Http.Timeout -> "Timeout"
                 Http.NetworkError -> "Network error - is the server running?"
-                Http.BadStatus response -> "Bad status: " ++ response.status.message
-                Http.BadPayload msg _ -> "Bad payload (" ++context ++ "): " ++ msg
+                Http.BadStatus response ->
+                  "Bad status: "
+                  ++ response.status.message
+                  ++ (body response.body)
+                Http.BadPayload msg _ -> "Bad payload (" ++ context ++ "): " ++ msg
             url =
               case e of
                 Http.BadUrl str  -> Just str
