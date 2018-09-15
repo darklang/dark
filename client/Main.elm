@@ -1589,8 +1589,10 @@ update_ msg m =
       DisplayError <| "Success! " ++ msg_
 
     ExecuteFunctionRPCCallback params (Ok (dval, hash)) ->
+      let tl = TL.getTL m params.tlid in
       Many [ UpdateTraceFunctionResult params.tlid params.traceID params.callerID params.fnName hash dval
            , ExecutingFunctionComplete [(params.tlid, params.callerID)]
+           , RequestAnalysis [tl]
            ]
 
     ExecuteFunctionCancel tlid id ->

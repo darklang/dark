@@ -509,6 +509,11 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
     then DIncomplete
     else if paramsErroneous arglist
     then DError "Fn called with an error as an argument"
+    else if engine.ctx = Preview && not fn.preview_execution_safe
+    then
+      (match state.load_fn_result sfr_desc arglist with
+      | Some (result, _ts) -> result
+      | _ -> DIncomplete)
     else
       let state =
         { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
