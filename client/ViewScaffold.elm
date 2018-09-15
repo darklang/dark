@@ -89,15 +89,20 @@ viewButtons m =
 
 viewError : DarkError -> Html.Html Msg
 viewError err =
-  Html.div
+  let viewException exc =
+    case exc.result of
+      Nothing -> [ Html.text exc.short ]
+      Just result -> [ Html.text result ]
+  in
+    Html.div
     [ Attrs.classList
       [ ("error-panel", True)
       , ("show", err.showDetails)]
       ]
     ( case err.message of
-      Nothing -> []
-      Just msg ->
-        case JSD.decodeString JSON.decodeException msg of
-          Err _ -> [ Html.text msg ]
-          Ok exc -> [ Html.text exc.short ]
+        Nothing -> []
+        Just msg ->
+          case JSD.decodeString JSON.decodeException msg of
+            Err _ -> [ Html.text msg ]
+            Ok exc -> viewException exc
     )
