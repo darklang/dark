@@ -1715,7 +1715,7 @@ update_ msg m =
 findCenter : Model -> Pos
 findCenter m =
   case m.currentPage of
-    Toplevels center -> center
+    Toplevels center -> Viewport.toCenter center
     _ -> Defaults.centerPos
 
 enableTimers : Model -> Model
