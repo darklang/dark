@@ -166,6 +166,17 @@ let init (host: string) (ops: Op.op list): canvas ref =
   add_ops c [] ops;
   c
 
+let name_for_id (id: Uuidm.t) : string =
+  Db.fetch_one
+    ~name:"fetch_canvas_name"
+    "SELECT name FROM canvases WHERE id = $1"
+    ~params:[ Uuid id ]
+  |> List.hd_exn
+
+let url_for (id : Uuidm.t) : string =
+  let canvas_name = name_for_id id in
+  "http://" ^ canvas_name ^ "." ^ Config.public_domain
+
 (* ------------------------- *)
 (* Loading/saving *)
 (* ------------------------- *)

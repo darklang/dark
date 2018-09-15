@@ -259,5 +259,3 @@ let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   |> Uuidm.of_string
   |> Option.value_exn
 
-
-
