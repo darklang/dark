@@ -71,7 +71,7 @@
            <!-- console.log("Performing analysis for: " + route); -->
            <!-- console.log(params); -->
            var result = darkAnalysis.performAnalysis(JSON.stringify(params));
-           <!-- console.log(result); -->
+           <!-- console.log(JSON.parse(result)); -->
            elmapp.ports.receiveAnalysis.send(result);
          }
          catch (error) {

@@ -337,7 +337,8 @@ let tipe_of_yojson (json: Yojson.Safe.json) =
 
 let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* sort so this isn't key-order-dependent. *)
-  match Yojson.Safe.sort json with
+  let json = Yojson.Safe.sort json in
+  match json with
   | `Int i -> DInt i
   | `Float f -> DFloat f
   | `Bool b -> DBool b
@@ -347,13 +348,15 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Variant v -> Exception.internal "We dont use variants"
   | `Intlit v -> DStr v
   | `Tuple v -> Exception.internal "We dont use tuples"
-  | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
+  | `Assoc [("type", `String "response"); ("value", `List [a;b])] ->
     DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_ b)
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
     (match tipe with
      | "incomplete" -> DIncomplete
+     | "option" -> DOption OptNothing
      | "block" -> Exception.user "Can't deserialize blocks"
-     | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from null"))
+     | "errorrail" -> DErrorRail DNull
+     | _ -> DObj (unsafe_dvalmap_of_yojson json))
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     (match tipe with
     | "date" -> DDate (Util.date_of_isostring v)
@@ -363,9 +366,13 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" -> DError v
     | "char" -> DChar (Char.of_string v)
     | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
-    | "db" -> Exception.user "Can't deserialize DBs"
+    | "datastore" -> DDB v
     | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
-    | _ -> Exception.user ("Can't deserialize " ^ tipe ^ " from " ^ v))
+    | _ -> DObj (unsafe_dvalmap_of_yojson json))
+  | `Assoc [("type", `String "option"); ("value", dv)] ->
+    DOption (OptJust (unsafe_dval_of_yojson_ dv))
+  | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
+    DErrorRail (unsafe_dval_of_yojson_ dv)
   | `Assoc _ -> DObj (unsafe_dvalmap_of_yojson json)
 and unsafe_dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
   match json with
@@ -424,7 +431,7 @@ and unsafe_dval_to_yojson ?(redact=true) (dv : dval) : Yojson.Safe.json =
     (match opt with
      | OptNothing -> wrap_user_type `Null
      | OptJust dv -> wrap_user_type (unsafe_dval_to_yojson ~redact dv))
-  | DErrorRail _ -> wrap_user_type `Null
+  | DErrorRail dv -> wrap_user_type (unsafe_dval_to_yojson ~redact dv)
 
 let is_json_primitive (dv: dval) : bool =
   match dv with
