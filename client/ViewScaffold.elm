@@ -89,9 +89,9 @@ viewButtons m =
 viewError : DarkError -> Html.Html Msg
 viewError err =
   let viewException exc =
-    case exc.result of
-      Nothing -> [ Html.text exc.short ]
-      Just result -> [ Html.text result ]
+        case exc.result of
+          Nothing -> [ Html.text exc.short ]
+          Just result -> [ Html.text result ]
   in
     Html.div
     [ Attrs.classList
