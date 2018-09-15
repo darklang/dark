@@ -171,20 +171,20 @@ closeBlanks expr =
 -- * it is a thread, add a blank at the end
 -- * it is part of a thread, insert a blank just after the expr
 -- * if it is not part of a thread, wrap it in a thread
-addThreadBlank : ID -> Expr -> Expr
-addThreadBlank id expr =
-  let atb = addThreadBlank id in
+addThreadBlank : ID -> Expr -> Expr -> Expr
+addThreadBlank id blank expr =
+  let atb = addThreadBlank id blank in
   if id == B.toID expr
   then
     case expr of
       F tid (Thread exprs) ->
-        F tid (Thread (exprs ++ [B.new ()]))
+        F tid (Thread (exprs ++ [blank]))
       _ ->
-        B.newF (Thread [expr, B.new ()])
+        B.newF (Thread [expr, blank])
   else
     case expr of
       F tid (Thread exprs) ->
-        let replaced = extendThreadChild id exprs in
+        let replaced = extendThreadChild id blank exprs in
         if replaced == exprs
         then traverse atb expr
         else F tid (Thread replaced)
@@ -299,24 +299,24 @@ wrapInThread id expr =
     traverse (wrapInThread id) expr
 
 -- Find the child with the id `at` in the thread, and add a blank after it.
-extendThreadChild : ID -> List Expr -> List Expr
-extendThreadChild at threadExprs =
+extendThreadChild : ID -> Expr -> List Expr -> List Expr
+extendThreadChild at blank threadExprs =
   List.foldr (\e list ->
                 if (B.toID e) == at
-                then e :: B.new () :: list
+                then e :: blank :: list
                 else e :: list)
              []
              threadExprs
 
 -- extends thread at pos denoted by ID, if ID is in a thread
-maybeExtendThreadAt : ID -> Expr -> Expr
-maybeExtendThreadAt id expr =
+maybeExtendThreadAt : ID -> Expr -> Expr -> Expr
+maybeExtendThreadAt id blank expr =
   case expr of
     F tid (Thread exprs) ->
-      let newExprs = extendThreadChild id exprs
-                     |> List.map (maybeExtendThreadAt id)
+      let newExprs = extendThreadChild id blank exprs
+                     |> List.map (maybeExtendThreadAt id blank)
       in F tid (Thread newExprs)
-    _ -> traverse (maybeExtendThreadAt id) expr
+    _ -> traverse (maybeExtendThreadAt id blank) expr
 
 -- Is PointerData a blank inside a thread
 isThreadBlank : Expr -> ID -> Bool
