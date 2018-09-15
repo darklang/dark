@@ -4,6 +4,7 @@ module Editor exposing (..)
 import Json.Decode as JSD
 
 -- lib
+import Browser.Navigation as Navigation
 import Json.Encode as JSE
 
 -- dark
@@ -26,9 +27,9 @@ toString se =
   |> JSE.encode 0
 
 
-editor2model : SerializableEditor -> AppModel
-editor2model e =
-  let m = Defaults.defaultModel
+editor2model : Navigation.Key -> SerializableEditor -> Model
+editor2model navKey e =
+  let m = Defaults.defaultModel navKey
   in
       { m | timersEnabled = e.timersEnabled
           , clipboard = e.clipboard

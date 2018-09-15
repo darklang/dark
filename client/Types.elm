@@ -3,6 +3,7 @@ module Types exposing (..)
 -- builtin
 import Dict exposing (Dict)
 import Http
+import Browser
 import Browser.Dom as Dom
 import Browser.Navigation as Navigation
 import Url
@@ -191,6 +192,7 @@ type Msg
     | ReceiveAnalysis String
     | EnablePanning Bool
     | ShowErrorDetails Bool
+    | LinkClicked Browser.UrlRequest
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -544,6 +546,7 @@ type alias Model = { error : DarkError
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas : CanvasProps
+                   , navKey : Navigation.Key
                    }
 
 -- Values that we serialize

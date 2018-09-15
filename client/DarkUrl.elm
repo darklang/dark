@@ -39,8 +39,8 @@ urlFor : Page -> String
 urlFor page =
   let pos =
         (case page of
-          Toplevels pos -> pos
-          Fn _ pos -> pos)
+          Toplevels pos_ -> pos_
+          Fn _ pos_ -> pos_)
         |> Viewport.toCenteredOn
   in
   urlOf page pos
@@ -72,7 +72,7 @@ maybeUpdateScrollUrl m =
   then
     Many
       [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
-      , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
+      , MakeCmd (Navigation.replaceUrl m.navKey (urlOf m.currentPage pos))
       ]
   else NoChange
 

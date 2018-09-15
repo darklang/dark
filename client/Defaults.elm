@@ -7,6 +7,7 @@ import Dict
 -- dark
 import Types exposing (..)
 import Browser.Events
+import Browser.Navigation as Navigation
 
 
 entryID : String
@@ -56,8 +57,8 @@ defaultCanvas =
   , enablePan = True
   }
 
-defaultModel : Model
-defaultModel = { error = { message = Nothing
+defaultModel : Navigation.Key -> Model
+defaultModel navKey = { error = { message = Nothing
                          , showDetails = False }
                , lastMsg = Initialization
                , lastMod = NoChange
@@ -98,4 +99,5 @@ defaultModel = { error = { message = Nothing
                , featureFlags = Dict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
+               , navKey = navKey
                }
