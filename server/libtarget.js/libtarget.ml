@@ -16,12 +16,6 @@ let digest256 (input: string) : string =
   |> dark_targetjs_digest256
   |> Js.to_string
 
-let date_to_isostring (d: Core_kernel.Time.t) : string =
-  ""
-
-let date_of_isostring (str: string) : Core_kernel.Time.t =
-  Core_kernel.Time.now ()
-
 let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : string =
   Regexp.global_replace (Regexp.regexp pattern) str replacement
 
