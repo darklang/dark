@@ -831,17 +831,20 @@ update_ msg m =
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             PParamName _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             PFnName _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             _ ->
                               NoChange
                         Nothing -> NoChange
@@ -1459,7 +1462,8 @@ update_ msg m =
       let replacement = Functions.removeParameter uf upf
           newCalls = Refactor.removeFunctionParameter m uf upf
       in
-          RPC ([SetFunction replacement] ++ newCalls, FocusNext uf.tlid Nothing)
+          RPC ([ SetFunction replacement] ++ newCalls
+               , FocusNext uf.tlid Nothing)
 
     DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusNothing)
