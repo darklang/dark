@@ -156,8 +156,10 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
   type 'a block = 'a list -> 'a [@@deriving show]
   let equal_block _ _ _ = false
   let compare_block _ _ _ = -1
-  let block_to_yojson x _ = failwith "Cant serialize blocks"
-  let block_of_yojson _ _ = failwith "Cant deserialize blocks"
+  (* These aren't used at the moment, I hope, so just pick anything that
+   * typechecks *)
+  let block_to_yojson f b = `Null
+  let block_of_yojson f _ = Ok (fun l -> List.hd_exn l)
 
   (* uuid *)
   type uuid = Uuidm.t [@@deriving show, eq, compare]
