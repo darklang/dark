@@ -25,6 +25,7 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | SetDBColNameInDBMigration of tlid * id * string
         | SetDBColTypeInDBMigration of tlid * id * string
         | AbandonDBMigration of tlid
+        | DeleteColInDBMigration of tlid * id
         [@@deriving eq, yojson, show,  bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -66,6 +67,7 @@ let tlidOf (op: op) : tlid option =
   | SetDBColNameInDBMigration (tlid, _, _) -> Some tlid
   | SetDBColTypeInDBMigration (tlid, _, _) -> Some tlid
   | AbandonDBMigration tlid -> Some tlid
+  | DeleteColInDBMigration (tlid, _) -> Some tlid
 
 let oplist_to_string (ops: op list) : string =
   ops

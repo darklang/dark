@@ -1482,12 +1482,8 @@ update_ msg m =
     AbandonMigration tlid ->
       RPC ([AbandonDBMigration tlid], FocusNothing)
 
-    DeleteColInDB col tlid ->
-      let tl = TL.getTL m tlid
-      in case tl.data of
-        TLDB db -> DB.deleteCol db col
-        _ -> NoChange
-
+    DeleteColInDB tlid nameId ->
+      RPC ([DeleteColInDBMigration tlid nameId], FocusNothing)
 
     -----------------
     -- Buttons

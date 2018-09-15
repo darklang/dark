@@ -226,6 +226,7 @@ type Op
     | AddDBColToDBMigration TLID ID ID
     | SetDBColNameInDBMigration TLID ID DBColName
     | SetDBColTypeInDBMigration TLID ID DBColType
+    | DeleteColInDBMigration TLID ID
     | AbandonDBMigration TLID
 
 type alias RPCParams = { ops : List Op }

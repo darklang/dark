@@ -626,3 +626,17 @@ let abandon_migration db =
     let mutated_migration = { migration with state = DBMigrationAbandoned } in
     let db2 = { db with old_migrations = db.old_migrations @ [mutated_migration] } in
     { db2 with active_migration = None }
+
+let delete_col_in_migration id db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let newcols = List.filter migration.cols
+      ~f:(fun col ->
+          match col with
+          | (Blank nid, _) when nid = id -> false
+          | (Filled (nid, _), _) when nid = id -> false
+          | _ -> true) in
+    let mutated_migration = { migration with cols = newcols } in
+    { db with active_migration = Some mutated_migration }
