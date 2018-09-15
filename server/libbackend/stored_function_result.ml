@@ -30,7 +30,8 @@ let load ~canvas_id ~trace_id tlid : function_result list =
      FROM function_results
      WHERE canvas_id = $1
        AND trace_id = $2
-       AND tlid = $3"
+       AND tlid = $3
+     ORDER BY timestamp DESC"
     ~params:[ Db.Uuid canvas_id
             ; Db.Uuid trace_id
             ; Db.ID tlid
