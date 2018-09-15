@@ -41,6 +41,16 @@ html {
   color: @grey3;
 }
 
+@keyframes showErrorPanel {
+  from { bottom: -70px; }
+  to { bottom: 0; }
+}
+
+@keyframes hideErrorPanel {
+  from { bottom: 0; }
+  to { bottom: 70px; }
+}
+
 body {
   .default;
   height: 100%;
@@ -139,15 +149,38 @@ body #grid * {
       display: inline-block;
     }
   }
+
+  .status {
+    float: right;
+    margin-right: 8px;
+
+    &.error {
+      color: lighten(@red, 20%);
+
+      a {
+        .default-link
+      }
+    }
+  }
 }
 
-#status {
-  &.error {
-    color: @yellow;
-    i.fa {
-      padding-left: 10px;
-      color: @red;
-    }
+.error-panel {
+  width: 100%;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 20px;
+  padding-bottom: 50px;
+  background-color: @red;
+  color: @white1;
+  position: absolute;
+  left: 0;
+  bottom: -70px;
+
+  animation-duration: 0.5s;
+
+  &.show {
+    bottom: 0;
+    animation-name: showErrorPanel;
   }
 }
 
@@ -1402,6 +1435,10 @@ body #grid * {
 
 #buttons {
   z-index: 70;
+}
+
+.error-panel {
+  z-index: 60;
 }
 
 #sidebar-left {

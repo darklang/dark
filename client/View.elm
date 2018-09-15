@@ -36,20 +36,16 @@ view m =
         { stopPropagation = False, preventDefault = True }
         (decodeClickEvent GlobalClick)
         ]
-      header =
-        ViewScaffold.viewError m.error
       footer =
-        ViewScaffold.viewButtons m
+        [ ViewScaffold.viewError m.error, ViewScaffold.viewButtons m ]
       routing =
         ViewRoutingTable.viewRoutingTable m
       body =
         viewCanvas m
       content =
-        [ header
-        , routing
+        [ routing
         , body
-        , footer
-        ]
+        ] ++ footer
   in
       Html.div attributes content
 
