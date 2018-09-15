@@ -177,7 +177,7 @@ encodeOps ops =
             let savepoints = ops_
                              |> List.map tlidOf
                              |> List.map TLSavepoint
-            in savepoints ++ ops)
+            in savepoints ++ ops_)
   |> List.map encodeOp
   |> JSE.list
 
