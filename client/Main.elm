@@ -1319,7 +1319,6 @@ update_ msg m =
 
 
     GlobalClick event ->
-      let _ = Debug.log "globalClick" event in
       case m.currentPage of
         Toplevels _ ->
           if event.button == Defaults.leftButton
@@ -1374,7 +1373,6 @@ update_ msg m =
 
 
     ToplevelMouseDown targetTLID event ->
-      let _ = Debug.log "tlmousedown" event in
       if event.button == Defaults.leftButton
       then
         let tl = TL.getTL m targetTLID in
@@ -1385,7 +1383,6 @@ update_ msg m =
 
 
     ToplevelMouseUp targetTLID event ->
-      let _ = Debug.log "tlmouseup" event in
       if event.button == Defaults.leftButton
       then
         case m.cursorState of
@@ -1416,7 +1413,6 @@ update_ msg m =
     -- clicking
     ------------------------
     BlankOrClick targetTLID targetID _ ->
-      let _ = Debug.log "blankorclick " (targetTLID, targetID) in
       case m.cursorState of
         Deselected ->
           Select targetTLID (Just targetID)
@@ -1448,12 +1444,10 @@ update_ msg m =
 
 
     BlankOrDoubleClick targetTLID targetID _ ->
-      let _ = Debug.log "blankorDclick " (targetTLID, targetID) in
       Selection.enter m targetTLID targetID
 
 
     ToplevelClick targetTLID _ ->
-      let _ = Debug.log "tlclick" targetTLID in
       case m.cursorState of
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
@@ -1475,7 +1469,6 @@ update_ msg m =
 
 
     DataClick tlid idx _ ->
-      let _ = Debug.log "dataclick" (tlid, idx) in
       case m.cursorState of
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
