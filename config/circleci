@@ -33,6 +33,9 @@ DARK_CONFIG_DB_DBNAME=devdb
 DARK_CONFIG_DB_USER=dark
 DARK_CONFIG_DB_PASSWORD=eapnsdc
 
+# Publicly accessible domain
+DARK_CONFIG_PUBLIC_DOMAIN=localhost
+
 # Services
 DARK_CONFIG_HEALTH_CHECK_PORT=8081
 
