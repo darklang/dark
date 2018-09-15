@@ -19,7 +19,6 @@ import ViewUtils exposing (..)
 import Url
 import Defaults
 import Refactor exposing (countFnUsage)
-import Viewport
 
 
 type alias Entry = { name: Maybe String
@@ -296,14 +295,14 @@ buttonLink content handler page =
 tlLink : Pos -> String -> String -> Html.Html Msg
 tlLink pos class name =
   Url.linkFor
-    (Toplevels (Viewport.toCenteredOn pos))
+    (Toplevels pos)
     class
     [Html.text name]
 
 fnLink : UserFunction -> Bool -> String -> Html.Html Msg
 fnLink fn isUsed text_ =
   Url.linkFor
-    (Fn fn.tlid (Viewport.toCenteredOn Defaults.fnPos))
+    (Fn fn.tlid Defaults.centerPos)
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 

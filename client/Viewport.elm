@@ -24,10 +24,6 @@ toViewport m pos =
   { vx = default.x + pos.x - center.x
   , vy = default.y + pos.y - center.y}
 
-origin : Pos
-origin =
-  { x = 0, y = 0 }
-
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
   let center =
@@ -40,7 +36,7 @@ toAbsolute m pos =
 
 toCenteredOn : Pos -> Pos
 toCenteredOn pos =
-  subPos pos Defaults.initialPos
+  subPos pos Defaults.centerPos
 
 pageUp : Model -> Modification
 pageUp m =
@@ -76,7 +72,7 @@ moveRight m =
 
 moveToOrigin : Model -> Modification
 moveToOrigin m =
-  MoveCanvasTo m.canvas m.currentPage Defaults.initialPos
+  MoveCanvasTo m.canvas m.currentPage Defaults.origin
 
 moveCanvasBy : Model -> Int -> Int -> Modification
 moveCanvasBy m x y =
