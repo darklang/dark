@@ -65,20 +65,14 @@ viewData vs ast =
             Dict.get id vs.currentResults.liveValues
           _ -> Nothing
   in
-  case selectedValue of
-    Just _ ->
-      [ Html.div
-          [Attrs.class "view-data live-view-selection-active"]
-          [ Html.ul
-              [Attrs.class "request-cursor"]
-              requestEls
+  [ Html.div
+      [ Attrs.classList
+          [ ("view-data", True)
+          , ("live-view-selection-active", selectedValue /= Nothing )
           ]
       ]
-    Nothing ->
-      [ Html.div
-          [Attrs.class "view-data"]
-          [ Html.ul
-              [Attrs.class "request-cursor"]
-              requestEls
-          ]
+      [ Html.ul
+          [Attrs.class "request-cursor"]
+          requestEls
       ]
+  ]
