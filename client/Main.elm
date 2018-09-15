@@ -787,16 +787,22 @@ update_ msg m =
                 then
                   case tl.data of
                     TLDB _ ->
-                      RPC ([ AddDBCol tlid (gid ()) (gid ())]
-                          , FocusNext tlid Nothing)
+                      let blankid = gid () in
+                      RPC ([ AddDBCol tlid blankid (gid ())]
+                           , FocusExact tlid blankid)
                     TLHandler h ->
                       case mId of
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id h.ast in
-                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
-                                  , FocusNext tlid (Just id))
+                              let blank = B.new ()
+                                  replacement = AST.addThreadBlank id blank h.ast
+                              in
+                              if h.ast == replacement
+                              then NoChange
+                              else
+                                RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                    , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
                               case AST.parentOf_ id h.ast of
                                 Just (F _ (Lambda _ _)) ->
@@ -819,9 +825,14 @@ update_ msg m =
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id f.ast in
-                              RPC ( [ SetFunction { f | ast = replacement}]
-                                  , FocusNext tlid (Just id))
+                              let blank = B.new ()
+                                  replacement = AST.addThreadBlank id blank f.ast
+                              in
+                              if f.ast == replacement
+                              then NoChange
+                              else
+                                RPC ( [ SetFunction { f | ast = replacement}]
+                                    , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
                               case AST.parentOf_ id f.ast of
                                 Just (F _ (Lambda _ _)) ->
@@ -838,17 +849,20 @@ update_ msg m =
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             PParamName _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             PFnName _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
                               in
-                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                                  RPC ([ SetFunction replacement] ++ newCalls
+                                       , FocusNext tlid (Just id))
                             _ ->
                               NoChange
                         Nothing -> NoChange
@@ -1466,7 +1480,8 @@ update_ msg m =
       let replacement = Functions.removeParameter uf upf
           newCalls = Refactor.removeFunctionParameter m uf upf
       in
-          RPC ([SetFunction replacement] ++ newCalls, FocusNext uf.tlid Nothing)
+          RPC ([ SetFunction replacement] ++ newCalls
+               , FocusNext uf.tlid Nothing)
 
     DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusNothing)
