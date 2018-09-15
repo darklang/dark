@@ -24,10 +24,6 @@ toViewport m pos =
   { vx = default.x + pos.x - center.x
   , vy = default.y + pos.y - center.y}
 
-origin : Pos
-origin =
-  { x = 0, y = 0 }
-
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
   let center =
@@ -38,52 +34,52 @@ toAbsolute m pos =
   { x = pos.vx - center.x
   , y = pos.vy - center.y}
 
+toCenteredOn : Pos -> Pos
+toCenteredOn pos =
+  subPos pos Defaults.centerPos
+
 pageUp : Model -> Modification
 pageUp m =
-  moveCanvasBy m [0, -1 * Defaults.pageHeight]
+  moveCanvasBy m 0 (-1 * Defaults.pageHeight)
 
 pageDown : Model -> Modification
 pageDown m =
-  moveCanvasBy m [0, Defaults.pageHeight]
+  moveCanvasBy m 0 (Defaults.pageHeight)
 
 pageLeft : Model -> Modification
 pageLeft m =
-  moveCanvasBy m [-1 * Defaults.pageWidth, 0]
+  moveCanvasBy m (-1 * Defaults.pageWidth) 0
 
 pageRight : Model -> Modification
 pageRight m =
-  moveCanvasBy m [Defaults.pageWidth, 0]
+  moveCanvasBy m Defaults.pageWidth 0
 
 moveUp : Model -> Modification
 moveUp m =
-  moveCanvasBy m [0, -1*Defaults.moveSize] 
+  moveCanvasBy m 0 (-1*Defaults.moveSize)
 
 moveDown : Model -> Modification
 moveDown m =
-  moveCanvasBy m [0, Defaults.moveSize] 
+  moveCanvasBy m 0 Defaults.moveSize
 
 moveLeft : Model -> Modification
 moveLeft m =
-  moveCanvasBy m [-1*Defaults.moveSize, 0] 
+  moveCanvasBy m (-1*Defaults.moveSize) 0
 
 moveRight : Model -> Modification
 moveRight m =
-  moveCanvasBy m [Defaults.moveSize, 0] 
+  moveCanvasBy m Defaults.moveSize 0
 
 moveToOrigin : Model -> Modification
 moveToOrigin m =
-  MoveCanvasTo m.canvas m.currentPage Defaults.initialPos
+  MoveCanvasTo m.canvas m.currentPage Defaults.origin
 
-moveCanvasBy : Model -> (List Int) -> Modification
-moveCanvasBy m deltaCoords =
-  let d =
-        case deltaCoords of
-          x::y::_ -> { x=x, y=y }
-          _ -> { x=0, y=0 }
-      c = m.canvas
+moveCanvasBy : Model -> Int -> Int -> Modification
+moveCanvasBy m x y =
+  let c = m.canvas
       offset =
         case m.currentPage of
           Toplevels _ -> c.offset
           Fn _ _ -> c.fnOffset
-      pos = subPos offset d
+      pos = addPos offset { x=x, y=y }
   in MoveCanvasTo c m.currentPage pos

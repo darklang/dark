@@ -18,11 +18,11 @@ leftButton = 0
 initialVPos : VPos
 initialVPos = {vx=475, vy=200}
 
-initialPos : Pos
-initialPos = {x=475, y=200}
+centerPos : Pos
+centerPos = {x=475, y=200}
 
-fnPos : Pos
-fnPos = {x=475, y=200}
+origin : Pos
+origin = { x = 0, y = 0 }
 
 moveSize : Int
 moveSize = 50
@@ -51,8 +51,8 @@ defaultUrlState = { lastPos = {x=0, y=0}
 
 defaultCanvas : CanvasProps
 defaultCanvas =
-  { offset = initialPos
-  , fnOffset = fnPos
+  { offset = origin -- These is intended to be (Viewport.toCentedOn centerPos)
+  , fnOffset = origin
   , enablePan = True
   }
 
@@ -73,7 +73,7 @@ defaultModel = { error = Nothing
                             }
                , userFunctions = []
                , builtInFunctions = []
-               , currentPage = Toplevels initialPos
+               , currentPage = Toplevels {x=0,y=0}
                , hovering = []
                , tests = []
                , toplevels = []

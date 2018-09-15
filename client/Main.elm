@@ -158,7 +158,7 @@ init {editorState, complete} location =
 -----------------------
 -- ports
 -----------------------
-port mousewheel : ((List Int) -> msg) -> Sub msg
+port mousewheel : ((Int, Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
@@ -1265,9 +1265,9 @@ update_ msg m =
       ClearHover id
 
 
-    MouseWheel deltaCoords ->
+    MouseWheel (x, y) ->
       if m.canvas.enablePan
-      then Viewport.moveCanvasBy m deltaCoords
+      then Viewport.moveCanvasBy m x y
       else NoChange
 
     DataMouseEnter tlid idx _ ->
@@ -1627,7 +1627,7 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
       in
           Many ([RPC ([SetFunction ufun], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn ufun.tlid Viewport.origin))
+                , MakeCmd (Url.navigateTo (Fn ufun.tlid Defaults.centerPos))
                 ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
@@ -1642,7 +1642,7 @@ findCenter : Model -> Pos
 findCenter m =
   case m.currentPage of
     Toplevels center -> center
-    _ -> Defaults.initialPos
+    _ -> Defaults.centerPos
 
 enableTimers : Model -> Model
 enableTimers m =

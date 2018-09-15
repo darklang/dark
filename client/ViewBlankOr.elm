@@ -354,6 +354,6 @@ viewEditFn tlid hasFlagAlso =
   Html.a
     [ Attrs.class "edit-fn"
     , Attrs.style [("right", rightOffset)]
-    , Attrs.href (Url.urlFor (Fn tlid Defaults.fnPos))
+    , Attrs.href (Url.urlFor (Fn tlid Defaults.centerPos))
     ]
     [ fontAwesome "edit"]

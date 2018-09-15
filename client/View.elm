@@ -24,6 +24,7 @@ import ViewDB
 import ViewData
 import ViewFunction
 import Autocomplete
+import Defaults
 
 
 view : Model -> Html.Html Msg
@@ -68,7 +69,10 @@ viewCanvas m =
                 case m.currentPage of
                   Toplevels _ -> m.canvas.offset
                   Fn _ _ -> m.canvas.fnOffset
-          in "translate(" ++ (String.fromInt offset.x) ++ "px, " ++ (String.fromInt offset.y) ++ "px)"
+              x = String.fromInt (-offset.x)
+              y = String.fromInt (-offset.y)
+          in
+          "translate(" ++ x ++ "px, " ++ y ++ "px)"
 
         allDivs = asts ++ entry
     in
@@ -88,12 +92,8 @@ viewTL m tl =
               _ -> False
       pos =
         case m.currentPage of
-            Toplevels _ ->
-              tl.pos
-            Fn tLID _ ->
-              -- the pos here is not where we draw the TL, but rather
-              -- where we position the fn.
-              {x = 20, y = 20}
+          Toplevels _ -> tl.pos
+          Fn tLID _ -> Defaults.centerPos
       html =
         if Just tl.id == tlidOf m.cursorState || isDB
         then
