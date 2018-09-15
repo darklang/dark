@@ -51,7 +51,7 @@ viewButtons m =
           Just msg ->
             Html.div
               [ Attrs.class "status error"]
-              [ Html.text "Server Error : "
+              [ Html.text "Error: "
               , Html.a
                   [ Attrs.class "link"
                   , Attrs.href "#"
@@ -64,27 +64,22 @@ viewButtons m =
   in
   Html.div [Attrs.id "buttons"]
     ([ Html.a
-      [ eventNoPropagation "mouseup" (\_ -> AddRandom)
-      , Attrs.src ""
-      , Attrs.class "specialButton"]
-      [ Html.text "Random" ]
+        [ eventNoPropagation "mouseup" (\_ -> SaveTestButton)
+        , Attrs.src ""
+        , Attrs.class "specialButton"]
+        [ Html.text "SaveTest" ]
     , Html.a
-      [ eventNoPropagation "mouseup" (\_ -> SaveTestButton)
-      , Attrs.src ""
-      , Attrs.class "specialButton"]
-      [ Html.text "SaveTest" ]
-    , Html.a
-      [ eventNoPropagation "mouseup" (\_ -> ToggleTimers)
-      , Attrs.src ""
-      , Attrs.class "specialButton"]
-      [ Html.text
-          (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
+        [ eventNoPropagation "mouseup" (\_ -> ToggleTimers)
+        , Attrs.src ""
+        , Attrs.class "specialButton"]
+        [ Html.text
+            (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
     , Html.span
-      [ Attrs.class "specialButton"]
-      [Html.text (Debug.toString m.currentPage)]
+        [ Attrs.class "specialButton"]
+        [ Html.text (Debug.toString m.currentPage)]
     , Html.span
-      [ Attrs.class "specialButton"]
-      [Html.text ("Active tests: " ++ Debug.toString m.tests)]
+        [ Attrs.class "specialButton"]
+        [ Html.text ("Tests: " ++ Debug.toString m.tests)]
     ] ++ integrationTestButton ++ returnButton ++ [status])
 
 viewError : DarkError -> Html.Html Msg
