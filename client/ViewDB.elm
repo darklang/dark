@@ -46,7 +46,7 @@ viewDBCol vs isMigra tlid (n, t) =
           then
             [ Html.div
               [ Attrs.class "delete-col"
-              , eventNoPropagation "click" (\_ -> DeleteColInDB (n, t) tlid) ]
+              , eventNoPropagation "click" (\_ -> DeleteColInDB tlid (B.toID n)) ]
               [ fontAwesome "minus-circle" ]
             ]
           else []
