@@ -38,6 +38,10 @@ toCenteredOn : Pos -> Pos
 toCenteredOn pos =
   subPos pos Defaults.centerPos
 
+toCenter : Pos -> Pos
+toCenter pos =
+  addPos pos Defaults.centerPos
+
 pageUp : Model -> Modification
 pageUp m =
   moveCanvasBy m 0 (-1 * Defaults.pageHeight)
