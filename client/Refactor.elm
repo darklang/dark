@@ -347,7 +347,7 @@ transformFnCalls m uf f =
               let transformExpr oldExpr =
                     case oldExpr of
                       F id (FnCall name params r) ->
-                        F id (f (FnCall name params r))
+                        F id (f_ (FnCall name params r))
                       _ ->
                         oldExpr
               in
