@@ -11,13 +11,6 @@ let digest256 (input: string) : string =
 let digest384 (input: string) : string =
   sha ~f:Nocrypto.Hash.SHA384.digest input
 
-let date_to_isostring (d: Core_kernel.Time.t) : string =
-  (* for conduit tests. May do something different later *)
-  Core.Time.format d "%FT%TZ" ~zone:Core.Time.Zone.utc
-
-let date_of_isostring (str: string) : Core_kernel.Time.t =
-  Core.Time.parse str ~fmt:"%FT%TZ" ~zone:Core.Time.Zone.utc
-
 let regexp_replace ~(pattern: string) ~(replacement: string) (str: string) : string =
   Re2.replace_exn (Re2.create_exn pattern) str
     ~f:(fun _ -> replacement)
