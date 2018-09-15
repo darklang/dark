@@ -7,7 +7,6 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
-import Nineteen.String as String
 
 -- dark
 import Types exposing (..)
@@ -16,7 +15,7 @@ import Toplevel as TL
 import Blank as B
 import Toplevel
 import ViewUtils exposing (..)
-import Url
+import DarkUrl as Url
 import Defaults
 import Refactor exposing (countFnUsage)
 
@@ -50,10 +49,8 @@ splitBySpace tls =
   tls
   |> List.sortBy spaceName_
   |> LE.groupWhile (\a b -> spaceName_ a == spaceName_ b)
-  |> List.map (\hs ->
-                 let space = hs
-                             |> List.head
-                             |> deMaybe "splitBySpace"
+  |> List.map (\(head, hs) ->
+                 let space = head
                              |> spaceName_
                 in
                  (space, hs))
@@ -87,6 +84,7 @@ collapseByVerb : List Entry -> List Entry
 collapseByVerb es =
   es
   |> LE.groupWhile (\a b -> a.name == b.name)
+  |> List.map (\(a, b) -> a :: b)
   |> List.map (List.foldr (\curr list ->
                    if curr.name == Nothing
                    then curr :: list

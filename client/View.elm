@@ -3,11 +3,11 @@ module View exposing (view)
 -- builtin
 
 -- lib
+import Browser
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import List.Extra as LE
-import Nineteen.String as String
 
 -- dark
 import Analysis
@@ -27,14 +27,11 @@ import Autocomplete
 import Defaults
 
 
-view : Model -> Html.Html Msg
+view : Model -> Browser.Document Msg
 view m =
   let attributes =
         [ Attrs.id "grid"
-        , Events.onWithOptions
-        "mouseup"
-        { stopPropagation = False, preventDefault = True }
-        (decodeClickEvent GlobalClick)
+        , eventNoPropagation "mouseup" GlobalClick
         ]
       footer =
         [ ViewScaffold.viewError m.error, ViewScaffold.viewButtons m ]
@@ -47,7 +44,9 @@ view m =
         , body
         ] ++ footer
   in
-      Html.div attributes content
+      { title = "Dark"
+      , body = [ Html.div attributes content ]
+      }
 
 viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
@@ -74,37 +73,19 @@ viewCanvas m =
     in
         Html.div
         [ Attrs.id "canvas"
-        , Attrs.style [ ("transform", canvasTransform) ]
+        , Attrs.style "transform" canvasTransform
         ]
         allDivs
 
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let id = deTLID tl.id
-      recalc () = viewTL_ m tl.id
-      -- Allow the DB locked status to update
-      isDB = case tl.data of
-              TLDB _ -> True
-              _ -> False
       pos =
         case m.currentPage of
           Toplevels _ -> tl.pos
           Fn tLID _ -> Defaults.centerPos
-      html =
-        if Just tl.id == tlidOf m.cursorState || isDB
-        then
-          let _ = Util.cacheClear id in
-          recalc ()
-        else
-          case Util.cacheGet id of
-            Just html -> html
-            Nothing ->
-              let result = recalc ()
-                  _ = Util.cacheSet id result
-              in
-              result
    in
-   placeHtml m pos html
+   placeHtml m pos (viewTL_ m tl.id)
 
 viewTL_ : Model -> TLID -> Html.Html Msg
 viewTL_ m tlid =

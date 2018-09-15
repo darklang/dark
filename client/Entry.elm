@@ -6,7 +6,7 @@ import Task
 -- import Set
 
 -- lib
-import Dom
+import Browser.Dom as Dom
 -- import Result.Extra as RE
 -- import Maybe.Extra as ME
 import List.Extra as LE
@@ -27,7 +27,7 @@ import Pointer as P
 import SpecHeaders
 import Blank as B
 import Autocomplete as AC
-import Url
+import DarkUrl as Url
 import RPC
 
 
@@ -107,7 +107,7 @@ submitOmniAction m pos action =
                 blankfn
       in
           Many ([RPC ([ SetFunction newfn ], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn newfn.tlid Defaults.centerPos))
+                , MakeCmd (Url.navigateTo m.navKey (Fn newfn.tlid Defaults.centerPos))
                 ])
     NewHTTPHandler ->
       let next = gid ()

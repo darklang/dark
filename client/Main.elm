@@ -11,16 +11,14 @@ import Json.Encode.Extra as JSEE
 import Maybe.Extra as ME
 import Http
 import Keyboard.Key as Key
-import Navigation
-import Mouse
-import PageVisibility
+import Browser
+import Browser.Events
+import Browser.Navigation as Navigation
 import String
-import Nineteen.String as String
 -- import List.Extra as LE
 import String.Extra as SE
 import Time
 import Task
-import Window
 
 -- dark
 import Analysis
@@ -41,7 +39,6 @@ import Viewport
 import FeatureFlags
 import Functions
 import Toplevel
-import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import Pointer as P
@@ -54,6 +51,7 @@ import DB
 import Runtime
 import Toplevel as TL
 import Util
+import DarkUrl
 import Url
 import IntegrationTest
 
@@ -62,12 +60,14 @@ import IntegrationTest
 -- TOP-LEVEL
 -----------------------
 main : Program Flags Model Msg
-main = Navigation.programWithFlags
-         LocationChange
+main = Browser.application
          { init = init
          , view = View.view
          , update = update
-         , subscriptions = subscriptions}
+         , subscriptions = subscriptions
+         , onUrlRequest = LinkClicked
+         , onUrlChange = LocationChange
+         }
 
 
 -----------------------
@@ -89,25 +89,26 @@ flag2function fn =
   , deprecated = fn.deprecated
   }
 
-init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
-init {editorState, complete} location =
+init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
+init {editorState, complete} location navKey  =
   let savedEditor = Editor.fromString editorState
 
-      m0 = Editor.editor2model savedEditor
+      m0 = Editor.editor2model navKey savedEditor
 
       -- these saved values may not be valid yet
       savedCursorState = m0.cursorState
       savedCurrentPage = m0.currentPage
       m = { m0 | cursorState = Deselected
-               , currentPage = Defaults.defaultModel |> .currentPage}
+               , currentPage = Defaults.defaultModel navKey |> .currentPage
+               }
 
       tests =
-        case parseVariantTestsFromQueryString location.search of
+        case parseVariantTestsFromQueryString (Maybe.withDefault "" location.query) of
           Just t  -> t
           Nothing -> []
 
       page =
-        Url.parseLocation m location
+        DarkUrl.parseLocation m location
         |> Maybe.withDefault m.currentPage
 
       canvas = m.canvas
@@ -116,14 +117,11 @@ init {editorState, complete} location =
           Toplevels pos -> { canvas | offset = pos }
           Fn _ pos -> { canvas | fnOffset = pos }
 
-      visibilityTask =
-        Task.perform PageVisibilityChange PageVisibility.visibility
-
       shouldRunIntegrationTest =
-        "/admin/integration_test" == location.pathname
+        "/admin/integration_test" == location.path
 
       integrationTestName =
-        location.hostname
+        location.host
         |> SE.replace ".localhost" ""
         |> SE.replace ".integration-tests" ""
         |> SE.replace ".dark-dev" ""
@@ -146,13 +144,12 @@ init {editorState, complete} location =
 
   in
     if shouldRunIntegrationTest
-    then (m2, Cmd.batch [ RPC.integrationRPC m integrationTestName
-              , visibilityTask])
+    then (m2, Cmd.batch [ RPC.integrationRPC m integrationTestName ])
     else (m2, Cmd.batch [ RPC.initialLoadRPC
                   (FocusPageAndCursor page savedCursorState)
               -- load the analysis even if the timers are off
               , RPC.getAnalysisRPC []
-              , visibilityTask])
+              ])
 
 
 -----------------------
@@ -309,386 +306,386 @@ updateMod mod (m, cmd) =
                    else rpc
   in
   let (newm, newcmd) =
-    let handleRPC params focus =
-          -- immediately update the model based on SetHandler and focus, if
-          -- possible
-          let hasNonHandlers =
-                List.any (\c -> case c of
-                                  SetHandler _ _ _ ->
-                                    False
-                                  SetFunction _ ->
-                                    False
-                                  _ -> True) params.ops
+        let handleRPC params focus =
+              -- immediately update the model based on SetHandler and focus, if
+              -- possible
+              let hasNonHandlers =
+                    List.any (\c -> case c of
+                                      SetHandler _ _ _ ->
+                                        False
+                                      SetFunction _ ->
+                                        False
+                                      _ -> True) params.ops
 
-          in
-          if hasNonHandlers
-          then
-            (m , RPC.rpc m focus params)
-          else
-            let localM =
-                  List.foldl (\call m ->
-                    case call of
-                      SetHandler tlid pos h ->
-                        TL.upsert m
-                          { id = tlid
-                          , pos = pos
-                          , data = TLHandler h
-                          }
-                      SetFunction f ->
-                        Functions.upsert m f
-                      _ -> m) m params.ops
-
-                (withFocus, wfCmd) =
-                  updateMod (Many [ AutocompleteMod ACReset
-                                  , processFocus localM focus
-                                  ])
-                            (localM, Cmd.none)
-             in
-             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus FocusNoChange params])
-
-    in
-    case mod of
-      DisplayError e ->
-        ( { m | error =
-                        { message = Just e
-                        , showDetails = True }
-          }
-        , Cmd.none)
-      DisplayAndReportError e ->
-        let json = JSE.object [ ("message", JSE.string e)
-                              , ("url", JSE.null)
-                              , ("custom", JSE.object [])
-                              ]
-        in
-        ( { m | error =
-                        { message = Just e
-                        , showDetails = True }
-          }
-        , sendRollbar json)
-      DisplayAndReportHttpError context e ->
-        let response =
-              case e of
-                Http.BadStatus r -> Just r
-                Http.BadPayload _ r -> Just r
-                _ -> Nothing
-            msg =
-              case e of
-                Http.BadUrl str  -> "Bad url: " ++ str
-                Http.Timeout -> "Timeout"
-                Http.NetworkError -> "Network error - is the server running?"
-                Http.BadStatus response -> "Bad status: " ++ response.status.message
-                Http.BadPayload msg _ -> "Bad payload (" ++context ++ "): " ++ msg
-            url =
-              case e of
-                Http.BadUrl str  -> Just str
-                Http.Timeout -> Nothing
-                Http.NetworkError -> Nothing
-                Http.BadStatus response -> Just response.url
-                Http.BadPayload _ response -> Just response.url
-            shouldRollbar = e /= Http.NetworkError
-            json = JSE.object [ ("message"
-                                , JSE.string
-                                    (msg ++ " (" ++ context ++ ")"))
-                              , ("url", JSEE.maybe JSE.string url)
-                              , ("custom", JSON.encodeHttpError e)
-                              ]
-            cmds = if shouldRollbar then [sendRollbar json] else []
-        in
-        ( { m | error =
-                        { message = Just msg
-                        , showDetails = True }
-          }
-        , Cmd.batch cmds)
-
-      ClearError ->
-        ( { m | error =
-                        { message = Nothing
-                        , showDetails = False }
-          }
-        , Cmd.none)
-
-      RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops) focus
-      RPCFull (params, focus) ->
-        handleRPC params focus
-
-      GetAnalysisRPC ->
-        Sync.fetch m
-
-      NoChange -> (m, Cmd.none)
-      TriggerIntegrationTest name ->
-        let expect = IntegrationTest.trigger name in
-        ({ m | integrationTestState = expect }, Cmd.none)
-      EndIntegrationTest ->
-        let expectationFn =
-            case m.integrationTestState of
-              IntegrationTestExpectation fn -> fn
-              IntegrationTestFinished _ ->
-                impossible "Attempted to end integration test but one ran + was already finished"
-              NoIntegrationTest ->
-                impossible "Attempted to end integration test but none was running"
-            result = expectationFn m
-        in
-        ({ m | integrationTestState = IntegrationTestFinished result }, Cmd.none)
-
-      MakeCmd cmd -> (m, cmd)
-
-      SetCursorState cursorState ->
-        let newM = { m | cursorState = cursorState } in
-        (newM, Entry.focusEntry newM)
-
-      SetPage page ->
-        if m.currentPage == page
-        then (m, Cmd.none)
-        else
-          let canvas = m.canvas
-          in case (page, m.currentPage) of
-            (Toplevels pos2, Toplevels _) ->
-              -- scrolling
-              ({ m |
-                currentPage = page
-                , urlState = UrlState pos2
-                , canvas = { canvas | offset = pos2 }
-                }, Cmd.none)
-            (Fn _ pos2, _) ->
-              ({ m |
-                currentPage = page
-                , cursorState = Deselected
-                , urlState = UrlState pos2
-                , canvas = { canvas | fnOffset = pos2 }
-                }, Cmd.none)
-            _ ->
-              let newM =
-                { m |
-                  currentPage = page
-                  , cursorState = Deselected
-                }
-              in (newM, Cmd.batch (closeBlanks newM))
-
-      SetCenter center ->
-        case m.currentPage of
-          Toplevels pos ->
-            ({ m | currentPage = Toplevels center }, Cmd.none)
-          Fn id pos ->
-            ({ m | currentPage = Fn id center }, Cmd.none)
-
-
-      Select tlid p ->
-        let newM = { m | cursorState = Selecting tlid p } in
-        (newM , Cmd.batch (closeBlanks newM))
-
-      Deselect ->
-        let newM = { m | cursorState = Deselected }
-        in (newM, Cmd.batch (closeBlanks newM))
-
-      Enter entry ->
-        let target =
-              case entry of
-                Creating _ -> Nothing
-                Filling tlid id ->
-                  let tl = TL.getTL m tlid
-                      pd = TL.findExn tl id
-                  in
-                  Just (tlid, pd)
-
-            (m2, acCmd) =
-              processAutocompleteMods m [ ACSetTarget target ]
-            m3 = { m2 | cursorState = Entering entry }
-        in
-        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
-
-      SelectCommand tlid id ->
-        let m2 = { m | cursorState = SelectingCommand tlid id }
-            (m3, acCmd) = processAutocompleteMods m2
-                            [ ACEnableCommandMode
-                            , ACRegenerate ]
-        in
-        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
-
-
-      SetGlobalVariables globals ->
-        let m2 = { m | globals = globals } in
-        processAutocompleteMods m2 [ ACRegenerate ]
-
-      RemoveToplevel tl ->
-        (Toplevel.remove m tl, Cmd.none)
-
-      SetToplevels tls updateCurrent ->
-        let m2 = { m | toplevels = tls }
-            -- Bring back the TL being edited, so we don't lose work
-            -- done since the API call.
-            m3 = case tlidOf m.cursorState of
-                   Just tlid ->
-                     if updateCurrent
-                     then m2
-                     else
-                       let tl = TL.getTL m tlid in
-                       case tl.data of
-                         TLDB _ -> TL.upsert m2 tl
-                         TLHandler _ -> TL.upsert m2 tl
-                         TLFunc f -> m2
-                   Nothing ->
-                     m2
-            m4 = { m3 | deletedToplevels =
-                          TL.removeByTLID m3.deletedToplevels tls }
-        in
-        processAutocompleteMods m4 [ ACRegenerate ]
-
-      UpdateToplevels tls updateCurrent ->
-        let m2 = TL.upsertAll m tls
-            -- Bring back the TL being edited, so we don't lose work
-            -- done since the API call.
-            m3 = case tlidOf m.cursorState of
-                   Just tlid ->
-                     if updateCurrent
-                     then m2
-                     else
-                       let tl = TL.getTL m tlid in
-                       case tl.data of
-                         TLDB _ -> TL.upsert m2 tl
-                         TLHandler _ -> TL.upsert m2 tl
-                         TLFunc f -> m2
-                   Nothing ->
-                     m2
-            m4 = { m3 | deletedToplevels =
-                          TL.removeByTLID m3.deletedToplevels tls }
-        in
-        processAutocompleteMods m4 [ ACRegenerate ]
-
-      UpdateDeletedToplevels dtls ->
-        let m2 = { m | deletedToplevels =
-                         TL.upsertAllByTLID m.deletedToplevels dtls
-                     , toplevels = TL.removeByTLID m.toplevels dtls
-                 }
-        in
-        processAutocompleteMods m2 [ ACRegenerate ]
-
-      SetDeletedToplevels dtls ->
-        let m2 = { m | deletedToplevels = dtls
-                     , toplevels = TL.removeByTLID m.toplevels dtls
-                 }
-        in
-        processAutocompleteMods m2 [ ACRegenerate ]
-
-
-      RequestAnalysis tls ->
-        let handlers = TL.handlers tls
-            dbs = TL.dbs tls
-            userFns = m.userFunctions
-
-            req h =
-              let trace = Analysis.getCurrentTrace m h.tlid
-                  param t =
-                    JSE.object [ ( "handler" , RPC.encodeHandler h)
-                               , ( "trace" , RPC.encodeTrace t)
-                               , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
-                               , ( "user_fns"
-                                 , JSON.encodeList RPC.encodeUserFunction userFns)
-                               ]
               in
-              trace
-              |> Maybe.map
-                   (\t -> requestAnalysis (param t))
-              |> ME.toList
+              if hasNonHandlers
+              then
+                (m , RPC.rpc m focus params)
+              else
+                let localM =
+                      List.foldl (\call m_ ->
+                        case call of
+                          SetHandler tlid pos h ->
+                            TL.upsert m_
+                              { id = tlid
+                              , pos = pos
+                              , data = TLHandler h
+                              }
+                          SetFunction f ->
+                            Functions.upsert m_ f
+                          _ -> m_) m params.ops
+
+                    (withFocus, wfCmd) =
+                      updateMod (Many [ AutocompleteMod ACReset
+                                      , processFocus localM focus
+                                      ])
+                                (localM, Cmd.none)
+                 in
+                 (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus FocusNoChange params])
 
         in
-        (m, Cmd.batch
-              (handlers
-                 |> List.map req
-                 |> List.concat))
+        case mod of
+          DisplayError e ->
+            ( { m | error =
+                            { message = Just e
+                            , showDetails = True }
+              }
+            , Cmd.none)
+          DisplayAndReportError e ->
+            let json = JSE.object [ ("message", JSE.string e)
+                                  , ("url", JSE.null)
+                                  , ("custom", JSE.object [])
+                                  ]
+            in
+            ( { m | error =
+                            { message = Just e
+                            , showDetails = True }
+              }
+            , sendRollbar json)
+          DisplayAndReportHttpError context e ->
+            let response =
+                  case e of
+                    Http.BadStatus r -> Just r
+                    Http.BadPayload _ r -> Just r
+                    _ -> Nothing
+                msg =
+                  case e of
+                    Http.BadUrl str  -> "Bad url: " ++ str
+                    Http.Timeout -> "Timeout"
+                    Http.NetworkError -> "Network error - is the server running?"
+                    Http.BadStatus response_ -> "Bad status: " ++ response_.status.message
+                    Http.BadPayload msg_ _ -> "Bad payload (" ++context ++ "): " ++ msg_
+                url =
+                  case e of
+                    Http.BadUrl str  -> Just str
+                    Http.Timeout -> Nothing
+                    Http.NetworkError -> Nothing
+                    Http.BadStatus response_ -> Just response_.url
+                    Http.BadPayload _ response_ -> Just response_.url
+                shouldRollbar = e /= Http.NetworkError
+                json = JSE.object [ ("message"
+                                    , JSE.string
+                                        (msg ++ " (" ++ context ++ ")"))
+                                  , ("url", JSEE.maybe JSE.string url)
+                                  , ("custom", JSON.encodeHttpError e)
+                                  ]
+                cmds = if shouldRollbar then [sendRollbar json] else []
+            in
+            ( { m | error =
+                            { message = Just msg
+                            , showDetails = True }
+              }
+            , Cmd.batch cmds)
 
-      UpdateAnalysis id analysis ->
-        let m2 = { m | analyses = Analysis.record m.analyses id analysis } in
-        processAutocompleteMods m2 [ ACRegenerate ]
+          ClearError ->
+            ( { m | error =
+                            { message = Nothing
+                            , showDetails = False }
+              }
+            , Cmd.none)
 
-      UpdateTraces traces ->
-        let m2 = { m | traces = traces } in
-        processAutocompleteMods m2 [ ACRegenerate ]
+          RPC (ops, focus) ->
+            handleRPC (RPC.opsParams ops) focus
+          RPCFull (params, focus) ->
+            handleRPC params focus
 
-      UpdateTraceFunctionResult tlid traceID callerID fnName hash dval ->
-        let m2 =
-              Analysis.replaceFunctionResult m tlid traceID callerID fnName hash dval
-        in
-        processAutocompleteMods m2 [ ACRegenerate ]
+          GetAnalysisRPC ->
+            Sync.fetch m
 
-      SetUserFunctions userFuncs updateCurrent ->
-        let m2 = { m | userFunctions = userFuncs }
-            -- Bring back the TL being edited, so we don't lose work
-            -- done since the API call.
-            m3 = case tlidOf m.cursorState of
-                   Just tlid ->
-                     if updateCurrent
-                     then m2
-                     else
-                       let tl = TL.getTL m tlid in
-                       case tl.data of
-                         TLFunc f -> Functions.upsert m2 f
-                         TLDB _ -> m2
-                         TLHandler _ -> m2
-                   Nothing ->
-                     m2
-        in
-        processAutocompleteMods m3 [ ACRegenerate ]
+          NoChange -> (m, Cmd.none)
+          TriggerIntegrationTest name ->
+            let expect = IntegrationTest.trigger name in
+            ({ m | integrationTestState = expect }, Cmd.none)
+          EndIntegrationTest ->
+            let expectationFn =
+                  case m.integrationTestState of
+                    IntegrationTestExpectation fn -> fn
+                    IntegrationTestFinished _ ->
+                      impossible "Attempted to end integration test but one ran + was already finished"
+                    NoIntegrationTest ->
+                      impossible "Attempted to end integration test but none was running"
+                result = expectationFn m
+            in
+            ({ m | integrationTestState = IntegrationTestFinished result }, Cmd.none)
 
-      SetUnlockedDBs unlockedDBs ->
-        ({ m | unlockedDBs = unlockedDBs }, Cmd.none)
+          MakeCmd cmd_ -> (m, cmd_)
 
-      Set404s f404s ->
-        ({ m | f404s = f404s }, Cmd.none)
+          SetCursorState cursorState ->
+            let newM = { m | cursorState = cursorState } in
+            (newM, Entry.focusEntry newM)
 
-      SetHover p ->
-        let nhovering = (p :: m.hovering) in
-        ({ m | hovering = nhovering }, Cmd.none)
-      ClearHover p ->
-        let nhovering = List.filter (\m -> m /= p) m.hovering in
-        ({ m | hovering = nhovering }, Cmd.none)
-      SetCursor tlid cur ->
-        let m2 = Analysis.setCursor m tlid cur in
-        (m2, Cmd.none)
-      CopyToClipboard clipboard ->
-        ({ m | clipboard = clipboard }, Cmd.none)
-      Drag tlid offset hasMoved state ->
-        ({ m | cursorState = Dragging tlid offset hasMoved state }, Cmd.none)
-      ExecutingFunctionBegan tlid id ->
-        let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
-        ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
+          SetPage page ->
+            if m.currentPage == page
+            then (m, Cmd.none)
+            else
+              let canvas = m.canvas
+              in case (page, m.currentPage) of
+                (Toplevels pos2, Toplevels _) ->
+                  -- scrolling
+                  ({ m |
+                    currentPage = page
+                    , urlState = UrlState pos2
+                    , canvas = { canvas | offset = pos2 }
+                    }, Cmd.none)
+                (Fn _ pos2, _) ->
+                  ({ m |
+                    currentPage = page
+                    , cursorState = Deselected
+                    , urlState = UrlState pos2
+                    , canvas = { canvas | fnOffset = pos2 }
+                    }, Cmd.none)
+                _ ->
+                  let newM =
+                        { m |
+                          currentPage = page
+                          , cursorState = Deselected
+                        }
+                  in (newM, Cmd.batch (closeBlanks newM))
 
-      ExecutingFunctionRPC tlid id name ->
-        case Analysis.getCurrentTrace m tlid of
-          Just trace ->
-            case Analysis.getArguments m tlid trace.id id of
-              Just args ->
-                let params = { tlid = tlid
-                             , callerID = id
-                             , traceID = trace.id
-                             , fnName = name
-                             , args = args
-                             }
-                in
-                (m, RPC.executeFunctionRPC params)
+          SetCenter center ->
+            case m.currentPage of
+              Toplevels pos ->
+                ({ m | currentPage = Toplevels center }, Cmd.none)
+              Fn id pos ->
+                ({ m | currentPage = Fn id center }, Cmd.none)
+
+
+          Select tlid p ->
+            let newM = { m | cursorState = Selecting tlid p } in
+            (newM , Cmd.batch (closeBlanks newM))
+
+          Deselect ->
+            let newM = { m | cursorState = Deselected }
+            in (newM, Cmd.batch (closeBlanks newM))
+
+          Enter entry ->
+            let target =
+                  case entry of
+                    Creating _ -> Nothing
+                    Filling tlid id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Just (tlid, pd)
+
+                (m2, acCmd) =
+                  processAutocompleteMods m [ ACSetTarget target ]
+                m3 = { m2 | cursorState = Entering entry }
+            in
+            (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
+
+          SelectCommand tlid id ->
+            let m2 = { m | cursorState = SelectingCommand tlid id }
+                (m3, acCmd) = processAutocompleteMods m2
+                                [ ACEnableCommandMode
+                                , ACRegenerate ]
+            in
+            (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
+
+
+          SetGlobalVariables globals ->
+            let m2 = { m | globals = globals } in
+            processAutocompleteMods m2 [ ACRegenerate ]
+
+          RemoveToplevel tl ->
+            (Toplevel.remove m tl, Cmd.none)
+
+          SetToplevels tls updateCurrent ->
+            let m2 = { m | toplevels = tls }
+                -- Bring back the TL being edited, so we don't lose work
+                -- done since the API call.
+                m3 = case tlidOf m.cursorState of
+                       Just tlid ->
+                         if updateCurrent
+                         then m2
+                         else
+                           let tl = TL.getTL m tlid in
+                           case tl.data of
+                             TLDB _ -> TL.upsert m2 tl
+                             TLHandler _ -> TL.upsert m2 tl
+                             TLFunc f -> m2
+                       Nothing ->
+                         m2
+                m4 = { m3 | deletedToplevels =
+                              TL.removeByTLID m3.deletedToplevels tls }
+            in
+            processAutocompleteMods m4 [ ACRegenerate ]
+
+          UpdateToplevels tls updateCurrent ->
+            let m2 = TL.upsertAll m tls
+                -- Bring back the TL being edited, so we don't lose work
+                -- done since the API call.
+                m3 = case tlidOf m.cursorState of
+                       Just tlid ->
+                         if updateCurrent
+                         then m2
+                         else
+                           let tl = TL.getTL m tlid in
+                           case tl.data of
+                             TLDB _ -> TL.upsert m2 tl
+                             TLHandler _ -> TL.upsert m2 tl
+                             TLFunc f -> m2
+                       Nothing ->
+                         m2
+                m4 = { m3 | deletedToplevels =
+                              TL.removeByTLID m3.deletedToplevels tls }
+            in
+            processAutocompleteMods m4 [ ACRegenerate ]
+
+          UpdateDeletedToplevels dtls ->
+            let m2 = { m | deletedToplevels =
+                             TL.upsertAllByTLID m.deletedToplevels dtls
+                         , toplevels = TL.removeByTLID m.toplevels dtls
+                     }
+            in
+            processAutocompleteMods m2 [ ACRegenerate ]
+
+          SetDeletedToplevels dtls ->
+            let m2 = { m | deletedToplevels = dtls
+                         , toplevels = TL.removeByTLID m.toplevels dtls
+                     }
+            in
+            processAutocompleteMods m2 [ ACRegenerate ]
+
+
+          RequestAnalysis tls ->
+            let handlers = TL.handlers tls
+                dbs = TL.dbs tls
+                userFns = m.userFunctions
+
+                req h =
+                  let trace = Analysis.getCurrentTrace m h.tlid
+                      param t =
+                        JSE.object [ ( "handler" , RPC.encodeHandler h)
+                                   , ( "trace" , RPC.encodeTrace t)
+                                   , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
+                                   , ( "user_fns"
+                                     , JSON.encodeList RPC.encodeUserFunction userFns)
+                                   ]
+                  in
+                  trace
+                  |> Maybe.map
+                       (\t -> requestAnalysis (param t))
+                  |> ME.toList
+
+            in
+            (m, Cmd.batch
+                  (handlers
+                     |> List.map req
+                     |> List.concat))
+
+          UpdateAnalysis id analysis ->
+            let m2 = { m | analyses = Analysis.record m.analyses id analysis } in
+            processAutocompleteMods m2 [ ACRegenerate ]
+
+          UpdateTraces traces ->
+            let m2 = { m | traces = traces } in
+            processAutocompleteMods m2 [ ACRegenerate ]
+
+          UpdateTraceFunctionResult tlid traceID callerID fnName hash dval ->
+            let m2 =
+                  Analysis.replaceFunctionResult m tlid traceID callerID fnName hash dval
+            in
+            processAutocompleteMods m2 [ ACRegenerate ]
+
+          SetUserFunctions userFuncs updateCurrent ->
+            let m2 = { m | userFunctions = userFuncs }
+                -- Bring back the TL being edited, so we don't lose work
+                -- done since the API call.
+                m3 = case tlidOf m.cursorState of
+                       Just tlid ->
+                         if updateCurrent
+                         then m2
+                         else
+                           let tl = TL.getTL m tlid in
+                           case tl.data of
+                             TLFunc f -> Functions.upsert m2 f
+                             TLDB _ -> m2
+                             TLHandler _ -> m2
+                       Nothing ->
+                         m2
+            in
+            processAutocompleteMods m3 [ ACRegenerate ]
+
+          SetUnlockedDBs unlockedDBs ->
+            ({ m | unlockedDBs = unlockedDBs }, Cmd.none)
+
+          Set404s f404s ->
+            ({ m | f404s = f404s }, Cmd.none)
+
+          SetHover p ->
+            let nhovering = (p :: m.hovering) in
+            ({ m | hovering = nhovering }, Cmd.none)
+          ClearHover p ->
+            let nhovering = List.filter (\m_ -> m_ /= p) m.hovering in
+            ({ m | hovering = nhovering }, Cmd.none)
+          SetCursor tlid cur ->
+            let m2 = Analysis.setCursor m tlid cur in
+            (m2, Cmd.none)
+          CopyToClipboard clipboard ->
+            ({ m | clipboard = clipboard }, Cmd.none)
+          Drag tlid offset hasMoved state ->
+            ({ m | cursorState = Dragging tlid offset hasMoved state }, Cmd.none)
+          ExecutingFunctionBegan tlid id ->
+            let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
+            ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
+
+          ExecutingFunctionRPC tlid id name ->
+            case Analysis.getCurrentTrace m tlid of
+              Just trace ->
+                case Analysis.getArguments m tlid trace.id id of
+                  Just args ->
+                    let params = { tlid = tlid
+                                 , callerID = id
+                                 , traceID = trace.id
+                                 , fnName = name
+                                 , args = args
+                                 }
+                    in
+                    (m, RPC.executeFunctionRPC params)
+                  Nothing ->
+                    (m, sendTask (ExecuteFunctionCancel tlid id))
               Nothing ->
-                m ! [sendTask (ExecuteFunctionCancel tlid id)]
-          Nothing ->
-            m ! [sendTask (ExecuteFunctionCancel tlid id)]
+                (m, sendTask (ExecuteFunctionCancel tlid id))
 
-      ExecutingFunctionComplete targets ->
-        let isComplete target = not <| List.member target targets
-            nexecutingFunctions = List.filter isComplete m.executingFunctions in
-        ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
-      SetLockedHandlers locked ->
-        ({ m | lockedHandlers = locked }, Cmd.none)
-      MoveCanvasTo canvas page pos ->
-        let canvas2 =
-          case page of
-            Toplevels _ -> { canvas | offset = pos }
-            Fn _ _ -> { canvas | fnOffset = pos }
-        in ({ m | canvas = canvas2 }, Cmd.none)
-      TweakModel fn ->
-        (fn m, Cmd.none)
-      AutocompleteMod mod ->
-        processAutocompleteMods m [mod]
-      -- applied from left to right
-      Many mods -> List.foldl updateMod (m, Cmd.none) mods
+          ExecutingFunctionComplete targets ->
+            let isComplete target = not <| List.member target targets
+                nexecutingFunctions = List.filter isComplete m.executingFunctions in
+            ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
+          SetLockedHandlers locked ->
+            ({ m | lockedHandlers = locked }, Cmd.none)
+          MoveCanvasTo canvas page pos ->
+            let canvas2 =
+                  case page of
+                    Toplevels _ -> { canvas | offset = pos }
+                    Fn _ _ -> { canvas | fnOffset = pos }
+            in ({ m | canvas = canvas2 }, Cmd.none)
+          TweakModel fn ->
+            (fn m, Cmd.none)
+          AutocompleteMod mod_ ->
+            processAutocompleteMods m [mod_]
+          -- applied from left to right
+          Many mods -> List.foldl updateMod (m, Cmd.none) mods
 
   in
     (newm, Cmd.batch [cmd, newcmd])
@@ -1493,46 +1490,46 @@ update_ msg m =
     -- RPCs stuff
     -----------------
     RPCCallback focus calls
-      (Ok ( newToplevels
-          , newDeletedToplevels
+      (Ok { toplevels
+          , deletedToplevels
           , newTraces
           , globals
           , userFuncs
-          , unlockedDBs)) ->
+          , unlockedDBs }) ->
       if focus == FocusNoChange
       then
-        Many [ UpdateToplevels newToplevels False
-             , UpdateDeletedToplevels newDeletedToplevels
+        Many [ UpdateToplevels toplevels False
+             , UpdateDeletedToplevels deletedToplevels
              , UpdateTraces newTraces
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
-             , RequestAnalysis newToplevels
+             , RequestAnalysis toplevels
              , MakeCmd (Entry.focusEntry m)
              ]
       else
-        let m2 = TL.upsertAll m newToplevels
+        let m2 = TL.upsertAll m toplevels
             m3 = { m2 | userFunctions = userFuncs }
             newState = processFocus m3 focus
-        in Many [ UpdateToplevels newToplevels True
-                , UpdateDeletedToplevels newDeletedToplevels
+        in Many [ UpdateToplevels toplevels True
+                , UpdateDeletedToplevels deletedToplevels
                 , UpdateTraces newTraces
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
-                , RequestAnalysis newToplevels
+                , RequestAnalysis toplevels
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
                 ]
 
     InitialLoadRPCCallback focus extraMod
-      (Ok ( toplevels
+      (Ok { toplevels
           , deletedToplevels
           , newTraces
           , globals
           , userFuncs
-          , unlockedDBs)) ->
+          , unlockedDBs}) ->
       let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
@@ -1562,7 +1559,7 @@ update_ msg m =
            ]
 
 
-    GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
+    GetAnalysisRPCCallback (Ok {newTraces, globals, f404s, unlockedDBs}) ->
       Many [ TweakModel Sync.markResponseInModel
            , UpdateTraces newTraces
            , SetGlobalVariables globals
@@ -1575,7 +1572,7 @@ update_ msg m =
       let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
       case envelope of
         Ok (id, analysisResults) -> UpdateAnalysis id analysisResults
-        Err str -> DisplayError str
+        Err str -> DisplayError (Debug.toString str)
 
     ------------------------
     -- plumbing
@@ -1584,7 +1581,7 @@ update_ msg m =
       DisplayAndReportHttpError "RPC" err
 
     SaveTestRPCCallback (Err err) ->
-      DisplayError <| "Error: " ++ toString err
+      DisplayError <| "Error: " ++ Debug.toString err
 
     ExecuteFunctionRPCCallback _ (Err err) ->
       DisplayAndReportHttpError "ExecuteFunction" err
@@ -1613,14 +1610,14 @@ update_ msg m =
       NoChange
 
     LocationChange loc ->
-      Url.changeLocation m loc
+      DarkUrl.changeLocation m loc
 
     TimerFire action time  ->
       case action of
         RefreshAnalysis ->
           GetAnalysisRPC
         CheckUrlHashPosition ->
-          Url.maybeUpdateScrollUrl m
+          DarkUrl.maybeUpdateScrollUrl m
 
     Initialization ->
       NoChange
@@ -1660,7 +1657,7 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
       in
           Many ([RPC ([SetFunction ufun], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn ufun.tlid Defaults.centerPos))
+                , MakeCmd (DarkUrl.navigateTo m.navKey (Fn ufun.tlid Defaults.centerPos))
                 ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m
@@ -1671,7 +1668,15 @@ update_ msg m =
 
     ShowErrorDetails show ->
       let e = m.error
-      in TweakModel (\m -> {m | error = { e | showDetails = show } } )
+      in TweakModel (\m_ -> {m_ | error = { e | showDetails = show } } )
+
+    LinkClicked urlRequest ->
+      case urlRequest of
+        Browser.Internal url ->
+          MakeCmd ( Navigation.pushUrl m.navKey (Url.toString url) )
+
+        Browser.External href ->
+          MakeCmd ( Navigation.load href )
 
     _ -> NoChange
 
@@ -1700,26 +1705,29 @@ toggleTimers m =
 subscriptions : Model -> Sub Msg
 subscriptions m =
   let keySubs =
-        [onWindow "keydown"
-           (JSD.map GlobalKeyPress DarkKeyboard.decodeDarkKeyboardEvent)]
-      resizes = [Window.resizes (\{height,width} ->
-                                    WindowResize height width)]
+        [Browser.Events.onKeyDown (JSD.map GlobalKeyPress DarkKeyboard.decodeDarkKeyboardEvent)]
+      resizes = [ Browser.Events.onResize WindowResize ]
       dragSubs =
         case m.cursorState of
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging id offset _ _ ->
-            [ Mouse.moves (DragToplevel id)]
+            [ Browser.Events.onMouseMove
+                (JSD.map2
+                  (\x y -> (DragToplevel id (MousePosition x y)))
+                  (JSD.field "pageX" JSD.int)
+                  (JSD.field "pageY" JSD.int))
+            ]
           _ -> []
 
       syncTimer =
         case m.visibility of
-          PageVisibility.Hidden -> []
-          PageVisibility.Visible ->
-            [ Time.every Time.second (TimerFire RefreshAnalysis) ]
+          Browser.Events.Hidden -> []
+          Browser.Events.Visible ->
+            [ Time.every 1000 (TimerFire RefreshAnalysis) ]
 
       urlTimer =
-        [Time.every Time.second (TimerFire CheckUrlHashPosition)]
+        [Time.every 1000 (TimerFire CheckUrlHashPosition)]
 
       timers = if m.timersEnabled
                then syncTimer ++ urlTimer
@@ -1729,9 +1737,9 @@ subscriptions m =
       onError = [displayError JSError]
 
       visibility =
-        [ PageVisibility.visibilityChanges PageVisibilityChange
-        , onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))
-        , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
+        [ Browser.Events.onVisibilityChange PageVisibilityChange
+        , Browser.Events.onVisibilityChange PageFocusChange
+        ]
 
       mousewheelSubs = [mousewheel MouseWheel]
 

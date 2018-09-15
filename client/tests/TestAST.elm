@@ -5,7 +5,6 @@ import Test exposing (describe)
 import Expect exposing (Expectation)
 
 -- builtins
-import Nineteen.Debug as Debug
 
 -- libs
 

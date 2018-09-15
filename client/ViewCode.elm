@@ -11,8 +11,6 @@ import Maybe.Extra as ME
 import Svg
 import VirtualDom
 import Svg.Attributes as SA
-import Nineteen.Debug as Debug
-import Nineteen.String as String
 
 -- dark
 import Types exposing (..)
@@ -144,11 +142,10 @@ viewRopArrow vs =
                ]
       svg =
         Svg.svg
-          [ Attrs.style [ ("position", "absolute")
-                        , ("pointer-events", "none") -- don't eat clicks
-                        , ("margin-top", "-10px")
-                        , ("fill", "none")
-                        ]
+          [ Attrs.style "position" "absolute"
+          , Attrs.style "pointer-events" "none" -- don't eat clicks
+          , Attrs.style "margin-top" "-10px"
+          , Attrs.style "fill" "none"
           ]
           [line, head]
   in

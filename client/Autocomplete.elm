@@ -2,8 +2,7 @@ module Autocomplete exposing (..)
 
 -- builtin
 import Dict
--- import Json.Decode as JSD
-import Dom.Scroll
+import Browser.Dom as Dom
 import Task
 import Set
 
@@ -37,8 +36,12 @@ height i = if i < 4
            then 0
            else 14 * (i - 4)
 
+-- TODO: check that this works?
 focusItem : Int -> Cmd Msg
-focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
+focusItem i = let id = "autocomplete-holder"
+                  offset = i |> height |> toFloat in
+            Dom.getViewportOf id
+            |> Task.andThen (\el -> Dom.setViewportOf id el.viewport.x (el.viewport.y + offset))
             |> Task.attempt FocusAutocompleteItem
 
 
@@ -179,7 +182,7 @@ numCompletions a =
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = numCompletions a
                    max = Basics.max max_ 1
-                   new = (a.index + 1) % max
+                   new = modBy (a.index + 1) max
                in
                  { a | index = new }
 

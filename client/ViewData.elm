@@ -14,7 +14,6 @@ import Prelude exposing (..)
 import ViewUtils exposing (..)
 import Analysis
 import Runtime as RT
--- import Util
 
 viewInput : TLID -> Int -> String -> Bool -> Bool -> Tipe -> Html.Html Msg
 viewInput tlid idx value isActive isHover tipe =

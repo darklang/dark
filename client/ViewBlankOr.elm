@@ -8,7 +8,6 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
-import Nineteen.String as String
 
 -- dark
 import Types exposing (..)
@@ -21,7 +20,7 @@ import Runtime as RT
 import Blank as B
 import Runtime
 import Toplevel
-import Url
+import DarkUrl as Url
 import ViewEntry
 import ViewUtils exposing (..)
 import Defaults
@@ -353,7 +352,7 @@ viewEditFn tlid hasFlagAlso =
   in
   Html.a
     [ Attrs.class "edit-fn"
-    , Attrs.style [("right", rightOffset)]
+    , Attrs.style "right" rightOffset
     , Attrs.href (Url.urlFor (Fn tlid Defaults.centerPos))
     ]
     [ fontAwesome "edit"]

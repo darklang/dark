@@ -1,15 +1,15 @@
-module Url exposing (..)
+module DarkUrl exposing (..)
 
 -- builtin
 import Dict
 import List
 import String
-import Nineteen.String as String
 
 -- lib
+import Browser.Navigation as Navigation
 import Html
 import Html.Attributes as Attrs
-import Navigation
+import Url
 
 -- dark
 import Types exposing (..)
@@ -39,16 +39,16 @@ urlFor : Page -> String
 urlFor page =
   let pos =
         (case page of
-          Toplevels pos -> pos
-          Fn _ pos -> pos)
+          Toplevels pos_ -> pos_
+          Fn _ pos_ -> pos_)
         |> Viewport.toCenteredOn
   in
   urlOf page pos
 
 
-navigateTo : Page -> Cmd Msg
-navigateTo page =
-  Navigation.newUrl (urlFor page)
+navigateTo : Navigation.Key -> Page -> Cmd Msg
+navigateTo navKey page =
+  Navigation.pushUrl navKey (urlFor page)
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
@@ -72,14 +72,15 @@ maybeUpdateScrollUrl m =
   then
     Many
       [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
-      , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
+      , MakeCmd (Navigation.replaceUrl m.navKey (urlOf m.currentPage pos))
       ]
   else NoChange
 
 
-parseLocation : Model -> Navigation.Location -> Maybe Page
+parseLocation : Model -> Url.Url -> Maybe Page
 parseLocation m loc =
-  let unstructured = loc.hash
+  let unstructured = loc.fragment
+                   |> Maybe.withDefault "#"
                    |> String.dropLeft 1 -- remove "#"
                    |> String.split "&"
                    |> List.map (String.split "=")
@@ -93,14 +94,14 @@ parseLocation m loc =
         case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
           (Just x, Just y) ->
             case (String.toInt x, String.toInt y) of
-              (Ok x, Ok y) -> Just { x = x, y = y }
+              (Just x_, Just y_) -> Just { x = x_, y = y_ }
               _  -> Nothing
           _ -> Nothing
       editedFn =
         case (Dict.get "fn" unstructured) of
           Just sid ->
             case String.toInt sid of
-              Ok id ->
+              Just id ->
                 Just <|
                   Fn (TLID id)
                      (Maybe.withDefault Defaults.centerPos center)
@@ -113,7 +114,7 @@ parseLocation m loc =
     _ -> Nothing
 
 
-changeLocation : Model -> Navigation.Location -> Modification
+changeLocation : Model -> Url.Url -> Modification
 changeLocation m loc =
   let mPage = parseLocation m loc in
   case mPage of

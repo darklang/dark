@@ -179,7 +179,7 @@ encodeOps ops =
                              |> List.map TLSavepoint
             in savepoints ++ ops_)
   |> List.map encodeOp
-  |> JSE.list
+  |> JSE.list identity
 
 encodeSpec : HandlerSpec -> JSE.Value
 encodeSpec spec =
@@ -218,9 +218,9 @@ encodeDB db =
   in
   JSE.object [ ("tlid", encodeTLID db.tlid)
              , ("name", JSE.string db.name)
-             , ("cols", JSE.list (List.map encodeCol db.cols))
+             , ("cols", JSE.list encodeCol db.cols)
              , ("version", JSE.int db.version)
-             , ("old_migrations", JSE.list (List.map encodeDBMigration db.oldMigrations))
+             , ("old_migrations", JSE.list encodeDBMigration db.oldMigrations)
              , ("active_migration", Maybe.map encodeDBMigration db.activeMigration
                                     |> Maybe.withDefault JSE.null)
              ]
@@ -301,7 +301,7 @@ encodeUserFunctionMetadata : UserFunctionMetadata -> JSE.Value
 encodeUserFunctionMetadata f =
   JSE.object
   [("name", encodeBlankOr JSE.string f.name)
-  ,("parameters", JSE.list (List.map encodeUserFunctionParameter f.parameters))
+  ,("parameters", JSE.list encodeUserFunctionParameter f.parameters)
   ,("description", JSE.string f.description)
   ,("return_type", encodeBlankOr encodeTipe f.returnTipe)
   ,("infix", JSE.bool f.infix)
@@ -343,7 +343,7 @@ encodeUserFunctionParameter p =
   JSE.object
   [("name", encodeBlankOr JSE.string p.name)
   ,("tipe", encodeBlankOr encodeTipe p.tipe)
-  ,("block_args", JSE.list (List.map JSE.string p.block_args))
+  ,("block_args", JSE.list JSE.string p.block_args)
   ,("optional", JSE.bool p.optional)
   ,("description", JSE.string p.description)
   ]
@@ -362,10 +362,10 @@ encodeNExpr expr =
       if r == Rail
       then
         ev "FnCallSendToRail" [ JSE.string n
-                              , JSE.list (List.map e exprs)]
+                              , JSE.list  e exprs]
       else
         ev "FnCall" [ JSE.string n
-                    , JSE.list (List.map e exprs)]
+                    , JSE.list e exprs]
 
     Let lhs rhs body ->
       ev "Let" [ encodeBlankOr JSE.string lhs
@@ -373,7 +373,7 @@ encodeNExpr expr =
                , e body]
 
     Lambda vars body ->
-      ev "Lambda" [ List.map (encodeBlankOr JSE.string) vars |> JSE.list
+      ev "Lambda" [ JSE.list (encodeBlankOr JSE.string) vars
                   , e body]
 
     FieldAccess obj field ->
@@ -382,12 +382,12 @@ encodeNExpr expr =
     If cond then_ else_ -> ev "If" [e cond, e then_, e else_]
     Variable v -> ev "Variable" [ JSE.string v]
     Value v -> ev "Value" [ JSE.string v]
-    Thread exprs -> ev "Thread" [JSE.list (List.map e exprs)]
+    Thread exprs -> ev "Thread" [JSE.list e exprs]
     ObjectLiteral pairs ->
       let encoder = JSON.encodePair (encodeBlankOr JSE.string) e in
-      ev "ObjectLiteral" [(List.map encoder pairs) |> JSE.list ]
+      ev "ObjectLiteral" [JSE.list encoder pairs]
     ListLiteral elems ->
-      ev "ListLiteral" [JSE.list (List.map e elems)]
+      ev "ListLiteral" [JSE.list e elems]
     FeatureFlag msg cond a b ->
       ev "FeatureFlag" [encodeBlankOr JSE.string msg, e cond, e a, e b]
 
@@ -423,12 +423,7 @@ encodeNDarkType t =
     DTInt -> ev "Int" []
     DTObj ts ->
       ev "Obj"
-        [(JSE.list
-          (List.map
-            (encodePair
-              (encodeBlankOr JSE.string)
-              encodeDarkType)
-            ts))]
+        [(JSE.list (encodePair (encodeBlankOr JSE.string) encodeDarkType) ts)]
 
 encodeCursorState : CursorState -> JSE.Value
 encodeCursorState cs =
@@ -459,7 +454,7 @@ encodeSerializableEditor se =
     [ ("clipboard", JSEE.maybe encodePointerData se.clipboard)
     , ("timersEnabled", JSE.bool se.timersEnabled)
     , ("cursorState", encodeCursorState se.cursorState)
-    , ("lockedHandlers",  JSE.list (List.map (\id -> encodeTLID id) se.lockedHandlers))
+    , ("lockedHandlers", JSE.list (\id -> encodeTLID id) se.lockedHandlers)
     ]
 
 
@@ -467,7 +462,7 @@ decodeSerializableEditor : JSD.Decoder SerializableEditor
 decodeSerializableEditor =
   -- always make these optional so that we don't crash the page when we
   -- change the structure
-  JSDP.decode SerializableEditor
+  JSD.succeed SerializableEditor
   |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) Nothing
   |> JSDP.optional "timersEnabled" JSD.bool True
   |> JSDP.optional "cursorState" decodeCursorState Deselected
@@ -566,7 +561,7 @@ decodeAnalysisResults =
         , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
         }
   in
-  JSDP.decode toAResult
+  JSD.succeed toAResult
   |> JSDP.required "live_values" (JSD.dict decodeDval)
   |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
@@ -586,7 +581,7 @@ decodeHandlerSpec =
                   }
         }
   in
-  JSDP.decode toHS
+  JSD.succeed toHS
   |> JSDP.required "module" (decodeBlankOr JSD.string)
   |> JSDP.required "name" (decodeBlankOr JSD.string)
   |> JSDP.required "modifier" (decodeBlankOr JSD.string)
@@ -596,7 +591,7 @@ decodeHandlerSpec =
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
   let toHandler ast spec tlid = {ast = ast, spec = spec, tlid = tlid } in
-  JSDP.decode toHandler
+  JSD.succeed toHandler
   |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
   |> JSDP.required "tlid" decodeTLID
@@ -620,7 +615,7 @@ decodeDBMigration =
         , target = target
         }
   in
-  JSDP.decode toDBM
+  JSD.succeed toDBM
   |> JSDP.required "starting_version" JSD.int
   |> JSDP.required "kind" decodeDBMigrationKind
   |> JSDP.required "rollforward" decodeExpr
@@ -638,7 +633,7 @@ decodeDB =
         , activeMigration = active
         }
   in
-  JSDP.decode toDB
+  JSD.succeed toDB
   |> JSDP.required "tlid" JSD.int
   |> JSDP.required "name" JSD.string
   |> JSDP.required "cols" (JSD.list
@@ -661,7 +656,7 @@ decodeToplevel =
                   , ("DB", decodeVariant1 TLDB decodeDB) ]
 
   in
-  JSDP.decode toToplevel
+  JSD.succeed toToplevel
   |> JSDP.required "tlid" decodeTLID
   |> JSDP.requiredAt ["pos", "x"] JSD.int
   |> JSDP.requiredAt ["pos", "y"] JSD.int
@@ -709,7 +704,7 @@ decodeUserFunctionParameter =
         , description = desc
         }
   in
-      JSDP.decode toParam
+      JSD.succeed toParam
       |> JSDP.required "name" (decodeBlankOr JSD.string)
       |> JSDP.required "tipe" (decodeBlankOr decodeTipe)
       |> JSDP.required "block_args" (JSD.list JSD.string)
@@ -726,7 +721,7 @@ decodeUserFunctionMetadata =
         , infix = infix
         }
   in
-      JSDP.decode toFn
+      JSD.succeed toFn
       |> JSDP.required "name" (decodeBlankOr JSD.string)
       |> JSDP.required "parameters" (JSD.list decodeUserFunctionParameter)
       |> JSDP.required "description" JSD.string
@@ -741,7 +736,7 @@ decodeUserFunction =
         , ast = ast
         }
   in
-      JSDP.decode toUserFn
+      JSD.succeed toUserFn
       |> JSDP.required "tlid" decodeTLID
       |> JSDP.required "metadata" decodeUserFunctionMetadata
       |> JSDP.required "ast" decodeExpr
@@ -766,19 +761,18 @@ decodeInputValueDict =
 
 decodeFunctionResult : JSD.Decoder FunctionResult
 decodeFunctionResult =
-  let toFunctionResult (fnName, id, hash, value) =
+  let toFunctionResult fnName id hash value =
         { fnName = fnName
         , callerID = id
         , argHash = hash
         , value = value
         }
   in
-  JSD.map toFunctionResult
-    (JSON.decodeQuadriple
-      JSD.string
-      decodeID
-      JSD.string
-      decodeDval)
+  JSD.map4 toFunctionResult
+      (JSD.index 0 JSD.string)
+      (JSD.index 1 decodeID)
+      (JSD.index 2 JSD.string)
+      (JSD.index 3 decodeDval)
 
 decodeTraces : JSD.Decoder Traces
 decodeTraces =
@@ -790,7 +784,7 @@ decodeTrace =
   let toTrace id input functionResults =
         { id = id, input = input, functionResults = functionResults }
   in
-  JSDP.decode toTrace
+  JSD.succeed toTrace
   |> JSDP.required "id" JSD.string
   |> JSDP.required "input" decodeInputValueDict
   |> JSDP.required "function_results" (JSD.list decodeFunctionResult)
@@ -808,21 +802,21 @@ encodeTrace t =
 
 encodeFunctionResult : FunctionResult -> JSE.Value
 encodeFunctionResult fr =
-  JSE.list [ JSE.string fr.fnName
-           , encodeID fr.callerID
-           , JSE.string fr.argHash
-           , encodeDval fr.value
-           ]
+  JSE.list identity [ JSE.string fr.fnName
+                    , encodeID fr.callerID
+                    , JSE.string fr.argHash
+                    , encodeDval fr.value
+                    ]
 
 decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
 decodeExecuteFunctionTarget =
-  JSD.map2 (,)
+  JSD.map2 Tuple.pair
     (JSD.index 0 decodeTLID)
     (JSD.index 1 decodeID)
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,,,,,)
+  JSD.succeed RPCResult
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "new_traces" decodeTraces
@@ -832,7 +826,7 @@ decodeRPC =
 
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisResult
 decodeGetAnalysisRPC =
-  JSDP.decode (,,,)
+  JSD.succeed GetAnalysisResult
   |> JSDP.required "traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
@@ -843,7 +837,7 @@ decodeInitialLoadRPC = decodeRPC
 
 decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
 decodeExecuteFunctionRPC =
-  JSDP.decode (,)
+  JSD.succeed Tuple.pair
   |> JSDP.required "result" decodeDval
   |> JSDP.required "hash" JSD.string
 
@@ -959,7 +953,7 @@ encodeDval dv =
     DNull -> ev "DNull" []
     DStr s -> ev "DStr" [JSE.string s]
     DList l -> ev "DList" [encodeList encodeDval l]
-    DObj o -> ev "DObj" [JSEE.dict identity encodeDval o]
+    DObj o -> ev "DObj" [JSE.dict identity encodeDval o]
 
     -- opaque types
     DBlock -> ev "DBlock" []
@@ -981,6 +975,6 @@ encodeDval dv =
     DOption opt -> ev "DOption" [
       case opt of
         Nothing -> ev "Nothing" []
-        Just dv -> ev "Just" [encodeDval dv]
+        Just dv_ -> ev "Just" [encodeDval dv_]
       ]
-    DErrorRail dv -> ev "DErrorRail" [encodeDval dv]
+    DErrorRail dv_ -> ev "DErrorRail" [encodeDval dv_]

@@ -14,7 +14,6 @@ import AST
 import Blank as B
 import Analysis
 import Util
-import Nineteen.String as String
 
 generateFnName : () -> String
 generateFnName _ =
@@ -137,20 +136,20 @@ extractVariable m tl p =
                       && noVariablesAreRedefined)
               |> LE.last
             newVar = B.newF varname
-          in
-              case lastPlaceWithSameVarsAndValues of
-                Just p ->
-                  let nbody =
-                        AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
-                      nlet = B.newF (Let newVar e nbody)
-                  in
-                      (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
-                Nothing ->
-                  -- something weird is happening because we couldn't find anywhere to
-                  -- extract to, we can just wrap the entire AST in a Let
-                  let newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
-                  in
-                      (B.newF (Let newVar e newAST), B.toID newVar)
+        in
+            case lastPlaceWithSameVarsAndValues of
+              Just p_ ->
+                let nbody =
+                      AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p_
+                    nlet = B.newF (Let newVar e nbody)
+                in
+                    (AST.replace (PExpr p_) (PExpr nlet) ast, B.toID newVar)
+              Nothing ->
+                -- something weird is happening because we couldn't find anywhere to
+                -- extract to, we can just wrap the entire AST in a Let
+                let newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
+                in
+                    (B.newF (Let newVar e newAST), B.toID newVar)
   in
       case (p, tl.data) of
         (PExpr e, TLHandler h) ->

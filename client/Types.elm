@@ -3,14 +3,17 @@ module Types exposing (..)
 -- builtin
 import Dict exposing (Dict)
 import Http
-import Dom
-import Navigation
-import Mouse
-import Time exposing (Time)
-import PageVisibility
+import Browser
+import Browser.Dom as Dom
+import Browser.Navigation as Navigation
+import Url
+import Browser.Events
+import Json.Decode as JSD
+import Time
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
+
 
 type alias Exception =
   { short : String
@@ -118,18 +121,20 @@ type TimerAction = RefreshAnalysis
                  | CheckUrlHashPosition
 
 type alias GlobalVariable = String
-type alias RPCResult = ( List Toplevel
-                       , List Toplevel -- deleted
-                       , Traces
-                       , List GlobalVariable
-                       , List UserFunction
-                       , List TLID)
+type alias RPCResult = { toplevels: List Toplevel
+                       , deletedToplevels: List Toplevel -- deleted
+                       , newTraces: Traces
+                       , globals: List GlobalVariable
+                       , userFuncs: List UserFunction
+                       , unlockedDBs: List TLID
+                       }
 type alias DvalArgsHash = String
 type alias ExecuteFunctionRPCResult = (Dval, DvalArgsHash)
-type alias GetAnalysisResult = ( Traces
-                               , List GlobalVariable
-                               , List FourOhFour
-                               , List TLID)
+type alias GetAnalysisResult = { newTraces: Traces
+                               , globals: List GlobalVariable
+                               , f404s: List FourOhFour
+                               , unlockedDBs: List TLID
+                               }
 type alias InitialLoadResult = RPCResult
 type Msg
     = GlobalClick MouseEvent
@@ -139,7 +144,7 @@ type Msg
     -- but by the time we use it the proper node will be changed
     | ToplevelMouseUp TLID MouseEvent
     | ToplevelClick TLID MouseEvent
-    | DragToplevel TLID Mouse.Position
+    | DragToplevel TLID MousePosition
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress DarkKeyboardEvent
@@ -150,7 +155,7 @@ type Msg
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
     | InitialLoadRPCCallback Focus Modification (Result Http.Error InitialLoadResult)
-    | LocationChange Navigation.Location
+    | LocationChange Url.Url
     | AddRandom
     | FinishIntegrationTest
     | SaveTestButton
@@ -161,10 +166,10 @@ type Msg
     | Initialization
     | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
-    | TimerFire TimerAction Time
+    | TimerFire TimerAction Time.Posix
     | JSError String
-    | PageVisibilityChange PageVisibility.Visibility
-    | PageFocusChange PageVisibility.Visibility
+    | PageVisibilityChange Browser.Events.Visibility
+    | PageFocusChange Browser.Events.Visibility
     | StartFeatureFlag
     | EndFeatureFlag ID Pick
     | ToggleFeatureFlag ID Bool
@@ -187,6 +192,7 @@ type Msg
     | ReceiveAnalysis String
     | EnablePanning Bool
     | ShowErrorDetails Bool
+    | LinkClicked Browser.UrlRequest
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -526,7 +532,7 @@ type alias Model = { error : DarkError
                    , f404s : List FourOhFour
                    , unlockedDBs : List TLID
                    , integrationTestState : IntegrationTestState
-                   , visibility : PageVisibility.Visibility
+                   , visibility : Browser.Events.Visibility
                    , clipboard : Clipboard
                    , syncState : SyncState
                    , urlState : UrlState
@@ -539,7 +545,8 @@ type alias Model = { error : DarkError
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
-                   , canvas: CanvasProps
+                   , canvas : CanvasProps
+                   , navKey : Navigation.Key
                    }
 
 -- Values that we serialize
@@ -679,3 +686,12 @@ type alias FlagFunction = { name: String
                           , deprecated: Bool
                           , infix: Bool
                           }
+
+-----------------------------
+-- Types from 0.18
+-----------------------------
+
+type alias MousePosition =
+  { x : Int
+  , y : Int
+  }

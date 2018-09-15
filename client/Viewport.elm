@@ -18,7 +18,7 @@ pagePos page =
 
 toViewport : Model -> Pos -> VPos
 toViewport m pos =
-  let default = pagePos (Defaults.defaultModel |> .currentPage)
+  let default = pagePos (Defaults.defaultModel m.navKey |> .currentPage)
       center = pagePos m.currentPage
   in
   { vx = default.x + pos.x - center.x

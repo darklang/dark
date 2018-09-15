@@ -6,7 +6,8 @@ import Dict
 
 -- dark
 import Types exposing (..)
-import PageVisibility
+import Browser.Events
+import Browser.Navigation as Navigation
 
 
 entryID : String
@@ -56,9 +57,9 @@ defaultCanvas =
   , enablePan = True
   }
 
-defaultModel : Model
-defaultModel = { error = { message = Nothing
-                        , showDetails = False }
+defaultModel : Navigation.Key -> Model
+defaultModel navKey = { error = { message = Nothing
+                         , showDetails = False }
                , lastMsg = Initialization
                , lastMod = NoChange
                -- this is awkward, but avoids circular deps
@@ -85,7 +86,7 @@ defaultModel = { error = { message = Nothing
                , f404s = []
                , unlockedDBs = []
                , integrationTestState = NoIntegrationTest
-               , visibility = PageVisibility.Hidden
+               , visibility = Browser.Events.Hidden
                -- partially saved in editor
                , syncState = defaultSyncState
                , urlState = defaultUrlState
@@ -98,4 +99,5 @@ defaultModel = { error = { message = Nothing
                , featureFlags = Dict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
+               , navKey = navKey
                }

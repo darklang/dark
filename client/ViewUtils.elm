@@ -3,8 +3,6 @@ module ViewUtils exposing (..)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Nineteen.Debug as Debug
-import Nineteen.String as String
 
 -- lib
 import Html
@@ -112,17 +110,11 @@ fontAwesome name =
 
 eventNoPropagation : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
 eventNoPropagation event constructor =
-  Events.onWithOptions
-    event
-    { stopPropagation = True, preventDefault = False}
-    (decodeClickEvent constructor)
+  Events.stopPropagationOn event (JSD.map (\a -> (a, True)) (decodeClickEvent constructor))
 
 eventNoDefault : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
 eventNoDefault event constructor =
-  Events.onWithOptions
-    event
-    { stopPropagation = False, preventDefault = True}
-    (decodeClickEvent constructor)
+  Events.preventDefaultOn event (JSD.map (\a -> (a, True)) (decodeClickEvent constructor))
 
 
 
@@ -134,7 +126,7 @@ decodeClickEvent fn =
   let toA : Int -> Int -> Int -> a
       toA px py button =
         fn {pos= {vx=px, vy=py}, button = button}
-  in JSDP.decode toA
+  in JSD.succeed toA
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
@@ -145,7 +137,8 @@ placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
   in Html.div
     [ Attrs.class "node"
-    , Attrs.style [ ("left", (String.fromInt pos.x) ++ "px"), ("top", (String.fromInt pos.y) ++ "px") ]
+    , Attrs.style "left" ((String.fromInt pos.x) ++ "px")
+    , Attrs.style "top" ((String.fromInt pos.y) ++ "px")
     ]
     [ html ]
 
@@ -159,7 +152,7 @@ widthInCh : Int -> Html.Attribute Msg
 widthInCh w =
   w
   |> inCh
-  |> \w_ -> Attrs.style [("width", w_)]
+  |> \w_ -> Attrs.style "width" w_
 
 
 blankOrLength : BlankOr String -> Int

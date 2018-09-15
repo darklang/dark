@@ -6,13 +6,12 @@ module ViewScaffold exposing (..)
 import Html
 import Html.Attributes as Attrs
 import Json.Decode as JSD
-import Nineteen.Debug as Debug
 
 -- dark
 import Types exposing (..)
 import ViewUtils exposing (..)
 import JSON
-import Url
+import DarkUrl as Url
 
 
 
@@ -90,9 +89,9 @@ viewButtons m =
 viewError : DarkError -> Html.Html Msg
 viewError err =
   let viewException exc =
-    case exc.result of
-      Nothing -> [ Html.text exc.short ]
-      Just result -> [ Html.text result ]
+        case exc.result of
+          Nothing -> [ Html.text exc.short ]
+          Just result -> [ Html.text result ]
   in
     Html.div
     [ Attrs.classList

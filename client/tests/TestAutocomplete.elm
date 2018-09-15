@@ -8,7 +8,6 @@ import Expect exposing (Expectation)
 import Autocomplete exposing (..)
 import Types exposing (..)
 import Defaults
-import Nineteen.String as String
 import Blank as B
 import Prelude exposing (..)
 

@@ -1,7 +1,6 @@
 module Runtime exposing (..)
 
 -- stldib
--- import Json.Decode as JSD
 import Dict
 
 -- libs
@@ -9,9 +8,7 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
--- import Prelude exposing (..)
--- import Util
--- import JSON
+
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
@@ -190,8 +187,8 @@ toRepr_ oldIndent dv =
           |> \s -> "{" ++ inl ++ s ++ nl ++ " }"
   in
   case dv of
-    DInt i -> toString i
-    DFloat f -> toString f
+    DInt i -> String.fromInt i
+    DFloat f -> String.fromFloat f
     DStr s -> "\"" ++ s ++ "\""
     DBool True -> "true"
     DBool False -> "false"
@@ -210,7 +207,7 @@ toRepr_ oldIndent dv =
     DResp (Redirect url) dv_ -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
     DResp (Response code hs) dv_ ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
-      toString code ++ " " ++ headers ++ nl ++ toRepr dv_
+      Debug.toString code ++ " " ++ headers ++ nl ++ toRepr dv_
     DOption Nothing -> "Nothing"
     DOption (Just dv_) -> "Some " ++ (toRepr dv_)
     DErrorRail dv_ -> wrap (toRepr dv_)

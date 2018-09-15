@@ -6,7 +6,6 @@ module ViewDB exposing (viewDB)
 import Html
 import Html.Attributes as Attrs
 import Maybe.Extra as ME
-import Nineteen.String as String
 -- import List.Extra as LE
 
 -- dark
