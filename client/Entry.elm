@@ -204,7 +204,7 @@ replaceExpr m tlid ast old_ action value =
           _ ->
             ast
             |> AST.replace (PExpr old) (PExpr new)
-            |> AST.maybeExtendThreadAt (B.toID new)
+            |> AST.maybeExtendThreadAt (B.toID new) (B.new ())
             |> AST.maybeExtendListLiteralAt (PExpr new)
   in
   (newAst, new)
