@@ -1596,7 +1596,7 @@ update_ msg m =
            ]
 
     ExecuteFunctionCancel tlid id ->
-      Many [ DisplayError "No trace"
+      Many [ DisplayError "Traces are not loaded for this handler"
            , ExecutingFunctionComplete [(tlid, id)]
            ]
 
