@@ -20,6 +20,13 @@ let rec blank_to_option (bo: 'a or_blank) : 'a option =
   | Blank _ -> None
   | Filled (_, a) -> Some a
 
+let is_blank (bo : 'a or_blank) : bool =
+  match bo with
+  | Filled _ -> false
+  | Blank _ -> true
+
+
+
 (* -------------------- *)
 (* AST traversal *)
 (* -------------------- *)
@@ -400,6 +407,10 @@ let rec exec ~(engine: engine)
 
        (* TODO: this will error if the number of args and vars arent equal *)
        DBlock (fun args ->
+           let filled = List.filter ~f:(Fn.compose not is_blank) vars in
+           List.iter (List.zip_exn filled args)
+             ~f:(fun (var, dv) -> trace_blank var dv st);
+
            let varnames = List.filter_map ~f:blank_to_option vars in
            let bindings = Symtable.of_alist_exn (List.zip_exn varnames args) in
            let new_st = Util.merge_left bindings st in
