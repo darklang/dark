@@ -12,10 +12,6 @@ DARK_CLUSTER_NUM_NODES="4"
 DARK_CLUSTER_VERSION="1.10.7-gke.1"
 DARK_CLUSTER_CLOUDSQL_USER="postgres"
 DARK_CLUSTER_CLOUDSQL_PASS="6gCtEAKElJFpNCdw"
-# no defaults
-DARK_CLUSTER_TLS_CRT=""
-DARK_CLUSTER_TLS_KEY=""
-DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS=""
 
 HELP="$(cat <<EOF
 Usage: $0 REQUIRED_ARGS [OPTIONS]
@@ -31,11 +27,11 @@ Required arguments:
   --tls-key=...          A base64-encoded TLS .key file to use for the TLS-enabled ingress.
                          You can swipe creds from the current cluster with something like
                          the following:
-                         kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]'
+                           kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]'
   --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
                          instance. You can swipe creds from the current cluster with something
                          like the following:
-                           kubectl get secret cloudsql-instance-credentials -o json \
+                           kubectl get secret cloudsql-instance-credentials -o json \ 
                              | jq -r '.data["credentials.json"]'
 
 Options:
@@ -105,7 +101,7 @@ done
 
 if [ ! -v DARK_CLUSTER_TLS_KEY ] || [ ! -v DARK_CLUSTER_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
-  echo "$USAGE"
+  echo "$HELP"
   exit 1
 fi
 
