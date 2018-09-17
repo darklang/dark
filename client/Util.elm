@@ -165,3 +165,9 @@ transformFromStringEntry s =
            |> replace "\"" "\\\""
   in
   "\"" ++ s2 ++ "\""
+
+deMaybeString : Maybe String -> String
+deMaybeString ms =
+  case ms of
+    Just s -> s
+    Nothing -> ""
