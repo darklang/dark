@@ -737,3 +737,27 @@ test('sending_to_rail_works', async t => {
     .pressKey("alt+e")
 })
 
+test('execute_function_works', async t => {
+
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "Uuid::gen", slow)
+    .pressKey("enter")
+    .click(Selector('.fa-play'))
+    .click(Selector('.fncall').withText('Uuid::generate'))
+    ;
+
+  let v1 = await Selector('.computed-value-value').textContent;
+
+  await t
+    .click(Selector('.fa-redo'))
+    ;
+
+  let v2 = await Selector('.computed-value-value').textContent;
+
+  let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
+  await t.expect(v1).match(re);
+  await t.expect(v2).match(re);
+  await t.expect(v1).notEql(v2);
+})
