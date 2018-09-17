@@ -251,10 +251,9 @@ approxNWidth ne =
 isLocked: TLID -> Model -> Bool
 isLocked tlid m = List.member tlid m.lockedHandlers
 
-viewFuncName: FnName -> Html.Html Msg
-viewFuncName fnName =
-  let unVersioned = Html.text fnName
-      pattern = regex "(\\w+::)?(\\w+)_v(\\d+)"
+viewFnName: Html.Html Msg -> FnName -> Html.Html Msg
+viewFnName defaultView fnName =
+  let pattern = regex "(\\w+::)?(\\w+)_v(\\d+)"
       matches = Regex.find (Regex.AtMost 1) pattern fnName
   in
     case (List.head matches) of
@@ -271,6 +270,6 @@ viewFuncName fnName =
                   [ Attrs.class "versioned-function" ]
                   [ Html.span [Attrs.class "name"] [Html.text combinedName]
                   , Html.span [Attrs.class "version"] [Html.text v] ]
-              Nothing -> unVersioned
-          Nothing -> unVersioned
-      Nothing -> unVersioned
+              Nothing -> defaultView
+          Nothing -> defaultView
+      Nothing -> defaultView

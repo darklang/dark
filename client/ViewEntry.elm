@@ -100,7 +100,7 @@ normalEntryHtml placeholder ac =
                 , eventNoPropagation "click"
                     (\_ -> AutocompleteClick name)
                 ]
-                [ viewFuncName name
+                [ viewFnName (Html.text name) name
                 , Html.span
                     [Attrs.class "types"]
                     [Html.text <| Autocomplete.asTypeString item ]
