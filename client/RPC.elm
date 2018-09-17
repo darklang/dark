@@ -8,8 +8,9 @@ import Json.Decode.Pipeline as JSDP
 import Dict.Extra as DE
 import Json.Encode.Extra as JSEE
 import Dict
-
+import Result
 -- lib
+import Base64
 
 -- dark
 import Types exposing (..)
@@ -992,7 +993,7 @@ decodeDval =
     , ("DDate", dv1 DDate JSD.string)
     , ("DTitle", dv1 DTitle JSD.string)
     , ("DUrl", dv1 DUrl JSD.string)
-    , ("DPassword", dv1 DPassword JSD.string)
+    , ("DPassword", dv1 (Base64.decode >> Result.withDefault "<Internal error in base64 decoding>" >> DPassword) JSD.string)
     , ("DUuid", dv1 DUuid JSD.string)
     , ("DOption", dv1 DOption decodeOptionT)
     ]
@@ -1033,7 +1034,7 @@ encodeDval dv =
     DUrl url -> ev "DUrl" [JSE.string url]
     DTitle title -> ev "DTitle" [JSE.string title]
     DDate date -> ev "DDate" [JSE.string date]
-    DPassword hashed -> ev "DPassword" [JSE.string hashed]
+    DPassword hashed -> ev "DPassword" [JSE.string (Base64.encode hashed)]
     DUuid uuid -> ev "DUuid" [JSE.string uuid]
     DOption opt -> ev "DOption" [
       case opt of

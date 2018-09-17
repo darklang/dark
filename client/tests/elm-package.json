@@ -34,6 +34,7 @@
         "matthewsj/elm-ordering": "1.1.0 <= v < 1.1.1",
         "elm-lang/virtual-dom": "2.0.0 <= v < 3.0.0",
         "elm-tools/parser-primitives": "1.0.0 <= v < 2.0.0",
+        "truqu/elm-base64": "2.0.3 <= v < 2.0.4",
 
         "eeue56/elm-html-test": "5.0.1 <= v < 6.0.0",
         "elm-community/elm-test": "4.2.0 <= v < 5.0.0"
