@@ -91,13 +91,16 @@ normalEntryHtml placeholder ac =
                   hlClass = if highlighted then " highlighted" else ""
                   name = Autocomplete.asName item
               in Html.li
-                [ Attrs.class <| "autocomplete-item" ++ hlClass
+                [ Attrs.classList
+                  [ ("autocomplete-item", True)
+                  , ("highlighted", highlighted)
+                  ]
                 , nothingMouseEvent "mouseup"
                 , nothingMouseEvent "mousedown"
                 , eventNoPropagation "click"
                     (\_ -> AutocompleteClick name)
                 ]
-                [ Html.text name
+                [ viewFuncName name
                 , Html.span
                     [Attrs.class "types"]
                     [Html.text <| Autocomplete.asTypeString item ]
