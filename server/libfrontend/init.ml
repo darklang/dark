@@ -29,25 +29,42 @@ let our_tipe_of_yojson json =
 type our_col = string or_blank * our_tipe or_blank
              [@@deriving of_yojson]
 
+type our_db_migration = { starting_version: int
+                        ; version: int
+                        ; state: DbT.db_migration_state
+                        ; rollforward : expr
+                        ; rollback : expr
+                        ; cols: our_col list
+                        }
+                        [@@deriving of_yojson]
+
 type our_db = { tlid: tlid
               ; name: string
               ; cols: our_col list
               ; version: int
-              ; old_migrations : DbT.db_migration list
-              ; active_migration : DbT.db_migration option
+              ; old_migrations : our_db_migration list
+              ; active_migration : our_db_migration option
               } [@@deriving of_yojson]
 
 let convert_col ((name, tipe): our_col) : DbT.col =
   (name, tipe)
 
+let convert_migration (m: our_db_migration) : DbT.db_migration =
+  { starting_version = m.starting_version
+  ; version = m.version
+  ; state = m.state
+  ; rollforward = m.rollforward
+  ; rollback = m.rollback
+  ; cols = List.map ~f:convert_col m.cols
+  }
 
 let convert_db (db : our_db) : DbT.db =
   { tlid = db.tlid
   ; name = db.name
   ; cols = List.map ~f:convert_col db.cols
   ; version = db.version
-  ; old_migrations = db.old_migrations
-  ; active_migration = db.active_migration
+  ; old_migrations = List.map ~f:convert_migration db.old_migrations
+  ; active_migration = Option.map ~f:convert_migration db.active_migration
   }
 
 type analysis_param = { handler : HandlerT.handler
