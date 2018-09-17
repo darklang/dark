@@ -49,6 +49,9 @@ else
   if [[ -e "$HOME/.config/gcloud" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
   fi
+  # make sure this exists first, so it doesn't get created as a directory
+  touch "$HOME/.dark_bash_history"
+  MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
 fi
 
 # --------------
