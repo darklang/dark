@@ -237,12 +237,15 @@ viewNExpr d id vs config e =
             let withP name_ = if parens then "(" ++ name_ ++ ")" else name_ in
             case String.split "::" name of
               [mod, justname] ->
+                let np = withP justname in
                 n [wc "namegroup", atom]
                 [ t [wc "module"] mod
                 , t [wc "moduleseparator"] "::"
-                , t [wc "fnname"] (withP justname)
+                , viewFnName (t [wc "fnname"] np) np
                 ]
-              _ -> a [wc "fnname"] (withP name)
+              _ ->
+                let np = withP name in
+                viewFnName (a [wc "fnname"] np) np
           fn = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
                     |> Maybe.withDefault
