@@ -537,7 +537,9 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
             * this, give it a nice exception via RT.error.  *)
            Exception.reraise e)
       in
-      state.store_fn_result sfr_desc arglist result;
+      (* there's no point storing data we'll never ask for *)
+      if not fn.preview_execution_safe then
+        state.store_fn_result sfr_desc arglist result;
       result
 
 
