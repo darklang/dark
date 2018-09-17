@@ -350,27 +350,44 @@ delete m tlid mId =
             TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
 
 
+enterDB : Model -> DB -> Toplevel -> ID -> Modification
+enterDB m db tl id =
+  let isLocked = DB.isLocked m tl.id
+      isMigrationCol = DB.isMigrationCol db id
+      pd = TL.findExn tl id
+      enterField autocomplete =
+        if autocomplete
+        then
+          Many
+            [ Enter (Filling tl.id id)
+            , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
+        else
+          Enter (Filling tl.id id)
+      _ = Debug.log "enterDB pd" pd
+  in
+    case pd of
+      PDBColName d ->
+        if isLocked && not isMigrationCol
+        then NoChange
+        else enterField False
+      PDBColType d ->
+        if isLocked && not isMigrationCol
+        then NoChange
+        else enterField True
+      PExpr ex -> enterField True
+      -- TODO validate ex.id is in either rollback or rollforward function if there's a migration in progreess
+      _ -> NoChange
+
+
 enter : Model -> TLID -> ID -> Modification
 enter m tlid id =
   let tl = TL.getTL m tlid
-      pd = TL.findExn tl id
-  in
-  if TL.getChildrenOf tl pd /= []
-  then selectDownLevel m tlid (Just id)
-  else
-    let enterMods =
-          Many [ Enter (Filling tlid id)
-               , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-          ]
-    in
-    case pd of
-      PDBColName d ->
-        if DB.isLocked m tlid && not (B.isBlank d)
-        then NoChange
-        else enterMods
-      PDBColType d ->
-        if DB.isLocked m tlid && not (B.isBlank d)
-        then
-          DB.initFieldTypeMigration m tl d
-        else enterMods
-      _ -> enterMods
+  in case tl.data of
+    TLDB db -> enterDB m db tl id
+    _ ->
+      let pd = TL.findExn tl id
+      in if TL.getChildrenOf tl pd /= []
+      then selectDownLevel m tlid (Just id)
+      else Many
+            [ Enter (Filling tlid id)
+            , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]

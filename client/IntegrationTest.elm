@@ -409,13 +409,11 @@ rename_db_fields m =
       TLDB {name, cols} ->
         case cols of
           [ (F id "field6", F _ "String")
-           , (F _ "field2", F _ "String")
-           , (Blank _, Blank _)] ->
+          , (F _ "field2", F _ "String")
+          , (Blank _, Blank _)
+          ] ->
             case m.cursorState of
-              Selecting _ (Just sid) ->
-                if sid == id
-                then pass
-                else fail (cols, m.cursorState)
+              Selecting _ Nothing -> pass
               _ -> fail m.cursorState
           _ -> fail cols
       _ -> pass)
@@ -429,9 +427,9 @@ rename_db_type m =
     case tl.data of
       TLDB {name, cols} ->
         case cols of
-          [ (F id "field1", F _ "String")
-           , (F _ "field2", F _ "Int")
-           , (Blank _, Blank _)] ->
+          [ (F _ "field1", F id "String")
+          , (F _ "field2", F _ "Int")
+          , (Blank _, Blank _)] ->
             case m.cursorState of
               Selecting _ (Just sid) ->
                 if sid == id

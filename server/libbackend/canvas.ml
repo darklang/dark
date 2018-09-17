@@ -126,8 +126,28 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       apply_to_db ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe)) tlid
     | ChangeDBColType (tlid, id, tipe) ->
       apply_to_db ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe)) tlid
-    | InitDBMigration (tlid, id, rbid, rfid, kind) ->
-      apply_to_db ~f:(User_db.initialize_migration id rbid rfid kind) tlid
+    | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
+      ident
+    | CreateDBMigration (tlid, rbid, rfid, cols) ->
+      let typed_cols =
+        List.map
+          cols
+          ~f:(fun (n, t) ->
+              (match t with
+               | Filled (id, ts) -> (n, Filled (id, (Dval.tipe_of_string ts)))
+               | Blank id as b -> (n, b)))
+      in
+      apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
+    | AddDBColToDBMigration (tlid, colid, typeid) ->
+      apply_to_db ~f:(User_db.add_col_to_migration colid typeid) tlid
+    | SetDBColNameInDBMigration (tlid, id, name) ->
+      apply_to_db ~f:(User_db.set_col_name_in_migration id name) tlid
+    | SetDBColTypeInDBMigration (tlid, id, tipe) ->
+      apply_to_db ~f:(User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe)) tlid
+    | AbandonDBMigration tlid ->
+      apply_to_db ~f:(User_db.abandon_migration) tlid
+    | DeleteColInDBMigration (tlid, id) ->
+      apply_to_db ~f:(User_db.delete_col_in_migration id) tlid
     | SetExpr (tlid, id, e) ->
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid ->

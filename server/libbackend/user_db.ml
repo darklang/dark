@@ -555,20 +555,88 @@ let change_col_type id newtipe db =
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
-let initialize_migration id rbid rfid kind (db : db) =
-  if Option.is_some db.active_migration
-  then
-    Exception.internal
-      ("Attempted to init a migration for a table with an active one: " ^ db.name);
-  match kind with
-  | ChangeColType ->
-    let new_migration =
-      { starting_version = db.version
-      ; kind = kind
-      ; rollback = Blank rbid
-      ; rollforward = Blank rfid
-      ; target = id
-      }
+let create_migration rbid rfid cols db =
+  match db.active_migration with
+  | Some migration ->
+    Exception.internal "TODO(ian)"
+  | None ->
+    let max_version =
+      db.old_migrations
+      |> List.map
+        ~f:(fun m -> m.version)
+      |> List.fold_left ~init:0 ~f:max
     in
-    { db with active_migration = Some new_migration }
+    { db with active_migration =
+      Some { starting_version = db.version
+           ; version = max_version + 1
+           ; cols = cols
+           ; state = DBMigrationInitialized
+           ; rollback = Blank rbid
+           ; rollforward = Blank rfid
+           }
+    }
 
+let add_col_to_migration nameid typeid db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let mutated_migration =
+      { migration with cols = migration.cols @ [(Blank nameid, Blank typeid)]}
+    in
+    { db with active_migration = Some mutated_migration }
+
+let set_col_name_in_migration id name db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let set col =
+      match col with
+      | (Blank hid, tipe) when hid = id ->
+        (Filled (hid, name), tipe)
+      | (Filled (nameid, oldname), tipe) when nameid = id ->
+        (Filled (nameid, name), tipe)
+      | _ -> col in
+    let newcols = List.map ~f:set migration.cols in
+    let mutated_migration = { migration with cols = newcols } in
+    { db with active_migration = Some mutated_migration }
+
+let set_col_type_in_migration id tipe db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let set col =
+      match col with
+      | (name, Blank blankid) when blankid = id ->
+        (name, Filled (blankid, tipe))
+      | (name, Filled (tipeid, oldtipe)) when tipeid = id ->
+        (name, Filled (tipeid, tipe))
+      | _ -> col in
+    let newcols = List.map ~f:set migration.cols in
+    let mutated_migration = { migration with cols = newcols } in
+    { db with active_migration = Some mutated_migration }
+
+let abandon_migration db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let mutated_migration = { migration with state = DBMigrationAbandoned } in
+    let db2 = { db with old_migrations = db.old_migrations @ [mutated_migration] } in
+    { db2 with active_migration = None }
+
+let delete_col_in_migration id db =
+  match db.active_migration with
+  | None ->
+    Exception.internal "TODO(ian)"
+  | Some migration ->
+    let newcols = List.filter migration.cols
+      ~f:(fun col ->
+          match col with
+          | (Blank nid, _) when nid = id -> false
+          | (Filled (nid, _), _) when nid = id -> false
+          | _ -> true) in
+    let mutated_migration = { migration with cols = newcols } in
+    { db with active_migration = Some mutated_migration }
