@@ -187,7 +187,7 @@ type Msg
     | ReceiveAnalysis String
     | EnablePanning Bool
     | ShowErrorDetails Bool
-    | StartMigration TLID (List DBColumn)
+    | StartMigration TLID
     | AbandonMigration TLID
     | DeleteColInDB TLID ID
 
