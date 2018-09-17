@@ -58,7 +58,7 @@ let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : 
         (trace_id, Dval.unsafe_dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_events")
 
-let clear_events ~(canvas_id: Uuidm.t) () : unit =
+let clear_all_events ~(canvas_id: Uuidm.t) () : unit =
   Db.run
     ~name:"stored_event.clear_events"
     "DELETE FROM stored_events

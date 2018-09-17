@@ -417,8 +417,8 @@ let t_stored_event_roundtrip () =
   let t3 = Util.create_uuid () in
   let t4 = Util.create_uuid () in
   let t5 = Util.create_uuid () in
-  SE.clear_events ~canvas_id:id1 ();
-  SE.clear_events ~canvas_id:id2 ();
+  SE.clear_all_events ~canvas_id:id1 ();
+  SE.clear_all_events ~canvas_id:id2 ();
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
