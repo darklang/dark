@@ -201,8 +201,11 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
   (* Bytes *)
   module PasswordBytes = struct
     include Bytes
-    let to_yojson a = failwith "todo"
-    let of_yojson a = failwith "todo"
+    let to_yojson bytes = `String (bytes |> Bytes.to_string |> B64.encode)
+    let of_yojson json =
+      match json with
+      | `String s -> Ok (s |> B64.decode |> Bytes.of_string)
+      | _ -> Error "Invalid time"
   end
 
   (* Special types:
