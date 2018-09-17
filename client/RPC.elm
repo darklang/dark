@@ -750,6 +750,7 @@ decodeTipe =
       ,("TDbList", dv1 TDbList (JSD.lazy (\_ -> decodeTipe)))
       ,("TPassword", dv0 TPassword)
       ,("TOption", dv0 TOption)
+      ,("TErrorRail", dv0 TErrorRail)
       ]
 
 decodeUserFunctionParameter : JSD.Decoder UserFunctionParameter
