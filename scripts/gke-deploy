@@ -1,22 +1,63 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
+
+DARK_REGION="us-west1"
+DARK_PROJECT="balmy-ground-195100"
+DARK_CLUSTER="$(< current-cluster)"
+
+HELP="$(cat <<EOF
+Usage: $0 [OPTIONS]
+
+A script that deploys the Dark Kubernetes config to a particular cluster.
+
+Options:
+
+  --region=...           The Google cloud region to deploy into (default $DARK_REGION).
+  --project=...          The Google cloud project to deploy into (default $DARK_PROJECT).
+  --cluster=...          The name of the cluster to deploy to (default $DARK_CLUSTER).
+  --help	     	 Display this menu.
+
+EOF
+)"
+for i in "$@"
+do
+  case "${i}" in
+    --region=*)
+      DARK_REGION="${i/--region=/''}"
+      ;;
+    --project=*)
+      DARK_PROJECT="${i/--project=/''}"
+      ;;
+    --cluster=*)
+      DARK_CLUSTER="${i/--cluster=/''}"
+      ;;
+    --help)
+      echo "$HELP"
+      exit 0
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      echo "$HELP"
+      exit 1
+      ;;
+  esac
+done
+
 
 set -x
 
 ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
 ENVIRONMENT=production
-LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'account' | awk '{print $3}' | awk -F "@" '{print $1}'`
-PROJECT="balmy-ground-195100"
-ZONE="us-west1"
-CLUSTER="darkcluster1"
-GCR="gcr.io/$PROJECT"
+LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
+
+GCR="gcr.io/$DARK_PROJECT"
 
 ## Only fetch if we haven't just built, which we do on CI
 if [[ "$CI" == "" ]]; then
   echo "Not on CI: fetching latest containers"
-  ./scripts/gcp-fetch-latest-containers $PROJECT
+  ./scripts/gcp-fetch-latest-containers "$DARK_PROJECT"
 else
   echo "On CI: not fetching latest containers"
 fi
@@ -24,20 +65,24 @@ fi
 #########################
 # Tell Kubernetes what to do
 #########################
-IMAGE_ID=$(docker images $GCR/dark-gcp -q | head -n 1)
-QW_IMAGE_ID=$(docker images $GCR/dark-gcp-qw -q | head -n 1)
-CRON_IMAGE_ID=$(docker images $GCR/dark-gcp-cron -q | head -n 1)
+IMAGE_ID="$(docker images $GCR/dark-gcp -q | head -n 1)"
+QW_IMAGE_ID="$(docker images $GCR/dark-gcp-qw -q | head -n 1)"
+CRON_IMAGE_ID="$(docker images $GCR/dark-gcp-cron -q | head -n 1)"
 IMAGE="$GCR/dark-gcp:$IMAGE_ID"
 QW_IMAGE="$GCR/dark-gcp-qw:$QW_IMAGE_ID"
 CRON_IMAGE="$GCR/dark-gcp-cron:$CRON_IMAGE_ID"
 
 
 # get creds
-gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER --zone=$ZONE
+gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
+  "projects/${DARK_PROJECT}/zones/${DARK_REGION}/clusters/${DARK_CLUSTER}"
 
 # env vars (replace existing configmap or make a new one)
-(kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
-(kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
+(kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) \
+  ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
+
+(kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
+  ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
 
 # make sure deployment matches current understanding
@@ -46,18 +91,18 @@ kubectl apply -f scripts/support/queueworker.yaml
 kubectl apply -f scripts/support/cronchecker.yaml
 
 # deploy the image
-kubectl set image deployment/bwd-deployment bwd-ctr=$IMAGE
-kubectl set image deployment/qw-deployment qw-ctr=$QW_IMAGE
-kubectl set image deployment/cron-deployment cron-ctr=$CRON_IMAGE
+kubectl set image deployment/bwd-deployment "bwd-ctr=${IMAGE}"
+kubectl set image deployment/qw-deployment "qw-ctr=${QW_IMAGE}"
+kubectl set image deployment/cron-deployment "cron-ctr=${CRON_IMAGE}"
 
 #########################
 # Tell everyone else what's going on
 #########################
 curl -s https://api.rollbar.com/api/1/deploy/ \
-  -F access_token="${ROLLBAR_ACCESS_TOKEN}" \
-  -F environment="$ENVIRONMENT" \
-  -F revision="$IMAGE" \
-  -F local_username="${LOCAL_USERNAME}" > /dev/null
+  -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
+  -F "environment=${ENVIRONMENT}" \
+  -F "revision=${IMAGE}" \
+  -F "local_username=${LOCAL_USERNAME}" > /dev/null
 echo "Rollbar notified."
 
 
