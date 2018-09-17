@@ -16,7 +16,6 @@ import Mouse
 import PageVisibility
 import String
 import Nineteen.String as String
--- import List.Extra as LE
 import String.Extra as SE
 import Time
 import Task
@@ -529,7 +528,7 @@ updateMod mod (m, cmd) =
         let target =
               case entry of
                 Creating _ -> Nothing
-                Filling tlid id ->
+                Filling tlid id -> 
                   let tl = TL.getTL m tlid
                       pd = TL.findExn tl id
                   in
@@ -1474,6 +1473,24 @@ update_ msg m =
           SetCursorState origCursorState
         _ -> SetCursor tlid idx
 
+    -----------
+    -- DBs
+    -----------
+
+    StartMigration tlid ->
+      let mdb = tlid
+                |> TL.getTL m
+                |> TL.asDB
+      in
+      case mdb of
+        Just db -> DB.startMigration tlid db.cols
+        Nothing -> NoChange
+
+    AbandonMigration tlid ->
+      RPC ([AbandonDBMigration tlid], FocusNothing)
+
+    DeleteColInDB tlid nameId ->
+      RPC ([DeleteColInDBMigration tlid nameId], FocusNothing)
 
     -----------------
     -- Buttons

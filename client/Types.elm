@@ -190,6 +190,9 @@ type Msg
     | ReceiveAnalysis String
     | EnablePanning Bool
     | ShowErrorDetails Bool
+    | StartMigration TLID
+    | AbandonMigration TLID
+    | DeleteColInDB TLID ID
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -220,8 +223,14 @@ type Op
     | DeleteFunction TLID
     | ChangeDBColName TLID ID DBColName
     | ChangeDBColType TLID ID DBColType
-    | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind
+    | DeprecatedInitDbm TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
+    | CreateDBMigration TLID RollbackID RollforwardID (List DBColumn)
+    | AddDBColToDBMigration TLID ID ID
+    | SetDBColNameInDBMigration TLID ID DBColName
+    | SetDBColTypeInDBMigration TLID ID DBColType
+    | DeleteColInDBMigration TLID ID
+    | AbandonDBMigration TLID
 
 type alias RPCParams = { ops : List Op }
 
@@ -424,17 +433,25 @@ type alias Handler = { ast : Expr
 type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
-type DBMigrationKind = ChangeColType
+type alias DBColumn = (BlankOr DBColName, BlankOr DBColType)
+
+-- this is deprecated
+type DBMigrationKind = DeprecatedMigrationKind
+
+type DBMigrationState = DBMigrationAbandoned
+                      | DBMigrationInitialized
+
 type alias DBMigration = { startingVersion : Int
-                         , kind : DBMigrationKind
+                         , version : Int
+                         , state : DBMigrationState
                          , rollforward : Expr
                          , rollback : Expr
-                         , target : ID
+                         , cols : List DBColumn
                          }
 
 type alias DB = { tlid : TLID
                 , name : DBName
-                , cols : List (BlankOr DBColName, BlankOr DBColType)
+                , cols : List DBColumn
                 , version : Int
                 , oldMigrations : List DBMigration
                 , activeMigration : Maybe DBMigration

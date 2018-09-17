@@ -243,8 +243,8 @@ submit : Model -> EntryCursor -> NextAction -> Modification
 submit m cursor action =
   -- TODO: replace parsing with taking the autocomplete suggestion and
   -- doing what we're told with it.
-  let value = AC.getValue m.complete in
-  case cursor of
+  let value = AC.getValue m.complete
+  in case cursor of
     Creating pos ->
       let tlid = gtlid ()
           threadIt expr =
@@ -352,8 +352,13 @@ submit m cursor action =
       in
       case pd of
         PDBColType ct ->
-          if B.asF ct == Just value
+          let db1 = deMaybe "db" db
+          in if B.asF ct == Just value
           then Select tlid (Just id)
+          else if DB.isMigrationCol db1 id
+          then wrapID 
+            [ SetDBColTypeInDBMigration tlid id value
+            , AddDBColToDBMigration tlid (gid ()) (gid ()) ]
           else if B.isBlank ct
           then
             wrapID [ SetDBColType tlid id value
@@ -362,9 +367,12 @@ submit m cursor action =
             wrapID [ ChangeDBColType tlid id value]
 
         PDBColName cn ->
-          if B.asF cn == Just value
+          let db1 = deMaybe "db" db
+          in if B.asF cn == Just value
           then Select tlid (Just id)
-          else if DB.hasCol (db |> deMaybe "db") value
+          else if DB.isMigrationCol db1 id
+          then wrapID [SetDBColNameInDBMigration tlid id value]
+          else if DB.hasCol db1 value
           then DisplayError ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn
           then
@@ -455,22 +463,20 @@ submit m cursor action =
               in
               saveAst newast (PExpr newexpr)
 
-            TLDB db_ ->
-              case db_.activeMigration of
+            TLDB db ->
+              case db.activeMigration of
                 Nothing -> NoChange
                 Just am ->
                   if List.member pd (AST.allData am.rollback)
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollback e action value
-                    in
-                    wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
+                    in wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else if List.member pd (AST.allData am.rollforward)
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollforward e action value
-                    in
-                    wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
+                    in wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else
                     NoChange
         PDarkType _ ->

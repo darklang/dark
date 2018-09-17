@@ -10,9 +10,6 @@ import Nineteen.String as String
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
--- import String.Extra as SE
--- import List.Extra as LE
--- import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)

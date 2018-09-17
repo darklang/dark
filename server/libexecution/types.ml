@@ -100,15 +100,22 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
   module DbT = struct
     type col = string or_blank * tipe_ or_blank
               [@@deriving eq, compare, show, yojson]
+
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-    type migration_kind = ChangeColType
+    type migration_kind = DeprecatedMigrationKind
                           [@@deriving eq, compare, show, yojson, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+
+    type db_migration_state = DBMigrationAbandoned
+                            | DBMigrationInitialized
+                            [@@deriving eq, compare, show, yojson]
+
     type db_migration = { starting_version : int
-                        ; kind : migration_kind
+                        ; version: int
+                        ; state: db_migration_state
                         ; rollforward : expr
                         ; rollback : expr
-                        ; target : id
+                        ; cols: col list
                         }
                         [@@deriving eq, compare, show, yojson]
     type db = { tlid: tlid

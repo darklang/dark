@@ -16,11 +16,17 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | ChangeDBColType of tlid * id * string
         | UndoTL of tlid
         | RedoTL of tlid
-        | InitDBMigration of tlid * id * id * id * RuntimeT.DbT.migration_kind
+        | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
         | DeleteFunction of tlid
-        [@@deriving eq, yojson, show, bin_io]
+        | CreateDBMigration of tlid * id * id * (string or_blank * string or_blank) list
+        | AddDBColToDBMigration of tlid * id * id
+        | SetDBColNameInDBMigration of tlid * id * string
+        | SetDBColTypeInDBMigration of tlid * id * string
+        | AbandonDBMigration of tlid
+        | DeleteColInDBMigration of tlid * id
+        [@@deriving eq, yojson, show,  bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 type oplist = op list [@@deriving eq, yojson, show, bin_io]
@@ -47,7 +53,7 @@ let tlidOf (op: op) : tlid option =
   | ChangeDBColName (tlid, _, _) -> Some tlid
   | SetDBColType (tlid, _, _) -> Some tlid
   | ChangeDBColType (tlid, _, _) -> Some tlid
-  | InitDBMigration (tlid, _, _, _, _) -> Some tlid
+  | DeprecatedInitDbm (tlid, _, _, _, _) -> Some tlid
   | SetExpr (tlid, _, _) -> Some tlid
   | TLSavepoint tlid -> Some tlid
   | UndoTL tlid -> Some tlid
@@ -56,6 +62,12 @@ let tlidOf (op: op) : tlid option =
   | MoveTL (tlid, _) -> Some tlid
   | SetFunction f -> Some f.tlid
   | DeleteFunction tlid -> Some tlid
+  | CreateDBMigration (tlid, _, _, _) -> Some tlid
+  | AddDBColToDBMigration (tlid, _, _) -> Some tlid
+  | SetDBColNameInDBMigration (tlid, _, _) -> Some tlid
+  | SetDBColTypeInDBMigration (tlid, _, _) -> Some tlid
+  | AbandonDBMigration tlid -> Some tlid
+  | DeleteColInDBMigration (tlid, _) -> Some tlid
 
 let oplist_to_string (ops: op list) : string =
   ops

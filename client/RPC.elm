@@ -155,7 +155,7 @@ tlidOf op =
     ChangeDBColName tlid _ _ -> tlid
     SetDBColType tlid _ _ -> tlid
     ChangeDBColType tlid _ _ -> tlid
-    InitDBMigration tlid _ _ _ _ -> tlid
+    DeprecatedInitDbm tlid _ _ _ _ -> tlid
     TLSavepoint tlid -> tlid
     UndoTL tlid -> tlid
     RedoTL tlid -> tlid
@@ -164,6 +164,12 @@ tlidOf op =
     SetFunction f -> f.tlid
     DeleteFunction tlid -> tlid
     SetExpr tlid _ _ -> tlid
+    CreateDBMigration tlid _ _ _ -> tlid
+    AddDBColToDBMigration tlid _ _ -> tlid
+    SetDBColNameInDBMigration tlid _ _ -> tlid
+    SetDBColTypeInDBMigration  tlid _ _ -> tlid
+    AbandonDBMigration tlid -> tlid
+    DeleteColInDBMigration tlid _ -> tlid
 
 encodeOps : List Op -> JSE.Value
 encodeOps ops =
@@ -200,25 +206,37 @@ encodeDBMigrationKind : DBMigrationKind -> JSE.Value
 encodeDBMigrationKind k =
   let ev = encodeVariant in
   case k of
-    ChangeColType -> ev "ChangeColType" []
+    DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
+
+encodeColList : List DBColumn -> JSE.Value
+encodeColList cols =
+  let encodeCol =
+        encodePair (encodeBlankOr JSE.string) (encodeBlankOr JSE.string)
+  in
+  JSE.list (List.map encodeCol cols)
+
+encodeDBMigrationState : DBMigrationState -> JSE.Value
+encodeDBMigrationState s =
+  let ev = encodeVariant in
+  case s of
+    DBMigrationAbandoned -> ev "DBMigrationAbandoned" []
+    DBMigrationInitialized -> ev "DBMigrationInitialized" []
 
 encodeDBMigration : DBMigration -> JSE.Value
 encodeDBMigration dbm =
   JSE.object [ ("starting_version", JSE.int dbm.startingVersion)
-             , ("kind", encodeDBMigrationKind dbm.kind)
+             , ("version", JSE.int dbm.version)
+             , ("state" , encodeDBMigrationState dbm.state)
+             , ("cols", encodeColList dbm.cols)
              , ("rollforward", encodeExpr dbm.rollforward)
              , ("rollback", encodeExpr dbm.rollback)
-             , ("target", encodeID dbm.target)
              ]
 
 encodeDB : DB -> JSE.Value
 encodeDB db =
-  let encodeCol =
-        encodePair (encodeBlankOr JSE.string) (encodeBlankOr JSE.string)
-  in
   JSE.object [ ("tlid", encodeTLID db.tlid)
              , ("name", JSE.string db.name)
-             , ("cols", JSE.list (List.map encodeCol db.cols))
+             , ("cols", encodeColList db.cols)
              , ("version", JSE.int db.version)
              , ("old_migrations", JSE.list (List.map encodeDBMigration db.oldMigrations))
              , ("active_migration", Maybe.map encodeDBMigration db.activeMigration
@@ -250,13 +268,37 @@ encodeOp call =
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
 
-      InitDBMigration tlid id rbid rfid kind ->
-        ev "InitDBMigration"
+      DeprecatedInitDbm tlid id rbid rfid kind ->
+        ev "DeprecatedInitDbm"
           [ encodeTLID tlid
           , encodeID id
           , encodeID rbid
           , encodeID rfid
           , encodeDBMigrationKind kind]
+
+      CreateDBMigration tlid rbid rfid cols ->
+        ev "CreateDBMigration"
+          [ encodeTLID tlid
+          , encodeID rbid
+          , encodeID rfid
+          , encodeColList cols
+          ]
+
+      AddDBColToDBMigration tlid colnameid coltypeid ->
+        ev "AddDBColToDBMigration" [encodeTLID tlid, encodeID colnameid, encodeID coltypeid]
+
+      SetDBColNameInDBMigration tlid id name ->
+        ev "SetDBColNameInDBMigration" [encodeTLID tlid, encodeID id, JSE.string name]
+
+
+      SetDBColTypeInDBMigration tlid id tipe ->
+        ev "SetDBColTypeInDBMigration" [encodeTLID tlid, encodeID id, JSE.string tipe]
+
+      AbandonDBMigration tlid ->
+        ev "AbandonDBMigration" [encodeTLID tlid]
+
+      DeleteColInDBMigration tlid id ->
+        ev "DeleteColInDBMigration" [encodeTLID tlid, encodeID id]
 
       TLSavepoint tlid ->
         ev "TLSavepoint" [encodeTLID tlid]
@@ -605,46 +647,56 @@ decodeTipeString : JSD.Decoder String
 decodeTipeString =
   JSD.map RT.tipe2str decodeTipe
 
-decodeDBMigrationKind : JSD.Decoder DBMigrationKind
-decodeDBMigrationKind =
-  decodeVariant0 ChangeColType
+decodeDBColList : JSD.Decoder (List DBColumn)
+decodeDBColList =
+  (JSD.list
+  (decodePair
+  (decodeBlankOr JSD.string)
+  (decodeBlankOr decodeTipeString)))
 
+decodeDBMigrationState : JSD.Decoder DBMigrationState
+decodeDBMigrationState =
+  let dv0 = decodeVariant0
+  in
+      decodeVariants
+      [("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
+      ,("DBMigrationInitialized", dv0 DBMigrationInitialized)
+      ]
 
 decodeDBMigration : JSD.Decoder DBMigration
 decodeDBMigration =
-  let toDBM v kind rollf rollb target =
-        { startingVersion = v
-        , kind = kind
+  let toDBM sv v s cols rollf rollb =
+        { startingVersion = sv
+        , version = v
+        , state = s
+        , cols = cols
         , rollforward = rollf
         , rollback = rollb
-        , target = target
         }
   in
   JSDP.decode toDBM
   |> JSDP.required "starting_version" JSD.int
-  |> JSDP.required "kind" decodeDBMigrationKind
+  |> JSDP.required "version" JSD.int
+  |> JSDP.required "state" decodeDBMigrationState
+  |> JSDP.required "cols" decodeDBColList
   |> JSDP.required "rollforward" decodeExpr
   |> JSDP.required "rollback" decodeExpr
-  |> JSDP.required "target" decodeID
 
 decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB tlid name cols version old active =
-        { tlid = TLID tlid
-        , name = name
-        , cols = cols
-        , version = version
-        , oldMigrations = old
-        , activeMigration = active
-        }
+      { tlid = TLID tlid
+      , name = name
+      , cols = cols
+      , version = version
+      , oldMigrations = old
+      , activeMigration = active
+      }
   in
   JSDP.decode toDB
   |> JSDP.required "tlid" JSD.int
   |> JSDP.required "name" JSD.string
-  |> JSDP.required "cols" (JSD.list
-                            (decodePair
-                              (decodeBlankOr JSD.string)
-                              (decodeBlankOr decodeTipeString)))
+  |> JSDP.required "cols" decodeDBColList
   |> JSDP.required "version" JSD.int
   |> JSDP.required "old_migrations" (JSD.list decodeDBMigration)
   |> JSDP.required "active_migration" (JSD.maybe decodeDBMigration)
