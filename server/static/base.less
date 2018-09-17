@@ -1123,13 +1123,27 @@ body #grid * {
 
     .autocomplete-item {
       background: @black2;
+      padding-bottom: 0.3rem;
       &.highlighted {
         background: #1c3670;
       }
       &.greyed {
         color: @grey2;
       }
+
+      .versioned-function .version {
+        color: @grey2;
+      }
     }
+  }
+}
+
+.versioned-function {
+  display: inline-block;
+  .version {
+    position: relative;
+    bottom: -0.2rem;
+    font-size: 0.6rem;
   }
 }
 

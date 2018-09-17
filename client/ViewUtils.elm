@@ -5,6 +5,7 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Nineteen.Debug as Debug
 import Nineteen.String as String
+import Regex exposing (Regex, regex)
 
 -- lib
 import Html
@@ -249,3 +250,27 @@ approxNWidth ne =
 
 isLocked: TLID -> Model -> Bool
 isLocked tlid m = List.member tlid m.lockedHandlers
+
+viewFuncName: FnName -> Html.Html Msg
+viewFuncName fnName =
+  let unVersioned = Html.text fnName
+      pattern = regex "(\\w+::)?(\\w+)_v(\\d+)"
+      matches = Regex.find (Regex.AtMost 1) pattern fnName
+  in
+    case (List.head matches) of
+      Just m ->
+        let names = List.take 2 m.submatches
+            version = List.drop 2 m.submatches
+            combinedName = List.foldr (\a b -> (Util.deMaybeString a) ++ b ) "" names
+        in
+        case (List.head version) of
+          Just maybeVersion ->
+            case maybeVersion of
+              Just v ->
+                Html.div
+                  [ Attrs.class "versioned-function" ]
+                  [ Html.span [Attrs.class "name"] [Html.text combinedName]
+                  , Html.span [Attrs.class "version"] [Html.text v] ]
+              Nothing -> unVersioned
+          Nothing -> unVersioned
+      Nothing -> unVersioned
