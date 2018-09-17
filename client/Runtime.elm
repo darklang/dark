@@ -211,8 +211,8 @@ toRepr_ oldIndent dv =
     DResp (Response code hs) dv_ ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
       toString code ++ " " ++ headers ++ nl ++ toRepr dv_
-    DOption Nothing -> "Nothing"
-    DOption (Just dv_) -> "Some " ++ (toRepr dv_)
+    DOption OptNothing -> "Nothing"
+    DOption (OptJust dv_) -> "Some " ++ (toRepr dv_)
     DErrorRail dv_ -> wrap (toRepr dv_)
     -- TODO: newlines and indentation
     DList l ->

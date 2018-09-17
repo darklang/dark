@@ -873,7 +873,7 @@ parseDvalLiteral str =
                   |> Maybe.map Tuple.first
   in
   if String.toLower str == "nothing"
-  then Just (DOption Nothing)
+  then Just (DOption OptNothing)
   else
     case String.toList str of
       ['\'', c, '\'' ] -> Just (DChar c)
@@ -909,6 +909,11 @@ decodeDval =
       dv1 = decodeVariant1
       dv2 = decodeVariant2
       dd = JSD.lazy (\_ -> decodeDval)
+      decodeOptionT =
+        decodeVariants
+        [ ("OptJust", dv1 OptJust dd)
+        , ("OptNothing", dv0 OptNothing)
+        ]
       decodeDhttp =
         decodeVariants
           [ ("Redirect", dv1 Redirect JSD.string)
@@ -937,7 +942,7 @@ decodeDval =
     , ("DUrl", dv1 DUrl JSD.string)
     , ("DPassword", dv1 DPassword JSD.string)
     , ("DUuid", dv1 DUuid JSD.string)
-    , ("DOption", dv1 DOption (JSD.maybe dd))
+    , ("DOption", dv1 DOption decodeOptionT)
     ]
 
 encodeDval : Dval -> JSE.Value
@@ -980,7 +985,7 @@ encodeDval dv =
     DUuid uuid -> ev "DUuid" [JSE.string uuid]
     DOption opt -> ev "DOption" [
       case opt of
-        Nothing -> ev "Nothing" []
-        Just dv -> ev "Just" [encodeDval dv]
+        OptNothing -> ev "OptNothing" []
+        OptJust dv -> ev "OptJust" [encodeDval dv]
       ]
     DErrorRail dv -> ev "DErrorRail" [encodeDval dv]

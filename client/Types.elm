@@ -53,6 +53,9 @@ type Tipe = TInt
 type Dhttp = Redirect String
            | Response Int (List (String, String))
 
+type OptionT = OptJust Dval
+             | OptNothing
+
 type Dval = DInt Int
           | DFloat Float
           | DBool Bool
@@ -73,7 +76,7 @@ type Dval = DInt Int
           | DUrl String
           | DPassword String
           | DUuid String
-          | DOption (Maybe Dval)
+          | DOption OptionT
 
 
 -- There are two coordinate systems. Pos is an absolute position in the
