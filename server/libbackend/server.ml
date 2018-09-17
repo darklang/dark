@@ -514,8 +514,21 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   | (`POST, "/admin/ops/check-all-canvases") ->
     Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
+  | (`POST, "/admin/ops/cleanup-old-traces") ->
+    respond ~execution_id `OK "Not implemented yet"
   | (`GET, "/admin/ops/check-all-canvases") ->
-    respond ~execution_id `OK "<html><body><form action='/admin/ops/check-all-canvases' method='post'><input type='submit' value='Check all canvases'></form><form action='/admin/ops/migrate-all-canvases' method='post'><input type='submit' value='Migrate all canvases'></form></body></html>"
+    respond ~execution_id `OK "<html>
+    <body>
+    <form action='/admin/ops/check-all-canvases' method='post'>
+      <input type='submit' value='Check all canvases'>
+    </form>
+    <form action='/admin/ops/migrate-all-canvases' method='post'>
+      <input type='submit' value='Migrate all canvases'>
+    </form>
+    <form action='/admin/ops/cleanup-old-traces' method='post'>
+      <input type='submit' value='Cleanup old traces (done nightly by cron)>
+    </form>
+    </body></html>"
   | _ ->
     respond ~execution_id `Not_found "Not found"
 
