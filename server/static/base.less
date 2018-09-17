@@ -787,13 +787,19 @@ body #grid * {
   .fncall {
     .arg-on-new-line {
       .layout-block;
-      &::before {
-        content: attr(param-name);
-        width: auto;
-        position: absolute;
-        right: calc(~"100% - 10ch");
+      margin-top: 8px;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+      .param-name {
+        display: inline-block;
         color: @grey2;
         font-size: 85%;
+        min-width: 16ch;
+        width: auto;
+        margin-right: 2px;
       }
     }
 

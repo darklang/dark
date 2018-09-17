@@ -226,10 +226,10 @@ viewNExpr d id vs config e =
       let width = approxNWidth e
           viewTooWideArg name_ d_ e_ =
             Html.div
-              [ Attrs.attribute "param-name" name_
-              ,  Attrs.class "arg-on-new-line"
+              [ Attrs.class "arg-on-new-line" ]
+              [ Html.div [ Attrs.class "param-name" ] [ Html.text name_ ]
+              , vExprTw d_ e_
               ]
-              [ vExprTw d_ e_ ]
           ve name_ = if width > 120
                     then viewTooWideArg name_
                     else vExpr
