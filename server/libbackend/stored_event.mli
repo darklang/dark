@@ -25,7 +25,7 @@ val list_events :
   unit ->
   event_desc list
 
-val clear_events :
+val clear_all_events :
   canvas_id:Uuidm.t ->
   unit ->
   unit
