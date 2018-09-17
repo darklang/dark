@@ -104,7 +104,7 @@ viewDB vs db =
           if vs.dbLocked && (db.activeMigration == Nothing)
           then
             Html.div
-              [ eventNoPropagation "click" (\_ -> StartMigration db.tlid db.cols) ]
+              [ eventNoPropagation "click" (\_ -> StartMigration db.tlid) ]
               [ fontAwesome "lock" ]
           else fontAwesome "unlock"
       namediv = viewDBName db.name (db.version)

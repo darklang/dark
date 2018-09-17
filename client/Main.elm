@@ -1477,7 +1477,14 @@ update_ msg m =
     -- DBs
     -----------
 
-    StartMigration tlid cols -> DB.startMigration tlid cols
+    StartMigration tlid ->
+      let mdb = tlid
+                |> TL.getTL m
+                |> TL.asDB
+      in
+      case mdb of
+        Just db -> DB.startMigration tlid db.cols
+        Nothing -> NoChange
 
     AbandonMigration tlid ->
       RPC ([AbandonDBMigration tlid], FocusNothing)
