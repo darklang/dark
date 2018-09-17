@@ -63,6 +63,7 @@ trigger test_name =
     "rename_function" -> rename_function
     "sending_to_rail_works" -> sending_to_rail_works
     "feature_flag_in_function" -> feature_flag_in_function
+    "execute_function_works" -> execute_function_works
     n -> Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -660,3 +661,8 @@ sending_to_rail_works m =
   case ast of
     F _ (FnCall "List::head_v1" _ NoRail) -> pass
     _ -> fail ast
+
+execute_function_works : Model -> TestResult
+execute_function_works m =
+  -- The test logic is in tests.js
+  pass
