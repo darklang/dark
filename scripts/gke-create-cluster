@@ -122,7 +122,8 @@ gcloud beta container clusters create "$DARK_CLUSTER" \
   "--cluster-version=${DARK_CLUSTER_VERSION}" \
   --enable-stackdriver-kubernetes \
   --enable-autorepair \
-  --enable-network-policy
+  --enable-network-policy \
+  --enable-autoupgrade
 
 print_step "getting creds for the new cluster"
 gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}"
