@@ -224,15 +224,21 @@ viewNExpr d id vs config e =
 
     FnCall name exprs sendToRail ->
       let width = approxNWidth e
-          viewTooWideArg name_ d_ e_ =
+          ve name_ d_ e_ = 
+            let tooLong = width > 120
+            in
             Html.div
-              [ Attrs.attribute "param-name" name_
-              ,  Attrs.class "arg-on-new-line"
+              [ Attrs.classList
+                  [("fn-param", True)
+                  , ("is-filled", B.isF e_)
+                  , ("arg-on-new-line", tooLong)
+                  ]
+              , Attrs.attribute "param-name" name_ ]
+              [
+                if tooLong 
+                then vExprTw d_ e_
+                else vExpr d_ e_
               ]
-              [ vExprTw d_ e_ ]
-          ve name_ = if width > 120
-                    then viewTooWideArg name_
-                    else vExpr
           fnname parens =
             let withP name_ = if parens then "(" ++ name_ ++ ")" else name_ in
             case String.split "::" name of

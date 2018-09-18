@@ -913,15 +913,32 @@ body #grid * {
   }
 
   .fncall {
-    .arg-on-new-line {
-      .layout-block;
-      &::before {
-        content: attr(param-name);
-        width: auto;
-        position: absolute;
-        right: calc(~"100% - 10ch");
-        color: @grey2;
-        font-size: 85%;
+
+    .fn-param {
+      .layout-inline;
+
+      &.is-filled {
+        &::after {
+          content: attr(param-name);
+          display: block;
+          width: auto;
+          position: relative;
+          bottom: 0;
+          left: 10px;
+          font-size: 10px;
+          color: @grey2;
+          font-style: italic;
+        }
+      }
+
+      &.arg-on-new-line {
+        .layout-block;
+
+        margin-top: 16px;
+
+        &:first-child {
+          margin-top: 0;
+        }
       }
     }
 
