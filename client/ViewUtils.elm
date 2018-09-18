@@ -258,17 +258,20 @@ viewFnName defaultView fnName =
   in
     case (List.head matches) of
       Just m ->
-        let names = List.take 2 m.submatches
-            version = List.drop 2 m.submatches
-            combinedName = List.foldr (\a b -> (Util.deMaybeString a) ++ b ) "" names
+        let names = m.submatches
+                    |> List.take 2
+                    |> List.foldr (\a b -> (Util.deMaybeString a) ++ b ) ""
+            version = m.submatches
+                      |> List.drop 2
+                      |> List.head
         in
-        case (List.head version) of
+        case version of
           Just maybeVersion ->
             case maybeVersion of
               Just v ->
                 Html.div
                   [ Attrs.class "versioned-function" ]
-                  [ Html.span [Attrs.class "name"] [Html.text combinedName]
+                  [ Html.span [Attrs.class "name"] [Html.text names]
                   , Html.span [Attrs.class "version"] [Html.text v] ]
               Nothing -> defaultView
           Nothing -> defaultView
