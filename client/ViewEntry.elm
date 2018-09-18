@@ -88,7 +88,6 @@ normalEntryHtml placeholder ac =
         (List.indexedMap
            (\i item ->
               let highlighted = ac.index == i
-                  hlClass = if highlighted then " highlighted" else ""
                   name = Autocomplete.asName item
               in Html.li
                 [ Attrs.classList
