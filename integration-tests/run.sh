@@ -87,8 +87,8 @@ CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
 for cid in $CANVASES; do
   SCRIPT+="DELETE FROM events WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM stored_events WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM function_results_v2 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM stored_events_v2 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM toplevel_oplists WHERE canvas_id = '$cid';";
