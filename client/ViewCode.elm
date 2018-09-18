@@ -241,11 +241,11 @@ viewNExpr d id vs config e =
                 n [wc "namegroup", atom]
                 [ t [wc "module"] mod
                 , t [wc "moduleseparator"] "::"
-                , viewFnName (t [wc "fnname"] np) np
+                , viewFnName (t [wc "fnname"] np) np ["fnname"]
                 ]
               _ ->
                 let np = withP name in
-                viewFnName (a [wc "fnname"] np) np
+                viewFnName (a [wc "fnname"] np) np ["atom fnname"]
           fn = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
                     |> Maybe.withDefault

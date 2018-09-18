@@ -252,8 +252,8 @@ approxNWidth ne =
 isLocked: TLID -> Model -> Bool
 isLocked tlid m = List.member tlid m.lockedHandlers
 
-viewFnName: Html.Html Msg -> FnName -> Html.Html Msg
-viewFnName defaultView fnName =
+viewFnName: Html.Html Msg -> FnName -> List String -> Html.Html Msg
+viewFnName defaultView fnName extraClasses =
   let pattern = regex "(\\w+::)?(\\w+)_v(\\d+)"
       matches = Regex.find (Regex.AtMost 1) pattern fnName
   in
@@ -276,7 +276,7 @@ viewFnName defaultView fnName =
         then defaultView
         else
           Html.div
-            [ Attrs.class "versioned-function" ]
+            [ Attrs.class (String.join " " ("versioned-function" :: extraClasses)) ]
             [ Html.span [Attrs.class "name"] [Html.text name]
             , Html.span [Attrs.class "version"] [Html.text version] ]
       Nothing -> defaultView
