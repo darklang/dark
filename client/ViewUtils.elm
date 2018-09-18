@@ -259,21 +259,24 @@ viewFnName defaultView fnName =
   in
     case (List.head matches) of
       Just m ->
-        let names = m.submatches
-                    |> List.take 2
-                    |> List.foldr (\a b -> (withDefault "" a) ++ b ) ""
-            version = m.submatches
-                      |> List.drop 2
-                      |> List.head
+        let name =
+              case m.submatches of 
+                [Nothing, Just fn, _] -> fn
+                [Just modName, Just fn, _] -> modName ++ fn
+                _ -> ""
+            version =
+              case  m.submatches of
+                [_, _, Just v] -> v
+                _ -> ""
         in
-        case version of
-          Just maybeVersion ->
-            case maybeVersion of
-              Just v ->
-                Html.div
-                  [ Attrs.class "versioned-function" ]
-                  [ Html.span [Attrs.class "name"] [Html.text names]
-                  , Html.span [Attrs.class "version"] [Html.text v] ]
-              Nothing -> defaultView
-          Nothing -> defaultView
+        -- Since rendering function version as subscript is a special case,
+        -- we always want to just rendering them normally in case parsing the regex capture groups fails
+        -- I anticipate certain cases of user functions might cause strange an unexpected behavior, we did not think about.
+        if name == "" || version == ""
+        then defaultView
+        else
+          Html.div
+            [ Attrs.class "versioned-function" ]
+            [ Html.span [Attrs.class "name"] [Html.text name]
+            , Html.span [Attrs.class "version"] [Html.text version] ]
       Nothing -> defaultView
