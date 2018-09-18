@@ -11,6 +11,7 @@ type param = Int of int
            | Secret of string
            | DvalJson of Types.RuntimeT.dval
            | DvalmapJsonb of Types.RuntimeT.dval_map
+           | Time of Types.RuntimeT.time
            | Null
            | List of param list (* only works for in-script params *)
 

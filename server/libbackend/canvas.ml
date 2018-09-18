@@ -375,3 +375,19 @@ let migrate_all_hosts () : unit =
   (*  *)
   ()
 
+let cleanup_old_traces () : unit =
+  let hosts = Serialize.current_hosts () in
+  (* Go back a bit to account for clock skew and wiggle room. *)
+  let time = Time.sub (Time.now ()) (Time.Span.create ~hr:36 ()) in
+
+  List.iter hosts
+    ~f:(fun host ->
+        (Log.inspecT "host" host;
+        let owner = Account.for_host host in
+        let canvas_id = Serialize.fetch_canvas_id owner host in
+        let keep = Stored_event.get_all_recent_canvas_traceids canvas_id in
+        Log.inspecT "keep" keep;
+        Stored_event.trim_events ~canvas_id ~keep ~before:time ();
+        Stored_function_result.trim_results ~canvas_id ~keep ~before:time ()))
+
+
