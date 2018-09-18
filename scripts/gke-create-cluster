@@ -252,7 +252,8 @@ and check it out one of the following ways:
 Once you're happy with the status of the new cluster, you can move the
 static IP to it:
 
-  # TODO script to move a static ip
+  ./scripts/support/gke-move-ip --from="$(<current-cluster)" --to="$DARK_CLUSTER" --ip-name=bwd-tls-ip --ingress-name=bwd-tls-ingress
+  ./scripts/support/gke-move-ip --from="$(<current-cluster)" --to="$DARK_CLUSTER" --ip-name=darklang-tls-ip --ingress-name=darklang-tls-ingress
 
 and make a pull request changing the file 'current-cluster' in the root of this
 repository to the new name.

@@ -1,0 +1,65 @@
+#!/bin/bash
+
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+HELP="$(cat <<EOF
+Usage: $0 REQUIRED_ARGS
+
+Move a Google Cloud static IP from an ingress in one cluster
+to the corresponding ingress in another cluster.
+
+Required arguments:
+
+  --to=[...]            The name of the cluster to move the IP to.
+  --from=[...]          The name of the cluster to move the IP from.
+  --ip-name=[...]       The name of the static IP in question.
+  --ingress-name=[...]  The name of the ingress in both clusters.
+
+EOF
+)"
+
+function print_step () {
+  tput setab 6 && echo "=>" "$@" && tput sgr0
+}
+
+for i in "$@"
+do
+  case "${i}" in
+    --from=*)
+      FROM="${i/--from=/''}"
+      ;;
+    --to=*)
+      TO="${i/--to=/''}"
+      ;;
+    --ip-name=*)
+      IP_NAME="${i/--ip-name=/''}"
+      ;;
+    --ingress-name=*)
+      INGRESS_NAME="${i/--ingress-name=/''}"
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      echo "$HELP"
+      exit 1
+      ;;
+  esac
+done
+
+if [ ! -v FROM ] || [ ! -v TO ] || [ ! -v IP_NAME ] || [ ! -v INGRESS_NAME ]; then
+  echo "$HELP"
+  exit 1
+fi
+
+print_step "unannotating from ${FROM}."
+# un-annotate
+gcloud container clusters get-credentials "$FROM"
+kubectl annotate ingress "$INGRESS_NAME" kubernetes.io/ingress.global-static-ip-name-
+
+print_step "re-annotating to ${TO}."
+gcloud container clusters get-credentials "$TO"
+kubectl annotate ingress "$INGRESS_NAME" \
+        kubernetes.io/ingress.global-static-ip-name="$IP_NAME"
+
+print_step "done! this may take a few minutes."
