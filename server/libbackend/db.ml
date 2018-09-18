@@ -18,6 +18,9 @@ let array_separator = ", "
 let date_of_sqlstring (str: string) : Core_kernel.Time.t =
   Core.Time.parse str ~fmt:"%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
 
+let date_to_sqlstring (d: Core_kernel.Time.t) : string =
+  Core.Time.format d "%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
+
 type param = Int of int
            | ID of Types.id
            | String of string
@@ -26,6 +29,7 @@ type param = Int of int
            | Secret of string
            | DvalJson of Types.RuntimeT.dval
            | DvalmapJsonb of Types.RuntimeT.dval_map
+           | Time of Types.RuntimeT.time
            | Null
            | List of param list (* only works for in-script params *)
 
@@ -62,6 +66,9 @@ let rec escape (param: param) : string =
                         |> escape_single
                         |> single_quote
                         |> cast_to ~tipe:"jsonb"
+  | Time t -> t
+              |> date_to_sqlstring
+              |> escape_single
   | Null -> "NULL"
   | List params -> params
                    |> List.map ~f:escape
@@ -84,6 +91,7 @@ let rec to_sql param : string =
   | DvalJson dv -> Dval.unsafe_dval_to_json_string ~redact:false dv
   | DvalmapJsonb dvm -> Dval.unsafe_dvalmap_to_string ~redact:false dvm
   | Null -> Postgresql.null
+  | Time t -> date_to_sqlstring t
   | List xs ->
     xs
     |> List.map ~f:to_sql
@@ -106,6 +114,7 @@ let rec to_log param : string =
   | DvalJson dv -> abbrev (Dval.unsafe_dval_to_json_string dv)
   | DvalmapJsonb dvm -> abbrev (Dval.unsafe_dvalmap_to_string dvm)
   | Null -> "NULL"
+  | Time t -> date_to_sqlstring t
   | List params -> params
                    |> List.map ~f:to_log
                    |> String.concat ~sep:array_separator

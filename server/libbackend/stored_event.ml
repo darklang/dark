@@ -65,4 +65,42 @@ let clear_all_events ~(canvas_id: Uuidm.t) () : unit =
      WHERE canvas_id = $1"
     ~params:[ Uuid canvas_id]
 
+let get_recent_event_traceids ~(canvas_id:Uuidm.t) event_desc =
+  let (module_, path, modifier) = event_desc in
+  Db.fetch
+    ~name:"stored_event.get_recent_traces"
+    "SELECT trace_id FROM stored_events
+     WHERE canvas_id = $1
+       AND module = $2
+       AND path = $3
+       AND modifier = $4
+     ORDER BY timestamp DESC
+     LIMIT 10"
+    ~params:[ Uuid canvas_id
+            ; String module_
+            ; String path
+            ; String modifier]
+  |> List.filter_map ~f:(function
+      | [trace_id] ->
+        if trace_id = ""
+        then None
+        else Some (Util.uuid_of_string trace_id)
+      | _ -> Exception.internal "Bad DB format for stored_events")
 
+
+let get_all_recent_canvas_traceids (canvas_id: Uuidm.t) =
+  list_events ~canvas_id ()
+  |> List.map ~f:(get_recent_event_traceids ~canvas_id)
+  |> List.concat
+
+let trim_events ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) ~before () =
+  Db.run
+    ~name:"stored_event.trim_events"
+    "DELETE FROM stored_events
+     WHERE canvas_id = $1
+       AND timestamp < $2
+       AND NOT (trace_id = ANY (string_to_array($3, $4)::uuid[]))"
+    ~params:[ Uuid canvas_id
+            ; Time before
+            ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
+            ; String Db.array_separator]

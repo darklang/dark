@@ -65,9 +65,11 @@ type function_arg_hash = string [@@deriving yojson]
 type fnname = string [@@deriving yojson]
 type function_result = fnname * id * function_arg_hash * dval
                        [@@deriving yojson]
+type traceid = uuid
+               [@@deriving yojson]
 type trace = { input: input_vars
              ; function_results: function_result list
-             ; id: uuid
+             ; id: traceid
              } [@@deriving yojson]
 
 type tlid_trace = tlid * trace list

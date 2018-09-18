@@ -515,7 +515,8 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
     Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
   | (`POST, "/admin/ops/cleanup-old-traces") ->
-    respond ~execution_id `OK "Not implemented yet"
+    Canvas.cleanup_old_traces ();
+    respond ~execution_id `OK "Cleanedup"
   | (`GET, "/admin/ops/check-all-canvases") ->
     respond ~execution_id `OK "<html>
     <body>
@@ -526,7 +527,7 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       <input type='submit' value='Migrate all canvases'>
     </form>
     <form action='/admin/ops/cleanup-old-traces' method='post'>
-      <input type='submit' value='Cleanup old traces (done nightly by cron)>
+      <input type='submit' value='Cleanup old traces (done nightly by cron)'>
     </form>
     </body></html>"
   | _ ->
