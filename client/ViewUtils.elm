@@ -6,6 +6,7 @@ import Json.Decode.Pipeline as JSDP
 import Nineteen.Debug as Debug
 import Nineteen.String as String
 import Regex exposing (Regex, regex)
+import Maybe exposing (withDefault)
 
 -- lib
 import Html
@@ -260,7 +261,7 @@ viewFnName defaultView fnName =
       Just m ->
         let names = m.submatches
                     |> List.take 2
-                    |> List.foldr (\a b -> (Util.deMaybeString a) ++ b ) ""
+                    |> List.foldr (\a b -> (withDefault "" a) ++ b ) ""
             version = m.submatches
                       |> List.drop 2
                       |> List.head
