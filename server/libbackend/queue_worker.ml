@@ -6,7 +6,7 @@ module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
 
-let run execution_id : (unit, Exception.captured) Result.t =
+let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
   Log.infO "queue_worker"
     ~data:"Worker starting"
     ~params:["execution_id", Log.dump execution_id];
@@ -102,3 +102,16 @@ let run execution_id : (unit, Exception.captured) Result.t =
         let bt = Exception.get_backtrace () in
         Error (bt, e)
     )
+
+let run execution_id : (unit, Exception.captured) Result.t =
+  if String.Caseless.equal Libservice.Config.postgres_settings.dbname "prodclone"
+  then
+    begin
+      Log.erroR "queue_worker"
+        ~data:"Pointing at prodclone; will not dequeue"
+        ~params:["execution_id", Log.dump execution_id];
+      Ok(())
+    end
+  else
+    dequeue_and_process execution_id
+

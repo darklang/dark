@@ -80,8 +80,17 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
     ~data:"Cron check starting"
     ~params:["execution_id", Log.dump execution_id];
   let current_endpoints =
-    Serialize.current_hosts ()
-    |> List.filter ~f:(fun f -> not (Serialize.is_test f))
+    if String.Caseless.equal Libservice.Config.postgres_settings.dbname "prodclone"
+    then
+      begin
+        Log.erroR "cron_checker"
+          ~data:"Not running any crons; pointed at prodclone!"
+          ~params:["execution_id", Log.dump execution_id];
+        []
+      end
+    else
+      Serialize.current_hosts ()
+      |> List.filter ~f:(fun f -> not (Serialize.is_test f))
   in
   try
     current_endpoints
