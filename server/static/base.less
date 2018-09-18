@@ -785,21 +785,32 @@ body #grid * {
   }
 
   .fncall {
-    .arg-on-new-line {
-      .layout-block;
-      margin-top: 8px;
 
-      &:first-child {
-        margin-top: 0;
+    .fn-param {
+      .layout-inline;
+
+      &.is-filled {
+        &::after {
+          content: attr(param-name);
+          display: block;
+          width: auto;
+          position: relative;
+          bottom: 0;
+          left: 10px;
+          font-size: 10px;
+          color: @grey2;
+          font-style: italic;
+        }
       }
 
-      .param-name {
-        display: inline-block;
-        color: @grey2;
-        font-size: 85%;
-        min-width: 16ch;
-        width: auto;
-        margin-right: 2px;
+      &.arg-on-new-line {
+        .layout-block;
+
+        margin-top: 16px;
+
+        &:first-child {
+          margin-top: 0;
+        }
       }
     }
 
