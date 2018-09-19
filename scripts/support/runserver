@@ -5,12 +5,15 @@ set -euo pipefail
 #NATIVE=
 NATIVE=1
 
-BYTE_FILE="server/_build/default/bin/main.bc"
-NATIVE_FILE="server/_build/default/bin/main.exe"
+BINPATH="server/_build/default/bin"
 if [[ $NATIVE ]]; then
-  FILE=$NATIVE_FILE
+  SERVER_EXE="$BINPATH/main.exe"
+  QW_EXE="$BINPATH/queue_worker.exe"
+  CRON_EXE="$BINPATH/cron_checker.exe"
 else
-  FILE=$BYTE_FILE
+  SERVER_EXE="$BINPATH/main.bc"
+  QW_EXE="$BINPATH/queue_worker.bc"
+  CRON_EXE="$BINPATH/cron_checker.bc"
 fi
 
 
@@ -18,26 +21,32 @@ fi
 # Doesn't matter though, as this only runs in dev).
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep main.exe | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep queue_worker.exe | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep cron_checker.exe | xargs kill -9 > /dev/null 2>&1) || true
 
 ./scripts/support/wait-for-background-services dnsmasq postgresql
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${FILE}" ]]; then
+  if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
     sleep 0.01
   fi
 done
 
-if [[ -f "${FILE}" ]]; then
+if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUN_DIR}/logs"
   echo "Running server"
   if [[ $NATIVE ]]; then
-    "${FILE}" > "$LOGS/server.log" 2>&1 &
+    "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+    "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+    "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
   else
-    ocamlrun "${FILE}" > "$LOGS/server.log" 2>&1 &
+    ocamlrun "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+    ocamlrun "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+    ocamlrun "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
   fi
 else
-  echo "${FILE} doesn't exist"
+  echo "Missing binaries"
   exit -1
 fi
