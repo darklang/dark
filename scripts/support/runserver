@@ -5,15 +5,15 @@ set -euo pipefail
 #NATIVE=
 NATIVE=1
 
-FILEPATH="server/_build/default/bin"
+BINPATH="server/_build/default/bin"
 if [[ $NATIVE ]]; then
-  SERVER_FILE="$FILEPATH/main.exe"
-  QW_FILE="$FILEPATH/queue_worker.exe"
-  CRON_FILE="$FILEPATH/cron_checker.exe"
+  SERVER_FILE="$BINPATH/main.exe"
+  QW_FILE="$BINPATH/queue_worker.exe"
+  CRON_FILE="$BINPATH/cron_checker.exe"
 else
-  SERVER_FILE="$FILEPATH/main.bc"
-  QW_FILE="$FILEPATH/queue_worker.bc"
-  CRON_FILE="$FILEPATH/cron_checker.bc"
+  SERVER_FILE="$BINPATH/main.bc"
+  QW_FILE="$BINPATH/queue_worker.bc"
+  CRON_FILE="$BINPATH/cron_checker.bc"
 fi
 
 
