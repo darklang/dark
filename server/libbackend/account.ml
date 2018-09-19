@@ -458,5 +458,10 @@ let init () : unit =
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSkhyRjlrbEgzUWpjdkZCamg3dGtMQSRvdFVJTjF2UCs4d21FYWFVU1ZCR1ZSRWJ4TTRlZ3diYWtQakZGSDVEL0kwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "wenger.jacob@gmail.com"
     ; name = "Jacob Wenger"};
+  upsert_admin
+    { username = "ops"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZm0zUzhSUXhNQ3loWkI3bTlMRDhzQSRBWDdEbGNGYzIyVDJzb3lLc2V4ODlIdEtBY25uZllDN3VXa2FodVBvdzFvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "ops@darklang.com"
+    ; name = "Ops machinery"};
   ()
 

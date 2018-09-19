@@ -15,3 +15,14 @@ val load :
   trace_id:Uuidm.t ->
   Types.tlid ->
   Analysis_types.function_result list
+
+(* Trim the events for an entire canvas, removing events from before the time,
+ * unless listed in keep.
+ *)
+val trim_results :
+  canvas_id:Uuidm.t ->
+  keep:(Analysis_types.traceid list) ->
+  before:Types.RuntimeT.time ->
+  unit ->
+  unit
+

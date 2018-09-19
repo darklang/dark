@@ -1888,4 +1888,23 @@ let fns : Lib.shortfn list = [
   ; dep = false
   }
   ;
+
+
+  (* ====================================== *)
+  (* Errors *)
+  (* ====================================== *)
+  { pns = ["Error::toString"]
+  ; ins = []
+  ; p = [par "err" TError]
+  ; r = TStr
+  ; d = "Return a string representing the error"
+  ; f = InProcess
+        (function
+         | (_, [err]) -> DStr (Dval.as_string err)
+         | args -> fail args)
+  ; pr = None
+  ; ps = true
+  ; dep = false
+  }
+  ;
 ]

@@ -25,7 +25,22 @@ val list_events :
   unit ->
   event_desc list
 
-val clear_events :
+val clear_all_events :
   canvas_id:Uuidm.t ->
   unit ->
   unit
+
+val get_all_recent_canvas_traceids :
+  Uuidm.t ->
+  Analysis_types.traceid list
+
+(* Trim the events for an entire canvas, removing events from before the time,
+ * unless listed in keep.
+ *)
+val trim_events :
+  canvas_id:Uuidm.t ->
+  keep:(Analysis_types.traceid list) ->
+  before:Types.RuntimeT.time ->
+  unit ->
+  unit
+
