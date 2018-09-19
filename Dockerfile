@@ -248,8 +248,7 @@ RUN opam install -y \
   js_of_ocaml.3.2.0 \
   js_of_ocaml-ppx.3.2.0 \
   js_of_ocaml-lwt.3.2.0 \
-  sodium.0.6.0 \
-  tls.0.9.2
+  sodium.0.6.0
 
 
 ############################
