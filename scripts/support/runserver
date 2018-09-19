@@ -7,13 +7,13 @@ NATIVE=1
 
 BINPATH="server/_build/default/bin"
 if [[ $NATIVE ]]; then
-  SERVER_FILE="$BINPATH/main.exe"
-  QW_FILE="$BINPATH/queue_worker.exe"
-  CRON_FILE="$BINPATH/cron_checker.exe"
+  SERVER_EXE="$BINPATH/main.exe"
+  QW_EXE="$BINPATH/queue_worker.exe"
+  CRON_EXE="$BINPATH/cron_checker.exe"
 else
-  SERVER_FILE="$BINPATH/main.bc"
-  QW_FILE="$BINPATH/queue_worker.bc"
-  CRON_FILE="$BINPATH/cron_checker.bc"
+  SERVER_EXE="$BINPATH/main.bc"
+  QW_EXE="$BINPATH/queue_worker.bc"
+  CRON_EXE="$BINPATH/cron_checker.bc"
 fi
 
 
@@ -29,22 +29,22 @@ fi
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${SERVER_FILE}" || ! -f "${QW_FILE}" || ! -f "${CRON_FILE}" ]]; then
+  if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
     sleep 0.01
   fi
 done
 
-if [[ -f "${SERVER_FILE}" && -f "${QW_FILE}" && -f "${CRON_FILE}" ]]; then
+if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUN_DIR}/logs"
   echo "Running server"
   if [[ $NATIVE ]]; then
-    "${SERVER_FILE}" > "$LOGS/server.log" 2>&1 &
-    "${QW_FILE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
-    "${CRON_FILE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+    "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+    "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+    "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
   else
-    ocamlrun "${SERVER_FILE}" > "$LOGS/server.log" 2>&1 &
-    ocamlrun "${QW_FILE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
-    ocamlrun "${CRON_FILE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+    ocamlrun "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+    ocamlrun "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+    ocamlrun "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
   fi
 else
   echo "Missing binaries"
