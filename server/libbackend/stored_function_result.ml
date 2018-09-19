@@ -12,7 +12,7 @@ module RTT = Types.RuntimeT
 let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
   Db.run
     ~name:"stored_function_result.store"
-    "INSERT INTO function_results
+    "INSERT INTO function_results_v2
      (canvas_id, trace_id, tlid, fnname, id, hash, timestamp, value)
      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)"
     ~params:[ Uuid canvas_id
@@ -27,7 +27,7 @@ let load ~canvas_id ~trace_id tlid : function_result list =
   Db.fetch
     ~name:"sfr_load"
     "SELECT fnname, id, hash, value, timestamp
-     FROM function_results
+     FROM function_results_v2
      WHERE canvas_id = $1
        AND trace_id = $2
        AND tlid = $3
