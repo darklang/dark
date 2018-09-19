@@ -463,5 +463,10 @@ let init () : unit =
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZm0zUzhSUXhNQ3loWkI3bTlMRDhzQSRBWDdEbGNGYzIyVDJzb3lLc2V4ODlIdEtBY25uZllDN3VXa2FodVBvdzFvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Ops machinery"};
+  upsert_account
+    { username = "russ"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWE1uc0pGVUhsNnZ4R1dSSDlEdXl0USQrVkpvcS9IaUVGMGxaeWpmSmowakNFK2ViQTVXNWplMlFzZUpIcE8xR3hnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "russ@rainforestqa.com"
+    ; name = "Russell Smith"};
   ()
 
