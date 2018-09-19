@@ -247,6 +247,7 @@ def ignore(filename):
             , "server/static/base.css"
             , "server/static/elm-debug.js"
             , "server/static/elm.js"
+            , "server/static/darkjs.bc.js"
   ]
   for i in ignores:
     if i in filename:
