@@ -1006,7 +1006,6 @@ body #grid * {
   }
 
   .threadexpr {
-    position: relative;
 
     .threadmember {
       .layout-block;
@@ -1362,46 +1361,27 @@ body #grid * {
   }
 }
 
-.computed-value {
-  margin-top: -4px;
-}
-
-.computed-value-value {
-
-  .value-error & {
-    outline: 0.4px red dotted;
-  }
-  .default;
-  position: absolute;
-  right: calc(~"100% + 20px");
-
-  padding: 4px;
-  max-width: 100%;
-  width: max-content;
-  
-  white-space: pre-wrap;
-  word-break: break-all;
-  word-wrap: break-word;
-  font-size: @code-font-size * 0.85;
-  color: @grey3;
-  
-  outline: 0.4px @grey2 dotted;
-}
-
 .ast div {
-  .computed-value {
-    display: block;
-    margin-top: 0;
+  &.selected {
 
-    .computed-value-value {
-      top: calc(~"50% - 20px");
+    &:before {
+      content: attr(data-live-value);
+      position: absolute;
+      right: calc(~"100% + 30px");
+
+      padding: 4px;
+      width: max-content;
+      max-width: 250px;
+      
+      white-space: pre-wrap;
+      word-break: break-all;
+      word-wrap: break-word;
+      font-size: @code-font-size * 0.85;
+      color: @grey3;
+      
+      background-color: @black2;
+      outline: 0.4px @grey2 dotted;
     }
-  }
-}
-
-.nested-flag {
-  .computed-value-value {
-    right: calc(~"-100%");
   }
 }
 
