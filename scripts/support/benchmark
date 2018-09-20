@@ -99,14 +99,14 @@ def initialize():
   random.seed(0)
   # The benchmarks read from disk, so add an op first so that it
   # moves to the DB.
-  post('/admin/api/clear-benchmarking-data')
-  post('/admin/api/rpc', json=createDB())
+  post('/api/clear-benchmarking-data')
+  post('/api/rpc', json=createDB())
 
 # Starting point, just do 10 analysis requests and see what we get.
 def call_analysis():
   tracker = Tracker()
   tracker.start()
-  r = get('/admin/api/get_analysis')
+  r = get('/api/get_analysis')
   tracker.stop()
   tracker.record_data(r.text)
   if r.status_code != 200:
@@ -117,7 +117,7 @@ def make_change():
   tracker = Tracker()
   tracker.start()
   id = random.randint(0, 1000000000)
-  r = post('/admin/api/rpc', json=createDB())
+  r = post('/api/rpc', json=createDB())
   tracker.stop()
   tracker.record_data(r.text)
   if r.status_code != 200:
