@@ -349,10 +349,7 @@ updateMod mod (m, cmd) =
     in
     case mod of
       DisplayError e ->
-        ( { m | error =
-                        { message = Just e
-                        , showDetails = True }
-          }
+        ( { m | error = updateError m.error e }
         , Cmd.none)
       DisplayAndReportError e ->
         let json = JSE.object [ ("message", JSE.string e)
@@ -360,10 +357,7 @@ updateMod mod (m, cmd) =
                               , ("custom", JSE.object [])
                               ]
         in
-        ( { m | error =
-                        { message = Just e
-                        , showDetails = True }
-          }
+        ( { m | error = updateError m.error e }
         , sendRollbar json)
       DisplayAndReportHttpError context e ->
         let response =
@@ -437,10 +431,7 @@ updateMod mod (m, cmd) =
                               ]
             cmds = if shouldRollbar then [sendRollbar json] else []
         in
-        ( { m | error =
-                        { message = Just msg
-                        , showDetails = True }
-          }
+        ( { m | error = updateError m.error msg }
         , Cmd.batch cmds)
 
       ClearError ->
@@ -1749,6 +1740,13 @@ toggleTimers : Model -> Model
 toggleTimers m =
   { m | timersEnabled = not m.timersEnabled }
 
+updateError: DarkError -> String -> DarkError
+updateError oldErr newErrMsg =
+  if oldErr.message == Just newErrMsg && (not oldErr.showDetails)
+  then oldErr
+  else
+    { message = Just newErrMsg
+    , showDetails = True }
 
 -----------------------
 -- SUBSCRIPTIONS
