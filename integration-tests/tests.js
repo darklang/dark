@@ -1,5 +1,4 @@
-import { Selector } from 'testcafe';
-import { ClientFunction } from 'testcafe';
+import { ClientFunction, Selector } from 'testcafe';
 
 fixture `Integration Tests`
   // To add this user, run the backend tests
@@ -743,13 +742,15 @@ test('execute_function_works', async t => {
     .click(Selector('.fncall').withText('Uuid::generate'))
     ;
 
-  let v1 = await Selector('.computed-value-value').textContent;
+  let v1 = await Selector('.selected[data-live-value]').getAttribute('data-live-value');
+  console.log(v1);
 
   await t
     .click(Selector('.fa-redo'))
     ;
 
-  let v2 = await Selector('.computed-value-value').textContent;
+  let v2 = await Selector('.selected[data-live-value]').getAttribute('data-live-value');
+  console.log(v2);
 
   let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
   await t.expect(v1).match(re);
