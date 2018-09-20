@@ -163,9 +163,37 @@ let replacements = [
             let db = find_db state.dbs dbname in
             User_db.get_all ~state ~magic:false db
           | args -> fail args))
-
-  (* previously called `DB::keys` *)
   ;
+  ( "DB::getAll_v2"
+  , InProcess
+      (function
+          | (state, [DDB dbname]) ->
+            let results =
+              let db = find_db state.dbs dbname in
+              User_db.get_all ~state ~magic:false db
+            in
+            (match results with
+             | DList xs ->
+               xs
+               |> List.map
+                 ~f:(function
+                     | DList [x;y] -> y
+                     | _ ->
+                       Exception.internal "bad format from User_db.query")
+               |> DList
+             | _ ->
+               Exception.internal "bad format from User_db.query")
+          | args -> fail args))
+  ;
+  ( "DB::getAllWithKeys_v1"
+  , InProcess
+      (function
+          | (state, [DDB dbname]) ->
+            let db = find_db state.dbs dbname in
+            User_db.get_all ~state ~magic:false db
+          | args -> fail args))
+  ;
+  (* previously called `DB::keys` *)
   ( "DB::schemaFields_v1"
   , InProcess
       (function
