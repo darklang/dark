@@ -87,14 +87,13 @@ let valid_user ~(username:username) ~(password:string) : bool =
 let can_access_operations ~(username:username) : bool =
   is_admin ~username
 
-let can_edit_canvas ~(auth_domain:string) ~(username:username) : bool =
-  String.Caseless.equal username auth_domain || String.Caseless.equal "demo" auth_domain
-
 type permissions = CanEdit | CanAccessOperations | NoPermission
 let get_permissions ~(auth_domain:string) ~(username:username) () : permissions =
   if can_access_operations ~username
   then CanAccessOperations
-  else if can_edit_canvas ~auth_domain ~username
+  else if String.Caseless.equal username auth_domain
+  then CanEdit
+  else if String.Caseless.equal "demo" auth_domain
   then CanEdit
   else NoPermission
 
@@ -134,7 +133,7 @@ let for_host (host:string) : Uuidm.t =
 
 let init_testing () : unit =
   upsert_account
-    { username = "test_unhashed"
+    { username = "test-unhashed"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests with Unhashed Password"};
@@ -143,14 +142,7 @@ let init_testing () : unit =
     { username = "test"
     ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"};
-
-  upsert_admin
-    { username = "test_admin"
-    ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "test@darklang.com"
-    ; name = "Dark OCaml Test Admin"};;
-
+    ; name = "Dark OCaml Tests"};;
 
 let init () : unit =
   init_testing ();

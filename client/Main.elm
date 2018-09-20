@@ -90,7 +90,7 @@ flag2function fn =
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
-init {editorState, complete, userContentHost} location =
+init {editorState, complete} location =
   let savedEditor = Editor.fromString editorState
 
       m0 = Editor.editor2model savedEditor
@@ -120,15 +120,21 @@ init {editorState, complete, userContentHost} location =
         Task.perform PageVisibilityChange PageVisibility.visibility
 
       shouldRunIntegrationTest =
-        String.endsWith "/integration_test" location.pathname
+        "/admin/integration_test" == location.pathname
+
+      integrationTestName =
+        location.hostname
+        |> SE.replace ".localhost" ""
+        |> SE.replace ".integration-tests" ""
+        |> SE.replace ".dark-dev" ""
+        |> SE.replace ".dark-local-gcp" ""
+        |> SE.replace ":8000" ""
+        |> SE.replace ":9000" ""
 
       isAdmin = False
 
       builtins =
         List.map flag2function complete
-
-      canvasName = Url.parseCanvasName location
-      integrationTestName = canvasName
 
       m2 = { m | builtInFunctions = builtins
                , complete = AC.init builtins isAdmin
@@ -136,18 +142,17 @@ init {editorState, complete, userContentHost} location =
                , toplevels = []
                , currentPage = page
                , canvas = newCanvas
-               , canvasName = canvasName
-               , userContentHost = userContentHost
            }
 
   in
     if shouldRunIntegrationTest
-    then (m2, Cmd.batch [ RPC.integrationRPC m canvasName integrationTestName
-                        , visibilityTask])
-    else (m2, Cmd.batch [ RPC.initialLoadRPC canvasName (FocusPageAndCursor page savedCursorState)
-                        -- load the analysis even if the timers are off
-                        , RPC.getAnalysisRPC canvasName []
-                        , visibilityTask])
+    then (m2, Cmd.batch [ RPC.integrationRPC m integrationTestName
+              , visibilityTask])
+    else (m2, Cmd.batch [ RPC.initialLoadRPC
+                  (FocusPageAndCursor page savedCursorState)
+              -- load the analysis even if the timers are off
+              , RPC.getAnalysisRPC []
+              , visibilityTask])
 
 
 -----------------------
@@ -286,7 +291,7 @@ updateMod mod (m, cmd) =
                       ops = [ SetHandler tl.id tl.pos newH]
                       params = RPC.opsParams ops
                   -- call RPC on the new model
-                  in [RPC.rpc newM newM.canvasName FocusSame params]
+                  in [RPC.rpc newM FocusSame params]
               TLFunc f ->
                 let replacement = AST.closeBlanks f.ast in
                 if replacement == f.ast
@@ -296,7 +301,7 @@ updateMod mod (m, cmd) =
                       ops = [ SetFunction newF ]
                       params = RPC.opsParams ops
                   -- call RPC on the new model
-                  in [RPC.rpc newM newM.canvasName FocusSame params]
+                  in [RPC.rpc newM FocusSame params]
               _ -> [])
         |> Maybe.withDefault []
         |> \rpc -> if tlidOf newM.cursorState == tlidOf m.cursorState
@@ -318,7 +323,7 @@ updateMod mod (m, cmd) =
           in
           if hasNonHandlers
           then
-            (m , RPC.rpc m m.canvasName focus params)
+            (m , RPC.rpc m focus params)
           else
             let localM =
                   List.foldl (\call m ->
@@ -339,7 +344,7 @@ updateMod mod (m, cmd) =
                                   ])
                             (localM, Cmd.none)
              in
-             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus withFocus.canvasName FocusNoChange params])
+             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus FocusNoChange params])
 
     in
     case mod of
@@ -690,6 +695,7 @@ updateMod mod (m, cmd) =
       ExecutingFunctionBegan tlid id ->
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         ({ m | executingFunctions = nexecutingFunctions }, Cmd.none)
+
       ExecutingFunctionRPC tlid id name ->
         case Analysis.getCurrentTrace m tlid of
           Just trace ->
@@ -702,7 +708,7 @@ updateMod mod (m, cmd) =
                              , args = args
                              }
                 in
-                (m, RPC.executeFunctionRPC m.canvasName params)
+                (m, RPC.executeFunctionRPC params)
               Nothing ->
                 m ! [sendTask (ExecuteFunctionCancel tlid id)]
           Nothing ->
@@ -1493,7 +1499,7 @@ update_ msg m =
       TweakModel toggleTimers
 
     SaveTestButton ->
-      MakeCmd (RPC.saveTestRPC m.canvasName)
+      MakeCmd RPC.saveTestRPC
 
     FinishIntegrationTest ->
       EndIntegrationTest

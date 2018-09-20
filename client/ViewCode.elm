@@ -4,7 +4,6 @@ module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
 import Dict
 
 -- lib
-import Http
 import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
@@ -527,8 +526,7 @@ viewHandler vs h =
         case (h.spec.modifier, h.spec.name) of
           (F _ "GET", F _ name)  ->
             [Html.a [ Attrs.class "external"
-                    , Attrs.href ("//" ++ Http.encodeUri vs.canvasName
-                                  ++  "." ++ vs.userContentHost ++ name)
+                    , Attrs.href name
                     , Attrs.target "_blank"
                     ]
                     [fontAwesome "external-link-alt"]]

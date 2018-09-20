@@ -8,7 +8,7 @@
 - Run `brew install fswatch`
 - Run `scripts/builder --compile --watch --test`
 - Wait til the terminal says "Finished initial compile" - this means the build server is ready
-- Open your browser to http://builtwithdark.localhost:8000/YOURNAME/
+- Open your browser to http://YOURNAME.localhost:8000/admin/ui
 - Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
 
 ## If you're interviewing:
@@ -196,7 +196,7 @@ You can also disable the polling (ans consequently the building):
 
 # Debugging elm
 
-Go to `http://builtwithdark.localhost:8000/YOURNAME/ui-debug` instead of `YOURNAME/`.
+Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
 # Debugging ppx stuff
 
@@ -215,13 +215,13 @@ the preprocessed version.
 
 - Run `./scripts/run-conduit-frontend.sh`
 - Go to `http://localhost:8001`
-- This will use http://conduit.builtwithdark.localhost:8000 as its server, so use http://darklang.localhost:8000/a/conduit/ to create the UI.
+- This will use http://conduit.localhost:8000 as its server, so use http://conduiit.localhost:8000/admin/ui to create the UI.
 
 # How to profile (old info, much may have changed)
 - make compilation and run use OCAML_LANDMARKS="auto,format=json,output=profile.json,allocation", in scripts/support/compile (enable the `profile` global)
 - rm server/_build
 - run the builder
-- refresh the page 10 times, then post to localhost:8000/api/shutdown (shuts
+- refresh the page 10 times, then post to localhost:8000/admin/api/shutdown (shuts
   down the server and saves the profiling info)
   - if the time is all spent in twitter, delete server/profile.json and
     try again

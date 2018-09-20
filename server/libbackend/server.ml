@@ -5,10 +5,8 @@ open Lwt
 module Clu = Cohttp_lwt_unix
 module S = Clu.Server
 module CRequest = Clu.Request
-module CResponse = Clu.Response
 module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
-module Client = Clu.Client
 
 module C = Canvas
 
@@ -82,11 +80,9 @@ let should_use_https uri =
               |> (fun h -> String.split h '.')
   in
   match parts with
-  | ["darklang"; "com"; ]
   | ["builtwithdark"; "com"; ]
   | [_; "builtwithdark"; "com"; ] -> true
   | _ -> false
-
 
 let redirect_to uri =
   let proto = uri
@@ -98,38 +94,6 @@ let redirect_to uri =
   if proto = "http" && should_use_https uri
   then Some "https" |> Uri.with_scheme uri |> Some
   else None
-
-(* there might be some better way to do this... *)
-let over_headers (r : CResponse.t) ~(f : Header.t -> Header.t) : CResponse.t  =
-  CResponse.make
-    ~version:(CResponse.version r)
-    ~status:(CResponse.status r)
-    ~flush:(CResponse.flush r)
-    ~encoding:(CResponse.encoding r)
-    ~headers:(r |> CResponse.headers |> f)
-    ()
-
-let over_headers_promise
-      (resp_promise: (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t)
-      ~(f : Header.t -> Header.t)
-    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let%lwt (resp, body) = resp_promise in
-  return (over_headers ~f resp, body)
-
-let wrap_json_headers =
-  let json_headers = [("Content-type",  "application/json; charset=utf-8") ] in
-  over_headers_promise ~f:(fun h -> Header.add_list h json_headers)
-
-(* Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
-   or X-Forwarded-Proto: https.
-
-   Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto. *)
-let with_x_forwarded_proto req =
-  match Header.get (CRequest.headers req) "X-Forwarded-Proto" with
-  | Some proto -> Uri.with_scheme
-                   (CRequest.uri req)
-                   (Some proto)
-  | None -> CRequest.uri req
 
 (* -------------------------------------------- *)
 (* handlers for end users *)
@@ -157,135 +121,118 @@ let options_handler ~(execution_id: Types.id) (c: C.canvas) (req: CRequest.t) =
   in
   respond ~resp_headers:(Cohttp.Header.of_list resp_headers) ~execution_id `OK ""
 
-let user_page_handler ~(execution_id: Types.id) ~(canvas: string) ~(ip: string) ~(uri: Uri.t)
-      ~(body: string) (req: CRequest.t) =
-  (* HACK temporarily redirect /admin/ui to the right url.
-     remove this once customers understand it's the right place. *)
-  Log.infO "user_page_handler" ~params:["uri", Uri.to_string uri];
-  if Uri.path uri = "/admin/ui"
-  then
-    (* change the domain to the admin host and the
-       path to /a/canvas. *)
-    let (host, port) =
-      match String.lsplit2 ~on:':' Config.admin_host with
-      | None -> (Config.admin_host, None)
-      | Some (a, b) -> (a, Some (int_of_string b))
+
+let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(uri: Uri.t)
+    ~(body: string) (req: CRequest.t) =
+  let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
+  let headers = req |> CRequest.headers |> Header.to_list in
+  let query = req |> CRequest.uri |> Uri.query in
+  let c = C.load_http host ~verb ~path:(Uri.path uri) in
+  let pages = !c.handlers |> TL.http_handlers in
+  let pages =
+    if List.length pages > 1
+    then List.filter pages
+        ~f:(fun h ->
+            not (Http.has_route_variables
+                   (Handler.event_name_for_exn h)))
+    else pages in
+
+  let trace_id = Util.create_uuid () in
+  let canvas_id = !c.id in
+  match pages with
+  | [] when String.Caseless.equal verb "OPTIONS" ->
+    options_handler ~execution_id !c req
+  | [] ->
+    PReq.from_request headers query body
+    |> PReq.to_dval
+    |> Stored_event.store_event ~trace_id ~canvas_id ("HTTP", Uri.path uri, verb) ;
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond ~resp_headers ~execution_id `Not_found "404: No page matches"
+  | a :: b :: _ ->
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond `Internal_server_error ~resp_headers ~execution_id
+      "500: More than one page matches"
+  | [page] ->
+    let input = PReq.from_request headers query body in
+    (match (Handler.module_for page, Handler.modifier_for page) with
+    | (Some m, Some mo) ->
+      (* Store the event with the input path not the event name, because we
+       * want to be able to
+       *    a) use this event if this particular handler changes
+       *    b) use the input url params in the analysis for this handler
+       *)
+      let desc = (m, Uri.path uri, mo) in
+      Stored_event.store_event ~trace_id ~canvas_id desc (PReq.to_dval input)
+    | _-> ());
+
+    let bound = Libexecution.Execution.http_route_input_vars
+        page (Uri.path uri)
     in
-    let uri = with_x_forwarded_proto req
-              |> (fun u -> Uri.with_host u (Some host))
-              |> (fun u -> Uri.with_port u port)
-              |> (fun u -> Uri.with_path u ("/a/" ^ Uri.pct_encode canvas))
-    in S.respond_redirect ~uri ()
-  else
-    let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
-    let headers = req |> CRequest.headers |> Header.to_list in
-    let query = req |> CRequest.uri |> Uri.query in
-    let c = C.load_http canvas ~verb ~path:(Uri.path uri) in
-    let pages = !c.handlers |> TL.http_handlers in
-    let pages =
-      if List.length pages > 1
-      then List.filter pages
-             ~f:(fun h ->
-               not (Http.has_route_variables
-                    (Handler.event_name_for_exn h)))
-      else pages in
+    let result = Libexecution.Execution.execute_handler page
+        ~execution_id
+        ~account_id:!c.owner
+        ~canvas_id
+        ~user_fns:!c.user_functions
+        ~tlid:page.tlid
+        ~dbs:(TL.dbs !c.dbs)
+        ~input_vars:([("request", PReq.to_dval input)] @ bound)
+        ~store_fn_arguments:(Stored_function_arguments.store ~canvas_id ~trace_id)
+        ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
+    in
+    let maybe_infer_headers resp_headers value =
+      if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
+      then
+        resp_headers
+      else
+        match value with
+        | RTT.DObj _ | RTT.DList _ ->
+          List.Assoc.add
+            resp_headers
+            ~equal:(=)
+            "Content-Type"
+            "application/json; charset=utf-8"
+        | _ ->
+          List.Assoc.add
+            resp_headers
+            ~equal:(=)
+            "Content-Type"
+            "text/plain; charset=utf-8"
+    in
+    match result with
+    | DIncomplete ->
+      respond ~execution_id `Internal_server_error
+        "Program error: program was incomplete"
+    | RTT.DResp (Redirect url, value) ->
+      S.respond_redirect (Uri.of_string url) ()
+    | RTT.DResp (Response (code, resp_headers), value) ->
+      let body =
+        if List.exists resp_headers ~f:(fun (name, value) ->
+           String.lowercase name = "content-type"
+           && String.is_prefix value ~prefix:"text/html")
+        then Dval.to_human_repr value
+        (* TODO: only pretty print for a webbrowser *)
+        else
+          Dval.unsafe_dval_to_pretty_json_string value
+      in
+      let resp_headers = maybe_infer_headers resp_headers value in
+      let status = Cohttp.Code.status_of_code code in
+      let resp_headers = Cohttp.Header.of_list ([cors]
+                                                @ resp_headers)
+      in
+      respond ~resp_headers ~execution_id status body
+    | _ ->
+      let body = Dval.unsafe_dval_to_pretty_json_string result in
+      let ct_headers = maybe_infer_headers [] result in
+      let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
+      (* for demonstrations sake, let's return 200 Okay when
+       * no HTTP response object is returned *)
+      respond ~resp_headers ~execution_id `OK body
 
-    let trace_id = Util.create_uuid () in
-    let canvas_id = !c.id in
-    match pages with
-    | [] when String.Caseless.equal verb "OPTIONS" ->
-       options_handler ~execution_id !c req
-    | [] ->
-       PReq.from_request headers query body
-       |> PReq.to_dval
-       |> Stored_event.store_event ~trace_id ~canvas_id ("HTTP", Uri.path uri, verb) ;
-       let resp_headers = Cohttp.Header.of_list [cors] in
-       respond ~resp_headers ~execution_id `Not_found "404: No page matches"
-    | a :: b :: _ ->
-       let resp_headers = Cohttp.Header.of_list [cors] in
-       respond `Internal_server_error ~resp_headers ~execution_id
-         "500: More than one page matches"
-    | [page] ->
-       let input = PReq.from_request headers query body in
-       (match (Handler.module_for page, Handler.modifier_for page) with
-        | (Some m, Some mo) ->
-           (* Store the event with the input path not the event name, because we
-            * want to be able to
-            *    a) use this event if this particular handler changes
-            *    b) use the input url params in the analysis for this handler
-            *)
-           let desc = (m, Uri.path uri, mo) in
-           Stored_event.store_event ~trace_id ~canvas_id desc (PReq.to_dval input)
-        | _-> ());
-
-       let bound = Libexecution.Execution.http_route_input_vars
-                     page (Uri.path uri)
-       in
-       let result = Libexecution.Execution.execute_handler page
-                      ~execution_id
-                      ~account_id:!c.owner
-                      ~canvas_id
-                      ~user_fns:!c.user_functions
-                      ~tlid:page.tlid
-                      ~dbs:(TL.dbs !c.dbs)
-                      ~input_vars:([("request", PReq.to_dval input)] @ bound)
-                      ~store_fn_arguments:(Stored_function_arguments.store ~canvas_id ~trace_id)
-                      ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
-       in
-       let maybe_infer_headers resp_headers value =
-         if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
-         then
-           resp_headers
-         else
-           match value with
-           | RTT.DObj _ | RTT.DList _ ->
-              List.Assoc.add
-                resp_headers
-                ~equal:(=)
-                "Content-Type"
-                "application/json; charset=utf-8"
-           | _ ->
-              List.Assoc.add
-                resp_headers
-                ~equal:(=)
-                "Content-Type"
-                "text/plain; charset=utf-8"
-       in
-       match result with
-       | DIncomplete ->
-          respond ~execution_id `Internal_server_error
-            "Program error: program was incomplete"
-       | RTT.DResp (Redirect url, value) ->
-          S.respond_redirect (Uri.of_string url) ()
-       | RTT.DResp (Response (code, resp_headers), value) ->
-          let body =
-            if List.exists resp_headers ~f:(fun (name, value) ->
-                   String.lowercase name = "content-type"
-                   && String.is_prefix value ~prefix:"text/html")
-            then Dval.to_human_repr value
-                                    (* TODO: only pretty print for a webbrowser *)
-            else
-              Dval.unsafe_dval_to_pretty_json_string value
-          in
-          let resp_headers = maybe_infer_headers resp_headers value in
-          let status = Cohttp.Code.status_of_code code in
-          let resp_headers = Cohttp.Header.of_list ([cors]
-                                                    @ resp_headers)
-          in
-          respond ~resp_headers ~execution_id status body
-       | _ ->
-          let body = Dval.unsafe_dval_to_pretty_json_string result in
-          let ct_headers = maybe_infer_headers [] result in
-          let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
-          (* for demonstrations sake, let's return 200 Okay when
-           * no HTTP response object is returned *)
-          respond ~resp_headers ~execution_id `OK body
 
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let admin_rpc_handler ~(execution_id: Types.id) (host: string) body
-    :  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
@@ -330,13 +277,12 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body
         else ()
       ) in
 
-    respond ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7]) ~execution_id `OK result
+  (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with
   | e ->
     raise e
 
-let initial_load ~(execution_id: Types.id) (host: string) body
-  : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   try
     let (t1, c) = time "1-load-saved-ops"
       (fun _ ->
@@ -348,15 +294,14 @@ let initial_load ~(execution_id: Types.id) (host: string) body
     let (t3, result) = time "3-to-frontend"
         (fun _ -> Analysis.to_rpc_response_frontend !c [] unlocked) in
 
-    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  (server_timing [t1; t2; t3], result)
   with
   | e ->
     raise e
 
 
 
-let execute_function ~(execution_id: Types.id) (host: string) body
-  : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   let (t1, params) = time "1-read-api-ops"
     (fun _ -> Api.to_execute_function_params body)
   in
@@ -374,16 +319,16 @@ let execute_function ~(execution_id: Types.id) (host: string) body
          ~caller_id:params.caller_id
          ~args:params.args)
   in
+
   let (t4, response) = time "4-to-frontend"
     (fun _ ->
       Analysis.to_execute_function_response_frontend
         (Dval.hash params.args)
         result)
   in
-  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4]) `OK response
+  (server_timing [t1; t2; t3; t4], response)
 
-let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
-        : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Cohttp.Header.t * string) =
   try
     let (t1, tlids) = time "1-read-api-tlids"
       (fun _ -> Api.to_analysis_params body) in
@@ -418,79 +363,100 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
     let (t7, result) = time "7-to-frontend"
       (fun _ -> Analysis.to_getanalysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
-    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7]) `OK result
+  (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with
   | e ->
     raise e
 
 
 
-let admin_ui_html ~(debug:bool) () =
+let admin_ui_handler ~(debug:bool) () =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
-  >|= Util.string_replace "{STATIC}" Config.static_host
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
-  >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ELMDEBUG}" (if debug
                                       then "-debug"
-                                        else "")
+                                      else "")
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
   let filename = C.save_test !g in
   respond ~execution_id `OK ("Saved as: " ^ filename)
 
-(* Checks for a cookie, prompts for basic auth if there isn't one,
-   returns Unauthorized if basic auth doesn't work.
 
-   Importantly this performs no authorization. Just authentication.
-
-   Also implements logout (!). *)
-let authenticate_then_handle ~(execution_id: Types.id) handler req =
+let auth_then_handle ~(execution_id: Types.id) req host handler =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
+  if not (String.is_prefix ~prefix:"/admin" path)
+  then
+    handler (Header.init ())
+  else
+    let run_handler ~auth_domain ~username headers =
+      let permission = Account.get_permissions ~auth_domain ~username () in
+      let permission_needed =
+        if (String.is_prefix ~prefix:"/admin/ops/" path)
+        then `Operations
+        else if (String.is_prefix ~prefix:"/admin" path)
+        then `Edit
+        else `None
+      in
+      match (permission_needed, permission) with
+      | (_, Account.CanAccessOperations)
+      | (`None, _)
+      | (`Edit, Account.CanEdit) ->
+        handler headers
+      | _ -> respond ~execution_id `Unauthorized "Unauthorized"
+    in
 
-  match%lwt Auth.Session.of_request req with
-  | Ok (Some session) ->
-     let username = Auth.Session.username_for session in
-     if path = "/logout"
-     then
-       (Auth.Session.clear Auth.Session.backend session;%lwt
+    (* only handle auth for admin routes *)
+    (* let users use their domain as a prefix for scratch work *)
+    let auth_domain = Account.auth_domain_for host in
+    match%lwt Auth.Session.of_request req with
+    | Ok (Some session) ->
+      if path = "/admin/logout"
+      then
+        (Auth.Session.clear Auth.Session.backend session;%lwt
         let headers =
           (Header.of_list
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-            let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
-            S.respond_redirect ~headers ~uri ())
-     else
-       handler ~username req
-  | _ ->
-     match Header.get_authorization headers with
-     | (Some (`Basic (username, password))) ->
+        S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ())
+      else
+        let username = Auth.Session.username_for session in
+        run_handler ~auth_domain ~username (Header.init ())
+    | _ ->
+      match Header.get_authorization headers with
+      | (Some (`Basic (username, password))) ->
         (if Account.authenticate ~username ~password
          then
            let%lwt session = Auth.Session.new_for_username username in
            let https_only_cookie = req |> CRequest.uri |> should_use_https in
-           let headers = Auth.Session.to_cookie_hdrs
-                           ~http_only:true
-                           ~secure:https_only_cookie
-                           Auth.Session.cookie_key session
+           let headers =
+             Header.of_list
+               (Auth.Session.to_cookie_hdrs
+                  ~http_only:true
+                  ~secure:https_only_cookie
+                  Auth.Session.cookie_key session)
            in
-           over_headers_promise ~f:(fun h -> Header.add_list h headers)
-             (handler ~username req)
+           run_handler ~auth_domain ~username headers
          else
-           respond ~execution_id `Unauthorized "Bad credentials")
-     | None ->
+          respond ~execution_id `Unauthorized "Bad credentials")
+      | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
-     | _ ->
+      | _ ->
         respond ~execution_id `Unauthorized "Invalid session"
 
-
-let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
+let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper
+  ~(body: string) (req: CRequest.t) resp_headers =
   let verb = req |> CRequest.meth in
+  let json_hdrs hdrs =
+    Header.add_list resp_headers
+      (hdrs
+       |> Header.to_list
+       |> List.cons ("Content-type",  "application/json; charset=utf-8"))
+  in
   let html_hdrs =
-    Header.of_list
+    Header.add_list resp_headers
       [ ("Content-type", "text/html; charset=utf-8")
       (* Don't allow any other websites to put this in an iframe;
          this prevents "clickjacking" at tacks.
@@ -502,141 +468,70 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
       ; ("Content-security-policy", "frame-ancestors 'none';")
       ]
   in
-  (* this could be more middleware like in the future *if and only if* we
-     only make changes in promises .*)
-  let when_can_edit ~canvas f =
-    if Account.can_edit_canvas ~auth_domain:(Account.auth_domain_for canvas) ~username
-    then f ()
-    else respond ~execution_id `Unauthorized "Unauthorized"
-  in
-  match (verb, path) with
-  (* Canvas webpages... *)
-  | (`GET, [ "a" ; canvas ; "integration_test" ]) when Config.allow_test_routes ->
-     when_can_edit ~canvas
-       (fun _ ->
-         Canvas.load_and_resave_from_test_file canvas;
-         let%lwt body = admin_ui_html ~debug:false () in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
-  | (`GET, [ "a"; canvas; "ui-debug" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         let%lwt body = admin_ui_html ~debug:true () in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
-  | (`GET, [ "a" ; canvas; ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         let%lwt body = admin_ui_html ~debug:false () in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
-  | _ -> respond ~execution_id `Not_found "Not found"
-
-let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
-  let verb = req |> CRequest.meth in
-  (* this could be more middleware like in the future *if and only if* we
-     only make changes in promises .*)
-  let when_can_edit ~canvas f =
-    if Account.can_edit_canvas ~auth_domain:(Account.auth_domain_for canvas) ~username
-    then f ()
-    else respond ~execution_id `Unauthorized "Unauthorized"
-  in
-  match (verb, path) with
-  (* Operational APIs.... maybe these shouldn't be here, but
-     they start with /api so they need to be. *)
-  | (`POST, [ "api" ; "shutdown" ]) when Config.allow_server_shutdown ->
-     Lwt.wakeup stopper ();
-     respond ~execution_id `OK "Disembowelment"
-  | (`POST, [ "api" ; "clear-benchmarking-data" ] ) ->
-     Db.delete_benchmarking_data ();
-     respond ~execution_id `OK "Cleared"
-  | (`POST, [ "api" ; canvas; "save_test" ]) when Config.allow_test_routes ->
-     save_test_handler ~execution_id canvas
-
-  (* Canvas API *)
-  | (`POST, [ "api" ; canvas ;  "rpc" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         wrap_json_headers (admin_rpc_handler ~execution_id canvas body))
-  | (`POST, [ "api" ; canvas ; "initial_load" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         wrap_json_headers (initial_load ~execution_id canvas body))
-  | (`POST, [ "api" ; canvas ; "execute_function" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         wrap_json_headers (execute_function ~execution_id canvas body))
-  | (`POST, [ "api" ; canvas ; "get_analysis" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         wrap_json_headers (get_analysis ~execution_id canvas body))
-  | _ -> respond ~execution_id `Not_found "Not found"
-
-let ops_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
-  let verb = req |> CRequest.meth in
-  (* this could be more middleware like in the future *if and only if* we
-     only make changes in promises .*)
-  let when_can_ops f =
-    if Account.can_access_operations username
-    then f ()
-    else respond ~execution_id `Unauthorized "Unauthorized"
-  in
-  match (verb, List.drop path 1) with
-  | (`POST, [ "migrate-all-canvases" ]) ->
-     when_can_ops
-       (fun _ ->
-         Canvas.migrate_all_hosts ();
-         respond ~execution_id `OK "Migrated")
-  | (`POST, [ "check-all-canvases" ]) ->
-     when_can_ops
-       (fun _ ->
-         Canvas.check_all_hosts ();
-         respond ~execution_id `OK "Checked")
-  | (`POST, [ "cleanup-old-traces" ]) ->
-     when_can_ops
-       (fun _ ->
-         Canvas.cleanup_old_traces ();
-         respond ~execution_id `OK "Cleanedup")
-    | (`GET, [ "check-all-canvases" ]) ->
-       when_can_ops
-         (fun _ ->
-           respond ~execution_id `OK "<html>
-           <body>
-           <form action='/admin/ops/check-all-canvases' method='post'>
-           <input type='submit' value='Check all canvases'>
-           </form>
-           <form action='/admin/ops/migrate-all-canvases' method='post'>
-           <input type='submit' value='Migrate all canvases'>
-           </form>
-           <form action='/admin/ops/cleanup-old-traces' method='post'>
-           <input type='submit' value='Cleanup old traces (done nightly by cron)'>
-           </form>
-           </body></html>")
+  match (verb, Uri.path uri) with
+  | (`POST, "/admin/api/rpc") ->
+    let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+  | (`POST, "/admin/api/initial_load") ->
+    let (resp_headers, response_body) = initial_load ~execution_id host body in
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+  | (`POST, "/admin/api/execute_function") ->
+    let (resp_headers, response_body) = execute_function ~execution_id host body in
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+  | (`POST, "/admin/api/get_analysis") ->
+    let (resp_headers, response_body) = get_analysis ~execution_id host body in
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
+  | (`POST, "/admin/api/shutdown") when Config.allow_server_shutdown ->
+    Lwt.wakeup stopper ();
+    respond ~execution_id `OK "Disembowelment"
+  | (`POST, "/admin/api/clear-benchmarking-data") ->
+    Db.delete_benchmarking_data ();
+    respond ~execution_id `OK "Cleared"
+  | (`POST, "/admin/api/save_test") when Config.allow_test_routes ->
+    save_test_handler ~execution_id host
+  | (`GET, "/admin/ui-debug") ->
+    let%lwt body = admin_ui_handler ~debug:true () in
+    respond
+      ~resp_headers:html_hdrs
+      ~execution_id
+      `OK body
+  | (`GET, "/admin/ui") ->
+    let%lwt body = admin_ui_handler ~debug:false () in
+    respond
+      ~resp_headers:html_hdrs
+      ~execution_id
+      `OK body
+  | (`GET, "/admin/integration_test") when Config.allow_test_routes ->
+    Canvas.load_and_resave_from_test_file host;
+    let%lwt body = admin_ui_handler ~debug:false () in
+    respond
+      ~resp_headers:html_hdrs
+      ~execution_id
+      `OK body
+  | (`POST, "/admin/ops/migrate-all-canvases") ->
+    Canvas.migrate_all_hosts ();
+    respond ~execution_id `OK "Migrated"
+  | (`POST, "/admin/ops/check-all-canvases") ->
+    Canvas.check_all_hosts ();
+    respond ~execution_id `OK "Checked"
+  | (`POST, "/admin/ops/cleanup-old-traces") ->
+    Canvas.cleanup_old_traces ();
+    respond ~execution_id `OK "Cleanedup"
+  | (`GET, "/admin/ops/check-all-canvases") ->
+    respond ~execution_id `OK "<html>
+    <body>
+    <form action='/admin/ops/check-all-canvases' method='post'>
+      <input type='submit' value='Check all canvases'>
+    </form>
+    <form action='/admin/ops/migrate-all-canvases' method='post'>
+      <input type='submit' value='Migrate all canvases'>
+    </form>
+    <form action='/admin/ops/cleanup-old-traces' method='post'>
+      <input type='submit' value='Cleanup old traces (done nightly by cron)'>
+    </form>
+    </body></html>"
   | _ ->
-     respond ~execution_id `Not_found "Not found"
-
-let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
-  let path = uri
-             |> Uri.path
-             |> String.lstrip ~drop:((=) '/')
-             |> String.rstrip ~drop:((=) '/')
-             |> String.split ~on:'/' in
-
-  (* routing *)
-  match path with
-  | "ops" :: _ ->  ops_api_handler ~execution_id ~path ~stopper ~body ~username req
-  | "api" :: _ ->  admin_api_handler ~execution_id ~path ~stopper ~body ~username req
-  | "a" :: _ ->  admin_ui_handler ~execution_id ~path ~stopper ~body ~username req
-  | _ -> respond ~execution_id `Not_found "Not found"
+    respond ~execution_id `Not_found "Not found"
 
 (* -------------------------------------------- *)
 (* The server *)
@@ -644,106 +539,26 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
 
 let static_handler uri =
   let fname = S.resolve_file ~docroot:(Config.dir Config.Webroot) ~uri in
-  S.respond_file ~headers:(Header.of_list [cors])  ~fname ()
+  S.respond_file ~fname ()
 
 
-type host_route =
-  | Canvas of string
-  | Static
-  | Admin
+(* Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
+   or X-Forwarded-Proto: https.
 
-let route_host req =
-  match req
-        |> CRequest.uri
-        |> Uri.host
-        |> Option.value ~default:""
-        |> (fun h -> String.split h '.') with
-  | [ "static"; "darklang"; "localhost" ]
-  | [ "static" ; "darklang"; "com" ]
-  | [ "static" ; "integration-tests" ]
-  -> Some Static
-
-  (* Dark canvases *)
-  | [a; "builtwithdark"; "com" ; ]
-  | [a; "builtwithdark"; "localhost" ; ]
-  | [a; "integration-tests"]
-  | [a; "darksingleinstance"; "com"]
-    -> Some (Canvas a)
-
-  (* Specific Dark canvas: builtwithdark *)
-  | ["builtwithdark"; "localhost" ; ]
-  | ["builtwithdark"; "com" ; ]
-    -> Some (Canvas "builtwithdark")
-  (* Specific Dark canvas: darksingleinstance *)
-  | ["darksingleinstance"; "com"]
-    -> Some (Canvas "darksingleinstance")
-  | [a; "dabblefox"; "com" ]
-    -> Some (Canvas ("dabblefox-" ^ a))
-
-  (* admin interface + outer site, conditionally *)
-  | ["integration-tests"]
-  | ["darklang" ; "com" ]
-  | ["darklang" ; "localhost" ]
-  | ["dark_dev" ; "com" ]
-    -> Some Admin
-
-  (* Not a match... *)
-  | _ -> None
-
-let k8s_handler req ~execution_id ~stopper =
-  match req |> CRequest.uri |> Uri.path with
-  (* For GKE health check *)
-  | "/" ->
-     (match Dbconnection.status () with
-      | `Healthy ->
-         if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
-         then begin
-             Log.infO "Liveness check found unready service, returning unavailable";
-             respond ~execution_id `Service_unavailable "Service not ready"
-           end
-         else
-           respond ~execution_id `OK "Hello internal overlord"
-      | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
-  | "/ready" ->
-     (match Dbconnection.status () with
-        | `Healthy ->
-           if !ready
-           then
-             respond ~execution_id `OK "Hello internal overlord"
-           else begin
-               (* exception here caught by handle_error *)
-               Canvas.check_tier_one_hosts ();
-               Log.infO "All canvases loaded correctly - Service ready";
-               ready := true;
-               respond ~execution_id `OK "Hello internal overlord"
-             end
-        | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
-  (* For GKE graceful termination *)
-  | "/pkill" ->
-     if !shutdown (* note: this is a ref, not a boolean `not` *)
-     then
-       (shutdown := true;
-        Log.infO "shutdown"
-          ~data:"Received shutdown request - shutting down"
-          ~params:["execution_id", Types.string_of_id execution_id];
-          (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
-        Lwt_unix.sleep 28.0 >>= fun _ ->
-        Lwt.wakeup stopper ();
-        respond ~execution_id `OK "Terminated")
-     else
-       (Log.infO "shutdown"
-          ~data:"Received redundant shutdown request - already shutting down"
-          ~params:["execution_id", Types.string_of_id execution_id];
-        respond ~execution_id `OK "Terminated")
-  | _ -> respond ~execution_id `Not_found ""
+   Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto. *)
+let with_x_forwarded_proto req =
+  match Header.get (CRequest.headers req) "X-Forwarded-Proto" with
+  | Some proto -> Uri.with_scheme
+                   (CRequest.uri req)
+                   (Some proto)
+  | None -> CRequest.uri req
 
 let server () =
   let stop,stopper = Lwt.wait () in
 
   let callback (ch, conn) req body =
     let execution_id = Util.create_id () in
-    let uri = CRequest.uri req in
-    let ip = get_ip_address ch in
+    if !shutdown then respond ~execution_id `Service_unavailable "Shutting down" else
 
     let handle_error ~(include_internals:bool) (e:exn) =
       try
@@ -758,13 +573,13 @@ let server () =
         let real_err =
           try
             match e with
-            | Exception.DarkException e ->
+             | Exception.DarkException e ->
                e
                |> Exception.exception_data_to_yojson
                |> Yojson.Safe.pretty_to_string
-            | Yojson.Json_error msg ->
+             | Yojson.Json_error msg ->
                "Not a valid JSON value: '" ^ msg ^ "'"
-            | _ ->
+             | _ ->
                "Dark Internal Error: " ^ Exn.to_string e
           with _ -> "UNHANDLED ERROR: real_err"
         in
@@ -772,56 +587,130 @@ let server () =
         let resp_headers = Cohttp.Header.of_list [cors] in
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
-           respond ~resp_headers ~execution_id `Bad_request e.short
+          respond ~resp_headers ~execution_id `Bad_request e.short
         | _ ->
-           let body =
-             if include_internals
-             then real_err
-             else "Dark Internal Error"
-           in
-           respond ~resp_headers ~execution_id `Internal_server_error body
+          let body =
+            if include_internals
+            then real_err
+            else "Dark Internal Error"
+          in
+          respond ~resp_headers ~execution_id `Internal_server_error body
       with e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);
         respond ~execution_id `Internal_server_error "unhandled error"
     in
 
+
     try
-         Log.infO "request"
-           ~params:[ "ip", ip
-                   ; "method", req
-                               |> CRequest.meth
-                               |> Cohttp.Code.string_of_method
-                   ; "uri", Uri.to_string uri
-                   ; "execution_id", Log.dump execution_id
-           ];
-         (* first: if this isn't https and should be, redirect *)
-         match redirect_to (with_x_forwarded_proto req) with
-           Some x -> S.respond_redirect ~uri:x ()
-         | None ->
+      let host =
+        req
+        |> CRequest.uri
+        |> Uri.host
+        |> Option.bind
+          ~f:(fun host ->
+              match String.split host '.' with
+              (* For production *)
+              | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
+              | ["builtwithdark"; "com"] -> Some "builtwithdark"
+              | [a; "darksingleinstance"; "com"] -> Some a
+              | [a; "builtwithdark"; "com"] -> Some a
 
-            match Uri.to_string uri with
-            | "/sitemap.xml"
-            | "/favicon.ico" ->
-               respond ~execution_id `OK ""
+              (* For customers *)
+              | [a; "dabblefox"; "com"] -> Some ("dabblefox-" ^ a)
 
-            | _ ->
-             (* figure out what handler to dispatch to... *)
-             match route_host req with
-             | Some (Canvas canvas) ->
-                user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+              (* For development and testing *)
+              | ["localhost"] -> Some "localhost"
+              | [a; "integration-tests"] -> Some a
+              | [a; "localhost"] -> Some a
 
-             | Some Static -> static_handler uri
+              | _ -> None)
+      in
 
-             | Some Admin ->
-                (try
-                   authenticate_then_handle ~execution_id
-                     (admin_handler ~execution_id ~uri ~body ~stopper)
-                     req
-                 with e ->  handle_error ~include_internals:false e)
-             | None -> k8s_handler req ~execution_id ~stopper
+      let handler resp_headers =
+        let ip = get_ip_address ch in
+        let uri = req |> CRequest.uri in
 
+        Log.infO "request"
+          ~params:[ "host", Option.value ~default:"none" host
+                  ; "ip", ip
+                  ; "method", req
+                              |> CRequest.meth
+                              |> Cohttp.Code.string_of_method
+                  ; "uri", Uri.to_string uri
+                  ; "execution_id", Log.dump execution_id
+                  ];
+
+        match (Uri.path uri, host) with
+        | (_, None) ->
+          respond ~execution_id `Not_found "Not found"
+        | ("/sitemap.xml", _)
+        | ("/favicon.ico", _) ->
+         respond ~execution_id `OK ""
+        | (p, _) when (String.is_prefix ~prefix:"/static/" p) ->
+          static_handler uri
+        | (p, Some host) ->
+          if String.is_prefix ~prefix:"/admin/" p
+          then
+            try
+              admin_handler ~execution_id ~host ~uri ~body ~stopper req resp_headers
+            with e -> handle_error ~include_internals:true e
+          else
+            (* caught by a handle_error a bit lower *)
+            user_page_handler ~execution_id ~host ~ip ~uri ~body req
+      in
+      match redirect_to (with_x_forwarded_proto req) with
+      | Some x -> S.respond_redirect ~uri:x ()
+      | _ -> match (req |> CRequest.uri |> Uri.path, host) with
+            (* This seems like it should be moved closer to the admin handler,
+             * but don't do that - that makes Lwt swallow our exceptions. *)
+            | (_, Some host) ->
+               auth_then_handle ~execution_id req host handler
+            | ("/", None) -> (* for GKE health check *)
+               (match Dbconnection.status () with
+                | `Healthy ->
+                   if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
+                   then begin
+                       Log.infO "Liveness check found unready service, returning unavailable";
+                       respond ~execution_id `Service_unavailable "Service not ready"
+                     end
+                   else
+                     respond ~execution_id `OK "Hello internal overlord"
+                | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+            | ("/ready", None) ->
+               (match Dbconnection.status () with
+                | `Healthy ->
+                   if !ready
+                   then
+                     respond ~execution_id `OK "Hello internal overlord"
+                   else begin
+                       (* exception here caught by handle_error *)
+                       Canvas.check_tier_one_hosts ();
+                       Log.infO "All canvases loaded correctly - Service ready";
+                       ready := true;
+                       respond ~execution_id `OK "Hello internal overlord"
+                     end
+                | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+            | ("/pkill", None) -> (* for GKE graceful termination *)
+               if !shutdown (* note: this is a ref, not a boolean `not` *)
+               then
+                 (shutdown := true;
+                  Log.infO "shutdown"
+                    ~data:"Received shutdown request - shutting down"
+                    ~params:["execution_id", Types.string_of_id execution_id];
+                  (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
+                  Lwt_unix.sleep 28.0 >>= fun _ ->
+                  Lwt.wakeup stopper ();
+                  respond ~execution_id `OK "Terminated")
+               else
+                 (Log.infO "shutdown"
+                    ~data:"Received redundant shutdown request - already shutting down"
+                    ~params:["execution_id", Types.string_of_id execution_id];
+                  respond ~execution_id `OK "Terminated")
+            | (_, None) -> (* for GKE health check *)
+               respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
+
   in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in

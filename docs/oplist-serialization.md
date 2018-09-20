@@ -22,7 +22,7 @@ If you make a change to anything with uses `[@@deriving bin_io]`, you need to ma
 
 - migrations:
   - download the prod DB using prodclone, and check whether you can load the
-    oplists, using http://localhost:8000/ops/check-all-canvases
+    oplists, using http://localhost:8000/admin/ops/check-all-canvases
     - This will check it can read them all
     - This will also convert them from the old format to the new format.
 
@@ -37,7 +37,7 @@ If you make a change to anything with uses `[@@deriving bin_io]`, you need to ma
 
   - After deploying a serialization change, go through the conversion process
     to bring all oplists to the latest version. Just go to
-    https://builtwithdark.com/ops/check-all-canvases and click the button.
+    https://builtwithdark.com/admin/ops/check-all-canvases and click the button.
 
 
 

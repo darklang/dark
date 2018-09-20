@@ -123,10 +123,3 @@ changeLocation m loc =
         _ -> SetPage (Fn id pos)
     Just page -> SetPage page
     _ -> NoChange
-
-parseCanvasName : Navigation.Location -> String
-parseCanvasName loc = case loc.pathname
-                           |> String.dropLeft 1 -- remove leading "/"
-                           |> String.split "/" of
-                        "a" :: canvasName :: _ -> canvasName
-                        _ -> "builtwithdark"
