@@ -12,10 +12,6 @@ DARK_CLUSTER_NUM_NODES="4"
 DARK_CLUSTER_VERSION="1.10.7-gke.1"
 DARK_CLUSTER_CLOUDSQL_USER="postgres"
 DARK_CLUSTER_CLOUDSQL_PASS="6gCtEAKElJFpNCdw"
-# no defaults
-DARK_CLUSTER_TLS_CRT=""
-DARK_CLUSTER_TLS_KEY=""
-DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS=""
 
 HELP="$(cat <<EOF
 Usage: $0 REQUIRED_ARGS [OPTIONS]
@@ -24,18 +20,30 @@ A script that deploys a Dark-production-like cluster to Google Kubernetes Engine
 
 Required arguments:
 
-  --tls-crt=...          A base64-encoded TLS .crt file to use for the TLS-enabled ingress.
+  --bwd-tls-crt=...      A base64-encoded TLS .crt file to use for the TLS-enabled ingress
+                         serving darklang.com.
                          You can swipe creds from the current cluster with something like
                          the following:
                            kubectl get secrets bwd-tls -o json | jq -r '.data["tls.crt"]'
-  --tls-key=...          A base64-encoded TLS .key file to use for the TLS-enabled ingress.
+  --bwd-tls-key=...      A base64-encoded TLS .key file to use for the TLS-enabled ingress
+                         serving builtwithdark.com.
                          You can swipe creds from the current cluster with something like
                          the following:
-                         kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]'
+                           kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]'
+  --dl-tls-crt=...       A base64-encoded TLS .crt file to use for the TLS-enabled ingress
+                         serving darklang.com.
+                         You can swipe creds from the current cluster with something like
+                         the following:
+                           kubectl get secrets darklang-tls -o json | jq -r '.data["tls.crt"]'
+  --dl-tls-key=...       A base64-encoded TLS .key file to use for the TLS-enabled ingress
+                         serving darklang.com.
+                         You can swipe creds from the current cluster with something like
+                         the following:
+                           kubectl get secrets darklang-tls -o json | jq -r '.data["tls.key"]'
   --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
                          instance. You can swipe creds from the current cluster with something
                          like the following:
-                           kubectl get secret cloudsql-instance-credentials -o json \
+                           kubectl get secret cloudsql-instance-credentials -o json \ 
                              | jq -r '.data["credentials.json"]'
 
 Options:
@@ -82,11 +90,17 @@ do
     --cloudsql-pass=*)
       DARK_CLUSTER_CLOUDSQL_PASS="${i/--cloudsql-pass=/''}"
       ;;
-    --tls-crt=*)
-      DARK_CLUSTER_TLS_CRT="${i/--tls-crt=/''}"
+    --bwd-tls-crt=*)
+      DARK_CLUSTER_BWD_TLS_CRT="${i/--bwd-tls-crt=/''}"
       ;;
-    --tls-key=*)
-      DARK_CLUSTER_TLS_KEY="${i/--tls-key=/''}"
+    --bwd-tls-key=*)
+      DARK_CLUSTER_BWD_TLS_KEY="${i/--bwd-tls-key=/''}"
+      ;;
+    --dl-tls-crt=*)
+      DARK_CLUSTER_DL_TLS_CRT="${i/--dl-tls-crt=/''}"
+      ;;
+    --dl-tls-key=*)
+      DARK_CLUSTER_DL_TLS_KEY="${i/--dl-tls-key=/''}"
       ;;
     --cloudsql-creds=*)
       DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS="${i/--cloudsql-creds=/''}"
@@ -103,9 +117,10 @@ do
   esac
 done
 
-if [ ! -v DARK_CLUSTER_TLS_KEY ] || [ ! -v DARK_CLUSTER_TLS_CRT ] \
+if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
+     || [ ! -v DARK_CLUSTER_DL_TLS_KEY ] || [ ! -v DARK_CLUSTER_DL_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
-  echo "$USAGE"
+  echo "$HELP"
   exit 1
 fi
 
@@ -122,7 +137,8 @@ gcloud beta container clusters create "$DARK_CLUSTER" \
   "--cluster-version=${DARK_CLUSTER_VERSION}" \
   --enable-stackdriver-kubernetes \
   --enable-autorepair \
-  --enable-network-policy
+  --enable-network-policy \
+  --enable-autoupgrade
 
 print_step "getting creds for the new cluster"
 gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}"
@@ -135,11 +151,25 @@ kubectl create -f - <<EOF
   "kind": "Secret",
   "type": "kubernetes.io/tls",
   "data": {
-    "tls.crt": "$DARK_CLUSTER_TLS_CRT",
-    "tls.key": "$DARK_CLUSTER_TLS_KEY"
+    "tls.crt": "$DARK_CLUSTER_BWD_TLS_CRT",
+    "tls.key": "$DARK_CLUSTER_BWD_TLS_KEY"
   },
   "metadata": {
         "name": "bwd-tls"
+  }
+}
+EOF
+kubectl create -f - <<EOF
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "kubernetes.io/tls",
+  "data": {
+    "tls.crt": "$DARK_CLUSTER_DL_TLS_CRT",
+    "tls.key": "$DARK_CLUSTER_DL_TLS_KEY"
+  },
+  "metadata": {
+        "name": "darklang-tls"
   }
 }
 EOF
@@ -186,36 +216,44 @@ print_step "deploying code and containers"
 
 print_step "waiting for a new ip..."
 
-NEW_IP=null
-while [ "$NEW_IP" == "null" ]; do
-  NEW_IP="$(kubectl get Ingress bwd-tls-ingress -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
+NEW_BWD_IP=null
+while [ "$NEW_BWD_IP" == "null" ]; do
+  NEW_BWD_IP="$(kubectl get Ingress bwd-tls-ingress -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
+done
+
+NEW_DL_IP=null
+while [ "$NEW_DL_IP" == "null" ]; do
+  NEW_DL_IP="$(kubectl get Ingress darklang-tls-ingress -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
 done
 
 print_step "your new cluster is deployed!"
 cat <<EOF
-Your new IP is $(tput rev)$NEW_IP$(tput sgr0). Wait a little for the containers to come up...
+Your new IPs are $(tput rev)$NEW_BWD_IP$(tput sgr0) (for builtwithdark) and
+$(tput rev)$NEW_DL_IP$(tput sgr0) (for darklang). Wait a little for the
+containers to come up...
 
    watch -d -n 0.2 kubectl get pods
 
 and check it out one of the following ways:
 
-  + edit your /etc/hosts to point builtwithdark.com and *.builtwithdark.com to that IP
+  + edit your /etc/hosts to point builtwithdark.com and *.builtwithdark.com
+    to that IP
 
-    $NEW_IP    builtwithdark.com
-    $NEW_IP    some-subdomain.builtwithdark.com
+    $NEW_BWD_IP		builtwithdark.com
+    $NEW_BWD_IP	        some-subdomain.builtwithdark.com
+    $NEW_DL_IP		darklang.com
+    $NEW_DL_IP		static.darklang.com
 
   + use --resolve in 'curl', e.g.
 
-    curl --resolve "builtwithdark.com:443:$NEW_IP" builtwithdark.com
+    curl --resolve "builtwithdark.com:443:$NEW_BWD_IP" https://builtwithdark.com
+    curl --resolve "darklang.com:443:$NEW_DL_IP" https://darklang.com
 
-Once you're happy with the status of the new cluster, you can move the static IP to it:
+Once you're happy with the status of the new cluster, you can move the
+static IP to it:
 
-  kubectl annotate ingress bwd-tls-ingress kubernetes.io/ingress.global-static-ip-name=bwd-tls-ip
-  # remove it from the old one
-  gcloud container clusters get-credentials "$(< current-cluster)"
-  kubectl annotate ingress bwd-tls-ingress kubernetes.io/ingress.global-static-ip-name-
-  # go back to the new cluster
-  gcloud container clusters get-credentials "$DARK_CLUSTER"
+  ./scripts/support/gke-move-ip --from="$(<current-cluster)" --to="$DARK_CLUSTER" --ip-name=bwd-tls-ip --ingress-name=bwd-tls-ingress
+  ./scripts/support/gke-move-ip --from="$(<current-cluster)" --to="$DARK_CLUSTER" --ip-name=darklang-tls-ip --ingress-name=darklang-tls-ingress
 
 and make a pull request changing the file 'current-cluster' in the root of this
 repository to the new name.
