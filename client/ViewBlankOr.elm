@@ -94,27 +94,19 @@ getLiveValue : LVDict -> ID -> Maybe Dval
 getLiveValue lvs (ID id) =
   Dict.get id lvs
 
-viewLiveValue : ViewState -> List (Html.Html Msg)
-viewLiveValue vs =
+renderLiveValue : ViewState -> String
+renderLiveValue vs =
   let cursorLiveValue =
-        case vs.cursorState of
-          Selecting _ (Just (ID id)) ->
-            Dict.get id vs.currentResults.liveValues
-          Entering (Filling _ (ID id)) ->
-            Dict.get id vs.currentResults.liveValues
-          _ -> Nothing
+    case vs.cursorState of
+      Selecting _ (Just (ID id)) ->
+        Dict.get id vs.currentResults.liveValues
+      Entering (Filling _ (ID id)) ->
+        Dict.get id vs.currentResults.liveValues
+      _ -> Nothing
   in
-      case cursorLiveValue of
-        Just dv ->
-          [
-            Html.div
-              [Attrs.class "computed-value"]
-              [Html.div
-                [Attrs.class "computed-value-value"]
-                [Html.text (RT.toRepr dv)]
-              ]
-          ]
-        _ -> []
+  case cursorLiveValue of
+    Just dv ->(RT.toRepr dv)
+    _ -> ""
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.
@@ -164,9 +156,6 @@ div vs configs content =
       selected =
         thisID == selectedID && ME.isJust thisID
 
-      liveValueHtml =
-        if selected then viewLiveValue vs else []
-
       computedValueData = Maybe.andThen value computedValueAs
 
       mouseover = 
@@ -197,7 +186,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ [classAttr]
+      attrs = (Attrs.attribute "data-live-value" (renderLiveValue vs) ) :: classAttr :: events
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
@@ -210,7 +199,7 @@ div vs configs content =
         [Attrs.class "expr-actions"]
         (featureFlagHtml ++ editFnHtml)
   in
-    Html.div attrs (content ++ [rightSideHtml]  ++ liveValueHtml)
+    Html.div attrs (content ++ [rightSideHtml])
 
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
@@ -312,8 +301,8 @@ viewBlankOr htmlFn pt vs c bo =
               placeholder = placeHolderFor vs id pt
           in
               div vs c
-                ([ ViewEntry.entryHtml
-                    allowStringEntry stringEntryWidth placeholder vs.ac] ++ (viewLiveValue vs))
+                [ ViewEntry.entryHtml
+                    allowStringEntry stringEntryWidth placeholder vs.ac]
         else Html.text vs.ac.value
       else thisText
 
