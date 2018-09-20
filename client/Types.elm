@@ -254,6 +254,7 @@ type alias Autocomplete = { functions : List Function
                           , allCompletions : List AutocompleteItem
                           , index : Int
                           , value : String
+                          , prevValue : String
                           , target : Maybe (TLID, PointerData)
                           , tipe : Maybe Tipe
                           , isCommandMode : Bool
