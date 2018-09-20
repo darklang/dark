@@ -99,6 +99,7 @@ def ocaml_build():
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
+                  , "bin/cleanup_traces.exe"
                   ])
 
   exes += " bin/darkjs.bc.js @darkjs"
