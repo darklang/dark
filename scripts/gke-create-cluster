@@ -18,6 +18,11 @@ Usage: $0 REQUIRED_ARGS [OPTIONS]
 
 A script that deploys a Dark-production-like cluster to Google Kubernetes Engine.
 
+If you're tempted to move the static IPs from the old cluster to a new one generate
+with this script, try it out a few times outside of production first. Moving the
+static IPs the obvious way is flaky and seems nondeterministic. You may have better
+luck swapping DNS if you need it and can live with the long propagation times.
+
 Required arguments:
 
   --bwd-tls-crt=...      A base64-encoded TLS .crt file to use for the TLS-enabled ingress
@@ -248,4 +253,9 @@ and check it out one of the following ways:
     curl --resolve "builtwithdark.com:443:$NEW_BWD_IP" https://builtwithdark.com
     curl --resolve "darklang.com:443:$NEW_DL_IP" https://darklang.com
 
-EOF
+If you're tempted to move the static IPs from the old cluster to this
+one, try it out a few times outside of production first. Moving the
+static IPs the obvious way is flaky and seems nondeterministic. You
+may have better luck swapping DNS if you need it and can live with the
+long propagation times.
+ EOF
