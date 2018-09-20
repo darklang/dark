@@ -65,6 +65,7 @@ trigger test_name =
     "feature_flag_in_function" -> feature_flag_in_function
     "execute_function_works" -> execute_function_works
     "function_version_renders" -> function_version_renders
+    "only_backspace_out_of_strings_on_last_char" -> only_backspace_out_of_strings_on_last_char
     n -> Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -670,3 +671,11 @@ function_version_renders : Model -> TestResult
 function_version_renders m =
   -- Assertion statements in test.js
   pass
+
+only_backspace_out_of_strings_on_last_char : Model -> TestResult
+only_backspace_out_of_strings_on_last_char m =
+  let ast = onlyHandler m |> .ast in
+  if m.complete.value == ""
+  then pass
+  else fail ast
+
