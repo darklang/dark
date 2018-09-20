@@ -766,5 +766,21 @@ test('function_version_renders', async t => {
       Selector('.autocomplete-item.highlighted .versioned-function')
       .withText("DB::deleteAll1")
     ).ok()
+})
 
+test('only_backspace_out_of_strings_on_last_char', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "\"t", slow)
+    .pressKey("backspace")
+    .pressKey("tab") // moved selection to a different blank
+    // test that it's an empty string. Note this needs to not be selected or
+    // the livevalue will be in textcontent occasionally, breaking the test.
+    .expect(Selector('.ast .tstr').textContent).eql('')
+    .click(Selector('.ast .tstr'))
+    .pressKey("enter")
+    .pressKey("backspace")
+    // we should have gone over the backspace - checking in elm
+    ;
 })

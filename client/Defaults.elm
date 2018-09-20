@@ -68,6 +68,7 @@ defaultModel = { error = { message = Nothing
                             , allCompletions = []
                             , index = -1
                             , value = ""
+                            , prevValue = ""
                             , tipe = Nothing
                             , target = Nothing
                             , isCommandMode = False

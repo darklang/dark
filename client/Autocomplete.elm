@@ -150,6 +150,7 @@ init fns isAdmin =
   , allCompletions = []
   , index = -1
   , value = ""
+  , prevValue = ""
   , tipe = Nothing
   , target = Nothing
   , isCommandMode = False
@@ -402,7 +403,8 @@ refilter query old  =
               else 0
   in { old | index = index
            , completions = newCompletions
-           , value = query }
+           , value = query
+           , prevValue = old.value }
 
 filter : List AutocompleteItem -> String -> List (List AutocompleteItem)
 filter list query =
