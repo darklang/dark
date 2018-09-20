@@ -98,6 +98,4 @@ defaultModel = { error = { message = Nothing
                , featureFlags = Dict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
-               , canvasName = "builtwithdark"
-               , userContentHost = "builtwithdark.com"
                }

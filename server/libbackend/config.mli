@@ -24,10 +24,6 @@ val should_write_shape_data : bool
 val allow_server_shutdown : bool
 val allow_test_routes : bool
 
-val admin_host : string
-val static_host : string
-val user_content_host : string
-
 val rollbar_enabled : bool
 val rollbar_environment : string
 val rollbar_client_access_token : string option

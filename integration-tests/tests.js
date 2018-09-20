@@ -7,7 +7,7 @@ fixture `Integration Tests`
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     const host = process.env.TEST_HOST
-    const url = "http://" + host + "/a/test-" + testname + "/integration_test";
+    const url = "http://test-" + testname + "." + host + "/admin/integration_test";
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
@@ -36,14 +36,6 @@ fixture `Integration Tests`
 
     await t.expect(signal.hasClass("success")).eql(true)
   })
-
-//********************************
-// Utilities
-//********************************
-
-function user_content_url (t, endpoint) {
-    return "http://test-" + t.testRun.test.name + "." + process.env.DARK_CONFIG_USER_CONTENT_HOST + endpoint;
-}
 
 //********************************
 // Avoiding test race conditions
@@ -455,9 +447,9 @@ test('dont_shift_focus_after_filling_last_blank', async t => {
 test('rename_db_fields', async t => {
 
   const callBackend = ClientFunction(
-    function (url) {
+    function () {
       var xhttp = new XMLHttpRequest();
-      xhttp.open("POST", url, true);
+      xhttp.open("POST", "/add", true);
       xhttp.setRequestHeader("Content-type", "application/json");
       xhttp.send('{ "field6": "a", "field2": "b" }');
     });
@@ -473,7 +465,7 @@ test('rename_db_fields', async t => {
 
 
   // add data and check we can't rename again
-  await callBackend(user_content_url(t, "/add"));
+  await callBackend();
 
   // This is super-shaky if we remove this. There's some timing things
   // around when the .fa-lock appears, and the selectors we'd expect
@@ -493,9 +485,9 @@ test('rename_db_fields', async t => {
 test('rename_db_type', async t => {
 
   const callBackend = ClientFunction(
-    function (url) {
+    function () {
       var xhttp = new XMLHttpRequest();
-      xhttp.open("POST", url, true);
+      xhttp.open("POST", "/add", true);
       xhttp.setRequestHeader("Content-type", "application/json");
       xhttp.send('{ "field1": "a", "field2": 5 }');
     });
@@ -512,7 +504,7 @@ test('rename_db_type', async t => {
 
 
   // add data and check we can't rename again
-  await callBackend(user_content_url(t, "/add"));
+  await callBackend();
 
   // This is super-shaky if we remove this. There's some timing things
   // around when the .fa-lock appears, and the selectors we'd expect

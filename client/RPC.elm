@@ -42,36 +42,35 @@ postString url =
     , withCredentials = False
     }
 
-rpc : Model -> String -> Focus -> RPCParams -> Cmd Msg
-rpc m canvasName focus params =
-  rpc_ m (String.concat ["/api/", Http.encodeUri canvasName, "/rpc" ])
-       (RPCCallback focus) params
+rpc : Model -> Focus -> RPCParams -> Cmd Msg
+rpc m focus params =
+  rpc_ m "/admin/api/rpc" (RPCCallback focus) params
 
-executeFunctionRPC : String -> ExecuteFunctionRPCParams -> Cmd Msg
-executeFunctionRPC canvasName params =
-  let url = String.concat ["/api/", Http.encodeUri canvasName, "/execute_function" ]
+executeFunctionRPC : ExecuteFunctionRPCParams -> Cmd Msg
+executeFunctionRPC params =
+  let url = "/admin/api/execute_function"
       payload = encodeExecuteFunctionRPCParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeExecuteFunctionRPC
   in Http.send (ExecuteFunctionRPCCallback params) request
 
-getAnalysisRPC : String -> AnalysisParams -> Cmd Msg
-getAnalysisRPC canvasName params =
-  let url = String.concat ["/api/", Http.encodeUri canvasName, "/get_analysis" ]
+getAnalysisRPC : AnalysisParams -> Cmd Msg
+getAnalysisRPC params =
+  let url = "/admin/api/get_analysis"
       payload = encodeAnalysisParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeGetAnalysisRPC
   in Http.send GetAnalysisRPCCallback request
 
-initialLoadRPC : String -> Focus -> Cmd Msg
-initialLoadRPC canvasName focus =
-  let url = String.concat ["/api/", Http.encodeUri canvasName, "/initial_load" ]
+initialLoadRPC : Focus -> Cmd Msg
+initialLoadRPC focus =
+  let url = "/admin/api/initial_load"
       request = Http.post url Http.emptyBody decodeInitialLoadRPC
   in Http.send (InitialLoadRPCCallback focus NoChange) request
 
-saveTestRPC : String -> Cmd Msg
-saveTestRPC canvasName =
-  let url = String.concat ["/api/", Http.encodeUri canvasName, "/save_test" ]
+saveTestRPC : Cmd Msg
+saveTestRPC =
+  let url = "/admin/api/save_test"
       request = postString url
   in Http.send SaveTestRPCCallback request
 
@@ -83,9 +82,9 @@ opsParams : List Op -> RPCParams
 opsParams ops =
   { ops = ops }
 
-integrationRPC : Model -> String -> String -> Cmd Msg
-integrationRPC m canvasName name =
-  let url = String.concat ["/api/", Http.encodeUri canvasName, "/initial_load" ]
+integrationRPC : Model -> String -> Cmd Msg
+integrationRPC m name =
+  let url = "/admin/api/initial_load"
       request = Http.post url Http.emptyBody decodeInitialLoadRPC
   in Http.send
       (InitialLoadRPCCallback FocusNothing (TriggerIntegrationTest name))

@@ -13,10 +13,6 @@ val hash_password : string -> string
 (* get the permissions that username has in authdomain *)
 val get_permissions : auth_domain:string -> username:username -> unit -> permissions
 
-val can_access_operations : username:string ->  bool
-
-val can_edit_canvas : auth_domain:string -> username:string ->  bool
-
 (* For a host, what user do we expect *)
 val auth_domain_for : string -> string
 

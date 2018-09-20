@@ -560,8 +560,6 @@ type alias Model = { error : DarkError
                    , featureFlags: FlagsVS
                    , lockedHandlers: List TLID
                    , canvas: CanvasProps
-                   , canvasName: String
-                   , userContentHost: String
                    }
 
 -- Values that we serialize
@@ -647,7 +645,6 @@ type Modification = DisplayAndReportHttpError String Http.Error
 type alias Flags =
   { editorState: Maybe String
   , complete: List FlagFunction
-  , userContentHost : String
   }
 
 
