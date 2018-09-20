@@ -64,6 +64,7 @@ trigger test_name =
     "sending_to_rail_works" -> sending_to_rail_works
     "feature_flag_in_function" -> feature_flag_in_function
     "execute_function_works" -> execute_function_works
+    "function_version_renders" -> function_version_renders
     n -> Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -663,4 +664,9 @@ sending_to_rail_works m =
 execute_function_works : Model -> TestResult
 execute_function_works m =
   -- The test logic is in tests.js
+  pass
+
+function_version_renders : Model -> TestResult
+function_version_renders m =
+  -- Assertion statements in test.js
   pass

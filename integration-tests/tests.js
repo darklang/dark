@@ -756,3 +756,15 @@ test('execute_function_works', async t => {
   await t.expect(v2).match(re);
   await t.expect(v1).notEql(v2);
 })
+
+test('function_version_renders', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "DB::del", slow)
+    .expect(
+      Selector('.autocomplete-item.highlighted .versioned-function')
+      .withText("DB::deleteAll1")
+    ).ok()
+
+})
