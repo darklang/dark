@@ -138,6 +138,31 @@ let fns : Lib.shortfn list = [
   ; f = NotClientAvailable
   ; pr = None
   ; ps = false
+  ; dep = true
+  }
+  ;
+
+  { pns = ["DB::getAll_v2"]
+  ; ins = []
+  ; p = [par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the values in `table`."
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = false
+  }
+  ;
+
+  { pns = ["DB::getAllWithKeys_v1"]
+  ; ins = []
+  ; p = [par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the values in `table`. Returns a list of lists such that the inner
+        lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
   ; dep = false
   }
   ;
