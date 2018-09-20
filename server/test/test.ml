@@ -614,7 +614,7 @@ let t_nulls_added_to_missing_column () =
   in
   check_dval "equal_after_fetchall"
     (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
-    (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
+    (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
   check_dval "dval_of_json_string doesn't care about key order"
@@ -1078,14 +1078,14 @@ let t_db_set_does_upsert () =
   in
   let ast = "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
                (let new (DB::set_v1 (obj (x 'bar')) 'hello' MyDB)
-                (let results (DB::getAll_v1 MyDB)
+                (let results (DB::getAllWithKeys_v1 MyDB)
                  (== (('hello' new)) results))))"
   in
   check_dval "equal_after_roundtrip"
     (DBool true)
     (exec_handler ~ops ast)
 
-let t_db_get_all_works () =
+let t_db_get_all_with_keys_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
             ; Op.AddDBCol (dbid, colnameid, coltypeid2)
@@ -1095,7 +1095,7 @@ let t_db_get_all_works () =
   in
   let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
               (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
-               (let results (DB::getAll_v1 MyDB)
+               (let results (DB::getAllWithKeys_v1 MyDB)
                 (== (('one' one) ('two' two)) results))))"
   in
   check_dval "equal_after_roundtrip"
@@ -1434,6 +1434,29 @@ let t_db_queryOneWithKey_returns_nothing_multiple () =
     (DOption OptNothing)
     (exec_handler ~ops ast)
 
+let t_db_getAll_v2_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "sort_by")
+            ; Op.SetDBColType (dbid, coltypeid2, "Int")
+            ]
+  in
+  (* sorting to ensure the test isn't flakey *)
+  let ast = "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+               (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
+                (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. (List::last x) sort_by)))
+                 (== (one two three) fetched)))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+
 
 (* ------------------- *)
 (* Test setup *)
@@ -1493,7 +1516,7 @@ let suite =
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_v2_works
   ; "DB::set_v1 upserts", `Quick, t_db_set_does_upsert
-  ; "DB::getAll_v1 works", `Quick, t_db_get_all_works
+  ; "DB::getAllWithKeys_v1 works", `Quick, t_db_get_all_with_keys_works
   ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
   ; "Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works
   ; "Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works
@@ -1510,6 +1533,7 @@ let suite =
   ; "DB::queryOneWithKey returns Nothing if not found", `Quick, t_db_queryOneWithKey_returns_nothing_if_none
   ; "DB::queryOneWithKey returns Nothing if more than one found", `Quick, t_db_queryOneWithKey_returns_nothing_multiple
   ; "Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips
+  ; "DB::getAll_v2 works", `Quick, t_db_getAll_v2_works
   ]
 
 let () =
