@@ -1006,6 +1006,8 @@ body #grid * {
   }
 
   .threadexpr {
+    position: relative;
+
     .threadmember {
       .layout-block;
 
@@ -1370,17 +1372,31 @@ body #grid * {
     outline: 0.4px red dotted;
   }
   .default;
-  max-width: 100%;
-  outline: 0.4px @grey2 dotted;
   position: absolute;
   right: calc(~"100% + 20px");
+
   padding: 4px;
-  white-space: pre-wrap;
+  max-width: 100%;
   width: max-content;
+  
+  white-space: pre-wrap;
   word-break: break-all;
   word-wrap: break-word;
   font-size: @code-font-size * 0.85;
   color: @grey3;
+  
+  outline: 0.4px @grey2 dotted;
+}
+
+.ast div {
+  .computed-value {
+    display: block;
+    margin-top: 0;
+
+    .computed-value-value {
+      top: calc(~"50% - 20px");
+    }
+  }
 }
 
 .nested-flag {
