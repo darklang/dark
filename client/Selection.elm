@@ -363,7 +363,7 @@ enterDB m db tl id =
             , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
         else
           Enter (Filling tl.id id)
-      _ = Debug.log "enterDB pd" pd
+      _ = pd
   in
     case pd of
       PDBColName d ->
