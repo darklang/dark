@@ -5,6 +5,8 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Nineteen.Debug as Debug
 import Nineteen.String as String
+import Regex exposing (Regex, regex)
+import Maybe exposing (withDefault)
 
 -- lib
 import Html
@@ -249,3 +251,32 @@ approxNWidth ne =
 
 isLocked: TLID -> Model -> Bool
 isLocked tlid m = List.member tlid m.lockedHandlers
+
+viewFnName: Html.Html Msg -> FnName -> List String -> Html.Html Msg
+viewFnName defaultView fnName extraClasses =
+  let pattern = regex "(\\w+::)?(\\w+)_v(\\d+)"
+      matches = Regex.find (Regex.AtMost 1) pattern fnName
+  in
+    case (List.head matches) of
+      Just m ->
+        let name =
+              case m.submatches of 
+                [Nothing, Just fn, _] -> fn
+                [Just modName, Just fn, _] -> modName ++ fn
+                _ -> ""
+            version =
+              case  m.submatches of
+                [_, _, Just v] -> v
+                _ -> ""
+        in
+        -- Since rendering function version as subscript is a special case,
+        -- we always want to just rendering them normally in case parsing the regex capture groups fails
+        -- I anticipate certain cases of user functions might cause strange an unexpected behavior, we did not think about.
+        if name == "" || version == ""
+        then defaultView
+        else
+          Html.div
+            [ Attrs.class (String.join " " ("versioned-function" :: extraClasses)) ]
+            [ Html.span [Attrs.class "name"] [Html.text name]
+            , Html.span [Attrs.class "version"] [Html.text version] ]
+      Nothing -> defaultView

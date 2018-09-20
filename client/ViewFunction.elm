@@ -24,8 +24,8 @@ viewFunction vs fn =
     [ ViewCode.viewExpr 0 vs [] fn.ast ]
   ]
 
-viewFnName : BlankViewer String
-viewFnName vs c v =
+viewUserFnName : BlankViewer String
+viewUserFnName vs c v =
   viewText FnName vs (idConfigs ++ c) v
 
 viewParamName : BlankViewer String
@@ -67,7 +67,7 @@ viewMetadata : ViewState -> UserFunction -> Html.Html Msg
 viewMetadata vs fn =
   let namediv = Html.div
                  [ Attrs.class "ufn-name"]
-                 [ viewFnName vs [wc "fn-name-content"] fn.metadata.name ]
+                 [ viewUserFnName vs [wc "fn-name-content"] fn.metadata.name ]
       coldivs =
         fn.metadata.parameters
         |> List.map (\p ->
