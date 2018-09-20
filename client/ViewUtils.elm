@@ -44,6 +44,8 @@ type alias ViewState =
   , testVariants: List VariantTest
   , featureFlags: FlagsVS
   , handlerLocked : Bool
+  , canvasName : String
+  , userContentHost : String
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -103,6 +105,8 @@ createVS m tl = { tl = tl
                 , testVariants = m.tests
                 , featureFlags = m.featureFlags
                 , handlerLocked = isLocked tl.id m
+                , canvasName = m.canvasName
+                , userContentHost = m.userContentHost
                 }
 
 fontAwesome : String -> Html.Html Msg
