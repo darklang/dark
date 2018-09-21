@@ -181,13 +181,10 @@ toRepr_ oldIndent dv =
       inl = "\n" ++ (String.repeat (oldIndent + 2) " ")
       indent = oldIndent + 2
       objToString l =
-        if l == []
-        then "{}"
-        else
-          l
-          |> List.map (\(k,v) -> k ++ ": " ++ toRepr_ indent v)
-          |> String.join ("," ++ inl)
-          |> \s -> "{" ++ inl ++ s ++ nl ++ " }"
+        l
+        |> List.map (\(k,v) -> k ++ ": " ++ toRepr_ indent v)
+        |> String.join ("," ++ inl)
+        |> \s -> "{" ++ inl ++ s ++ nl ++ "}"
   in
   case dv of
     DInt i -> toString i
@@ -216,9 +213,16 @@ toRepr_ oldIndent dv =
     DErrorRail dv_ -> wrap (toRepr dv_)
     -- TODO: newlines and indentation
     DList l ->
-      if l == []
-      then "[]"
-      else "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ " ]"
+      case l of
+        [] -> "[]"
+        DObj _ :: rest ->
+          "["
+          ++ inl
+          ++ String.join (inl ++ ", ") (List.map (toRepr_ indent) l)
+          ++ nl
+          ++ "]"
+        l ->
+          "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ "]"
     DObj o ->
       objToString (Dict.toList o)
 
