@@ -145,6 +145,10 @@ def reload_server():
   else:
     return run_backend(start, runserver)
 
+def generate_etags():
+  start = time.time()
+  return run_frontend(start, "./scripts/support/generate-etags")
+
 def reload_browser():
   start = time.time()
   # Sends a signal to another fswatch on your mac
@@ -161,17 +165,24 @@ class Should:
     self.less_compile = False
     self.reload_browser = False
     self.reload_server = False
+    self.generate_etags = False
 
 def execute(should):
   ob = should.ocaml_build and ocaml_build()
   should.reload_server |= ob
-  rs = should.reload_server and reload_server()
+
 
   ep = should.elm_package and elm_package()
   should.elm_make |= ep
   em = should.elm_make and elm_make()
 
   lc = should.less_compile and less_compile()
+
+  should.generate_etags |= em or ob or lc
+  ge = should.generate_etags and generate_etags()
+
+  should.reload_server |= ge
+  rs = should.reload_server and reload_server()
 
   should.reload_browser |= rs or em or lc
   rb = should.reload_browser and reload_browser()
@@ -186,7 +197,7 @@ def execute(should):
   should.elm_test |= em
   et = should.elm_test and elm_test()
 
-  return ob and rs and ep and em and lc and rb and ot and etp and et
+  return ob and rs and ep and em and lc and rb and ot and etp and et and ge
 
 
 
