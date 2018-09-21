@@ -28,7 +28,9 @@ scripts/support/reload-browser > rundir/logs/browser.log 2>&1 &
 if [ ! -v CI ]; then
   if [ ! -d ../conduit-frontend ]; then
     echo "pulling the conduit frontend"
-    pushd .. && git clone git@github.com:darklang/conduit-frontend && popd
+    pushd ..
+    git clone git@github.com:darklang/conduit-frontend
+    popd
   fi
 fi
 
