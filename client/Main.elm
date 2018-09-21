@@ -1473,6 +1473,8 @@ update_ msg m =
       case m.cursorState of
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
+        Deselected ->
+          Many [ Select tlid Nothing, SetCursor tlid idx ]
         _ -> SetCursor tlid idx
 
     -----------
