@@ -432,9 +432,9 @@ let admin_ui_html ~(debug:bool) () =
   >|= Util.string_replace "{STATIC}" Config.static_host
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-  >|= Util.string_replace "{ELMDEBUG}" (if debug
-                                      then "-debug"
-                                        else "")
+  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
+  >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
+
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in

@@ -101,4 +101,5 @@ defaultModel = { error = { message = Nothing
                , canvas = defaultCanvas
                , canvasName = "builtwithdark"
                , userContentHost = "builtwithdark.com"
+               , environment = "none"
                }

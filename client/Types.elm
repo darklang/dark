@@ -563,6 +563,7 @@ type alias Model = { error : DarkError
                    , canvas: CanvasProps
                    , canvasName: String
                    , userContentHost: String
+                   , environment: String
                    }
 
 -- Values that we serialize
@@ -649,6 +650,7 @@ type alias Flags =
   { editorState: Maybe String
   , complete: List FlagFunction
   , userContentHost : String
+  , environment: String
   }
 
 
