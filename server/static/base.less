@@ -1128,10 +1128,11 @@ body #grid * {
 
     .autocomplete-item {
       background: @black2;
-      padding-bottom: 0.3rem;
+
       &.highlighted {
         background: #1c3670;
       }
+
       &.greyed {
         color: @grey2;
       }
@@ -1141,11 +1142,18 @@ body #grid * {
 
 .versioned-function {
   display: inline-block;
+  vertical-align: baseline;
+
   .version {
-    position: relative;
-    bottom: -0.2rem;
     font-size: 0.6rem;
     color: @grey2;
+    margin-left: 2px;
+  }
+}
+
+.ast div .selected {
+  .versioned-function .version {
+    color: @green;
   }
 }
 
