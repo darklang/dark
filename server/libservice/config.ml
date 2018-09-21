@@ -1,6 +1,9 @@
 open Core
 open Config_dsl
 
+let env_display_name =
+  string "DARK_CONFIG_ENV_DISPLAY_NAME"
+
 let rollbar_server_access_token =
   (* This is what the rollbar UI calls it *)
   string "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
