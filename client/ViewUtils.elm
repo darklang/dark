@@ -270,15 +270,15 @@ viewFnName fnName extraClasses =
                     _ -> fnName
                 version =
                   case m.submatches of
-                    [_, _, Just v] -> "v" ++ v
-                    _ -> "v0"
+                    [_, _, Just v] -> v
+                    _ -> "0"
             in
                 (name, version)
           Nothing ->
-            (fnName, "v0")
+            (fnName, "0")
   in
           Html.div
             [ Attrs.class (String.join " " ("versioned-function" :: extraClasses)) ]
             [ Html.span [Attrs.class "name"] [Html.text name]
-            , Html.span [Attrs.class "version"] [Html.text version] ]
+            , Html.span [Attrs.class "version"] [Html.text ("v" ++ version)] ]
 
