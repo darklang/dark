@@ -93,14 +93,13 @@ let get_all_recent_canvas_traceids (canvas_id: Uuidm.t) =
   |> List.map ~f:(get_recent_event_traceids ~canvas_id)
   |> List.concat
 
-let trim_events ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) ~before () =
+let trim_events ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) () =
   Db.run
     ~name:"stored_event.trim_events"
     "DELETE FROM stored_events
      WHERE canvas_id = $1
-       AND timestamp < $2
-       AND NOT (trace_id = ANY (string_to_array($3, $4)::uuid[]))"
+       AND timestamp < CURRENT_TIMESTAMP
+       AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
     ~params:[ Uuid canvas_id
-            ; Time before
             ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
             ; String Db.array_separator]
