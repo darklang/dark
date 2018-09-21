@@ -107,4 +107,21 @@ all =
             if parent == expr
             then pass
             else fail (parent, expr)
+    , test "usesRail returns true when at top" <|
+      expectTrue <|
+        let expr = B.newF (FnCall "test" [] Rail) in
+        AST.usesRail expr
+    , test "usesRail returns true when deep" <|
+      expectTrue <|
+        let withRail = B.newF (FnCall "test2" [] Rail)
+            l = B.newF (Let (B.newF "v") withRail (B.new ()))
+            expr = B.newF (FnCall "test" [l] NoRail) in
+        AST.usesRail expr
+    , test "usesRail returns false when norail " <|
+      expectFalse <|
+        let deep = B.newF (FnCall "test2" [] NoRail)
+            l = B.newF (Let (B.newF "v") deep (B.new ()))
+            expr = B.newF (FnCall "test" [l] NoRail) in
+        AST.usesRail expr
+
     ]

@@ -520,10 +520,11 @@ isExecuting vs id =
 
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)
 viewHandler vs h =
-  let ast = Html.div
+  let showRail = AST.usesRail h.ast
+      ast = Html.div
               [ Attrs.class "ast"]
               [ Html.div
-                [ Attrs.class "rop-rail"]
+                [ Attrs.classList [ ("rop-rail", showRail)]]
                 [ viewExpr 0 vs [] h.ast ]]
 
       externalLink =
