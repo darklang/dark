@@ -22,7 +22,6 @@ val load :
 val trim_results :
   canvas_id:Uuidm.t ->
   keep:(Analysis_types.traceid list) ->
-  before:Types.RuntimeT.time ->
   unit ->
   unit
 
