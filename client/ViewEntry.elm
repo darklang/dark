@@ -117,11 +117,10 @@ normalEntryHtml placeholder ac =
 
       -- two overlapping input boxes, one to provide suggestions, one
       -- to provide the search
-      (indent, suggestion, search) =
+      (_, suggestion, search) =
         Autocomplete.compareSuggestionWithActual ac ac.value
 
-      indentWidth = String.length indent
-      searchWidth = search ++ indent
+      searchWidth = search
                     |> String.length
                     |> \n ->
                       if 0 == n
@@ -129,10 +128,8 @@ normalEntryHtml placeholder ac =
                         String.length placeholder
                       else
                         n
-                    |> max (String.length suggestion)
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
-                               , Attrs.style [("text-indent", inCh indentWidth)]
                                , Attrs.value search
                                , Attrs.placeholder placeholder
                                , Attrs.spellcheck False
@@ -148,7 +145,6 @@ normalEntryHtml placeholder ac =
       -- http://making.fiftythree.com/fluid-text-inputs/
       fluidWidthSpan = Html.span [ Attrs.id "fluidWidthSpan"
                                  , Attrs.attribute "contentEditable" ""
-                                 , Attrs.style [("text-indent", inCh indentWidth)]
                                  ] [Html.text search]
 
       input = Html.fieldset
