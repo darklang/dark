@@ -89,6 +89,10 @@ normalEntryHtml placeholder ac =
            (\i item ->
               let highlighted = ac.index == i
                   name = Autocomplete.asName item
+                  view item classes =
+                    case item of
+                      ACFunction _ -> viewFnName name classes
+                      _ -> Html.text name
               in Html.li
                 [ Attrs.classList
                   [ ("autocomplete-item", True)
@@ -99,7 +103,7 @@ normalEntryHtml placeholder ac =
                 , eventNoPropagation "click"
                     (\_ -> AutocompleteClick name)
                 ]
-                [ viewFnName (Html.text name) name []
+                [ view item []
                 , Html.span
                     [Attrs.class "types"]
                     [Html.text <| Autocomplete.asTypeString item ]
