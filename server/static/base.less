@@ -60,7 +60,7 @@ html {
   }
 }
  .animation-keyframes(colors, @red, @grey3, db-lock-hover, 1s 1 normal);
- 
+
  /* Body */
 
 ::-webkit-scrollbar {
@@ -185,6 +185,10 @@ body #grid * {
 
     &#integrationTestSignal {
       display: inline-block;
+    }
+
+    &.environment.prodclone {
+      color: magenta;
     }
   }
 
@@ -1372,13 +1376,13 @@ body #grid * {
       padding: 4px;
       width: max-content;
       max-width: 250px;
-      
+
       white-space: pre-wrap;
       word-break: break-all;
       word-wrap: break-word;
       font-size: @code-font-size * 0.85;
       color: @grey3;
-      
+
       background-color: @black2;
       outline: 0.4px @grey2 dotted;
     }
