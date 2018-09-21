@@ -41,14 +41,13 @@ let load ~canvas_id ~trace_id tlid : function_result list =
         (fnname, id_of_string id, hash, Dval.unsafe_dval_of_json_string dval)
       | _ -> Exception.internal "Bad DB format for stored_functions_results.load")
 
-let trim_results ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) ~before () =
+let trim_results ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) () =
   Db.run
     ~name:"stored_function_result.trim_results"
     "DELETE FROM function_results
      WHERE canvas_id = $1
-       AND timestamp < $2
-       AND NOT (trace_id = ANY (string_to_array($3, $4)::uuid[]))"
+       AND timestamp < CURRENT_TIMESTAMP
+       AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
     ~params:[ Uuid canvas_id
-            ; Time before
             ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
             ; String Db.array_separator]
