@@ -495,6 +495,15 @@ allCallsToFn s e =
           else Nothing
         _ -> Nothing)
 
+usesRail : Expr -> Bool
+usesRail ast =
+  List.any
+    (\e ->
+        case e of
+          PExpr (F _ (FnCall _ _ Rail)) -> True
+          _ -> False)
+    (allData ast)
+
 -------------------------
 -- Ancestors
 -------------------------
