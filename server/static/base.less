@@ -1143,11 +1143,17 @@ body #grid * {
 .versioned-function {
   display: inline-block;
   vertical-align: baseline;
-  
+
   .version {
     font-size: 0.6rem;
     color: @grey2;
     margin-left: 2px;
+  }
+}
+
+.ast div .selected {
+  .versioned-function .version {
+    color: @green;
   }
 }
 
