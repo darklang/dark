@@ -337,21 +337,17 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body
 
 let initial_load ~(execution_id: Types.id) (host: string) body
   : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let (t1, c) = time "1-load-saved-ops"
-      (fun _ ->
-        C.load_all host []) in
+  let (t1, c) = time "1-load-saved-ops"
+    (fun _ ->
+      C.load_all host []) in
 
-    let (t2, unlocked) = time "2-analyze-unlocked-dbs"
-      (fun _ -> Analysis.unlocked !c) in
+  let (t2, unlocked) = time "2-analyze-unlocked-dbs"
+    (fun _ -> Analysis.unlocked !c) in
 
-    let (t3, result) = time "3-to-frontend"
-        (fun _ -> Analysis.to_rpc_response_frontend !c [] unlocked) in
+  let (t3, result) = time "3-to-frontend"
+      (fun _ -> Analysis.to_rpc_response_frontend !c [] unlocked) in
 
-    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
-  with
-  | e ->
-    raise e
+  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
 
 
 
@@ -787,41 +783,47 @@ let server () =
     in
 
     try
-         Log.infO "request"
-           ~params:[ "ip", ip
-                   ; "method", req
-                               |> CRequest.meth
-                               |> Cohttp.Code.string_of_method
-                   ; "uri", Uri.to_string uri
-                   ; "execution_id", Log.dump execution_id
-           ];
-         (* first: if this isn't https and should be, redirect *)
-         match redirect_to (with_x_forwarded_proto req) with
-           Some x -> S.respond_redirect ~uri:x ()
-         | None ->
+     Log.infO "request"
+       ~params:[ "ip", ip
+               ; "method", req
+                           |> CRequest.meth
+                           |> Cohttp.Code.string_of_method
+               ; "uri", Uri.to_string uri
+               ; "execution_id", Log.dump execution_id
+       ];
+     (* first: if this isn't https and should be, redirect *)
+     match redirect_to (with_x_forwarded_proto req) with
+       Some x -> S.respond_redirect ~uri:x ()
+     | None ->
 
-            match Uri.to_string uri with
-            | "/sitemap.xml"
-            | "/favicon.ico" ->
-               respond ~execution_id `OK ""
+        match Uri.to_string uri with
+        | "/sitemap.xml"
+        | "/favicon.ico" ->
+           respond ~execution_id `OK ""
 
-            | _ ->
-             (* figure out what handler to dispatch to... *)
-             match route_host req with
-             | Some (Canvas canvas) ->
-                user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+        | _ ->
+         (* figure out what handler to dispatch to... *)
+         match route_host req with
+         | Some (Canvas canvas) ->
+            user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
 
-             | Some Static -> static_handler uri
+         | Some Static -> static_handler uri
 
-             | Some Admin ->
-                (try
-                   authenticate_then_handle ~execution_id
-                     (admin_handler ~execution_id ~uri ~body ~stopper)
-                     req
-                 with e ->  handle_error ~include_internals:false e)
-             | None -> k8s_handler req ~execution_id ~stopper
+         | Some Admin ->
+            (try
+               authenticate_then_handle ~execution_id
+                 (fun ~username r ->
+                    try
+                      admin_handler ~execution_id ~uri ~body ~stopper ~username r
+                    with e ->
+                      handle_error ~include_internals:true e)
+                 req
+             with e ->
+               handle_error ~include_internals:false e)
+         | None -> k8s_handler req ~execution_id ~stopper
 
-    with e -> handle_error ~include_internals:false e
+    with e ->
+      handle_error ~include_internals:false e
   in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
