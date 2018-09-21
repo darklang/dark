@@ -1037,12 +1037,15 @@ let t_admin_handler_ui () =
        ; "test", "test-something"
        (* arbitrary canvas belonging to another user *)
        ; "test", "test_admin"
+       (* admin can look at test *)
+       ; "test_admin", "test"
        ])
 
     [ 200
     ; 200
     ; 200
     ; 401
+    ; 200
     ]
 
 let t_admin_handler_ops () =
