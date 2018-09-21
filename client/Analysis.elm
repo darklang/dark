@@ -3,6 +3,7 @@ module Analysis exposing (..)
 -- builtin
 import Dict
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Prelude exposing (..)
@@ -11,6 +12,7 @@ import Pointer as P
 import Runtime as RT
 import Blank as B
 import Toplevel as TL
+import AST
 
 -- "current" in this indicates that it uses the cursor to pick the right inputValue
 
@@ -131,21 +133,29 @@ replaceFunctionResult m tlid traceID callerID fnName hash dval =
 
 getArguments : Model -> TLID -> TraceID -> ID -> Maybe (List Dval)
 getArguments m tlid traceID callerID =
-  let caller =
-        TL.get m tlid
-        |> Maybe.andThen (\tl -> TL.find tl callerID)
-      argIDs =
-        case caller of
-          Just (PExpr (F _ (FnCall _ args _))) -> List.map B.toID args
-          _ -> []
-      analyses = Dict.get traceID m.analyses
-      dvals =
-        case analyses of
-          Just analyses_ ->
-            List.filterMap
-              (\id -> Dict.get (deID id) analyses_.liveValues)
-              argIDs
-          Nothing -> []
+  let tl = TL.get m tlid in
+  case tl of
+    Nothing -> Nothing
+    Just tl ->
+      let caller = TL.find tl callerID
+          threadPrevious =
+            case TL.rootOf tl of
+              Just (PExpr expr) ->
+                ME.toList (AST.threadPrevious callerID expr)
+              _ -> []
+          args =
+            case caller of
+              Just (PExpr (F _ (FnCall _ args _))) -> threadPrevious ++ args
+              _ -> []
+          argIDs = List.map B.toID args
+          analyses = Dict.get traceID m.analyses
+          dvals =
+            case analyses of
+              Just analyses_ ->
+                List.filterMap
+                  (\id -> Dict.get (deID id) analyses_.liveValues)
+                  argIDs
+              Nothing -> []
   in
   if List.length dvals == List.length argIDs
   then Just dvals
