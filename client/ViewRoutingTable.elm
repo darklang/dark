@@ -315,10 +315,15 @@ fnLink fn isUsed text_ =
 
 view404s : List FourOhFour -> Html.Html Msg
 view404s f404s  =
-  let thelink fof =
+  let theCreateLink fof =
         buttonLink
           (fontAwesome "plus-circle")
           (CreateHandlerFrom404 fof)
+          Nothing
+      theDeleteLink fof =
+        buttonLink
+          (fontAwesome "minus-circle")
+          (Delete404 fof)
           Nothing
 
       fofHtml ({space, path, modifier} as fof) =
@@ -326,7 +331,8 @@ view404s f404s  =
           [ text "path" path
           , (if space == "HTTP" then text "" "" else text "space" space)
           , text "modifier" modifier
-          , thelink fof
+          , theCreateLink fof
+          , theDeleteLink fof
           ]
       routes = div "404s" (List.map fofHtml f404s)
   in section "404s" f404s Nothing routes

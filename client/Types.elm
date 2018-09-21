@@ -152,6 +152,7 @@ type Msg
     | RPCCallback Focus RPCParams (Result Http.Error RPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
+    | GetDelete404RPCCallback (Result Http.Error (List FourOhFour))
     | InitialLoadRPCCallback Focus Modification (Result Http.Error InitialLoadResult)
     | LocationChange Navigation.Location
     | AddRandom
@@ -163,6 +164,7 @@ type Msg
     | ExecuteFunctionCancel TLID ID
     | Initialization
     | CreateHandlerFrom404 FourOhFour
+    | Delete404 FourOhFour
     | WindowResize Int Int
     | TimerFire TimerAction Time
     | JSError String
@@ -243,6 +245,8 @@ type alias ExecuteFunctionRPCParams =
   }
 
 type alias AnalysisParams = List TLID
+
+type alias Delete404Param = FourOhFour
 
 
 -----------------------------
