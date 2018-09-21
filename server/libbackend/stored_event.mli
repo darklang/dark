@@ -40,7 +40,6 @@ val get_all_recent_canvas_traceids :
 val trim_events :
   canvas_id:Uuidm.t ->
   keep:(Analysis_types.traceid list) ->
-  before:Types.RuntimeT.time ->
   unit ->
   unit
 
