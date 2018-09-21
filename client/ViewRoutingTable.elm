@@ -5,6 +5,7 @@ module ViewRoutingTable exposing (viewRoutingTable)
 -- lib
 import Html
 import Html.Attributes as Attrs
+import Http
 import List.Extra as LE
 import Maybe.Extra as ME
 import Nineteen.String as String
@@ -155,8 +156,8 @@ undoButton tlid page =
     (RestoreToplevel tlid)
     (Just page)
 
-viewGroup : ShowLink -> ShowUndo -> (String, List Entry) -> Html.Html Msg
-viewGroup showLink showUndo (spacename, entries) =
+viewGroup : Model -> ShowLink -> ShowUndo -> (String, List Entry) -> Html.Html Msg
+viewGroup m showLink showUndo (spacename, entries) =
   let def s = Maybe.withDefault missingEventRouteDesc s
       externalLink h =
         if showLink == ShowLink
@@ -164,9 +165,10 @@ viewGroup showLink showUndo (spacename, entries) =
         then
           case h.name of
             Just n ->
-              let source = String.join "" (h.prefix ++ [n]) in
+              let target = String.join "" (h.prefix ++ [n]) in
               Html.a [ Attrs.class "external"
-                     , Attrs.href source
+                     , Attrs.href ("//" ++ Http.encodeUri m.canvasName
+                                  ++  "." ++ m.userContentHost ++ target)
                      , Attrs.target "_blank"
                      ]
                      [fontAwesome "external-link-alt"]
@@ -212,8 +214,10 @@ type CollapseVerbs = CollapseVerbs | DontCollapseVerbs
 type ShowLink = ShowLink | DontShowLink
 type ShowUndo = ShowUndo | DontShowUndo
 
-viewRoutes : List Toplevel -> CollapseVerbs -> ShowLink -> ShowUndo -> List (Html.Html Msg)
-viewRoutes tls collapse showLink showUndo =
+viewRoutes : Model -> CollapseVerbs -> ShowLink -> ShowUndo -> List (Html.Html Msg)
+viewRoutes m collapse showLink showUndo =
+  let tls = m.toplevels
+  in
   tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
@@ -223,11 +227,12 @@ viewRoutes tls collapse showLink showUndo =
        then List.map (Tuple.mapSecond collapseByVerb) entries
        else entries)
   |> List.map (Tuple.mapSecond prefixify)
-  |> List.map (viewGroup showLink showUndo)
+  |> List.map (viewGroup m showLink showUndo)
 
-viewDeletedTLs : List Toplevel -> Html.Html Msg
-viewDeletedTLs tls =
-  let routes = viewRoutes tls DontCollapseVerbs DontShowLink ShowUndo
+viewDeletedTLs : Model -> Html.Html Msg
+viewDeletedTLs m =
+  let tls = m.toplevels in
+  let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo
       dbs = viewRestorableDBs tls
       h = header "Deleted" tls Nothing
   in
@@ -393,11 +398,11 @@ viewUserFunctions m =
 
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
-  let sections = viewRoutes m.toplevels CollapseVerbs ShowLink DontShowUndo
+  let sections = viewRoutes m CollapseVerbs ShowLink DontShowUndo
                  ++ [viewDBs m.toplevels]
                  ++ [view404s m.f404s]
                  ++ [viewUserFunctions m]
-                 ++ [viewDeletedTLs m.deletedToplevels]
+                 ++ [viewDeletedTLs m]
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
