@@ -88,7 +88,10 @@ let can_access_operations ~(username:username) : bool =
   is_admin ~username
 
 let can_edit_canvas ~(auth_domain:string) ~(username:username) : bool =
-  String.Caseless.equal username auth_domain || String.Caseless.equal "demo" auth_domain
+  String.Caseless.equal username auth_domain
+  || String.Caseless.equal "demo" auth_domain
+  || is_admin username
+ 
 
 type permissions = CanEdit | CanAccessOperations | NoPermission
 let get_permissions ~(auth_domain:string) ~(username:username) () : permissions =
