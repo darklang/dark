@@ -36,6 +36,7 @@ let admin_host = string "DARK_CONFIG_ADMIN_HOST"
 let static_host = string "DARK_CONFIG_STATIC_HOST"
 let user_content_host = string "DARK_CONFIG_USER_CONTENT_HOST"
 
+let env_display_name = Libservice.Config.env_display_name
 
 (* -------------------- *)
 (* For use in Util *)

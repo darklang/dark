@@ -80,6 +80,9 @@ viewButtons m =
     , Html.span
         [ Attrs.class "specialButton"]
         [ Html.text ("Tests: " ++ Debug.toString m.tests)]
+    , Html.span
+        [ Attrs.class ("specialButton environment " ++ m.environment)]
+        [ Html.text m.environment]
     ] ++ integrationTestButton ++ returnButton ++ [status])
 
 viewError : DarkError -> Html.Html Msg
