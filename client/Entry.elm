@@ -525,9 +525,7 @@ validate tl pd value =
     PDBColType ct ->
       v "\\[?[A-Z]\\w+\\]?" "DB type"
     PDBColName cn ->
-      if value == "id"
-      then Just "id's are automatic and implicit, no need to add them"
-      else v "\\w+" "DB column name"
+      v "\\w+" "DB column name"
     PVarBind _ ->
       v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
     PEventName _ ->
