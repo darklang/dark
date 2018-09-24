@@ -356,7 +356,7 @@ submit m cursor action =
           in if B.asF ct == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol db1 id
-          then wrapID 
+          then wrapID
             [ SetDBColTypeInDBMigration tlid id value
             , AddDBColToDBMigration tlid (gid ()) (gid ()) ]
           else if B.isBlank ct
@@ -526,7 +526,7 @@ validate tl pd value =
       v "\\[?[A-Z]\\w+\\]?" "DB type"
     PDBColName cn ->
       if value == "id"
-      then Just "id's are automatic and implicit, no need to add them"
+      then Just "The field name 'id' was reserved when IDs were implicit. We are transitioning to allowing it, but we're not there just yet. Sorry!"
       else v "\\w+" "DB column name"
     PVarBind _ ->
       v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
