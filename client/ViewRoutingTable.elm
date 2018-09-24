@@ -231,7 +231,7 @@ viewRoutes m collapse showLink showUndo =
 
 viewDeletedTLs : Model -> Html.Html Msg
 viewDeletedTLs m =
-  let tls = m.toplevels in
+  let tls = m.deletedToplevels in
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo
       dbs = viewRestorableDBs tls
       h = header "Deleted" tls Nothing
