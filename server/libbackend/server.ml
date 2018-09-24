@@ -470,6 +470,7 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
            let headers = Auth.Session.to_cookie_hdrs
                            ~http_only:true
                            ~secure:https_only_cookie
+                           ~path:"/"
                            Auth.Session.cookie_key session
            in
            over_headers_promise ~f:(fun h -> Header.add_list h headers)
