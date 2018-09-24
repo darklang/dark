@@ -513,15 +513,15 @@ let save_test_handler ~(execution_id: Types.id) host =
   let filename = C.save_test !g in
   respond ~execution_id `OK ("Saved as: " ^ filename)
 
-let check_csrf_then_handle ~execution_id ~username handler req =
+let check_csrf_then_handle ~execution_id ~session handler req =
   if CRequest.meth req = `POST
   then
-    if req
-       |> CRequest.headers
-       |> (fun h -> Header.get h "X-CSRF-Token")
-       |> (=) (Some "abc")
-    then handler req
-    else respond ~execution_id `Unauthorized "Bad CSRF" (* todo remove this error message? *)
+    let request_token = req
+                        |> CRequest.headers
+                        |> (fun h -> Header.get h "X-CSRF-Token")
+    in if Some (Auth.Session.csrf_token_for session) = request_token
+       then handler req
+       else respond ~execution_id `Unauthorized "Bad CSRF"
   else handler req
 
 (* Checks for a cookie, prompts for basic auth if there isn't one,
@@ -541,7 +541,7 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) ->
      let username = Auth.Session.username_for session in
-     let csrf_token = "abc" in
+     let csrf_token = Auth.Session.csrf_token_for session in
      if path = "/logout"
      then
        (Auth.Session.clear Auth.Session.backend session;%lwt
@@ -551,7 +551,7 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
             let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
             S.respond_redirect ~headers ~uri ())
      else
-       handler ~username ~csrf_token req
+       handler ~session ~csrf_token req
   | _ ->
      match Header.get_authorization headers with
      | (Some (`Basic (username, password))) ->
@@ -565,9 +565,9 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
                            ~path:"/"
                            Auth.Session.cookie_key session
            in
-           let csrf_token = "abc" in
+           let csrf_token = Auth.Session.csrf_token_for session in
            over_headers_promise ~f:(fun h -> Header.add_list h headers)
-             (handler ~username ~csrf_token req)
+             (handler ~session ~csrf_token req)
          else
            respond ~execution_id `Unauthorized "Bad credentials")
      | None ->
@@ -677,7 +677,8 @@ let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
-      ~(body: string) ~(username:string) ~(csrf_token:string) (req: CRequest.t) =
+      ~(body: string) ~session ~(csrf_token:string) (req: CRequest.t) =
+  let username = Auth.Session.username_for session in
   let path = uri
              |> Uri.path
              |> String.lstrip ~drop:((=) '/')
@@ -687,7 +688,7 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
   (* routing *)
   match path with
   | "api" :: _ ->
-     check_csrf_then_handle ~execution_id ~username
+     check_csrf_then_handle ~execution_id ~session
        (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
        req
   | "a" :: _ -> admin_ui_handler ~execution_id ~path ~stopper ~body ~username ~csrf_token req
@@ -911,9 +912,9 @@ let server () =
          | Some Admin ->
             (try
                authenticate_then_handle ~execution_id
-                 (fun ~username ~csrf_token r ->
+                 (fun ~session ~csrf_token r ->
                     try
-                      admin_handler ~execution_id ~uri ~body ~stopper ~username ~csrf_token r
+                      admin_handler ~execution_id ~uri ~body ~stopper ~session ~csrf_token r
                     with e ->
                       handle_error ~include_internals:true e)
                  req

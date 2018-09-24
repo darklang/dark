@@ -959,7 +959,7 @@ let t_authenticate_then_handle_code_and_cookie () =
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt (resp, _) =  Server.authenticate_then_handle
                               ~execution_id:test_id
-                              (fun ~username ~csrf_token req ->
+                              (fun ~session ~csrf_token req ->
                                 Server.respond
                                   ~execution_id:test_id
                                   `OK
@@ -1010,7 +1010,8 @@ let t_authenticate_then_handle_code_and_cookie () =
 let t_check_csrf_then_handle () =
   (* csrf header *)
   let csrf token = Header.of_list [("X-CSRF-Token", token)] in
-  let correct_token = "abc" in
+  let test_session = Lwt_main.run (Auth.Session.new_for_username "test") in
+  let correct_token = Auth.Session.csrf_token_for test_session in
   (* sample execution id, makes grepping test logs easier *)
   let test_id = Types.id_of_int 1234 in
   (* Fake URL; this should be url-agnostic *)
@@ -1020,7 +1021,7 @@ let t_check_csrf_then_handle () =
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt (resp, _) =  Server.check_csrf_then_handle
                               ~execution_id:test_id
-                              ~username
+                              ~session:test_session
                               (fun req ->
                                 Server.respond
                                   ~execution_id:test_id
@@ -1052,18 +1053,23 @@ let t_check_csrf_then_handle () =
 let admin_handler_code ?(meth=`GET) ?(body="") ?(csrf=true) (username, endpoint) =
   (* sample execution id, makes grepping test logs easier *)
   let test_id = Types.id_of_int 1234 in
+  let session = Lwt_main.run (Auth.Session.new_for_username username) in
     Lwt_main.run
       (let stop, stopper = Lwt.wait () in
        let uri = Uri.of_string ("http://builtwithdark.localhost:8000" ^ endpoint) in
-       let headers = Header.of_list (if csrf then [("X-CSRF-Token", "abc")] else []) in
+       let headers = Header.of_list
+                       (if csrf
+                        then [("X-CSRF-Token", Auth.Session.csrf_token_for session)]
+                        else [])
+       in
        let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt (resp, _) =  Server.admin_handler
                               ~execution_id:test_id
                               ~uri
                               ~stopper
                               ~body
-                              ~username
-                              ~csrf_token:"abc"
+                              ~session
+                              ~csrf_token:(Auth.Session.csrf_token_for session)
                               (Req.make ~meth ~headers uri) in
        resp |> Resp.status |> Code.code_of_status |> return)
 
