@@ -1458,7 +1458,8 @@ body #grid * {
     .row {
       display: none;
       margin-top: @vertical-spacing;
-      width: 100%;
+      min-width: 100%;
+      width: auto;
       padding: 0 @horizontal-padding;
       box-sizing: border-box;
 
@@ -1502,17 +1503,23 @@ body #grid * {
     }
 
     .expressions {
-      width: 100%;
+      min-width: 100%;
+      width: auto;
       margin-bottom: @vertical-spacing;
       flex-direction: row;
       flex-wrap: nowrap;
       justify-content: space-between;
       align-content: stretch;
 
+      .expr-label {
+        padding-left: 4px;
+      }
+
       .cond-expr {
         display: inline-block;
         align-self: flex-start;
         min-width: 200px;
+        width: max-content;
         vertical-align: top;
         box-sizing: border-box;
 
@@ -1523,6 +1530,10 @@ body #grid * {
         .expr-block {
           display: block;
           width: auto;
+        }
+
+        &:first-child {
+          border-right: 2px @grey2 solid;
         }
       }
 
