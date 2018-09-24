@@ -91,8 +91,20 @@ def less_compile():
   start = time.time()
   return run_frontend(start, "lessc server/static/base.less server/static/base.css")
 
+
+def client2_build():
+  start = time.time()
+  build = "cd client2 && unbuffer yarn run build"
+  return run_frontend(start, build)
+
+def client2_install():
+  start = time.time()
+  build = "cd client2 && unbuffer yarn install"
+  return run_frontend(start, build)
+
+
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
-def ocaml_build():
+def server_build():
   start = time.time()
   global profile
   exes = " ".join([ "bin/main.exe"
@@ -116,7 +128,7 @@ def ocaml_build():
   else:
     return run_backend(start, build)
 
-def ocaml_test():
+def server_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
@@ -157,8 +169,10 @@ def reload_browser():
 
 class Should:
   def __init__(self):
-    self.ocaml_build = False
-    self.ocaml_test = False
+    self.server_build = False
+    self.server_test = False
+    self.client2_install = False
+    self.client2_build = False
     self.elm_package = False
     self.elm_test_package = False
     self.elm_make = False
@@ -169,9 +183,12 @@ class Should:
     self.generate_etags = False
 
 def execute(should):
-  ob = should.ocaml_build and ocaml_build()
-  should.reload_server |= ob
+  sb = should.server_build and server_build()
+  should.reload_server |= sb
 
+  c2i = should.client2_install and client2_install ()
+  should.client2_build |= c2i
+  c2b = should.client2_build and client2_build()
 
   ep = should.elm_package and elm_package()
   should.elm_make |= ep
@@ -185,11 +202,11 @@ def execute(should):
   should.reload_server |= ge
   rs = should.reload_server and reload_server()
 
-  should.reload_browser |= rs or em or lc
+  should.reload_browser |= rs or em or lc or c2b
   rb = should.reload_browser and reload_browser()
 
-  should.ocaml_test |= ob
-  ot = should.ocaml_test and ocaml_test()
+  should.server_test |= sb
+  ot = should.server_test and server_test()
 
   should.elm_test_package |= ep
   etp = should.elm_test_package and elm_test_package()
@@ -198,7 +215,7 @@ def execute(should):
   should.elm_test |= em
   et = should.elm_test and elm_test()
 
-  return ob and rs and ep and em and lc and rb and ot and etp and et and ge
+  return ob and rs and ep and em and lc and rb and ot and etp and et and ge and c2b
 
 
 
@@ -206,14 +223,22 @@ def execute(should):
 def mark(should, f):
   # Ocaml
   if "test/test.ml" in f:
-    should.ocaml_test = True
+    should.server_test = True
 
-  elif (".mli" in f) \
-       or (".ml" in f) \
-       or ("jbuild" in f) \
-       or ("_tags" in f) \
-       or ("libtarget.js" in f):
-    should.ocaml_build = True
+  elif ("server/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f) \
+                  or ("jbuild" in f) \
+                  or ("_tags" in f) \
+                  or ("libtarget.js" in f)):
+    should.server_build = True
+
+  elif "client2/package.json" in f:
+    should.client2_install = True
+  elif ("client2/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f)):
+    should.client2_build = True
 
   # Frontend
   elif "client/elm-package.json" in f:
