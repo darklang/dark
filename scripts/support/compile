@@ -291,6 +291,7 @@ def ignore(filename):
             , "build.ninja"
             , ".bsdeps"
             , ".bsbuild"
+            , ".sourcedirs.json"
   ]
   for i in ignores:
     if i in filename:
