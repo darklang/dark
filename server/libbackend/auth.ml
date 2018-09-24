@@ -25,7 +25,12 @@ module Session = struct
       (Yojson.to_string
          (`Assoc
             [ "username", `String username
-            ; "csrf_token", `String "abc"
+            (* Generate a random CSRF token the same way Session
+               does internally *)
+            ; "csrf_token", `String
+                              (Cstruct.to_string
+                                 Nocrypto.(Base64.encode
+                                 (Rng.generate 30)))
             ]))
 
   let username_for session =
