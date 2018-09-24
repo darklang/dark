@@ -18,18 +18,22 @@ import Runtime as RT
 
 viewInput : TLID -> Int -> String -> Bool -> Bool -> Tipe -> Html.Html Msg
 viewInput tlid idx value isActive isHover tipe =
-  let activeClass = if isActive then [Attrs.class "active"] else []
-      hoverClass = if isHover then [Attrs.class "mouseovered"] else []
-      tipeClassName = "tipe-" ++ RT.tipe2str tipe
-      tipeClass = [Attrs.class tipeClassName]
-      classes = activeClass ++ hoverClass ++ tipeClass
+  let classes =
+        [ Attrs.classList
+            [ ("active", isActive)
+            , ("mouseovered", isHover)
+            , ("tipe-" ++ RT.tipe2str tipe, True)
+            ]
+        ]
       events = [ eventNoPropagation "click" (DataClick tlid idx)
                , eventNoPropagation "mouseenter" (DataMouseEnter tlid idx)
                , eventNoPropagation "mouseleave" (DataMouseLeave tlid idx)
                ]
   in
-  Html.li ([(Attrs.attribute "data-content" value)] ++ classes ++ events)
-          [Html.text "•"]
+  Html.li ((Attrs.style [("order", toString (idx))]) :: classes ++ events)
+          [ Html.text " "
+          , Html.div [Attrs.class "input-details"] [Html.text value]
+          ]
 
 asValue : InputValueDict -> String
 asValue inputValue =
@@ -37,12 +41,15 @@ asValue inputValue =
 
 viewInputs : ViewState -> ID -> List (Html.Html Msg)
 viewInputs vs (ID astID) =
-  let traceToHtml idx trace =
+  let traceLength = List.length vs.traces 
+      cursorId = (Analysis.cursor_ vs.tlCursors vs.tl.id)
+      traceToHtml idx trace =
         let value = asValue trace.input
+            rid = traceLength - idx - 1
             -- Note: the following tlCursors are very different things.
-            isActive = (Analysis.cursor_ vs.tlCursors vs.tl.id) == idx
+            isActive = cursorId == rid
             -- Note: this is not the same tlCursor as above
-            hoverID = tlCursorID vs.tl.id idx
+            hoverID = tlCursorID vs.tl.id rid
             isHover = vs.hovering == Just hoverID
             astTipe = Dict.get trace.id vs.analyses
                       |> Maybe.map .liveValues
@@ -50,10 +57,11 @@ viewInputs vs (ID astID) =
                       |> Maybe.map RT.typeOf
                       |> Maybe.withDefault TIncomplete
         in
-        viewInput vs.tl.id idx value isActive isHover astTipe
+        viewInput vs.tl.id rid value isActive isHover astTipe
   in
-  List.indexedMap traceToHtml vs.traces
-
+  vs.traces
+  |> List.reverse
+  |> List.indexedMap traceToHtml
 
 viewData : ViewState -> Expr -> List (Html.Html Msg)
 viewData vs ast =

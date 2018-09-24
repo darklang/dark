@@ -61,6 +61,18 @@ html {
 }
  .animation-keyframes(colors, @red, @grey3, db-lock-hover, 1s 1 normal);
 
+ @keyframes newrequest {
+  0% {
+    width: 0;
+    height: 2px;
+  }
+
+  100% {
+    width: 6px;
+    height: 6px;
+  }
+ }
+
  /* Body */
 
 ::-webkit-scrollbar {
@@ -302,24 +314,46 @@ body #grid * {
     }
     ul.request-cursor {
       bottom: 1em;
-      float: left;
       list-style-type: none;
       max-height: calc(~"1.5em + 1px");
       overflow: hidden;
       width: 100%;
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      align-content: flex-start;
+
       li {
-        float: left;
+        flex: 0 0 auto;
+        background-color: @grey3;
+        width: 6px;
+        height: 6px;
+        margin-bottom: 6px;
+        margin-right: 5px;
+        border-radius: 3px;
+
+        &:last-child {
+          animation-name: newrequest;
+          animation-delay: 0.5s;
+          animation-duration: 1s;
+
+          &.active {
+            background-color: @white3;
+          }
+        }
+
         &.mouseovered {
+          background-color: @orange;
           color: @orange;
           cursor: pointer;
-          &:before {
-            content: attr(data-content);
+
+          .input-details {
             background-color: @grey1;
 
             display: block;
             position: absolute;
             left: -4px;
-            bottom: calc(~"-100% + 37px");
+            bottom: calc(~"-100% + 30px");
 
             height: auto;
             width: max-content;
@@ -333,13 +367,29 @@ body #grid * {
           }
         }
         &.active {
-          border-bottom: 1px solid @orange;
+
+          &.mouseovered {
+            background-color: @orange;
+            color: @orange;
+          }
+
+          &:after {
+            content: " ";
+            display: block;
+            width: 6px;
+            margin-top: 9px; 
+            border-bottom: 1px solid @orange;
+          }
         }
         &.tipe-Error {
           color: @red;
         }
         &.tipe-Incomplete {
           color: @orange;
+        }
+
+        .input-details {
+          display: none;
         }
       }
     }
