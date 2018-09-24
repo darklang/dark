@@ -959,7 +959,7 @@ let t_authenticate_then_handle_code_and_cookie () =
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt (resp, _) =  Server.authenticate_then_handle
                               ~execution_id:test_id
-                              (fun ~username req ->
+                              (fun ~username ~csrf_token req ->
                                 Server.respond
                                   ~execution_id:test_id
                                   `OK
@@ -1007,12 +1007,55 @@ let t_authenticate_then_handle_code_and_cookie () =
     ; 401, None
     ]
 
-let admin_handler_code ?(meth=`GET) ?(body="") (username, endpoint) =
+let t_check_csrf_then_handle () =
+  (* csrf header *)
+  let csrf token = Header.of_list [("X-CSRF-Token", token)] in
+  let correct_token = "abc" in
+  (* sample execution id, makes grepping test logs easier *)
+  let test_id = Types.id_of_int 1234 in
+  (* Fake URL; this should be url-agnostic *)
+  let url = Uri.of_string "http://darklang.com/a/test" in
+  let ccth (username, req : string * Req.t) : int =
+    Lwt_main.run
+      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let%lwt (resp, _) =  Server.check_csrf_then_handle
+                              ~execution_id:test_id
+                              ~username
+                              (fun req ->
+                                Server.respond
+                                  ~execution_id:test_id
+                                  `OK
+                                  "test handler")
+                              req in
+       resp |> Resp.status |> Code.code_of_status |> return)
+  in
+  AT.check (AT.list AT.int)
+    "authenticate_then_handle sets status codes and cookies correctly"
+    (List.map
+       ~f:ccth
+       (* GET works, with no token *)
+       [ "test", Req.make ~meth:`GET url
+       (* POST works with the right token *)
+       ; "test", Req.make ~headers:(csrf correct_token) ~meth:`POST url
+       (* But not with no token *)
+       ; "test", Req.make ~meth:`POST url
+       (* And not with the wrong token. *)
+       ; "test", Req.make ~headers:(csrf "x") ~meth:`POST url
+       ]
+    )
+    [ 200
+    ; 200
+    ; 401
+    ; 401
+    ]
+
+let admin_handler_code ?(meth=`GET) ?(body="") ?(csrf=true) (username, endpoint) =
   (* sample execution id, makes grepping test logs easier *)
   let test_id = Types.id_of_int 1234 in
     Lwt_main.run
       (let stop, stopper = Lwt.wait () in
        let uri = Uri.of_string ("http://builtwithdark.localhost:8000" ^ endpoint) in
+       let headers = Header.of_list (if csrf then [("X-CSRF-Token", "abc")] else []) in
        let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt (resp, _) =  Server.admin_handler
                               ~execution_id:test_id
@@ -1020,7 +1063,8 @@ let admin_handler_code ?(meth=`GET) ?(body="") (username, endpoint) =
                               ~stopper
                               ~body
                               ~username
-                              (Req.make ~meth uri) in
+                              ~csrf_token:"abc"
+                              (Req.make ~meth ~headers uri) in
        resp |> Resp.status |> Code.code_of_status |> return)
 
 let t_admin_handler_ui () =
@@ -1582,6 +1626,7 @@ let suite =
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ; "Handling nothing in code works", `Quick, t_nothing
   ; "authenticate_then_handle sets status codes and cookies correctly ", `Quick, t_authenticate_then_handle_code_and_cookie
+  ; "check_csrf_then_handle checks CSRF authentication correctly  ", `Quick, t_check_csrf_then_handle
   ; "UI routes in admin_handler work ", `Quick, t_admin_handler_ui
   ; "/api/ routes in admin_handler work ", `Quick, t_admin_handler_api
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new

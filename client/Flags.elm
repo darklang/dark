@@ -23,6 +23,7 @@ type alias Flags =
   , complete: List Function
   , userContentHost : String
   , environment: String
+  , csrfToken : String
   }
 
 

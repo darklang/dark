@@ -457,7 +457,7 @@ let to_assoc_list etags_json : (string*string) list =
     else mutated
   | _ -> Exception.internal "etags.json must be a top-level object."
 
-let admin_ui_html ~(debug:bool) frontend username =
+let admin_ui_html ~(csrf_token:string) ~(debug:bool) frontend username =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
     template
     >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
@@ -506,25 +506,42 @@ let admin_ui_html ~(debug:bool) frontend username =
                        (Util.string_replace file (hashed_filename file hash))
                          acc)
                ))
+  >|= Util.string_replace "{CSRF_TOKEN}" csrf_token
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
   let filename = C.save_test !g in
   respond ~execution_id `OK ("Saved as: " ^ filename)
 
+let check_csrf_then_handle ~execution_id ~username handler req =
+  if CRequest.meth req = `POST
+  then
+    if req
+       |> CRequest.headers
+       |> (fun h -> Header.get h "X-CSRF-Token")
+       |> (=) (Some "abc")
+    then handler req
+    else respond ~execution_id `Unauthorized "Bad CSRF" (* todo remove this error message? *)
+  else handler req
+
 (* Checks for a cookie, prompts for basic auth if there isn't one,
    returns Unauthorized if basic auth doesn't work.
 
    Importantly this performs no authorization. Just authentication.
 
+   It passes the username and the current CSRF token to the handler.
+   Don't check against the CSRF token in the handler; use
+   check_csrf_then_handle for that. Only use it to present the token
+   to users in HTML.
+
    Also implements logout (!). *)
 let authenticate_then_handle ~(execution_id: Types.id) handler req =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
-
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) ->
      let username = Auth.Session.username_for session in
+     let csrf_token = "abc" in
      if path = "/logout"
      then
        (Auth.Session.clear Auth.Session.backend session;%lwt
@@ -534,7 +551,7 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
             let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
             S.respond_redirect ~headers ~uri ())
      else
-       handler ~username req
+       handler ~username ~csrf_token req
   | _ ->
      match Header.get_authorization headers with
      | (Some (`Basic (username, password))) ->
@@ -548,8 +565,9 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
                            ~path:"/"
                            Auth.Session.cookie_key session
            in
+           let csrf_token = "abc" in
            over_headers_promise ~f:(fun h -> Header.add_list h headers)
-             (handler ~username req)
+             (handler ~username ~csrf_token req)
          else
            respond ~execution_id `Unauthorized "Bad credentials")
      | None ->
@@ -558,7 +576,7 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
         respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
+      ~(body: string) ~(username:string) ~(csrf_token:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
   let query = req |> CRequest.uri |> Uri.query in
   let frontend = query_string_to_frontend_impl query in
@@ -583,7 +601,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let serve_or_error ~(debug : bool) frontend =
-    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend username))
+    Lwt.try_bind (fun _ -> (admin_ui_html ~csrf_token ~debug frontend username))
       (fun body ->
          respond
            ~resp_headers:html_hdrs
@@ -659,7 +677,7 @@ let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
+      ~(body: string) ~(username:string) ~(csrf_token:string) (req: CRequest.t) =
   let path = uri
              |> Uri.path
              |> String.lstrip ~drop:((=) '/')
@@ -668,8 +686,11 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
 
   (* routing *)
   match path with
-  | "api" :: _ ->  admin_api_handler ~execution_id ~path ~stopper ~body ~username req
-  | "a" :: _ ->  admin_ui_handler ~execution_id ~path ~stopper ~body ~username req
+  | "api" :: _ ->
+     check_csrf_then_handle ~execution_id ~username
+       (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
+       req
+  | "a" :: _ -> admin_ui_handler ~execution_id ~path ~stopper ~body ~username ~csrf_token req
   | _ -> respond ~execution_id `Not_found "Not found"
 
 (* -------------------------------------------- *)
@@ -753,7 +774,7 @@ let route_host req =
 let admin_ui_html_readiness_check () :string option list =
   List.map
     ~f: (fun (frontend_impl, frontend_str) ->
-        try ignore (admin_ui_html ~debug:false frontend_impl "test"); None with
+        try ignore (admin_ui_html ~csrf_token:"" ~debug:false frontend_impl "test"); None with
           e -> Some ("admin_ui_html failed for frontend: " ^ frontend_str))
     [(Elm, "Elm"); (Bucklescript, "BuckleScript")]
 
@@ -890,9 +911,9 @@ let server () =
          | Some Admin ->
             (try
                authenticate_then_handle ~execution_id
-                 (fun ~username r ->
+                 (fun ~username ~csrf_token r ->
                     try
-                      admin_handler ~execution_id ~uri ~body ~stopper ~username r
+                      admin_handler ~execution_id ~uri ~body ~stopper ~username ~csrf_token r
                     with e ->
                       handle_error ~include_internals:true e)
                  req

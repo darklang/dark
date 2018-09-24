@@ -72,4 +72,6 @@ let defaultModel : model =
   ; canvas= defaultCanvas
   ; canvasName= "builtwithdark"
   ; userContentHost= "builtwithdark.com"
-  ; environment= "none" }
+  ; environment= "none"
+  ; csrfToken = "UNSET_CSRF"
+  }
