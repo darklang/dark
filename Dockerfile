@@ -270,6 +270,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       less
 
 RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git
+RUN yarn add bs-platform@4.0.5
 
 ############################
 # Finish
