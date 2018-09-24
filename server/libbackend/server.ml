@@ -68,9 +68,9 @@ let respond ?(resp_headers=Header.init ()) ~(execution_id: Types.id) status (bod
     Header.add resp_headers "X-Darklang-Execution-ID" (Log.dump execution_id)
   in
   Log.infO "response"
-    ~params:[ "execution_id", Log.dump execution_id
+    ~params:[ "status", Log.dump (Cohttp.Code.code_of_status status)
+            ; "execution_id", Log.dump execution_id
             ; "headers", Log.dump resp_headers
-            ; "status", Log.dump status
             ; "body", Log.dump body
             ];
   S.respond_string ~status ~body ~headers:resp_headers ()
