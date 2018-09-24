@@ -12,6 +12,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "bs-platform": "^4.0.5"
+    "bs-platform": "^4.0.5",
+    "bucklescript-tea": "^0.7.5"
   }
 }
