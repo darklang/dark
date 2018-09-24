@@ -5,3 +5,7 @@
 bs-platform@^4.0.5:
   version "4.0.5"
   resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.5.tgz#d4fd9bbdd11765af5b75110a5655065ece05eed6"
+
+bucklescript-tea@^0.7.5:
+  version "0.7.5"
+  resolved "https://registry.yarnpkg.com/bucklescript-tea/-/bucklescript-tea-0.7.5.tgz#363272aa5b3c6c0d68146e81c5d1dc3b7ebb9ee8"

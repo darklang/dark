@@ -11,7 +11,7 @@
   },
   "suffix": ".bs.js",
   "bs-dependencies": [
-      // add your bs-dependencies here 
+    "bucklescript-tea"
   ],
   "warnings": {
     "error" : "+101"
