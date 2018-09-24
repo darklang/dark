@@ -548,6 +548,7 @@ type alias Model = { error : DarkError
                    , canvasName: String
                    , userContentHost: String
                    , environment: String
+                   , csrfToken: String
                    }
 
 -- Values that we serialize
@@ -630,7 +631,6 @@ type Modification = DisplayAndReportHttpError String Http.Error
 -- Flags / function types
 -----------------------------
 
-
 -- name, type optional
 type alias Parameter = { paramName: String
                        , paramTipe: Tipe
@@ -667,4 +667,13 @@ type alias UserFunction = { ufTLID: TLID
                           , ufAST: Expr
                           }
 
+-----------------------------
+-- RPC params
+-----------------------------
 
+type alias RPCContext = { canvasName: String
+                       , csrfToken: String
+                       }
+
+contextFromModel : Model -> RPCContext
+contextFromModel m = { canvasName = m.canvasName, csrfToken = m.csrfToken }

@@ -103,4 +103,5 @@ defaultModel = { error = { message = Nothing
                , canvasName = "builtwithdark"
                , userContentHost = "builtwithdark.com"
                , environment = "none"
+               , csrfToken = ""
                }

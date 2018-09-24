@@ -467,7 +467,8 @@ and model =
   ; canvas: canvasProps
   ; canvasName: string
   ; userContentHost: string
-  ; environment: string }
+  ; environment: string
+  ; csrfToken: string}
 
 and serializableEditor =
   { clipboard: pointerData option
@@ -563,3 +564,10 @@ and userFunctionMetadata =
   ; ufmInfix: bool }
 
 and userFunction = {ufTLID: tlid; ufMetadata: userFunctionMetadata; ufAST: expr}
+
+and rpcContext = { canvasName : string; csrfToken : string }
+
+let contextFromModel (m : model) : rpcContext
+  = { canvasName = m.canvasName
+    ; csrfToken = m.csrfToken
+    }
