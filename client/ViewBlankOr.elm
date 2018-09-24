@@ -40,9 +40,6 @@ type HtmlConfig =
                 | WithID ID
                 -- show a featureflag
                 | WithFF
-                -- display computed value from this ID
-                | ComputedValueAs ID
-                | ComputedValue
                 -- show an 'edit function' link
                 | WithEditFn TLID
 
@@ -130,22 +127,11 @@ div vs configs content =
                 |> List.filterMap (\a -> case a of
                                            WithClass c -> Just c
                                            _ -> Nothing)
-      computedValueAs = getFirst (\a -> case a of
-                                          ComputedValueAs id -> Just id
-                                          ComputedValue -> thisID
-                                          _ -> Nothing)
       showFeatureFlag = List.member WithFF configs
       editFn = getFirst (\a -> case a of
                                  WithEditFn id -> Just id
                                  _ -> Nothing)
 
-
-      value = getLiveValue vs.currentResults.liveValues
-
-      selectedID =
-        case vs.cursorState of
-          Selecting _ (Just id) -> Just id
-          _ -> Nothing
 
       isCommandTarget =
         case vs.cursorState of
@@ -153,28 +139,25 @@ div vs configs content =
             thisID == (Just id)
           _ -> False
 
+      selectedID =
+        case vs.cursorState of
+          Selecting _ (Just id) -> Just id
+          _ -> Nothing
+
       selected =
         thisID == selectedID && ME.isJust thisID
 
-      computedValueData = Maybe.andThen value computedValueAs
-
-      mouseover = 
+      mouseover =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
-      incomplete =
-        case computedValueData of
-          Nothing -> True
-          Just dv -> dv == DIncomplete
-
-      idAttr = case thisID of
-                 Just id -> ["blankOr", "id-" ++ String.fromInt (deID id)]
-                 _ -> []
+      idClasses = case thisID of
+                    Just id -> ["blankOr", "id-" ++ String.fromInt (deID id)]
+                    _ -> []
       allClasses = classes
-                  ++ idAttr
+                  ++ idClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if isCommandTarget then ["commandTarget"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
-                  ++ (if incomplete then ["incomplete"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
       events =
         case clickAs of
@@ -186,7 +169,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = (Attrs.attribute "data-live-value" (renderLiveValue vs) ) :: classAttr :: events
+      liveValueAttr = Attrs.attribute "data-live-value" (renderLiveValue vs)
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
@@ -198,6 +181,8 @@ div vs configs content =
         Html.div
         [Attrs.class "expr-actions"]
         (featureFlagHtml ++ editFnHtml)
+
+      attrs =  liveValueAttr :: classAttr :: events
   in
     Html.div attrs (content ++ [rightSideHtml])
 
