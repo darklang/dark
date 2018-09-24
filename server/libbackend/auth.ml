@@ -13,6 +13,6 @@ module Session = struct
     generate backend username
   let username_for session =
     session.value
+  let csrf_token_for session =
+    "abc"
 end
-
-
