@@ -638,9 +638,34 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
 (* The server *)
 (* -------------------------------------------- *)
 
+let static_etag_for =
+  (* Read the etags.json JSON document here so that it reads
+     at load-time, not at each call-time.
+
+     The server gets restarted after we get new etags, so we
+     don't need to worry about updates here. *)
+  let etags_json =
+    File.readfile ~root:Config.Webroot "etags.json"
+    |> Yojson.Basic.from_string
+  in
+  (fun uri ->
+    try
+      etags_json
+      (* Get the JSON field that corresponds to the filename,
+         stripped of the leftmost /. *)
+      |> Yojson.Basic.Util.member
+           (uri |> Uri.path |> String.lstrip ~drop:((=) '/'))
+      |> Yojson.Basic.Util.to_string
+      |> (fun x -> [("etag", x)])
+    with e ->
+      [])
+
 let static_handler uri =
   let fname = S.resolve_file ~docroot:(Config.dir Config.Webroot) ~uri in
-  S.respond_file ~headers:(Header.of_list [cors])  ~fname ()
+  S.respond_file
+    ~headers:(Header.of_list (cors :: static_etag_for uri))
+    ~fname
+    ()
 
 
 type host_route =
