@@ -261,6 +261,7 @@ def ignore(filename):
             , "server/static/elm-debug.js"
             , "server/static/elm.js"
             , "server/static/darkjs.bc.js"
+            , "etags.json"
   ]
   for i in ignores:
     if i in filename:
