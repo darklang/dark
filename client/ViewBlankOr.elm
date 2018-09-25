@@ -147,6 +147,9 @@ div vs configs content =
       selected =
         thisID == selectedID && ME.isJust thisID
 
+      displayLivevalue =
+        thisID == idOf vs.cursorState && ME.isJust thisID
+
       mouseover =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
@@ -155,6 +158,7 @@ div vs configs content =
                     _ -> []
       allClasses = classes
                   ++ idClasses
+                  ++ (if displayLivevalue then ["display-livevalue"] else [])
                   ++ (if selected then ["selected"] else [])
                   ++ (if isCommandTarget then ["commandTarget"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
@@ -285,7 +289,7 @@ viewBlankOr htmlFn pt vs c bo =
                 else StringEntryNormalWidth
               placeholder = placeHolderFor vs id pt
           in
-              div vs c
+              div vs (c ++ wID id)
                 [ ViewEntry.entryHtml
                     allowStringEntry stringEntryWidth placeholder vs.ac]
         else Html.text vs.ac.value
