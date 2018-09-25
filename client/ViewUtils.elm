@@ -32,6 +32,7 @@ type alias ViewState =
   , ac: Autocomplete
   , handlerSpace: HandlerSpace
   , showEntry : Bool
+  , showLivevalue : Bool
   , dbLocked : Bool
   , currentResults : AnalysisResults -- for current selected cursor/trace
   , traces : List Trace
@@ -74,6 +75,7 @@ createVS m tl = { tl = tl
                         _ -> Just i)
                 , ac = m.complete
                 , showEntry = True
+                , showLivevalue = True
                 , handlerSpace = TL.spaceOf tl
                                |> Maybe.withDefault HSOther
                 , dbLocked = DB.isLocked m tl.id
