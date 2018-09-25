@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(executable
+  (
+    (name translate)
+    (public_name translate)
+    (flags (-warn-error (+A)))
+    (libraries (core_kernel))
+    (package translate)
+  )
+)
+

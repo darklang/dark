@@ -272,6 +272,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
 RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git
 RUN yarn add bs-platform@4.0.5
 RUN curl -sSL https://get.haskellstack.org/ | sh
+RUN stack setup --resolver lts-11.4
+RUN git clone https://github.com/darklang/elm-format
+RUN cd elm-format && git checkout elm-escape && stack install -j 4
 ############################
 # Finish
 ############################
