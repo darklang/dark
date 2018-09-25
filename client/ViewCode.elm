@@ -185,15 +185,11 @@ viewNExpr d id vs config e =
             if RPC.typeOfLiteralString v == TStr
             then transformToStringEntry v
             else v
-          computedValue =
-            if d == 0
-            then [ComputedValue]
-            else []
           tooWide = if vs.tooWide
                     then [wc "short-strings"]
                     else []
       in
-      a (wc cssClass :: wc "value" :: all ++ tooWide ++ computedValue) value
+      a (wc cssClass :: wc "value" :: all ++ tooWide) value
 
     Variable name ->
       if List.member id vs.relatedBlankOrs
@@ -203,13 +199,10 @@ viewNExpr d id vs config e =
         a (wc "variable" :: all) name
 
     Let lhs rhs body ->
-      let lhsID = B.toID lhs
-          bodyID = B.toID body
-      in
       n (wc "letexpr" :: all)
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
-        , a [wc "letbind", ComputedValueAs lhsID] "="
+        , a [wc "letbind"] "="
         , n [wc "letrhs", cs] [vExpr d rhs]
         , n [wc "letbody"] [vExpr d body]
         ]
@@ -332,7 +325,7 @@ viewNExpr d id vs config e =
 
           fnDiv parens =
             n
-              [wc "op", wc name, ComputedValueAs id]
+              [wc "op", wc name]
               (fnname parens :: ropArrow :: button)
       in
       case (fn.infix, exprs, fn.parameters) of
@@ -363,13 +356,7 @@ viewNExpr d id vs config e =
     Thread exprs ->
       let pipe = a [wc "thread pipe"] "|>"
           texpr e_ =
-            let id_ = B.toID e_
-                dopts =
-                  if d == 0
-                  then [ClickSelectAs id_, ComputedValueAs id_]
-                  else [ClickSelectAs id_]
-            in
-            n ([wc "threadmember"] ++ dopts)
+            n ([wc "threadmember", ClickSelectAs (B.toID e_)])
               [pipe, vExpr 0 e_]
       in
       n (wc "threadexpr" :: mo :: config)
@@ -380,10 +367,7 @@ viewNExpr d id vs config e =
         [ n [wc "fieldobject"] [vExpr 0 obj]
         , a [wc "fieldaccessop operator"] "."
         , viewFieldName vs
-            [ wc "fieldname"
-            , atom
-            , ComputedValueAs id
-            ]
+            [ wc "fieldname" , atom ]
             field
         ]
 
@@ -392,13 +376,7 @@ viewNExpr d id vs config e =
           close = a [wc "closebracket"] "]"
           comma = a [wc "comma"] ","
           lexpr e_ =
-            let id_ = B.toID e_
-                dopts =
-                  if d == 0
-                  then [ClickSelectAs id_, ComputedValueAs id_]
-                  else [ClickSelectAs id_]
-            in
-            n ([wc "listelem"] ++ dopts)
+            n ([wc "listelem", ClickSelectAs (B.toID e_)])
               [vExpr 0 e_]
           new = List.map lexpr exprs
                 |> List.intersperse comma
