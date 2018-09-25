@@ -91,15 +91,13 @@ getLiveValue : LVDict -> ID -> Maybe Dval
 getLiveValue lvs (ID id) =
   Dict.get id lvs
 
-renderLiveValue : ViewState -> String
-renderLiveValue vs =
+renderLiveValue : ViewState -> Maybe ID -> String
+renderLiveValue vs id =
   let cursorLiveValue =
-    case vs.cursorState of
-      Selecting _ (Just (ID id)) ->
-        Dict.get id vs.currentResults.liveValues
-      Entering (Filling _ (ID id)) ->
-        Dict.get id vs.currentResults.liveValues
-      _ -> Nothing
+        case id of
+          Just (ID id) ->
+            Dict.get id vs.currentResults.liveValues
+          _ -> Nothing
   in
   case cursorLiveValue of
     Just dv ->(RT.toRepr dv)
@@ -148,7 +146,9 @@ div vs configs content =
         thisID == selectedID && ME.isJust thisID
 
       displayLivevalue =
-        thisID == idOf vs.cursorState && ME.isJust thisID
+        thisID == idOf vs.cursorState
+        && ME.isJust thisID
+        && vs.showLivevalue
 
       mouseover =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
@@ -173,7 +173,7 @@ div vs configs content =
             ]
           _ -> []
 
-      liveValueAttr = Attrs.attribute "data-live-value" (renderLiveValue vs)
+      liveValueAttr = Attrs.attribute "data-live-value" (renderLiveValue vs thisID)
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
