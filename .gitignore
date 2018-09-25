@@ -19,3 +19,6 @@ client/DEBUG
 node_modules
 /server/static/darkjs.bc.js
 /server/static/etags.json
+elm-format
+translate/.merlin
+trqnslate/_build
