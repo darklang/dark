@@ -91,15 +91,13 @@ getLiveValue : LVDict -> ID -> Maybe Dval
 getLiveValue lvs (ID id) =
   Dict.get id lvs
 
-renderLiveValue : ViewState -> String
-renderLiveValue vs =
+renderLiveValue : ViewState -> Maybe ID -> String
+renderLiveValue vs id =
   let cursorLiveValue =
-    case vs.cursorState of
-      Selecting _ (Just (ID id)) ->
-        Dict.get id vs.currentResults.liveValues
-      Entering (Filling _ (ID id)) ->
-        Dict.get id vs.currentResults.liveValues
-      _ -> Nothing
+        case id of
+          Just (ID id) ->
+            Dict.get id vs.currentResults.liveValues
+          _ -> Nothing
   in
   case cursorLiveValue of
     Just dv ->(RT.toRepr dv)
@@ -147,6 +145,11 @@ div vs configs content =
       selected =
         thisID == selectedID && ME.isJust thisID
 
+      displayLivevalue =
+        thisID == idOf vs.cursorState
+        && ME.isJust thisID
+        && vs.showLivevalue
+
       mouseover =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
@@ -155,6 +158,7 @@ div vs configs content =
                     _ -> []
       allClasses = classes
                   ++ idClasses
+                  ++ (if displayLivevalue then ["display-livevalue"] else [])
                   ++ (if selected then ["selected"] else [])
                   ++ (if isCommandTarget then ["commandTarget"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
@@ -169,7 +173,7 @@ div vs configs content =
             ]
           _ -> []
 
-      liveValueAttr = Attrs.attribute "data-live-value" (renderLiveValue vs)
+      liveValueAttr = Attrs.attribute "data-live-value" (renderLiveValue vs thisID)
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
@@ -285,7 +289,7 @@ viewBlankOr htmlFn pt vs c bo =
                 else StringEntryNormalWidth
               placeholder = placeHolderFor vs id pt
           in
-              div vs c
+              div vs (c ++ wID id)
                 [ ViewEntry.entryHtml
                     allowStringEntry stringEntryWidth placeholder vs.ac]
         else Html.text vs.ac.value
