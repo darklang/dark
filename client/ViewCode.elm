@@ -199,12 +199,23 @@ viewNExpr d id vs config e =
         a (wc "variable" :: all) name
 
     Let lhs rhs body ->
+      let bodyID = B.toID body
+          showRHSInstead = B.isBlank body
+                           && (idOf vs.cursorState == Just bodyID)
+          rhsConfig = if showRHSInstead
+                      then [wc "display-livevalue"]
+                      else []
+          bodyViewState = if showRHSInstead
+                          then { vs | showLivevalue = False }
+                          else vs
+
+      in
       n (wc "letexpr" :: all)
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
         , a [wc "letbind"] "="
-        , n [wc "letrhs", cs] [vExpr d rhs]
-        , n [wc "letbody"] [vExpr d body]
+        , n [wc "letrhs", cs] [viewExpr d vs rhsConfig rhs]
+        , n [wc "letbody"] [viewExpr d bodyViewState [] body]
         ]
 
     If cond ifbody elsebody ->
