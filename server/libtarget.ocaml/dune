@@ -1,8 +1,9 @@
 (library
   (name libtarget_ocaml)
+  (public_name libtarget.ocaml)
+  (implements libtarget)
   (modes native)
-  (wrapped false)
-  (flags (-warn-error +A :standard -no-keep-locs))
+  (flags (-warn-error +A))
   (preprocess (pps  ppx_bin_prot
                     ppx_compare
                     ppx_deriving.std
@@ -18,5 +19,3 @@
               re2
               str
               core))
-
-(rule (copy %{lib:libtarget:libtarget.mli} libtarget.mli))
