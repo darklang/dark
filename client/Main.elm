@@ -56,6 +56,7 @@ import Toplevel as TL
 import Util
 import Url
 import IntegrationTest
+import ViewUtils exposing (isLocked)
 
 
 -----------------------
@@ -525,7 +526,16 @@ updateMod mod (m, cmd) =
               processAutocompleteMods m [ ACSetTarget target ]
             m3 = { m2 | cursorState = Entering entry }
         in
-        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
+        let changeCmd =
+          (m3, Cmd.batch (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3]))
+
+        in
+          case target of
+            Nothing -> changeCmd
+            Just (tlid, _) ->
+              if isLocked tlid m
+              then (m, Cmd.none)
+              else changeCmd
 
       SelectCommand tlid id ->
         let m2 = { m | cursorState = SelectingCommand tlid id }
