@@ -5,8 +5,14 @@ open Core_kernel
  * If only a single constructor, it's unwrapped.
  *
  * Sum types are object with "tag" and "contents".
+ *
  * Constructors with objects have "tag" and everything else become other keys.
- * *)
+ *
+ * Derived yojson behaves differently depending on how we define the types. If
+ * you define a constructor with a tuple of 2 types, it will generate ["Name",
+ * arg1, arg2]. If instead of define a constructor with 1 type, and that type
+ * is a tuple, it will generate ["Name", [[arg1, arg2]]]. Aeson treats these
+ * situations the same. *)
 
 type atodo = int [@@deriving to_yojson, show]
 let atodo_of_yojson json =
@@ -60,18 +66,25 @@ type comment
   | CommentTrickBlock of string
   [@@deriving yojson, show]
 
-(* The unit type in aeson *)
+type comments = comment list
+[@@deriving yojson, show]
+
+(* Aeson generated empty list for unit type *)
 type hUnit = unit list
   [@@deriving yojson, show]
 
-type comments = comment list [@@deriving yojson, show]
-type markdown_blocks = btodo [@@deriving yojson, show]
+(* Aeson and Yojson behave differently for these, so don't use them directly IN CONSTRUCTORS. Instead inline them. I think they're fine to use in non-constructors.
+ * *)
 type 'a located = (region * 'a) [@@deriving yojson, show]
-type pattern = dtodo [@@deriving yojson, show]
 type 'a preCommented = (comments * 'a) [@@deriving yojson, show]
 type 'a postCommented = 'a * comments [@@deriving yojson, show]
 type 'a commented = comments * 'a * comments [@@deriving yojson, show]
 type 'a keywordCommented = (comments * comments * 'a) [@@deriving yojson, show]
+
+
+
+type markdown_blocks = btodo [@@deriving yojson, show]
+type pattern = dtodo [@@deriving yojson, show]
 type expr = ktodo [@@deriving yojson, show]
 type uppercaseIdentifier = string [@@deriving yojson, show]
 type lowercaseIdentifier = string [@@deriving yojson, show]
@@ -84,7 +97,7 @@ type ('k, 'v) commentedMap = ('k, 'v commented) map
 
 type 'a listing
   = ExplicitListing of ('a * bool)
-  | OpenListing of hUnit commented
+  | OpenListing of comments * hUnit * comments
   | ClosedListing
   [@@deriving yojson, show]
 
@@ -123,9 +136,13 @@ type ref_
   = VarRef of (uppercaseIdentifier list) * lowercaseIdentifier
   | TagRef of (uppercaseIdentifier list) * uppercaseIdentifier
   | OpRef of symbolIdentifier
-                 [@@deriving yojson, show]
+[@@deriving yojson, show]
 
-type type_ = etodo [@@deriving yojson, show]
+type type__ = ctodo
+[@@deriving yojson, show]
+
+type type_ = type__ located
+[@@deriving yojson, show]
 
 type declaration
   = Definition of pattern * (pattern preCommented list) * comments * expr
@@ -145,7 +162,7 @@ type declaration
 
 [@@deriving yojson, show]
 
-type 'a topLevelStructure = Entry of 'a located
+type 'a topLevelStructure = Entry of region * 'a
                           | BodyComment of comment
                           | DocComment of markdown_blocks
 [@@deriving yojson, show]
@@ -159,83 +176,29 @@ type module_ =
   }
 [@@deriving yojson, show]
 
-let rec preprocess ~(print:bool) ?(indent=2) (json: Yojson.Safe.json) : Yojson.Safe.json =
-  let preprocess = preprocess ~print ~indent:(indent + 2) in
-  let p arg = if print then prerr_endline ((String.make indent ' ') ^ arg) in
+let rec preprocess (json: Yojson.Safe.json) : Yojson.Safe.json =
   match json with
   | `Assoc [("tag", `String tag)] ->
-    p (tag ^ "(0C)");
     `List [`String tag]
 
   | `Assoc [("tag", `String tag); ("contents", `List contents)]
   | `Assoc [("contents", `List contents); ("tag", `String tag)] ->
-    let count = List.length contents |> string_of_int in
-    p (tag ^ " (" ^ count ^ "C):");
-    `List (`String tag :: `List (List.map ~f:preprocess contents) :: [])
+    `List (`String tag :: (List.map ~f:preprocess contents))
 
   | `Assoc [("tag", `String tag); ("contents", contents)]
   | `Assoc [("contents", contents); ("tag", `String tag)] ->
-    p (tag ^ "(1C)");
     `List [`String tag; preprocess contents]
 
   | `Assoc (("tag", `String tag) :: rest) ->
-    let count = List.length rest |> string_of_int in
-    p (tag ^ "(J" ^ count ^ ")");
     `List [`String tag; `Assoc (List.map rest ~f:(fun (k,v) -> (k, preprocess v)))]
 
   | `List l ->
-    let count = List.length l |> string_of_int in
-    if count = "0"
-    then
-      (p "[]";
-      `List [])
-    else
-      (
-      p ("List/Tuple (" ^ count ^ ")");
-      p ("[");
-      let body = List.map ~f:preprocess l in
-      p ("]");
-      `List body
-    )
+    `List (List.map ~f:preprocess l)
 
   | `Assoc a ->
-    (* let names = a |> List.map ~f:Tuple.T2.get1 |> String.concat ~sep:", " in *)
-    (* let count = List.length a |> string_of_int in *)
-    p ("{");
-    let body = List.map a ~f:(fun (k,v) -> p k; (k, preprocess v)) in
-    p ("}");
-    `Assoc body
+    `Assoc (List.map a ~f:(fun (k,v) -> (k, preprocess v)))
 
-  | `String s ->
-    p (s);
-    json
-
-  | `Bool s ->
-    p (string_of_bool s);
-    json
-
-  | `Tuple s ->
-    p "tuple";
-    json
-
-  | `Intlit s ->
-    p "intlit";
-    json
-
-  | `Variant s ->
-    p "variant";
-    json
-
-  | `Float s ->
-    p (string_of_float s);
-    json
-
-  | `Int s ->
-    p (string_of_int s);
-    json
-
-  | `Null ->
-    p "null";
+  | json ->
     json
 
 let _ =
@@ -244,7 +207,7 @@ let _ =
     then
       In_channel.stdin
       |> Yojson.Safe.from_channel
-      |> preprocess ~print:true
+      |> preprocess
       |> Yojson.Safe.to_string
       |> print_endline
     else
