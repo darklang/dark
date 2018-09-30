@@ -5,7 +5,13 @@
     (name translate)
     (public_name translate)
     (flags (-warn-error (+A)))
-    (libraries (core_kernel))
+    (libraries (core_kernel
+                yojson
+                str
+                ppx_deriving_yojson.runtime))
+    (preprocess (pps (ppx_deriving.std
+                      ppx_deriving_yojson
+                      )))
     (package translate)
   )
 )
