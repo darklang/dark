@@ -18,49 +18,125 @@ open Core_kernel
  * type which is defined as that tuple.
  *)
 
-type atodo = int [@@deriving to_yojson, show]
-let atodo_of_yojson json =
-  failwith ("todo: we've hit atodo: " ^ (Yojson.Safe.to_string json))
-type btodo = int [@@deriving to_yojson, show]
-let btodo_of_yojson json =
-  failwith ("todo: we've hit btodo: " ^ (Yojson.Safe.to_string json))
-type ctodo = int [@@deriving to_yojson, show]
-let ctodo_of_yojson json =
-  failwith ("todo: we've hit ctodo: " ^ (Yojson.Safe.to_string json))
-type dtodo = int [@@deriving to_yojson, show]
-let dtodo_of_yojson json =
-  failwith ("todo: we've hit dtodo: " ^ (Yojson.Safe.to_string json))
-type etodo = int [@@deriving to_yojson, show]
-let etodo_of_yojson json =
-  failwith ("todo: we've hit etodo: " ^ (Yojson.Safe.to_string json))
-type ftodo = int [@@deriving to_yojson, show]
-let ftodo_of_yojson json =
-  failwith ("todo: we've hit ftodo: " ^ (Yojson.Safe.to_string json))
-type gtodo = int [@@deriving to_yojson, show]
-let gtodo_of_yojson json =
-  failwith ("todo: we've hit gtodo: " ^ (Yojson.Safe.to_string json))
-type htodo = int [@@deriving to_yojson, show]
-let htodo_of_yojson json =
-  failwith ("todo: we've hit htodo: " ^ (Yojson.Safe.to_string json))
-type itodo = int [@@deriving to_yojson, show]
-let itodo_of_yojson json =
-  failwith ("todo: we've hit itodo: " ^ (Yojson.Safe.to_string json))
-type jtodo = int [@@deriving to_yojson, show]
-let jtodo_of_yojson json =
-  failwith ("todo: we've hit jtodo: " ^ (Yojson.Safe.to_string json))
-type ktodo = int [@@deriving to_yojson, show]
-let ktodo_of_yojson json =
-  failwith ("todo: we've hit ktodo: " ^ (Yojson.Safe.to_string json))
-type ltodo = int [@@deriving to_yojson, show]
-let ltodo_of_yojson json =
-  failwith ("todo: we've hit ltodo: " ^ (Yojson.Safe.to_string json))
+module Util = Yojson.Basic.Util
+type bjs = Yojson.Basic.json
+
+exception E of string * bjs
+type 'a r = ('a, (string * bjs)) Result.t
+
+let err msg what json =
+  raise (E (("Error: " ^ msg ^ " (" ^ what ^ ")"), json))
+
+
+(* -------------------- *)
+(* TODOs *)
+(* -------------------- *)
+let todofn letter json = err "TODO" letter json
+let atodo json = todofn "a" json
+let btodo json = todofn "b" json
+let ctodo json = todofn "c" json
+let dtodo json = todofn "d" json
+let etodo json = todofn "e" json
+let ftodo json = todofn "f" json
+let gtodo json = todofn "g" json
+let htodo json = todofn "h" json
+let itodo json = todofn "i" json
+let jtodo json = todofn "j" json
+let ktodo json = todofn "k" json
+let ltodo json = todofn "l" json
+let todo name json = todofn name json
+
+type todo = int [@@deriving show]
+
+(* -------------------- *)
+(* Extracting JSON *)
+(* -------------------- *)
+let listJ (f: (bjs -> 'a)) (j: bjs) : 'a list =
+  j
+  |> Util.to_list
+  |> List.map ~f
+
+let intJ = Util.to_int
+let stringJ = Util.to_string
+let optionJ = Util.to_option
+let unitJ j =
+  if j = `List []
+  then ()
+  else err "unit" "Not unit" j
+
+let pairJ (f1: bjs -> 'a) (f2: bjs -> 'b) (j: bjs) : ('a * 'b) =
+  match j with
+  | `List [a; b] ->
+    (f1 a, f2 b)
+  | _ -> err "pairJ" "Not a pair" j
+
+let tripleJ (f1: bjs -> 'a) (f2: bjs -> 'b) (f3: bjs -> 'c) (j: bjs)
+  : ('a * 'b * 'c) =
+  match j with
+  | `List [a; b; c] ->
+    (f1 a, f2 b, f3 c)
+  | _ -> err "triple" "Not a triple" j
+
+
+
+let expect_tag (name: string) (j: bjs) =
+  match Util.member "tag" j with
+  | `Null -> err "Got null instead of tag name" name j
+  | `String found ->
+    if found = name
+    then ()
+    else err ("Expected " ^ name) found j
+  | _ -> err "More than one match" name j
+
+let member name (j: bjs) : bjs =
+  Util.member name j
+
+let constructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) : 'b r =
+  match Util.member "tag" j with
+  | `String found ->
+    if found = name
+    then
+      Result.Ok (const (f (Util.member "contents" j)))
+    else
+      Result.Error (("Expected " ^ name), j)
+  | _ -> err "Found non-string" name j
+
+let orConstructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) (result: 'b r) : 'b r =
+  match result with
+  | Ok _ -> result
+  | Error _ -> constructor name const f j
+
+let orFail (msg: string) (j: bjs) (r: 'a r) : 'a =
+  match r with
+  | Ok a -> a
+  | Error _ ->
+    err "fail" msg j
+
+
+(* -------------------- *)
+(* Elm-format types *)
+(* -------------------- *)
 
 type position = { line: int
                 ; column: int
-                }[@@deriving yojson, show]
+                }[@@deriving show]
 type region = { start : position
-              ; end_ : position [@key "end"]
-              } [@@deriving yojson, show]
+              ; end_ : position
+              } [@@deriving show]
+let positionJ json : position =
+  { line = json |> member "line" |> intJ
+  ; column = json |> member "column" |> intJ
+  }
+let regionJ json =
+  { start = json |> member "start" |> positionJ
+  ; end_ = json |> member "end" |> positionJ
+  }
+
+type 'a located = (region * 'a) [@@deriving show]
+let locatedJ (f: bjs -> 'a) j : 'a located =
+  pairJ regionJ f j
+
+
 
 type comment
   = BlockComment of string list
@@ -68,150 +144,228 @@ type comment
   | CommentTrickOpener
   | CommentTrickCloser
   | CommentTrickBlock of string
-  [@@deriving yojson, show]
+  [@@deriving show]
 
 type comments = comment list
-[@@deriving yojson, show]
+[@@deriving show]
 
-(* Aeson generated empty list for unit type *)
-type hUnit = unit list
-  [@@deriving yojson, show]
 
-type 'a located = (region * 'a) [@@deriving yojson, show]
-type 'a preCommented = (comments * 'a) [@@deriving yojson, show]
-type 'a postCommented = 'a * comments [@@deriving yojson, show]
-type 'a commented = comments * 'a * comments [@@deriving yojson, show]
-type 'a keywordCommented = (comments * comments * 'a) [@@deriving yojson, show]
-type 'a withEol = ('a * string option) [@@deriving yojson, show]
+type 'a preCommented = (comments * 'a) [@@deriving show]
+type 'a postCommented = 'a * comments [@@deriving show]
+type 'a commented = comments * 'a * comments [@@deriving show]
+type 'a keywordCommented = (comments * comments * 'a) [@@deriving show]
+type 'a withEol = ('a * string option) [@@deriving show]
+
+let commentJ (j: bjs) : comment =
+  constructor "BlockComment" (fun x -> BlockComment x) (listJ stringJ) j
+  |> orConstructor "LineComment" (fun x -> LineComment x) stringJ j
+  |> orConstructor "CommentTrickOpener" (fun x -> CommentTrickOpener) ident j
+  |> orConstructor "CommentTrickCloser" (fun x -> CommentTrickCloser) ident j
+  |> orConstructor "CommentTrickBlock" (fun x -> CommentTrickBlock x) stringJ j
+  |> orFail "comment" j
+
+let commentsJ = listJ commentJ
+
+let preCommentedJ (f: bjs -> 'a) (j: bjs) : 'a preCommented =
+  pairJ commentsJ f j
+
+let postCommentedJ (f: bjs -> 'a) (j: bjs) : 'a postCommented =
+  pairJ f commentsJ j
+
+let commentedJ (f: bjs -> 'a) (j: bjs) : 'a commented =
+  tripleJ commentsJ f commentsJ j
+
+let keywordCommentedJ (f: bjs -> 'a) (j: bjs) : 'a keywordCommented =
+  tripleJ commentsJ commentsJ f j
 
 type multiline
   = JoinAll
   | SplitAll
-  [@@deriving to_yojson, show]
+  [@@deriving show]
 
-let err name json =
-  Result.Error ("Error (" ^ name ^ "): " ^ (Yojson.Safe.to_string json))
-
-let multiline_of_yojson json =
+let multilineJ json =
   match json with
   | `String "JoinAll" -> Ok JoinAll
   | `String "SplitAll" -> Ok SplitAll
-  | _ -> err "multiline" json
+  | _ -> err "multiline" "no matched" json
 
 type functionApplicationMultiline
   = FASplitFirst
   | FAJoinFirst of multiline
-  [@@deriving yojson, show]
+  [@@deriving show]
 
 type app = (expr * ((comments * expr) list) * functionApplicationMultiline)
 and expr_
   = App of app
 and expr = expr_ located
-[@@deriving yojson, show]
+[@@deriving show]
 
 
-type markdown_blocks = btodo [@@deriving yojson, show]
-type pattern = dtodo [@@deriving yojson, show]
-type uppercaseIdentifier = string [@@deriving yojson, show]
-type lowercaseIdentifier = string [@@deriving yojson, show]
-type symbolIdentifier = string [@@deriving yojson, show]
+type markdown_blocks = todo [@@deriving show]
+let markdown_blocksJ = ctodo
+type pattern = todo [@@deriving show]
 
-type ('a, 'b) map = ('a * 'b) list [@@deriving yojson, show]
+(* Identifiers *)
+type uppercaseIdentifier = string [@@deriving show]
+type lowercaseIdentifier = string [@@deriving show]
+type symbolIdentifier = string [@@deriving show]
+let lowercaseIdentifierJ = stringJ
+let uppercaseIdentifierJ = stringJ
+let symbolIdentifierJ = stringJ
+
+(* Maps *)
+type ('a, 'b) map = ('a * 'b) list [@@deriving show]
 
 type ('k, 'v) commentedMap = ('k, 'v commented) map
-  [@@deriving yojson, show]
+  [@@deriving show]
 
-type 'a explicitListing = ('a * bool)
-  [@@deriving yojson, show]
+let mapJ (f1: bjs -> 'a) (f2: bjs -> 'b) json : ('a, 'b) map =
+  listJ (pairJ f1 f2) json
 
-type openListing = hUnit commented
-  [@@deriving yojson, show]
+let commentedMapJ (f1: bjs -> 'a) (f2: bjs -> 'b) json
+  : ('a, 'b) commentedMap =
+  listJ (pairJ f1 (commentedJ f2)) json
 
 type 'a listing
-  = ExplicitListing of 'a explicitListing
-  | OpenListing of openListing
+  = ExplicitListing of 'a  * bool
+  | OpenListing of unit commented
   | ClosedListing
-  [@@deriving yojson, show]
+  [@@deriving show]
+
+let listingJ (f: bjs -> 'a) (j: bjs) : 'a listing =
+  constructor "ExplicitListing" (fun (a, b) -> ExplicitListing (a ,b)) atodo j
+  |> orConstructor "OpenListing" (fun t -> OpenListing t) (commentedJ unitJ) j
+  |> orConstructor "ClosedListing" (fun t -> ClosedListing) ident j
+  |> orFail "listing" j
+
+
+
 
 type value
   = Value of lowercaseIdentifier
   | OpValue of symbolIdentifier
   | Union of (uppercaseIdentifier postCommented) * ((uppercaseIdentifier, unit) commentedMap) listing
-  [@@deriving yojson, show]
+  [@@deriving show]
 
 type detailedListing =
-  { values: (lowercaseIdentifier, hUnit) commentedMap
-  ; operators: (symbolIdentifier, hUnit) commentedMap
+  { values: (lowercaseIdentifier, unit) commentedMap
+  ; operators: (symbolIdentifier, unit) commentedMap
   ; types: (uppercaseIdentifier, (comments * (uppercaseIdentifier * unit) listing)) commentedMap
   }
-  [@@deriving yojson, show]
+  [@@deriving show]
+
+let detailedListingJ (j: bjs) : detailedListing =
+  { values =
+      j
+      |> member "values"
+      |> commentedMapJ lowercaseIdentifierJ unitJ
+  ; operators =
+      j
+      |> member "operators"
+      |> commentedMapJ symbolIdentifierJ unitJ
+  ; types =
+      j
+      |> member "operators"
+      |> commentedMapJ
+           uppercaseIdentifierJ
+           (pairJ
+             commentsJ
+             (listingJ (pairJ uppercaseIdentifierJ unitJ)))
+  }
+
 
 type importMethod =
   { alias: (comments * uppercaseIdentifier preCommented) option
-  ; exposedVars: (comments * detailedListing listing preCommented)
-  } [@@deriving yojson, show]
+  ; exposedVars: comments * detailedListing listing preCommented
+  } [@@deriving show]
+
+let importMethodJ (j: bjs) : importMethod =
+  { alias =
+      j
+      |> member "alias"
+      |> optionJ (pairJ commentsJ (preCommentedJ uppercaseIdentifierJ))
+  ; exposedVars =
+      j
+      |> member "exposedVars"
+      |> pairJ commentsJ (preCommentedJ (listingJ detailedListingJ))
+  }
+
 
 type sourceTag
   = Normal
   | Effect of comments
   | Port of comments
-[@@deriving yojson, show]
+[@@deriving show]
+
+let sourceTagJ (j: bjs) : sourceTag =
+  constructor "Normal" (fun d -> Normal) ident j
+  |> orConstructor "Effect" (fun t -> Effect t) commentsJ j
+  |> orConstructor "Port" (fun t -> Port t) commentsJ j
+  |> orFail "sourceTag" j
+
+
 
 type header =
   { srcTag : sourceTag
   ; name : uppercaseIdentifier list commented
-  ; moduleSettings : ftodo option
+  ; moduleSettings : todo option
   ; exports : detailedListing listing keywordCommented
-  } [@@deriving yojson, show]
+  } [@@deriving show]
+
+let headerJ j : header =
+  { srcTag = j |> member "srcTag" |> sourceTagJ
+  ; name = j |> member "name" |> commentedJ (listJ uppercaseIdentifierJ)
+  ; moduleSettings = j |> member "moduleSettings" |> optionJ ctodo
+  ; exports = j |> member "exports" |> keywordCommentedJ (listingJ detailedListingJ)
+  }
+
 
 type varref = (uppercaseIdentifier list) * lowercaseIdentifier
-  [@@deriving yojson, show]
+  [@@deriving show]
 
 type tagref = (uppercaseIdentifier list) * uppercaseIdentifier
-  [@@deriving yojson, show]
+  [@@deriving show]
 
 type ref_
   = VarRef of varref
   | TagRef of tagref
   | OpRef of symbolIdentifier
-[@@deriving yojson, show]
+[@@deriving show]
 
 type forceMultiline = bool
-[@@deriving yojson, show]
+[@@deriving show]
 
 type typeConstructor
   = NamedConstructor of uppercaseIdentifier list
   | TupleConstructor of int
-[@@deriving yojson, show]
+[@@deriving show]
 
-type functionType = { first: type_ withEol
-                    ; rest: (comments * comments * type_ * string option) list
-                    ; forceMultiline: forceMultiline
-                    }
-
-and typeConstruction = typeConstructor * ((comments * type_) list)
-and type__
+type typeConstruction = { first: type_ withEol
+                        ; rest: (comments * comments * type_ * string option) list
+                        ; forceMultiline: forceMultiline
+                        }
+and functionType = typeConstructor * ((comments * type_) list)
+and typep
   = TypeConstruction of typeConstruction
   | FunctionType of functionType
+and type_ = typep located
 
-  | SomeOtherTypes
-and type_ = type__ located
-[@@deriving yojson, show]
+[@@deriving show]
 
 type definition = pattern * (pattern preCommented list) * comments * expr
-[@@deriving yojson, show]
+[@@deriving show]
 
 type typeAnnotation = (ref_ postCommented) * (type_ preCommented)
-[@@deriving yojson, show]
+[@@deriving show]
 
 type declaration
   = Definition of definition
   | TypeAnnotation of typeAnnotation
-  | Datatype of atodo
+  | Datatype of todo
       (* { nameWithArgs :: Commented (NameWithArgs UppercaseIdentifier LowercaseIdentifier) *)
       (* , tags :: OpenCommentedList (NameWithArgs UppercaseIdentifier Type) *)
       (* } *)
-  | TypeAlias of ctodo
+  | TypeAlias of todo
       (*   Comments *)
       (* (Commented (NameWithArgs UppercaseIdentifier LowercaseIdentifier)) *)
       (* (PreCommented Type) *)
@@ -220,72 +374,126 @@ type declaration
   (* | Fixity Assoc Comments Int Comments Var.Ref *)
   (* | Fixity_0_19 (PreCommented Assoc) (PreCommented Int) (Commented SymbolIdentifier) (PreCommented LowercaseIdentifier) *)
 
-[@@deriving yojson, show]
+[@@deriving show]
 
-type 'a entry = region * 'a
-[@@deriving yojson, show]
-
-type 'a topLevelStructure = Entry of 'a entry
+type 'a topLevelStructure = Entry of 'a located
                           | BodyComment of comment
                           | DocComment of markdown_blocks
-[@@deriving yojson, show]
+[@@deriving show]
+
+let topLevelStructureJ (f: bjs -> 'a) (j: bjs) : 'a topLevelStructure =
+  constructor "Entry" (fun (x, y) -> Entry (x, y)) (locatedJ f) j
+  (* |> orConstructor "BodyComment" BodyComment atodo j *)
+  (* |> orConstructor "DocComment" (fun x -> DocComment x) gtodo j *)
+  |> orFail "topLevel" j
+
+let varRefJ j =
+  pairJ (listJ uppercaseIdentifierJ) lowercaseIdentifierJ j
+
+let tagRefJ j =
+  pairJ (listJ uppercaseIdentifierJ) uppercaseIdentifierJ j
+
+let ref_J (j: bjs) : ref_ =
+  constructor "VarRef" (fun d -> VarRef d) varRefJ j
+  (* |> orConstructor "TagRef" (fun t -> TagRef t) itodo  j *)
+  (* |> orConstructor "OpRef" (fun t -> OpRef t) itodo  j *)
+  |> orFail "ref_" j
+
+let typeConstructorJ (j: bjs) : typeConstructor =
+  constructor "NamedConstructor" (fun d -> NamedConstructor d)
+    (listJ uppercaseIdentifierJ) j
+  |> orConstructor "TupleConstructor" (fun d -> TupleConstructor d) intJ j
+  |> orFail "typeConstructor" j
+
+let rec typepJ (j: bjs) : typep =
+  constructor "TypeConstruction" (fun d -> TypeConstruction d) htodo j
+  |> orConstructor "FunctionType" (fun d -> FunctionType d) functionTypeJ j
+  |> orFail "declaration" j
+and type_J (j: bjs) : type_ =
+  locatedJ typepJ j
+and functionTypeJ j =
+  pairJ typeConstructorJ (listJ (pairJ commentsJ type_J)) j
+
+
+let typeAnnotationJ j =
+  pairJ (postCommentedJ ref_J) (preCommentedJ type_J) j
+
+let declarationJ (j: bjs) : declaration =
+  constructor "Definition" (fun d -> Definition d) htodo j
+  |> orConstructor "TypeAnnotation" (fun t -> TypeAnnotation t) typeAnnotationJ j
+  (* |> orConstructor "Datatype" (fun d -> Datatype d) gtodo j *)
+  |> orFail "declaration" j
+
+type imports =
+  (((uppercaseIdentifier list), (comments * importMethod)) map)
+  preCommented
+[@@deriving show]
 
 type module_ =
-  { initialComments : comments
+  { initial_comments : comments
   ; header : header
   ; docs : markdown_blocks option located
-  ; imports : (((uppercaseIdentifier list), (comments * importMethod)) map) preCommented
+  ; imports : imports
   ; body : declaration topLevelStructure list
   }
-[@@deriving yojson, show]
+[@@deriving show]
 
-let rec preprocess (json: Yojson.Safe.json) : Yojson.Safe.json =
-  match json with
-  | `Assoc [("tag", `String tag)] ->
-    `List [`String tag]
+let docsJ = locatedJ (optionJ (markdown_blocksJ))
 
-  | `Assoc [("tag", `String tag); ("contents", `List contents)]
-  | `Assoc [("contents", `List contents); ("tag", `String tag)] ->
-    `List (`String tag :: `List (List.map ~f:preprocess contents) :: [])
+let importsJ (j: bjs) : imports =
+  preCommentedJ
+    (mapJ
+       (listJ uppercaseIdentifierJ)
+       (pairJ
+          commentsJ
+          importMethodJ))
+    j
 
-  | `Assoc [("tag", `String tag); ("contents", contents)]
-  | `Assoc [("contents", contents); ("tag", `String tag)] ->
-    `List [`String tag; preprocess contents]
-
-  | `Assoc (("tag", `String tag) :: rest) ->
-    `List [`String tag; `Assoc (List.map rest ~f:(fun (k,v) -> (k, preprocess v)))]
-
-  | `List l ->
-    `List (List.map ~f:preprocess l)
-
-  | `Assoc a ->
-    `Assoc (List.map a ~f:(fun (k,v) -> (k, preprocess v)))
-
-  | json ->
-    json
-
+let moduleJ json =
+  { initial_comments = json |> member "initialComments" |> commentsJ
+  ; header = json |> member "header" |> headerJ
+  ; docs = json |> member "docs" |> docsJ
+  ; imports = json |> member "imports" |> importsJ
+  ; body = json |> member "body" |> listJ (topLevelStructureJ declarationJ)
+  }
+(* let rec preprocess (json: Yojson.Basic.json) : Yojson.Basic.json = *)
+(*   match json with *)
+(*   | `Assoc [("tag", `String tag)] -> *)
+(*     `List [`String tag] *)
+(*  *)
+(*   | `Assoc [("tag", `String tag); ("contents", `List contents)] *)
+(*   | `Assoc [("contents", `List contents); ("tag", `String tag)] -> *)
+(*     `List (`String tag :: `List (List.map ~f:preprocess contents) :: []) *)
+(*  *)
+(*   | `Assoc [("tag", `String tag); ("contents", contents)] *)
+(*   | `Assoc [("contents", contents); ("tag", `String tag)] -> *)
+(*     `List [`String tag; preprocess contents] *)
+(*  *)
+(*   | `Assoc (("tag", `String tag) :: rest) -> *)
+(*     `List [`String tag; `Assoc (List.map rest ~f:(fun (k,v) -> (k, preprocess v)))] *)
+(*  *)
+(*   | `List l -> *)
+(*     `List (List.map ~f:preprocess l) *)
+(*  *)
+(*   | `Assoc a -> *)
+(*     `Assoc (List.map a ~f:(fun (k,v) -> (k, preprocess v))) *)
+(*  *)
+(*   | json -> *)
+(*     json *)
+(*  *)
 let _ =
   try
-    if Array.length Sys.argv > 1 && Sys.argv.(1) = "--clean"
-    then
-      In_channel.stdin
-      |> Yojson.Safe.from_channel
-      |> preprocess
-      |> Yojson.Safe.to_string
-      |> print_endline
-    else
-      In_channel.stdin
-      |> Yojson.Safe.from_channel
-      (* |> preprocess *)
-      |> module__of_yojson
-      (* |> export_of_yojson *)
-      |> Result.ok_or_failwith
-      |> show_module_
-      |> Str.global_replace (Str.regexp "Translate\\.") ""
-      (* |> show_export *)
-      |> print_endline
-  with e ->
-    print_endline (Exn.to_string e)
+    In_channel.stdin
+    |> Yojson.Basic.from_channel
+    |> moduleJ
+    |> show_module_
+    |> Str.global_replace (Str.regexp "Translate\\.") ""
+    |> print_endline
+  with (E (msg, json)) ->
+    Printexc.print_backtrace stderr;
+    print_endline (Yojson.Basic.pretty_to_string json);
+    prerr_endline msg;
+    ()
 
 
 
