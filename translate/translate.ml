@@ -12,7 +12,11 @@ open Core_kernel
  * you define a constructor with a tuple of 2 types, it will generate ["Name",
  * arg1, arg2]. If instead of define a constructor with 1 type, and that type
  * is a tuple, it will generate ["Name", [[arg1, arg2]]]. Aeson treats these
- * situations the same. *)
+ * situations the same.
+ *
+ * The solution is to never use tuples in a constructor: always use another
+ * type which is defined as that tuple.
+ *)
 
 type atodo = int [@@deriving to_yojson, show]
 let atodo_of_yojson json =
@@ -73,14 +77,12 @@ type comments = comment list
 type hUnit = unit list
   [@@deriving yojson, show]
 
-(* Aeson and Yojson behave differently for these, so don't use them directly IN CONSTRUCTORS. Instead inline them. I think they're fine to use in non-constructors.
- * *)
 type 'a located = (region * 'a) [@@deriving yojson, show]
 type 'a preCommented = (comments * 'a) [@@deriving yojson, show]
 type 'a postCommented = 'a * comments [@@deriving yojson, show]
 type 'a commented = comments * 'a * comments [@@deriving yojson, show]
 type 'a keywordCommented = (comments * comments * 'a) [@@deriving yojson, show]
-
+type 'a withEol = ('a * string option) [@@deriving yojson, show]
 
 
 type markdown_blocks = btodo [@@deriving yojson, show]
@@ -95,9 +97,15 @@ type ('a, 'b) map = ('a * 'b) list [@@deriving yojson, show]
 type ('k, 'v) commentedMap = ('k, 'v commented) map
   [@@deriving yojson, show]
 
+type 'a explicitListing = ('a * bool)
+  [@@deriving yojson, show]
+
+type openListing = hUnit commented
+  [@@deriving yojson, show]
+
 type 'a listing
-  = ExplicitListing of ('a * bool)
-  | OpenListing of comments * hUnit * comments
+  = ExplicitListing of 'a explicitListing
+  | OpenListing of openListing
   | ClosedListing
   [@@deriving yojson, show]
 
@@ -132,21 +140,49 @@ type header =
   ; exports : detailedListing listing keywordCommented
   } [@@deriving yojson, show]
 
+type varref = (uppercaseIdentifier list) * lowercaseIdentifier
+  [@@deriving yojson, show]
+
+type tagref = (uppercaseIdentifier list) * uppercaseIdentifier
+  [@@deriving yojson, show]
+
 type ref_
-  = VarRef of (uppercaseIdentifier list) * lowercaseIdentifier
-  | TagRef of (uppercaseIdentifier list) * uppercaseIdentifier
+  = VarRef of varref
+  | TagRef of tagref
   | OpRef of symbolIdentifier
 [@@deriving yojson, show]
 
-type type__ = ctodo
+type forceMultiline = bool
 [@@deriving yojson, show]
 
-type type_ = type__ located
+type typeConstructor
+  = NamedConstructor of uppercaseIdentifier list
+  | TupleConstructor of int
+[@@deriving yojson, show]
+
+type functionType = { first: type_ withEol
+                    ; rest: (comments * comments * type_ * string option) list
+                    ; forceMultiline: forceMultiline
+                    }
+
+and typeConstruction = typeConstructor * ((comments * type_) list)
+and type__
+  = TypeConstruction of typeConstruction
+  | FunctionType of functionType
+
+  | SomeOtherTypes
+and type_ = type__ located
+[@@deriving yojson, show]
+
+type definition = pattern * (pattern preCommented list) * comments * expr
+[@@deriving yojson, show]
+
+type typeAnnotation = (ref_ postCommented) * (type_ preCommented)
 [@@deriving yojson, show]
 
 type declaration
-  = Definition of pattern * (pattern preCommented list) * comments * expr
-  | TypeAnnotation of (ref_ postCommented) * (type_ preCommented)
+  = Definition of definition
+  | TypeAnnotation of typeAnnotation
   | Datatype of atodo
       (* { nameWithArgs :: Commented (NameWithArgs UppercaseIdentifier LowercaseIdentifier) *)
       (* , tags :: OpenCommentedList (NameWithArgs UppercaseIdentifier Type) *)
@@ -162,7 +198,10 @@ type declaration
 
 [@@deriving yojson, show]
 
-type 'a topLevelStructure = Entry of region * 'a
+type 'a entry = region * 'a
+[@@deriving yojson, show]
+
+type 'a topLevelStructure = Entry of 'a entry
                           | BodyComment of comment
                           | DocComment of markdown_blocks
 [@@deriving yojson, show]
@@ -183,7 +222,7 @@ let rec preprocess (json: Yojson.Safe.json) : Yojson.Safe.json =
 
   | `Assoc [("tag", `String tag); ("contents", `List contents)]
   | `Assoc [("contents", `List contents); ("tag", `String tag)] ->
-    `List (`String tag :: (List.map ~f:preprocess contents))
+    `List (`String tag :: `List (List.map ~f:preprocess contents) :: [])
 
   | `Assoc [("tag", `String tag); ("contents", contents)]
   | `Assoc [("contents", contents); ("tag", `String tag)] ->
