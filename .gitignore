@@ -21,4 +21,4 @@ node_modules
 /server/static/etags.json
 elm-format
 translate/.merlin
-trqnslate/_build
+translate/_build
