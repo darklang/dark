@@ -84,10 +84,34 @@ type 'a commented = comments * 'a * comments [@@deriving yojson, show]
 type 'a keywordCommented = (comments * comments * 'a) [@@deriving yojson, show]
 type 'a withEol = ('a * string option) [@@deriving yojson, show]
 
+type multiline
+  = JoinAll
+  | SplitAll
+  [@@deriving to_yojson, show]
+
+let err name json =
+  Result.Error ("Error (" ^ name ^ "): " ^ (Yojson.Safe.to_string json))
+
+let multiline_of_yojson json =
+  match json with
+  | `String "JoinAll" -> Ok JoinAll
+  | `String "SplitAll" -> Ok SplitAll
+  | _ -> err "multiline" json
+
+type functionApplicationMultiline
+  = FASplitFirst
+  | FAJoinFirst of multiline
+  [@@deriving yojson, show]
+
+type app = (expr * ((comments * expr) list) * functionApplicationMultiline)
+and expr_
+  = App of app
+and expr = expr_ located
+[@@deriving yojson, show]
+
 
 type markdown_blocks = btodo [@@deriving yojson, show]
 type pattern = dtodo [@@deriving yojson, show]
-type expr = ktodo [@@deriving yojson, show]
 type uppercaseIdentifier = string [@@deriving yojson, show]
 type lowercaseIdentifier = string [@@deriving yojson, show]
 type symbolIdentifier = string [@@deriving yojson, show]
