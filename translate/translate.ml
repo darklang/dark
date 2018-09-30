@@ -58,6 +58,7 @@ let listJ (f: (bjs -> 'a)) (j: bjs) : 'a list =
 
 let intJ = Util.to_int
 let stringJ = Util.to_string
+let boolJ  = Util.to_bool
 let optionJ = Util.to_option
 let unitJ j =
   if j = `List []
@@ -76,6 +77,13 @@ let tripleJ (f1: bjs -> 'a) (f2: bjs -> 'b) (f3: bjs -> 'c) (j: bjs)
   | `List [a; b; c] ->
     (f1 a, f2 b, f3 c)
   | _ -> err "triple" "Not a triple" j
+
+let quadrupleJ (f1: bjs -> 'a) (f2: bjs -> 'b) (f3: bjs -> 'c) (f4: bjs -> 'd) (j: bjs)
+  : ('a * 'b * 'c * 'd) =
+  match j with
+  | `List [a; b; c; d] ->
+    (f1 a, f2 b, f3 c, f4 d)
+  | _ -> err "quadruple" "Not a quadruple" j
 
 
 
@@ -101,10 +109,28 @@ let constructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) : 'b r 
       Result.Error (("Expected " ^ name), j)
   | _ -> err "Found non-string" name j
 
+
+let recordConstructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) : 'b r =
+  match Util.member "tag" j with
+  | `String found ->
+    if found = name
+    then
+      Result.Ok (const (f j))
+    else
+      Result.Error (("Expected " ^ name), j)
+  | _ -> err "Found non-string" name j
+
 let orConstructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) (result: 'b r) : 'b r =
   match result with
   | Ok _ -> result
   | Error _ -> constructor name const f j
+
+let orRecordConstructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) (result: 'b r) : 'b r =
+  match result with
+  | Ok _ -> result
+  | Error _ -> recordConstructor name const f j
+
+
 
 let orFail (msg: string) (j: bjs) (r: 'a r) : 'a =
   match r with
@@ -177,6 +203,9 @@ let commentedJ (f: bjs -> 'a) (j: bjs) : 'a commented =
 
 let keywordCommentedJ (f: bjs -> 'a) (j: bjs) : 'a keywordCommented =
   tripleJ commentsJ commentsJ f j
+
+let withEolJ (f: bjs -> 'a) j : 'a withEol =
+  pairJ f (optionJ stringJ) j
 
 type multiline
   = JoinAll
@@ -340,11 +369,13 @@ type typeConstructor
   | TupleConstructor of int
 [@@deriving show]
 
-type typeConstruction = { first: type_ withEol
-                        ; rest: (comments * comments * type_ * string option) list
-                        ; forceMultiline: forceMultiline
-                        }
-and functionType = typeConstructor * ((comments * type_) list)
+type typeConstruction =
+  typeConstructor * ((comments * type_) list)
+and functionType =
+  { first: type_ withEol
+  ; rest: (comments * comments * type_ * string option) list
+  ; forceMultiline: forceMultiline
+  }
 and typep
   = TypeConstruction of typeConstruction
   | FunctionType of functionType
@@ -405,14 +436,29 @@ let typeConstructorJ (j: bjs) : typeConstructor =
   |> orConstructor "TupleConstructor" (fun d -> TupleConstructor d) intJ j
   |> orFail "typeConstructor" j
 
+let forceMultilineJ = boolJ
+
 let rec typepJ (j: bjs) : typep =
-  constructor "TypeConstruction" (fun d -> TypeConstruction d) htodo j
-  |> orConstructor "FunctionType" (fun d -> FunctionType d) functionTypeJ j
+  constructor "TypeConstruction" (fun d -> TypeConstruction d) typeConstructionJ j
+  |> orRecordConstructor "FunctionType" (fun d -> FunctionType d) functionTypeJ j
   |> orFail "declaration" j
 and type_J (j: bjs) : type_ =
   locatedJ typepJ j
-and functionTypeJ j =
+and typeConstructionJ j =
   pairJ typeConstructorJ (listJ (pairJ commentsJ type_J)) j
+and functionTypeJ j =
+  expect_tag "FunctionType" j;
+  { first = j |> member "first" |> withEolJ type_J
+  ; rest = j
+           |> member "rest"
+           |> listJ
+                (quadrupleJ
+                   commentsJ
+                   commentsJ
+                   type_J
+                   (optionJ stringJ))
+  ; forceMultiline = j |> member "forceMultiline" |> forceMultilineJ
+  }
 
 
 let typeAnnotationJ j =
