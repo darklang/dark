@@ -322,9 +322,51 @@ let ref_J (j: bjs) : ref_ =
   (* |> orConstructor "OpRef" (fun t -> OpRef t) itodo  j *)
   |> orFail "ref_" j
 
+(* Patterns *)
+type patternp
+  = Anything
+  | UnitPattern of comments
+  | Literal of literal
+  | VarPattern of lowercaseIdentifier
+  (* | OpPattern SymbolIdentifier *)
+  | Data of data
+  (* | PatternParens (Commented Pattern) *)
+  (* | Tuple [Commented Pattern] *)
+  (* | EmptyListPattern Comments *)
+  (* | List [Commented Pattern] *)
+  (* | ConsPattern *)
+  (*     { first :: (Pattern, Maybe String) *)
+  (*     , rest :: [(Comments, Comments, Pattern, Maybe String)] *)
+  (*     } *)
+  (* | Record [Commented LowercaseIdentifier] *)
+  (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
+and data = uppercaseIdentifier list * (comments * pattern) list
+and pattern = patternp located
+[@@deriving show]
+
+let rec patternpJ j : patternp =
+  constructor "Anything" (fun a -> Anything) ident j
+  |> orConstructor "UnitPattern" (fun t -> UnitPattern t) commentsJ j
+  |> orConstructor "Literal" (fun t -> Literal t) literalJ j
+  |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
+  |> orConstructor "Data" (fun t -> Data t) dataJ j
+  |> orFail "patternp" j
+and dataJ j : data =
+  pairJ
+    (listJ uppercaseIdentifierJ)
+    (listJ (pairJ commentsJ patternJ))
+    j
+
+and patternJ j : pattern =
+  locatedJ patternpJ j
+
 
 (* Expressions *)
-type app = (expr * ((comments * expr) list) * functionApplicationMultiline)
+type app =
+  (expr * ((comments * expr) list) * functionApplicationMultiline)
+and case =
+  (expr commented * bool) * ((pattern commented * (comments * expr)) list)
+and tuple = (expr commented) list * bool
 and expr_
   = Unit of comments
   | App of app
@@ -333,7 +375,7 @@ and expr_
 
     (* | Unary UnaryOperator Expr *)
     (* | Binops Expr [(Comments, Var.Ref, Comments, Expr)] Bool *)
-    (* | Parens (Commented Expr) *)
+  | Parens of expr commented
     (*  *)
     (* | ExplicitList *)
     (*     { terms :: Sequence Expr *)
@@ -342,7 +384,7 @@ and expr_
     (*     } *)
     (* | Range (Commented Expr) (Commented Expr) Bool *)
     (*  *)
-    (* | Tuple [Commented Expr] Bool *)
+  | Tuple of tuple
     (* | TupleFunction Int -- will be 2 or greater, indicating the number of elements in the tuple *)
     (*  *)
     (* | Record *)
@@ -357,8 +399,7 @@ and expr_
     (* | Lambda [(Comments, Pattern.Pattern)] Comments Expr Bool *)
     (* | If IfClause [(Comments, IfClause)] (Comments, Expr) *)
     (* | Let [LetDeclaration] Comments Expr *)
-    (* | Case (Commented Expr, Bool) [(Commented Pattern.Pattern, (Comments, Expr))] *)
-    (*  *)
+  | Case of case
     (* -- for type checking and code gen only *)
     (* | GLShader String *)
 and expr = expr_ located
@@ -372,45 +413,35 @@ and expr_J j : expr_ =
   |> orConstructor "Unit" (fun a -> Unit a) commentsJ j
   |> orConstructor "Literal" (fun a -> Literal a) literalJ j
   |> orConstructor "VarExpr" (fun a -> VarExpr a) ref_J j
+  |> orConstructor "Case" (fun a -> Case a) caseJ j
+  |> orConstructor "Tuple" (fun a -> Tuple a) tupleJ j
+  |> orConstructor "Parens" (fun a -> Parens a) (commentedJ exprJ) j
   |> orFail "expr_" j
 
 and exprJ j : expr =
   locatedJ expr_J j
 
+and caseJ j : case =
+  pairJ
+    (pairJ
+      (commentedJ exprJ)
+      boolJ)
+    (listJ
+      (pairJ
+        (commentedJ patternJ)
+        (pairJ commentsJ exprJ)))
+    j
+
+and tupleJ j : tuple =
+  pairJ (listJ (commentedJ exprJ)) boolJ j
+
+
+
+
 
 
 type markdown_blocks = todo [@@deriving show]
 let markdown_blocksJ = ctodo
-
-(* Patterns *)
-type patternp
-  = Anything
-  | UnitPattern of comments
-  | Literal of literal
-  | VarPattern of lowercaseIdentifier
-  (* | OpPattern SymbolIdentifier *)
-  (* | Data [UppercaseIdentifier] [(Comments, Pattern)] *)
-  (* | PatternParens (Commented Pattern) *)
-  (* | Tuple [Commented Pattern] *)
-  (* | EmptyListPattern Comments *)
-  (* | List [Commented Pattern] *)
-  (* | ConsPattern *)
-  (*     { first :: (Pattern, Maybe String) *)
-  (*     , rest :: [(Comments, Comments, Pattern, Maybe String)] *)
-  (*     } *)
-  (* | Record [Commented LowercaseIdentifier] *)
-  (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
-[@@deriving show]
-type pattern = patternp located [@@deriving show]
-
-let patternpJ j : patternp =
-  constructor "Anything" (fun a -> Anything) ident j
-  |> orConstructor "UnitPattern" (fun t -> UnitPattern t) commentsJ j
-  |> orConstructor "Literal" (fun t -> Literal t) literalJ j
-  |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
-  |> orFail "patternp" j
-
-let patternJ j : pattern = locatedJ patternpJ j
 
 
 type 'a listing
@@ -560,7 +591,7 @@ type 'a topLevelStructure = Entry of 'a located
 
 let topLevelStructureJ (f: bjs -> 'a) (j: bjs) : 'a topLevelStructure =
   constructor "Entry" (fun (x, y) -> Entry (x, y)) (locatedJ f) j
-  (* |> orConstructor "BodyComment" BodyComment atodo j *)
+  |> orConstructor "BodyComment" (fun t -> BodyComment t) commentJ j
   (* |> orConstructor "DocComment" (fun x -> DocComment x) gtodo j *)
   |> orFail "topLevel" j
 
