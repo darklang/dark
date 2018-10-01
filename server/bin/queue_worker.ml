@@ -12,7 +12,7 @@ let () =
     then
       not (Sys.argv.(1) = "--no-health-check")
     else
-      false
+      true
   in
   if run_health_check_server then
     Lwt.async begin
