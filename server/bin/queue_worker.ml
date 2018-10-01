@@ -7,15 +7,31 @@ let () =
   Libbackend.Init.init ~run_side_effects:false;
   let execution_id = Libexecution.Util.create_id () in
   (* spin up health http server *)
-  if (not (Sys.argv.(1) = "--no-health-check")) then
+  let run_health_check_server =
+    if Array.length Sys.argv >= 2
+    then
+      not (Sys.argv.(1) = "--no-health-check")
+    else
+      false
+  in
+  if run_health_check_server then
     Lwt.async begin
       fun () ->
         (* We're sharing a ref across threads here, but Health_check writes
         * `true` to that ref regardless of its value and we never write to
         * it, so there's no sharing issue. *)
         try%lwt
+          Libcommon.Log.infO "queue_worker"
+            ~data:"Spinning up health check service"
+            ~params:["execution_id", Libexecution.Types.string_of_id execution_id
+                    ];
           Libservice.Health_check.run ~shutdown ~execution_id
         with e ->
+          Libcommon.Log.erroR "queue_worker"
+            ~data:"Health check service threw error"
+            ~params:["execution_id", Libexecution.Types.string_of_id execution_id
+                    ; "exn", Libcommon.Log.dump e
+                    ];
           let bt = Libexecution.Exception.get_backtrace () in
           Lwt.async (fun () ->
               Libbackend.Rollbar.report_lwt e bt (CronChecker)
