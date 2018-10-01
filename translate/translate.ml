@@ -52,9 +52,9 @@ type todo = int [@@deriving show]
 (* Extracting JSON *)
 (* -------------------- *)
 let listJ (f: (bjs -> 'a)) (j: bjs) : 'a list =
-  j
-  |> Util.to_list
-  |> List.map ~f
+  match j with
+  | `List l -> List.map ~f l
+  | _ -> err "listJ" "not a list" j
 
 let intJ = Util.to_int
 let stringJ = Util.to_string
@@ -96,16 +96,30 @@ let quadrupleJ (f1: bjs -> 'a) (f2: bjs -> 'b) (f3: bjs -> 'c) (f4: bjs -> 'd) (
 
 
 let expect_tag (name: string) (j: bjs) =
-  match Util.member "tag" j with
-  | `Null -> err "Got null instead of tag name" name j
+  let m =
+    try
+      Util.member "tag" j
+    with _  ->
+      err "getting tag" name j
+  in
+  match m with
   | `String found ->
     if found = name
     then ()
     else err ("Expected " ^ name) found j
-  | _ -> err "More than one match" name j
+  | _ -> err "Expected string tag" name j
 
-let member name (j: bjs) : bjs =
-  Util.member name j
+let member ?(nullable=false) name (f: bjs -> 'a) (j: bjs) : 'a =
+  let v =
+    try
+      Util.member name j
+    with e ->
+      err "member" name j
+  in
+  if v = `Null && (not nullable)
+  then err "no member" name j
+  else
+    f v
 
 let constructor (name: string) (const: 'a -> 'b) (f: bjs -> 'a) (j: bjs) : 'b r =
   match Util.member "tag" j with
@@ -157,13 +171,13 @@ type position = { line: int
 type region = { start : position
               ; end_ : position
               } [@@deriving show]
-let positionJ json : position =
-  { line = json |> member "line" |> intJ
-  ; column = json |> member "column" |> intJ
+let positionJ j : position =
+  { line = member "line" intJ j
+  ; column = member "column" intJ j
   }
-let regionJ json =
-  { start = json |> member "start" |> positionJ
-  ; end_ = json |> member "end" |> positionJ
+let regionJ j =
+  { start = member "start" positionJ j
+  ; end_ = member "end" positionJ j
   }
 
 type 'a located = (region * 'a) [@@deriving show]
@@ -189,6 +203,7 @@ type 'a postCommented = 'a * comments [@@deriving show]
 type 'a commented = comments * 'a * comments [@@deriving show]
 type 'a keywordCommented = (comments * comments * 'a) [@@deriving show]
 type 'a withEol = ('a * string option) [@@deriving show]
+type 'a sequence = (comments * 'a withEol preCommented) list [@@deriving show]
 
 let commentJ (j: bjs) : comment =
   constructor "BlockComment" (fun x -> BlockComment x) (listJ stringJ) j
@@ -215,6 +230,10 @@ let keywordCommentedJ (f: bjs -> 'a) (j: bjs) : 'a keywordCommented =
 let withEolJ (f: bjs -> 'a) j : 'a withEol =
   pairJ f (optionJ stringJ) j
 
+let sequenceJ (f: bjs -> 'a) j : 'a sequence =
+  listJ (pairJ commentsJ (preCommentedJ (withEolJ f))) j
+
+
 (* Identifiers *)
 type uppercaseIdentifier = string [@@deriving show]
 type lowercaseIdentifier = string [@@deriving show]
@@ -222,6 +241,7 @@ type symbolIdentifier = string [@@deriving show]
 let lowercaseIdentifierJ = stringJ
 let uppercaseIdentifierJ = stringJ
 let symbolIdentifierJ = stringJ
+let forceMultilineJ = boolJ
 
 (* Maps *)
 type ('a, 'b) map = ('a * 'b) list [@@deriving show]
@@ -237,6 +257,12 @@ let commentedMapJ (f1: bjs -> 'a) (f2: bjs -> 'b) json
   listJ (pairJ f1 (commentedJ f2)) json
 
 
+type unaryOperator =
+  Negative
+[@@deriving show]
+
+type forceMultiline = bool
+[@@deriving show]
 
 type multiline
   = JoinAll
@@ -298,6 +324,20 @@ let literalJ j =
   |> orConstructor "Boolean" (fun a -> Boolean a) boolJ j
   |> orFail "literal" j
 
+type ('k, 'v) elmPair =
+  { _key: 'k postCommented
+  ; _value: 'v preCommented
+  ; forceMultiline : forceMultiline
+  }
+  [@@deriving show]
+
+let elmPairJ (kf: bjs -> 'k) (vf: bjs -> 'v) j : ('k, 'v) elmPair =
+  { _key = member "_key" (postCommentedJ kf) j
+  ; _value = member "_value" (preCommentedJ vf) j
+  ; forceMultiline = member "forceMultiline" forceMultilineJ j
+  }
+
+
 type varref = (uppercaseIdentifier list) * lowercaseIdentifier
   [@@deriving show]
 
@@ -322,11 +362,65 @@ let ref_J (j: bjs) : ref_ =
   (* |> orConstructor "OpRef" (fun t -> OpRef t) itodo  j *)
   |> orFail "ref_" j
 
-(* Patterns *)
-type patternp
+type typeConstructor
+  = NamedConstructor of uppercaseIdentifier list
+  | TupleConstructor of int
+[@@deriving show]
+
+
+
+(* Expressions *)
+type app =
+  (expr * ((comments * expr) list) * functionApplicationMultiline)
+and case =
+  (expr commented * bool) * ((pattern commented * (comments * expr)) list)
+and tuple = (expr commented) list * bool
+and let_ = (letDeclaration list * comments * expr)
+and lambda = (comments * pattern) list * comments * expr * bool
+and explicitList =
+  { terms : expr sequence
+  ; trailingComments : comments
+  ; elForceMultiline : forceMultiline
+  }
+
+and record =
+  { base : lowercaseIdentifier commented option
+  ; fields : ((lowercaseIdentifier, expr) elmPair) sequence
+  ; rTrailingComments : comments
+  ; rForceMultiline : forceMultiline
+  }
+
+and expr_
+  = Unit of comments
+  | App of app
+  | ELiteral of literal
+  | VarExpr of ref_
+
+    (* | Unary UnaryOperator Expr *)
+    (* | Binops Expr [(Comments, Var.Ref, Comments, Expr)] Bool *)
+  | Parens of expr commented
+
+  | ExplicitList of explicitList
+    (* | Range (Commented Expr) (Commented Expr) Bool *)
+    (*  *)
+  | Tuple of tuple
+    (* | TupleFunction Int -- will be 2 or greater, indicating the number of elements in the tuple *)
+    (*  *)
+  | Record of record
+  | Access of expr * lowercaseIdentifier
+    (* | AccessFunction LowercaseIdentifier *)
+    (*  *)
+  | Lambda of lambda
+    (* | If IfClause [(Comments, IfClause)] (Comments, Expr) *)
+  | Let of let_
+  | Case of case
+    (* -- for type checking and code gen only *)
+    (* | GLShader String *)
+and expr = expr_ located
+    and patternp
   = Anything
   | UnitPattern of comments
-  | Literal of literal
+  | PLiteral of literal
   | VarPattern of lowercaseIdentifier
   (* | OpPattern SymbolIdentifier *)
   | Data of data
@@ -342,67 +436,28 @@ type patternp
   (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
 and data = uppercaseIdentifier list * (comments * pattern) list
 and pattern = patternp located
-[@@deriving show]
+and letDefinition =
+  pattern * (comments * pattern) list * comments * expr
+and letAnnotation =
+  (ref_ * comments) * (comments * type_)
+and letDeclaration
+  = LetDefinition of letDefinition
+  | LetAnnotation of letAnnotation
+  | LetComment of comment
+and typeConstruction =
+  typeConstructor * ((comments * type_) list)
+and functionType =
+  { first: type_ withEol
+  ; rest: (comments * comments * type_ * string option) list
+  ; forceMultiline: forceMultiline
+  }
+and typep
+  = TypeConstruction of typeConstruction
+  | FunctionType of functionType
+and type_ = typep located
 
-let rec patternpJ j : patternp =
-  constructor "Anything" (fun a -> Anything) ident j
-  |> orConstructor "UnitPattern" (fun t -> UnitPattern t) commentsJ j
-  |> orConstructor "Literal" (fun t -> Literal t) literalJ j
-  |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
-  |> orConstructor "Data" (fun t -> Data t) dataJ j
-  |> orFail "patternp" j
-and dataJ j : data =
-  pairJ
-    (listJ uppercaseIdentifierJ)
-    (listJ (pairJ commentsJ patternJ))
-    j
-
-and patternJ j : pattern =
-  locatedJ patternpJ j
 
 
-(* Expressions *)
-type app =
-  (expr * ((comments * expr) list) * functionApplicationMultiline)
-and case =
-  (expr commented * bool) * ((pattern commented * (comments * expr)) list)
-and tuple = (expr commented) list * bool
-and expr_
-  = Unit of comments
-  | App of app
-  | Literal of literal
-  | VarExpr of ref_
-
-    (* | Unary UnaryOperator Expr *)
-    (* | Binops Expr [(Comments, Var.Ref, Comments, Expr)] Bool *)
-  | Parens of expr commented
-    (*  *)
-    (* | ExplicitList *)
-    (*     { terms :: Sequence Expr *)
-    (*     , trailingComments :: Comments *)
-    (*     , forceMultiline :: ForceMultiline *)
-    (*     } *)
-    (* | Range (Commented Expr) (Commented Expr) Bool *)
-    (*  *)
-  | Tuple of tuple
-    (* | TupleFunction Int -- will be 2 or greater, indicating the number of elements in the tuple *)
-    (*  *)
-    (* | Record *)
-    (*     { base :: Maybe (Commented LowercaseIdentifier) *)
-    (*     , fields :: Sequence (Pair LowercaseIdentifier Expr) *)
-    (*     , trailingComments :: Comments *)
-    (*     , forceMultiline :: ForceMultiline *)
-    (*     } *)
-    (* | Access Expr LowercaseIdentifier *)
-    (* | AccessFunction LowercaseIdentifier *)
-    (*  *)
-    (* | Lambda [(Comments, Pattern.Pattern)] Comments Expr Bool *)
-    (* | If IfClause [(Comments, IfClause)] (Comments, Expr) *)
-    (* | Let [LetDeclaration] Comments Expr *)
-  | Case of case
-    (* -- for type checking and code gen only *)
-    (* | GLShader String *)
-and expr = expr_ located
 [@@deriving show]
 
 let rec appJ j : app =
@@ -411,15 +466,36 @@ let rec appJ j : app =
 and expr_J j : expr_ =
   constructor "App" (fun a -> App a) appJ j
   |> orConstructor "Unit" (fun a -> Unit a) commentsJ j
-  |> orConstructor "Literal" (fun a -> Literal a) literalJ j
+  |> orConstructor "Literal" (fun a -> ELiteral a) literalJ j
   |> orConstructor "VarExpr" (fun a -> VarExpr a) ref_J j
   |> orConstructor "Case" (fun a -> Case a) caseJ j
   |> orConstructor "Tuple" (fun a -> Tuple a) tupleJ j
   |> orConstructor "Parens" (fun a -> Parens a) (commentedJ exprJ) j
+  |> orConstructor "Let" (fun a -> Let a) let_J j
+  |> orRecordConstructor "ExplicitList" (fun a -> ExplicitList a) explicitListJ j
+  |> orConstructor "Access" (fun (a,b) -> Access (a,b)) (pairJ exprJ lowercaseIdentifierJ) j
+  |> orConstructor "Lambda" (fun a -> Lambda a) lambdaJ j
+  |> orRecordConstructor "Record" (fun a -> Record a) recordJ j
   |> orFail "expr_" j
 
 and exprJ j : expr =
   locatedJ expr_J j
+
+and lambdaJ j : lambda =
+  quadrupleJ
+    (listJ (pairJ commentsJ patternJ))
+    commentsJ
+    exprJ
+    boolJ
+    j
+
+and recordJ j : record =
+  expect_tag "Record" j;
+  { base = member "base" (optionJ (commentedJ lowercaseIdentifierJ)) j
+  ; fields = member "fields" (sequenceJ (elmPairJ lowercaseIdentifierJ exprJ)) j
+  ; rTrailingComments = member "trailingComments" commentsJ j
+  ; rForceMultiline = member "forceMultiline" forceMultilineJ j
+  }
 
 and caseJ j : case =
   pairJ
@@ -434,6 +510,84 @@ and caseJ j : case =
 
 and tupleJ j : tuple =
   pairJ (listJ (commentedJ exprJ)) boolJ j
+
+and letDefinitionJ j : letDefinition =
+  quadrupleJ
+    patternJ
+    (listJ (pairJ commentsJ patternJ))
+    commentsJ
+    exprJ
+    j
+
+and letAnnotationJ j : letAnnotation =
+  pairJ
+    (pairJ ref_J commentsJ)
+    (pairJ commentsJ type_J)
+    j
+
+and letDeclarationJ j : letDeclaration =
+  constructor "LetDefinition" (fun a -> LetDefinition a) letDefinitionJ j
+  |> orConstructor "LetAnnotation" (fun a -> LetAnnotation a) letAnnotationJ j
+  |> orConstructor "LetComment" (fun a -> LetComment a) commentJ j
+  |> orFail "letDeclaration" j
+
+
+and let_J j : let_ =
+  tripleJ (listJ letDeclarationJ) commentsJ exprJ j
+
+and explicitListJ j : explicitList =
+  { terms = member "terms" (sequenceJ exprJ) j
+  ; trailingComments = member "trailingComments" commentsJ j
+  ; elForceMultiline = member "forceMultiline" forceMultilineJ j
+  }
+
+and patternpJ j : patternp =
+  constructor "Anything" (fun a -> Anything) ident j
+  |> orConstructor "UnitPattern" (fun t -> UnitPattern t) commentsJ j
+  |> orConstructor "Literal" (fun t -> PLiteral t) literalJ j
+  |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
+  |> orConstructor "Data" (fun t -> Data t) dataJ j
+  |> orFail "patternp" j
+
+and dataJ j : data =
+  pairJ
+    (listJ uppercaseIdentifierJ)
+    (listJ (pairJ commentsJ patternJ))
+    j
+
+and patternJ j : pattern =
+  locatedJ patternpJ j
+
+    and typepJ (j: bjs) : typep =
+  constructor "TypeConstruction" (fun d -> TypeConstruction d) typeConstructionJ j
+  |> orRecordConstructor "FunctionType" (fun d -> FunctionType d) functionTypeJ j
+  |> orFail "declaration" j
+
+and type_J (j: bjs) : type_ =
+  locatedJ typepJ j
+
+and typeConstructionJ j =
+  pairJ typeConstructorJ (listJ (pairJ commentsJ type_J)) j
+
+and functionTypeJ j =
+  expect_tag "FunctionType" j;
+  { first = member "first" (withEolJ type_J) j
+  ; rest =
+      member "rest"
+        (listJ
+           (quadrupleJ
+              commentsJ
+              commentsJ
+              type_J
+              (optionJ stringJ)))
+        j
+  ; forceMultiline = member "forceMultiline" forceMultilineJ j
+  }
+and typeConstructorJ (j: bjs) : typeConstructor =
+  constructor "NamedConstructor" (fun d -> NamedConstructor d)
+    (listJ uppercaseIdentifierJ) j
+  |> orConstructor "TupleConstructor" (fun d -> TupleConstructor d) intJ j
+  |> orFail "typeConstructor" j
 
 
 
@@ -474,21 +628,21 @@ type detailedListing =
 
 let detailedListingJ (j: bjs) : detailedListing =
   { values =
-      j
-      |> member "values"
-      |> commentedMapJ lowercaseIdentifierJ unitJ
+      member "values"
+        (commentedMapJ lowercaseIdentifierJ unitJ)
+        j
   ; operators =
-      j
-      |> member "operators"
-      |> commentedMapJ symbolIdentifierJ unitJ
+      member "operators"
+        (commentedMapJ symbolIdentifierJ unitJ)
+        j
   ; types =
-      j
-      |> member "operators"
-      |> commentedMapJ
+      member "types"
+        (commentedMapJ
            uppercaseIdentifierJ
            (pairJ
-             commentsJ
-             (listingJ (pairJ uppercaseIdentifierJ unitJ)))
+              commentsJ
+              (listingJ (pairJ uppercaseIdentifierJ unitJ))))
+        j
   }
 
 
@@ -499,13 +653,13 @@ type importMethod =
 
 let importMethodJ (j: bjs) : importMethod =
   { alias =
-      j
-      |> member "alias"
-      |> optionJ (pairJ commentsJ (preCommentedJ uppercaseIdentifierJ))
+      member ~nullable:true "alias"
+        (optionJ (pairJ commentsJ (preCommentedJ uppercaseIdentifierJ)))
+        j
   ; exposedVars =
-      j
-      |> member "exposedVars"
-      |> pairJ commentsJ (preCommentedJ (listingJ detailedListingJ))
+      member "exposedVars"
+        (pairJ commentsJ (preCommentedJ (listingJ detailedListingJ)))
+        j
   }
 
 
@@ -531,34 +685,15 @@ type header =
   } [@@deriving show]
 
 let headerJ j : header =
-  { srcTag = j |> member "srcTag" |> sourceTagJ
-  ; name = j |> member "name" |> commentedJ (listJ uppercaseIdentifierJ)
-  ; moduleSettings = j |> member "moduleSettings" |> optionJ ctodo
-  ; exports = j |> member "exports" |> keywordCommentedJ (listingJ detailedListingJ)
+  { srcTag = member "srcTag" sourceTagJ j
+  ; name = member "name" (commentedJ (listJ uppercaseIdentifierJ)) j
+  ; moduleSettings = member ~nullable:true "moduleSettings" (optionJ ctodo) j
+  ; exports =
+      member "exports"
+        (keywordCommentedJ (listingJ detailedListingJ))
+        j
   }
 
-
-type forceMultiline = bool
-[@@deriving show]
-
-type typeConstructor
-  = NamedConstructor of uppercaseIdentifier list
-  | TupleConstructor of int
-[@@deriving show]
-
-type typeConstruction =
-  typeConstructor * ((comments * type_) list)
-and functionType =
-  { first: type_ withEol
-  ; rest: (comments * comments * type_ * string option) list
-  ; forceMultiline: forceMultiline
-  }
-and typep
-  = TypeConstruction of typeConstruction
-  | FunctionType of functionType
-and type_ = typep located
-
-[@@deriving show]
 
 type definition = pattern * (pattern preCommented list) * comments * expr
 [@@deriving show]
@@ -594,36 +729,6 @@ let topLevelStructureJ (f: bjs -> 'a) (j: bjs) : 'a topLevelStructure =
   |> orConstructor "BodyComment" (fun t -> BodyComment t) commentJ j
   (* |> orConstructor "DocComment" (fun x -> DocComment x) gtodo j *)
   |> orFail "topLevel" j
-
-let typeConstructorJ (j: bjs) : typeConstructor =
-  constructor "NamedConstructor" (fun d -> NamedConstructor d)
-    (listJ uppercaseIdentifierJ) j
-  |> orConstructor "TupleConstructor" (fun d -> TupleConstructor d) intJ j
-  |> orFail "typeConstructor" j
-
-let forceMultilineJ = boolJ
-
-let rec typepJ (j: bjs) : typep =
-  constructor "TypeConstruction" (fun d -> TypeConstruction d) typeConstructionJ j
-  |> orRecordConstructor "FunctionType" (fun d -> FunctionType d) functionTypeJ j
-  |> orFail "declaration" j
-and type_J (j: bjs) : type_ =
-  locatedJ typepJ j
-and typeConstructionJ j =
-  pairJ typeConstructorJ (listJ (pairJ commentsJ type_J)) j
-and functionTypeJ j =
-  expect_tag "FunctionType" j;
-  { first = j |> member "first" |> withEolJ type_J
-  ; rest = j
-           |> member "rest"
-           |> listJ
-                (quadrupleJ
-                   commentsJ
-                   commentsJ
-                   type_J
-                   (optionJ stringJ))
-  ; forceMultiline = j |> member "forceMultiline" |> forceMultilineJ
-  }
 
 
 let typeAnnotationJ j =
@@ -667,12 +772,12 @@ let importsJ (j: bjs) : imports =
           importMethodJ))
     j
 
-let moduleJ json =
-  { initial_comments = json |> member "initialComments" |> commentsJ
-  ; header = json |> member "header" |> headerJ
-  ; docs = json |> member "docs" |> docsJ
-  ; imports = json |> member "imports" |> importsJ
-  ; body = json |> member "body" |> listJ (topLevelStructureJ declarationJ)
+let moduleJ j =
+  { initial_comments = member "initialComments" commentsJ j
+  ; header = member "header" headerJ j
+  ; docs = member "docs" docsJ j
+  ; imports = member "imports" importsJ j
+  ; body = member "body" (listJ (topLevelStructureJ declarationJ)) j
   }
 (* let rec preprocess (json: Yojson.Basic.json) : Yojson.Basic.json = *)
 (*   match json with *)
