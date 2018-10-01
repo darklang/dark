@@ -1000,8 +1000,8 @@ let t_authenticate_then_handle_code_and_cookie () =
        ; Req.make (Uri.of_string "http://test.builtwithdark.com/a/test")
     ])
 
-    [ 200, Some "Max-Age=604800; secure; httponly"
-    ; 200, Some "Max-Age=604800; httponly"
+    [ 200, Some "Max-Age=604800; path=/; secure; httponly"
+    ; 200, Some "Max-Age=604800; path=/; httponly"
     ; 401, None
     ; 401, None
     ; 401, None
