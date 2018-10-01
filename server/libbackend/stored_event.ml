@@ -14,7 +14,7 @@ type four_oh_four = event_desc
 let store_event ~(trace_id: Uuidm.t) ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) (event: RTT.dval) : unit =
   Db.run
     ~name:"stored_event.store_event"
-    "INSERT INTO stored_events
+    "INSERT INTO stored_events_v2
      (canvas_id, trace_id, module, path, modifier, timestamp, value)
      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)"
     ~params:[ Uuid canvas_id
@@ -27,7 +27,7 @@ let store_event ~(trace_id: Uuidm.t) ~(canvas_id: Uuidm.t) ((module_, path, modi
 let list_events ~(canvas_id: Uuidm.t) () : event_desc list =
   Db.fetch
     ~name:"list_events"
-    "SELECT DISTINCT module, path, modifier FROM stored_events
+    "SELECT DISTINCT module, path, modifier FROM stored_events_v2
      WHERE canvas_id = $1"
     ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(function
@@ -37,7 +37,7 @@ let list_events ~(canvas_id: Uuidm.t) () : event_desc list =
 let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : (Uuidm.t * RTT.dval) list =
   Db.fetch
     ~name:"load_events"
-    "SELECT value, timestamp, trace_id FROM stored_events
+    "SELECT value, timestamp, trace_id FROM stored_events_v2
     WHERE canvas_id = $1
       AND module = $2
       AND path = $3
@@ -61,7 +61,7 @@ let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : 
 let clear_all_events ~(canvas_id: Uuidm.t) () : unit =
   Db.run
     ~name:"stored_event.clear_events"
-    "DELETE FROM stored_events
+    "DELETE FROM stored_events_v2
      WHERE canvas_id = $1"
     ~params:[ Uuid canvas_id]
 
