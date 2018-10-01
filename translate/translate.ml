@@ -58,12 +58,20 @@ let listJ (f: (bjs -> 'a)) (j: bjs) : 'a list =
 
 let intJ = Util.to_int
 let stringJ = Util.to_string
+let floatJ = Util.to_float
 let boolJ  = Util.to_bool
 let optionJ = Util.to_option
 let unitJ j =
   if j = `List []
   then ()
   else err "unit" "Not unit" j
+
+let charJ j : char =
+  match j with
+  | `String "" -> err "char" "empty string" j
+  | `String s -> String.get s 0
+  | _ -> err "char"  "not a string" j
+
 
 let pairJ (f1: bjs -> 'a) (f2: bjs -> 'b) (j: bjs) : ('a * 'b) =
   match j with
@@ -207,33 +215,6 @@ let keywordCommentedJ (f: bjs -> 'a) (j: bjs) : 'a keywordCommented =
 let withEolJ (f: bjs -> 'a) j : 'a withEol =
   pairJ f (optionJ stringJ) j
 
-type multiline
-  = JoinAll
-  | SplitAll
-  [@@deriving show]
-
-let multilineJ json =
-  match json with
-  | `String "JoinAll" -> Ok JoinAll
-  | `String "SplitAll" -> Ok SplitAll
-  | _ -> err "multiline" "no matched" json
-
-type functionApplicationMultiline
-  = FASplitFirst
-  | FAJoinFirst of multiline
-  [@@deriving show]
-
-type app = (expr * ((comments * expr) list) * functionApplicationMultiline)
-and expr_
-  = App of app
-and expr = expr_ located
-[@@deriving show]
-
-
-type markdown_blocks = todo [@@deriving show]
-let markdown_blocksJ = ctodo
-type pattern = todo [@@deriving show]
-
 (* Identifiers *)
 type uppercaseIdentifier = string [@@deriving show]
 type lowercaseIdentifier = string [@@deriving show]
@@ -254,6 +235,183 @@ let mapJ (f1: bjs -> 'a) (f2: bjs -> 'b) json : ('a, 'b) map =
 let commentedMapJ (f1: bjs -> 'a) (f2: bjs -> 'b) json
   : ('a, 'b) commentedMap =
   listJ (pairJ f1 (commentedJ f2)) json
+
+
+
+type multiline
+  = JoinAll
+  | SplitAll
+  [@@deriving show]
+
+let multilineJ j : multiline =
+  match j with
+  | `String "JoinAll" -> JoinAll
+  | `String "SplitAll" -> SplitAll
+  | _ -> err "multiline" "no matched" j
+
+type functionApplicationMultiline
+  = FASplitFirst
+  | FAJoinFirst of multiline
+  [@@deriving show]
+
+let functionApplicationMultilineJ j =
+  constructor "FASplitFirst" (fun a -> FASplitFirst) ident j
+  |> orConstructor "FAJoinFirst" (fun t -> FAJoinFirst t) multilineJ j
+  |> orFail "functionApplicationMultiline" j
+
+type intRepresentation
+  = DecimalInt
+  | HexadecimalInt
+  [@@deriving show]
+
+let intRepresentationJ j : intRepresentation =
+  match j with
+  | `String "DecimalInt" -> DecimalInt
+  | `String "HexadecimalInt" -> HexadecimalInt
+  | _ -> err "intRepresentation" "no matched" j
+
+type floatRepresentation
+  = DecimalFloat
+  | ExponentFloat
+  [@@deriving show]
+
+let floatRepresentationJ j : floatRepresentation =
+  match j with
+  | `String "DecimalFloat" -> DecimalFloat
+  | `String "ExponentFloat" -> ExponentFloat
+  | _ -> err "floatRepresentation" "no matched" j
+
+
+type literal
+  = IntNum of (int * intRepresentation)
+  | FloatNum of (float * floatRepresentation)
+  | Chr of char
+  | Str of (string * bool)
+  | Boolean of bool
+  [@@deriving show]
+
+let literalJ j =
+  constructor "IntNum" (fun (a,b) -> IntNum (a,b)) (pairJ intJ intRepresentationJ) j
+  |> orConstructor "FloatNum" (fun (a,b) -> FloatNum (a,b)) (pairJ floatJ floatRepresentationJ) j
+  |> orConstructor "Chr" (fun a -> Chr a) charJ j
+  |> orConstructor "Str" (fun (a,b) -> Str (a,b)) (pairJ stringJ boolJ) j
+  |> orConstructor "Boolean" (fun a -> Boolean a) boolJ j
+  |> orFail "literal" j
+
+type varref = (uppercaseIdentifier list) * lowercaseIdentifier
+  [@@deriving show]
+
+type tagref = (uppercaseIdentifier list) * uppercaseIdentifier
+  [@@deriving show]
+
+type ref_
+  = VarRef of varref
+  | TagRef of tagref
+  | OpRef of symbolIdentifier
+[@@deriving show]
+
+let varRefJ j =
+  pairJ (listJ uppercaseIdentifierJ) lowercaseIdentifierJ j
+
+let tagRefJ j =
+  pairJ (listJ uppercaseIdentifierJ) uppercaseIdentifierJ j
+
+let ref_J (j: bjs) : ref_ =
+  constructor "VarRef" (fun d -> VarRef d) varRefJ j
+  |> orConstructor "TagRef" (fun t -> TagRef t) tagRefJ j
+  (* |> orConstructor "OpRef" (fun t -> OpRef t) itodo  j *)
+  |> orFail "ref_" j
+
+
+(* Expressions *)
+type app = (expr * ((comments * expr) list) * functionApplicationMultiline)
+and expr_
+  = Unit of comments
+  | App of app
+  | Literal of literal
+  | VarExpr of ref_
+
+    (* | Unary UnaryOperator Expr *)
+    (* | Binops Expr [(Comments, Var.Ref, Comments, Expr)] Bool *)
+    (* | Parens (Commented Expr) *)
+    (*  *)
+    (* | ExplicitList *)
+    (*     { terms :: Sequence Expr *)
+    (*     , trailingComments :: Comments *)
+    (*     , forceMultiline :: ForceMultiline *)
+    (*     } *)
+    (* | Range (Commented Expr) (Commented Expr) Bool *)
+    (*  *)
+    (* | Tuple [Commented Expr] Bool *)
+    (* | TupleFunction Int -- will be 2 or greater, indicating the number of elements in the tuple *)
+    (*  *)
+    (* | Record *)
+    (*     { base :: Maybe (Commented LowercaseIdentifier) *)
+    (*     , fields :: Sequence (Pair LowercaseIdentifier Expr) *)
+    (*     , trailingComments :: Comments *)
+    (*     , forceMultiline :: ForceMultiline *)
+    (*     } *)
+    (* | Access Expr LowercaseIdentifier *)
+    (* | AccessFunction LowercaseIdentifier *)
+    (*  *)
+    (* | Lambda [(Comments, Pattern.Pattern)] Comments Expr Bool *)
+    (* | If IfClause [(Comments, IfClause)] (Comments, Expr) *)
+    (* | Let [LetDeclaration] Comments Expr *)
+    (* | Case (Commented Expr, Bool) [(Commented Pattern.Pattern, (Comments, Expr))] *)
+    (*  *)
+    (* -- for type checking and code gen only *)
+    (* | GLShader String *)
+and expr = expr_ located
+[@@deriving show]
+
+let rec appJ j : app =
+  tripleJ exprJ (listJ (pairJ commentsJ exprJ)) functionApplicationMultilineJ j
+
+and expr_J j : expr_ =
+  constructor "App" (fun a -> App a) appJ j
+  |> orConstructor "Unit" (fun a -> Unit a) commentsJ j
+  |> orConstructor "Literal" (fun a -> Literal a) literalJ j
+  |> orConstructor "VarExpr" (fun a -> VarExpr a) ref_J j
+  |> orFail "expr_" j
+
+and exprJ j : expr =
+  locatedJ expr_J j
+
+
+
+type markdown_blocks = todo [@@deriving show]
+let markdown_blocksJ = ctodo
+
+(* Patterns *)
+type patternp
+  = Anything
+  | UnitPattern of comments
+  | Literal of literal
+  | VarPattern of lowercaseIdentifier
+  (* | OpPattern SymbolIdentifier *)
+  (* | Data [UppercaseIdentifier] [(Comments, Pattern)] *)
+  (* | PatternParens (Commented Pattern) *)
+  (* | Tuple [Commented Pattern] *)
+  (* | EmptyListPattern Comments *)
+  (* | List [Commented Pattern] *)
+  (* | ConsPattern *)
+  (*     { first :: (Pattern, Maybe String) *)
+  (*     , rest :: [(Comments, Comments, Pattern, Maybe String)] *)
+  (*     } *)
+  (* | Record [Commented LowercaseIdentifier] *)
+  (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
+[@@deriving show]
+type pattern = patternp located [@@deriving show]
+
+let patternpJ j : patternp =
+  constructor "Anything" (fun a -> Anything) ident j
+  |> orConstructor "UnitPattern" (fun t -> UnitPattern t) commentsJ j
+  |> orConstructor "Literal" (fun t -> Literal t) literalJ j
+  |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
+  |> orFail "patternp" j
+
+let patternJ j : pattern = locatedJ patternpJ j
+
 
 type 'a listing
   = ExplicitListing of 'a  * bool
@@ -349,18 +507,6 @@ let headerJ j : header =
   }
 
 
-type varref = (uppercaseIdentifier list) * lowercaseIdentifier
-  [@@deriving show]
-
-type tagref = (uppercaseIdentifier list) * uppercaseIdentifier
-  [@@deriving show]
-
-type ref_
-  = VarRef of varref
-  | TagRef of tagref
-  | OpRef of symbolIdentifier
-[@@deriving show]
-
 type forceMultiline = bool
 [@@deriving show]
 
@@ -418,18 +564,6 @@ let topLevelStructureJ (f: bjs -> 'a) (j: bjs) : 'a topLevelStructure =
   (* |> orConstructor "DocComment" (fun x -> DocComment x) gtodo j *)
   |> orFail "topLevel" j
 
-let varRefJ j =
-  pairJ (listJ uppercaseIdentifierJ) lowercaseIdentifierJ j
-
-let tagRefJ j =
-  pairJ (listJ uppercaseIdentifierJ) uppercaseIdentifierJ j
-
-let ref_J (j: bjs) : ref_ =
-  constructor "VarRef" (fun d -> VarRef d) varRefJ j
-  (* |> orConstructor "TagRef" (fun t -> TagRef t) itodo  j *)
-  (* |> orConstructor "OpRef" (fun t -> OpRef t) itodo  j *)
-  |> orFail "ref_" j
-
 let typeConstructorJ (j: bjs) : typeConstructor =
   constructor "NamedConstructor" (fun d -> NamedConstructor d)
     (listJ uppercaseIdentifierJ) j
@@ -464,8 +598,15 @@ and functionTypeJ j =
 let typeAnnotationJ j =
   pairJ (postCommentedJ ref_J) (preCommentedJ type_J) j
 
+let definitionJ =
+  quadrupleJ
+    patternJ
+    (listJ (preCommentedJ patternJ))
+    commentsJ
+    exprJ
+
 let declarationJ (j: bjs) : declaration =
-  constructor "Definition" (fun d -> Definition d) htodo j
+  constructor "Definition" (fun d -> Definition d) definitionJ j
   |> orConstructor "TypeAnnotation" (fun t -> TypeAnnotation t) typeAnnotationJ j
   (* |> orConstructor "Datatype" (fun d -> Datatype d) gtodo j *)
   |> orFail "declaration" j
