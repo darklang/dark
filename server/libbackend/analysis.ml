@@ -51,6 +51,26 @@ let get_404s (c: canvas) : SE.four_oh_four list =
         not (List.exists handlers
                ~f:(fun h -> match_event h e)))
 
+let delete_404s
+  (c : canvas)
+  (space : string)
+  (path : string)
+  (modifier : string)
+  : unit =
+  Db.run
+    ~name:"delete_404s"
+    ("DELETE FROM stored_events
+      WHERE canvas_id = $1
+      AND module = $2
+      AND path = $3
+      AND modifier = $4")
+    ~params:
+      [ Db.Uuid c.id
+      ; Db.String space
+      ; Db.String path
+      ; Db.String modifier
+      ]
+
 let global_vars (c: canvas) : string list =
   c.dbs
   |> TL.dbs

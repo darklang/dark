@@ -349,8 +349,6 @@ let initial_load ~(execution_id: Types.id) (host: string) body
 
   respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
 
-
-
 let execute_function ~(execution_id: Types.id) (host: string) body
   : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let (t1, params) = time "1-read-api-ops"
@@ -419,6 +417,24 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
   | e ->
     raise e
 
+
+let delete_404 ~(execution_id: Types.id) (host: string) body
+        : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let (t1, c) = time "1-get-canvas"
+      (fun _ -> C.load_all host []) in
+    let (t2, p) = time "2-to-route-params"
+      (fun _ -> Api.to_route_params body) in
+    let (t3, _) = time "3-delete-404s"
+      (fun _ -> Analysis.delete_404s !c p.space p.path p.modifier) in
+    let (t4, f404s) = time "4-get-404s"
+      (fun _ -> Analysis.get_404s !c) in
+    let (t5, result) = time "5-to-frontend"
+      (fun _ -> Analysis.to_getanalysis_frontend [] [] f404s !c) in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4; t5]) `OK result
+  with
+  | e ->
+    raise e
 
 
 let admin_ui_html ~(debug:bool) () =
@@ -574,6 +590,10 @@ let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
      when_can_edit ~canvas
        (fun _ ->
          wrap_json_headers (get_analysis ~execution_id canvas body))
+  | (`POST, [ "api" ; canvas ; "delete_404" ]) ->
+     when_can_edit ~canvas
+        (fun _ ->
+        wrap_json_headers (delete_404 ~execution_id canvas body))
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let ops_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
