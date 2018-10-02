@@ -69,8 +69,8 @@ delete404RPC canvasName param =
       payload = encode404 param
       json = Http.jsonBody payload
       request = Http.post url json (JSD.list decode404)
-      _ = Debug.log "delete_route" json
-  in Http.send GetDelete404RPCCallback request
+  in
+  Http.send GetDelete404RPCCallback request
 
 initialLoadRPC : String -> Focus -> Cmd Msg
 initialLoadRPC canvasName focus =
