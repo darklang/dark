@@ -592,8 +592,8 @@ let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
          wrap_json_headers (get_analysis ~execution_id canvas body))
   | (`POST, [ "api" ; canvas ; "delete_404" ]) ->
      when_can_edit ~canvas
-        (fun _ ->
-        wrap_json_headers (delete_404 ~execution_id canvas body))
+       (fun _ ->
+         wrap_json_headers (delete_404 ~execution_id canvas body))
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let ops_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
