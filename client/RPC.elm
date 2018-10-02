@@ -69,6 +69,7 @@ delete404RPC canvasName param =
       payload = encode404 param
       json = Http.jsonBody payload
       request = Http.post url json (JSD.list decode404)
+      _ = Debug.log "delete_route" json
   in Http.send GetDelete404RPCCallback request
 
 initialLoadRPC : String -> Focus -> Cmd Msg
@@ -818,7 +819,11 @@ decode404 =
 
 encode404 : FourOhFour -> JSE.Value
 encode404 fof =
-    JSE.list [ JSE.string fof.space, JSE.string fof.path, JSE.string fof.modifier ]
+    JSE.object
+      [ ("space", JSE.string fof.space)
+      , ("path", JSE.string fof.path)
+      , ("modifier", JSE.string fof.modifier)
+      ]
 
 encodeInputValueDict : InputValueDict -> JSE.Value
 encodeInputValueDict dict =

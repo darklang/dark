@@ -19,6 +19,12 @@ type execute_function_params = { tlid : tlid
                                ; fnname : string
                                } [@@deriving yojson]
 
+type route_params =
+  { space : string
+  ; path : string
+  ; modifier: string
+  } [@@deriving yojson]
+
 let to_rpc_params (payload: string) : rpc_params =
   payload
   |> Yojson.Safe.from_string
@@ -37,6 +43,14 @@ let to_execute_function_params (payload: string) : execute_function_params =
   |> Yojson.Safe.from_string
   |> execute_function_params_of_yojson
   |> Result.ok_or_failwith
+
+
+let to_route_params (payload: string) : route_params =
+  payload
+  |> Yojson.Safe.from_string
+  |> route_params_of_yojson
+  |> Result.ok_or_failwith
+
 
 let causes_any_changes (ps: rpc_params) : bool =
   List.exists ~f:Op.has_effect ps.ops
