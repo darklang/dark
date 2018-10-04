@@ -80,7 +80,8 @@ let rec exprpO (exprp) : Parsetree.expression =
     exprO expr
   | Unit _cs ->
     Exp.construct (varname "()") None
-
+  | Access (expr, field) ->
+    Exp.field (exprO expr) (varname field)
   | _ ->
     Exp.constant
       (Const.string
