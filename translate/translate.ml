@@ -78,14 +78,29 @@ let rec exprpO (exprp) : Parsetree.expression =
   | VarExpr (TagRef (path, var)) ->
     Exp.construct (fullname (path @ [var])) None
   | Tuple (exprs, _l) ->
-    Exp.tuple (List.map ~f:(fun (_c1, expr, _c2) -> exprO expr) exprs)
-
+    Exp.tuple
+      (List.map exprs
+         ~f:(fun expr -> exprO (skip_commented expr)))
   | Parens (_c, expr, _c2) ->
     exprO expr
   | Unit _cs ->
     Exp.construct (varname "()") None
   | Access (expr, field) ->
     Exp.field (exprO expr) (varname field)
+  | Let (declarations, _c, body) ->
+    (* TODO: add the type definitions *)
+    List.fold ~init:(exprO body) (List.rev declarations)
+      ~f:(fun prev decl ->
+            match decl with
+            | LetDefinition (pat, [], _cs, rhs) ->
+              let vb = Vb.mk (patO pat) (exprO rhs) in
+              (Exp.let_ Nonrecursive [vb] prev)
+            | LetAnnotation _annot -> Exp.unreachable ()
+            | LetComment _c -> Exp.unreachable ()
+            | LetDefinition x ->
+              failwith "Unexpected let pattern") (* figure this out *)
+
+
   | _ ->
     Exp.constant
       (Const.string
