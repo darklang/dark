@@ -94,7 +94,7 @@ and exprO (_r, exprp) : Parsetree.expression =
 (* let x (a:int) b c = *)
 let toplevelLet name (args: string list) (expr: expr) : Parsetree.structure_item =
   let args =
-    List.fold args ~init:(exprO expr)
+    List.fold (List.rev args) ~init:(exprO expr)
       ~f:(fun prev arg ->
           (Exp.fun_ Asttypes.Nolabel None (Pat.var (nolo arg)) prev))
   in
