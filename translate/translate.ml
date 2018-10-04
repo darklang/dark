@@ -52,6 +52,11 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
 and patO ((_r, patp): pattern) : Parsetree.pattern =
   patpO patp
 
+let seq2list (s: 'a sequence) : 'a list =
+  List.map s
+    ~f:(fun (_c, (_c2, (a, _s))) -> a)
+
+
 
 let litO lit : Parsetree.constant =
   match lit with
@@ -111,8 +116,12 @@ let rec exprpO (exprp) : Parsetree.expression =
             | LetComment _c -> Exp.unreachable ()
             | LetDefinition x ->
               failwith "Unexpected let pattern") (* figure this out *)
-
-
+  | ExplicitList { terms } ->
+    let terms = List.map (seq2list terms) ~f:exprO in
+    List.fold terms
+      ~init:(Exp.construct (varname "[]") None)
+      ~f:(fun prev arg ->
+          Exp.construct (varname "::") (Some (Exp.tuple [arg; prev])))
   | _ ->
     Exp.constant
       (Const.string
@@ -288,7 +297,7 @@ let _ =
       let module Versions = Migrate_parsetree_versions in
       Versions.migrate Versions.ocaml_404 Versions.ocaml_current
     in
-    Lexing.from_string "FocusExact (tl.id, msgId)"
+    Lexing.from_string "[1;2;3]"
     |> Reason_toolchain.ML.implementation
     |> migration.copy_structure
     |> Printast.structure 0
