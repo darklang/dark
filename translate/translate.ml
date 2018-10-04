@@ -43,7 +43,11 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       |> Pat.tuple
     in
     let n = fullname names in
-    Pat.construct n (Some tuple)
+    if args = []
+    then
+      Pat.construct n None
+    else
+      Pat.construct n (Some tuple)
   | _ -> failwith (show_patternp patp)
 and patO ((_r, patp): pattern) : Parsetree.pattern =
   patpO patp
