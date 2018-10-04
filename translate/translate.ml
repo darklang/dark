@@ -67,6 +67,18 @@ let rec exprpO (exprp) : Parsetree.expression =
             Exp.case (patO pat) (exprO rhs))
     in
     Exp.match_ (exprO clause) patterns
+    (* Constructos with 1 arg *)
+  | App ((_r, VarExpr (TagRef (path, var))), [_c, arg], _line) ->
+    Exp.construct
+      (fullname (path @ [var]))
+      (Some (exprO arg))
+    (* Constructos with multiple args *)
+  | App ((_r, VarExpr (TagRef (path, var))), args, _line) ->
+    Exp.construct
+      (fullname (path @ [var]))
+      (Some
+         (Exp.tuple
+            (List.map args ~f:(fun (_c, a) -> exprO a))))
   | App (fn, args, _line) ->
     Exp.apply
       (exprO fn)
@@ -276,7 +288,7 @@ let _ =
       let module Versions = Migrate_parsetree_versions in
       Versions.migrate Versions.ocaml_404 Versions.ocaml_current
     in
-    Lexing.from_string "let x = ()"
+    Lexing.from_string "FocusExact (tl.id, msgId)"
     |> Reason_toolchain.ML.implementation
     |> migration.copy_structure
     |> Printast.structure 0
