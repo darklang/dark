@@ -63,6 +63,15 @@ getAnalysisRPC canvasName params =
       request = Http.post url json decodeGetAnalysisRPC
   in Http.send GetAnalysisRPCCallback request
 
+delete404RPC : String -> Delete404Param -> Cmd Msg
+delete404RPC canvasName param =
+  let url = String.concat ["/api/", Http.encodeUri canvasName, "/delete_404" ]
+      payload = encode404 param
+      json = Http.jsonBody payload
+      request = Http.post url json (JSD.list decode404)
+  in
+  Http.send GetDelete404RPCCallback request
+
 initialLoadRPC : String -> Focus -> Cmd Msg
 initialLoadRPC canvasName focus =
   let url = String.concat ["/api/", Http.encodeUri canvasName, "/initial_load" ]
@@ -807,6 +816,14 @@ decode404 =
     (JSD.index 0 JSD.string)
     (JSD.index 1 JSD.string)
     (JSD.index 2 JSD.string)
+
+encode404 : FourOhFour -> JSE.Value
+encode404 fof =
+    JSE.object
+      [ ("space", JSE.string fof.space)
+      , ("path", JSE.string fof.path)
+      , ("modifier", JSE.string fof.modifier)
+      ]
 
 encodeInputValueDict : InputValueDict -> JSE.Value
 encodeInputValueDict dict =
