@@ -59,7 +59,7 @@ let delete_404s
   : unit =
   Db.run
     ~name:"delete_404s"
-    ("DELETE FROM stored_events
+    ("DELETE FROM stored_events_v2
       WHERE canvas_id = $1
       AND module = $2
       AND path = $3
@@ -108,7 +108,7 @@ let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
 let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : trace list =
   (* It's really awkward to do this on the client, so just do it here for now *)
-  let ivs = 
+  let ivs =
     match saved_input_vars c h with
     | [] -> [ ( Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
               , Execution.sample_input_vars h)]
