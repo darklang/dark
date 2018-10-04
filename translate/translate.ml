@@ -11,8 +11,21 @@ let toOCaml (m: Elm.module_)  : (Ast.Parsetree.structure * Reason_comment.t list
   ([prim], [])
 
 let _ =
-  if Array.length Sys.argv > 1 && Sys.argv.(1) = "--compile"
+  if Array.length Sys.argv > 1 && Sys.argv.(1) = "--parse"
   then
+    try
+      In_channel.stdin
+      |> Yojson.Basic.from_channel
+      |> Elm.moduleJ
+      |> Elm.show_module_
+      |> Str.global_replace (Str.regexp "Translate\\.") ""
+      |> print_endline
+    with (Elm.E (msg, json)) ->
+      Printexc.print_backtrace stderr;
+      print_endline (Yojson.Basic.pretty_to_string json);
+      prerr_endline msg;
+      ()
+  else
     try
       let m =
         In_channel.stdin
@@ -35,19 +48,5 @@ let _ =
       Printexc.print_backtrace stderr;
       prerr_endline (Exn.to_string e);
       ()
-  else
-    try
-      In_channel.stdin
-      |> Yojson.Basic.from_channel
-      |> Elm.moduleJ
-      |> Elm.show_module_
-      |> Str.global_replace (Str.regexp "Translate\\.") ""
-      |> print_endline
-    with (Elm.E (msg, json)) ->
-      Printexc.print_backtrace stderr;
-      print_endline (Yojson.Basic.pretty_to_string json);
-      prerr_endline msg;
-      ()
-
 
 
