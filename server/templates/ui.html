@@ -21,7 +21,6 @@
     <!-- prevent favicon requests for now -->
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="icon" type="image/png" sizes="32x32" href="//{STATIC}/favicon-32x32.png">
-
     <script type="text/javascript">
       function stopKeys(event) {
         if (event.keyCode == 9) { // Tab
@@ -49,7 +48,45 @@
 
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
-   <script type="text/javascript">
+    <script id="analysisScript" type="javascript/worker">
+      self.onmessage = function(e) {
+        importScripts(e.data.proto+'//{STATIC}/darkjs.bc.js');
+
+          var result =
+          {
+            analysis: null,
+            error: null
+          };
+
+          try {
+            result.analysis = darkAnalysis.performAnalysis(e.data.params);
+          }
+          catch (error) {
+            var errorName = null;
+            var errorMsg = null;
+            var errorStr = null;
+
+             try {
+               // OCaml errors come in a few constructs - get the data we can
+               try { errorName = error[1][1].c; } catch (_) {}
+               try { errorMsg = error[2][1].c; } catch (_) {}
+               try { errorMsg = error[2].c; } catch (_) {}
+               errorStr = `${errorName} - ${errorMsg}`;
+             } catch (_) { }
+              result.error = {
+                name: errorName,
+                msg: errorMsg,
+                str: errorStr,
+                obj: error
+              }
+          }
+          postMessage(result);
+        }
+    </script>
+    <script type="text/javascript">
+
+        var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
+        
        window.Rollbar.configure({ROLLBARCONFIG});
        complete = {ALLFUNCTIONS};
        elmapp = Elm.Main.fullscreen({
@@ -64,44 +101,71 @@
        });
 
        elmapp.ports.requestAnalysis.subscribe(function(params) {
-         function bToString (blankOr) { return blankOr[2] || null; }
+         const bToString = (blankOr) => blankOr[2] || null;
          const spec = params.handler.spec;
-         const route =
-           `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-         try {
-           <!-- console.log("Performing analysis for: " + route); -->
-           <!-- console.log(params); -->
-           var result = darkAnalysis.performAnalysis(JSON.stringify(params));
-           <!-- console.log(JSON.parse(result)); -->
-           elmapp.ports.receiveAnalysis.send(result);
-         }
-         catch (error) {
-           var errorName = null;
-           var errorMsg = null;
-           var errString = null;
+         const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
 
-           try {
-             // OCaml errors come in a few constructs - get the data we can
-             try { errorName = error[1][1].c; } catch (_) {}
-             try { errorMsg = error[2][1].c; } catch (_) {}
-             try { errorMsg = error[2].c; } catch (_) {}
-             errString = `${errorName} - ${errorMsg}`;
-           } catch (_) { }
+        if (window.Worker) {
+          analysisWorker = new Worker(analysisWorkerUrl);
+          analysisWorker.postMessage(
+            { proto: window.location.protocol,
+              params: JSON.stringify(params)
+            }
+          );
+          
+          analysisWorker.onmessage = function (e) {
+            var result = e.data.analysis;
+            var error = e.data.error;
+            
+            if (result && !error){
+              elmapp.ports.receiveAnalysis.send(result);
+            } else if (error) {
+              // send to rollbar
+              Rollbar.error(
+                error.str,
+                error.obj,
+                { route: route
+                , tlid: params.handler.tlid
+                }
+              );
 
-           // send to rollbar
-           window.Rollbar.error(errString, error, { route: route
-                                                  , tlid: params.handler.tlid});
+             // log to console
+             console.log(`Error processing analysis in (${route}): ${error.str}`);
+             console.log(error.obj);
 
-           // log to console
-           console.log(`Error processing analysis in (${route}): ${errString}`);
-           if (!errorName || !errorMsg) {
+             // send to client
+             elmapp.ports.displayError.send(
+               `Error while executing (${route}): ${error}`);
+              }
+            
+          }
+        } else {
+          // do it the old fashioned way
+          try {
+            const result = darkAnalysis.performAnalysis(JSON.stringify(params));
+            elmapp.ports.receiveAnalysis.send(result);
+          } catch (error) {
+            var errorName = null;
+            var errorMsg = null;
+            var errorStr = null;
+
+             try {
+               // OCaml errors come in a few constructs - get the data we can
+               try { errorName = error[1][1].c; } catch (_) {}
+               try { errorMsg = error[2][1].c; } catch (_) {}
+               try { errorMsg = error[2].c; } catch (_) {}
+               errorStr = `${errorName} - ${errorMsg}`;
+             } catch (_) { }
+            
+              // log to console
+             console.log(`Error processing analysis in (${route}): ${errorStr}`);
              console.log(error);
-           }
 
-           // send to client
-           elmapp.ports.displayError.send(
-             `Error while executing (${route}): ${errString}`);
-         }
+             // send to client
+             elmapp.ports.displayError.send(
+               `Error while executing (${route}): ${error}`);
+          }
+        }
        })
 
        elmapp.ports.sendRollbar.subscribe(function(obj) {
