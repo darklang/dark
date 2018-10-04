@@ -19,13 +19,13 @@ let skip_located (a: 'a located) : 'a =
 
 let nolo = Location.mknoloc
 
-let varname n =
+let varname n : lid =
   n
   |> Longident.parse
   |> nolo
 
-let fullname (path : string list) v =
-  path @ [v]
+let fullname (names: string list) : lid =
+  names
   |> Longident.unflatten
   |> fun x -> Option.value_exn x
   |> nolo
@@ -35,6 +35,15 @@ let fullname (path : string list) v =
 let rec patpO (patp: patternp) : Parsetree.pattern =
   match patp with
   | Anything -> Pat.any ()
+  | VarPattern name -> Pat.var (nolo name)
+  | Data (names, args) ->
+    let tuple =
+      args
+      |> List.map ~f:(fun (_c, pat) -> patO pat)
+      |> Pat.tuple
+    in
+    let n = fullname names in
+    Pat.construct n (Some tuple)
   | _ -> failwith (show_patternp patp)
 and patO ((_r, patp): pattern) : Parsetree.pattern =
   patpO patp
@@ -61,11 +70,21 @@ let rec exprpO (exprp) : Parsetree.expression =
   | ELiteral lit ->
     Exp.constant (litO lit)
   | VarExpr (VarRef (path, var)) ->
-    Exp.ident (fullname path var)
+    Exp.ident (fullname (path @ [var]))
+  | VarExpr (TagRef (path, var)) ->
+    Exp.construct (fullname (path @ [var])) None
   | Tuple (exprs, _l) ->
     Exp.tuple (List.map ~f:(fun (_c1, expr, _c2) -> exprO expr) exprs)
 
-  | _ -> failwith (show_exprp exprp)
+  | Parens (_c, expr, _c2) ->
+    exprO expr
+  | Unit _cs ->
+    Exp.construct (varname "()") None
+
+  | _ ->
+    Exp.constant
+      (Const.string
+         ("todo: " ^ (String.slice (show_exprp exprp) 0 20)))
 and exprO (_r, exprp) : Parsetree.expression =
   exprpO exprp
 
@@ -237,7 +256,7 @@ let _ =
       let module Versions = Migrate_parsetree_versions in
       Versions.migrate Versions.ocaml_404 Versions.ocaml_current
     in
-    Lexing.from_string "let x a b c = 5"
+    Lexing.from_string "let x = ()"
     |> Reason_toolchain.ML.implementation
     |> migration.copy_structure
     |> Printast.structure 0
