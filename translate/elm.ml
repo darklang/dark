@@ -418,7 +418,7 @@ and expr_
     (* -- for type checking and code gen only *)
     (* | GLShader String *)
 and expr = expr_ located
-    and patternp
+and patternp
   = Anything
   | UnitPattern of comments
   | PLiteral of literal
