@@ -22,22 +22,16 @@ let to_list a = [a]
 let importsO ((_c, i): Elm.imports) : Parsetree.structure =
   i
   |> List.map ~f:(fun (fqn,(_comments, importMethod)) ->
-      let fqn = fqn
-                |> Longident.unflatten
-                |> Option.value_exn ~message:"what" ~error:(Error.of_string "x") ~here:(
-                  { pos_fname = "asd";
-                    pos_lnum = 456;
-                    pos_bol = 234;
-                    pos_cnum =123 ;
-                  })
-              |> Location.mknoloc
-                (* |> skip_located *)
+      let modName = fqn
+                    |> Longident.unflatten
+                    |> fun x -> Option.value_exn x
+                    |> Location.mknoloc
       in
       let alias =
         match importMethod.alias with
         | Some (_c, (_c2, alias)) ->
           (* import X as Y -> module Y = X *)
-            fqn
+            modName
             |> Mod.ident
             |> Mb.mk (Location.mknoloc alias)
             |> Str.module_
@@ -50,30 +44,47 @@ let importsO ((_c, i): Elm.imports) : Parsetree.structure =
         | (_c, (_c2, ClosedListing)) -> []
         (* import X exposing (..) -> open X *)
         | (_c, (_c2, OpenListing (_c3, (), _c4))) ->
-            fqn
+            modName
             |> Opn.mk
             |> Str.open_
             |> to_list
         | (_c, (_c2, ExplicitListing (detailed, _line))) ->
           (* import X exposing (a, b) -> type a = X.a; let b = X.b *)
-          let vs = detailed.values
-                   |> List.map ~f:Tuple.T2.get1
-
+          let vs =
+            (* TODO: this doesn't work yet *)
+            detailed.values
+            |> List.map ~f:Tuple.T2.get1
+            |> List.map
+              ~f:(fun name ->
+                  let fqn = fqn @ [name]
+                            |> Longident.unflatten
+                            |> fun x -> Option.value_exn x
+                            |> Location.mknoloc
+                  in
+                  let binding =
+                    Vb.mk
+                      (Pat.var (Location.mknoloc name))
+                      (Exp.ident fqn)
+                  in
+                  Exp.ident fqn
+                  |> Exp.let_ Asttypes.Nonrecursive []
+                  |> Str.eval
+                )
           in
-          let ops = detailed.operators |> List.map ~f:Tuple.T2.get1 in
+          let ops = detailed.operators
+                    |> List.map ~f:Tuple.T2.get1
+          in
           (* You can import nested constructors here, but we don't *)
           let types = detailed.types
                       |> List.map ~f:Tuple.T2.get1
           in
-          []
+          vs
+            (* TODO: add types and ops *)
+          (* @ types @ ops *)
       in
-      []
+      alias @ listings
     )
   |> List.concat
-
-
-
-
 
 
 
