@@ -391,7 +391,7 @@ and record =
   ; rForceMultiline : forceMultiline
   }
 
-and expr_
+and exprp
   = Unit of comments
   | App of app
   | ELiteral of literal
@@ -417,7 +417,7 @@ and expr_
   | Case of case
     (* -- for type checking and code gen only *)
     (* | GLShader String *)
-and expr = expr_ located
+and expr = exprp located
 and patternp
   = Anything
   | UnitPattern of comments
@@ -464,7 +464,7 @@ and type_ = typep located
 let rec appJ j : app =
   tripleJ exprJ (listJ (pairJ commentsJ exprJ)) functionApplicationMultilineJ j
 
-and expr_J j : expr_ =
+and exprpJ j : exprp =
   constructor "App" (fun a -> App a) appJ j
   |> orConstructor "Unit" (fun a -> Unit a) commentsJ j
   |> orConstructor "Literal" (fun a -> ELiteral a) literalJ j
@@ -477,10 +477,10 @@ and expr_J j : expr_ =
   |> orConstructor "Access" (fun (a,b) -> Access (a,b)) (pairJ exprJ lowercaseIdentifierJ) j
   |> orConstructor "Lambda" (fun a -> Lambda a) lambdaJ j
   |> orRecordConstructor "Record" (fun a -> Record a) recordJ j
-  |> orFail "expr_" j
+  |> orFail "exprp" j
 
 and exprJ j : expr =
-  locatedJ expr_J j
+  locatedJ exprpJ j
 
 and lambdaJ j : lambda =
   quadrupleJ
