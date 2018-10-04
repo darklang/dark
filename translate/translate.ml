@@ -21,6 +21,9 @@ open Core_kernel
 module Util = Yojson.Basic.Util
 type bjs = Yojson.Basic.json
 
+
+module Ast = Migrate_parsetree.Ast_404
+
 exception E of string * bjs
 type 'a r = ('a, (string * bjs)) Result.t
 
@@ -779,44 +782,51 @@ let moduleJ j =
   ; imports = member "imports" importsJ j
   ; body = member "body" (listJ (topLevelStructureJ declarationJ)) j
   }
-(* let rec preprocess (json: Yojson.Basic.json) : Yojson.Basic.json = *)
-(*   match json with *)
-(*   | `Assoc [("tag", `String tag)] -> *)
-(*     `List [`String tag] *)
-(*  *)
-(*   | `Assoc [("tag", `String tag); ("contents", `List contents)] *)
-(*   | `Assoc [("contents", `List contents); ("tag", `String tag)] -> *)
-(*     `List (`String tag :: `List (List.map ~f:preprocess contents) :: []) *)
-(*  *)
-(*   | `Assoc [("tag", `String tag); ("contents", contents)] *)
-(*   | `Assoc [("contents", contents); ("tag", `String tag)] -> *)
-(*     `List [`String tag; preprocess contents] *)
-(*  *)
-(*   | `Assoc (("tag", `String tag) :: rest) -> *)
-(*     `List [`String tag; `Assoc (List.map rest ~f:(fun (k,v) -> (k, preprocess v)))] *)
-(*  *)
-(*   | `List l -> *)
-(*     `List (List.map ~f:preprocess l) *)
-(*  *)
-(*   | `Assoc a -> *)
-(*     `Assoc (List.map a ~f:(fun (k,v) -> (k, preprocess v))) *)
-(*  *)
-(*   | json -> *)
-(*     json *)
-(*  *)
+
+let toOCaml (m: module_)  : (Ast.Parsetree.structure * Reason_comment.t list) =
+  let five = Ast.Ast_helper.Const.int 8 in
+  let v = Ast.Ast_helper.Exp.constant five in
+  let prim = Ast.Ast_helper.Str.eval v in
+  ([prim], [])
+
 let _ =
-  try
-    In_channel.stdin
-    |> Yojson.Basic.from_channel
-    |> moduleJ
-    |> show_module_
-    |> Str.global_replace (Str.regexp "Translate\\.") ""
-    |> print_endline
-  with (E (msg, json)) ->
-    Printexc.print_backtrace stderr;
-    print_endline (Yojson.Basic.pretty_to_string json);
-    prerr_endline msg;
-    ()
+  if Array.length Sys.argv > 1 && Sys.argv.(1) = "--compile"
+  then
+    try
+      let m =
+        In_channel.stdin
+        |> Yojson.Basic.from_channel
+        |> moduleJ
+      in
+      toOCaml m
+      |> Reason_toolchain.RE.print_implementation_with_comments
+           Format.str_formatter;
+      Format.flush_str_formatter ()
+      |> print_endline;
+      ()
+    with
+    | (E (msg, json)) ->
+      Printexc.print_backtrace stderr;
+      print_endline (Yojson.Basic.pretty_to_string json);
+      prerr_endline msg;
+      ()
+    | e ->
+      Printexc.print_backtrace stderr;
+      prerr_endline (Exn.to_string e);
+      ()
+  else
+    try
+      In_channel.stdin
+      |> Yojson.Basic.from_channel
+      |> moduleJ
+      |> show_module_
+      |> Str.global_replace (Str.regexp "Translate\\.") ""
+      |> print_endline
+    with (E (msg, json)) ->
+      Printexc.print_backtrace stderr;
+      print_endline (Yojson.Basic.pretty_to_string json);
+      prerr_endline msg;
+      ()
 
 
 
