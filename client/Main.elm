@@ -1631,6 +1631,9 @@ update_ msg m =
            , RequestAnalysis m.toplevels
            ]
 
+    GetDelete404RPCCallback (Ok (f404s)) ->
+        Set404s f404s
+
     ReceiveAnalysis json ->
       let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
       case envelope of
@@ -1713,6 +1716,9 @@ update_ msg m =
             }
       in
         RPC ([SetHandler anId aPos aHandler], FocusNothing)
+    Delete404 fof ->
+        MakeCmd (RPC.delete404RPC m.canvasName fof)
+
     CreateRouteHandler ->
       let center = findCenter m
         in Entry.submitOmniAction m center NewHTTPHandler
