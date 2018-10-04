@@ -122,6 +122,10 @@ let rec exprpO (exprp) : Parsetree.expression =
       ~init:(Exp.construct (varname "[]") None)
       ~f:(fun prev arg ->
           Exp.construct (varname "::") (Some (Exp.tuple [arg; prev])))
+  | Lambda (pats, _cs, body, _l) ->
+    List.fold (List.rev pats) ~init:(exprO body)
+      ~f:(fun prev (_cs, pat) ->
+          (Exp.fun_ Asttypes.Nolabel None (patO pat) prev))
   | _ ->
     Exp.constant
       (Const.string
@@ -132,11 +136,11 @@ and exprO (_r, exprp) : Parsetree.expression =
 
 
 (* let x (a:int) b c = *)
-let toplevelLet name (args: string list) (expr: expr) : Parsetree.structure_item =
+let toplevelLet name (args: pattern list) (expr: expr) : Parsetree.structure_item =
   let args =
     List.fold (List.rev args) ~init:(exprO expr)
       ~f:(fun prev arg ->
-          (Exp.fun_ Asttypes.Nolabel None (Pat.var (nolo arg)) prev))
+          (Exp.fun_ Asttypes.Nolabel None (patO arg) prev))
   in
   let let_ =
     Vb.mk
@@ -252,10 +256,7 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
        (* type_O type_ *)
      | Definition ((_, VarPattern name), args, _c, expr) ->
        let args = List.map args
-           ~f:(fun (_l, (_c, pat)) ->
-               match pat with
-               | VarPattern argname -> argname
-               | _ -> failwith "definition")
+           ~f:(fun (_l, pat) -> pat)
        in
        [toplevelLet name args expr]
      | _ -> failwith (show_declaration decl)
