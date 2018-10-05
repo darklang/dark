@@ -1,0 +1,9 @@
+(library
+  (name libtarget_js)
+  (public_name libtarget.js)
+  (implements libtarget)
+  (libraries core_kernel js_of_ocaml)
+  (flags (-warn-error +A))
+  (js_of_ocaml
+    (flags +nat.js --opt 1)
+    (javascript_files libtarget.js)))

@@ -1,0 +1,78 @@
+
+(executable
+  (name main)
+  (public_name main)
+  (modules main)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (package dark)
+)
+
+(executable
+  (name add_user)
+  (public_name add_user)
+  (modules add_user)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (package dark)
+)
+
+(executable
+  (public_name cleanup_traces)
+  (name cleanup_traces)
+  (modules cleanup_traces)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (package dark)
+)
+
+(executable
+  (name darkjs)
+  (public_name darkjs)
+  (modules darkjs)
+  (flags (-no-check-prims))
+  (js_of_ocaml
+    (flags (--opt=1
+              --setenv FORCE_DROP_INLINE_TEST=true
+              +nat.js
+              +dynlink.js
+              +toplevel.js)))
+  (libraries js_of_ocaml libfrontend)
+  (preprocess (pps js_of_ocaml-ppx))
+  (package dark)
+)
+
+(alias
+  (name darkjs)
+  (deps darkjs.bc.js (universe))
+  (action (system "cp darkjs.bc.js ../../../static/")))
+
+
+(executable
+  (name darkfile_to_rpc)
+  (public_name darkfile_to_rpc)
+  (modules darkfile_to_rpc)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (package dark)
+)
+
+(executable
+  (name queue_worker)
+  (public_name queue_worker)
+  (modules queue_worker)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (preprocess (pps lwt.ppx))
+  (package dark)
+)
+
+(executable
+  (name cron_checker)
+  (public_name cron_checker)
+  (modules cron_checker)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (preprocess (pps lwt.ppx))
+  (package dark)
+)
