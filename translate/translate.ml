@@ -6,10 +6,10 @@ open Migrate_parsetree.Ast_404
 open Ast_helper
 
 let skip_preCommented (a: 'a preCommented) : 'a =
-  Tuple.T2.get1 a
+  Tuple.T2.get2 a
 
 let skip_postCommented (a: 'a postCommented) : 'a =
-  Tuple.T2.get2 a
+  Tuple.T2.get1 a
 
 let skip_commented (a: 'a commented) : 'a =
   Tuple.T3.get2 a
@@ -94,6 +94,21 @@ let rec exprpO (exprp) : Parsetree.expression =
     Exp.ident (fullname (path @ [var]))
   | VarExpr (TagRef (path, var)) ->
     Exp.construct (fullname (path @ [var])) None
+  | Record { base = None; fields } ->
+    failwith "record x"
+    (* let fields = [] in *)
+    (* Exp.record fields None *)
+
+  | Record { base = Some (_c, var, _c2); fields } ->
+    let fields = seq2list fields in
+    let fields =
+      List.map fields
+        ~f:(fun field ->
+          ( skip_postCommented field._key |> varname
+          , skip_preCommented field._value |> exprO))
+    in
+    Exp.record fields (Some (Exp.ident (varname var)))
+
   | Tuple (exprs, _l) ->
     Exp.tuple
       (List.map exprs
