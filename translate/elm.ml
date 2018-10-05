@@ -37,14 +37,7 @@ let atodo json = todofn "a" json
 let btodo json = todofn "b" json
 let ctodo json = todofn "c" json
 let dtodo json = todofn "d" json
-let etodo json = todofn "e" json
-let ftodo json = todofn "f" json
 let gtodo json = todofn "g" json
-let htodo json = todofn "h" json
-let itodo json = todofn "i" json
-let jtodo json = todofn "j" json
-let ktodo json = todofn "k" json
-let ltodo json = todofn "l" json
 let todo name json = todofn name json
 
 type todo = int [@@deriving show]
@@ -185,8 +178,6 @@ type 'a located = (region * 'a) [@@deriving show]
 let locatedJ (f: bjs -> 'a) j : 'a located =
   pairJ regionJ f j
 
-
-
 type comment
   = BlockComment of string list
   | LineComment of string
@@ -205,6 +196,13 @@ type 'a commented = comments * 'a * comments [@@deriving show]
 type 'a keywordCommented = (comments * comments * 'a) [@@deriving show]
 type 'a withEol = ('a * string option) [@@deriving show]
 type 'a sequence = (comments * 'a withEol preCommented) list [@@deriving show]
+type 'a openCommentedList =
+  'a withEol commented list * 'a withEol preCommented
+[@@deriving show]
+
+type ('name, 'arg) nameWithArgs = 'name * 'arg preCommented list
+[@@deriving show]
+
 
 let commentJ (j: bjs) : comment =
   constructor "BlockComment" (fun x -> BlockComment x) (listJ stringJ) j
@@ -233,6 +231,17 @@ let withEolJ (f: bjs -> 'a) j : 'a withEol =
 
 let sequenceJ (f: bjs -> 'a) j : 'a sequence =
   listJ (pairJ commentsJ (preCommentedJ (withEolJ f))) j
+
+let nameWithArgsJ (fn: bjs -> 'name) (fa: bjs -> 'arg) j : ('name, 'arg) nameWithArgs =
+  pairJ fn (listJ (preCommentedJ fa)) j
+
+let openCommentedListJ (f: bjs -> 'a) j : 'a openCommentedList =
+  pairJ
+    (listJ (commentedJ (withEolJ f)))
+    (preCommentedJ (withEolJ f))
+    j
+
+
 
 
 (* Identifiers *)
@@ -416,7 +425,7 @@ and exprp
     (*  *)
   | Record of record
   | Access of expr * lowercaseIdentifier
-    (* | AccessFunction LowercaseIdentifier *)
+  | AccessFunction of lowercaseIdentifier
     (*  *)
   | Lambda of lambda
   | If of (ifClause * ((comments * ifClause) list) * (comments * expr))
@@ -435,7 +444,7 @@ and patternp
   (* | PatternParens (Commented Pattern) *)
   | TuplePattern of pattern commented list
   | EmptyListPattern of comments
-  (* | List [Commented Pattern] *)
+  | ListPattern of pattern commented list
   | ConsPattern of consPattern
   (* | Record [Commented LowercaseIdentifier] *)
   (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
@@ -471,6 +480,7 @@ and typep
   | TypeVariable of lowercaseIdentifier
   | TypeParens of type_ commented
   | RecordType of recordType
+
 and type_ = typep located
 
 
@@ -494,6 +504,7 @@ and exprpJ j : exprp =
 
   |> orRecordConstructor "ExplicitList" (fun a -> ExplicitList a) explicitListJ j
   |> orConstructor "Access" (fun (a,b) -> Access (a,b)) (pairJ exprJ lowercaseIdentifierJ) j
+  |> orConstructor "AccessFunction" (fun a -> AccessFunction a) lowercaseIdentifierJ j
   |> orConstructor "Lambda" (fun a -> Lambda a) lambdaJ j
   |> orConstructor "If" (fun a -> If a) ifJ j
   |> orRecordConstructor "Record" (fun a -> Record a) recordJ j
@@ -537,7 +548,7 @@ and binopsJ j =
 
 and recordJ j : record =
   expect_tag "Record" j;
-  { base = member "base" (optionJ (commentedJ lowercaseIdentifierJ)) j
+  { base = member "base" ~nullable:true (optionJ (commentedJ lowercaseIdentifierJ)) j
   ; fields = member "fields" (sequenceJ (elmPairJ lowercaseIdentifierJ exprJ)) j
   ; rTrailingComments = member "trailingComments" commentsJ j
   ; rForceMultiline = member "forceMultiline" forceMultilineJ j
@@ -606,6 +617,7 @@ and patternpJ j : patternp =
   |> orConstructor "Literal" (fun t -> PLiteral t) literalJ j
   |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
   |> orConstructor "EmptyListPattern" (fun t -> EmptyListPattern t) commentsJ j
+  |> orConstructor "List" (fun t -> ListPattern t) (listJ (commentedJ patternJ)) j
   |> orRecordConstructor "ConsPattern" (fun t -> ConsPattern t) consPatternJ j
   |> orConstructor "Data" (fun t -> Data t) dataJ j
   |> orConstructor "Tuple" (fun t -> TuplePattern t) (listJ (commentedJ patternJ)) j
@@ -626,10 +638,18 @@ and typepJ (j: bjs) : typep =
   |> orConstructor "TupleType" (fun d -> TupleType d) (listJ (commentedJ (withEolJ type_J))) j
   |> orConstructor "UnitType" (fun d -> UnitType d) commentsJ j
   |> orConstructor "TypeVariable" (fun d -> TypeVariable d) lowercaseIdentifierJ j
+  |> orRecordConstructor "RecordType" (fun d -> RecordType d) recordTypeJ j
   |> orFail "declaration" j
 
 and type_J (j: bjs) : type_ =
   locatedJ typepJ j
+
+and recordTypeJ j : recordType =
+  { rtBase = member ~nullable:true "base" (optionJ (commentedJ (lowercaseIdentifierJ))) j
+  ; rtFields = member "fields" (sequenceJ (elmPairJ lowercaseIdentifierJ type_J)) j
+  ; rtTrailingComments = member "trailingComments" commentsJ j
+  ; rtForceMultiline = member "forceMultiline" forceMultilineJ j
+  }
 
 and typeConstructionJ j =
   pairJ typeConstructorJ (listJ (pairJ commentsJ type_J)) j
@@ -660,7 +680,7 @@ and typeConstructorJ (j: bjs) : typeConstructor =
 
 
 type markdown_blocks = todo [@@deriving show]
-let markdown_blocksJ = ctodo
+let markdown_blocksJ = dtodo
 
 
 type 'a listing
@@ -670,7 +690,7 @@ type 'a listing
   [@@deriving show]
 
 let listingJ (f: bjs -> 'a) (j: bjs) : 'a listing =
-  constructor "ExplicitListing" (fun (a, b) -> ExplicitListing (a ,b)) atodo j
+  constructor "ExplicitListing" (fun (a,b) -> ExplicitListing (a,b)) (pairJ f boolJ) j
   |> orConstructor "OpenListing" (fun t -> OpenListing t) (commentedJ unitJ) j
   |> orConstructor "ClosedListing" (fun t -> ClosedListing) ident j
   |> orFail "listing" j
@@ -766,17 +786,24 @@ type definition = pattern * (pattern preCommented list) * comments * expr
 type typeAnnotation = (ref_ postCommented) * (type_ preCommented)
 [@@deriving show]
 
+type typeAlias =
+  comments
+  * (uppercaseIdentifier, lowercaseIdentifier) nameWithArgs commented
+  * type_ preCommented
+[@@deriving show]
+
+type datatype =
+  { nameWithArgs :
+      (uppercaseIdentifier, lowercaseIdentifier) nameWithArgs commented
+  ; tags : (uppercaseIdentifier, type_) nameWithArgs openCommentedList
+  }
+[@@deriving show]
+
 type declaration
   = Definition of definition
   | TypeAnnotation of typeAnnotation
-  | Datatype of todo
-      (* { nameWithArgs :: Commented (NameWithArgs UppercaseIdentifier LowercaseIdentifier) *)
-      (* , tags :: OpenCommentedList (NameWithArgs UppercaseIdentifier Type) *)
-      (* } *)
-  | TypeAlias of todo
-      (*   Comments *)
-      (* (Commented (NameWithArgs UppercaseIdentifier LowercaseIdentifier)) *)
-      (* (PreCommented Type) *)
+  | Datatype of datatype
+  | TypeAlias of typeAlias
   (* | PortAnnotation (Commented LowercaseIdentifier) Comments Type *)
   (* | PortDefinition (Commented LowercaseIdentifier) Comments Expression.Expr *)
   (* | Fixity Assoc Comments Int Comments Var.Ref *)
@@ -799,6 +826,13 @@ let topLevelStructureJ (f: bjs -> 'a) (j: bjs) : 'a topLevelStructure =
 let typeAnnotationJ j =
   pairJ (postCommentedJ ref_J) (preCommentedJ type_J) j
 
+let typeAliasJ j =
+  tripleJ
+    commentsJ
+    (commentedJ (nameWithArgsJ uppercaseIdentifierJ lowercaseIdentifierJ))
+    (preCommentedJ type_J)
+    j
+
 let definitionJ =
   quadrupleJ
     patternJ
@@ -806,10 +840,17 @@ let definitionJ =
     commentsJ
     exprJ
 
+let datatypeJ j =
+  { nameWithArgs = member "nameWithArgs" (commentedJ (nameWithArgsJ uppercaseIdentifierJ lowercaseIdentifierJ)) j
+  ; tags = member "tags" (openCommentedListJ (nameWithArgsJ uppercaseIdentifierJ type_J)) j
+  }
+
+
 let declarationJ (j: bjs) : declaration =
   constructor "Definition" (fun d -> Definition d) definitionJ j
   |> orConstructor "TypeAnnotation" (fun t -> TypeAnnotation t) typeAnnotationJ j
-  (* |> orConstructor "Datatype" (fun d -> Datatype d) gtodo j *)
+  |> orRecordConstructor "Datatype" (fun d -> Datatype d) datatypeJ j
+  |> orConstructor "TypeAlias" (fun t -> TypeAlias t) typeAliasJ j
   |> orFail "declaration" j
 
 type imports =
