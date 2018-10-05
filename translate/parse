@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+cd translate
+
+dune build translate.exe
+
+~/.local/bin/elm-format --json --elm-version 0.18 --stdin < ../$1 \
+  | ./_build/default/translate.exe --parse
+
