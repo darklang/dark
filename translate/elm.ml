@@ -360,7 +360,7 @@ let tagRefJ j =
 let ref_J (j: bjs) : ref_ =
   constructor "VarRef" (fun d -> VarRef d) varRefJ j
   |> orConstructor "TagRef" (fun t -> TagRef t) tagRefJ j
-  (* |> orConstructor "OpRef" (fun t -> OpRef t) itodo  j *)
+  |> orConstructor "OpRef" (fun t -> OpRef t) symbolIdentifierJ j
   |> orFail "ref_" j
 
 type typeConstructor
@@ -391,6 +391,13 @@ and record =
   ; rForceMultiline : forceMultiline
   }
 
+and ifClause = expr commented * expr commented
+
+and consPattern =
+  { cpFirst : pattern * string option
+  ; cpRest : (comments * comments * pattern * string option) list
+  }
+
 and exprp
   = Unit of comments
   | App of app
@@ -398,21 +405,21 @@ and exprp
   | VarExpr of ref_
 
     (* | Unary UnaryOperator Expr *)
-    (* | Binops Expr [(Comments, Var.Ref, Comments, Expr)] Bool *)
+  | Binops of (expr * (comments * ref_ * comments * expr) list * bool)
   | Parens of expr commented
 
   | ExplicitList of explicitList
     (* | Range (Commented Expr) (Commented Expr) Bool *)
     (*  *)
-  | Tuple of tuple
-    (* | TupleFunction Int -- will be 2 or greater, indicating the number of elements in the tuple *)
+  | TupleExpr of tuple
+  | TupleFunction of int
     (*  *)
   | Record of record
   | Access of expr * lowercaseIdentifier
     (* | AccessFunction LowercaseIdentifier *)
     (*  *)
   | Lambda of lambda
-    (* | If IfClause [(Comments, IfClause)] (Comments, Expr) *)
+  | If of (ifClause * ((comments * ifClause) list) * (comments * expr))
   | Let of let_
   | Case of case
     (* -- for type checking and code gen only *)
@@ -426,13 +433,10 @@ and patternp
   (* | OpPattern SymbolIdentifier *)
   | Data of data
   (* | PatternParens (Commented Pattern) *)
-  (* | Tuple [Commented Pattern] *)
-  (* | EmptyListPattern Comments *)
+  | TuplePattern of pattern commented list
+  | EmptyListPattern of comments
   (* | List [Commented Pattern] *)
-  (* | ConsPattern *)
-  (*     { first :: (Pattern, Maybe String) *)
-  (*     , rest :: [(Comments, Comments, Pattern, Maybe String)] *)
-  (*     } *)
+  | ConsPattern of consPattern
   (* | Record [Commented LowercaseIdentifier] *)
   (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
 and data = uppercaseIdentifier list * (comments * pattern) list
@@ -452,9 +456,21 @@ and functionType =
   ; rest: (comments * comments * type_ * string option) list
   ; forceMultiline: forceMultiline
   }
+and recordType =
+  { rtBase : lowercaseIdentifier commented option
+  ; rtFields : ((lowercaseIdentifier, type_) elmPair) sequence
+  ; rtTrailingComments : comments
+  ; rtForceMultiline : forceMultiline
+  }
+
 and typep
   = TypeConstruction of typeConstruction
   | FunctionType of functionType
+  | TupleType of type_ withEol commented list
+  | UnitType of comments
+  | TypeVariable of lowercaseIdentifier
+  | TypeParens of type_ commented
+  | RecordType of recordType
 and type_ = typep located
 
 
@@ -470,23 +486,52 @@ and exprpJ j : exprp =
   |> orConstructor "Literal" (fun a -> ELiteral a) literalJ j
   |> orConstructor "VarExpr" (fun a -> VarExpr a) ref_J j
   |> orConstructor "Case" (fun a -> Case a) caseJ j
-  |> orConstructor "Tuple" (fun a -> Tuple a) tupleJ j
+  |> orConstructor "Tuple" (fun a -> TupleExpr a) tupleJ j
+  |> orConstructor "TupleFunction" (fun a -> TupleFunction a) intJ j
   |> orConstructor "Parens" (fun a -> Parens a) (commentedJ exprJ) j
   |> orConstructor "Let" (fun a -> Let a) let_J j
+  |> orConstructor "Binops" (fun a -> Binops a) binopsJ j
+
   |> orRecordConstructor "ExplicitList" (fun a -> ExplicitList a) explicitListJ j
   |> orConstructor "Access" (fun (a,b) -> Access (a,b)) (pairJ exprJ lowercaseIdentifierJ) j
   |> orConstructor "Lambda" (fun a -> Lambda a) lambdaJ j
+  |> orConstructor "If" (fun a -> If a) ifJ j
   |> orRecordConstructor "Record" (fun a -> Record a) recordJ j
   |> orFail "exprp" j
 
 and exprJ j : expr =
   locatedJ exprpJ j
 
+and ifJ j =
+  tripleJ
+    ifClauseJ
+    (listJ (pairJ commentsJ ifClauseJ))
+    (pairJ commentsJ exprJ)
+  j
+
+and ifClauseJ j =
+  pairJ
+    (commentedJ exprJ)
+    (commentedJ exprJ)
+  j
+
 and lambdaJ j : lambda =
   quadrupleJ
     (listJ (pairJ commentsJ patternJ))
     commentsJ
     exprJ
+    boolJ
+    j
+
+and binopsJ j =
+  tripleJ
+    exprJ
+    (listJ
+       (quadrupleJ
+          commentsJ
+          ref_J
+          commentsJ
+          exprJ))
     boolJ
     j
 
@@ -542,12 +587,28 @@ and explicitListJ j : explicitList =
   ; elForceMultiline = member "forceMultiline" forceMultilineJ j
   }
 
+and consPatternJ j : consPattern =
+  { cpFirst = member "first" (pairJ patternJ (optionJ stringJ)) j
+  ; cpRest =
+      member "rest"
+        (listJ
+           (quadrupleJ
+             commentsJ
+             commentsJ
+             patternJ
+             (optionJ stringJ)))
+        j
+  }
+
 and patternpJ j : patternp =
   constructor "Anything" (fun a -> Anything) ident j
   |> orConstructor "UnitPattern" (fun t -> UnitPattern t) commentsJ j
   |> orConstructor "Literal" (fun t -> PLiteral t) literalJ j
   |> orConstructor "VarPattern" (fun t -> VarPattern t) lowercaseIdentifierJ j
+  |> orConstructor "EmptyListPattern" (fun t -> EmptyListPattern t) commentsJ j
+  |> orRecordConstructor "ConsPattern" (fun t -> ConsPattern t) consPatternJ j
   |> orConstructor "Data" (fun t -> Data t) dataJ j
+  |> orConstructor "Tuple" (fun t -> TuplePattern t) (listJ (commentedJ patternJ)) j
   |> orFail "patternp" j
 
 and dataJ j : data =
@@ -559,9 +620,12 @@ and dataJ j : data =
 and patternJ j : pattern =
   locatedJ patternpJ j
 
-    and typepJ (j: bjs) : typep =
+and typepJ (j: bjs) : typep =
   constructor "TypeConstruction" (fun d -> TypeConstruction d) typeConstructionJ j
   |> orRecordConstructor "FunctionType" (fun d -> FunctionType d) functionTypeJ j
+  |> orConstructor "TupleType" (fun d -> TupleType d) (listJ (commentedJ (withEolJ type_J))) j
+  |> orConstructor "UnitType" (fun d -> UnitType d) commentsJ j
+  |> orConstructor "TypeVariable" (fun d -> TypeVariable d) lowercaseIdentifierJ j
   |> orFail "declaration" j
 
 and type_J (j: bjs) : type_ =

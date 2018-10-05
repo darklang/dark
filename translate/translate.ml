@@ -15,7 +15,7 @@ let skip_commented (a: 'a commented) : 'a =
   Tuple.T3.get2 a
 
 let skip_located (a: 'a located) : 'a =
-  Tuple.T2.get1 a
+  Tuple.T2.get2 a
 
 let nolo = Location.mknoloc
 
@@ -30,12 +30,41 @@ let fullname (names: string list) : lid =
   |> fun x -> Option.value_exn x
   |> nolo
 
+let seq2list (s: 'a sequence) : 'a list =
+  List.map s
+    ~f:(fun (_c, (_c2, (a, _s))) -> a)
+
+
+let todo name str =
+  if String.length str >= 20
+  then
+    "todo (" ^ name ^ "): " ^ (String.slice str 0 20)
+  else
+    "todo (" ^ name ^ "): " ^ str
 
 
 let rec patpO (patp: patternp) : Parsetree.pattern =
   match patp with
   | Anything -> Pat.any ()
   | VarPattern name -> Pat.var (nolo name)
+  | TuplePattern ps ->
+    let ps = List.map ~f:skip_commented ps in
+    Pat.tuple (List.map ~f:patO ps)
+  | EmptyListPattern _cs ->
+    Pat.construct (varname "[]") None
+  | ConsPattern { cpFirst; cpRest } ->
+    let pats =
+      Tuple.T2.get1 cpFirst
+      :: (List.map cpRest ~f:(fun (_cs, _cs2, pat, _wtf) -> pat))
+    in
+
+    List.fold pats
+      ~init:(Pat.construct (varname "[]") None)
+      ~f:(fun prev arg ->
+          Pat.construct (varname "::") (Some (Pat.tuple [patO arg; prev])))
+
+
+
   | Data (names, args) ->
     let tuple =
       args
@@ -48,20 +77,20 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       Pat.construct n None
     else
       Pat.construct n (Some tuple)
-  | _ -> failwith (show_patternp patp)
+  | _ ->
+    Pat.constant
+      (Const.string (todo "pattern" (show_patternp patp)))
 and patO ((_r, patp): pattern) : Parsetree.pattern =
   patpO patp
 
-let seq2list (s: 'a sequence) : 'a list =
-  List.map s
-    ~f:(fun (_c, (_c2, (a, _s))) -> a)
-
-
-
-let litO lit : Parsetree.constant =
+let litExpO lit : Parsetree.expression =
   match lit with
-  | Str (str, _l) -> Const.string str
-  | _ -> failwith (show_literal lit)
+  | Str (str, _l) -> Exp.constant (Const.string str)
+  | Boolean true -> Exp.construct (varname "true") None
+  | Boolean false -> Exp.construct (varname "false") None
+  | IntNum (i, repr) -> Exp.constant (Const.int i)
+  | Chr c -> Exp.constant (Const.char c)
+  | _ -> Exp.constant (Const.string (todo "literal" (show_literal lit)))
 
 let rec exprpO (exprp) : Parsetree.expression =
   match exprp with
@@ -87,13 +116,14 @@ let rec exprpO (exprp) : Parsetree.expression =
   | App (fn, args, _line) ->
     Exp.apply
       (exprO fn)
-      (List.map args ~f:(fun (_c, a) -> (Asttypes.Nolabel, exprO a)))
-  | ELiteral lit ->
-    Exp.constant (litO lit)
+      (List.map args ~f:(fun a -> a |> skip_preCommented |> as_arg ))
+  | ELiteral lit -> litExpO lit
   | VarExpr (VarRef (path, var)) ->
     Exp.ident (fullname (path @ [var]))
   | VarExpr (TagRef (path, var)) ->
     Exp.construct (fullname (path @ [var])) None
+  | VarExpr (OpRef name) ->
+    Exp.construct (varname name) None
   | Record { base = None; fields } ->
     failwith "record x"
     (* let fields = [] in *)
@@ -109,10 +139,13 @@ let rec exprpO (exprp) : Parsetree.expression =
     in
     Exp.record fields (Some (Exp.ident (varname var)))
 
-  | Tuple (exprs, _l) ->
+  | TupleExpr (exprs, _l) ->
     Exp.tuple
       (List.map exprs
          ~f:(fun expr -> exprO (skip_commented expr)))
+  | TupleFunction count ->
+    Exp.ident (varname ("to_tuple" ^ (string_of_int count)))
+
   | Parens (_c, expr, _c2) ->
     exprO expr
   | Unit _cs ->
@@ -141,12 +174,37 @@ let rec exprpO (exprp) : Parsetree.expression =
     List.fold (List.rev pats) ~init:(exprO body)
       ~f:(fun prev (_cs, pat) ->
           (Exp.fun_ Asttypes.Nolabel None (patO pat) prev))
-  | _ ->
-    Exp.constant
-      (Const.string
-         ("todo: " ^ (String.slice (show_exprp exprp) 0 20)))
+  | Binops (lhs, rest, _l) ->
+    List.fold ~init:(exprO lhs) rest
+      ~f:(fun prev (_cs, ref_, _cs2, rhs) ->
+          Exp.apply
+            (ref_O ref_)
+            [(Asttypes.Nolabel, prev); as_arg rhs])
+  | If ((ifcond, ifbody), [], elsebody) ->
+    (* TODO: more clauses *)
+    Exp.ifthenelse
+      (ifcond |> skip_commented |> exprO)
+      (ifbody |> skip_commented |> exprO)
+      (Some (elsebody |> skip_preCommented |> exprO))
+
+  | _ -> Exp.constant (Const.string (todo "expr" (show_exprp exprp)))
+
 and exprO (_r, exprp) : Parsetree.expression =
   exprpO exprp
+
+and as_arg (expr: expr) : (Asttypes.arg_label * Parsetree.expression) =
+  (Asttypes.Nolabel, exprO expr)
+
+and ref_O r =
+  match r with
+  | VarRef (path, var) ->
+    Exp.ident (fullname (path @ [var]))
+  | OpRef op ->
+    Exp.ident (varname op)
+  | TagRef (path, var) ->
+    Exp.construct (fullname (path @ [var])) None
+
+
 
 
 
@@ -274,7 +332,7 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
            ~f:(fun (_l, pat) -> pat)
        in
        [toplevelLet name args expr]
-     | _ -> failwith (show_declaration decl)
+     | _ -> failwith (todo "declaration" (show_declaration decl))
     )
 
 
@@ -313,7 +371,7 @@ let _ =
       let module Versions = Migrate_parsetree_versions in
       Versions.migrate Versions.ocaml_404 Versions.ocaml_current
     in
-    Lexing.from_string "[1;2;3]"
+    Lexing.from_string "match x with | [a; b] -> 5 | [] -> 6"
     |> Reason_toolchain.ML.implementation
     |> migration.copy_structure
     |> Printast.structure 0
