@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-cp translate.ml _build/default
-(cd _build/default && .ppx/jbuild/ppx_deriving.std+ppx_deriving_yojson/ppx.exe -o translate.pp.ml --impl translate.ml)
-mv _build/default/translate.pp.ml ..
-

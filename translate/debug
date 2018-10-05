@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+cd translate
+
+dune build translate.exe
+
+cat /dev/stdin | ./_build/default/translate.exe --debug

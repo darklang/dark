@@ -19,13 +19,27 @@ let skip_located (a: 'a located) : 'a =
 
 let nolo = Location.mknoloc
 
+let correct_name s : string =
+  if s = "new"
+  then "new_"
+  else if s = "end"
+  then "end_"
+  else s
+
 let varname n : lid =
   n
+  |> correct_name
   |> Longident.parse
+  |> nolo
+
+let as_var n : str =
+  n
+  |> correct_name
   |> nolo
 
 let fullname (names: string list) : lid =
   names
+  |> List.map ~f:correct_name
   |> Longident.unflatten
   |> fun x -> Option.value_exn x
   |> nolo
@@ -46,7 +60,7 @@ let todo name str =
 let rec patpO (patp: patternp) : Parsetree.pattern =
   match patp with
   | Anything -> Pat.any ()
-  | VarPattern name -> Pat.var (nolo name)
+  | VarPattern name -> Pat.var (as_var name)
   | TuplePattern ps ->
     let ps = List.map ~f:skip_commented ps in
     Pat.tuple (List.map ~f:patO ps)
@@ -217,7 +231,7 @@ let toplevelLet name (args: pattern list) (expr: expr) : Parsetree.structure_ite
   in
   let let_ =
     Vb.mk
-      (Pat.var (nolo name))
+      (Pat.var (as_var name))
       args
   in
   Str.value Asttypes.Nonrecursive [let_]
@@ -268,7 +282,7 @@ let importsO ((_c, i): Elm.imports) : Parsetree.structure =
           (*         in *)
           (*         let binding = *)
           (*           Vb.mk *)
-          (*             (Pat.var (Location.mknoloc name)) *)
+          (*             (Pat.var (as_var name)) *)
           (*             (Exp.ident fqn) *)
           (*         in *)
           (*         Exp.ident fqn *)
@@ -371,7 +385,7 @@ let _ =
       let module Versions = Migrate_parsetree_versions in
       Versions.migrate Versions.ocaml_404 Versions.ocaml_current
     in
-    Lexing.from_string "match x with | [a; b] -> 5 | [] -> 6"
+    Lexing.from_channel In_channel.stdin
     |> Reason_toolchain.ML.implementation
     |> migration.copy_structure
     |> Printast.structure 0
