@@ -269,6 +269,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       -y \
       less
 
+RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git
 
 ############################
 # Finish
