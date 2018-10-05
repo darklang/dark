@@ -275,7 +275,8 @@ RUN curl -sSL https://get.haskellstack.org/ | sh
 RUN stack setup --resolver lts-11.4
 RUN git clone https://github.com/darklang/elm-format
 RUN cd elm-format && git checkout elm-escape && stack install -j 4
-RUN opam install -y reason --unlock-base
+RUN opam pin add -y reason https://github.com/facebook/reason.git
+RUN opam update && opam install -y ocamlformat
 ############################
 # Finish
 ############################
