@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 . ./scripts/support/assert-in-container $0 $@
 
+
 set -euo pipefail
 
-./translate/build
+cd translate
 
-cat /dev/stdin | ./translate/_build/default/translate.exe --debug
+sudo chown dark:dark _build
+dune build translate.exe
+

@@ -3,12 +3,10 @@
 
 set -euo pipefail
 
-cd translate
+./translate/build
 
-dune build translate.exe
-
-~/.local/bin/elm-format --json --elm-version 0.18 --stdin < ../$1 \
-  | ./_build/default/translate.exe > out
+~/.local/bin/elm-format --json --elm-version 0.18 --stdin < $1 \
+  | ./translate/_build/default/translate.exe > out
 
 ocamlformat --inplace out
 

@@ -44,6 +44,7 @@ else
   MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
   MOUNTS+=" -v /home/dark/app/server/_build"
+  MOUNTS+=" -v /home/dark/app/translate/_build"
 
   if [[ -e "../conduit-frontend" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
