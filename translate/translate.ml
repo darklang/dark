@@ -292,6 +292,10 @@ let rec exprpO (exprp) : Parsetree.expression =
           Exp.apply
             (ref_O ref_)
             [(Asttypes.Nolabel, prev); as_arg rhs])
+  | Unary (_op, expr) ->
+    Exp.apply
+      (Exp.ident (varname "~-"))
+      [(Asttypes.Nolabel, exprO expr)]
   | If ((ifclause), rest, elsebody) ->
     let rest = List.map rest ~f:skip_preCommented in
     List.fold (ifclause :: rest)
