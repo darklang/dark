@@ -196,7 +196,7 @@ let rec exprpO (exprp) : Parsetree.expression =
               failwith "Unexpected let pattern") (* figure this out *)
   | ExplicitList { terms } ->
     let terms = List.map (seq2list terms) ~f:exprO in
-    List.fold terms
+    List.fold (List.rev terms)
       ~init:(Exp.construct (varname "[]") None)
       ~f:(fun prev arg ->
           Exp.construct (varname "::") (Some (Exp.tuple [arg; prev])))
