@@ -47,6 +47,12 @@ let correct_keyword n : string =
   then "method_"
   else if n = "lazy"
   then "lazy_"
+  else if n = "fun"
+  then "fun_"
+  else if n = "true"
+  then "true_"
+  else if n = "false"
+  then "false_"
   else n
 
 
@@ -56,6 +62,11 @@ let correct_varname n : string =
 let varname n : lid =
   n
   |> correct_varname
+  |> Longident.parse
+  |> nolo
+
+let varname_dont_correct n : lid =
+  n
   |> Longident.parse
   |> nolo
 
@@ -132,8 +143,8 @@ let todo name data =
 let litExpO lit : Parsetree.expression =
   match lit with
   | Str (str, _l) -> Exp.constant (Const.string str)
-  | Boolean true -> Exp.construct (varname "true") None
-  | Boolean false -> Exp.construct (varname "false") None
+  | Boolean true -> Exp.construct (varname_dont_correct "true") None
+  | Boolean false -> Exp.construct (varname_dont_correct "false") None
   | IntNum (i, repr) -> Exp.constant (Const.int i)
   | FloatNum (f, repr) -> Exp.constant (Const.float (string_of_float f))
   | Chr c -> Exp.constant (Const.char c)
@@ -141,8 +152,8 @@ let litExpO lit : Parsetree.expression =
 let litPatO lit : Parsetree.pattern =
   match lit with
   | Str (str, _l) -> Pat.constant (Const.string str)
-  | Boolean true -> Pat.construct (varname "true") None
-  | Boolean false -> Pat.construct (varname "false") None
+  | Boolean true -> Pat.construct (varname_dont_correct "true") None
+  | Boolean false -> Pat.construct (varname_dont_correct "false") None
   | IntNum (i, repr) -> Pat.constant (Const.int i)
   | FloatNum (f, repr) -> Pat.constant (Const.float (string_of_float f))
   | Chr c -> Pat.constant (Const.char c)
