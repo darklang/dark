@@ -463,6 +463,7 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
        (*    | OpRef n -> [n]) *)
        (* in *)
        (* type_O type_ *)
+     | PortAnnotation _ -> [] (* skip for now *)
      | Definition ((_, VarPattern name), args, _c, expr) ->
        let args = List.map args
            ~f:(fun (_l, pat) -> pat)
