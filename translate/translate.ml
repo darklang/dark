@@ -399,7 +399,8 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
                ~args:(Parsetree.Pcstr_tuple args))
        in
        let kind = Parsetree.Ptype_variant constructors in
-       [Str.type_ Nonrecursive
+       let name = String.uncapitalize name in
+       [Str.type_ Recursive
           [(Type.mk ~params ~kind (as_var name))]]
 
      | _ -> failwith (show_declaration decl)
