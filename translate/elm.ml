@@ -704,7 +704,8 @@ and typeConstructorJ (j: bjs) : typeConstructor =
 
 
 type markdown_blocks = todo [@@deriving show]
-let markdown_blocksJ = dtodo
+let markdown_blocksJ j =
+  3 (* ignore for now *)
 
 
 type 'a listing
@@ -843,7 +844,7 @@ type 'a topLevelStructure = Entry of 'a located
 let topLevelStructureJ (f: bjs -> 'a) (j: bjs) : 'a topLevelStructure =
   constructor "Entry" (fun (x, y) -> Entry (x, y)) (locatedJ f) j
   |> orConstructor "BodyComment" (fun t -> BodyComment t) commentJ j
-  (* |> orConstructor "DocComment" (fun x -> DocComment x) gtodo j *)
+  |> orConstructor "DocComment" (fun x -> DocComment x) markdown_blocksJ j
   |> orFail "topLevel" j
 
 
