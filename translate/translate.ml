@@ -187,13 +187,16 @@ let rec exprpO (exprp) : Parsetree.expression =
     List.fold ~init:(exprO body) (List.rev declarations)
       ~f:(fun prev decl ->
             match decl with
-            | LetDefinition (pat, [], _cs, rhs) ->
-              let vb = Vb.mk (patO pat) (exprO rhs) in
+            | LetDefinition (namePat, args, _cs, rhs) ->
+              let let_ : Parsetree.expression =
+                List.fold (List.rev args) ~init:(exprO rhs)
+                  ~f:(fun prev (_c, arg) ->
+                      (Exp.fun_ Asttypes.Nolabel None (patO arg) prev))
+              in
+              let vb = Vb.mk (patO namePat) let_ in
               (Exp.let_ Nonrecursive [vb] prev)
             | LetAnnotation _annot -> Exp.unreachable ()
-            | LetComment _c -> Exp.unreachable ()
-            | LetDefinition x ->
-              failwith "Unexpected let pattern") (* figure this out *)
+            | LetComment _c -> Exp.unreachable ())
   | ExplicitList { terms } ->
     let terms = List.map (seq2list terms) ~f:exprO in
     List.fold (List.rev terms)
