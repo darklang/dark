@@ -22,7 +22,7 @@ let skip_eol (a: 'a withEol) : 'a =
 
 let nolo = Location.mknoloc
 
-let correct_name s : string =
+let correct_varname s : string =
   if s = "new"
   then "new_"
   else if s = "end"
@@ -31,21 +31,33 @@ let correct_name s : string =
 
 let varname n : lid =
   n
-  |> correct_name
+  |> correct_varname
   |> Longident.parse
   |> nolo
 
 let as_var n : str =
   n
-  |> correct_name
+  |> correct_varname
   |> nolo
 
 let fullname (names: string list) : lid =
   names
-  |> List.map ~f:correct_name
+  |> List.map ~f:correct_varname
   |> Longident.unflatten
   |> fun x -> Option.value_exn x
   |> nolo
+
+
+let correct_typename s : string =
+  String.uncapitalize s
+
+let typename n : lid =
+  n
+  |> correct_typename
+  |> Longident.parse
+  |> nolo
+
+
 
 let seq2list (s: 'a sequence) : 'a list =
   List.map s
@@ -342,14 +354,35 @@ let rec type_O (t: type_) : Parsetree.core_type =
    (*   List.map ~f:type_O (first :: rest) *)
    (*  *)
    (* Typ.arrow  *)
-   (* | TypeConstruction (tc, ts) -> *)
-   (*   (match tc with *)
-   (*    | TupleConstructor i -> failwith "tupleconstructor" *)
-   (*    | NamedConstructor nc -> *)
-   (*      failwith "namedconstructor" (*nc*)) *)
+   | TypeConstruction (tc, ts) ->
+     (match tc with
+      | TupleConstructor i -> failwith "tupleconstructor"
+      | NamedConstructor [name] ->
+        Typ.constr
+          (typename name)
+          (List.map ~f:(fun (_c, t) -> type_O t) ts)
+      | NamedConstructor names -> failwith "Named constructor with multiple names"
+     )
    | TypeVariable name ->
      Typ.var name
-   | _ -> Typ.var (todo "type" (show_type_ t))
+   | _ -> Typ.var (failwith (show_type_ t))
+  )
+
+(* OCaml represents type declarations differently, which matters for
+ * Records *)
+let rec typeKind (t: type_) : Parsetree.type_kind =
+  (match skip_located t with
+   (* TODO: extensible types use rtBase here *)
+   | RecordType { rtFields } ->
+     let fields =
+       List.map (seq2list rtFields)
+         ~f:(fun field ->
+             Type.field
+               (skip_postCommented field._key |> nolo)
+               (skip_preCommented field._value |> type_O))
+     in
+     Parsetree.Ptype_record fields
+   | _ -> failwith "not a kind"
   )
 
 
@@ -377,17 +410,21 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
            ~f:(fun (_l, pat) -> pat)
        in
        [toplevelLet name args expr]
-     | TypeAlias (_cs, names, (_c, type_)) ->
-     (* type name is a constr *)
-       (* type arguments is constr with args *)
-       (* record field is Type.field *)
+     | TypeAlias (_cs, nameWithArgs, (_c, type_)) ->
+       let (name, args) = skip_commented nameWithArgs in
+       let params =
+         List.map args
+           ~f:(fun arg -> (arg
+                           |> skip_preCommented
+                           |> Typ.var
+                          , Asttypes.Invariant))
+       in
 
-       (* There isn't a record helper, sp use Ptype_record  *)
-       (* use Typ.mk *)
+       let kind = typeKind type_ in
+       let name = String.uncapitalize name in
+       [Str.type_ Recursive
+          [(Type.mk ~params ~kind (as_var name))]]
 
-       let kind = Parsetree.Ptype_record [Type.field (as_var "x") (Typ.constr (varname "int") [])] in
-       let typ = Type.mk ~kind (as_var "todo") in
-       [Str.type_ Nonrecursive [typ]]
      | Datatype { nameWithArgs; tags } ->
        let (name, args) = skip_commented nameWithArgs in
        let params =
