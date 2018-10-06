@@ -41,6 +41,12 @@ let correct_keyword n : string =
   then "function_"
   else if n = "open"
   then "open_"
+  else if n = "object"
+  then "object_"
+  else if n = "method"
+  then "method_"
+  else if n = "lazy"
+  then "lazy_"
   else n
 
 
