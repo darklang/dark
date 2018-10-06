@@ -17,7 +17,7 @@ let skip_commented (a: 'a commented) : 'a =
 let skip_located (a: 'a located) : 'a =
   Tuple.T2.get2 a
 
-let skip_eol (a: 'a withEol) : 'a =
+let skip_withEol (a: 'a withEol) : 'a =
   Tuple.T2.get1 a
 
 let nolo = Location.mknoloc
@@ -40,7 +40,7 @@ let as_var n : str =
   |> correct_varname
   |> nolo
 
-let fullname (names: string list) : lid =
+let full_varname (names: string list) : lid =
   names
   |> List.map ~f:correct_varname
   |> Longident.unflatten
@@ -48,14 +48,37 @@ let fullname (names: string list) : lid =
   |> nolo
 
 
-let correct_typename s : string =
-  String.uncapitalize s
+let correct_typename n : string =
+  let n = String.uncapitalize n in
+  if n = "exception"
+  then "exception_"
+  else if n = "function"
+  then "function_"
+  else if n = "class"
+  then "class_"
+  else n
 
 let typename n : lid =
   n
   |> correct_typename
   |> Longident.parse
   |> nolo
+
+let full_typename names : lid =
+  names
+  |> List.rev
+  |> (function (hd::rest) -> correct_typename hd :: rest
+               | [] -> [])
+  |> List.rev
+  |> Longident.unflatten
+  |> fun x -> Option.value_exn x
+  |> nolo
+
+let as_type n : str =
+  n
+  |> correct_typename
+  |> nolo
+
 
 
 
@@ -68,11 +91,11 @@ let openCommentedList2list (l: 'a openCommentedList) : 'a list =
   let newInit = List.map init
       ~f:(fun i -> i
                    |> skip_commented
-                   |> skip_eol)
+                   |> skip_withEol)
   in
   let newLast = last
                 |> skip_preCommented
-                |> skip_eol
+                |> skip_withEol
   in
   newInit @ [newLast]
 
@@ -115,16 +138,13 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       :: (List.map cpRest ~f:(fun (_cs, _cs2, pat, _wtf) -> pat))
     in
     pats2list pats
-
-
-
   | Data (names, args) ->
     let tuple =
       args
       |> List.map ~f:(fun (_c, pat) -> patO pat)
       |> Pat.tuple
     in
-    let n = fullname names in
+    let n = full_varname names in
     if args = []
     then
       Pat.construct n None
@@ -157,12 +177,12 @@ let rec exprpO (exprp) : Parsetree.expression =
     (* Constructos with 1 arg *)
   | App ((_r, VarExpr (TagRef (path, var))), [_c, arg], _line) ->
     Exp.construct
-      (fullname (path @ [var]))
+      (full_varname (path @ [var]))
       (Some (exprO arg))
     (* Constructos with multiple args *)
   | App ((_r, VarExpr (TagRef (path, var))), args, _line) ->
     Exp.construct
-      (fullname (path @ [var]))
+      (full_varname (path @ [var]))
       (Some
          (Exp.tuple
             (List.map args ~f:(fun (_c, a) -> exprO a))))
@@ -172,9 +192,9 @@ let rec exprpO (exprp) : Parsetree.expression =
       (List.map args ~f:(fun a -> a |> skip_preCommented |> as_arg ))
   | ELiteral lit -> litExpO lit
   | VarExpr (VarRef (path, var)) ->
-    Exp.ident (fullname (path @ [var]))
+    Exp.ident (full_varname (path @ [var]))
   | VarExpr (TagRef (path, var)) ->
-    Exp.construct (fullname (path @ [var])) None
+    Exp.construct (full_varname (path @ [var])) None
   | VarExpr (OpRef name) ->
     Exp.construct (varname name) None
   | RecordExpr { base; fields } ->
@@ -258,11 +278,11 @@ and as_arg (expr: expr) : (Asttypes.arg_label * Parsetree.expression) =
 and ref_O r =
   match r with
   | VarRef (path, var) ->
-    Exp.ident (fullname (path @ [var]))
+    Exp.ident (full_varname (path @ [var]))
   | OpRef op ->
     Exp.ident (varname op)
   | TagRef (path, var) ->
-    Exp.construct (fullname (path @ [var])) None
+    Exp.construct (full_varname (path @ [var])) None
 
 
 
@@ -354,46 +374,36 @@ let importsO ((_c, i): Elm.imports) : Parsetree.structure =
 
 let rec type_O (t: type_) : Parsetree.core_type =
   (match skip_located t with
-   (* | FunctionType ft -> *)
-   (*   let (first, _eol) = ft.first in *)
-   (*   let rest = *)
-   (*     List.map ~f:(fun (_c1, _c2, type_, _eol) -> type_) *)
-   (*       ft.rest *)
-   (*   in *)
-   (*   List.map ~f:type_O (first :: rest) *)
-   (*  *)
-   (* Typ.arrow  *)
+   | FunctionType ft ->
+     let (first, _eol) = ft.first in
+     let rest =
+       List.map ~f:(fun (_c1, _c2, type_, _eol) -> type_)
+         ft.rest
+     in
+     List.fold ~init:(type_O first) rest
+       ~f:(fun prev t ->
+           Typ.arrow Asttypes.Nolabel prev (t |> type_O))
+
+   | UnitType _cs ->
+     Typ.constr (typename "unit") []
+   | TupleType ts ->
+     ts
+     |> List.map ~f:skip_commented
+     |> List.map ~f:skip_withEol
+     |> List.map ~f:type_O
+     |> Typ.tuple
+
    | TypeConstruction (tc, ts) ->
      (match tc with
       | TupleConstructor i -> failwith "tupleconstructor"
-      | NamedConstructor [name] ->
+      | NamedConstructor names ->
         Typ.constr
-          (typename name)
-          (List.map ~f:(fun (_c, t) -> type_O t) ts)
-      | NamedConstructor names -> failwith "Named constructor with multiple names"
-     )
+          (full_typename names)
+          (List.map ~f:(fun (_c, t) -> type_O t) ts))
    | TypeVariable name ->
      Typ.var name
    | _ -> Typ.var (failwith (show_type_ t))
   )
-
-(* OCaml represents type declarations differently, which matters for
- * Records *)
-let rec typeKind (t: type_) : Parsetree.type_kind =
-  (match skip_located t with
-   (* TODO: extensible types use rtBase here *)
-   | RecordType { rtFields } ->
-     let fields =
-       List.map (seq2list rtFields)
-         ~f:(fun field ->
-             Type.field
-               (skip_postCommented field._key |> nolo)
-               (skip_preCommented field._value |> type_O))
-     in
-     Parsetree.Ptype_record fields
-   | _ -> failwith "not a kind"
-  )
-
 
 
 let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.structure =
@@ -428,11 +438,23 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
                            |> Typ.var
                           , Asttypes.Invariant))
        in
-
-       let kind = typeKind type_ in
-       let name = String.uncapitalize name in
-       [Str.type_ Recursive
-          [(Type.mk ~params ~kind (as_var name))]]
+       let t =
+         (match skip_located type_ with
+          | RecordType { rtFields } ->
+            (* TODO: extensible types use rtBase here *)
+            let fields =
+              List.map (seq2list rtFields)
+                ~f:(fun field ->
+                    Type.field
+                      (skip_postCommented field._key |> nolo)
+                      (skip_preCommented field._value |> type_O))
+            in
+            let kind = Parsetree.Ptype_record fields in
+            Type.mk ~params ~kind (as_type name)
+          | _ ->
+            Type.mk ~manifest:(type_O type_) (as_type name))
+       in
+       [Str.type_ Recursive [t]]
 
      | Datatype { nameWithArgs; tags } ->
        let (name, args) = skip_commented nameWithArgs in
@@ -454,9 +476,8 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
                ~args:(Parsetree.Pcstr_tuple args))
        in
        let kind = Parsetree.Ptype_variant constructors in
-       let name = String.uncapitalize name in
        [Str.type_ Recursive
-          [(Type.mk ~params ~kind (as_var name))]]
+          [(Type.mk ~params ~kind (as_type name))]]
 
      | _ -> failwith (show_declaration decl)
     )
