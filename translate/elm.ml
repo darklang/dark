@@ -50,10 +50,17 @@ let listJ (f: (bjs -> 'a)) (j: bjs) : 'a list =
   | `List l -> List.map ~f l
   | _ -> err "listJ" "not a list" j
 
-let intJ = Util.to_int
-let stringJ = Util.to_string
-let floatJ = Util.to_float
-let boolJ  = Util.to_bool
+let wrapYojson name (f: bjs -> 'a) (j: bjs) : 'a =
+  try
+    f j
+  with Yojson.Basic.Util.Type_error (msg, js) ->
+    err name msg j
+
+let intJ = wrapYojson "int" Util.to_int
+let stringJ = wrapYojson "string" Util.to_string
+    (* we get ints for float types *)
+let floatJ = wrapYojson "float" Util.to_number
+let boolJ = wrapYojson "bool" Util.to_bool
 let optionJ = Util.to_option
 let unitJ j =
   if j = `List []
