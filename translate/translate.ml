@@ -114,6 +114,24 @@ let todo name data =
              then String.slice desc 0 30
              else desc)
 
+let litExpO lit : Parsetree.expression =
+  match lit with
+  | Str (str, _l) -> Exp.constant (Const.string str)
+  | Boolean true -> Exp.construct (varname "true") None
+  | Boolean false -> Exp.construct (varname "false") None
+  | IntNum (i, repr) -> Exp.constant (Const.int i)
+  | Chr c -> Exp.constant (Const.char c)
+  | _ -> Exp.constant (Const.string (todo "literal" (show_literal lit)))
+
+let litPatO lit : Parsetree.pattern =
+  match lit with
+  | Str (str, _l) -> Pat.constant (Const.string str)
+  | Boolean true -> Pat.construct (varname "true") None
+  | Boolean false -> Pat.construct (varname "false") None
+  | IntNum (i, repr) -> Pat.constant (Const.int i)
+  | Chr c -> Pat.constant (Const.char c)
+  | _ -> Pat.constant (Const.string (todo "literal" (show_literal lit)))
+
 
 let rec patpO (patp: patternp) : Parsetree.pattern =
   let pats2list pats =
@@ -127,6 +145,8 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
   match patp with
   | Anything -> Pat.any ()
   | VarPattern name -> Pat.var (as_var name)
+  | PLiteral lit ->
+    litPatO lit
   | UnitPattern _cs ->
     Pat.construct (varname "()") None
   | TuplePattern ps ->
@@ -164,14 +184,7 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
 and patO ((_r, patp): pattern) : Parsetree.pattern =
   patpO patp
 
-let litExpO lit : Parsetree.expression =
-  match lit with
-  | Str (str, _l) -> Exp.constant (Const.string str)
-  | Boolean true -> Exp.construct (varname "true") None
-  | Boolean false -> Exp.construct (varname "false") None
-  | IntNum (i, repr) -> Exp.constant (Const.int i)
-  | Chr c -> Exp.constant (Const.char c)
-  | _ -> Exp.constant (Const.string (todo "literal" (show_literal lit)))
+
 
 let rec exprpO (exprp) : Parsetree.expression =
   let todoE name =
