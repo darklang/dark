@@ -22,7 +22,7 @@ let skip_withEol (a: 'a withEol) : 'a =
 
 let nolo = Location.mknoloc
 
-let correct_varname n : string =
+let correct_keyword n : string =
   if n = "new"
   then "new_"
   else if n = "end"
@@ -33,7 +33,17 @@ let correct_varname n : string =
   then "val_"
   else if n = "class"
   then "class_"
+  else if n = "assert"
+  then "assert_"
+  else if n = "exception"
+  then "exception_"
+  else if n = "function"
+  then "function_"
   else n
+
+
+let correct_varname n : string =
+  correct_keyword n
 
 let varname n : lid =
   n
@@ -55,14 +65,9 @@ let full_varname (names: string list) : lid =
 
 
 let correct_typename n : string =
-  let n = String.uncapitalize n in
-  if n = "exception"
-  then "exception_"
-  else if n = "function"
-  then "function_"
-  else if n = "class"
-  then "class_"
-  else n
+  n
+  |> String.uncapitalize
+  |> correct_keyword
 
 let typename n : lid =
   n
