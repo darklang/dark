@@ -247,7 +247,7 @@ def mark(should, f):
     should.elm_test_package = True
   elif "client/tests" in f:
     should.elm_test = True
-  elif ".elm" in f or ".js" in f or "client/DEBUG" in f:
+  elif ".elm" in f or ".js" in f and not ".bs.js" in f and not ".bc.js":
     should.elm_make = True
 
   # Web
@@ -288,6 +288,8 @@ def ignore(filename):
             , "server/static/elm.js"
             , "server/static/darkjs.bc.js"
             , "etags.json"
+            , "client2/node_modules"
+            , "client2/lib"
             , "build.ninja"
             , ".bsdeps"
             , ".bsbuild"
