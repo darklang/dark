@@ -198,18 +198,21 @@ let rec exprpO (exprp) : Parsetree.expression =
             Exp.case (patO pat) (exprO rhs))
     in
     Exp.match_ (exprO clause) patterns
-    (* Constructos with 1 arg *)
+    (* Constructors with 1 arg *)
   | App ((_r, VarExpr (TagRef (path, var))), [_c, arg], _line) ->
     Exp.construct
       (full_varname (path @ [var]))
       (Some (exprO arg))
-    (* Constructos with multiple args *)
+    (* Constructors with multiple args *)
   | App ((_r, VarExpr (TagRef (path, var))), args, _line) ->
     Exp.construct
       (full_varname (path @ [var]))
       (Some
          (Exp.tuple
             (List.map args ~f:(fun (_c, a) -> exprO a))))
+  | App ((_r, VarExpr (OpRef "::")), args, _line) ->
+    (* ocaml has no cons operator *)
+    exprpO (App ((_r, VarExpr (OpRef "List.cons")), args, _line))
   | App (fn, args, _line) ->
     Exp.apply
       (exprO fn)
