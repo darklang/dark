@@ -187,9 +187,6 @@ and patO ((_r, patp): pattern) : Parsetree.pattern =
 
 
 let rec exprpO (exprp) : Parsetree.expression =
-  let todoE name =
-    Exp.constant (Const.string (todo name (show_exprp exprp)))
-  in
   match exprp with
   | Case (((_c, clause, _c2), _unknown_bool), pats) ->
     let patterns =
@@ -287,19 +284,21 @@ let rec exprpO (exprp) : Parsetree.expression =
           Exp.apply
             (ref_O ref_)
             [(Asttypes.Nolabel, prev); as_arg rhs])
-  | If ((ifcond, ifbody), [], elsebody) ->
-    (* TODO: more clauses *)
-    Exp.ifthenelse
-      (ifcond |> skip_commented |> exprO)
-      (ifbody |> skip_commented |> exprO)
-      (Some (elsebody |> skip_preCommented |> exprO))
+  | If ((ifclause), rest, elsebody) ->
+    let rest = List.map rest ~f:skip_preCommented in
+    List.fold (ifclause :: rest)
+      ~init:(elsebody |> skip_preCommented |> exprO)
+      ~f:(fun prev (ifcond, ifbody) ->
+          Exp.ifthenelse
+            (ifcond |> skip_commented |> exprO)
+            (ifbody |> skip_commented |> exprO)
+            (Some prev))
 
   | AccessFunction field ->
     Exp.fun_ Asttypes.Nolabel None
       (Pat.var (as_var "x"))
       (Exp.field (Exp.ident (varname "x")) (varname field))
 
-  | _ -> todoE "expr"
 
 and exprO (_r, exprp) : Parsetree.expression =
   exprpO exprp
