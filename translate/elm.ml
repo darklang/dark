@@ -412,21 +412,17 @@ and exprp
   | App of app
   | ELiteral of literal
   | VarExpr of ref_
-
     (* | Unary UnaryOperator Expr *)
   | Binops of (expr * (comments * ref_ * comments * expr) list * bool)
   | Parens of expr commented
 
   | ExplicitList of explicitList
     (* | Range (Commented Expr) (Commented Expr) Bool *)
-    (*  *)
   | TupleExpr of tuple
   | TupleFunction of int
-    (*  *)
-  | Record of record
+  | RecordExpr of record
   | Access of expr * lowercaseIdentifier
   | AccessFunction of lowercaseIdentifier
-    (*  *)
   | Lambda of lambda
   | If of (ifClause * ((comments * ifClause) list) * (comments * expr))
   | Let of let_
@@ -439,15 +435,15 @@ and patternp
   | UnitPattern of comments
   | PLiteral of literal
   | VarPattern of lowercaseIdentifier
-  (* | OpPattern SymbolIdentifier *)
+  | OpPattern of symbolIdentifier
   | Data of data
-  (* | PatternParens (Commented Pattern) *)
+  | PatternParens of pattern commented
   | TuplePattern of pattern commented list
   | EmptyListPattern of comments
   | ListPattern of pattern commented list
   | ConsPattern of consPattern
-  (* | Record [Commented LowercaseIdentifier] *)
-  (* | Alias (Pattern, Comments) (Comments, LowercaseIdentifier) *)
+  | RecordPattern of lowercaseIdentifier commented list
+  | Alias of (pattern * comments) * (comments * lowercaseIdentifier)
 and data = uppercaseIdentifier list * (comments * pattern) list
 and pattern = patternp located
 and letDefinition =
@@ -507,7 +503,7 @@ and exprpJ j : exprp =
   |> orConstructor "AccessFunction" (fun a -> AccessFunction a) lowercaseIdentifierJ j
   |> orConstructor "Lambda" (fun a -> Lambda a) lambdaJ j
   |> orConstructor "If" (fun a -> If a) ifJ j
-  |> orRecordConstructor "Record" (fun a -> Record a) recordJ j
+  |> orRecordConstructor "Record" (fun a -> RecordExpr a) recordJ j
   |> orFail "exprp" j
 
 and exprJ j : expr =
@@ -621,6 +617,7 @@ and patternpJ j : patternp =
   |> orRecordConstructor "ConsPattern" (fun t -> ConsPattern t) consPatternJ j
   |> orConstructor "Data" (fun t -> Data t) dataJ j
   |> orConstructor "Tuple" (fun t -> TuplePattern t) (listJ (commentedJ patternJ)) j
+  |> orConstructor "Record" (fun t -> RecordPattern t) (listJ (commentedJ lowercaseIdentifierJ)) j
   |> orFail "patternp" j
 
 and dataJ j : data =
@@ -639,7 +636,7 @@ and typepJ (j: bjs) : typep =
   |> orConstructor "UnitType" (fun d -> UnitType d) commentsJ j
   |> orConstructor "TypeVariable" (fun d -> TypeVariable d) lowercaseIdentifierJ j
   |> orRecordConstructor "RecordType" (fun d -> RecordType d) recordTypeJ j
-  |> orFail "declaration" j
+  |> orFail "typep" j
 
 and type_J (j: bjs) : type_ =
   locatedJ typepJ j
