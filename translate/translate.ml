@@ -29,6 +29,8 @@ let correct_varname n : string =
   then "end_"
   else if n = "rec"
   then "rec_"
+  else if n = "val"
+  then "val_"
   else n
 
 let varname n : lid =
@@ -125,6 +127,8 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
   match patp with
   | Anything -> Pat.any ()
   | VarPattern name -> Pat.var (as_var name)
+  | UnitPattern _cs ->
+    Pat.construct (varname "()") None
   | TuplePattern ps ->
     let ps = List.map ~f:skip_commented ps in
     Pat.tuple (List.map ~f:patO ps)
