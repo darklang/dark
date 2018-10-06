@@ -217,6 +217,12 @@ let rec exprpO (exprp) : Parsetree.expression =
       (ifbody |> skip_commented |> exprO)
       (Some (elsebody |> skip_preCommented |> exprO))
 
+  | AccessFunction field ->
+    Exp.fun_ Asttypes.Nolabel None
+      (Pat.var (as_var "x"))
+      (Exp.field (Exp.ident (varname "x")) (varname field))
+
+
   | _ -> Exp.constant (Const.string (todo "expr" (show_exprp exprp)))
 
 and exprO (_r, exprp) : Parsetree.expression =
