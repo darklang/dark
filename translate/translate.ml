@@ -78,13 +78,14 @@ let openCommentedList2list (l: 'a openCommentedList) : 'a list =
 
 
 
+let todosRemaining = ref []
 
-let todo name str =
-  if String.length str >= 20
-  then
-    "todo (" ^ name ^ "): " ^ (String.slice str 0 20)
-  else
-    "todo (" ^ name ^ "): " ^ str
+let todo name data =
+  let desc = "(" ^ name ^ "): " ^ data in
+  todosRemaining := !todosRemaining @ [desc];
+  "todo " ^ (if String.length desc >= 30
+             then String.slice desc 0 30
+             else desc)
 
 
 let rec patpO (patp: patternp) : Parsetree.pattern =
@@ -467,23 +468,37 @@ let to_ocaml (m: Elm.module_) : (Parsetree.structure * Reason_comment.t list) =
   (file, [])
 
 let _ =
+  let mainExit () =
+    let count = List.length !todosRemaining in
+    if count > 0
+    then
+      (prerr_endline ("\n\n\n\n\n" ^ (string_of_int count) ^ " todos remain");
+       List.iter ~f:prerr_endline !todosRemaining;
+      exit (-1))
+    else
+      exit 0
+  in
   if Array.length Sys.argv > 1 && Sys.argv.(1) = "--parse"
   then
+
     try
       In_channel.stdin
       |> Yojson.Basic.from_channel
       |> Elm.moduleJ
       |> Elm.show_module_
       |> OldStr.global_replace (OldStr.regexp "Translate\\.") ""
-      |> print_endline
+      |> print_endline;
+      mainExit ()
+
     with (Elm.E (msg, json)) ->
       Printexc.print_backtrace stderr;
       print_endline (Yojson.Basic.pretty_to_string json);
       prerr_endline msg;
-      ()
+      exit (-1)
   else
   if Array.length Sys.argv > 1 && Sys.argv.(1) = "--debug"
   then
+
     let migration =
       let module Versions = Migrate_parsetree_versions in
       Versions.migrate Versions.ocaml_404 Versions.ocaml_current
@@ -495,7 +510,10 @@ let _ =
       Format.str_formatter;
       Format.flush_str_formatter ()
       |> print_endline;
+    mainExit ()
+
   else
+
     try
       let m =
         In_channel.stdin
@@ -508,16 +526,17 @@ let _ =
         Format.str_formatter;
       Format.flush_str_formatter ()
       |> print_endline;
-      ()
+      mainExit ()
+
     with
     | (Elm.E (msg, json)) ->
       Printexc.print_backtrace stderr;
       print_endline (Yojson.Basic.pretty_to_string json);
       prerr_endline msg;
-      ()
+      exit (-1)
     | e ->
       Printexc.print_backtrace stderr;
       prerr_endline (Exn.to_string e);
-      ()
+      exit (-1)
 
 
