@@ -17,6 +17,9 @@ let skip_commented (a: 'a commented) : 'a =
 let skip_located (a: 'a located) : 'a =
   Tuple.T2.get2 a
 
+let skip_eol (a: 'a withEol) : 'a =
+  Tuple.T2.get1 a
+
 let nolo = Location.mknoloc
 
 let correct_name s : string =
@@ -47,6 +50,21 @@ let fullname (names: string list) : lid =
 let seq2list (s: 'a sequence) : 'a list =
   List.map s
     ~f:(fun (_c, (_c2, (a, _s))) -> a)
+
+let openCommentedList2list (l: 'a openCommentedList) : 'a list =
+  let (init, last) = l in
+  let newInit = List.map init
+      ~f:(fun i -> i
+                   |> skip_commented
+                   |> skip_eol)
+  in
+  let newLast = last
+                |> skip_preCommented
+                |> skip_eol
+  in
+  newInit @ [newLast]
+
+
 
 
 let todo name str =
@@ -304,6 +322,28 @@ let importsO ((_c, i): Elm.imports) : Parsetree.structure =
     )
   |> List.concat
 
+let rec type_O (t: type_) : Parsetree.core_type =
+  (match skip_located t with
+   (* | FunctionType ft -> *)
+   (*   let (first, _eol) = ft.first in *)
+   (*   let rest = *)
+   (*     List.map ~f:(fun (_c1, _c2, type_, _eol) -> type_) *)
+   (*       ft.rest *)
+   (*   in *)
+   (*   List.map ~f:type_O (first :: rest) *)
+   (*  *)
+   (* Typ.arrow  *)
+   (* | TypeConstruction (tc, ts) -> *)
+   (*   (match tc with *)
+   (*    | TupleConstructor i -> failwith "tupleconstructor" *)
+   (*    | NamedConstructor nc -> *)
+   (*      failwith "namedconstructor" (*nc*)) *)
+   | TypeVariable name ->
+     Typ.var name
+   | _ -> Typ.var (todo "type" (show_type_ t))
+  )
+
+
 
 let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.structure =
   match s with
@@ -322,29 +362,47 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
        (*      names *)
        (*    | OpRef n -> [n]) *)
        (* in *)
-       (* let rec type_O (_r, t) = *)
-       (*   (match t with *)
-       (*    | FunctionType ft -> *)
-       (*      let (first, _eol) = ft.first in *)
-       (*      let rest = *)
-       (*        List.map ~f:(fun (_c1, _c2, type_, _eol) -> type_) *)
-       (*          ft.rest *)
-       (*      in *)
-       (*      [] *)
-       (*      (* TODO: List.map ~f:type_O (first :: rest) *) *)
-       (*    | TypeConstruction (tc, ts) -> *)
-       (*      (match tc with *)
-       (*       | TupleConstructor i -> failwith "tupleconstructor" *)
-       (*       | NamedConstructor nc -> *)
-       (*         failwith "namedconstructor" (*nc*))) *)
-       (* in *)
        (* type_O type_ *)
      | Definition ((_, VarPattern name), args, _c, expr) ->
        let args = List.map args
            ~f:(fun (_l, pat) -> pat)
        in
        [toplevelLet name args expr]
-     | _ -> failwith (todo "declaration" (show_declaration decl))
+     | TypeAlias (_cs, names, (_c, type_)) ->
+     (* type name is a constr *)
+       (* type arguments is constr with args *)
+       (* record field is Type.field *)
+
+       (* There isn't a record helper, sp use Ptype_record  *)
+       (* use Typ.mk *)
+
+       let kind = Parsetree.Ptype_record [Type.field (as_var "x") (Typ.constr (varname "int") [])] in
+       let typ = Type.mk ~kind (as_var "todo") in
+       [Str.type_ Nonrecursive [typ]]
+     | Datatype { nameWithArgs; tags } ->
+       let (name, args) = skip_commented nameWithArgs in
+       let params =
+         List.map args
+           ~f:(fun arg -> (arg
+                           |> skip_preCommented
+                           |> Typ.var
+                          , Asttypes.Invariant))
+       in
+       let constructors =
+         tags
+         |> openCommentedList2list
+         |> List.map ~f:(fun (name, types) ->
+             let args = List.map types
+                 ~f:(fun t -> t |> skip_preCommented |> type_O)
+             in
+             Type.constructor (as_var name)
+               ~args:(Parsetree.Pcstr_tuple args))
+       in
+       let kind = Parsetree.Ptype_variant constructors in
+       [Str.type_ Nonrecursive
+          [(Type.mk ~params ~kind (as_var name))]]
+
+     | _ -> failwith (show_declaration decl)
     )
 
 
