@@ -6,10 +6,15 @@ set -euo pipefail
 ./translate/build
 
 ~/.local/bin/elm-format --json --elm-version 0.18 --stdin < $1 \
-  | ./translate/_build/default/translate.exe > out
+  | ./translate/_build/default/translate.exe > out 2> stderr \
+  && ocamlformat --inplace out
 
-ocamlformat --inplace out
-
+code=$?
 cat out
+cat stderr >&2
+if [ code = 0 ]; then
+  rm out
+  rm stderr
+fi
 
-rm out
+exit $code
