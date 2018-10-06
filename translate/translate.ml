@@ -39,6 +39,8 @@ let correct_keyword n : string =
   then "exception_"
   else if n = "function"
   then "function_"
+  else if n = "open"
+  then "open_"
   else n
 
 
