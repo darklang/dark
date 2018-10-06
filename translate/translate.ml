@@ -138,12 +138,10 @@ let rec exprpO (exprp) : Parsetree.expression =
     Exp.construct (fullname (path @ [var])) None
   | VarExpr (OpRef name) ->
     Exp.construct (varname name) None
-  | Record { base = None; fields } ->
-    failwith "record x"
-    (* let fields = [] in *)
-    (* Exp.record fields None *)
-
-  | Record { base = Some (_c, var, _c2); fields } ->
+  | RecordExpr { base; fields } ->
+    let base = Option.map base
+        ~f:(fun (_c, var, _c2) -> Exp.ident (varname var))
+    in
     let fields = seq2list fields in
     let fields =
       List.map fields
@@ -151,7 +149,7 @@ let rec exprpO (exprp) : Parsetree.expression =
           ( skip_postCommented field._key |> varname
           , skip_preCommented field._value |> exprO))
     in
-    Exp.record fields (Some (Exp.ident (varname var)))
+    Exp.record fields base
 
   | TupleExpr (exprs, _l) ->
     Exp.tuple
