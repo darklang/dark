@@ -150,6 +150,8 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       Pat.construct n None
     else
       Pat.construct n (Some tuple)
+  | Alias ((pat, _cs), (_cs2, id)) ->
+    Pat.alias (patO pat) (nolo id)
   | _ ->
     Pat.constant
       (Const.string (todo "pattern" (show_patternp patp)))
