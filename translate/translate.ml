@@ -122,8 +122,8 @@ let litExpO lit : Parsetree.expression =
   | Boolean true -> Exp.construct (varname "true") None
   | Boolean false -> Exp.construct (varname "false") None
   | IntNum (i, repr) -> Exp.constant (Const.int i)
+  | FloatNum (f, repr) -> Exp.constant (Const.float (string_of_float f))
   | Chr c -> Exp.constant (Const.char c)
-  | _ -> Exp.constant (Const.string (todo "literal" (show_literal lit)))
 
 let litPatO lit : Parsetree.pattern =
   match lit with
@@ -131,8 +131,8 @@ let litPatO lit : Parsetree.pattern =
   | Boolean true -> Pat.construct (varname "true") None
   | Boolean false -> Pat.construct (varname "false") None
   | IntNum (i, repr) -> Pat.constant (Const.int i)
+  | FloatNum (f, repr) -> Pat.constant (Const.float (string_of_float f))
   | Chr c -> Pat.constant (Const.char c)
-  | _ -> Pat.constant (Const.string (todo "literal" (show_literal lit)))
 
 
 let rec patpO (patp: patternp) : Parsetree.pattern =
