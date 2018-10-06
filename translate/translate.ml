@@ -89,6 +89,14 @@ let todo name data =
 
 
 let rec patpO (patp: patternp) : Parsetree.pattern =
+  let pats2list pats =
+    List.fold pats
+      ~init:(Pat.construct (varname "[]") None)
+      ~f:(fun prev arg ->
+          Pat.construct
+            (varname "::")
+            (Some (Pat.tuple [patO arg; prev])))
+  in
   match patp with
   | Anything -> Pat.any ()
   | VarPattern name -> Pat.var (as_var name)
@@ -96,17 +104,17 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
     let ps = List.map ~f:skip_commented ps in
     Pat.tuple (List.map ~f:patO ps)
   | EmptyListPattern _cs ->
-    Pat.construct (varname "[]") None
+    pats2list []
+  | ListPattern pats ->
+    pats
+    |> List.map ~f:skip_commented
+    |> pats2list
   | ConsPattern { cpFirst; cpRest } ->
     let pats =
       Tuple.T2.get1 cpFirst
       :: (List.map cpRest ~f:(fun (_cs, _cs2, pat, _wtf) -> pat))
     in
-
-    List.fold pats
-      ~init:(Pat.construct (varname "[]") None)
-      ~f:(fun prev arg ->
-          Pat.construct (varname "::") (Some (Pat.tuple [patO arg; prev])))
+    pats2list pats
 
 
 
