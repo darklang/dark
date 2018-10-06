@@ -542,6 +542,12 @@ and binopsJ j =
     boolJ
     j
 
+and aliasJ j =
+  pairJ
+    (pairJ patternJ commentsJ)
+    (pairJ commentsJ lowercaseIdentifierJ)
+    j
+
 and recordJ j : record =
   expect_tag "Record" j;
   { base = member "base" ~nullable:true (optionJ (commentedJ lowercaseIdentifierJ)) j
@@ -618,6 +624,7 @@ and patternpJ j : patternp =
   |> orConstructor "Data" (fun t -> Data t) dataJ j
   |> orConstructor "Tuple" (fun t -> TuplePattern t) (listJ (commentedJ patternJ)) j
   |> orConstructor "Record" (fun t -> RecordPattern t) (listJ (commentedJ lowercaseIdentifierJ)) j
+  |> orConstructor "Alias" (fun (a,b) -> Alias (a,b)) aliasJ j
   |> orFail "patternp" j
 
 and dataJ j : data =
