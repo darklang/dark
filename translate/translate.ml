@@ -22,12 +22,14 @@ let skip_withEol (a: 'a withEol) : 'a =
 
 let nolo = Location.mknoloc
 
-let correct_varname s : string =
-  if s = "new"
+let correct_varname n : string =
+  if n = "new"
   then "new_"
-  else if s = "end"
+  else if n = "end"
   then "end_"
-  else s
+  else if n = "rec"
+  then "rec_"
+  else n
 
 let varname n : lid =
   n
@@ -168,6 +170,9 @@ let litExpO lit : Parsetree.expression =
   | _ -> Exp.constant (Const.string (todo "literal" (show_literal lit)))
 
 let rec exprpO (exprp) : Parsetree.expression =
+  let todoE name =
+    Exp.constant (Const.string (todo name (show_exprp exprp)))
+  in
   match exprp with
   | Case (((_c, clause, _c2), _unknown_bool), pats) ->
     let patterns =
@@ -238,8 +243,14 @@ let rec exprpO (exprp) : Parsetree.expression =
               in
               let vb = Vb.mk (patO namePat) let_ in
               (Exp.let_ Nonrecursive [vb] prev)
-            | LetAnnotation _annot -> Exp.unreachable ()
-            | LetComment _c -> Exp.unreachable ())
+            | LetAnnotation _annot ->
+              let rhs = Exp.constant (Const.string "type annotation") in
+              let vb = Vb.mk (Pat.var (nolo "_")) rhs in
+              (Exp.let_ Nonrecursive [vb] prev)
+            | LetComment _c ->
+              let rhs = Exp.constant (Const.string "comment") in
+              let vb = Vb.mk (Pat.var (nolo "_")) rhs in
+              (Exp.let_ Nonrecursive [vb] prev))
   | ExplicitList { terms } ->
     let terms = List.map (seq2list terms) ~f:exprO in
     List.fold (List.rev terms)
@@ -268,8 +279,7 @@ let rec exprpO (exprp) : Parsetree.expression =
       (Pat.var (as_var "x"))
       (Exp.field (Exp.ident (varname "x")) (varname field))
 
-
-  | _ -> Exp.constant (Const.string (todo "expr" (show_exprp exprp)))
+  | _ -> todoE "expr"
 
 and exprO (_r, exprp) : Parsetree.expression =
   exprpO exprp
@@ -433,6 +443,7 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
        [toplevelLet name args expr]
      | TypeAlias (_cs, nameWithArgs, (_c, type_)) ->
        let (name, args) = skip_commented nameWithArgs in
+       let name = String.uncapitalize name in
        let params =
          List.map args
            ~f:(fun arg -> (arg
