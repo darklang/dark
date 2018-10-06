@@ -278,6 +278,13 @@ type unaryOperator =
   Negative
 [@@deriving show]
 
+let unaryOperatorJ j : unaryOperator =
+  match j with
+  | `String "Negative" -> Negative
+  | `List [] -> Negative (* unsure why, but that's what I see *)
+  | _ -> err "unaryOperator" "no matched" j
+[@@deriving show]
+
 type forceMultiline = bool
 [@@deriving show]
 
@@ -419,7 +426,7 @@ and exprp
   | App of app
   | ELiteral of literal
   | VarExpr of ref_
-    (* | Unary UnaryOperator Expr *)
+  | Unary of unaryOperator * expr
   | Binops of (expr * (comments * ref_ * comments * expr) list * bool)
   | Parens of expr commented
 
@@ -504,6 +511,7 @@ and exprpJ j : exprp =
   |> orConstructor "Parens" (fun a -> Parens a) (commentedJ exprJ) j
   |> orConstructor "Let" (fun a -> Let a) let_J j
   |> orConstructor "Binops" (fun a -> Binops a) binopsJ j
+  |> orConstructor "Unary" (fun (a,b) -> Unary (a,b)) unaryJ j
 
   |> orRecordConstructor "ExplicitList" (fun a -> ExplicitList a) explicitListJ j
   |> orConstructor "Access" (fun (a,b) -> Access (a,b)) (pairJ exprJ lowercaseIdentifierJ) j
@@ -549,6 +557,11 @@ and binopsJ j =
     boolJ
     j
 
+and unaryJ j =
+  pairJ
+    unaryOperatorJ
+    exprJ
+    j
 and aliasJ j =
   pairJ
     (pairJ patternJ commentsJ)
