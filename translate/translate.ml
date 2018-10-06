@@ -31,6 +31,8 @@ let correct_varname n : string =
   then "rec_"
   else if n = "val"
   then "val_"
+  else if n = "class"
+  then "class_"
   else n
 
 let varname n : lid =
@@ -164,6 +166,12 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       :: (List.map cpRest ~f:(fun (_cs, _cs2, pat, _wtf) -> pat))
     in
     pats2list pats
+  | RecordPattern fields ->
+    let fields = List.map fields
+        ~f:(fun (_c, name, _c2) ->
+            (varname name, Pat.var (as_var name)))
+    in
+    Pat.record fields Closed
   | Data (names, args) ->
     let tuple =
       args
