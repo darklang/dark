@@ -815,7 +815,7 @@ type declaration
   | TypeAnnotation of typeAnnotation
   | Datatype of datatype
   | TypeAlias of typeAlias
-  (* | PortAnnotation (Commented LowercaseIdentifier) Comments Type *)
+  | PortAnnotation of (lowercaseIdentifier commented) * comments * type_
   (* | PortDefinition (Commented LowercaseIdentifier) Comments Expression.Expr *)
   (* | Fixity Assoc Comments Int Comments Var.Ref *)
   (* | Fixity_0_19 (PreCommented Assoc) (PreCommented Int) (Commented SymbolIdentifier) (PreCommented LowercaseIdentifier) *)
@@ -856,12 +856,20 @@ let datatypeJ j =
   ; tags = member "tags" (openCommentedListJ (nameWithArgsJ uppercaseIdentifierJ type_J)) j
   }
 
+let portAnnotationJ j =
+  tripleJ
+    (commentedJ lowercaseIdentifierJ)
+    commentsJ
+    type_J
+    j
+
 
 let declarationJ (j: bjs) : declaration =
   constructor "Definition" (fun d -> Definition d) definitionJ j
   |> orConstructor "TypeAnnotation" (fun t -> TypeAnnotation t) typeAnnotationJ j
   |> orRecordConstructor "Datatype" (fun d -> Datatype d) datatypeJ j
   |> orConstructor "TypeAlias" (fun t -> TypeAlias t) typeAliasJ j
+  |> orConstructor "PortAnnotation" (fun (a,b,c) -> PortAnnotation (a,b,c)) portAnnotationJ j
   |> orFail "declaration" j
 
 type imports =
