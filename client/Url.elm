@@ -11,7 +11,6 @@ import Html.Attributes as Attrs
 import Navigation
 
 -- dark
-import Util
 import DontPort
 import Types exposing (..)
 import Prelude exposing (..)

@@ -10,7 +10,6 @@ import List.Extra as LE
 import Maybe.Extra as ME
 
 -- dark
-import Util
 import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
