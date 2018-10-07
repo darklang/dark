@@ -238,7 +238,7 @@ type alias RPCParams = { ops : List Op }
 
 type alias ExecuteFunctionRPCParams =
   { tlid: TLID
-  , traceID : String
+  , traceID : TraceID
   , callerID : ID
   , args : List Dval
   , fnName : String
@@ -327,10 +327,8 @@ type alias Class = String
 type Pick = PickA
           | PickB
 
-type alias FFIntID = Int
 type alias FFIsExpanded = Bool
-
-type alias FlagsVS = Dict FFIntID FFIsExpanded
+type alias FlagsVS = Dict Int FFIsExpanded
 
 -----------------------------
 -- AST
@@ -479,7 +477,7 @@ type alias AVDict = Dict Int (List VarName)
 type alias AnalysisResults = { liveValues : LVDict
                              , availableVarnames : AVDict
                              }
-type alias Analyses = Dict TraceID AnalysisResults
+type alias Analyses = Dict String AnalysisResults -- TraceID
 
 -----------------------------
 -- From the server
