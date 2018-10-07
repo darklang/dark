@@ -14,6 +14,7 @@ import VirtualDom
 import Svg.Attributes as SA
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
@@ -50,7 +51,7 @@ viewDarkType vs c dt =
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
   let width = approxWidth e
-      widthClass = [wc ("width-" ++ Util.fromInt width)]
+      widthClass = [wc ("width-" ++ DontPort.fromInt width)]
                    ++ (if width > 120 then [wc "too-wide"] else [])
       configs = idConfigs
                 ++ c
@@ -111,7 +112,7 @@ viewNFieldName vs config f =
   text vs config f
 
 depthString : Int -> String
-depthString n = "precedence-" ++ (Util.fromInt n)
+depthString n = "precedence-" ++ (DontPort.fromInt n)
 
 viewRopArrow : ViewState -> Html.Html Msg
 viewRopArrow vs =
@@ -154,8 +155,8 @@ viewRopArrow vs =
   Html.node
     "rop-arrow"
     -- Force the rop-webcomponent to update to fix the size
-    [ VirtualDom.attribute "update" (Util.random () |> Util.fromInt)
-    , VirtualDom.attribute "tlid" (Util.fromInt (deTLID vs.tl.id))]
+    [ VirtualDom.attribute "update" (Util.random () |> DontPort.fromInt)
+    , VirtualDom.attribute "tlid" (DontPort.fromInt (deTLID vs.tl.id))]
     [svg]
 
 

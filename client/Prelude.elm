@@ -2,7 +2,7 @@ module Prelude exposing (..)
 
 -- dark
 import Types exposing (..)
-import Util
+import DontPort
 
 --------------------------------------
 -- CursorState
@@ -10,7 +10,7 @@ import Util
 
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
-  let stringID = (Util.fromInt (deTLID tlid)) ++ (Util.fromInt idx)
+  let stringID = (DontPort.fromInt (deTLID tlid)) ++ (DontPort.fromInt idx)
       intID = Result.withDefault 0 (String.toInt stringID)
   in
     (ID intID)

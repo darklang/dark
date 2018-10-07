@@ -11,6 +11,7 @@ import Maybe.Extra as ME
 
 -- dark
 import Util
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -261,7 +262,7 @@ header name list addHandler =
     [ Attrs.class "header" ]
     [ text "title" name
     , text "parens" "("
-    , text "count" (list |> List.length |> Util.fromInt)
+    , text "count" (list |> List.length |> DontPort.fromInt)
     , text "parens" ")",
     case addHandler of
         Just msg ->
@@ -383,7 +384,7 @@ viewUserFunctions m =
                   Nothing
             ]
           else
-            let countedName = name ++ " (" ++ (Util.fromInt useCount) ++ ")"
+            let countedName = name ++ " (" ++ (DontPort.fromInt useCount) ++ ")"
             in [ span "name" [fnLink fn True countedName] ]
 
       fnHtml fn =

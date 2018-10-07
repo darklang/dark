@@ -11,6 +11,7 @@ import Maybe.Extra as ME
 
 -- dark
 import Util
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
@@ -154,7 +155,7 @@ div vs configs content =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
       idClasses = case thisID of
-                    Just id -> ["blankOr", "id-" ++ Util.fromInt (deID id)]
+                    Just id -> ["blankOr", "id-" ++ DontPort.fromInt (deID id)]
                     _ -> []
       allClasses = classes
                   ++ idClasses

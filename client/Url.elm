@@ -12,6 +12,7 @@ import Navigation
 
 -- dark
 import Util
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
@@ -29,10 +30,10 @@ urlOf page pos =
   let head =
         case page of
           Toplevels _ -> []
-          Fn tlid _ -> [("fn", Util.fromInt (deTLID tlid))]
+          Fn tlid _ -> [("fn", DontPort.fromInt (deTLID tlid))]
       tail =
-        [ ("x", Util.fromInt pos.x)
-        , ("y", Util.fromInt pos.y) ]
+        [ ("x", DontPort.fromInt pos.x)
+        , ("y", DontPort.fromInt pos.y) ]
   in hashUrlParams (head ++ tail)
 
 urlFor : Page -> String

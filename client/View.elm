@@ -9,6 +9,7 @@ import Html.Events as Events
 import List.Extra as LE
 
 -- dark
+import DontPort
 import Analysis
 import Types exposing (..)
 import Prelude exposing (..)
@@ -64,8 +65,8 @@ viewCanvas m =
                 case m.currentPage of
                   Toplevels _ -> m.canvas.offset
                   Fn _ _ -> m.canvas.fnOffset
-              x = Util.fromInt (-offset.x)
-              y = Util.fromInt (-offset.y)
+              x = DontPort.fromInt (-offset.x)
+              y = DontPort.fromInt (-offset.y)
           in
           "translate(" ++ x ++ "px, " ++ y ++ "px)"
 
@@ -139,9 +140,9 @@ viewTL_ m tlid =
           _ -> []
       class =
         [ selected
-        , "tl-" ++ Util.fromInt (deTLID tl.id)
+        , "tl-" ++ DontPort.fromInt (deTLID tl.id)
         , "toplevel"
-        , "cursor-" ++ (Util.fromInt (Analysis.cursor m tl.id))
+        , "cursor-" ++ (DontPort.fromInt (Analysis.cursor m tl.id))
         ]
         |> String.join " "
 

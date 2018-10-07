@@ -17,7 +17,7 @@ d : String -> List (() -> Bool) -> Test
 d s fs = describe s (List.indexedMap
                        (\i f ->
                           test
-                          ("test " ++ (Util.fromInt i))
+                          ("test " ++ (DontPort.fromInt i))
                           (\_ -> Expect.true "" (f ())))
                        fs
                     )
