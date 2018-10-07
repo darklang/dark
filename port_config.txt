@@ -1,2 +1,4 @@
 DontPort.fromInt:string_of_int
 DontPort.fromFloat:string_of_float
+(string, (.*)) dict:\1 Belt.Map.String.t
+(int, (.*)) dict:\1 Belt.Map.Int.t
