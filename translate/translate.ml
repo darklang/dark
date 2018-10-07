@@ -5,23 +5,9 @@ open Elm
 open Migrate_parsetree.Ast_404
 open Ast_helper
 
-let skip_preCommented (a: 'a preCommented) : 'a =
-  Tuple.T2.get2 a
-
-let skip_postCommented (a: 'a postCommented) : 'a =
-  Tuple.T2.get1 a
-
-let skip_commented (a: 'a commented) : 'a =
-  Tuple.T3.get2 a
-
-let skip_located (a: 'a located) : 'a =
-  Tuple.T2.get2 a
-
-let skip_withEol (a: 'a withEol) : 'a =
-  Tuple.T2.get1 a
-
-let nolo = Location.mknoloc
-
+(* ------------------------ *)
+(* Rename appropriately *)
+(* ------------------------ *)
 let keywords =
   [ "and"
   ; "as"
@@ -83,15 +69,30 @@ let keywords =
   ; "with"
   ]
 
-
 let correct_keyword n : string =
   if List.mem ~equal:(=) keywords n
   then n ^ "_"
   else n
 
-
 let correct_varname n : string =
   correct_keyword n
+
+let ocaml_typename_for n : string =
+  if n = "maybe"
+  then "option"
+  else n
+
+let correct_typename n : string =
+  n
+  |> String.uncapitalize
+  |> correct_keyword
+  |> ocaml_typename_for
+
+
+(* ------------------------ *)
+(* Create AST elements from strings *)
+(* ------------------------ *)
+let nolo = Location.mknoloc
 
 let varname n : lid =
   n
@@ -116,45 +117,6 @@ let full_varname (names: string list) : lid =
   |> fun x -> Option.value_exn x
   |> nolo
 
-let ocaml_typename_for n : string =
-  if n = "maybe"
-  then "option"
-  else n
-
-let parse_rename_config () : (string * string) list =
-  try
-  "port_config.txt"
-  |> Core.In_channel.read_lines
-  |> List.map ~f:(fun l ->
-      match String.split l ~on:':' with
-      | [k;v] -> (k,v)
-      | _ -> failwith ("Incorrect format (should be `name:replacement`: " ^ l))
-  with Sys_error msg as e ->
-    if msg = "port_config.txt: No such file or directory"
-    then
-      (prerr_endline "No port_config.txt";
-       [])
-    else
-      raise e
-
-let rename_config = parse_rename_config ()
-let type_rename_via_config n : string =
-  let name = ref n in
-  List.iter rename_config
-    ~f:(fun (src, replace) ->
-        if n = src
-        then
-          name := replace
-      );
-  !name
-
-let correct_typename n : string =
-  n
-  |> String.uncapitalize
-  |> correct_keyword
-  |> type_rename_via_config
-  |> ocaml_typename_for
-
 let typename n : lid =
   n
   |> correct_typename
@@ -167,9 +129,6 @@ let full_typename names : lid =
   |> (function (hd::rest) -> correct_typename hd :: rest
                | [] -> [])
   |> List.rev
-  |> String.concat ~sep:"."
-  |> type_rename_via_config
-  |> String.split ~on:'.'
   |> Longident.unflatten
   |> fun x -> Option.value_exn x
   |> nolo
@@ -180,6 +139,30 @@ let as_type n : str =
   |> nolo
 
 
+(* ------------------------ *)
+(* TODOs *)
+(* ------------------------ *)
+
+let todosRemaining = ref []
+
+let todo name data =
+  let desc = "(" ^ name ^ "): " ^ data in
+  todosRemaining := !todosRemaining @ [desc];
+  "todo " ^ (if String.length desc >= 30
+             then String.slice desc 0 30
+             else desc)
+
+
+
+(* ------------------------ *)
+(* AST conversions *)
+(* ------------------------ *)
+
+let skip_preCommented (a: 'a preCommented) : 'a = Tuple.T2.get2 a
+let skip_postCommented (a: 'a postCommented) : 'a = Tuple.T2.get1 a
+let skip_commented (a: 'a commented) : 'a = Tuple.T3.get2 a
+let skip_located (a: 'a located) : 'a = Tuple.T2.get2 a
+let skip_withEol (a: 'a withEol) : 'a = Tuple.T2.get1 a
 
 let seq2list (s: 'a sequence) : 'a list =
   List.map s
@@ -197,17 +180,6 @@ let openCommentedList2list (l: 'a openCommentedList) : 'a list =
                 |> skip_withEol
   in
   newInit @ [newLast]
-
-
-
-let todosRemaining = ref []
-
-let todo name data =
-  let desc = "(" ^ name ^ "): " ^ data in
-  todosRemaining := !todosRemaining @ [desc];
-  "todo " ^ (if String.length desc >= 30
-             then String.slice desc 0 30
-             else desc)
 
 let litExpO lit : Parsetree.expression =
   match lit with
@@ -634,6 +606,35 @@ let to_ocaml (m: Elm.module_) : (Parsetree.structure * Reason_comment.t list) =
   let file = moduleO m in
   (file, [])
 
+(* ------------------------ *)
+(* post process *)
+(* ------------------------ *)
+let parse_rename_config () : (string * string) list =
+  try
+  "port_config.txt"
+  |> Core.In_channel.read_lines
+  |> List.map ~f:(fun l ->
+      match String.split l ~on:':' with
+      | [k;v] -> (k,v)
+      | _ -> failwith ("Incorrect format (should be `name:replacement`: " ^ l))
+  with Sys_error msg as e ->
+    if msg = "port_config.txt: No such file or directory"
+    then
+      (prerr_endline "No port_config.txt";
+       [])
+    else
+      raise e
+
+let rename_config = parse_rename_config ()
+
+let post_process str : string =
+  List.fold ~init:str rename_config
+    ~f:(fun prev (pattern,template) ->
+        Re2.rewrite_exn (Re2.create_exn pattern) ~template prev)
+
+(* ------------------------ *)
+(* main *)
+(* ------------------------ *)
 let _ =
   let mainExit () =
     let count = List.length !todosRemaining in
@@ -692,6 +693,7 @@ let _ =
       |> Reason_toolchain.ML.print_implementation_with_comments
         Format.str_formatter;
       Format.flush_str_formatter ()
+      |> post_process
       |> print_endline;
       mainExit ()
 
