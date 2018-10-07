@@ -13,7 +13,6 @@ import Blank as B
 import Pointer as P
 import AST
 import Analysis
-import Nineteen.Debug as Debug
 
 
 trigger : String -> IntegrationTestState
@@ -66,21 +65,21 @@ trigger test_name =
     "execute_function_works" -> execute_function_works
     "function_version_renders" -> function_version_renders
     "only_backspace_out_of_strings_on_last_char" -> only_backspace_out_of_strings_on_last_char
-    n -> Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
+    n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
 pass = Ok ()
 
 fail : a -> TestResult
-fail v = Err (Debug.toString v)
+fail v = Err (toString v)
 
 onlyTL : Model -> Toplevel
 onlyTL m =
   let len = List.length m.toplevels
       _ = if len == 0
-          then Debug.todo ("no toplevels")
+          then Debug.crash ("no toplevels")
           else if len > 1
-          then Debug.todo ("too many toplevels: " ++ (Debug.toString m.toplevels))
+          then Debug.crash ("too many toplevels: " ++ (toString m.toplevels))
           else "nothing to see here" in
   m.toplevels
   |> List.head

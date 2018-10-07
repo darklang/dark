@@ -5,7 +5,6 @@ import Test exposing (..)
 import Expect exposing (Expectation, pass, fail)
 
 -- builtins
-import Nineteen.Debug as Debug
 
 -- libs
 
@@ -16,7 +15,7 @@ import Util
 listContainsOrdered : Test
 listContainsOrdered =
   let t l r e =
-   test (Debug.toString l ++ " <=> " ++ Debug.toString r)
+   test (toString l ++ " <=> " ++ toString r)
         (\_ -> if Util.listContainsOrdered l r == e
                then Expect.pass
                else Expect.equal l r
@@ -38,7 +37,7 @@ listContainsOrdered =
 stringContainsOrdered : Test
 stringContainsOrdered =
   let t l r e =
-   test (Debug.toString l ++ " <=> " ++ Debug.toString r)
+   test (toString l ++ " <=> " ++ toString r)
         (\_ -> if Util.stringContainsOrdered l r == e
                then Expect.pass
                else Expect.equal l r
@@ -56,10 +55,10 @@ stringContainsOrdered =
 
 uniqueCombinations : Test
 uniqueCombinations =
-    let t l r = test (Debug.toString l ++ " <=> " ++ Debug.toString r)
+    let t l r = test (toString l ++ " <=> " ++ toString r)
                       (\_ -> if ((Util.uniqueCombinations l) == r)
                              then Expect.pass
-                             else Expect.fail ("Expected: " ++ (Debug.toString r) ++ ", got: " ++ (l |> Util.uniqueCombinations |> toString)))
+                             else Expect.fail ("Expected: " ++ (toString r) ++ ", got: " ++ (l |> Util.uniqueCombinations |> toString)))
     in  describe "uniqueCombinations"
         [ t [1,2,3]   [(1,2), (1,3), (2,3)]
         , t [1,2,3,4] [(1,2), (1,3), (1,4), (2,3), (2,4), (3,4)]

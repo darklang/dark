@@ -3,7 +3,6 @@ module ViewUtils exposing (..)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Nineteen.Debug as Debug
 import Regex exposing (Regex, regex)
 import Maybe exposing (withDefault)
 
@@ -189,7 +188,7 @@ approxNWidth ne =
   case ne of
     Value v ->
       -- TODO: calculate visual width here
-      Debug.toString v |> String.length
+      toString v |> String.length
 
     Variable name ->
       String.length name
