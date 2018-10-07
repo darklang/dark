@@ -797,7 +797,8 @@ type header =
 let headerJ j : header =
   { srcTag = member "srcTag" sourceTagJ j
   ; name = member "name" (commentedJ (listJ uppercaseIdentifierJ)) j
-  ; moduleSettings = member ~nullable:true "moduleSettings" (optionJ ctodo) j
+  ; moduleSettings = None (* skip for now *)
+      (* member ~nullable:true "moduleSettings" (optionJ ctodo) j *)
   ; exports =
       member "exports"
         (keywordCommentedJ (listingJ detailedListingJ))
