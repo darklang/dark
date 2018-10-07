@@ -5,7 +5,7 @@
     (name translate)
     (public_name translate)
     (flags (-warn-error (+A)))
-    (libraries (core_kernel
+    (libraries (core
                 yojson
                 str
                 reason

@@ -1,0 +1,2 @@
+Debug.fromInt:string_of_int
+Debug.fromFloat:string_of_float
