@@ -121,10 +121,38 @@ let ocaml_typename_for n : string =
   then "option"
   else n
 
+let parse_rename_config () : (string * string) list =
+  try
+  "port_config.txt"
+  |> Core.In_channel.read_lines
+  |> List.map ~f:(fun l ->
+      match String.split l ~on:':' with
+      | [k;v] -> (k,v)
+      | _ -> failwith ("Incorrect format (should be `name:replacement`: " ^ l))
+  with Sys_error msg as e ->
+    if msg = "port_config.txt: No such file or directory"
+    then
+      (prerr_endline "No port_config.txt";
+       [])
+    else
+      raise e
+
+let rename_config = parse_rename_config ()
+let type_rename_via_config n : string =
+  let name = ref n in
+  List.iter rename_config
+    ~f:(fun (src, replace) ->
+        if n = src
+        then
+          name := replace
+      );
+  !name
+
 let correct_typename n : string =
   n
   |> String.uncapitalize
   |> correct_keyword
+  |> type_rename_via_config
   |> ocaml_typename_for
 
 let typename n : lid =
@@ -139,6 +167,9 @@ let full_typename names : lid =
   |> (function (hd::rest) -> correct_typename hd :: rest
                | [] -> [])
   |> List.rev
+  |> String.concat ~sep:"."
+  |> type_rename_via_config
+  |> String.split ~on:'.'
   |> Longident.unflatten
   |> fun x -> Option.value_exn x
   |> nolo
@@ -147,7 +178,6 @@ let as_type n : str =
   n
   |> correct_typename
   |> nolo
-
 
 
 
