@@ -7,6 +7,7 @@ import List.Extra as LE
 import Maybe.Extra as ME
 
 -- dark
+import DontPort
 import DB
 import Types exposing (..)
 import Util
@@ -30,7 +31,7 @@ all m =
 getTL : Model -> TLID -> Toplevel
 getTL m id =
   get m id
-  |> deMaybe "getTL"
+  |> DontPort.deMaybe "getTL"
 
 get : Model -> TLID -> Maybe Toplevel
 get m id =
@@ -268,15 +269,15 @@ getNextSibling : Toplevel -> PointerData -> PointerData
 getNextSibling tl p =
   siblings tl p
   |> Util.listNextWrap p
-  -- 'safe' to deMaybe as there's always at least one member in the array
-  |> deMaybe "nextSibling"
+  -- 'safe' to DontPort.deMaybe as there's always at least one member in the array
+  |> DontPort.deMaybe "nextSibling"
 
 getPrevSibling : Toplevel -> PointerData -> PointerData
 getPrevSibling tl p =
   siblings tl p
   |> Util.listPreviousWrap p
-  -- 'safe' to deMaybe as there's always at least one member in the array
-  |> deMaybe "prevSibling"
+  -- 'safe' to DontPort.deMaybe as there's always at least one member in the array
+  |> DontPort.deMaybe "prevSibling"
 
 
 -------------------------
@@ -315,7 +316,7 @@ getChildrenOf tl pd =
             |> List.map (AST.childrenOf pid)
             |> List.concat
       specChildren () =
-        let h = asHandler tl |> deMaybe "getChildrenOf - spec" in
+        let h = asHandler tl |> DontPort.deMaybe "getChildrenOf - spec" in
         SpecTypes.childrenOf (P.toID pd) h.spec.types.input
         ++ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
   in
@@ -357,8 +358,8 @@ rootOf tl =
 -------------------------
 replace : PointerData -> PointerData -> Toplevel -> Toplevel
 replace p replacement tl =
-  let ha () = tl |> asHandler |> deMaybe "TL.replace"
-      fn () = tl |> asUserFunction |> deMaybe "TL.replace"
+  let ha () = tl |> asHandler |> DontPort.deMaybe "TL.replace"
+      fn () = tl |> asUserFunction |> DontPort.deMaybe "TL.replace"
       id = P.toID p
       astReplace () =
         case tl.data of
@@ -397,10 +398,10 @@ replace p replacement tl =
     PDarkTypeField _ -> specTypeReplace ()
     PDBColType tipe ->
       tl
-      -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
+      -- SetDBColType tl.id id (tipe |> B.toMaybe |> DontPort.deMaybe "replace - tipe")
     PDBColName _ ->
       tl
-      -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
+      -- SetDBColName tl.id id (name |> B.toMaybe |> DontPort.deMaybe "replace - name")
     PFFMsg bo ->
       case tl.data of
         TLHandler h ->
@@ -437,7 +438,7 @@ allData tl =
 findExn : Toplevel -> ID -> PointerData
 findExn tl id =
   find tl id
-  |> deMaybe "findExn"
+  |> DontPort.deMaybe "findExn"
 
 find : Toplevel -> ID -> Maybe PointerData
 find tl id =

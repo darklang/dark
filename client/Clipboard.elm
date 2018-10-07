@@ -2,6 +2,7 @@ module Clipboard exposing (..)
 
 
 -- Dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -37,7 +38,7 @@ cut m tl p =
           let newClipboard = TL.find tl pid
               newH = TL.delete tl p (gid ())
                     |> TL.asHandler
-                    |> deMaybe "cut"
+                    |> DontPort.deMaybe "cut"
 
           in Many [ CopyToClipboard newClipboard
                   , RPC ( [ SetHandler tl.id tl.pos newH ]
@@ -47,7 +48,7 @@ cut m tl p =
           let newClipboard = TL.find tl pid
               newF = TL.delete tl p (gid ())
                     |> TL.asUserFunction
-                    |> deMaybe "cut"
+                    |> DontPort.deMaybe "cut"
 
           in Many [ CopyToClipboard newClipboard
                   , RPC ( [ SetFunction newF ]

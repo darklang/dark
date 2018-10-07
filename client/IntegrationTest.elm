@@ -6,6 +6,7 @@ import Result.Extra as RE
 import List exposing (head)
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -83,21 +84,21 @@ onlyTL m =
           else "nothing to see here" in
   m.toplevels
   |> List.head
-  |> deMaybe "onlytl1"
+  |> DontPort.deMaybe "onlytl1"
 
 onlyHandler : Model -> Handler
 onlyHandler m =
   m
   |> onlyTL
   |> TL.asHandler
-  |> deMaybe "onlyhandler"
+  |> DontPort.deMaybe "onlyhandler"
 
 onlyDB : Model -> DB
 onlyDB m =
   m
   |> onlyTL
   |> TL.asDB
-  |> deMaybe "onlyDB"
+  |> DontPort.deMaybe "onlyDB"
 
 onlyExpr : Model -> NExpr
 onlyExpr m =
@@ -105,7 +106,7 @@ onlyExpr m =
   |> onlyHandler
   |> .ast
   |> B.asF
-  |> deMaybe "onlyast4"
+  |> DontPort.deMaybe "onlyast4"
 
 
 
@@ -127,7 +128,7 @@ field_access_closes : Model -> TestResult
 field_access_closes m =
   case m.cursorState of
     Entering (Filling _ id) ->
-      let ast = onlyTL m |> TL.asHandler |> deMaybe "test" |> .ast in
+      let ast = onlyTL m |> TL.asHandler |> DontPort.deMaybe "test" |> .ast in
       if (AST.allData ast |> List.filter P.isBlank) == []
       then pass
       else fail (TL.allBlanks (onlyTL m))
@@ -245,7 +246,7 @@ hover_values_for_varnames : Model -> TestResult
 hover_values_for_varnames m =
   let tlid = m.toplevels
            |> List.head
-           |> deMaybe "test"
+           |> DontPort.deMaybe "test"
            |> .id
   in pass
 
@@ -273,7 +274,7 @@ ellen_hello_world_demo : Model -> TestResult
 ellen_hello_world_demo m =
   let spec = onlyTL m
              |> TL.asHandler
-             |> deMaybe "hw2"
+             |> DontPort.deMaybe "hw2"
              |> .spec
   in
   case ((spec.module_, spec.name), (spec.modifier, onlyExpr m)) of
@@ -295,7 +296,7 @@ editing_headers : Model -> TestResult
 editing_headers m =
   let spec = onlyTL m
              |> TL.asHandler
-             |> deMaybe "hw2"
+             |> DontPort.deMaybe "hw2"
              |> .spec
   in
   case (spec.module_, spec.name, spec.modifier) of

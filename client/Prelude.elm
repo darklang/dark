@@ -67,12 +67,6 @@ gtlid unit = TLID (Util.random unit)
 -- Crashing
 --------------------------------------
 
-deMaybe : String -> Maybe a -> a
-deMaybe msg x =
-  case x of
-    Just y -> y
-    Nothing -> impossible ("got Nothing but expected something", msg)
-
 assert : (a -> Bool) -> a -> a
 assert fn a =
   if fn a

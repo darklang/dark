@@ -12,6 +12,7 @@ import Dom
 import List.Extra as LE
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude  exposing (..)
 import Util
@@ -304,7 +305,7 @@ submit m cursor action =
       then NoChange
       else if result /= Nothing
       then
-        DisplayAndReportError <| deMaybe "checked above" result
+        DisplayAndReportError <| DontPort.deMaybe "checked above" result
       else
       let maybeH = TL.asHandler tl
           db = TL.asDB tl
@@ -352,7 +353,7 @@ submit m cursor action =
       in
       case pd of
         PDBColType ct ->
-          let db1 = deMaybe "db" db
+          let db1 = DontPort.deMaybe "db" db
           in if B.asF ct == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol db1 id
@@ -367,7 +368,7 @@ submit m cursor action =
             wrapID [ ChangeDBColType tlid id value]
 
         PDBColName cn ->
-          let db1 = deMaybe "db" db
+          let db1 = DontPort.deMaybe "db" db
           in if B.asF cn == Just value
           then Select tlid (Just id)
           else if DB.isMigrationCol db1 id
@@ -386,7 +387,7 @@ submit m cursor action =
         PEventModifier _ ->
           replace (PEventModifier (B.newF value))
         PEventSpace _ ->
-          let h = deMaybe "maybeH - eventspace" maybeH
+          let h = DontPort.deMaybe "maybeH - eventspace" maybeH
               new = B.newF value
               replacement = SpecHeaders.replaceEventSpace id new h.spec
               replacement2 =
@@ -499,12 +500,12 @@ submit m cursor action =
           let newPD = PFnName (B.newF value)
               newTL = TL.replace pd newPD tl
               changedNames =
-                let old = TL.asUserFunction tl |> deMaybe "old userFn"
-                    new = TL.asUserFunction newTL |> deMaybe "new userFn"
+                let old = TL.asUserFunction tl |> DontPort.deMaybe "old userFn"
+                    new = TL.asUserFunction newTL |> DontPort.deMaybe "new userFn"
                 in Refactor.renameFunction m old new
           in
           wrapNew
-            (SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
+            (SetFunction (TL.asUserFunction newTL |> DontPort.deMaybe "must be function")
             :: changedNames)
             newPD
         PParamName _ ->

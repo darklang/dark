@@ -7,6 +7,7 @@ import List
 import List.Extra as LE
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Util
@@ -199,7 +200,7 @@ addLambdaBlank id expr =
             F lid (Lambda (vars ++ [B.new ()]) body)
       in
           replace
-            (old |> deMaybe "impossible" |> PExpr)
+            (old |> DontPort.deMaybe "impossible" |> PExpr)
             (PExpr r)
             expr
     _ -> expr
@@ -568,7 +569,7 @@ threadAncestors id expr =
 -------------------------
 parentOf : ID -> Expr -> Expr
 parentOf id ast =
-  deMaybe "parentOf" <| parentOf_ id ast
+  DontPort.deMaybe "parentOf" <| parentOf_ id ast
 
 parentOf_ : ID -> Expr -> Maybe Expr
 parentOf_ eid expr =
@@ -725,7 +726,7 @@ findExn : ID -> Expr -> PointerData
 findExn id expr =
   expr
   |> find id
-  |> deMaybe "findExn"
+  |> DontPort.deMaybe "findExn"
 
 find : ID -> Expr -> Maybe PointerData
 find id expr =
@@ -819,7 +820,7 @@ replace_ search replacement parent expr =
                       Blank _ -> Nothing
                       F _ var -> Just var
                 orig =
-                  case LE.getAt i vars |> deMaybe "we somehow lost it?" of
+                  case LE.getAt i vars |> DontPort.deMaybe "we somehow lost it?" of
                     Blank _ -> Nothing
                     F _ var -> Just var
                 newBody =

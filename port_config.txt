@@ -1,4 +1,9 @@
 DontPort.fromInt:string_of_int
 DontPort.fromFloat:string_of_float
-(string, (.*)) dict:\1 Belt.Map.String.t
-(int, (.*)) dict:\1 Belt.Map.Int.t
+\(string, (.*)\) dict:\1 Belt.Map.String.t
+\(int, (.*)\) dict:\1 Belt.Map.Int.t
+LE.find:port.getBy
+DontPort.deMaybe:Option.getExn
+ME.orElse:port.optionOrElse
+module LE = List.Extra:
+module ME = Maybe.Extra:
