@@ -116,11 +116,16 @@ let full_varname (names: string list) : lid =
   |> fun x -> Option.value_exn x
   |> nolo
 
+let ocaml_typename_for n : string =
+  if n = "maybe"
+  then "option"
+  else n
 
 let correct_typename n : string =
   n
   |> String.uncapitalize
   |> correct_keyword
+  |> ocaml_typename_for
 
 let typename n : lid =
   n
