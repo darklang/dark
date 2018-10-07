@@ -4,7 +4,6 @@ module Url exposing (..)
 import Dict
 import List
 import String
-import Nineteen.String as String
 
 -- lib
 import Html
@@ -12,6 +11,7 @@ import Html.Attributes as Attrs
 import Navigation
 
 -- dark
+import Util
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
@@ -29,10 +29,10 @@ urlOf page pos =
   let head =
         case page of
           Toplevels _ -> []
-          Fn tlid _ -> [("fn", String.fromInt (deTLID tlid))]
+          Fn tlid _ -> [("fn", Util.fromInt (deTLID tlid))]
       tail =
-        [ ("x", String.fromInt pos.x)
-        , ("y", String.fromInt pos.y) ]
+        [ ("x", Util.fromInt pos.x)
+        , ("y", Util.fromInt pos.y) ]
   in hashUrlParams (head ++ tail)
 
 urlFor : Page -> String

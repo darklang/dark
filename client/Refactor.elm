@@ -14,11 +14,10 @@ import AST
 import Blank as B
 import Analysis
 import Util
-import Nineteen.String as String
 
 generateFnName : () -> String
 generateFnName _ =
-  "fn_" ++ (() |> Util.random |> String.fromInt)
+  "fn_" ++ (() |> Util.random |> Util.fromInt)
 
 convertTipe : Tipe -> Tipe
 convertTipe tipe =
@@ -110,7 +109,7 @@ toggleOnRail m tl p =
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
   let extractVarInAst e ast  =
-        let varname = "var" ++ String.fromInt (Util.random())
+        let varname = "var" ++ Util.fromInt (Util.random())
             freeVariables =
               AST.freeVariables e
               |> List.map Tuple.second

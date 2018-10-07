@@ -7,7 +7,6 @@ import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import List.Extra as LE
-import Nineteen.String as String
 
 -- dark
 import Analysis
@@ -65,8 +64,8 @@ viewCanvas m =
                 case m.currentPage of
                   Toplevels _ -> m.canvas.offset
                   Fn _ _ -> m.canvas.fnOffset
-              x = String.fromInt (-offset.x)
-              y = String.fromInt (-offset.y)
+              x = Util.fromInt (-offset.x)
+              y = Util.fromInt (-offset.y)
           in
           "translate(" ++ x ++ "px, " ++ y ++ "px)"
 
@@ -140,9 +139,9 @@ viewTL_ m tlid =
           _ -> []
       class =
         [ selected
-        , "tl-" ++ String.fromInt (deTLID tl.id)
+        , "tl-" ++ Util.fromInt (deTLID tl.id)
         , "toplevel"
-        , "cursor-" ++ (String.fromInt (Analysis.cursor m tl.id))
+        , "cursor-" ++ (Util.fromInt (Analysis.cursor m tl.id))
         ]
         |> String.join " "
 

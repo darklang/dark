@@ -4,7 +4,6 @@ module ViewUtils exposing (..)
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Nineteen.Debug as Debug
-import Nineteen.String as String
 import Regex exposing (Regex, regex)
 import Maybe exposing (withDefault)
 
@@ -150,14 +149,14 @@ placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
   in Html.div
     [ Attrs.class "node"
-    , Attrs.style [ ("left", (String.fromInt pos.x) ++ "px"), ("top", (String.fromInt pos.y) ++ "px") ]
+    , Attrs.style [ ("left", (Util.fromInt pos.x) ++ "px"), ("top", (Util.fromInt pos.y) ++ "px") ]
     ]
     [ html ]
 
 inCh : Int -> String
 inCh w =
   w
-  |> String.fromInt
+  |> Util.fromInt
   |> \s -> s ++ "ch"
 
 widthInCh : Int -> Html.Attribute Msg

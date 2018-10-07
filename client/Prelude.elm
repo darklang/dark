@@ -4,7 +4,6 @@ module Prelude exposing (..)
 import Types exposing (..)
 import Util
 import Nineteen.Debug as Debug
-import Nineteen.String as String
 
 --------------------------------------
 -- CursorState
@@ -12,7 +11,7 @@ import Nineteen.String as String
 
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
-  let stringID = (String.fromInt (deTLID tlid)) ++ (String.fromInt idx)
+  let stringID = (Util.fromInt (deTLID tlid)) ++ (Util.fromInt idx)
       intID = Result.withDefault 0 (String.toInt stringID)
   in
     (ID intID)
