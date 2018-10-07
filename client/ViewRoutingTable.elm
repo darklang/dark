@@ -8,9 +8,9 @@ import Html.Attributes as Attrs
 import Http
 import List.Extra as LE
 import Maybe.Extra as ME
-import Nineteen.String as String
 
 -- dark
+import Util
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -261,7 +261,7 @@ header name list addHandler =
     [ Attrs.class "header" ]
     [ text "title" name
     , text "parens" "("
-    , text "count" (list |> List.length |> String.fromInt)
+    , text "count" (list |> List.length |> Util.fromInt)
     , text "parens" ")",
     case addHandler of
         Just msg ->
@@ -383,7 +383,7 @@ viewUserFunctions m =
                   Nothing
             ]
           else
-            let countedName = name ++ " (" ++ (String.fromInt useCount) ++ ")"
+            let countedName = name ++ " (" ++ (Util.fromInt useCount) ++ ")"
             in [ span "name" [fnLink fn True countedName] ]
 
       fnHtml fn =
