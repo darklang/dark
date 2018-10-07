@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+srcdir=client
+targetdir=client2/src
+
+./translate/build
+
+files=$(find ${srcdir} -name "*.elm" | grep -v elm-stuff | sort)
+
+for f in $files; do
+  name=${f#"${srcdir}/"}
+  name=${name%".elm"}
+
+  echo "${name}";
+  target="${targetdir}/${name}.ml"
+  dir=$(dirname "${target}")
+  mkdir -p "${dir}"
+
+
+  ~/.local/bin/elm-format --json --elm-version 0.18 --stdin < "${f}" \
+    | ./translate/_build/default/translate.exe > "${target}" \
+    && ocamlformat --inplace "${target}"
+
+done
+
+
+
