@@ -12,6 +12,7 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -148,14 +149,14 @@ placeHtml m pos html =
   let div class subs = Html.div [Attrs.class class] subs
   in Html.div
     [ Attrs.class "node"
-    , Attrs.style [ ("left", (Util.fromInt pos.x) ++ "px"), ("top", (Util.fromInt pos.y) ++ "px") ]
+    , Attrs.style [ ("left", (DontPort.fromInt pos.x) ++ "px"), ("top", (DontPort.fromInt pos.y) ++ "px") ]
     ]
     [ html ]
 
 inCh : Int -> String
 inCh w =
   w
-  |> Util.fromInt
+  |> DontPort.fromInt
   |> \s -> s ++ "ch"
 
 widthInCh : Int -> Html.Attribute Msg

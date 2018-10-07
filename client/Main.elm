@@ -22,6 +22,7 @@ import Window
 import Dict
 
 -- dark
+import DontPort
 import Analysis
 import RPC
 import Types exposing (..)
@@ -739,7 +740,7 @@ processAutocompleteMods m mods =
             let i = complete.index
                 val = AC.getValue complete
             in Debug.log "autocompletemod result: "
-                (Util.fromInt complete.index ++ " => " ++ val)
+                (DontPort.fromInt complete.index ++ " => " ++ val)
           else ""
   in ({m | complete = complete}, focus)
 

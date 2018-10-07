@@ -8,7 +8,7 @@ targetdir=client2/src
 
 ./translate/build
 
-files=$(find ${srcdir} -name "*.elm" | grep -v elm-stuff | sort)
+files=$(find ${srcdir} -name "*.elm" | grep -v elm-stuff | grep -v DontPort.elm | sort)
 
 for src in $files; do
   # Snakecase it
