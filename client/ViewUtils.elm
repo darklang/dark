@@ -87,7 +87,7 @@ createVS m tl = { tl = tl
                       Entering (Filling _ id) ->
                         case TL.find tl id of
                           Just (PVarBind (F _ var)) as pd ->
-                            case TL.getParentOf tl (deMaybe "impossible" pd)  of
+                            case TL.getParentOf tl (DontPort.deMaybe "impossible" pd)  of
                               Just (PExpr e) ->
                                 case e of
                                   F _ (Let _ _ body) ->

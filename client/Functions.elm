@@ -4,6 +4,7 @@ module Functions exposing (..)
 import List.Extra as LE
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Blank as B
@@ -59,7 +60,7 @@ upsert m f =
 
 findExn : Model -> TLID -> UserFunction
 findExn m id =
-  find m id |> deMaybe "Functions.findExn"
+  find m id |> DontPort.deMaybe "Functions.findExn"
 
 
 sameName : String -> UserFunction -> Bool
@@ -75,7 +76,7 @@ findByName m s =
 
 findByNameExn : Model -> String -> UserFunction
 findByNameExn m s =
-  findByName m s |> deMaybe "Functions.findByNameExn"
+  findByName m s |> DontPort.deMaybe "Functions.findByNameExn"
 
 paramData : UserFunctionParameter -> List PointerData
 paramData ufp =
