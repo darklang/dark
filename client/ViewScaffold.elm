@@ -6,7 +6,6 @@ module ViewScaffold exposing (..)
 import Html
 import Html.Attributes as Attrs
 import Json.Decode as JSD
-import Nineteen.Debug as Debug
 
 -- dark
 import Types exposing (..)
@@ -76,10 +75,10 @@ viewButtons m =
             (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
     , Html.span
         [ Attrs.class "specialButton"]
-        [ Html.text (Debug.toString m.currentPage)]
+        [ Html.text (toString m.currentPage)]
     , Html.span
         [ Attrs.class "specialButton"]
-        [ Html.text ("Tests: " ++ Debug.toString m.tests)]
+        [ Html.text ("Tests: " ++ toString m.tests)]
     , Html.span
         [ Attrs.class ("specialButton environment " ++ m.environment)]
         [ Html.text m.environment]

@@ -12,7 +12,6 @@ import Maybe.Extra as ME
 import Svg
 import VirtualDom
 import Svg.Attributes as SA
-import Nineteen.Debug as Debug
 
 -- dark
 import Types exposing (..)
@@ -178,7 +177,7 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RPC.typeOfLiteralString |> Debug.toString |> String.toLower
+      let cssClass = v |> RPC.typeOfLiteralString |> toString |> String.toLower
           value =
             -- TODO: remove
             if RPC.typeOfLiteralString v == TStr

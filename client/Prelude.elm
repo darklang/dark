@@ -3,7 +3,6 @@ module Prelude exposing (..)
 -- dark
 import Types exposing (..)
 import Util
-import Nineteen.Debug as Debug
 
 --------------------------------------
 -- CursorState
@@ -90,7 +89,7 @@ assert fn a =
 --   impossible ("The widges can't arrive in this order:", myVar)
 impossible : a -> b
 impossible a =
-  Debug.todo ("something impossible occurred: " ++ (Debug.toString a))
+  Debug.crash ("something impossible occurred: " ++ (toString a))
 
 
 -- Like impossible but has a different semantic meaning. If you have a
@@ -100,16 +99,16 @@ recoverable msg val =
   let error = "An unexpected but recoverable error happened. "
             ++ "For now we crash. "
             ++ "Message: "
-            ++ Debug.toString msg
+            ++ toString msg
             ++ "Value: "
-            ++ Debug.toString val
+            ++ toString val
       -- TODO: surface the error to the user and in rollbar and
       -- continue.
-      _ = Debug.todo error
+      _ = Debug.crash error
   in
   val
 
 -- Like impossible but with the message TODO
 todo : a -> b
 todo a =
-  Debug.todo ("TODO: " ++ (Debug.toString a))
+  Debug.crash ("TODO: " ++ (toString a))
