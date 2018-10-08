@@ -45,7 +45,7 @@
     <script type="text/javascript" src="//{STATIC}/bundle.js"> </script>
     <script type="text/javascript" src="//{STATIC}/darkjs.bc.js"> </script>
     <script type="text/javascript" src="//{STATIC}/elm{ELMDEBUG}.js"> </script>
-
+    <script type="text/javascript" src="//{STATIC}/darkex.js"> </script>
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
     <script id="analysisScript" type="javascript/worker">
@@ -63,30 +63,33 @@
             result.analysis = darkAnalysis.performAnalysis(e.data.params);
           }
           catch (error) {
-            var errorName = null;
-            var errorMsg = null;
-            var errorStr = null;
-
-             try {
-               // OCaml errors come in a few constructs - get the data we can
-               try { errorName = error[1][1].c; } catch (_) {}
-               try { errorMsg = error[2][1].c; } catch (_) {}
-               try { errorMsg = error[2].c; } catch (_) {}
-               errorStr = `${errorName} - ${errorMsg}`;
-             } catch (_) { }
-              result.error = {
-                name: errorName,
-                msg: errorMsg,
-                str: errorStr,
-                obj: error
-              }
+            resutl.error = darkExe.handleAnalysisErrors(error)
           }
           postMessage(result);
         }
     </script>
     <script type="text/javascript">
 
-        var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
+      var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
+
+      const sendError = function (error, route, tlid){
+        // send to rollbar
+        Rollbar.error(
+          error.str,
+          error.obj,
+          { route: route
+          , tlid: tlid
+          }
+        );
+
+       // log to console
+       console.log(`Error processing analysis in (${route}): ${error.str}`);
+       console.log(error.obj);
+
+       // send to client
+       elmapp.ports.displayError.send(
+         `Error while executing (${route}): ${error}`);
+      };
         
        window.Rollbar.configure({ROLLBARCONFIG});
        complete = {ALLFUNCTIONS};
@@ -121,50 +124,17 @@
             if (result && !error){
               elmapp.ports.receiveAnalysis.send(result);
             } else if (error) {
-              // send to rollbar
-              Rollbar.error(
-                error.str,
-                error.obj,
-                { route: route
-                , tlid: params.handler.tlid
-                }
-              );
-
-             // log to console
-             console.log(`Error processing analysis in (${route}): ${error.str}`);
-             console.log(error.obj);
-
-             // send to client
-             elmapp.ports.displayError.send(
-               `Error while executing (${route}): ${error}`);
-              }
-            
+              sendError(error)
+            }
           }
         } else {
-          // do it the old fashioned way
+          // do it without workers, it will be slow though
           try {
             const result = darkAnalysis.performAnalysis(JSON.stringify(params));
             elmapp.ports.receiveAnalysis.send(result);
           } catch (error) {
-            var errorName = null;
-            var errorMsg = null;
-            var errorStr = null;
-
-             try {
-               // OCaml errors come in a few constructs - get the data we can
-               try { errorName = error[1][1].c; } catch (_) {}
-               try { errorMsg = error[2][1].c; } catch (_) {}
-               try { errorMsg = error[2].c; } catch (_) {}
-               errorStr = `${errorName} - ${errorMsg}`;
-             } catch (_) { }
-            
-              // log to console
-             console.log(`Error processing analysis in (${route}): ${errorStr}`);
-             console.log(error);
-
-             // send to client
-             elmapp.ports.displayError.send(
-               `Error while executing (${route}): ${error}`);
+            const errObj = darkExe.handleAnalysisErrors(error)
+            sendError(errObj, route, params.handler.tlid);
           }
         }
        })
