@@ -6,6 +6,34 @@ open Migrate_parsetree.Ast_404
 open Ast_helper
 
 (* ------------------------ *)
+(* post process *)
+(* ------------------------ *)
+let parse_rename_config () : (string * string) list =
+  try
+  "port_config.txt"
+  |> Core.In_channel.read_lines
+  |> List.map ~f:(fun l ->
+      match String.split l ~on:':' with
+      | [k;v] -> (k,v)
+      | _ -> failwith ("Incorrect format (should be `name:replacement`: " ^ l))
+  with Sys_error msg as e ->
+    if msg = "port_config.txt: No such file or directory"
+    then
+      (prerr_endline "No port_config.txt";
+       [])
+    else
+      raise e
+
+let rename_config = parse_rename_config ()
+
+let post_process str : string =
+  List.fold ~init:str rename_config
+    ~f:(fun prev (pattern,template) ->
+        Re2.rewrite_exn (Re2.create_exn pattern) ~template prev)
+
+
+
+(* ------------------------ *)
 (* Rename appropriately *)
 (* ------------------------ *)
 let keywords =
@@ -82,6 +110,38 @@ let ocaml_typename_for n : string =
   then "option"
   else n
 
+let ocaml_module_for n : string =
+  if n = "Maybe" then "Option"
+  else n
+
+let ocaml_constructor_name_for n : string =
+  if n = "Just" then "Some"
+  else if n = "Nothing" then "None"
+  else if n = "Err" then "Error"
+  else n
+
+let ocaml_fnname_for ns : string list =
+  let n = String.concat ns ~sep:"." in
+  let n =
+    if n = "==" then "="
+    else if n = "++" then "^" (* or @, but probably ^ *)
+    else if n = "String.toInt" then "int_of_string"
+    else if n = "String.toFloat" then "float_of_string"
+    else if n = "String.fromInt" then "string_of_float"
+    else if n = "String.fromFloat" then "string_of_int"
+    else if n = "Result.withDefault" then "Result.getWithDefault"
+    else if n = "LE.getAt" then "List.get"
+    else if n = "List.Extra.getAt" then "List.get"
+    else if n = "LE.indexedMap" then "List.mapWithIndex"
+    else if n = "List.Extra.indexedMap" then "List.mapWithIndex"
+    else if n = "Char.toCode" then "code"
+    else if n = "Char.fromCode" then "chr"
+    else n
+  in
+  String.split ~on:'.' n
+
+
+
 let correct_typename n : string =
   n
   |> String.uncapitalize
@@ -100,7 +160,7 @@ let varname n : lid =
   |> Longident.parse
   |> nolo
 
-let varname_dont_correct n : lid =
+let lid n : lid =
   n
   |> Longident.parse
   |> nolo
@@ -184,8 +244,8 @@ let openCommentedList2list (l: 'a openCommentedList) : 'a list =
 let litExpO lit : Parsetree.expression =
   match lit with
   | Str (str, _l) -> Exp.constant (Const.string str)
-  | Boolean true -> Exp.construct (varname_dont_correct "true") None
-  | Boolean false -> Exp.construct (varname_dont_correct "false") None
+  | Boolean true -> Exp.construct (lid "true") None
+  | Boolean false -> Exp.construct (lid "false") None
   | IntNum (i, repr) -> Exp.constant (Const.int i)
   | FloatNum (f, repr) -> Exp.constant (Const.float (string_of_float f))
   | Chr c -> Exp.constant (Const.char c)
@@ -193,8 +253,8 @@ let litExpO lit : Parsetree.expression =
 let litPatO lit : Parsetree.pattern =
   match lit with
   | Str (str, _l) -> Pat.constant (Const.string str)
-  | Boolean true -> Pat.construct (varname_dont_correct "true") None
-  | Boolean false -> Pat.construct (varname_dont_correct "false") None
+  | Boolean true -> Pat.construct (lid "true") None
+  | Boolean false -> Pat.construct (lid "false") None
   | IntNum (i, repr) -> Pat.constant (Const.int i)
   | FloatNum (f, repr) -> Pat.constant (Const.float (string_of_float f))
   | Chr c -> Pat.constant (Const.char c)
@@ -598,39 +658,18 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
   (* TODO: comments, docs *)
   (* ignore header *)
   let imports = m.imports |> importsO in
+  let standardImports =
+    [ Str.open_ (Opn.mk (lid "Belt"))
+    ; Str.open_ (Opn.mk (lid "Porting"))
+    ]
+  in
   let body = m.body |> List.map ~f:(topLevelStructureO) in
-  imports @ List.concat body
+  standardImports @ imports @ List.concat body
 
 
 let to_ocaml (m: Elm.module_) : (Parsetree.structure * Reason_comment.t list) =
   let file = moduleO m in
   (file, [])
-
-(* ------------------------ *)
-(* post process *)
-(* ------------------------ *)
-let parse_rename_config () : (string * string) list =
-  try
-  "port_config.txt"
-  |> Core.In_channel.read_lines
-  |> List.map ~f:(fun l ->
-      match String.split l ~on:':' with
-      | [k;v] -> (k,v)
-      | _ -> failwith ("Incorrect format (should be `name:replacement`: " ^ l))
-  with Sys_error msg as e ->
-    if msg = "port_config.txt: No such file or directory"
-    then
-      (prerr_endline "No port_config.txt";
-       [])
-    else
-      raise e
-
-let rename_config = parse_rename_config ()
-
-let post_process str : string =
-  List.fold ~init:str rename_config
-    ~f:(fun prev (pattern,template) ->
-        Re2.rewrite_exn (Re2.create_exn pattern) ~template prev)
 
 (* ------------------------ *)
 (* main *)
