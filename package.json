@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "build:bundle": "browserify server/src/main.js --standalone bundle -o server/static/bundle.js",
-    "build:exe": "browserify server/src/darkex.js --standalone exe -o server/static/darkex.js",
+    "build:exe": "browserify server/src/darkex.js --standalone darkExe -o server/static/darkex.js",
     "build": "run-s build:bundle build:exe"
   },
   "devDependencies": {

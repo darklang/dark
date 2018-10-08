@@ -1,4 +1,4 @@
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.exe = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.darkExe = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 var asn1 = exports;
 
 asn1.bignum = require('bn.js');
@@ -24569,8 +24569,31 @@ exports.createContext = Script.createContext = function (context) {
 },{"indexof":100}],158:[function(require,module,exports){
 var sha2 = require('sha2');
 
+const handleErrors = function (error){
+	var errorName = null;
+  var errorMsg = null;
+  var errorStr = null;
+
+   try {
+     // OCaml errors come in a few constructs - get the data we can
+     try { errorName = error[1][1].c; } catch (_) {}
+     try { errorMsg = error[2][1].c; } catch (_) {}
+     try { errorMsg = error[2].c; } catch (_) {}
+     errorStr = `${errorName} - ${errorMsg}`;
+   } catch (_) {
+   	return null;
+   }
+   return {
+      name: errorName,
+      msg: errorMsg,
+      str: errorStr,
+      obj: error
+   }
+}
+
 module.exports = {
-  sha2: sha2
+  sha2: sha2,
+  handleAnalysisErrors: handleErrors
 };
 
 },{"sha2":153}]},{},[158])(158)
