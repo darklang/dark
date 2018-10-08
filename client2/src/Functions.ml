@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -11,12 +13,12 @@ let ufpToP ufp =
       ; block_args= ufp.block_args
       ; optional= ufp.optional
       ; description= ufp.description }
-      |> Just
-  | _ -> Nothing
+      |> Some
+  | _ -> None
 
 let ufmToF ufm =
   let ps = List.filterMap ufpToP ufm.parameters in
-  let sameLength = List.length ps == List.length ufm.parameters in
+  let sameLength = List.length ps = List.length ufm.parameters in
   match (ufm.name, ufm.returnTipe, sameLength) with
   | F (_, name), F (_, tipe), true ->
       { name
@@ -26,27 +28,27 @@ let ufmToF ufm =
       ; infix= ufm.infix
       ; previewExecutionSafe= false
       ; deprecated= false }
-      |> Just
-  | _ -> Nothing
+      |> Some
+  | _ -> None
 
-let find m id = Port.getBy (fun f -> id == f.tlid) m.userFunctions
+let find m id = List.getBy (fun f -> id = f.tlid) m.userFunctions
 
 let upsert m f =
   match find m f.tlid with
-  | Just old ->
+  | Some old ->
       { m with
         userFunctions=
           m.userFunctions
-          |> List.filter (fun uf -> uf.tlid /= old.tlid)
+          |> List.filter (fun uf -> uf.tlid <> old.tlid)
           |> List.cons f }
-  | Nothing -> {m with userFunctions= f :: m.userFunctions}
+  | None -> {m with userFunctions= f :: m.userFunctions}
 
 let findExn m id = find m id |> Option.getExn "Functions.findExn"
 
 let sameName name uf =
-  match uf.metadata.name with F (_, n) -> n == name | _ -> false
+  match uf.metadata.name with F (_, n) -> n = name | _ -> false
 
-let findByName m s = Port.getBy (sameName s) m.userFunctions
+let findByName m s = List.getBy (sameName s) m.userFunctions
 
 let findByNameExn m s =
   findByName m s |> Option.getExn "Functions.findByNameExn"
@@ -56,12 +58,12 @@ let paramData ufp = [PParamName ufp.name; PParamTipe ufp.tipe]
 let allParamData uf = List.concat (List.map paramData uf.metadata.parameters)
 
 let allData uf =
-  [PFnName uf.metadata.name] ++ allParamData uf ++ AST.allData uf.ast
+  ([PFnName uf.metadata.name] ^ allParamData uf) ^ AST.allData uf.ast
 
 let replaceFnName search replacement uf =
   let metadata = uf.metadata in
   let sId = P.toID search in
-  if B.toID metadata.name == sId then
+  if B.toID metadata.name = sId then
     let newMetadata =
       match replacement with
       | PFnName new_ -> {metadata with name= B.replace sId new_ metadata.name}
@@ -76,9 +78,9 @@ let replaceParamName search replacement uf =
   let paramNames =
     uf |> allParamData
     |> List.filterMap (fun p ->
-           match p with PParamName n -> Just n | _ -> Nothing )
+           match p with PParamName n -> Some n | _ -> None )
   in
-  if List.any (fun p -> B.toID p == sId) paramNames then
+  if List.any (fun p -> B.toID p = sId) paramNames then
     let newMetadata =
       match replacement with
       | PParamName new_ ->
@@ -106,7 +108,7 @@ let replaceParamName search replacement uf =
         | _ -> impossible old
       in
       match (sContent, rContent) with
-      | Just o, Just r ->
+      | Some o, Some r ->
           let uses = AST.uses o uf.ast |> List.map PExpr in
           List.foldr
             (fun use acc -> AST.replace use (transformUse r use) acc)
@@ -122,9 +124,9 @@ let replaceParamTipe search replacement uf =
   let paramTipes =
     uf |> allParamData
     |> List.filterMap (fun p ->
-           match p with PParamTipe t -> Just t | _ -> Nothing )
+           match p with PParamTipe t -> Some t | _ -> None )
   in
-  if List.any (fun p -> B.toID p == sId) paramTipes then
+  if List.any (fun p -> B.toID p = sId) paramTipes then
     let newMetadata =
       match replacement with
       | PParamTipe new_ ->
@@ -152,12 +154,12 @@ let extend uf =
   in
   let metadata = uf.metadata in
   let newMetadata =
-    {metadata with parameters= uf.metadata.parameters ++ [newParam]}
+    {metadata with parameters= uf.metadata.parameters ^ [newParam]}
   in
   {uf with metadata= newMetadata}
 
 let removeParameter uf ufp =
   let metadata = uf.metadata in
-  let params = List.filter (fun p -> p /= ufp) metadata.parameters in
+  let params = List.filter (fun p -> p <> ufp) metadata.parameters in
   let newM = {metadata with parameters= params} in
   {uf with metadata= newM}

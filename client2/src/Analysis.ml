@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -7,8 +9,8 @@ open Types
 
 let currentVarnamesFor m target =
   match target with
-  | Nothing -> []
-  | Just (tlid, pd) -> getCurrentAvailableVarnames m tlid (P.toID pd)
+  | None -> []
+  | Some (tlid, pd) -> getCurrentAvailableVarnames m tlid (P.toID pd)
 
 let defaultResults = {liveValues= Dict.empty; availableVarnames= Dict.empty}
 
@@ -16,8 +18,8 @@ let getCurrentAnalysisResults m tlid =
   let traceIndex = cursor m tlid in
   let traceID =
     Dict.get (deTLID tlid) m.traces
-    |> Maybe.andThen (LE.getAt traceIndex)
-    |> Maybe.map (fun x -> x.id)
+    |> Option.andThen (List.get traceIndex)
+    |> Option.map (fun x -> x.id)
     |> Maybe.withDefault "invalid trace key"
   in
   Dict.get traceID m.analyses |> Maybe.withDefault defaultResults
@@ -41,8 +43,8 @@ let getCurrentLiveValue m tlid (ID id) =
 
 let getCurrentTipeOf m tlid id =
   match getCurrentLiveValue m tlid id with
-  | Nothing -> Nothing
-  | Just dv -> Just (RT.typeOf dv)
+  | None -> None
+  | Some dv -> Some (RT.typeOf dv)
 
 let getCurrentAvailableVarnamesDict m tlid =
   getCurrentAnalysisResults m tlid |> fun x -> x.availableVarnames
@@ -55,7 +57,7 @@ let getCurrentAvailableVarnames m tlid (ID id) =
 let getTraces m tlid = Dict.get (deTLID tlid) m.traces |> Maybe.withDefault []
 
 let getCurrentTrace m tlid =
-  Dict.get (deTLID tlid) m.traces |> Maybe.andThen (LE.getAt (cursor m tlid))
+  Dict.get (deTLID tlid) m.traces |> Option.andThen (List.get (cursor m tlid))
 
 let replaceFunctionResult m tlid traceID callerID fnName hash dval =
   let newResult = {fnName; callerID; argHash= hash; value= dval} in
@@ -66,37 +68,37 @@ let replaceFunctionResult m tlid traceID callerID fnName hash dval =
            |> Maybe.withDefault
                 [{id= traceID; input= Dict.empty; functionResults= [newResult]}]
            |> List.map (fun t ->
-                  if t.id == traceID then
+                  if t.id = traceID then
                     {t with functionResults= newResult :: t.functionResults}
                   else t )
-           |> Just )
+           |> Some )
   in
   {m with traces}
 
 let getArguments m tlid traceID callerID =
   let tl = TL.get m tlid in
   match tl with
-  | Nothing -> Nothing
-  | Just tl ->
+  | None -> None
+  | Some tl ->
       let caller = TL.find tl callerID in
       let threadPrevious =
         match TL.rootOf tl with
-        | Just (PExpr expr) -> ME.toList (AST.threadPrevious callerID expr)
+        | Some (PExpr expr) -> Option.toList (AST.threadPrevious callerID expr)
         | _ -> []
       in
       let args =
         match caller with
-        | Just (PExpr (F (_, FnCall (_, args, _)))) -> threadPrevious ++ args
+        | Some (PExpr (F (_, FnCall (_, args, _)))) -> threadPrevious ^ args
         | _ -> []
       in
       let argIDs = List.map B.toID args in
       let analyses = Dict.get traceID m.analyses in
       let dvals =
         match analyses with
-        | Just analyses_ ->
+        | Some analyses_ ->
             List.filterMap
               (fun id -> Dict.get (deID id) analyses_.liveValues)
               argIDs
-        | Nothing -> []
+        | None -> []
       in
-      if List.length dvals == List.length argIDs then Just dvals else Nothing
+      if List.length dvals = List.length argIDs then Some dvals else None

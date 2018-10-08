@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module Attrs = Html.Attributes
 open Types
 open ViewBlankOr
@@ -9,11 +11,11 @@ let viewFunction vs fn =
     [ Html.div [Attrs.class_ "metadata"] [viewMetadata vs fn]
     ; Html.div [Attrs.class_ "ast"] [ViewCode.viewExpr 0 vs [] fn.ast] ]
 
-let viewUserFnName vs c v = viewText FnName vs (idConfigs ++ c) v
+let viewUserFnName vs c v = viewText FnName vs (idConfigs ^ c) v
 
-let viewParamName vs c v = viewText ParamName vs (idConfigs ++ c) v
+let viewParamName vs c v = viewText ParamName vs (idConfigs ^ c) v
 
-let viewParamTipe vs c v = viewTipe ParamTipe vs (idConfigs ++ c) v
+let viewParamTipe vs c v = viewTipe ParamTipe vs (idConfigs ^ c) v
 
 let viewKillParameterBtn vs uf p =
   let freeVariables = AST.freeVariables uf.ast |> List.map Tuple.second in

@@ -1,3 +1,5 @@
+open Belt
+open Porting
 open Autocomplete
 module B = Blank
 open Prelude
@@ -8,7 +10,7 @@ let d s fs =
   describe s
     (List.indexedMap
        (fun i f ->
-         test ("test " ++ string_of_int i) (fun _ -> Expect.true_ "" (f ())) )
+         test ("test " ^ string_of_int i) (fun _ -> Expect.true_ "" (f ())) )
        fs)
 
 let sampleFunctions =
@@ -67,13 +69,13 @@ let createEntering role =
   let default = Defaults.defaultModel in
   let m = {default with toplevels= [toplevel]; cursorState= cursor} in
   init sampleFunctions (isAdmin role)
-  |> setTarget m (Just (tlid, PExpr (Blank targetBlankID)))
+  |> setTarget m (Some (tlid, PExpr (Blank targetBlankID)))
 
 let createCreating role =
   let cursor = Entering (Creating {x= 0; y= 0}) in
   let default = Defaults.defaultModel in
   let m = {default with cursorState= cursor} in
-  init sampleFunctions (isAdmin role) |> setTarget m Nothing
+  init sampleFunctions (isAdmin role) |> setTarget m None
 
 let itemPresent aci ac = List.member aci (List.concat ac.completions)
 
@@ -82,122 +84,122 @@ let itemMissing aci ac = not (itemPresent aci ac)
 let all =
   describe "autocomplete"
     [ d "sharedPrefix"
-        [ (fun _ -> sharedPrefixList ["aaaab"; "aab"; "aaxb"] == "aa")
-        ; (fun _ -> sharedPrefixList ["abcdd"; "abcdde"] == "abcdd")
-        ; (fun _ -> sharedPrefixList ["abcdd"; "bcddee"] == "") ]
+        [ (fun _ -> sharedPrefixList ["aaaab"; "aab"; "aaxb"] = "aa")
+        ; (fun _ -> sharedPrefixList ["abcdd"; "abcdde"] = "abcdd")
+        ; (fun _ -> sharedPrefixList ["abcdd"; "bcddee"] = "") ]
     ; d "queryWhenEntering"
-        [ (fun _ -> createEntering User |> (fun x -> x.index) |> ( == ) (-1))
+        [ (fun _ -> createEntering User |> (fun x -> x.index) |> ( = ) (-1))
         ; (fun _ ->
             createEntering User |> selectDown |> selectDown |> selectDown
             |> selectDown |> selectDown |> setQuery "T" |> highlighted
-            |> Maybe.map asName
-            |> ( == ) (Just "Twit::someOtherFunc") )
+            |> Option.map asName
+            |> ( = ) (Some "Twit::someOtherFunc") )
         ; (fun _ ->
             createEntering User |> setQuery "lis" |> setQuery "" |> highlighted
-            |> ( == ) Nothing )
+            |> ( = ) None )
         ; (fun _ ->
             createEntering User |> setQuery "Twit::somefunc"
             |> setQuery "Twit::some" |> selectDown |> highlighted
-            |> Maybe.map asName
-            |> ( == ) (Just "Twit::someOtherFunc") )
+            |> Option.map asName
+            |> ( = ) (Some "Twit::someOtherFunc") )
         ; (fun _ ->
             createEntering User |> setQuery "lis"
             |> (fun x -> x.completions)
             |> List.concat |> List.map asName
-            |> ( == ) ["List::head"] )
+            |> ( = ) ["List::head"] )
         ; (fun _ ->
             createEntering User |> setQuery "twit::"
             |> (fun x -> x.completions)
             |> List.concat |> List.filter isStaticItem |> List.map asName
-            |> ( == )
+            |> ( = )
                  ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]
             )
         ; (fun _ ->
             createEntering User |> setQuery "twit::y"
             |> (fun x -> x.completions)
             |> List.concat |> List.filter isStaticItem |> List.map asName
-            |> ( == ) ["Twit::yetAnother"] )
+            |> ( = ) ["Twit::yetAnother"] )
         ; (fun _ ->
             createEntering User |> setQuery "Another"
             |> (fun x -> x.completions)
             |> List.concat |> List.filter isStaticItem |> List.map asName
-            |> ( == ) ["Twit::yetAnother"] )
+            |> ( = ) ["Twit::yetAnother"] )
         ; (fun _ ->
             createEntering User |> setQuery "List::head"
             |> (fun x -> x.completions)
             |> List.concat |> List.filter isStaticItem |> List.map asName
-            |> List.length |> ( == ) 1 )
+            |> List.length |> ( = ) 1 )
         ; (fun _ ->
             createEntering User |> setQuery "Twit" |> selectDown |> selectDown
             |> (fun x -> x.index)
-            |> ( == ) 2 )
+            |> ( = ) 2 )
         ; (fun _ ->
             createEntering User |> setQuery "Twit:" |> selectDown |> selectDown
             |> selectDown
             |> (fun x -> x.index)
-            |> ( == ) 0 )
+            |> ( = ) 0 )
         ; (fun _ ->
             createEntering User |> setQuery "Twit:" |> selectDown |> selectUp
             |> selectUp
             |> (fun x -> x.index)
-            |> ( == ) 2 )
+            |> ( = ) 2 )
         ; (fun _ ->
             createEntering User |> setQuery "Twit:" |> selectUp |> selectUp
             |> (fun x -> x.index)
-            |> ( == ) 1 )
+            |> ( = ) 1 )
         ; (fun _ ->
             createEntering User |> selectUp |> selectUp |> selectUp |> selectUp
             |> selectUp
             |> (fun x -> x.index)
-            |> ( == ) 13 )
+            |> ( = ) 13 )
         ; (fun _ ->
             createEntering User |> setQuery "Twit" |> selectDown |> selectDown
             |> setQuery "Twit::1334xxx"
             |> (fun x -> x.index)
-            |> ( == ) (-1) )
+            |> ( = ) (-1) )
         ; (fun _ ->
             createEntering User |> setQuery ""
             |> (fun x -> x.completions)
-            |> List.concat |> List.length |> ( /= ) 0 )
+            |> List.concat |> List.length |> ( <> ) 0 )
         ; (fun _ ->
             createEntering User |> setQuery "withL"
             |> (fun x -> x.completions)
             |> List.concat |> List.filter isStaticItem |> List.map asName
-            |> ( == )
+            |> ( = )
                  [ "withLower"
                  ; "withlower"
                  ; "SomeModule::withLower"
                  ; "SomeOtherModule::withlower" ] )
         ; (fun _ ->
             createEntering User |> setQuery "21434234" |> selectDown
-            |> highlighted |> Maybe.map asName |> ( == ) (Just "21434234") )
+            |> highlighted |> Option.map asName |> ( = ) (Some "21434234") )
         ; (fun _ ->
             createEntering User |> setQuery "+" |> highlighted
-            |> Maybe.map asName |> ( == ) (Just "+") )
+            |> Option.map asName |> ( = ) (Some "+") )
         ; (fun _ ->
             createEntering User |> setQuery "nu" |> highlighted
-            |> ( == ) (Just (ACLiteral "null")) )
+            |> ( = ) (Some (ACLiteral "null")) )
         ; (fun _ ->
             createEntering User |> setQuery "tr" |> highlighted
-            |> ( == ) (Just (ACLiteral "true")) )
+            |> ( = ) (Some (ACLiteral "true")) )
         ; (fun _ ->
             createEntering User |> setQuery "tR" |> highlighted
-            |> ( == ) (Just (ACLiteral "true")) )
+            |> ( = ) (Some (ACLiteral "true")) )
         ; (fun _ ->
             createEntering User |> setQuery "false" |> highlighted
-            |> ( == ) (Just (ACLiteral "false")) )
+            |> ( = ) (Some (ACLiteral "false")) )
         ; (fun _ ->
             createEntering User |> setQuery "3.452" |> highlighted
-            |> ( == ) (Just (ACLiteral "3.452")) )
+            |> ( = ) (Some (ACLiteral "3.452")) )
         ; (fun _ ->
             createEntering User |> setQuery "if" |> highlighted
-            |> ( == ) (Just (ACKeyword KIf)) )
+            |> ( = ) (Some (ACKeyword KIf)) )
         ; (fun _ ->
             createEntering User |> setQuery "let" |> highlighted
-            |> ( == ) (Just (ACKeyword KLet)) )
+            |> ( = ) (Some (ACKeyword KLet)) )
         ; (fun _ ->
             createEntering User |> setQuery "lambda" |> highlighted
-            |> ( == ) (Just (ACKeyword KLambda)) ) ]
+            |> ( = ) (Some (ACKeyword KLambda)) ) ]
     ; d "queryWhenCreating"
         [ (fun _ ->
             createCreating User |> setQuery "Mydbname"
@@ -230,8 +232,8 @@ let all =
             createCreating User |> itemPresent (ACOmniAction NewHandler) )
         ; (fun _ ->
             createCreating User
-            |> itemPresent (ACOmniAction (NewFunction Nothing)) )
+            |> itemPresent (ACOmniAction (NewFunction None)) )
         ; (fun _ ->
             createCreating User |> setQuery "myFunction"
-            |> itemPresent (ACOmniAction (NewFunction (Just "myFunction"))) )
+            |> itemPresent (ACOmniAction (NewFunction (Some "myFunction"))) )
         ] ]

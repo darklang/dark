@@ -1,48 +1,50 @@
+open Belt
+open Porting
 module B = Blank
 open Types
 
 let astsFor db =
   match db.activeMigration with
-  | Nothing -> []
-  | Just am -> [am.rollforward; am.rollback]
+  | None -> []
+  | Some am -> [am.rollforward; am.rollback]
 
 let allData db =
   let cols, rolls =
     match db.activeMigration with
-    | Just migra ->
-        ( db.cols ++ migra.cols
+    | Some migra ->
+        ( db.cols ^ migra.cols
         , List.concat
             [AST.allData migra.rollforward; AST.allData migra.rollback] )
-    | Nothing -> (db.cols, [])
+    | None -> (db.cols, [])
   in
   let colpointers =
     cols
     |> List.map (fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
     |> List.concat
   in
-  colpointers ++ rolls
+  colpointers ^ rolls
 
 let siblings _ db = allData db
 
 let hasCol db name =
   db.cols
   |> List.any (fun (colname, _) ->
-         match colname with Blank _ -> false | F (_, n) -> name == n )
+         match colname with Blank _ -> false | F (_, n) -> name = n )
 
 let isLocked m tlid = not (List.member tlid m.unlockedDBs)
 
 let isMigrating db =
-  match db.activeMigration with Just _ -> true | Nothing -> false
+  match db.activeMigration with Some _ -> true | None -> false
 
 let isMigrationCol db id =
   match db.activeMigration with
-  | Just schema ->
+  | Some schema ->
       let inCols =
         schema.cols
-        |> List.filter (fun (n, t) -> (B.toID n == id || B.toID t) == id)
+        |> List.filter (fun (n, t) -> (B.toID n = id || B.toID t) = id)
       in
       not (List.isEmpty inCols)
-  | Nothing -> false
+  | None -> false
 
 let isMigrationLockReady m = B.isF m.rollforward && B.isF m.rollback
 

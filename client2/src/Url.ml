@@ -1,10 +1,12 @@
+open Belt
+open Porting
 module Attrs = Html.Attributes
 open Prelude
 open Types
 
 let hashUrlParams params =
-  let merged = List.map (fun (k, v) -> k ++ "=" ++ v) params in
-  "#" ++ String.join "&" merged
+  let merged = List.map (fun (k, v) -> (k ^ "=") ^ v) params in
+  "#" ^ String.join "&" merged
 
 let urlOf page pos =
   let head =
@@ -13,7 +15,7 @@ let urlOf page pos =
     | Fn (tlid, _) -> [("fn", string_of_int (deTLID tlid))]
   in
   let tail = [("x", string_of_int pos.x); ("y", string_of_int pos.y)] in
-  hashUrlParams (head ++ tail)
+  hashUrlParams (head ^ tail)
 
 let urlFor page =
   let pos =
@@ -34,7 +36,7 @@ let maybeUpdateScrollUrl m =
     | Fn (tlid, _) -> m.canvas.fnOffset
   in
   let state = m.urlState in
-  if pos /= state.lastPos then
+  if pos <> state.lastPos then
     Many
       [ TweakModel (fun m_ -> {m_ with urlState= {state with lastPos= pos}})
       ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
@@ -46,40 +48,40 @@ let parseLocation m loc =
     |> List.map (String.split "=")
     |> List.filterMap (fun arr ->
            match arr with
-           | [[]; b; a] -> Just (String.toLower a, b)
-           | _ -> Nothing )
+           | [[]; b; a] -> Some (String.toLower a, b)
+           | _ -> None )
     |> Dict.fromList
   in
   let center =
     match (Dict.get "x" unstructured, Dict.get "y" unstructured) with
-    | Just x, Just y -> (
-      match (String.toInt x, String.toInt y) with
-      | Ok x, Ok y -> Just {x; y}
-      | _ -> Nothing )
-    | _ -> Nothing
+    | Some x, Some y -> (
+      match (int_of_string x, int_of_string y) with
+      | Ok x, Ok y -> Some {x; y}
+      | _ -> None )
+    | _ -> None
   in
   let editedFn =
     match Dict.get "fn" unstructured with
-    | Just sid -> (
-      match String.toInt sid with
+    | Some sid -> (
+      match int_of_string sid with
       | Ok id ->
-          Just <| Fn (TLID id, Maybe.withDefault Defaults.centerPos center)
-      | _ -> Nothing )
-    | _ -> Nothing
+          Some <| Fn (TLID id, Maybe.withDefault Defaults.centerPos center)
+      | _ -> None )
+    | _ -> None
   in
   match (center, editedFn) with
-  | _, Just fn -> editedFn
-  | Just pos, _ -> Just (Toplevels pos)
-  | _ -> Nothing
+  | _, Some fn -> editedFn
+  | Some pos, _ -> Some (Toplevels pos)
+  | _ -> None
 
 let changeLocation m loc =
   let mPage = parseLocation m loc in
   match mPage with
-  | Just (Fn (id, pos)) -> (
+  | Some (Fn (id, pos)) -> (
     match Functions.find m id with
-    | Nothing -> DisplayError "No function"
+    | None -> DisplayErroror "No function"
     | _ -> SetPage (Fn (id, pos)) )
-  | Just page -> SetPage page
+  | Some page -> SetPage page
   | _ -> NoChange
 
 let parseCanvasName loc =

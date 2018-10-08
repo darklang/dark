@@ -1,9 +1,11 @@
+open Belt
+open Porting
 open Prelude
 open Types
 
 let toID b = match b with Blank id -> id | F (id, _) -> id
 
-let toMaybe b = match b with F (_, v) -> Just v | Blank _ -> Nothing
+let toMaybe b = match b with F (_, v) -> Some v | Blank _ -> None
 
 let new_ () = Blank (gid ())
 
@@ -18,7 +20,7 @@ let isF = isBlank >> not
 
 let isBlank b = match b with Blank _ -> true | F (_, _) -> false
 
-let asF b = match b with F (_, v) -> Just v | Blank _ -> Nothing
+let asF b = match b with F (_, v) -> Some v | Blank _ -> None
 
 let replace search replacement bo =
-  if toID bo == search then replacement else bo
+  if toID bo = search then replacement else bo

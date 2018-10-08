@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 open Types
 open UtilsForTests
@@ -28,7 +30,7 @@ let all =
       in
       match result with
       | F (_, Thread [_; r]) ->
-          if r == replacement then pass else fail (orig, result)
+          if r = replacement then pass else fail (orig, result)
       | _ -> fail (orig, result) )
     ; ( test
           "promoting a threaded FnCall by removing the Thread, re-adds the \
@@ -54,7 +56,7 @@ let all =
       in
       let open_ = B.newF (Thread [fn; B.new_ ()]) in
       let closed = AST.closeThreads open_ in
-      if closed == fn then pass else fail {open_; fn; closed} )
+      if closed = fn then pass else fail {open_; fn; closed} )
     ; ( test "simple thread is closed properly"
       <| expectOk
       <|
@@ -68,7 +70,7 @@ let all =
       let fieldname = B.newF "field" in
       let expr = B.newF (FieldAccess (obj, fieldname)) in
       let parent = AST.parentOf (B.toID fieldname) expr in
-      if parent == expr then pass else fail (parent, expr) )
+      if parent = expr then pass else fail (parent, expr) )
     ; ( test "usesRail returns true when at top"
       <| expectTrue
       <|

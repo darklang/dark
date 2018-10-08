@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module Attrs = Html.Attributes
 module Events = Html.Events
@@ -38,17 +40,17 @@ let createVS m tl =
   ; tlid= tl.id
   ; hovering=
       m.hovering |> List.head
-      |> Maybe.andThen (fun i ->
+      |> Option.andThen (fun i ->
              match idOf m.cursorState with
-             | Just cur -> (
+             | Some cur -> (
                match TL.find tl i with
-               | Just (PExpr exp) ->
+               | Some (PExpr exp) ->
                    let cursorSubsumedByHover =
                      exp |> AST.allData |> List.map P.toID |> List.member cur
                    in
-                   if cursorSubsumedByHover then Nothing else Just i
-               | _ -> if cur == i then Nothing else Just i )
-             | _ -> Just i )
+                   if cursorSubsumedByHover then None else Some i
+               | _ -> if cur = i then None else Some i )
+             | _ -> Some i )
   ; ac= m.complete
   ; showEntry= true
   ; showLivevalue= true
@@ -62,9 +64,9 @@ let createVS m tl =
       ( match unwrapCursorState m.cursorState with
       | Entering (Filling (_, id)) -> (
         match TL.find tl id with
-        | Just (PVarBind (F (_, var))) as pd -> (
+        | Some (PVarBind (F (_, var))) as pd -> (
           match TL.getParentOf tl (Option.getExn "impossible" pd) with
-          | Just (PExpr e) -> (
+          | Some (PExpr e) -> (
             match e with
             | F (_, Let (_, _, body)) -> AST.uses var body |> List.map B.toID
             | F (_, Lambda (_, body)) -> AST.uses var body |> List.map B.toID
@@ -74,7 +76,7 @@ let createVS m tl =
       | _ -> [] )
   ; tooWide= false
   ; executingFunctions=
-      List.filter (fun (tlid, id) -> tlid == tl.id) m.executingFunctions
+      List.filter (fun (tlid, id) -> tlid = tl.id) m.executingFunctions
       |> List.map (fun (tlid, id) -> id)
   ; tlCursors= m.tlCursors
   ; testVariants= m.tests
@@ -83,7 +85,7 @@ let createVS m tl =
   ; canvasName= m.canvasName
   ; userContentHost= m.userContentHost }
 
-let fontAwesome name = Html.i [Attrs.class_ ("fa fa-" ++ name)] []
+let fontAwesome name = Html.i [Attrs.class_ ("fa fa-" ^ name)] []
 
 let eventNoPropagation event constructor =
   Events.onWithOptions event
@@ -95,7 +97,7 @@ let eventNoDefault event constructor =
     {stopPropagation= false; preventDefault= true}
     (decodeClickEvent constructor)
 
-let nothingMouseEvent name = eventNoPropagation name NothingClick
+let nothingMouseEvent name = eventNoPropagation name NoneClick
 
 let decodeClickEvent fn =
   let _ = "type annotation" in
@@ -110,11 +112,11 @@ let placeHtml m pos html =
   Html.div
     [ Attrs.class_ "node"
     ; Attrs.style
-        [ ("left", string_of_int pos.x ++ "px")
-        ; ("top", string_of_int pos.y ++ "px") ] ]
+        [ ("left", string_of_int pos.x ^ "px")
+        ; ("top", string_of_int pos.y ^ "px") ] ]
     [html]
 
-let inCh w = w |> string_of_int |> fun s -> s ++ "ch"
+let inCh w = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh w = w |> inCh |> fun w_ -> Attrs.style [("width", w_)]
 
@@ -166,20 +168,20 @@ let viewFnName fnName extraClasses =
   let matches = Regex.find (Regex.AtMost 1) pattern fnName in
   let name, version =
     match List.head matches with
-    | Just m ->
+    | Some m ->
         let name =
           match m.submatches with
-          | [_; Just fn; Nothing] -> fn
-          | [_; Just fn; Just modName] -> modName ++ fn
+          | [_; Some fn; None] -> fn
+          | [_; Some fn; Some modName] -> modName ^ fn
           | _ -> fnName
         in
         let version =
-          match m.submatches with [Just v; _; _] -> v | _ -> "0"
+          match m.submatches with [Some v; _; _] -> v | _ -> "0"
         in
         (name, version)
-    | Nothing -> (fnName, "0")
+    | None -> (fnName, "0")
   in
   Html.div
     [Attrs.class_ (String.join " " ("versioned-function" :: extraClasses))]
     [ Html.span [Attrs.class_ "name"] [Html.text name]
-    ; Html.span [Attrs.class_ "version"] [Html.text ("v" ++ version)] ]
+    ; Html.span [Attrs.class_ "version"] [Html.text ("v" ^ version)] ]

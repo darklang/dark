@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module AC = Autocomplete
 module B = Blank
 module P = Pointer
@@ -23,18 +25,18 @@ let newHandlerSpec _ =
   ; types= {input= B.new_ (); output= B.new_ ()} }
 
 let createFunction m name =
-  let blanks count = LE.initialize count (fun _ -> B.new_ ()) in
+  let blanks count = List.makeBy count (fun _ -> B.new_ ()) in
   let fn =
     m.complete.functions
-    |> List.filter (fun fn_ -> fn_.name == name)
+    |> List.filter (fun fn_ -> fn_.name = name)
     |> List.head
   in
   match fn with
-  | Just function_ ->
-      let r = if function_.returnTipe == TOption then Rail else NoRail in
-      Just
+  | Some function_ ->
+      let r = if function_.returnTipe = TOption then Rail else NoRail in
+      Some
       <| B.newF (FnCall (name, blanks (List.length function_.parameters), r))
-  | Nothing -> Nothing
+  | None -> None
 
 let submitOmniAction m pos action =
   match action with
@@ -54,14 +56,14 @@ let submitOmniAction m pos action =
       let blankfn = Refactor.generateEmptyFunction () in
       let newfn =
         match name with
-        | Just n ->
+        | Some n ->
             let metadata = blankfn.metadata in
             let newMetadata = {metadata with name= F (gid (), n)} in
             {blankfn with metadata= newMetadata}
-        | Nothing -> blankfn
+        | None -> blankfn
       in
       Many
-        [ RPC ([SetFunction newfn], FocusNothing)
+        [ RPC ([SetFunction newfn], FocusNone)
         ; MakeCmd (Url.navigateTo (Fn (newfn.tlid, Defaults.centerPos))) ]
   | NewHTTPHandler ->
       let next = gid () in
@@ -99,7 +101,7 @@ let submitOmniAction m pos action =
 
 let replaceExpr m tlid ast old_ action value =
   let id = B.toID old_ in
-  let target = Just (tlid, PExpr old_) in
+  let target = Some (tlid, PExpr old_) in
   let old, new_ =
     if List.member value (Analysis.currentVarnamesFor m target) then
       (old_, B.newF (Variable value))
@@ -139,16 +141,16 @@ let parseAst m str =
   let b3 = B.new_ () in
   let firstWord = String.split " " str in
   match firstWord with
-  | ["if"] -> Just <| F (eid, If (b1, b2, b3))
-  | ["let"] -> Just <| F (eid, Let (b1, b2, b3))
-  | ["lambda"] -> Just <| F (eid, Lambda ([B.newF "var"], b2))
-  | [""] -> Just b1
-  | ["[]"] -> Just <| F (eid, ListLiteral [B.new_ ()])
-  | ["["] -> Just <| F (eid, ListLiteral [B.new_ ()])
-  | ["{}"] -> Just <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
-  | ["{"] -> Just <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
+  | ["if"] -> Some <| F (eid, If (b1, b2, b3))
+  | ["let"] -> Some <| F (eid, Let (b1, b2, b3))
+  | ["lambda"] -> Some <| F (eid, Lambda ([B.newF "var"], b2))
+  | [""] -> Some b1
+  | ["[]"] -> Some <| F (eid, ListLiteral [B.new_ ()])
+  | ["["] -> Some <| F (eid, ListLiteral [B.new_ ()])
+  | ["{}"] -> Some <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
+  | ["{"] -> Some <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
   | _ ->
-      if RPC.isLiteralString str then Just <| F (eid, Value str)
+      if RPC.isLiteralString str then Some <| F (eid, Value str)
       else createFunction m str
 
 type nextAction = StartThread | StayHere | GotoNext
@@ -168,9 +170,9 @@ let submit m cursor action =
         let newAst = threadIt expr in
         let focus =
           newAst |> AST.allData |> List.filter P.isBlank |> List.head
-          |> Maybe.map P.toID
-          |> Maybe.map (FocusExact tlid)
-          |> Maybe.withDefault (FocusNext (tlid, Nothing))
+          |> Option.map P.toID
+          |> Option.map (FocusExact tlid)
+          |> Maybe.withDefault (FocusNext (tlid, None))
         in
         let _ = "comment" in
         let _ = "comment" in
@@ -182,7 +184,7 @@ let submit m cursor action =
         in
         RPC ([op], focus)
       in
-      if List.member value (Analysis.currentVarnamesFor m Nothing) then
+      if List.member value (Analysis.currentVarnamesFor m None) then
         wrapExpr <| B.newF (Variable value)
       else if String.endsWith "." value then
         wrapExpr
@@ -190,15 +192,13 @@ let submit m cursor action =
              (FieldAccess
                 (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
       else
-        match parseAst m value with
-        | Nothing -> NoChange
-        | Just v -> wrapExpr v )
+        match parseAst m value with None -> NoChange | Some v -> wrapExpr v )
   | Filling (tlid, id) -> (
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
       let result = validate tl pd value in
-      if result /= Nothing then
-        DisplayAndReportError <| Option.getExn "checked above" result
+      if result <> None then
+        DisplayAndReportErroror <| Option.getExn "checked above" result
       else if String.length value < 1 then NoChange
       else
         let maybeH = TL.asHandler tl in
@@ -206,18 +206,18 @@ let submit m cursor action =
         let wrap ops next =
           let wasEditing = P.isBlank pd |> not in
           let focus =
-            if (wasEditing && action) == StayHere then
+            if (wasEditing && action) = StayHere then
               match next with
-              | Nothing -> FocusSame
-              | Just nextID -> FocusExact (tl.id, nextID)
+              | None -> FocusSame
+              | Some nextID -> FocusExact (tl.id, nextID)
             else FocusNext (tl.id, next)
           in
           RPC (ops, focus)
         in
-        let wrapID ops = wrap ops (Just id) in
-        let wrapNew ops new_ = wrap ops (Just (P.toID new_)) in
+        let wrapID ops = wrap ops (Some id) in
+        let wrapNew ops new_ = wrap ops (Some (P.toID new_)) in
         let save newtl next =
-          if newtl == tl then NoChange
+          if newtl = tl then NoChange
           else
             match newtl.data with
             | TLHandler h -> wrapNew [SetHandler (tlid, tl.pos, h)] next
@@ -245,17 +245,17 @@ let submit m cursor action =
               wrapID
                 [ SetDBColTypeInDBMigration (tlid, id, value)
                 ; AddDBColToDBMigration (tlid, gid (), gid ()) ]
-            else if B.asF ct == Just value then Select (tlid, Just id)
+            else if B.asF ct = Some value then Select (tlid, Some id)
             else wrapID [ChangeDBColType (tlid, id, value)]
         | PDBColName cn ->
             let db1 = Option.getExn "db" db in
             if B.isBlank cn then wrapID [SetDBColName (tlid, id, value)]
             else if DB.hasCol db1 value then
-              DisplayError
-                ("Can't have two DB fields with the same name: " ++ value)
+              DisplayErroror
+                ("Can't have two DB fields with the same name: " ^ value)
             else if DB.isMigrationCol db1 id then
               wrapID [SetDBColNameInDBMigration (tlid, id, value)]
-            else if B.asF cn == Just value then Select (tlid, Just id)
+            else if B.asF cn = Some value then Select (tlid, Some id)
             else wrapID [ChangeDBColName (tlid, id, value)]
         | PVarBind _ -> replace (PVarBind (B.newF value))
         | PEventName _ -> replace (PEventName (B.newF value))
@@ -279,7 +279,7 @@ let submit m cursor action =
               | TLDB _ -> impossible ("No fields in DBs", tl.data)
             in
             let parent = AST.parentOf id ast in
-            if action == StartThread then
+            if action = StartThread then
               let replacement = AST.replace pd (PField (B.newF value)) ast in
               let newAst = AST.wrapInThread (B.toID parent) replacement in
               saveAst newAst (PExpr parent)
@@ -322,8 +322,8 @@ let submit m cursor action =
               saveAst newast (PExpr newexpr)
           | TLDB db -> (
             match db.activeMigration with
-            | Nothing -> NoChange
-            | Just am ->
+            | None -> NoChange
+            | Some am ->
                 if List.member pd (AST.allData am.rollforward) then
                   let newast, newexpr =
                     replaceExpr m tl.id am.rollforward e action value
@@ -368,23 +368,23 @@ let submit m cursor action =
 
 let validate tl pd value =
   let v pattern name =
-    if Util.reExactly pattern value then Nothing
-    else Just (name ++ " must match /" ++ pattern ++ "/")
+    if Util.reExactly pattern value then None
+    else Some (((name ^ " must match /") ^ pattern) ^ "/")
   in
   match pd with
   | PDBColType ct -> v "\\[?[A-Z]\\w+\\]?" "DB type"
   | PDBColName cn ->
-      if value == "id" then
-        Just
+      if value = "id" then
+        Some
           "The field name 'id' was reserved when IDs were implicit. We are \
            transitioning to allowing it, but we're not there just yet. Sorry!"
       else v "\\w+" "DB column name"
   | PVarBind _ -> v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
   | PEventName _ ->
       let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
-      let http = "/(" ++ urlSafeCharacters ++ "*)" in
+      let http = ("/(" ^ urlSafeCharacters) ^ "*)" in
       let _ = "comment" in
-      let event = urlSafeCharacters ++ "+" in
+      let event = urlSafeCharacters ^ "+" in
       let _ = "comment" in
       if TL.isHTTPHandler tl then v http "route name" else v event "event name"
   | PEventModifier _ ->
@@ -393,10 +393,10 @@ let validate tl pd value =
   | PEventSpace _ -> v "[A-Z_]+" "event space"
   | PField _ -> v ".+" "fieldname"
   | PKey _ -> v ".+" "key"
-  | PExpr e -> Nothing
+  | PExpr e -> None
   | PDarkType _ -> v "(String|Int|Any|Empty|{)" "type"
-  | PDarkTypeField _ -> Nothing
-  | PFFMsg _ -> Nothing
-  | PFnName _ -> Nothing
-  | PParamName _ -> Nothing
+  | PDarkTypeField _ -> None
+  | PFFMsg _ -> None
+  | PFnName _ -> None
+  | PParamName _ -> None
   | PParamTipe _ -> v "[A-Z][a-z]*" "param type"

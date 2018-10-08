@@ -6,32 +6,39 @@ open Migrate_parsetree.Ast_404
 open Ast_helper
 
 (* ------------------------ *)
-(* post process *)
+(* config *)
 (* ------------------------ *)
-let parse_rename_config () : (string * string) list =
-  try
-  "port_config.txt"
-  |> Core.In_channel.read_lines
-  |> List.map ~f:(fun l ->
-      match String.split l ~on:':' with
-      | [k;v] -> (k,v)
-      | _ -> failwith ("Incorrect format (should be `name:replacement`: " ^ l))
-  with Sys_error msg as e ->
-    if msg = "port_config.txt: No such file or directory"
-    then
-      (prerr_endline "No port_config.txt";
-       [])
-    else
-      raise e
+let config_function_patterns =
+  [ "DontPort.fromInt", "string_of_int"
+  ; "DontPort.fromFloat", "string_of_float"
+  ; "DontPort.deMaybe", "Option.getExn"
+  ]
 
-let rename_config = parse_rename_config ()
+let config_module_patterns =
+  [ "LE", "List.Extra"
+  ; "ME", "Maybe.Extra"
+  ]
 
-let post_process str : string =
-  List.fold ~init:str rename_config
+let config_post_process_patterns =
+  [ "module LE = List.Extra", ""
+  ; "module ME = Maybe.Extra", ""
+  ]
+
+(* ------------------------ *)
+(* post processing *)
+(* ------------------------ *)
+let rewrite (patterns: (string * string) list) str : string =
+  List.fold ~init:str patterns
     ~f:(fun prev (pattern,template) ->
         Re2.rewrite_exn (Re2.create_exn pattern) ~template prev)
 
+let std_post_process_patterns =
+  [ "\\(string, (.*)\\) dict", "\\1 Belt.Map.String.t"
+  ; "\\(int, (.*)\\) dict", "\\1 Belt.Map.Int.t"
+  ]
 
+let post_process =
+  rewrite (config_post_process_patterns @ std_post_process_patterns)
 
 (* ------------------------ *)
 (* Rename appropriately *)
@@ -97,106 +104,132 @@ let keywords =
   ; "with"
   ]
 
-let correct_keyword n : string =
+let avoid_keyword (n: string) : string =
   if List.mem ~equal:(=) keywords n
   then n ^ "_"
   else n
 
-let correct_varname n : string =
-  correct_keyword n
+(* ------------------------ *)
+(* Convert to OCaml AST types *)
+(* ------------------------ *)
+let name2string ?(kw_ok=false) ?(fix=ident) n : string =
+  n
+  |> (fun x -> if kw_ok then x else avoid_keyword x)
+  |> fix
 
-let ocaml_typename_for n : string =
-  if n = "maybe"
-  then "option"
-  else n
+let name2str ?(kw_ok=false) ?(fix=ident) (str: string) : str =
+  str
+  |> name2string ~kw_ok ~fix
+  |> Location.mknoloc
 
-let ocaml_module_for n : string =
-  if n = "Maybe" then "Option"
-  else n
+let name2lid ?(kw_ok=false) ?(fix=ident) n : lid =
+  n
+  |> name2string ~kw_ok ~fix
+  |> Longident.parse
+  |> Location.mknoloc
 
-let ocaml_constructor_name_for n : string =
-  if n = "Just" then "Some"
-  else if n = "Nothing" then "None"
-  else if n = "Err" then "Error"
-  else n
+let names2something
+    ?(fix_each : string -> string = ident)
+    ?(fix_all : string -> string = ident)
+    ?(fix_init : string -> string = ident)
+    ?(fix_last : string -> string = ident)
+    ?(fix_head : string -> string = ident)
+    ?(fix_tail : string -> string = ident)
+    (names: string list)
+  : string =
+  names
+  |> List.map ~f:fix_each
+  |> (function | [] -> []
+               | head :: tail -> (fix_head head) :: (List.map ~f:fix_tail tail))
+  |> List.rev
+  |> (function | [] -> []
+               | last :: init -> (fix_last last) :: (List.map ~f:fix_init init))
+  |> List.rev
+  |> List.map ~f:avoid_keyword
+  |> String.concat ~sep:"."
+  |> fix_all
+  |> avoid_keyword
 
-let ocaml_fnname_for ns : string list =
-  let n = String.concat ns ~sep:"." in
-  let n =
-    if n = "==" then "="
-    else if n = "++" then "^" (* or @, but probably ^ *)
-    else if n = "String.toInt" then "int_of_string"
-    else if n = "String.toFloat" then "float_of_string"
-    else if n = "String.fromInt" then "string_of_float"
-    else if n = "String.fromFloat" then "string_of_int"
-    else if n = "Result.withDefault" then "Result.getWithDefault"
-    else if n = "LE.getAt" then "List.get"
-    else if n = "List.Extra.getAt" then "List.get"
-    else if n = "LE.indexedMap" then "List.mapWithIndex"
-    else if n = "List.Extra.indexedMap" then "List.mapWithIndex"
-    else if n = "Char.toCode" then "code"
-    else if n = "Char.fromCode" then "chr"
-    else n
+
+let names2lid
+    ?(fix_each : string -> string = ident)
+    ?(fix_all : string -> string = ident)
+    ?(fix_init : string -> string = ident)
+    ?(fix_last : string -> string = ident)
+    ?(fix_head : string -> string = ident)
+    ?(fix_tail : string -> string = ident)
+    (names: string list)
+  : lid =
+  names
+  |> names2something ~fix_each ~fix_all ~fix_init ~fix_last ~fix_head ~fix_tail
+  |> Longident.parse
+  |> Location.mknoloc
+
+let names2str
+    ?(fix_each : string -> string = ident)
+    ?(fix_all : string -> string = ident)
+    ?(fix_init : string -> string = ident)
+    ?(fix_last : string -> string = ident)
+    ?(fix_head : string -> string = ident)
+    ?(fix_tail : string -> string = ident)
+    (names: string list)
+  : str =
+  names
+  |> names2something ~fix_each ~fix_all ~fix_init ~fix_last ~fix_head ~fix_tail
+  |> Location.mknoloc
+
+
+(* ------------------------ *)
+(* Fix specific strings and convert *)
+(* ------------------------ *)
+
+let fix_type n : string =
+  let patterns =
+    [ "maybe", "option"
+    ]
   in
-  String.split ~on:'.' n
+  rewrite patterns (String.uncapitalize n)
 
+let fix_module n : string =
+  let patterns =
+    []
+  in
+  rewrite (patterns @ config_module_patterns) n
 
+let fix_constructor n : string =
+  let patterns =
+    [ "Just", "Some"
+    ; "Nothing", "None"
+    ; "Err", "Error"
+    ]
+  in
+  rewrite patterns n
 
-let correct_typename n : string =
-  n
-  |> String.uncapitalize
-  |> correct_keyword
-  |> ocaml_typename_for
-
-
-(* ------------------------ *)
-(* Create AST elements from strings *)
-(* ------------------------ *)
-let nolo = Location.mknoloc
-
-let varname n : lid =
-  n
-  |> correct_varname
-  |> Longident.parse
-  |> nolo
-
-let lid n : lid =
-  n
-  |> Longident.parse
-  |> nolo
-
-let as_var n : str =
-  n
-  |> correct_varname
-  |> nolo
-
-let full_varname (names: string list) : lid =
-  names
-  |> List.map ~f:correct_varname
-  |> Longident.unflatten
-  |> fun x -> Option.value_exn x
-  |> nolo
-
-let typename n : lid =
-  n
-  |> correct_typename
-  |> Longident.parse
-  |> nolo
-
-let full_typename names : lid =
-  names
-  |> List.rev
-  |> (function (hd::rest) -> correct_typename hd :: rest
-               | [] -> [])
-  |> List.rev
-  |> Longident.unflatten
-  |> fun x -> Option.value_exn x
-  |> nolo
-
-let as_type n : str =
-  n
-  |> correct_typename
-  |> nolo
+let fix_function name : string =
+  let patterns =
+    [ "==", "="
+    ; "/=", "<>"
+    ; "\\+\\+", "^"
+    ; "Char.fromCode", "chr"
+    ; "Char.toCode", "code"
+    ; "List.Extra.elemIndex", "List.elemIndex"
+    ; "List.Extra.find", "List.getBy"
+    ; "List.Extra.getAt", "List.get"
+    ; "List.Extra.indexedMap", "List.mapWithIndex"
+    ; "List.Extra.initialize", "List.makeBy"
+    ; "Maybe.Extra.orElse", "Option.orElse"
+    ; "Maybe.Extra.toList", "Option.toList"
+    ; "Maybe.andThen", "Option.andThen"
+    ; "Maybe.map", "Option.map"
+    ; "Result.toMaybe", "Result.toOption"
+    ; "Result.withDefault", "Result.getWithDefault"
+    ; "String.fromFloat", "string_of_int"
+    ; "String.fromInt", "string_of_float"
+    ; "String.toFloat", "float_of_string"
+    ; "String.toInt", "int_of_string"
+    ]
+  in
+  rewrite (patterns @ config_function_patterns) name
 
 
 (* ------------------------ *)
@@ -244,8 +277,8 @@ let openCommentedList2list (l: 'a openCommentedList) : 'a list =
 let litExpO lit : Parsetree.expression =
   match lit with
   | Str (str, _l) -> Exp.constant (Const.string str)
-  | Boolean true -> Exp.construct (lid "true") None
-  | Boolean false -> Exp.construct (lid "false") None
+  | Boolean true -> Exp.construct (name2lid ~kw_ok:true"true") None
+  | Boolean false -> Exp.construct (name2lid ~kw_ok:true "false") None
   | IntNum (i, repr) -> Exp.constant (Const.int i)
   | FloatNum (f, repr) -> Exp.constant (Const.float (string_of_float f))
   | Chr c -> Exp.constant (Const.char c)
@@ -253,8 +286,8 @@ let litExpO lit : Parsetree.expression =
 let litPatO lit : Parsetree.pattern =
   match lit with
   | Str (str, _l) -> Pat.constant (Const.string str)
-  | Boolean true -> Pat.construct (lid "true") None
-  | Boolean false -> Pat.construct (lid "false") None
+  | Boolean true -> Pat.construct (name2lid ~kw_ok:true"true") None
+  | Boolean false -> Pat.construct (name2lid ~kw_ok:true"false") None
   | IntNum (i, repr) -> Pat.constant (Const.int i)
   | FloatNum (f, repr) -> Pat.constant (Const.float (string_of_float f))
   | Chr c -> Pat.constant (Const.char c)
@@ -263,19 +296,19 @@ let litPatO lit : Parsetree.pattern =
 let rec patpO (patp: patternp) : Parsetree.pattern =
   let pats2list pats =
     List.fold pats
-      ~init:(Pat.construct (varname "[]") None)
+      ~init:(Pat.construct (name2lid "[]") None)
       ~f:(fun prev arg ->
           Pat.construct
-            (varname "::")
+            (name2lid "::")
             (Some (Pat.tuple [patO arg; prev])))
   in
   match patp with
   | Anything -> Pat.any ()
-  | VarPattern name -> Pat.var (as_var name)
+  | VarPattern name -> Pat.var (name2str name)
   | PLiteral lit ->
     litPatO lit
   | UnitPattern _cs ->
-    Pat.construct (varname "()") None
+    Pat.construct (name2lid "()") None
   | TuplePattern ps ->
     let ps = List.map ~f:skip_commented ps in
     Pat.tuple (List.map ~f:patO ps)
@@ -294,7 +327,7 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
   | RecordPattern fields ->
     let fields = List.map fields
         ~f:(fun (_c, name, _c2) ->
-            (varname name, Pat.var (as_var name)))
+            (name2lid name, Pat.var (name2str name)))
     in
     Pat.record fields Closed
   | Data (names, args) ->
@@ -303,14 +336,14 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       |> List.map ~f:(fun (_c, pat) -> patO pat)
       |> Pat.tuple
     in
-    let n = full_varname names in
+    let n = names2lid ~fix_last:fix_constructor names in
     if args = []
     then
       Pat.construct n None
     else
       Pat.construct n (Some tuple)
   | Alias ((pat, _cs), (_cs2, id)) ->
-    Pat.alias (patO pat) (nolo id)
+    Pat.alias (patO pat) (name2str id)
   | _ ->
     Pat.constant
       (Const.string (todo "pattern" (show_patternp patp)))
@@ -331,17 +364,23 @@ let rec exprpO (exprp) : Parsetree.expression =
     (* Constructors with 1 arg *)
   | App ((_r, VarExpr (TagRef (path, var))), [_c, arg], _line) ->
     Exp.construct
-      (full_varname (path @ [var]))
+      (names2lid
+         ~fix_init:fix_module
+         ~fix_last:fix_constructor
+         (path @ [var]))
       (Some (exprO arg))
     (* Constructors with multiple args *)
   | App ((_r, VarExpr (TagRef (path, var))), args, _line) ->
     Exp.construct
-      (full_varname (path @ [var]))
+      (names2lid
+         ~fix_init:fix_module
+         ~fix_last:fix_constructor
+         (path @ [var]))
       (Some
          (Exp.tuple
             (List.map args ~f:(fun (_c, a) -> exprO a))))
   | App ((_r, VarExpr (OpRef "::")), args, _line) ->
-    (* ocaml has no cons operator *)
+    (* OCaml has no cons operator *)
     exprpO (App ((_r, VarExpr (OpRef "List.cons")), args, _line))
   | App (fn, args, _line) ->
     Exp.apply
@@ -349,20 +388,30 @@ let rec exprpO (exprp) : Parsetree.expression =
       (List.map args ~f:(fun a -> a |> skip_preCommented |> as_arg ))
   | ELiteral lit -> litExpO lit
   | VarExpr (VarRef (path, var)) ->
-    Exp.ident (full_varname (path @ [var]))
+    Exp.ident
+      (names2lid
+         ~fix_all:fix_function
+         ~fix_init:fix_module
+         (path @ [var]))
   | VarExpr (TagRef (path, var)) ->
-    Exp.construct (full_varname (path @ [var])) None
+    Exp.construct
+      (names2lid
+         ~fix_init:fix_module
+         ~fix_last:fix_constructor
+         (path @ [var]))
+      None
   | VarExpr (OpRef name) ->
-    Exp.construct (varname name) None
+    Exp.construct (name2lid ~fix:fix_function name)
+      None
   | RecordExpr { base; fields } ->
     let base = Option.map base
-        ~f:(fun (_c, var, _c2) -> Exp.ident (varname var))
+        ~f:(fun (_c, var, _c2) -> Exp.ident (name2lid var))
     in
     let fields = seq2list fields in
     let fields =
       List.map fields
         ~f:(fun field ->
-          ( skip_postCommented field._key |> varname
+          ( skip_postCommented field._key |> name2lid
           , skip_preCommented field._value |> exprO))
     in
     Exp.record fields base
@@ -372,14 +421,14 @@ let rec exprpO (exprp) : Parsetree.expression =
       (List.map exprs
          ~f:(fun expr -> exprO (skip_commented expr)))
   | TupleFunction count ->
-    Exp.ident (varname ("to_tuple" ^ (string_of_int count)))
+    Exp.ident (name2lid ("to_tuple" ^ (string_of_int count)))
 
   | Parens (_c, expr, _c2) ->
     exprO expr
   | Unit _cs ->
-    Exp.construct (varname "()") None
+    Exp.construct (name2lid "()") None
   | Access (expr, field) ->
-    Exp.field (exprO expr) (varname field)
+    Exp.field (exprO expr) (name2lid field)
   | Let (declarations, _c, body) ->
     (* TODO: add the type definitions *)
     List.fold ~init:(exprO body) (List.rev declarations)
@@ -395,18 +444,18 @@ let rec exprpO (exprp) : Parsetree.expression =
               (Exp.let_ Nonrecursive [vb] prev)
             | LetAnnotation _annot ->
               let rhs = Exp.constant (Const.string "type annotation") in
-              let vb = Vb.mk (Pat.var (nolo "_")) rhs in
+              let vb = Vb.mk (Pat.var (name2str "_")) rhs in
               (Exp.let_ Nonrecursive [vb] prev)
             | LetComment _c ->
               let rhs = Exp.constant (Const.string "comment") in
-              let vb = Vb.mk (Pat.var (nolo "_")) rhs in
+              let vb = Vb.mk (Pat.var (name2str "_")) rhs in
               (Exp.let_ Nonrecursive [vb] prev))
   | ExplicitList { terms } ->
     let terms = List.map (seq2list terms) ~f:exprO in
     List.fold (List.rev terms)
-      ~init:(Exp.construct (varname "[]") None)
+      ~init:(Exp.construct (name2lid "[]") None)
       ~f:(fun prev arg ->
-          Exp.construct (varname "::") (Some (Exp.tuple [arg; prev])))
+          Exp.construct (name2lid "::") (Some (Exp.tuple [arg; prev])))
   | Lambda (pats, _cs, body, _l) ->
     List.fold (List.rev pats) ~init:(exprO body)
       ~f:(fun prev (_cs, pat) ->
@@ -419,7 +468,7 @@ let rec exprpO (exprp) : Parsetree.expression =
             [(Asttypes.Nolabel, prev); as_arg rhs])
   | Unary (_op, expr) ->
     Exp.apply
-      (Exp.ident (varname "~-"))
+      (Exp.ident (name2lid "~-"))
       [(Asttypes.Nolabel, exprO expr)]
   | If ((ifclause), rest, elsebody) ->
     let rest = List.map rest ~f:skip_preCommented in
@@ -433,8 +482,8 @@ let rec exprpO (exprp) : Parsetree.expression =
 
   | AccessFunction field ->
     Exp.fun_ Asttypes.Nolabel None
-      (Pat.var (as_var "x"))
-      (Exp.field (Exp.ident (varname "x")) (varname field))
+      (Pat.var (name2str "x"))
+      (Exp.field (Exp.ident (name2lid "x")) (name2lid field))
 
 
 and exprO (_r, exprp) : Parsetree.expression =
@@ -446,11 +495,23 @@ and as_arg (expr: expr) : (Asttypes.arg_label * Parsetree.expression) =
 and ref_O r =
   match r with
   | VarRef (path, var) ->
-    Exp.ident (full_varname (path @ [var]))
+    Exp.ident
+      (names2lid
+         ~fix_all:fix_function
+         ~fix_init:fix_module
+         (path @ [var]))
   | OpRef op ->
-    Exp.ident (varname op)
+    Exp.ident
+      (name2lid
+         ~fix:fix_function
+         op)
   | TagRef (path, var) ->
-    Exp.construct (full_varname (path @ [var])) None
+    Exp.construct
+      (names2lid
+         ~fix_all:fix_function
+         ~fix_init:fix_module
+         (path @ [var]))
+      None
 
 
 
@@ -465,7 +526,7 @@ let toplevelLet name (args: pattern list) (expr: expr) : Parsetree.structure_ite
   in
   let let_ =
     Vb.mk
-      (Pat.var (as_var name))
+      (Pat.var (name2str name))
       args
   in
   Str.value Asttypes.Nonrecursive [let_]
@@ -553,7 +614,7 @@ let rec type_O (t: type_) : Parsetree.core_type =
            Typ.arrow Asttypes.Nolabel prev (t |> type_O))
 
    | UnitType _cs ->
-     Typ.constr (typename "unit") []
+     Typ.constr (name2lid "unit") []
    | TupleType ts ->
      ts
      |> List.map ~f:skip_commented
@@ -566,10 +627,13 @@ let rec type_O (t: type_) : Parsetree.core_type =
       | TupleConstructor i -> failwith "tupleconstructor"
       | NamedConstructor names ->
         Typ.constr
-          (full_typename names)
-          (List.map ~f:(fun (_c, t) -> type_O t) ts))
+          (names2lid
+             ~fix_init:fix_module
+             ~fix_last:fix_type
+             names)
+          (List.map ts ~f:(fun t -> t |> skip_preCommented |> type_O)))
    | TypeVariable name ->
-     Typ.var name
+     Typ.var (name2string ~fix:fix_type name)
    | _ -> Typ.var (failwith (show_type_ t))
   )
 
@@ -600,7 +664,7 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
        [toplevelLet name args expr]
      | TypeAlias (_cs, nameWithArgs, (_c, type_)) ->
        let (name, args) = skip_commented nameWithArgs in
-       let name = String.uncapitalize name in
+       let name = name2string ~fix:fix_type name in
        let params =
          List.map args
            ~f:(fun arg -> (arg
@@ -616,13 +680,13 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
               List.map (seq2list rtFields)
                 ~f:(fun field ->
                     Type.field
-                      (skip_postCommented field._key |> nolo)
+                      (skip_postCommented field._key |> name2str)
                       (skip_preCommented field._value |> type_O))
             in
             let kind = Parsetree.Ptype_record fields in
-            Type.mk ~params ~kind (as_type name)
+            Type.mk ~params ~kind (name2str ~fix:fix_type name)
           | _ ->
-            Type.mk ~manifest:(type_O type_) (as_type name))
+            Type.mk ~manifest:(type_O type_) (name2str ~fix:fix_type name))
        in
        [Str.type_ Recursive [t]]
 
@@ -642,12 +706,12 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
              let args = List.map types
                  ~f:(fun t -> t |> skip_preCommented |> type_O)
              in
-             Type.constructor (as_var name)
+             Type.constructor (name2str ~fix:fix_constructor name)
                ~args:(Parsetree.Pcstr_tuple args))
        in
        let kind = Parsetree.Ptype_variant constructors in
        [Str.type_ Recursive
-          [(Type.mk ~params ~kind (as_type name))]]
+          [(Type.mk ~params ~kind (name2str ~fix:fix_type name))]]
 
      | _ -> failwith (show_declaration decl)
     )
@@ -659,8 +723,8 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
   (* ignore header *)
   let imports = m.imports |> importsO in
   let standardImports =
-    [ Str.open_ (Opn.mk (lid "Belt"))
-    ; Str.open_ (Opn.mk (lid "Porting"))
+    [ Str.open_ (Opn.mk (name2lid "Belt"))
+    ; Str.open_ (Opn.mk (name2lid "Porting"))
     ]
   in
   let body = m.body |> List.map ~f:(topLevelStructureO) in

@@ -1,3 +1,6 @@
+open Belt
+open Porting
+
 let onWindow eventName decoder = subscription (MySub (eventName, decoder))
 
 type 'msg mySub = MySub of string * 'msg decoder
@@ -14,7 +17,7 @@ let groupByEventName =
     Dict.update eventName (listify decoder)
   in
   let listify value =
-    Maybe.map (List.cons value) >> Maybe.withDefault [value] >> Just
+    Option.map (List.cons value) >> Maybe.withDefault [value] >> Some
   in
   List.foldl go Dict.empty
 
@@ -41,13 +44,13 @@ let onEffects router newSubs oldState =
 
 let onSelfMsg router {eventName; event} state =
   match Dict.get eventName state with
-  | Just {decoders} ->
+  | Some {decoders} ->
       let try_ decoder =
         match decodeValue decoder event with
-        | Ok msg -> Just (Platform.sendToApp router msg)
-        | Err err -> Nothing
+        | Ok msg -> Some (Platform.sendToApp router msg)
+        | Error err -> None
       in
       List.filterMap try_ decoders
       |> Task.sequence
       |> Task.andThen (always (Task.succeed state))
-  | Nothing -> Task.succeed state
+  | None -> Task.succeed state

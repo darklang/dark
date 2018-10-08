@@ -1,5 +1,3 @@
-let getBy fn l = Belt.List.getBy l fn
-
 type size = { width : int; height : int }
 module Native = struct
   module Window = struct
@@ -45,16 +43,14 @@ end
 
 module List = struct
   include Belt.List
-  let indexedMap fn l = Belt.List.mapWithIndex l fn
+  let indexedMap fn l = mapWithIndex l fn
   let map2 fn a b = mapReverse2 a b fn |> reverse
-end
-
-module LE = struct
-  let getAt i l = List.get l i
+  let getBy fn l = getBy l fn
   let elemIndex a l =
     l
     |> Js.Array.from
     |> Js.Array.findIndex (fun b -> a = b)
+
 end
 
 module Char = struct

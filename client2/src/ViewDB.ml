@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module Attrs = Html.Attributes
 open Types
@@ -7,15 +9,15 @@ open ViewUtils
 let viewDBName name version =
   Html.div [Attrs.class_ "dbname"]
     [ Html.span [Attrs.class_ "name"] [Html.text name]
-    ; Html.span [Attrs.class_ "version"] [Html.text (".v" ++ toString version)]
+    ; Html.span [Attrs.class_ "version"] [Html.text (".v" ^ toString version)]
     ]
 
 let viewDBColName vs c v =
-  let configs = if B.isBlank v || not vs.dbLocked then idConfigs ++ c else c in
+  let configs = if B.isBlank v || not vs.dbLocked then idConfigs ^ c else c in
   viewText DBColName vs configs v
 
 let viewDBColType vs c v =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewText DBColType vs configs v
 
 let viewDBCol vs isMigra tlid (n, t) =
@@ -31,13 +33,13 @@ let viewDBCol vs isMigra tlid (n, t) =
     else []
   in
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
-  Html.div [Attrs.class_ "col"] (row ++ deleteButton)
+  Html.div [Attrs.class_ "col"] (row ^ deleteButton)
 
 let viewMigraFuncs vs expr fnName varName =
   Html.div
     [Attrs.class_ "col roll-fn"]
     [ Html.div [Attrs.class_ "fn-title"]
-        [ Html.span [] [Html.text (fnName ++ " : ")]
+        [ Html.span [] [Html.text (fnName ^ " : ")]
         ; Html.span [Attrs.class_ "varname"] [Html.text varName] ]
     ; viewExpr 0 vs [] expr ]
 
@@ -71,11 +73,11 @@ let viewDBMigration migra db vs =
   in
   Html.div
     [Attrs.class_ "db migration-view"]
-    ((name :: cols) ++ funcs ++ errorMsg ++ actions)
+    ((((name :: cols) ^ funcs) ^ errorMsg) ^ actions)
 
 let viewDB vs db =
   let locked =
-    if vs.dbLocked && db.activeMigration == Nothing then
+    if vs.dbLocked && db.activeMigration = None then
       Html.div
         [eventNoPropagation "click" (fun _ -> StartMigration db.tlid)]
         [fontAwesome "lock"]
@@ -89,11 +91,11 @@ let viewDB vs db =
   let coldivs = List.map (viewDBCol vs false db.tlid) cols in
   let migrationView =
     match db.activeMigration with
-    | Just migra ->
-        if migra.state /= DBMigrationAbandoned then
+    | Some migra ->
+        if migra.state <> DBMigrationAbandoned then
           [viewDBMigration migra db vs]
         else []
-    | Nothing -> []
+    | None -> []
   in
   [Html.div [Attrs.class_ "db"] ((locked :: namediv) :: coldivs)]
-  ++ migrationView
+  ^ migrationView

@@ -1,6 +1,7 @@
+open Belt
+open Porting
 module B = Blank
 module Attrs = Html.Attributes
-open Prelude
 module TL = Toplevel
 open Types
 open ViewUtils
@@ -16,20 +17,18 @@ let missingEventSpaceDesc = "<missing event space>"
 let missingEventRouteDesc = "<missing route>"
 
 let spaceName tl =
-  match tl.data with
-  | TLHandler h -> h.spec.module_ |> B.toMaybe
-  | _ -> Nothing
+  match tl.data with TLHandler h -> h.spec.module_ |> B.toMaybe | _ -> None
 
 let splitBySpace tls =
   let spaceName_ tl =
     tl |> TL.asHandler
-    |> Maybe.map (fun x -> x.spec)
-    |> Maybe.map (fun x -> x.module_)
-    |> Maybe.andThen B.toMaybe
+    |> Option.map (fun x -> x.spec)
+    |> Option.map (fun x -> x.module_)
+    |> Option.andThen B.toMaybe
     |> Maybe.withDefault missingEventSpaceDesc
   in
   tls |> List.sortBy spaceName_
-  |> LE.groupWhile (fun a b -> spaceName_ a == spaceName_ b)
+  |> List.Extra.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
   |> List.map (fun hs ->
          let space =
            hs |> List.head |> Option.getExn "splitBySpace" |> spaceName_
@@ -40,11 +39,10 @@ let tl2entry tls =
   tls
   |> List.filterMap (fun tl ->
          match TL.asHandler tl with
-         | Just h -> Just (tl.pos, tl.id, h)
-         | Nothing -> Nothing )
+         | Some h -> Some (tl.pos, tl.id, h)
+         | None -> None )
   |> List.map (fun (pos, tlid, h) ->
-         { name=
-             (match h.spec.name with F (_, s) -> Just s | Blank _ -> Nothing)
+         { name= (match h.spec.name with F (_, s) -> Some s | Blank _ -> None)
          ; prefix= []
          ; verbs=
              ( match h.spec.modifier with
@@ -55,16 +53,16 @@ let tl2entry tls =
 
 let collapseByVerb es =
   es
-  |> LE.groupWhile (fun a b -> a.name == b.name)
+  |> List.Extra.groupWhile (fun a b -> a.name = b.name)
   |> List.map
        (List.foldr
           (fun curr list ->
-            if curr.name == Nothing then curr :: list
+            if curr.name = None then curr :: list
             else
               match list with
               | [] -> [curr]
               | [rest; prev] ->
-                  let new_ = {prev with verbs= prev.verbs ++ curr.verbs} in
+                  let new_ = {prev with verbs= prev.verbs ^ curr.verbs} in
                   new_ :: rest )
           [])
   |> List.concat
@@ -75,56 +73,56 @@ let prefixify hs =
   | [_] -> hs
   | [rest; h] -> (
     match h.name with
-    | Nothing -> h :: prefixify rest
-    | Just name -> (
+    | None -> h :: prefixify rest
+    | Some name -> (
         let len = String.length name in
         let _ = "type annotation" in
         let makePrefix h2 =
           match h2.name with
-          | Just name2 ->
+          | Some name2 ->
               let newName = String.dropLeft len name2 in
-              {h2 with name= Just newName; prefix= h.prefix ++ [name]}
+              {h2 with name= Some newName; prefix= h.prefix ^ [name]}
           | _ -> h2
         in
         let isPrefixOf h2 =
           match h2.name with
-          | Nothing -> false
-          | Just n2 -> String.startsWith name n2
+          | None -> false
+          | Some n2 -> String.startsWith name n2
         in
-        match LE.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
-        | Nothing -> h :: (rest |> List.map makePrefix |> prefixify)
-        | Just (matched, unmatched) ->
-            h :: ((prefixify <| List.map makePrefix matched) ++ unmatched) ) )
+        match List.Extra.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
+        | None -> h :: (rest |> List.map makePrefix |> prefixify)
+        | Some (matched, unmatched) ->
+            h :: ((prefixify <| List.map makePrefix matched) ^ unmatched) ) )
 
 let ordering a b =
   match (a, b) with
   | "HTTP", _ -> LT
   | _, "HTTP" -> GT
   | _ ->
-      if b == missingEventRouteDesc then LT
-      else if a == missingEventRouteDesc then GT
+      if b = missingEventRouteDesc then LT
+      else if a = missingEventRouteDesc then GT
       else compare a b
 
 let undoButton tlid page =
-  buttonLink (text "undo" "Restore") (RestoreToplevel tlid) (Just page)
+  buttonLink (text "undo" "Restore") (RestoreToplevel tlid) (Some page)
 
 let viewGroup m showLink showUndo (spacename, entries) =
   let def s = Maybe.withDefault missingEventRouteDesc s in
   let externalLink h =
-    if showLink == ShowLink && List.member "GET" (List.map Tuple.first h.verbs)
+    if showLink = ShowLink && List.member "GET" (List.map Tuple.first h.verbs)
     then
       match h.name with
-      | Just n ->
-          let target = String.join "" (h.prefix ++ [n]) in
+      | Some n ->
+          let target = String.join "" (h.prefix ^ [n]) in
           Html.a
             [ Attrs.class_ "external"
             ; Attrs.href
-                ( "//"
-                ++ Http.encodeUri m.canvasName
-                ++ "." ++ m.userContentHost ++ target )
+                ( ( (("//" ^ Http.encodeUri m.canvasName) ^ ".")
+                  ^ m.userContentHost )
+                ^ target )
             ; Attrs.target "_blank" ]
             [fontAwesome "external-link-alt"]
-      | Nothing -> Html.div [] []
+      | None -> Html.div [] []
     else Html.div [] []
   in
   let verbs e =
@@ -140,10 +138,9 @@ let viewGroup m showLink showUndo (spacename, entries) =
     in
     div "handler"
       ( [ div "name"
-            (List.map (text "prefix") e.prefix ++ [Html.text (def e.name)])
+            (List.map (text "prefix") e.prefix ^ [Html.text (def e.name)])
         ; div "extra" [span "verbs" (verbs e); externalLink e] ]
-      ++
-      if showUndo == ShowUndo then [undoButton e.tlid (Toplevels pos)] else []
+      ^ if showUndo = ShowUndo then [undoButton e.tlid (Toplevels pos)] else []
       )
   in
   let routes = div "routes" (List.map entryHtml entries) in
@@ -151,9 +148,9 @@ let viewGroup m showLink showUndo (spacename, entries) =
     entries |> List.map (fun x -> x.verbs) |> List.concat
   in
   let button =
-    if (spacename == "HTTP" && showUndo) /= ShowUndo then
-      Just CreateRouteHandler
-    else Nothing
+    if (spacename = "HTTP" && showUndo) <> ShowUndo then
+      Some CreateRouteHandler
+    else None
   in
   section spacename distinctEntries button routes
 
@@ -169,7 +166,7 @@ let viewRoutes m collapse showLink showUndo =
   |> List.sortWith (fun (a, _) (b, _) -> ordering a b)
   |> List.map (Tuple.mapSecond tl2entry)
   |> (fun entries ->
-       if collapse == CollapseVerbs then
+       if collapse = CollapseVerbs then
          List.map (Tuple.mapSecond collapseByVerb) entries
        else entries )
   |> List.map (Tuple.mapSecond prefixify)
@@ -179,8 +176,8 @@ let viewDeletedTLs m =
   let tls = m.deletedToplevels in
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
-  let h = header "Deleted" tls Nothing in
-  Html.details [Attrs.class_ "routing-section deleted"] ([h] ++ routes ++ [dbs])
+  let h = header "Deleted" tls None in
+  Html.details [Attrs.class_ "routing-section deleted"] (([h] ^ routes) ^ [dbs])
 
 let span class_ subs = Html.span [Attrs.class_ class_] subs
 
@@ -195,11 +192,11 @@ let header name list addHandler =
     ; text "count" (list |> List.length |> string_of_int)
     ; text "parens" ")"
     ; ( match addHandler with
-      | Just msg -> buttonLink (fontAwesome "plus-circle") msg Nothing
-      | Nothing -> text "" "" ) ]
+      | Some msg -> buttonLink (fontAwesome "plus-circle") msg None
+      | None -> text "" "" ) ]
 
 let section name entries addHandler routes =
-  if List.length entries == 0 then
+  if List.length entries = 0 then
     Html.div
       [Attrs.class_ "routing-section empty"]
       [header name entries addHandler; routes]
@@ -210,14 +207,14 @@ let section name entries addHandler routes =
 
 let buttonLink content handler page =
   let href =
-    page |> Maybe.map (fun p -> Attrs.href (Url.urlFor p)) |> ME.toList
+    page |> Option.map (fun p -> Attrs.href (Url.urlFor p)) |> Option.toList
   in
   let event =
     match page with
-    | Nothing -> eventNoDefault "click" (fun _ -> handler)
-    | Just _ -> eventNoPropagation "click" (fun _ -> handler)
+    | None -> eventNoDefault "click" (fun _ -> handler)
+    | Some _ -> eventNoPropagation "click" (fun _ -> handler)
   in
-  Html.a ([event; Attrs.class_ "button-link"] ++ href) [content]
+  Html.a ([event; Attrs.class_ "button-link"] ^ href) [content]
 
 let tlLink pos class_ name = Url.linkFor (Toplevels pos) class_ [Html.text name]
 
@@ -229,26 +226,26 @@ let fnLink fn isUsed text_ =
 
 let view404s f404s =
   let theCreateLink fof =
-    buttonLink (fontAwesome "plus-circle") (CreateHandlerFrom404 fof) Nothing
+    buttonLink (fontAwesome "plus-circle") (CreateHandlerFrom404 fof) None
   in
   let theDeleteLink fof =
-    buttonLink (fontAwesome "minus-circle") (Delete404 fof) Nothing
+    buttonLink (fontAwesome "minus-circle") (Delete404 fof) None
   in
   let fofHtml ({space; path; modifier} as fof) =
     div "fof"
       [ text "path" path
-      ; (if space == "HTTP" then text "" "" else text "space" space)
+      ; (if space = "HTTP" then text "" "" else text "space" space)
       ; text "modifier" modifier
       ; theCreateLink fof
       ; theDeleteLink fof ]
   in
   let routes = div "404s" (List.map fofHtml f404s) in
-  section "404s" f404s Nothing routes
+  section "404s" f404s None routes
 
 let viewDBs tls =
   let dbs =
     tls
-    |> List.filter (fun tl -> TL.asDB tl /= Nothing)
+    |> List.filter (fun tl -> TL.asDB tl <> None)
     |> List.map (fun tl -> (tl.pos, TL.asDB tl |> Option.getExn "asDB"))
     |> List.sortBy (fun (_, db) -> db.name)
   in
@@ -256,12 +253,12 @@ let viewDBs tls =
     div "simple-route" [span "name" [tlLink pos "default-link" db.name]]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs Nothing routes
+  section "DBs" dbs None routes
 
 let viewRestorableDBs tls =
   let dbs =
     tls
-    |> List.filter (fun tl -> TL.asDB tl /= Nothing)
+    |> List.filter (fun tl -> TL.asDB tl <> None)
     |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> Option.getExn "asDB"))
     |> List.sortBy (fun (_, _, db) -> db.name)
   in
@@ -269,7 +266,7 @@ let viewRestorableDBs tls =
     div "simple-route" [text "name" db.name; undoButton tlid (Toplevels pos)]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs Nothing routes
+  section "DBs" dbs None routes
 
 let viewUserFunctions m =
   let fns =
@@ -277,30 +274,32 @@ let viewUserFunctions m =
   in
   let fnNamedLink fn name =
     let useCount = countFnUsage m name in
-    if useCount == 0 then
+    if useCount = 0 then
       [ span "name" [fnLink fn false name]
       ; buttonLink
           (fontAwesome "minus-circle")
-          (DeleteUserFunction fn.tlid) Nothing ]
+          (DeleteUserFunction fn.tlid) None ]
     else
-      let countedName = name ++ " (" ++ string_of_int useCount ++ ")" in
+      let countedName = ((name ^ " (") ^ string_of_int useCount) ^ ")" in
       [span "name" [fnLink fn true countedName]]
   in
   let fnHtml fn =
     div "simple-route"
       (let fnName = B.asF fn.metadata.name in
        match fnName with
-       | Just name -> fnNamedLink fn name
-       | Nothing -> [span "name" [fnLink fn true "should be filtered by here"]])
+       | Some name -> fnNamedLink fn name
+       | None -> [span "name" [fnLink fn true "should be filtered by here"]])
   in
   let routes = div "fns" (List.map fnHtml fns) in
-  section "Functions" fns (Just CreateFunction) routes
+  section "Functions" fns (Some CreateFunction) routes
 
 let viewRoutingTable m =
   let sections =
-    viewRoutes m CollapseVerbs ShowLink DontShowUndo
-    ++ [viewDBs m.toplevels] ++ [view404s m.f404s] ++ [viewUserFunctions m]
-    ++ [viewDeletedTLs m]
+    ( ( ( viewRoutes m CollapseVerbs ShowLink DontShowUndo
+        ^ [viewDBs m.toplevels] )
+      ^ [view404s m.f404s] )
+    ^ [viewUserFunctions m] )
+    ^ [viewDeletedTLs m]
   in
   let html =
     Html.div

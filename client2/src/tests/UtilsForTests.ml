@@ -1,12 +1,14 @@
+open Belt
+open Porting
 module B = Blank
 open Types
 
 let pass = Ok ()
 
-let fail v = Err (toString v)
+let fail v = Error (toString v)
 
 let expectOk r =
-  match r with Ok () -> Expect.pass | Err msg -> Expect.fail msg
+  match r with Ok () -> Expect.pass | Error msg -> Expect.fail msg
 
 let expectTrue = Expect.true_ ""
 

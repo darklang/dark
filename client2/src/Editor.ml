@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module JSD = Json.Decode
 module JSE = Json.Encode
 module TL = Toplevel
@@ -5,9 +7,9 @@ open Types
 
 let fromString json =
   json
-  |> Maybe.map (JSD.decodeString RPC.decodeSerializableEditor)
+  |> Option.map (JSD.decodeString RPC.decodeSerializableEditor)
   |> Maybe.withDefault (Ok Defaults.defaultEditor)
-  |> Result.withDefault Defaults.defaultEditor
+  |> Result.getWithDefault Defaults.defaultEditor
 
 let toString se = RPC.encodeSerializableEditor se |> JSE.encode 0
 
@@ -31,7 +33,7 @@ let updateLockedHandlers tlid lockHandler m =
   | TLHandler _ ->
       let lockedList =
         if lockHandler then tlid :: m.lockedHandlers
-        else List.filter (fun t -> t /= tlid) m.lockedHandlers
+        else List.filter (fun t -> t <> tlid) m.lockedHandlers
       in
       SetLockedHandlers lockedList
   | _ -> NoChange

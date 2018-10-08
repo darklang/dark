@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module Attrs = Html.Attributes
 module Events = Html.Events
 open Prelude
@@ -56,14 +58,14 @@ let stringEntryHtml ac width =
     [Attrs.class_ "string-entry"]
     [ Html.form
         [ Events.onSubmit EntrySubmitMsg
-        ; Attrs.class_ ("string-container " ++ sizeClass) ]
+        ; Attrs.class_ ("string-container " ^ sizeClass) ]
         [input] ]
 
 let normalEntryHtml placeholder ac =
   let autocompleteList =
     List.indexedMap
       (fun i item ->
-        let highlighted = ac.index == i in
+        let highlighted = ac.index = i in
         let name = Autocomplete.asName item in
         let view item classes =
           match item with
@@ -91,7 +93,7 @@ let normalEntryHtml placeholder ac =
   in
   let searchWidth =
     search |> String.length
-    |> fun n -> if 0 == n then String.length placeholder else n
+    |> fun n -> if 0 = n then String.length placeholder else n
   in
   let searchInput =
     Html.input

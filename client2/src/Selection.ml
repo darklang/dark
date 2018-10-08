@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -18,19 +20,15 @@ let moveCursorForwardInTime m tlid =
 
 let selectNextToplevel m cur =
   let tls = List.map (fun x -> x.id) m.toplevels in
-  let next = cur |> Maybe.andThen (fun cur_ -> Util.listNextWrap cur_ tls) in
-  match next with
-  | Just nextId -> Select (nextId, Nothing)
-  | Nothing -> Deselect
+  let next = cur |> Option.andThen (fun cur_ -> Util.listNextWrap cur_ tls) in
+  match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
 let selectPrevToplevel m cur =
   let tls = List.map (fun x -> x.id) m.toplevels in
   let next =
-    cur |> Maybe.andThen (fun cur_ -> Util.listPreviousWrap cur_ tls)
+    cur |> Option.andThen (fun cur_ -> Util.listPreviousWrap cur_ tls)
   in
-  match next with
-  | Just nextId -> Select (nextId, Nothing)
-  | Nothing -> Deselect
+  match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
 type jSSide =
   { x: float
@@ -57,47 +55,47 @@ let tlToSizes m tlid =
 type uDDirection = Up | Down
 
 let moveUpDown direction sizes id =
-  let dir = if direction == Up then -1 else 1 in
-  match List.filter (fun o -> o.id == id) sizes with
+  let dir = if direction = Up then -1 else 1 in
+  match List.filter (fun o -> o.id = id) sizes with
   | [this] ->
       sizes
       |> List.filter (fun o ->
-             (((o.centerY /= this.centerY) && dir) * this.centerY < dir)
+             ((o.centerY <> this.centerY && dir) * this.centerY < dir)
              * o.centerY )
-      |> LE.minimumBy (fun o ->
+      |> List.Extra.minimumBy (fun o ->
              let majorDist = dir * (o.centerY - this.centerY) in
              let minorDist = abs (o.centerX - this.centerX) in
              (majorDist * 100000) + minorDist )
       |> Maybe.withDefault this
       |> (fun x -> x.id)
-      |> Just
-  | _ -> Nothing
+      |> Some
+  | _ -> None
 
 type lRDirection = Left | Right
 
 let moveLeftRight direction sizes id =
-  let dir = if direction == Left then -1 else 1 in
-  match List.filter (fun o -> o.id == id) sizes with
+  let dir = if direction = Left then -1 else 1 in
+  match List.filter (fun o -> o.id = id) sizes with
   | [this] ->
       sizes
       |> List.filter (fun o ->
-             ((o.centerY == this.centerY && dir) * this.centerX > dir)
+             ((o.centerY = this.centerY && dir) * this.centerX > dir)
              * o.centerX )
-      |> LE.minimumBy (fun o -> dir * (this.centerX - o.centerX))
+      |> List.Extra.minimumBy (fun o -> dir * (this.centerX - o.centerX))
       |> Maybe.withDefault this
       |> (fun x -> x.id)
-      |> Just
-  | _ -> Nothing
+      |> Some
+  | _ -> None
 
 let move m tlid mId fn default =
   let nested, atoms = tlToSizes m tlid in
-  Maybe.andThen (fn atoms) mId
-  |> Port.optionOrElse (Maybe.andThen (fn nested) mId)
-  |> Port.optionOrElse mId |> Port.optionOrElse default |> Select tlid
+  Option.andThen (fn atoms) mId
+  |> Option.orElse (Option.andThen (fn nested) mId)
+  |> Option.orElse mId |> Option.orElse default |> Select tlid
 
 let body m tlid =
   let tl = TL.getTL m tlid in
-  match tl.data with TLHandler h -> Just (B.toID h.ast) | _ -> Nothing
+  match tl.data with TLHandler h -> Some (B.toID h.ast) | _ -> None
 
 let moveUp m tlid mId =
   let default = body m tlid in
@@ -105,7 +103,7 @@ let moveUp m tlid mId =
 
 let moveDown m tlid mId =
   let default =
-    TL.getTL m tlid |> TL.allData |> List.head |> Maybe.map P.toID
+    TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
   in
   move m tlid mId (moveUpDown Down) default
 
@@ -119,70 +117,68 @@ let moveLeft m tlid mId =
 
 let selectUpLevel m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
-  pd |> Maybe.andThen (TL.getParentOf tl) |> Maybe.map P.toID |> Select tlid
+  let pd = Option.map (TL.findExn tl) cur in
+  pd |> Option.andThen (TL.getParentOf tl) |> Option.map P.toID |> Select tlid
 
 let selectDownLevel m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
+  let pd = Option.map (TL.findExn tl) cur in
   pd
-  |> Port.optionOrElse (TL.rootOf tl)
-  |> Maybe.andThen (TL.firstChild tl)
-  |> Port.optionOrElse pd |> Maybe.map P.toID |> Select tlid
+  |> Option.orElse (TL.rootOf tl)
+  |> Option.andThen (TL.firstChild tl)
+  |> Option.orElse pd |> Option.map P.toID |> Select tlid
 
 let selectNextSibling m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
+  let pd = Option.map (TL.findExn tl) cur in
   pd
-  |> Maybe.map (TL.getNextSibling tl)
-  |> Port.optionOrElse pd |> Maybe.map P.toID |> Select tlid
+  |> Option.map (TL.getNextSibling tl)
+  |> Option.orElse pd |> Option.map P.toID |> Select tlid
 
 let selectPreviousSibling m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
+  let pd = Option.map (TL.findExn tl) cur in
   pd
-  |> Maybe.map (TL.getPrevSibling tl)
-  |> Port.optionOrElse pd |> Maybe.map P.toID |> Select tlid
+  |> Option.map (TL.getPrevSibling tl)
+  |> Option.orElse pd |> Option.map P.toID |> Select tlid
 
 let selectNextBlank m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
-  pd |> TL.getNextBlank tl |> Maybe.map P.toID |> Select tlid
+  let pd = Option.map (TL.findExn tl) cur in
+  pd |> TL.getNextBlank tl |> Option.map P.toID |> Select tlid
 
 let enterNextBlank m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
+  let pd = Option.map (TL.findExn tl) cur in
   pd |> TL.getNextBlank tl
-  |> Maybe.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+  |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
   |> Maybe.withDefault NoChange
 
 let selectPrevBlank m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
-  pd |> TL.getPrevBlank tl |> Maybe.map P.toID |> Select tlid
+  let pd = Option.map (TL.findExn tl) cur in
+  pd |> TL.getPrevBlank tl |> Option.map P.toID |> Select tlid
 
 let enterPrevBlank m tlid cur =
   let tl = TL.getTL m tlid in
-  let pd = Maybe.map (TL.findExn tl) cur in
+  let pd = Option.map (TL.findExn tl) cur in
   pd |> TL.getPrevBlank tl
-  |> Maybe.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+  |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
   |> Maybe.withDefault NoChange
 
 let delete m tlid mId =
   match mId with
-  | Nothing -> (
+  | None -> (
       let tl = TL.getTL m tlid in
       match tl.data with
       | TLHandler h ->
           if isLocked tlid m then NoChange
           else
-            Many
-              [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
+            Many [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNone); Deselect]
       | TLDB _ ->
-          Many
-            [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
-      | TLFunc _ -> DisplayError "Cannot delete functions!" )
-  | Just id -> (
+          Many [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNone); Deselect]
+      | TLFunc _ -> DisplayErroror "Cannot delete functions!" )
+  | Some id -> (
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in
       let tl = TL.getTL m tlid in
@@ -232,7 +228,7 @@ let enter m tlid id =
   | TLDB db -> enterDB m db tl id
   | _ ->
       let pd = TL.findExn tl id in
-      if TL.getChildrenOf tl pd /= [] then selectDownLevel m tlid (Just id)
+      if TL.getChildrenOf tl pd <> [] then selectDownLevel m tlid (Some id)
       else
         Many
           [ Enter (Filling (tlid, id))
