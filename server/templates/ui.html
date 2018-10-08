@@ -50,6 +50,7 @@
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
     <script id="analysisScript" type="javascript/worker">
       self.onmessage = function(e) {
+        importScripts(e.data.proto+'//{STATIC}/darkex.js');
         importScripts(e.data.proto+'//{STATIC}/darkjs.bc.js');
 
           var result =
