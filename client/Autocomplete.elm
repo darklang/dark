@@ -14,7 +14,7 @@ import List.Extra as LE
 
 -- dark
 -- import Prelude exposing (..)
-import Util exposing (int2letter, letter2int)
+import Util
 import Types exposing (..)
 import Functions
 import Runtime as RT

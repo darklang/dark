@@ -17,6 +17,7 @@ import Pointer as P
 import Blank as B
 import Util
 import ViewUtils exposing (isLocked)
+import Native.Size
 
 -------------------------------
 -- Cursors
