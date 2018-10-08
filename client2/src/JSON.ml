@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module JSD = Json.Decode
 module JSDP = Json.Decode.Pipeline
 module JSE = Json.Encode
@@ -32,9 +34,9 @@ let decodeVariants decoders =
   JSD.index 0 JSD.string
   |> JSD.andThen (fun str ->
          match Dict.get str map with
-         | Just decoder -> decoder
-         | Nothing ->
-             (JSD.fail <| "Got ") ++ str ++ ", expected one of " ++ nameStr )
+         | Some decoder -> decoder
+         | None ->
+             (((JSD.fail <| "Got ") ^ str) ^ ", expected one of ") ^ nameStr )
 
 let encodeID (ID id) = JSE.int id
 
@@ -135,7 +137,7 @@ let encodeHttpError e =
   | Http.BadUrl url ->
       JSE.object_ [("type", JSE.string "BadUrl"); ("url", JSE.string url)]
   | Http.Timeout -> JSE.object_ [("type", JSE.string "Timeout")]
-  | Http.NetworkError -> JSE.object_ [("type", JSE.string "NetworkError")]
+  | Http.NetworkErroror -> JSE.object_ [("type", JSE.string "NetworkError")]
   | Http.BadStatus response ->
       JSE.object_
         [ ("type", JSE.string "BadStatus")

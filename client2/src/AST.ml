@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -32,19 +34,19 @@ let listThreadBlanks expr =
     match nexpr with
     | Value v -> []
     | Variable name -> []
-    | Let (lhs, rhs, body) -> r rhs ++ r body
+    | Let (lhs, rhs, body) -> r rhs ^ r body
     | FnCall (name, exprs, _) -> rList exprs
     | Lambda (vars, body) -> r body
     | FieldAccess (obj, _) -> r obj
-    | If (cond, ifbody, elsebody) -> r cond ++ r ifbody ++ r elsebody
+    | If (cond, ifbody, elsebody) -> (r cond ^ r ifbody) ^ r elsebody
     | Thread exprs ->
         let blanks, filled = List.partition B.isBlank exprs in
         let blankids = List.map B.toID blanks in
         let subExprsBlankids = rList filled in
-        blankids ++ subExprsBlankids
+        blankids ^ subExprsBlankids
     | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> rList
     | ListLiteral exprs -> rList exprs
-    | FeatureFlag (_, cond, a, b) -> r cond ++ r a ++ r b
+    | FeatureFlag (_, cond, a, b) -> (r cond ^ r a) ^ r b
   in
   match expr with Blank _ -> [] | F (_, f) -> rn f
 
@@ -63,8 +65,8 @@ let closeThreads expr =
         match newExprs with
         | [rest; F (id_, FnCall (name, args, r))] ->
             if addBlank then
-              [F (id_, FnCall (name, B.new_ () :: args, r))] ++ rest
-            else [F (id_, FnCall (name, args, r))] ++ rest
+              [F (id_, FnCall (name, B.new_ () :: args, r))] ^ rest
+            else [F (id_, FnCall (name, args, r))] ^ rest
         | _ -> newExprs
       in
       match adjusted with
@@ -78,9 +80,9 @@ let closeObjectLiterals expr =
   | F (id, ObjectLiteral pairs) ->
       pairs
       |> List.filterMap (fun (k, v) ->
-             if B.isBlank k && B.isBlank v then Nothing
-             else Just (k, closeObjectLiterals v) )
-      |> (fun l -> if l /= [] then l else [(B.new_ (), B.new_ ())])
+             if B.isBlank k && B.isBlank v then None
+             else Some (k, closeObjectLiterals v) )
+      |> (fun l -> if l <> [] then l else [(B.new_ (), B.new_ ())])
       |> ObjectLiteral |> F id
   | _ -> traverse closeObjectLiterals expr
 
@@ -89,7 +91,7 @@ let closeListLiterals expr =
   | F (id, ListLiteral exprs) ->
       let exprs2 = List.map closeListLiterals exprs in
       let exprs3 = List.filter B.isF exprs2 in
-      F (id, ListLiteral (exprs3 ++ [B.new_ ()]))
+      F (id, ListLiteral (exprs3 ^ [B.new_ ()]))
   | _ -> traverse closeObjectLiterals expr
 
 let closeBlanks expr =
@@ -97,22 +99,21 @@ let closeBlanks expr =
 
 let addThreadBlank id blank expr =
   let atb = addThreadBlank id blank in
-  if id == B.toID expr then
+  if id = B.toID expr then
     match expr with
-    | F (tid, Thread exprs) -> F (tid, Thread (exprs ++ [blank]))
+    | F (tid, Thread exprs) -> F (tid, Thread (exprs ^ [blank]))
     | _ -> B.newF (Thread [expr; blank])
   else
     match expr with
     | F (tid, Thread exprs) ->
         let replaced = extendThreadChild id blank exprs in
-        if replaced == exprs then traverse atb expr
-        else F (tid, Thread replaced)
+        if replaced = exprs then traverse atb expr else F (tid, Thread replaced)
     | _ -> traverse atb expr
 
 let addLambdaBlank id expr =
   match parentOf_ id expr with
-  | Just (F (lid, Lambda (vars, body))) as old ->
-      let r = F (lid, Lambda (vars ++ [B.new_ ()], body)) in
+  | Some (F (lid, Lambda (vars, body))) as old ->
+      let r = F (lid, Lambda (vars ^ [B.new_ ()], body)) in
       replace (old |> Option.getExn "impossible" |> PExpr) (PExpr r) expr
   | _ -> expr
 
@@ -123,7 +124,7 @@ let addObjectLiteralBlanks id expr =
     | F (olid, ObjectLiteral pairs) as old ->
         let newKey = B.new_ () in
         let newExpr = B.new_ () in
-        let newPairs = pairs ++ [(newKey, newExpr)] in
+        let newPairs = pairs ^ [(newKey, newExpr)] in
         let new_ = F (olid, ObjectLiteral newPairs) in
         let replacement = replace (PExpr old) (PExpr new_) expr in
         (B.toID newKey, B.toID newExpr, replacement)
@@ -136,7 +137,10 @@ let maybeExtendObjectLiteralAt pd expr =
   | PKey key -> (
     match parentOf id expr with
     | F (olid, ObjectLiteral pairs) ->
-        if pairs |> LE.last |> Maybe.map Tuple.first |> ( == ) (Just key) then
+        if
+          pairs |> List.Extra.last |> Option.map Tuple.first
+          |> ( = ) (Some key)
+        then
           let _, _, replacement = addObjectLiteralBlanks id expr in
           replacement
         else expr
@@ -150,8 +154,9 @@ let addListLiteralBlanks id expr =
   match parent with
   | F (lid, ListLiteral exprs) ->
       let newExprs =
-        exprs |> List.reverse |> LE.dropWhile B.isBlank
-        |> ( ++ ) [new1]
+        exprs |> List.reverse
+        |> List.Extra.dropWhile B.isBlank
+        |> ( ^ ) [new1]
         |> List.reverse
       in
       replace (PExpr parent) (PExpr (F (lid, ListLiteral newExprs))) expr
@@ -160,7 +165,7 @@ let addListLiteralBlanks id expr =
 let maybeExtendListLiteralAt pd expr =
   let id = P.toID pd in
   match parentOf_ id expr with
-  | Just (F (lid, ListLiteral exprs)) ->
+  | Some (F (lid, ListLiteral exprs)) ->
       if exprs |> List.filter B.isBlank |> List.length |> fun l -> l <= 1 then
         let replacement = addListLiteralBlanks id expr in
         replacement
@@ -168,7 +173,7 @@ let maybeExtendListLiteralAt pd expr =
   | _ -> expr
 
 let wrapInThread id expr =
-  if B.toID expr == id then
+  if B.toID expr = id then
     match expr with
     | F (_, Thread _) -> expr
     | F (_, _) -> B.newF (Thread [expr; B.new_ ()])
@@ -177,7 +182,7 @@ let wrapInThread id expr =
 
 let extendThreadChild at blank threadExprs =
   List.foldr
-    (fun e list -> if B.toID e == at then (e :: blank) :: list else e :: list)
+    (fun e list -> if B.toID e = at then (e :: blank) :: list else e :: list)
     [] threadExprs
 
 let maybeExtendThreadAt id blank expr =
@@ -194,10 +199,10 @@ let isThreadBlank expr p = expr |> listThreadBlanks |> List.member p
 
 let grandparentIsThread expr parent =
   parent
-  |> Maybe.map (fun p ->
+  |> Option.map (fun p ->
          match parentOf_ (B.toID p) expr with
-         | Just (F (_, Thread ts)) ->
-             ts |> List.head |> Maybe.map (( /= ) p) |> Maybe.withDefault true
+         | Some (F (_, Thread ts)) ->
+             ts |> List.head |> Option.map (( <> ) p) |> Maybe.withDefault true
          | _ -> false )
   |> Maybe.withDefault false
 
@@ -205,21 +210,21 @@ let getParamIndex expr id =
   let parent = parentOf_ id expr in
   let inThread = grandparentIsThread expr parent in
   match parent with
-  | Just (F (_, FnCall (name, args, _))) ->
+  | Some (F (_, FnCall (name, args, _))) ->
       args
-      |> Port.getByIndex (fun a -> B.toID a == id)
-      |> Maybe.map (fun i -> if inThread then (name, i + 1) else (name, i))
-  | _ -> Nothing
+      |> List.getByIndex (fun a -> B.toID a = id)
+      |> Option.map (fun i -> if inThread then (name, i + 1) else (name, i))
+  | _ -> None
 
 let threadPrevious id ast =
   let parent = parentOf_ id ast in
   match parent with
-  | Just (F (_, Thread exprs)) ->
+  | Some (F (_, Thread exprs)) ->
       exprs
-      |> List.filter (fun e -> B.toID e == id)
+      |> List.filter (fun e -> B.toID e = id)
       |> List.head
-      |> Maybe.andThen (fun this -> Util.listPrevious this exprs)
-  | _ -> Nothing
+      |> Option.andThen (fun this -> Util.listPrevious this exprs)
+  | _ -> None
 
 let children expr =
   match expr with
@@ -230,7 +235,7 @@ let children expr =
     | Variable _ -> []
     | If (cond, ifbody, elsebody) -> [PExpr cond; PExpr ifbody; PExpr elsebody]
     | FnCall (name, exprs, _) -> List.map PExpr exprs
-    | Lambda (vars, lexpr) -> List.map PVarBind vars ++ [PExpr lexpr]
+    | Lambda (vars, lexpr) -> List.map PVarBind vars ^ [PExpr lexpr]
     | Thread exprs -> List.map PExpr exprs
     | FieldAccess (obj, field) -> [PExpr obj; PField field]
     | Let (lhs, rhs, body) -> [PVarBind lhs; PExpr rhs; PExpr body]
@@ -242,7 +247,7 @@ let children expr =
 
 let childrenOf pid expr =
   let co = childrenOf pid in
-  if pid == B.toID expr then children expr
+  if pid = B.toID expr then children expr
   else
     match expr with
     | Blank _ -> []
@@ -250,8 +255,8 @@ let childrenOf pid expr =
       match nexpr with
       | Value _ -> []
       | Variable _ -> []
-      | Let (lhs, rhs, body) -> co body ++ co rhs
-      | If (cond, ifbody, elsebody) -> co cond ++ co ifbody ++ co elsebody
+      | Let (lhs, rhs, body) -> co body ^ co rhs
+      | If (cond, ifbody, elsebody) -> (co cond ^ co ifbody) ^ co elsebody
       | FnCall (name, exprs, _) -> List.map co exprs |> List.concat
       | Lambda (vars, lexpr) -> co lexpr
       | Thread exprs -> List.map co exprs |> List.concat
@@ -259,13 +264,13 @@ let childrenOf pid expr =
       | ObjectLiteral pairs ->
           pairs |> List.map Tuple.second |> List.map co |> List.concat
       | ListLiteral pairs -> pairs |> List.map co |> List.concat
-      | FeatureFlag (msg, cond, a, b) -> co cond ++ co a ++ co b )
+      | FeatureFlag (msg, cond, a, b) -> (co cond ^ co a) ^ co b )
 
 let uses var expr =
   let is_rebinding newbind =
     match newbind with
     | Blank _ -> false
-    | F (_, potential) -> if potential == var then true else false
+    | F (_, potential) -> if potential = var then true else false
   in
   let u = uses var in
   match expr with
@@ -273,7 +278,7 @@ let uses var expr =
   | F (_, nexpr) -> (
     match nexpr with
     | Value _ -> []
-    | Variable potential -> if potential == var then [expr] else []
+    | Variable potential -> if potential = var then [expr] else []
     | Let (lhs, rhs, body) ->
         if is_rebinding lhs then [] else List.concat [u rhs; u body]
     | If (cond, ifbody, elsebody) -> List.concat [u cond; u ifbody; u elsebody]
@@ -292,9 +297,8 @@ let allCallsToFn s e =
   |> List.filterMap (fun pd ->
          match pd with
          | PExpr (F (id, FnCall (name, params, r))) ->
-             if name == s then Just (F (id, FnCall (name, params, r)))
-             else Nothing
-         | _ -> Nothing )
+             if name = s then Some (F (id, FnCall (name, params, r))) else None
+         | _ -> None )
 
 let usesRail ast =
   List.any
@@ -309,7 +313,7 @@ let ancestors id expr =
     let reclist id_ e_ walk_ exprs =
       exprs |> List.map (rec_ id_ e_ walk_) |> List.concat
     in
-    if B.toID exp == tofind then walk
+    if B.toID exp = tofind then walk
     else
       match exp with
       | Blank _ -> []
@@ -343,14 +347,14 @@ let parentOf_ eid expr =
   let po = parentOf_ eid in
   let _ = "comment" in
   let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
-  if List.member eid (children expr |> List.map P.toID) then Just expr
+  if List.member eid (children expr |> List.map P.toID) then Some expr
   else
     match expr with
-    | Blank _ -> Nothing
+    | Blank _ -> None
     | F (id, nexpr) -> (
       match nexpr with
-      | Value _ -> Nothing
-      | Variable _ -> Nothing
+      | Value _ -> None
+      | Variable _ -> None
       | Let (lhs, rhs, body) -> poList [rhs; body]
       | If (cond, ifbody, elsebody) -> poList [cond; ifbody; elsebody]
       | FnCall (name, exprs, _) -> poList exprs
@@ -363,14 +367,14 @@ let parentOf_ eid expr =
 
 let siblings p expr =
   match parentOf_ (P.toID p) expr with
-  | Nothing -> [p]
-  | Just parent -> (
+  | None -> [p]
+  | Some parent -> (
     match parent with
     | F (_, If (cond, ifbody, elsebody)) ->
         List.map PExpr [cond; ifbody; elsebody]
     | F (_, Let (lhs, rhs, body)) -> [PVarBind lhs; PExpr rhs; PExpr body]
     | F (_, FnCall (name, exprs, _)) -> List.map PExpr exprs
-    | F (_, Lambda (vars, lexpr)) -> List.map PVarBind vars ++ [PExpr lexpr]
+    | F (_, Lambda (vars, lexpr)) -> List.map PVarBind vars ^ [PExpr lexpr]
     | F (_, Thread exprs) -> List.map PExpr exprs
     | F (_, FieldAccess (obj, field)) -> [PExpr obj; PField field]
     | F (_, Value _) -> [p]
@@ -379,66 +383,66 @@ let siblings p expr =
         pairs |> List.map (fun (k, v) -> [PKey k; PExpr v]) |> List.concat
     | F (_, ListLiteral exprs) -> List.map PExpr exprs
     | F (_, FeatureFlag (msg, cond, a, b)) ->
-        [PFFMsg msg] ++ List.map PExpr [cond; a; b]
+        [PFFMsg msg] ^ List.map PExpr [cond; a; b]
     | Blank _ -> [p] )
 
 let getValueParent p expr =
   let parent = parentOf_ (P.toID p) expr in
   match (P.typeOf p, parent) with
-  | Expr, Just (F (_, Thread exprs)) ->
+  | Expr, Some (F (_, Thread exprs)) ->
       exprs |> List.map PExpr |> Util.listPrevious p
-  | Field, Just (F (_, FieldAccess (obj, _))) -> Just <| PExpr obj
-  | _ -> Nothing
+  | Field, Some (F (_, FieldAccess (obj, _))) -> Some <| PExpr obj
+  | _ -> None
 
 let allData expr =
   let e2ld e = PExpr e in
   let _ = "type annotation" in
   let rl exprs = exprs |> List.map allData |> List.concat in
   [e2ld expr]
-  ++
+  ^
   match expr with
   | Blank _ -> []
   | F (_, nexpr) -> (
     match nexpr with
     | Value v -> []
     | Variable name -> []
-    | Let (lhs, rhs, body) -> [PVarBind lhs] ++ rl [rhs; body]
+    | Let (lhs, rhs, body) -> [PVarBind lhs] ^ rl [rhs; body]
     | If (cond, ifbody, elsebody) -> rl [cond; ifbody; elsebody]
     | FnCall (name, exprs, _) -> rl exprs
-    | Lambda (vars, body) -> List.map PVarBind vars ++ allData body
+    | Lambda (vars, body) -> List.map PVarBind vars ^ allData body
     | Thread exprs -> rl exprs
-    | FieldAccess (obj, field) -> allData obj ++ [PField field]
+    | FieldAccess (obj, field) -> allData obj ^ [PField field]
     | ListLiteral exprs -> rl exprs
     | ObjectLiteral pairs ->
         pairs |> List.map (fun (k, v) -> PKey k :: allData v) |> List.concat
-    | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] ++ rl [cond; a; b] )
+    | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] ^ rl [cond; a; b] )
 
 let findExn id expr = expr |> find id |> Option.getExn "findExn"
 
 let find id expr =
   expr |> allData
-  |> List.filter (fun d -> id == P.toID d)
+  |> List.filter (fun d -> id = P.toID d)
   |> assert_ (fun r -> List.length r <= 1)
   |> List.head
 
-let replace search replacement expr = replace_ search replacement Nothing expr
+let replace search replacement expr = replace_ search replacement None expr
 
 let within e id =
   e |> F (ID (-1)) |> allData |> List.map P.toID |> List.member id
 
 let replace_ search replacement parent expr =
-  let r = replace_ search replacement (Just expr) in
+  let r = replace_ search replacement (Some expr) in
   let _ = "comment" in
   let sId = P.toID search in
-  if B.toID expr == sId then
+  if B.toID expr = sId then
     match replacement with
     | PExpr e ->
         let repl_ =
           match parent with
-          | Just (F (_, Thread [_; first])) -> (
+          | Some (F (_, Thread [_; first])) -> (
             match e with
             | F (id, FnCall (fn, ([rest; _] as args), r_)) ->
-                if B.toID first == sId then F (id, FnCall (fn, args, r_))
+                if B.toID first = sId then F (id, FnCall (fn, args, r_))
                 else F (id, FnCall (fn, rest, r_))
             | _ -> e )
           | _ -> e
@@ -448,22 +452,20 @@ let replace_ search replacement parent expr =
   else
     match (expr, replacement) with
     | F (id, FeatureFlag (msg, cond, a, b)), PFFMsg newMsg ->
-        if B.toID msg == sId then F (id, FeatureFlag (newMsg, cond, a, b))
+        if B.toID msg = sId then F (id, FeatureFlag (newMsg, cond, a, b))
         else traverse r expr
     | F (id, Let (lhs, rhs, body)), PVarBind replacement_ ->
-        if B.toID lhs == sId then
+        if B.toID lhs = sId then
           let replacementContent =
-            match replacement_ with
-            | Blank _ -> Nothing
-            | F (_, var) -> Just var
+            match replacement_ with Blank _ -> None | F (_, var) -> Some var
           in
           let orig =
-            match lhs with Blank _ -> Nothing | F (_, var) -> Just var
+            match lhs with Blank _ -> None | F (_, var) -> Some var
           in
           let newBody =
             let usesOf =
               match orig with
-              | Just var -> uses var body |> List.map PExpr
+              | Some var -> uses var body |> List.map PExpr
               | _ -> []
             in
             let transformUse replacementContent_ old =
@@ -473,34 +475,32 @@ let replace_ search replacement parent expr =
               | _ -> impossible old
             in
             match (orig, replacementContent) with
-            | Just o, Just r_ ->
+            | Some o, Some r_ ->
                 List.foldr
                   (fun use acc ->
-                    replace_ use (transformUse r_ use) (Just expr) acc )
+                    replace_ use (transformUse r_ use) (Some expr) acc )
                   body usesOf
             | _ -> body
           in
           F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
         else traverse r expr
     | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
-      match Port.getByIndex (fun v -> B.toID v == sId) vars with
-      | Nothing -> traverse r expr
-      | Just i ->
+      match List.getByIndex (fun v -> B.toID v = sId) vars with
+      | None -> traverse r expr
+      | Some i ->
           let replacementContent =
-            match replacement_ with
-            | Blank _ -> Nothing
-            | F (_, var) -> Just var
+            match replacement_ with Blank _ -> None | F (_, var) -> Some var
           in
           let orig =
-            match LE.getAt i vars |> Option.getExn "we somehow lost it?" with
-            | Blank _ -> Nothing
-            | F (_, var) -> Just var
+            match List.get i vars |> Option.getExn "we somehow lost it?" with
+            | Blank _ -> None
+            | F (_, var) -> Some var
           in
           let newBody =
             let usesInBody =
               match orig with
-              | Just v -> uses v body |> List.map PExpr
-              | Nothing -> []
+              | Some v -> uses v body |> List.map PExpr
+              | None -> []
             in
             let transformUse replacementContent_ old =
               match old with
@@ -509,25 +509,27 @@ let replace_ search replacement parent expr =
               | _ -> impossible old
             in
             match (orig, replacementContent) with
-            | Just o, Just r_ ->
+            | Some o, Some r_ ->
                 List.foldr
                   (fun use acc ->
-                    replace_ use (transformUse r_ use) (Just expr) acc )
+                    replace_ use (transformUse r_ use) (Some expr) acc )
                   body usesInBody
             | _ -> body
           in
           let newVars =
-            LE.updateAt i (fun old -> B.replace sId replacement_ old) vars
+            List.Extra.updateAt i
+              (fun old -> B.replace sId replacement_ old)
+              vars
           in
           F (id, Lambda (newVars, newBody)) )
     | F (id, FieldAccess (obj, field)), PField replacement_ ->
-        if B.toID field == sId then
+        if B.toID field = sId then
           F (id, FieldAccess (obj, B.replace sId replacement_ field))
         else traverse r expr
     | F (id, ObjectLiteral pairs), PKey replacement_ ->
         pairs
         |> List.map (fun (k, v) ->
-               let newK = if B.toID k == sId then replacement_ else k in
+               let newK = if B.toID k = sId then replacement_ else k in
                (newK, r v) )
         |> ObjectLiteral |> F id
     | _ -> traverse r expr
@@ -566,11 +568,11 @@ let isDefinitionOf var exp =
   | F (id, e) -> (
     match e with
     | Let (b, _, _) -> (
-      match b with Blank _ -> false | F (_, vb) -> vb == var )
+      match b with Blank _ -> false | F (_, vb) -> vb = var )
     | Lambda (vars, _) ->
         vars
         |> List.any (fun v ->
-               match v with Blank _ -> false | F (_, vb) -> vb == var )
+               match v with Blank _ -> false | F (_, vb) -> vb = var )
     | _ -> false )
 
 let freeVariables ast =
@@ -580,16 +582,16 @@ let freeVariables ast =
            match n with
            | PExpr boe -> (
              match boe with
-             | Blank _ -> Nothing
+             | Blank _ -> None
              | F (id, e) as expr -> (
                match e with
-               | Let (F (_, lhs), rhs, body) -> Just (uses lhs body)
+               | Let (F (_, lhs), rhs, body) -> Some (uses lhs body)
                | Lambda (vars, body) ->
                    vars |> List.filterMap B.toMaybe
                    |> List.map (fun v -> uses v body)
-                   |> List.concat |> Just
-               | _ -> Nothing ) )
-           | _ -> Nothing )
+                   |> List.concat |> Some
+               | _ -> None ) )
+           | _ -> None )
     |> List.concat
     |> List.map (B.toID >> deID)
     |> Set.fromList
@@ -599,12 +601,12 @@ let freeVariables ast =
          match n with
          | PExpr boe -> (
            match boe with
-           | Blank _ -> Nothing
+           | Blank _ -> None
            | F (id, e) -> (
              match e with
              | Variable name ->
-                 if Set.member (deID id) definedAndUsed then Nothing
-                 else Just (id, name)
-             | _ -> Nothing ) )
-         | _ -> Nothing )
-  |> LE.uniqueBy (fun (_, name) -> name)
+                 if Set.member (deID id) definedAndUsed then None
+                 else Some (id, name)
+             | _ -> None ) )
+         | _ -> None )
+  |> List.Extra.uniqueBy (fun (_, name) -> name)

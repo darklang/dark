@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Types
@@ -5,7 +7,7 @@ open Types
 let spaceOf hs =
   let spaceOfStr s =
     let lwr = String.toLower s in
-    if lwr == "cron" then HSCron else if lwr == "http" then HSHTTP else HSOther
+    if lwr = "cron" then HSCron else if lwr = "http" then HSHTTP else HSOther
   in
   match hs.module_ with Blank _ -> HSEmpty | F (_, s) -> spaceOfStr s
 

@@ -1,3 +1,5 @@
+open Belt
+open Porting
 open Types
 
 let entryID = "entry-box"
@@ -17,7 +19,7 @@ let pageHeight = 400
 let pageWidth = 500
 
 let defaultEditor =
-  { clipboard= Nothing
+  { clipboard= None
   ; timersEnabled= true
   ; cursorState= Deselected
   ; lockedHandlers= [] }
@@ -29,7 +31,7 @@ let defaultUrlState = {lastPos= {x= 0; y= 0}}
 let defaultCanvas = {offset= origin; fnOffset= origin; enablePan= true}
 
 let defaultModel =
-  { error= {message= Nothing; showDetails= false}
+  { error= {message= None; showDetails= false}
   ; lastMsg= Initialization
   ; lastMod= NoChange
   ; complete=
@@ -40,8 +42,8 @@ let defaultModel =
       ; index= -1
       ; value= ""
       ; prevValue= ""
-      ; tipe= Nothing
-      ; target= Nothing
+      ; tipe= None
+      ; target= None
       ; isCommandMode= false }
   ; userFunctions= []
   ; builtInFunctions= []
@@ -60,7 +62,7 @@ let defaultModel =
   ; syncState= defaultSyncState
   ; urlState= defaultUrlState
   ; timersEnabled= true
-  ; clipboard= Nothing
+  ; clipboard= None
   ; cursorState= Deselected
   ; executingFunctions= []
   ; tlCursors= Dict.empty

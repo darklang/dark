@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
@@ -9,7 +11,7 @@ let focusItem i =
   Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
   |> Task.attempt FocusAutocompleteItem
 
-let findFunction a name = Port.getBy (fun f -> f.name == name) a.functions
+let findFunction a name = List.getBy (fun f -> f.name = name) a.functions
 
 let isStringEntry a = String.startsWith "\"" a.value
 
@@ -18,34 +20,34 @@ let isSmallStringEntry a = isStringEntry a && not (isLargeStringEntry a)
 let isLargeStringEntry a = isStringEntry a && String.contains "\n" a.value
 
 let getValue a =
-  match highlighted a with Just item -> asName item | Nothing -> a.value
+  match highlighted a with Some item -> asName item | None -> a.value
 
 let sharedPrefix2 l r =
   match (String.uncons l, String.uncons r) with
-  | Just (l1, lrest), Just (r1, rrest) ->
-      if l1 == r1 then String.fromChar l1 ++ sharedPrefix2 lrest rrest else ""
+  | Some (l1, lrest), Some (r1, rrest) ->
+      if l1 = r1 then String.fromChar l1 ^ sharedPrefix2 lrest rrest else ""
   | _ -> ""
 
 let sharedPrefixList strs =
   match List.head strs with
-  | Nothing -> ""
-  | Just s -> List.foldl sharedPrefix2 s strs
+  | None -> ""
+  | Some s -> List.foldl sharedPrefix2 s strs
 
 let sharedPrefix a =
   a.completions |> List.concat |> List.map asName |> sharedPrefixList
 
 let containsOrdered needle haystack =
   match String.uncons needle with
-  | Just (c, newneedle) ->
+  | Some (c, newneedle) ->
       let char = String.fromChar c in
       String.contains char haystack
       && containsOrdered newneedle
            (haystack |> String.split char |> List.drop 1 |> String.join char)
-  | Nothing -> true
+  | None -> true
 
 let compareSuggestionWithActual a actual =
   match highlighted a with
-  | Just (ACOmniAction _) -> ("", "", actual)
+  | Some (ACOmniAction _) -> ("", "", actual)
   | _ -> (
       let suggestion = sharedPrefix a in
       match
@@ -59,7 +61,7 @@ let compareSuggestionWithActual a actual =
               (index + String.length actual)
               (String.length suggestion) suggestion
           in
-          (prefix, prefix ++ actual ++ suffix, actual) )
+          (prefix, (prefix ^ actual) ^ suffix, actual) )
 
 let empty = init [] false
 
@@ -74,8 +76,8 @@ let init fns isAdmin =
   ; index= -1
   ; value= ""
   ; prevValue= ""
-  ; tipe= Nothing
-  ; target= Nothing
+  ; tipe= None
+  ; target= None
   ; isCommandMode= false }
 
 let reset m a =
@@ -112,19 +114,19 @@ let setQuery q a = refilter q a
 
 let appendQuery str a =
   let q =
-    if isStringEntry a then String.dropRight 1 a.value ++ str ++ "\""
-    else a.value ++ str
+    if isStringEntry a then (String.dropRight 1 a.value ^ str) ^ "\""
+    else a.value ^ str
   in
   setQuery q a
 
-let highlighted a = LE.getAt a.index (List.concat a.completions)
+let highlighted a = List.get a.index (List.concat a.completions)
 
 let documentationForItem aci =
   match aci with
   | ACFunction f ->
-      if String.length f.description /= 0 then Just f.description else Nothing
-  | ACCommand c -> Just (c.doc ++ " (" ++ c.shortcut ++ ")")
-  | _ -> Nothing
+      if String.length f.description <> 0 then Some f.description else None
+  | ACCommand c -> Some (((c.doc ^ " (") ^ c.shortcut) ^ ")")
+  | _ -> None
 
 let setTarget m t a = {a with target= t} |> regenerate m
 
@@ -149,45 +151,45 @@ let isStaticItem item = not (isDynamicItem item)
 let qLiteral s =
   if String.length s > 0 then
     if String.startsWith (String.toLower s) "nothing" then
-      Just (ACLiteral "Nothing")
+      Some (ACLiteral "Nothing")
     else if String.startsWith (String.toLower s) "false" then
-      Just (ACLiteral "false")
+      Some (ACLiteral "false")
     else if String.startsWith (String.toLower s) "true" then
-      Just (ACLiteral "true")
+      Some (ACLiteral "true")
     else if String.startsWith (String.toLower s) "null" then
-      Just (ACLiteral "null")
-    else Nothing
-  else if RPC.isLiteralString s then Just (ACLiteral s)
-  else Nothing
+      Some (ACLiteral "null")
+    else None
+  else if RPC.isLiteralString s then Some (ACLiteral s)
+  else None
 
 let qNewDB s =
   if
     ( ((String.length s >= 3 && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s) && s)
-      /= "HTTP"
+      <> "HTTP"
     && s )
-    /= "HTT"
-  then Just (ACOmniAction (NewDB s))
-  else Nothing
+    <> "HTT"
+  then Some (ACOmniAction (NewDB s))
+  else None
 
 let qHTTPHandler s =
-  if String.length s == 0 then Just (ACOmniAction NewHTTPHandler) else Nothing
+  if String.length s = 0 then Some (ACOmniAction NewHTTPHandler) else None
 
 let qHandler s =
-  if String.length s == 0 then Just (ACOmniAction NewHandler) else Nothing
+  if String.length s = 0 then Some (ACOmniAction NewHandler) else None
 
 let qFunction s =
   if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s then
-    Just (ACOmniAction (NewFunction (Just s)))
-  else if String.length s == 0 then Just (ACOmniAction (NewFunction Nothing))
-  else Nothing
+    Some (ACOmniAction (NewFunction (Some s)))
+  else if String.length s = 0 then Some (ACOmniAction (NewFunction None))
+  else None
 
 let qHTTPRoute s =
-  if String.startsWith "/" s then Just (ACOmniAction (NewHTTPRoute s))
-  else Nothing
+  if String.startsWith "/" s then Some (ACOmniAction (NewHTTPRoute s))
+  else None
 
 let qEventSpace s =
-  if Util.reExactly "[A-Z]+" s then Just (ACOmniAction (NewEventSpace s))
-  else Nothing
+  if Util.reExactly "[A-Z]+" s then Some (ACOmniAction (NewEventSpace s))
+  else None
 
 let toDynamicItems isOmni query =
   let always = [qLiteral] in
@@ -196,13 +198,13 @@ let toDynamicItems isOmni query =
       [qNewDB; qHandler; qFunction; qHTTPHandler; qHTTPRoute; qEventSpace]
     else []
   in
-  let items = always ++ omni in
+  let items = always ^ omni in
   items |> List.map (fun aci -> aci query) |> List.filterMap identity
 
 let withDynamicItems target query acis =
-  let new_ = toDynamicItems (target == Nothing) query in
+  let new_ = toDynamicItems (target = None) query in
   let withoutDynamic = List.filter isStaticItem acis in
-  new_ ++ withoutDynamic
+  new_ ^ withoutDynamic
 
 let regenerate m a =
   {a with allCompletions= generateFromModel m a} |> refilter a.value
@@ -216,17 +218,15 @@ let refilter query old =
   let oldHighlight = highlighted old in
   let oldHighlightNewPos =
     oldHighlight
-    |> Maybe.andThen (fun oh -> LE.elemIndex oh (List.concat newCompletions))
+    |> Option.andThen (fun oh -> List.elemIndex oh (List.concat newCompletions))
   in
   let index =
-    if
-      query == ""
-      && ((((old.index /= -1) && old.value) /= query) || old.index == -1)
+    if query = "" && ((old.index <> -1 && old.value) <> query || old.index = -1)
     then -1
     else
       match oldHighlightNewPos with
-      | Just i -> i
-      | Nothing -> if newCount == 0 then -1 else 0
+      | Some i -> i
+      | None -> if newCount = 0 then -1 else 0
   in
   { old with
     index; completions= newCompletions; value= query; prevValue= old.value }
@@ -263,51 +263,54 @@ let filter list query =
 let generateFromModel m a =
   let dv =
     match a.target with
-    | Nothing -> Nothing
-    | Just (tlid, p) ->
-        TL.get m tlid |> Maybe.andThen TL.asHandler
-        |> Maybe.map (fun x -> x.ast)
-        |> Maybe.andThen (AST.getValueParent p)
-        |> Maybe.map P.toID
-        |> Maybe.andThen (Analysis.getCurrentLiveValue m tlid)
-        |> Maybe.andThen (fun dv_ ->
-               if dv_ == DIncomplete then Nothing else Just dv_ )
+    | None -> None
+    | Some (tlid, p) ->
+        TL.get m tlid
+        |> Option.andThen TL.asHandler
+        |> Option.map (fun x -> x.ast)
+        |> Option.andThen (AST.getValueParent p)
+        |> Option.map P.toID
+        |> Option.andThen (Analysis.getCurrentLiveValue m tlid)
+        |> Option.andThen (fun dv_ ->
+               if dv_ = DIncomplete then None else Some dv_ )
   in
   let fields =
     match dv with
-    | Just dv_ -> (
+    | Some dv_ -> (
       match (a.target, RT.typeOf dv_) with
-      | Just (_, p), TObj -> if P.typeOf p == Field then dvalFields dv_ else []
+      | Some (_, p), TObj -> if P.typeOf p = Field then dvalFields dv_ else []
       | _ -> [] )
-    | Nothing -> []
+    | None -> []
   in
   let isExpression =
-    match a.target with Just (_, p) -> P.typeOf p == Expr | Nothing -> false
+    match a.target with Some (_, p) -> P.typeOf p = Expr | None -> false
   in
   let isThreadMember =
     match a.target with
-    | Nothing -> false
-    | Just (tlid, p) ->
-        TL.get m tlid |> Maybe.andThen TL.asHandler
-        |> Maybe.map (fun x -> x.ast)
-        |> Maybe.andThen (AST.parentOf_ (P.toID p))
-        |> Maybe.map (fun e ->
+    | None -> false
+    | Some (tlid, p) ->
+        TL.get m tlid
+        |> Option.andThen TL.asHandler
+        |> Option.map (fun x -> x.ast)
+        |> Option.andThen (AST.parentOf_ (P.toID p))
+        |> Option.map (fun e ->
                match e with F (_, Thread _) -> true | _ -> false )
         |> Maybe.withDefault false
   in
   let paramTipeForTarget =
     match a.target with
-    | Nothing -> Nothing
-    | Just (tlid, p) ->
-        TL.get m tlid |> Maybe.andThen TL.asHandler
-        |> Maybe.map (fun x -> x.ast)
-        |> Maybe.andThen (fun ast -> AST.getParamIndex ast (P.toID p))
-        |> Maybe.andThen (fun (name, index) ->
+    | None -> None
+    | Some (tlid, p) ->
+        TL.get m tlid
+        |> Option.andThen TL.asHandler
+        |> Option.map (fun x -> x.ast)
+        |> Option.andThen (fun ast -> AST.getParamIndex ast (P.toID p))
+        |> Option.andThen (fun (name, index) ->
                a.functions
-               |> Port.getBy (fun f -> name == f.name)
-               |> Maybe.map (fun x -> x.parameters)
-               |> Maybe.andThen (LE.getAt index)
-               |> Maybe.map (fun x -> x.tipe) )
+               |> List.getBy (fun f -> name = f.name)
+               |> Option.map (fun x -> x.parameters)
+               |> Option.andThen (List.get index)
+               |> Option.map (fun x -> x.tipe) )
   in
   let _ = "comment" in
   let funcList = if isExpression then a.functions else [] in
@@ -315,32 +318,32 @@ let generateFromModel m a =
     funcList
     |> List.filter (fun {returnTipe} ->
            match a.tipe with
-           | Just t -> RT.isCompatible returnTipe t
-           | Nothing -> (
+           | Some t -> RT.isCompatible returnTipe t
+           | None -> (
              match paramTipeForTarget with
-             | Just t -> RT.isCompatible returnTipe t
-             | Nothing -> true ) )
+             | Some t -> RT.isCompatible returnTipe t
+             | None -> true ) )
     |> List.filter (fun fn ->
            match dv with
-           | Just dv_ ->
+           | Some dv_ ->
                if isThreadMember then
-                 Nothing /= findCompatibleThreadParam fn (RT.typeOf dv_)
-               else Nothing /= findParamByType fn (RT.typeOf dv_)
-           | Nothing -> true )
+                 None <> findCompatibleThreadParam fn (RT.typeOf dv_)
+               else None <> findParamByType fn (RT.typeOf dv_)
+           | None -> true )
     |> List.map ACFunction
   in
   let extras =
     match a.target with
-    | Just (tlid, p) -> (
+    | Some (tlid, p) -> (
       match P.typeOf p with
       | EventModifier -> (
         match TL.spaceOf (TL.getTL m tlid) with
-        | Just HSHTTP -> ["GET"; "POST"; "PUT"; "DELETE"; "PATCH"]
-        | Just HSCron ->
+        | Some HSHTTP -> ["GET"; "POST"; "PUT"; "DELETE"; "PATCH"]
+        | Some HSCron ->
             ["Daily"; "Weekly"; "Fortnightly"; "Every 1hr"; "Every 12hrs"]
-        | Just HSOther -> []
-        | Just HSEmpty -> []
-        | Nothing -> [] )
+        | Some HSOther -> []
+        | Some HSEmpty -> []
+        | None -> [] )
       | EventSpace -> ["HTTP"; "CRON"]
       | DBColType ->
           let builtins =
@@ -354,8 +357,8 @@ let generateFromModel m a =
             ; "Password"
             ; "UUID" ]
           in
-          let compound = List.map (fun s -> "[" ++ s ++ "]") builtins in
-          builtins ++ compound
+          let compound = List.map (fun s -> ("[" ^ s) ^ "]") builtins in
+          builtins ^ compound
       | DarkType -> ["Any"; "Empty"; "String"; "Int"; "{"]
       | ParamTipe ->
           [ "Any"
@@ -376,9 +379,9 @@ let generateFromModel m a =
     if isExpression then List.map ACKeyword [KLet; KIf; KLambda] else []
   in
   let regular =
-    List.map ACExtra extras
-    ++ List.map ACVariable varnames
-    ++ keywords ++ functions ++ fields
+    ( ((List.map ACExtra extras ^ List.map ACVariable varnames) ^ keywords)
+    ^ functions )
+    ^ fields
   in
   let commands = List.map ACCommand Commands.commands in
   if a.isCommandMode then commands else regular
@@ -389,19 +392,19 @@ let asName aci =
   | ACField name -> name
   | ACVariable name -> name
   | ACExtra name -> name
-  | ACCommand command -> ":" ++ command.name
+  | ACCommand command -> ":" ^ command.name
   | ACLiteral lit -> lit
   | ACOmniAction ac -> (
     match ac with
-    | NewDB name -> "Create new database: " ++ name
+    | NewDB name -> "Create new database: " ^ name
     | NewHandler -> "Create new handler"
     | NewFunction maybeName -> (
       match maybeName with
-      | Just name -> "Create new function: " ++ name
-      | Nothing -> "Create new function" )
+      | Some name -> "Create new function: " ^ name
+      | None -> "Create new function" )
     | NewHTTPHandler -> "Create new HTTP handler"
-    | NewHTTPRoute name -> "Create new HTTP handler for " ++ name
-    | NewEventSpace name -> "Create new " ++ name ++ " handler" )
+    | NewHTTPRoute name -> "Create new HTTP handler for " ^ name
+    | NewEventSpace name -> ("Create new " ^ name) ^ " handler" )
   | ACKeyword k -> (
     match k with KLet -> "let" | KIf -> "if" | KLambda -> "lambda" )
 
@@ -411,7 +414,7 @@ let asTypeString item =
       f.parameters
       |> List.map (fun x -> x.tipe)
       |> List.map RT.tipe2str |> String.join ", "
-      |> fun s -> "(" ++ s ++ ") ->  " ++ RT.tipe2str f.returnTipe
+      |> fun s -> (("(" ^ s) ^ ") ->  ") ^ RT.tipe2str f.returnTipe
   | ACField _ -> "field"
   | ACVariable _ -> "variable"
   | ACExtra _ -> ""
@@ -422,23 +425,23 @@ let asTypeString item =
         |> Maybe.withDefault DIncomplete
         |> RT.typeOf |> RT.tipe2str
       in
-      tipe ++ " literal"
+      tipe ^ " literal"
   | ACOmniAction _ -> ""
   | ACKeyword _ -> "keyword"
 
-let asString aci = asName aci ++ asTypeString aci
+let asString aci = asName aci ^ asTypeString aci
 
 let dvalFields dv =
   match dv with DObj dict -> Dict.keys dict |> List.map ACField | _ -> []
 
 let findCompatibleThreadParam {parameters} tipe =
   parameters |> List.head
-  |> Maybe.andThen (fun fst ->
-         if RT.isCompatible fst.tipe tipe then Just fst else Nothing )
+  |> Option.andThen (fun fst ->
+         if RT.isCompatible fst.tipe tipe then Some fst else None )
 
 let findParamByType {parameters} tipe =
-  parameters |> Port.getBy (fun p -> RT.isCompatible p.tipe tipe)
+  parameters |> List.getBy (fun p -> RT.isCompatible p.tipe tipe)
 
 let selectSharedPrefix ac =
   let sp = sharedPrefix ac in
-  if sp == "" then NoChange else AutocompleteMod <| ACSetQuery sp
+  if sp = "" then NoChange else AutocompleteMod <| ACSetQuery sp

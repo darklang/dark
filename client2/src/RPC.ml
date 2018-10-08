@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module DE = Dict.Extra
 open JSON
 module JSD = Json.Decode
@@ -20,7 +22,7 @@ let postString url =
     ; url
     ; body= Http.emptyBody
     ; expect= Http.expectString
-    ; timeout= Nothing
+    ; timeout= None
     ; withCredentials= false }
 
 let rpc m canvasName focus params =
@@ -77,7 +79,7 @@ let integrationRPC m canvasName name =
   in
   let request = Http.post url Http.emptyBody decodeInitialLoadRPC in
   Http.send
-    (InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name))
+    (InitialLoadRPCCallback (FocusNone, TriggerIntegrationTest name))
     request
 
 let decodePointerData =
@@ -153,7 +155,7 @@ let encodeOps ops =
        | [] -> ops_
        | _ ->
            let savepoints = ops_ |> List.map tlidOf |> List.map TLSavepoint in
-           savepoints ++ ops_ )
+           savepoints ^ ops_ )
   |> List.map encodeOp |> JSE.list
 
 let encodeSpec spec =
@@ -202,7 +204,7 @@ let encodeDB db =
     ; ("version", JSE.int db.version)
     ; ("old_migrations", JSE.list (List.map encodeDBMigration db.oldMigrations))
     ; ( "active_migration"
-      , Maybe.map encodeDBMigration db.activeMigration
+      , Option.map encodeDBMigration db.activeMigration
         |> Maybe.withDefault JSE.null ) ]
 
 let encodeOp call =
@@ -295,7 +297,7 @@ let encodeTipe t =
   | TNull -> ev "TNull" []
   | TBlock -> ev "TBlock" []
   | TIncomplete -> ev "TIncomplete" []
-  | TError -> ev "TError" []
+  | TErroror -> ev "TError" []
   | TResp -> ev "TResp" []
   | TDB -> ev "TDB" []
   | TID -> ev "TID" []
@@ -308,7 +310,7 @@ let encodeTipe t =
   | TPassword -> ev "TPassword" []
   | TUuid -> ev "TUuid" []
   | TOption -> ev "TOption" []
-  | TErrorRail -> ev "TErrorRail" []
+  | TErrororRail -> ev "TErrorRail" []
 
 let encodeUserFunctionParameter p =
   JSE.object_
@@ -325,7 +327,7 @@ let encodeNExpr expr =
   let ev = encodeVariant in
   match expr with
   | FnCall (n, exprs, r) ->
-      if r == Rail then
+      if r = Rail then
         ev "FnCallSendToRail" [JSE.string n; JSE.list (List.map e exprs)]
       else ev "FnCall" [JSE.string n; JSE.list (List.map e exprs)]
   | Let (lhs, rhs, body) ->
@@ -392,7 +394,7 @@ let encodeSerializableEditor se =
 
 let decodeSerializableEditor =
   JSDP.decode SerializableEditor
-  |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) Nothing
+  |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) None
   |> JSDP.optional "timersEnabled" JSD.bool true
   |> JSDP.optional "cursorState" decodeCursorState Deselected
   |> JSDP.optional "lockedHandlers" (JSD.list decodeTLID) []
@@ -570,7 +572,7 @@ let decodeTipe =
     ; ("TNull", dv0 TNull)
     ; ("TBlock", dv0 TBlock)
     ; ("TIncomplete", dv0 TIncomplete)
-    ; ("TError", dv0 TError)
+    ; ("TError", dv0 TErroror)
     ; ("TResp", dv0 TResp)
     ; ("TDB", dv0 TDB)
     ; ("TID", dv0 TID)
@@ -583,7 +585,7 @@ let decodeTipe =
     ; ("TDbList", dv1 TDbList (JSD.lazy_ (fun _ -> decodeTipe)))
     ; ("TPassword", dv0 TPassword)
     ; ("TOption", dv0 TOption)
-    ; ("TErrorRail", dv0 TErrorRail) ]
+    ; ("TErrorRail", dv0 TErrororRail) ]
 
 let decodeUserFunctionParameter =
   let toParam name tipe args option desc =
@@ -691,25 +693,23 @@ let decodeExecuteFunctionRPC =
   |> JSDP.required "hash" JSD.string
 
 let isLiteralString s =
-  match parseDvalLiteral s with Nothing -> false | Just dv -> RT.isLiteral dv
+  match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
 
 let typeOfLiteralString s =
-  match parseDvalLiteral s with
-  | Nothing -> TIncomplete
-  | Just dv -> RT.typeOf dv
+  match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
 
 let parseDvalLiteral str =
-  let firstChar = String.uncons str |> Maybe.map Tuple.first in
-  if String.toLower str == "nothing" then Just (DOption OptNothing)
+  let firstChar = String.uncons str |> Option.map Tuple.first in
+  if String.toLower str = "nothing" then Some (DOption OptNone)
   else
     match String.toList str with
-    | ['\''; c; '\''] -> Just (DChar c)
+    | ['\''; c; '\''] -> Some (DChar c)
     | [rest; '"'] ->
-        if LE.last rest == Just '"' then
-          LE.init rest |> Maybe.withDefault [] |> String.fromList |> DStr
-          |> Just
-        else Nothing
-    | _ -> JSD.decodeString parseBasicDval str |> Result.toMaybe
+        if List.Extra.last rest = Some '"' then
+          List.Extra.init rest |> Maybe.withDefault [] |> String.fromList
+          |> DStr |> Some
+        else None
+    | _ -> JSD.decodeString parseBasicDval str |> Result.toOption
 
 let parseBasicDval =
   let dd = JSD.lazy_ (fun _ -> decodeDval) in
@@ -727,7 +727,7 @@ let decodeDval =
   let dv2 = decodeVariant2 in
   let dd = JSD.lazy_ (fun _ -> decodeDval) in
   let decodeOptionT =
-    decodeVariants [("OptJust", dv1 OptJust dd); ("OptNothing", dv0 OptNothing)]
+    decodeVariants [("OptJust", dv1 OptSome dd); ("OptNothing", dv0 OptNone)]
   in
   let decodeDhttp =
     decodeVariants
@@ -745,9 +745,9 @@ let decodeDval =
     ; ("DList", dv1 DList (JSD.list dd))
     ; ("DObj", dv1 DObj (JSD.dict dd))
     ; ("DIncomplete", dv0 DIncomplete)
-    ; ("DError", dv1 DError JSD.string)
+    ; ("DError", dv1 DErroror JSD.string)
     ; ("DBlock", dv0 DBlock)
-    ; ("DErrorRail", dv1 DErrorRail dd)
+    ; ("DErrorRail", dv1 DErrororRail dd)
     ; ( "DResp"
       , dv1 (fun (h, dv) -> DResp (h, dv)) (JSON.decodePair decodeDhttp dd) )
     ; ("DDB", dv1 DDB JSD.string)
@@ -758,7 +758,7 @@ let decodeDval =
     ; ( "DPassword"
       , dv1
           ( Base64.decode
-          >> Result.withDefault "<Internal error in base64 decoding>"
+          >> Result.getWithDefault "<Internal error in base64 decoding>"
           >> DPassword )
           JSD.string )
     ; ("DUuid", dv1 DUuid JSD.string)
@@ -784,7 +784,7 @@ let encodeDval dv =
   | DBlock -> ev "DBlock" []
   | DIncomplete -> ev "DIncomplete" []
   | DChar c -> ev "DChar" [JSE.string (String.fromList [c])]
-  | DError msg -> ev "DError" [JSE.string msg]
+  | DErroror msg -> ev "DError" [JSE.string msg]
   | DResp (h, hdv) ->
       ev "DResp" [JSON.encodePair encodeDhttp encodeDval (h, hdv)]
   | DDB name -> ev "DDB" [JSE.string name]
@@ -797,6 +797,6 @@ let encodeDval dv =
   | DOption opt ->
       ev "DOption"
         [ ( match opt with
-          | OptNothing -> ev "OptNothing" []
-          | OptJust dv -> ev "OptJust" [encodeDval dv] ) ]
-  | DErrorRail dv -> ev "DErrorRail" [encodeDval dv]
+          | OptNone -> ev "OptNothing" []
+          | OptSome dv -> ev "OptJust" [encodeDval dv] ) ]
+  | DErrororRail dv -> ev "DErrorRail" [encodeDval dv]

@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module JSD = Json.Decode
 module JSE = Json.Encode
@@ -10,7 +12,7 @@ let id1 = ID 5
 let id2 = ID 10
 
 let testRoundtrip decoder encoder name v =
-  test ("roundtrip " ++ name)
+  test ("roundtrip " ^ name)
   <| Expect.equal (Ok v) (v |> encoder |> JSD.decodeValue decoder)
 
 let rtDval = testRoundtrip decodeDval encodeDval
@@ -38,7 +40,7 @@ let roundtrips =
     ; rtDval "null" DNull
     ; rtDval "id" (DID "1232345346456")
     ; rtDval "title" (DTitle "some title")
-    ; rtDval "errorrail" (DErrorRail (DInt 5))
+    ; rtDval "errorrail" (DErrororRail (DInt 5))
     ; rtDval "db" (DDB "Visitors")
     ; rtDval "list" (DList [DDB "Visitors"; DInt 4])
     ; rtDval "redirect" (DResp (Redirect "/home", DNull))

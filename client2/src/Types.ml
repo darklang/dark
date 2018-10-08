@@ -1,3 +1,6 @@
+open Belt
+open Porting
+
 type exception_ =
   { short: string
   ; long: string option
@@ -22,7 +25,7 @@ type tipe =
   | TNull
   | TBlock
   | TIncomplete
-  | TError
+  | TErroror
   | TResp
   | TDB
   | TID
@@ -32,14 +35,14 @@ type tipe =
   | TPassword
   | TUuid
   | TOption
-  | TErrorRail
+  | TErrororRail
   | TBelongsTo of string
   | THasMany of string
   | TDbList of tipe
 
 type dhttp = Redirect of string | Response of int * (string * string) list
 
-type optionT = OptJust of dval | OptNothing
+type optionT = OptSome of dval | OptNone
 
 type dval =
   | DInt of int
@@ -51,9 +54,9 @@ type dval =
   | DList of dval list
   | DObj of dval Belt.Map.String.t
   | DIncomplete
-  | DError of string
+  | DErroror of string
   | DBlock
-  | DErrorRail of dval
+  | DErrororRail of dval
   | DResp of dhttp * dval
   | DDB of string
   | DID of string
@@ -71,8 +74,6 @@ type vPos = {vx: int; vy: int}
 type mouseEvent = {pos: vPos; button: int}
 
 type isLeftButton = bool
-
-type special = int
 
 type tLID = TLID of int
 
@@ -117,7 +118,7 @@ type initialLoadResult = rPCResult
 
 type msg =
   | GlobalClick of mouseEvent
-  | NothingClick of mouseEvent
+  | NoneClick of mouseEvent
   | ToplevelMouseDown of tLID * mouseEvent
   | ToplevelMouseUp of tLID * mouseEvent
   | ToplevelClick of tLID * mouseEvent
@@ -148,7 +149,7 @@ type msg =
   | Delete404 of fourOhFour
   | WindowResize of int * int
   | TimerFire of timerAction * time
-  | JSError of string
+  | JSErroror of string
   | PageVisibilityChange of PageVisibility.visibility
   | PageFocusChange of PageVisibility.visibility
   | StartFeatureFlag
@@ -172,7 +173,7 @@ type msg =
   | LockHandler of tLID * bool
   | ReceiveAnalysis of string
   | EnablePanning of bool
-  | ShowErrorDetails of bool
+  | ShowErrororDetails of bool
   | StartMigration of tLID
   | AbandonMigration of tLID
   | DeleteColInDB of tLID * iD
@@ -182,7 +183,7 @@ type predecessor = pointerData option
 type successor = pointerData option
 
 type focus =
-  | FocusNothing
+  | FocusNone
   | FocusExact of tLID * iD
   | FocusNext of tLID * iD option
   | FocusPageAndCursor of page * cursorState
@@ -502,10 +503,10 @@ type integrationTestState =
   | NoIntegrationTest
 
 type modification =
-  | DisplayAndReportHttpError of string * Http.error
-  | DisplayAndReportError of string
-  | DisplayError of string
-  | ClearError
+  | DisplayAndReportHttpErroror of string * Http.error
+  | DisplayAndReportErroror of string
+  | DisplayErroror of string
+  | ClearErroror
   | Select of tLID * iD option
   | SelectCommand of tLID * iD
   | SetHover of iD

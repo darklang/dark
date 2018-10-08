@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -18,7 +20,7 @@ let fromFlagged pick expr =
 
 let start m =
   match unwrapCursorState m.cursorState with
-  | Selecting (tlid, Just id) -> (
+  | Selecting (tlid, Some id) -> (
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
       let msgId = gid () in
@@ -33,8 +35,8 @@ let start m =
 
 let end_ m id pick =
   match tlidOf (unwrapCursorState m.cursorState) with
-  | Nothing -> NoChange
-  | Just tlid -> (
+  | None -> NoChange
+  | Some tlid -> (
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
       let newPd = P.exprmap (fromFlagged pick) pd in

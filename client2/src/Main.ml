@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module AC = Autocomplete
 module B = Blank
 module JSD = Json.Decode
@@ -45,8 +47,8 @@ let init {editorState; complete; userContentHost; environment} location =
   in
   let tests =
     match parseVariantTestsFromQueryString location.search with
-    | Just t -> t
-    | Nothing -> []
+    | Some t -> t
+    | None -> []
   in
   let page = Url.parseLocation m location |> Maybe.withDefault m.currentPage in
   let canvas = m.canvas in
@@ -96,35 +98,34 @@ let processFocus m focus =
   match focus with
   | FocusNext (tlid, pred) -> (
       let tl = TL.getTL m tlid in
-      let predPd = Maybe.andThen (TL.find tl) pred in
+      let predPd = Option.andThen (TL.find tl) pred in
       let next = TL.getNextBlank tl predPd in
       match next with
-      | Just pd -> Enter (Filling (tlid, P.toID pd))
-      | Nothing -> Select (tlid, pred) )
+      | Some pd -> Enter (Filling (tlid, P.toID pd))
+      | None -> Select (tlid, pred) )
   | FocusExact (tlid, id) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
-      if (P.isBlank pd || P.toContent pd) == Just "" then
+      if (P.isBlank pd || P.toContent pd) = Some "" then
         Enter (Filling (tlid, id))
-      else Select (tlid, Just id)
+      else Select (tlid, Some id)
   | FocusSame -> (
     match unwrapCursorState m.cursorState with
     | Selecting (tlid, mId) -> (
       match (TL.get m tlid, mId) with
-      | Just tl, Just id ->
-          if TL.isValidID tl id then NoChange else Select (tlid, Nothing)
-      | Just tl, Nothing -> Select (tlid, Nothing)
+      | Some tl, Some id ->
+          if TL.isValidID tl id then NoChange else Select (tlid, None)
+      | Some tl, None -> Select (tlid, None)
       | _ -> Deselect )
     | Entering (Filling (tlid, id)) -> (
       match TL.get m tlid with
-      | Just tl ->
-          if TL.isValidID tl id then NoChange else Select (tlid, Nothing)
+      | Some tl -> if TL.isValidID tl id then NoChange else Select (tlid, None)
       | _ -> Deselect )
     | _ -> NoChange )
   | FocusPageAndCursor (page, cs) ->
       let setCS = SetCursorState cs in
-      let noTarget = ACSetTarget Nothing in
-      let target tuple = ACSetTarget (Just tuple) in
+      let noTarget = ACSetTarget None in
+      let target tuple = ACSetTarget (Some tuple) in
       let tlOnPage tl =
         match page with
         | Toplevels _ -> (
@@ -132,34 +133,34 @@ let processFocus m focus =
           | TLHandler _ -> true
           | TLDB _ -> true
           | TLFunc _ -> false )
-        | Fn (id, _) -> tl.id == id
+        | Fn (id, _) -> tl.id = id
       in
       let nextCursor, acTarget =
         match cs with
         | Selecting (tlid, mId) -> (
           match (TL.get m tlid, mId) with
-          | Just tl, Just id ->
+          | Some tl, Some id ->
               if TL.isValidID tl id && tlOnPage tl then
                 (setCS, target (tlid, TL.findExn tl id))
               else (Deselect, noTarget)
-          | Just tl, Nothing -> (setCS, noTarget)
+          | Some tl, None -> (setCS, noTarget)
           | _ -> (Deselect, noTarget) )
         | Entering (Filling (tlid, id)) -> (
           match TL.get m tlid with
-          | Just tl ->
+          | Some tl ->
               if TL.isValidID tl id && tlOnPage tl then
                 (setCS, target (tlid, TL.findExn tl id))
               else (Deselect, noTarget)
           | _ -> (Deselect, noTarget) )
         | Dragging (tlid, _, _, _) -> (
           match TL.get m tlid with
-          | Just tl ->
+          | Some tl ->
               if tlOnPage tl then (setCS, noTarget) else (Deselect, noTarget)
           | _ -> (Deselect, noTarget) )
         | _ -> (Deselect, noTarget)
       in
       Many [SetPage page; nextCursor; AutocompleteMod acTarget]
-  | FocusNothing -> Deselect
+  | FocusNone -> Deselect
   | FocusNoChange -> NoChange
 
 let update msg m =
@@ -171,18 +172,18 @@ let update msg m =
 
 let updateMod mod_ (m, cmd) =
   let _ =
-    if m.integrationTestState /= NoIntegrationTest then
+    if m.integrationTestState <> NoIntegrationTest then
       Debug.log "mod update" mod_
     else mod_
   in
   let closeBlanks newM =
     m.cursorState |> tlidOf
-    |> Maybe.andThen (TL.get m)
-    |> Maybe.map (fun tl ->
+    |> Option.andThen (TL.get m)
+    |> Option.map (fun tl ->
            match tl.data with
            | TLHandler h ->
                let replacement = AST.closeBlanks h.ast in
-               if replacement == h.ast then []
+               if replacement = h.ast then []
                else
                  let newH = {h with ast= replacement} in
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
@@ -191,7 +192,7 @@ let updateMod mod_ (m, cmd) =
                  [RPC.rpc newM newM.canvasName FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ast in
-               if replacement == f.ast then []
+               if replacement = f.ast then []
                else
                  let newF = {f with ast= replacement} in
                  let ops = [SetFunction newF] in
@@ -201,7 +202,7 @@ let updateMod mod_ (m, cmd) =
            | _ -> [] )
     |> Maybe.withDefault []
     |> fun rpc ->
-    if tlidOf newM.cursorState == tlidOf m.cursorState then [] else rpc
+    if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
   in
   let newm, newcmd =
     let handleRPC params focus =
@@ -237,8 +238,8 @@ let updateMod mod_ (m, cmd) =
         )
     in
     match mod_ with
-    | DisplayError e -> ({m with error= updateError m.error e}, Cmd.none)
-    | DisplayAndReportError e ->
+    | DisplayErroror e -> ({m with error= updateError m.error e}, Cmd.none)
+    | DisplayAndReportErroror e ->
         let json =
           JSE.object_
             [ ("message", JSE.string e)
@@ -246,21 +247,21 @@ let updateMod mod_ (m, cmd) =
             ; ("custom", JSE.object_ []) ]
         in
         ({m with error= updateError m.error e}, sendRollbar json)
-    | DisplayAndReportHttpError (context, e) ->
+    | DisplayAndReportHttpErroror (context, e) ->
         let response =
           match e with
-          | Http.BadStatus r -> Just r
-          | Http.BadPayload (_, r) -> Just r
-          | _ -> Nothing
+          | Http.BadStatus r -> Some r
+          | Http.BadPayload (_, r) -> Some r
+          | _ -> None
         in
         let body str =
           let maybe name m =
-            match m with Just s -> ", " ++ name ++ ": " ++ s | Nothing -> ""
+            match m with Some s -> ((", " ^ name) ^ ": ") ^ s | None -> ""
           in
           str
           |> JSD.decodeString JSON.decodeException
-          |> Result.toMaybe
-          |> Maybe.map
+          |> Result.toOption
+          |> Option.map
                (fun { short
                     ; long
                     ; tipe
@@ -272,50 +273,50 @@ let updateMod mod_ (m, cmd) =
                     ; info
                     ; workarounds }
                ->
-                 " (" ++ tipe ++ "): " ++ short
-                 |> ( ++ ) (maybe "message" long)
-                 |> ( ++ ) (maybe "actual value" actual)
-                 |> ( ++ ) (maybe "actual type" actualType)
-                 |> ( ++ ) (maybe "result" result)
-                 |> ( ++ ) (maybe "result type" resultType)
-                 |> ( ++ ) (maybe "expected" expected)
-                 |> ( ++ )
-                      ( if info == Dict.empty then ""
-                      else ", info: " ++ toString info )
-                 |> ( ++ )
-                      ( if workarounds == [] then ""
-                      else ", workarounds: " ++ toString workarounds ) )
+                 ((" (" ^ tipe) ^ "): ") ^ short
+                 |> ( ^ ) (maybe "message" long)
+                 |> ( ^ ) (maybe "actual value" actual)
+                 |> ( ^ ) (maybe "actual type" actualType)
+                 |> ( ^ ) (maybe "result" result)
+                 |> ( ^ ) (maybe "result type" resultType)
+                 |> ( ^ ) (maybe "expected" expected)
+                 |> ( ^ )
+                      ( if info = Dict.empty then ""
+                      else ", info: " ^ toString info )
+                 |> ( ^ )
+                      ( if workarounds = [] then ""
+                      else ", workarounds: " ^ toString workarounds ) )
           |> Maybe.withDefault str
         in
         let msg =
           match e with
-          | Http.BadUrl str -> "Bad url: " ++ str
+          | Http.BadUrl str -> "Bad url: " ^ str
           | Http.Timeout -> "Timeout"
-          | Http.NetworkError -> "Network error - is the server running?"
+          | Http.NetworkErroror -> "Network error - is the server running?"
           | Http.BadStatus response ->
-              "Bad status: " ++ response.status.message ++ body response.body
+              ("Bad status: " ^ response.status.message) ^ body response.body
           | Http.BadPayload (msg, _) ->
-              "Bad payload (" ++ context ++ "): " ++ msg
+              (("Bad payload (" ^ context) ^ "): ") ^ msg
         in
         let url =
           match e with
-          | Http.BadUrl str -> Just str
-          | Http.Timeout -> Nothing
-          | Http.NetworkError -> Nothing
-          | Http.BadStatus response -> Just response.url
-          | Http.BadPayload (_, response) -> Just response.url
+          | Http.BadUrl str -> Some str
+          | Http.Timeout -> None
+          | Http.NetworkErroror -> None
+          | Http.BadStatus response -> Some response.url
+          | Http.BadPayload (_, response) -> Some response.url
         in
-        let shouldRollbar = e /= Http.NetworkError in
+        let shouldRollbar = e <> Http.NetworkErroror in
         let json =
           JSE.object_
-            [ ("message", JSE.string (msg ++ " (" ++ context ++ ")"))
+            [ ("message", JSE.string (((msg ^ " (") ^ context) ^ ")"))
             ; ("url", JSEE.maybe JSE.string url)
             ; ("custom", JSON.encodeHttpError e) ]
         in
         let cmds = if shouldRollbar then [sendRollbar json] else [] in
         ({m with error= updateError m.error msg}, Cmd.batch cmds)
-    | ClearError ->
-        ({m with error= {message= Nothing; showDetails= false}}, Cmd.none)
+    | ClearErroror ->
+        ({m with error= {message= None; showDetails= false}}, Cmd.none)
     | RPC (ops, focus) -> handleRPC (RPC.opsParams ops) focus
     | RPCFull (params, focus) -> handleRPC params focus
     | GetAnalysisRPC -> Sync.fetch m
@@ -343,7 +344,7 @@ let updateMod mod_ (m, cmd) =
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page -> (
-        if m.currentPage == page then (m, Cmd.none)
+        if m.currentPage = page then (m, Cmd.none)
         else
           let canvas = m.canvas in
           match (page, m.currentPage) with
@@ -376,21 +377,21 @@ let updateMod mod_ (m, cmd) =
     | Enter entry ->
         let target =
           match entry with
-          | Creating _ -> Nothing
+          | Creating _ -> None
           | Filling (tlid, id) ->
               let tl = TL.getTL m tlid in
               let pd = TL.findExn tl id in
-              Just (tlid, pd)
+              Some (tlid, pd)
         in
         let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m3 = {m2 with cursorState= Entering entry} in
-        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd; Entry.focusEntry m3]))
+        (m3, Cmd.batch (closeBlanks m3 ^ [acCmd; Entry.focusEntry m3]))
     | SelectCommand (tlid, id) ->
         let m2 = {m with cursorState= SelectingCommand (tlid, id)} in
         let m3, acCmd =
           processAutocompleteMods m2 [ACEnableCommandMode; ACRegenerate]
         in
-        (m3, Cmd.batch (closeBlanks m3 ++ [acCmd; Entry.focusEntry m3]))
+        (m3, Cmd.batch (closeBlanks m3 ^ [acCmd; Entry.focusEntry m3]))
     | SetGlobalVariables globals ->
         let m2 = {m with globals} in
         processAutocompleteMods m2 [ACRegenerate]
@@ -401,7 +402,7 @@ let updateMod mod_ (m, cmd) =
         let _ = "comment" in
         let m3 =
           match tlidOf m.cursorState with
-          | Just tlid -> (
+          | Some tlid -> (
               if updateCurrent then m2
               else
                 let tl = TL.getTL m tlid in
@@ -409,7 +410,7 @@ let updateMod mod_ (m, cmd) =
                 | TLDB _ -> TL.upsert m2 tl
                 | TLHandler _ -> TL.upsert m2 tl
                 | TLFunc f -> m2 )
-          | Nothing -> m2
+          | None -> m2
         in
         let m4 =
           {m3 with deletedToplevels= TL.removeByTLID m3.deletedToplevels tls}
@@ -421,7 +422,7 @@ let updateMod mod_ (m, cmd) =
         let _ = "comment" in
         let m3 =
           match tlidOf m.cursorState with
-          | Just tlid -> (
+          | Some tlid -> (
               if updateCurrent then m2
               else
                 let tl = TL.getTL m tlid in
@@ -429,7 +430,7 @@ let updateMod mod_ (m, cmd) =
                 | TLDB _ -> TL.upsert m2 tl
                 | TLHandler _ -> TL.upsert m2 tl
                 | TLFunc f -> m2 )
-          | Nothing -> m2
+          | None -> m2
         in
         let m4 =
           {m3 with deletedToplevels= TL.removeByTLID m3.deletedToplevels tls}
@@ -462,7 +463,9 @@ let updateMod mod_ (m, cmd) =
               ; ("dbs", JSON.encodeList RPC.encodeDB dbs)
               ; ("user_fns", JSON.encodeList RPC.encodeUserFunction userFns) ]
           in
-          trace |> Maybe.map (fun t -> requestAnalysis (param t)) |> ME.toList
+          trace
+          |> Option.map (fun t -> requestAnalysis (param t))
+          |> Option.toList
         in
         (m, Cmd.batch (handlers |> List.map req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
@@ -484,7 +487,7 @@ let updateMod mod_ (m, cmd) =
         let _ = "comment" in
         let m3 =
           match tlidOf m.cursorState with
-          | Just tlid -> (
+          | Some tlid -> (
               if updateCurrent then m2
               else
                 let tl = TL.getTL m tlid in
@@ -492,7 +495,7 @@ let updateMod mod_ (m, cmd) =
                 | TLFunc f -> Functions.upsert m2 f
                 | TLDB _ -> m2
                 | TLHandler _ -> m2 )
-          | Nothing -> m2
+          | None -> m2
         in
         processAutocompleteMods m3 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs -> ({m with unlockedDBs}, Cmd.none)
@@ -501,7 +504,7 @@ let updateMod mod_ (m, cmd) =
         let nhovering = p :: m.hovering in
         ({m with hovering= nhovering}, Cmd.none)
     | ClearHover p ->
-        let nhovering = List.filter (fun m -> m /= p) m.hovering in
+        let nhovering = List.filter (fun m -> m <> p) m.hovering in
         ({m with hovering= nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
         let m2 = Analysis.setCursor m tlid cur in
@@ -511,19 +514,19 @@ let updateMod mod_ (m, cmd) =
         ( {m with cursorState= Dragging (tlid, offset, hasMoved, state)}
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
-        let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
+        let nexecutingFunctions = m.executingFunctions ^ [(tlid, id)] in
         ({m with executingFunctions= nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionRPC (tlid, id, name) -> (
       match Analysis.getCurrentTrace m tlid with
-      | Just trace -> (
+      | Some trace -> (
         match Analysis.getArguments m tlid trace.id id with
-        | Just args ->
+        | Some args ->
             let params =
               {tlid; callerID= id; traceID= trace.id; fnName= name; args}
             in
             (m, RPC.executeFunctionRPC m.canvasName params)
-        | Nothing -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
-      | Nothing -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
+        | None -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
+      | None -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
     | ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets in
         let nexecutingFunctions =
@@ -546,7 +549,7 @@ let updateMod mod_ (m, cmd) =
 
 let processAutocompleteMods m mods =
   let _ =
-    if m.integrationTestState /= NoIntegrationTest then
+    if m.integrationTestState <> NoIntegrationTest then
       Debug.log "autocompletemod update" mods
     else mods
   in
@@ -562,11 +565,11 @@ let processAutocompleteMods m mods =
     | _ -> Cmd.none
   in
   let _ =
-    if m.integrationTestState /= NoIntegrationTest then
+    if m.integrationTestState <> NoIntegrationTest then
       let i = complete.index in
       let val_ = AC.getValue complete in
       Debug.log "autocompletemod result: "
-        (string_of_int complete.index ++ " => " ++ val_)
+        ((string_of_int complete.index ^ " => ") ^ val_)
     else ""
   in
   ({m with complete}, focus)
@@ -574,39 +577,39 @@ let processAutocompleteMods m mods =
 let isFieldAccessDot m baseStr =
   let str = Util.replace "\\.*$" "" baseStr in
   let intOrString =
-    (String.startsWith "\"" str || RPC.typeOfLiteralString str) == TInt
+    (String.startsWith "\"" str || RPC.typeOfLiteralString str) = TInt
   in
   match m.cursorState with
   | Entering (Creating _) -> not intOrString
   | Entering (Filling (tlid, id)) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
-      (P.typeOf pd == Expr || P.typeOf pd) == Field && not intOrString
+      (P.typeOf pd = Expr || P.typeOf pd) = Field && not intOrString
   | _ -> false
 
 let update_ msg m =
   let _ =
-    if m.integrationTestState /= NoIntegrationTest then
+    if m.integrationTestState <> NoIntegrationTest then
       Debug.log "msg update" msg
     else msg
   in
   match msg with
   | GlobalKeyPress devent -> (
       let event = devent.standard in
-      if ((event.metaKey || event.ctrlKey) && event.keyCode) == Key.Z then
+      if ((event.metaKey || event.ctrlKey) && event.keyCode) = Key.Z then
         match tlidOf m.cursorState with
-        | Just tlid -> (
+        | Some tlid -> (
             let undo =
               if event.shiftKey then RPC ([RedoTL tlid], FocusSame)
               else RPC ([UndoTL tlid], FocusSame)
             in
             match TL.getTL m tlid |> TL.asDB with
-            | Just db ->
+            | Some db ->
                 if DB.isLocked m tlid then
-                  DisplayError "Cannot undo/redo in locked DBs"
+                  DisplayErroror "Cannot undo/redo in locked DBs"
                 else undo
-            | Nothing -> undo )
-        | Nothing -> NoChange
+            | None -> undo )
+        | None -> NoChange
       else
         match m.cursorState with
         | Selecting (tlid, mId) -> (
@@ -615,9 +618,7 @@ let update_ msg m =
             | Key.Delete -> Selection.delete m tlid mId
             | Key.Backspace -> Selection.delete m tlid mId
             | Key.Escape -> (
-              match mId with
-              | Just _ -> Select (tlid, Nothing)
-              | Nothing -> Deselect )
+              match mId with Some _ -> Select (tlid, None) | None -> Deselect )
             | Key.Enter -> (
                 if event.shiftKey then
                   match tl.data with
@@ -628,14 +629,14 @@ let update_ msg m =
                         , FocusExact (tlid, blankid) )
                   | TLHandler h -> (
                     match mId with
-                    | Just id -> (
+                    | Some id -> (
                       match TL.findExn tl id with
                       | PExpr _ ->
                           let blank = B.new_ () in
                           let replacement =
                             AST.addThreadBlank id blank h.ast
                           in
-                          if h.ast == replacement then NoChange
+                          if h.ast = replacement then NoChange
                           else
                             RPC
                               ( [ SetHandler
@@ -644,13 +645,13 @@ let update_ msg m =
                               , FocusExact (tlid, B.toID blank) )
                       | PVarBind _ -> (
                         match AST.parentOf_ id h.ast with
-                        | Just (F (_, Lambda (_, _))) ->
+                        | Some (F (_, Lambda (_, _))) ->
                             let replacement = AST.addLambdaBlank id h.ast in
                             RPC
                               ( [ SetHandler
                                     (tl.id, tl.pos, {h with ast= replacement})
                                 ]
-                              , FocusNext (tlid, Just id) )
+                              , FocusNext (tlid, Some id) )
                         | _ -> NoChange )
                       | PKey _ ->
                           let nextid, _, replacement =
@@ -661,28 +662,28 @@ let update_ msg m =
                                   (tl.id, tl.pos, {h with ast= replacement}) ]
                             , FocusExact (tlid, nextid) )
                       | _ -> NoChange )
-                    | Nothing -> NoChange )
+                    | None -> NoChange )
                   | TLFunc f -> (
                     match mId with
-                    | Just id -> (
+                    | Some id -> (
                       match TL.findExn tl id with
                       | PExpr _ ->
                           let blank = B.new_ () in
                           let replacement =
                             AST.addThreadBlank id blank f.ast
                           in
-                          if f.ast == replacement then NoChange
+                          if f.ast = replacement then NoChange
                           else
                             RPC
                               ( [SetFunction {f with ast= replacement}]
                               , FocusExact (tlid, B.toID blank) )
                       | PVarBind _ -> (
                         match AST.parentOf_ id f.ast with
-                        | Just (F (_, Lambda (_, _))) ->
+                        | Some (F (_, Lambda (_, _))) ->
                             let replacement = AST.addLambdaBlank id f.ast in
                             RPC
                               ( [SetFunction {f with ast= replacement}]
-                              , FocusNext (tlid, Just id) )
+                              , FocusNext (tlid, Some id) )
                         | _ -> NoChange )
                       | PKey _ ->
                           let nextid, _, replacement =
@@ -697,30 +698,30 @@ let update_ msg m =
                             Refactor.addNewFunctionParameter m f
                           in
                           RPC
-                            ( [SetFunction replacement] ++ newCalls
-                            , FocusNext (tlid, Just id) )
+                            ( [SetFunction replacement] ^ newCalls
+                            , FocusNext (tlid, Some id) )
                       | PParamName _ ->
                           let replacement = Functions.extend f in
                           let newCalls =
                             Refactor.addNewFunctionParameter m f
                           in
                           RPC
-                            ( [SetFunction replacement] ++ newCalls
-                            , FocusNext (tlid, Just id) )
+                            ( [SetFunction replacement] ^ newCalls
+                            , FocusNext (tlid, Some id) )
                       | PFnName _ ->
                           let replacement = Functions.extend f in
                           let newCalls =
                             Refactor.addNewFunctionParameter m f
                           in
                           RPC
-                            ( [SetFunction replacement] ++ newCalls
-                            , FocusNext (tlid, Just id) )
+                            ( [SetFunction replacement] ^ newCalls
+                            , FocusNext (tlid, Some id) )
                       | _ -> NoChange )
-                    | Nothing -> NoChange )
+                    | None -> NoChange )
                 else
                   match mId with
-                  | Just id -> Selection.enter m tlid id
-                  | Nothing -> Selection.selectDownLevel m tlid mId )
+                  | Some id -> Selection.enter m tlid id
+                  | None -> Selection.selectDownLevel m tlid mId )
             | Key.Up ->
                 if event.shiftKey then Selection.selectUpLevel m tlid mId
                 else Selection.moveUp m tlid mId
@@ -745,89 +746,89 @@ let update_ msg m =
                 else NoChange
             | Key.C ->
                 if event.ctrlKey then
-                  let mPd = Maybe.map (TL.findExn tl) mId in
+                  let mPd = Option.map (TL.findExn tl) mId in
                   Clipboard.copy m tl mPd
                 else if event.ctrlKey && event.altKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WIfCond m tl pd
                 else NoChange
             | Key.V ->
                 if event.ctrlKey then
                   match mId with
-                  | Nothing -> (
+                  | None -> (
                     match TL.rootOf tl with
-                    | Just pd -> Clipboard.paste m tl (P.toID pd)
-                    | Nothing -> NoChange )
-                  | Just id -> Clipboard.paste m tl id
+                    | Some pd -> Clipboard.paste m tl (P.toID pd)
+                    | None -> NoChange )
+                  | Some id -> Clipboard.paste m tl id
                 else NoChange
             | Key.X ->
                 if event.ctrlKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Clipboard.cut m tl pd
                 else NoChange
             | Key.F ->
                 if event.ctrlKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.extractFunction m tl pd
                 else NoChange
             | Key.B ->
                 if event.ctrlKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WLetBody m tl pd
                 else NoChange
             | Key.L ->
                 if event.ctrlKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WLetRHS m tl pd
                 else if event.ctrlKey && event.shiftKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.extractVariable m tl pd
                 else NoChange
             | Key.I ->
                 if event.ctrlKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WIfThen m tl pd
                 else if event.ctrlKey && event.altKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WIfElse m tl pd
                 else NoChange
             | Key.E ->
                 if event.altKey then
                   match mId with
-                  | Nothing -> NoChange
-                  | Just id ->
+                  | None -> NoChange
+                  | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.toggleOnRail m tl pd
                 else NoChange
             | Key.Unknown c -> (
               match mId with
-              | Nothing -> NoChange
-              | Just id ->
-                  if event.key == Just ":" then
+              | None -> NoChange
+              | Some id ->
+                  if event.key = Some ":" then
                     Many
                       [ SelectCommand (tlid, id)
                       ; AutocompleteMod <| ACSetQuery ":" ]
@@ -844,7 +845,7 @@ let update_ msg m =
                     let pd = TL.findExn tl id in
                     Refactor.toggleOnRail m tl pd )
               | _ -> NoChange
-            else if (event.shiftKey && event.keyCode) == Key.Enter then
+            else if (event.shiftKey && event.keyCode) = Key.Enter then
               match cursor with
               | Filling (tlid, p) -> (
                   let tl = TL.getTL m tlid in
@@ -875,8 +876,8 @@ let update_ msg m =
             else
               match event.keyCode with
               | Key.Spacebar ->
-                  if m.complete.value == "=" || AC.isStringEntry m.complete
-                  then NoChange
+                  if m.complete.value = "=" || AC.isStringEntry m.complete then
+                    NoChange
                   else Entry.submit m cursor Entry.GotoNext
               | Key.Enter -> (
                   if AC.isLargeStringEntry m.complete then
@@ -885,7 +886,7 @@ let update_ msg m =
                     match cursor with
                     | Creating pos -> (
                       match AC.highlighted m.complete with
-                      | Just (ACOmniAction action) ->
+                      | Some (ACOmniAction action) ->
                           Entry.submitOmniAction m pos action
                       | _ -> Entry.submit m cursor Entry.StayHere )
                     | Filling (_, _) -> Entry.submit m cursor Entry.StayHere )
@@ -894,31 +895,30 @@ let update_ msg m =
                 | Filling (tlid, p) ->
                     if AC.isLargeStringEntry m.complete then
                       match devent.selectionStart with
-                      | Just idx ->
+                      | Some idx ->
                           let newQ =
                             SE.insertAt "\t" (idx + 1) m.complete.value
                           in
                           AutocompleteMod <| ACSetQuery newQ
-                      | Nothing -> NoChange
+                      | None -> NoChange
                     else
                       let content = AC.getValue m.complete in
                       let hasContent = content |> String.length |> ( < ) 0 in
                       if hasContent then Entry.submit m cursor Entry.GotoNext
                       else if event.shiftKey then
                         if hasContent then NoChange
-                        else Selection.enterPrevBlank m tlid (Just p)
-                      else Selection.enterNextBlank m tlid (Just p)
+                        else Selection.enterPrevBlank m tlid (Some p)
+                      else Selection.enterNextBlank m tlid (Some p)
                 | Creating _ -> NoChange )
               | Key.Unknown c ->
                   if
-                    event.key == Just "."
-                    && isFieldAccessDot m m.complete.value
+                    event.key = Some "." && isFieldAccessDot m m.complete.value
                   then
                     let c_ = m.complete in
                     let _ = "comment" in
                     let _ = "comment" in
                     let newC =
-                      {c_ with value= AC.getValue c_ ++ "."; index= -1}
+                      {c_ with value= AC.getValue c_ ^ "."; index= -1}
                     in
                     let newM = {m with complete= newC} in
                     Entry.submit newM cursor Entry.GotoNext
@@ -931,14 +931,14 @@ let update_ msg m =
                     match tl.data with
                     | TLHandler h ->
                         let replacement = AST.closeBlanks h.ast in
-                        if replacement == h.ast then
-                          Many [Select (tlid, Just p); AutocompleteMod ACReset]
+                        if replacement = h.ast then
+                          Many [Select (tlid, Some p); AutocompleteMod ACReset]
                         else
                           RPC
                             ( [ SetHandler
                                   (tl.id, tl.pos, {h with ast= replacement}) ]
-                            , FocusNext (tl.id, Nothing) )
-                    | _ -> Many [Select (tlid, Just p); AutocompleteMod ACReset]
+                            , FocusNext (tl.id, None) )
+                    | _ -> Many [Select (tlid, Some p); AutocompleteMod ACReset]
                     ) )
               | Key.Up -> AutocompleteMod ACSelectUp
               | Key.Down -> AutocompleteMod ACSelectDown
@@ -946,7 +946,7 @@ let update_ msg m =
               | Key.Backspace ->
                   let v =
                     if
-                      ( m.complete.value == "\"\""
+                      ( m.complete.value = "\"\""
                       && String.length m.complete.prevValue )
                       <= 2
                     then ""
@@ -973,7 +973,7 @@ let update_ msg m =
             | Key.Left -> Viewport.moveLeft m
             | Key.Right -> Viewport.moveRight m
             | Key.Zero -> Viewport.moveToOrigin m
-            | Key.Tab -> Selection.selectNextToplevel m Nothing
+            | Key.Tab -> Selection.selectNextToplevel m None
             | _ -> NoChange ) )
         | SelectingCommand (tlid, id) -> (
           match event.keyCode with
@@ -990,7 +990,7 @@ let update_ msg m =
           | _ -> NoChange )
         | Dragging (_, _, _, _) -> NoChange )
   | EntryInputMsg target ->
-      let query = if target == "\"" then "\"\"" else target in
+      let query = if target = "\"" then "\"\"" else target in
       if String.endsWith "." query && isFieldAccessDot m query then NoChange
       else
         Many [AutocompleteMod <| ACSetQuery query; MakeCmd (Entry.focusEntry m)]
@@ -1006,7 +1006,7 @@ let update_ msg m =
   | GlobalClick event -> (
     match m.currentPage with
     | Toplevels _ ->
-        if event.button == Defaults.leftButton then
+        if event.button = Defaults.leftButton then
           match unwrapCursorState m.cursorState with
           | Deselected ->
               Many
@@ -1036,14 +1036,14 @@ let update_ msg m =
               , origCursorState ) ]
     | _ -> NoChange )
   | ToplevelMouseDown (targetTLID, event) ->
-      if event.button == Defaults.leftButton then
+      if event.button = Defaults.leftButton then
         let tl = TL.getTL m targetTLID in
         match tl.data with
         | TLFunc _ -> NoChange
         | _ -> Drag (targetTLID, event.pos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (targetTLID, event) ->
-      if event.button == Defaults.leftButton then
+      if event.button = Defaults.leftButton then
         match m.cursorState with
         | Dragging (draggingTLID, startVPos, hasMoved, origCursorState) ->
             if hasMoved then
@@ -1056,32 +1056,32 @@ let update_ msg m =
       else NoChange
   | BlankOrClick (targetTLID, targetID, _) -> (
     match m.cursorState with
-    | Deselected -> Select (targetTLID, Just targetID)
+    | Deselected -> Select (targetTLID, Some targetID)
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
     | Entering cursor -> (
       match cursor with
       | Filling (_, fillingID) ->
-          if fillingID == targetID then NoChange
-          else Select (targetTLID, Just targetID)
-      | _ -> Select (targetTLID, Just targetID) )
+          if fillingID = targetID then NoChange
+          else Select (targetTLID, Some targetID)
+      | _ -> Select (targetTLID, Some targetID) )
     | Selecting (_, maybeSelectingID) -> (
       match maybeSelectingID with
-      | Just selectingID ->
-          if selectingID == targetID then NoChange
-          else Select (targetTLID, Just targetID)
-      | Nothing -> Select (targetTLID, Just targetID) )
+      | Some selectingID ->
+          if selectingID = targetID then NoChange
+          else Select (targetTLID, Some targetID)
+      | None -> Select (targetTLID, Some targetID) )
     | SelectingCommand (_, selectingID) ->
-        if selectingID == targetID then NoChange
-        else Select (targetTLID, Just targetID) )
+        if selectingID = targetID then NoChange
+        else Select (targetTLID, Some targetID) )
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
       Selection.enter m targetTLID targetID
   | ToplevelClick (targetTLID, _) -> (
     match m.cursorState with
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
-    | Selecting (selectingTLID, _) -> Select (targetTLID, Nothing)
-    | SelectingCommand (selectingTLID, _) -> Select (targetTLID, Nothing)
-    | Deselected -> Select (targetTLID, Nothing)
-    | Entering _ -> Select (targetTLID, Nothing) )
+    | Selecting (selectingTLID, _) -> Select (targetTLID, None)
+    | SelectingCommand (selectingTLID, _) -> Select (targetTLID, None)
+    | Deselected -> Select (targetTLID, None)
+    | Entering _ -> Select (targetTLID, None) )
   | ExecuteFunctionButton (tlid, id, name) ->
       let tl = TL.getTL m tlid in
       Many
@@ -1090,16 +1090,16 @@ let update_ msg m =
   | DataClick (tlid, idx, _) -> (
     match m.cursorState with
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
-    | Deselected -> Many [Select (tlid, Nothing); SetCursor (tlid, idx)]
+    | Deselected -> Many [Select (tlid, None); SetCursor (tlid, idx)]
     | _ -> SetCursor (tlid, idx) )
   | StartMigration tlid -> (
       let mdb = tlid |> TL.getTL m |> TL.asDB in
       match mdb with
-      | Just db -> DB.startMigration tlid db.cols
-      | Nothing -> NoChange )
-  | AbandonMigration tlid -> RPC ([AbandonDBMigration tlid], FocusNothing)
+      | Some db -> DB.startMigration tlid db.cols
+      | None -> NoChange )
+  | AbandonMigration tlid -> RPC ([AbandonDBMigration tlid], FocusNone)
   | DeleteColInDB (tlid, nameId) ->
-      RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
+      RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNone)
   | ToggleTimers -> TweakModel toggleTimers
   | SaveTestButton -> MakeCmd (RPC.saveTestRPC m.canvasName)
   | FinishIntegrationTest -> EndIntegrationTest
@@ -1111,17 +1111,17 @@ let update_ msg m =
     | Selecting (tlid, mId) -> (
         let tl = TL.getTL m tlid in
         match mId with
-        | Nothing -> NoChange
-        | Just id ->
+        | None -> NoChange
+        | Some id ->
             let pd = TL.findExn tl id in
             Refactor.extractFunction m tl pd )
     | _ -> NoChange )
   | DeleteUserFunctionParameter (uf, upf) ->
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
-      RPC ([SetFunction replacement] ++ newCalls, FocusNext (uf.tlid, Nothing))
-  | DeleteUserFunction tlid -> RPC ([DeleteFunction tlid], FocusNothing)
-  | RestoreToplevel tlid -> RPC ([UndoTL tlid], FocusNext (tlid, Nothing))
+      RPC ([SetFunction replacement] ^ newCalls, FocusNext (uf.tlid, None))
+  | DeleteUserFunction tlid -> RPC ([DeleteFunction tlid], FocusNone)
+  | RestoreToplevel tlid -> RPC ([UndoTL tlid], FocusNext (tlid, None))
   | RPCCallback
       ( focus
       , calls
@@ -1132,7 +1132,7 @@ let update_ msg m =
           , globals
           , userFuncs
           , unlockedDBs ) ) ->
-      if focus == FocusNoChange then
+      if focus = FocusNoChange then
         Many
           [ UpdateToplevels (newToplevels, false)
           ; UpdateDeletedToplevels newDeletedToplevels
@@ -1155,7 +1155,7 @@ let update_ msg m =
           ; SetUnlockedDBs unlockedDBs
           ; RequestAnalysis newToplevels
           ; AutocompleteMod ACReset
-          ; ClearError
+          ; ClearErroror
           ; newState ]
   | InitialLoadRPCCallback
       ( focus
@@ -1178,10 +1178,10 @@ let update_ msg m =
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis toplevels
         ; AutocompleteMod ACReset
-        ; ClearError
+        ; ClearErroror
         ; extraMod
         ; newState ]
-  | SaveTestRPCCallback (Ok msg_) -> (DisplayError <| "Success! ") ++ msg_
+  | SaveTestRPCCallback (Ok msg_) -> (DisplayErroror <| "Success! ") ^ msg_
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
       let tl = TL.getTL m params.tlid in
       Many
@@ -1196,7 +1196,7 @@ let update_ msg m =
         ; RequestAnalysis [tl] ]
   | ExecuteFunctionCancel (tlid, id) ->
       Many
-        [ DisplayError "Traces are not loaded for this handler"
+        [ DisplayErroror "Traces are not loaded for this handler"
         ; ExecutingFunctionComplete [(tlid, id)] ]
   | GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
       Many
@@ -1211,20 +1211,20 @@ let update_ msg m =
       let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
       match envelope with
       | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
-      | Err str -> DisplayError str )
-  | RPCCallback (_, _, Err err) -> DisplayAndReportHttpError ("RPC", err)
-  | SaveTestRPCCallback (Err err) ->
-      (DisplayError <| "Error: ") ++ toString err
-  | ExecuteFunctionRPCCallback (_, Err err) ->
-      DisplayAndReportHttpError ("ExecuteFunction", err)
-  | InitialLoadRPCCallback (_, _, Err err) ->
-      DisplayAndReportHttpError ("InitialLoad", err)
-  | GetAnalysisRPCCallback (Err err) ->
-      DisplayAndReportHttpError ("GetAnalysis", err)
-  | JSError msg_ -> DisplayError ("Error in JS: " ++ msg_)
+      | Error str -> DisplayErroror str )
+  | RPCCallback (_, _, Error err) -> DisplayAndReportHttpErroror ("RPC", err)
+  | SaveTestRPCCallback (Error err) ->
+      (DisplayErroror <| "Error: ") ^ toString err
+  | ExecuteFunctionRPCCallback (_, Error err) ->
+      DisplayAndReportHttpErroror ("ExecuteFunction", err)
+  | InitialLoadRPCCallback (_, _, Error err) ->
+      DisplayAndReportHttpErroror ("InitialLoad", err)
+  | GetAnalysisRPCCallback (Error err) ->
+      DisplayAndReportHttpErroror ("GetAnalysis", err)
+  | JSErroror msg_ -> DisplayErroror ("Error in JS: " ^ msg_)
   | WindowResize (x, y) -> NoChange
   | FocusEntry _ -> NoChange
-  | NothingClick _ -> NoChange
+  | NoneClick _ -> NoChange
   | FocusAutocompleteItem _ -> NoChange
   | LocationChange loc -> Url.changeLocation m loc
   | TimerFire (action, time) -> (
@@ -1248,7 +1248,7 @@ let update_ msg m =
             ; types= {input= B.new_ (); output= B.new_ ()} }
         ; tlid= anId }
       in
-      RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
+      RPC ([SetHandler (anId, aPos, aHandler)], FocusNone)
   | Delete404 fof -> MakeCmd (RPC.delete404RPC m.canvasName fof)
   | CreateRouteHandler ->
       let center = findCenter m in
@@ -1256,13 +1256,13 @@ let update_ msg m =
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
-        [ RPC ([SetFunction ufun], FocusNothing)
+        [ RPC ([SetFunction ufun], FocusNone)
         ; MakeCmd (Url.navigateTo (Fn (ufun.tlid, Defaults.centerPos))) ]
   | LockHandler (tlid, isLocked) -> Editor.updateLockedHandlers tlid isLocked m
   | EnablePanning pan ->
       let c = m.canvas in
       TweakModel (fun m_ -> {m_ with canvas= {c with enablePan= pan}})
-  | ShowErrorDetails show ->
+  | ShowErrororDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error= {e with showDetails= show}})
   | _ -> NoChange
@@ -1279,8 +1279,8 @@ let disableTimers m = {m with timersEnabled= false}
 let toggleTimers m = {m with timersEnabled= not m.timersEnabled}
 
 let updateError oldErr newErrMsg =
-  if oldErr.message == Just newErrMsg && not oldErr.showDetails then oldErr
-  else {message= Just newErrMsg; showDetails= true}
+  if oldErr.message = Some newErrMsg && not oldErr.showDetails then oldErr
+  else {message= Some newErrMsg; showDetails= true}
 
 let subscriptions m =
   let keySubs =
@@ -1302,8 +1302,8 @@ let subscriptions m =
         [Time.every Time.second (TimerFire RefreshAnalysis)]
   in
   let urlTimer = [Time.every Time.second (TimerFire CheckUrlHashPosition)] in
-  let timers = if m.timersEnabled then syncTimer ++ urlTimer else [] in
-  let onError = [displayError JSError] in
+  let timers = if m.timersEnabled then syncTimer ^ urlTimer else [] in
+  let onError = [displayError JSErroror] in
   let visibility =
     [ PageVisibility.visibilityChanges PageVisibilityChange
     ; onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))

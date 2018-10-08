@@ -1,6 +1,8 @@
+open Belt
+open Porting
 open Types
 
-let isCompatible t1 t2 = ((t1 == TAny || t2) == TAny || t1) == t2
+let isCompatible t1 t2 = ((t1 = TAny || t2) = TAny || t1) = t2
 
 let tipe2str t =
   match t with
@@ -15,7 +17,7 @@ let tipe2str t =
   | TObj -> "Obj"
   | TBlock -> "Block"
   | TIncomplete -> "Incomplete"
-  | TError -> "Error"
+  | TErroror -> "Error"
   | TResp -> "Response"
   | TDB -> "Datastore"
   | TID -> "ID"
@@ -25,10 +27,10 @@ let tipe2str t =
   | TOption -> "Option"
   | TPassword -> "Password"
   | TUuid -> "UUID"
-  | TErrorRail -> "ErrorRail"
+  | TErrororRail -> "ErrorRail"
   | TBelongsTo s -> s
-  | THasMany s -> "[" ++ s ++ "]"
-  | TDbList a -> "[" ++ tipe2str a ++ "]"
+  | THasMany s -> ("[" ^ s) ^ "]"
+  | TDbList a -> ("[" ^ tipe2str a) ^ "]"
 
 let str2tipe t =
   let parseListTipe lt =
@@ -53,7 +55,7 @@ let str2tipe t =
     | "response" -> TResp
     | "datastore" -> TDB
     | "date" -> TDate
-    | "error" -> TError
+    | "error" -> TErroror
     | table -> THasMany table
   in
   match String.toLower t with
@@ -73,7 +75,7 @@ let str2tipe t =
   | "response" -> TResp
   | "datastore" -> TDB
   | "date" -> TDate
-  | "error" -> TError
+  | "error" -> TErroror
   | "option" -> TOption
   | "password" -> TPassword
   | "id" -> TID
@@ -95,7 +97,7 @@ let typeOf dv =
   | DObj _ -> TObj
   | DBlock -> TBlock
   | DIncomplete -> TIncomplete
-  | DError _ -> TError
+  | DErroror _ -> TErroror
   | DResp (_, _) -> TResp
   | DDB _ -> TDB
   | DID _ -> TID
@@ -103,7 +105,7 @@ let typeOf dv =
   | DTitle _ -> TTitle
   | DUrl _ -> TUrl
   | DOption _ -> TOption
-  | DErrorRail _ -> TErrorRail
+  | DErrororRail _ -> TErrororRail
   | DPassword _ -> TPassword
   | DUuid _ -> TUuid
 
@@ -118,12 +120,12 @@ let isLiteral dv =
   | _ -> false
 
 let isComplete dv =
-  match dv with DError _ -> false | DIncomplete -> false | _ -> true
+  match dv with DErroror _ -> false | DIncomplete -> false | _ -> true
 
-let isTrue dv = dv == DBool true
+let isTrue dv = dv = DBool true
 
 let inputValueAsString iv =
-  iv |> DObj |> toRepr |> String.split "\n" |> List.drop 1 |> LE.init
+  iv |> DObj |> toRepr |> String.split "\n" |> List.drop 1 |> List.Extra.init
   |> Maybe.withDefault []
   |> List.map (String.dropLeft 2)
   |> String.join "\n"
@@ -131,24 +133,26 @@ let inputValueAsString iv =
 let toRepr dv = toRepr_ 0 dv
 
 let toRepr_ oldIndent dv =
-  let wrap value = "<" ++ (dv |> typeOf |> tipe2str) ++ ": " ++ value ++ ">" in
-  let asType = "<" ++ (dv |> typeOf |> tipe2str) ++ ">" in
-  let nl = "\n" ++ String.repeat oldIndent " " in
-  let inl = "\n" ++ String.repeat (oldIndent + 2) " " in
+  let wrap value =
+    ((("<" ^ (dv |> typeOf |> tipe2str)) ^ ": ") ^ value) ^ ">"
+  in
+  let asType = ("<" ^ (dv |> typeOf |> tipe2str)) ^ ">" in
+  let nl = "\n" ^ String.repeat oldIndent " " in
+  let inl = "\n" ^ String.repeat (oldIndent + 2) " " in
   let indent = oldIndent + 2 in
   let objToString l =
     l
-    |> List.map (fun (k, v) -> k ++ ": " ++ toRepr_ indent v)
-    |> String.join ("," ++ inl)
-    |> fun s -> "{" ++ inl ++ s ++ nl ++ "}"
+    |> List.map (fun (k, v) -> (k ^ ": ") ^ toRepr_ indent v)
+    |> String.join ("," ^ inl)
+    |> fun s -> ((("{" ^ inl) ^ s) ^ nl) ^ "}"
   in
   match dv with
   | DInt i -> toString i
   | DFloat f -> toString f
-  | DStr s -> "\"" ++ s ++ "\""
+  | DStr s -> ("\"" ^ s) ^ "\""
   | DBool true -> "true"
   | DBool false -> "false"
-  | DChar c -> "'" ++ String.fromList [c] ++ "'"
+  | DChar c -> ("'" ^ String.fromList [c]) ^ "'"
   | DNull -> "null"
   | DID s -> wrap s
   | DDate s -> wrap s
@@ -156,23 +160,23 @@ let toRepr_ oldIndent dv =
   | DUrl s -> wrap s
   | DDB s -> wrap s
   | DUuid s -> wrap s
-  | DError s -> wrap s
+  | DErroror s -> wrap s
   | DPassword s -> wrap s
   | DBlock -> asType
   | DIncomplete -> asType
-  | DResp (Redirect url, dv_) -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
+  | DResp (Redirect url, dv_) -> (("302 " ^ url) ^ nl) ^ toRepr_ indent dv_
   | DResp (Response (code, hs), dv_) ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
-      toString code ++ " " ++ headers ++ nl ++ toRepr dv_
-  | DOption OptNothing -> "Nothing"
-  | DOption (OptJust dv_) -> "Some " ++ toRepr dv_
-  | DErrorRail dv_ -> wrap (toRepr dv_)
+      (((toString code ^ " ") ^ headers) ^ nl) ^ toRepr dv_
+  | DOption OptNone -> "Nothing"
+  | DOption (OptSome dv_) -> "Some " ^ toRepr dv_
+  | DErrororRail dv_ -> wrap (toRepr dv_)
   | DList l -> (
     match l with
     | [] -> "[]"
     | [rest; DObj _] ->
-        "[" ++ inl
-        ++ String.join (inl ++ ", ") (List.map (toRepr_ indent) l)
-        ++ nl ++ "]"
-    | l -> "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ "]" )
+        ( (("[" ^ inl) ^ String.join (inl ^ ", ") (List.map (toRepr_ indent) l))
+        ^ nl )
+        ^ "]"
+    | l -> ("[ " ^ String.join ", " (List.map (toRepr_ indent) l)) ^ "]" )
   | DObj o -> objToString (Dict.toList o)

@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module JSD = Json.Decode
 module JSDP = Json.Decode.Pipeline
 open Types
@@ -8,7 +10,5 @@ let decodeDarkKeyboardEvent =
   in
   JSDP.decode toDEvent
   |> JSDP.requiredAt [] Keyboard.Event.decodeKeyboardEvent
-  |> JSDP.optionalAt
-       ["target"; "selectionStart"]
-       (JSD.map Just JSD.int) Nothing
-  |> JSDP.optionalAt ["target"; "selectionEnd"] (JSD.map Just JSD.int) Nothing
+  |> JSDP.optionalAt ["target"; "selectionStart"] (JSD.map Some JSD.int) None
+  |> JSDP.optionalAt ["target"; "selectionEnd"] (JSD.map Some JSD.int) None

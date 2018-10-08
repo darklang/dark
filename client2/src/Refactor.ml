@@ -1,13 +1,15 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
 module TL = Toplevel
 open Types
 
-let generateFnName _ = "fn_" ++ (() |> Util.random |> string_of_int)
+let generateFnName _ = "fn_" ^ (() |> Util.random |> string_of_int)
 
 let convertTipe tipe =
-  match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
+  match tipe with TIncomplete -> TAny | TErroror -> TAny | _ -> tipe
 
 type wrapLoc = WLetRHS | WLetBody | WIfCond | WIfThen | WIfElse
 
@@ -58,21 +60,21 @@ let toggleOnRail m tl p =
         PExpr (F (id, FnCall (name, exprs, Rail)))
     | _ -> p
   in
-  if p == new_ then NoChange
+  if p = new_ then NoChange
   else
     let newtl = TL.replace p new_ tl in
     RPC (TL.toOp newtl, FocusSame)
 
 let extractVariable m tl p =
   let extractVarInAst e ast =
-    let varname = "var" ++ string_of_int (Util.random ()) in
+    let varname = "var" ^ string_of_int (Util.random ()) in
     let freeVariables =
       AST.freeVariables e |> List.map Tuple.second |> Set.fromList
     in
     let ancestors = AST.ancestors (B.toID e) ast in
     let lastPlaceWithSameVarsAndValues =
       ancestors
-      |> LE.takeWhile (fun elem ->
+      |> List.Extra.takeWhile (fun elem ->
              let id = B.toID elem in
              let availableVars =
                Analysis.getCurrentAvailableVarnames m tl.id id |> Set.fromList
@@ -85,17 +87,17 @@ let extractVariable m tl p =
                |> List.all (not << fun v -> AST.isDefinitionOf v elem)
              in
              allRequiredVariablesAvailable && noVariablesAreRedefined )
-      |> LE.last
+      |> List.Extra.last
     in
     let newVar = B.newF varname in
     match lastPlaceWithSameVarsAndValues with
-    | Just p ->
+    | Some p ->
         let nbody =
           AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
         in
         let nlet = B.newF (Let (newVar, e, nbody)) in
         (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
-    | Nothing ->
+    | None ->
         let newAST =
           AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
         in
@@ -121,7 +123,7 @@ let extractFunction m tl p =
   else
     match p with
     | PExpr body ->
-        let pred = TL.getPrevBlank tl (Just p) |> Maybe.map P.toID in
+        let pred = TL.getPrevBlank tl (Some p) |> Option.map P.toID in
         let name = generateFnName () in
         let freeVars = AST.freeVariables body in
         let paramExprs =
@@ -177,14 +179,14 @@ let renameFunction m old new_ =
     in
     let origName, calls =
       match old_.metadata.name with
-      | Blank _ -> (Nothing, [])
-      | F (_, n) -> (Just n, AST.allCallsToFn n ast |> List.map PExpr)
+      | Blank _ -> (None, [])
+      | F (_, n) -> (Some n, AST.allCallsToFn n ast |> List.map PExpr)
     in
     let newName =
-      match new_.metadata.name with Blank _ -> Nothing | F (_, n) -> Just n
+      match new_.metadata.name with Blank _ -> None | F (_, n) -> Some n
     in
     match (origName, newName) with
-    | Just o, Just r ->
+    | Some o, Some r ->
         List.foldr
           (fun call acc -> AST.replace call (transformCall r call) acc)
           ast calls
@@ -194,31 +196,30 @@ let renameFunction m old new_ =
     m.toplevels
     |> List.filterMap (fun tl ->
            match TL.asHandler tl with
-           | Nothing -> Nothing
-           | Just h ->
+           | None -> None
+           | Some h ->
                let newAst = renameFnCalls h.ast old new_ in
-               if newAst /= h.ast then
-                 Just (SetHandler (tl.id, tl.pos, {h with ast= newAst}))
-               else Nothing )
+               if newAst <> h.ast then
+                 Some (SetHandler (tl.id, tl.pos, {h with ast= newAst}))
+               else None )
   in
   let newFunctions =
     m.userFunctions
     |> List.filterMap (fun uf ->
            let newAst = renameFnCalls uf.ast old new_ in
-           if newAst /= uf.ast then Just (SetFunction {uf with ast= newAst})
-           else Nothing )
+           if newAst <> uf.ast then Some (SetFunction {uf with ast= newAst})
+           else None )
   in
-  newHandlers ++ newFunctions
+  newHandlers ^ newFunctions
 
 let isFunctionInExpr fnName expr =
   let maybeNExpr = B.asF expr in
   match maybeNExpr with
-  | Nothing -> false
-  | Just nExpr -> (
+  | None -> false
+  | Some nExpr -> (
     match nExpr with
     | FnCall (name, list, _) ->
-        if name == fnName then true
-        else List.any (isFunctionInExpr fnName) list
+        if name = fnName then true else List.any (isFunctionInExpr fnName) list
     | If (ifExpr, thenExpr, elseExpr) ->
         List.any (isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
     | Variable _ -> false
@@ -250,7 +251,7 @@ let unusedDeprecatedFunctions m =
   m.builtInFunctions
   |> List.filter (fun x -> x.deprecated)
   |> List.map (fun x -> x.name)
-  |> List.filter (fun n -> countFnUsage m n == 0)
+  |> List.filter (fun n -> countFnUsage m n = 0)
   |> Set.fromList
 
 let transformFnCalls m uf f =
@@ -266,11 +267,11 @@ let transformFnCalls m uf f =
     in
     let origName, calls =
       match old.metadata.name with
-      | Blank _ -> (Nothing, [])
-      | F (_, n) -> (Just n, AST.allCallsToFn n ast |> List.map PExpr)
+      | Blank _ -> (None, [])
+      | F (_, n) -> (Some n, AST.allCallsToFn n ast |> List.map PExpr)
     in
     match origName with
-    | Just _ ->
+    | Some _ ->
         List.foldr
           (fun call acc -> AST.replace call (transformCall call) acc)
           ast calls
@@ -280,40 +281,40 @@ let transformFnCalls m uf f =
     m.toplevels
     |> List.filterMap (fun tl ->
            match TL.asHandler tl with
-           | Nothing -> Nothing
-           | Just h ->
+           | None -> None
+           | Some h ->
                let newAst = transformCallsInAst f h.ast uf in
-               if newAst /= h.ast then
-                 Just (SetHandler (tl.id, tl.pos, {h with ast= newAst}))
-               else Nothing )
+               if newAst <> h.ast then
+                 Some (SetHandler (tl.id, tl.pos, {h with ast= newAst}))
+               else None )
   in
   let newFunctions =
     m.userFunctions
     |> List.filterMap (fun uf_ ->
            let newAst = transformCallsInAst f uf_.ast uf_ in
-           if newAst /= uf_.ast then Just (SetFunction {uf_ with ast= newAst})
-           else Nothing )
+           if newAst <> uf_.ast then Some (SetFunction {uf_ with ast= newAst})
+           else None )
   in
-  newHandlers ++ newFunctions
+  newHandlers ^ newFunctions
 
 let addNewFunctionParameter m old =
   let fn e =
     match e with
-    | FnCall (name, params, r) -> FnCall (name, params ++ [B.new_ ()], r)
+    | FnCall (name, params, r) -> FnCall (name, params ^ [B.new_ ()], r)
     | _ -> e
   in
   transformFnCalls m old fn
 
 let removeFunctionParameter m uf ufp =
   let indexInList =
-    Port.getByIndex (fun p -> p == ufp) uf.metadata.parameters
+    List.getByIndex (fun p -> p = ufp) uf.metadata.parameters
     |> Option.getExn
          "tried to remove parameter that does not exist in function"
   in
   let fn e =
     match e with
     | FnCall (name, params, r) ->
-        FnCall (name, LE.removeAt indexInList params, r)
+        FnCall (name, List.Extra.removeAt indexInList params, r)
     | _ -> e
   in
   transformFnCalls m uf fn

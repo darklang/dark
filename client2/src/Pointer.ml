@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 open Prelude
 open Types
@@ -77,29 +79,30 @@ let isBlank pd =
   | PParamTipe d -> B.isBlank d
 
 let toContent pd =
-  let bs2s s = s |> B.toMaybe |> Maybe.withDefault "" |> Just in
+  let bs2s s = s |> B.toMaybe |> Maybe.withDefault "" |> Some in
   match pd with
   | PVarBind v -> bs2s v
   | PField f -> bs2s f
   | PKey f -> bs2s f
   | PExpr e -> (
     match e with
-    | F (_, Value s) -> Just s
-    | F (_, Variable v) -> Just v
-    | _ -> Nothing )
+    | F (_, Value s) -> Some s
+    | F (_, Variable v) -> Some v
+    | _ -> None )
   | PEventModifier d -> bs2s d
   | PEventName d -> bs2s d
   | PEventSpace d -> bs2s d
   | PDBColName d -> bs2s d
   | PDBColType d -> bs2s d
-  | PDarkType _ -> Nothing
+  | PDarkType _ -> None
   | PDarkTypeField d -> bs2s d
   | PFFMsg d -> bs2s d
   | PFnName d -> bs2s d
   | PParamName d -> bs2s d
   | PParamTipe d ->
-      d |> B.toMaybe |> Maybe.map Runtime.tipe2str |> Maybe.withDefault ""
-      |> Just
+      d |> B.toMaybe
+      |> Option.map Runtime.tipe2str
+      |> Maybe.withDefault "" |> Some
 
 let dtmap fn pd = match pd with PDarkType d -> PDarkType (fn d) | _ -> pd
 

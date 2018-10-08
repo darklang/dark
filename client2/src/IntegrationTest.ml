@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -61,17 +63,17 @@ let trigger test_name =
   | "function_version_renders" -> function_version_renders
   | "only_backspace_out_of_strings_on_last_char" ->
       only_backspace_out_of_strings_on_last_char
-  | n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
+  | n -> Debug.crash (("Test " ^ n) ^ " not added to IntegrationTest.trigger")
 
 let pass = Ok ()
 
-let fail v = Err (toString v)
+let fail v = Error (toString v)
 
 let onlyTL m =
   let len = List.length m.toplevels in
   let _ =
-    if len > 1 then Debug.crash ("too many toplevels: " ++ toString m.toplevels)
-    else if len == 0 then Debug.crash "no toplevels"
+    if len > 1 then Debug.crash ("too many toplevels: " ^ toString m.toplevels)
+    else if len = 0 then Debug.crash "no toplevels"
     else "nothing to see here"
   in
   m.toplevels |> List.head |> Option.getExn "onlytl1"
@@ -99,7 +101,7 @@ let field_access_closes m =
       let ast =
         onlyTL m |> TL.asHandler |> Option.getExn "test" |> fun x -> x.ast
       in
-      if AST.allData ast |> List.filter P.isBlank == [] then pass
+      if AST.allData ast |> List.filter P.isBlank = [] then pass
       else fail (TL.allBlanks (onlyTL m))
   | _ -> fail m.cursorState
 
@@ -155,10 +157,10 @@ let tabbing_works m =
 let left_right_works m =
   let h = onlyHandler m in
   match m.cursorState with
-  | Selecting (tlid, Just id) -> (
+  | Selecting (tlid, Some id) -> (
       let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
       match pd with
-      | Just (PEventSpace _) -> pass
+      | Some (PEventSpace _) -> pass
       | other -> fail (m.cursorState, other) )
   | s -> fail m.cursorState
 
@@ -167,7 +169,7 @@ let varbinds_are_editable m =
   | Let (F (id1, "var"), Blank _, Blank _) as l -> (
     match m.cursorState with
     | Entering (Filling (_, id2)) ->
-        if id1 == id2 then pass else fail (l, m.cursorState)
+        if id1 = id2 then pass else fail (l, m.cursorState)
     | s -> fail (l, m.cursorState) )
   | e -> fail e
 
@@ -222,7 +224,7 @@ let editing_does_not_deselect m =
   | Entering (Filling (tlid, id)) -> (
       let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
       match pd with
-      | Just (PExpr (F (_, Value "\"hello zane\""))) -> pass
+      | Some (PExpr (F (_, Value "\"hello zane\""))) -> pass
       | other -> fail other )
   | other -> fail other
 
@@ -240,7 +242,7 @@ let tabbing_through_let m =
   | e -> fail e
 
 let case_sensitivity m =
-  if List.length m.toplevels /= 3 then fail m.toplevels
+  if List.length m.toplevels <> 3 then fail m.toplevels
   else
     m.toplevels
     |> List.map (fun tl ->
@@ -286,8 +288,8 @@ let case_sensitivity m =
                      ; F (_, FnCall ("DB::fetchAll", [], _))
                      ; F (_, Variable "TestUnicode") ] ) ->
                  Analysis.getCurrentLiveValue m tl.id id
-                 |> Maybe.map (fun lv ->
-                        if lv == DStr "some value" then pass else fail lv )
+                 |> Option.map (fun lv ->
+                        if lv = DStr "some value" then pass else fail lv )
                  |> Maybe.withDefault (fail h.ast)
              | _ -> fail h.ast )
            | other -> fail other )
@@ -297,19 +299,19 @@ let case_sensitivity m =
 let focus_on_ast_in_new_empty_tl m =
   match (onlyHandler m).ast with
   | Blank id ->
-      if idOf m.cursorState == Just id then pass else fail (id, m.cursorState)
+      if idOf m.cursorState = Some id then pass else fail (id, m.cursorState)
   | e -> fail e
 
 let focus_on_path_in_new_filled_tl m =
   match (onlyHandler m).spec.name with
   | Blank id ->
-      if idOf m.cursorState == Just id then pass else fail (id, m.cursorState)
+      if idOf m.cursorState = Some id then pass else fail (id, m.cursorState)
   | e -> fail e
 
 let focus_on_cond_in_new_tl_with_if m =
   match onlyExpr m with
   | If (cond, _, _) ->
-      if idOf m.cursorState == Just (B.toID cond) then pass
+      if idOf m.cursorState = Some (B.toID cond) then pass
       else fail m.cursorState
   | e -> fail e
 
@@ -318,10 +320,10 @@ let dont_shift_focus_after_filling_last_blank m =
   | Selecting (_, mId) ->
       if
         mId
-        == ( m |> onlyHandler
-           |> (fun x -> x.spec)
-           |> (fun x -> x.modifier)
-           |> B.toID |> Just )
+        = ( m |> onlyHandler
+          |> (fun x -> x.spec)
+          |> (fun x -> x.modifier)
+          |> B.toID |> Some )
       then pass
       else fail (m.toplevels, m.cursorState)
   | s -> fail (m.toplevels, m.cursorState)
@@ -336,7 +338,7 @@ let rename_db_fields m =
              ; (F (_, "field2"), F (_, "String"))
              ; (F (id, "field6"), F (_, "String")) ] -> (
              match m.cursorState with
-             | Selecting (_, Nothing) -> pass
+             | Selecting (_, None) -> pass
              | _ -> fail m.cursorState )
            | _ -> fail cols )
          | _ -> pass )
@@ -353,8 +355,8 @@ let rename_db_type m =
              ; (F (_, "field2"), F (_, "Int"))
              ; (F (_, "field1"), F (id, "String")) ] -> (
              match m.cursorState with
-             | Selecting (_, Just sid) ->
-                 if sid == id then pass else fail (cols, m.cursorState)
+             | Selecting (_, Some sid) ->
+                 if sid = id then pass else fail (cols, m.cursorState)
              | _ -> fail m.cursorState )
            | _ -> fail cols )
          | _ -> pass )
@@ -379,7 +381,7 @@ let paste_keeps_focus m =
   | FnCall ("+", [F (id, Value "3"); F (_, Value "3")], _) as fn -> (
     match m.cursorState with
     | Selecting (_, sid) ->
-        if Just id == sid then pass else fail (fn, m.cursorState)
+        if Some id = sid then pass else fail (fn, m.cursorState)
     | _ -> fail (fn, m.cursorState) )
   | other -> fail other
 
@@ -387,7 +389,7 @@ let nochange_for_failed_paste m =
   match onlyExpr m with
   | Let (F (id, "x"), F (_, Value "2"), _) -> (
     match m.cursorState with
-    | Selecting (_, sid) -> if Just id == sid then pass else fail m.cursorState
+    | Selecting (_, sid) -> if Some id = sid then pass else fail m.cursorState
     | _ -> fail m.cursorState )
   | other -> fail other
 
@@ -414,14 +416,14 @@ let feature_flag_works m =
                   , F (_, Value "\"B\"") ) ) ) ) -> (
       let res = Analysis.getCurrentLiveValue m h.tlid id in
       match res with
-      | Just val_ -> if val_ == DStr "B" then pass else fail (ast, val_)
+      | Some val_ -> if val_ = DStr "B" then pass else fail (ast, val_)
       | _ -> fail (ast, res) )
   | _ -> fail (ast, m.cursorState)
 
 let feature_flag_in_function m =
   let fun_ = head m.userFunctions in
   match fun_ with
-  | Just f -> (
+  | Some f -> (
     match f.ast with
     | F
         ( id
@@ -437,8 +439,8 @@ let feature_flag_in_function m =
                       , F (_, Value "3") ) ) ]
             , NoRail ) ) ->
         pass
-    | _ -> fail (f.ast, Nothing) )
-  | Nothing -> fail ("Cant find function", Nothing)
+    | _ -> fail (f.ast, None) )
+  | None -> fail ("Cant find function", None)
 
 let simple_tab_ordering m =
   let ast = onlyHandler m |> fun x -> x.ast in
@@ -446,7 +448,7 @@ let simple_tab_ordering m =
   | F (_, Let (Blank _, F (_, Value "4"), Blank id)) -> (
     match m.cursorState with
     | Entering (Filling (_, sid)) ->
-        if id == sid then pass else fail (ast, m.cursorState, id)
+        if id = sid then pass else fail (ast, m.cursorState, id)
     | _ -> fail (ast, m.cursorState, id) )
   | _ -> fail (ast, m.cursorState)
 
@@ -489,27 +491,27 @@ let invalid_syntax m =
   | Blank id -> (
     match m.cursorState with
     | Entering (Filling (_, sid)) ->
-        if id == sid then pass else fail m.cursorState
+        if id = sid then pass else fail m.cursorState
     | _ -> fail m.cursorState )
   | other -> fail other
 
 let editing_stays_in_same_place_with_enter m =
   match (m.cursorState, onlyExpr m) with
   | Selecting (_, id1), Let (F (id2, "v2"), _, _) ->
-      if id1 == Just id2 then pass else fail (m.cursorState, onlyExpr m)
+      if id1 = Some id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
 let editing_goes_to_next_with_tab m =
   match (m.cursorState, onlyExpr m) with
   | Entering (Filling (_, id1)), Let (F (_, "v2"), Blank id2, _) ->
-      if id1 == id2 then pass else fail (m.cursorState, onlyExpr m)
+      if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
 let editing_starts_a_thread_with_shift_enter m =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (_, id1))
     , Let (_, F (_, Thread [Blank id2; F (_, Value "52")]), _) ) ->
-      if id1 == id2 then pass else fail (m.cursorState, onlyExpr m)
+      if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
 let object_literals_work m =
@@ -543,4 +545,4 @@ let function_version_renders m = pass
 
 let only_backspace_out_of_strings_on_last_char m =
   let ast = onlyHandler m |> fun x -> x.ast in
-  if m.complete.value == "" then pass else fail ast
+  if m.complete.value = "" then pass else fail ast

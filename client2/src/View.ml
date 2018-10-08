@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module Attrs = Html.Attributes
 module Events = Html.Events
 open Prelude
@@ -15,7 +17,7 @@ let view m =
   let footer = [ViewScaffold.viewError m.error; ViewScaffold.viewButtons m] in
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in
-  let content = [routing; body] ++ footer in
+  let content = [routing; body] ^ footer in
   Html.div attributes content
 
 let viewCanvas m =
@@ -24,9 +26,9 @@ let viewCanvas m =
     match m.currentPage with
     | Toplevels _ -> List.map (viewTL m) m.toplevels
     | Fn (tlid, _) -> (
-      match Port.getBy (fun f -> f.tlid == tlid) m.userFunctions with
-      | Just func -> [viewTL m (TL.ufToTL m func)]
-      | Nothing -> List.map (viewTL m) m.toplevels )
+      match List.getBy (fun f -> f.tlid = tlid) m.userFunctions with
+      | Some func -> [viewTL m (TL.ufToTL m func)]
+      | None -> List.map (viewTL m) m.toplevels )
   in
   let _ = "comment" in
   let canvasTransform =
@@ -37,9 +39,9 @@ let viewCanvas m =
     in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in
-    "translate(" ++ x ++ "px, " ++ y ++ "px)"
+    ((("translate(" ^ x) ^ "px, ") ^ y) ^ "px)"
   in
-  let allDivs = asts ++ entry in
+  let allDivs = asts ^ entry in
   Html.div
     [Attrs.id "canvas"; Attrs.style [("transform", canvasTransform)]]
     allDivs
@@ -55,13 +57,13 @@ let viewTL m tl =
     | Fn (tLID, _) -> Defaults.centerPos
   in
   let html =
-    if Just tl.id == tlidOf m.cursorState || isDB then
+    if Some tl.id = tlidOf m.cursorState || isDB then
       let _ = Util.cacheClear id in
       recalc ()
     else
       match Util.cacheGet id with
-      | Just html -> html
-      | Nothing ->
+      | Some html -> html
+      | None ->
           let result = recalc () in
           let _ = Util.cacheSet id result in
           result
@@ -83,35 +85,34 @@ let viewTL_ m tlid =
     ; eventNoPropagation "click" (ToplevelClick tl.id) ]
   in
   let selected =
-    if Just tl.id == tlidOf m.cursorState then "selected" else ""
+    if Some tl.id = tlidOf m.cursorState then "selected" else ""
   in
   let boxClasses =
     match m.cursorState with
-    | Dragging (tlid_, _, _, _) -> if tlid_ == tl.id then ["dragging"] else []
+    | Dragging (tlid_, _, _, _) -> if tlid_ = tl.id then ["dragging"] else []
     | _ -> []
   in
   let class_ =
     [ selected
-    ; "tl-" ++ string_of_int (deTLID tl.id)
+    ; "tl-" ^ string_of_int (deTLID tl.id)
     ; "toplevel"
-    ; "cursor-" ++ string_of_int (Analysis.cursor m tl.id) ]
+    ; "cursor-" ^ string_of_int (Analysis.cursor m tl.id) ]
     |> String.join " "
   in
   let documentation =
-    if Just tl.id == tlidOf m.cursorState then
+    if Some tl.id = tlidOf m.cursorState then
       m.complete |> Autocomplete.highlighted
-      |> Maybe.andThen Autocomplete.documentationForItem
-      |> Maybe.map (fun desc ->
+      |> Option.andThen Autocomplete.documentationForItem
+      |> Option.map (fun desc ->
              [ Html.div
                  [Attrs.class_ "documentation-box"]
                  [Html.p [] [Html.text desc]] ] )
-    else Nothing
+    else None
   in
-  let top = match documentation with Just doc -> doc | _ -> data in
+  let top = match documentation with Some doc -> doc | _ -> data in
   let html =
     Html.div
-      [ Attrs.class_
-        <| String.join " " (boxClasses ++ ["sidebar-box"; selected]) ]
-      [Html.div (Attrs.class_ class_ :: events) (body ++ top)]
+      [Attrs.class_ <| String.join " " (boxClasses ^ ["sidebar-box"; selected])]
+      [Html.div (Attrs.class_ class_ :: events) (body ^ top)]
   in
   html

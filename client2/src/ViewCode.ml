@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module Attrs = Html.Attributes
 open Prelude
@@ -8,43 +10,43 @@ open ViewBlankOr
 open ViewUtils
 
 let viewFieldName vs c f =
-  let configs = c ++ [ClickSelectAs (B.toID f)] ++ withFeatureFlag vs f in
+  let configs = (c ^ [ClickSelectAs (B.toID f)]) ^ withFeatureFlag vs f in
   viewBlankOr viewNFieldName Field vs configs f
 
 let viewVarBind vs c v =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewBlankOr viewNVarBind VarBind vs configs v
 
 let viewKey vs c k =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewBlankOr viewNVarBind Key vs configs k
 
 let viewDarkType vs c dt =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewBlankOr viewNDarkType DarkType vs configs dt
 
 let viewExpr depth vs c e =
   let width = approxWidth e in
   let widthClass =
-    [wc ("width-" ++ string_of_int width)]
-    ++ if width > 120 then [wc "too-wide"] else []
+    [wc ("width-" ^ string_of_int width)]
+    ^ if width > 120 then [wc "too-wide"] else []
   in
   let configs =
-    idConfigs ++ c ++ withFeatureFlag vs e ++ withEditFn vs e ++ widthClass
+    (((idConfigs ^ c) ^ withFeatureFlag vs e) ^ withEditFn vs e) ^ widthClass
   in
   let id = B.toID e in
   viewBlankOr (viewNExpr depth id) Expr vs configs e
 
 let viewEventName vs c v =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewText EventName vs configs v
 
 let viewEventSpace vs c v =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewText EventSpace vs configs v
 
 let viewEventModifier vs c v =
-  let configs = idConfigs ++ c in
+  let configs = idConfigs ^ c in
   viewText EventModifier vs configs v
 
 let viewNDarkType vs c d =
@@ -65,13 +67,13 @@ let viewNDarkType vs c d =
       in
       let open_ = text vs [wc "open"] "{" in
       let close = text vs [wc "close"] "}" in
-      Html.div [Attrs.class_ "type-object"] ([open_] ++ nested ++ [close])
+      Html.div [Attrs.class_ "type-object"] (([open_] ^ nested) ^ [close])
 
 let viewNVarBind vs config f = text vs config f
 
 let viewNFieldName vs config f = text vs config f
 
-let depthString n = "precedence-" ++ string_of_int n
+let depthString n = "precedence-" ^ string_of_int n
 
 let viewRopArrow vs =
   let line =
@@ -119,7 +121,7 @@ let viewNExpr d id vs config e =
   let n c = div vs (nested :: c) in
   let a c = text vs (atom :: c) in
   let kw = keyword vs in
-  let all = idConfigs ++ config in
+  let all = idConfigs ^ config in
   let cs = ClickSelect in
   let mo = Mouseover in
   let incD = d + 1 in
@@ -129,11 +131,11 @@ let viewNExpr d id vs config e =
         v |> RPC.typeOfLiteralString |> toString |> String.toLower
       in
       let value =
-        if RPC.typeOfLiteralString v == TStr then transformToStringEntry v
+        if RPC.typeOfLiteralString v = TStr then transformToStringEntry v
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
-      a (((wc cssClass :: wc "value") :: all) ++ tooWide) value
+      a (((wc cssClass :: wc "value") :: all) ^ tooWide) value
   | Variable name ->
       if List.member id vs.relatedBlankOrs then
         a ((wc "variable" :: wc "related-change") :: all) vs.ac.value
@@ -141,7 +143,7 @@ let viewNExpr d id vs config e =
   | Let (lhs, rhs, body) ->
       let bodyID = B.toID body in
       let showRHSInstead =
-        B.isBlank body && idOf vs.cursorState == Just bodyID
+        B.isBlank body && idOf vs.cursorState = Some bodyID
       in
       let rhsConfig =
         if showRHSInstead then [wc "display-livevalue"] else []
@@ -169,7 +171,7 @@ let viewNExpr d id vs config e =
       in
       let ve name_ = if width > 120 then viewTooWideArg name_ else vExpr in
       let fnname parens =
-        let withP name_ = if parens then "(" ++ name_ ++ ")" else name_ in
+        let withP name_ = if parens then ("(" ^ name_) ^ ")" else name_ in
         match String.split "::" name with
         | [justname; mod_] ->
             let np = withP justname in
@@ -183,36 +185,36 @@ let viewNExpr d id vs config e =
       in
       let fn =
         vs.ac.functions
-        |> Port.getBy (fun f -> f.name == name)
+        |> List.getBy (fun f -> f.name = name)
         |> Maybe.withDefault
              { name= "fnLookupError"
              ; parameters= []
              ; description= "default, fn error"
-             ; returnTipe= TError
+             ; returnTipe= TErroror
              ; previewExecutionSafe= true
              ; infix= false
              ; deprecated= false }
       in
       let previous =
         match vs.tl.data with
-        | TLHandler h -> h.ast |> AST.threadPrevious id |> ME.toList
-        | TLFunc f -> f.ast |> AST.threadPrevious id |> ME.toList
+        | TLHandler h -> h.ast |> AST.threadPrevious id |> Option.toList
+        | TLFunc f -> f.ast |> AST.threadPrevious id |> Option.toList
         | TLDB db -> impossible db
       in
       let _ = "comment" in
-      let allExprs = previous ++ exprs in
+      let allExprs = previous ^ exprs in
       let isComplete v =
         v
         |> getLiveValue vs.currentResults.liveValues
         |> fun v_ ->
         match v_ with
-        | Nothing -> false
-        | Just (DError _) -> false
-        | Just DIncomplete -> false
-        | Just _ -> true
+        | None -> false
+        | Some (DErroror _) -> false
+        | Some DIncomplete -> false
+        | Some _ -> true
       in
       let ropArrow =
-        if sendToRail == NoRail then Html.div [] [] else viewRopArrow vs
+        if sendToRail = NoRail then Html.div [] [] else viewRopArrow vs
       in
       let paramsComplete = List.all (isComplete << B.toID) allExprs in
       let resultHasValue = isComplete id in
@@ -250,9 +252,9 @@ let viewNExpr d id vs config e =
         if not showButton then []
         else
           [ Html.div
-              ( [ Attrs.class_ ("execution-button " ++ class_ ++ executingClass)
+              ( [ Attrs.class_ (("execution-button " ^ class_) ^ executingClass)
                 ; Attrs.title title ]
-              ++ event )
+              ^ event )
               [fontAwesome icon] ]
       in
       let fnDiv parens =
@@ -298,7 +300,7 @@ let viewNExpr d id vs config e =
         n [wc "listelem"; ClickSelectAs (B.toID e_)] [vExpr 0 e_]
       in
       let new_ = List.map lexpr exprs |> List.intersperse comma in
-      n ((wc "list" :: mo) :: config) ([open_] ++ new_ ++ [close])
+      n ((wc "list" :: mo) :: config) (([open_] ^ new_) ^ [close])
   | ObjectLiteral pairs ->
       let colon = a [wc "colon"] ":" in
       let open_ = a [wc "openbrace"] "{" in
@@ -308,14 +310,14 @@ let viewNExpr d id vs config e =
       in
       n
         ((wc "object" :: mo) :: config)
-        ([open_] ++ List.map pexpr pairs ++ [close])
+        (([open_] ^ List.map pexpr pairs) ^ [close])
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
         Html.label [Attrs.class_ "expr-label"] [Html.text msg_]
       in
       let isExpanded =
         let mv = Dict.get (deID id) vs.featureFlags in
-        match mv with Just b -> b | Nothing -> true
+        match mv with Some b -> b | None -> true
       in
       let pickA =
         Html.div
@@ -358,7 +360,7 @@ let viewNExpr d id vs config e =
         ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
       in
       let condResult =
-        condValue |> Maybe.map Runtime.isTrue |> Maybe.withDefault false
+        condValue |> Option.map Runtime.isTrue |> Maybe.withDefault false
       in
       let blockCondition =
         Html.div
@@ -380,7 +382,7 @@ let viewNExpr d id vs config e =
         ; fontAwesome "flag"
         ; Html.div
             [ Attrs.class_
-                ("feature-flag" ++ if isExpanded then " expand" else "") ]
+                ("feature-flag" ^ if isExpanded then " expand" else "") ]
             [titleBar; blockCondition; expressions] ]
 
 let isExecuting vs id = List.member id vs.executingFunctions
@@ -399,9 +401,9 @@ let viewHandler vs h =
         [ Html.a
             [ Attrs.class_ "external"
             ; Attrs.href
-                ( "//"
-                ++ Http.encodeUri vs.canvasName
-                ++ "." ++ vs.userContentHost ++ name )
+                ( ( (("//" ^ Http.encodeUri vs.canvasName) ^ ".")
+                  ^ vs.userContentHost )
+                ^ name )
             ; Attrs.target "_blank" ]
             [fontAwesome "external-link-alt"] ]
     | _ -> []

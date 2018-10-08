@@ -1,3 +1,5 @@
+open Belt
+open Porting
 module B = Blank
 module P = Pointer
 open Prelude
@@ -15,7 +17,7 @@ let replaceInType pd replacement dt =
   let _ =
     todo {msg= "replaceInType"; pointerData= pd; replacement; darkType= dt}
   in
-  if B.toID dt == P.toID pd then
+  if B.toID dt = P.toID pd then
     match replacement with PDarkType t -> t | _ -> dt
   else
     match dt with
@@ -26,7 +28,7 @@ let replaceInType pd replacement dt =
                  let newN =
                    match replacement with
                    | PDarkTypeField name ->
-                       if P.toID pd == B.toID n then name else n
+                       if P.toID pd = B.toID n then name else n
                    | _ -> n
                  in
                  let newT =
@@ -42,7 +44,7 @@ let replaceInType pd replacement dt =
 let allData t = []
 
 let childrenOf id t =
-  if B.toID t == id then
+  if B.toID t = id then
     match t with
     | F (_, DTObj ts) ->
         ts

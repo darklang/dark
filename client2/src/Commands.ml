@@ -1,16 +1,18 @@
+open Belt
+open Porting
 module TL = Toplevel
 open Types
 
 let executeCommand m tlid id highlighted =
   match highlighted with
-  | Just (ACCommand command) ->
+  | Some (ACCommand command) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
       command.action m tl pd
   | _ -> NoChange
 
 let endCommandExecution m tlid id =
-  Many [AutocompleteMod ACReset; Select (tlid, Just id)]
+  Many [AutocompleteMod ACReset; Select (tlid, Some id)]
 
 let commands =
   [ { name= "extract-function"

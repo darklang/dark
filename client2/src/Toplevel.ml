@@ -1,25 +1,27 @@
+open Belt
+open Porting
 module B = Blank
 module Fns = Functions
 module P = Pointer
 open Prelude
 open Types
 
-let all m = m.toplevels ++ List.map (ufToTL m) m.userFunctions
+let all m = m.toplevels ^ List.map (ufToTL m) m.userFunctions
 
 let getTL m id = get m id |> Option.getExn "getTL"
 
 let get m id =
   let tls = all m in
-  Port.getBy (fun tl -> tl.id == id) tls
+  List.getBy (fun tl -> tl.id = id) tls
 
 let name tl =
   match tl.data with
-  | TLHandler h -> "H: " ++ (h.spec.name |> B.toMaybe |> Maybe.withDefault "")
-  | TLDB db -> "DB: " ++ db.name
+  | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Maybe.withDefault "")
+  | TLDB db -> "DB: " ^ db.name
   | TLFunc f ->
-      "Func: " ++ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
+      "Func: " ^ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
 
-let upsertByTLID tls tl = removeByTLID tls [tl] ++ [tl]
+let upsertByTLID tls tl = removeByTLID tls [tl] ^ [tl]
 
 let upsert m tl = {m with toplevels= upsertByTLID m.toplevels tl}
 
@@ -29,7 +31,7 @@ let upsertAllByTLID tls new_ =
 let upsertAll m tls = List.foldl (fun a b -> upsert b a) m tls
 
 let containsByTLID tls elem =
-  Port.getBy (fun tl -> tl.id == elem.id) tls /= Nothing
+  List.getBy (fun tl -> tl.id = elem.id) tls <> None
 
 let removeByTLID origTls toBeRemoved =
   List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
@@ -37,7 +39,7 @@ let removeByTLID origTls toBeRemoved =
 let remove m tl = {m with toplevels= removeByTLID m.toplevels [tl]}
 
 let updateByTLID tls tlid f =
-  tls |> List.map (fun t -> if t.id /= tlid then t else f t)
+  tls |> List.map (fun t -> if t.id <> tlid then t else f t)
 
 let update m tlid f = {m with toplevels= updateByTLID m.toplevels tlid f}
 
@@ -49,11 +51,11 @@ let moveTL xOffset yOffset tl =
 
 let ufToTL m uf = {id= uf.tlid; pos= Defaults.centerPos; data= TLFunc uf}
 
-let asUserFunction tl = match tl.data with TLFunc f -> Just f | _ -> Nothing
+let asUserFunction tl = match tl.data with TLFunc f -> Some f | _ -> None
 
-let asHandler tl = match tl.data with TLHandler h -> Just h | _ -> Nothing
+let asHandler tl = match tl.data with TLHandler h -> Some h | _ -> None
 
-let asDB tl = match tl.data with TLDB h -> Just h | _ -> Nothing
+let asDB tl = match tl.data with TLDB h -> Some h | _ -> None
 
 let handlers tls = List.filterMap asHandler tls
 
@@ -61,9 +63,9 @@ let dbs tls = List.filterMap asDB tls
 
 let spaceOfHandler h = SpecHeaders.spaceOf h.spec
 
-let spaceOf tl = tl |> asHandler |> Maybe.map spaceOfHandler
+let spaceOf tl = tl |> asHandler |> Option.map spaceOfHandler
 
-let isHTTPHandler tl = tl |> spaceOf |> ( == ) (Just HSHTTP)
+let isHTTPHandler tl = tl |> spaceOf |> ( = ) (Some HSHTTP)
 
 let toOp tl =
   match tl.data with
@@ -97,39 +99,38 @@ let blanksWhere fn tl = tl |> allBlanks |> List.filter fn
 
 let getNextBlank tl pred =
   match pred with
-  | Just pred_ ->
+  | Some pred_ ->
       let ps = allData tl in
-      let index = LE.elemIndex pred_ ps |> Maybe.withDefault (-1) in
+      let index = List.elemIndex pred_ ps |> Maybe.withDefault (-1) in
       let remaining = List.drop (index + 1) ps in
       let blanks = List.filter P.isBlank remaining in
-      blanks |> List.head |> Port.optionOrElse (firstBlank tl)
-  | Nothing -> firstBlank tl
+      blanks |> List.head |> Option.orElse (firstBlank tl)
+  | None -> firstBlank tl
 
 let getPrevBlank tl next =
   match next with
-  | Just next_ ->
+  | Some next_ ->
       let ps = allData tl in
       let index =
-        LE.elemIndex next_ ps |> Maybe.withDefault (List.length ps)
+        List.elemIndex next_ ps |> Maybe.withDefault (List.length ps)
       in
       let remaining = List.take index ps in
       let blanks = List.filter P.isBlank remaining in
-      blanks |> LE.last |> Port.optionOrElse (lastBlank tl)
-  | Nothing -> lastBlank tl
+      blanks |> List.Extra.last |> Option.orElse (lastBlank tl)
+  | None -> lastBlank tl
 
 let firstBlank tl = tl |> allBlanks |> List.head
 
-let lastBlank tl = tl |> allBlanks |> LE.last
+let lastBlank tl = tl |> allBlanks |> List.Extra.last
 
 let siblings tl p =
   match tl.data with
   | TLHandler h ->
-      let toplevels = SpecHeaders.allData h.spec ++ [PExpr h.ast] in
+      let toplevels = SpecHeaders.allData h.spec ^ [PExpr h.ast] in
       if List.member p toplevels then toplevels
       else
-        AST.siblings p h.ast
-        ++ SpecTypes.siblings p h.spec.types.input
-        ++ SpecTypes.siblings p h.spec.types.output
+        (AST.siblings p h.ast ^ SpecTypes.siblings p h.spec.types.input)
+        ^ SpecTypes.siblings p h.spec.types.output
   | TLDB db -> DB.siblings p db
   | TLFunc f -> AST.siblings p f.ast
 
@@ -141,12 +142,12 @@ let getPrevSibling tl p =
 
 let getParentOf tl p =
   match tl.data with
-  | TLHandler h -> AST.parentOf_ (P.toID p) h.ast |> Maybe.map PExpr
-  | TLFunc f -> AST.parentOf_ (P.toID p) f.ast |> Maybe.map PExpr
+  | TLHandler h -> AST.parentOf_ (P.toID p) h.ast |> Option.map PExpr
+  | TLFunc f -> AST.parentOf_ (P.toID p) f.ast |> Option.map PExpr
   | TLDB db ->
       db |> DB.astsFor
       |> List.map (AST.parentOf_ (P.toID p))
-      |> ME.values |> List.head |> Maybe.map PExpr
+      |> Maybe.Extra.values |> List.head |> Option.map PExpr
 
 let getChildrenOf tl pd =
   let pid = P.toID pd in
@@ -160,7 +161,7 @@ let getChildrenOf tl pd =
   let specChildren () =
     let h = asHandler tl |> Option.getExn "getChildrenOf - spec" in
     SpecTypes.childrenOf (P.toID pd) h.spec.types.input
-    ++ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
+    ^ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
   in
   match pd with
   | PVarBind _ -> []
@@ -183,9 +184,9 @@ let firstChild tl id = getChildrenOf tl id |> List.head
 
 let rootOf tl =
   match tl.data with
-  | TLHandler h -> Just <| PExpr h.ast
-  | TLFunc f -> Just <| PExpr f.ast
-  | _ -> Nothing
+  | TLHandler h -> Some <| PExpr h.ast
+  | TLFunc f -> Some <| PExpr f.ast
+  | _ -> None
 
 let replace p replacement tl =
   let ha () = tl |> asHandler |> Option.getExn "TL.replace" in
@@ -249,10 +250,9 @@ let delete tl p newID =
 let allData tl =
   match tl.data with
   | TLHandler h ->
-      SpecHeaders.allData h.spec
-      ++ SpecTypes.allData h.spec.types.input
-      ++ AST.allData h.ast
-      ++ SpecTypes.allData h.spec.types.output
+      ( (SpecHeaders.allData h.spec ^ SpecTypes.allData h.spec.types.input)
+      ^ AST.allData h.ast )
+      ^ SpecTypes.allData h.spec.types.output
   | TLDB db -> DB.allData db
   | TLFunc f -> Fns.allData f
 
@@ -260,6 +260,6 @@ let findExn tl id = find tl id |> Option.getExn "findExn"
 
 let find tl id =
   allData tl
-  |> List.filter (fun d -> id == P.toID d)
+  |> List.filter (fun d -> id = P.toID d)
   |> assert_ (fun r -> List.length r <= 1)
   |> List.head
