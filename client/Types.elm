@@ -90,7 +90,6 @@ type alias VPos = {vx: Int, vy: Int }
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
-type alias Special = Int
 type TLID = TLID Int
 type ID = ID Int
 
