@@ -13,9 +13,6 @@ files=$(find ${srcdir} -name "*.elm" | grep -v elm-stuff | grep -v DontPort.elm 
 for src in $files; do
   # Snakecase it
   name=$(basename -- "$src")
-  name=$(echo $name | sed -r 's/([A-Z])([A-Z]*)/\1\L\2/g') # group capital letters
-  name=${name,} # lowercase first letter
-  name=$(echo $name | sed -r 's/([A-Z])/_\L\1/g') # to snakecase
   name=${name%".elm"} # remove .elm suffix
 
   # Get the dir
