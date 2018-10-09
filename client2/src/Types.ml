@@ -150,7 +150,7 @@ and msg =
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
   | WindowResize of int * int
-  | TimerFire of timerAction * time
+  | TimerFire of Time.trAction * Time.t
   | JSErroror of string
   | PageVisibilityChange of PageVisibility.visibility
   | PageFocusChange of PageVisibility.visibility

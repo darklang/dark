@@ -192,6 +192,7 @@ let fix_fqtype n : string =
     ; "Keyboard.Event.keyboardEvent", "Dom.keyboardEvent"
     ; "Keyboard.Event.KeyboardEvent", "Dom.keyboardEvent"
     ; "Navigation.location", "Web.Location.location"
+    ; "time", "Time.t"
     ]
   in
   rewrite patterns n
