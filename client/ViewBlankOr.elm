@@ -45,7 +45,7 @@ type HtmlConfig =
 
 
 wc : String -> HtmlConfig
-wc = WithClass
+wc s = WithClass s
 
 idConfigs : List HtmlConfig
 idConfigs =
@@ -190,9 +190,6 @@ div vs configs content =
   in
     Html.div attrs (content ++ [rightSideHtml])
 
-
-type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
-type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =

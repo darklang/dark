@@ -24,7 +24,7 @@ viewDBName name version =
           [ Html.text (".v" ++ (toString version)) ]
     ]
 
-viewDBColName : BlankViewer String
+viewDBColName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewDBColName vs c v =
   let configs = if B.isBlank v || not vs.dbLocked
                 then idConfigs ++ c
@@ -32,7 +32,7 @@ viewDBColName vs c v =
   in
   viewText DBColName vs configs v
 
-viewDBColType : BlankViewer String
+viewDBColType : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewDBColType vs c v =
   let configs = idConfigs ++ c in
   viewText DBColType vs configs v
@@ -72,7 +72,7 @@ viewDBMigration : DBMigration -> DB -> ViewState -> Html.Html Msg
 viewDBMigration migra db vs =
   let name = viewDBName db.name (migra.version)
       cols = (List.map (viewDBCol vs True db.tlid) migra.cols)
-      funcs = 
+      funcs =
         [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
         , viewMigraFuncs vs migra.rollback "Rollback"  "newObj" ]
       lockReady = isMigrationLockReady migra
@@ -110,13 +110,13 @@ viewDB vs db =
       namediv = viewDBName db.name (db.version)
       cols =
         if vs.dbLocked
-        then List.filter (\(n, t) -> (B.isF n) && (B.isF t)) db.cols 
+        then List.filter (\(n, t) -> (B.isF n) && (B.isF t)) db.cols
         else db.cols
       coldivs = List.map (viewDBCol vs False db.tlid) cols
       migrationView =
         case db.activeMigration of
           Just migra ->
-            if migra.state /= DBMigrationAbandoned 
+            if migra.state /= DBMigrationAbandoned
             then [viewDBMigration migra db vs]
             else []
           Nothing -> []

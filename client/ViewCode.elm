@@ -28,27 +28,27 @@ import SpecHeaders
 import Util exposing (transformToStringEntry)
 
 
-viewFieldName : BlankViewer String
+viewFieldName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewFieldName vs c f =
   let configs = c ++ [ClickSelectAs (B.toID f)] ++ withFeatureFlag vs f in
   viewBlankOr viewNFieldName Field vs configs f
 
-viewVarBind : BlankViewer String
+viewVarBind : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewVarBind vs c v =
   let configs = idConfigs ++ c in
   viewBlankOr viewNVarBind VarBind vs configs v
 
-viewKey : BlankViewer String
+viewKey : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewKey vs c k =
   let configs = idConfigs ++ c in
   viewBlankOr viewNVarBind Key vs configs k
 
-viewDarkType : BlankViewer NDarkType
+viewDarkType : ViewState -> List HtmlConfig -> DarkType -> Html.Html Msg
 viewDarkType vs c dt =
   let configs = idConfigs ++ c in
   viewBlankOr viewNDarkType DarkType vs configs dt
 
-viewExpr : Int -> BlankViewer NExpr
+viewExpr : Int -> ViewState -> List HtmlConfig -> Expr -> Html.Html Msg
 viewExpr depth vs c e =
   let width = approxWidth e
       widthClass = [wc ("width-" ++ DontPort.fromInt width)]
@@ -62,23 +62,23 @@ viewExpr depth vs c e =
   in
   viewBlankOr (viewNExpr depth id) Expr vs configs e
 
-viewEventName : BlankViewer String
+viewEventName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewEventName vs c v =
   let configs = idConfigs ++ c in
   viewText EventName vs configs v
 
-viewEventSpace : BlankViewer String
+viewEventSpace : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewEventSpace vs c v =
   let configs = idConfigs ++ c in
   viewText EventSpace vs configs v
 
-viewEventModifier : BlankViewer String
+viewEventModifier : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewEventModifier vs c v =
   let configs = idConfigs ++ c in
   viewText EventModifier vs configs v
 
 
-viewNDarkType : Viewer NDarkType
+viewNDarkType : ViewState -> List HtmlConfig -> NDarkType -> Html.Html Msg
 viewNDarkType vs c d =
   case d of
     DTEmpty -> text vs c "Empty"
@@ -103,11 +103,11 @@ viewNDarkType vs c d =
         [Attrs.class "type-object"]
         ([open] ++ nested ++ [close])
 
-viewNVarBind : Viewer VarName
+viewNVarBind : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 viewNVarBind vs config f =
   text vs config f
 
-viewNFieldName : Viewer FieldName
+viewNFieldName : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 viewNFieldName vs config f =
   text vs config f
 
@@ -160,7 +160,7 @@ viewRopArrow vs =
     [svg]
 
 
-viewNExpr : Int -> ID -> Viewer NExpr
+viewNExpr : Int -> ID -> ViewState -> List HtmlConfig -> NExpr -> Html.Html Msg
 viewNExpr d id vs config e =
   let vExpr d_ = viewExpr d_ vs []
       vExprTw d_ =
