@@ -11,16 +11,16 @@ module Native = struct
   end
 
   module Random = struct
-    let random () = Random.int 2147483647
+    let random () : int = Random.int 2147483647
   end
 end
 
-let (++) = (^)
+let (++) (a: string) (b: string) = a ^ b
 
 module String = struct
   include String
-  let toInt = int_of_string
-  let toFloat = float_of_string
+  let toInt (s: string) : int = int_of_string s
+  let toFloat (s: string) : float = float_of_string s
   let uncons (s: string) : (char * string) option =
     match s with
     | "" -> None
@@ -41,14 +41,15 @@ end
 
 module Result = struct
   include Belt.Result
-  let withDefault = getWithDefault
+  let withDefault (r: ('a, 'b) t) (default: 'a) : 'a =
+    getWithDefault r default
 end
 type ('a, 'b) result = ('a, 'b) Result.t
 
 module Regex = struct
   let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
-  let contains re s = Js.Re.test s re
-  let replace re repl str =
+  let contains (re: Js.Re.t) (s: string) : bool = Js.Re.test s re
+  let replace (re: string) (repl: string) (str: string) =
     Js.String.replaceByRe (regex re) repl str
 end
 
@@ -61,7 +62,8 @@ let to_option (value: 'a) (sentinel: 'a) : 'a option =
 module List = struct
   include Belt.List
   let indexedMap fn l = mapWithIndex l fn
-  let map2 fn a b = mapReverse2 a b fn |> reverse
+  let map2 (fn: 'a -> 'b -> 'c) (a: 'a list) (b: 'b list) : 'c list =
+    mapReverse2 a b fn |> reverse
   let getBy fn l = getBy l fn
   let elemIndex (a: 'a) (l : 'a list) : int option =
     l
@@ -78,13 +80,12 @@ end
 
 module Char = struct
   include Char
-  let toCode = code
-  let fromCode = chr
+  let toCode (c: char) : int = code c
+  let fromCode (i: int) : char = chr i
 end
 
 module Tuple2 = struct
   let create a b = (a,b)
-
 end
 
 
