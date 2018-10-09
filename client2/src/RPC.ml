@@ -668,10 +668,10 @@ let encodeFunctionResult fr =
     ; encodeDval fr.value ]
 
 let decodeExecuteFunctionTarget =
-  JSD.map2 to_tuple2 (JSD.index 0 decodeTLID) (JSD.index 1 decodeID)
+  JSD.map2 Tuple2.create (JSD.index 0 decodeTLID) (JSD.index 1 decodeID)
 
 let decodeRPC =
-  JSDP.decode to_tuple6
+  JSDP.decode Tuple6.create
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "new_traces" decodeTraces
@@ -680,7 +680,7 @@ let decodeRPC =
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
 
 let decodeGetAnalysisRPC =
-  JSDP.decode to_tuple4
+  JSDP.decode Tuple4.create
   |> JSDP.required "traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
@@ -689,7 +689,7 @@ let decodeGetAnalysisRPC =
 let decodeInitialLoadRPC = decodeRPC
 
 let decodeExecuteFunctionRPC =
-  JSDP.decode to_tuple2
+  JSDP.decode Tuple2.create
   |> JSDP.required "result" decodeDval
   |> JSDP.required "hash" JSD.string
 

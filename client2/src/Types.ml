@@ -136,7 +136,7 @@ and msg =
   | GetDelete404RPCCallback of (string Http.error, fourOhFour list) result
   | InitialLoadRPCCallback of
       focus * modification * (string Http.error, initialLoadResult) result
-  | LocationChange of Navigation.location
+  | LocationChange of Web.Location.location
   | AddRandom
   | FinishIntegrationTest
   | SaveTestButton

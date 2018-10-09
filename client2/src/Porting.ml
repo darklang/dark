@@ -62,8 +62,8 @@ module Char = struct
   let fromCode = chr
 end
 
-module Tuple = struct
-  let to_tuple2 a b = (a,b)
+module Tuple2 = struct
+  let create a b = (a,b)
 
 end
 
