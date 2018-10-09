@@ -9,7 +9,7 @@ targetdir=client2/src
 ./translate/build
 
 files=$(find ${srcdir} -name "*.elm" | grep -v elm-stuff | sort)
-ignore="DontPort.elm|Window/Events.elm|JSON.elm"
+ignore="DontPort.elm|Window/Events.elm|JSON.elm|DarkKeyboard.elm"
 finished="Types.elm|Defaults.elm"
 files=$(echo "$files" | egrep -v "$finished" | egrep -v "$ignore")
 
