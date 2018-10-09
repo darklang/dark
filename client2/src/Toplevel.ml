@@ -6,75 +6,94 @@ module P = Pointer
 open Prelude
 open Types
 
-let all m = m.toplevels ^ List.map (ufToTL m) m.userFunctions
+let all (m : model) : toplevel list =
+  m.toplevels ^ List.map (ufToTL m) m.userFunctions
 
-let getTL m id = get m id |> Option.getExn "getTL"
+let getTL (m : model) (id : tlid) : toplevel =
+  get m id |> Option.getExn "getTL"
 
-let get m id =
+let get (m : model) (id : tlid) : toplevel option =
   let tls = all m in
   List.find (fun tl -> tl.id = id) tls
 
-let name tl =
+let name (tl : toplevel) : string =
   match tl.data with
   | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
   | TLDB db -> "DB: " ^ db.name
   | TLFunc f ->
       "Func: " ^ (f.metadata.name |> B.toMaybe |> Option.withDefault "")
 
-let upsertByTLID tls tl = removeByTLID tls [tl] ^ [tl]
+let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
+  removeByTLID tls [tl] ^ [tl]
 
-let upsert m tl = {m with toplevels= upsertByTLID m.toplevels tl}
+let upsert (m : model) (tl : toplevel) : model =
+  {m with toplevels= upsertByTLID m.toplevels tl}
 
-let upsertAllByTLID tls new_ =
+let upsertAllByTLID (tls : toplevel list) (new_ : toplevel list) :
+    toplevel list =
   List.foldl (fun a b -> upsertByTLID b a) tls new_
 
-let upsertAll m tls = List.foldl (fun a b -> upsert b a) m tls
+let upsertAll (m : model) (tls : toplevel list) : model =
+  List.foldl (fun a b -> upsert b a) m tls
 
-let containsByTLID tls elem = List.find (fun tl -> tl.id = elem.id) tls <> None
+let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
+  List.find (fun tl -> tl.id = elem.id) tls <> None
 
-let removeByTLID origTls toBeRemoved =
+let removeByTLID (origTls : toplevel list) (toBeRemoved : toplevel list) :
+    toplevel list =
   List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
 
-let remove m tl = {m with toplevels= removeByTLID m.toplevels [tl]}
+let remove (m : model) (tl : toplevel) : model =
+  {m with toplevels= removeByTLID m.toplevels [tl]}
 
-let updateByTLID tls tlid f =
+let updateByTLID (tls : toplevel list) (tlid : tlid) (f : toplevel -> toplevel)
+    : toplevel list =
   tls |> List.map (fun t -> if t.id <> tlid then t else f t)
 
-let update m tlid f = {m with toplevels= updateByTLID m.toplevels tlid f}
+let update (m : model) (tlid : tlid) (f : toplevel -> toplevel) : model =
+  {m with toplevels= updateByTLID m.toplevels tlid f}
 
-let move tlid xOffset yOffset m = update m tlid (moveTL xOffset yOffset)
+let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
+  update m tlid (moveTL xOffset yOffset)
 
-let moveTL xOffset yOffset tl =
+let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
   let newPos = {x= tl.pos.x + xOffset; y= tl.pos.y + yOffset} in
   {tl with pos= newPos}
 
-let ufToTL m uf = {id= uf.tlid; pos= Defaults.centerPos; data= TLFunc uf}
+let ufToTL (m : model) (uf : userFunction) : toplevel =
+  {id= uf.tlid; pos= Defaults.centerPos; data= TLFunc uf}
 
-let asUserFunction tl = match tl.data with TLFunc f -> Some f | _ -> None
+let asUserFunction (tl : toplevel) : userFunction option =
+  match tl.data with TLFunc f -> Some f | _ -> None
 
-let asHandler tl = match tl.data with TLHandler h -> Some h | _ -> None
+let asHandler (tl : toplevel) : handler option =
+  match tl.data with TLHandler h -> Some h | _ -> None
 
-let asDB tl = match tl.data with TLDB h -> Some h | _ -> None
+let asDB (tl : toplevel) : dB option =
+  match tl.data with TLDB h -> Some h | _ -> None
 
-let handlers tls = List.filterMap asHandler tls
+let handlers (tls : toplevel list) : handler list =
+  List.filterMap asHandler tls
 
-let dbs tls = List.filterMap asDB tls
+let dbs (tls : toplevel list) : dB list = List.filterMap asDB tls
 
-let spaceOfHandler h = SpecHeaders.spaceOf h.spec
+let spaceOfHandler (h : handler) : handlerSpace = SpecHeaders.spaceOf h.spec
 
-let spaceOf tl = tl |> asHandler |> Option.map spaceOfHandler
+let spaceOf (tl : toplevel) : handlerSpace option =
+  tl |> asHandler |> Option.map spaceOfHandler
 
-let isHTTPHandler tl = tl |> spaceOf |> ( = ) (Some HSHTTP)
+let isHTTPHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSHTTP)
 
-let toOp tl =
+let toOp (tl : toplevel) : op list =
   match tl.data with
   | TLHandler h -> [SetHandler (tl.id, tl.pos, h)]
   | TLFunc fn -> [SetFunction fn]
   | _ -> impossible "This isn't how database ops work"
 
-let isValidID tl id = List.member id (tl |> allData |> List.map P.toID)
+let isValidID (tl : toplevel) (id : id) : bool =
+  List.member id (tl |> allData |> List.map P.toID)
 
-let clonePointerData pd =
+let clonePointerData (pd : pointerData) : pointerData =
   match pd with
   | PVarBind vb -> PVarBind (B.clone identity vb)
   | PEventModifier sp -> PEventModifier (B.clone identity sp)
@@ -92,11 +111,13 @@ let clonePointerData pd =
   | PParamName name_ -> PParamName (B.clone identity name_)
   | PParamTipe tipe -> PParamTipe (B.clone identity tipe)
 
-let allBlanks tl = tl |> allData |> List.filter P.isBlank
+let allBlanks (tl : toplevel) : pointerData list =
+  tl |> allData |> List.filter P.isBlank
 
-let blanksWhere fn tl = tl |> allBlanks |> List.filter fn
+let blanksWhere (fn : pointerData -> bool) (tl : toplevel) : pointerData list =
+  tl |> allBlanks |> List.filter fn
 
-let getNextBlank tl pred =
+let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
   match pred with
   | Some pred_ ->
       let ps = allData tl in
@@ -106,7 +127,7 @@ let getNextBlank tl pred =
       blanks |> List.head |> Option.orElse (firstBlank tl)
   | None -> firstBlank tl
 
-let getPrevBlank tl next =
+let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
   match next with
   | Some next_ ->
       let ps = allData tl in
@@ -118,11 +139,11 @@ let getPrevBlank tl next =
       blanks |> List.last |> Option.orElse (lastBlank tl)
   | None -> lastBlank tl
 
-let firstBlank tl = tl |> allBlanks |> List.head
+let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
 
-let lastBlank tl = tl |> allBlanks |> List.last
+let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
 
-let siblings tl p =
+let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   match tl.data with
   | TLHandler h ->
       let toplevels = SpecHeaders.allData h.spec ^ [PExpr h.ast] in
@@ -133,13 +154,13 @@ let siblings tl p =
   | TLDB db -> DB.siblings p db
   | TLFunc f -> AST.siblings p f.ast
 
-let getNextSibling tl p =
+let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
   siblings tl p |> Util.listNextWrap p |> Option.getExn "nextSibling"
 
-let getPrevSibling tl p =
+let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
   siblings tl p |> Util.listPreviousWrap p |> Option.getExn "prevSibling"
 
-let getParentOf tl p =
+let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   match tl.data with
   | TLHandler h -> AST.parentOf_ (P.toID p) h.ast |> Option.map PExpr
   | TLFunc f -> AST.parentOf_ (P.toID p) f.ast |> Option.map PExpr
@@ -148,7 +169,7 @@ let getParentOf tl p =
       |> List.map (AST.parentOf_ (P.toID p))
       |> Option.values |> List.head |> Option.map PExpr
 
-let getChildrenOf tl pd =
+let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   let pid = P.toID pd in
   let astChildren () =
     match tl.data with
@@ -179,15 +200,17 @@ let getChildrenOf tl pd =
   | PParamName _ -> []
   | PParamTipe _ -> []
 
-let firstChild tl id = getChildrenOf tl id |> List.head
+let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
+  getChildrenOf tl id |> List.head
 
-let rootOf tl =
+let rootOf (tl : toplevel) : pointerData option =
   match tl.data with
   | TLHandler h -> Some <| PExpr h.ast
   | TLFunc f -> Some <| PExpr f.ast
   | _ -> None
 
-let replace p replacement tl =
+let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
+    toplevel =
   let ha () = tl |> asHandler |> Option.getExn "TL.replace" in
   let fn () = tl |> asUserFunction |> Option.getExn "TL.replace" in
   let id = P.toID p in
@@ -242,11 +265,11 @@ let replace p replacement tl =
   | PParamName _ -> fnMetadataReplace ()
   | PParamTipe _ -> fnMetadataReplace ()
 
-let delete tl p newID =
+let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in
   replace p replacement tl
 
-let allData tl =
+let allData (tl : toplevel) : pointerData list =
   match tl.data with
   | TLHandler h ->
       ( (SpecHeaders.allData h.spec ^ SpecTypes.allData h.spec.types.input)
@@ -255,9 +278,10 @@ let allData tl =
   | TLDB db -> DB.allData db
   | TLFunc f -> Fns.allData f
 
-let findExn tl id = find tl id |> Option.getExn "findExn"
+let findExn (tl : toplevel) (id : id) : pointerData =
+  find tl id |> Option.getExn "findExn"
 
-let find tl id =
+let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
   |> List.filter (fun d -> id = P.toID d)
   |> assert_ (fun r -> List.length r <= 1)

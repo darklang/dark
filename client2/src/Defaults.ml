@@ -2,35 +2,36 @@ open Tea
 open! Porting
 open Types
 
-let entryID = "entry-box"
+let entryID : string = "entry-box"
 
-let leftButton = 0
+let leftButton : int = 0
 
-let initialVPos = {vx= 475; vy= 200}
+let initialVPos : vPos = {vx= 475; vy= 200}
 
-let centerPos = {x= 475; y= 200}
+let centerPos : pos = {x= 475; y= 200}
 
-let origin = {x= 0; y= 0}
+let origin : pos = {x= 0; y= 0}
 
-let moveSize = 50
+let moveSize : int = 50
 
-let pageHeight = 400
+let pageHeight : int = 400
 
-let pageWidth = 500
+let pageWidth : int = 500
 
-let defaultEditor =
+let defaultEditor : serializableEditor =
   { clipboard= None
   ; timersEnabled= true
   ; cursorState= Deselected
   ; lockedHandlers= [] }
 
-let defaultSyncState = {inFlight= false; ticks= 0}
+let defaultSyncState : syncState = {inFlight= false; ticks= 0}
 
-let defaultUrlState = {lastPos= {x= 0; y= 0}}
+let defaultUrlState : urlState = {lastPos= {x= 0; y= 0}}
 
-let defaultCanvas = {offset= origin; fnOffset= origin; enablePan= true}
+let defaultCanvas : canvasProps =
+  {offset= origin; fnOffset= origin; enablePan= true}
 
-let defaultModel =
+let defaultModel : model =
   { error= {message= None; showDetails= false}
   ; lastMsg= Initialization
   ; lastMod= NoChange

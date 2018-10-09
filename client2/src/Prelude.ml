@@ -2,23 +2,23 @@ open Tea
 open! Porting
 open Types
 
-let deID (ID i) = i
+let deID (ID i : id) : int = i
 
-let deTLID (TLID i) = i
+let deTLID (TLID i : tlid) : int = i
 
-let gid unit = ID (Util.random unit)
+let gid (unit : unit) : id = ID (Util.random unit)
 
-let gtlid unit = TLID (Util.random unit)
+let gtlid (unit : unit) : tlid = TLID (Util.random unit)
 
-let tlCursorID tlid idx =
+let tlCursorID (tlid : tlid) (idx : int) : id =
   let stringID = string_of_int (deTLID tlid) ^ string_of_int idx in
   let intID = Result.withDefault 0 (String.toInt stringID) in
   ID intID
 
-let unwrapCursorState s =
+let unwrapCursorState (s : cursorState) : cursorState =
   match s with Dragging (_, _, _, unwrap) -> unwrap | _ -> s
 
-let tlidOf s =
+let tlidOf (s : cursorState) : tlid option =
   match unwrapCursorState s with
   | Selecting (tlid, _) -> Some tlid
   | Entering entryCursor -> (
@@ -29,7 +29,7 @@ let tlidOf s =
   | Dragging (_, _, _, _) -> None
   | SelectingCommand (tlid, _) -> Some tlid
 
-let idOf s =
+let idOf (s : cursorState) : id option =
   match unwrapCursorState s with
   | Selecting (_, id) -> id
   | Entering entryCursor -> (
@@ -38,11 +38,13 @@ let idOf s =
   | Dragging (_, _, _, _) -> None
   | SelectingCommand (_, id) -> Some id
 
-let assert_ fn a = if fn a then a else impossible ("assertion failure", a)
+let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
+  if fn a then a else impossible ("assertion failure", a)
 
-let impossible a = Debug.crash ("something impossible occurred: " ^ toString a)
+let impossible (a : 'a) : 'b =
+  Debug.crash ("something impossible occurred: " ^ toString a)
 
-let recoverable msg val_ =
+let recoverable (msg : 'a) (val_ : 'b) : 'b =
   let error =
     ( ( ( ( "An unexpected but recoverable error happened. "
           ^ "For now we crash. " )
@@ -56,4 +58,4 @@ let recoverable msg val_ =
   let _ = Debug.crash error in
   val_
 
-let todo a = Debug.crash ("TODO: " ^ toString a)
+let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ toString a)

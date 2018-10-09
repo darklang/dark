@@ -34,7 +34,7 @@ type viewState =
   ; canvasName: string
   ; userContentHost: string }
 
-let createVS m tl =
+let createVS (m : model) (tl : toplevel) : viewState =
   { tl
   ; cursorState= unwrapCursorState m.cursorState
   ; tlid= tl.id
@@ -85,21 +85,25 @@ let createVS m tl =
   ; canvasName= m.canvasName
   ; userContentHost= m.userContentHost }
 
-let fontAwesome name = Html.i [Attrs.class_ ("fa fa-" ^ name)] []
+let fontAwesome (name : string) : msg Html.html =
+  Html.i [Attrs.class_ ("fa fa-" ^ name)] []
 
-let eventNoPropagation event constructor =
+let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
+    msg Html.attribute =
   Events.onWithOptions event
     {stopPropagation= true; preventDefault= false}
     (decodeClickEvent constructor)
 
-let eventNoDefault event constructor =
+let eventNoDefault (event : string) (constructor : mouseEvent -> msg) :
+    msg Html.attribute =
   Events.onWithOptions event
     {stopPropagation= false; preventDefault= true}
     (decodeClickEvent constructor)
 
-let nothingMouseEvent name = eventNoPropagation name NothingClick
+let nothingMouseEvent (name : string) : msg Html.attribute =
+  eventNoPropagation name NothingClick
 
-let decodeClickEvent fn =
+let decodeClickEvent (fn : mouseEvent -> 'a) : 'a JSD.decoder =
   let _ = "type annotation" in
   let toA px py button = fn {pos= {vx= px; vy= py}; button} in
   JSDP.decode toA
@@ -107,7 +111,7 @@ let decodeClickEvent fn =
   |> JSDP.required "pageY" JSD.int
   |> JSDP.required "button" JSD.int
 
-let placeHtml m pos html =
+let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
   let div class_ subs = Html.div [Attrs.class_ class_] subs in
   Html.div
     [ Attrs.class_ "node"
@@ -116,19 +120,21 @@ let placeHtml m pos html =
         ; ("top", string_of_int pos.y ^ "px") ] ]
     [html]
 
-let inCh w = w |> string_of_int |> fun s -> s ^ "ch"
+let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
-let widthInCh w = w |> inCh |> fun w_ -> Attrs.style [("width", w_)]
+let widthInCh (w : int) : msg Html.attribute =
+  w |> inCh |> fun w_ -> Attrs.style [("width", w_)]
 
-let blankOrLength b =
+let blankOrLength (b : string blankOr) : int =
   match b with Blank _ -> 6 | F (_, str) -> String.length str
 
-let visualStringLength string =
+let visualStringLength (string : string) : int =
   string |> Regex.replace "\t" "        " |> String.length
 
-let approxWidth e = match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
+let approxWidth (e : expr) : int =
+  match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
 
-let approxNWidth ne =
+let approxNWidth (ne : nExpr) : int =
   match ne with
   | Value v -> toString v |> String.length
   | Variable name -> String.length name
@@ -161,9 +167,10 @@ let approxNWidth ne =
       |> List.maximum |> Option.withDefault 0 |> ( + ) 4
   | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
 
-let isLocked tlid m = List.member tlid m.lockedHandlers
+let isLocked (tlid : tlid) (m : model) : bool =
+  List.member tlid m.lockedHandlers
 
-let viewFnName fnName extraClasses =
+let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = regex "(\\w+::)?(\\w+)_v(\\d+)" in
   let matches = Regex.find (Regex.AtMost 1) pattern fnName in
   let name, version =

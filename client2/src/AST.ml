@@ -5,7 +5,7 @@ module P = Pointer
 open Prelude
 open Types
 
-let traverse fn expr =
+let traverse (fn : expr -> expr) (expr : expr) : expr =
   match expr with
   | Blank _ -> expr
   | F (id, nexpr) ->
@@ -26,7 +26,7 @@ let traverse fn expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
-let listThreadBlanks expr =
+let listThreadBlanks (expr : expr) : id list =
   let r = listThreadBlanks in
   let _ = "type annotation" in
   let rList exprs = exprs |> List.map listThreadBlanks |> List.concat in
@@ -50,7 +50,7 @@ let listThreadBlanks expr =
   in
   match expr with Blank _ -> [] | F (_, f) -> rn f
 
-let closeThreads expr =
+let closeThreads (expr : expr) : expr =
   match expr with
   | F (id, Thread exprs) -> (
       let addBlank =
@@ -75,7 +75,7 @@ let closeThreads expr =
       | _ -> F (id, Thread adjusted) )
   | _ -> traverse closeThreads expr
 
-let closeObjectLiterals expr =
+let closeObjectLiterals (expr : expr) : expr =
   match expr with
   | F (id, ObjectLiteral pairs) ->
       pairs
@@ -86,7 +86,7 @@ let closeObjectLiterals expr =
       |> ObjectLiteral |> F id
   | _ -> traverse closeObjectLiterals expr
 
-let closeListLiterals expr =
+let closeListLiterals (expr : expr) : expr =
   match expr with
   | F (id, ListLiteral exprs) ->
       let exprs2 = List.map closeListLiterals exprs in
@@ -94,10 +94,10 @@ let closeListLiterals expr =
       F (id, ListLiteral (exprs3 ^ [B.new_ ()]))
   | _ -> traverse closeObjectLiterals expr
 
-let closeBlanks expr =
+let closeBlanks (expr : expr) : expr =
   expr |> closeThreads |> closeObjectLiterals |> closeListLiterals
 
-let addThreadBlank id blank expr =
+let addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
   let atb = addThreadBlank id blank in
   if id = B.toID expr then
     match expr with
@@ -110,14 +110,14 @@ let addThreadBlank id blank expr =
         if replaced = exprs then traverse atb expr else F (tid, Thread replaced)
     | _ -> traverse atb expr
 
-let addLambdaBlank id expr =
+let addLambdaBlank (id : id) (expr : expr) : expr =
   match parentOf_ id expr with
   | Some (F (lid, Lambda (vars, body))) as old ->
       let r = F (lid, Lambda (vars ^ [B.new_ ()], body)) in
       replace (old |> Option.getExn "impossible" |> PExpr) (PExpr r) expr
   | _ -> expr
 
-let addObjectLiteralBlanks id expr =
+let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
   match findExn id expr with
   | PKey key -> (
     match parentOf id expr with
@@ -131,7 +131,7 @@ let addObjectLiteralBlanks id expr =
     | _ -> impossible ("key parent must be object", id, expr) )
   | _ -> impossible ("must add to key", id, expr)
 
-let maybeExtendObjectLiteralAt pd expr =
+let maybeExtendObjectLiteralAt (pd : pointerData) (expr : expr) : expr =
   let id = P.toID pd in
   match pd with
   | PKey key -> (
@@ -145,7 +145,7 @@ let maybeExtendObjectLiteralAt pd expr =
     | _ -> expr )
   | _ -> expr
 
-let addListLiteralBlanks id expr =
+let addListLiteralBlanks (id : id) (expr : expr) : expr =
   let new1 = B.new_ () in
   let new2 = B.new_ () in
   let parent = parentOf id expr in
@@ -159,7 +159,7 @@ let addListLiteralBlanks id expr =
       replace (PExpr parent) (PExpr (F (lid, ListLiteral newExprs))) expr
   | _ -> expr
 
-let maybeExtendListLiteralAt pd expr =
+let maybeExtendListLiteralAt (pd : pointerData) (expr : expr) : expr =
   let id = P.toID pd in
   match parentOf_ id expr with
   | Some (F (lid, ListLiteral exprs)) ->
@@ -169,7 +169,7 @@ let maybeExtendListLiteralAt pd expr =
       else expr
   | _ -> expr
 
-let wrapInThread id expr =
+let wrapInThread (id : id) (expr : expr) : expr =
   if B.toID expr = id then
     match expr with
     | F (_, Thread _) -> expr
@@ -177,12 +177,13 @@ let wrapInThread id expr =
     | Blank _ -> B.newF (Thread [expr])
   else traverse (wrapInThread id) expr
 
-let extendThreadChild at blank threadExprs =
+let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
+    expr list =
   List.foldr
     (fun e list -> if B.toID e = at then (e :: blank) :: list else e :: list)
     [] threadExprs
 
-let maybeExtendThreadAt id blank expr =
+let maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
   match expr with
   | F (tid, Thread exprs) ->
       let newExprs =
@@ -192,9 +193,10 @@ let maybeExtendThreadAt id blank expr =
       F (tid, Thread newExprs)
   | _ -> traverse (maybeExtendThreadAt id blank) expr
 
-let isThreadBlank expr p = expr |> listThreadBlanks |> List.member p
+let isThreadBlank (expr : expr) (p : id) : bool =
+  expr |> listThreadBlanks |> List.member p
 
-let grandparentIsThread expr parent =
+let grandparentIsThread (expr : expr) (parent : expr option) : bool =
   parent
   |> Option.map (fun p ->
          match parentOf_ (B.toID p) expr with
@@ -205,7 +207,7 @@ let grandparentIsThread expr parent =
          | _ -> false )
   |> Option.withDefault false
 
-let getParamIndex expr id =
+let getParamIndex (expr : expr) (id : id) : (string * int) option =
   let parent = parentOf_ id expr in
   let inThread = grandparentIsThread expr parent in
   match parent with
@@ -215,7 +217,7 @@ let getParamIndex expr id =
       |> Option.map (fun i -> if inThread then (name, i + 1) else (name, i))
   | _ -> None
 
-let threadPrevious id ast =
+let threadPrevious (id : id) (ast : expr) : expr option =
   let parent = parentOf_ id ast in
   match parent with
   | Some (F (_, Thread exprs)) ->
@@ -225,7 +227,7 @@ let threadPrevious id ast =
       |> Option.andThen (fun this -> Util.listPrevious this exprs)
   | _ -> None
 
-let children expr =
+let children (expr : expr) : pointerData list =
   match expr with
   | Blank _ -> []
   | F (_, nexpr) -> (
@@ -244,7 +246,7 @@ let children expr =
     | FeatureFlag (msg, cond, a, b) ->
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b] )
 
-let childrenOf pid expr =
+let childrenOf (pid : id) (expr : expr) : pointerData list =
   let co = childrenOf pid in
   if pid = B.toID expr then children expr
   else
@@ -265,7 +267,7 @@ let childrenOf pid expr =
       | ListLiteral pairs -> pairs |> List.map co |> List.concat
       | FeatureFlag (msg, cond, a, b) -> (co cond ^ co a) ^ co b )
 
-let uses var expr =
+let uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
     match newbind with
     | Blank _ -> false
@@ -291,7 +293,7 @@ let uses var expr =
         pairs |> List.map Tuple.second |> List.map u |> List.concat
     | FeatureFlag (msg, cond, a, b) -> List.concat [u cond; u a; u b] )
 
-let allCallsToFn s e =
+let allCallsToFn (s : string) (e : expr) : expr list =
   e |> allData
   |> List.filterMap (fun pd ->
          match pd with
@@ -299,13 +301,13 @@ let allCallsToFn s e =
              if name = s then Some (F (id, FnCall (name, params, r))) else None
          | _ -> None )
 
-let usesRail ast =
+let usesRail (ast : expr) : bool =
   List.any
     (fun e ->
       match e with PExpr (F (_, FnCall (_, _, Rail))) -> true | _ -> false )
     (allData ast)
 
-let ancestors id expr =
+let ancestors (id : id) (expr : expr) : expr list =
   let _ = "type annotation" in
   let rec_ancestors tofind walk exp =
     let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
@@ -334,15 +336,17 @@ let ancestors id expr =
   in
   rec_ancestors id [] expr
 
-let ancestorsWhere id expr fn = List.filter fn (ancestors id expr)
+let ancestorsWhere (id : id) (expr : expr) (fn : expr -> bool) : expr list =
+  List.filter fn (ancestors id expr)
 
-let threadAncestors id expr =
+let threadAncestors (id : id) (expr : expr) : expr list =
   ancestorsWhere id expr (fun e ->
       match e with F (_, Thread _) -> true | _ -> false )
 
-let parentOf id ast = Option.getExn "parentOf" <| parentOf_ id ast
+let parentOf (id : id) (ast : expr) : expr =
+  Option.getExn "parentOf" <| parentOf_ id ast
 
-let parentOf_ eid expr =
+let parentOf_ (eid : id) (expr : expr) : expr option =
   let po = parentOf_ eid in
   let _ = "comment" in
   let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
@@ -364,7 +368,7 @@ let parentOf_ eid expr =
       | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> poList
       | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b] )
 
-let siblings p expr =
+let siblings (p : pointerData) (expr : expr) : pointerData list =
   match parentOf_ (P.toID p) expr with
   | None -> [p]
   | Some parent -> (
@@ -385,7 +389,7 @@ let siblings p expr =
         [PFFMsg msg] ^ List.map PExpr [cond; a; b]
     | Blank _ -> [p] )
 
-let getValueParent p expr =
+let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   let parent = parentOf_ (P.toID p) expr in
   match (P.typeOf p, parent) with
   | Expr, Some (F (_, Thread exprs)) ->
@@ -393,7 +397,7 @@ let getValueParent p expr =
   | Field, Some (F (_, FieldAccess (obj, _))) -> Some <| PExpr obj
   | _ -> None
 
-let allData expr =
+let allData (expr : expr) : pointerData list =
   let e2ld e = PExpr e in
   let _ = "type annotation" in
   let rl exprs = exprs |> List.map allData |> List.concat in
@@ -416,20 +420,24 @@ let allData expr =
         pairs |> List.map (fun (k, v) -> PKey k :: allData v) |> List.concat
     | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] ^ rl [cond; a; b] )
 
-let findExn id expr = expr |> find id |> Option.getExn "findExn"
+let findExn (id : id) (expr : expr) : pointerData =
+  expr |> find id |> Option.getExn "findExn"
 
-let find id expr =
+let find (id : id) (expr : expr) : pointerData option =
   expr |> allData
   |> List.filter (fun d -> id = P.toID d)
   |> assert_ (fun r -> List.length r <= 1)
   |> List.head
 
-let replace search replacement expr = replace_ search replacement None expr
+let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
+    expr =
+  replace_ search replacement None expr
 
-let within e id =
+let within (e : nExpr) (id : id) : bool =
   e |> F (ID (-1)) |> allData |> List.map P.toID |> List.member id
 
-let replace_ search replacement parent expr =
+let replace_ (search : pointerData) (replacement : pointerData)
+    (parent : expr option) (expr : expr) : expr =
   let r = replace_ search replacement (Some expr) in
   let _ = "comment" in
   let sId = P.toID search in
@@ -531,11 +539,11 @@ let replace_ search replacement parent expr =
         |> ObjectLiteral |> F id
     | _ -> traverse r expr
 
-let deleteExpr p expr id =
+let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
   let replacement = P.emptyD_ id (P.typeOf p) in
   replace p replacement expr
 
-let clone expr =
+let clone (expr : expr) : expr =
   let nid = gid () in
   let c be = clone be in
   let cl bes = List.map c bes in
@@ -559,7 +567,7 @@ let clone expr =
   in
   B.clone cNExpr expr
 
-let isDefinitionOf var exp =
+let isDefinitionOf (var : varName) (exp : expr) : bool =
   match exp with
   | Blank _ -> false
   | F (id, e) -> (
@@ -572,7 +580,7 @@ let isDefinitionOf var exp =
                match v with Blank _ -> false | F (_, vb) -> vb = var )
     | _ -> false )
 
-let freeVariables ast =
+let freeVariables (ast : expr) : (id * varName) list =
   let definedAndUsed =
     ast |> allData
     |> List.filterMap (fun n ->

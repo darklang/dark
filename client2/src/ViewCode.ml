@@ -9,23 +9,28 @@ open Types
 open ViewBlankOr
 open ViewUtils
 
-let viewFieldName vs c f =
+let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
+    msg Html.html =
   let configs = (c ^ [ClickSelectAs (B.toID f)]) ^ withFeatureFlag vs f in
   viewBlankOr viewNFieldName Field vs configs f
 
-let viewVarBind vs c v =
+let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
   let configs = idConfigs ^ c in
   viewBlankOr viewNVarBind VarBind vs configs v
 
-let viewKey vs c k =
+let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
+    msg Html.html =
   let configs = idConfigs ^ c in
   viewBlankOr viewNVarBind Key vs configs k
 
-let viewDarkType vs c dt =
+let viewDarkType (vs : viewState) (c : htmlConfig list) (dt : darkType) :
+    msg Html.html =
   let configs = idConfigs ^ c in
   viewBlankOr viewNDarkType DarkType vs configs dt
 
-let viewExpr depth vs c e =
+let viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
+    msg Html.html =
   let width = approxWidth e in
   let widthClass =
     [wc ("width-" ^ string_of_int width)]
@@ -37,19 +42,23 @@ let viewExpr depth vs c e =
   let id = B.toID e in
   viewBlankOr (viewNExpr depth id) Expr vs configs e
 
-let viewEventName vs c v =
+let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
   let configs = idConfigs ^ c in
   viewText EventName vs configs v
 
-let viewEventSpace vs c v =
+let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
+    : msg Html.html =
   let configs = idConfigs ^ c in
   viewText EventSpace vs configs v
 
-let viewEventModifier vs c v =
+let viewEventModifier (vs : viewState) (c : htmlConfig list)
+    (v : string blankOr) : msg Html.html =
   let configs = idConfigs ^ c in
   viewText EventModifier vs configs v
 
-let viewNDarkType vs c d =
+let viewNDarkType (vs : viewState) (c : htmlConfig list) (d : nDarkType) :
+    msg Html.html =
   match d with
   | DTEmpty -> text vs c "Empty"
   | DTString -> text vs c "String"
@@ -69,13 +78,17 @@ let viewNDarkType vs c d =
       let close = text vs [wc "close"] "}" in
       Html.div [Attrs.class_ "type-object"] (([open_] ^ nested) ^ [close])
 
-let viewNVarBind vs config f = text vs config f
+let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
+    msg Html.html =
+  text vs config f
 
-let viewNFieldName vs config f = text vs config f
+let viewNFieldName (vs : viewState) (config : htmlConfig list) (f : string) :
+    msg Html.html =
+  text vs config f
 
-let depthString n = "precedence-" ^ string_of_int n
+let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
-let viewRopArrow vs =
+let viewRopArrow (vs : viewState) : msg Html.html =
   let line =
     Svg.path
       [ SA.stroke "red"
@@ -111,7 +124,8 @@ let viewRopArrow vs =
     ; VirtualDom.attribute "tlid" (string_of_int (deTLID vs.tl.id)) ]
     [svg]
 
-let viewNExpr d id vs config e =
+let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
+    (e : nExpr) : msg Html.html =
   let vExpr d_ = viewExpr d_ vs [] in
   let vExprTw d_ =
     let vs2 = {vs with tooWide= true} in
@@ -385,9 +399,10 @@ let viewNExpr d id vs config e =
                 ("feature-flag" ^ if isExpanded then " expand" else "") ]
             [titleBar; blockCondition; expressions] ]
 
-let isExecuting vs id = List.member id vs.executingFunctions
+let isExecuting (vs : viewState) (id : id) : bool =
+  List.member id vs.executingFunctions
 
-let viewHandler vs h =
+let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
     Html.div [Attrs.class_ "ast"]

@@ -3,7 +3,8 @@ open! Porting
 module TL = Toplevel
 open Types
 
-let executeCommand m tlid id highlighted =
+let executeCommand (m : model) (tlid : tlid) (id : id)
+    (highlighted : autocompleteItem option) : modification =
   match highlighted with
   | Some (ACCommand command) ->
       let tl = TL.getTL m tlid in
@@ -11,10 +12,10 @@ let executeCommand m tlid id highlighted =
       command.action m tl pd
   | _ -> NoChange
 
-let endCommandExecution m tlid id =
+let endCommandExecution (m : model) (tlid : tlid) (id : id) : modification =
   Many [AutocompleteMod ACReset; Select (tlid, Some id)]
 
-let commands =
+let commands : command list =
   [ { name= "extract-function"
     ; action= Refactor.extractFunction
     ; doc= "Extract expression into a function"

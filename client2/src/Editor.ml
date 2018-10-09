@@ -5,15 +5,16 @@ module JSE = Json.Encode
 module TL = Toplevel
 open Types
 
-let fromString json =
+let fromString (json : string option) : serializableEditor =
   json
   |> Option.map (JSD.decodeString RPC.decodeSerializableEditor)
   |> Option.withDefault (Ok Defaults.defaultEditor)
   |> Result.withDefault Defaults.defaultEditor
 
-let toString se = RPC.encodeSerializableEditor se |> JSE.encode 0
+let toString (se : serializableEditor) : string =
+  RPC.encodeSerializableEditor se |> JSE.encode 0
 
-let editor2model e =
+let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
   { m with
     timersEnabled= e.timersEnabled
@@ -21,13 +22,14 @@ let editor2model e =
   ; cursorState= e.cursorState
   ; lockedHandlers= e.lockedHandlers }
 
-let model2editor m =
+let model2editor (m : model) : serializableEditor =
   { clipboard= m.clipboard
   ; timersEnabled= m.timersEnabled
   ; cursorState= m.cursorState
   ; lockedHandlers= m.lockedHandlers }
 
-let updateLockedHandlers tlid lockHandler m =
+let updateLockedHandlers (tlid : tlid) (lockHandler : bool) (m : model) :
+    modification =
   let tl = TL.getTL m tlid in
   match tl.data with
   | TLHandler _ ->

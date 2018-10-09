@@ -6,21 +6,24 @@ open Types
 open ViewBlankOr
 open ViewUtils
 
-let viewDBName name version =
+let viewDBName (name : string) (version : int) : msg Html.html =
   Html.div [Attrs.class_ "dbname"]
     [ Html.span [Attrs.class_ "name"] [Html.text name]
     ; Html.span [Attrs.class_ "version"] [Html.text (".v" ^ toString version)]
     ]
 
-let viewDBColName vs c v =
+let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
   let configs = if B.isBlank v || not vs.dbLocked then idConfigs ^ c else c in
   viewText DBColName vs configs v
 
-let viewDBColType vs c v =
+let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
   let configs = idConfigs ^ c in
   viewText DBColType vs configs v
 
-let viewDBCol vs isMigra tlid (n, t) =
+let viewDBCol (vs : viewState) (isMigra : bool) (tlid : tlid)
+    ((n, t) : dBColumn) : msg Html.html =
   let deleteButton =
     if isMigra then
       if B.isF n || B.isF t then
@@ -35,7 +38,8 @@ let viewDBCol vs isMigra tlid (n, t) =
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
   Html.div [Attrs.class_ "col"] (row ^ deleteButton)
 
-let viewMigraFuncs vs expr fnName varName =
+let viewMigraFuncs (vs : viewState) (expr : expr) (fnName : fnName)
+    (varName : varName) : msg Html.html =
   Html.div
     [Attrs.class_ "col roll-fn"]
     [ Html.div [Attrs.class_ "fn-title"]
@@ -43,7 +47,8 @@ let viewMigraFuncs vs expr fnName varName =
         ; Html.span [Attrs.class_ "varname"] [Html.text varName] ]
     ; viewExpr 0 vs [] expr ]
 
-let viewDBMigration migra db vs =
+let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
+    msg Html.html =
   let name = viewDBName db.name migra.version in
   let cols = List.map (viewDBCol vs true db.tlid) migra.cols in
   let funcs =
@@ -75,7 +80,7 @@ let viewDBMigration migra db vs =
     [Attrs.class_ "db migration-view"]
     ((((name :: cols) ^ funcs) ^ errorMsg) ^ actions)
 
-let viewDB vs db =
+let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   let locked =
     if vs.dbLocked && db.activeMigration = None then
       Html.div

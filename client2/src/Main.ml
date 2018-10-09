@@ -13,11 +13,11 @@ module SE = String.Extra
 module TL = Toplevel
 open Types
 
-let main =
+let main : (flags, model, msg) program =
   Navigation.navigationProgram LocationChange
     {init; view= View.view; update; subscriptions}
 
-let flag2function fn =
+let flag2function (fn : flagFunction) : function_ =
   { name= fn.name
   ; description= fn.description
   ; returnTipe= RT.str2tipe fn.return_type
@@ -34,7 +34,8 @@ let flag2function fn =
   ; previewExecutionSafe= fn.preview_execution_safe
   ; deprecated= fn.deprecated }
 
-let init {editorState; complete; userContentHost; environment} location =
+let init ({editorState; complete; userContentHost; environment} : flags)
+    (location : Web.Location.location) : model * msg Cmd.t =
   let savedEditor = Editor.fromString editorState in
   let m0 = Editor.editor2model savedEditor in
   let _ = "comment" in
@@ -94,9 +95,9 @@ let init {editorState; complete; userContentHost; environment} location =
         ; RPC.getAnalysisRPC canvasName []
         ; visibilityTask ] )
 
-let sendTask t = Task.succeed t |> Task.perform identity
+let sendTask (t : msg) : msg Cmd.t = Task.succeed t |> Task.perform identity
 
-let processFocus m focus =
+let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) -> (
       let tl = TL.getTL m tlid in
@@ -165,14 +166,15 @@ let processFocus m focus =
   | FocusNothing -> Deselect
   | FocusNoChange -> NoChange
 
-let update msg m =
+let update (msg : msg) (m : model) : model * msg Cmd.t =
   let mods = update_ msg m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   ( {newm with lastMsg= msg; lastMod= mods}
   , Cmd.batch [newc; m |> Editor.model2editor |> Editor.toString |> setStorage]
   )
 
-let updateMod mod_ (m, cmd) =
+let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
+    model * msg Cmd.t =
   let _ =
     if m.integrationTestState <> NoIntegrationTest then
       Debug.log "mod update" mod_
@@ -549,7 +551,8 @@ let updateMod mod_ (m, cmd) =
   in
   (newm, Cmd.batch [cmd; newcmd])
 
-let processAutocompleteMods m mods =
+let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
+    model * msg Cmd.t =
   let _ =
     if m.integrationTestState <> NoIntegrationTest then
       Debug.log "autocompletemod update" mods
@@ -576,7 +579,7 @@ let processAutocompleteMods m mods =
   in
   ({m with complete}, focus)
 
-let isFieldAccessDot m baseStr =
+let isFieldAccessDot (m : model) (baseStr : string) : bool =
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
     (String.startsWith "\"" str || RPC.typeOfLiteralString str) = TInt
@@ -589,7 +592,7 @@ let isFieldAccessDot m baseStr =
       (P.typeOf pd = Expr || P.typeOf pd) = Field && not intOrString
   | _ -> false
 
-let update_ msg m =
+let update_ (msg : msg) (m : model) : modification =
   let _ =
     if m.integrationTestState <> NoIntegrationTest then
       Debug.log "msg update" msg
@@ -1269,22 +1272,23 @@ let update_ msg m =
       TweakModel (fun m -> {m with error= {e with showDetails= show}})
   | _ -> NoChange
 
-let findCenter m =
+let findCenter (m : model) : pos =
   match m.currentPage with
   | Toplevels center -> Viewport.toCenter center
   | _ -> Defaults.centerPos
 
-let enableTimers m = {m with timersEnabled= true}
+let enableTimers (m : model) : model = {m with timersEnabled= true}
 
-let disableTimers m = {m with timersEnabled= false}
+let disableTimers (m : model) : model = {m with timersEnabled= false}
 
-let toggleTimers m = {m with timersEnabled= not m.timersEnabled}
+let toggleTimers (m : model) : model =
+  {m with timersEnabled= not m.timersEnabled}
 
-let updateError oldErr newErrMsg =
+let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
   if oldErr.message = Some newErrMsg && not oldErr.showDetails then oldErr
   else {message= Some newErrMsg; showDetails= true}
 
-let subscriptions m =
+let subscriptions (m : model) : msg sub =
   let keySubs =
     [ onWindow "keydown"
         (JSD.map GlobalKeyPress DarkKeyboard.decodeDarkKeyboardEvent) ]

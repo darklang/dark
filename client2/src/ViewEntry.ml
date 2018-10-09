@@ -6,7 +6,7 @@ open Prelude
 open Types
 open ViewUtils
 
-let viewEntry m =
+let viewEntry (m : model) : msg Html.html list =
   match unwrapCursorState m.cursorState with
   | Entering (Creating pos) ->
       let html =
@@ -16,7 +16,8 @@ let viewEntry m =
       [placeHtml m pos html]
   | _ -> []
 
-let stringEntryHtml ac width =
+let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
+    msg Html.html =
   let maxWidthChars =
     match width with
     | StringEntryNormalWidth -> 120
@@ -61,7 +62,8 @@ let stringEntryHtml ac width =
         ; Attrs.class_ ("string-container " ^ sizeClass) ]
         [input] ]
 
-let normalEntryHtml placeholder ac =
+let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
+    =
   let autocompleteList =
     List.indexedMap
       (fun i item ->
@@ -126,7 +128,8 @@ let normalEntryHtml placeholder ac =
   let wrapper = Html.div [Attrs.class_ "entry"] [viewForm] in
   wrapper
 
-let entryHtml permission width placeholder ac =
+let entryHtml (permission : stringEntryPermission) (width : stringEntryWidth)
+    (placeholder : string) (ac : autocomplete) : msg Html.html =
   match permission with
   | StringEntryAllowed ->
       if Autocomplete.isStringEntry ac then stringEntryHtml ac width

@@ -5,38 +5,41 @@ module RT = Runtime
 module TL = Toplevel
 open Types
 
-let height i = if i < 4 then 0 else 14 * (i - 4)
+let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
-let focusItem i =
+let focusItem (i : int) : msg Cmd.t =
   Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
   |> Task.attempt FocusAutocompleteItem
 
-let findFunction a name = List.find (fun f -> f.name = name) a.functions
+let findFunction (a : autocomplete) (name : string) : function_ option =
+  List.find (fun f -> f.name = name) a.functions
 
-let isStringEntry a = String.startsWith "\"" a.value
+let isStringEntry (a : autocomplete) : bool = String.startsWith "\"" a.value
 
-let isSmallStringEntry a = isStringEntry a && not (isLargeStringEntry a)
+let isSmallStringEntry (a : autocomplete) : bool =
+  isStringEntry a && not (isLargeStringEntry a)
 
-let isLargeStringEntry a = isStringEntry a && String.contains "\n" a.value
+let isLargeStringEntry (a : autocomplete) : bool =
+  isStringEntry a && String.contains "\n" a.value
 
-let getValue a =
+let getValue (a : autocomplete) : string =
   match highlighted a with Some item -> asName item | None -> a.value
 
-let sharedPrefix2 l r =
+let sharedPrefix2 (l : string) (r : string) : string =
   match (String.uncons l, String.uncons r) with
   | Some (l1, lrest), Some (r1, rrest) ->
       if l1 = r1 then String.fromChar l1 ^ sharedPrefix2 lrest rrest else ""
   | _ -> ""
 
-let sharedPrefixList strs =
+let sharedPrefixList (strs : string list) : string =
   match List.head strs with
   | None -> ""
   | Some s -> List.foldl sharedPrefix2 s strs
 
-let sharedPrefix a =
+let sharedPrefix (a : autocomplete) : string =
   a.completions |> List.concat |> List.map asName |> sharedPrefixList
 
-let containsOrdered needle haystack =
+let containsOrdered (needle : string) (haystack : string) : bool =
   match String.uncons needle with
   | Some (c, newneedle) ->
       let char = String.fromChar c in
@@ -45,7 +48,8 @@ let containsOrdered needle haystack =
            (haystack |> String.split char |> List.drop 1 |> String.join char)
   | None -> true
 
-let compareSuggestionWithActual a actual =
+let compareSuggestionWithActual (a : autocomplete) (actual : string) :
+    string * string * string =
   match highlighted a with
   | Some (ACOmniAction _) -> ("", "", actual)
   | _ -> (
@@ -63,11 +67,11 @@ let compareSuggestionWithActual a actual =
           in
           (prefix, (prefix ^ actual) ^ suffix, actual) )
 
-let empty = init [] false
+let empty : autocomplete = init [] false
 
-let nonAdminFunctions fns = fns
+let nonAdminFunctions (fns : function_ list) : function_ list = fns
 
-let init fns isAdmin =
+let init (fns : function_ list) (isAdmin : bool) : autocomplete =
   let functions = if isAdmin then fns else nonAdminFunctions fns in
   { functions
   ; admin= isAdmin
@@ -80,7 +84,7 @@ let init fns isAdmin =
   ; target= None
   ; isCommandMode= false }
 
-let reset m a =
+let reset (m : model) (a : autocomplete) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
     |> List.map (fun x -> x.metadata)
@@ -98,39 +102,44 @@ let reset m a =
   in
   init functions a.admin |> regenerate m
 
-let numCompletions a = a.completions |> List.concat |> List.length
+let numCompletions (a : autocomplete) : int =
+  a.completions |> List.concat |> List.length
 
-let selectDown a =
+let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
   let max = Basics.max max_ 1 in
   let new_ = (a.index + 1) % max in
   {a with index= new_}
 
-let selectUp a =
+let selectUp (a : autocomplete) : autocomplete =
   let max = numCompletions a - 1 in
   {a with index= (if a.index <= 0 then max else a.index - 1)}
 
-let setQuery q a = refilter q a
+let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
 
-let appendQuery str a =
+let appendQuery (str : string) (a : autocomplete) : autocomplete =
   let q =
     if isStringEntry a then (String.dropRight 1 a.value ^ str) ^ "\""
     else a.value ^ str
   in
   setQuery q a
 
-let highlighted a = List.getAt a.index (List.concat a.completions)
+let highlighted (a : autocomplete) : autocompleteItem option =
+  List.getAt a.index (List.concat a.completions)
 
-let documentationForItem aci =
+let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | ACFunction f ->
       if String.length f.description <> 0 then Some f.description else None
   | ACCommand c -> Some (((c.doc ^ " (") ^ c.shortcut) ^ ")")
   | _ -> None
 
-let setTarget m t a = {a with target= t} |> regenerate m
+let setTarget (m : model) (t : (tlid * pointerData) option) (a : autocomplete)
+    : autocomplete =
+  {a with target= t} |> regenerate m
 
-let update m mod_ a =
+let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
+    autocomplete =
   match mod_ with
   | ACSetQuery str -> setQuery str a
   | ACAppendQuery str -> appendQuery str a
@@ -141,14 +150,15 @@ let update m mod_ a =
   | ACRegenerate -> regenerate m a
   | ACEnableCommandMode -> enableCommandMode m a
 
-let enableCommandMode m a = {a with isCommandMode= true}
+let enableCommandMode (m : model) (a : autocomplete) : autocomplete =
+  {a with isCommandMode= true}
 
-let isDynamicItem item =
+let isDynamicItem (item : autocompleteItem) : bool =
   match item with ACLiteral _ -> true | ACOmniAction _ -> true | _ -> false
 
-let isStaticItem item = not (isDynamicItem item)
+let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let qLiteral s =
+let qLiteral (s : string) : autocompleteItem option =
   if String.length s > 0 then
     if String.startsWith (String.toLower s) "nothing" then
       Some (ACLiteral "Nothing")
@@ -162,7 +172,7 @@ let qLiteral s =
   else if RPC.isLiteralString s then Some (ACLiteral s)
   else None
 
-let qNewDB s =
+let qNewDB (s : string) : autocompleteItem option =
   if
     ( ((String.length s >= 3 && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s) && s)
       <> "HTTP"
@@ -171,27 +181,27 @@ let qNewDB s =
   then Some (ACOmniAction (NewDB s))
   else None
 
-let qHTTPHandler s =
+let qHTTPHandler (s : string) : autocompleteItem option =
   if String.length s = 0 then Some (ACOmniAction NewHTTPHandler) else None
 
-let qHandler s =
+let qHandler (s : string) : autocompleteItem option =
   if String.length s = 0 then Some (ACOmniAction NewHandler) else None
 
-let qFunction s =
+let qFunction (s : string) : autocompleteItem option =
   if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s then
     Some (ACOmniAction (NewFunction (Some s)))
   else if String.length s = 0 then Some (ACOmniAction (NewFunction None))
   else None
 
-let qHTTPRoute s =
+let qHTTPRoute (s : string) : autocompleteItem option =
   if String.startsWith "/" s then Some (ACOmniAction (NewHTTPRoute s))
   else None
 
-let qEventSpace s =
+let qEventSpace (s : string) : autocompleteItem option =
   if Util.reExactly "[A-Z]+" s then Some (ACOmniAction (NewEventSpace s))
   else None
 
-let toDynamicItems isOmni query =
+let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
   let always = [qLiteral] in
   let omni =
     if isOmni then
@@ -201,15 +211,16 @@ let toDynamicItems isOmni query =
   let items = always ^ omni in
   items |> List.map (fun aci -> aci query) |> List.filterMap identity
 
-let withDynamicItems target query acis =
+let withDynamicItems (target : target option) (query : string)
+    (acis : autocompleteItem list) : autocompleteItem list =
   let new_ = toDynamicItems (target = None) query in
   let withoutDynamic = List.filter isStaticItem acis in
   new_ ^ withoutDynamic
 
-let regenerate m a =
+let regenerate (m : model) (a : autocomplete) : autocomplete =
   {a with allCompletions= generateFromModel m a} |> refilter a.value
 
-let refilter query old =
+let refilter (query : string) (old : autocomplete) : autocomplete =
   let fudgedCompletions =
     withDynamicItems old.target query old.allCompletions
   in
@@ -231,7 +242,8 @@ let refilter query old =
   { old with
     index; completions= newCompletions; value= query; prevValue= old.value }
 
-let filter list query =
+let filter (list : autocompleteItem list) (query : string) :
+    autocompleteItem list list =
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
@@ -260,7 +272,7 @@ let filter list query =
   in
   [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
 
-let generateFromModel m a =
+let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   let dv =
     match a.target with
     | None -> None
@@ -386,7 +398,7 @@ let generateFromModel m a =
   let commands = List.map ACCommand Commands.commands in
   if a.isCommandMode then commands else regular
 
-let asName aci =
+let asName (aci : autocompleteItem) : string =
   match aci with
   | ACFunction {name} -> name
   | ACField name -> name
@@ -408,7 +420,7 @@ let asName aci =
   | ACKeyword k -> (
     match k with KLet -> "let" | KIf -> "if" | KLambda -> "lambda" )
 
-let asTypeString item =
+let asTypeString (item : autocompleteItem) : string =
   match item with
   | ACFunction f ->
       f.parameters
@@ -429,19 +441,21 @@ let asTypeString item =
   | ACOmniAction _ -> ""
   | ACKeyword _ -> "keyword"
 
-let asString aci = asName aci ^ asTypeString aci
+let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 
-let dvalFields dv =
+let dvalFields (dv : dval) : autocompleteItem list =
   match dv with DObj dict -> Dict.keys dict |> List.map ACField | _ -> []
 
-let findCompatibleThreadParam {parameters} tipe =
+let findCompatibleThreadParam ({parameters} : function_) (tipe : tipe) :
+    parameter option =
   parameters |> List.head
   |> Option.andThen (fun fst ->
          if RT.isCompatible fst.tipe tipe then Some fst else None )
 
-let findParamByType {parameters} tipe =
+let findParamByType ({parameters} : function_) (tipe : tipe) : parameter option
+    =
   parameters |> List.find (fun p -> RT.isCompatible p.tipe tipe)
 
-let selectSharedPrefix ac =
+let selectSharedPrefix (ac : autocomplete) : modification =
   let sp = sharedPrefix ac in
   if sp = "" then NoChange else AutocompleteMod <| ACSetQuery sp

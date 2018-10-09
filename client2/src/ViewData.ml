@@ -7,7 +7,8 @@ module RT = Runtime
 open Types
 open ViewUtils
 
-let viewInput tlid idx value isActive isHover tipe =
+let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
+    (isHover : bool) (tipe : tipe) : msg Html.html =
   let activeClass = if isActive then [Attrs.class_ "active"] else [] in
   let hoverClass = if isHover then [Attrs.class_ "mouseovered"] else [] in
   let tipeClassName = "tipe-" ^ RT.tipe2str tipe in
@@ -22,9 +23,10 @@ let viewInput tlid idx value isActive isHover tipe =
     (([Attrs.attribute "data-content" value] ^ classes) ^ events)
     [Html.text "\226\128\162"]
 
-let asValue inputValue = RT.inputValueAsString inputValue
+let asValue (inputValue : inputValueDict) : string =
+  RT.inputValueAsString inputValue
 
-let viewInputs vs (ID astID) =
+let viewInputs (vs : viewState) (ID astID : id) : msg Html.html list =
   let traceToHtml idx trace =
     let value = asValue trace.input in
     let _ = "comment" in
@@ -43,7 +45,7 @@ let viewInputs vs (ID astID) =
   in
   List.indexedMap traceToHtml vs.traces
 
-let viewData vs ast =
+let viewData (vs : viewState) (ast : expr) : msg Html.html list =
   let astID = B.toID ast in
   let requestEls = viewInputs vs astID in
   let selectedValue =

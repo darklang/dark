@@ -12,14 +12,14 @@ type entry =
   ; verbs: (string * pos) list
   ; tlid: tlid }
 
-let missingEventSpaceDesc = "<missing event space>"
+let missingEventSpaceDesc : string = "<missing event space>"
 
-let missingEventRouteDesc = "<missing route>"
+let missingEventRouteDesc : string = "<missing route>"
 
-let spaceName tl =
+let spaceName (tl : toplevel) : string option =
   match tl.data with TLHandler h -> h.spec.module_ |> B.toMaybe | _ -> None
 
-let splitBySpace tls =
+let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
   let spaceName_ tl =
     tl |> TL.asHandler
     |> Option.map (fun x -> x.spec)
@@ -35,7 +35,7 @@ let splitBySpace tls =
          in
          (space, hs) )
 
-let tl2entry tls =
+let tl2entry (tls : toplevel list) : entry list =
   tls
   |> List.filterMap (fun tl ->
          match TL.asHandler tl with
@@ -51,7 +51,7 @@ let tl2entry tls =
          ; tlid } )
   |> List.sortBy (fun c -> Option.withDefault "ZZZZZZ" c.name)
 
-let collapseByVerb es =
+let collapseByVerb (es : entry list) : entry list =
   es
   |> List.groupWhile (fun a b -> a.name = b.name)
   |> List.map
@@ -67,7 +67,7 @@ let collapseByVerb es =
           [])
   |> List.concat
 
-let prefixify hs =
+let prefixify (hs : entry list) : entry list =
   match hs with
   | [] -> hs
   | [_] -> hs
@@ -94,7 +94,7 @@ let prefixify hs =
         | Some (matched, unmatched) ->
             h :: ((prefixify <| List.map makePrefix matched) ^ unmatched) ) )
 
-let ordering a b =
+let ordering (a : string) (b : string) : order =
   match (a, b) with
   | "HTTP", _ -> LT
   | _, "HTTP" -> GT
@@ -103,10 +103,11 @@ let ordering a b =
       else if a = missingEventRouteDesc then GT
       else compare a b
 
-let undoButton tlid page =
+let undoButton (tlid : tlid) (page : page) : msg Html.html =
   buttonLink (text "undo" "Restore") (RestoreToplevel tlid) (Some page)
 
-let viewGroup m showLink showUndo (spacename, entries) =
+let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
+    ((spacename, entries) : string * entry list) : msg Html.html =
   let def s = Option.withDefault missingEventRouteDesc s in
   let externalLink h =
     if showLink = ShowLink && List.member "GET" (List.map Tuple.first h.verbs)
@@ -160,7 +161,8 @@ and showLink = ShowLink | DontShowLink
 
 and showUndo = ShowUndo | DontShowUndo
 
-let viewRoutes m collapse showLink showUndo =
+let viewRoutes (m : model) (collapse : collapseVerbs) (showLink : showLink)
+    (showUndo : showUndo) : msg Html.html list =
   let tls = m.toplevels in
   tls |> splitBySpace
   |> List.sortWith (fun (a, _) (b, _) -> ordering a b)
@@ -172,20 +174,24 @@ let viewRoutes m collapse showLink showUndo =
   |> List.map (Tuple.mapSecond prefixify)
   |> List.map (viewGroup m showLink showUndo)
 
-let viewDeletedTLs m =
+let viewDeletedTLs (m : model) : msg Html.html =
   let tls = m.deletedToplevels in
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
   Html.details [Attrs.class_ "routing-section deleted"] (([h] ^ routes) ^ [dbs])
 
-let span class_ subs = Html.span [Attrs.class_ class_] subs
+let span (class_ : string) (subs : msg Html.html list) : msg Html.html =
+  Html.span [Attrs.class_ class_] subs
 
-let text class_ msg = span class_ [Html.text msg]
+let text (class_ : string) (msg : string) : msg Html.html =
+  span class_ [Html.text msg]
 
-let div class_ subs = Html.div [Attrs.class_ class_] subs
+let div (class_ : string) (subs : msg Html.html list) : msg Html.html =
+  Html.div [Attrs.class_ class_] subs
 
-let header name list addHandler =
+let header (name : string) (list : 'a list) (addHandler : msg option) :
+    msg Html.html =
   Html.summary [Attrs.class_ "header"]
     [ text "title" name
     ; text "parens" "("
@@ -195,7 +201,8 @@ let header name list addHandler =
       | Some msg -> buttonLink (fontAwesome "plus-circle") msg None
       | None -> text "" "" ) ]
 
-let section name entries addHandler routes =
+let section (name : string) (entries : 'a list) (addHandler : msg option)
+    (routes : msg Html.html) : msg Html.html =
   if List.length entries = 0 then
     Html.div
       [Attrs.class_ "routing-section empty"]
@@ -205,7 +212,8 @@ let section name entries addHandler routes =
       [Attrs.class_ "routing-section"]
       [header name entries addHandler; routes]
 
-let buttonLink content handler page =
+let buttonLink (content : msg Html.html) (handler : msg) (page : page option) :
+    msg Html.html =
   let href =
     page |> Option.map (fun p -> Attrs.href (Url.urlFor p)) |> Option.toList
   in
@@ -216,15 +224,17 @@ let buttonLink content handler page =
   in
   Html.a ([event; Attrs.class_ "button-link"] ^ href) [content]
 
-let tlLink pos class_ name = Url.linkFor (Toplevels pos) class_ [Html.text name]
+let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
+  Url.linkFor (Toplevels pos) class_ [Html.text name]
 
-let fnLink fn isUsed text_ =
+let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
+    =
   Url.linkFor
     (Fn (fn.tlid, Defaults.centerPos))
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
-let view404s f404s =
+let view404s (f404s : fourOhFour list) : msg Html.html =
   let theCreateLink fof =
     buttonLink (fontAwesome "plus-circle") (CreateHandlerFrom404 fof) None
   in
@@ -242,7 +252,7 @@ let view404s f404s =
   let routes = div "404s" (List.map fofHtml f404s) in
   section "404s" f404s None routes
 
-let viewDBs tls =
+let viewDBs (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
@@ -255,7 +265,7 @@ let viewDBs tls =
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
 
-let viewRestorableDBs tls =
+let viewRestorableDBs (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
@@ -268,7 +278,7 @@ let viewRestorableDBs tls =
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
 
-let viewUserFunctions m =
+let viewUserFunctions (m : model) : msg Html.html =
   let fns =
     m.userFunctions |> List.filter (fun fn -> B.isF fn.metadata.name)
   in
@@ -293,7 +303,7 @@ let viewUserFunctions m =
   let routes = div "fns" (List.map fnHtml fns) in
   section "Functions" fns (Some CreateFunction) routes
 
-let viewRoutingTable m =
+let viewRoutingTable (m : model) : msg Html.html =
   let sections =
     ( ( ( viewRoutes m CollapseVerbs ShowLink DontShowUndo
         ^ [viewDBs m.toplevels] )

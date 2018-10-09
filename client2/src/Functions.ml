@@ -5,7 +5,7 @@ module P = Pointer
 open Prelude
 open Types
 
-let ufpToP ufp =
+let ufpToP (ufp : userFunctionParameter) : parameter option =
   match (ufp.name, ufp.tipe) with
   | F (_, name), F (_, tipe) ->
       { name
@@ -16,7 +16,7 @@ let ufpToP ufp =
       |> Some
   | _ -> None
 
-let ufmToF ufm =
+let ufmToF (ufm : userFunctionMetadata) : function_ option =
   let ps = List.filterMap ufpToP ufm.parameters in
   let sameLength = List.length ps = List.length ufm.parameters in
   match (ufm.name, ufm.returnTipe, sameLength) with
@@ -31,9 +31,10 @@ let ufmToF ufm =
       |> Some
   | _ -> None
 
-let find m id = List.find (fun f -> id = f.tlid) m.userFunctions
+let find (m : model) (id : tlid) : userFunction option =
+  List.find (fun f -> id = f.tlid) m.userFunctions
 
-let upsert m f =
+let upsert (m : model) (f : userFunction) : model =
   match find m f.tlid with
   | Some old ->
       { m with
@@ -43,24 +44,29 @@ let upsert m f =
           |> List.cons f }
   | None -> {m with userFunctions= f :: m.userFunctions}
 
-let findExn m id = find m id |> Option.getExn "Functions.findExn"
+let findExn (m : model) (id : tlid) : userFunction =
+  find m id |> Option.getExn "Functions.findExn"
 
-let sameName name uf =
+let sameName (name : string) (uf : userFunction) : bool =
   match uf.metadata.name with F (_, n) -> n = name | _ -> false
 
-let findByName m s = List.find (sameName s) m.userFunctions
+let findByName (m : model) (s : string) : userFunction option =
+  List.find (sameName s) m.userFunctions
 
-let findByNameExn m s =
+let findByNameExn (m : model) (s : string) : userFunction =
   findByName m s |> Option.getExn "Functions.findByNameExn"
 
-let paramData ufp = [PParamName ufp.name; PParamTipe ufp.tipe]
+let paramData (ufp : userFunctionParameter) : pointerData list =
+  [PParamName ufp.name; PParamTipe ufp.tipe]
 
-let allParamData uf = List.concat (List.map paramData uf.metadata.parameters)
+let allParamData (uf : userFunction) : pointerData list =
+  List.concat (List.map paramData uf.metadata.parameters)
 
-let allData uf =
+let allData (uf : userFunction) : pointerData list =
   ([PFnName uf.metadata.name] ^ allParamData uf) ^ AST.allData uf.ast
 
-let replaceFnName search replacement uf =
+let replaceFnName (search : pointerData) (replacement : pointerData)
+    (uf : userFunction) : userFunction =
   let metadata = uf.metadata in
   let sId = P.toID search in
   if B.toID metadata.name = sId then
@@ -72,7 +78,8 @@ let replaceFnName search replacement uf =
     {uf with metadata= newMetadata}
   else uf
 
-let replaceParamName search replacement uf =
+let replaceParamName (search : pointerData) (replacement : pointerData)
+    (uf : userFunction) : userFunction =
   let metadata = uf.metadata in
   let sId = P.toID search in
   let paramNames =
@@ -118,7 +125,8 @@ let replaceParamName search replacement uf =
     {uf with metadata= newMetadata; ast= newBody}
   else uf
 
-let replaceParamTipe search replacement uf =
+let replaceParamTipe (search : pointerData) (replacement : pointerData)
+    (uf : userFunction) : userFunction =
   let metadata = uf.metadata in
   let sId = P.toID search in
   let paramTipes =
@@ -140,11 +148,12 @@ let replaceParamTipe search replacement uf =
     {uf with metadata= newMetadata}
   else uf
 
-let replaceMetadataField old new_ uf =
+let replaceMetadataField (old : pointerData) (new_ : pointerData)
+    (uf : userFunction) : userFunction =
   uf |> replaceFnName old new_ |> replaceParamName old new_
   |> replaceParamTipe old new_
 
-let extend uf =
+let extend (uf : userFunction) : userFunction =
   let newParam =
     { name= B.new_ ()
     ; tipe= B.new_ ()
@@ -158,7 +167,8 @@ let extend uf =
   in
   {uf with metadata= newMetadata}
 
-let removeParameter uf ufp =
+let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
+    userFunction =
   let metadata = uf.metadata in
   let params = List.filter (fun p -> p <> ufp) metadata.parameters in
   let newM = {metadata with parameters= params} in

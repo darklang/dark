@@ -18,27 +18,31 @@ type htmlConfig =
   | WithFF
   | WithEditFn of tlid
 
-let wc = WithClass
+let wc (s : string) : htmlConfig = WithClass s
 
-let idConfigs = [ClickSelect; Mouseover]
+let idConfigs : htmlConfig list = [ClickSelect; Mouseover]
 
-let atom = wc "atom"
+let atom : htmlConfig = wc "atom"
 
-let nested = wc "nested"
+let nested : htmlConfig = wc "nested"
 
-let text vs c str =
+let text (vs : viewState) (c : htmlConfig list) (str : string) : msg Html.html
+    =
   ( (div vs c <| [Html.div [Attrs.class_ "quote quote-start"] []])
   ^ [Html.text str] )
   ^ [Html.div [Attrs.class_ "quote quote-end"] []]
 
-let keyword vs c name = text vs (((atom :: wc "keyword") :: wc name) :: c) name
+let keyword (vs : viewState) (c : htmlConfig list) (name : string) :
+    msg Html.html =
+  text vs (((atom :: wc "keyword") :: wc name) :: c) name
 
-let tipe vs c t = text vs c (Runtime.tipe2str t)
+let tipe (vs : viewState) (c : htmlConfig list) (t : tipe) : msg Html.html =
+  text vs c (Runtime.tipe2str t)
 
-let withFeatureFlag vs v =
+let withFeatureFlag (vs : viewState) (v : 'a blankOr) : htmlConfig list =
   if idOf vs.cursorState = Some (B.toID v) then [WithFF] else []
 
-let withEditFn vs v =
+let withEditFn (vs : viewState) (v : nExpr blankOr) : htmlConfig list =
   if idOf vs.cursorState = Some (B.toID v) then
     match v with
     | F (_, FnCall (name, _, _)) -> (
@@ -48,9 +52,9 @@ let withEditFn vs v =
     | _ -> []
   else []
 
-let getLiveValue lvs (ID id) = Dict.get id lvs
+let getLiveValue (lvs : lvDict) (ID id : id) : dval option = Dict.get id lvs
 
-let renderLiveValue vs id =
+let renderLiveValue (vs : viewState) (id : id option) : string =
   let cursorLiveValue =
     match id with
     | Some (ID id) -> Dict.get id vs.currentResults.liveValues
@@ -58,7 +62,8 @@ let renderLiveValue vs id =
   in
   match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
 
-let div vs configs content =
+let div (vs : viewState) (configs : htmlConfig list)
+    (content : msg Html.html list) : msg Html.html =
   let getFirst fn = configs |> List.filterMap fn |> List.head in
   let _ = "comment" in
   let thisID =
@@ -137,15 +142,15 @@ let div vs configs content =
   let attrs = (liveValueAttr :: classAttr) :: events in
   Html.div attrs (content ^ [rightSideHtml])
 
-type viewer = ((viewState -> htmlConfig list) -> 'a) -> msg Html.html
+let viewText (pt : pointerType) (vs : viewState) (c : htmlConfig list)
+    (str : string blankOr) : msg Html.html =
+  viewBlankOr text pt vs c str
 
-and blankViewer = 'a blankOr viewer
+let viewTipe (pt : pointerType) (vs : viewState) (c : htmlConfig list)
+    (str : tipe blankOr) : msg Html.html =
+  viewBlankOr tipe pt vs c str
 
-let viewText pt vs c str = viewBlankOr text pt vs c str
-
-let viewTipe pt vs c str = viewBlankOr tipe pt vs c str
-
-let placeHolderFor vs id pt =
+let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
   let paramPlaceholder =
     vs.tl |> TL.asHandler
     |> Option.map (fun x -> x.ast)
@@ -186,7 +191,10 @@ let placeHolderFor vs id pt =
   | ParamName -> "param name"
   | ParamTipe -> "param type"
 
-let viewBlankOr htmlFn pt vs c bo =
+let viewBlankOr
+    (htmlFn : ((viewState -> htmlConfig list) -> 'a) -> msg Html.html)
+    (pt : pointerType) (vs : viewState) (c : htmlConfig list) (bo : 'a blankOr)
+    : msg Html.html =
   let wID id = [WithID id] in
   let drawBlank id =
     div vs
@@ -231,19 +239,19 @@ let viewBlankOr htmlFn pt vs c bo =
       else thisText
   | _ -> thisText
 
-let viewFeatureFlag =
+let viewFeatureFlag : msg Html.html =
   Html.div
     [ Attrs.class_ "flag"
     ; eventNoPropagation "click" (fun _ -> StartFeatureFlag) ]
     [fontAwesome "flag"]
 
-let viewCreateFn =
+let viewCreateFn : msg Html.html =
   Html.div
     [ Attrs.class_ "exfun"
     ; eventNoPropagation "click" (fun _ -> ExtractFunction) ]
     [fontAwesome "share-square"]
 
-let viewEditFn tlid hasFlagAlso =
+let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
   let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
   Html.a
     [ Attrs.class_ "edit-fn"

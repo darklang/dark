@@ -5,7 +5,7 @@ open Prelude
 module TL = Toplevel
 open Types
 
-let copy m tl mp =
+let copy (m : model) (tl : toplevel) (mp : pointerData option) : modification =
   match tl.data with
   | TLDB _ -> NoChange
   | TLHandler h -> (
@@ -17,7 +17,7 @@ let copy m tl mp =
     | None -> CopyToClipboard (Some <| PExpr f.ast)
     | Some p -> CopyToClipboard (TL.find tl (P.toID p)) )
 
-let cut m tl p =
+let cut (m : model) (tl : toplevel) (p : pointerData) : modification =
   let pid = P.toID p in
   let pred = TL.getPrevBlank tl (Some p) |> Option.map P.toID in
   match tl.data with
@@ -39,7 +39,7 @@ let cut m tl p =
         [ CopyToClipboard newClipboard
         ; RPC ([SetFunction newF], FocusNext (tl.id, pred)) ]
 
-let paste m tl id =
+let paste (m : model) (tl : toplevel) (id : id) : modification =
   match m.clipboard with
   | None -> NoChange
   | Some pd -> (
@@ -61,9 +61,9 @@ let paste m tl id =
               ( [SetFunction {f with ast= newAst}]
               , FocusExact (tl.id, P.toID cloned) ) )
 
-let peek m = Option.map TL.clonePointerData m.clipboard
+let peek (m : model) : clipboard = Option.map TL.clonePointerData m.clipboard
 
-let newFromClipboard m pos =
+let newFromClipboard (m : model) (pos : pos) : modification =
   let nid = gtlid () in
   let ast =
     match peek m with
