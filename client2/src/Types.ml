@@ -81,7 +81,7 @@ and tLID = TLID of int
 and iD = ID of int
 
 and darkKeyboardEvent =
-  { standard: Belt.Dom.keyboardEvent
+  { standard: Dom.keyboardEvent
   ; selectionStart: int option
   ; selectionEnd: int option }
 
@@ -128,21 +128,22 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of darkKeyboardEvent
   | AutocompleteClick of string
-  | FocusEntry of (Belt.Dom.errorEvent, unit) result
-  | FocusAutocompleteItem of (Belt.Dom.errorEvent, unit) result
-  | RPCCallback of focus * rPCParams * (Http.error, rPCResult) result
-  | SaveTestRPCCallback of (Http.error, string) result
-  | GetAnalysisRPCCallback of (Http.error, getAnalysisResult) result
-  | GetDelete404RPCCallback of (Http.error, fourOhFour list) result
+  | FocusEntry of (Dom.errorEvent, unit) result
+  | FocusAutocompleteItem of (Dom.errorEvent, unit) result
+  | RPCCallback of focus * rPCParams * (string Http.error, rPCResult) result
+  | SaveTestRPCCallback of (string Http.error, string) result
+  | GetAnalysisRPCCallback of (string Http.error, getAnalysisResult) result
+  | GetDelete404RPCCallback of (string Http.error, fourOhFour list) result
   | InitialLoadRPCCallback of
-      focus * modification * (Http.error, initialLoadResult) result
+      focus * modification * (string Http.error, initialLoadResult) result
   | LocationChange of Navigation.location
   | AddRandom
   | FinishIntegrationTest
   | SaveTestButton
   | ToggleTimers
   | ExecuteFunctionRPCCallback of
-      executeFunctionRPCParams * (Http.error, executeFunctionRPCResult) result
+      executeFunctionRPCParams
+      * (string Http.error, executeFunctionRPCResult) result
   | ExecuteFunctionButton of tLID * iD * string
   | ExecuteFunctionCancel of tLID * iD
   | Initialization
@@ -504,7 +505,7 @@ and integrationTestState =
   | NoIntegrationTest
 
 and modification =
-  | DisplayAndReportHttpErroror of string * Http.error
+  | DisplayAndReportHttpErroror of string * string Http.error
   | DisplayAndReportErroror of string
   | DisplayErroror of string
   | ClearErroror

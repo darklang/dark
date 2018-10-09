@@ -576,7 +576,7 @@ let processAutocompleteMods m mods =
   ({m with complete}, focus)
 
 let isFieldAccessDot m baseStr =
-  let str = Util.replace "\\.*$" "" baseStr in
+  let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
     (String.startsWith "\"" str || RPC.typeOfLiteralString str) = TInt
   in

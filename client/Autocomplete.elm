@@ -15,6 +15,7 @@ import List.Extra as LE
 -- dark
 -- import Prelude exposing (..)
 import Util
+import DontPort
 import Types exposing (..)
 import Functions
 import Runtime as RT
@@ -413,7 +414,7 @@ filter list query =
       stringify i = (if 1 >= String.length lcq
                      then asName i
                      else asString i)
-                    |> Util.replace "⟶" "->"
+                    |> DontPort.replace "⟶" "->"
 
 
       -- split into different lists

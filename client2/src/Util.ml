@@ -14,9 +14,6 @@ let reContains re s = Regex.contains (Regex.regex re) s
 
 let reExactly re s = reContains (("^" ^ re) ^ "$") s
 
-let replace re repl str =
-  Regex.replace Regex.All (Regex.regex re) (fun _ -> repl) str
-
 let findIndex fn l =
   List.getBy (fun (_, a) -> fn a) (List.indexedMap to_tuple2 l)
 
@@ -43,8 +40,8 @@ let cacheClear k = Native.Cache.clear k
 
 let transformToStringEntry s_ =
   let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in
-  s |> String.dropLeft 1 |> String.dropRight 1 |> replace "\\\\\"" "\""
+  s |> String.dropLeft 1 |> String.dropRight 1 |> Regex.replace "\\\\\"" "\""
 
 let transformFromStringEntry s =
-  let s2 = s |> replace "\"" "\\\"" in
+  let s2 = s |> Regex.replace "\"" "\\\"" in
   ("\"" ^ s2) ^ "\""

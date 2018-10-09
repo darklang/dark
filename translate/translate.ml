@@ -12,6 +12,7 @@ let config_function_patterns =
   [ "DontPort.fromInt", "string_of_int"
   ; "DontPort.fromFloat", "string_of_float"
   ; "DontPort.deMaybe", "Option.getExn"
+  ; "DontPort.replace", "Regex.replace"
   ]
 
 let config_module_patterns =
@@ -22,6 +23,7 @@ let config_module_patterns =
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
+  ; "Http.error", "string Http.error"
   ]
 
 (* ------------------------ *)
@@ -186,9 +188,9 @@ let names2str
 let fix_fqtype n : string =
   let patterns =
     [ "maybe", "option"
-    ; "Dom.error", "Belt.Dom.errorEvent"
-    ; "Keyboard.Event.keyboardEvent", "Belt.Dom.keyboardEvent"
-    ; "Keyboard.Event.KeyboardEvent", "Belt.Dom.keyboardEvent"
+    ; "Dom.error", "Dom.errorEvent"
+    ; "Keyboard.Event.keyboardEvent", "Dom.keyboardEvent"
+    ; "Keyboard.Event.KeyboardEvent", "Dom.keyboardEvent"
     ]
   in
   rewrite patterns n

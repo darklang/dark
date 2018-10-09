@@ -21,7 +21,6 @@ import DB
 import AST
 import Blank as B
 import Pointer as P
-import Util
 
 type alias ViewState =
   { tl: Toplevel
@@ -175,7 +174,7 @@ blankOrLength b =
 visualStringLength : String -> Int
 visualStringLength string =
   string
-  |> Util.replace "\t" "        " -- replace tabs with 8 ch for ch counting
+  |> DontPort.replace "\t" "        " -- replace tabs with 8 ch for ch counting
   |> String.length
 
 approxWidth : Expr -> Int

@@ -11,6 +11,7 @@ import Maybe.Extra as ME
 import Native.Window
 import Native.Random
 import Native.Cache
+import DontPort
 
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
@@ -31,8 +32,6 @@ reContains  re s = Regex.contains (Regex.regex re) s
 reExactly : String -> String -> Bool
 reExactly re s = reContains ("^" ++ re ++ "$") s
 
-replace : String -> String -> String -> String
-replace re repl str = Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str
 
 findIndex : (a -> Bool) -> List a -> Maybe (Int, a)
 findIndex fn l =
@@ -91,12 +90,12 @@ transformToStringEntry s_ =
   s
   |> String.dropLeft 1
   |> String.dropRight 1
-  |> replace "\\\\\"" "\""
+  |> DontPort.replace "\\\\\"" "\""
 
 transformFromStringEntry : String -> String
 transformFromStringEntry s =
   let s2 = s
-           |> replace "\"" "\\\""
+           |> DontPort.replace "\"" "\\\""
   in
   "\"" ++ s2 ++ "\""
 
