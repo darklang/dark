@@ -13,18 +13,28 @@ module Native = struct
   module Random = struct
     let random () : int = Random.int 2147483647
   end
+
+  module Cache = struct
+    let set _k _v = ()
+    let get _k = ""
+    let clear _k = ()
+  end
 end
 
 let (++) (a: string) (b: string) = a ^ b
 
 module String = struct
-  include String
+  include Js.String
   let toInt (s: string) : int = int_of_string s
   let toFloat (s: string) : float = float_of_string s
   let uncons (s: string) : (char * string) option =
     match s with
     | "" -> None
     | s -> Some (String.get s 0, String.sub s 1 (String.length s - 1))
+  let dropLeft (from: int) (s: string) : string =
+    substr ~from s
+  let dropRight (from: int) (s: string) : string =
+    sliceToEnd ~from s
 end
 
 module Option = struct

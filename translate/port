@@ -10,7 +10,7 @@ targetdir=client2/src
 
 files=$(find ${srcdir} -name "*.elm" | grep -v elm-stuff | sort)
 ignore="DontPort.elm|Window/Events.elm|JSON.elm|DarkKeyboard.elm"
-finished="Types.elm|Defaults.elm"
+finished="Types.elm|Defaults.elm|Util.elm"
 files=$(echo "$files" | egrep -v "$finished" | egrep -v "$ignore")
 
 for src in $files; do
