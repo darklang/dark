@@ -29,6 +29,10 @@ module Option = struct
     match o with
     | None -> None
     | Some x -> fn x
+  let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
+    match mb with
+    | None -> ma
+    | Some _ -> mb
 end
 
 module Result = struct
@@ -44,15 +48,27 @@ module Regex = struct
     Js.String.replaceByRe (regex re) repl str
 end
 
+let to_option (value: 'a) (sentinel: 'a) : 'a option =
+  if value = sentinel
+  then None
+  else Some value
+
+
 module List = struct
   include Belt.List
   let indexedMap fn l = mapWithIndex l fn
   let map2 fn a b = mapReverse2 a b fn |> reverse
   let getBy fn l = getBy l fn
-  let elemIndex a l =
+  let elemIndex (a: 'a) (l : 'a list) : int option =
     l
-    |> Js.Array.from
-    |> Js.Array.findIndex (fun b -> a = b)
+    |> Array.of_list
+    |> Js.Array.findIndex ((=) a)
+    |> to_option (-1)
+  let rec last (l : 'a list) : 'a option =
+    match l with
+    | [] -> None
+    | [a] -> Some a
+    | hd :: tail -> last tail
 
 end
 
