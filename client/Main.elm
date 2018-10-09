@@ -43,7 +43,6 @@ import Functions
 import Toplevel
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
-import Util
 import Pointer as P
 import Blank as B
 import AST
@@ -53,7 +52,6 @@ import Sync
 import DB
 import Runtime
 import Toplevel as TL
-import Util
 import Url
 import IntegrationTest
 
