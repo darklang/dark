@@ -9,9 +9,6 @@ import Mouse
 import Time exposing (Time)
 import PageVisibility
 
--- libs
-import Keyboard.Event exposing (KeyboardEvent)
-
 type alias Exception =
   { short : String
   , long : Maybe String
@@ -97,7 +94,7 @@ type ID = ID Int
 -- CursorState
 -----------------------------
 type alias DarkKeyboardEvent =
-    { standard : KeyboardEvent
+    { standard : Keyboard.Event.KeyboardEvent
     , selectionStart : Maybe Int
     , selectionEnd : Maybe Int
     }
