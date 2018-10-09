@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module AC = Autocomplete
 module B = Blank
 module P = Pointer

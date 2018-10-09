@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module Attrs = Html.Attributes
 module Events = Html.Events
 open Prelude

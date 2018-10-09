@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module DE = Dict.Extra
 open JSON
 module JSD = Json.Decode

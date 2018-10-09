@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 open Types
 
 let isCompatible t1 t2 = (t1 = TAny || t2 = TAny) || t1 = t2

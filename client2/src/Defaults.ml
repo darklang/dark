@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 open Types
 
 let entryID = "entry-box"

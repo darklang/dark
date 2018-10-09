@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 
 let onWindow eventName decoder = subscription (MySub (eventName, decoder))
 

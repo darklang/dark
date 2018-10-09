@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
