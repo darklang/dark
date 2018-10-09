@@ -129,6 +129,13 @@
           }
         } else {
           // do it without workers, it will be slow though
+          Rollbar.error(
+            'Web worker not available user browser.',
+            navigator.userAgent,
+            { route: route
+            , tlid: params.handler.tlid
+            }
+          )
           try {
             const result = darkAnalysis.performAnalysis(JSON.stringify(params));
             elmapp.ports.receiveAnalysis.send(result);
