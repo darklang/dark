@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -38,7 +37,7 @@ let viewInputs vs (ID astID) =
       |> Option.map (fun x -> x.liveValues)
       |> Option.andThen (Dict.get astID)
       |> Option.map RT.typeOf
-      |> Maybe.withDefault TIncomplete
+      |> Option.withDefault TIncomplete
     in
     viewInput vs.tl.id idx value isActive isHover astTipe
   in

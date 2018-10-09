@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module JSD = Json.Decode
@@ -9,8 +8,8 @@ open Types
 let fromString json =
   json
   |> Option.map (JSD.decodeString RPC.decodeSerializableEditor)
-  |> Maybe.withDefault (Ok Defaults.defaultEditor)
-  |> Result.getWithDefault Defaults.defaultEditor
+  |> Option.withDefault (Ok Defaults.defaultEditor)
+  |> Result.withDefault Defaults.defaultEditor
 
 let toString se = RPC.encodeSerializableEditor se |> JSE.encode 0
 

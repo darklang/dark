@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -186,8 +185,8 @@ let viewNExpr d id vs config e =
       in
       let fn =
         vs.ac.functions
-        |> List.getBy (fun f -> f.name = name)
-        |> Maybe.withDefault
+        |> List.find (fun f -> f.name = name)
+        |> Option.withDefault
              { name= "fnLookupError"
              ; parameters= []
              ; description= "default, fn error"
@@ -361,7 +360,7 @@ let viewNExpr d id vs config e =
         ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
       in
       let condResult =
-        condValue |> Option.map Runtime.isTrue |> Maybe.withDefault false
+        condValue |> Option.map Runtime.isTrue |> Option.withDefault false
       in
       let blockCondition =
         Html.div

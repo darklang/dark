@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -13,14 +12,14 @@ let getTL m id = get m id |> Option.getExn "getTL"
 
 let get m id =
   let tls = all m in
-  List.getBy (fun tl -> tl.id = id) tls
+  List.find (fun tl -> tl.id = id) tls
 
 let name tl =
   match tl.data with
-  | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Maybe.withDefault "")
+  | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
   | TLDB db -> "DB: " ^ db.name
   | TLFunc f ->
-      "Func: " ^ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
+      "Func: " ^ (f.metadata.name |> B.toMaybe |> Option.withDefault "")
 
 let upsertByTLID tls tl = removeByTLID tls [tl] ^ [tl]
 
@@ -31,8 +30,7 @@ let upsertAllByTLID tls new_ =
 
 let upsertAll m tls = List.foldl (fun a b -> upsert b a) m tls
 
-let containsByTLID tls elem =
-  List.getBy (fun tl -> tl.id = elem.id) tls <> None
+let containsByTLID tls elem = List.find (fun tl -> tl.id = elem.id) tls <> None
 
 let removeByTLID origTls toBeRemoved =
   List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
@@ -102,7 +100,7 @@ let getNextBlank tl pred =
   match pred with
   | Some pred_ ->
       let ps = allData tl in
-      let index = List.elemIndex pred_ ps |> Maybe.withDefault (-1) in
+      let index = List.elemIndex pred_ ps |> Option.withDefault (-1) in
       let remaining = List.drop (index + 1) ps in
       let blanks = List.filter P.isBlank remaining in
       blanks |> List.head |> Option.orElse (firstBlank tl)
@@ -113,7 +111,7 @@ let getPrevBlank tl next =
   | Some next_ ->
       let ps = allData tl in
       let index =
-        List.elemIndex next_ ps |> Maybe.withDefault (List.length ps)
+        List.elemIndex next_ ps |> Option.withDefault (List.length ps)
       in
       let remaining = List.take index ps in
       let blanks = List.filter P.isBlank remaining in
@@ -148,7 +146,7 @@ let getParentOf tl p =
   | TLDB db ->
       db |> DB.astsFor
       |> List.map (AST.parentOf_ (P.toID p))
-      |> Maybe.Extra.values |> List.head |> Option.map PExpr
+      |> Option.values |> List.head |> Option.map PExpr
 
 let getChildrenOf tl pd =
   let pid = P.toID pd in

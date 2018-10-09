@@ -24,7 +24,6 @@ end
 let (++) (a: string) (b: string) = a ^ b
 
 module String = struct
-  type t = Js.String.t
   let toInt (s: string) : int = int_of_string s
   let toFloat (s: string) : float = float_of_string s
   let uncons (s: string) : (char * string) option =
@@ -40,13 +39,14 @@ module String = struct
     |> Belt.List.fromArray
   let join (sep : string) (l: string list) : string =
     String.concat sep l
-
+  let endsWith (needle: string) (haystack: string) =
+    Js.String.endsWith needle haystack
 
 end
 
 module Option = struct
   type 'a t = 'a option
-  let andThen (o: 'a option) (fn: 'a -> 'b option) : 'b option =
+  let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
     match o with
     | None -> None
     | Some x -> fn x
@@ -54,6 +54,9 @@ module Option = struct
     match mb with
     | None -> ma
     | Some _ -> mb
+
+  let map (f: 'a -> 'b) (o: 'a option) : 'b option =
+    Belt.Option.map o f
 end
 
 module Result = struct
@@ -113,6 +116,14 @@ module List = struct
             (first :: accumulator)
     in
     uniqueHelp f Belt.Set.String.empty l []
+  let find (f: 'a -> bool) (l: 'a list) : 'a option =
+    Belt.List.getBy l f
+
+  let getAt (i: int) (l: 'a list) : 'a option =
+    Belt.List.get l i
+
+  let head (l: 'a list) : 'a option =
+    Belt.List.head l
 end
 
 module Char = struct

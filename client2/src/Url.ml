@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module Attrs = Html.Attributes
@@ -56,7 +55,7 @@ let parseLocation m loc =
   let center =
     match (Dict.get "x" unstructured, Dict.get "y" unstructured) with
     | Some x, Some y -> (
-      match (int_of_string x, int_of_string y) with
+      match (String.toInt x, String.toInt y) with
       | Ok x, Ok y -> Some {x; y}
       | _ -> None )
     | _ -> None
@@ -64,9 +63,9 @@ let parseLocation m loc =
   let editedFn =
     match Dict.get "fn" unstructured with
     | Some sid -> (
-      match int_of_string sid with
+      match String.toInt sid with
       | Ok id ->
-          Some <| Fn (TLID id, Maybe.withDefault Defaults.centerPos center)
+          Some <| Fn (TLID id, Option.withDefault Defaults.centerPos center)
       | _ -> None )
     | _ -> None
   in

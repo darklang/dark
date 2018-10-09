@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -32,7 +31,7 @@ let ufmToF ufm =
       |> Some
   | _ -> None
 
-let find m id = List.getBy (fun f -> id = f.tlid) m.userFunctions
+let find m id = List.find (fun f -> id = f.tlid) m.userFunctions
 
 let upsert m f =
   match find m f.tlid with
@@ -49,7 +48,7 @@ let findExn m id = find m id |> Option.getExn "Functions.findExn"
 let sameName name uf =
   match uf.metadata.name with F (_, n) -> n = name | _ -> false
 
-let findByName m s = List.getBy (sameName s) m.userFunctions
+let findByName m s = List.find (sameName s) m.userFunctions
 
 let findByNameExn m s =
   findByName m s |> Option.getExn "Functions.findByNameExn"

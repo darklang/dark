@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -75,7 +74,7 @@ let extractVariable m tl p =
     let ancestors = AST.ancestors (B.toID e) ast in
     let lastPlaceWithSameVarsAndValues =
       ancestors
-      |> List.Extra.takeWhile (fun elem ->
+      |> List.takeWhile (fun elem ->
              let id = B.toID elem in
              let availableVars =
                Analysis.getCurrentAvailableVarnames m tl.id id |> Set.fromList
@@ -144,7 +143,7 @@ let extractFunction m tl p =
             (fun (id, name_) ->
               let tipe =
                 Analysis.getCurrentTipeOf m tl.id id
-                |> Maybe.withDefault TAny |> convertTipe
+                |> Option.withDefault TAny |> convertTipe
               in
               { name= F (gid (), name_)
               ; tipe= F (gid (), tipe)
@@ -308,14 +307,14 @@ let addNewFunctionParameter m old =
 
 let removeFunctionParameter m uf ufp =
   let indexInList =
-    List.getByIndex (fun p -> p = ufp) uf.metadata.parameters
+    List.findIndex (fun p -> p = ufp) uf.metadata.parameters
     |> Option.getExn
          "tried to remove parameter that does not exist in function"
   in
   let fn e =
     match e with
     | FnCall (name, params, r) ->
-        FnCall (name, List.Extra.removeAt indexInList params, r)
+        FnCall (name, List.removeAt indexInList params, r)
     | _ -> e
   in
   transformFnCalls m uf fn

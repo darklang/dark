@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -291,7 +290,7 @@ let case_sensitivity m =
                  Analysis.getCurrentLiveValue m tl.id id
                  |> Option.map (fun lv ->
                         if lv = DStr "some value" then pass else fail lv )
-                 |> Maybe.withDefault (fail h.ast)
+                 |> Option.withDefault (fail h.ast)
              | _ -> fail h.ast )
            | other -> fail other )
     |> RE.combine

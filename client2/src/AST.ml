@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -153,8 +152,7 @@ let addListLiteralBlanks id expr =
   match parent with
   | F (lid, ListLiteral exprs) ->
       let newExprs =
-        exprs |> List.reverse
-        |> List.Extra.dropWhile B.isBlank
+        exprs |> List.reverse |> List.dropWhile B.isBlank
         |> ( ^ ) [new1]
         |> List.reverse
       in
@@ -201,9 +199,11 @@ let grandparentIsThread expr parent =
   |> Option.map (fun p ->
          match parentOf_ (B.toID p) expr with
          | Some (F (_, Thread ts)) ->
-             ts |> List.head |> Option.map (( <> ) p) |> Maybe.withDefault true
+             ts |> List.head
+             |> Option.map (( <> ) p)
+             |> Option.withDefault true
          | _ -> false )
-  |> Maybe.withDefault false
+  |> Option.withDefault false
 
 let getParamIndex expr id =
   let parent = parentOf_ id expr in
@@ -211,7 +211,7 @@ let getParamIndex expr id =
   match parent with
   | Some (F (_, FnCall (name, args, _))) ->
       args
-      |> List.getByIndex (fun a -> B.toID a = id)
+      |> List.findIndex (fun a -> B.toID a = id)
       |> Option.map (fun i -> if inThread then (name, i + 1) else (name, i))
   | _ -> None
 
@@ -484,14 +484,14 @@ let replace_ search replacement parent expr =
           F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
         else traverse r expr
     | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
-      match List.getByIndex (fun v -> B.toID v = sId) vars with
+      match List.findIndex (fun v -> B.toID v = sId) vars with
       | None -> traverse r expr
       | Some i ->
           let replacementContent =
             match replacement_ with Blank _ -> None | F (_, var) -> Some var
           in
           let orig =
-            match List.get i vars |> Option.getExn "we somehow lost it?" with
+            match List.getAt i vars |> Option.getExn "we somehow lost it?" with
             | Blank _ -> None
             | F (_, var) -> Some var
           in
@@ -516,9 +516,7 @@ let replace_ search replacement parent expr =
             | _ -> body
           in
           let newVars =
-            List.Extra.updateAt i
-              (fun old -> B.replace sId replacement_ old)
-              vars
+            List.updateAt i (fun old -> B.replace sId replacement_ old) vars
           in
           F (id, Lambda (newVars, newBody)) )
     | F (id, FieldAccess (obj, field)), PField replacement_ ->
@@ -608,4 +606,4 @@ let freeVariables ast =
                  else Some (id, name)
              | _ -> None ) )
          | _ -> None )
-  |> List.Extra.uniqueBy (fun (_, name) -> name)
+  |> List.uniqueBy (fun (_, name) -> name)

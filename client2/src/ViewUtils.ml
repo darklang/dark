@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -55,7 +54,7 @@ let createVS m tl =
   ; ac= m.complete
   ; showEntry= true
   ; showLivevalue= true
-  ; handlerSpace= TL.spaceOf tl |> Maybe.withDefault HSOther
+  ; handlerSpace= TL.spaceOf tl |> Option.withDefault HSOther
   ; dbLocked= DB.isLocked m tl.id
   ; ufns= m.userFunctions
   ; currentResults= Analysis.getCurrentAnalysisResults m tl.id
@@ -147,7 +146,7 @@ let approxNWidth ne =
       String.length name + sizes
   | Lambda (vars, expr) -> max (approxWidth expr) 7
   | Thread exprs ->
-      exprs |> List.map approxWidth |> List.maximum |> Maybe.withDefault 2
+      exprs |> List.map approxWidth |> List.maximum |> Option.withDefault 2
       |> ( + ) 1
   | FieldAccess (obj, field) -> approxWidth obj + 1 + blankOrLength field
   | ListLiteral exprs ->
@@ -159,7 +158,7 @@ let approxNWidth ne =
       |> List.map (fun (k, v) -> blankOrLength k + approxWidth v)
       |> List.map (( + ) 2)
       |> List.map (( + ) 2)
-      |> List.maximum |> Maybe.withDefault 0 |> ( + ) 4
+      |> List.maximum |> Option.withDefault 0 |> ( + ) 4
   | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
 
 let isLocked tlid m = List.member tlid m.lockedHandlers
