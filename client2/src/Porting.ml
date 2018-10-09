@@ -21,6 +21,10 @@ module String = struct
   include String
   let toInt = int_of_string
   let toFloat = float_of_string
+  let uncons (s: string) : (char * string) option =
+    match s with
+    | "" -> None
+    | s -> Some (String.get s 0, String.sub s 1 (String.length s - 1))
 end
 
 module Option = struct
