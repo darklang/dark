@@ -15,7 +15,7 @@ import Types exposing (..)
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
-  t1 == TAny || t2 == TAny || t1 == t2
+  (t1 == TAny) || (t2 == TAny) || (t1 == t2)
 
 tipe2str : Tipe -> String
 tipe2str t =
@@ -225,4 +225,3 @@ toRepr_ oldIndent dv =
           "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ "]"
     DObj o ->
       objToString (Dict.toList o)
-
