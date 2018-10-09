@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -63,11 +62,11 @@ let moveUpDown direction sizes id =
       |> List.filter (fun o ->
              ((o.centerY <> this.centerY && dir) * this.centerY < dir)
              * o.centerY )
-      |> List.Extra.minimumBy (fun o ->
+      |> List.minimumBy (fun o ->
              let majorDist = dir * (o.centerY - this.centerY) in
              let minorDist = abs (o.centerX - this.centerX) in
              (majorDist * 100000) + minorDist )
-      |> Maybe.withDefault this
+      |> Option.withDefault this
       |> (fun x -> x.id)
       |> Some
   | _ -> None
@@ -82,8 +81,8 @@ let moveLeftRight direction sizes id =
       |> List.filter (fun o ->
              ((o.centerY = this.centerY && dir) * this.centerX > dir)
              * o.centerX )
-      |> List.Extra.minimumBy (fun o -> dir * (this.centerX - o.centerX))
-      |> Maybe.withDefault this
+      |> List.minimumBy (fun o -> dir * (this.centerX - o.centerX))
+      |> Option.withDefault this
       |> (fun x -> x.id)
       |> Some
   | _ -> None
@@ -153,7 +152,7 @@ let enterNextBlank m tlid cur =
   let pd = Option.map (TL.findExn tl) cur in
   pd |> TL.getNextBlank tl
   |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-  |> Maybe.withDefault NoChange
+  |> Option.withDefault NoChange
 
 let selectPrevBlank m tlid cur =
   let tl = TL.getTL m tlid in
@@ -165,7 +164,7 @@ let enterPrevBlank m tlid cur =
   let pd = Option.map (TL.findExn tl) cur in
   pd |> TL.getPrevBlank tl
   |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-  |> Maybe.withDefault NoChange
+  |> Option.withDefault NoChange
 
 let delete m tlid mId =
   match mId with
@@ -212,8 +211,8 @@ let enterDB m db tl id =
     if autocomplete then
       Many
         [ Enter (Filling (tl.id, id))
-        ; AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
-        ]
+        ; AutocompleteMod
+            (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
     else Enter (Filling (tl.id, id))
   in
   let _ = pd in
@@ -236,4 +235,4 @@ let enter m tlid id =
         Many
           [ Enter (Filling (tlid, id))
           ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Maybe.withDefault "")) ]
+              (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]

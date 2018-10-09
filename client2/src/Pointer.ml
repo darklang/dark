@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -80,7 +79,7 @@ let isBlank pd =
   | PParamTipe d -> B.isBlank d
 
 let toContent pd =
-  let bs2s s = s |> B.toMaybe |> Maybe.withDefault "" |> Some in
+  let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> Some in
   match pd with
   | PVarBind v -> bs2s v
   | PField f -> bs2s f
@@ -103,7 +102,7 @@ let toContent pd =
   | PParamTipe d ->
       d |> B.toMaybe
       |> Option.map Runtime.tipe2str
-      |> Maybe.withDefault "" |> Some
+      |> Option.withDefault "" |> Some
 
 let dtmap fn pd = match pd with PDarkType d -> PDarkType (fn d) | _ -> pd
 

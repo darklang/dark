@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 open Types
@@ -126,8 +125,8 @@ let isComplete dv =
 let isTrue dv = dv = DBool true
 
 let inputValueAsString iv =
-  iv |> DObj |> toRepr |> String.split "\n" |> List.drop 1 |> List.Extra.init
-  |> Maybe.withDefault []
+  iv |> DObj |> toRepr |> String.split "\n" |> List.drop 1 |> List.init
+  |> Option.withDefault []
   |> List.map (String.dropLeft 2)
   |> String.join "\n"
 

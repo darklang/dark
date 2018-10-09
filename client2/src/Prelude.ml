@@ -1,11 +1,18 @@
-open Belt
 open Tea
 open! Porting
 open Types
 
+let deID (ID i) = i
+
+let deTLID (TLID i) = i
+
+let gid unit = ID (Util.random unit)
+
+let gtlid unit = TLID (Util.random unit)
+
 let tlCursorID tlid idx =
   let stringID = string_of_int (deTLID tlid) ^ string_of_int idx in
-  let intID = Result.getWithDefault 0 (int_of_string stringID) in
+  let intID = Result.withDefault 0 (String.toInt stringID) in
   ID intID
 
 let unwrapCursorState s =
@@ -30,14 +37,6 @@ let idOf s =
   | Deselected -> None
   | Dragging (_, _, _, _) -> None
   | SelectingCommand (_, id) -> Some id
-
-let deID (ID i) = i
-
-let deTLID (TLID i) = i
-
-let gid unit = ID (Util.random unit)
-
-let gtlid unit = TLID (Util.random unit)
 
 let assert_ fn a = if fn a then a else impossible ("assertion failure", a)
 

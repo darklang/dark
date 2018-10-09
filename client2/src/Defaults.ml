@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 open Types
@@ -59,7 +58,7 @@ let defaultModel =
   ; f404s= []
   ; unlockedDBs= []
   ; integrationTestState= NoIntegrationTest
-  (* PORTTODO ; visibility= PageVisibility.Hidden *)
+  ; visibility= PageVisibility.Hidden
   ; syncState= defaultSyncState
   ; urlState= defaultUrlState
   ; timersEnabled= true

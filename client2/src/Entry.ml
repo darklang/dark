@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module AC = Autocomplete
@@ -26,7 +25,7 @@ let newHandlerSpec _ =
   ; types= {input= B.new_ (); output= B.new_ ()} }
 
 let createFunction m name =
-  let blanks count = List.makeBy count (fun _ -> B.new_ ()) in
+  let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let fn =
     m.complete.functions
     |> List.filter (fun fn_ -> fn_.name = name)
@@ -119,7 +118,7 @@ let replaceExpr m tlid ast old_ action value =
           , B.newF (Let (B.newF bindName, AST.closeThreads thread, B.new_ ()))
           )
       | _ -> (old_, old_)
-    else (old_, parseAst m value |> Maybe.withDefault old_)
+    else (old_, parseAst m value |> Option.withDefault old_)
   in
   let newAst =
     match action with
@@ -173,7 +172,7 @@ let submit m cursor action =
           newAst |> AST.allData |> List.filter P.isBlank |> List.head
           |> Option.map P.toID
           |> Option.map (FocusExact tlid)
-          |> Maybe.withDefault (FocusNext (tlid, None))
+          |> Option.withDefault (FocusNext (tlid, None))
         in
         let _ = "comment" in
         let _ = "comment" in

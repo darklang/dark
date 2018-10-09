@@ -1,16 +1,6 @@
-open Belt
 open Tea
 open! Porting
 open Types
-
-let parseVariantTestsFromQueryString s =
-  match String.uncons s with
-  | Some ('?', rest) ->
-      rest |> String.split "&"
-      |> List.filterMap splitOnEquals
-      |> List.filterMap toVariantTest
-      |> uniqueTests |> Some
-  | _ -> None
 
 let variantIsActive m vt = List.member vt m.tests
 
@@ -25,7 +15,7 @@ let toCSSClass vt =
   test ^ "-variant"
 
 let uniqueTests xs =
-  xs |> List.Extra.uniqueBy (fun x -> match x with StubVariant -> "SV")
+  xs |> List.uniqueBy (fun x -> match x with StubVariant -> "SV")
 
 let splitOnEquals s =
   if String.contains "=" s then
@@ -39,3 +29,12 @@ let splitOnEquals s =
       | "false" -> Some (x, false)
       | _ -> None )
   else None
+
+let parseVariantTestsFromQueryString s =
+  match String.uncons s with
+  | Some ('?', rest) ->
+      rest |> String.split "&"
+      |> List.filterMap splitOnEquals
+      |> List.filterMap toVariantTest
+      |> uniqueTests |> Some
+  | _ -> None

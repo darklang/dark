@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module Attrs = Html.Attributes
@@ -27,7 +26,7 @@ let viewCanvas m =
     match m.currentPage with
     | Toplevels _ -> List.map (viewTL m) m.toplevels
     | Fn (tlid, _) -> (
-      match List.getBy (fun f -> f.tlid = tlid) m.userFunctions with
+      match List.find (fun f -> f.tlid = tlid) m.userFunctions with
       | Some func -> [viewTL m (TL.ufToTL m func)]
       | None -> List.map (viewTL m) m.toplevels )
   in

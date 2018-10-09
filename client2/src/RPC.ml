@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module DE = Dict.Extra
@@ -206,7 +205,7 @@ let encodeDB db =
     ; ("old_migrations", JSE.list (List.map encodeDBMigration db.oldMigrations))
     ; ( "active_migration"
       , Option.map encodeDBMigration db.activeMigration
-        |> Maybe.withDefault JSE.null ) ]
+        |> Option.withDefault JSE.null ) ]
 
 let encodeOp call =
   let ev = encodeVariant in
@@ -707,8 +706,8 @@ let parseDvalLiteral str =
     | ['\''; c; '\''] -> Some (DChar c)
     | [rest; '"'] ->
         if List.last rest = Some '"' then
-          List.Extra.init rest |> Maybe.withDefault [] |> String.fromList
-          |> DStr |> Some
+          List.init rest |> Option.withDefault [] |> String.fromList |> DStr
+          |> Some
         else None
     | _ -> JSD.decodeString parseBasicDval str |> Result.toOption
 
@@ -759,7 +758,7 @@ let decodeDval =
     ; ( "DPassword"
       , dv1
           ( Base64.decode
-          >> Result.getWithDefault "<Internal error in base64 decoding>"
+          >> Result.withDefault "<Internal error in base64 decoding>"
           >> DPassword )
           JSD.string )
     ; ("DUuid", dv1 DUuid JSD.string)

@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -20,18 +19,18 @@ let getCurrentAnalysisResults m tlid =
   let traceIndex = cursor m tlid in
   let traceID =
     Dict.get (deTLID tlid) m.traces
-    |> Option.andThen (List.get traceIndex)
+    |> Option.andThen (List.getAt traceIndex)
     |> Option.map (fun x -> x.id)
-    |> Maybe.withDefault "invalid trace key"
+    |> Option.withDefault "invalid trace key"
   in
-  Dict.get traceID m.analyses |> Maybe.withDefault defaultResults
+  Dict.get traceID m.analyses |> Option.withDefault defaultResults
 
 let record old id result = Dict.insert id result old
 
 let cursor m tlid = cursor_ m.tlCursors tlid
 
 let cursor_ cursors tlid =
-  Dict.get (deTLID tlid) cursors |> Maybe.withDefault 0
+  Dict.get (deTLID tlid) cursors |> Option.withDefault 0
 
 let setCursor m tlid cursorNum =
   let newCursors = Dict.insert (deTLID tlid) cursorNum m.tlCursors in
@@ -54,12 +53,13 @@ let getCurrentAvailableVarnamesDict m tlid =
 let getCurrentAvailableVarnames m tlid (ID id) =
   tlid
   |> getCurrentAvailableVarnamesDict m
-  |> Dict.get id |> Maybe.withDefault []
+  |> Dict.get id |> Option.withDefault []
 
-let getTraces m tlid = Dict.get (deTLID tlid) m.traces |> Maybe.withDefault []
+let getTraces m tlid = Dict.get (deTLID tlid) m.traces |> Option.withDefault []
 
 let getCurrentTrace m tlid =
-  Dict.get (deTLID tlid) m.traces |> Option.andThen (List.get (cursor m tlid))
+  Dict.get (deTLID tlid) m.traces
+  |> Option.andThen (List.getAt (cursor m tlid))
 
 let replaceFunctionResult m tlid traceID callerID fnName hash dval =
   let newResult = {fnName; callerID; argHash= hash; value= dval} in
@@ -67,7 +67,7 @@ let replaceFunctionResult m tlid traceID callerID fnName hash dval =
     m.traces
     |> Dict.update (deTLID tlid) (fun ml ->
            ml
-           |> Maybe.withDefault
+           |> Option.withDefault
                 [ { id= traceID
                   ; input= Belt.Map.String.empty
                   ; functionResults= [newResult] } ]

@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module AC = Autocomplete
@@ -51,7 +50,9 @@ let init {editorState; complete; userContentHost; environment} location =
     | Some t -> t
     | None -> []
   in
-  let page = Url.parseLocation m location |> Maybe.withDefault m.currentPage in
+  let page =
+    Url.parseLocation m location |> Option.withDefault m.currentPage
+  in
   let canvas = m.canvas in
   let newCanvas =
     match page with
@@ -201,7 +202,7 @@ let updateMod mod_ (m, cmd) =
                  let _ = "comment" in
                  [RPC.rpc newM newM.canvasName FocusSame params]
            | _ -> [] )
-    |> Maybe.withDefault []
+    |> Option.withDefault []
     |> fun rpc ->
     if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
   in
@@ -287,7 +288,7 @@ let updateMod mod_ (m, cmd) =
                  |> ( ^ )
                       ( if workarounds = [] then ""
                       else ", workarounds: " ^ toString workarounds ) )
-          |> Maybe.withDefault str
+          |> Option.withDefault str
         in
         let msg =
           match e with

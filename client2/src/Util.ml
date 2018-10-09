@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 
@@ -8,24 +7,24 @@ let windowSize a =
 
 let random a = Native.Random.random a
 
-let toIntWithDefault d s = s |> int_of_string |> Result.getWithDefault d
+let toIntWithDefault d s = s |> String.toInt |> Result.withDefault d
 
 let reContains re s = Regex.contains (Regex.regex re) s
 
 let reExactly re s = reContains (("^" ^ re) ^ "$") s
 
 let findIndex fn l =
-  List.getBy (fun (_, a) -> fn a) (List.indexedMap Tuple2.create l)
+  List.find (fun (_, a) -> fn a) (List.indexedMap Tuple2.create l)
 
 let listPrevious a l =
   l |> List.elemIndex a
-  |. Option.map (fun x -> x - 1)
-  |. Option.andThen (fun i -> List.get l i)
+  |> Option.map (fun x -> x - 1)
+  |> Option.andThen (fun i -> List.getAt i l)
 
 let listNext a l =
   l |> List.elemIndex a
-  |. Option.map (fun x -> x + 1)
-  |. Option.andThen (fun i -> List.get l i)
+  |> Option.map (fun x -> x + 1)
+  |> Option.andThen (fun i -> List.getAt i l)
 
 let listPreviousWrap a l = l |> listPrevious a |> Option.orElse (List.last l)
 

@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module P = Pointer
@@ -12,7 +11,7 @@ let focusItem i =
   Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
   |> Task.attempt FocusAutocompleteItem
 
-let findFunction a name = List.getBy (fun f -> f.name = name) a.functions
+let findFunction a name = List.find (fun f -> f.name = name) a.functions
 
 let isStringEntry a = String.startsWith "\"" a.value
 
@@ -120,7 +119,7 @@ let appendQuery str a =
   in
   setQuery q a
 
-let highlighted a = List.get a.index (List.concat a.completions)
+let highlighted a = List.getAt a.index (List.concat a.completions)
 
 let documentationForItem aci =
   match aci with
@@ -296,7 +295,7 @@ let generateFromModel m a =
         |> Option.andThen (AST.parentOf_ (P.toID p))
         |> Option.map (fun e ->
                match e with F (_, Thread _) -> true | _ -> false )
-        |> Maybe.withDefault false
+        |> Option.withDefault false
   in
   let paramTipeForTarget =
     match a.target with
@@ -308,9 +307,9 @@ let generateFromModel m a =
         |> Option.andThen (fun ast -> AST.getParamIndex ast (P.toID p))
         |> Option.andThen (fun (name, index) ->
                a.functions
-               |> List.getBy (fun f -> name = f.name)
+               |> List.find (fun f -> name = f.name)
                |> Option.map (fun x -> x.parameters)
-               |> Option.andThen (List.get index)
+               |> Option.andThen (List.getAt index)
                |> Option.map (fun x -> x.tipe) )
   in
   let _ = "comment" in
@@ -423,7 +422,7 @@ let asTypeString item =
   | ACLiteral lit ->
       let tipe =
         lit |> RPC.parseDvalLiteral
-        |> Maybe.withDefault DIncomplete
+        |> Option.withDefault DIncomplete
         |> RT.typeOf |> RT.tipe2str
       in
       tipe ^ " literal"
@@ -441,7 +440,7 @@ let findCompatibleThreadParam {parameters} tipe =
          if RT.isCompatible fst.tipe tipe then Some fst else None )
 
 let findParamByType {parameters} tipe =
-  parameters |> List.getBy (fun p -> RT.isCompatible p.tipe tipe)
+  parameters |> List.find (fun p -> RT.isCompatible p.tipe tipe)
 
 let selectSharedPrefix ac =
   let sp = sharedPrefix ac in

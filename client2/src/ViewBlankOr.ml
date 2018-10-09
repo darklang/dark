@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -43,7 +42,7 @@ let withEditFn vs v =
   if idOf vs.cursorState = Some (B.toID v) then
     match v with
     | F (_, FnCall (name, _, _)) -> (
-      match List.getBy (Functions.sameName name) vs.ufns with
+      match List.find (Functions.sameName name) vs.ufns with
       | Some fn -> [WithEditFn fn.tlid]
       | _ -> [] )
     | _ -> []
@@ -96,14 +95,11 @@ let div vs configs content =
   let selectedID =
     match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
   in
-  let selected = thisID = selectedID && Maybe.Extra.isJust thisID in
+  let selected = thisID = selectedID && Option.isJust thisID in
   let displayLivevalue =
-    (thisID = idOf vs.cursorState && Maybe.Extra.isJust thisID)
-    && vs.showLivevalue
+    (thisID = idOf vs.cursorState && Option.isJust thisID) && vs.showLivevalue
   in
-  let mouseover =
-    mouseoverAs = vs.hovering && Maybe.Extra.isJust mouseoverAs
-  in
+  let mouseover = mouseoverAs = vs.hovering && Option.isJust mouseoverAs in
   let idClasses =
     match thisID with
     | Some id -> ["blankOr"; "id-" ^ string_of_int (deID id)]
@@ -157,11 +153,11 @@ let placeHolderFor vs id pt =
            match AST.getParamIndex ast id with
            | Some (name, index) -> (
              match Autocomplete.findFunction vs.ac name with
-             | Some {parameters} -> List.get index parameters
+             | Some {parameters} -> List.getAt index parameters
              | None -> None )
            | _ -> None )
     |> Option.map (fun p -> ((p.name ^ ": ") ^ RT.tipe2str p.tipe) ^ "")
-    |> Maybe.withDefault ""
+    |> Option.withDefault ""
   in
   match pt with
   | VarBind -> "varname"

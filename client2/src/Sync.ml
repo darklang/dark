@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 open Types
@@ -34,6 +33,6 @@ let toAnalyse m =
         if length > 0 then Some (Util.random () % length) else None
       in
       index
-      |> Option.andThen (fun i -> List.get i ids)
+      |> Option.andThen (fun i -> List.getAt i ids)
       |> Option.map (fun e -> [e])
-      |> Maybe.withDefault []
+      |> Option.withDefault []

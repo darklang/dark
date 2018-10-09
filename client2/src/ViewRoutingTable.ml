@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module B = Blank
@@ -26,10 +25,10 @@ let splitBySpace tls =
     |> Option.map (fun x -> x.spec)
     |> Option.map (fun x -> x.module_)
     |> Option.andThen B.toMaybe
-    |> Maybe.withDefault missingEventSpaceDesc
+    |> Option.withDefault missingEventSpaceDesc
   in
   tls |> List.sortBy spaceName_
-  |> List.Extra.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
+  |> List.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
   |> List.map (fun hs ->
          let space =
            hs |> List.head |> Option.getExn "splitBySpace" |> spaceName_
@@ -50,11 +49,11 @@ let tl2entry tls =
              | F (_, s) -> [(s, pos)]
              | Blank _ -> [("_", pos)] )
          ; tlid } )
-  |> List.sortBy (fun c -> Maybe.withDefault "ZZZZZZ" c.name)
+  |> List.sortBy (fun c -> Option.withDefault "ZZZZZZ" c.name)
 
 let collapseByVerb es =
   es
-  |> List.Extra.groupWhile (fun a b -> a.name = b.name)
+  |> List.groupWhile (fun a b -> a.name = b.name)
   |> List.map
        (List.foldr
           (fun curr list ->
@@ -90,7 +89,7 @@ let prefixify hs =
           | None -> false
           | Some n2 -> String.startsWith name n2
         in
-        match List.Extra.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
+        match List.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
         | None -> h :: (rest |> List.map makePrefix |> prefixify)
         | Some (matched, unmatched) ->
             h :: ((prefixify <| List.map makePrefix matched) ^ unmatched) ) )
@@ -108,7 +107,7 @@ let undoButton tlid page =
   buttonLink (text "undo" "Restore") (RestoreToplevel tlid) (Some page)
 
 let viewGroup m showLink showUndo (spacename, entries) =
-  let def s = Maybe.withDefault missingEventRouteDesc s in
+  let def s = Option.withDefault missingEventRouteDesc s in
   let externalLink h =
     if showLink = ShowLink && List.member "GET" (List.map Tuple.first h.verbs)
     then

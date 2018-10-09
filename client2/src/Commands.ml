@@ -1,4 +1,3 @@
-open Belt
 open Tea
 open! Porting
 module TL = Toplevel
