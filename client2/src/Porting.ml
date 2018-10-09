@@ -21,6 +21,10 @@ module Native = struct
   end
 end
 
+module PageVisibility = struct
+  type visibility = Hidden
+end
+
 let (++) (a: string) (b: string) = a ^ b
 
 module String = struct
