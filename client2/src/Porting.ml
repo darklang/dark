@@ -24,7 +24,7 @@ end
 let (++) (a: string) (b: string) = a ^ b
 
 module String = struct
-  include Js.String
+  type t = Js.String.t
   let toInt (s: string) : int = int_of_string s
   let toFloat (s: string) : float = float_of_string s
   let uncons (s: string) : (char * string) option =
@@ -32,13 +32,20 @@ module String = struct
     | "" -> None
     | s -> Some (String.get s 0, String.sub s 1 (String.length s - 1))
   let dropLeft (from: int) (s: string) : string =
-    substr ~from s
+    Js.String.substr ~from s
   let dropRight (from: int) (s: string) : string =
-    sliceToEnd ~from s
+    Js.String.sliceToEnd ~from s
+  let split a b : string list =
+    Js.String.split a b
+    |> Belt.List.fromArray
+  let join (sep : string) (l: string list) : string =
+    String.concat sep l
+
+
 end
 
 module Option = struct
-  include Belt.Option
+  type 'a t = 'a option
   let andThen (o: 'a option) (fn: 'a -> 'b option) : 'b option =
     match o with
     | None -> None
@@ -50,9 +57,9 @@ module Option = struct
 end
 
 module Result = struct
-  include Belt.Result
+  type ('a, 'b) t = ('a, 'b) Belt.Result.t
   let withDefault (r: ('a, 'b) t) (default: 'a) : 'a =
-    getWithDefault r default
+    Belt.Result.getWithDefault r default
 end
 type ('a, 'b) result = ('a, 'b) Result.t
 
@@ -70,12 +77,11 @@ let to_option (value: 'a) (sentinel: 'a) : 'a option =
 
 
 module List = struct
-  include Belt.List
-  let indexedMap fn l = mapWithIndex l fn
+  let indexedMap fn l = Belt.List.mapWithIndex l fn
   let map2 (fn: 'a -> 'b -> 'c) (a: 'a list) (b: 'b list) : 'c list =
-    mapReverse2 a b fn |> reverse
-  let getBy fn l = getBy l fn
-  let elemIndex (a: 'a) (l : 'a list) : int option =
+    Belt.List.mapReverse2 a b fn |> Belt.List.reverse
+  let getBy fn l = Belt.List.getBy l fn
+  let elemIndex (l : 'a list) (a: 'a) : int option =
     l
     |> Array.of_list
     |> Js.Array.findIndex ((=) a)
@@ -85,13 +91,33 @@ module List = struct
     | [] -> None
     | [a] -> Some a
     | _ :: tail -> last tail
-
+  let member (i: 'a) (l : 'a list) : bool =
+    Belt.List.has l i (=)
+  let uniqueBy (f: 'a -> string) (l: 'a list) : 'a list =
+    let rec uniqueHelp
+        (f: 'a -> string)
+        (existing: Belt.Set.String.t)
+        (remaining: 'a list)
+        (accumulator: 'a list) =
+      match remaining with
+      | [] -> List.rev accumulator
+      | first :: rest ->
+        let computedFirst = f first in
+        if Belt.Set.String.has existing computedFirst
+        then uniqueHelp f existing rest accumulator
+        else
+          uniqueHelp
+            f
+            (Belt.Set.String.add existing computedFirst)
+            rest
+            (first :: accumulator)
+    in
+    uniqueHelp f Belt.Set.String.empty l []
 end
 
 module Char = struct
-  include Char
-  let toCode (c: char) : int = code c
-  let fromCode (i: int) : char = chr i
+  let toCode (c: char) : int = Char.code c
+  let fromCode (i: int) : char = Char.chr i
 end
 
 module Tuple2 = struct
