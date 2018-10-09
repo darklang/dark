@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 module AC = Autocomplete
 module B = Blank
@@ -14,7 +15,7 @@ module TL = Toplevel
 open Types
 
 let main =
-  Navigation.programWithFlags LocationChange
+  Navigation.navigationProgram LocationChange
     {init; view= View.view; update; subscriptions}
 
 let flag2function fn =

@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 module B = Blank
 module Attrs = Html.Attributes
@@ -142,7 +143,7 @@ let div vs configs content =
 
 type viewer = ((viewState -> htmlConfig list) -> 'a) -> msg Html.html
 
-type blankViewer = 'a blankOr viewer
+and blankViewer = 'a blankOr viewer
 
 let viewText pt vs c str = viewBlankOr text pt vs c str
 

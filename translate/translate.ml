@@ -725,6 +725,21 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
     )
 
 
+let foldTypesTogether (body : Parsetree.structure) =
+  let open Parsetree in
+  List.fold body ~init:[]
+    ~f:(fun prev current ->
+        match prev, current with
+        | [], current -> [current]
+        | head :: tail, current ->
+          begin match head.pstr_desc, current.pstr_desc with
+            | ( Parsetree.Pstr_type (flag, l1)
+              , Parsetree.Pstr_type (_, l2)) ->
+              { head with pstr_desc = Parsetree.Pstr_type (flag, l1 @ l2)
+              } :: tail
+            | _ -> current :: head :: tail
+          end)
+  |> List.rev
 
 let moduleO (m: Elm.module_) : Parsetree.structure =
   (* TODO: comments, docs *)
@@ -736,8 +751,13 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
     ; Str.open_ (Opn.mk (name2lid "Porting"))
     ]
   in
-  let body = m.body |> List.map ~f:(topLevelStructureO) in
-  standardImports @ imports @ List.concat body
+  let body =
+    m.body
+    |> List.map ~f:(topLevelStructureO)
+    |> List.concat
+    |> foldTypesTogether
+  in
+  standardImports @ imports @ body
 
 
 let to_ocaml (m: Elm.module_) : (Parsetree.structure * Reason_comment.t list) =
