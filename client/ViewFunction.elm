@@ -24,15 +24,15 @@ viewFunction vs fn =
     [ ViewCode.viewExpr 0 vs [] fn.ast ]
   ]
 
-viewUserFnName : BlankViewer String
+viewUserFnName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewUserFnName vs c v =
   viewText FnName vs (idConfigs ++ c) v
 
-viewParamName : BlankViewer String
+viewParamName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewParamName vs c v =
   viewText ParamName vs (idConfigs ++ c)  v
 
-viewParamTipe : BlankViewer Tipe
+viewParamTipe : ViewState -> List HtmlConfig -> BlankOr Tipe -> Html.Html Msg
 viewParamTipe vs c v =
   viewTipe ParamTipe vs (idConfigs ++ c) v
 

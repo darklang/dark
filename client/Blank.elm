@@ -32,7 +32,8 @@ clone fn b =
     F id val -> F (gid()) (fn val)
 
 isF : BlankOr a -> Bool
-isF = isBlank >> not
+isF b =
+  not (isBlank b)
 
 isBlank : BlankOr a -> Bool
 isBlank b =
