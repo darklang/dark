@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module JSD = Json.Decode
 module JSE = Json.Encode
 module TL = Toplevel

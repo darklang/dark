@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module B = Blank
 module Attrs = Html.Attributes
 module TL = Toplevel

@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 
 let windowSize a =
   let size = Native.Window.size a in

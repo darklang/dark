@@ -753,7 +753,7 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
   let standardImports =
     [ Str.open_ (Opn.mk (name2lid "Belt"))
     ; Str.open_ (Opn.mk (name2lid "Tea"))
-    ; Str.open_ (Opn.mk (name2lid "Porting"))
+    ; Str.open_ (Opn.mk ~override:Override (name2lid "Porting"))
     ]
   in
   let body =

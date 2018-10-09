@@ -1,6 +1,6 @@
 open Belt
 open Tea
-open Porting
+open! Porting
 module JSD = Json.Decode
 module JSDP = Json.Decode.Pipeline
 module JSE = Json.Encode
