@@ -7,7 +7,7 @@ module RE = Result.Extra
 module TL = Toplevel
 open Types
 
-let trigger test_name =
+let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft 5 test_name in
   IntegrationTestExpectation
   <|
@@ -65,11 +65,11 @@ let trigger test_name =
       only_backspace_out_of_strings_on_last_char
   | n -> Debug.crash (("Test " ^ n) ^ " not added to IntegrationTest.trigger")
 
-let pass = Ok ()
+let pass : testResult = Ok ()
 
-let fail v = Error (toString v)
+let fail (v : 'a) : testResult = Error (toString v)
 
-let onlyTL m =
+let onlyTL (m : model) : toplevel =
   let len = List.length m.toplevels in
   let _ =
     if len > 1 then Debug.crash ("too many toplevels: " ^ toString m.toplevels)
@@ -78,24 +78,25 @@ let onlyTL m =
   in
   m.toplevels |> List.head |> Option.getExn "onlytl1"
 
-let onlyHandler m = m |> onlyTL |> TL.asHandler |> Option.getExn "onlyhandler"
+let onlyHandler (m : model) : handler =
+  m |> onlyTL |> TL.asHandler |> Option.getExn "onlyhandler"
 
-let onlyDB m = m |> onlyTL |> TL.asDB |> Option.getExn "onlyDB"
+let onlyDB (m : model) : dB = m |> onlyTL |> TL.asDB |> Option.getExn "onlyDB"
 
-let onlyExpr m =
+let onlyExpr (m : model) : nExpr =
   m |> onlyHandler |> (fun x -> x.ast) |> B.asF |> Option.getExn "onlyast4"
 
-let enter_changes_state m =
+let enter_changes_state (m : model) : testResult =
   match m.cursorState with
   | Entering (Creating _) -> pass
   | _ -> fail m.cursorState
 
-let field_access m =
+let field_access (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (_, Variable "request"), F (_, "body")) -> pass
   | expr -> fail expr
 
-let field_access_closes m =
+let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | Entering (Filling (_, id)) ->
       let ast =
@@ -105,7 +106,7 @@ let field_access_closes m =
       else fail (TL.allBlanks (onlyTL m))
   | _ -> fail m.cursorState
 
-let field_access_pipes m =
+let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
   | Thread
       [Blank _; F (_, FieldAccess (F (_, Variable "request"), F (_, "body")))]
@@ -113,7 +114,7 @@ let field_access_pipes m =
       pass
   | expr -> fail expr
 
-let field_access_nested m =
+let field_access_nested (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess
       ( F
@@ -125,7 +126,7 @@ let field_access_nested m =
       pass
   | expr -> fail expr
 
-let pipeline_let_equals m =
+let pipeline_let_equals (m : model) : testResult =
   let astR =
     match onlyExpr m with
     | Let (F (_, "value"), F (_, Value "3"), Blank _) -> pass
@@ -136,7 +137,7 @@ let pipeline_let_equals m =
   in
   Result.map2 (fun () () -> ()) astR stateR
 
-let pipe_within_let m =
+let pipe_within_let (m : model) : testResult =
   match onlyExpr m with
   | Let
       ( F (_, "value")
@@ -149,12 +150,12 @@ let pipe_within_let m =
       pass
   | e -> fail e
 
-let tabbing_works m =
+let tabbing_works (m : model) : testResult =
   match onlyExpr m with
   | If (Blank _, F (_, Value "5"), Blank _) -> pass
   | e -> fail e
 
-let left_right_works m =
+let left_right_works (m : model) : testResult =
   let h = onlyHandler m in
   match m.cursorState with
   | Selecting (tlid, Some id) -> (
@@ -164,7 +165,7 @@ let left_right_works m =
       | other -> fail (m.cursorState, other) )
   | s -> fail m.cursorState
 
-let varbinds_are_editable m =
+let varbinds_are_editable (m : model) : testResult =
   match onlyExpr m with
   | Let (F (id1, "var"), Blank _, Blank _) as l -> (
     match m.cursorState with
@@ -173,7 +174,7 @@ let varbinds_are_editable m =
     | s -> fail (l, m.cursorState) )
   | e -> fail e
 
-let editing_request_edits_request m =
+let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (id1, Variable "request"), Blank _) -> (
     match m.complete.completions with
@@ -182,34 +183,34 @@ let editing_request_edits_request m =
     | allcs -> fail allcs )
   | e -> fail e
 
-let autocomplete_highlights_on_partial_match m =
+let autocomplete_highlights_on_partial_match (m : model) : testResult =
   match onlyExpr m with FnCall ("Int::add", _, _) -> pass | e -> fail e
 
-let no_request_global_in_non_http_space m =
+let no_request_global_in_non_http_space (m : model) : testResult =
   match onlyExpr m with
   | FnCall ("Http::badRequest", _, _) -> pass
   | e -> fail e
 
-let hover_values_for_varnames m =
+let hover_values_for_varnames (m : model) : testResult =
   let tlid =
     m.toplevels |> List.head |> Option.getExn "test" |> fun x -> x.id
   in
   pass
 
-let pressing_up_doesnt_return_to_start m =
+let pressing_up_doesnt_return_to_start (m : model) : testResult =
   match onlyExpr m with
   | FnCall ("Char::toASCIIChar", _, _) -> pass
   | e -> fail e
 
-let deleting_selects_the_blank m =
+let deleting_selects_the_blank (m : model) : testResult =
   match onlyExpr m with Value "6" -> pass | e -> fail e
 
-let right_number_of_blanks m =
+let right_number_of_blanks (m : model) : testResult =
   match onlyExpr m with
   | FnCall ("assoc", [Blank _; Blank _; Blank _], _) -> pass
   | e -> fail e
 
-let ellen_hello_world_demo m =
+let ellen_hello_world_demo (m : model) : testResult =
   let spec =
     onlyTL m |> TL.asHandler |> Option.getExn "hw2" |> fun x -> x.spec
   in
@@ -219,7 +220,7 @@ let ellen_hello_world_demo m =
       pass
   | other -> fail other
 
-let editing_does_not_deselect m =
+let editing_does_not_deselect (m : model) : testResult =
   match m.cursorState with
   | Entering (Filling (tlid, id)) -> (
       let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
@@ -228,7 +229,7 @@ let editing_does_not_deselect m =
       | other -> fail other )
   | other -> fail other
 
-let editing_headers m =
+let editing_headers (m : model) : testResult =
   let spec =
     onlyTL m |> TL.asHandler |> Option.getExn "hw2" |> fun x -> x.spec
   in
@@ -236,12 +237,12 @@ let editing_headers m =
   | F (_, "HTTP"), F (_, "/myroute"), F (_, "GET") -> pass
   | other -> fail other
 
-let tabbing_through_let m =
+let tabbing_through_let (m : model) : testResult =
   match onlyExpr m with
   | Let (F (_, "myvar"), F (_, Value "5"), F (_, Value "5")) -> pass
   | e -> fail e
 
-let case_sensitivity m =
+let case_sensitivity (m : model) : testResult =
   if List.length m.toplevels <> 3 then fail m.toplevels
   else
     m.toplevels
@@ -296,26 +297,26 @@ let case_sensitivity m =
     |> RE.combine
     |> Result.map (fun _ -> ())
 
-let focus_on_ast_in_new_empty_tl m =
+let focus_on_ast_in_new_empty_tl (m : model) : testResult =
   match (onlyHandler m).ast with
   | Blank id ->
       if idOf m.cursorState = Some id then pass else fail (id, m.cursorState)
   | e -> fail e
 
-let focus_on_path_in_new_filled_tl m =
+let focus_on_path_in_new_filled_tl (m : model) : testResult =
   match (onlyHandler m).spec.name with
   | Blank id ->
       if idOf m.cursorState = Some id then pass else fail (id, m.cursorState)
   | e -> fail e
 
-let focus_on_cond_in_new_tl_with_if m =
+let focus_on_cond_in_new_tl_with_if (m : model) : testResult =
   match onlyExpr m with
   | If (cond, _, _) ->
       if idOf m.cursorState = Some (B.toID cond) then pass
       else fail m.cursorState
   | e -> fail e
 
-let dont_shift_focus_after_filling_last_blank m =
+let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
   match m.cursorState with
   | Selecting (_, mId) ->
       if
@@ -328,7 +329,7 @@ let dont_shift_focus_after_filling_last_blank m =
       else fail (m.toplevels, m.cursorState)
   | s -> fail (m.toplevels, m.cursorState)
 
-let rename_db_fields m =
+let rename_db_fields (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
@@ -345,7 +346,7 @@ let rename_db_fields m =
   |> RE.combine
   |> Result.map (fun _ -> ())
 
-let rename_db_type m =
+let rename_db_type (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
@@ -363,7 +364,7 @@ let rename_db_type m =
   |> RE.combine
   |> Result.map (fun _ -> ())
 
-let paste_right_number_of_blanks m =
+let paste_right_number_of_blanks (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
@@ -376,7 +377,7 @@ let paste_right_number_of_blanks m =
   |> RE.combine
   |> Result.map (fun _ -> ())
 
-let paste_keeps_focus m =
+let paste_keeps_focus (m : model) : testResult =
   match onlyExpr m with
   | FnCall ("+", [F (id, Value "3"); F (_, Value "3")], _) as fn -> (
     match m.cursorState with
@@ -385,7 +386,7 @@ let paste_keeps_focus m =
     | _ -> fail (fn, m.cursorState) )
   | other -> fail other
 
-let nochange_for_failed_paste m =
+let nochange_for_failed_paste (m : model) : testResult =
   match onlyExpr m with
   | Let (F (id, "x"), F (_, Value "2"), _) -> (
     match m.cursorState with
@@ -393,7 +394,7 @@ let nochange_for_failed_paste m =
     | _ -> fail m.cursorState )
   | other -> fail other
 
-let feature_flag_works m =
+let feature_flag_works (m : model) : testResult =
   let h = onlyHandler m in
   let ast = h.ast in
   match ast with
@@ -420,7 +421,7 @@ let feature_flag_works m =
       | _ -> fail (ast, res) )
   | _ -> fail (ast, m.cursorState)
 
-let feature_flag_in_function m =
+let feature_flag_in_function (m : model) : testResult =
   let fun_ = head m.userFunctions in
   match fun_ with
   | Some f -> (
@@ -442,7 +443,7 @@ let feature_flag_in_function m =
     | _ -> fail (f.ast, None) )
   | None -> fail ("Cant find function", None)
 
-let simple_tab_ordering m =
+let simple_tab_ordering (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
   | F (_, Let (Blank _, F (_, Value "4"), Blank id)) -> (
@@ -452,7 +453,7 @@ let simple_tab_ordering m =
     | _ -> fail (ast, m.cursorState, id) )
   | _ -> fail (ast, m.cursorState)
 
-let variable_extraction m =
+let variable_extraction (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
   | F
@@ -486,7 +487,7 @@ let variable_extraction m =
       pass
   | _ -> fail (ast, m.cursorState)
 
-let invalid_syntax m =
+let invalid_syntax (m : model) : testResult =
   match onlyHandler m |> fun x -> x.ast with
   | Blank id -> (
     match m.cursorState with
@@ -495,26 +496,26 @@ let invalid_syntax m =
     | _ -> fail m.cursorState )
   | other -> fail other
 
-let editing_stays_in_same_place_with_enter m =
+let editing_stays_in_same_place_with_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | Selecting (_, id1), Let (F (id2, "v2"), _, _) ->
       if id1 = Some id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
-let editing_goes_to_next_with_tab m =
+let editing_goes_to_next_with_tab (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | Entering (Filling (_, id1)), Let (F (_, "v2"), Blank id2, _) ->
       if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
-let editing_starts_a_thread_with_shift_enter m =
+let editing_starts_a_thread_with_shift_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (_, id1))
     , Let (_, F (_, Thread [Blank id2; F (_, Value "52")]), _) ) ->
       if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
-let object_literals_work m =
+let object_literals_work (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (tlid, id))
     , ObjectLiteral
@@ -530,19 +531,19 @@ let object_literals_work m =
       | other -> fail (m.cursorState, other) )
   | other -> fail other
 
-let rename_function m =
+let rename_function (m : model) : testResult =
   match onlyExpr m with FnCall ("hello", _, _) -> pass | other -> fail other
 
-let sending_to_rail_works m =
+let sending_to_rail_works (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
   | F (_, FnCall ("List::head_v1", _, NoRail)) -> pass
   | _ -> fail ast
 
-let execute_function_works m = pass
+let execute_function_works (m : model) : testResult = pass
 
-let function_version_renders m = pass
+let function_version_renders (m : model) : testResult = pass
 
-let only_backspace_out_of_strings_on_last_char m =
+let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   if m.complete.value = "" then pass else fail ast

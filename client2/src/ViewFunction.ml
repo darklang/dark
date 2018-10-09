@@ -5,19 +5,26 @@ open Types
 open ViewBlankOr
 open ViewUtils
 
-let viewFunction vs fn =
+let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [Attrs.class_ "user-fn-toplevel"]
     [ Html.div [Attrs.class_ "metadata"] [viewMetadata vs fn]
     ; Html.div [Attrs.class_ "ast"] [ViewCode.viewExpr 0 vs [] fn.ast] ]
 
-let viewUserFnName vs c v = viewText FnName vs (idConfigs ^ c) v
+let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr)
+    : msg Html.html =
+  viewText FnName vs (idConfigs ^ c) v
 
-let viewParamName vs c v = viewText ParamName vs (idConfigs ^ c) v
+let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
+  viewText ParamName vs (idConfigs ^ c) v
 
-let viewParamTipe vs c v = viewTipe ParamTipe vs (idConfigs ^ c) v
+let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
+    msg Html.html =
+  viewTipe ParamTipe vs (idConfigs ^ c) v
 
-let viewKillParameterBtn vs uf p =
+let viewKillParameterBtn (vs : viewState) (uf : userFunction)
+    (p : userFunctionParameter) : msg Html.html =
   let freeVariables = AST.freeVariables uf.ast |> List.map Tuple.second in
   let canDeleteParameter pname = List.member pname freeVariables |> not in
   let buttonContent allowed =
@@ -38,7 +45,7 @@ let viewKillParameterBtn vs uf p =
   | F (_, pname) -> buttonContent (canDeleteParameter pname)
   | _ -> buttonContent true
 
-let viewMetadata vs fn =
+let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let namediv =
     Html.div [Attrs.class_ "ufn-name"]
       [viewUserFnName vs [wc "fn-name-content"] fn.metadata.name]

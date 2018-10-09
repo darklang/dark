@@ -8,23 +8,23 @@ module RT = Runtime
 module TL = Toplevel
 open Types
 
-let createFindSpace m =
+let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
-let focusEntry m =
+let focusEntry (m : model) : msg Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ -> Dom.focus Defaults.entryID |> Task.attempt FocusEntry
   | SelectingCommand (_, _) ->
       Dom.focus Defaults.entryID |> Task.attempt FocusEntry
   | _ -> Cmd.none
 
-let newHandlerSpec _ =
+let newHandlerSpec (_ : unit) : handlerSpec =
   { module_= B.new_ ()
   ; name= B.new_ ()
   ; modifier= B.new_ ()
   ; types= {input= B.new_ (); output= B.new_ ()} }
 
-let createFunction m name =
+let createFunction (m : model) (name : fnName) : expr option =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let fn =
     m.complete.functions
@@ -38,7 +38,8 @@ let createFunction m name =
       <| B.newF (FnCall (name, blanks (List.length function_.parameters), r))
   | None -> None
 
-let submitOmniAction m pos action =
+let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
+    modification =
   match action with
   | NewDB dbname ->
       let next = gid () in
@@ -99,7 +100,8 @@ let submitOmniAction m pos action =
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
 
-let replaceExpr m tlid ast old_ action value =
+let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
+    (action : nextAction) (value : string) : expr * expr =
   let id = B.toID old_ in
   let target = Some (tlid, PExpr old_) in
   let old, new_ =
@@ -134,7 +136,7 @@ let replaceExpr m tlid ast old_ action value =
   in
   (newAst, new_)
 
-let parseAst m str =
+let parseAst (m : model) (str : string) : expr option =
   let eid = gid () in
   let b1 = B.new_ () in
   let b2 = B.new_ () in
@@ -155,7 +157,8 @@ let parseAst m str =
 
 type nextAction = StartThread | StayHere | GotoNext
 
-let submit m cursor action =
+let submit (m : model) (cursor : entryCursor) (action : nextAction) :
+    modification =
   let value = AC.getValue m.complete in
   match cursor with
   | Creating pos -> (
@@ -366,7 +369,8 @@ let submit m cursor action =
         | PParamName _ -> replace (PParamName (B.newF value))
         | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value))) )
 
-let validate tl pd value =
+let validate (tl : toplevel) (pd : pointerData) (value : string) :
+    string option =
   let v pattern name =
     if Util.reExactly pattern value then None
     else Some (((name ^ " must match /") ^ pattern) ^ "/")

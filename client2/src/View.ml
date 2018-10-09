@@ -7,7 +7,7 @@ module TL = Toplevel
 open Types
 open ViewUtils
 
-let view m =
+let view (m : model) : msg Html.html =
   let attributes =
     [ Attrs.id "grid"
     ; Events.onWithOptions "mouseup"
@@ -20,7 +20,7 @@ let view m =
   let content = [routing; body] ^ footer in
   Html.div attributes content
 
-let viewCanvas m =
+let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
@@ -46,7 +46,7 @@ let viewCanvas m =
     [Attrs.id "canvas"; Attrs.style [("transform", canvasTransform)]]
     allDivs
 
-let viewTL m tl =
+let viewTL (m : model) (tl : toplevel) : msg Html.html =
   let id = deTLID tl.id in
   let recalc () = viewTL_ m tl.id in
   let _ = "comment" in
@@ -70,7 +70,7 @@ let viewTL m tl =
   in
   placeHtml m pos html
 
-let viewTL_ m tlid =
+let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
   let tl = TL.getTL m tlid in
   let vs = createVS m tl in
   let body, data =

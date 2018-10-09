@@ -2,26 +2,26 @@ open Tea
 open! Porting
 open Types
 
-let markRequestInModel m =
+let markRequestInModel (m : model) : model =
   let oldSyncState = m.syncState in
   {m with syncState= {oldSyncState with inFlight= true; ticks= 0}}
 
-let markTickInModel m =
+let markTickInModel (m : model) : model =
   let oldSyncState = m.syncState in
   {m with syncState= {oldSyncState with ticks= oldSyncState.ticks + 1}}
 
-let markResponseInModel m =
+let markResponseInModel (m : model) : model =
   let oldSyncState = m.syncState in
   {m with syncState= {oldSyncState with inFlight= false; ticks= 0}}
 
-let timedOut s = (s.ticks % 10 = 0 && s.ticks) <> 0
+let timedOut (s : syncState) : bool = (s.ticks % 10 = 0 && s.ticks) <> 0
 
-let fetch m =
+let fetch (m : model) : model * msg Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState then
     (markRequestInModel m, RPC.getAnalysisRPC m.canvasName (toAnalyse m))
   else (markTickInModel m, Cmd.none)
 
-let toAnalyse m =
+let toAnalyse (m : model) : tlid list =
   match m.cursorState with
   | Selecting (tlid, _) -> [tlid]
   | Entering (Filling (tlid, _)) -> [tlid]

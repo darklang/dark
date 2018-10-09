@@ -4,36 +4,41 @@ module B = Blank
 module P = Pointer
 open Types
 
-let spaceOf hs =
+let spaceOf (hs : handlerSpec) : handlerSpace =
   let spaceOfStr s =
     let lwr = String.toLower s in
     if lwr = "cron" then HSCron else if lwr = "http" then HSHTTP else HSOther
   in
   match hs.module_ with Blank _ -> HSEmpty | F (_, s) -> spaceOfStr s
 
-let visibleModifier hs =
+let visibleModifier (hs : handlerSpec) : bool =
   match spaceOf hs with
   | HSHTTP -> true
   | HSCron -> true
   | HSOther -> false
   | HSEmpty -> true
 
-let replaceEventModifier search replacement hs =
+let replaceEventModifier (search : id) (replacement : string blankOr)
+    (hs : handlerSpec) : handlerSpec =
   {hs with modifier= B.replace search replacement hs.modifier}
 
-let replaceEventName search replacement hs =
+let replaceEventName (search : id) (replacement : string blankOr)
+    (hs : handlerSpec) : handlerSpec =
   {hs with name= B.replace search replacement hs.name}
 
-let replaceEventSpace search replacement hs =
+let replaceEventSpace (search : id) (replacement : string blankOr)
+    (hs : handlerSpec) : handlerSpec =
   {hs with module_= B.replace search replacement hs.module_}
 
-let replace search replacement hs =
+let replace (search : id) (replacement : string blankOr) (hs : handlerSpec) :
+    handlerSpec =
   hs
   |> replaceEventModifier search replacement
   |> replaceEventName search replacement
   |> replaceEventSpace search replacement
 
-let delete pd hs newID = replace (P.toID pd) (Blank newID) hs
+let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
+  replace (P.toID pd) (Blank newID) hs
 
-let allData spec =
+let allData (spec : handlerSpec) : pointerData list =
   [PEventName spec.name; PEventSpace spec.module_; PEventModifier spec.modifier]

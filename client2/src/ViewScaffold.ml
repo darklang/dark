@@ -5,7 +5,7 @@ module JSD = Json.Decode
 open Types
 open ViewUtils
 
-let viewButtons m =
+let viewButtons (m : model) : msg Html.html =
   let integrationTestButton =
     match m.integrationTestState with
     | IntegrationTestExpectation _ ->
@@ -76,7 +76,7 @@ let viewButtons m =
       ^ returnButton )
     ^ [status] )
 
-let viewError err =
+let viewError (err : darkError) : msg Html.html =
   let viewException exc =
     match exc.result with
     | None -> [Html.text exc.short]

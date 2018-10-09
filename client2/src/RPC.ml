@@ -9,13 +9,15 @@ module JSEE = Json.Encode.Extra
 module RT = Runtime
 open Types
 
-let rpc_ m url callback params =
+let rpc_ (m : model) (url : string)
+    (callback : (rpcParams -> (string Http.error, rpcResult) result) -> msg)
+    (params : rpcParams) : msg Cmd.t =
   let payload = encodeRPCParams params in
   let json = Http.jsonBody payload in
   let request = Http.post url json decodeRPC in
   Http.send (callback params) request
 
-let postString url =
+let postString (url : string) : string Http.request =
   Http.request
     { method_= "POST"
     ; headers= []
@@ -25,12 +27,14 @@ let postString url =
     ; timeout= None
     ; withCredentials= false }
 
-let rpc m canvasName focus params =
+let rpc (m : model) (canvasName : string) (focus : focus) (params : rpcParams)
+    : msg Cmd.t =
   rpc_ m
     (String.concat ["/api/"; Http.encodeUri canvasName; "/rpc"])
     (RPCCallback focus) params
 
-let executeFunctionRPC canvasName params =
+let executeFunctionRPC (canvasName : string)
+    (params : executeFunctionRPCParams) : msg Cmd.t =
   let url =
     String.concat ["/api/"; Http.encodeUri canvasName; "/execute_function"]
   in
@@ -39,7 +43,8 @@ let executeFunctionRPC canvasName params =
   let request = Http.post url json decodeExecuteFunctionRPC in
   Http.send (ExecuteFunctionRPCCallback params) request
 
-let getAnalysisRPC canvasName params =
+let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Cmd.t
+    =
   let url =
     String.concat ["/api/"; Http.encodeUri canvasName; "/get_analysis"]
   in
@@ -48,7 +53,7 @@ let getAnalysisRPC canvasName params =
   let request = Http.post url json decodeGetAnalysisRPC in
   Http.send GetAnalysisRPCCallback request
 
-let delete404RPC canvasName param =
+let delete404RPC (canvasName : string) (param : delete404Param) : msg Cmd.t =
   let url =
     String.concat ["/api/"; Http.encodeUri canvasName; "/delete_404"]
   in
@@ -57,23 +62,24 @@ let delete404RPC canvasName param =
   let request = Http.post url json (JSD.list decode404) in
   Http.send GetDelete404RPCCallback request
 
-let initialLoadRPC canvasName focus =
+let initialLoadRPC (canvasName : string) (focus : focus) : msg Cmd.t =
   let url =
     String.concat ["/api/"; Http.encodeUri canvasName; "/initial_load"]
   in
   let request = Http.post url Http.emptyBody decodeInitialLoadRPC in
   Http.send (InitialLoadRPCCallback (focus, NoChange)) request
 
-let saveTestRPC canvasName =
+let saveTestRPC (canvasName : string) : msg Cmd.t =
   let url = String.concat ["/api/"; Http.encodeUri canvasName; "/save_test"] in
   let request = postString url in
   Http.send SaveTestRPCCallback request
 
-let emptyParams = {ops= []}
+let emptyParams : rpcParams = {ops= []}
 
-let opsParams ops = {ops}
+let opsParams (ops : op list) : rpcParams = {ops}
 
-let integrationRPC m canvasName name =
+let integrationRPC (m : model) (canvasName : string) (name : string) :
+    msg Cmd.t =
   let url =
     String.concat ["/api/"; Http.encodeUri canvasName; "/initial_load"]
   in
@@ -82,7 +88,7 @@ let integrationRPC m canvasName name =
     (InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name))
     request
 
-let decodePointerData =
+let decodePointerData : pointerData JSD.decoder =
   let dv1 = decodeVariant1 in
   decodeVariants
     [ ("PVarBind", dv1 PVarBind (decodeBlankOr JSD.string))
@@ -100,7 +106,7 @@ let decodePointerData =
     ; ("PParamName", dv1 PParamName (decodeBlankOr JSD.string))
     ; ("PParamTipe", dv1 PParamTipe (decodeBlankOr decodeTipe)) ]
 
-let encodePointerData pd =
+let encodePointerData (pd : pointerData) : JSE.value =
   let ev = encodeVariant in
   match pd with
   | PVarBind var -> ev "PVarBind" [encodeBlankOr JSE.string var]
@@ -121,7 +127,7 @@ let encodePointerData pd =
   | PParamName msg -> ev "PParamName" [encodeBlankOr JSE.string msg]
   | PParamTipe msg -> ev "PParamTipe" [encodeBlankOr encodeTipe msg]
 
-let tlidOf op =
+let tlidOf (op : op) : tlid =
   match op with
   | SetHandler (tlid, _, _) -> tlid
   | CreateDB (tlid, _, _) -> tlid
@@ -146,7 +152,7 @@ let tlidOf op =
   | AbandonDBMigration tlid -> tlid
   | DeleteColInDBMigration (tlid, _) -> tlid
 
-let encodeOps ops =
+let encodeOps (ops : op list) : JSE.value =
   ops
   |> (fun ops_ ->
        match ops_ with
@@ -158,36 +164,36 @@ let encodeOps ops =
            savepoints ^ ops_ )
   |> List.map encodeOp |> JSE.list
 
-let encodeSpec spec =
+let encodeSpec (spec : handlerSpec) : JSE.value =
   JSE.object_
     [ ("name", encodeBlankOr JSE.string spec.name)
     ; ("module", encodeBlankOr JSE.string spec.module_)
     ; ("modifier", encodeBlankOr JSE.string spec.modifier)
     ; ("types", encodeSpecTypes spec.types) ]
 
-let encodeHandler h =
+let encodeHandler (h : handler) : JSE.value =
   JSE.object_
     [ ("tlid", encodeTLID h.tlid)
     ; ("spec", encodeSpec h.spec)
     ; ("ast", encodeExpr h.ast) ]
 
-let encodeDBMigrationKind k =
+let encodeDBMigrationKind (k : dBMigrationKind) : JSE.value =
   let ev = encodeVariant in
   match k with DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
 
-let encodeColList cols =
+let encodeColList (cols : dBColumn list) : JSE.value =
   let encodeCol =
     encodePair (encodeBlankOr JSE.string) (encodeBlankOr JSE.string)
   in
   JSE.list (List.map encodeCol cols)
 
-let encodeDBMigrationState s =
+let encodeDBMigrationState (s : dBMigrationState) : JSE.value =
   let ev = encodeVariant in
   match s with
   | DBMigrationAbandoned -> ev "DBMigrationAbandoned" []
   | DBMigrationInitialized -> ev "DBMigrationInitialized" []
 
-let encodeDBMigration dbm =
+let encodeDBMigration (dbm : dBMigration) : JSE.value =
   JSE.object_
     [ ("starting_version", JSE.int dbm.startingVersion)
     ; ("version", JSE.int dbm.version)
@@ -196,7 +202,7 @@ let encodeDBMigration dbm =
     ; ("rollforward", encodeExpr dbm.rollforward)
     ; ("rollback", encodeExpr dbm.rollback) ]
 
-let encodeDB db =
+let encodeDB (db : dB) : JSE.value =
   JSE.object_
     [ ("tlid", encodeTLID db.tlid)
     ; ("name", JSE.string db.name)
@@ -207,7 +213,7 @@ let encodeDB db =
       , Option.map encodeDBMigration db.activeMigration
         |> Option.withDefault JSE.null ) ]
 
-let encodeOp call =
+let encodeOp (call : op) : JSE.value =
   let ev = encodeVariant in
   match call with
   | SetHandler (id, pos, h) ->
@@ -256,9 +262,11 @@ let encodeOp call =
   | SetExpr (tlid, id, e) ->
       ev "SetExpr" [encodeTLID tlid; encodeID id; encodeExpr e]
 
-let encodeRPCParams params = JSE.object_ [("ops", encodeOps params.ops)]
+let encodeRPCParams (params : rpcParams) : JSE.value =
+  JSE.object_ [("ops", encodeOps params.ops)]
 
-let encodeExecuteFunctionRPCParams params =
+let encodeExecuteFunctionRPCParams (params : executeFunctionRPCParams) :
+    JSE.value =
   JSE.object_
     [ ("tlid", encodeTLID params.tlid)
     ; ("trace_id", JSE.string params.traceID)
@@ -266,15 +274,16 @@ let encodeExecuteFunctionRPCParams params =
     ; ("args", encodeList encodeDval params.args)
     ; ("fnname", JSE.string params.fnName) ]
 
-let encodeAnalysisParams params = encodeList encodeTLID params
+let encodeAnalysisParams (params : analysisParams) : JSE.value =
+  encodeList encodeTLID params
 
-let encodeUserFunction uf =
+let encodeUserFunction (uf : userFunction) : JSE.value =
   JSE.object_
     [ ("tlid", encodeTLID uf.tlid)
     ; ("metadata", encodeUserFunctionMetadata uf.metadata)
     ; ("ast", encodeExpr uf.ast) ]
 
-let encodeUserFunctionMetadata f =
+let encodeUserFunctionMetadata (f : userFunctionMetadata) : JSE.value =
   JSE.object_
     [ ("name", encodeBlankOr JSE.string f.name)
     ; ( "parameters"
@@ -283,7 +292,7 @@ let encodeUserFunctionMetadata f =
     ; ("return_type", encodeBlankOr encodeTipe f.returnTipe)
     ; ("infix", JSE.bool f.infix) ]
 
-let encodeTipe t =
+let encodeTipe (t : tipe) : JSE.value =
   let ev = encodeVariant in
   match t with
   | TInt -> ev "TInt" []
@@ -312,7 +321,7 @@ let encodeTipe t =
   | TOption -> ev "TOption" []
   | TErrorRail -> ev "TErrorRail" []
 
-let encodeUserFunctionParameter p =
+let encodeUserFunctionParameter (p : userFunctionParameter) : JSE.value =
   JSE.object_
     [ ("name", encodeBlankOr JSE.string p.name)
     ; ("tipe", encodeBlankOr encodeTipe p.tipe)
@@ -320,9 +329,9 @@ let encodeUserFunctionParameter p =
     ; ("optional", JSE.bool p.optional)
     ; ("description", JSE.string p.description) ]
 
-let encodeExpr expr = encodeBlankOr encodeNExpr expr
+let encodeExpr (expr : expr) : JSE.value = encodeBlankOr encodeNExpr expr
 
-let encodeNExpr expr =
+let encodeNExpr (expr : nExpr) : JSE.value =
   let e = encodeExpr in
   let ev = encodeVariant in
   match expr with
@@ -347,13 +356,14 @@ let encodeNExpr expr =
   | FeatureFlag (msg, cond, a, b) ->
       ev "FeatureFlag" [encodeBlankOr JSE.string msg; e cond; e a; e b]
 
-let encodeSpecTypes st =
+let encodeSpecTypes (st : specTypes) : JSE.value =
   JSE.object_
     [("input", encodeDarkType st.input); ("output", encodeDarkType st.output)]
 
-let encodeDarkType dt = encodeBlankOr encodeNDarkType dt
+let encodeDarkType (dt : darkType) : JSE.value =
+  encodeBlankOr encodeNDarkType dt
 
-let encodeNDarkType t =
+let encodeNDarkType (t : nDarkType) : JSE.value =
   let ev = encodeVariant in
   match t with
   | DTEmpty -> ev "Empty" []
@@ -366,7 +376,7 @@ let encodeNDarkType t =
             (List.map (encodePair (encodeBlankOr JSE.string) encodeDarkType) ts)
         ]
 
-let encodeCursorState cs =
+let encodeCursorState (cs : cursorState) : JSE.value =
   let ev = encodeVariant in
   match cs with
   | Selecting (tlid, mId) ->
@@ -384,7 +394,7 @@ let encodeCursorState cs =
         ; encodeCursorState cursor ]
   | Deselected -> ev "Deselected" []
 
-let encodeSerializableEditor se =
+let encodeSerializableEditor (se : serializableEditor) : JSE.value =
   JSE.object_
     [ ("clipboard", JSEE.maybe encodePointerData se.clipboard)
     ; ("timersEnabled", JSE.bool se.timersEnabled)
@@ -392,14 +402,14 @@ let encodeSerializableEditor se =
     ; ( "lockedHandlers"
       , JSE.list (List.map (fun id -> encodeTLID id) se.lockedHandlers) ) ]
 
-let decodeSerializableEditor =
+let decodeSerializableEditor : serializableEditor JSD.decoder =
   JSDP.decode SerializableEditor
   |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) None
   |> JSDP.optional "timersEnabled" JSD.bool true
   |> JSDP.optional "cursorState" decodeCursorState Deselected
   |> JSDP.optional "lockedHandlers" (JSD.list decodeTLID) []
 
-let decodeCursorState =
+let decodeCursorState : cursorState JSD.decoder =
   let dv4 = decodeVariant4 in
   let dv3 = decodeVariant3 in
   let dv2 = decodeVariant2 in
@@ -418,7 +428,7 @@ let decodeCursorState =
     ; ("Deselected", dv0 Deselected)
     ; ("SelectingCommand", dv2 SelectingCommand decodeTLID decodeID) ]
 
-let decodeNDarkType =
+let decodeNDarkType : nDarkType JSD.decoder =
   let dv4 = decodeVariant4 in
   let dv3 = decodeVariant3 in
   let dv2 = decodeVariant2 in
@@ -435,15 +445,15 @@ let decodeNDarkType =
              (decodePair (decodeBlankOr JSD.string)
                 (JSD.lazy_ (fun _ -> decodeDarkType)))) ) ]
 
-let decodeDarkType = decodeBlankOr decodeNDarkType
+let decodeDarkType : darkType JSD.decoder = decodeBlankOr decodeNDarkType
 
-let decodeExpr =
+let decodeExpr : expr JSD.decoder =
   let dn = JSD.lazy_ (fun _ -> decodeNExpr) in
   decodeVariants
     [ ("Filled", decodeVariant2 F decodeID dn)
     ; ("Blank", decodeVariant1 Blank decodeID) ]
 
-let decodeNExpr =
+let decodeNExpr : nExpr JSD.decoder =
   let de = JSD.lazy_ (fun _ -> decodeExpr) in
   let did = decodeID in
   let dv4 = decodeVariant4 in
@@ -468,7 +478,7 @@ let decodeNExpr =
       )
     ; ("FeatureFlag", dv4 FeatureFlag (decodeBlankOr JSD.string) de de de) ]
 
-let decodeAnalysisResults =
+let decodeAnalysisResults : analysisResults JSD.decoder =
   let toAResult liveValues availableVarnames =
     { liveValues= DE.mapKeys (Util.toIntWithDefault 0) liveValues
     ; availableVarnames= DE.mapKeys (Util.toIntWithDefault 0) availableVarnames
@@ -478,9 +488,10 @@ let decodeAnalysisResults =
   |> JSDP.required "live_values" (JSD.dict decodeDval)
   |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
-let decodeAnalysisEnvelope = JSON.decodePair JSD.string decodeAnalysisResults
+let decodeAnalysisEnvelope : (traceID * analysisResults) JSD.decoder =
+  JSON.decodePair JSD.string decodeAnalysisResults
 
-let decodeHandlerSpec =
+let decodeHandlerSpec : handlerSpec JSD.decoder =
   let toHS module_ name modifier input output =
     {module_; name; modifier; types= {input; output}}
   in
@@ -491,26 +502,26 @@ let decodeHandlerSpec =
   |> JSDP.requiredAt ["types"; "input"] decodeDarkType
   |> JSDP.requiredAt ["types"; "output"] decodeDarkType
 
-let decodeHandler =
+let decodeHandler : handler JSD.decoder =
   let toHandler ast spec tlid = {ast; spec; tlid} in
   JSDP.decode toHandler
   |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
   |> JSDP.required "tlid" decodeTLID
 
-let decodeTipeString = JSD.map RT.tipe2str decodeTipe
+let decodeTipeString : string JSD.decoder = JSD.map RT.tipe2str decodeTipe
 
-let decodeDBColList =
+let decodeDBColList : dBColumn list JSD.decoder =
   JSD.list
     (decodePair (decodeBlankOr JSD.string) (decodeBlankOr decodeTipeString))
 
-let decodeDBMigrationState =
+let decodeDBMigrationState : dBMigrationState JSD.decoder =
   let dv0 = decodeVariant0 in
   decodeVariants
     [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
     ; ("DBMigrationInitialized", dv0 DBMigrationInitialized) ]
 
-let decodeDBMigration =
+let decodeDBMigration : dBMigration JSD.decoder =
   let toDBM sv v s cols rollf rollb =
     { startingVersion= sv
     ; version= v
@@ -527,7 +538,7 @@ let decodeDBMigration =
   |> JSDP.required "rollforward" decodeExpr
   |> JSDP.required "rollback" decodeExpr
 
-let decodeDB =
+let decodeDB : dB JSD.decoder =
   let toDB tlid name cols version old active =
     { tlid= TLID tlid
     ; name
@@ -544,7 +555,7 @@ let decodeDB =
   |> JSDP.required "old_migrations" (JSD.list decodeDBMigration)
   |> JSDP.required "active_migration" (JSD.maybe decodeDBMigration)
 
-let decodeToplevel =
+let decodeToplevel : toplevel JSD.decoder =
   let toToplevel id x y data = {id; pos= {x; y}; data} in
   let variant =
     decodeVariants
@@ -557,7 +568,7 @@ let decodeToplevel =
   |> JSDP.requiredAt ["pos"; "y"] JSD.int
   |> JSDP.required "data" variant
 
-let decodeTipe =
+let decodeTipe : tipe JSD.decoder =
   let dv0 = decodeVariant0 in
   let dv1 = decodeVariant1 in
   decodeVariants
@@ -587,7 +598,7 @@ let decodeTipe =
     ; ("TOption", dv0 TOption)
     ; ("TErrorRail", dv0 TErrorRail) ]
 
-let decodeUserFunctionParameter =
+let decodeUserFunctionParameter : userFunctionParameter JSD.decoder =
   let toParam name tipe args option desc =
     {name; tipe; block_args= args; optional= option; description= desc}
   in
@@ -598,7 +609,7 @@ let decodeUserFunctionParameter =
   |> JSDP.required "optional" JSD.bool
   |> JSDP.required "description" JSD.string
 
-let decodeUserFunctionMetadata =
+let decodeUserFunctionMetadata : userFunctionMetadata JSD.decoder =
   let toFn name params desc returnTipe infix =
     {name; parameters= params; description= desc; returnTipe; infix}
   in
@@ -609,47 +620,47 @@ let decodeUserFunctionMetadata =
   |> JSDP.required "return_type" (decodeBlankOr decodeTipe)
   |> JSDP.required "infix" JSD.bool
 
-let decodeUserFunction =
+let decodeUserFunction : userFunction JSD.decoder =
   let toUserFn id meta ast = {tlid= id; metadata= meta; ast} in
   JSDP.decode toUserFn
   |> JSDP.required "tlid" decodeTLID
   |> JSDP.required "metadata" decodeUserFunctionMetadata
   |> JSDP.required "ast" decodeExpr
 
-let decode404 =
+let decode404 : fourOhFour JSD.decoder =
   JSD.map3 FourOhFour (JSD.index 0 JSD.string) (JSD.index 1 JSD.string)
     (JSD.index 2 JSD.string)
 
-let encode404 fof =
+let encode404 (fof : fourOhFour) : JSE.value =
   JSE.object_
     [ ("space", JSE.string fof.space)
     ; ("path", JSE.string fof.path)
     ; ("modifier", JSE.string fof.modifier) ]
 
-let encodeInputValueDict dict =
+let encodeInputValueDict (dict : inputValueDict) : JSE.value =
   dict |> Dict.toList |> encodeList (encodePair JSE.string encodeDval)
 
-let decodeInputValueDict =
+let decodeInputValueDict : inputValueDict JSD.decoder =
   JSD.map Dict.fromList (JSD.list (decodePair JSD.string decodeDval))
 
-let decodeFunctionResult =
+let decodeFunctionResult : functionResult JSD.decoder =
   let toFunctionResult (fnName, id, hash, value) =
     {fnName; callerID= id; argHash= hash; value}
   in
   JSD.map toFunctionResult
     (JSON.decodeQuadriple JSD.string decodeID JSD.string decodeDval)
 
-let decodeTraces =
+let decodeTraces : traces JSD.decoder =
   JSD.map Dict.fromList (JSD.list (decodePair JSD.int (JSD.list decodeTrace)))
 
-let decodeTrace =
+let decodeTrace : trace JSD.decoder =
   let toTrace id input functionResults = {id; input; functionResults} in
   JSDP.decode toTrace
   |> JSDP.required "id" JSD.string
   |> JSDP.required "input" decodeInputValueDict
   |> JSDP.required "function_results" (JSD.list decodeFunctionResult)
 
-let encodeTrace t =
+let encodeTrace (t : trace) : JSE.value =
   JSE.object_
     [ ( "input"
       , JSON.encodeList
@@ -659,17 +670,17 @@ let encodeTrace t =
       , JSON.encodeList encodeFunctionResult t.functionResults )
     ; ("id", JSE.string t.id) ]
 
-let encodeFunctionResult fr =
+let encodeFunctionResult (fr : functionResult) : JSE.value =
   JSE.list
     [ JSE.string fr.fnName
     ; encodeID fr.callerID
     ; JSE.string fr.argHash
     ; encodeDval fr.value ]
 
-let decodeExecuteFunctionTarget =
+let decodeExecuteFunctionTarget : (tlid * id) JSD.decoder =
   JSD.map2 Tuple2.create (JSD.index 0 decodeTLID) (JSD.index 1 decodeID)
 
-let decodeRPC =
+let decodeRPC : rpcResult JSD.decoder =
   JSDP.decode Tuple6.create
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
@@ -678,27 +689,27 @@ let decodeRPC =
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
 
-let decodeGetAnalysisRPC =
+let decodeGetAnalysisRPC : getAnalysisResult JSD.decoder =
   JSDP.decode Tuple4.create
   |> JSDP.required "traces" decodeTraces
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
 
-let decodeInitialLoadRPC = decodeRPC
+let decodeInitialLoadRPC : initialLoadResult JSD.decoder = decodeRPC
 
-let decodeExecuteFunctionRPC =
+let decodeExecuteFunctionRPC : executeFunctionRPCResult JSD.decoder =
   JSDP.decode Tuple2.create
   |> JSDP.required "result" decodeDval
   |> JSDP.required "hash" JSD.string
 
-let isLiteralString s =
+let isLiteralString (s : string) : bool =
   match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
 
-let typeOfLiteralString s =
+let typeOfLiteralString (s : string) : tipe =
   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
 
-let parseDvalLiteral str =
+let parseDvalLiteral (str : string) : dval option =
   let firstChar = String.uncons str |> Option.map Tuple.first in
   if String.toLower str = "nothing" then Some (DOption OptNothing)
   else
@@ -711,7 +722,7 @@ let parseDvalLiteral str =
         else None
     | _ -> JSD.decodeString parseBasicDval str |> Result.toOption
 
-let parseBasicDval =
+let parseBasicDval : dval JSD.decoder =
   let dd = JSD.lazy_ (fun _ -> decodeDval) in
   JSD.oneOf
     [ JSD.map DInt JSD.int
@@ -721,7 +732,7 @@ let parseBasicDval =
     ; JSD.map DStr JSD.string
     ; JSD.map DList (JSD.list dd) ]
 
-let decodeDval =
+let decodeDval : dval JSD.decoder =
   let dv0 = decodeVariant0 in
   let dv1 = decodeVariant1 in
   let dv2 = decodeVariant2 in
@@ -764,7 +775,7 @@ let decodeDval =
     ; ("DUuid", dv1 DUuid JSD.string)
     ; ("DOption", dv1 DOption decodeOptionT) ]
 
-let encodeDval dv =
+let encodeDval (dv : dval) : JSE.value =
   let ev = encodeVariant in
   let encodeDhttp h =
     match h with

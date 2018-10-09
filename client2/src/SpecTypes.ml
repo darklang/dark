@@ -5,15 +5,18 @@ module P = Pointer
 open Prelude
 open Types
 
-let delete pd spec newID = replace pd (P.emptyD_ newID (P.typeOf pd)) spec
+let delete (pd : pointerData) (spec : handlerSpec) (newID : id) : handlerSpec =
+  replace pd (P.emptyD_ newID (P.typeOf pd)) spec
 
-let replace p dt spec =
+let replace (p : pointerData) (dt : pointerData) (spec : handlerSpec) :
+    handlerSpec =
   { spec with
     types=
       { input= replaceInType p dt spec.types.input
       ; output= replaceInType p dt spec.types.output } }
 
-let replaceInType pd replacement dt =
+let replaceInType (pd : pointerData) (replacement : pointerData)
+    (dt : darkType) : darkType =
   let _ =
     todo {msg= "replaceInType"; pointerData= pd; replacement; darkType= dt}
   in
@@ -41,9 +44,9 @@ let replaceInType pd replacement dt =
         F (id, DTObj newTs)
     | _ -> dt
 
-let allData t = []
+let allData (t : darkType) : pointerData list = []
 
-let childrenOf id t =
+let childrenOf (id : id) (t : darkType) : pointerData list =
   if B.toID t = id then
     match t with
     | F (_, DTObj ts) ->
@@ -57,7 +60,7 @@ let childrenOf id t =
         ts |> List.map (fun (n, dt) -> childrenOf id dt) |> List.concat
     | _ -> []
 
-let siblings p t =
+let siblings (p : pointerData) (t : darkType) : pointerData list =
   match t with
   | F (_, DTObj ts) ->
       let result =

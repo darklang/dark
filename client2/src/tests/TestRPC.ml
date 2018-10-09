@@ -11,13 +11,14 @@ let id1 = ID 5
 
 let id2 = ID 10
 
-let testRoundtrip decoder encoder name v =
+let testRoundtrip (decoder : 'a JSD.decoder) (encoder : 'a -> JSE.value)
+    (name : string) (v : 'a) : Test.test =
   test ("roundtrip " ^ name)
   <| Expect.equal (Ok v) (v |> encoder |> JSD.decodeValue decoder)
 
 let rtDval = testRoundtrip decodeDval encodeDval
 
-let serverCompatible =
+let serverCompatible : Test.test =
   Test.describe "compatible with server JSON encoding"
     [ test "obj uses list"
       <| Expect.equal "[\"DObj\",{\"foo\":[\"DInt\",5]}]"
@@ -27,7 +28,7 @@ let serverCompatible =
       <| Expect.equal "[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]"
            (DResp (Response (401, []), DNull) |> encodeDval |> JSE.encode 0) ]
 
-let roundtrips =
+let roundtrips : Test.test =
   Test.describe "roundtrips"
     [ rtDval "int" (DInt 5)
     ; rtDval "obj" (DObj (Dict.fromList [("foo", DInt 5)]))

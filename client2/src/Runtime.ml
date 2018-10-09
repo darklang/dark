@@ -2,9 +2,10 @@ open Tea
 open! Porting
 open Types
 
-let isCompatible t1 t2 = (t1 = TAny || t2 = TAny) || t1 = t2
+let isCompatible (t1 : tipe) (t2 : tipe) : bool =
+  (t1 = TAny || t2 = TAny) || t1 = t2
 
-let tipe2str t =
+let tipe2str (t : tipe) : string =
   match t with
   | TAny -> "Any"
   | TInt -> "Int"
@@ -32,7 +33,7 @@ let tipe2str t =
   | THasMany s -> ("[" ^ s) ^ "]"
   | TDbList a -> ("[" ^ tipe2str a) ^ "]"
 
-let str2tipe t =
+let str2tipe (t : string) : tipe =
   let parseListTipe lt =
     match lt with
     | "str" -> TStr
@@ -85,7 +86,7 @@ let str2tipe t =
         other |> String.dropLeft 1 |> String.dropRight 1 |> parseListTipe
       else TBelongsTo other
 
-let typeOf dv =
+let typeOf (dv : dval) : tipe =
   match dv with
   | DInt _ -> TInt
   | DFloat _ -> TFloat
@@ -109,7 +110,7 @@ let typeOf dv =
   | DPassword _ -> TPassword
   | DUuid _ -> TUuid
 
-let isLiteral dv =
+let isLiteral (dv : dval) : bool =
   match dv with
   | DInt _ -> true
   | DFloat _ -> true
@@ -119,20 +120,20 @@ let isLiteral dv =
   | DStr _ -> true
   | _ -> false
 
-let isComplete dv =
+let isComplete (dv : dval) : bool =
   match dv with DError _ -> false | DIncomplete -> false | _ -> true
 
-let isTrue dv = dv = DBool true
+let isTrue (dv : dval) : bool = dv = DBool true
 
-let inputValueAsString iv =
+let inputValueAsString (iv : inputValueDict) : string =
   iv |> DObj |> toRepr |> String.split "\n" |> List.drop 1 |> List.init
   |> Option.withDefault []
   |> List.map (String.dropLeft 2)
   |> String.join "\n"
 
-let toRepr dv = toRepr_ 0 dv
+let toRepr (dv : dval) : string = toRepr_ 0 dv
 
-let toRepr_ oldIndent dv =
+let toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value =
     ((("<" ^ (dv |> typeOf |> tipe2str)) ^ ": ") ^ value) ^ ">"
   in

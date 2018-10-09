@@ -8,7 +8,7 @@ let id1 = ID 5
 
 let id2 = ID 10
 
-let all =
+let all : Test.test =
   Test.describe "ast"
     [ test "isThreadBlank for thread"
       <| expectTrue (AST.isThreadBlank (F (id1, Thread [Blank id2])) id2)

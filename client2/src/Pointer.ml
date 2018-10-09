@@ -4,7 +4,7 @@ module B = Blank
 open Prelude
 open Types
 
-let emptyD_ id pt =
+let emptyD_ (id : id) (pt : pointerType) : pointerData =
   match pt with
   | VarBind -> PVarBind (Blank id)
   | EventModifier -> PEventModifier (Blank id)
@@ -22,7 +22,7 @@ let emptyD_ id pt =
   | ParamName -> PParamName (Blank id)
   | ParamTipe -> PParamTipe (Blank id)
 
-let typeOf pd =
+let typeOf (pd : pointerData) : pointerType =
   match pd with
   | PVarBind _ -> VarBind
   | PEventModifier _ -> EventModifier
@@ -40,9 +40,9 @@ let typeOf pd =
   | PParamName _ -> ParamName
   | PParamTipe _ -> ParamTipe
 
-let emptyD pt = emptyD_ (gid ()) pt
+let emptyD (pt : pointerType) : pointerData = emptyD_ (gid ()) pt
 
-let toID pd =
+let toID (pd : pointerData) : id =
   match pd with
   | PVarBind d -> B.toID d
   | PField d -> B.toID d
@@ -60,7 +60,7 @@ let toID pd =
   | PParamName d -> B.toID d
   | PParamTipe d -> B.toID d
 
-let isBlank pd =
+let isBlank (pd : pointerData) : bool =
   match pd with
   | PVarBind d -> B.isBlank d
   | PField d -> B.isBlank d
@@ -78,7 +78,7 @@ let isBlank pd =
   | PParamName d -> B.isBlank d
   | PParamTipe d -> B.isBlank d
 
-let toContent pd =
+let toContent (pd : pointerData) : string option =
   let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> Some in
   match pd with
   | PVarBind v -> bs2s v
@@ -104,13 +104,17 @@ let toContent pd =
       |> Option.map Runtime.tipe2str
       |> Option.withDefault "" |> Some
 
-let dtmap fn pd = match pd with PDarkType d -> PDarkType (fn d) | _ -> pd
+let dtmap (fn : darkType -> darkType) (pd : pointerData) : pointerData =
+  match pd with PDarkType d -> PDarkType (fn d) | _ -> pd
 
-let exprmap fn pd = match pd with PExpr d -> PExpr (fn d) | _ -> pd
+let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
+  match pd with PExpr d -> PExpr (fn d) | _ -> pd
 
-let tmap fn pd = match pd with PParamTipe d -> PParamTipe (fn d) | _ -> pd
+let tmap (fn : tipe blankOr -> tipe blankOr) (pd : pointerData) : pointerData =
+  match pd with PParamTipe d -> PParamTipe (fn d) | _ -> pd
 
-let strmap fn pd =
+let strmap (fn : (pointerType -> string blankOr) -> string blankOr)
+    (pd : pointerData) : pointerData =
   match pd with
   | PVarBind d -> PVarBind (fn VarBind d)
   | PField d -> PField (fn Field d)

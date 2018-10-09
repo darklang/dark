@@ -2,22 +2,23 @@ open Tea
 open! Porting
 open Types
 
-let variantIsActive m vt = List.member vt m.tests
+let variantIsActive (m : model) (vt : variantTest) : bool =
+  List.member vt m.tests
 
-let toVariantTest s =
+let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false -> None
   | test, _ -> ( match String.toLower test with _ -> None )
 
-let toCSSClass vt =
+let toCSSClass (vt : variantTest) : string =
   let test = match vt with StubVariant -> "stub" in
   let _ = "comment" in
   test ^ "-variant"
 
-let uniqueTests xs =
+let uniqueTests (xs : variantTest list) : variantTest list =
   xs |> List.uniqueBy (fun x -> match x with StubVariant -> "SV")
 
-let splitOnEquals s =
+let splitOnEquals (s : string) : (string * bool) option =
   if String.contains "=" s then
     match String.split "=" s with
     | [] -> None
@@ -30,7 +31,7 @@ let splitOnEquals s =
       | _ -> None )
   else None
 
-let parseVariantTestsFromQueryString s =
+let parseVariantTestsFromQueryString (s : string) : variantTest list option =
   match String.uncons s with
   | Some ('?', rest) ->
       rest |> String.split "&"

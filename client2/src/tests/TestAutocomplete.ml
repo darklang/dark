@@ -6,14 +6,14 @@ open Prelude
 open Test
 open Types
 
-let d s fs =
+let d (s : string) (fs : (unit -> bool) list) : test =
   describe s
     (List.indexedMap
        (fun i f ->
          test ("test " ^ string_of_int i) (fun _ -> Expect.true_ "" (f ())) )
        fs)
 
-let sampleFunctions =
+let sampleFunctions : function_ list =
   [ ("Twit::somefunc", TObj)
   ; ("Twit::someOtherFunc", TObj)
   ; ("Twit::yetAnother", TObj)
@@ -43,15 +43,15 @@ let sampleFunctions =
          ; infix= true
          ; deprecated= false } )
 
-let debug msg ac =
+let debug (msg : string) (ac : autocomplete) : autocomplete =
   let _ = Debug.log msg (highlighted ac) in
   ac
 
 type role = Admin | User
 
-let isAdmin r = match r with Admin -> true | _ -> false
+let isAdmin (r : role) : bool = match r with Admin -> true | _ -> false
 
-let createEntering role =
+let createEntering (role : role) : autocomplete =
   let targetBlankID = gid () in
   let tlid = gtlid () in
   let spec =
@@ -71,17 +71,19 @@ let createEntering role =
   init sampleFunctions (isAdmin role)
   |> setTarget m (Some (tlid, PExpr (Blank targetBlankID)))
 
-let createCreating role =
+let createCreating (role : role) : autocomplete =
   let cursor = Entering (Creating {x= 0; y= 0}) in
   let default = Defaults.defaultModel in
   let m = {default with cursorState= cursor} in
   init sampleFunctions (isAdmin role) |> setTarget m None
 
-let itemPresent aci ac = List.member aci (List.concat ac.completions)
+let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
+  List.member aci (List.concat ac.completions)
 
-let itemMissing aci ac = not (itemPresent aci ac)
+let itemMissing (aci : autocompleteItem) (ac : autocomplete) : bool =
+  not (itemPresent aci ac)
 
-let all =
+let all : test =
   describe "autocomplete"
     [ d "sharedPrefix"
         [ (fun _ -> sharedPrefixList ["aaaab"; "aab"; "aaxb"] = "aa")

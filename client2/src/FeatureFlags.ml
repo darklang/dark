@@ -6,19 +6,19 @@ open Prelude
 module TL = Toplevel
 open Types
 
-let toFlagged msgId expr =
+let toFlagged (msgId : id) (expr : expr) : expr =
   match expr with
   | F (id, FeatureFlag (_, _, _, _)) ->
       impossible ("cant convert flagged to flagged", expr)
   | _ -> F (gid (), FeatureFlag (Blank msgId, B.new_ (), expr, B.new_ ()))
 
-let fromFlagged pick expr =
+let fromFlagged (pick : pick) (expr : expr) : expr =
   match expr with
   | F (_, FeatureFlag (_, _, a, b)) -> (
     match pick with PickA -> a | PickB -> b )
   | _ -> impossible ("cant convert flagged to flagged", expr)
 
-let start m =
+let start (m : model) : modification =
   match unwrapCursorState m.cursorState with
   | Selecting (tlid, Some id) -> (
       let tl = TL.getTL m tlid in
@@ -33,7 +33,7 @@ let start m =
       | _ -> NoChange )
   | _ -> NoChange
 
-let end_ m id pick =
+let end_ (m : model) (id : id) (pick : pick) : modification =
   match tlidOf (unwrapCursorState m.cursorState) with
   | None -> NoChange
   | Some tlid -> (
@@ -47,7 +47,7 @@ let end_ m id pick =
       | TLFunc f -> RPC ([SetFunction f], focus)
       | _ -> NoChange )
 
-let toggle m id isExpanded =
+let toggle (m : model) (id : id) (isExpanded : bool) : modification =
   TweakModel
     (fun m_ ->
       {m_ with featureFlags= Dict.insert (deID id) isExpanded m_.featureFlags}

@@ -2,13 +2,14 @@ open Tea
 open! Porting
 open Types
 
-let addPos a b = {x= a.x + b.x; y= a.y + b.y}
+let addPos (a : pos) (b : pos) : pos = {x= a.x + b.x; y= a.y + b.y}
 
-let subPos a b = {x= a.x - b.x; y= a.y - b.y}
+let subPos (a : pos) (b : pos) : pos = {x= a.x - b.x; y= a.y - b.y}
 
-let pagePos page = match page with Toplevels pos -> pos | Fn (_, pos) -> pos
+let pagePos (page : page) : pos =
+  match page with Toplevels pos -> pos | Fn (_, pos) -> pos
 
-let toAbsolute m pos =
+let toAbsolute (m : model) (pos : vPos) : pos =
   let topleft =
     match m.currentPage with
     | Toplevels _ -> m.canvas.offset
@@ -16,29 +17,34 @@ let toAbsolute m pos =
   in
   addPos {x= pos.vx; y= pos.vy} topleft
 
-let toCenteredOn pos = subPos pos Defaults.centerPos
+let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 
-let toCenter pos = addPos pos Defaults.centerPos
+let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
-let pageUp m = moveCanvasBy m 0 (-1 * Defaults.pageHeight)
+let pageUp (m : model) : modification =
+  moveCanvasBy m 0 (-1 * Defaults.pageHeight)
 
-let pageDown m = moveCanvasBy m 0 Defaults.pageHeight
+let pageDown (m : model) : modification = moveCanvasBy m 0 Defaults.pageHeight
 
-let pageLeft m = moveCanvasBy m (-1 * Defaults.pageWidth) 0
+let pageLeft (m : model) : modification =
+  moveCanvasBy m (-1 * Defaults.pageWidth) 0
 
-let pageRight m = moveCanvasBy m Defaults.pageWidth 0
+let pageRight (m : model) : modification = moveCanvasBy m Defaults.pageWidth 0
 
-let moveUp m = moveCanvasBy m 0 (-1 * Defaults.moveSize)
+let moveUp (m : model) : modification =
+  moveCanvasBy m 0 (-1 * Defaults.moveSize)
 
-let moveDown m = moveCanvasBy m 0 Defaults.moveSize
+let moveDown (m : model) : modification = moveCanvasBy m 0 Defaults.moveSize
 
-let moveLeft m = moveCanvasBy m (-1 * Defaults.moveSize) 0
+let moveLeft (m : model) : modification =
+  moveCanvasBy m (-1 * Defaults.moveSize) 0
 
-let moveRight m = moveCanvasBy m Defaults.moveSize 0
+let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
-let moveToOrigin m = MoveCanvasTo (m.canvas, m.currentPage, Defaults.origin)
+let moveToOrigin (m : model) : modification =
+  MoveCanvasTo (m.canvas, m.currentPage, Defaults.origin)
 
-let moveCanvasBy m x y =
+let moveCanvasBy (m : model) (x : int) (y : int) : modification =
   let c = m.canvas in
   let offset =
     match m.currentPage with

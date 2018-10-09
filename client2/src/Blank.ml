@@ -3,24 +3,29 @@ open! Porting
 open Prelude
 open Types
 
-let toID b = match b with Blank id -> id | F (id, _) -> id
+let toID (b : 'a blankOr) : id =
+  match b with Blank id -> id | F (id, _) -> id
 
-let toMaybe b = match b with F (_, v) -> Some v | Blank _ -> None
+let toMaybe (b : 'a blankOr) : 'a option =
+  match b with F (_, v) -> Some v | Blank _ -> None
 
-let new_ () = Blank (gid ())
+let new_ (() : unit) : 'a blankOr = Blank (gid ())
 
-let newF a = F (gid (), a)
+let newF (a : 'a) : 'a blankOr = F (gid (), a)
 
-let clone fn b =
+let clone (fn : 'a -> 'a) (b : 'a blankOr) : 'a blankOr =
   match b with
   | Blank id -> Blank (gid ())
   | F (id, val_) -> F (gid (), fn val_)
 
-let isF = isBlank >> not
+let isF (b : 'a blankOr) : bool = not (isBlank b)
 
-let isBlank b = match b with Blank _ -> true | F (_, _) -> false
+let isBlank (b : 'a blankOr) : bool =
+  match b with Blank _ -> true | F (_, _) -> false
 
-let asF b = match b with F (_, v) -> Some v | Blank _ -> None
+let asF (b : 'a blankOr) : 'a option =
+  match b with F (_, v) -> Some v | Blank _ -> None
 
-let replace search replacement bo =
+let replace (search : id) (replacement : 'a blankOr) (bo : 'a blankOr) :
+    'a blankOr =
   if toID bo = search then replacement else bo

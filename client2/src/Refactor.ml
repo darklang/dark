@@ -6,14 +6,16 @@ open Prelude
 module TL = Toplevel
 open Types
 
-let generateFnName _ = "fn_" ^ (() |> Util.random |> string_of_int)
+let generateFnName (_ : unit) : string =
+  "fn_" ^ (() |> Util.random |> string_of_int)
 
-let convertTipe tipe =
+let convertTipe (tipe : tipe) : tipe =
   match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
 
 type wrapLoc = WLetRHS | WLetBody | WIfCond | WIfThen | WIfElse
 
-let wrap wl m tl p =
+let wrap (wl : wrapLoc) (m : model) (tl : toplevel) (p : pointerData) :
+    modification =
   let wrapAst e ast wl_ =
     let replacement, focus =
       match wl_ with
@@ -51,7 +53,7 @@ let wrap wl m tl p =
       RPC ([SetFunction newF], focus)
   | _ -> NoChange
 
-let toggleOnRail m tl p =
+let toggleOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
   let new_ =
     match p with
     | PExpr (F (id, FnCall (name, exprs, Rail))) ->
@@ -65,7 +67,8 @@ let toggleOnRail m tl p =
     let newtl = TL.replace p new_ tl in
     RPC (TL.toOp newtl, FocusSame)
 
-let extractVariable m tl p =
+let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
+    modification =
   let extractVarInAst e ast =
     let varname = "var" ^ string_of_int (Util.random ()) in
     let freeVariables =
@@ -118,7 +121,8 @@ let extractVariable m tl p =
         ; Enter (Filling (tl.id, enterTarget)) ]
   | _ -> NoChange
 
-let extractFunction m tl p =
+let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
+    modification =
   if not (TL.isValidID tl (P.toID p)) then NoChange
   else
     match p with
@@ -165,7 +169,8 @@ let extractFunction m tl p =
           , FocusExact (tl.id, P.toID replacement) )
     | _ -> NoChange
 
-let renameFunction m old new_ =
+let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
+    op list =
   let renameFnCalls ast old_ new_ =
     let transformCall newName_ oldCall =
       let transformExpr name oldExpr =
@@ -212,7 +217,7 @@ let renameFunction m old new_ =
   in
   newHandlers ^ newFunctions
 
-let isFunctionInExpr fnName expr =
+let isFunctionInExpr (fnName : string) (expr : expr) : bool =
   let maybeNExpr = B.asF expr in
   match maybeNExpr with
   | None -> false
@@ -236,7 +241,7 @@ let isFunctionInExpr fnName expr =
         (isFunctionInExpr fnName cond || isFunctionInExpr fnName a)
         || isFunctionInExpr fnName b )
 
-let countFnUsage m name =
+let countFnUsage (m : model) (name : string) : int =
   let usedIn =
     TL.all m
     |> List.filter (fun tl ->
@@ -247,14 +252,15 @@ let countFnUsage m name =
   in
   List.length usedIn
 
-let unusedDeprecatedFunctions m =
+let unusedDeprecatedFunctions (m : model) : string set =
   m.builtInFunctions
   |> List.filter (fun x -> x.deprecated)
   |> List.map (fun x -> x.name)
   |> List.filter (fun n -> countFnUsage m n = 0)
   |> Set.fromList
 
-let transformFnCalls m uf f =
+let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
+    op list =
   let transformCallsInAst f_ ast old =
     let transformCall old_ =
       let transformExpr oldExpr =
@@ -297,7 +303,7 @@ let transformFnCalls m uf f =
   in
   newHandlers ^ newFunctions
 
-let addNewFunctionParameter m old =
+let addNewFunctionParameter (m : model) (old : userFunction) : op list =
   let fn e =
     match e with
     | FnCall (name, params, r) -> FnCall (name, params ^ [B.new_ ()], r)
@@ -305,7 +311,8 @@ let addNewFunctionParameter m old =
   in
   transformFnCalls m old fn
 
-let removeFunctionParameter m uf ufp =
+let removeFunctionParameter (m : model) (uf : userFunction)
+    (ufp : userFunctionParameter) : op list =
   let indexInList =
     List.findIndex (fun p -> p = ufp) uf.metadata.parameters
     |> Option.getExn
@@ -319,7 +326,7 @@ let removeFunctionParameter m uf ufp =
   in
   transformFnCalls m uf fn
 
-let generateEmptyFunction _ =
+let generateEmptyFunction (_ : unit) : userFunction =
   let funcName = generateFnName () in
   let tlid = gtlid () in
   let params =
