@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 module B = Blank
 module Attrs = Html.Attributes
@@ -156,9 +157,9 @@ let viewGroup m showLink showUndo (spacename, entries) =
 
 type collapseVerbs = CollapseVerbs | DontCollapseVerbs
 
-type showLink = ShowLink | DontShowLink
+and showLink = ShowLink | DontShowLink
 
-type showUndo = ShowUndo | DontShowUndo
+and showUndo = ShowUndo | DontShowUndo
 
 let viewRoutes m collapse showLink showUndo =
   let tls = m.toplevels in

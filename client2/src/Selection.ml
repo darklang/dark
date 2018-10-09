@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 module B = Blank
 module P = Pointer
@@ -41,7 +42,7 @@ type jSSide =
   ; left: float
   ; id: int }
 
-type htmlSizing = {centerX: float; centerY: float; id: iD}
+and htmlSizing = {centerX: float; centerY: float; id: iD}
 
 let jsToHtmlSizing obj =
   { centerX= (obj.left + obj.right) / 2

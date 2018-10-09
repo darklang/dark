@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 
 let onWindow eventName decoder = subscription (MySub (eventName, decoder))
@@ -10,7 +11,7 @@ let subMap func (MySub (eventName, decoder)) =
 
 type state = 'msg listener Belt.Map.String.t
 
-type 'msg listener = {decoders: 'msg decoder list; pid: Process.id}
+and 'msg listener = {decoders: 'msg decoder list; pid: Process.id}
 
 let groupByEventName =
   let go (MySub (eventName, decoder)) =

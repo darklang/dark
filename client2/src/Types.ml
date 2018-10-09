@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 
 type exception_ =
@@ -13,7 +14,7 @@ type exception_ =
   ; info: string Belt.Map.String.t
   ; workarounds: string list }
 
-type tipe =
+and tipe =
   | TInt
   | TStr
   | TChar
@@ -40,11 +41,11 @@ type tipe =
   | THasMany of string
   | TDbList of tipe
 
-type dhttp = Redirect of string | Response of int * (string * string) list
+and dhttp = Redirect of string | Response of int * (string * string) list
 
-type optionT = OptSome of dval | OptNone
+and optionT = OptSome of dval | OptNone
 
-type dval =
+and dval =
   | DInt of int
   | DFloat of float
   | DBool of bool
@@ -67,39 +68,39 @@ type dval =
   | DUuid of string
   | DOption of optionT
 
-type pos = {x: int; y: int}
+and pos = {x: int; y: int}
 
-type vPos = {vx: int; vy: int}
+and vPos = {vx: int; vy: int}
 
-type mouseEvent = {pos: vPos; button: int}
+and mouseEvent = {pos: vPos; button: int}
 
-type isLeftButton = bool
+and isLeftButton = bool
 
-type tLID = TLID of int
+and tLID = TLID of int
 
-type iD = ID of int
+and iD = ID of int
 
-type darkKeyboardEvent =
-  { standard: keyboardEvent
+and darkKeyboardEvent =
+  { standard: Belt.Dom.keyboardEvent
   ; selectionStart: int option
   ; selectionEnd: int option }
 
-type entryCursor = Creating of pos | Filling of tLID * iD
+and entryCursor = Creating of pos | Filling of tLID * iD
 
-type hasMoved = bool
+and hasMoved = bool
 
-type cursorState =
+and cursorState =
   | Selecting of tLID * iD option
   | Entering of entryCursor
   | Dragging of tLID * vPos * hasMoved * cursorState
   | SelectingCommand of tLID * iD
   | Deselected
 
-type timerAction = RefreshAnalysis | CheckUrlHashPosition
+and timerAction = RefreshAnalysis | CheckUrlHashPosition
 
-type globalVariable = string
+and globalVariable = string
 
-type rPCResult =
+and rPCResult =
   toplevel list
   * toplevel list
   * traces
@@ -107,16 +108,16 @@ type rPCResult =
   * userFunction list
   * tLID list
 
-type dvalArgsHash = string
+and dvalArgsHash = string
 
-type executeFunctionRPCResult = dval * dvalArgsHash
+and executeFunctionRPCResult = dval * dvalArgsHash
 
-type getAnalysisResult =
+and getAnalysisResult =
   traces * globalVariable list * fourOhFour list * tLID list
 
-type initialLoadResult = rPCResult
+and initialLoadResult = rPCResult
 
-type msg =
+and msg =
   | GlobalClick of mouseEvent
   | NoneClick of mouseEvent
   | ToplevelMouseDown of tLID * mouseEvent
@@ -127,8 +128,8 @@ type msg =
   | EntrySubmitMsg
   | GlobalKeyPress of darkKeyboardEvent
   | AutocompleteClick of string
-  | FocusEntry of (Dom.error, unit) result
-  | FocusAutocompleteItem of (Dom.error, unit) result
+  | FocusEntry of (Belt.Dom.errorEvent, unit) result
+  | FocusAutocompleteItem of (Belt.Dom.errorEvent, unit) result
   | RPCCallback of focus * rPCParams * (Http.error, rPCResult) result
   | SaveTestRPCCallback of (Http.error, string) result
   | GetAnalysisRPCCallback of (Http.error, getAnalysisResult) result
@@ -178,11 +179,11 @@ type msg =
   | AbandonMigration of tLID
   | DeleteColInDB of tLID * iD
 
-type predecessor = pointerData option
+and predecessor = pointerData option
 
-type successor = pointerData option
+and successor = pointerData option
 
-type focus =
+and focus =
   | FocusNone
   | FocusExact of tLID * iD
   | FocusNext of tLID * iD option
@@ -190,11 +191,11 @@ type focus =
   | FocusSame
   | FocusNoChange
 
-type rollbackID = iD
+and rollbackID = iD
 
-type rollforwardID = iD
+and rollforwardID = iD
 
-type op =
+and op =
   | SetHandler of tLID * pos * handler
   | CreateDB of tLID * pos * dBName
   | AddDBCol of tLID * iD * iD
@@ -219,16 +220,16 @@ type op =
   | DeleteColInDBMigration of tLID * iD
   | AbandonDBMigration of tLID
 
-type rPCParams = {ops: op list}
+and rPCParams = {ops: op list}
 
-type executeFunctionRPCParams =
+and executeFunctionRPCParams =
   {tlid: tLID; traceID: traceID; callerID: iD; args: dval list; fnName: string}
 
-type analysisParams = tLID list
+and analysisParams = tLID list
 
-type delete404Param = fourOhFour
+and delete404Param = fourOhFour
 
-type autocomplete =
+and autocomplete =
   { functions: function_ list
   ; admin: bool
   ; completions: autocompleteItem list list
@@ -240,13 +241,13 @@ type autocomplete =
   ; tipe: tipe option
   ; isCommandMode: bool }
 
-type stringEntryPermission = StringEntryAllowed | StringEntryNotAllowed
+and stringEntryPermission = StringEntryAllowed | StringEntryNotAllowed
 
-type stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
+and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
 
-type literal = string
+and literal = string
 
-type omniAction =
+and omniAction =
   | NewDB of dBName
   | NewHandler
   | NewFunction of string option
@@ -254,15 +255,15 @@ type omniAction =
   | NewHTTPRoute of string
   | NewEventSpace of string
 
-type keyword = KLet | KIf | KLambda
+and keyword = KLet | KIf | KLambda
 
-type command =
+and command =
   { name: string
   ; action: ((model -> toplevel) -> pointerData) -> modification
   ; doc: string
   ; shortcut: string }
 
-type autocompleteItem =
+and autocompleteItem =
   | ACFunction of function_
   | ACField of string
   | ACVariable of varName
@@ -272,9 +273,9 @@ type autocompleteItem =
   | ACKeyword of keyword
   | ACCommand of command
 
-type target = tLID * pointerData
+and target = tLID * pointerData
 
-type autocompleteMod =
+and autocompleteMod =
   | ACSetQuery of string
   | ACAppendQuery of string
   | ACReset
@@ -284,37 +285,37 @@ type autocompleteMod =
   | ACRegenerate
   | ACEnableCommandMode
 
-type variantTest = StubVariant
+and variantTest = StubVariant
 
-type class_ = string
+and class_ = string
 
-type pick = PickA | PickB
+and pick = PickA | PickB
 
-type fFIsExpanded = bool
+and fFIsExpanded = bool
 
-type flagsVS = fFIsExpanded Belt.Map.Int.t
+and flagsVS = fFIsExpanded Belt.Map.Int.t
 
-type varName = string
+and varName = string
 
-type fnName = string
+and fnName = string
 
-type fieldName = string
+and fieldName = string
 
-type keyName = string
+and keyName = string
 
-type varBind = varName blankOr
+and varBind = varName blankOr
 
-type field = fieldName blankOr
+and field = fieldName blankOr
 
-type key = keyName blankOr
+and key = keyName blankOr
 
-type lambdaParameter = varName blankOr
+and lambdaParameter = varName blankOr
 
-type expr = nExpr blankOr
+and expr = nExpr blankOr
 
-type sendToRail = Rail | NoRail
+and sendToRail = Rail | NoRail
 
-type nExpr =
+and nExpr =
   | If of expr * expr * expr
   | FnCall of fnName * expr list * sendToRail
   | Variable of varName
@@ -327,7 +328,7 @@ type nExpr =
   | FieldAccess of expr * field
   | FeatureFlag of string blankOr * expr * expr * expr
 
-type pointerData =
+and pointerData =
   | PVarBind of varBind
   | PEventName of string blankOr
   | PEventModifier of string blankOr
@@ -344,7 +345,7 @@ type pointerData =
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
 
-type pointerType =
+and pointerType =
   | VarBind
   | EventName
   | EventSpace
@@ -361,44 +362,44 @@ type pointerType =
   | ParamName
   | ParamTipe
 
-type 'a blankOr = Blank of iD | F of iD * 'a
+and 'a blankOr = Blank of iD | F of iD * 'a
 
-type pointerOwner = POSpecHeader | POAst | PODb | POSpecType
+and pointerOwner = POSpecHeader | POAst | PODb | POSpecType
 
-type darkType = nDarkType blankOr
+and darkType = nDarkType blankOr
 
-type nDarkType =
+and nDarkType =
   | DTEmpty
   | DTAny
   | DTString
   | DTInt
   | DTObj of (string blankOr * darkType) list
 
-type specTypes = {input: darkType; output: darkType}
+and specTypes = {input: darkType; output: darkType}
 
-type handlerSpec =
+and handlerSpec =
   { module_: string blankOr
   ; name: string blankOr
   ; modifier: string blankOr
   ; types: specTypes }
 
-type handlerSpace = HSHTTP | HSCron | HSOther | HSEmpty
+and handlerSpace = HSHTTP | HSCron | HSOther | HSEmpty
 
-type handler = {ast: expr; spec: handlerSpec; tlid: tLID}
+and handler = {ast: expr; spec: handlerSpec; tlid: tLID}
 
-type dBName = string
+and dBName = string
 
-type dBColName = string
+and dBColName = string
 
-type dBColType = string
+and dBColType = string
 
-type dBColumn = dBColName blankOr * dBColType blankOr
+and dBColumn = dBColName blankOr * dBColType blankOr
 
-type dBMigrationKind = DeprecatedMigrationKind
+and dBMigrationKind = DeprecatedMigrationKind
 
-type dBMigrationState = DBMigrationAbandoned | DBMigrationInitialized
+and dBMigrationState = DBMigrationAbandoned | DBMigrationInitialized
 
-type dBMigration =
+and dBMigration =
   { startingVersion: int
   ; version: int
   ; state: dBMigrationState
@@ -406,7 +407,7 @@ type dBMigration =
   ; rollback: expr
   ; cols: dBColumn list }
 
-type dB =
+and dB =
   { tlid: tLID
   ; name: dBName
   ; cols: dBColumn list
@@ -414,47 +415,47 @@ type dB =
   ; oldMigrations: dBMigration list
   ; activeMigration: dBMigration option }
 
-type tLData = TLHandler of handler | TLDB of dB | TLFunc of userFunction
+and tLData = TLHandler of handler | TLDB of dB | TLFunc of userFunction
 
-type toplevel = {id: tLID; pos: pos; data: tLData}
+and toplevel = {id: tLID; pos: pos; data: tLData}
 
-type lVDict = dval Belt.Map.Int.t
+and lVDict = dval Belt.Map.Int.t
 
-type aVDict = varName list Belt.Map.Int.t
+and aVDict = varName list Belt.Map.Int.t
 
-type analysisResults = {liveValues: lVDict; availableVarnames: aVDict}
+and analysisResults = {liveValues: lVDict; availableVarnames: aVDict}
 
-type analyses = analysisResults Belt.Map.String.t
+and analyses = analysisResults Belt.Map.String.t
 
-type inputValueDict = (varName, dval) dict
+and inputValueDict = (varName, dval) dict
 
-type functionResult =
+and functionResult =
   {fnName: string; callerID: iD; argHash: string; value: dval}
 
-type traceID = string
+and traceID = string
 
-type trace =
+and trace =
   {id: traceID; input: inputValueDict; functionResults: functionResult list}
 
-type traces = trace list Belt.Map.Int.t
+and traces = trace list Belt.Map.Int.t
 
-type fourOhFour = {space: string; path: string; modifier: string}
+and fourOhFour = {space: string; path: string; modifier: string}
 
-type name = string
+and name = string
 
-type page = Toplevels of pos | Fn of tLID * pos
+and page = Toplevels of pos | Fn of tLID * pos
 
-type clipboard = pointerData option
+and clipboard = pointerData option
 
-type syncState = {inFlight: bool; ticks: int}
+and syncState = {inFlight: bool; ticks: int}
 
-type urlState = {lastPos: pos}
+and urlState = {lastPos: pos}
 
-type tLCursors = int Belt.Map.Int.t
+and tLCursors = int Belt.Map.Int.t
 
-type canvasProps = {offset: pos; fnOffset: pos; enablePan: bool}
+and canvasProps = {offset: pos; fnOffset: pos; enablePan: bool}
 
-type model =
+and model =
   { error: darkError
   ; lastMsg: msg
   ; lastMod: modification
@@ -487,22 +488,22 @@ type model =
   ; userContentHost: string
   ; environment: string }
 
-type serializableEditor =
+and serializableEditor =
   { clipboard: pointerData option
   ; timersEnabled: bool
   ; cursorState: cursorState
   ; lockedHandlers: tLID list }
 
-type darkError = {message: string option; showDetails: bool}
+and darkError = {message: string option; showDetails: bool}
 
-type testResult = (string, unit) result
+and testResult = (string, unit) result
 
-type integrationTestState =
+and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
 
-type modification =
+and modification =
   | DisplayAndReportHttpErroror of string * Http.error
   | DisplayAndReportErroror of string
   | DisplayErroror of string
@@ -549,20 +550,20 @@ type modification =
       tLID * traceID * iD * fnName * dvalArgsHash * dval
   | TweakModel of (model -> model)
 
-type flags =
+and flags =
   { editorState: string option
   ; complete: flagFunction list
   ; userContentHost: string
   ; environment: string }
 
-type parameter =
+and parameter =
   { name: string
   ; tipe: tipe
   ; block_args: string list
   ; optional: bool
   ; description: string }
 
-type function_ =
+and function_ =
   { name: string
   ; parameters: parameter list
   ; description: string
@@ -571,30 +572,30 @@ type function_ =
   ; deprecated: bool
   ; infix: bool }
 
-type userFunctionParameter =
+and userFunctionParameter =
   { name: string blankOr
   ; tipe: tipe blankOr
   ; block_args: string list
   ; optional: bool
   ; description: string }
 
-type userFunctionMetadata =
+and userFunctionMetadata =
   { name: string blankOr
   ; parameters: userFunctionParameter list
   ; description: string
   ; returnTipe: tipe blankOr
   ; infix: bool }
 
-type userFunction = {tlid: tLID; metadata: userFunctionMetadata; ast: expr}
+and userFunction = {tlid: tLID; metadata: userFunctionMetadata; ast: expr}
 
-type flagParameter =
+and flagParameter =
   { name: string
   ; tipe: string
   ; block_args: string list
   ; optional: bool
   ; description: string }
 
-type flagFunction =
+and flagFunction =
   { name: string
   ; parameters: flagParameter list
   ; description: string

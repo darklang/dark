@@ -1,4 +1,5 @@
 open Belt
+open Tea
 open Porting
 module Attrs = Html.Attributes
 module JSD = Json.Decode

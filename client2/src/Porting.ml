@@ -35,6 +35,7 @@ module Result = struct
   include Belt.Result
   let withDefault = getWithDefault
 end
+type ('a, 'b) result = ('a, 'b) Result.t
 
 module Regex = struct
   let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
