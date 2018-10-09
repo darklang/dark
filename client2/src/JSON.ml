@@ -57,17 +57,17 @@ let decodeBlankOr d =
     [ ("Filled", decodeVariant2 F decodeID d)
     ; ("Blank", decodeVariant1 Blank decodeID) ]
 
-let decodePair d1 d2 = JSD.map2 to_tuple2 (JSD.index 0 d1) (JSD.index 1 d2)
+let decodePair d1 d2 = JSD.map2 Tuple2.create (JSD.index 0 d1) (JSD.index 1 d2)
 
 let encodePair encA encB (a, b) = JSE.list [encA a; encB b]
 
 let decodeTriple d1 d2 d3 =
-  JSD.map3 to_tuple3 (JSD.index 0 d1) (JSD.index 1 d2) (JSD.index 2 d3)
+  JSD.map3 Tuple3.create (JSD.index 0 d1) (JSD.index 1 d2) (JSD.index 2 d3)
 
 let encodeTriple encA encB encC (a, b, c) = JSE.list [encA a; encB b; encC c]
 
 let decodeQuadriple d1 d2 d3 d4 =
-  JSD.map4 to_tuple4 (JSD.index 0 d1) (JSD.index 1 d2) (JSD.index 2 d3)
+  JSD.map4 Tuple4.create (JSD.index 0 d1) (JSD.index 1 d2) (JSD.index 2 d3)
     (JSD.index 3 d4)
 
 let encodeQuadriple encA encB encC encD (a, b, c, d) =

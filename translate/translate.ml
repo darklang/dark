@@ -191,6 +191,7 @@ let fix_fqtype n : string =
     ; "Dom.error", "Dom.errorEvent"
     ; "Keyboard.Event.keyboardEvent", "Dom.keyboardEvent"
     ; "Keyboard.Event.KeyboardEvent", "Dom.keyboardEvent"
+    ; "Navigation.location", "Web.Location.location"
     ]
   in
   rewrite patterns n
@@ -430,7 +431,7 @@ let rec exprpO (exprp) : Parsetree.expression =
       (List.map exprs
          ~f:(fun expr -> exprO (skip_commented expr)))
   | TupleFunction count ->
-    Exp.ident (name2lid ("to_tuple" ^ (string_of_int count)))
+    Exp.ident (names2lid ["Tuple" ^ (string_of_int count); "create"])
 
   | Parens (_c, expr, _c2) ->
     exprO expr
