@@ -18,8 +18,11 @@ let config_function_patterns =
   ]
 
 let config_module_patterns =
-  [ "^LE$", "List.Extra"
-  ; "^ME$", "Maybe.Extra"
+  [ "^LE$", "List"
+  ; "List.Extra", "List"
+  ; "Maybe.Extra", "Option"
+  ; "Maybe", "Option"
+  ; "^ME$", "Option"
   ]
 
 let config_post_process_patterns =
@@ -236,25 +239,10 @@ let fix_function name : string =
     [ "==", "="
     ; "/=", "<>"
     ; "\\+\\+", "^"
-    ; "Char.fromCode", "chr"
-    ; "Char.toCode", "code"
-    ; "List.Extra.elemIndex", "List.elemIndex"
-    ; "List.Extra.find", "List.getBy"
-    ; "List.Extra.getAt", "List.get"
-    ; "List.Extra.last", "List.last"
-    ; "List.Extra.indexedMap", "List.mapWithIndex"
-    ; "List.Extra.initialize", "List.makeBy"
-    ; "Maybe.Extra.orElse", "Option.orElse"
-    ; "Maybe.Extra.toList", "Option.toList"
     ; "Maybe.andThen", "Option.andThen"
     ; "Maybe.map", "Option.map"
     ; "Navigation.programWithFlags", "Navigation.navigationProgram"
     ; "Result.toMaybe", "Result.toOption"
-    ; "Result.withDefault", "Result.getWithDefault"
-    ; "String.fromFloat", "string_of_int"
-    ; "String.fromInt", "string_of_float"
-    ; "String.toFloat", "float_of_string"
-    ; "String.toInt", "int_of_string"
     ]
   in
   rewrite (patterns @ config_function_patterns) name
@@ -767,9 +755,7 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
   (* ignore header *)
   let imports = m.imports |> importsO in
   let standardImports =
-    [ Str.open_ (Opn.mk (name2lid "Belt"))
-    ; Str.open_ (Opn.mk (name2lid "Tea"))
-    ; Str.open_ (Opn.mk ~override:Override (name2lid "Porting"))
+    [ Str.open_ (Opn.mk ~override:Override (name2lid "Porting"))
     ]
   in
   let body =
