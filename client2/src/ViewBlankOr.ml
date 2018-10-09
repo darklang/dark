@@ -11,13 +11,13 @@ open ViewUtils
 
 type htmlConfig =
   | WithClass of string
-  | ClickSelectAs of iD
+  | ClickSelectAs of id
   | ClickSelect
-  | MouseoverAs of iD
+  | MouseoverAs of id
   | Mouseover
-  | WithID of iD
+  | WithID of id
   | WithFF
-  | WithEditFn of tLID
+  | WithEditFn of tlid
 
 let wc = WithClass
 

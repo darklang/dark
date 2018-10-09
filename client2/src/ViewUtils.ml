@@ -14,8 +14,8 @@ open Types
 type viewState =
   { tl: toplevel
   ; cursorState: cursorState
-  ; tlid: tLID
-  ; hovering: iD option
+  ; tlid: tlid
+  ; hovering: id option
   ; ac: autocomplete
   ; handlerSpace: handlerSpace
   ; showEntry: bool
@@ -25,9 +25,9 @@ type viewState =
   ; traces: trace list
   ; analyses: analyses
   ; ufns: userFunction list
-  ; relatedBlankOrs: iD list
+  ; relatedBlankOrs: id list
   ; tooWide: bool
-  ; executingFunctions: iD list
+  ; executingFunctions: id list
   ; tlCursors: tLCursors
   ; testVariants: variantTest list
   ; featureFlags: flagsVS

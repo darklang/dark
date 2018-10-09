@@ -16,14 +16,19 @@ let config_function_patterns =
   ]
 
 let config_module_patterns =
-  [ "LE", "List.Extra"
-  ; "ME", "Maybe.Extra"
+  [ "^LE$", "List.Extra"
+  ; "^ME$", "Maybe.Extra"
   ]
 
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
   ; "Http\\.error", "string Http.error"
+  ]
+
+let config_type_patterns =
+  [ "^tLID$", "tlid"
+  ; "^iD$", "id"
   ]
 
 (* ------------------------ *)
@@ -34,13 +39,13 @@ let rewrite (patterns: (string * string) list) str : string =
     ~f:(fun prev (pattern,template) ->
         Re2.rewrite_exn (Re2.create_exn pattern) ~template prev)
 
-let std_post_process_patterns =
-  [ "\\(string, (.*)\\) dict", "\\1 Belt.Map.String.t"
-  ; "\\(int, (.*)\\) dict", "\\1 Belt.Map.Int.t"
-  ]
-
 let post_process =
-  rewrite (config_post_process_patterns @ std_post_process_patterns)
+  let patterns =
+    [ "\\(string, (.*)\\) dict", "\\1 Belt.Map.String.t"
+    ; "\\(int, (.*)\\) dict", "\\1 Belt.Map.Int.t"
+    ]
+  in
+  rewrite (config_post_process_patterns @ patterns)
 
 (* ------------------------ *)
 (* Rename appropriately *)
@@ -198,7 +203,9 @@ let fix_fqtype n : string =
   rewrite patterns n
 
 let fix_type n : string =
-  String.uncapitalize n
+  n
+  |> String.uncapitalize
+  |> rewrite config_type_patterns
 
 let fix_module n : string =
   let patterns =
