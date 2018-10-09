@@ -15,8 +15,8 @@ module Native = struct
   end
 
   module Cache = struct
-    let set _k _v = ()
-    let get _k = ""
+    let set _k _v = Some "todo: Cache_set"
+    let get _k = "todo: Cache_get"
     let clear _k = ()
   end
 end
@@ -27,9 +27,41 @@ end
 
 let (++) (a: string) (b: string) = a ^ b
 
+module Option = struct
+  type 'a t = 'a option
+  let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
+    match o with
+    | None -> None
+    | Some x -> fn x
+  let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
+    match mb with
+    | None -> ma
+    | Some _ -> mb
+
+  let map (f: 'a -> 'b) (o: 'a option) : 'b option =
+    Belt.Option.map o f
+end
+
+module Result = struct
+  type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
+  let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
+    Belt.Result.getWithDefault r default
+end
+type ('err, 'ok) result = ('err, 'ok) Result.t
+
 module String = struct
-  let toInt (s: string) : int = int_of_string s
-  let toFloat (s: string) : float = float_of_string s
+  let toInt (s: string) : (string, int) result =
+    try
+      Ok (int_of_string s)
+    with e ->
+      Error (Printexc.to_string e)
+
+  let toFloat (s: string) : (string, float) result =
+    try
+      Ok (float_of_string s)
+    with e ->
+      Error (Printexc.to_string e)
+
   let uncons (s: string) : (char * string) option =
     match s with
     | "" -> None
@@ -52,27 +84,7 @@ module String = struct
 
 end
 
-module Option = struct
-  type 'a t = 'a option
-  let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
-    match o with
-    | None -> None
-    | Some x -> fn x
-  let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
-    match mb with
-    | None -> ma
-    | Some _ -> mb
 
-  let map (f: 'a -> 'b) (o: 'a option) : 'b option =
-    Belt.Option.map o f
-end
-
-module Result = struct
-  type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
-  let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
-    Belt.Result.getWithDefault r default
-end
-type ('a, 'b) result = ('a, 'b) Result.t
 
 module Regex = struct
   let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
@@ -92,7 +104,7 @@ module List = struct
   let map2 (fn: 'a -> 'b -> 'c) (a: 'a list) (b: 'b list) : 'c list =
     Belt.List.mapReverse2 a b fn |> Belt.List.reverse
   let getBy fn l = Belt.List.getBy l fn
-  let elemIndex (l : 'a list) (a: 'a) : int option =
+  let elemIndex (a: 'a) (l : 'a list) : int option =
     l
     |> Array.of_list
     |> Js.Array.findIndex ((=) a)
