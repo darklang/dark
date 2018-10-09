@@ -23,7 +23,7 @@ let config_module_patterns =
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
-  ; "Http.error", "string Http.error"
+  ; "Http\\.error", "string Http.error"
   ]
 
 (* ------------------------ *)
@@ -192,7 +192,7 @@ let fix_fqtype n : string =
     ; "Keyboard.Event.keyboardEvent", "Dom.keyboardEvent"
     ; "Keyboard.Event.KeyboardEvent", "Dom.keyboardEvent"
     ; "Navigation.location", "Web.Location.location"
-    ; "time", "Time.t"
+    ; "^time$", "Time.t"
     ]
   in
   rewrite patterns n
