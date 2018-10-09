@@ -3,7 +3,7 @@ open Tea
 open Porting
 open Types
 
-let isCompatible t1 t2 = ((t1 = TAny || t2) = TAny || t1) = t2
+let isCompatible t1 t2 = (t1 = TAny || t2 = TAny) || t1 = t2
 
 let tipe2str t =
   match t with
