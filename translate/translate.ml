@@ -183,12 +183,18 @@ let names2str
 (* Fix specific strings and convert *)
 (* ------------------------ *)
 
-let fix_type n : string =
+let fix_fqtype n : string =
   let patterns =
     [ "maybe", "option"
+    ; "Dom.error", "Belt.Dom.errorEvent"
+    ; "Keyboard.Event.keyboardEvent", "Belt.Dom.keyboardEvent"
+    ; "Keyboard.Event.KeyboardEvent", "Belt.Dom.keyboardEvent"
     ]
   in
-  rewrite patterns (String.uncapitalize n)
+  rewrite patterns n
+
+let fix_type n : string =
+  String.uncapitalize n
 
 let fix_module n : string =
   let patterns =
@@ -221,6 +227,7 @@ let fix_function name : string =
     ; "Maybe.Extra.toList", "Option.toList"
     ; "Maybe.andThen", "Option.andThen"
     ; "Maybe.map", "Option.map"
+    ; "Navigation.programWithFlags", "Navigation.navigationProgram"
     ; "Result.toMaybe", "Result.toOption"
     ; "Result.withDefault", "Result.getWithDefault"
     ; "String.fromFloat", "string_of_int"
@@ -630,6 +637,7 @@ let rec type_O (t: type_) : Parsetree.core_type =
           (names2lid
              ~fix_init:fix_module
              ~fix_last:fix_type
+             ~fix_all:fix_fqtype
              names)
           (List.map ts ~f:(fun t -> t |> skip_preCommented |> type_O)))
    | TypeVariable name ->
@@ -724,6 +732,7 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
   let imports = m.imports |> importsO in
   let standardImports =
     [ Str.open_ (Opn.mk (name2lid "Belt"))
+    ; Str.open_ (Opn.mk (name2lid "Tea"))
     ; Str.open_ (Opn.mk (name2lid "Porting"))
     ]
   in
