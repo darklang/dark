@@ -68,7 +68,7 @@ module List = struct
     match l with
     | [] -> None
     | [a] -> Some a
-    | hd :: tail -> last tail
+    | _ :: tail -> last tail
 
 end
 
