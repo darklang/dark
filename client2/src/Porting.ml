@@ -45,6 +45,10 @@ module String = struct
     String.concat sep l
   let endsWith (needle: string) (haystack: string) =
     Js.String.endsWith needle haystack
+  let toLower (s: string) : string =
+    String.lowercase s
+  let toUpper (s: string) : string =
+    String.uppercase s
 
 end
 
