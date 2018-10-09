@@ -204,6 +204,7 @@ let fix_fqtype n : string =
     ; "Keyboard.Event.KeyboardEvent", "Dom.keyboardEvent"
     ; "Navigation.location", "Web.Location.location"
     ; "^time$", "Time.t"
+    ; "^cmd$", "Cmd.t"
     ]
   in
   rewrite patterns n

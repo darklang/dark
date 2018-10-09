@@ -530,7 +530,7 @@ and modification =
   | RPC of (op list * focus)
   | GetAnalysisRPC
   | NoChange
-  | MakeCmd of msg cmd
+  | MakeCmd of msg Cmd.t
   | AutocompleteMod of autocompleteMod
   | Many of modification list
   | Drag of tlid * vPos * hasMoved * cursorState
