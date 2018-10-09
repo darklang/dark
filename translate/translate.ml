@@ -224,7 +224,7 @@ let fix_function name : string =
     ; "List.Extra.elemIndex", "List.elemIndex"
     ; "List.Extra.find", "List.getBy"
     ; "List.Extra.getAt", "List.get"
-    ; "List.Extra.last", "List.get"
+    ; "List.Extra.last", "List.last"
     ; "List.Extra.indexedMap", "List.mapWithIndex"
     ; "List.Extra.initialize", "List.makeBy"
     ; "Maybe.Extra.orElse", "Option.orElse"

@@ -88,7 +88,7 @@ let extractVariable m tl p =
                |> List.all (not << fun v -> AST.isDefinitionOf v elem)
              in
              allRequiredVariablesAvailable && noVariablesAreRedefined )
-      |> List.Extra.last
+      |> List.last
     in
     let newVar = B.newF varname in
     match lastPlaceWithSameVarsAndValues with
