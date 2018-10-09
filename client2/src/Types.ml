@@ -152,8 +152,8 @@ and msg =
   | WindowResize of int * int
   | TimerFire of timerAction * Time.t
   | JSError of string
-  | PageVisibilityChange of PageVisibility.visibility
-  | PageFocusChange of PageVisibility.visibility
+  (* PORTTODO | PageVisibilityChange of PageVisibility.visibility *)
+  (* PORTTODO | PageFocusChange of PageVisibility.visibility *)
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
@@ -475,7 +475,7 @@ and model =
   ; f404s: fourOhFour list
   ; unlockedDBs: tlid list
   ; integrationTestState: integrationTestState
-  ; visibility: PageVisibility.visibility
+  (* PORTTODO ; visibility: PageVisibility.visibility *)
   ; clipboard: clipboard
   ; syncState: syncState
   ; urlState: urlState
