@@ -282,7 +282,7 @@ let updateMod mod_ (m, cmd) =
                  |> ( ^ ) (maybe "result type" resultType)
                  |> ( ^ ) (maybe "expected" expected)
                  |> ( ^ )
-                      ( if info = Dict.empty then ""
+                      ( if info = Belt.Map.String.empty then ""
                       else ", info: " ^ toString info )
                  |> ( ^ )
                       ( if workarounds = [] then ""

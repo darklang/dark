@@ -19,7 +19,6 @@ import String.Extra as SE
 import Time
 import Task
 import Window
-import Dict
 
 -- dark
 import DontPort
@@ -391,7 +390,7 @@ updateMod mod (m, cmd) =
                        |> (++) (maybe "result" result)
                        |> (++) (maybe "result type" resultType)
                        |> (++) (maybe "expected" expected)
-                       |> (++) (if info == Dict.empty
+                       |> (++) (if info == DontPort.strDictEmpty
                                 then ""
                                 else ", info: " ++ toString info)
                        |> (++) (if workarounds == []

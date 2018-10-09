@@ -2,11 +2,11 @@ module Defaults exposing (..)
 
 -- builtin
 -- lib
-import Dict
 
 -- dark
 import Types exposing (..)
 import PageVisibility
+import DontPort
 
 
 entryID : String
@@ -80,8 +80,8 @@ defaultModel = { error = { message = Nothing
                , tests = []
                , toplevels = []
                , deletedToplevels = []
-               , analyses = Dict.empty
-               , traces = Dict.empty
+               , analyses = DontPort.strDictEmpty
+               , traces = DontPort.intDictEmpty
                , globals = []
                , f404s = []
                , unlockedDBs = []
@@ -95,8 +95,8 @@ defaultModel = { error = { message = Nothing
                , clipboard = Nothing
                , cursorState = Deselected
                , executingFunctions = []
-               , tlCursors = Dict.empty
-               , featureFlags = Dict.empty
+               , tlCursors = DontPort.intDictEmpty
+               , featureFlags = DontPort.intDictEmpty
                , lockedHandlers = []
                , canvas = defaultCanvas
                , canvasName = "builtwithdark"
