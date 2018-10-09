@@ -18,7 +18,7 @@ let tipe2str t =
   | TObj -> "Obj"
   | TBlock -> "Block"
   | TIncomplete -> "Incomplete"
-  | TErroror -> "Error"
+  | TError -> "Error"
   | TResp -> "Response"
   | TDB -> "Datastore"
   | TID -> "ID"
@@ -28,7 +28,7 @@ let tipe2str t =
   | TOption -> "Option"
   | TPassword -> "Password"
   | TUuid -> "UUID"
-  | TErrororRail -> "ErrorRail"
+  | TErrorRail -> "ErrorRail"
   | TBelongsTo s -> s
   | THasMany s -> ("[" ^ s) ^ "]"
   | TDbList a -> ("[" ^ tipe2str a) ^ "]"
@@ -56,7 +56,7 @@ let str2tipe t =
     | "response" -> TResp
     | "datastore" -> TDB
     | "date" -> TDate
-    | "error" -> TErroror
+    | "error" -> TError
     | table -> THasMany table
   in
   match String.toLower t with
@@ -76,7 +76,7 @@ let str2tipe t =
   | "response" -> TResp
   | "datastore" -> TDB
   | "date" -> TDate
-  | "error" -> TErroror
+  | "error" -> TError
   | "option" -> TOption
   | "password" -> TPassword
   | "id" -> TID
@@ -98,7 +98,7 @@ let typeOf dv =
   | DObj _ -> TObj
   | DBlock -> TBlock
   | DIncomplete -> TIncomplete
-  | DErroror _ -> TErroror
+  | DError _ -> TError
   | DResp (_, _) -> TResp
   | DDB _ -> TDB
   | DID _ -> TID
@@ -106,7 +106,7 @@ let typeOf dv =
   | DTitle _ -> TTitle
   | DUrl _ -> TUrl
   | DOption _ -> TOption
-  | DErrororRail _ -> TErrororRail
+  | DErrorRail _ -> TErrorRail
   | DPassword _ -> TPassword
   | DUuid _ -> TUuid
 
@@ -121,7 +121,7 @@ let isLiteral dv =
   | _ -> false
 
 let isComplete dv =
-  match dv with DErroror _ -> false | DIncomplete -> false | _ -> true
+  match dv with DError _ -> false | DIncomplete -> false | _ -> true
 
 let isTrue dv = dv = DBool true
 
@@ -161,7 +161,7 @@ let toRepr_ oldIndent dv =
   | DUrl s -> wrap s
   | DDB s -> wrap s
   | DUuid s -> wrap s
-  | DErroror s -> wrap s
+  | DError s -> wrap s
   | DPassword s -> wrap s
   | DBlock -> asType
   | DIncomplete -> asType
@@ -169,9 +169,9 @@ let toRepr_ oldIndent dv =
   | DResp (Response (code, hs), dv_) ->
       let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
       (((toString code ^ " ") ^ headers) ^ nl) ^ toRepr dv_
-  | DOption OptNone -> "Nothing"
-  | DOption (OptSome dv_) -> "Some " ^ toRepr dv_
-  | DErrororRail dv_ -> wrap (toRepr dv_)
+  | DOption OptNothing -> "Nothing"
+  | DOption (OptJust dv_) -> "Some " ^ toRepr dv_
+  | DErrorRail dv_ -> wrap (toRepr dv_)
   | DList l -> (
     match l with
     | [] -> "[]"

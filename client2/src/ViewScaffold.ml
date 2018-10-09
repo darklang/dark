@@ -46,7 +46,7 @@ let viewButtons m =
               [ Attrs.class_ "link"
               ; Attrs.href "#"
               ; eventNoPropagation "mouseup" (fun _ ->
-                    ShowErrororDetails (not m.error.showDetails) ) ]
+                    ShowErrorDetails (not m.error.showDetails) ) ]
               [ Html.text
                   ( if m.error.showDetails then "hide details"
                   else "see details" ) ] ]

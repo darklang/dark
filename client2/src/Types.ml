@@ -26,7 +26,7 @@ and tipe =
   | TNull
   | TBlock
   | TIncomplete
-  | TErroror
+  | TError
   | TResp
   | TDB
   | TID
@@ -36,14 +36,14 @@ and tipe =
   | TPassword
   | TUuid
   | TOption
-  | TErrororRail
+  | TErrorRail
   | TBelongsTo of string
   | THasMany of string
   | TDbList of tipe
 
 and dhttp = Redirect of string | Response of int * (string * string) list
 
-and optionT = OptSome of dval | OptNone
+and optionT = OptJust of dval | OptNothing
 
 and dval =
   | DInt of int
@@ -55,9 +55,9 @@ and dval =
   | DList of dval list
   | DObj of dval Belt.Map.String.t
   | DIncomplete
-  | DErroror of string
+  | DError of string
   | DBlock
-  | DErrororRail of dval
+  | DErrorRail of dval
   | DResp of dhttp * dval
   | DDB of string
   | DID of string
@@ -100,7 +100,7 @@ and timerAction = RefreshAnalysis | CheckUrlHashPosition
 
 and globalVariable = string
 
-and rPCResult =
+and rpcResult =
   toplevel list
   * toplevel list
   * traces
@@ -115,11 +115,11 @@ and executeFunctionRPCResult = dval * dvalArgsHash
 and getAnalysisResult =
   traces * globalVariable list * fourOhFour list * tlid list
 
-and initialLoadResult = rPCResult
+and initialLoadResult = rpcResult
 
 and msg =
   | GlobalClick of mouseEvent
-  | NoneClick of mouseEvent
+  | NothingClick of mouseEvent
   | ToplevelMouseDown of tlid * mouseEvent
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
@@ -130,7 +130,7 @@ and msg =
   | AutocompleteClick of string
   | FocusEntry of (Dom.errorEvent, unit) result
   | FocusAutocompleteItem of (Dom.errorEvent, unit) result
-  | RPCCallback of focus * rPCParams * (string Http.error, rPCResult) result
+  | RPCCallback of focus * rpcParams * (string Http.error, rpcResult) result
   | SaveTestRPCCallback of (string Http.error, string) result
   | GetAnalysisRPCCallback of (string Http.error, getAnalysisResult) result
   | GetDelete404RPCCallback of (string Http.error, fourOhFour list) result
@@ -151,7 +151,7 @@ and msg =
   | Delete404 of fourOhFour
   | WindowResize of int * int
   | TimerFire of timerAction * Time.t
-  | JSErroror of string
+  | JSError of string
   | PageVisibilityChange of PageVisibility.visibility
   | PageFocusChange of PageVisibility.visibility
   | StartFeatureFlag
@@ -175,7 +175,7 @@ and msg =
   | LockHandler of tlid * bool
   | ReceiveAnalysis of string
   | EnablePanning of bool
-  | ShowErrororDetails of bool
+  | ShowErrorDetails of bool
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
@@ -185,7 +185,7 @@ and predecessor = pointerData option
 and successor = pointerData option
 
 and focus =
-  | FocusNone
+  | FocusNothing
   | FocusExact of tlid * id
   | FocusNext of tlid * id option
   | FocusPageAndCursor of page * cursorState
@@ -221,7 +221,7 @@ and op =
   | DeleteColInDBMigration of tlid * id
   | AbandonDBMigration of tlid
 
-and rPCParams = {ops: op list}
+and rpcParams = {ops: op list}
 
 and executeFunctionRPCParams =
   {tlid: tlid; traceID: traceID; callerID: id; args: dval list; fnName: string}
@@ -292,9 +292,9 @@ and class_ = string
 
 and pick = PickA | PickB
 
-and fFIsExpanded = bool
+and ffIsExpanded = bool
 
-and flagsVS = fFIsExpanded Belt.Map.Int.t
+and flagsVS = ffIsExpanded Belt.Map.Int.t
 
 and varName = string
 
@@ -420,15 +420,15 @@ and tLData = TLHandler of handler | TLDB of dB | TLFunc of userFunction
 
 and toplevel = {id: tlid; pos: pos; data: tLData}
 
-and lVDict = dval Belt.Map.Int.t
+and lvDict = dval Belt.Map.Int.t
 
-and aVDict = varName list Belt.Map.Int.t
+and avDict = varName list Belt.Map.Int.t
 
-and analysisResults = {liveValues: lVDict; availableVarnames: aVDict}
+and analysisResults = {liveValues: lvDict; availableVarnames: avDict}
 
 and analyses = analysisResults Belt.Map.String.t
 
-and inputValueDict = (varName, dval) dict
+and inputValueDict = dval Belt.Map.String.t
 
 and functionResult =
   {fnName: string; callerID: id; argHash: string; value: dval}
@@ -505,10 +505,10 @@ and integrationTestState =
   | NoIntegrationTest
 
 and modification =
-  | DisplayAndReportHttpErroror of string * string Http.error
-  | DisplayAndReportErroror of string
-  | DisplayErroror of string
-  | ClearErroror
+  | DisplayAndReportHttpError of string * string Http.error
+  | DisplayAndReportError of string
+  | DisplayError of string
+  | ClearError
   | Select of tlid * id option
   | SelectCommand of tlid * id
   | SetHover of id
@@ -526,7 +526,7 @@ and modification =
   | SetUnlockedDBs of tlid list
   | Set404s of fourOhFour list
   | Enter of entryCursor
-  | RPCFull of (rPCParams * focus)
+  | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)
   | GetAnalysisRPC
   | NoChange

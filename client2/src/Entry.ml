@@ -64,7 +64,7 @@ let submitOmniAction m pos action =
         | None -> blankfn
       in
       Many
-        [ RPC ([SetFunction newfn], FocusNone)
+        [ RPC ([SetFunction newfn], FocusNothing)
         ; MakeCmd (Url.navigateTo (Fn (newfn.tlid, Defaults.centerPos))) ]
   | NewHTTPHandler ->
       let next = gid () in
@@ -199,7 +199,7 @@ let submit m cursor action =
       let pd = TL.findExn tl id in
       let result = validate tl pd value in
       if result <> None then
-        DisplayAndReportErroror <| Option.getExn "checked above" result
+        DisplayAndReportError <| Option.getExn "checked above" result
       else if String.length value < 1 then NoChange
       else
         let maybeH = TL.asHandler tl in
@@ -252,7 +252,7 @@ let submit m cursor action =
             let db1 = Option.getExn "db" db in
             if B.isBlank cn then wrapID [SetDBColName (tlid, id, value)]
             else if DB.hasCol db1 value then
-              DisplayErroror
+              DisplayError
                 ("Can't have two DB fields with the same name: " ^ value)
             else if DB.isMigrationCol db1 id then
               wrapID [SetDBColNameInDBMigration (tlid, id, value)]

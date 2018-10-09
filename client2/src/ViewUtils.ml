@@ -98,7 +98,7 @@ let eventNoDefault event constructor =
     {stopPropagation= false; preventDefault= true}
     (decodeClickEvent constructor)
 
-let nothingMouseEvent name = eventNoPropagation name NoneClick
+let nothingMouseEvent name = eventNoPropagation name NothingClick
 
 let decodeClickEvent fn =
   let _ = "type annotation" in

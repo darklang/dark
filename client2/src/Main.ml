@@ -161,7 +161,7 @@ let processFocus m focus =
         | _ -> (Deselect, noTarget)
       in
       Many [SetPage page; nextCursor; AutocompleteMod acTarget]
-  | FocusNone -> Deselect
+  | FocusNothing -> Deselect
   | FocusNoChange -> NoChange
 
 let update msg m =
@@ -239,8 +239,8 @@ let updateMod mod_ (m, cmd) =
         )
     in
     match mod_ with
-    | DisplayErroror e -> ({m with error= updateError m.error e}, Cmd.none)
-    | DisplayAndReportErroror e ->
+    | DisplayError e -> ({m with error= updateError m.error e}, Cmd.none)
+    | DisplayAndReportError e ->
         let json =
           JSE.object_
             [ ("message", JSE.string e)
@@ -248,7 +248,7 @@ let updateMod mod_ (m, cmd) =
             ; ("custom", JSE.object_ []) ]
         in
         ({m with error= updateError m.error e}, sendRollbar json)
-    | DisplayAndReportHttpErroror (context, e) ->
+    | DisplayAndReportHttpError (context, e) ->
         let response =
           match e with
           | Http.BadStatus r -> Some r
@@ -293,7 +293,7 @@ let updateMod mod_ (m, cmd) =
           match e with
           | Http.BadUrl str -> "Bad url: " ^ str
           | Http.Timeout -> "Timeout"
-          | Http.NetworkErroror -> "Network error - is the server running?"
+          | Http.NetworkError -> "Network error - is the server running?"
           | Http.BadStatus response ->
               ("Bad status: " ^ response.status.message) ^ body response.body
           | Http.BadPayload (msg, _) ->
@@ -303,11 +303,11 @@ let updateMod mod_ (m, cmd) =
           match e with
           | Http.BadUrl str -> Some str
           | Http.Timeout -> None
-          | Http.NetworkErroror -> None
+          | Http.NetworkError -> None
           | Http.BadStatus response -> Some response.url
           | Http.BadPayload (_, response) -> Some response.url
         in
-        let shouldRollbar = e <> Http.NetworkErroror in
+        let shouldRollbar = e <> Http.NetworkError in
         let json =
           JSE.object_
             [ ("message", JSE.string (((msg ^ " (") ^ context) ^ ")"))
@@ -316,7 +316,7 @@ let updateMod mod_ (m, cmd) =
         in
         let cmds = if shouldRollbar then [sendRollbar json] else [] in
         ({m with error= updateError m.error msg}, Cmd.batch cmds)
-    | ClearErroror ->
+    | ClearError ->
         ({m with error= {message= None; showDetails= false}}, Cmd.none)
     | RPC (ops, focus) -> handleRPC (RPC.opsParams ops) focus
     | RPCFull (params, focus) -> handleRPC params focus
@@ -607,7 +607,7 @@ let update_ msg m =
             match TL.getTL m tlid |> TL.asDB with
             | Some db ->
                 if DB.isLocked m tlid then
-                  DisplayErroror "Cannot undo/redo in locked DBs"
+                  DisplayError "Cannot undo/redo in locked DBs"
                 else undo
             | None -> undo )
         | None -> NoChange
@@ -1098,9 +1098,9 @@ let update_ msg m =
       match mdb with
       | Some db -> DB.startMigration tlid db.cols
       | None -> NoChange )
-  | AbandonMigration tlid -> RPC ([AbandonDBMigration tlid], FocusNone)
+  | AbandonMigration tlid -> RPC ([AbandonDBMigration tlid], FocusNothing)
   | DeleteColInDB (tlid, nameId) ->
-      RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNone)
+      RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
   | ToggleTimers -> TweakModel toggleTimers
   | SaveTestButton -> MakeCmd (RPC.saveTestRPC m.canvasName)
   | FinishIntegrationTest -> EndIntegrationTest
@@ -1121,7 +1121,7 @@ let update_ msg m =
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
       RPC ([SetFunction replacement] ^ newCalls, FocusNext (uf.tlid, None))
-  | DeleteUserFunction tlid -> RPC ([DeleteFunction tlid], FocusNone)
+  | DeleteUserFunction tlid -> RPC ([DeleteFunction tlid], FocusNothing)
   | RestoreToplevel tlid -> RPC ([UndoTL tlid], FocusNext (tlid, None))
   | RPCCallback
       ( focus
@@ -1156,7 +1156,7 @@ let update_ msg m =
           ; SetUnlockedDBs unlockedDBs
           ; RequestAnalysis newToplevels
           ; AutocompleteMod ACReset
-          ; ClearErroror
+          ; ClearError
           ; newState ]
   | InitialLoadRPCCallback
       ( focus
@@ -1179,10 +1179,10 @@ let update_ msg m =
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis toplevels
         ; AutocompleteMod ACReset
-        ; ClearErroror
+        ; ClearError
         ; extraMod
         ; newState ]
-  | SaveTestRPCCallback (Ok msg_) -> (DisplayErroror <| "Success! ") ^ msg_
+  | SaveTestRPCCallback (Ok msg_) -> (DisplayError <| "Success! ") ^ msg_
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
       let tl = TL.getTL m params.tlid in
       Many
@@ -1197,7 +1197,7 @@ let update_ msg m =
         ; RequestAnalysis [tl] ]
   | ExecuteFunctionCancel (tlid, id) ->
       Many
-        [ DisplayErroror "Traces are not loaded for this handler"
+        [ DisplayError "Traces are not loaded for this handler"
         ; ExecutingFunctionComplete [(tlid, id)] ]
   | GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
       Many
@@ -1212,20 +1212,20 @@ let update_ msg m =
       let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
       match envelope with
       | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
-      | Error str -> DisplayErroror str )
-  | RPCCallback (_, _, Error err) -> DisplayAndReportHttpErroror ("RPC", err)
+      | Error str -> DisplayError str )
+  | RPCCallback (_, _, Error err) -> DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
-      (DisplayErroror <| "Error: ") ^ toString err
+      (DisplayError <| "Error: ") ^ toString err
   | ExecuteFunctionRPCCallback (_, Error err) ->
-      DisplayAndReportHttpErroror ("ExecuteFunction", err)
+      DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpErroror ("InitialLoad", err)
+      DisplayAndReportHttpError ("InitialLoad", err)
   | GetAnalysisRPCCallback (Error err) ->
-      DisplayAndReportHttpErroror ("GetAnalysis", err)
-  | JSErroror msg_ -> DisplayErroror ("Error in JS: " ^ msg_)
+      DisplayAndReportHttpError ("GetAnalysis", err)
+  | JSError msg_ -> DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (x, y) -> NoChange
   | FocusEntry _ -> NoChange
-  | NoneClick _ -> NoChange
+  | NothingClick _ -> NoChange
   | FocusAutocompleteItem _ -> NoChange
   | LocationChange loc -> Url.changeLocation m loc
   | TimerFire (action, time) -> (
@@ -1249,7 +1249,7 @@ let update_ msg m =
             ; types= {input= B.new_ (); output= B.new_ ()} }
         ; tlid= anId }
       in
-      RPC ([SetHandler (anId, aPos, aHandler)], FocusNone)
+      RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
   | Delete404 fof -> MakeCmd (RPC.delete404RPC m.canvasName fof)
   | CreateRouteHandler ->
       let center = findCenter m in
@@ -1257,13 +1257,13 @@ let update_ msg m =
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
-        [ RPC ([SetFunction ufun], FocusNone)
+        [ RPC ([SetFunction ufun], FocusNothing)
         ; MakeCmd (Url.navigateTo (Fn (ufun.tlid, Defaults.centerPos))) ]
   | LockHandler (tlid, isLocked) -> Editor.updateLockedHandlers tlid isLocked m
   | EnablePanning pan ->
       let c = m.canvas in
       TweakModel (fun m_ -> {m_ with canvas= {c with enablePan= pan}})
-  | ShowErrororDetails show ->
+  | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error= {e with showDetails= show}})
   | _ -> NoChange
@@ -1304,7 +1304,7 @@ let subscriptions m =
   in
   let urlTimer = [Time.every Time.second (TimerFire CheckUrlHashPosition)] in
   let timers = if m.timersEnabled then syncTimer ^ urlTimer else [] in
-  let onError = [displayError JSErroror] in
+  let onError = [displayError JSError] in
   let visibility =
     [ PageVisibility.visibilityChanges PageVisibilityChange
     ; onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))

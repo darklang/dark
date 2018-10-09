@@ -80,7 +80,7 @@ let changeLocation m loc =
   match mPage with
   | Some (Fn (id, pos)) -> (
     match Functions.find m id with
-    | None -> DisplayErroror "No function"
+    | None -> DisplayError "No function"
     | _ -> SetPage (Fn (id, pos)) )
   | Some page -> SetPage page
   | _ -> NoChange
