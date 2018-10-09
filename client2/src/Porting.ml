@@ -68,8 +68,8 @@ module Option = struct
 end
 
 module Result = struct
-  type ('a, 'b) t = ('a, 'b) Belt.Result.t
-  let withDefault (r: ('a, 'b) t) (default: 'a) : 'a =
+  type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
+  let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
     Belt.Result.getWithDefault r default
 end
 type ('a, 'b) result = ('a, 'b) Result.t
