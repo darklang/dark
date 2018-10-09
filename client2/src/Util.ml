@@ -19,13 +19,13 @@ let findIndex fn l =
 
 let listPrevious a l =
   l |> List.elemIndex a
-  |> Option.map (fun x -> x - 1)
-  |> Option.andThen (fun i -> List.get i l)
+  |. Option.map (fun x -> x - 1)
+  |. Option.andThen (fun i -> List.get l i)
 
 let listNext a l =
   l |> List.elemIndex a
-  |> Option.map (fun x -> x + 1)
-  |> Option.andThen (fun i -> List.get i l)
+  |. Option.map (fun x -> x + 1)
+  |. Option.andThen (fun i -> List.get l i)
 
 let listPreviousWrap a l = l |> listPrevious a |> Option.orElse (List.last l)
 
