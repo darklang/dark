@@ -138,7 +138,7 @@ let encodeHttpError e =
   | Http.BadUrl url ->
       JSE.object_ [("type", JSE.string "BadUrl"); ("url", JSE.string url)]
   | Http.Timeout -> JSE.object_ [("type", JSE.string "Timeout")]
-  | Http.NetworkErroror -> JSE.object_ [("type", JSE.string "NetworkError")]
+  | Http.NetworkError -> JSE.object_ [("type", JSE.string "NetworkError")]
   | Http.BadStatus response ->
       JSE.object_
         [ ("type", JSE.string "BadStatus")

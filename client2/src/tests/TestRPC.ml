@@ -41,7 +41,7 @@ let roundtrips =
     ; rtDval "null" DNull
     ; rtDval "id" (DID "1232345346456")
     ; rtDval "title" (DTitle "some title")
-    ; rtDval "errorrail" (DErrororRail (DInt 5))
+    ; rtDval "errorrail" (DErrorRail (DInt 5))
     ; rtDval "db" (DDB "Visitors")
     ; rtDval "list" (DList [DDB "Visitors"; DInt 4])
     ; rtDval "redirect" (DResp (Redirect "/home", DNull))

@@ -24,11 +24,17 @@ let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
   ; "Http\\.error", "string Http.error"
+  ; "\\(varName, dval\\) dict", "dval Belt.Map.String.t"
   ]
 
 let config_type_patterns =
   [ "^tLID$", "tlid"
   ; "^iD$", "id"
+  ; "^lVDict$", "lvDict"
+  ; "^aVDict$", "avDict"
+  ; "^fFIsExpanded$", "ffIsExpanded"
+  ; "^rPCParams$", "rpcParams"
+  ; "^rPCResult$", "rpcResult"
   ]
 
 (* ------------------------ *)
@@ -215,9 +221,9 @@ let fix_module n : string =
 
 let fix_constructor n : string =
   let patterns =
-    [ "Just", "Some"
-    ; "Nothing", "None"
-    ; "Err", "Error"
+    [ "^Just$", "Some"
+    ; "^Nothing$", "None"
+    ; "^Err$", "Error"
     ]
   in
   rewrite patterns n

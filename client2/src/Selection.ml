@@ -175,10 +175,12 @@ let delete m tlid mId =
       | TLHandler h ->
           if isLocked tlid m then NoChange
           else
-            Many [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNone); Deselect]
+            Many
+              [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
       | TLDB _ ->
-          Many [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNone); Deselect]
-      | TLFunc _ -> DisplayErroror "Cannot delete functions!" )
+          Many
+            [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
+      | TLFunc _ -> DisplayError "Cannot delete functions!" )
   | Some id -> (
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in

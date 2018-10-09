@@ -191,7 +191,7 @@ let viewNExpr d id vs config e =
              { name= "fnLookupError"
              ; parameters= []
              ; description= "default, fn error"
-             ; returnTipe= TErroror
+             ; returnTipe= TError
              ; previewExecutionSafe= true
              ; infix= false
              ; deprecated= false }
@@ -210,7 +210,7 @@ let viewNExpr d id vs config e =
         |> fun v_ ->
         match v_ with
         | None -> false
-        | Some (DErroror _) -> false
+        | Some (DError _) -> false
         | Some DIncomplete -> false
         | Some _ -> true
       in

@@ -10,7 +10,7 @@ open Types
 let generateFnName _ = "fn_" ^ (() |> Util.random |> string_of_int)
 
 let convertTipe tipe =
-  match tipe with TIncomplete -> TAny | TErroror -> TAny | _ -> tipe
+  match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
 
 type wrapLoc = WLetRHS | WLetBody | WIfCond | WIfThen | WIfElse
 
