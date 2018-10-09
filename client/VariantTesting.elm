@@ -9,19 +9,6 @@ import Types exposing (..)
 -- would be much nicer if we could just read a config file from disk in the server
 -- and push that info down to client, but that seems like a lot of work for now?
 
-parseVariantTestsFromQueryString : String -> Maybe (List VariantTest)
-parseVariantTestsFromQueryString s =
-  case String.uncons s of
-    Just ('?', rest) ->
-      rest
-      |> String.split "&"
-      |> List.filterMap splitOnEquals
-      |> List.filterMap toVariantTest
-      |> uniqueTests
-      |> Just
-    _ ->
-      Nothing
-
 variantIsActive : Model -> VariantTest -> Bool
 variantIsActive m vt = List.member vt m.tests
 
@@ -66,3 +53,18 @@ splitOnEquals s =
           _       -> Nothing
   else
     Nothing
+
+parseVariantTestsFromQueryString : String -> Maybe (List VariantTest)
+parseVariantTestsFromQueryString s =
+  case String.uncons s of
+    Just ('?', rest) ->
+      rest
+      |> String.split "&"
+      |> List.filterMap splitOnEquals
+      |> List.filterMap toVariantTest
+      |> uniqueTests
+      |> Just
+    _ ->
+      Nothing
+
+

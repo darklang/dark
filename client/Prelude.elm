@@ -6,6 +6,21 @@ import DontPort
 import Util
 
 --------------------------------------
+-- IDs
+--------------------------------------
+deID : ID -> Int
+deID (ID i) = i
+
+deTLID : TLID -> Int
+deTLID (TLID i) = i
+
+gid : () -> ID -- Generate ID
+gid unit = ID (Util.random unit)
+
+gtlid : () -> TLID -- Generate ID
+gtlid unit = TLID (Util.random unit)
+
+--------------------------------------
 -- CursorState
 --------------------------------------
 
@@ -46,21 +61,6 @@ idOf s =
     Dragging _ _ _ _ -> Nothing
     SelectingCommand _ id -> Just id
 
-
---------------------------------------
--- IDs
---------------------------------------
-deID : ID -> Int
-deID (ID i) = i
-
-deTLID : TLID -> Int
-deTLID (TLID i) = i
-
-gid : () -> ID -- Generate ID
-gid unit = ID (Util.random unit)
-
-gtlid : () -> TLID -- Generate ID
-gtlid unit = TLID (Util.random unit)
 
 
 --------------------------------------
