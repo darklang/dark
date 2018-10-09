@@ -5,6 +5,8 @@ open Elm
 open Migrate_parsetree.Ast_404
 open Ast_helper
 
+let (>>) a b = (fun x -> a (b x))
+
 (* ------------------------ *)
 (* config *)
 (* ------------------------ *)
@@ -654,8 +656,33 @@ let rec type_O (t: type_) : Parsetree.core_type =
    | _ -> Typ.var (failwith (show_type_ t))
   )
 
+type typeSignature = string * (Elm.type_ list) [@@deriving show]
+let extractTypeSignature (s: Elm.declaration Elm.topLevelStructure) : typeSignature option =
+  match s with
+  | Entry (_r, TypeAnnotation ((ref_, _c1), (_c2, type_))) ->
+    let ts =
+      match skip_located type_ with
+      | TypeConstruction _ -> [type_]
+      | UnitType _ -> [type_]
+      | TupleType _ -> [type_]
+      | FunctionType {rest; first} ->
+        let first = skip_withEol first in
+        let rest = List.map ~f:(fun (_cs, _cs2, t, _) -> t) rest in
+        first :: rest
+      | _ -> failwith "unexpected type signature"
+    in
+    (match ref_ with
+    | VarRef ([], name) -> Some (name, ts)
+    | OpRef op -> Some (op, ts)
+    | _ -> failwith ("no type sig for:" ^ (show_ref_ ref_)))
+  | _ -> None
 
-let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.structure =
+
+
+let topLevelStructureO (sigs: typeSignature list) (s: Elm.declaration Elm.topLevelStructure) : Parsetree.structure =
+  let getType (name: string) : Elm.type_ list option =
+    List.Assoc.find ~equal:(=) sigs name
+  in
   match s with
   | BodyComment _c -> []
   | DocComment _c -> []
@@ -663,22 +690,46 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
     (* TODO: when you have a definition, find the associated type annotation for it. *)
     (* A Definition needs a let *)
     (match decl with
-     | TypeAnnotation ((ref_, _c1), (_c2, type_)) ->
-       []
-       (* let name = *)
-       (*   (match ref_ with *)
-       (*    | VarRef (names, n) *)
-       (*    | TagRef (names, n) -> *)
-       (*      names *)
-       (*    | OpRef n -> [n]) *)
-       (* in *)
-       (* type_O type_ *)
+     | TypeAnnotation ((ref_, _c1), (_c2, type_)) -> []
      | PortAnnotation _ -> [] (* skip for now *)
+
      | Definition ((_, VarPattern name), args, _c, expr) ->
-       let args = List.map args
-           ~f:(fun (_l, pat) -> pat)
-       in
-       [toplevelLet name args expr]
+       (match getType name with
+       | Some types ->
+         if List.length args <> List.length types - 1
+         then
+           failwith ("wrong type signature length\n" ^ (show_typeSignature (name, types)));
+         let returnType = List.last_exn types in
+         let argTypes = types |> List.rev |> List.tl_exn |> List.rev in
+         let args = List.map args ~f:skip_preCommented in
+         let args = List.zip_exn args argTypes in
+         let expr = Exp.constraint_ (exprO expr) (type_O returnType) in
+         let args =
+           List.fold (List.rev args) ~init:expr
+             ~f:(fun prev (arg, argType) ->
+                 let arg = Pat.constraint_ (patO arg) (type_O argType) in
+                 (Exp.fun_ Asttypes.Nolabel None arg prev))
+         in
+         let let_ =
+           Vb.mk
+             (Pat.var (name2str name))
+             args
+         in
+         [Str.value Asttypes.Nonrecursive [let_]]
+       | None ->
+         let args = List.map args ~f:skip_preCommented in
+         let args =
+           List.fold (List.rev args) ~init:(exprO expr)
+             ~f:(fun prev arg ->
+                 (Exp.fun_ Asttypes.Nolabel None (patO arg) prev))
+         in
+         let let_ =
+           Vb.mk
+             (Pat.var (name2str name))
+             args
+         in
+         [Str.value Asttypes.Nonrecursive [let_]])
+
      | TypeAlias (_cs, nameWithArgs, (_c, type_)) ->
        let (name, args) = skip_commented nameWithArgs in
        let name = name2string ~fix:fix_type name in
@@ -734,6 +785,9 @@ let topLevelStructureO (s: Elm.declaration Elm.topLevelStructure) : Parsetree.st
     )
 
 
+
+
+
 let foldTypesTogether (body : Parsetree.structure) =
   let open Parsetree in
   List.fold body ~init:[]
@@ -759,9 +813,10 @@ let moduleO (m: Elm.module_) : Parsetree.structure =
     ; Str.open_ (Opn.mk ~override:Override (name2lid "Porting"))
     ]
   in
+  let typeSignatures = List.filter_map ~f:extractTypeSignature m.body in
   let body =
     m.body
-    |> List.map ~f:(topLevelStructureO)
+    |> List.map ~f:(topLevelStructureO typeSignatures)
     |> List.concat
     |> foldTypesTogether
   in
