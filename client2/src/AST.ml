@@ -138,9 +138,7 @@ let maybeExtendObjectLiteralAt pd expr =
   | PKey key -> (
     match parentOf id expr with
     | F (olid, ObjectLiteral pairs) ->
-        if
-          pairs |> List.Extra.last |> Option.map Tuple.first
-          |> ( = ) (Some key)
+        if pairs |> List.last |> Option.map Tuple.first |> ( = ) (Some key)
         then
           let _, _, replacement = addObjectLiteralBlanks id expr in
           replacement

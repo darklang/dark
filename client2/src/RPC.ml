@@ -706,7 +706,7 @@ let parseDvalLiteral str =
     match String.toList str with
     | ['\''; c; '\''] -> Some (DChar c)
     | [rest; '"'] ->
-        if List.Extra.last rest = Some '"' then
+        if List.last rest = Some '"' then
           List.Extra.init rest |> Maybe.withDefault [] |> String.fromList
           |> DStr |> Some
         else None

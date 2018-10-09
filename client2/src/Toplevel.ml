@@ -117,12 +117,12 @@ let getPrevBlank tl next =
       in
       let remaining = List.take index ps in
       let blanks = List.filter P.isBlank remaining in
-      blanks |> List.Extra.last |> Option.orElse (lastBlank tl)
+      blanks |> List.last |> Option.orElse (lastBlank tl)
   | None -> lastBlank tl
 
 let firstBlank tl = tl |> allBlanks |> List.head
 
-let lastBlank tl = tl |> allBlanks |> List.Extra.last
+let lastBlank tl = tl |> allBlanks |> List.last
 
 let siblings tl p =
   match tl.data with

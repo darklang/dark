@@ -15,7 +15,7 @@ let reContains re s = Regex.contains (Regex.regex re) s
 let reExactly re s = reContains (("^" ^ re) ^ "$") s
 
 let findIndex fn l =
-  List.getBy (fun (_, a) -> fn a) (List.indexedMap to_tuple2 l)
+  List.getBy (fun (_, a) -> fn a) (List.indexedMap Tuple2.create l)
 
 let listPrevious a l =
   l |> List.elemIndex a
@@ -27,8 +27,7 @@ let listNext a l =
   |> Option.map (fun x -> x + 1)
   |> Option.andThen (fun i -> List.get i l)
 
-let listPreviousWrap a l =
-  l |> listPrevious a |> Option.orElse (List.Extra.last l)
+let listPreviousWrap a l = l |> listPrevious a |> Option.orElse (List.last l)
 
 let listNextWrap a l = l |> listNext a |> Option.orElse (List.head l)
 
