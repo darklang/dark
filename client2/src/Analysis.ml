@@ -13,7 +13,8 @@ let currentVarnamesFor m target =
   | None -> []
   | Some (tlid, pd) -> getCurrentAvailableVarnames m tlid (P.toID pd)
 
-let defaultResults = {liveValues= Dict.empty; availableVarnames= Dict.empty}
+let defaultResults =
+  {liveValues= Belt.Map.Int.empty; availableVarnames= Belt.Map.Int.empty}
 
 let getCurrentAnalysisResults m tlid =
   let traceIndex = cursor m tlid in
@@ -67,7 +68,9 @@ let replaceFunctionResult m tlid traceID callerID fnName hash dval =
     |> Dict.update (deTLID tlid) (fun ml ->
            ml
            |> Maybe.withDefault
-                [{id= traceID; input= Dict.empty; functionResults= [newResult]}]
+                [ { id= traceID
+                  ; input= Belt.Map.String.empty
+                  ; functionResults= [newResult] } ]
            |> List.map (fun t ->
                   if t.id = traceID then
                     {t with functionResults= newResult :: t.functionResults}

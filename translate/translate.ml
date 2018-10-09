@@ -13,6 +13,8 @@ let config_function_patterns =
   ; "DontPort.fromFloat", "string_of_float"
   ; "DontPort.deMaybe", "Option.getExn"
   ; "DontPort.replace", "Regex.replace"
+  ; "DontPort.intDictEmpty", "Belt.Map.Int.empty"
+  ; "DontPort.strDictEmpty", "Belt.Map.String.empty"
   ]
 
 let config_module_patterns =
