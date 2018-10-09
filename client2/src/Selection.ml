@@ -42,7 +42,7 @@ type jSSide =
   ; left: float
   ; id: int }
 
-and htmlSizing = {centerX: float; centerY: float; id: iD}
+and htmlSizing = {centerX: float; centerY: float; id: id}
 
 let jsToHtmlSizing obj =
   { centerX= (obj.left + obj.right) / 2

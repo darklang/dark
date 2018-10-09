@@ -76,24 +76,24 @@ and mouseEvent = {pos: vPos; button: int}
 
 and isLeftButton = bool
 
-and tLID = TLID of int
+and tlid = TLID of int
 
-and iD = ID of int
+and id = ID of int
 
 and darkKeyboardEvent =
   { standard: Dom.keyboardEvent
   ; selectionStart: int option
   ; selectionEnd: int option }
 
-and entryCursor = Creating of pos | Filling of tLID * iD
+and entryCursor = Creating of pos | Filling of tlid * id
 
 and hasMoved = bool
 
 and cursorState =
-  | Selecting of tLID * iD option
+  | Selecting of tlid * id option
   | Entering of entryCursor
-  | Dragging of tLID * vPos * hasMoved * cursorState
-  | SelectingCommand of tLID * iD
+  | Dragging of tlid * vPos * hasMoved * cursorState
+  | SelectingCommand of tlid * id
   | Deselected
 
 and timerAction = RefreshAnalysis | CheckUrlHashPosition
@@ -106,24 +106,24 @@ and rPCResult =
   * traces
   * globalVariable list
   * userFunction list
-  * tLID list
+  * tlid list
 
 and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
 and getAnalysisResult =
-  traces * globalVariable list * fourOhFour list * tLID list
+  traces * globalVariable list * fourOhFour list * tlid list
 
 and initialLoadResult = rPCResult
 
 and msg =
   | GlobalClick of mouseEvent
   | NoneClick of mouseEvent
-  | ToplevelMouseDown of tLID * mouseEvent
-  | ToplevelMouseUp of tLID * mouseEvent
-  | ToplevelClick of tLID * mouseEvent
-  | DragToplevel of tLID * Mouse.position
+  | ToplevelMouseDown of tlid * mouseEvent
+  | ToplevelMouseUp of tlid * mouseEvent
+  | ToplevelClick of tlid * mouseEvent
+  | DragToplevel of tlid * Mouse.position
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of darkKeyboardEvent
@@ -144,8 +144,8 @@ and msg =
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
       * (string Http.error, executeFunctionRPCResult) result
-  | ExecuteFunctionButton of tLID * iD * string
-  | ExecuteFunctionCancel of tLID * iD
+  | ExecuteFunctionButton of tlid * id * string
+  | ExecuteFunctionCancel of tlid * id
   | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
@@ -155,30 +155,30 @@ and msg =
   | PageVisibilityChange of PageVisibility.visibility
   | PageFocusChange of PageVisibility.visibility
   | StartFeatureFlag
-  | EndFeatureFlag of iD * pick
-  | ToggleFeatureFlag of iD * bool
+  | EndFeatureFlag of id * pick
+  | ToggleFeatureFlag of id * bool
   | DeleteUserFunctionParameter of userFunction * userFunctionParameter
-  | BlankOrClick of tLID * iD * mouseEvent
-  | BlankOrDoubleClick of tLID * iD * mouseEvent
-  | BlankOrMouseEnter of tLID * iD * mouseEvent
-  | BlankOrMouseLeave of tLID * iD * mouseEvent
+  | BlankOrClick of tlid * id * mouseEvent
+  | BlankOrDoubleClick of tlid * id * mouseEvent
+  | BlankOrMouseEnter of tlid * id * mouseEvent
+  | BlankOrMouseLeave of tlid * id * mouseEvent
   | MouseWheel of (int * int)
-  | DataClick of tLID * int * mouseEvent
-  | DataMouseEnter of tLID * int * mouseEvent
-  | DataMouseLeave of tLID * int * mouseEvent
+  | DataClick of tlid * int * mouseEvent
+  | DataMouseEnter of tlid * int * mouseEvent
+  | DataMouseLeave of tlid * int * mouseEvent
   | CreateRouteHandler
   | CreateDBTable
   | CreateFunction
   | ExtractFunction
-  | DeleteUserFunction of tLID
-  | RestoreToplevel of tLID
-  | LockHandler of tLID * bool
+  | DeleteUserFunction of tlid
+  | RestoreToplevel of tlid
+  | LockHandler of tlid * bool
   | ReceiveAnalysis of string
   | EnablePanning of bool
   | ShowErrororDetails of bool
-  | StartMigration of tLID
-  | AbandonMigration of tLID
-  | DeleteColInDB of tLID * iD
+  | StartMigration of tlid
+  | AbandonMigration of tlid
+  | DeleteColInDB of tlid * id
 
 and predecessor = pointerData option
 
@@ -186,47 +186,47 @@ and successor = pointerData option
 
 and focus =
   | FocusNone
-  | FocusExact of tLID * iD
-  | FocusNext of tLID * iD option
+  | FocusExact of tlid * id
+  | FocusNext of tlid * id option
   | FocusPageAndCursor of page * cursorState
   | FocusSame
   | FocusNoChange
 
-and rollbackID = iD
+and rollbackID = id
 
-and rollforwardID = iD
+and rollforwardID = id
 
 and op =
-  | SetHandler of tLID * pos * handler
-  | CreateDB of tLID * pos * dBName
-  | AddDBCol of tLID * iD * iD
-  | SetDBColName of tLID * iD * dBColName
-  | SetDBColType of tLID * iD * dBColType
-  | DeleteTL of tLID
-  | MoveTL of tLID * pos
-  | TLSavepoint of tLID
-  | UndoTL of tLID
-  | RedoTL of tLID
+  | SetHandler of tlid * pos * handler
+  | CreateDB of tlid * pos * dBName
+  | AddDBCol of tlid * id * id
+  | SetDBColName of tlid * id * dBColName
+  | SetDBColType of tlid * id * dBColType
+  | DeleteTL of tlid
+  | MoveTL of tlid * pos
+  | TLSavepoint of tlid
+  | UndoTL of tlid
+  | RedoTL of tlid
   | SetFunction of userFunction
-  | DeleteFunction of tLID
-  | ChangeDBColName of tLID * iD * dBColName
-  | ChangeDBColType of tLID * iD * dBColType
+  | DeleteFunction of tlid
+  | ChangeDBColName of tlid * id * dBColName
+  | ChangeDBColType of tlid * id * dBColType
   | DeprecatedInitDbm of
-      tLID * iD * rollbackID * rollforwardID * dBMigrationKind
-  | SetExpr of tLID * iD * expr
-  | CreateDBMigration of tLID * rollbackID * rollforwardID * dBColumn list
-  | AddDBColToDBMigration of tLID * iD * iD
-  | SetDBColNameInDBMigration of tLID * iD * dBColName
-  | SetDBColTypeInDBMigration of tLID * iD * dBColType
-  | DeleteColInDBMigration of tLID * iD
-  | AbandonDBMigration of tLID
+      tlid * id * rollbackID * rollforwardID * dBMigrationKind
+  | SetExpr of tlid * id * expr
+  | CreateDBMigration of tlid * rollbackID * rollforwardID * dBColumn list
+  | AddDBColToDBMigration of tlid * id * id
+  | SetDBColNameInDBMigration of tlid * id * dBColName
+  | SetDBColTypeInDBMigration of tlid * id * dBColType
+  | DeleteColInDBMigration of tlid * id
+  | AbandonDBMigration of tlid
 
 and rPCParams = {ops: op list}
 
 and executeFunctionRPCParams =
-  {tlid: tLID; traceID: traceID; callerID: iD; args: dval list; fnName: string}
+  {tlid: tlid; traceID: traceID; callerID: id; args: dval list; fnName: string}
 
-and analysisParams = tLID list
+and analysisParams = tlid list
 
 and delete404Param = fourOhFour
 
@@ -238,7 +238,7 @@ and autocomplete =
   ; index: int
   ; value: string
   ; prevValue: string
-  ; target: (tLID * pointerData) option
+  ; target: (tlid * pointerData) option
   ; tipe: tipe option
   ; isCommandMode: bool }
 
@@ -274,7 +274,7 @@ and autocompleteItem =
   | ACKeyword of keyword
   | ACCommand of command
 
-and target = tLID * pointerData
+and target = tlid * pointerData
 
 and autocompleteMod =
   | ACSetQuery of string
@@ -363,7 +363,7 @@ and pointerType =
   | ParamName
   | ParamTipe
 
-and 'a blankOr = Blank of iD | F of iD * 'a
+and 'a blankOr = Blank of id | F of id * 'a
 
 and pointerOwner = POSpecHeader | POAst | PODb | POSpecType
 
@@ -386,7 +386,7 @@ and handlerSpec =
 
 and handlerSpace = HSHTTP | HSCron | HSOther | HSEmpty
 
-and handler = {ast: expr; spec: handlerSpec; tlid: tLID}
+and handler = {ast: expr; spec: handlerSpec; tlid: tlid}
 
 and dBName = string
 
@@ -409,7 +409,7 @@ and dBMigration =
   ; cols: dBColumn list }
 
 and dB =
-  { tlid: tLID
+  { tlid: tlid
   ; name: dBName
   ; cols: dBColumn list
   ; version: int
@@ -418,7 +418,7 @@ and dB =
 
 and tLData = TLHandler of handler | TLDB of dB | TLFunc of userFunction
 
-and toplevel = {id: tLID; pos: pos; data: tLData}
+and toplevel = {id: tlid; pos: pos; data: tLData}
 
 and lVDict = dval Belt.Map.Int.t
 
@@ -431,7 +431,7 @@ and analyses = analysisResults Belt.Map.String.t
 and inputValueDict = (varName, dval) dict
 
 and functionResult =
-  {fnName: string; callerID: iD; argHash: string; value: dval}
+  {fnName: string; callerID: id; argHash: string; value: dval}
 
 and traceID = string
 
@@ -444,7 +444,7 @@ and fourOhFour = {space: string; path: string; modifier: string}
 
 and name = string
 
-and page = Toplevels of pos | Fn of tLID * pos
+and page = Toplevels of pos | Fn of tlid * pos
 
 and clipboard = pointerData option
 
@@ -466,24 +466,24 @@ and model =
   ; builtInFunctions: function_ list
   ; cursorState: cursorState
   ; currentPage: page
-  ; hovering: iD list
+  ; hovering: id list
   ; toplevels: toplevel list
   ; deletedToplevels: toplevel list
   ; traces: traces
   ; analyses: analyses
   ; globals: globalVariable list
   ; f404s: fourOhFour list
-  ; unlockedDBs: tLID list
+  ; unlockedDBs: tlid list
   ; integrationTestState: integrationTestState
   ; visibility: PageVisibility.visibility
   ; clipboard: clipboard
   ; syncState: syncState
   ; urlState: urlState
   ; timersEnabled: bool
-  ; executingFunctions: (tLID * iD) list
+  ; executingFunctions: (tlid * id) list
   ; tlCursors: tLCursors
   ; featureFlags: flagsVS
-  ; lockedHandlers: tLID list
+  ; lockedHandlers: tlid list
   ; canvas: canvasProps
   ; canvasName: string
   ; userContentHost: string
@@ -493,7 +493,7 @@ and serializableEditor =
   { clipboard: pointerData option
   ; timersEnabled: bool
   ; cursorState: cursorState
-  ; lockedHandlers: tLID list }
+  ; lockedHandlers: tlid list }
 
 and darkError = {message: string option; showDetails: bool}
 
@@ -509,10 +509,10 @@ and modification =
   | DisplayAndReportErroror of string
   | DisplayErroror of string
   | ClearErroror
-  | Select of tLID * iD option
-  | SelectCommand of tLID * iD
-  | SetHover of iD
-  | ClearHover of iD
+  | Select of tlid * id option
+  | SelectCommand of tlid * id
+  | SetHover of id
+  | ClearHover of id
   | Deselect
   | RemoveToplevel of toplevel
   | SetToplevels of toplevel list * bool
@@ -523,7 +523,7 @@ and modification =
   | RequestAnalysis of toplevel list
   | SetGlobalVariables of globalVariable list
   | SetUserFunctions of userFunction list * bool
-  | SetUnlockedDBs of tLID list
+  | SetUnlockedDBs of tlid list
   | Set404s of fourOhFour list
   | Enter of entryCursor
   | RPCFull of (rPCParams * focus)
@@ -533,22 +533,22 @@ and modification =
   | MakeCmd of msg cmd
   | AutocompleteMod of autocompleteMod
   | Many of modification list
-  | Drag of tLID * vPos * hasMoved * cursorState
+  | Drag of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
   | SetCenter of pos
   | CopyToClipboard of clipboard
-  | SetCursor of tLID * int
-  | ExecutingFunctionBegan of tLID * iD
-  | ExecutingFunctionRPC of tLID * iD * string
-  | ExecutingFunctionComplete of (tLID * iD) list
-  | SetLockedHandlers of tLID list
+  | SetCursor of tlid * int
+  | ExecutingFunctionBegan of tlid * id
+  | ExecutingFunctionRPC of tlid * id * string
+  | ExecutingFunctionComplete of (tlid * id) list
+  | SetLockedHandlers of tlid list
   | MoveCanvasTo of canvasProps * page * pos
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
-      tLID * traceID * iD * fnName * dvalArgsHash * dval
+      tlid * traceID * id * fnName * dvalArgsHash * dval
   | TweakModel of (model -> model)
 
 and flags =
@@ -587,7 +587,7 @@ and userFunctionMetadata =
   ; returnTipe: tipe blankOr
   ; infix: bool }
 
-and userFunction = {tlid: tLID; metadata: userFunctionMetadata; ast: expr}
+and userFunction = {tlid: tlid; metadata: userFunctionMetadata; ast: expr}
 
 and flagParameter =
   { name: string

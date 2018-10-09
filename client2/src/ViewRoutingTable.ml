@@ -11,7 +11,7 @@ type entry =
   { name: string option
   ; prefix: string list
   ; verbs: (string * pos) list
-  ; tlid: tLID }
+  ; tlid: tlid }
 
 let missingEventSpaceDesc = "<missing event space>"
 
