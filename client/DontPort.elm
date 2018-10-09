@@ -1,5 +1,7 @@
 module DontPort exposing (..)
 
+import Regex
+
 fromInt : Int -> String
 fromInt i =
   toString i
@@ -14,4 +16,6 @@ deMaybe msg x =
     Just y -> y
     Nothing -> Debug.crash ("something impossible occurred: got Nothing but expected something" ++ toString msg)
 
-
+replace : String -> String -> String -> String
+replace re repl str =
+  Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str

@@ -40,6 +40,8 @@ type ('a, 'b) result = ('a, 'b) Result.t
 module Regex = struct
   let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
   let contains re s = Js.Re.test s re
+  let replace re repl str =
+    Js.String.replaceByRe (regex re) repl str
 end
 
 module List = struct
@@ -65,7 +67,5 @@ module Tuple = struct
 
 end
 
-let reReplace re repl str =
-  Js.String.replaceByRe (Js.Re.fromString ("/" ^ re ^ "/")) repl str
 
 

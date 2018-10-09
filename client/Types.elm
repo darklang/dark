@@ -1,5 +1,7 @@
 module Types exposing (..)
 
+import Keyboard.Event
+
 -- builtin
 import Dict exposing (Dict)
 import Http
@@ -8,6 +10,7 @@ import Navigation
 import Mouse
 import Time exposing (Time)
 import PageVisibility
+
 
 type alias Exception =
   { short : String

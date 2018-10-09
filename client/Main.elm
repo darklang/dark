@@ -751,7 +751,7 @@ isFieldAccessDot m baseStr =
   -- We know from the fact that this function is called that there has
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
-  let str = Util.replace "\\.*$" "" baseStr
+  let str = DontPort.replace "\\.*$" "" baseStr
       intOrString = String.startsWith "\"" str
                     || RPC.typeOfLiteralString str == TInt
   in

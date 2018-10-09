@@ -236,7 +236,7 @@ let filter list query =
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
-    |> Util.replace "\226\159\182" "->"
+    |> Regex.replace "\226\159\182" "->"
   in
   let _ = "comment" in
   let dynamic, candidates0 = List.partition isDynamicItem list in

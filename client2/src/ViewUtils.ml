@@ -125,7 +125,7 @@ let blankOrLength b =
   match b with Blank _ -> 6 | F (_, str) -> String.length str
 
 let visualStringLength string =
-  string |> Util.replace "\t" "        " |> String.length
+  string |> Regex.replace "\t" "        " |> String.length
 
 let approxWidth e = match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
 
