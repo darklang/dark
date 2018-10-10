@@ -21,6 +21,16 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
+let moveCanvasBy (m : model) (x : int) (y : int) : modification =
+  let c = m.canvas in
+  let offset =
+    match m.currentPage with
+    | Toplevels _ -> c.offset
+    | Fn (_, _) -> c.fnOffset
+  in
+  let pos = addPos offset {x; y} in
+  MoveCanvasTo (c, m.currentPage, pos)
+
 let pageUp (m : model) : modification =
   moveCanvasBy m 0 (-1 * Defaults.pageHeight)
 
@@ -43,13 +53,3 @@ let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
 let moveToOrigin (m : model) : modification =
   MoveCanvasTo (m.canvas, m.currentPage, Defaults.origin)
-
-let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let c = m.canvas in
-  let offset =
-    match m.currentPage with
-    | Toplevels _ -> c.offset
-    | Fn (_, _) -> c.fnOffset
-  in
-  let pos = addPos offset {x; y} in
-  MoveCanvasTo (c, m.currentPage, pos)
