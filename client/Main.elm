@@ -46,7 +46,7 @@ import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Pointer as P
 import Blank as B
 import AST
-import JSON
+import JSONUtils
 import Selection
 import Sync
 import DB
@@ -367,7 +367,7 @@ updateMod mod (m, cmd) =
                       Nothing -> ""
               in
               str
-              |> JSD.decodeString JSON.decodeException
+              |> JSD.decodeString JSONUtils.decodeException
               |> Result.toMaybe
               |> Maybe.map
                    (\{ short
@@ -421,7 +421,7 @@ updateMod mod (m, cmd) =
                                 , JSE.string
                                     (msg ++ " (" ++ context ++ ")"))
                               , ("url", JSEE.maybe JSE.string url)
-                              , ("custom", JSON.encodeHttpError e)
+                              , ("custom", JSONUtils.encodeHttpError e)
                               ]
             cmds = if shouldRollbar then [sendRollbar json] else []
         in
@@ -609,9 +609,9 @@ updateMod mod (m, cmd) =
                   param t =
                     JSE.object [ ( "handler" , RPC.encodeHandler h)
                                , ( "trace" , RPC.encodeTrace t)
-                               , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
+                               , ( "dbs", JSONUtils.encodeList RPC.encodeDB dbs)
                                , ( "user_fns"
-                                 , JSON.encodeList RPC.encodeUserFunction userFns)
+                                 , JSONUtils.encodeList RPC.encodeUserFunction userFns)
                                ]
               in
               trace

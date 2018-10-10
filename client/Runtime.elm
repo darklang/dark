@@ -10,7 +10,6 @@ import List.Extra as LE
 import Types exposing (..)
 -- import Prelude exposing (..)
 -- import Util
--- import JSON
 import StrDict
 
 isCompatible : Tipe -> Tipe -> Bool
