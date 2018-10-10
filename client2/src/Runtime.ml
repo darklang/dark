@@ -5,7 +5,7 @@ open Types
 let isCompatible (t1 : tipe) (t2 : tipe) : bool =
   (t1 = TAny || t2 = TAny) || t1 = t2
 
-let tipe2str (t : tipe) : string =
+let rec tipe2str (t : tipe) : string =
   match t with
   | TAny -> "Any"
   | TInt -> "Int"
