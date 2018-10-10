@@ -11,13 +11,13 @@ let index i decode json =
     raise @@ DecodeError ("Expected array, got " ^ _stringify json)
 
 let map2 f d1 d2 json =
-  List.map ~f [d1 json; d2 json]
+  f (d1 json) (d2 json)
 
 let map3 f d1 d2 d3 json =
-  List.map ~f [d1 json; d2 json; d3 json]
+  f (d1 json) (d2 json) (d3 json)
 
 let map4 f d1 d2 d3 d4 json =
-  List.map ~f [d1 json; d2 json; d3 json; d4 json]
+  f (d1 json) (d2 json) (d3 json) (d4 json)
 
 let decodeVariant0 constructor = succeed constructor
 
