@@ -69,7 +69,7 @@ let moveUpDown (direction : uDDirection) (sizes : htmlSizing list) (id : id) :
              (majorDist * 100000) + minorDist )
       |> Option.withDefault this
       |> (fun x -> x.id)
-      |> Some
+      |> fun x -> Some x
   | _ -> None
 
 type lRDirection = Left | Right
@@ -86,7 +86,7 @@ let moveLeftRight (direction : lRDirection) (sizes : htmlSizing list) (id : id)
       |> List.minimumBy (fun o -> dir * (this.centerX - o.centerX))
       |> Option.withDefault this
       |> (fun x -> x.id)
-      |> Some
+      |> fun x -> Some x
   | _ -> None
 
 let move (m : model) (tlid : tlid) (mId : id option)

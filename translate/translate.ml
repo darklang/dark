@@ -378,10 +378,8 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
   | _ ->
     Pat.constant
       (Const.string (todo "pattern" (show_patternp patp)))
-and patO ((_r, patp): pattern) : Parsetree.pattern =
-  patpO patp
-
-
+and patO (pat: pattern) : Parsetree.pattern =
+  pat |> skip_located |> patpO
 
 let rec exprpO (exprp) : Parsetree.expression =
   match exprp with
@@ -432,7 +430,8 @@ let rec exprpO (exprp) : Parsetree.expression =
          (path @ [var]))
       None
   | VarExpr (OpRef name) ->
-    Exp.construct (name2lid ~fix:fix_function name)
+    Exp.construct
+      (name2lid ~fix:fix_function name)
       None
   | RecordExpr { base; fields } ->
     let base = Option.map base
@@ -488,15 +487,22 @@ let rec exprpO (exprp) : Parsetree.expression =
       ~f:(fun prev arg ->
           Exp.construct (name2lid "::") (Some (Exp.tuple [arg; prev])))
   | Lambda (pats, _cs, body, _l) ->
-    List.fold (List.rev pats) ~init:(exprO body)
-      ~f:(fun prev (_cs, pat) ->
-          (Exp.fun_ Asttypes.Nolabel None (patO pat) prev))
+    createLambda (List.map ~f:skip_preCommented pats) body
   | Binops (lhs, rest, _l) ->
     List.fold ~init:(exprO lhs) rest
       ~f:(fun prev (_cs, ref_, _cs2, rhs) ->
-          Exp.apply
-            (ref_O ref_)
-            [(Asttypes.Nolabel, prev); as_arg rhs])
+          match (ref_, rhs) with
+          (* `x |> Just` into  `x |> \x -> Just x) *)
+          | (OpRef "|>", (_r, VarExpr (TagRef (path, var)) as tag )) ->
+            Exp.apply
+              (ref_O ref_)
+              [ (Asttypes.Nolabel, prev)
+              ; (Asttypes.Nolabel, (wrapTagInLambda tag))
+              ]
+          | _ ->
+            Exp.apply
+              (ref_O ref_)
+              [(Asttypes.Nolabel, prev); as_arg rhs])
   | Unary (_op, expr) ->
     Exp.apply
       (Exp.ident (name2lid "~-"))
@@ -517,8 +523,8 @@ let rec exprpO (exprp) : Parsetree.expression =
       (Exp.field (Exp.ident (name2lid "x")) (name2lid field))
 
 
-and exprO (_r, exprp) : Parsetree.expression =
-  exprpO exprp
+and exprO (expr: expr) : Parsetree.expression =
+  expr |> skip_located |> exprpO
 
 and as_arg (expr: expr) : (Asttypes.arg_label * Parsetree.expression) =
   (Asttypes.Nolabel, exprO expr)
@@ -543,6 +549,22 @@ and ref_O r =
          ~fix_init:fix_module
          (path @ [var]))
       None
+
+and createLambda (pats: pattern list) (body: expr) : Parsetree.expression =
+  List.fold (List.rev pats) ~init:(exprO body)
+    ~f:(fun (prev: Parsetree.expression) (pat: pattern) ->
+        Exp.fun_ Asttypes.Nolabel None (patO pat) prev)
+
+
+and wrapTagInLambda (tagexpr: expr) : Parsetree.expression =
+  let arg = (Elm.fakeRegion, VarPattern "x") in
+  let body =
+    ( Elm.fakeRegion
+    , App
+        ( tagexpr
+        , [([], (fakeRegion, VarExpr (VarRef ([], "x"))))], FASplitFirst))
+  in
+  createLambda [arg] body
 
 
 

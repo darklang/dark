@@ -82,7 +82,7 @@ let replaceFunctionResult (m : model) (tlid : tlid) (traceID : traceID)
                   if t.id = traceID then
                     {t with functionResults= newResult :: t.functionResults}
                   else t )
-           |> Some )
+           |> fun x -> Some x )
   in
   {m with traces}
 

@@ -21,7 +21,9 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | Thread exprs -> Thread (List.map fn exprs)
           | FieldAccess (obj, field) -> FieldAccess (fn obj, field)
           | ObjectLiteral pairs ->
-              pairs |> List.map (fun (k, v) -> (k, fn v)) |> ObjectLiteral
+              pairs
+              |> List.map (fun (k, v) -> (k, fn v))
+              |> fun x -> ObjectLiteral x
           | ListLiteral elems -> ListLiteral (List.map fn elems)
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
@@ -83,7 +85,8 @@ let closeObjectLiterals (expr : expr) : expr =
              if B.isBlank k && B.isBlank v then None
              else Some (k, closeObjectLiterals v) )
       |> (fun l -> if l <> [] then l else [(B.new_ (), B.new_ ())])
-      |> ObjectLiteral |> F id
+      |> (fun x -> ObjectLiteral x)
+      |> F id
   | _ -> traverse closeObjectLiterals expr
 
 let closeListLiterals (expr : expr) : expr =
@@ -114,7 +117,9 @@ let addLambdaBlank (id : id) (expr : expr) : expr =
   match parentOf_ id expr with
   | Some (F (lid, Lambda (vars, body))) as old ->
       let r = F (lid, Lambda (vars ^ [B.new_ ()], body)) in
-      replace (old |> Option.getExn "impossible" |> PExpr) (PExpr r) expr
+      replace
+        (old |> Option.getExn "impossible" |> fun x -> PExpr x)
+        (PExpr r) expr
   | _ -> expr
 
 let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
@@ -536,7 +541,8 @@ let replace_ (search : pointerData) (replacement : pointerData)
         |> List.map (fun (k, v) ->
                let newK = if B.toID k = sId then replacement_ else k in
                (newK, r v) )
-        |> ObjectLiteral |> F id
+        |> (fun x -> ObjectLiteral x)
+        |> F id
     | _ -> traverse r expr
 
 let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
@@ -594,7 +600,8 @@ let freeVariables (ast : expr) : (id * varName) list =
                | Lambda (vars, body) ->
                    vars |> List.filterMap B.toMaybe
                    |> List.map (fun v -> uses v body)
-                   |> List.concat |> Some
+                   |> List.concat
+                   |> fun x -> Some x
                | _ -> None ) )
            | _ -> None )
     |> List.concat

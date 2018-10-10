@@ -181,6 +181,17 @@ let regionJ j =
   ; end_ = member "end" positionJ j
   }
 
+let fakePosition =
+  { line = 0
+  ; column = 0
+  }
+
+let fakeRegion =
+  {
+    start = fakePosition
+  ; end_ = fakePosition
+  }
+
 type 'a located = (region * 'a) [@@deriving show]
 let locatedJ (f: bjs -> 'a) j : 'a located =
   pairJ regionJ f j

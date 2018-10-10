@@ -324,7 +324,8 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
         = ( m |> onlyHandler
           |> (fun x -> x.spec)
           |> (fun x -> x.modifier)
-          |> B.toID |> Some )
+          |> B.toID
+          |> fun x -> Some x )
       then pass
       else fail (m.toplevels, m.cursorState)
   | s -> fail (m.toplevels, m.cursorState)

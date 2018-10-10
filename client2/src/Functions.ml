@@ -13,7 +13,7 @@ let ufpToP (ufp : userFunctionParameter) : parameter option =
       ; block_args= ufp.block_args
       ; optional= ufp.optional
       ; description= ufp.description }
-      |> Some
+      |> fun x -> Some x
   | _ -> None
 
 let ufmToF (ufm : userFunctionMetadata) : function_ option =
@@ -28,7 +28,7 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
       ; infix= ufm.infix
       ; previewExecutionSafe= false
       ; deprecated= false }
-      |> Some
+      |> fun x -> Some x
   | _ -> None
 
 let find (m : model) (id : tlid) : userFunction option =

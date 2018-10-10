@@ -717,8 +717,9 @@ let parseDvalLiteral (str : string) : dval option =
     | ['\''; c; '\''] -> Some (DChar c)
     | '"' :: rest ->
         if List.last rest = Some '"' then
-          List.init rest |> Option.withDefault [] |> String.fromList |> DStr
-          |> Some
+          List.init rest |> Option.withDefault [] |> String.fromList
+          |> (fun x -> DStr x)
+          |> fun x -> Some x
         else None
     | _ -> JSD.decodeString parseBasicDval str |> Result.toOption
 

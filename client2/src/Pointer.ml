@@ -79,7 +79,7 @@ let isBlank (pd : pointerData) : bool =
   | PParamTipe d -> B.isBlank d
 
 let toContent (pd : pointerData) : string option =
-  let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> Some in
+  let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> fun x -> Some x in
   match pd with
   | PVarBind v -> bs2s v
   | PField f -> bs2s f
@@ -102,7 +102,8 @@ let toContent (pd : pointerData) : string option =
   | PParamTipe d ->
       d |> B.toMaybe
       |> Option.map Runtime.tipe2str
-      |> Option.withDefault "" |> Some
+      |> Option.withDefault ""
+      |> fun x -> Some x
 
 let dtmap (fn : darkType -> darkType) (pd : pointerData) : pointerData =
   match pd with PDarkType d -> PDarkType (fn d) | _ -> pd
