@@ -45,9 +45,10 @@ module Option = struct
     match mb with
     | None -> ma
     | Some _ -> mb
-
   let map (f: 'a -> 'b) (o: 'a option) : 'b option =
     Belt.Option.map o f
+  let withDefault (a: 'a) (o: 'a option) : 'a =
+    Belt.Option.getWithDefault o a
 end
 
 module Result = struct
@@ -121,7 +122,13 @@ module List = struct
 
   let head (l: 'a list) : 'a option =
     Belt.List.head l
-
+  let drop (count: int) (l: 'a list) : 'a list =
+    Belt.List.drop l count
+    |. Belt.Option.getWithDefault []
+  let init (l: 'a list) : 'a list option =
+    match List.rev l with
+    | _ :: rest -> Some (List.rev rest)
+    | [] -> None
 
 end
 
