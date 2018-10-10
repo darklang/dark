@@ -37,5 +37,6 @@ let parseVariantTestsFromQueryString (s : string) : variantTest list option =
       rest |> String.split "&"
       |> List.filterMap splitOnEquals
       |> List.filterMap toVariantTest
-      |> uniqueTests |> Some
+      |> uniqueTests
+      |> fun x -> Some x
   | _ -> None
