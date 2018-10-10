@@ -57,13 +57,13 @@ let closeThreads (expr : expr) : expr =
         match exprs with
         | [] -> false
         | [e] -> false
-        | [_; F (_, FnCall (_, _, _))] -> false
+        | F (_, FnCall (_, _, _)) :: _ -> false
         | _ -> true
       in
       let newExprs = List.filter B.isF exprs |> List.map closeThreads in
       let adjusted =
         match newExprs with
-        | [rest; F (id_, FnCall (name, args, r))] ->
+        | F (id_, FnCall (name, args, r)) :: rest ->
             if addBlank then
               [F (id_, FnCall (name, B.new_ () :: args, r))] ^ rest
             else [F (id_, FnCall (name, args, r))] ^ rest
@@ -446,9 +446,9 @@ let replace_ (search : pointerData) (replacement : pointerData)
     | PExpr e ->
         let repl_ =
           match parent with
-          | Some (F (_, Thread [_; first])) -> (
+          | Some (F (_, Thread (first :: _))) -> (
             match e with
-            | F (id, FnCall (fn, ([rest; _] as args), r_)) ->
+            | F (id, FnCall (fn, (_ :: rest as args), r_)) ->
                 if B.toID first = sId then F (id, FnCall (fn, args, r_))
                 else F (id, FnCall (fn, rest, r_))
             | _ -> e )

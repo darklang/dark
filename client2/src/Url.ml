@@ -48,9 +48,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
     loc.hash |> String.dropLeft 1 |> String.split "&"
     |> List.map (String.split "=")
     |> List.filterMap (fun arr ->
-           match arr with
-           | [[]; b; a] -> Some (String.toLower a, b)
-           | _ -> None )
+           match arr with [b; a] -> Some (String.toLower a, b) | _ -> None )
     |> Dict.fromList
   in
   let center =
@@ -87,5 +85,5 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
 
 let parseCanvasName (loc : Web.Location.location) : string =
   match loc.pathname |> String.dropLeft 1 |> String.split "/" with
-  | [_; canvasName; "a"] -> canvasName
+  | canvasName :: "a" :: _ -> canvasName
   | _ -> "builtwithdark"

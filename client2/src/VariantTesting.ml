@@ -23,7 +23,7 @@ let splitOnEquals (s : string) : (string * bool) option =
     match String.split "=" s with
     | [] -> None
     | [_] -> None
-    | [xs; x] -> (
+    | x :: xs -> (
       match xs |> String.join "=" |> String.toLower with
       | "true" -> Some (x, true)
       | "1" -> Some (x, true)

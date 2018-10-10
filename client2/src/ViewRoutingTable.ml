@@ -61,7 +61,7 @@ let collapseByVerb (es : entry list) : entry list =
             else
               match list with
               | [] -> [curr]
-              | [rest; prev] ->
+              | prev :: rest ->
                   let new_ = {prev with verbs= prev.verbs ^ curr.verbs} in
                   new_ :: rest )
           [])
@@ -71,7 +71,7 @@ let prefixify (hs : entry list) : entry list =
   match hs with
   | [] -> hs
   | [_] -> hs
-  | [rest; h] -> (
+  | h :: rest -> (
     match h.name with
     | None -> h :: prefixify rest
     | Some name -> (

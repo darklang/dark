@@ -58,7 +58,7 @@ let compareSuggestionWithActual (a : autocomplete) (actual : string) :
         String.indexes (String.toLower actual) (String.toLower suggestion)
       with
       | [] -> ("", suggestion, actual)
-      | [_; index] ->
+      | index :: _ ->
           let prefix = String.slice 0 index suggestion in
           let suffix =
             String.slice
