@@ -18,10 +18,10 @@ let clone (fn : 'a -> 'a) (b : 'a blankOr) : 'a blankOr =
   | Blank id -> Blank (gid ())
   | F (id, val_) -> F (gid (), fn val_)
 
-let isF (b : 'a blankOr) : bool = not (isBlank b)
-
 let isBlank (b : 'a blankOr) : bool =
   match b with Blank _ -> true | F (_, _) -> false
+
+let isF (b : 'a blankOr) : bool = not (isBlank b)
 
 let asF (b : 'a blankOr) : 'a option =
   match b with F (_, v) -> Some v | Blank _ -> None

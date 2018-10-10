@@ -67,12 +67,6 @@ idOf s =
 -- Crashing
 --------------------------------------
 
-assert : (a -> Bool) -> a -> a
-assert fn a =
-  if fn a
-  then a
-  else impossible ("assertion failure", a)
-
 -- `Impossible` crashes with the value provided.
 -- Is it very obvious why?
 --   impossible ()
@@ -86,6 +80,12 @@ impossible : a -> b
 impossible a =
   Debug.crash ("something impossible occurred: " ++ (toString a))
 
+
+assert : (a -> Bool) -> a -> a
+assert fn a =
+  if fn a
+  then a
+  else impossible ("assertion failure", a)
 
 -- Like impossible but has a different semantic meaning. If you have a
 -- value you _could_ continue with, consider this.
