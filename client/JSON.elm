@@ -1,6 +1,5 @@
 module JSON exposing (..)
 
-import Http
 import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
