@@ -15,8 +15,6 @@ let config_function_patterns =
   ; "DontPort.fromFloat", "string_of_float"
   ; "DontPort.deMaybe", "Option.getExn"
   ; "DontPort.replace", "Regex.replace"
-  ; "DontPort.intDictEmpty", "Belt.Map.Int.empty"
-  ; "DontPort.strDictEmpty", "Belt.Map.String.empty"
   ]
 
 let config_module_patterns =
@@ -25,6 +23,8 @@ let config_module_patterns =
   ; "Maybe.Extra", "Option"
   ; "Maybe", "Option"
   ; "^ME$", "Option"
+  ; "IntDict", "Belt.Map.Int"
+  ; "StrDict", "Belt.Map.String"
   ]
 
 let config_post_process_patterns =

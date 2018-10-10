@@ -6,7 +6,8 @@ module Defaults exposing (..)
 -- dark
 import Types exposing (..)
 import PageVisibility
-import DontPort
+import StrDict
+import IntDict
 
 
 entryID : String
@@ -80,8 +81,8 @@ defaultModel = { error = { message = Nothing
                , tests = []
                , toplevels = []
                , deletedToplevels = []
-               , analyses = DontPort.strDictEmpty
-               , traces = DontPort.intDictEmpty
+               , analyses = StrDict.empty
+               , traces = IntDict.empty
                , globals = []
                , f404s = []
                , unlockedDBs = []
@@ -95,8 +96,8 @@ defaultModel = { error = { message = Nothing
                , clipboard = Nothing
                , cursorState = Deselected
                , executingFunctions = []
-               , tlCursors = DontPort.intDictEmpty
-               , featureFlags = DontPort.intDictEmpty
+               , tlCursors = IntDict.empty
+               , featureFlags = IntDict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
                , canvasName = "builtwithdark"
