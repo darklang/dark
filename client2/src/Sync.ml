@@ -4,7 +4,7 @@ open Types
 
 let markRequestInModel (m : model) : model =
   let oldSyncState = m.syncState in
-  {m with syncState= {oldSyncState with inFlight= true; ticks= 0}}
+  {m with syncState= {inFlight= true; ticks= 0}}
 
 let markTickInModel (m : model) : model =
   let oldSyncState = m.syncState in
@@ -12,7 +12,7 @@ let markTickInModel (m : model) : model =
 
 let markResponseInModel (m : model) : model =
   let oldSyncState = m.syncState in
-  {m with syncState= {oldSyncState with inFlight= false; ticks= 0}}
+  {m with syncState= {inFlight= false; ticks= 0}}
 
 let timedOut (s : syncState) : bool = (s.ticks % 10 = 0 && s.ticks) <> 0
 
