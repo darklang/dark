@@ -78,8 +78,8 @@ module String = struct
     Js.String.substr ~from s
   let dropRight (from: int) (s: string) : string =
     Js.String.sliceToEnd ~from s
-  let split a b : string list =
-    Js.String.split a b
+  let split (delimiter : string) (s: string) : string list =
+    Js.String.split delimiter s
     |> Belt.List.fromArray
   let join (sep : string) (l: string list) : string =
     String.concat sep l
@@ -93,6 +93,8 @@ module String = struct
     String.uppercase s
   let contains (needle: string) (haystack: string) : bool =
     Js.String.includes needle haystack
+  let repeat (count: int) (s: string) : string =
+    Js.String.repeat count s
 
 end
 
