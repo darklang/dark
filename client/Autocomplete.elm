@@ -25,7 +25,7 @@ import Toplevel as TL
 import AST
 import Commands
 import Refactor
-import RPC
+import JSON
 
 ----------------------------
 -- Focus
@@ -269,7 +269,7 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  if RPC.isLiteralString s
+  if JSON.isLiteralString s
   then Just (ACLiteral s)
   else
     -- isLiteral only works for the full word
@@ -680,7 +680,7 @@ asTypeString item =
     ACCommand _ -> ""
     ACLiteral lit ->
       let tipe = lit
-                 |> RPC.parseDvalLiteral
+                 |> JSON.parseDvalLiteral
                  |> Maybe.withDefault DIncomplete
                  |> RT.typeOf
                  |> RT.tipe2str
