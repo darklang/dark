@@ -323,6 +323,14 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
             (name2lid "::")
             (Some (Pat.tuple [patO arg; prev])))
   in
+  let pats2listWithTail pats last =
+    List.fold pats
+      ~init:(patO last)
+      ~f:(fun prev arg ->
+          Pat.construct
+            (name2lid "::")
+            (Some (Pat.tuple [patO arg; prev])))
+  in
   match patp with
   | Anything -> Pat.any ()
   | VarPattern name -> Pat.var (name2str name)
@@ -344,7 +352,9 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
       Tuple.T2.get1 cpFirst
       :: (List.map cpRest ~f:(fun (_cs, _cs2, pat, _wtf) -> pat))
     in
-    pats2list pats
+    (match List.rev pats with
+     | last :: init -> pats2listWithTail (List.rev init) last
+     | _ -> failwith "impossible")
   | RecordPattern fields ->
     let fields = List.map fields
         ~f:(fun (_c, name, _c2) ->

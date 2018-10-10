@@ -169,7 +169,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DList l -> (
     match l with
     | [] -> "[]"
-    | [rest; DObj _] ->
+    | DObj _ :: rest ->
         ( (("[" ^ inl) ^ String.join (inl ^ ", ") (List.map (toRepr_ indent) l))
         ^ nl )
         ^ "]"

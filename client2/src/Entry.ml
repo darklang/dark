@@ -114,7 +114,7 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
       )
     else if Util.reExactly "=[a-zA-Z].*" value then
       match AST.threadAncestors id ast with
-      | [_; (F (_, Thread _) as thread)] ->
+      | (F (_, Thread _) as thread) :: _ ->
           let bindName = value |> String.dropLeft 1 |> String.trim in
           ( thread
           , B.newF (Let (B.newF bindName, AST.closeThreads thread, B.new_ ()))

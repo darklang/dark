@@ -715,7 +715,7 @@ let parseDvalLiteral (str : string) : dval option =
   else
     match String.toList str with
     | ['\''; c; '\''] -> Some (DChar c)
-    | [rest; '"'] ->
+    | '"' :: rest ->
         if List.last rest = Some '"' then
           List.init rest |> Option.withDefault [] |> String.fromList |> DStr
           |> Some
