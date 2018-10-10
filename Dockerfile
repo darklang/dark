@@ -277,9 +277,7 @@ RUN git clone https://github.com/darklang/elm-format
 RUN cd elm-format && git checkout elm-escape && stack install -j 4
 RUN opam pin add -y reason https://github.com/facebook/reason.git
 RUN opam update && opam install -y ocamlformat
-RUN opam update && opam pin add -y atd --dev-repo
-RUN opam update && opam pin add -y atdgen --dev-repo
-RUN yarn add @ahrefs/bs-atdgen-codec-runtime
+RUN yarn add @glennsl/bs-json
 ############################
 # Finish
 ############################
