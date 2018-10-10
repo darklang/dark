@@ -57,47 +57,6 @@ module Result = struct
 end
 type ('err, 'ok) result = ('err, 'ok) Result.t
 
-module String = struct
-  let toInt (s: string) : (string, int) result =
-    try
-      Ok (int_of_string s)
-    with e ->
-      Error (Printexc.to_string e)
-
-  let toFloat (s: string) : (string, float) result =
-    try
-      Ok (float_of_string s)
-    with e ->
-      Error (Printexc.to_string e)
-
-  let uncons (s: string) : (char * string) option =
-    match s with
-    | "" -> None
-    | s -> Some (String.get s 0, String.sub s 1 (String.length s - 1))
-  let dropLeft (from: int) (s: string) : string =
-    Js.String.substr ~from s
-  let dropRight (from: int) (s: string) : string =
-    Js.String.sliceToEnd ~from s
-  let split (delimiter : string) (s: string) : string list =
-    Js.String.split delimiter s
-    |> Belt.List.fromArray
-  let join (sep : string) (l: string list) : string =
-    String.concat sep l
-  let endsWith (needle: string) (haystack: string) =
-    Js.String.endsWith needle haystack
-  let startsWith (needle: string) (haystack: string) =
-    Js.String.startsWith needle haystack
-  let toLower (s: string) : string =
-    String.lowercase s
-  let toUpper (s: string) : string =
-    String.uppercase s
-  let contains (needle: string) (haystack: string) : bool =
-    Js.String.includes needle haystack
-  let repeat (count: int) (s: string) : string =
-    Js.String.repeat count s
-
-end
-
 
 
 module Regex = struct
@@ -114,10 +73,14 @@ let to_option (value: 'a) (sentinel: 'a) : 'a option =
 
 
 module List = struct
-  let indexedMap fn l = Belt.List.mapWithIndex l fn
+  let map (fn: 'a -> 'b) (l: 'a list) : 'b list =
+    Belt.List.map l fn
+  let indexedMap (fn: 'int -> 'a -> 'b) (l: 'a list) : 'b list =
+    Belt.List.mapWithIndex l fn
   let map2 (fn: 'a -> 'b -> 'c) (a: 'a list) (b: 'b list) : 'c list =
     Belt.List.mapReverse2 a b fn |> Belt.List.reverse
-  let getBy fn l = Belt.List.getBy l fn
+  let getBy (fn: 'a -> bool) (l: 'a list) : 'a option =
+    Belt.List.getBy l fn
   let elemIndex (a: 'a) (l : 'a list) : int option =
     l
     |> Array.of_list
@@ -158,6 +121,8 @@ module List = struct
 
   let head (l: 'a list) : 'a option =
     Belt.List.head l
+
+
 end
 
 module Char = struct
@@ -169,5 +134,57 @@ module Tuple2 = struct
   let create a b = (a,b)
 end
 
+module Tuple = struct
+  let mapSecond (fn: 'b -> 'c) ((a,b): 'a * 'b) : 'a * 'c =
+    (a, fn b)
+
+  let create a b = (a,b)
+end
+
+
+module String = struct
+  let toInt (s: string) : (string, int) result =
+    try
+      Ok (int_of_string s)
+    with e ->
+      Error (Printexc.to_string e)
+
+  let toFloat (s: string) : (string, float) result =
+    try
+      Ok (float_of_string s)
+    with e ->
+      Error (Printexc.to_string e)
+
+  let uncons (s: string) : (char * string) option =
+    match s with
+    | "" -> None
+    | s -> Some (String.get s 0, String.sub s 1 (String.length s - 1))
+  let dropLeft (from: int) (s: string) : string =
+    Js.String.substr ~from s
+  let dropRight (from: int) (s: string) : string =
+    Js.String.sliceToEnd ~from s
+  let split (delimiter : string) (s: string) : string list =
+    Js.String.split delimiter s
+    |> Belt.List.fromArray
+  let join (sep : string) (l: string list) : string =
+    String.concat sep l
+  let endsWith (needle: string) (haystack: string) =
+    Js.String.endsWith needle haystack
+  let startsWith (needle: string) (haystack: string) =
+    Js.String.startsWith needle haystack
+  let toLower (s: string) : string =
+    String.lowercase s
+  let toUpper (s: string) : string =
+    String.uppercase s
+  let contains (needle: string) (haystack: string) : bool =
+    Js.String.includes needle haystack
+  let repeat (count: int) (s: string) : string =
+    Js.String.repeat count s
+  let fromList (l : char list) : string =
+    l
+    |> List.map Char.toCode
+    |> List.map Js.String.fromCharCode
+    |> String.concat ""
+end
 
 
