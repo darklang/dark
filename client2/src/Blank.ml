@@ -14,9 +14,7 @@ let new_ (() : unit) : 'a blankOr = Blank (gid ())
 let newF (a : 'a) : 'a blankOr = F (gid (), a)
 
 let clone (fn : 'a -> 'a) (b : 'a blankOr) : 'a blankOr =
-  match b with
-  | Blank id -> Blank (gid ())
-  | F (id, val_) -> F (gid (), fn val_)
+  match b with Blank _ -> Blank (gid ()) | F (_, val_) -> F (gid (), fn val_)
 
 let isBlank (b : 'a blankOr) : bool =
   match b with Blank _ -> true | F (_, _) -> false
