@@ -33,6 +33,16 @@ toCenter : Pos -> Pos
 toCenter pos =
   addPos pos Defaults.centerPos
 
+moveCanvasBy : Model -> Int -> Int -> Modification
+moveCanvasBy m x y =
+  let c = m.canvas
+      offset =
+        case m.currentPage of
+          Toplevels _ -> c.offset
+          Fn _ _ -> c.fnOffset
+      pos = addPos offset { x=x, y=y }
+  in MoveCanvasTo c m.currentPage pos
+
 pageUp : Model -> Modification
 pageUp m =
   moveCanvasBy m 0 (-1 * Defaults.pageHeight)
@@ -69,12 +79,4 @@ moveToOrigin : Model -> Modification
 moveToOrigin m =
   MoveCanvasTo m.canvas m.currentPage Defaults.origin
 
-moveCanvasBy : Model -> Int -> Int -> Modification
-moveCanvasBy m x y =
-  let c = m.canvas
-      offset =
-        case m.currentPage of
-          Toplevels _ -> c.offset
-          Fn _ _ -> c.fnOffset
-      pos = addPos offset { x=x, y=y }
-  in MoveCanvasTo c m.currentPage pos
+
