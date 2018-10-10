@@ -129,8 +129,8 @@ module List = struct
     match List.rev l with
     | _ :: rest -> Some (List.rev rest)
     | [] -> None
-  let filterMap (fn: 'a -> bool) (l: 'a list) : 'a list =
-    Belt.List.keep l fn
+  let filterMap (fn: 'a -> 'b option) (l: 'a list) : 'b list =
+    Belt.List.keepMap l fn
 
 end
 
