@@ -159,7 +159,9 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DIncomplete -> asType
   | DResp (Redirect url, dv_) -> (("302 " ^ url) ^ nl) ^ toRepr_ indent dv_
   | DResp (Response (code, hs), dv_) ->
-      let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
+      let headers =
+        objToString (List.map (Tuple.mapSecond (fun s -> DStr s)) hs)
+      in
       (((toString code ^ " ") ^ headers) ^ nl) ^ toRepr dv_
   | DOption OptNothing -> "Nothing"
   | DOption (OptJust dv_) -> "Some " ^ toRepr dv_
@@ -174,7 +176,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
     | l -> ("[ " ^ String.join ", " (List.map (toRepr_ indent) l)) ^ "]" )
   | DObj o -> objToString (Dict.toList o)
 
-let toRepr (dv : dval) : string = toRepr_ 0 dv
+and toRepr (dv : dval) : string = toRepr_ 0 dv
 
 let inputValueAsString (iv : inputValueDict) : string =
   iv

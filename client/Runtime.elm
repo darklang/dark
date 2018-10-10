@@ -189,7 +189,7 @@ toRepr_ oldIndent dv =
     DIncomplete -> asType
     DResp (Redirect url) dv_ -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
     DResp (Response code hs) dv_ ->
-      let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
+      let headers = objToString (List.map (Tuple.mapSecond (\s -> DStr s)) hs) in
       toString code ++ " " ++ headers ++ nl ++ toRepr dv_
     DOption OptNothing -> "Nothing"
     DOption (OptJust dv_) -> "Some " ++ (toRepr dv_)
