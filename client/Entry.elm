@@ -29,7 +29,7 @@ import SpecHeaders
 import Blank as B
 import Autocomplete as AC
 import Url
-import RPC
+import JSON
 
 
 createFindSpace : Model -> Modification
@@ -235,7 +235,7 @@ parseAst m str =
     ["{"] ->
       Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
-      if RPC.isLiteralString str
+      if JSON.isLiteralString str
       then Just <| F eid (Value str)
       else createFunction m str
 

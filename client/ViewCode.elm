@@ -18,7 +18,7 @@ import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
-import RPC
+import JSON
 import AST
 import Blank as B
 import ViewBlankOr exposing (..)
@@ -178,10 +178,10 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RPC.typeOfLiteralString |> toString |> String.toLower
+      let cssClass = v |> JSON.typeOfLiteralString |> toString |> String.toLower
           value =
             -- TODO: remove
-            if RPC.typeOfLiteralString v == TStr
+            if JSON.typeOfLiteralString v == TStr
             then transformToStringEntry v
             else v
           tooWide = if vs.tooWide

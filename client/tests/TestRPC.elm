@@ -17,6 +17,7 @@ import AST
 import Blank as B
 import UtilsForTests exposing (..)
 import RPC exposing (..)
+import JSON exposing (..)
 
 id1 = ID 5
 id2 = ID 10

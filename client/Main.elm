@@ -47,6 +47,7 @@ import Pointer as P
 import Blank as B
 import AST
 import JSONUtils
+import JSON
 import Selection
 import Sync
 import DB
@@ -607,11 +608,11 @@ updateMod mod (m, cmd) =
             req h =
               let trace = Analysis.getCurrentTrace m h.tlid
                   param t =
-                    JSE.object [ ( "handler" , RPC.encodeHandler h)
-                               , ( "trace" , RPC.encodeTrace t)
-                               , ( "dbs", JSONUtils.encodeList RPC.encodeDB dbs)
+                    JSE.object [ ( "handler" , JSON.encodeHandler h)
+                               , ( "trace" , JSON.encodeTrace t)
+                               , ( "dbs", JSONUtils.encodeList JSON.encodeDB dbs)
                                , ( "user_fns"
-                                 , JSONUtils.encodeList RPC.encodeUserFunction userFns)
+                                 , JSONUtils.encodeList JSON.encodeUserFunction userFns)
                                ]
               in
               trace
@@ -751,7 +752,7 @@ isFieldAccessDot m baseStr =
   -- canonicalize it first.
   let str = DontPort.replace "\\.*$" "" baseStr
       intOrString = String.startsWith "\"" str
-                    || RPC.typeOfLiteralString str == TInt
+                    || JSON.typeOfLiteralString str == TInt
   in
   case m.cursorState of
     Entering (Creating _) -> not intOrString
@@ -1633,7 +1634,7 @@ update_ msg m =
         Set404s f404s
 
     ReceiveAnalysis json ->
-      let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
+      let envelope = JSD.decodeString JSON.decodeAnalysisEnvelope json in
       case envelope of
         Ok (id, analysisResults) -> UpdateAnalysis id analysisResults
         Err str -> DisplayError str

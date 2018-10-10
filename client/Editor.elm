@@ -9,20 +9,20 @@ import Json.Encode as JSE
 -- dark
 
 import Defaults
-import RPC
+import JSON
 import Types exposing (..)
 import Toplevel as TL
 
 fromString : Maybe String -> SerializableEditor
 fromString json =
   json
-  |> Maybe.map (JSD.decodeString RPC.decodeSerializableEditor)
+  |> Maybe.map (JSD.decodeString JSON.decodeSerializableEditor)
   |> Maybe.withDefault (Ok Defaults.defaultEditor)
   |> Result.withDefault Defaults.defaultEditor
 
 toString : SerializableEditor -> String
 toString se =
-  RPC.encodeSerializableEditor se
+  JSON.encodeSerializableEditor se
   |> JSE.encode 0
 
 
