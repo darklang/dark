@@ -154,23 +154,6 @@ isTrue : Dval -> Bool
 isTrue dv =
   dv == DBool True
 
-inputValueAsString : InputValueDict -> String
-inputValueAsString iv =
-  iv
-  |> DObj
-  |> toRepr
-  |> String.split "\n"
-  |> List.drop 1
-  |> LE.init
-  |> Maybe.withDefault []
-  |> List.map (String.dropLeft 2)
-  |> String.join "\n"
-
--- Copied from Dval.to_repr in backend code
-toRepr : Dval -> String
-toRepr dv =
-  toRepr_ 0 dv
-
 toRepr_ : Int -> Dval -> String
 toRepr_ oldIndent dv =
   let wrap value =
@@ -225,3 +208,22 @@ toRepr_ oldIndent dv =
           "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ "]"
     DObj o ->
       objToString (Dict.toList o)
+
+-- Copied from Dval.to_repr in backend code
+toRepr : Dval -> String
+toRepr dv =
+  toRepr_ 0 dv
+
+inputValueAsString : InputValueDict -> String
+inputValueAsString iv =
+  iv
+  |> \i -> DObj i
+  |> toRepr
+  |> String.split "\n"
+  |> List.drop 1
+  |> LE.init
+  |> Maybe.withDefault []
+  |> List.map (String.dropLeft 2)
+  |> String.join "\n"
+
+

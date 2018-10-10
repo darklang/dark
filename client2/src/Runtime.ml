@@ -125,15 +125,7 @@ let isComplete (dv : dval) : bool =
 
 let isTrue (dv : dval) : bool = dv = DBool true
 
-let inputValueAsString (iv : inputValueDict) : string =
-  iv |> DObj |> toRepr |> String.split "\n" |> List.drop 1 |> List.init
-  |> Option.withDefault []
-  |> List.map (String.dropLeft 2)
-  |> String.join "\n"
-
-let toRepr (dv : dval) : string = toRepr_ 0 dv
-
-let toRepr_ (oldIndent : int) (dv : dval) : string =
+let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value =
     ((("<" ^ (dv |> typeOf |> tipe2str)) ^ ": ") ^ value) ^ ">"
   in
@@ -181,3 +173,13 @@ let toRepr_ (oldIndent : int) (dv : dval) : string =
         ^ "]"
     | l -> ("[ " ^ String.join ", " (List.map (toRepr_ indent) l)) ^ "]" )
   | DObj o -> objToString (Dict.toList o)
+
+let toRepr (dv : dval) : string = toRepr_ 0 dv
+
+let inputValueAsString (iv : inputValueDict) : string =
+  iv
+  |> fun i ->
+  DObj i |> toRepr |> String.split "\n" |> List.drop 1 |> List.init
+  |> Option.withDefault []
+  |> List.map (String.dropLeft 2)
+  |> String.join "\n"

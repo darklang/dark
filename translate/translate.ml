@@ -57,6 +57,7 @@ let post_process =
     [ "\\(string, (.*)\\) dict", "\\1 Belt.Map.String.t"
     ; "\\(int, (.*)\\) dict", "\\1 Belt.Map.Int.t"
     ; "let tipe2str", "let rec tipe2str"
+    ; "let toRepr_", "let rec toRepr_"
     ]
   in
   rewrite (config_post_process_patterns @ patterns)
