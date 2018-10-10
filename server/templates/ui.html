@@ -135,14 +135,9 @@
             { route: route
             , tlid: params.handler.tlid
             }
-          )
-          try {
-            const result = darkAnalysis.performAnalysis(JSON.stringify(params));
-            elmapp.ports.receiveAnalysis.send(result);
-          } catch (error) {
-            const errObj = darkExe.handleAnalysisErrors(error)
-            sendError(errObj, route, params.handler.tlid);
-          }
+          );
+          elmapp.ports.displayError.send('Cannot perform analysis. Please use a browser that supports web workers.');
+          // TODO provide link to list of browsers that support webworkers. Currently there's no easy way to do render injectable HTML in Elm.
         }
        })
 
