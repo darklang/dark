@@ -22,6 +22,7 @@ import Window
 
 -- dark
 import DontPort
+import StrDict
 import Analysis
 import RPC
 import Types exposing (..)
@@ -390,7 +391,7 @@ updateMod mod (m, cmd) =
                        |> (++) (maybe "result" result)
                        |> (++) (maybe "result type" resultType)
                        |> (++) (maybe "expected" expected)
-                       |> (++) (if info == DontPort.strDictEmpty
+                       |> (++) (if info == StrDict.empty
                                 then ""
                                 else ", info: " ++ toString info)
                        |> (++) (if workarounds == []

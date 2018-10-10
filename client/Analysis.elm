@@ -13,7 +13,8 @@ import Runtime as RT
 import Blank as B
 import Toplevel as TL
 import AST
-import DontPort
+import StrDict
+import IntDict
 
 -- "current" in this indicates that it uses the cursor to pick the right inputValue
 
@@ -26,8 +27,8 @@ currentVarnamesFor m target =
 
 defaultResults : AnalysisResults
 defaultResults =
-  { liveValues = DontPort.intDictEmpty
-  , availableVarnames = DontPort.intDictEmpty
+  { liveValues = IntDict.empty
+  , availableVarnames = IntDict.empty
   }
 
 getCurrentAnalysisResults : Model -> TLID -> AnalysisResults
@@ -118,7 +119,7 @@ replaceFunctionResult m tlid traceID callerID fnName hash dval =
              (\ml ->
                ml
                |> Maybe.withDefault [{ id = traceID
-                                     , input = DontPort.strDictEmpty
+                                     , input = StrDict.empty
                                      , functionResults = [newResult]
                                      }]
                |> List.map (\t ->

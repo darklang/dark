@@ -174,7 +174,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ^ nl )
         ^ "]"
     | l -> ("[ " ^ String.join ", " (List.map (toRepr_ indent) l)) ^ "]" )
-  | DObj o -> objToString (Dict.toList o)
+  | DObj o -> objToString (Belt.Map.String.toList o)
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv
 

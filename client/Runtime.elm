@@ -2,7 +2,6 @@ module Runtime exposing (..)
 
 -- stldib
 -- import Json.Decode as JSD
-import Dict
 
 -- libs
 import List.Extra as LE
@@ -12,6 +11,7 @@ import Types exposing (..)
 -- import Prelude exposing (..)
 -- import Util
 -- import JSON
+import StrDict
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
@@ -207,7 +207,7 @@ toRepr_ oldIndent dv =
         l ->
           "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ "]"
     DObj o ->
-      objToString (Dict.toList o)
+      objToString (StrDict.toList o)
 
 -- Copied from Dval.to_repr in backend code
 toRepr : Dval -> String
