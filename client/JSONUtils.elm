@@ -1,4 +1,4 @@
-module JSON exposing (..)
+module JSONUtils exposing (..)
 
 -- builtin
 import Json.Encode as JSE

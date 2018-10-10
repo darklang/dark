@@ -15,7 +15,7 @@ import Base64
 -- dark
 import Types exposing (..)
 import Util
-import JSON exposing (..)
+import JSONUtils exposing (..)
 import Runtime as RT
 import List.Extra as LE
 -- import Blank as B
@@ -437,7 +437,7 @@ encodeNExpr expr =
     Value v -> ev "Value" [ JSE.string v]
     Thread exprs -> ev "Thread" [JSE.list (List.map e exprs)]
     ObjectLiteral pairs ->
-      let encoder = JSON.encodePair (encodeBlankOr JSE.string) e in
+      let encoder = JSONUtils.encodePair (encodeBlankOr JSE.string) e in
       ev "ObjectLiteral" [(List.map encoder pairs) |> JSE.list ]
     ListLiteral elems ->
       ev "ListLiteral" [JSE.list (List.map e elems)]
@@ -626,7 +626,7 @@ decodeAnalysisResults =
 
 decodeAnalysisEnvelope : JSD.Decoder (TraceID, AnalysisResults)
 decodeAnalysisEnvelope =
-  JSON.decodePair JSD.string decodeAnalysisResults
+  JSONUtils.decodePair JSD.string decodeAnalysisResults
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
@@ -846,7 +846,7 @@ decodeFunctionResult =
         }
   in
   JSD.map toFunctionResult
-    (JSON.decodeQuadriple
+    (JSONUtils.decodeQuadriple
       JSD.string
       decodeID
       JSD.string
@@ -870,11 +870,11 @@ decodeTrace =
 encodeTrace : Trace -> JSE.Value
 encodeTrace t =
   JSE.object [ ( "input"
-               , JSON.encodeList
+               , JSONUtils.encodeList
                    (encodePair JSE.string encodeDval)
                    (Dict.toList t.input))
              , ( "function_results"
-               , JSON.encodeList encodeFunctionResult t.functionResults)
+               , JSONUtils.encodeList encodeFunctionResult t.functionResults)
              , ( "id", JSE.string t.id)
             ]
 
@@ -991,7 +991,7 @@ decodeDval =
           [ ("Redirect", dv1 Redirect JSD.string)
           , ("Response", dv2 Response JSD.int
                                (JSD.list
-                                 (JSON.decodePair JSD.string JSD.string)))]
+                                 (JSONUtils.decodePair JSD.string JSD.string)))]
   in
   decodeVariants
     [ ("DInt", dv1 DInt JSD.int)
@@ -1006,7 +1006,7 @@ decodeDval =
     , ("DError", dv1 DError JSD.string)
     , ("DBlock", dv0 DBlock)
     , ("DErrorRail", dv1 DErrorRail dd)
-    , ("DResp", dv1 (\(h, dv) -> DResp h dv) (JSON.decodePair decodeDhttp dd))
+    , ("DResp", dv1 (\(h, dv) -> DResp h dv) (JSONUtils.decodePair decodeDhttp dd))
     , ("DDB", dv1 DDB JSD.string)
     , ("DID", dv1 DID JSD.string)
     , ("DDate", dv1 DDate JSD.string)
@@ -1046,7 +1046,7 @@ encodeDval dv =
     DChar c -> ev "DChar" [JSE.string (String.fromList [c])]
     DError msg -> ev "DError" [JSE.string msg]
 
-    DResp h hdv -> ev "DResp" [(JSON.encodePair encodeDhttp encodeDval (h, hdv))]
+    DResp h hdv -> ev "DResp" [(JSONUtils.encodePair encodeDhttp encodeDval (h, hdv))]
 
     DDB name -> ev "DDB" [JSE.string name]
     DID id -> ev "DID" [JSE.string id]

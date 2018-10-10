@@ -10,7 +10,7 @@ import Json.Decode as JSD
 -- dark
 import Types exposing (..)
 import ViewUtils exposing (..)
-import JSON
+import JSONUtils
 import Url
 
 
@@ -99,7 +99,7 @@ viewError err =
     ( case err.message of
         Nothing -> []
         Just msg ->
-          case JSD.decodeString JSON.decodeException msg of
+          case JSD.decodeString JSONUtils.decodeException msg of
             Err _ -> [ Html.text msg ]
             Ok exc -> viewException exc
     )
