@@ -113,22 +113,3 @@ let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
 
 let tmap (fn : tipe blankOr -> tipe blankOr) (pd : pointerData) : pointerData =
   match pd with PParamTipe d -> PParamTipe (fn d) | _ -> pd
-
-let strmap (fn : (pointerType -> string blankOr) -> string blankOr)
-    (pd : pointerData) : pointerData =
-  match pd with
-  | PVarBind d -> PVarBind (fn VarBind d)
-  | PField d -> PField (fn Field d)
-  | PKey d -> PKey (fn Key d)
-  | PExpr _ -> pd
-  | PEventModifier d -> PEventModifier (fn EventModifier d)
-  | PEventName d -> PEventName (fn EventName d)
-  | PEventSpace d -> PEventSpace (fn EventSpace d)
-  | PDBColName d -> PDBColName (fn DBColName d)
-  | PDBColType d -> PDBColType (fn DBColType d)
-  | PDarkType _ -> pd
-  | PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
-  | PFFMsg d -> PFFMsg (fn FFMsg d)
-  | PFnName d -> PFnName (fn FnName d)
-  | PParamName d -> PParamName (fn ParamName d)
-  | PParamTipe _ -> pd
