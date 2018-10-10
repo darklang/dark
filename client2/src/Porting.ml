@@ -27,6 +27,14 @@ end
 
 let (++) (a: string) (b: string) = a ^ b
 
+module Debug = struct
+  let crash (str: string) : 'a =
+    failwith str
+end
+
+let toString (v : 'a) : string =
+  Js.String.make v
+
 module Option = struct
   type 'a t = 'a option
   let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
@@ -77,10 +85,14 @@ module String = struct
     String.concat sep l
   let endsWith (needle: string) (haystack: string) =
     Js.String.endsWith needle haystack
+  let startsWith (needle: string) (haystack: string) =
+    Js.String.startsWith needle haystack
   let toLower (s: string) : string =
     String.lowercase s
   let toUpper (s: string) : string =
     String.uppercase s
+  let contains (needle: string) (haystack: string) : bool =
+    Js.String.includes needle haystack
 
 end
 
