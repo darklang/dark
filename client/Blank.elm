@@ -28,8 +28,8 @@ newF a =
 clone : (a -> a) -> BlankOr a -> BlankOr a
 clone fn b =
   case b of
-    Blank id -> Blank (gid())
-    F id val -> F (gid()) (fn val)
+    Blank _ -> Blank (gid())
+    F _ val -> F (gid()) (fn val)
 
 isBlank : BlankOr a -> Bool
 isBlank b =
