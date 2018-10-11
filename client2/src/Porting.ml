@@ -116,10 +116,8 @@ module List = struct
     uniqueHelp f Belt.Set.String.empty l []
   let find (f: 'a -> bool) (l: 'a list) : 'a option =
     Belt.List.getBy l f
-
   let getAt (i: int) (l: 'a list) : 'a option =
     Belt.List.get l i
-
   let head (l: 'a list) : 'a option =
     Belt.List.head l
   let drop (count: int) (l: 'a list) : 'a list =
@@ -131,6 +129,12 @@ module List = struct
     | [] -> None
   let filterMap (fn: 'a -> 'b option) (l: 'a list) : 'b list =
     Belt.List.keepMap l fn
+  let concat (ls: 'a list list) : 'a list =
+    ls
+    |> Belt.List.toArray
+    |> Belt.List.concatMany
+
+
 
 end
 
