@@ -269,7 +269,7 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in
   replace p replacement tl
 
-let allData (tl : toplevel) : pointerData list =
+let rec allData (tl : toplevel) : pointerData list =
   match tl.data with
   | TLHandler h ->
       ( (SpecHeaders.allData h.spec ^ SpecTypes.allData h.spec.types.input)

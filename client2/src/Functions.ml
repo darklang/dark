@@ -62,7 +62,7 @@ let paramData (ufp : userFunctionParameter) : pointerData list =
 let allParamData (uf : userFunction) : pointerData list =
   List.concat (List.map paramData uf.metadata.parameters)
 
-let allData (uf : userFunction) : pointerData list =
+let rec allData (uf : userFunction) : pointerData list =
   ([PFnName uf.metadata.name] ^ allParamData uf) ^ AST.allData uf.ast
 
 let replaceFnName (search : pointerData) (replacement : pointerData)

@@ -28,7 +28,7 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
-let listThreadBlanks (expr : expr) : id list =
+let rec listThreadBlanks (expr : expr) : id list =
   let r = listThreadBlanks in
   let _ = "type annotation" in
   let rList exprs = exprs |> List.map listThreadBlanks |> List.concat in
@@ -52,7 +52,7 @@ let listThreadBlanks (expr : expr) : id list =
   in
   match expr with Blank _ -> [] | F (_, f) -> rn f
 
-let closeThreads (expr : expr) : expr =
+let rec closeThreads (expr : expr) : expr =
   match expr with
   | F (id, Thread exprs) -> (
       let addBlank =
@@ -77,7 +77,7 @@ let closeThreads (expr : expr) : expr =
       | _ -> F (id, Thread adjusted) )
   | _ -> traverse closeThreads expr
 
-let closeObjectLiterals (expr : expr) : expr =
+let rec closeObjectLiterals (expr : expr) : expr =
   match expr with
   | F (id, ObjectLiteral pairs) ->
       pairs
@@ -89,7 +89,7 @@ let closeObjectLiterals (expr : expr) : expr =
       |> F id
   | _ -> traverse closeObjectLiterals expr
 
-let closeListLiterals (expr : expr) : expr =
+let rec closeListLiterals (expr : expr) : expr =
   match expr with
   | F (id, ListLiteral exprs) ->
       let exprs2 = List.map closeListLiterals exprs in
@@ -174,7 +174,7 @@ let maybeExtendListLiteralAt (pd : pointerData) (expr : expr) : expr =
       else expr
   | _ -> expr
 
-let wrapInThread (id : id) (expr : expr) : expr =
+let rec wrapInThread (id : id) (expr : expr) : expr =
   if B.toID expr = id then
     match expr with
     | F (_, Thread _) -> expr
@@ -188,7 +188,7 @@ let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
     (fun e list -> if B.toID e = at then (e :: blank) :: list else e :: list)
     [] threadExprs
 
-let maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
+let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
   match expr with
   | F (tid, Thread exprs) ->
       let newExprs =
@@ -251,7 +251,7 @@ let children (expr : expr) : pointerData list =
     | FeatureFlag (msg, cond, a, b) ->
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b] )
 
-let childrenOf (pid : id) (expr : expr) : pointerData list =
+let rec childrenOf (pid : id) (expr : expr) : pointerData list =
   let co = childrenOf pid in
   if pid = B.toID expr then children expr
   else
@@ -272,7 +272,7 @@ let childrenOf (pid : id) (expr : expr) : pointerData list =
       | ListLiteral pairs -> pairs |> List.map co |> List.concat
       | FeatureFlag (msg, cond, a, b) -> (co cond ^ co a) ^ co b )
 
-let uses (var : varName) (expr : expr) : expr list =
+let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
     match newbind with
     | Blank _ -> false
@@ -306,7 +306,7 @@ let allCallsToFn (s : string) (e : expr) : expr list =
              if name = s then Some (F (id, FnCall (name, params, r))) else None
          | _ -> None )
 
-let usesRail (ast : expr) : bool =
+let rec usesRail (ast : expr) : bool =
   List.any
     (fun e ->
       match e with PExpr (F (_, FnCall (_, _, Rail))) -> true | _ -> false )
@@ -351,7 +351,7 @@ let threadAncestors (id : id) (expr : expr) : expr list =
 let parentOf (id : id) (ast : expr) : expr =
   Option.getExn "parentOf" <| parentOf_ id ast
 
-let parentOf_ (eid : id) (expr : expr) : expr option =
+let rec parentOf_ (eid : id) (expr : expr) : expr option =
   let po = parentOf_ eid in
   let _ = "comment" in
   let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
@@ -402,7 +402,7 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   | Field, Some (F (_, FieldAccess (obj, _))) -> Some <| PExpr obj
   | _ -> None
 
-let allData (expr : expr) : pointerData list =
+let rec allData (expr : expr) : pointerData list =
   let e2ld e = PExpr e in
   let _ = "type annotation" in
   let rl exprs = exprs |> List.map allData |> List.concat in
@@ -441,7 +441,7 @@ let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
 let within (e : nExpr) (id : id) : bool =
   e |> F (ID (-1)) |> allData |> List.map P.toID |> List.member id
 
-let replace_ (search : pointerData) (replacement : pointerData)
+let rec replace_ (search : pointerData) (replacement : pointerData)
     (parent : expr option) (expr : expr) : expr =
   let r = replace_ search replacement (Some expr) in
   let _ = "comment" in
@@ -549,7 +549,7 @@ let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
   let replacement = P.emptyD_ id (P.typeOf p) in
   replace p replacement expr
 
-let clone (expr : expr) : expr =
+let rec clone (expr : expr) : expr =
   let nid = gid () in
   let c be = clone be in
   let cl bes = List.map c bes in
