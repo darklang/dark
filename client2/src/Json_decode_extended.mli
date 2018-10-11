@@ -6,7 +6,7 @@ val decodeVariant2 : ('b -> 'c -> 'a) -> 'b decoder -> 'c decoder -> 'a decoder
 val decodeVariant1 : ('b -> 'a) -> 'b decoder -> 'a decoder
 val decodeVariant0 : 'a -> 'a decoder
 
-val decodeVariants : (string * ('a decoder)) -> 'a decoder
+val decodeVariants : ((string * 'a decoder) list) -> 'a decoder
 
 val succeed : 'a -> 'a decoder
 val index : int -> 'a decoder -> 'a decoder

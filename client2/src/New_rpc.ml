@@ -32,6 +32,46 @@ module Decoders = struct
       ; ("THasMany", dv1 Types_copy.thasmany string)
       ; ("TDbList", dv1 Types_copy.tdblist tipe)
       ]
+
+  let pos json =
+    let open Json_decode_extended in
+    {
+      x = json |> field "x" float;
+      y = json |> field "y" float;
+    }
+
+  let vpos json =
+    let open Json_decode_extended in
+    {
+      vx = json |> field "vx" float;
+      vy = json |> field "vy" float;
+    }
+
+  let tlid json =
+    let open Json_decode_extended in
+    json |> int |> map Types_copy.tlid
+
+  let id json =
+    let open Json_decode_extended in
+    json |> int |> map Types_copy.id
+
+  let entering json =
+    let open Json_decode_extended in
+    decodeVariants [
+      ("Creating", dv1 Types_copy.creating pos)
+    ; ("Filling", dv2 Types_copy.filling tlid id)
+    ]
+
+  let rec cursorState json =
+    let open Json_decode_extended in
+    decodeVariants [
+      ("Selecting", dv2 Types_copy.selecting tlid (optional (decodeID)))
+    ; ("Entering", dv1 Types_copy.entering entering)
+    ; ("Dragging", dv4 Types_copy.dragging tlid vpos bool cursorState)
+    ; ("Deselected", dv0 Types_copy.deselected)
+    ; ("SelectingCommand", dv2 Types_copy.selectingcommand tlid id)
+    ]
+
 end
 
 module Encoders = struct

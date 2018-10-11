@@ -1,5 +1,7 @@
 include Json.Decode
 
+external _stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
+
 let succeed any json = any
 
 let index i decode json =
@@ -43,5 +45,19 @@ let decodeVariant4 constructor d1 d2 d3 d4 =
     (index 3 d3)
     (index 4 d4)
 
+let decodeVariants decoders =
+  let constructors =
+    decoders
+    |. Belt.List.map (fun (a, _) -> a)
+    |> String.concat ", "
+  in
+  index 0 string
+  |> andThen
+    (fun str_constructor ->
+      (match Belt.List.getAssoc decoders str_constructor (=) with
+      | Some decode ->
+        decode
+      | None ->
+        raise @@ DecodeError ("Got " ^ (str_constructor) ^ ", expected one of " ^ constructors)))
 
 
