@@ -19,10 +19,7 @@ let focusEntry (m : model) : msg Cmd.t =
   | _ -> Cmd.none
 
 let newHandlerSpec (_ : unit) : handlerSpec =
-  { module_= B.new_ ()
-  ; name= B.new_ ()
-  ; modifier= B.new_ ()
-  ; types= {input= B.new_ (); output= B.new_ ()} }
+  {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()}
 
 let createFunction (m : model) (name : fnName) : expr option =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
@@ -152,7 +149,7 @@ let parseAst (m : model) (str : string) : expr option =
   | ["{}"] -> Some <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
   | ["{"] -> Some <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
   | _ ->
-      if RPC.isLiteralString str then Some <| F (eid, Value str)
+      if JSON.isLiteralString str then Some <| F (eid, Value str)
       else createFunction m str
 
 type nextAction = StartThread | StayHere | GotoNext
@@ -338,18 +335,6 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else NoChange ) )
-        | PDarkType _ ->
-            let specType =
-              match value with
-              | "String" -> DTString
-              | "Any" -> DTAny
-              | "Int" -> DTInt
-              | "Empty" -> DTEmpty
-              | "{" -> DTObj [(B.new_ (), B.new_ ())]
-              | _ -> todo "disallowed value"
-            in
-            replace (PDarkType (B.newF specType))
-        | PDarkTypeField _ -> replace (PDarkTypeField (B.newF value))
         | PFFMsg _ -> replace (PFFMsg (B.newF value))
         | PFnName _ ->
             let newPD = PFnName (B.newF value) in
@@ -398,8 +383,6 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PField _ -> v ".+" "fieldname"
   | PKey _ -> v ".+" "key"
   | PExpr e -> None
-  | PDarkType _ -> v "(String|Int|Any|Empty|{)" "type"
-  | PDarkTypeField _ -> None
   | PFFMsg _ -> None
   | PFnName _ -> None
   | PParamName _ -> None

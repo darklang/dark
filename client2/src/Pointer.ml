@@ -15,8 +15,6 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
   | Field -> PField (Blank id)
   | DBColName -> PDBColName (Blank id)
   | DBColType -> PDBColType (Blank id)
-  | DarkType -> PDarkType (Blank id)
-  | DarkTypeField -> PDarkTypeField (Blank id)
   | FFMsg -> PFFMsg (Blank id)
   | FnName -> PFnName (Blank id)
   | ParamName -> PParamName (Blank id)
@@ -33,8 +31,6 @@ let typeOf (pd : pointerData) : pointerType =
   | PKey _ -> Key
   | PDBColName _ -> DBColName
   | PDBColType _ -> DBColType
-  | PDarkType _ -> DarkType
-  | PDarkTypeField _ -> DarkTypeField
   | PFFMsg _ -> FFMsg
   | PFnName _ -> FnName
   | PParamName _ -> ParamName
@@ -53,8 +49,6 @@ let toID (pd : pointerData) : id =
   | PEventSpace d -> B.toID d
   | PDBColName d -> B.toID d
   | PDBColType d -> B.toID d
-  | PDarkType d -> B.toID d
-  | PDarkTypeField d -> B.toID d
   | PFFMsg d -> B.toID d
   | PFnName d -> B.toID d
   | PParamName d -> B.toID d
@@ -71,8 +65,6 @@ let isBlank (pd : pointerData) : bool =
   | PEventSpace d -> B.isBlank d
   | PDBColName d -> B.isBlank d
   | PDBColType d -> B.isBlank d
-  | PDarkType d -> B.isBlank d
-  | PDarkTypeField d -> B.isBlank d
   | PFFMsg d -> B.isBlank d
   | PFnName d -> B.isBlank d
   | PParamName d -> B.isBlank d
@@ -94,8 +86,6 @@ let toContent (pd : pointerData) : string option =
   | PEventSpace d -> bs2s d
   | PDBColName d -> bs2s d
   | PDBColType d -> bs2s d
-  | PDarkType _ -> None
-  | PDarkTypeField d -> bs2s d
   | PFFMsg d -> bs2s d
   | PFnName d -> bs2s d
   | PParamName d -> bs2s d
@@ -105,11 +95,5 @@ let toContent (pd : pointerData) : string option =
       |> Option.withDefault ""
       |> fun x -> Some x
 
-let dtmap (fn : darkType -> darkType) (pd : pointerData) : pointerData =
-  match pd with PDarkType d -> PDarkType (fn d) | _ -> pd
-
 let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
   match pd with PExpr d -> PExpr (fn d) | _ -> pd
-
-let tmap (fn : tipe blankOr -> tipe blankOr) (pd : pointerData) : pointerData =
-  match pd with PParamTipe d -> PParamTipe (fn d) | _ -> pd

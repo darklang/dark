@@ -104,8 +104,6 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PKey k -> PKey (B.clone identity k)
   | PDBColName cn -> pd
   | PDBColType ct -> pd
-  | PDarkType dt -> todo ("clonePointerData", pd)
-  | PDarkTypeField dt -> todo ("clonePointerData", pd)
   | PFFMsg msg -> PFFMsg (B.clone identity msg)
   | PFnName name_ -> PFnName (B.clone identity name_)
   | PParamName name_ -> PParamName (B.clone identity name_)
@@ -147,10 +145,7 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   match tl.data with
   | TLHandler h ->
       let toplevels = SpecHeaders.allData h.spec ^ [PExpr h.ast] in
-      if List.member p toplevels then toplevels
-      else
-        (AST.siblings p h.ast ^ SpecTypes.siblings p h.spec.types.input)
-        ^ SpecTypes.siblings p h.spec.types.output
+      if List.member p toplevels then toplevels else AST.siblings p h.ast
   | TLDB db -> DB.siblings p db
   | TLFunc f -> AST.siblings p f.ast
 
@@ -178,11 +173,6 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
     | TLDB db ->
         db |> DB.astsFor |> List.map (AST.childrenOf pid) |> List.concat
   in
-  let specChildren () =
-    let h = asHandler tl |> Option.getExn "getChildrenOf - spec" in
-    SpecTypes.childrenOf (P.toID pd) h.spec.types.input
-    ^ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
-  in
   match pd with
   | PVarBind _ -> []
   | PField d -> []
@@ -193,8 +183,6 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   | PEventSpace d -> []
   | PDBColName d -> []
   | PDBColType d -> []
-  | PDarkType _ -> specChildren ()
-  | PDarkTypeField d -> []
   | PFFMsg _ -> []
   | PFnName _ -> []
   | PParamName _ -> []
@@ -224,11 +212,6 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         {tl with data= TLFunc {f with ast= newAST}}
     | _ -> impossible ("no AST here", tl.data)
   in
-  let specTypeReplace () =
-    let h = ha () in
-    let newSpec = SpecTypes.replace p replacement h.spec in
-    {tl with data= TLHandler {h with spec= newSpec}}
-  in
   let specHeaderReplace bo =
     let h = ha () in
     let newSpec = SpecHeaders.replace id bo h.spec in
@@ -247,8 +230,6 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   | PEventName en -> specHeaderReplace en
   | PEventModifier em -> specHeaderReplace em
   | PEventSpace es -> specHeaderReplace es
-  | PDarkType _ -> specTypeReplace ()
-  | PDarkTypeField _ -> specTypeReplace ()
   | PDBColType tipe -> tl
   | PDBColName _ -> tl
   | PFFMsg bo -> (
@@ -271,10 +252,7 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
 
 let rec allData (tl : toplevel) : pointerData list =
   match tl.data with
-  | TLHandler h ->
-      ( (SpecHeaders.allData h.spec ^ SpecTypes.allData h.spec.types.input)
-      ^ AST.allData h.ast )
-      ^ SpecTypes.allData h.spec.types.output
+  | TLHandler h -> SpecHeaders.allData h.spec ^ AST.allData h.ast
   | TLDB db -> DB.allData db
   | TLFunc f -> Fns.allData f
 

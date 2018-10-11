@@ -338,8 +338,6 @@ and pointerData =
   | PKey of string blankOr
   | PDBColName of string blankOr
   | PDBColType of string blankOr
-  | PDarkType of darkType
-  | PDarkTypeField of string blankOr
   | PFFMsg of string blankOr
   | PFnName of string blankOr
   | PParamName of string blankOr
@@ -355,8 +353,6 @@ and pointerType =
   | Key
   | DBColName
   | DBColType
-  | DarkType
-  | DarkTypeField
   | FFMsg
   | FnName
   | ParamName
@@ -364,24 +360,10 @@ and pointerType =
 
 and 'a blankOr = Blank of id | F of id * 'a
 
-and pointerOwner = POSpecHeader | POAst | PODb | POSpecType
-
-and darkType = nDarkType blankOr
-
-and nDarkType =
-  | DTEmpty
-  | DTAny
-  | DTString
-  | DTInt
-  | DTObj of (string blankOr * darkType) list
-
-and specTypes = {input: darkType; output: darkType}
+and pointerOwner = POSpecHeader | POAst | PODb
 
 and handlerSpec =
-  { module_: string blankOr
-  ; name: string blankOr
-  ; modifier: string blankOr
-  ; types: specTypes }
+  {module_: string blankOr; name: string blankOr; modifier: string blankOr}
 
 and handlerSpace = HSHTTP | HSCron | HSOther | HSEmpty
 

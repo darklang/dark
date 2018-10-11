@@ -7,12 +7,12 @@ open Types
 
 let fromString (json : string option) : serializableEditor =
   json
-  |> Option.map (JSD.decodeString RPC.decodeSerializableEditor)
+  |> Option.map (JSD.decodeString JSON.decodeSerializableEditor)
   |> Option.withDefault (Ok Defaults.defaultEditor)
   |> Result.withDefault Defaults.defaultEditor
 
 let toString (se : serializableEditor) : string =
-  RPC.encodeSerializableEditor se |> JSE.encode 0
+  JSON.encodeSerializableEditor se |> JSE.encode 0
 
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in

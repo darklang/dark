@@ -24,11 +24,6 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
   let configs = idConfigs ^ c in
   viewBlankOr viewNVarBind Key vs configs k
 
-let viewDarkType (vs : viewState) (c : htmlConfig list) (dt : darkType) :
-    msg Html.html =
-  let configs = idConfigs ^ c in
-  viewBlankOr viewNDarkType DarkType vs configs dt
-
 let viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
     msg Html.html =
   let width = approxWidth e in
@@ -56,27 +51,6 @@ let viewEventModifier (vs : viewState) (c : htmlConfig list)
     (v : string blankOr) : msg Html.html =
   let configs = idConfigs ^ c in
   viewText EventModifier vs configs v
-
-let viewNDarkType (vs : viewState) (c : htmlConfig list) (d : nDarkType) :
-    msg Html.html =
-  match d with
-  | DTEmpty -> text vs c "Empty"
-  | DTString -> text vs c "String"
-  | DTAny -> text vs c "Any"
-  | DTInt -> text vs c "Int"
-  | DTObj ts ->
-      let nested =
-        ts
-        |> List.map (fun (n, dt) ->
-               [ viewText DarkTypeField vs [wc "fieldname"] n
-               ; text vs [wc "colon"] ":"
-               ; viewDarkType vs [wc "fieldvalue"] dt ] )
-        |> List.intersperse [text vs [wc "separator"] ","]
-        |> List.concat
-      in
-      let open_ = text vs [wc "open"] "{" in
-      let close = text vs [wc "close"] "}" in
-      Html.div [Attrs.class_ "type-object"] (([open_] ^ nested) ^ [close])
 
 let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
     msg Html.html =
@@ -142,10 +116,10 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
   match e with
   | Value v ->
       let cssClass =
-        v |> RPC.typeOfLiteralString |> toString |> String.toLower
+        v |> JSON.typeOfLiteralString |> toString |> String.toLower
       in
       let value =
-        if RPC.typeOfLiteralString v = TStr then transformToStringEntry v
+        if JSON.typeOfLiteralString v = TStr then transformToStringEntry v
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
@@ -422,18 +396,6 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
             ; Attrs.target "_blank" ]
             [fontAwesome "external-link-alt"] ]
     | _ -> []
-  in
-  let input =
-    Html.div
-      [Attrs.class_ "spec-type input-type"]
-      [ Html.span [Attrs.class_ "header"] [Html.text "Input:"]
-      ; viewDarkType vs [] h.spec.types.input ]
-  in
-  let output =
-    Html.div
-      [Attrs.class_ "spec-type output-type"]
-      [ Html.span [Attrs.class_ "header"] [Html.text "Output:"]
-      ; viewDarkType vs [] h.spec.types.output ]
   in
   let modifier =
     if SpecHeaders.visibleModifier h.spec then
