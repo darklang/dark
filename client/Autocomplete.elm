@@ -595,13 +595,6 @@ generateFromModel m a =
                 in
                     builtins ++ compound
 
-              DarkType ->
-                [ "Any"
-                , "Empty"
-                , "String"
-                , "Int"
-                , "{"
-                ]
               ParamTipe ->
                 [ "Any"
                 , "String"

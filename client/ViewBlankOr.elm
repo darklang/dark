@@ -237,8 +237,6 @@ placeHolderFor vs id pt =
     Key -> "keyname"
     DBColName -> "db field name"
     DBColType -> "db type"
-    DarkType -> "type"
-    DarkTypeField -> "fieldname"
     FFMsg -> "flag name"
     FnName -> "function name"
     ParamName -> "param name"

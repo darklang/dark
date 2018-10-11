@@ -14,6 +14,7 @@ import Types exposing (..)
 import Util
 import JSONUtils exposing (..)
 import Runtime as RT
+import Blank
 
 
 decodePointerData : JSD.Decoder PointerData
@@ -28,8 +29,6 @@ decodePointerData =
     , ("PField", dv1 PField (decodeBlankOr JSD.string))
     , ("PDBColName", dv1 PDBColName (decodeBlankOr JSD.string))
     , ("PDBColType", dv1 PDBColType (decodeBlankOr JSD.string))
-    , ("PDarkType", dv1 PDarkType (decodeDarkType))
-    , ("PDarkTypeField", dv1 PDarkTypeField (decodeBlankOr JSD.string))
     , ("PFFMsg", dv1 PFFMsg (decodeBlankOr JSD.string))
     , ("PFnName", dv1 PFnName (decodeBlankOr JSD.string))
     , ("PParamName", dv1 PParamName (decodeBlankOr JSD.string))
@@ -58,10 +57,6 @@ encodePointerData pd =
       ev "PDBColName" [encodeBlankOr JSE.string colname]
     PDBColType coltype ->
       ev "PDBColType" [encodeBlankOr JSE.string coltype]
-    PDarkType darktype ->
-      ev "PDarkType" [encodeDarkType darktype]
-    PDarkTypeField darktypefield ->
-      ev "PDarkTypeField" [encodeBlankOr JSE.string darktypefield]
     PFFMsg msg ->
       ev "PFFMsg" [encodeBlankOr JSE.string msg]
     PFnName msg ->
@@ -119,7 +114,11 @@ encodeSpec spec =
     [ ("name", encodeBlankOr JSE.string spec.name)
     , ("module", encodeBlankOr JSE.string spec.module_)
     , ("modifier", encodeBlankOr JSE.string spec.modifier)
-    , ("types", encodeSpecTypes spec.types)
+    , ("types",
+          JSE.object
+            [ ("input", encodeBlankOr JSE.int (Blank.new ()))
+            , ("output", encodeBlankOr JSE.int (Blank.new ()))
+            ])
     ]
 
 encodeHandler : Handler -> JSE.Value
@@ -370,34 +369,6 @@ encodeNExpr expr =
   -- which gets potentially fixed by
   -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
 
-encodeSpecTypes : SpecTypes -> JSE.Value
-encodeSpecTypes st =
-  JSE.object
-    [ ("input", encodeDarkType st.input)
-    , ("output", encodeDarkType st.output)
-    ]
-
-encodeDarkType : DarkType -> JSE.Value
-encodeDarkType dt =
-  encodeBlankOr encodeNDarkType dt
-
-encodeNDarkType : NDarkType -> JSE.Value
-encodeNDarkType t =
-  let ev = encodeVariant in
-  case t of
-    DTEmpty -> ev "Empty" []
-    DTAny -> ev "Any" []
-    DTString -> ev "String" []
-    DTInt -> ev "Int" []
-    DTObj ts ->
-      ev "Obj"
-        [(JSE.list
-          (List.map
-            (encodePair
-              (encodeBlankOr JSE.string)
-              encodeDarkType)
-            ts))]
-
 encodeCursorState : CursorState -> JSE.Value
 encodeCursorState cs =
   let ev = encodeVariant in
@@ -466,28 +437,6 @@ decodeCursorState =
     ]
 
 
-decodeNDarkType : JSD.Decoder NDarkType
-decodeNDarkType =
-  let dv4 = decodeVariant4
-      dv3 = decodeVariant3
-      dv2 = decodeVariant2
-      dv1 = decodeVariant1
-      dv0 = decodeVariant0 in
-  decodeVariants
-    [ ("Empty", dv0 DTEmpty)
-    , ("Any", dv0 DTAny)
-    , ("String", dv0 DTString)
-    , ("Int", dv0 DTInt)
-    , ("Obj", dv1 DTObj
-               (JSD.list
-                 (decodePair
-                   (decodeBlankOr JSD.string)
-                   (JSD.lazy (\_ -> decodeDarkType)))))
-    ]
-
-decodeDarkType : JSD.Decoder DarkType
-decodeDarkType = decodeBlankOr decodeNDarkType
-
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
   let dn = JSD.lazy (\_ -> decodeNExpr) in
@@ -545,21 +494,16 @@ decodeAnalysisEnvelope =
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
-  let toHS module_ name modifier input output =
+  let toHS module_ name modifier =
         { module_ = module_
         , name = name
         , modifier = modifier
-        , types = { input = input
-                  , output = output
-                  }
         }
   in
   JSDP.decode toHS
   |> JSDP.required "module" (decodeBlankOr JSD.string)
   |> JSDP.required "name" (decodeBlankOr JSD.string)
   |> JSDP.required "modifier" (decodeBlankOr JSD.string)
-  |> JSDP.requiredAt ["types", "input"] decodeDarkType
-  |> JSDP.requiredAt ["types", "output"] decodeDarkType
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =

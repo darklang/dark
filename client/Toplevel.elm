@@ -16,7 +16,6 @@ import AST
 import Blank as B
 import Pointer as P
 import Functions as Fns
-import SpecTypes
 import SpecHeaders
 import DB
 import Defaults
@@ -183,8 +182,6 @@ clonePointerData pd =
       PKey (B.clone identity k)
     PDBColName cn -> pd
     PDBColType ct -> pd
-    PDarkType dt -> todo ("clonePointerData", pd)
-    PDarkTypeField dt -> todo ("clonePointerData", pd)
     PFFMsg msg -> PFFMsg (B.clone identity msg)
     PFnName name_ -> PFnName (B.clone identity name_)
     PParamName name_ -> PParamName (B.clone identity name_)
@@ -250,18 +247,11 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allData h.spec
-            -- types are disabled for now
-            ++ [ --PDarkType h.spec.types.input
-                PExpr h.ast
-               --, PDarkType h.spec.types.output
-               ] in
-
+            ++ [ PExpr h.ast ]
+      in
       if List.member p toplevels
       then toplevels
-      else
-         AST.siblings p h.ast
-         ++ SpecTypes.siblings p h.spec.types.input
-         ++ SpecTypes.siblings p h.spec.types.output
+      else AST.siblings p h.ast
     TLDB db -> DB.siblings p db
     TLFunc f -> AST.siblings p f.ast
 
@@ -315,10 +305,6 @@ getChildrenOf tl pd =
             |> DB.astsFor
             |> List.map (AST.childrenOf pid)
             |> List.concat
-      specChildren () =
-        let h = asHandler tl |> DontPort.deMaybe "getChildrenOf - spec" in
-        SpecTypes.childrenOf (P.toID pd) h.spec.types.input
-        ++ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
   in
   case pd of
     PVarBind _ -> []
@@ -330,8 +316,6 @@ getChildrenOf tl pd =
     PEventSpace d -> []
     PDBColName d -> []
     PDBColType d -> []
-    PDarkType _ -> specChildren ()
-    PDarkTypeField d -> []
     PFFMsg _ -> []
     PFnName _ -> []
     PParamName _ -> []
@@ -370,10 +354,6 @@ replace p replacement tl =
             let newAST = AST.replace p replacement f.ast
             in { tl | data = TLFunc { f | ast = newAST } }
           _ -> impossible ("no AST here", tl.data)
-      specTypeReplace () =
-        let h = ha ()
-            newSpec = SpecTypes.replace p replacement h.spec
-        in { tl | data = TLHandler { h | spec = newSpec } }
       specHeaderReplace bo =
         let h = ha ()
             newSpec = SpecHeaders.replace id bo h.spec
@@ -394,8 +374,6 @@ replace p replacement tl =
     PEventName en -> specHeaderReplace en
     PEventModifier em -> specHeaderReplace em
     PEventSpace es -> specHeaderReplace es
-    PDarkType _ -> specTypeReplace ()
-    PDarkTypeField _ -> specTypeReplace ()
     PDBColType tipe ->
       tl
       -- SetDBColType tl.id id (tipe |> B.toMaybe |> DontPort.deMaybe "replace - tipe")
@@ -427,9 +405,7 @@ allData tl =
   case tl.data of
     TLHandler h ->
       SpecHeaders.allData h.spec
-      ++ SpecTypes.allData h.spec.types.input
       ++ AST.allData h.ast
-      ++ SpecTypes.allData h.spec.types.output
     TLDB db ->
       DB.allData db
     TLFunc f ->

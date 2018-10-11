@@ -1,4 +1,4 @@
-module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
+module ViewCode exposing (viewExpr, viewHandler)
 
 -- builtin
 import Dict
@@ -43,11 +43,6 @@ viewKey vs c k =
   let configs = idConfigs ++ c in
   viewBlankOr viewNVarBind Key vs configs k
 
-viewDarkType : ViewState -> List HtmlConfig -> DarkType -> Html.Html Msg
-viewDarkType vs c dt =
-  let configs = idConfigs ++ c in
-  viewBlankOr viewNDarkType DarkType vs configs dt
-
 viewExpr : Int -> ViewState -> List HtmlConfig -> Expr -> Html.Html Msg
 viewExpr depth vs c e =
   let width = approxWidth e
@@ -77,31 +72,6 @@ viewEventModifier vs c v =
   let configs = idConfigs ++ c in
   viewText EventModifier vs configs v
 
-
-viewNDarkType : ViewState -> List HtmlConfig -> NDarkType -> Html.Html Msg
-viewNDarkType vs c d =
-  case d of
-    DTEmpty -> text vs c "Empty"
-    DTString -> text vs c "String"
-    DTAny -> text vs c "Any"
-    DTInt -> text vs c "Int"
-    DTObj ts ->
-      let nested =
-            ts
-            |> List.map (\(n,dt) ->
-                 [ viewText DarkTypeField vs [wc "fieldname"] n
-                 , text vs [wc "colon"] ":"
-                 , viewDarkType vs [wc "fieldvalue"] dt
-                 ])
-            |> List.intersperse
-                 [text vs [wc "separator"] ","]
-            |> List.concat
-          open = text vs [wc "open"] "{"
-          close = text vs [wc "close"] "}"
-      in
-      Html.div
-        [Attrs.class "type-object"]
-        ([open] ++ nested ++ [close])
 
 viewNVarBind : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 viewNVarBind vs config f =
@@ -525,17 +495,6 @@ viewHandler vs h =
                     ]
                     [fontAwesome "external-link-alt"]]
           _ -> []
-
-      input =
-        Html.div
-          [Attrs.class "spec-type input-type"]
-          [ Html.span [Attrs.class "header"] [Html.text "Input:"]
-          , viewDarkType vs [] h.spec.types.input]
-      output =
-        Html.div
-          [Attrs.class "spec-type output-type"]
-          [ Html.span [Attrs.class "header"] [Html.text "Output:"]
-          , viewDarkType vs [] h.spec.types.output]
 
       modifier =
         if SpecHeaders.visibleModifier h.spec
