@@ -77,7 +77,6 @@ createEntering role =
       spec = { module_ = B.new ()
              , name = B.new ()
              , modifier = B.new ()
-             , types = { input = B.new (), output = B.new () }
              }
       toplevel =
         { id = tlid
