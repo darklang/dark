@@ -184,8 +184,6 @@ let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
   | Key -> "keyname"
   | DBColName -> "db field name"
   | DBColType -> "db type"
-  | DarkType -> "type"
-  | DarkTypeField -> "fieldname"
   | FFMsg -> "flag name"
   | FnName -> "function name"
   | ParamName -> "param name"

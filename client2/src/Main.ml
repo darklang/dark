@@ -263,7 +263,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             match m with Some s -> ((", " ^ name) ^ ": ") ^ s | None -> ""
           in
           str
-          |> JSD.decodeString JSON.decodeException
+          |> JSD.decodeString JSONUtils.decodeException
           |> Result.toOption
           |> Option.map
                (fun { short
@@ -315,7 +315,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           JSE.object_
             [ ("message", JSE.string (((msg ^ " (") ^ context) ^ ")"))
             ; ("url", JSEE.maybe JSE.string url)
-            ; ("custom", JSON.encodeHttpError e) ]
+            ; ("custom", JSONUtils.encodeHttpError e) ]
         in
         let cmds = if shouldRollbar then [sendRollbar json] else [] in
         ({m with error= updateError m.error msg}, Cmd.batch cmds)
@@ -462,10 +462,11 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let trace = Analysis.getCurrentTrace m h.tlid in
           let param t =
             JSE.object_
-              [ ("handler", RPC.encodeHandler h)
-              ; ("trace", RPC.encodeTrace t)
-              ; ("dbs", JSON.encodeList RPC.encodeDB dbs)
-              ; ("user_fns", JSON.encodeList RPC.encodeUserFunction userFns) ]
+              [ ("handler", JSON.encodeHandler h)
+              ; ("trace", JSON.encodeTrace t)
+              ; ("dbs", JSONUtils.encodeList JSON.encodeDB dbs)
+              ; ( "user_fns"
+                , JSONUtils.encodeList JSON.encodeUserFunction userFns ) ]
           in
           trace
           |> Option.map (fun t -> requestAnalysis (param t))
@@ -582,7 +583,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 let isFieldAccessDot (m : model) (baseStr : string) : bool =
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
-    (String.startsWith "\"" str || RPC.typeOfLiteralString str) = TInt
+    (String.startsWith "\"" str || JSON.typeOfLiteralString str) = TInt
   in
   match m.cursorState with
   | Entering (Creating _) -> not intOrString
@@ -1213,7 +1214,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; RequestAnalysis m.toplevels ]
   | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
   | ReceiveAnalysis json -> (
-      let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
+      let envelope = JSD.decodeString JSON.decodeAnalysisEnvelope json in
       match envelope with
       | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
       | Error str -> DisplayError str )
@@ -1249,8 +1250,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; spec=
             { module_= B.newF space
             ; name= B.newF path
-            ; modifier= B.newF modifier
-            ; types= {input= B.new_ (); output= B.new_ ()} }
+            ; modifier= B.newF modifier }
         ; tlid= anId }
       in
       RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)

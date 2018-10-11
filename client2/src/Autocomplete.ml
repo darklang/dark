@@ -169,7 +169,7 @@ let qLiteral (s : string) : autocompleteItem option =
     else if String.startsWith (String.toLower s) "null" then
       Some (ACLiteral "null")
     else None
-  else if RPC.isLiteralString s then Some (ACLiteral s)
+  else if JSON.isLiteralString s then Some (ACLiteral s)
   else None
 
 let qNewDB (s : string) : autocompleteItem option =
@@ -371,7 +371,6 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
           in
           let compound = List.map (fun s -> ("[" ^ s) ^ "]") builtins in
           builtins ^ compound
-      | DarkType -> ["Any"; "Empty"; "String"; "Int"; "{"]
       | ParamTipe ->
           [ "Any"
           ; "String"
@@ -433,7 +432,7 @@ let asTypeString (item : autocompleteItem) : string =
   | ACCommand _ -> ""
   | ACLiteral lit ->
       let tipe =
-        lit |> RPC.parseDvalLiteral
+        lit |> JSON.parseDvalLiteral
         |> Option.withDefault DIncomplete
         |> RT.typeOf |> RT.tipe2str
       in

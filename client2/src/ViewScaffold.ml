@@ -87,6 +87,6 @@ let viewError (err : darkError) : msg Html.html =
     ( match err.message with
     | None -> []
     | Some msg -> (
-      match JSD.decodeString JSON.decodeException msg with
+      match JSD.decodeString JSONUtils.decodeException msg with
       | Error _ -> [Html.text msg]
       | Ok exc -> viewException exc ) )
