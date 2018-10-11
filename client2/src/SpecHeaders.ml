@@ -40,5 +40,5 @@ let replace (search : id) (replacement : string blankOr) (hs : handlerSpec) :
 let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
   replace (P.toID pd) (Blank newID) hs
 
-let allData (spec : handlerSpec) : pointerData list =
+let rec allData (spec : handlerSpec) : pointerData list =
   [PEventName spec.name; PEventSpace spec.module_; PEventModifier spec.modifier]

@@ -50,15 +50,31 @@ let config_type_patterns =
 let rewrite (patterns: (string * string) list) str : string =
   List.fold ~init:str patterns
     ~f:(fun prev (pattern,template) ->
-        Re2.rewrite_exn (Re2.create_exn pattern) ~template prev)
+        Re2.rewrite_exn
+          ~template
+          (Re2.create_exn ~options:[`Posix_syntax true; `One_line false] pattern)
+          prev
+          )
 
 let post_process =
   let patterns =
     [ "\\(string, (.*)\\) dict", "\\1 Belt.Map.String.t"
     ; "\\(int, (.*)\\) dict", "\\1 Belt.Map.Int.t"
-    ; "let tipe2str", "let rec tipe2str"
-    ; "let toRepr_", "let rec toRepr_"
-    ; "let toRepr ", "and toRepr "
+    ; "^let tipe2str", "let rec tipe2str"
+    ; "^let toRepr_", "let rec toRepr_"
+    ; "^let toRepr ", "and toRepr "
+    ; "^let listThreadBlanks", "let rec listThreadBlanks"
+    ; "^let closeThreads", "let rec closeThreads"
+    ; "^let closeObjectLiterals", "let rec closeObjectLiterals"
+    ; "^let closeListLiterals", "let rec closeListLiterals"
+    ; "^let maybeExtendThreadAt", "let rec maybeExtendThreadAt"
+    ; "^let wrapInThread", "let rec wrapInThread"
+    ; "^let childrenOf", "let rec childrenOf"
+    ; "^let uses", "let rec uses"
+    ; "^let parentOf_", "let rec parentOf_"
+    ; "^let allData \\(", "let rec allData ("
+    ; "^let replace_", "let rec replace_"
+    ; "^let clone \\(", "let rec clone ("
     ]
   in
   rewrite (config_post_process_patterns @ patterns)
