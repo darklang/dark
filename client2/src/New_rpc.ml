@@ -1,10 +1,11 @@
 open! Porting
 
-module JDE = Json_decode_extended
+module D = Json_decode_extended
+module E = Json_encode_extended
 
 module Decoders = struct
   let rec tipe json =
-    let open JDE in
+    let open D in
     let dv0 = decodeVariant0 in
     let dv1 = decodeVariant1 in
     json
@@ -38,24 +39,24 @@ module Decoders = struct
 
   let pos json : Types_copy.pos =
     {
-      x = json |> JDE.field "x" JDE.int;
-      y = json |> JDE.field "y" JDE.int;
+      x = json |> D.field "x" D.int;
+      y = json |> D.field "y" D.int;
     }
 
-  let vpos json : Types_copy.vPos =
+  let vPos json : Types_copy.vPos =
     {
-      vx = json |> JDE.field "vx" JDE.int;
-      vy = json |> JDE.field "vy" JDE.int;
+      vx = json |> D.field "vx" D.int;
+      vy = json |> D.field "vy" D.int;
     }
 
   let tlid json =
-    Types_copy.TLID (JDE.int json)
+    Types_copy.TLID (D.int json)
 
   let id json =
-    Types_copy.ID (JDE.int json)
+    Types_copy.ID (D.int json)
 
   let entering json =
-    let open JDE in
+    let open D in
     let dv1 = decodeVariant1 in
     let dv2 = decodeVariant2 in
     json
@@ -65,7 +66,7 @@ module Decoders = struct
       ]
 
   let rec cursorState json =
-    let open JDE in
+    let open D in
     let dv0 = decodeVariant0 in
     let dv1 = decodeVariant1 in
     let dv2 = decodeVariant2 in
@@ -74,7 +75,7 @@ module Decoders = struct
     |> decodeVariants
       [ ("Selecting", dv2 Types_copy.selecting tlid (optional (id)))
       ; ("Entering", dv1 Types_copy.entering entering)
-      ; ("Dragging", dv4 Types_copy.dragging tlid vpos bool cursorState)
+      ; ("Dragging", dv4 Types_copy.dragging tlid vPos bool cursorState)
       ; ("Deselected", dv0 Types_copy.deselected)
       ; ("SelectingCommand", dv2 Types_copy.selectingCommand tlid id)
       ]
@@ -82,4 +83,16 @@ module Decoders = struct
 end
 
 module Encoders = struct
+  let id (Types_copy.ID inner_id) = E.int inner_id
+  let tlid (Types_copy.TLID inner_tlid) = E.int inner_tlid
+  let pos (p: Types_copy.pos) =
+    E.object_ [
+      ("x", E.int p.x)
+    ; ("y", E.int p.y)
+    ]
+  let vPos (vp: Types_copy.vPos) =
+    E.object_ [
+      ("vx", E.int vp.vx)
+    ; ("vy", E.int vp.vy)
+    ]
 end
