@@ -1,7 +1,6 @@
 module DontPort exposing (..)
 
 import Regex
-import Dict
 
 fromInt : Int -> String
 fromInt i =
