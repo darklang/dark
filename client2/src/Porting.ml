@@ -129,10 +129,15 @@ module List = struct
     | [] -> None
   let filterMap (fn: 'a -> 'b option) (l: 'a list) : 'b list =
     Belt.List.keepMap l fn
+  let filter (fn: 'a -> bool) (l: 'a list) : 'a list =
+    Belt.List.keep l fn
   let concat (ls: 'a list list) : 'a list =
     ls
     |> Belt.List.toArray
     |> Belt.List.concatMany
+
+  let partition (fn: 'a -> bool) (l: 'a list) : 'a list * 'a list =
+    List.partition fn l
 
 
 
@@ -150,6 +155,8 @@ end
 module Tuple = struct
   let mapSecond (fn: 'b -> 'c) ((a,b): 'a * 'b) : 'a * 'c =
     (a, fn b)
+  let second ((a,b): 'a * 'b) : 'b =
+    b
 
   let create a b = (a,b)
 end
