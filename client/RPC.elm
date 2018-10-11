@@ -88,4 +88,3 @@ integrationRPC m canvasName name =
       (InitialLoadRPCCallback FocusNothing (TriggerIntegrationTest name))
       request
 
-

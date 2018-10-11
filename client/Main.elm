@@ -1706,10 +1706,6 @@ update_ msg m =
               { module_ = B.newF space
               , name = B.newF path
               , modifier = B.newF modifier
-              , types =
-                { input = B.new ()
-                , output = B.new ()
-                }
               }
             , tlid = anId
             }

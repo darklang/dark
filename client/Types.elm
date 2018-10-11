@@ -370,8 +370,6 @@ type PointerData = PVarBind VarBind
                  | PKey (BlankOr String)
                  | PDBColName (BlankOr String)
                  | PDBColType (BlankOr String)
-                 | PDarkType DarkType
-                 | PDarkTypeField (BlankOr String)
                  | PFFMsg (BlankOr String)
                  | PFnName (BlankOr String)
                  | PParamName (BlankOr String)
@@ -387,8 +385,6 @@ type PointerType = VarBind
                  | Key
                  | DBColName
                  | DBColType
-                 | DarkType
-                 | DarkTypeField
                  | FFMsg
                  | FnName
                  | ParamName
@@ -400,26 +396,13 @@ type BlankOr a = Blank ID
 type PointerOwner = POSpecHeader
                   | POAst
                   | PODb
-                  | POSpecType
 
 -----------------------------
 -- Top-levels
 -----------------------------
-type alias DarkType = BlankOr NDarkType
-type NDarkType = DTEmpty -- empty body
-               | DTAny
-               | DTString
-               | DTInt
-               | DTObj (List (BlankOr String, DarkType))
-
-type alias SpecTypes = { input : DarkType
-                       , output : DarkType
-                       }
-
 type alias HandlerSpec = { module_ : BlankOr String
                          , name : BlankOr String
                          , modifier : BlankOr String
-                         , types : SpecTypes
                          }
 
 type HandlerSpace = HSHTTP

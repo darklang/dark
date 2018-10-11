@@ -54,9 +54,6 @@ newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { module_ = B.new ()
                    , name = B.new ()
                    , modifier = B.new ()
-                   , types = { input = B.new ()
-                             , output = B.new ()
-                             }
                    }
 
 createFunction : Model -> FnName -> Maybe Expr
@@ -480,20 +477,6 @@ submit m cursor action =
                     in wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else
                     NoChange
-        PDarkType _ ->
-          let specType =
-                case value of
-                  "String" -> DTString
-                  "Any" -> DTAny
-                  "Int" -> DTInt
-                  "Empty" -> DTEmpty
-                  "{" -> DTObj [(B.new (), B.new ())]
-                  _ -> todo "disallowed value"
-          in
-          replace (PDarkType (B.newF specType))
-
-        PDarkTypeField _ ->
-          replace (PDarkTypeField (B.newF value))
         PFFMsg _ ->
           replace (PFFMsg (B.newF value))
         PFnName _ ->
@@ -551,10 +534,6 @@ validate tl pd value =
       v ".+" "key"
     PExpr e ->
       Nothing -- done elsewhere
-    PDarkType _ ->
-      v "(String|Int|Any|Empty|{)" "type"
-    PDarkTypeField _ ->
-      Nothing
     PFFMsg _ ->
       Nothing
     PFnName _ ->
