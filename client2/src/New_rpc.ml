@@ -95,4 +95,54 @@ module Encoders = struct
       ("vx", E.int vp.vx)
     ; ("vy", E.int vp.vy)
     ]
+  let entryCursor ec =
+    let open Types_copy in
+    match ec with
+    | Creating p ->
+      E.encodeVariant "Creating" [pos p]
+    | Filling (tlid_, id_) ->
+      E.encodeVariant "Filling" [tlid tlid_; id id_]
+  let rec cursorState cs =
+    let open Types_copy in
+    match cs with
+    | Selecting (tlid_, id_) ->
+      E.encodeVariant "Selecting" [tlid tlid_; E.nullable id id_]
+    | Entering ec ->
+      E.encodeVariant "Entering" [entryCursor ec]
+    | Dragging (tlid_, vp, hasMoved, wrappedCs) ->
+      E.encodeVariant
+        "Dragging"
+        [tlid tlid_; vPos vp; E.bool hasMoved; cursorState wrappedCs]
+    | SelectingCommand (tlid_, id_) ->
+      E.encodeVariant "SelectingCommand" [tlid tlid_; id id_]
+    | Deselected ->
+      E.encodeVariant "Deselected" []
+  let rec tipe t =
+    let open Types_copy in
+    match t with
+    | TInt -> E.encodeVariant "TInt" []
+    | TStr -> E.encodeVariant "TStr" []
+    | TChar -> E.encodeVariant "TChar" []
+    | TBool -> E.encodeVariant "TBool" []
+    | TFloat -> E.encodeVariant "TFloat" []
+    | TObj -> E.encodeVariant "TObj" []
+    | TList -> E.encodeVariant "TList" []
+    | TAny -> E.encodeVariant "TAny" []
+    | TNull -> E.encodeVariant "TNull" []
+    | TBlock -> E.encodeVariant "TBlock" []
+    | TIncomplete -> E.encodeVariant "TIncomplete" []
+    | TError -> E.encodeVariant "TError" []
+    | TResp -> E.encodeVariant "TResp" []
+    | TDB -> E.encodeVariant "TDB" []
+    | TID -> E.encodeVariant "TID" []
+    | TDate -> E.encodeVariant "TDate" []
+    | TTitle -> E.encodeVariant "TTitle" []
+    | TUrl -> E.encodeVariant "TUrl" []
+    | TPassword -> E.encodeVariant "TPassword" []
+    | TUuid -> E.encodeVariant "TUuid" []
+    | TOption -> E.encodeVariant "TOption" []
+    | TErrorRail -> E.encodeVariant "TErrorRail" []
+    | TBelongsTo s -> E.encodeVariant "TBelongsTo" [E.string s]
+    | THasMany s -> E.encodeVariant "THasMany" [E.string s]
+    | TDbList dbt -> E.encodeVariant "TDbList" [tipe dbt]
 end
