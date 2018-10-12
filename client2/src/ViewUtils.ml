@@ -65,7 +65,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | Entering (Filling (_, id)) -> (
         match TL.find tl id with
         | Some (PVarBind (F (_, var))) as pd -> (
-          match TL.getParentOf tl (Option.getExn "impossible" pd) with
+          match TL.getParentOf tl (deOption "impossible" pd) with
           | Some (PExpr e) -> (
             match e with
             | F (_, Let (_, _, body)) -> AST.uses var body |> List.map B.toID

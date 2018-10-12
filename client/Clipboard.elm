@@ -38,7 +38,7 @@ cut m tl p =
           let newClipboard = TL.find tl pid
               newH = TL.delete tl p (gid ())
                     |> TL.asHandler
-                    |> DontPort.deMaybe "cut"
+                    |> deMaybe "cut"
 
           in Many [ CopyToClipboard newClipboard
                   , RPC ( [ SetHandler tl.id tl.pos newH ]
@@ -48,7 +48,7 @@ cut m tl p =
           let newClipboard = TL.find tl pid
               newF = TL.delete tl p (gid ())
                     |> TL.asUserFunction
-                    |> DontPort.deMaybe "cut"
+                    |> deMaybe "cut"
 
           in Many [ CopyToClipboard newClipboard
                   , RPC ( [ SetFunction newF ]

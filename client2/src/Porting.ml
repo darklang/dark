@@ -26,6 +26,7 @@ module PageVisibility = struct
 end
 
 let (++) (a: string) (b: string) = a ^ b
+let (<|) a b = a b
 
 module Debug = struct
   let crash (str: string) : 'a =
@@ -71,6 +72,11 @@ let to_option (value: 'a) (sentinel: 'a) : 'a option =
   if value = sentinel
   then None
   else Some value
+
+(* let deOption (msg: string) (value: 'a option) : 'a = *)
+(*   match value with *)
+(*   | Some v -> v *)
+(*   | None -> failwith msg *)
 
 
 module List = struct

@@ -60,7 +60,7 @@ upsert m f =
 
 findExn : Model -> TLID -> UserFunction
 findExn m id =
-  find m id |> DontPort.deMaybe "Functions.findExn"
+  find m id |> deMaybe "Functions.findExn"
 
 
 sameName : String -> UserFunction -> Bool
@@ -76,7 +76,7 @@ findByName m s =
 
 findByNameExn : Model -> String -> UserFunction
 findByNameExn m s =
-  findByName m s |> DontPort.deMaybe "Functions.findByNameExn"
+  findByName m s |> deMaybe "Functions.findByNameExn"
 
 paramData : UserFunctionParameter -> List PointerData
 paramData ufp =

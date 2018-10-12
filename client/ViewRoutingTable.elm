@@ -11,6 +11,7 @@ import Maybe.Extra as ME
 
 -- dark
 import DontPort
+import Prelude exposing (..)
 import Types exposing (..)
 import Toplevel as TL
 import Blank as B
@@ -53,7 +54,7 @@ splitBySpace tls =
   |> List.map (\hs ->
                  let space = hs
                              |> List.head
-                             |> DontPort.deMaybe "splitBySpace"
+                             |> deMaybe "splitBySpace"
                              |> spaceName_
                 in
                  (space, hs))
@@ -184,7 +185,7 @@ viewGroup m showLink showUndo (spacename, entries) =
       entryHtml e =
         let pos = e.verbs
                   |> List.head
-                  |> DontPort.deMaybe "viewGroup/entryHtml"
+                  |> deMaybe "viewGroup/entryHtml"
                   |> Tuple.second
         in
         div "handler" ([ div "name"
@@ -340,7 +341,7 @@ viewDBs : List Toplevel -> Html.Html Msg
 viewDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
-            |> List.map (\tl -> (tl.pos, TL.asDB tl |> DontPort.deMaybe "asDB"))
+            |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
             |> List.sortBy (\(_, db) -> db.name)
 
       dbHtml (pos, db) =
@@ -354,7 +355,7 @@ viewRestorableDBs : List Toplevel -> Html.Html Msg
 viewRestorableDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
-            |> List.map (\tl -> (tl.pos, tl.id, TL.asDB tl |> DontPort.deMaybe "asDB"))
+            |> List.map (\tl -> (tl.pos, tl.id, TL.asDB tl |> deMaybe "asDB"))
             |> List.sortBy (\(_, _, db) -> db.name)
 
       dbHtml (pos, tlid, db) =

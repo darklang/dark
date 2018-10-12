@@ -45,7 +45,7 @@ let upsert (m : model) (f : userFunction) : model =
   | None -> {m with userFunctions= f :: m.userFunctions}
 
 let findExn (m : model) (id : tlid) : userFunction =
-  find m id |> Option.getExn "Functions.findExn"
+  find m id |> deOption "Functions.findExn"
 
 let sameName (name : string) (uf : userFunction) : bool =
   match uf.metadata.name with F (_, n) -> n = name | _ -> false
@@ -54,7 +54,7 @@ let findByName (m : model) (s : string) : userFunction option =
   List.find (sameName s) m.userFunctions
 
 let findByNameExn (m : model) (s : string) : userFunction =
-  findByName m s |> Option.getExn "Functions.findByNameExn"
+  findByName m s |> deOption "Functions.findByNameExn"
 
 let paramData (ufp : userFunctionParameter) : pointerData list =
   [PParamName ufp.name; PParamTipe ufp.tipe]

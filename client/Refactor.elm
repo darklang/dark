@@ -192,7 +192,7 @@ extractFunction m tl p =
           replacement =
             PExpr (F (gid ()) (FnCall name paramExprs NoRail))
           h =
-            DontPort.deMaybe
+            deMaybe
             "PointerData is a PExpr and isValidID for this TL"
             (TL.asHandler tl)
           newAst =
@@ -409,7 +409,7 @@ removeFunctionParameter : Model -> UserFunction -> UserFunctionParameter -> List
 removeFunctionParameter m uf ufp =
   let indexInList =
         LE.findIndex (\p -> p == ufp) uf.metadata.parameters
-        |> DontPort.deMaybe "tried to remove parameter that does not exist in function"
+        |> deMaybe "tried to remove parameter that does not exist in function"
       fn e =
         case e of
           FnCall name params r ->

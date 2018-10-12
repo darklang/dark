@@ -137,7 +137,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
           PExpr (F (gid (), FnCall (name, paramExprs, NoRail)))
         in
         let h =
-          Option.getExn "PointerData is a PExpr and isValidID for this TL"
+          deOption "PointerData is a PExpr and isValidID for this TL"
             (TL.asHandler tl)
         in
         let newAst = AST.replace p replacement h.ast in
@@ -315,8 +315,7 @@ let removeFunctionParameter (m : model) (uf : userFunction)
     (ufp : userFunctionParameter) : op list =
   let indexInList =
     List.findIndex (fun p -> p = ufp) uf.metadata.parameters
-    |> Option.getExn
-         "tried to remove parameter that does not exist in function"
+    |> deOption "tried to remove parameter that does not exist in function"
   in
   let fn e =
     match e with
