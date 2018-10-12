@@ -90,7 +90,7 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
           let newBody =
             let usesOf =
               match orig with
-              | Some var -> uses var body |> List.map PExpr
+              | Some var -> uses var body |> List.map (fun x -> PExpr x)
               | _ -> []
             in
             let transformUse replacementContent_ old =
@@ -124,7 +124,7 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
           let newBody =
             let usesInBody =
               match orig with
-              | Some v -> uses v body |> List.map PExpr
+              | Some v -> uses v body |> List.map (fun x -> PExpr x)
               | None -> []
             in
             let transformUse replacementContent_ old =
@@ -506,7 +506,7 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   let parent = parentOf_ (P.toID p) expr in
   match (P.typeOf p, parent) with
   | Expr, Some (F (_, Thread exprs)) ->
-      exprs |> List.map PExpr |> Util.listPrevious p
+      exprs |> List.map (fun x -> PExpr x) |> Util.listPrevious p
   | Field, Some (F (_, FieldAccess (obj, _))) -> Some <| PExpr obj
   | _ -> None
 
@@ -525,7 +525,7 @@ let rec allData (expr : expr) : pointerData list =
     | Let (lhs, rhs, body) -> [PVarBind lhs] @ rl [rhs; body]
     | If (cond, ifbody, elsebody) -> rl [cond; ifbody; elsebody]
     | FnCall (name, exprs, _) -> rl exprs
-    | Lambda (vars, body) -> List.map PVarBind vars @ allData body
+    | Lambda (vars, body) -> List.map (fun x -> PVarBind x) vars @ allData body
     | Thread exprs -> rl exprs
     | FieldAccess (obj, field) -> allData obj @ [PField field]
     | ListLiteral exprs -> rl exprs

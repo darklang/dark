@@ -116,7 +116,7 @@ let replaceParamName (search : pointerData) (replacement : pointerData)
       in
       match (sContent, rContent) with
       | Some o, Some r ->
-          let uses = AST.uses o uf.ast |> List.map PExpr in
+          let uses = AST.uses o uf.ast |> List.map (fun x -> PExpr x) in
           List.foldr
             (fun use acc -> AST.replace use (transformUse r use) acc)
             uf.ast uses
