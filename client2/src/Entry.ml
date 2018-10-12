@@ -25,14 +25,14 @@ let createFunction (m : model) (name : fnName) : expr option =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let fn =
     m.complete.functions
-    |> List.filter (fun fn_ -> fn_.name = name)
+    |> List.filter (fun fn_ -> fn_.fnName = name)
     |> List.head
   in
   match fn with
   | Some function_ ->
-      let r = if function_.returnTipe = TOption then Rail else NoRail in
+      let r = if function_.fnReturnTipe = TOption then Rail else NoRail in
       Some
-      <| B.newF (FnCall (name, blanks (List.length function_.parameters), r))
+      <| B.newF (FnCall (name, blanks (List.length function_.fnParameters), r))
   | None -> None
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :

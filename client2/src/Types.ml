@@ -540,13 +540,13 @@ and parameter =
   ; paramDescription: string }
 
 and function_ =
-  { name: string
-  ; parameters: parameter list
-  ; description: string
-  ; returnTipe: tipe
-  ; previewExecutionSafe: bool
-  ; deprecated: bool
-  ; infix: bool }
+  { fnName: string
+  ; fnParameters: parameter list
+  ; fnDescription: string
+  ; fnReturnTipe: tipe
+  ; fnPreviewExecutionSafe: bool
+  ; fnDeprecated: bool
+  ; fnInfix: bool }
 
 and userFunctionParameter =
   { name: string blankOr

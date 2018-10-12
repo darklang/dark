@@ -173,15 +173,15 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       in
       let fn =
         vs.ac.functions
-        |> List.find (fun f -> f.name = name)
+        |> List.find (fun f -> f.fnName = name)
         |> Option.withDefault
-             { name= "fnLookupError"
-             ; parameters= []
-             ; description= "default, fn error"
-             ; returnTipe= TError
-             ; previewExecutionSafe= true
-             ; infix= false
-             ; deprecated= false }
+             { fnName= "fnLookupError"
+             ; fnParameters= []
+             ; fnDescription= "default, fn error"
+             ; fnReturnTipe= TError
+             ; fnPreviewExecutionSafe= true
+             ; fnInfix= false
+             ; fnDeprecated= false }
       in
       let previous =
         match vs.tl.data with
@@ -207,7 +207,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let paramsComplete = List.all (isComplete << B.toID) allExprs in
       let resultHasValue = isComplete id in
       let buttonUnavailable = not paramsComplete in
-      let showButton = not fn.previewExecutionSafe in
+      let showButton = not fn.fnPreviewExecutionSafe in
       let buttonNeeded = not resultHasValue in
       let showExecuting = isExecuting vs id in
       let exeIcon = "play" in
@@ -248,7 +248,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let fnDiv parens =
         n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
       in
-      match (fn.infix, exprs, fn.parameters) with
+      match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [second; first], [p2; p1] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: all)
@@ -257,11 +257,13 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
             ; n [wc "rhs"] [ve p2.paramName incD second] ]
       | _ ->
           let args =
-            List.map2 (fun p e_ -> ve p.paramName incD e_) fn.parameters exprs
+            List.map2
+              (fun p e_ -> ve p.paramName incD e_)
+              fn.fnParameters exprs
           in
           n
             (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv fn.infix :: args) )
+            (fnDiv fn.fnInfix :: args) )
   | Lambda (vars, expr) ->
       let varname v = t [wc "lambdavarname"; atom] v in
       n (wc "lambdaexpr" :: all)
