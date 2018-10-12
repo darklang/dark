@@ -38,6 +38,14 @@ let idOf (s : cursorState) : id option =
   | Dragging (_, _, _, _) -> None
   | SelectingCommand (_, id) -> Some id
 
+let deOption (msg : string) (x : 'a option) : 'a =
+  match x with
+  | Some y -> y
+  | None ->
+      Debug.crash
+        ( "something impossible occurred: got None but expected something"
+        ^ toString msg )
+
 let impossible (a : 'a) : 'b =
   Debug.crash ("something impossible occurred: " ^ toString a)
 

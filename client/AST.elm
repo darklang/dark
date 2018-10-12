@@ -277,7 +277,7 @@ addLambdaBlank id expr =
             F lid (Lambda (vars @ [B.new ()]) body)
       in
           replace
-            (old |> DontPort.deMaybe "impossible" |> PExpr)
+            (old |> deMaybe "impossible" |> PExpr)
             (PExpr r)
             expr
     _ -> expr
@@ -727,7 +727,7 @@ findExn : ID -> Expr -> PointerData
 findExn id expr =
   expr
   |> find id
-  |> DontPort.deMaybe "findExn"
+  |> deMaybe "findExn"
 
 find : ID -> Expr -> Maybe PointerData
 find id expr =
@@ -821,7 +821,7 @@ replace_ search replacement parent expr =
                       Blank _ -> Nothing
                       F _ var -> Just var
                 orig =
-                  case LE.getAt i vars |> DontPort.deMaybe "we somehow lost it?" of
+                  case LE.getAt i vars |> deMaybe "we somehow lost it?" of
                     Blank _ -> Nothing
                     F _ var -> Just var
                 newBody =

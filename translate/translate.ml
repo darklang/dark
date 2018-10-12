@@ -16,7 +16,6 @@ type ('a, 'b) tree =
 let config_function_patterns =
   [ "DontPort.fromInt", "string_of_int"
   ; "DontPort.fromFloat", "string_of_float"
-  ; "DontPort.deMaybe", "Option.getExn"
   ; "DontPort.replace", "Regex.replace"
   ]
 
@@ -35,6 +34,7 @@ let config_post_process_patterns =
   ; "module ME = Maybe.Extra", ""
   ; "Http\\.error", "string Http.error"
   ; "\\(varName, dval\\) dict", "dval Belt.Map.String.t"
+  ; "deMaybe", "deOption"
   ]
 
 let config_type_patterns =

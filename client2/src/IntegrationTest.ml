@@ -76,15 +76,15 @@ let onlyTL (m : model) : toplevel =
     else if len = 0 then Debug.crash "no toplevels"
     else "nothing to see here"
   in
-  m.toplevels |> List.head |> Option.getExn "onlytl1"
+  m.toplevels |> List.head |> deOption "onlytl1"
 
 let onlyHandler (m : model) : handler =
-  m |> onlyTL |> TL.asHandler |> Option.getExn "onlyhandler"
+  m |> onlyTL |> TL.asHandler |> deOption "onlyhandler"
 
-let onlyDB (m : model) : dB = m |> onlyTL |> TL.asDB |> Option.getExn "onlyDB"
+let onlyDB (m : model) : dB = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
 
 let onlyExpr (m : model) : nExpr =
-  m |> onlyHandler |> (fun x -> x.ast) |> B.asF |> Option.getExn "onlyast4"
+  m |> onlyHandler |> (fun x -> x.ast) |> B.asF |> deOption "onlyast4"
 
 let enter_changes_state (m : model) : testResult =
   match m.cursorState with
@@ -100,7 +100,7 @@ let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | Entering (Filling (_, id)) ->
       let ast =
-        onlyTL m |> TL.asHandler |> Option.getExn "test" |> fun x -> x.ast
+        onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast
       in
       if AST.allData ast |> List.filter P.isBlank = [] then pass
       else fail (TL.allBlanks (onlyTL m))
@@ -192,9 +192,7 @@ let no_request_global_in_non_http_space (m : model) : testResult =
   | e -> fail e
 
 let hover_values_for_varnames (m : model) : testResult =
-  let tlid =
-    m.toplevels |> List.head |> Option.getExn "test" |> fun x -> x.id
-  in
+  let tlid = m.toplevels |> List.head |> deOption "test" |> fun x -> x.id in
   pass
 
 let pressing_up_doesnt_return_to_start (m : model) : testResult =
@@ -211,9 +209,7 @@ let right_number_of_blanks (m : model) : testResult =
   | e -> fail e
 
 let ellen_hello_world_demo (m : model) : testResult =
-  let spec =
-    onlyTL m |> TL.asHandler |> Option.getExn "hw2" |> fun x -> x.spec
-  in
+  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match ((spec.module_, spec.name), (spec.modifier, onlyExpr m)) with
   | (F (_, "HTTP"), F (_, "/hello")), (F (_, "GET"), Value "\"Hello world!\"")
     ->
@@ -230,9 +226,7 @@ let editing_does_not_deselect (m : model) : testResult =
   | other -> fail other
 
 let editing_headers (m : model) : testResult =
-  let spec =
-    onlyTL m |> TL.asHandler |> Option.getExn "hw2" |> fun x -> x.spec
-  in
+  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match (spec.module_, spec.name, spec.modifier) with
   | F (_, "HTTP"), F (_, "/myroute"), F (_, "GET") -> pass
   | other -> fail other

@@ -66,6 +66,11 @@ idOf s =
 --------------------------------------
 -- Crashing
 --------------------------------------
+deMaybe : String -> Maybe a -> a
+deMaybe msg x =
+  case x of
+    Just y -> y
+    Nothing -> Debug.crash ("something impossible occurred: got None but expected something" ++ toString msg)
 
 -- `Impossible` crashes with the value provided.
 -- Is it very obvious why?

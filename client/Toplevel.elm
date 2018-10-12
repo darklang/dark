@@ -30,7 +30,7 @@ all m =
 getTL : Model -> TLID -> Toplevel
 getTL m id =
   get m id
-  |> DontPort.deMaybe "getTL"
+  |> deMaybe "getTL"
 
 get : Model -> TLID -> Maybe Toplevel
 get m id =
@@ -259,15 +259,15 @@ getNextSibling : Toplevel -> PointerData -> PointerData
 getNextSibling tl p =
   siblings tl p
   |> Util.listNextWrap p
-  -- 'safe' to DontPort.deMaybe as there's always at least one member in the array
-  |> DontPort.deMaybe "nextSibling"
+  -- 'safe' to deMaybe as there's always at least one member in the array
+  |> deMaybe "nextSibling"
 
 getPrevSibling : Toplevel -> PointerData -> PointerData
 getPrevSibling tl p =
   siblings tl p
   |> Util.listPreviousWrap p
-  -- 'safe' to DontPort.deMaybe as there's always at least one member in the array
-  |> DontPort.deMaybe "prevSibling"
+  -- 'safe' to deMaybe as there's always at least one member in the array
+  |> deMaybe "prevSibling"
 
 
 -------------------------
@@ -342,8 +342,8 @@ rootOf tl =
 -------------------------
 replace : PointerData -> PointerData -> Toplevel -> Toplevel
 replace p replacement tl =
-  let ha () = tl |> asHandler |> DontPort.deMaybe "TL.replace"
-      fn () = tl |> asUserFunction |> DontPort.deMaybe "TL.replace"
+  let ha () = tl |> asHandler |> deMaybe "TL.replace"
+      fn () = tl |> asUserFunction |> deMaybe "TL.replace"
       id = P.toID p
       astReplace () =
         case tl.data of
@@ -376,10 +376,10 @@ replace p replacement tl =
     PEventSpace es -> specHeaderReplace es
     PDBColType tipe ->
       tl
-      -- SetDBColType tl.id id (tipe |> B.toMaybe |> DontPort.deMaybe "replace - tipe")
+      -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
     PDBColName _ ->
       tl
-      -- SetDBColName tl.id id (name |> B.toMaybe |> DontPort.deMaybe "replace - name")
+      -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
     PFFMsg bo ->
       case tl.data of
         TLHandler h ->
@@ -414,7 +414,7 @@ allData tl =
 findExn : Toplevel -> ID -> PointerData
 findExn tl id =
   find tl id
-  |> DontPort.deMaybe "findExn"
+  |> deMaybe "findExn"
 
 find : Toplevel -> ID -> Maybe PointerData
 find tl id =

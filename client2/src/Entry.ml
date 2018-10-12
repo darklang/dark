@@ -198,7 +198,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
       let pd = TL.findExn tl id in
       let result = validate tl pd value in
       if result <> None then
-        DisplayAndReportError <| Option.getExn "checked above" result
+        DisplayAndReportError <| deOption "checked above" result
       else if String.length value < 1 then NoChange
       else
         let maybeH = TL.asHandler tl in
@@ -236,7 +236,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         in
         match pd with
         | PDBColType ct ->
-            let db1 = Option.getExn "db" db in
+            let db1 = deOption "db" db in
             if B.isBlank ct then
               wrapID
                 [ SetDBColType (tlid, id, value)
@@ -248,7 +248,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             else if B.asF ct = Some value then Select (tlid, Some id)
             else wrapID [ChangeDBColType (tlid, id, value)]
         | PDBColName cn ->
-            let db1 = Option.getExn "db" db in
+            let db1 = deOption "db" db in
             if B.isBlank cn then wrapID [SetDBColName (tlid, id, value)]
             else if DB.hasCol db1 value then
               DisplayError
@@ -261,7 +261,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         | PEventName _ -> replace (PEventName (B.newF value))
         | PEventModifier _ -> replace (PEventModifier (B.newF value))
         | PEventSpace _ ->
-            let h = Option.getExn "maybeH - eventspace" maybeH in
+            let h = deOption "maybeH - eventspace" maybeH in
             let new_ = B.newF value in
             let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
             let replacement2 =
@@ -340,15 +340,13 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             let newPD = PFnName (B.newF value) in
             let newTL = TL.replace pd newPD tl in
             let changedNames =
-              let old = TL.asUserFunction tl |> Option.getExn "old userFn" in
-              let new_ =
-                TL.asUserFunction newTL |> Option.getExn "new userFn"
-              in
+              let old = TL.asUserFunction tl |> deOption "old userFn" in
+              let new_ = TL.asUserFunction newTL |> deOption "new userFn" in
               Refactor.renameFunction m old new_
             in
             wrapNew
               ( SetFunction
-                  (TL.asUserFunction newTL |> Option.getExn "must be function")
+                  (TL.asUserFunction newTL |> deOption "must be function")
               :: changedNames )
               newPD
         | PParamName _ -> replace (PParamName (B.newF value))

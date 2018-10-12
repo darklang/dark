@@ -2,6 +2,7 @@ open Tea
 open! Porting
 module B = Blank
 module Attrs = Html.Attributes
+open Prelude
 module TL = Toplevel
 open Types
 open ViewUtils
@@ -31,7 +32,7 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
   |> List.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
   |> List.map (fun hs ->
          let space =
-           hs |> List.head |> Option.getExn "splitBySpace" |> spaceName_
+           hs |> List.head |> deOption "splitBySpace" |> spaceName_
          in
          (space, hs) )
 
@@ -133,9 +134,7 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
   in
   let entryHtml e =
     let pos =
-      e.verbs |> List.head
-      |> Option.getExn "viewGroup/entryHtml"
-      |> Tuple.second
+      e.verbs |> List.head |> deOption "viewGroup/entryHtml" |> Tuple.second
     in
     div "handler"
       ( [ div "name"
@@ -255,7 +254,7 @@ let viewDBs (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, TL.asDB tl |> Option.getExn "asDB"))
+    |> List.map (fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
     |> List.sortBy (fun (_, db) -> db.name)
   in
   let dbHtml (pos, db) =
@@ -268,7 +267,7 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> Option.getExn "asDB"))
+    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
     |> List.sortBy (fun (_, _, db) -> db.name)
   in
   let dbHtml (pos, tlid, db) =

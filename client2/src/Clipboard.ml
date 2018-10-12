@@ -24,16 +24,14 @@ let cut (m : model) (tl : toplevel) (p : pointerData) : modification =
   | TLDB _ -> NoChange
   | TLHandler h ->
       let newClipboard = TL.find tl pid in
-      let newH =
-        TL.delete tl p (gid ()) |> TL.asHandler |> Option.getExn "cut"
-      in
+      let newH = TL.delete tl p (gid ()) |> TL.asHandler |> deOption "cut" in
       Many
         [ CopyToClipboard newClipboard
         ; RPC ([SetHandler (tl.id, tl.pos, newH)], FocusNext (tl.id, pred)) ]
   | TLFunc f ->
       let newClipboard = TL.find tl pid in
       let newF =
-        TL.delete tl p (gid ()) |> TL.asUserFunction |> Option.getExn "cut"
+        TL.delete tl p (gid ()) |> TL.asUserFunction |> deOption "cut"
       in
       Many
         [ CopyToClipboard newClipboard

@@ -9,8 +9,7 @@ open Types
 let all (m : model) : toplevel list =
   m.toplevels ^ List.map (ufToTL m) m.userFunctions
 
-let getTL (m : model) (id : tlid) : toplevel =
-  get m id |> Option.getExn "getTL"
+let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 
 let get (m : model) (id : tlid) : toplevel option =
   let tls = all m in
@@ -150,10 +149,10 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   | TLFunc f -> AST.siblings p f.ast
 
 let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p |> Util.listNextWrap p |> Option.getExn "nextSibling"
+  siblings tl p |> Util.listNextWrap p |> deOption "nextSibling"
 
 let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p |> Util.listPreviousWrap p |> Option.getExn "prevSibling"
+  siblings tl p |> Util.listPreviousWrap p |> deOption "prevSibling"
 
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   match tl.data with
@@ -199,8 +198,8 @@ let rootOf (tl : toplevel) : pointerData option =
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     toplevel =
-  let ha () = tl |> asHandler |> Option.getExn "TL.replace" in
-  let fn () = tl |> asUserFunction |> Option.getExn "TL.replace" in
+  let ha () = tl |> asHandler |> deOption "TL.replace" in
+  let fn () = tl |> asUserFunction |> deOption "TL.replace" in
   let id = P.toID p in
   let astReplace () =
     match tl.data with
@@ -257,7 +256,7 @@ let rec allData (tl : toplevel) : pointerData list =
   | TLFunc f -> Fns.allData f
 
 let findExn (tl : toplevel) (id : id) : pointerData =
-  find tl id |> Option.getExn "findExn"
+  find tl id |> deOption "findExn"
 
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl

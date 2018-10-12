@@ -28,6 +28,31 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
+let parentOf (id : id) (ast : expr) : expr =
+  deOption "parentOf" <| parentOf_ id ast
+
+let rec parentOf_ (eid : id) (expr : expr) : expr option =
+  let po = parentOf_ eid in
+  let _ = "comment" in
+  let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
+  if List.member eid (children expr |> List.map P.toID) then Some expr
+  else
+    match expr with
+    | Blank _ -> None
+    | F (id, nexpr) -> (
+      match nexpr with
+      | Value _ -> None
+      | Variable _ -> None
+      | Let (lhs, rhs, body) -> poList [rhs; body]
+      | If (cond, ifbody, elsebody) -> poList [cond; ifbody; elsebody]
+      | FnCall (name, exprs, _) -> poList exprs
+      | Lambda (vars, lexpr) -> po lexpr
+      | Thread exprs -> poList exprs
+      | FieldAccess (obj, field) -> po obj
+      | ListLiteral exprs -> poList exprs
+      | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> poList
+      | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b] )
+
 let rec listThreadBlanks (expr : expr) : id list =
   let r = listThreadBlanks in
   let _ = "type annotation" in
@@ -133,9 +158,7 @@ let addLambdaBlank (id : id) (expr : expr) : expr =
   match parentOf_ id expr with
   | Some (F (lid, Lambda (vars, body))) as old ->
       let r = F (lid, Lambda (vars @ [B.new_ ()], body)) in
-      replace
-        (old |> Option.getExn "impossible" |> fun x -> PExpr x)
-        (PExpr r) expr
+      replace (old |> deOption "impossible" |> fun x -> PExpr x) (PExpr r) expr
   | _ -> expr
 
 let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
@@ -348,31 +371,6 @@ let threadAncestors (id : id) (expr : expr) : expr list =
   ancestorsWhere id expr (fun e ->
       match e with F (_, Thread _) -> true | _ -> false )
 
-let parentOf (id : id) (ast : expr) : expr =
-  Option.getExn "parentOf" <| parentOf_ id ast
-
-let rec parentOf_ (eid : id) (expr : expr) : expr option =
-  let po = parentOf_ eid in
-  let _ = "comment" in
-  let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
-  if List.member eid (children expr |> List.map P.toID) then Some expr
-  else
-    match expr with
-    | Blank _ -> None
-    | F (id, nexpr) -> (
-      match nexpr with
-      | Value _ -> None
-      | Variable _ -> None
-      | Let (lhs, rhs, body) -> poList [rhs; body]
-      | If (cond, ifbody, elsebody) -> poList [cond; ifbody; elsebody]
-      | FnCall (name, exprs, _) -> poList exprs
-      | Lambda (vars, lexpr) -> po lexpr
-      | Thread exprs -> poList exprs
-      | FieldAccess (obj, field) -> po obj
-      | ListLiteral exprs -> poList exprs
-      | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> poList
-      | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b] )
-
 let siblings (p : pointerData) (expr : expr) : pointerData list =
   match parentOf_ (P.toID p) expr with
   | None -> [p]
@@ -426,7 +424,7 @@ let rec allData (expr : expr) : pointerData list =
     | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] @ rl [cond; a; b] )
 
 let findExn (id : id) (expr : expr) : pointerData =
-  expr |> find id |> Option.getExn "findExn"
+  expr |> find id |> deOption "findExn"
 
 let find (id : id) (expr : expr) : pointerData option =
   expr |> allData
@@ -504,7 +502,7 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
             match replacement_ with Blank _ -> None | F (_, var) -> Some var
           in
           let orig =
-            match List.getAt i vars |> Option.getExn "we somehow lost it?" with
+            match List.getAt i vars |> deOption "we somehow lost it?" with
             | Blank _ -> None
             | F (_, var) -> Some var
           in
