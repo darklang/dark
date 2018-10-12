@@ -277,19 +277,19 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     ; info
                     ; workarounds }
                ->
-                 ((" (" ^ tipe) ^ "): ") ^ short
-                 |> ( ^ ) (maybe "message" long)
-                 |> ( ^ ) (maybe "actual value" actual)
-                 |> ( ^ ) (maybe "actual type" actualType)
-                 |> ( ^ ) (maybe "result" result)
-                 |> ( ^ ) (maybe "result type" resultType)
-                 |> ( ^ ) (maybe "expected" expected)
-                 |> ( ^ )
-                      ( if info = Belt.Map.String.empty then ""
-                      else ", info: " ^ toString info )
-                 |> ( ^ )
-                      ( if workarounds = [] then ""
-                      else ", workarounds: " ^ toString workarounds ) )
+                 ( ( ( ( ( ( ( (((" (" ^ tipe) ^ "): ") ^ short)
+                             ^ maybe "message" long )
+                           ^ maybe "actual value" actual )
+                         ^ maybe "actual type" actualType )
+                       ^ maybe "result" result )
+                     ^ maybe "result type" resultType )
+                   ^ maybe "expected" expected )
+                 ^
+                 if info = Belt.Map.String.empty then ""
+                 else ", info: " ^ toString info )
+                 ^
+                 if workarounds = [] then ""
+                 else ", workarounds: " ^ toString workarounds )
           |> Option.withDefault str
         in
         let msg =
