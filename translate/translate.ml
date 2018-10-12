@@ -50,6 +50,7 @@ let config_post_process_patterns =
   ; "^let replace_", "let rec replace_"
   ; "^let clone \\(", "let rec clone ("
   ; "^let addThreadBlank \\(", "let rec addThreadBlank ("
+  ; "let rec_ancestors ", "let rec rec_ancestors "
   ]
 
 let config_type_patterns =
