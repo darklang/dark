@@ -135,9 +135,10 @@ module List = struct
     ls
     |> Belt.List.toArray
     |> Belt.List.concatMany
-
   let partition (fn: 'a -> bool) (l: 'a list) : 'a list * 'a list =
     List.partition fn l
+  let foldr (fn: 'a -> 'b -> 'b) (init: 'b) (l: 'a list) : 'b =
+    List.fold_right fn l init
 
 
 
