@@ -281,7 +281,7 @@ type Keyword = KLet
              | KIf
              | KLambda
 
-type alias Command = { name: String
+type alias Command = { commandName: String
                      , action : Model -> Toplevel -> PointerData -> Modification
                      , doc : String
                      , shortcut : String

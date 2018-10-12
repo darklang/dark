@@ -258,7 +258,7 @@ and omniAction =
 and keyword = KLet | KIf | KLambda
 
 and command =
-  { name: string
+  { commandName: string
   ; action: ((model -> toplevel) -> pointerData) -> modification
   ; doc: string
   ; shortcut: string }
