@@ -59,6 +59,73 @@ traverse fn expr =
           FeatureFlag msg cond a b ->
             FeatureFlag msg (fn cond) (fn a) (fn b))
 
+--------------------------------
+-- PointerData
+--------------------------------
+
+allData : Expr -> List PointerData
+allData expr =
+  let e2ld e = PExpr e
+      rl : List Expr -> List PointerData
+      rl exprs =
+        exprs
+        |> List.map allData
+        |> List.concat
+  in
+  [e2ld expr] @
+  case expr of
+    Blank _ -> []
+    F _ nexpr ->
+      case nexpr of
+        Value v -> []
+        Variable name -> []
+
+        Let lhs rhs body ->
+          [PVarBind lhs] @ rl [rhs, body]
+
+        If cond ifbody elsebody ->
+          rl [cond, ifbody, elsebody]
+
+        FnCall name exprs _ ->
+          rl exprs
+
+        Lambda vars body ->
+          (List.map PVarBind vars) @ allData body
+
+        Thread exprs ->
+          rl exprs
+
+        FieldAccess obj field ->
+          allData obj @ [PField field]
+
+        ListLiteral exprs ->
+          rl exprs
+
+        ObjectLiteral pairs ->
+          pairs
+          |> List.map (\(k,v) -> PKey k :: allData v)
+          |> List.concat
+
+        FeatureFlag msg cond a b ->
+          [PFFMsg msg] @ rl [cond, a, b]
+
+
+find : ID -> Expr -> Maybe PointerData
+find id expr =
+  expr
+  |> allData
+  |> List.filter (\d -> id == P.toID d)
+  |> assert (\r -> List.length r <= 1) -- guard against dups
+  |> List.head
+
+
+findExn : ID -> Expr -> PointerData
+findExn id expr =
+  expr
+  |> find id
+  |> deMaybe "findExn"
+
+
 uses : VarName -> Expr -> List Expr
 uses var expr =
   let is_rebinding newbind =
@@ -798,70 +865,6 @@ getValueParent p expr =
     _ -> Nothing
 
 
-
---------------------------------
--- PointerData
---------------------------------
-
-allData : Expr -> List PointerData
-allData expr =
-  let e2ld e = PExpr e
-      rl : List Expr -> List PointerData
-      rl exprs =
-        exprs
-        |> List.map allData
-        |> List.concat
-  in
-  [e2ld expr] @
-  case expr of
-    Blank _ -> []
-    F _ nexpr ->
-      case nexpr of
-        Value v -> []
-        Variable name -> []
-
-        Let lhs rhs body ->
-          [PVarBind lhs] @ rl [rhs, body]
-
-        If cond ifbody elsebody ->
-          rl [cond, ifbody, elsebody]
-
-        FnCall name exprs _ ->
-          rl exprs
-
-        Lambda vars body ->
-          (List.map PVarBind vars) @ allData body
-
-        Thread exprs ->
-          rl exprs
-
-        FieldAccess obj field ->
-          allData obj @ [PField field]
-
-        ListLiteral exprs ->
-          rl exprs
-
-        ObjectLiteral pairs ->
-          pairs
-          |> List.map (\(k,v) -> PKey k :: allData v)
-          |> List.concat
-
-        FeatureFlag msg cond a b ->
-          [PFFMsg msg] @ rl [cond, a, b]
-
-findExn : ID -> Expr -> PointerData
-findExn id expr =
-  expr
-  |> find id
-  |> deMaybe "findExn"
-
-find : ID -> Expr -> Maybe PointerData
-find id expr =
-  expr
-  |> allData
-  |> List.filter (\d -> id == P.toID d)
-  |> assert (\r -> List.length r <= 1) -- guard against dups
-  |> List.head
 
 
 within : NExpr -> ID -> Bool

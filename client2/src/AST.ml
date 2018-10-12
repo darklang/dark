@@ -28,6 +28,38 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
+let rec allData (expr : expr) : pointerData list =
+  let e2ld e = PExpr e in
+  let _ = "type annotation" in
+  let rl exprs = exprs |> List.map allData |> List.concat in
+  [e2ld expr]
+  @
+  match expr with
+  | Blank _ -> []
+  | F (_, nexpr) -> (
+    match nexpr with
+    | Value v -> []
+    | Variable name -> []
+    | Let (lhs, rhs, body) -> [PVarBind lhs] @ rl [rhs; body]
+    | If (cond, ifbody, elsebody) -> rl [cond; ifbody; elsebody]
+    | FnCall (name, exprs, _) -> rl exprs
+    | Lambda (vars, body) -> List.map (fun x -> PVarBind x) vars @ allData body
+    | Thread exprs -> rl exprs
+    | FieldAccess (obj, field) -> allData obj @ [PField field]
+    | ListLiteral exprs -> rl exprs
+    | ObjectLiteral pairs ->
+        pairs |> List.map (fun (k, v) -> PKey k :: allData v) |> List.concat
+    | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] @ rl [cond; a; b] )
+
+let find (id : id) (expr : expr) : pointerData option =
+  expr |> allData
+  |> List.filter (fun d -> id = P.toID d)
+  |> assert_ (fun r -> List.length r <= 1)
+  |> List.head
+
+let findExn (id : id) (expr : expr) : pointerData =
+  expr |> find id |> deOption "findExn"
+
 let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
     match newbind with
@@ -509,38 +541,6 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
       exprs |> List.map (fun x -> PExpr x) |> Util.listPrevious p
   | Field, Some (F (_, FieldAccess (obj, _))) -> Some <| PExpr obj
   | _ -> None
-
-let rec allData (expr : expr) : pointerData list =
-  let e2ld e = PExpr e in
-  let _ = "type annotation" in
-  let rl exprs = exprs |> List.map allData |> List.concat in
-  [e2ld expr]
-  @
-  match expr with
-  | Blank _ -> []
-  | F (_, nexpr) -> (
-    match nexpr with
-    | Value v -> []
-    | Variable name -> []
-    | Let (lhs, rhs, body) -> [PVarBind lhs] @ rl [rhs; body]
-    | If (cond, ifbody, elsebody) -> rl [cond; ifbody; elsebody]
-    | FnCall (name, exprs, _) -> rl exprs
-    | Lambda (vars, body) -> List.map (fun x -> PVarBind x) vars @ allData body
-    | Thread exprs -> rl exprs
-    | FieldAccess (obj, field) -> allData obj @ [PField field]
-    | ListLiteral exprs -> rl exprs
-    | ObjectLiteral pairs ->
-        pairs |> List.map (fun (k, v) -> PKey k :: allData v) |> List.concat
-    | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] @ rl [cond; a; b] )
-
-let findExn (id : id) (expr : expr) : pointerData =
-  expr |> find id |> deOption "findExn"
-
-let find (id : id) (expr : expr) : pointerData option =
-  expr |> allData
-  |> List.filter (fun d -> id = P.toID d)
-  |> assert_ (fun r -> List.length r <= 1)
-  |> List.head
 
 let within (e : nExpr) (id : id) : bool =
   e |> F (ID (-1)) |> allData |> List.map P.toID |> List.member id
