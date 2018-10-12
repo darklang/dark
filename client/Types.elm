@@ -15,7 +15,7 @@ import PageVisibility
 type alias Exception =
   { short : String
   , long : Maybe String
-  , tipe : String
+  , exceptionTipe : String
   , actual : Maybe String
   , actualType : Maybe String
   , result : Maybe String
@@ -259,7 +259,7 @@ type alias Autocomplete = { functions : List Function
                           , value : String
                           , prevValue : String
                           , target : Maybe (TLID, PointerData)
-                          , tipe : Maybe Tipe
+                          , acTipe : Maybe Tipe
                           , isCommandMode : Bool
                           }
 
@@ -640,7 +640,7 @@ type alias Flags =
 
 -- name, type optional
 type alias Parameter = { name: String
-                       , tipe: Tipe
+                       , paramTipe: Tipe
                        , block_args: List String
                        , optional: Bool
                        , description: String
@@ -656,7 +656,7 @@ type alias Function = { name: String
                       }
 
 type alias UserFunctionParameter = { name: BlankOr String
-                                   , tipe: BlankOr Tipe
+                                   , ufParamTipe: BlankOr Tipe
                                    , block_args: List String
                                    , optional: Bool
                                    , description: String

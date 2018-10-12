@@ -13,10 +13,10 @@ import AST
 
 ufpToP : UserFunctionParameter -> Maybe Parameter
 ufpToP ufp =
-    case (ufp.name, ufp.tipe) of
+    case (ufp.name, ufp.ufParamTipe) of
       (F _ name, F _ tipe) ->
         { name = name
-        , tipe = tipe
+        , paramTipe = tipe
         , block_args = ufp.block_args
         , optional = ufp.optional
         , description = ufp.description
@@ -80,7 +80,7 @@ findByNameExn m s =
 
 paramData : UserFunctionParameter -> List PointerData
 paramData ufp =
-  [(PParamName ufp.name), (PParamTipe ufp.tipe)]
+  [(PParamName ufp.name), (PParamTipe ufp.ufParamTipe)]
 
 allParamData : UserFunction -> List PointerData
 allParamData uf =
@@ -182,7 +182,7 @@ replaceParamTipe search replacement uf =
                 PParamTipe new ->
                   let newP =
                         metadata.parameters
-                        |> List.map (\p -> { p | tipe = B.replace sId new p.tipe })
+                        |> List.map (\p -> { p | ufParamTipe = B.replace sId new p.ufParamTipe })
                   in
                       { metadata | parameters = newP }
                 _ -> metadata
@@ -202,7 +202,7 @@ extend : UserFunction -> UserFunction
 extend uf =
   let newParam =
         { name = B.new ()
-        , tipe = B.new ()
+        , ufParamTipe = B.new ()
         , block_args = []
         , optional = False
         , description = ""
