@@ -168,6 +168,8 @@ module List = struct
       let head = take index list in
       let tail = drop index list in
       match tail with x :: xs -> head @ (fn x :: xs) | _ -> list
+  let length (l: 'a list) : int =
+    List.length l
 
 end
 
