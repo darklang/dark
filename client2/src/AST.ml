@@ -478,7 +478,7 @@ let rec usesRail (ast : expr) : bool =
 
 let ancestors (id : id) (expr : expr) : expr list =
   let _ = "type annotation" in
-  let rec_ancestors tofind walk exp =
+  let rec rec_ancestors tofind walk exp =
     let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
     let reclist id_ e_ walk_ exprs =
       exprs |> List.map (rec_ id_ e_ walk_) |> List.concat
