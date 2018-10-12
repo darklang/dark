@@ -14,7 +14,7 @@ let markResponseInModel (m : model) : model =
   let oldSyncState = m.syncState in
   {m with syncState= {inFlight= false; ticks= 0}}
 
-let timedOut (s : syncState) : bool = s.ticks % 10 = 0 && s.ticks <> 0
+let timedOut (s : syncState) : bool = s.ticks mod 10 = 0 && s.ticks <> 0
 
 let fetch (m : model) : model * msg Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState then
@@ -30,7 +30,7 @@ let toAnalyse (m : model) : tlid list =
       let ids = List.map (fun x -> x.id) (Toplevel.all m) in
       let index =
         let length = List.length ids in
-        if length > 0 then Some (Util.random () % length) else None
+        if length > 0 then Some (Util.random () mod length) else None
       in
       index
       |> Option.andThen (fun i -> List.getAt i ids)
