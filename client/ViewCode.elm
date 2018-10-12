@@ -311,13 +311,13 @@ viewNExpr d id vs config e =
       case (fn.infix, exprs, fn.parameters) of
         (True, [first, second], [p1, p2]) ->
           n (wc "fncall infix" :: wc (depthString d) :: all)
-          [ n [wc "lhs"] [ve p1.name incD first]
+          [ n [wc "lhs"] [ve p1.paramName incD first]
           , fnDiv False
-          , n [wc "rhs"] [ve p2.name incD second]
+          , n [wc "rhs"] [ve p2.paramName incD second]
           ]
         _ ->
           let args = List.map2
-                       (\p e_ -> ve p.name incD e_)
+                       (\p e_ -> ve p.paramName incD e_)
                        fn.parameters
                        exprs
 

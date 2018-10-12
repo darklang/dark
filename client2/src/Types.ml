@@ -533,11 +533,11 @@ and modification =
   | TweakModel of (model -> model)
 
 and parameter =
-  { name: string
+  { paramName: string
   ; paramTipe: tipe
-  ; block_args: string list
-  ; optional: bool
-  ; description: string }
+  ; paramBlock_args: string list
+  ; paramOptional: bool
+  ; paramDescription: string }
 
 and function_ =
   { name: string

@@ -162,7 +162,7 @@ let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
              | Some {parameters} -> List.getAt index parameters
              | None -> None )
            | _ -> None )
-    |> Option.map (fun p -> p.name ^ ": " ^ RT.tipe2str p.paramTipe ^ "")
+    |> Option.map (fun p -> p.paramName ^ ": " ^ RT.tipe2str p.paramTipe ^ "")
     |> Option.withDefault ""
   in
   match pt with

@@ -15,11 +15,11 @@ ufpToP : UserFunctionParameter -> Maybe Parameter
 ufpToP ufp =
     case (ufp.name, ufp.ufParamTipe) of
       (F _ name, F _ tipe) ->
-        { name = name
+        { paramName = name
         , paramTipe = tipe
-        , block_args = ufp.block_args
-        , optional = ufp.optional
-        , description = ufp.description
+        , paramBlock_args = ufp.block_args
+        , paramOptional = ufp.optional
+        , paramDescription = ufp.description
         } |> Just
       _ -> Nothing
 

@@ -78,11 +78,11 @@ flag2function fn =
   { name = fn.name
   , description = fn.description
   , returnTipe = RT.str2tipe fn.return_type
-  , parameters = List.map (\p -> { name = p.name
+  , parameters = List.map (\p -> { paramName = p.name
                                  , paramTipe = RT.str2tipe p.tipe
-                                 , block_args = p.block_args
-                                 , optional = p.optional
-                                 , description = p.description})
+                                 , paramBlock_args = p.block_args
+                                 , paramOptional = p.optional
+                                 , paramDescription = p.description})
                           fn.parameters
   , infix = fn.infix
   , previewExecutionSafe = fn.preview_execution_safe

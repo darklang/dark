@@ -214,7 +214,7 @@ placeHolderFor vs id pt =
                       LE.getAt index parameters
                     Nothing -> Nothing
                 _ -> Nothing)
-        |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.paramTipe ++ "")
+        |> Maybe.map (\p -> p.paramName ++ ": " ++ RT.tipe2str p.paramTipe ++ "")
         |> Maybe.withDefault ""
   in
   case pt of
