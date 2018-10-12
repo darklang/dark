@@ -13,13 +13,13 @@ import AST
 
 ufpToP : UserFunctionParameter -> Maybe Parameter
 ufpToP ufp =
-    case (ufp.name, ufp.ufParamTipe) of
+    case (ufp.ufpName, ufp.ufpTipe) of
       (F _ name, F _ tipe) ->
         { paramName = name
         , paramTipe = tipe
-        , paramBlock_args = ufp.block_args
-        , paramOptional = ufp.optional
-        , paramDescription = ufp.description
+        , paramBlock_args = ufp.ufpBlock_args
+        , paramOptional = ufp.ufpOptional
+        , paramDescription = ufp.ufpDescription
         } |> Just
       _ -> Nothing
 
@@ -80,7 +80,7 @@ findByNameExn m s =
 
 paramData : UserFunctionParameter -> List PointerData
 paramData ufp =
-  [(PParamName ufp.name), (PParamTipe ufp.ufParamTipe)]
+  [(PParamName ufp.ufpName), (PParamTipe ufp.ufpTipe)]
 
 allParamData : UserFunction -> List PointerData
 allParamData uf =
@@ -129,7 +129,7 @@ replaceParamName search replacement uf =
                 PParamName new ->
                   let newP =
                         metadata.parameters
-                        |> List.map (\p -> { p | name = B.replace sId new p.name })
+                        |> List.map (\p -> { p | ufpName = B.replace sId new p.ufpName })
                   in
                       { metadata | parameters = newP }
                 _ -> metadata
@@ -182,7 +182,7 @@ replaceParamTipe search replacement uf =
                 PParamTipe new ->
                   let newP =
                         metadata.parameters
-                        |> List.map (\p -> { p | ufParamTipe = B.replace sId new p.ufParamTipe })
+                        |> List.map (\p -> { p | ufpTipe = B.replace sId new p.ufpTipe })
                   in
                       { metadata | parameters = newP }
                 _ -> metadata
@@ -201,11 +201,11 @@ replaceMetadataField old new uf =
 extend : UserFunction -> UserFunction
 extend uf =
   let newParam =
-        { name = B.new ()
-        , ufParamTipe = B.new ()
-        , block_args = []
-        , optional = False
-        , description = ""
+        { ufpName = B.new ()
+        , ufpTipe = B.new ()
+        , ufpBlock_args = []
+        , ufpOptional = False
+        , ufpDescription = ""
         }
       metadata = uf.metadata
       newMetadata =

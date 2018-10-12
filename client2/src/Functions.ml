@@ -6,13 +6,13 @@ open Prelude
 open Types
 
 let ufpToP (ufp : userFunctionParameter) : parameter option =
-  match (ufp.name, ufp.ufParamTipe) with
+  match (ufp.ufpName, ufp.ufpTipe) with
   | F (_, name), F (_, tipe) ->
       { paramName= name
       ; paramTipe= tipe
-      ; paramBlock_args= ufp.block_args
-      ; paramOptional= ufp.optional
-      ; paramDescription= ufp.description }
+      ; paramBlock_args= ufp.ufpBlock_args
+      ; paramOptional= ufp.ufpOptional
+      ; paramDescription= ufp.ufpDescription }
       |> fun x -> Some x
   | _ -> None
 
@@ -57,7 +57,7 @@ let findByNameExn (m : model) (s : string) : userFunction =
   findByName m s |> deOption "Functions.findByNameExn"
 
 let paramData (ufp : userFunctionParameter) : pointerData list =
-  [PParamName ufp.name; PParamTipe ufp.ufParamTipe]
+  [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
 let allParamData (uf : userFunction) : pointerData list =
   List.concat (List.map paramData uf.metadata.parameters)
@@ -93,7 +93,8 @@ let replaceParamName (search : pointerData) (replacement : pointerData)
       | PParamName new_ ->
           let newP =
             metadata.parameters
-            |> List.map (fun p -> {p with name= B.replace sId new_ p.name})
+            |> List.map (fun p -> {p with ufpName= B.replace sId new_ p.ufpName}
+               )
           in
           {metadata with parameters= newP}
       | _ -> metadata
@@ -140,8 +141,8 @@ let replaceParamTipe (search : pointerData) (replacement : pointerData)
       | PParamTipe new_ ->
           let newP =
             metadata.parameters
-            |> List.map (fun p ->
-                   {p with ufParamTipe= B.replace sId new_ p.ufParamTipe} )
+            |> List.map (fun p -> {p with ufpTipe= B.replace sId new_ p.ufpTipe}
+               )
           in
           {metadata with parameters= newP}
       | _ -> metadata
@@ -156,11 +157,11 @@ let replaceMetadataField (old : pointerData) (new_ : pointerData)
 
 let extend (uf : userFunction) : userFunction =
   let newParam =
-    { name= B.new_ ()
-    ; ufParamTipe= B.new_ ()
-    ; block_args= []
-    ; optional= false
-    ; description= "" }
+    { ufpName= B.new_ ()
+    ; ufpTipe= B.new_ ()
+    ; ufpBlock_args= []
+    ; ufpOptional= false
+    ; ufpDescription= "" }
   in
   let metadata = uf.metadata in
   let newMetadata =

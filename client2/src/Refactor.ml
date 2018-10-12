@@ -149,11 +149,11 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
                 Analysis.getCurrentTipeOf m tl.id id
                 |> Option.withDefault TAny |> convertTipe
               in
-              { name= F (gid (), name_)
-              ; ufParamTipe= F (gid (), tipe)
-              ; block_args= []
-              ; optional= false
-              ; description= "" } )
+              { ufpName= F (gid (), name_)
+              ; ufpTipe= F (gid (), tipe)
+              ; ufpBlock_args= []
+              ; ufpOptional= false
+              ; ufpDescription= "" } )
             freeVars
         in
         let metadata =
@@ -331,11 +331,11 @@ let generateEmptyFunction (_ : unit) : userFunction =
   let funcName = generateFnName () in
   let tlid = gtlid () in
   let params =
-    [ { name= F (gid (), "var")
-      ; ufParamTipe= F (gid (), TAny)
-      ; block_args= []
-      ; optional= true
-      ; description= "" } ]
+    [ { ufpName= F (gid (), "var")
+      ; ufpTipe= F (gid (), TAny)
+      ; ufpBlock_args= []
+      ; ufpOptional= true
+      ; ufpDescription= "" } ]
   in
   let metadata =
     { name= F (gid (), funcName)
