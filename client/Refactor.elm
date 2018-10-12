@@ -205,11 +205,11 @@ extractFunction m tl p =
                          |> Maybe.withDefault TAny
                          |> convertTipe
               in
-                  { name = F (gid ()) name_
-                  , ufParamTipe = F (gid ()) tipe
-                  , block_args = []
-                  , optional = False
-                  , description = ""
+                  { ufpName = F (gid ()) name_
+                  , ufpTipe = F (gid ()) tipe
+                  , ufpBlock_args = []
+                  , ufpOptional = False
+                  , ufpDescription = ""
                   })
                   freeVars
           metadata =
@@ -423,11 +423,11 @@ generateEmptyFunction _ =
   let funcName = generateFnName ()
       tlid = gtlid ()
       params = [
-          { name = F (gid ()) "var"
-          , ufParamTipe = F (gid ()) TAny
-          , block_args = []
-          , optional = True
-          , description = ""
+          { ufpName = F (gid ()) "var"
+          , ufpTipe = F (gid ()) TAny
+          , ufpBlock_args = []
+          , ufpOptional = True
+          , ufpDescription = ""
           }
         ]
       metadata = {

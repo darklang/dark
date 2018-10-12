@@ -648,11 +648,11 @@ type alias Function = { fnName: String
                       , fnInfix: Bool
                       }
 
-type alias UserFunctionParameter = { name: BlankOr String
-                                   , ufParamTipe: BlankOr Tipe
-                                   , block_args: List String
-                                   , optional: Bool
-                                   , description: String
+type alias UserFunctionParameter = { ufpName: BlankOr String
+                                   , ufpTipe: BlankOr Tipe
+                                   , ufpBlock_args: List String
+                                   , ufpOptional: Bool
+                                   , ufpDescription: String
                                    }
 
 type alias UserFunctionMetadata = { name: BlankOr String

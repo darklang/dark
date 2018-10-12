@@ -41,7 +41,7 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
             "Can't delete parameter because it is used in the function body" ]
         [fontAwesome "times-circle"]
   in
-  match p.name with
+  match p.ufpName with
   | F (_, pname) -> buttonContent (canDeleteParameter pname)
   | _ -> buttonContent true
 
@@ -54,8 +54,8 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     fn.metadata.parameters
     |> List.map (fun p ->
            Html.div [Attrs.class_ "col"]
-             [ viewParamName vs [wc "name"] p.name
-             ; viewParamTipe vs [wc "type"] p.ufParamTipe
+             [ viewParamName vs [wc "name"] p.ufpName
+             ; viewParamTipe vs [wc "type"] p.ufpTipe
              ; viewKillParameterBtn vs fn p ] )
   in
   Html.div [Attrs.class_ "user-fn"] (namediv :: coldivs)

@@ -549,11 +549,11 @@ and function_ =
   ; fnInfix: bool }
 
 and userFunctionParameter =
-  { name: string blankOr
-  ; ufParamTipe: tipe blankOr
-  ; block_args: string list
-  ; optional: bool
-  ; description: string }
+  { ufpName: string blankOr
+  ; ufpTipe: tipe blankOr
+  ; ufpBlock_args: string list
+  ; ufpOptional: bool
+  ; ufpDescription: string }
 
 and userFunctionMetadata =
   { name: string blankOr

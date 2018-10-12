@@ -57,7 +57,7 @@ viewKillParameterBtn vs uf p =
             ]
             [ fontAwesome "times-circle" ]
   in
-      case p.name of
+      case p.ufpName of
         F _ pname ->
           buttonContent (canDeleteParameter pname)
         _ ->
@@ -73,8 +73,8 @@ viewMetadata vs fn =
         |> List.map (\p ->
              Html.div
                [ Attrs.class "col" ]
-               [ viewParamName vs [wc "name"] p.name
-               , viewParamTipe vs [wc "type"] p.ufParamTipe
+               [ viewParamName vs [wc "name"] p.ufpName
+               , viewParamTipe vs [wc "type"] p.ufpTipe
                , viewKillParameterBtn vs fn p
                ])
   in
