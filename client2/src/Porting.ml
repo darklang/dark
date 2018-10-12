@@ -1,25 +1,31 @@
 type size = { width : int; height : int }
-module Native = struct
-  module Window = struct
-    let window : Dom.window = [%bs.raw "window"]
-    external getWidth : Dom.window -> int = "innerWidth" [@@bs.get]
-    external getHeight : Dom.window -> int = "innerHeight" [@@bs.get]
-    let size () : size =
-      { width = getWidth window
-      ; height = getHeight window
-      }
-  end
 
-  module Random = struct
-    let random () : int = Random.int 2147483647
-  end
+type bounding_rect = 
+  { x : float
+  ; y : float
+  ; width : float
+  ; height : float
+  ; left : float
+  ; top : float
+  ; right : float
+  ; bottom : float
+  }
 
-  module Cache = struct
-    let set _k _v = Some "todo: Cache_set"
-    let get _k = "todo: Cache_get"
-    let clear _k = ()
-  end
-end
+type rect =
+  { id : int
+  ; bottom : float
+  ; height : float
+  ; left : float
+  ; right : float
+  ; top : float
+  ; width : float
+  ; x : float
+  ; y : float
+  }
+
+type ast_positions = { atoms : rect list; nested : rect list }
+
+let (++) (a: string) (b: string) = a ^ b
 
 module PageVisibility = struct
   type visibility = Hidden
@@ -68,6 +74,7 @@ module Regex = struct
   let contains (re: Js.Re.t) (s: string) : bool = Js.Re.test s re
   let replace (re: string) (repl: string) (str: string) =
     Js.String.replaceByRe (regex re) repl str
+  let matches (re: Js.Re.t) (s: string) : Js.Re.result option = Js.Re.exec s re
 end
 
 let toOption (value: 'a) (sentinel: 'a) : 'a option =
@@ -245,6 +252,8 @@ module String = struct
     |> List.map Char.toCode
     |> List.map Js.String.fromCharCode
     |> String.concat ""
+  let fromInt (i : int) : string =
+    Printf.sprintf "%d" i
 end
 
 module Set = struct
@@ -260,3 +269,120 @@ module Set = struct
 end
 
 
+module Native = struct
+
+  exception NativeCodeError of string
+
+  module Ext = struct
+    let window : Dom.window = [%bs.raw "window"]
+
+    external getWidth :
+      Dom.window -> int =
+      "innerWidth" [@@bs.get]
+
+    external getHeight :
+      Dom.window -> int =
+      "innerHeight" [@@bs.get]
+
+    external getElementsByClassName :
+      (string -> Dom.element list) =
+      "getElementsByClassName" [@@bs.val][@@bs.scope "document"]
+
+    external querySelectorAll :
+      (Dom.element -> string -> Dom.element list) =
+      "querySelectorAll" [@@bs.val]
+
+    external getBoundingClientRect :
+      Dom.element -> bounding_rect =
+      "getBoundingClientRect" [@@bs.val]
+
+    external classList :
+      Dom.element -> string list =
+      "classList" [@@bs.get]
+  end
+
+  module Window = struct
+    let size () : size =
+      { width = Ext.getWidth Ext.window
+      ; height = Ext.getHeight Ext.window
+      }
+  end
+
+  module Random = struct
+    let random () : int = Js_math.random_int 0 2147483647
+  end
+
+  module Cache = struct
+    let set _k v =
+      Dom.Storage.setItem
+        (String.fromInt _k)
+        (Js.Json.stringify v)
+        Dom.Storage.sessionStorage
+    let get _k =
+      Dom.Storage.getItem
+        (String.fromInt _k)
+        Dom.Storage.sessionStorage
+    let clear _k =
+      Dom.Storage.clear
+        Dom.Storage.sessionStorage
+  end
+
+  module Size = struct
+    
+    let getId (n : Dom.element) : int  =
+      let classes = Ext.classList n in
+      let r =  Regex.regex "id-(\\d+)" in
+      List.find (fun c -> Regex.contains r c) classes
+      |> function
+        | Some cls ->
+          Regex.matches r cls
+          |> function
+            | Some res ->
+              Js.Nullable.toOption (Js.Re.captures res).(1)
+              |> function
+                | Some id -> int_of_string id
+                | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int")
+            | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id")
+        | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id")
+
+    let find (tl: Dom.element) (nested: bool) : rect list =
+      let selector =
+        if nested 
+        then ".blankOr.nested"
+        else ".blankOr:not(.nested)"
+      in
+      let matches = Ext.querySelectorAll tl selector in
+      List.map
+        (fun n ->
+          let rect = Ext.getBoundingClientRect n in
+          let blankId = getId n in
+          { id = blankId
+          ; x = rect.x
+          ; y = rect.y
+          ; width = rect.width
+          ; height = rect.height
+          ; left = rect.left
+          ; top = rect.top
+          ; right = rect.right
+          ; bottom = rect.bottom
+          }
+        ) matches
+
+    let positions (tlid: int) : ast_positions =
+      let selector = Printf.sprintf "toplevel tl-%d" tlid in
+      let elems = Ext.getElementsByClassName selector in
+      List.head elems
+      |> function
+        | Some tl ->
+          { atoms = find tl false
+          ; nested = find tl true
+          }
+        | None ->
+          raise (NativeCodeError "Native.Size.positions : Cannot find toplevels")
+  end
+end
+
+
+module Rollbar = struct
+  external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Rollbar"]
+end
