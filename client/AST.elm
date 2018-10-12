@@ -73,11 +73,11 @@ children expr =
         If cond ifbody elsebody ->
           [PExpr cond, PExpr ifbody, PExpr elsebody]
         FnCall name exprs _ ->
-          List.map PExpr exprs
+          List.map (\e -> PExpr e) exprs
         Lambda vars lexpr ->
-          (List.map PVarBind vars) @ [PExpr lexpr]
+          (List.map (\vb -> PVarBind vb) vars) @ [PExpr lexpr]
         Thread exprs ->
-          List.map PExpr exprs
+          List.map (\e -> PExpr e) exprs
         FieldAccess obj field ->
           [PExpr obj, PField field]
         Let lhs rhs body ->
@@ -87,7 +87,7 @@ children expr =
           |> List.map (\(k, v) -> [PKey k, PExpr v])
           |> List.concat
         ListLiteral elems ->
-          List.map PExpr elems
+          List.map (\e -> PExpr e) elems
         FeatureFlag msg cond a b ->
           [PFFMsg msg, PExpr cond, PExpr a, PExpr b]
 
@@ -630,19 +630,19 @@ siblings p expr =
     Just parent ->
       case parent of
         F _ (If cond ifbody elsebody) ->
-          List.map PExpr [cond, ifbody, elsebody]
+          [PExpr cond, PExpr ifbody, PExpr elsebody]
 
         F _ (Let lhs rhs body) ->
           [ PVarBind lhs, PExpr rhs, PExpr body]
 
         F _ (FnCall name exprs _) ->
-          List.map PExpr exprs
+          List.map (\e -> PExpr e) exprs
 
         F _ (Lambda vars lexpr) ->
-          (List.map PVarBind vars) @ [PExpr lexpr]
+          (List.map (\vb -> PVarBind vb) vars) @ [PExpr lexpr]
 
         F _ (Thread exprs) ->
-          List.map PExpr exprs
+          List.map (\e -> PExpr e) exprs
 
         F _ (FieldAccess obj field) ->
           [PExpr obj, PField field]
@@ -653,9 +653,10 @@ siblings p expr =
           pairs
           |> List.map (\(k,v) -> [PKey k, PExpr v])
           |> List.concat
-        F _ (ListLiteral exprs) -> List.map PExpr exprs
+        F _ (ListLiteral exprs) ->
+          List.map (\e -> PExpr e) exprs
         F _ (FeatureFlag msg cond a b) ->
-          [PFFMsg msg] @ List.map PExpr [cond, a, b]
+          [PFFMsg msg, PExpr cond, PExpr a, PExpr b]
         Blank _ -> [p]
 
 getValueParent : PointerData -> Expr -> Maybe PointerData
