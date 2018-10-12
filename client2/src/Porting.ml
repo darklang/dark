@@ -127,6 +127,8 @@ module List = struct
     Belt.List.getBy l f
   let getAt (i: int) (l: 'a list) : 'a option =
     Belt.List.get l i
+  let any (fn: 'a -> bool) (l: 'a list) : bool =
+    List.exists fn l
   let head (l: 'a list) : 'a option =
     Belt.List.head l
   let drop (count: int) (l: 'a list) : 'a list =
