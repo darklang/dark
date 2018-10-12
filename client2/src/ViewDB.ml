@@ -78,7 +78,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
   in
   Html.div
     [Attrs.class_ "db migration-view"]
-    ((((name :: cols) ^ funcs) ^ errorMsg) ^ actions)
+    (name :: (cols ^ funcs ^ errorMsg ^ actions))
 
 let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   let locked =
@@ -102,5 +102,4 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
         else []
     | None -> []
   in
-  [Html.div [Attrs.class_ "db"] ((locked :: namediv) :: coldivs)]
-  ^ migrationView
+  [Html.div [Attrs.class_ "db"] (locked :: namediv :: coldivs)] ^ migrationView

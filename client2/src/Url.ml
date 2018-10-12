@@ -5,7 +5,7 @@ open Prelude
 open Types
 
 let hashUrlParams (params : (string * string) list) : string =
-  let merged = List.map (fun (k, v) -> (k ^ "=") ^ v) params in
+  let merged = List.map (fun (k, v) -> k ^ "=" ^ v) params in
   "#" ^ String.join "&" merged
 
 let urlOf (page : page) (pos : pos) : string =

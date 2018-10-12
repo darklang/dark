@@ -109,7 +109,7 @@ let processFocus (m : model) (focus : focus) : modification =
   | FocusExact (tlid, id) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
-      if (P.isBlank pd || P.toContent pd) = Some "" then
+      if P.isBlank pd || P.toContent pd = Some "" then
         Enter (Filling (tlid, id))
       else Select (tlid, Some id)
   | FocusSame -> (
@@ -260,7 +260,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let body str =
           let maybe name m =
-            match m with Some s -> ((", " ^ name) ^ ": ") ^ s | None -> ""
+            match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
           in
           str
           |> JSD.decodeString JSONUtils.decodeException
@@ -277,16 +277,14 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     ; info
                     ; workarounds }
                ->
-                 ( ( ( ( ( ( ( (((" (" ^ tipe) ^ "): ") ^ short)
-                             ^ maybe "message" long )
-                           ^ maybe "actual value" actual )
-                         ^ maybe "actual type" actualType )
-                       ^ maybe "result" result )
-                     ^ maybe "result type" resultType )
-                   ^ maybe "expected" expected )
-                 ^
-                 if info = Belt.Map.String.empty then ""
-                 else ", info: " ^ toString info )
+                 " (" ^ tipe ^ "): " ^ short ^ maybe "message" long
+                 ^ maybe "actual value" actual
+                 ^ maybe "actual type" actualType
+                 ^ maybe "result" result
+                 ^ maybe "result type" resultType
+                 ^ maybe "expected" expected
+                 ^ ( if info = Belt.Map.String.empty then ""
+                   else ", info: " ^ toString info )
                  ^
                  if workarounds = [] then ""
                  else ", workarounds: " ^ toString workarounds )
@@ -298,9 +296,8 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.Timeout -> "Timeout"
           | Http.NetworkError -> "Network error - is the server running?"
           | Http.BadStatus response ->
-              ("Bad status: " ^ response.status.message) ^ body response.body
-          | Http.BadPayload (msg, _) ->
-              (("Bad payload (" ^ context) ^ "): ") ^ msg
+              "Bad status: " ^ response.status.message ^ body response.body
+          | Http.BadPayload (msg, _) -> "Bad payload (" ^ context ^ "): " ^ msg
         in
         let url =
           match e with
@@ -313,7 +310,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let shouldRollbar = e <> Http.NetworkError in
         let json =
           JSE.object_
-            [ ("message", JSE.string (((msg ^ " (") ^ context) ^ ")"))
+            [ ("message", JSE.string (msg ^ " (" ^ context ^ ")"))
             ; ("url", JSEE.maybe JSE.string url)
             ; ("custom", JSONUtils.encodeHttpError e) ]
         in
@@ -575,7 +572,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
       let i = complete.index in
       let val_ = AC.getValue complete in
       Debug.log "autocompletemod result: "
-        ((string_of_int complete.index ^ " => ") ^ val_)
+        (string_of_int complete.index ^ " => " ^ val_)
     else ""
   in
   ({m with complete}, focus)
@@ -583,14 +580,14 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 let isFieldAccessDot (m : model) (baseStr : string) : bool =
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
-    (String.startsWith "\"" str || JSON.typeOfLiteralString str) = TInt
+    String.startsWith "\"" str || JSON.typeOfLiteralString str = TInt
   in
   match m.cursorState with
   | Entering (Creating _) -> not intOrString
   | Entering (Filling (tlid, id)) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
-      (P.typeOf pd = Expr || P.typeOf pd) = Field && not intOrString
+      (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString
   | _ -> false
 
 let update_ (msg : msg) (m : model) : modification =
@@ -602,7 +599,7 @@ let update_ (msg : msg) (m : model) : modification =
   match msg with
   | GlobalKeyPress devent -> (
       let event = devent.standard in
-      if ((event.metaKey || event.ctrlKey) && event.keyCode) = Key.Z then
+      if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z then
         match tlidOf m.cursorState with
         | Some tlid -> (
             let undo =
@@ -851,7 +848,7 @@ let update_ (msg : msg) (m : model) : modification =
                     let pd = TL.findExn tl id in
                     Refactor.toggleOnRail m tl pd )
               | _ -> NoChange
-            else if (event.shiftKey && event.keyCode) = Key.Enter then
+            else if event.shiftKey && event.keyCode = Key.Enter then
               match cursor with
               | Filling (tlid, p) -> (
                   let tl = TL.getTL m tlid in
@@ -952,9 +949,8 @@ let update_ (msg : msg) (m : model) : modification =
               | Key.Backspace ->
                   let v =
                     if
-                      ( m.complete.value = "\"\""
-                      && String.length m.complete.prevValue )
-                      <= 2
+                      m.complete.value = "\"\""
+                      && String.length m.complete.prevValue <= 2
                     then ""
                     else m.complete.value
                   in
@@ -1187,7 +1183,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; ClearError
         ; extraMod
         ; newState ]
-  | SaveTestRPCCallback (Ok msg_) -> (DisplayError <| "Success! ") ^ msg_
+  | SaveTestRPCCallback (Ok msg_) -> DisplayError <| "Success! " ^ msg_
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
       let tl = TL.getTL m params.tlid in
       Many
@@ -1219,8 +1215,7 @@ let update_ (msg : msg) (m : model) : modification =
       | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
       | Error str -> DisplayError str )
   | RPCCallback (_, _, Error err) -> DisplayAndReportHttpError ("RPC", err)
-  | SaveTestRPCCallback (Error err) ->
-      (DisplayError <| "Error: ") ^ toString err
+  | SaveTestRPCCallback (Error err) -> DisplayError <| "Error: " ^ toString err
   | ExecuteFunctionRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->

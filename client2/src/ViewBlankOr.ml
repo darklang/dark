@@ -28,13 +28,14 @@ let nested : htmlConfig = wc "nested"
 
 let text (vs : viewState) (c : htmlConfig list) (str : string) : msg Html.html
     =
-  ( (div vs c <| [Html.div [Attrs.class_ "quote quote-start"] []])
-  ^ [Html.text str] )
-  ^ [Html.div [Attrs.class_ "quote quote-end"] []]
+  div vs c
+  <| [Html.div [Attrs.class_ "quote quote-start"] []]
+     ^ [Html.text str]
+     ^ [Html.div [Attrs.class_ "quote quote-end"] []]
 
 let keyword (vs : viewState) (c : htmlConfig list) (name : string) :
     msg Html.html =
-  text vs (((atom :: wc "keyword") :: wc name) :: c) name
+  text vs (atom :: wc "keyword" :: wc name :: c) name
 
 let tipe (vs : viewState) (c : htmlConfig list) (t : tipe) : msg Html.html =
   text vs c (Runtime.tipe2str t)
@@ -102,7 +103,7 @@ let div (vs : viewState) (configs : htmlConfig list)
   in
   let selected = thisID = selectedID && Option.isJust thisID in
   let displayLivevalue =
-    (thisID = idOf vs.cursorState && Option.isJust thisID) && vs.showLivevalue
+    thisID = idOf vs.cursorState && Option.isJust thisID && vs.showLivevalue
   in
   let mouseover = mouseoverAs = vs.hovering && Option.isJust mouseoverAs in
   let idClasses =
@@ -111,10 +112,10 @@ let div (vs : viewState) (configs : htmlConfig list)
     | _ -> []
   in
   let allClasses =
-    ( ( ( (classes ^ idClasses)
-        ^ if displayLivevalue then ["display-livevalue"] else [] )
-      ^ if selected then ["selected"] else [] )
-    ^ if isCommandTarget then ["commandTarget"] else [] )
+    classes ^ idClasses
+    ^ (if displayLivevalue then ["display-livevalue"] else [])
+    ^ (if selected then ["selected"] else [])
+    ^ (if isCommandTarget then ["commandTarget"] else [])
     ^ if mouseover then ["mouseovered"] else []
   in
   let classAttr = Attrs.class_ (String.join " " allClasses) in
@@ -139,7 +140,7 @@ let div (vs : viewState) (configs : htmlConfig list)
   let rightSideHtml =
     Html.div [Attrs.class_ "expr-actions"] (featureFlagHtml ^ editFnHtml)
   in
-  let attrs = (liveValueAttr :: classAttr) :: events in
+  let attrs = liveValueAttr :: classAttr :: events in
   Html.div attrs (content ^ [rightSideHtml])
 
 let viewText (pt : pointerType) (vs : viewState) (c : htmlConfig list)
@@ -161,7 +162,7 @@ let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
              | Some {parameters} -> List.getAt index parameters
              | None -> None )
            | _ -> None )
-    |> Option.map (fun p -> ((p.name ^ ": ") ^ RT.tipe2str p.tipe) ^ "")
+    |> Option.map (fun p -> p.name ^ ": " ^ RT.tipe2str p.tipe ^ "")
     |> Option.withDefault ""
   in
   match pt with
@@ -196,7 +197,7 @@ let viewBlankOr
   let wID id = [WithID id] in
   let drawBlank id =
     div vs
-      (([WithClass "blank"] ^ c) ^ wID id)
+      ([WithClass "blank"] ^ c ^ wID id)
       [Html.text (placeHolderFor vs id pt)]
   in
   let drawFilled id fill =

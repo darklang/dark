@@ -24,7 +24,7 @@ let viewButtons (m : model) : msg Html.html =
         [ Html.div
             [ Attrs.id "integrationTestSignal"
             ; Attrs.class_ "specialButton failure" ]
-            [(Html.text <| "failure: ") ^ msg] ]
+            [Html.text <| "failure: " ^ msg] ]
     | NoIntegrationTest -> []
   in
   let returnButton =
@@ -51,30 +51,27 @@ let viewButtons (m : model) : msg Html.html =
                   else "see details" ) ] ]
   in
   Html.div [Attrs.id "buttons"]
-    ( ( ( [ Html.a
-              [ eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
-              ; Attrs.src ""
-              ; Attrs.class_ "specialButton" ]
-              [Html.text "SaveTest"]
-          ; Html.a
-              [ eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
-              ; Attrs.src ""
-              ; Attrs.class_ "specialButton" ]
-              [ Html.text
-                  (if m.timersEnabled then "DisableTimers" else "EnableTimers")
-              ]
-          ; Html.span
-              [Attrs.class_ "specialButton"]
-              [Html.text (toString m.currentPage)]
-          ; Html.span
-              [Attrs.class_ "specialButton"]
-              [Html.text ("Tests: " ^ toString m.tests)]
-          ; Html.span
-              [Attrs.class_ ("specialButton environment " ^ m.environment)]
-              [Html.text m.environment] ]
-        ^ integrationTestButton )
-      ^ returnButton )
-    ^ [status] )
+    ( [ Html.a
+          [ eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
+          ; Attrs.src ""
+          ; Attrs.class_ "specialButton" ]
+          [Html.text "SaveTest"]
+      ; Html.a
+          [ eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
+          ; Attrs.src ""
+          ; Attrs.class_ "specialButton" ]
+          [ Html.text
+              (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
+      ; Html.span
+          [Attrs.class_ "specialButton"]
+          [Html.text (toString m.currentPage)]
+      ; Html.span
+          [Attrs.class_ "specialButton"]
+          [Html.text ("Tests: " ^ toString m.tests)]
+      ; Html.span
+          [Attrs.class_ ("specialButton environment " ^ m.environment)]
+          [Html.text m.environment] ]
+    ^ integrationTestButton ^ returnButton ^ [status] )
 
 let viewError (err : darkError) : msg Html.html =
   let viewException exc =

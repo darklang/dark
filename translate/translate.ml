@@ -6,6 +6,9 @@ open Migrate_parsetree.Ast_404
 open Ast_helper
 
 let (>>) a b = (fun x -> a (b x))
+type ('a, 'b) tree =
+  | Leaf of 'a
+  | Node of (('a, 'b) tree) * ('b) * (('a, 'b) tree)
 
 (* ------------------------ *)
 (* config *)
@@ -75,6 +78,7 @@ let post_process =
     ; "^let allData \\(", "let rec allData ("
     ; "^let replace_", "let rec replace_"
     ; "^let clone \\(", "let rec clone ("
+    ; "^let addThreadBlank \\(", "let rec addThreadBlank ("
     ]
   in
   rewrite (config_post_process_patterns @ patterns)
@@ -505,20 +509,59 @@ let rec exprpO (exprp) : Parsetree.expression =
   | Lambda (pats, _cs, body, _l) ->
     createLambda (List.map ~f:skip_preCommented pats) body
   | Binops (lhs, rest, _l) ->
-    List.fold ~init:(exprO lhs) rest
-      ~f:(fun prev (_cs, ref_, _cs2, rhs) ->
-          match (ref_, rhs) with
-          (* `x |> Just` into  `x |> \x -> Just x) *)
-          | (OpRef "|>", (_r, VarExpr (TagRef (path, var)) as tag )) ->
-            Exp.apply
-              (ref_O ref_)
-              [ (Asttypes.Nolabel, prev)
-              ; (Asttypes.Nolabel, (wrapTagInLambda tag))
-              ]
-          | _ ->
-            Exp.apply
-              (ref_O ref_)
-              [(Asttypes.Nolabel, prev); as_arg rhs])
+    let is_left_associative op =
+      op = "|>"
+      || op = ">="
+      || op = "<="
+      || op = "/="
+      || op = "=="
+      || op = ">>"
+      || op = "+"
+      || op = "*"
+    in
+
+    (* extract pairs *)
+    let op_pairs = List.map ~f:(fun (_cs, op, _cs2, rhs) -> op, rhs) rest in
+    (* find pipes into tags and wrap them *)
+    let op_pairs = List.map op_pairs
+        ~f:(fun (op, rhs) ->
+            match op, skip_located rhs with
+            | OpRef "|>", VarExpr (TagRef _) ->
+              (op, wrapTagInLambda rhs)
+            | _ -> (op, rhs))
+    in
+    (* create a right-associative tree for this binops *)
+    let result : (ref_ * (expr, ref_) tree) option =
+      List.fold_right
+        op_pairs
+        ~init:None
+        ~f:(fun ((op, lhs) : ref_ * expr) (prev: (ref_ * (expr, ref_) tree) option)  ->
+            match prev with
+            | None -> Some (op, Leaf lhs)
+            | Some (prev_op, prev_tree) ->
+              Some (op, Node (Leaf lhs, prev_op, prev_tree)))
+            (* | OpRef "|>", (_r, (VarExpr (TagRef (path, var)))) -> *)
+            (*   Node (lhs, op, Leaf (wrapTagInLambda (rhs))) *)
+    in
+    let tree =
+      match result with
+      | None -> failwith "what?"
+      | Some (op, rhs) -> Node (Leaf lhs, op, rhs)
+    in
+    let rec translate_tree t =
+      (match t with
+      | Leaf e -> exprO e
+      | Node (a, OpRef op1, Node (b, OpRef op2, c))
+        when is_left_associative op1 ->
+          translate_tree (Node ((Node (a, OpRef op1, b)), OpRef op2, c))
+      | Node (a, op, b) ->
+        Exp.apply
+          (ref_O op)
+          [ (Asttypes.Nolabel, translate_tree a)
+          ; (Asttypes.Nolabel, translate_tree b)
+          ])
+    in
+    translate_tree tree
   | Unary (_op, expr) ->
     Exp.apply
       (Exp.ident (name2lid "~-"))
@@ -572,7 +615,7 @@ and createLambda (pats: pattern list) (body: expr) : Parsetree.expression =
         Exp.fun_ Asttypes.Nolabel None (patO pat) prev)
 
 
-and wrapTagInLambda (tagexpr: expr) : Parsetree.expression =
+and wrapTagInLambda (tagexpr: expr) : expr =
   let arg = (Elm.fakeRegion, VarPattern "x") in
   let body =
     ( Elm.fakeRegion
@@ -580,9 +623,7 @@ and wrapTagInLambda (tagexpr: expr) : Parsetree.expression =
         ( tagexpr
         , [([], (fakeRegion, VarExpr (VarRef ([], "x"))))], FASplitFirst))
   in
-  createLambda [arg] body
-
-
+  (fakeRegion, Lambda ([([], arg)], [], body, false))
 
 
 

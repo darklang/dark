@@ -3,7 +3,7 @@ open! Porting
 open Types
 
 let isCompatible (t1 : tipe) (t2 : tipe) : bool =
-  (t1 = TAny || t2 = TAny) || t1 = t2
+  t1 = TAny || t2 = TAny || t1 = t2
 
 let rec tipe2str (t : tipe) : string =
   match t with
@@ -30,8 +30,8 @@ let rec tipe2str (t : tipe) : string =
   | TUuid -> "UUID"
   | TErrorRail -> "ErrorRail"
   | TBelongsTo s -> s
-  | THasMany s -> ("[" ^ s) ^ "]"
-  | TDbList a -> ("[" ^ tipe2str a) ^ "]"
+  | THasMany s -> "[" ^ s ^ "]"
+  | TDbList a -> "[" ^ tipe2str a ^ "]"
 
 let str2tipe (t : string) : tipe =
   let parseListTipe lt =
@@ -126,26 +126,24 @@ let isComplete (dv : dval) : bool =
 let isTrue (dv : dval) : bool = dv = DBool true
 
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
-  let wrap value =
-    ((("<" ^ (dv |> typeOf |> tipe2str)) ^ ": ") ^ value) ^ ">"
-  in
-  let asType = ("<" ^ (dv |> typeOf |> tipe2str)) ^ ">" in
+  let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
+  let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in
   let nl = "\n" ^ String.repeat oldIndent " " in
   let inl = "\n" ^ String.repeat (oldIndent + 2) " " in
   let indent = oldIndent + 2 in
   let objToString l =
     l
-    |> List.map (fun (k, v) -> (k ^ ": ") ^ toRepr_ indent v)
+    |> List.map (fun (k, v) -> k ^ ": " ^ toRepr_ indent v)
     |> String.join ("," ^ inl)
-    |> fun s -> ((("{" ^ inl) ^ s) ^ nl) ^ "}"
+    |> fun s -> "{" ^ inl ^ s ^ nl ^ "}"
   in
   match dv with
   | DInt i -> toString i
   | DFloat f -> toString f
-  | DStr s -> ("\"" ^ s) ^ "\""
+  | DStr s -> "\"" ^ s ^ "\""
   | DBool true -> "true"
   | DBool false -> "false"
-  | DChar c -> ("'" ^ String.fromList [c]) ^ "'"
+  | DChar c -> "'" ^ String.fromList [c] ^ "'"
   | DNull -> "null"
   | DID s -> wrap s
   | DDate s -> wrap s
@@ -157,12 +155,12 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DPassword s -> wrap s
   | DBlock -> asType
   | DIncomplete -> asType
-  | DResp (Redirect url, dv_) -> (("302 " ^ url) ^ nl) ^ toRepr_ indent dv_
+  | DResp (Redirect url, dv_) -> "302 " ^ url ^ nl ^ toRepr_ indent dv_
   | DResp (Response (code, hs), dv_) ->
       let headers =
         objToString (List.map (Tuple.mapSecond (fun s -> DStr s)) hs)
       in
-      (((toString code ^ " ") ^ headers) ^ nl) ^ toRepr dv_
+      toString code ^ " " ^ headers ^ nl ^ toRepr dv_
   | DOption OptNothing -> "Nothing"
   | DOption (OptJust dv_) -> "Some " ^ toRepr dv_
   | DErrorRail dv_ -> wrap (toRepr dv_)
@@ -170,10 +168,10 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
     match l with
     | [] -> "[]"
     | DObj _ :: rest ->
-        ( (("[" ^ inl) ^ String.join (inl ^ ", ") (List.map (toRepr_ indent) l))
-        ^ nl )
-        ^ "]"
-    | l -> ("[ " ^ String.join ", " (List.map (toRepr_ indent) l)) ^ "]" )
+        "[" ^ inl
+        ^ String.join (inl ^ ", ") (List.map (toRepr_ indent) l)
+        ^ nl ^ "]"
+    | l -> "[ " ^ String.join ", " (List.map (toRepr_ indent) l) ^ "]" )
   | DObj o -> objToString (Belt.Map.String.toList o)
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv

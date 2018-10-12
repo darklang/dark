@@ -13,14 +13,14 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
   let hoverClass = if isHover then [Attrs.class_ "mouseovered"] else [] in
   let tipeClassName = "tipe-" ^ RT.tipe2str tipe in
   let tipeClass = [Attrs.class_ tipeClassName] in
-  let classes = (activeClass ^ hoverClass) ^ tipeClass in
+  let classes = activeClass ^ hoverClass ^ tipeClass in
   let events =
     [ eventNoPropagation "click" (DataClick (tlid, idx))
     ; eventNoPropagation "mouseenter" (DataMouseEnter (tlid, idx))
     ; eventNoPropagation "mouseleave" (DataMouseLeave (tlid, idx)) ]
   in
   Html.li
-    (([Attrs.attribute "data-content" value] ^ classes) ^ events)
+    ([Attrs.attribute "data-content" value] ^ classes ^ events)
     [Html.text "\226\128\162"]
 
 let asValue (inputValue : inputValueDict) : string =

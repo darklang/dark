@@ -63,7 +63,7 @@ let trigger (test_name : string) : integrationTestState =
   | "function_version_renders" -> function_version_renders
   | "only_backspace_out_of_strings_on_last_char" ->
       only_backspace_out_of_strings_on_last_char
-  | n -> Debug.crash (("Test " ^ n) ^ " not added to IntegrationTest.trigger")
+  | n -> Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger")
 
 let pass : testResult = Ok ()
 

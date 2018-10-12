@@ -42,7 +42,7 @@ let isMigrationCol (db : dB) (id : id) : bool =
   | Some schema ->
       let inCols =
         schema.cols
-        |> List.filter (fun (n, t) -> (B.toID n = id || B.toID t) = id)
+        |> List.filter (fun (n, t) -> B.toID n = id || B.toID t = id)
       in
       not (List.isEmpty inCols)
   | None -> false

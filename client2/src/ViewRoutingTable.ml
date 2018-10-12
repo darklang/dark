@@ -92,7 +92,7 @@ let prefixify (hs : entry list) : entry list =
         match List.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
         | None -> h :: (rest |> List.map makePrefix |> prefixify)
         | Some (matched, unmatched) ->
-            h :: ((prefixify <| List.map makePrefix matched) ^ unmatched) ) )
+            h :: (prefixify <| List.map makePrefix matched ^ unmatched) ) )
 
 let ordering (a : string) (b : string) : order =
   match (a, b) with
@@ -118,9 +118,9 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
           Html.a
             [ Attrs.class_ "external"
             ; Attrs.href
-                ( ( (("//" ^ Http.encodeUri m.canvasName) ^ ".")
-                  ^ m.userContentHost )
-                ^ target )
+                ( "//"
+                ^ Http.encodeUri m.canvasName
+                ^ "." ^ m.userContentHost ^ target )
             ; Attrs.target "_blank" ]
             [fontAwesome "external-link-alt"]
       | None -> Html.div [] []
@@ -149,8 +149,7 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     entries |> List.map (fun x -> x.verbs) |> List.concat
   in
   let button =
-    if (spacename = "HTTP" && showUndo) <> ShowUndo then
-      Some CreateRouteHandler
+    if spacename = "HTTP" && showUndo <> ShowUndo then Some CreateRouteHandler
     else None
   in
   section spacename distinctEntries button routes
@@ -179,7 +178,7 @@ let viewDeletedTLs (m : model) : msg Html.html =
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
-  Html.details [Attrs.class_ "routing-section deleted"] (([h] ^ routes) ^ [dbs])
+  Html.details [Attrs.class_ "routing-section deleted"] ([h] ^ routes ^ [dbs])
 
 let span (class_ : string) (subs : msg Html.html list) : msg Html.html =
   Html.span [Attrs.class_ class_] subs
@@ -290,7 +289,7 @@ let viewUserFunctions (m : model) : msg Html.html =
           (fontAwesome "minus-circle")
           (DeleteUserFunction fn.tlid) None ]
     else
-      let countedName = ((name ^ " (") ^ string_of_int useCount) ^ ")" in
+      let countedName = name ^ " (" ^ string_of_int useCount ^ ")" in
       [span "name" [fnLink fn true countedName]]
   in
   let fnHtml fn =
@@ -305,10 +304,8 @@ let viewUserFunctions (m : model) : msg Html.html =
 
 let viewRoutingTable (m : model) : msg Html.html =
   let sections =
-    ( ( ( viewRoutes m CollapseVerbs ShowLink DontShowUndo
-        ^ [viewDBs m.toplevels] )
-      ^ [view404s m.f404s] )
-    ^ [viewUserFunctions m] )
+    viewRoutes m CollapseVerbs ShowLink DontShowUndo
+    ^ [viewDBs m.toplevels] ^ [view404s m.f404s] ^ [viewUserFunctions m]
     ^ [viewDeletedTLs m]
   in
   let html =

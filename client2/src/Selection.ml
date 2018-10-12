@@ -61,8 +61,8 @@ let moveUpDown (direction : uDDirection) (sizes : htmlSizing list) (id : id) :
   | [this] ->
       sizes
       |> List.filter (fun o ->
-             ((o.centerY <> this.centerY && dir) * this.centerY < dir)
-             * o.centerY )
+             o.centerY <> this.centerY && dir * this.centerY < dir * o.centerY
+         )
       |> List.minimumBy (fun o ->
              let majorDist = dir * (o.centerY - this.centerY) in
              let minorDist = abs (o.centerX - this.centerX) in
@@ -81,8 +81,8 @@ let moveLeftRight (direction : lRDirection) (sizes : htmlSizing list) (id : id)
   | [this] ->
       sizes
       |> List.filter (fun o ->
-             ((o.centerY = this.centerY && dir) * this.centerX > dir)
-             * o.centerX )
+             o.centerY = this.centerY && dir * this.centerX > dir * o.centerX
+         )
       |> List.minimumBy (fun o -> dir * (this.centerX - o.centerX))
       |> Option.withDefault this
       |> (fun x -> x.id)
