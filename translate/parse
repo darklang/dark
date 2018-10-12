@@ -5,6 +5,6 @@ set -euo pipefail
 
 ./translate/build
 
-~/.local/bin/elm-format --json --elm-version 0.18 --stdin < $1 \
+~/.local/bin/elm-format --json --elm-version 0.18 --stdin < /dev/stdin \
   | ./translate/_build/default/translate.exe --parse
 
