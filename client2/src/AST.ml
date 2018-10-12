@@ -28,9 +28,6 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
-let parentOf (id : id) (ast : expr) : expr =
-  deOption "parentOf" <| parentOf_ id ast
-
 let rec parentOf_ (eid : id) (expr : expr) : expr option =
   let po = parentOf_ eid in
   let _ = "comment" in
@@ -52,6 +49,9 @@ let rec parentOf_ (eid : id) (expr : expr) : expr option =
       | ListLiteral exprs -> poList exprs
       | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> poList
       | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b] )
+
+let parentOf (id : id) (ast : expr) : expr =
+  deOption "parentOf" <| parentOf_ id ast
 
 let rec listThreadBlanks (expr : expr) : id list =
   let r = listThreadBlanks in
