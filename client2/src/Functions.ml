@@ -63,7 +63,7 @@ let allParamData (uf : userFunction) : pointerData list =
   List.concat (List.map paramData uf.metadata.parameters)
 
 let rec allData (uf : userFunction) : pointerData list =
-  [PFnName uf.metadata.name] ^ allParamData uf ^ AST.allData uf.ast
+  [PFnName uf.metadata.name] @ allParamData uf @ AST.allData uf.ast
 
 let replaceFnName (search : pointerData) (replacement : pointerData)
     (uf : userFunction) : userFunction =
@@ -163,7 +163,7 @@ let extend (uf : userFunction) : userFunction =
   in
   let metadata = uf.metadata in
   let newMetadata =
-    {metadata with parameters= uf.metadata.parameters ^ [newParam]}
+    {metadata with parameters= uf.metadata.parameters @ [newParam]}
   in
   {uf with metadata= newMetadata}
 

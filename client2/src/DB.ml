@@ -12,7 +12,7 @@ let rec allData (db : dB) : pointerData list =
   let cols, rolls =
     match db.activeMigration with
     | Some migra ->
-        ( db.cols ^ migra.cols
+        ( db.cols @ migra.cols
         , List.concat
             [AST.allData migra.rollforward; AST.allData migra.rollback] )
     | None -> (db.cols, [])
@@ -22,7 +22,7 @@ let rec allData (db : dB) : pointerData list =
     |> List.map (fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
     |> List.concat
   in
-  colpointers ^ rolls
+  colpointers @ rolls
 
 let siblings (_ : pointerData) (db : dB) : pointerData list = allData db
 
