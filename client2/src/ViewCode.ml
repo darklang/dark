@@ -11,7 +11,7 @@ open ViewUtils
 
 let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     msg Html.html =
-  let configs = (c ^ [ClickSelectAs (B.toID f)]) ^ withFeatureFlag vs f in
+  let configs = c ^ [ClickSelectAs (B.toID f)] ^ withFeatureFlag vs f in
   viewBlankOr viewNFieldName Field vs configs f
 
 let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -32,7 +32,7 @@ let viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
     ^ if width > 120 then [wc "too-wide"] else []
   in
   let configs =
-    (((idConfigs ^ c) ^ withFeatureFlag vs e) ^ withEditFn vs e) ^ widthClass
+    idConfigs ^ c ^ withFeatureFlag vs e ^ withEditFn vs e ^ widthClass
   in
   let id = B.toID e in
   viewBlankOr (viewNExpr depth id) Expr vs configs e
@@ -123,10 +123,10 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
-      a (((wc cssClass :: wc "value") :: all) ^ tooWide) value
+      a (wc cssClass :: wc "value" :: (all ^ tooWide)) value
   | Variable name ->
       if List.member id vs.relatedBlankOrs then
-        a ((wc "variable" :: wc "related-change") :: all) vs.ac.value
+        a (wc "variable" :: wc "related-change" :: all) vs.ac.value
       else a (wc "variable" :: all) name
   | Let (lhs, rhs, body) ->
       let bodyID = B.toID body in
@@ -159,7 +159,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       in
       let ve name_ = if width > 120 then viewTooWideArg name_ else vExpr in
       let fnname parens =
-        let withP name_ = if parens then ("(" ^ name_) ^ ")" else name_ in
+        let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
         match String.split "::" name with
         | [justname; mod_] ->
             let np = withP justname in
@@ -240,18 +240,18 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         if not showButton then []
         else
           [ Html.div
-              ( [ Attrs.class_ (("execution-button " ^ class_) ^ executingClass)
+              ( [ Attrs.class_ ("execution-button " ^ class_ ^ executingClass)
                 ; Attrs.title title ]
               ^ event )
               [fontAwesome icon] ]
       in
       let fnDiv parens =
-        n [wc "op"; wc name] ((fnname parens :: ropArrow) :: button)
+        n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
       in
       match (fn.infix, exprs, fn.parameters) with
       | true, [second; first], [p2; p1] ->
           n
-            ((wc "fncall infix" :: wc (depthString d)) :: all)
+            (wc "fncall infix" :: wc (depthString d) :: all)
             [ n [wc "lhs"] [ve p1.name incD first]
             ; fnDiv false
             ; n [wc "rhs"] [ve p2.name incD second] ]
@@ -260,7 +260,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
             List.map2 (fun p e_ -> ve p.name incD e_) fn.parameters exprs
           in
           n
-            ((wc "fncall prefix" :: wc (depthString d)) :: all)
+            (wc "fncall prefix" :: wc (depthString d) :: all)
             (fnDiv fn.infix :: args) )
   | Lambda (vars, expr) ->
       let varname v = t [wc "lambdavarname"; atom] v in
@@ -273,7 +273,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let texpr e_ =
         n [wc "threadmember"; ClickSelectAs (B.toID e_)] [pipe; vExpr 0 e_]
       in
-      n ((wc "threadexpr" :: mo) :: config) (List.map texpr exprs)
+      n (wc "threadexpr" :: mo :: config) (List.map texpr exprs)
   | FieldAccess (obj, field) ->
       n
         (wc "fieldaccessexpr" :: all)
@@ -288,7 +288,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "listelem"; ClickSelectAs (B.toID e_)] [vExpr 0 e_]
       in
       let new_ = List.map lexpr exprs |> List.intersperse comma in
-      n ((wc "list" :: mo) :: config) (([open_] ^ new_) ^ [close])
+      n (wc "list" :: mo :: config) ([open_] ^ new_ ^ [close])
   | ObjectLiteral pairs ->
       let colon = a [wc "colon"] ":" in
       let open_ = a [wc "openbrace"] "{" in
@@ -296,9 +296,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let pexpr (k, v) =
         n [wc "objectpair"] [viewKey vs [] k; colon; vExpr 0 v]
       in
-      n
-        ((wc "object" :: mo) :: config)
-        (([open_] ^ List.map pexpr pairs) ^ [close])
+      n (wc "object" :: mo :: config) ([open_] ^ List.map pexpr pairs ^ [close])
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
         Html.label [Attrs.class_ "expr-label"] [Html.text msg_]
@@ -390,9 +388,9 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
         [ Html.a
             [ Attrs.class_ "external"
             ; Attrs.href
-                ( ( (("//" ^ Http.encodeUri vs.canvasName) ^ ".")
-                  ^ vs.userContentHost )
-                ^ name )
+                ( "//"
+                ^ Http.encodeUri vs.canvasName
+                ^ "." ^ vs.userContentHost ^ name )
             ; Attrs.target "_blank" ]
             [fontAwesome "external-link-alt"] ]
     | _ -> []

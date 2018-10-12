@@ -238,8 +238,8 @@ let isFunctionInExpr (fnName : string) (expr : expr) : bool =
     | Thread li -> List.any (isFunctionInExpr fnName) li
     | FieldAccess (ex, filed) -> isFunctionInExpr fnName ex
     | FeatureFlag (_, cond, a, b) ->
-        (isFunctionInExpr fnName cond || isFunctionInExpr fnName a)
-        || isFunctionInExpr fnName b )
+        isFunctionInExpr fnName cond
+        || isFunctionInExpr fnName a || isFunctionInExpr fnName b )
 
 let countFnUsage (m : model) (name : string) : int =
   let usedIn =

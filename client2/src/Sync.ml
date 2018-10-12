@@ -14,7 +14,7 @@ let markResponseInModel (m : model) : model =
   let oldSyncState = m.syncState in
   {m with syncState= {inFlight= false; ticks= 0}}
 
-let timedOut (s : syncState) : bool = (s.ticks % 10 = 0 && s.ticks) <> 0
+let timedOut (s : syncState) : bool = s.ticks % 10 = 0 && s.ticks <> 0
 
 let fetch (m : model) : model * msg Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState then

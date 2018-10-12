@@ -39,7 +39,7 @@ let viewCanvas (m : model) : msg Html.html =
     in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in
-    ((("translate(" ^ x) ^ "px, ") ^ y) ^ "px)"
+    "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
   let allDivs = asts ^ entry in
   Html.div

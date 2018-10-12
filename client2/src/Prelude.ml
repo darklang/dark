@@ -46,12 +46,8 @@ let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
 
 let recoverable (msg : 'a) (val_ : 'b) : 'b =
   let error =
-    ( ( ( ( "An unexpected but recoverable error happened. "
-          ^ "For now we crash. " )
-        ^ "Message: " )
-      ^ toString msg )
-    ^ "Value: " )
-    ^ toString val_
+    "An unexpected but recoverable error happened. " ^ "For now we crash. "
+    ^ "Message: " ^ toString msg ^ "Value: " ^ toString val_
   in
   let _ = "comment" in
   let _ = "comment" in

@@ -40,7 +40,7 @@ let rec listThreadBlanks (expr : expr) : id list =
     | FnCall (name, exprs, _) -> rList exprs
     | Lambda (vars, body) -> r body
     | FieldAccess (obj, _) -> r obj
-    | If (cond, ifbody, elsebody) -> (r cond @ r ifbody) @ r elsebody
+    | If (cond, ifbody, elsebody) -> r cond @ r ifbody @ r elsebody
     | Thread exprs ->
         let blanks, filled = List.partition B.isBlank exprs in
         let blankids = List.map B.toID blanks in
@@ -48,7 +48,7 @@ let rec listThreadBlanks (expr : expr) : id list =
         blankids @ subExprsBlankids
     | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> rList
     | ListLiteral exprs -> rList exprs
-    | FeatureFlag (_, cond, a, b) -> (r cond @ r a) @ r b
+    | FeatureFlag (_, cond, a, b) -> r cond @ r a @ r b
   in
   match expr with Blank _ -> [] | F (_, f) -> rn f
 
@@ -103,7 +103,7 @@ let closeBlanks (expr : expr) : expr =
 let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
     expr list =
   List.foldr
-    (fun e list -> if B.toID e = at then (e :: blank) :: list else e :: list)
+    (fun e list -> if B.toID e = at then e :: blank :: list else e :: list)
     [] threadExprs
 
 let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
@@ -116,7 +116,7 @@ let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
       F (tid, Thread newExprs)
   | _ -> traverse (maybeExtendThreadAt id blank) expr
 
-let addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
+let rec addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
   let atb = addThreadBlank id blank in
   if id = B.toID expr then
     match expr with
@@ -262,7 +262,7 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
       | Value _ -> []
       | Variable _ -> []
       | Let (lhs, rhs, body) -> co body @ co rhs
-      | If (cond, ifbody, elsebody) -> (co cond @ co ifbody) @ co elsebody
+      | If (cond, ifbody, elsebody) -> co cond @ co ifbody @ co elsebody
       | FnCall (name, exprs, _) -> List.map co exprs |> List.concat
       | Lambda (vars, lexpr) -> co lexpr
       | Thread exprs -> List.map co exprs |> List.concat
@@ -270,7 +270,7 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
       | ObjectLiteral pairs ->
           pairs |> List.map Tuple.second |> List.map co |> List.concat
       | ListLiteral pairs -> pairs |> List.map co |> List.concat
-      | FeatureFlag (msg, cond, a, b) -> (co cond @ co a) @ co b )
+      | FeatureFlag (msg, cond, a, b) -> co cond @ co a @ co b )
 
 let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =

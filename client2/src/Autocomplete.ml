@@ -65,7 +65,7 @@ let compareSuggestionWithActual (a : autocomplete) (actual : string) :
               (index + String.length actual)
               (String.length suggestion) suggestion
           in
-          (prefix, (prefix ^ actual) ^ suffix, actual) )
+          (prefix, prefix ^ actual ^ suffix, actual) )
 
 let empty : autocomplete = init [] false
 
@@ -119,7 +119,7 @@ let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
 
 let appendQuery (str : string) (a : autocomplete) : autocomplete =
   let q =
-    if isStringEntry a then (String.dropRight 1 a.value ^ str) ^ "\""
+    if isStringEntry a then String.dropRight 1 a.value ^ str ^ "\""
     else a.value ^ str
   in
   setQuery q a
@@ -131,7 +131,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | ACFunction f ->
       if String.length f.description <> 0 then Some f.description else None
-  | ACCommand c -> Some (((c.doc ^ " (") ^ c.shortcut) ^ ")")
+  | ACCommand c -> Some (c.doc ^ " (" ^ c.shortcut ^ ")")
   | _ -> None
 
 let setTarget (m : model) (t : (tlid * pointerData) option) (a : autocomplete)
@@ -174,10 +174,9 @@ let qLiteral (s : string) : autocompleteItem option =
 
 let qNewDB (s : string) : autocompleteItem option =
   if
-    ( ((String.length s >= 3 && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s) && s)
-      <> "HTTP"
-    && s )
-    <> "HTT"
+    String.length s >= 3
+    && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
+    && s <> "HTTP" && s <> "HTT"
   then Some (ACOmniAction (NewDB s))
   else None
 
@@ -232,7 +231,7 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
     |> Option.andThen (fun oh -> List.elemIndex oh (List.concat newCompletions))
   in
   let index =
-    if query = "" && ((old.index <> -1 && old.value) <> query || old.index = -1)
+    if query = "" && ((old.index <> -1 && old.value <> query) || old.index = -1)
     then -1
     else
       match oldHighlightNewPos with
@@ -369,7 +368,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
             ; "Password"
             ; "UUID" ]
           in
-          let compound = List.map (fun s -> ("[" ^ s) ^ "]") builtins in
+          let compound = List.map (fun s -> "[" ^ s ^ "]") builtins in
           builtins ^ compound
       | ParamTipe ->
           [ "Any"
@@ -390,9 +389,9 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
     if isExpression then List.map ACKeyword [KLet; KIf; KLambda] else []
   in
   let regular =
-    ( ((List.map ACExtra extras ^ List.map ACVariable varnames) ^ keywords)
-    ^ functions )
-    ^ fields
+    List.map ACExtra extras
+    ^ List.map ACVariable varnames
+    ^ keywords ^ functions ^ fields
   in
   let commands = List.map ACCommand Commands.commands in
   if a.isCommandMode then commands else regular
@@ -415,7 +414,7 @@ let asName (aci : autocompleteItem) : string =
       | None -> "Create new function" )
     | NewHTTPHandler -> "Create new HTTP handler"
     | NewHTTPRoute name -> "Create new HTTP handler for " ^ name
-    | NewEventSpace name -> ("Create new " ^ name) ^ " handler" )
+    | NewEventSpace name -> "Create new " ^ name ^ " handler" )
   | ACKeyword k -> (
     match k with KLet -> "let" | KIf -> "if" | KLambda -> "lambda" )
 
@@ -425,7 +424,7 @@ let asTypeString (item : autocompleteItem) : string =
       f.parameters
       |> List.map (fun x -> x.tipe)
       |> List.map RT.tipe2str |> String.join ", "
-      |> fun s -> (("(" ^ s) ^ ") ->  ") ^ RT.tipe2str f.returnTipe
+      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.returnTipe
   | ACField _ -> "field"
   | ACVariable _ -> "variable"
   | ACExtra _ -> ""

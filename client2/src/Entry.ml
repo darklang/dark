@@ -206,7 +206,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         let wrap ops next =
           let wasEditing = P.isBlank pd |> not in
           let focus =
-            if (wasEditing && action) = StayHere then
+            if wasEditing && action = StayHere then
               match next with
               | None -> FocusSame
               | Some nextID -> FocusExact (tl.id, nextID)
@@ -358,7 +358,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
     string option =
   let v pattern name =
     if Util.reExactly pattern value then None
-    else Some (((name ^ " must match /") ^ pattern) ^ "/")
+    else Some (name ^ " must match /" ^ pattern ^ "/")
   in
   match pd with
   | PDBColType ct -> v "\\[?[A-Z]\\w+\\]?" "DB type"
@@ -371,7 +371,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PVarBind _ -> v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
   | PEventName _ ->
       let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
-      let http = ("/(" ^ urlSafeCharacters) ^ "*)" in
+      let http = "/(" ^ urlSafeCharacters ^ "*)" in
       let _ = "comment" in
       let event = urlSafeCharacters ^ "+" in
       let _ = "comment" in
