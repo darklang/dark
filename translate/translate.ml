@@ -32,9 +32,24 @@ let config_module_patterns =
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
-  ; "Http\\.error", "string Http.error"
   ; "\\(varName, dval\\) dict", "dval Belt.Map.String.t"
   ; "deMaybe", "deOption"
+  ; "^let tipe2str", "let rec tipe2str"
+  ; "^let toRepr_", "let rec toRepr_"
+  ; "^let toRepr ", "and toRepr "
+  ; "^let listThreadBlanks", "let rec listThreadBlanks"
+  ; "^let closeThreads", "let rec closeThreads"
+  ; "^let closeObjectLiterals", "let rec closeObjectLiterals"
+  ; "^let closeListLiterals", "let rec closeListLiterals"
+  ; "^let maybeExtendThreadAt", "let rec maybeExtendThreadAt"
+  ; "^let wrapInThread", "let rec wrapInThread"
+  ; "^let childrenOf", "let rec childrenOf"
+  ; "^let uses", "let rec uses"
+  ; "^let parentOf_", "let rec parentOf_"
+  ; "^let allData \\(", "let rec allData ("
+  ; "^let replace_", "let rec replace_"
+  ; "^let clone \\(", "let rec clone ("
+  ; "^let addThreadBlank \\(", "let rec addThreadBlank ("
   ]
 
 let config_type_patterns =
@@ -63,22 +78,7 @@ let post_process =
   let patterns =
     [ "\\(string, (.*)\\) dict", "\\1 Belt.Map.String.t"
     ; "\\(int, (.*)\\) dict", "\\1 Belt.Map.Int.t"
-    ; "^let tipe2str", "let rec tipe2str"
-    ; "^let toRepr_", "let rec toRepr_"
-    ; "^let toRepr ", "and toRepr "
-    ; "^let listThreadBlanks", "let rec listThreadBlanks"
-    ; "^let closeThreads", "let rec closeThreads"
-    ; "^let closeObjectLiterals", "let rec closeObjectLiterals"
-    ; "^let closeListLiterals", "let rec closeListLiterals"
-    ; "^let maybeExtendThreadAt", "let rec maybeExtendThreadAt"
-    ; "^let wrapInThread", "let rec wrapInThread"
-    ; "^let childrenOf", "let rec childrenOf"
-    ; "^let uses", "let rec uses"
-    ; "^let parentOf_", "let rec parentOf_"
-    ; "^let allData \\(", "let rec allData ("
-    ; "^let replace_", "let rec replace_"
-    ; "^let clone \\(", "let rec clone ("
-    ; "^let addThreadBlank \\(", "let rec addThreadBlank ("
+    ; "Http\\.error", "string Http.error"
     ]
   in
   rewrite (config_post_process_patterns @ patterns)
