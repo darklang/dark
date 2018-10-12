@@ -206,7 +206,7 @@ extractFunction m tl p =
                          |> convertTipe
               in
                   { name = F (gid ()) name_
-                  , tipe = F (gid ()) tipe
+                  , ufParamTipe = F (gid ()) tipe
                   , block_args = []
                   , optional = False
                   , description = ""
@@ -424,7 +424,7 @@ generateEmptyFunction _ =
       tlid = gtlid ()
       params = [
           { name = F (gid ()) "var"
-          , tipe = F (gid ()) TAny
+          , ufParamTipe = F (gid ()) TAny
           , block_args = []
           , optional = True
           , description = ""

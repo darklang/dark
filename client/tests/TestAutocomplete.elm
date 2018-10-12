@@ -45,7 +45,7 @@ sampleFunctions =
     (\(name,tipe) ->
       { name = name
       , parameters = [{ name = "x"
-      , tipe = tipe
+      , paramTipe = tipe
       , block_args = []
       , optional = False
       , description = ""

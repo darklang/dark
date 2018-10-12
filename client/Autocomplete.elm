@@ -152,7 +152,7 @@ init fns isAdmin =
   , index = -1
   , value = ""
   , prevValue = ""
-  , tipe = Nothing
+  , acTipe = Nothing
   , target = Nothing
   , isCommandMode = False
   }
@@ -520,7 +520,7 @@ generateFromModel m a =
                 |> Maybe.map .parameters
                 |> Maybe.andThen
                   (LE.getAt index)
-                |> Maybe.map .tipe)
+                |> Maybe.map .paramTipe)
 
       -- functions
       funcList = if isExpression then a.functions else []
@@ -528,7 +528,7 @@ generateFromModel m a =
         funcList
         |> List.filter
            (\{returnTipe} ->
-              case a.tipe of
+              case a.acTipe of
                 Just t -> RT.isCompatible returnTipe t
                 Nothing ->
                   case paramTipeForTarget of
@@ -663,7 +663,7 @@ asTypeString : AutocompleteItem -> String
 asTypeString item =
   case item of
     ACFunction f -> f.parameters
-                    |> List.map .tipe
+                    |> List.map .paramTipe
                     |> List.map RT.tipe2str
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
@@ -700,14 +700,14 @@ findCompatibleThreadParam {parameters} tipe =
   |> List.head
   |> Maybe.andThen
       (\fst ->
-        if RT.isCompatible fst.tipe tipe
+        if RT.isCompatible fst.paramTipe tipe
         then Just fst
         else Nothing)
 
 findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
   parameters
-  |> LE.find (\p -> RT.isCompatible p.tipe tipe)
+  |> LE.find (\p -> RT.isCompatible p.paramTipe tipe)
 
 ---------------------------
 -- Modifications

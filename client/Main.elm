@@ -78,7 +78,7 @@ flag2function fn =
   , description = fn.description
   , returnTipe = RT.str2tipe fn.return_type
   , parameters = List.map (\p -> { name = p.name
-                                 , tipe = RT.str2tipe p.tipe
+                                 , paramTipe = RT.str2tipe p.tipe
                                  , block_args = p.block_args
                                  , optional = p.optional
                                  , description = p.description})
@@ -373,7 +373,7 @@ updateMod mod (m, cmd) =
               |> Maybe.map
                    (\{ short
                      , long
-                     , tipe
+                     , exceptionTipe
                      , actual
                      , actualType
                      , expected
@@ -383,7 +383,7 @@ updateMod mod (m, cmd) =
                      , workarounds
                      } ->
                        " ("
-                       ++ tipe
+                       ++ exceptionTipe
                        ++ "): "
                        ++ short
                        ++ (maybe "message" long)

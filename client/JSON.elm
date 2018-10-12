@@ -309,7 +309,7 @@ encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
 encodeUserFunctionParameter p =
   JSE.object
   [("name", encodeBlankOr JSE.string p.name)
-  ,("tipe", encodeBlankOr encodeTipe p.tipe)
+  ,("tipe", encodeBlankOr encodeTipe p.ufParamTipe)
   ,("block_args", JSE.list (List.map JSE.string p.block_args))
   ,("optional", JSE.bool p.optional)
   ,("description", JSE.string p.description)
@@ -626,7 +626,7 @@ decodeUserFunctionParameter : JSD.Decoder UserFunctionParameter
 decodeUserFunctionParameter =
   let toParam name tipe args option desc =
         { name = name
-        , tipe = tipe
+        , ufParamTipe = tipe
         , block_args = args
         , optional = option
         , description = desc

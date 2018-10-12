@@ -70,7 +70,7 @@ defaultModel = { error = { message = Nothing
                             , index = -1
                             , value = ""
                             , prevValue = ""
-                            , tipe = Nothing
+                            , acTipe = Nothing
                             , target = Nothing
                             , isCommandMode = False
                             }
