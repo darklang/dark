@@ -155,7 +155,7 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
                let newK = if B.toID k = sId then replacement_ else k in
                (newK, r v) )
         |> (fun x -> ObjectLiteral x)
-        |> F id
+        |> fun e -> F (id, e)
     | _ -> traverse r expr
 
 let replace (search : pointerData) (replacement : pointerData) (expr : expr) :

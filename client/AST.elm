@@ -210,7 +210,7 @@ replace_ search replacement parent expr =
           in
               (newK, r v))
         |> ObjectLiteral
-        |> F id
+        |> \e -> F id e
 
       _ -> traverse r expr
 
