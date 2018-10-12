@@ -4,7 +4,7 @@ module Functions exposing (..)
 import List.Extra as LE
 
 -- dark
-import DontPort
+import DontPort exposing ((@))
 import Types exposing (..)
 import Prelude exposing (..)
 import Blank as B
@@ -89,8 +89,8 @@ allParamData uf =
 allData : UserFunction -> List PointerData
 allData uf =
   [PFnName uf.metadata.name]
-  ++ (allParamData uf)
-  ++ AST.allData uf.ast
+  @ (allParamData uf)
+  @ AST.allData uf.ast
 
 replaceFnName : PointerData -> PointerData -> UserFunction -> UserFunction
 replaceFnName search replacement uf =
@@ -209,7 +209,7 @@ extend uf =
         }
       metadata = uf.metadata
       newMetadata =
-        { metadata | parameters = (uf.metadata.parameters ++ [newParam]) }
+        { metadata | parameters = (uf.metadata.parameters @ [newParam]) }
   in
       { uf | metadata = newMetadata }
 
