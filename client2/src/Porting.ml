@@ -27,6 +27,9 @@ end
 
 let (++) (a: string) (b: string) = a ^ b
 let (<|) a b = a b
+let (>>) (f1: 'a -> 'b) (f2: 'b -> 'c) : 'a -> 'c =
+  fun x -> x |> f1 |> f2
+
 
 module Debug = struct
   let crash (str: string) : 'a =
@@ -241,6 +244,18 @@ module String = struct
     |> List.map Char.toCode
     |> List.map Js.String.fromCharCode
     |> String.concat ""
+end
+
+module Set = struct
+  type t = Belt.Set.Int.t
+  type value = Belt.Set.Int.value
+  let fromList (l: value list) : t =
+    l
+    |> Belt.List.toArray
+    |> Belt.Set.Int.fromArray
+  let member (i: value) (set: t) : bool =
+    Belt.Set.Int.has set i
+
 end
 
 
