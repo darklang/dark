@@ -150,8 +150,24 @@ module List = struct
     List.partition fn l
   let foldr (fn: 'a -> 'b -> 'b) (init: 'b) (l: 'a list) : 'b =
     List.fold_right fn l init
-
-
+  let rec findIndexHelp (index : int) (predicate : 'a -> bool) (list : 'a list) :
+    int option =
+    match list with
+    | [] -> None
+    | x :: xs ->
+      if predicate x then Some index
+      else findIndexHelp (index + 1) predicate xs
+  let findIndex (fn: 'a -> bool) (l: 'a list) : int option =
+    findIndexHelp 0 fn l
+  let take (count: int) (l: 'a list) : 'a list =
+    Belt.List.take l count
+    |> Option.withDefault []
+  let updateAt (index : int) (fn : 'a -> 'a) (list : 'a list) : 'a list =
+    if index < 0 then list
+    else
+      let head = take index list in
+      let tail = drop index list in
+      match tail with x :: xs -> head @ (fn x :: xs) | _ -> list
 
 end
 
