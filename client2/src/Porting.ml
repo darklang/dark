@@ -25,7 +25,6 @@ module PageVisibility = struct
   type visibility = Hidden
 end
 
-let (++) (a: string) (b: string) = a ^ b
 let (<|) a b = a b
 let (>>) (f1: 'a -> 'b) (f2: 'b -> 'c) : 'a -> 'c =
   fun x -> x |> f1 |> f2
@@ -179,6 +178,8 @@ module List = struct
     match list with
     | [] -> []
     | x :: xs -> if predicate x then dropWhile predicate xs else list
+  let isEmpty (l: 'a list) : bool =
+    l = []
 
 end
 
