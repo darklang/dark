@@ -4,7 +4,7 @@ open! Porting
 type exception_ =
   { short: string
   ; long: string option
-  ; tipe: string
+  ; exceptionTipe: string
   ; actual: string option
   ; actualType: string option
   ; result: string option
@@ -238,7 +238,7 @@ and autocomplete =
   ; value: string
   ; prevValue: string
   ; target: (tlid * pointerData) option
-  ; tipe: tipe option
+  ; acTipe: tipe option
   ; isCommandMode: bool }
 
 and stringEntryPermission = StringEntryAllowed | StringEntryNotAllowed
@@ -540,7 +540,7 @@ and flags =
 
 and parameter =
   { name: string
-  ; tipe: tipe
+  ; paramTipe: tipe
   ; block_args: string list
   ; optional: bool
   ; description: string }
@@ -556,7 +556,7 @@ and function_ =
 
 and userFunctionParameter =
   { name: string blankOr
-  ; tipe: tipe blankOr
+  ; ufParamTipe: tipe blankOr
   ; block_args: string list
   ; optional: bool
   ; description: string }

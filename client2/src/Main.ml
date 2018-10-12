@@ -25,7 +25,7 @@ let flag2function (fn : flagFunction) : function_ =
       List.map
         (fun p ->
           { name= p.name
-          ; tipe= RT.str2tipe p.tipe
+          ; paramTipe= RT.str2tipe p.tipe
           ; block_args= p.block_args
           ; optional= p.optional
           ; description= p.description } )
@@ -268,7 +268,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           |> Option.map
                (fun { short
                     ; long
-                    ; tipe
+                    ; exceptionTipe
                     ; actual
                     ; actualType
                     ; expected
@@ -277,7 +277,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     ; info
                     ; workarounds }
                ->
-                 " (" ^ tipe ^ "): " ^ short ^ maybe "message" long
+                 " (" ^ exceptionTipe ^ "): " ^ short ^ maybe "message" long
                  ^ maybe "actual value" actual
                  ^ maybe "actual type" actualType
                  ^ maybe "result" result

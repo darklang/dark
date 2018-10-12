@@ -6,10 +6,10 @@ open Prelude
 open Types
 
 let ufpToP (ufp : userFunctionParameter) : parameter option =
-  match (ufp.name, ufp.tipe) with
+  match (ufp.name, ufp.ufParamTipe) with
   | F (_, name), F (_, tipe) ->
       { name
-      ; tipe
+      ; paramTipe= tipe
       ; block_args= ufp.block_args
       ; optional= ufp.optional
       ; description= ufp.description }
@@ -57,7 +57,7 @@ let findByNameExn (m : model) (s : string) : userFunction =
   findByName m s |> deOption "Functions.findByNameExn"
 
 let paramData (ufp : userFunctionParameter) : pointerData list =
-  [PParamName ufp.name; PParamTipe ufp.tipe]
+  [PParamName ufp.name; PParamTipe ufp.ufParamTipe]
 
 let allParamData (uf : userFunction) : pointerData list =
   List.concat (List.map paramData uf.metadata.parameters)
@@ -140,7 +140,8 @@ let replaceParamTipe (search : pointerData) (replacement : pointerData)
       | PParamTipe new_ ->
           let newP =
             metadata.parameters
-            |> List.map (fun p -> {p with tipe= B.replace sId new_ p.tipe})
+            |> List.map (fun p ->
+                   {p with ufParamTipe= B.replace sId new_ p.ufParamTipe} )
           in
           {metadata with parameters= newP}
       | _ -> metadata
@@ -156,7 +157,7 @@ let replaceMetadataField (old : pointerData) (new_ : pointerData)
 let extend (uf : userFunction) : userFunction =
   let newParam =
     { name= B.new_ ()
-    ; tipe= B.new_ ()
+    ; ufParamTipe= B.new_ ()
     ; block_args= []
     ; optional= false
     ; description= "" }

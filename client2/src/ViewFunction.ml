@@ -55,7 +55,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     |> List.map (fun p ->
            Html.div [Attrs.class_ "col"]
              [ viewParamName vs [wc "name"] p.name
-             ; viewParamTipe vs [wc "type"] p.tipe
+             ; viewParamTipe vs [wc "type"] p.ufParamTipe
              ; viewKillParameterBtn vs fn p ] )
   in
   Html.div [Attrs.class_ "user-fn"] (namediv :: coldivs)

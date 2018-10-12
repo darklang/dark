@@ -150,7 +150,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
                 |> Option.withDefault TAny |> convertTipe
               in
               { name= F (gid (), name_)
-              ; tipe= F (gid (), tipe)
+              ; ufParamTipe= F (gid (), tipe)
               ; block_args= []
               ; optional= false
               ; description= "" } )
@@ -332,7 +332,7 @@ let generateEmptyFunction (_ : unit) : userFunction =
   let tlid = gtlid () in
   let params =
     [ { name= F (gid (), "var")
-      ; tipe= F (gid (), TAny)
+      ; ufParamTipe= F (gid (), TAny)
       ; block_args= []
       ; optional= true
       ; description= "" } ]
