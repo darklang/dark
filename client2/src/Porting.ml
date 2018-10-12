@@ -170,6 +170,12 @@ module List = struct
       match tail with x :: xs -> head @ (fn x :: xs) | _ -> list
   let length (l: 'a list) : int =
     List.length l
+  let reverse (l: 'a list) : 'a list =
+    List.rev l
+  let rec dropWhile (predicate : 'a -> bool) (list : 'a list) : 'a list =
+    match list with
+    | [] -> []
+    | x :: xs -> if predicate x then dropWhile predicate xs else list
 
 end
 
@@ -187,6 +193,8 @@ module Tuple = struct
     (a, fn b)
   let second ((a,b): 'a * 'b) : 'b =
     b
+  let first ((a,b): 'a * 'b) : 'a =
+    a
 
   let create a b = (a,b)
 end
@@ -198,13 +206,11 @@ module String = struct
       Ok (int_of_string s)
     with e ->
       Error (Printexc.to_string e)
-
   let toFloat (s: string) : (string, float) result =
     try
       Ok (float_of_string s)
     with e ->
       Error (Printexc.to_string e)
-
   let uncons (s: string) : (char * string) option =
     match s with
     | "" -> None
