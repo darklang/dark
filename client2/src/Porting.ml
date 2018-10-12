@@ -1,30 +1,3 @@
-type size = { width : int; height : int }
-
-type bounding_rect = 
-  { x : float
-  ; y : float
-  ; width : float
-  ; height : float
-  ; left : float
-  ; top : float
-  ; right : float
-  ; bottom : float
-  }
-
-type rect =
-  { id : int
-  ; bottom : float
-  ; height : float
-  ; left : float
-  ; right : float
-  ; top : float
-  ; width : float
-  ; x : float
-  ; y : float
-  }
-
-type ast_positions = { atoms : rect list; nested : rect list }
-
 let (++) (a: string) (b: string) = a ^ b
 
 module PageVisibility = struct
@@ -272,6 +245,33 @@ end
 
 
 module Native = struct
+  type size = { width : int; height : int }
+
+  type bounding_rect =
+    { x : float
+    ; y : float
+    ; width : float
+    ; height : float
+    ; left : float
+    ; top : float
+    ; right : float
+    ; bottom : float
+    }
+
+  type rect =
+    { id : int
+    ; bottom : float
+    ; height : float
+    ; left : float
+    ; right : float
+    ; top : float
+    ; width : float
+    ; x : float
+    ; y : float
+    }
+
+  type ast_positions = { atoms : rect list; nested : rect list }
+
 
   exception NativeCodeError of string
 
@@ -330,7 +330,7 @@ module Native = struct
   end
 
   module Size = struct
-    
+
     let getId (n : Dom.element) : int  =
       let classes = Ext.classList n in
       let r =  Regex.regex "id-(\\d+)" in
@@ -338,18 +338,18 @@ module Native = struct
       |> function
         | Some cls ->
           Regex.matches r cls
-          |> function
+          |> (function
             | Some res ->
               Js.Nullable.toOption (Js.Re.captures res).(1)
-              |> function
+              |> (function
                 | Some id -> int_of_string id
-                | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int")
-            | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id")
+                | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int"))
+            | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id"))
         | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id")
 
     let find (tl: Dom.element) (nested: bool) : rect list =
       let selector =
-        if nested 
+        if nested
         then ".blankOr.nested"
         else ".blankOr:not(.nested)"
       in
