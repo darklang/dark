@@ -108,7 +108,7 @@ let numCompletions (a : autocomplete) : int =
 let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
   let max = Basics.max max_ 1 in
-  let new_ = (a.index + 1) % max in
+  let new_ = (a.index + 1) mod max in
   {a with index= new_}
 
 let selectUp (a : autocomplete) : autocomplete =

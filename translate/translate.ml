@@ -264,8 +264,7 @@ let fix_function name : string =
     [ "==", "="
     ; "/=", "<>"
     ; "\\+\\+", "^"
-    ; "Maybe.andThen", "Option.andThen"
-    ; "Maybe.map", "Option.map"
+    ; "%", "mod"
     ; "Navigation.programWithFlags", "Navigation.navigationProgram"
     ; "Result.toMaybe", "Result.toOption"
     ]
