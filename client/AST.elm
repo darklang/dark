@@ -60,6 +60,86 @@ traverse fn expr =
             FeatureFlag msg (fn cond) (fn a) (fn b))
 
 -------------------------
+-- Children
+-------------------------
+children : Expr -> List PointerData
+children expr =
+  case expr of
+    Blank _ -> []
+    F _ nexpr ->
+      case nexpr of
+        Value _ -> []
+        Variable _ -> []
+        If cond ifbody elsebody ->
+          [PExpr cond, PExpr ifbody, PExpr elsebody]
+        FnCall name exprs _ ->
+          List.map PExpr exprs
+        Lambda vars lexpr ->
+          (List.map PVarBind vars) @ [PExpr lexpr]
+        Thread exprs ->
+          List.map PExpr exprs
+        FieldAccess obj field ->
+          [PExpr obj, PField field]
+        Let lhs rhs body ->
+          [PVarBind lhs, PExpr rhs, PExpr body]
+        ObjectLiteral pairs ->
+          pairs
+          |> List.map (\(k, v) -> [PKey k, PExpr v])
+          |> List.concat
+        ListLiteral elems ->
+          List.map PExpr elems
+        FeatureFlag msg cond a b ->
+          [PFFMsg msg, PExpr cond, PExpr a, PExpr b]
+
+-- Look through an AST for the expr with the id, then return it's
+-- children.
+childrenOf : ID -> Expr -> List PointerData
+childrenOf pid expr =
+  let co = childrenOf pid in
+  if pid == B.toID expr
+  then
+    children expr
+  else
+  case expr of
+    Blank _ -> []
+    F _ nexpr ->
+      case nexpr of
+        Value _ -> []
+        Variable _ -> []
+        Let lhs rhs body ->
+          co body @ co rhs
+
+        If cond ifbody elsebody ->
+          co cond @ co ifbody @ co elsebody
+
+        FnCall name exprs _ ->
+          List.map co exprs |> List.concat
+
+        Lambda vars lexpr ->
+          co lexpr
+
+        Thread exprs ->
+          List.map co exprs |> List.concat
+
+        FieldAccess obj field ->
+          co obj
+
+        ObjectLiteral pairs ->
+          pairs
+          |> List.map Tuple.second
+          |> List.map co
+          |> List.concat
+
+        ListLiteral pairs ->
+          pairs
+          |> List.map co
+          |> List.concat
+
+        FeatureFlag msg cond a b ->
+          co cond @ co a @ co b
+
+
+-------------------------
 -- Parents
 -------------------------
 parentOf_ : ID -> Expr -> Maybe Expr
@@ -421,85 +501,6 @@ threadPrevious id ast =
       |> Maybe.andThen (\this -> Util.listPrevious this exprs)
     _ -> Nothing
 
-
--------------------------
--- Children
--------------------------
-children : Expr -> List PointerData
-children expr =
-  case expr of
-    Blank _ -> []
-    F _ nexpr ->
-      case nexpr of
-        Value _ -> []
-        Variable _ -> []
-        If cond ifbody elsebody ->
-          [PExpr cond, PExpr ifbody, PExpr elsebody]
-        FnCall name exprs _ ->
-          List.map PExpr exprs
-        Lambda vars lexpr ->
-          (List.map PVarBind vars) @ [PExpr lexpr]
-        Thread exprs ->
-          List.map PExpr exprs
-        FieldAccess obj field ->
-          [PExpr obj, PField field]
-        Let lhs rhs body ->
-          [PVarBind lhs, PExpr rhs, PExpr body]
-        ObjectLiteral pairs ->
-          pairs
-          |> List.map (\(k, v) -> [PKey k, PExpr v])
-          |> List.concat
-        ListLiteral elems ->
-          List.map PExpr elems
-        FeatureFlag msg cond a b ->
-          [PFFMsg msg, PExpr cond, PExpr a, PExpr b]
-
--- Look through an AST for the expr with the id, then return it's
--- children.
-childrenOf : ID -> Expr -> List PointerData
-childrenOf pid expr =
-  let co = childrenOf pid in
-  if pid == B.toID expr
-  then
-    children expr
-  else
-  case expr of
-    Blank _ -> []
-    F _ nexpr ->
-      case nexpr of
-        Value _ -> []
-        Variable _ -> []
-        Let lhs rhs body ->
-          co body @ co rhs
-
-        If cond ifbody elsebody ->
-          co cond @ co ifbody @ co elsebody
-
-        FnCall name exprs _ ->
-          List.map co exprs |> List.concat
-
-        Lambda vars lexpr ->
-          co lexpr
-
-        Thread exprs ->
-          List.map co exprs |> List.concat
-
-        FieldAccess obj field ->
-          co obj
-
-        ObjectLiteral pairs ->
-          pairs
-          |> List.map Tuple.second
-          |> List.map co
-          |> List.concat
-
-        ListLiteral pairs ->
-          pairs
-          |> List.map co
-          |> List.concat
-
-        FeatureFlag msg cond a b ->
-          co cond @ co a @ co b
 
 
 uses : VarName -> Expr -> List Expr

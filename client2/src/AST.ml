@@ -28,6 +28,46 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
+let children (expr : expr) : pointerData list =
+  match expr with
+  | Blank _ -> []
+  | F (_, nexpr) -> (
+    match nexpr with
+    | Value _ -> []
+    | Variable _ -> []
+    | If (cond, ifbody, elsebody) -> [PExpr cond; PExpr ifbody; PExpr elsebody]
+    | FnCall (name, exprs, _) -> List.map PExpr exprs
+    | Lambda (vars, lexpr) -> List.map PVarBind vars @ [PExpr lexpr]
+    | Thread exprs -> List.map PExpr exprs
+    | FieldAccess (obj, field) -> [PExpr obj; PField field]
+    | Let (lhs, rhs, body) -> [PVarBind lhs; PExpr rhs; PExpr body]
+    | ObjectLiteral pairs ->
+        pairs |> List.map (fun (k, v) -> [PKey k; PExpr v]) |> List.concat
+    | ListLiteral elems -> List.map PExpr elems
+    | FeatureFlag (msg, cond, a, b) ->
+        [PFFMsg msg; PExpr cond; PExpr a; PExpr b] )
+
+let rec childrenOf (pid : id) (expr : expr) : pointerData list =
+  let co = childrenOf pid in
+  if pid = B.toID expr then children expr
+  else
+    match expr with
+    | Blank _ -> []
+    | F (_, nexpr) -> (
+      match nexpr with
+      | Value _ -> []
+      | Variable _ -> []
+      | Let (lhs, rhs, body) -> co body @ co rhs
+      | If (cond, ifbody, elsebody) -> co cond @ co ifbody @ co elsebody
+      | FnCall (name, exprs, _) -> List.map co exprs |> List.concat
+      | Lambda (vars, lexpr) -> co lexpr
+      | Thread exprs -> List.map co exprs |> List.concat
+      | FieldAccess (obj, field) -> co obj
+      | ObjectLiteral pairs ->
+          pairs |> List.map Tuple.second |> List.map co |> List.concat
+      | ListLiteral pairs -> pairs |> List.map co |> List.concat
+      | FeatureFlag (msg, cond, a, b) -> co cond @ co a @ co b )
+
 let rec parentOf_ (eid : id) (expr : expr) : expr option =
   let po = parentOf_ eid in
   let _ = "comment" in
@@ -254,46 +294,6 @@ let threadPrevious (id : id) (ast : expr) : expr option =
       |> List.head
       |> Option.andThen (fun this -> Util.listPrevious this exprs)
   | _ -> None
-
-let children (expr : expr) : pointerData list =
-  match expr with
-  | Blank _ -> []
-  | F (_, nexpr) -> (
-    match nexpr with
-    | Value _ -> []
-    | Variable _ -> []
-    | If (cond, ifbody, elsebody) -> [PExpr cond; PExpr ifbody; PExpr elsebody]
-    | FnCall (name, exprs, _) -> List.map PExpr exprs
-    | Lambda (vars, lexpr) -> List.map PVarBind vars @ [PExpr lexpr]
-    | Thread exprs -> List.map PExpr exprs
-    | FieldAccess (obj, field) -> [PExpr obj; PField field]
-    | Let (lhs, rhs, body) -> [PVarBind lhs; PExpr rhs; PExpr body]
-    | ObjectLiteral pairs ->
-        pairs |> List.map (fun (k, v) -> [PKey k; PExpr v]) |> List.concat
-    | ListLiteral elems -> List.map PExpr elems
-    | FeatureFlag (msg, cond, a, b) ->
-        [PFFMsg msg; PExpr cond; PExpr a; PExpr b] )
-
-let rec childrenOf (pid : id) (expr : expr) : pointerData list =
-  let co = childrenOf pid in
-  if pid = B.toID expr then children expr
-  else
-    match expr with
-    | Blank _ -> []
-    | F (_, nexpr) -> (
-      match nexpr with
-      | Value _ -> []
-      | Variable _ -> []
-      | Let (lhs, rhs, body) -> co body @ co rhs
-      | If (cond, ifbody, elsebody) -> co cond @ co ifbody @ co elsebody
-      | FnCall (name, exprs, _) -> List.map co exprs |> List.concat
-      | Lambda (vars, lexpr) -> co lexpr
-      | Thread exprs -> List.map co exprs |> List.concat
-      | FieldAccess (obj, field) -> co obj
-      | ObjectLiteral pairs ->
-          pairs |> List.map Tuple.second |> List.map co |> List.concat
-      | ListLiteral pairs -> pairs |> List.map co |> List.concat
-      | FeatureFlag (msg, cond, a, b) -> co cond @ co a @ co b )
 
 let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
