@@ -386,16 +386,16 @@ updateMod mod (m, cmd) =
                        ++ tipe
                        ++ "): "
                        ++ short
-                       |> (++) (maybe "message" long)
-                       |> (++) (maybe "actual value" actual)
-                       |> (++) (maybe "actual type" actualType)
-                       |> (++) (maybe "result" result)
-                       |> (++) (maybe "result type" resultType)
-                       |> (++) (maybe "expected" expected)
-                       |> (++) (if info == StrDict.empty
+                       ++ (maybe "message" long)
+                       ++ (maybe "actual value" actual)
+                       ++ (maybe "actual type" actualType)
+                       ++ (maybe "result" result)
+                       ++ (maybe "result type" resultType)
+                       ++ (maybe "expected" expected)
+                       ++ (if info == StrDict.empty
                                 then ""
                                 else ", info: " ++ toString info)
-                       |> (++) (if workarounds == []
+                       ++ (if workarounds == []
                                 then ""
                                 else ", workarounds: " ++ toString workarounds))
               |> Maybe.withDefault str

@@ -100,6 +100,22 @@ let rec closeListLiterals (expr : expr) : expr =
 let closeBlanks (expr : expr) : expr =
   expr |> closeThreads |> closeObjectLiterals |> closeListLiterals
 
+let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
+    expr list =
+  List.foldr
+    (fun e list -> if B.toID e = at then (e :: blank) :: list else e :: list)
+    [] threadExprs
+
+let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
+  match expr with
+  | F (tid, Thread exprs) ->
+      let newExprs =
+        extendThreadChild id blank exprs
+        |> List.map (maybeExtendThreadAt id blank)
+      in
+      F (tid, Thread newExprs)
+  | _ -> traverse (maybeExtendThreadAt id blank) expr
+
 let addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
   let atb = addThreadBlank id blank in
   if id = B.toID expr then
@@ -181,22 +197,6 @@ let rec wrapInThread (id : id) (expr : expr) : expr =
     | F (_, _) -> B.newF (Thread [expr; B.new_ ()])
     | Blank _ -> B.newF (Thread [expr])
   else traverse (wrapInThread id) expr
-
-let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
-    expr list =
-  List.foldr
-    (fun e list -> if B.toID e = at then (e :: blank) :: list else e :: list)
-    [] threadExprs
-
-let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
-  match expr with
-  | F (tid, Thread exprs) ->
-      let newExprs =
-        extendThreadChild id blank exprs
-        |> List.map (maybeExtendThreadAt id blank)
-      in
-      F (tid, Thread newExprs)
-  | _ -> traverse (maybeExtendThreadAt id blank) expr
 
 let isThreadBlank (expr : expr) (p : id) : bool =
   expr |> listThreadBlanks |> List.member p

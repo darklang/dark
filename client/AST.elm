@@ -167,6 +167,26 @@ closeBlanks expr =
   |> closeObjectLiterals
   |> closeListLiterals
 
+-- Find the child with the id `at` in the thread, and add a blank after it.
+extendThreadChild : ID -> Expr -> List Expr -> List Expr
+extendThreadChild at blank threadExprs =
+  List.foldr (\e list ->
+                if (B.toID e) == at
+                then e :: blank :: list
+                else e :: list)
+             []
+             threadExprs
+
+-- extends thread at pos denoted by ID, if ID is in a thread
+maybeExtendThreadAt : ID -> Expr -> Expr -> Expr
+maybeExtendThreadAt id blank expr =
+  case expr of
+    F tid (Thread exprs) ->
+      let newExprs = extendThreadChild id blank exprs
+                     |> List.map (maybeExtendThreadAt id blank)
+      in F tid (Thread newExprs)
+    _ -> traverse (maybeExtendThreadAt id blank) expr
+
 
 -- take an expression, and if
 -- * it is a thread, add a blank at the end
@@ -298,26 +318,6 @@ wrapInThread id expr =
       -- decide based on the displayed value, so flatten
   else
     traverse (wrapInThread id) expr
-
--- Find the child with the id `at` in the thread, and add a blank after it.
-extendThreadChild : ID -> Expr -> List Expr -> List Expr
-extendThreadChild at blank threadExprs =
-  List.foldr (\e list ->
-                if (B.toID e) == at
-                then e :: blank :: list
-                else e :: list)
-             []
-             threadExprs
-
--- extends thread at pos denoted by ID, if ID is in a thread
-maybeExtendThreadAt : ID -> Expr -> Expr -> Expr
-maybeExtendThreadAt id blank expr =
-  case expr of
-    F tid (Thread exprs) ->
-      let newExprs = extendThreadChild id blank exprs
-                     |> List.map (maybeExtendThreadAt id blank)
-      in F tid (Thread newExprs)
-    _ -> traverse (maybeExtendThreadAt id blank) expr
 
 -- Is PointerData a blank inside a thread
 isThreadBlank : Expr -> ID -> Bool
