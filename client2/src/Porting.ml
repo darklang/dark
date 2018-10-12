@@ -68,7 +68,7 @@ module Regex = struct
     Js.String.replaceByRe (regex re) repl str
 end
 
-let to_option (value: 'a) (sentinel: 'a) : 'a option =
+let toOption (value: 'a) (sentinel: 'a) : 'a option =
   if value = sentinel
   then None
   else Some value
@@ -95,7 +95,7 @@ module List = struct
     l
     |> Array.of_list
     |> Js.Array.findIndex ((=) a)
-    |> to_option (-1)
+    |> toOption (-1)
   let rec last (l : 'a list) : 'a option =
     match l with
     | [] -> None
