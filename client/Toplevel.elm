@@ -20,23 +20,9 @@ import SpecHeaders
 import DB
 import Defaults
 
-all : Model -> List Toplevel
-all m =
-  m.toplevels @ List.map (ufToTL m) m.userFunctions
-
 -------------------------
 -- Toplevel manipulation
 -------------------------
-getTL : Model -> TLID -> Toplevel
-getTL m id =
-  get m id
-  |> deMaybe "getTL"
-
-get : Model -> TLID -> Maybe Toplevel
-get m id =
-  let tls = all m in
-  LE.find (\tl -> tl.id == id) tls
-
 name : Toplevel -> String
 name tl =
   case tl.data of
@@ -49,6 +35,17 @@ name tl =
     TLFunc f ->
       "Func: "
       ++ (f.metadata.ufmName |> B.toMaybe |> Maybe.withDefault "")
+
+containsByTLID : List Toplevel -> Toplevel -> Bool
+containsByTLID tls elem =
+  LE.find (\tl -> tl.id == elem.id) tls /= Nothing
+
+removeByTLID : List Toplevel -> List Toplevel -> List Toplevel
+removeByTLID origTls toBeRemoved =
+  List.filter
+    (\origTl -> not (containsByTLID toBeRemoved origTl))
+    origTls
+
 
 upsertByTLID : List Toplevel -> Toplevel -> List Toplevel
 upsertByTLID tls tl =
@@ -65,16 +62,6 @@ upsertAllByTLID tls new =
 upsertAll : Model -> List Toplevel -> Model
 upsertAll m tls =
   List.foldl (\a b -> upsert b a) m tls
-
-containsByTLID : List Toplevel -> Toplevel -> Bool
-containsByTLID tls elem =
-  LE.find (\tl -> tl.id == elem.id) tls /= Nothing
-
-removeByTLID : List Toplevel -> List Toplevel -> List Toplevel
-removeByTLID origTls toBeRemoved =
-  List.filter
-    (\origTl -> not (containsByTLID toBeRemoved origTl))
-    origTls
 
 remove : Model -> Toplevel -> Model
 remove m tl =
@@ -410,6 +397,22 @@ allData tl =
       DB.allData db
     TLFunc f ->
       Fns.allData f
+
+all : Model -> List Toplevel
+all m =
+  m.toplevels @ List.map (ufToTL m) m.userFunctions
+
+get : Model -> TLID -> Maybe Toplevel
+get m id =
+  let tls = all m in
+  LE.find (\tl -> tl.id == id) tls
+
+
+getTL : Model -> TLID -> Toplevel
+getTL m id =
+  get m id
+  |> deMaybe "getTL"
+
 
 findExn : Toplevel -> ID -> PointerData
 findExn tl id =
