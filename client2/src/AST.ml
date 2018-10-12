@@ -28,6 +28,140 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
           | FeatureFlag (msg, cond, a, b) ->
               FeatureFlag (msg, fn cond, fn a, fn b) )
 
+let rec uses (var : varName) (expr : expr) : expr list =
+  let is_rebinding newbind =
+    match newbind with
+    | Blank _ -> false
+    | F (_, potential) -> if potential = var then true else false
+  in
+  let u = uses var in
+  match expr with
+  | Blank _ -> []
+  | F (_, nexpr) -> (
+    match nexpr with
+    | Value _ -> []
+    | Variable potential -> if potential = var then [expr] else []
+    | Let (lhs, rhs, body) ->
+        if is_rebinding lhs then [] else List.concat [u rhs; u body]
+    | If (cond, ifbody, elsebody) -> List.concat [u cond; u ifbody; u elsebody]
+    | FnCall (name, exprs, _) -> exprs |> List.map u |> List.concat
+    | Lambda (vars, lexpr) ->
+        if List.any is_rebinding vars then [] else u lexpr
+    | Thread exprs -> exprs |> List.map u |> List.concat
+    | FieldAccess (obj, field) -> u obj
+    | ListLiteral exprs -> exprs |> List.map u |> List.concat
+    | ObjectLiteral pairs ->
+        pairs |> List.map Tuple.second |> List.map u |> List.concat
+    | FeatureFlag (msg, cond, a, b) -> List.concat [u cond; u a; u b] )
+
+let rec replace_ (search : pointerData) (replacement : pointerData)
+    (parent : expr option) (expr : expr) : expr =
+  let r = replace_ search replacement (Some expr) in
+  let _ = "comment" in
+  let sId = P.toID search in
+  if B.toID expr = sId then
+    match replacement with
+    | PExpr e ->
+        let repl_ =
+          match parent with
+          | Some (F (_, Thread (first :: _))) -> (
+            match e with
+            | F (id, FnCall (fn, (_ :: rest as args), r_)) ->
+                if B.toID first = sId then F (id, FnCall (fn, args, r_))
+                else F (id, FnCall (fn, rest, r_))
+            | _ -> e )
+          | _ -> e
+        in
+        B.replace sId repl_ expr
+    | _ -> recoverable ("cannot occur", replacement) expr
+  else
+    match (expr, replacement) with
+    | F (id, FeatureFlag (msg, cond, a, b)), PFFMsg newMsg ->
+        if B.toID msg = sId then F (id, FeatureFlag (newMsg, cond, a, b))
+        else traverse r expr
+    | F (id, Let (lhs, rhs, body)), PVarBind replacement_ ->
+        if B.toID lhs = sId then
+          let replacementContent =
+            match replacement_ with Blank _ -> None | F (_, var) -> Some var
+          in
+          let orig =
+            match lhs with Blank _ -> None | F (_, var) -> Some var
+          in
+          let newBody =
+            let usesOf =
+              match orig with
+              | Some var -> uses var body |> List.map PExpr
+              | _ -> []
+            in
+            let transformUse replacementContent_ old =
+              match old with
+              | PExpr (F (_, _)) ->
+                  PExpr (F (gid (), Variable replacementContent_))
+              | _ -> impossible old
+            in
+            match (orig, replacementContent) with
+            | Some o, Some r_ ->
+                List.foldr
+                  (fun use acc ->
+                    replace_ use (transformUse r_ use) (Some expr) acc )
+                  body usesOf
+            | _ -> body
+          in
+          F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
+        else traverse r expr
+    | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
+      match List.findIndex (fun v -> B.toID v = sId) vars with
+      | None -> traverse r expr
+      | Some i ->
+          let replacementContent =
+            match replacement_ with Blank _ -> None | F (_, var) -> Some var
+          in
+          let orig =
+            match List.getAt i vars |> deOption "we somehow lost it?" with
+            | Blank _ -> None
+            | F (_, var) -> Some var
+          in
+          let newBody =
+            let usesInBody =
+              match orig with
+              | Some v -> uses v body |> List.map PExpr
+              | None -> []
+            in
+            let transformUse replacementContent_ old =
+              match old with
+              | PExpr (F (_, _)) ->
+                  PExpr (F (gid (), Variable replacementContent_))
+              | _ -> impossible old
+            in
+            match (orig, replacementContent) with
+            | Some o, Some r_ ->
+                List.foldr
+                  (fun use acc ->
+                    replace_ use (transformUse r_ use) (Some expr) acc )
+                  body usesInBody
+            | _ -> body
+          in
+          let newVars =
+            List.updateAt i (fun old -> B.replace sId replacement_ old) vars
+          in
+          F (id, Lambda (newVars, newBody)) )
+    | F (id, FieldAccess (obj, field)), PField replacement_ ->
+        if B.toID field = sId then
+          F (id, FieldAccess (obj, B.replace sId replacement_ field))
+        else traverse r expr
+    | F (id, ObjectLiteral pairs), PKey replacement_ ->
+        pairs
+        |> List.map (fun (k, v) ->
+               let newK = if B.toID k = sId then replacement_ else k in
+               (newK, r v) )
+        |> (fun x -> ObjectLiteral x)
+        |> F id
+    | _ -> traverse r expr
+
+let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
+    expr =
+  replace_ search replacement None expr
+
 let children (expr : expr) : pointerData list =
   match expr with
   | Blank _ -> []
@@ -296,32 +430,6 @@ let threadPrevious (id : id) (ast : expr) : expr option =
       |> Option.andThen (fun this -> Util.listPrevious this exprs)
   | _ -> None
 
-let rec uses (var : varName) (expr : expr) : expr list =
-  let is_rebinding newbind =
-    match newbind with
-    | Blank _ -> false
-    | F (_, potential) -> if potential = var then true else false
-  in
-  let u = uses var in
-  match expr with
-  | Blank _ -> []
-  | F (_, nexpr) -> (
-    match nexpr with
-    | Value _ -> []
-    | Variable potential -> if potential = var then [expr] else []
-    | Let (lhs, rhs, body) ->
-        if is_rebinding lhs then [] else List.concat [u rhs; u body]
-    | If (cond, ifbody, elsebody) -> List.concat [u cond; u ifbody; u elsebody]
-    | FnCall (name, exprs, _) -> exprs |> List.map u |> List.concat
-    | Lambda (vars, lexpr) ->
-        if List.any is_rebinding vars then [] else u lexpr
-    | Thread exprs -> exprs |> List.map u |> List.concat
-    | FieldAccess (obj, field) -> u obj
-    | ListLiteral exprs -> exprs |> List.map u |> List.concat
-    | ObjectLiteral pairs ->
-        pairs |> List.map Tuple.second |> List.map u |> List.concat
-    | FeatureFlag (msg, cond, a, b) -> List.concat [u cond; u a; u b] )
-
 let allCallsToFn (s : string) (e : expr) : expr list =
   e |> allData
   |> List.filterMap (fun pd ->
@@ -434,116 +542,8 @@ let find (id : id) (expr : expr) : pointerData option =
   |> assert_ (fun r -> List.length r <= 1)
   |> List.head
 
-let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
-    expr =
-  replace_ search replacement None expr
-
 let within (e : nExpr) (id : id) : bool =
   e |> F (ID (-1)) |> allData |> List.map P.toID |> List.member id
-
-let rec replace_ (search : pointerData) (replacement : pointerData)
-    (parent : expr option) (expr : expr) : expr =
-  let r = replace_ search replacement (Some expr) in
-  let _ = "comment" in
-  let sId = P.toID search in
-  if B.toID expr = sId then
-    match replacement with
-    | PExpr e ->
-        let repl_ =
-          match parent with
-          | Some (F (_, Thread (first :: _))) -> (
-            match e with
-            | F (id, FnCall (fn, (_ :: rest as args), r_)) ->
-                if B.toID first = sId then F (id, FnCall (fn, args, r_))
-                else F (id, FnCall (fn, rest, r_))
-            | _ -> e )
-          | _ -> e
-        in
-        B.replace sId repl_ expr
-    | _ -> recoverable ("cannot occur", replacement) expr
-  else
-    match (expr, replacement) with
-    | F (id, FeatureFlag (msg, cond, a, b)), PFFMsg newMsg ->
-        if B.toID msg = sId then F (id, FeatureFlag (newMsg, cond, a, b))
-        else traverse r expr
-    | F (id, Let (lhs, rhs, body)), PVarBind replacement_ ->
-        if B.toID lhs = sId then
-          let replacementContent =
-            match replacement_ with Blank _ -> None | F (_, var) -> Some var
-          in
-          let orig =
-            match lhs with Blank _ -> None | F (_, var) -> Some var
-          in
-          let newBody =
-            let usesOf =
-              match orig with
-              | Some var -> uses var body |> List.map PExpr
-              | _ -> []
-            in
-            let transformUse replacementContent_ old =
-              match old with
-              | PExpr (F (_, _)) ->
-                  PExpr (F (gid (), Variable replacementContent_))
-              | _ -> impossible old
-            in
-            match (orig, replacementContent) with
-            | Some o, Some r_ ->
-                List.foldr
-                  (fun use acc ->
-                    replace_ use (transformUse r_ use) (Some expr) acc )
-                  body usesOf
-            | _ -> body
-          in
-          F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
-        else traverse r expr
-    | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
-      match List.findIndex (fun v -> B.toID v = sId) vars with
-      | None -> traverse r expr
-      | Some i ->
-          let replacementContent =
-            match replacement_ with Blank _ -> None | F (_, var) -> Some var
-          in
-          let orig =
-            match List.getAt i vars |> deOption "we somehow lost it?" with
-            | Blank _ -> None
-            | F (_, var) -> Some var
-          in
-          let newBody =
-            let usesInBody =
-              match orig with
-              | Some v -> uses v body |> List.map PExpr
-              | None -> []
-            in
-            let transformUse replacementContent_ old =
-              match old with
-              | PExpr (F (_, _)) ->
-                  PExpr (F (gid (), Variable replacementContent_))
-              | _ -> impossible old
-            in
-            match (orig, replacementContent) with
-            | Some o, Some r_ ->
-                List.foldr
-                  (fun use acc ->
-                    replace_ use (transformUse r_ use) (Some expr) acc )
-                  body usesInBody
-            | _ -> body
-          in
-          let newVars =
-            List.updateAt i (fun old -> B.replace sId replacement_ old) vars
-          in
-          F (id, Lambda (newVars, newBody)) )
-    | F (id, FieldAccess (obj, field)), PField replacement_ ->
-        if B.toID field = sId then
-          F (id, FieldAccess (obj, B.replace sId replacement_ field))
-        else traverse r expr
-    | F (id, ObjectLiteral pairs), PKey replacement_ ->
-        pairs
-        |> List.map (fun (k, v) ->
-               let newK = if B.toID k = sId then replacement_ else k in
-               (newK, r v) )
-        |> (fun x -> ObjectLiteral x)
-        |> F id
-    | _ -> traverse r expr
 
 let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
   let replacement = P.emptyD_ id (P.typeOf p) in

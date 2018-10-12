@@ -59,6 +59,167 @@ traverse fn expr =
           FeatureFlag msg cond a b ->
             FeatureFlag msg (fn cond) (fn a) (fn b))
 
+uses : VarName -> Expr -> List Expr
+uses var expr =
+  let is_rebinding newbind =
+        case newbind of
+          Blank _ -> False
+          F _ potential ->
+            if potential == var then True else False
+      u = uses var
+  in
+  case expr of
+    Blank _ -> []
+    F _ nexpr ->
+      case nexpr of
+        Value _ -> []
+        Variable potential ->
+          if potential == var then [expr] else []
+        Let lhs rhs body ->
+          if is_rebinding lhs then [] else List.concat [u rhs, u body]
+        If cond ifbody elsebody ->
+          List.concat [u cond, u ifbody, u elsebody]
+        FnCall name exprs _ ->
+          exprs |> List.map u |> List.concat
+        Lambda vars lexpr ->
+          if List.any is_rebinding vars
+          then []
+          else u lexpr
+        Thread exprs ->
+          exprs |> List.map u |> List.concat
+        FieldAccess obj field ->
+          u obj
+        ListLiteral exprs ->
+          exprs |> List.map u |> List.concat
+        ObjectLiteral pairs ->
+          pairs |> List.map Tuple.second |> List.map u |> List.concat
+        FeatureFlag msg cond a b ->
+          List.concat [u cond, u a, u b]
+
+
+replace_ : PointerData -> PointerData -> Maybe Expr -> Expr -> Expr
+replace_ search replacement parent expr =
+  let r = replace_ search replacement (Just expr) -- expr is new parent
+      sId = P.toID search
+  in
+  if B.toID expr == sId
+  then
+    case replacement of
+      PExpr e ->
+        let repl_ =
+              case parent of
+                -- if pasting it into a thread, make the shape fit
+                Just (F _ (Thread (first :: _))) ->
+                  case e of
+                    F id (FnCall fn (_ :: rest as args) r_) ->
+                      if B.toID first == sId
+                      then (F id (FnCall fn args r_))
+                      else (F id (FnCall fn rest r_))
+                    _ -> e
+                _ -> e
+        in B.replace sId repl_ expr
+      _ -> recoverable ("cannot occur", replacement) expr
+  else
+    case (expr, replacement) of
+      (F id (FeatureFlag msg cond a b), PFFMsg newMsg) ->
+        if B.toID msg == sId
+        then F id (FeatureFlag newMsg cond a b)
+        else traverse r expr
+      (F id (Let lhs rhs body), PVarBind replacement_) ->
+        if B.toID lhs == sId
+        then
+          let replacementContent =
+                case replacement_ of
+                  Blank _ -> Nothing
+                  F _ var -> Just var
+              orig =
+                case lhs of
+                  Blank _ -> Nothing
+                  F _ var -> Just var
+              newBody =
+                let usesOf =
+                      case orig of
+                        Just var -> uses var body |> List.map PExpr
+                        _ -> []
+                    transformUse replacementContent_ old =
+                      case old of
+                        PExpr (F _ _) ->
+                          PExpr (F (gid ()) (Variable replacementContent_))
+                        _ -> impossible old
+                in
+                case (orig, replacementContent) of
+                  (Just o, Just r_) ->
+                    List.foldr
+                      (\use acc ->
+                        replace_ use (transformUse r_ use) (Just expr) acc)
+                      body
+                      usesOf
+                  _ -> body
+          in
+              F id (Let (B.replace sId replacement_ lhs) rhs newBody)
+        else traverse r expr
+      (F id (Lambda vars body), PVarBind replacement_) ->
+        case LE.findIndex (\v -> B.toID v == sId) vars of
+          Nothing -> traverse r expr
+          Just i ->
+            let replacementContent =
+                    case replacement_ of
+                      Blank _ -> Nothing
+                      F _ var -> Just var
+                orig =
+                  case LE.getAt i vars |> deMaybe "we somehow lost it?" of
+                    Blank _ -> Nothing
+                    F _ var -> Just var
+                newBody =
+                  let usesInBody =
+                        case orig of
+                          Just v ->
+                            uses v body |> List.map PExpr
+                          Nothing -> []
+                      transformUse replacementContent_ old =
+                        case old of
+                          PExpr (F _ _) ->
+                            PExpr (F (gid ()) (Variable replacementContent_))
+                          _ -> impossible old
+                  in
+                  case (orig, replacementContent) of
+                    (Just o, Just r_) ->
+                      List.foldr
+                        (\use acc ->
+                          replace_ use (transformUse r_ use) (Just expr) acc)
+                        body
+                        usesInBody
+                    _ -> body
+                newVars =
+                  LE.updateAt i (\old  -> B.replace sId replacement_ old) vars
+            in
+                F id (Lambda newVars newBody)
+
+      (F id (FieldAccess obj field), PField replacement_) ->
+        if B.toID field == sId
+        then F id (FieldAccess obj (B.replace sId replacement_ field))
+        else traverse r expr
+
+      (F id (ObjectLiteral pairs), PKey replacement_) ->
+        pairs
+        |> List.map (\(k,v) ->
+          let newK =
+                if B.toID k == sId
+                then replacement_
+                else k
+          in
+              (newK, r v))
+        |> ObjectLiteral
+        |> F id
+
+      _ -> traverse r expr
+
+replace : PointerData -> PointerData -> Expr -> Expr
+replace search replacement expr =
+  replace_ search replacement Nothing expr
+
+
+
 -------------------------
 -- Children
 -------------------------
@@ -503,43 +664,6 @@ threadPrevious id ast =
 
 
 
-uses : VarName -> Expr -> List Expr
-uses var expr =
-  let is_rebinding newbind =
-        case newbind of
-          Blank _ -> False
-          F _ potential ->
-            if potential == var then True else False
-      u = uses var
-  in
-  case expr of
-    Blank _ -> []
-    F _ nexpr ->
-      case nexpr of
-        Value _ -> []
-        Variable potential ->
-          if potential == var then [expr] else []
-        Let lhs rhs body ->
-          if is_rebinding lhs then [] else List.concat [u rhs, u body]
-        If cond ifbody elsebody ->
-          List.concat [u cond, u ifbody, u elsebody]
-        FnCall name exprs _ ->
-          exprs |> List.map u |> List.concat
-        Lambda vars lexpr ->
-          if List.any is_rebinding vars
-          then []
-          else u lexpr
-        Thread exprs ->
-          exprs |> List.map u |> List.concat
-        FieldAccess obj field ->
-          u obj
-        ListLiteral exprs ->
-          exprs |> List.map u |> List.concat
-        ObjectLiteral pairs ->
-          pairs |> List.map Tuple.second |> List.map u |> List.concat
-        FeatureFlag msg cond a b ->
-          List.concat [u cond, u a, u b]
-
 
 allCallsToFn : String -> Expr -> List Expr
 allCallsToFn s e =
@@ -740,10 +864,6 @@ find id expr =
   |> List.head
 
 
-replace : PointerData -> PointerData -> Expr -> Expr
-replace search replacement expr =
-  replace_ search replacement Nothing expr
-
 within : NExpr -> ID -> Bool
 within e id =
   e
@@ -752,123 +872,6 @@ within e id =
   |> List.map P.toID
   |> List.member id
 
-
-replace_ : PointerData -> PointerData -> Maybe Expr -> Expr -> Expr
-replace_ search replacement parent expr =
-  let r = replace_ search replacement (Just expr) -- expr is new parent
-      sId = P.toID search
-  in
-  if B.toID expr == sId
-  then
-    case replacement of
-      PExpr e ->
-        let repl_ =
-              case parent of
-                -- if pasting it into a thread, make the shape fit
-                Just (F _ (Thread (first :: _))) ->
-                  case e of
-                    F id (FnCall fn (_ :: rest as args) r_) ->
-                      if B.toID first == sId
-                      then (F id (FnCall fn args r_))
-                      else (F id (FnCall fn rest r_))
-                    _ -> e
-                _ -> e
-        in B.replace sId repl_ expr
-      _ -> recoverable ("cannot occur", replacement) expr
-  else
-    case (expr, replacement) of
-      (F id (FeatureFlag msg cond a b), PFFMsg newMsg) ->
-        if B.toID msg == sId
-        then F id (FeatureFlag newMsg cond a b)
-        else traverse r expr
-      (F id (Let lhs rhs body), PVarBind replacement_) ->
-        if B.toID lhs == sId
-        then
-          let replacementContent =
-                case replacement_ of
-                  Blank _ -> Nothing
-                  F _ var -> Just var
-              orig =
-                case lhs of
-                  Blank _ -> Nothing
-                  F _ var -> Just var
-              newBody =
-                let usesOf =
-                      case orig of
-                        Just var -> uses var body |> List.map PExpr
-                        _ -> []
-                    transformUse replacementContent_ old =
-                      case old of
-                        PExpr (F _ _) ->
-                          PExpr (F (gid ()) (Variable replacementContent_))
-                        _ -> impossible old
-                in
-                case (orig, replacementContent) of
-                  (Just o, Just r_) ->
-                    List.foldr
-                      (\use acc ->
-                        replace_ use (transformUse r_ use) (Just expr) acc)
-                      body
-                      usesOf
-                  _ -> body
-          in
-              F id (Let (B.replace sId replacement_ lhs) rhs newBody)
-        else traverse r expr
-      (F id (Lambda vars body), PVarBind replacement_) ->
-        case LE.findIndex (\v -> B.toID v == sId) vars of
-          Nothing -> traverse r expr
-          Just i ->
-            let replacementContent =
-                    case replacement_ of
-                      Blank _ -> Nothing
-                      F _ var -> Just var
-                orig =
-                  case LE.getAt i vars |> deMaybe "we somehow lost it?" of
-                    Blank _ -> Nothing
-                    F _ var -> Just var
-                newBody =
-                  let usesInBody =
-                        case orig of
-                          Just v ->
-                            uses v body |> List.map PExpr
-                          Nothing -> []
-                      transformUse replacementContent_ old =
-                        case old of
-                          PExpr (F _ _) ->
-                            PExpr (F (gid ()) (Variable replacementContent_))
-                          _ -> impossible old
-                  in
-                  case (orig, replacementContent) of
-                    (Just o, Just r_) ->
-                      List.foldr
-                        (\use acc ->
-                          replace_ use (transformUse r_ use) (Just expr) acc)
-                        body
-                        usesInBody
-                    _ -> body
-                newVars =
-                  LE.updateAt i (\old  -> B.replace sId replacement_ old) vars
-            in
-                F id (Lambda newVars newBody)
-
-      (F id (FieldAccess obj field), PField replacement_) ->
-        if B.toID field == sId
-        then F id (FieldAccess obj (B.replace sId replacement_ field))
-        else traverse r expr
-
-      (F id (ObjectLiteral pairs), PKey replacement_) ->
-        pairs
-        |> List.map (\(k,v) ->
-          let newK =
-                if B.toID k == sId
-                then replacement_
-                else k
-          in
-              (newK, r v))
-        |> ObjectLiteral
-        |> F id
-
-      _ -> traverse r expr
 
 
 deleteExpr : PointerData -> Expr -> ID -> Expr
