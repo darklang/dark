@@ -532,12 +532,6 @@ and modification =
       tlid * traceID * id * fnName * dvalArgsHash * dval
   | TweakModel of (model -> model)
 
-and flags =
-  { editorState: string option
-  ; complete: flagFunction list
-  ; userContentHost: string
-  ; environment: string }
-
 and parameter =
   { name: string
   ; paramTipe: tipe
@@ -569,19 +563,3 @@ and userFunctionMetadata =
   ; infix: bool }
 
 and userFunction = {tlid: tlid; metadata: userFunctionMetadata; ast: expr}
-
-and flagParameter =
-  { name: string
-  ; tipe: string
-  ; block_args: string list
-  ; optional: bool
-  ; description: string }
-
-and flagFunction =
-  { name: string
-  ; parameters: flagParameter list
-  ; description: string
-  ; return_type: string
-  ; preview_execution_safe: bool
-  ; deprecated: bool
-  ; infix: bool }

@@ -13,11 +13,11 @@ module SE = String.Extra
 module TL = Toplevel
 open Types
 
-let main : (flags, model, msg) program =
+let main : (Flags.flags, model, msg) program =
   Navigation.navigationProgram LocationChange
     {init; view= View.view; update; subscriptions}
 
-let flag2function (fn : flagFunction) : function_ =
+let flag2function (fn : Flags.function_) : function_ =
   { name= fn.name
   ; description= fn.description
   ; returnTipe= RT.str2tipe fn.return_type
@@ -34,7 +34,7 @@ let flag2function (fn : flagFunction) : function_ =
   ; previewExecutionSafe= fn.preview_execution_safe
   ; deprecated= fn.deprecated }
 
-let init ({editorState; complete; userContentHost; environment} : flags)
+let init ({editorState; complete; userContentHost; environment} : Flags.flags)
     (location : Web.Location.location) : model * msg Cmd.t =
   let savedEditor = Editor.fromString editorState in
   let m0 = Editor.editor2model savedEditor in

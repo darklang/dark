@@ -55,12 +55,13 @@ import Runtime
 import Toplevel as TL
 import Url
 import IntegrationTest
+import Flags
 
 
 -----------------------
 -- TOP-LEVEL
 -----------------------
-main : Program Flags Model Msg
+main : Program Flags.Flags Model Msg
 main = Navigation.programWithFlags
          LocationChange
          { init = init
@@ -72,7 +73,7 @@ main = Navigation.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-flag2function : FlagFunction -> Function
+flag2function : Flags.Function -> Function
 flag2function fn =
   { name = fn.name
   , description = fn.description
@@ -88,7 +89,7 @@ flag2function fn =
   , deprecated = fn.deprecated
   }
 
-init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init : Flags.Flags -> Navigation.Location -> ( Model, Cmd Msg )
 init {editorState, complete, userContentHost, environment} location =
   let savedEditor = Editor.fromString editorState
 
