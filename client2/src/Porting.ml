@@ -73,6 +73,9 @@ let to_option (value: 'a) (sentinel: 'a) : 'a option =
   then None
   else Some value
 
+let identity (value: 'a) : 'a =
+  value
+
 (* let deOption (msg: string) (value: 'a option) : 'a = *)
 (*   match value with *)
 (*   | Some v -> v *)
