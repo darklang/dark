@@ -630,13 +630,6 @@ type Modification = DisplayAndReportHttpError String Http.Error
 -- Flags / function types
 -----------------------------
 
-type alias Flags =
-  { editorState: Maybe String
-  , complete: List FlagFunction
-  , userContentHost : String
-  , environment: String
-  }
-
 
 -- name, type optional
 type alias Parameter = { name: String
@@ -674,18 +667,4 @@ type alias UserFunction = { tlid: TLID
                           , ast: Expr
                           }
 
-type alias FlagParameter = { name: String
-                           , tipe: String
-                           , block_args: List String
-                           , optional: Bool
-                           , description: String
-                           }
 
-type alias FlagFunction = { name: String
-                          , parameters: List FlagParameter
-                          , description: String
-                          , return_type: String
-                          , preview_execution_safe: Bool
-                          , deprecated: Bool
-                          , infix: Bool
-                          }
