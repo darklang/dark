@@ -43,18 +43,19 @@ sampleFunctions =
   ]
   |> List.map
     (\(name,tipe) ->
-      { name = name
-      , parameters = [{ name = "x"
-      , paramTipe = tipe
-      , block_args = []
-      , optional = False
-      , description = ""
-      }]
-      , returnTipe = TBool
-      , previewExecutionSafe = False
-      , description = ""
-      , infix = True
-      , deprecated = False
+      { fnName = name
+      , fnParameters =
+          [{ paramName = "x"
+           , paramTipe = tipe
+           , paramBlock_args = []
+           , paramOptional = False
+           , paramDescription = ""
+           }]
+      , fnReturnTipe = TBool
+      , fnPreviewExecutionSafe = False
+      , fnDescription = ""
+      , fnInfix = True
+      , fnDeprecated = False
       })
 
 debug : String -> Autocomplete -> Autocomplete
