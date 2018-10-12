@@ -64,12 +64,13 @@ listNextWrap a l =
   |> listNext a
   |> ME.orElse (List.head l)
 
-cacheSet : k -> v -> Maybe v
+cacheSet : k -> v -> ()
 cacheSet k v =
   -- let _ = Debug.log "setting cache" k in
-  Native.Cache.set k v
+  let _ = Native.Cache.set k v in
+  ()
 
-cacheGet : k -> v
+cacheGet : k -> Maybe v
 cacheGet k =
   -- let _ = Debug.log "reading cache" k in
   Native.Cache.get k

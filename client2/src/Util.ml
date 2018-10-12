@@ -34,9 +34,11 @@ let listPreviousWrap (a : 'a) (l : 'a list) : 'a option =
 let listNextWrap (a : 'a) (l : 'a list) : 'a option =
   l |> listNext a |> Option.orElse (List.head l)
 
-let cacheSet (k : 'k) (v : 'v) : 'v option = Native.Cache.set k v
+let cacheSet (k : 'k) (v : 'v) : unit =
+  let _ = Native.Cache.set k v in
+  ()
 
-let cacheGet (k : 'k) : 'v = Native.Cache.get k
+let cacheGet (k : 'k) : 'v option = Native.Cache.get k
 
 let cacheClear (k : 'k) : unit = Native.Cache.clear k
 
