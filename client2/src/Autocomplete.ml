@@ -80,7 +80,7 @@ let init (fns : function_ list) (isAdmin : bool) : autocomplete =
   ; index= -1
   ; value= ""
   ; prevValue= ""
-  ; tipe= None
+  ; acTipe= None
   ; target= None
   ; isCommandMode= false }
 
@@ -321,14 +321,14 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
                |> List.find (fun f -> name = f.name)
                |> Option.map (fun x -> x.parameters)
                |> Option.andThen (List.getAt index)
-               |> Option.map (fun x -> x.tipe) )
+               |> Option.map (fun x -> x.paramTipe) )
   in
   let _ = "comment" in
   let funcList = if isExpression then a.functions else [] in
   let functions =
     funcList
     |> List.filter (fun {returnTipe} ->
-           match a.tipe with
+           match a.acTipe with
            | Some t -> RT.isCompatible returnTipe t
            | None -> (
              match paramTipeForTarget with
@@ -423,7 +423,7 @@ let asTypeString (item : autocompleteItem) : string =
   match item with
   | ACFunction f ->
       f.parameters
-      |> List.map (fun x -> x.tipe)
+      |> List.map (fun x -> x.paramTipe)
       |> List.map RT.tipe2str |> String.join ", "
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.returnTipe
   | ACField _ -> "field"
@@ -451,11 +451,11 @@ let findCompatibleThreadParam ({parameters} : function_) (tipe : tipe) :
     parameter option =
   parameters |> List.head
   |> Option.andThen (fun fst ->
-         if RT.isCompatible fst.tipe tipe then Some fst else None )
+         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
 let findParamByType ({parameters} : function_) (tipe : tipe) : parameter option
     =
-  parameters |> List.find (fun p -> RT.isCompatible p.tipe tipe)
+  parameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
 
 let selectSharedPrefix (ac : autocomplete) : modification =
   let sp = sharedPrefix ac in
