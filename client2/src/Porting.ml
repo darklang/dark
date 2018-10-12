@@ -187,6 +187,8 @@ module List = struct
     | x :: xs -> if predicate x then dropWhile predicate xs else list
   let isEmpty (l: 'a list) : bool =
     l = []
+  let cons (item: 'a) (l: 'a list) : 'a list =
+    item :: l
 
 end
 
