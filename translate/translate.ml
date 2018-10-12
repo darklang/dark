@@ -400,7 +400,30 @@ let rec patpO (patp: patternp) : Parsetree.pattern =
 and patO (pat: pattern) : Parsetree.pattern =
   pat |> skip_located |> patpO
 
-let rec exprpO (exprp) : Parsetree.expression =
+let rec createLambda (pats: pattern list) (body: expr) : Parsetree.expression =
+  List.fold (List.rev pats) ~init:(exprO body)
+    ~f:(fun (prev: Parsetree.expression) (pat: pattern) ->
+        Exp.fun_ Asttypes.Nolabel None (patO pat) prev)
+
+
+and wrapTagInLambda (tagexpr: expr) : expr =
+  let arg = (Elm.fakeRegion, VarPattern "x") in
+  let body =
+    ( Elm.fakeRegion
+    , App
+        ( tagexpr
+        , [([], (fakeRegion, VarExpr (VarRef ([], "x"))))], FASplitFirst))
+  in
+  (fakeRegion, Lambda ([([], arg)], [], body, false))
+
+
+and exprpO (exprp) : Parsetree.expression =
+  let firstArgIsFn expr =
+    match skip_located expr with
+    | VarExpr (VarRef (["List"], "map")) ->
+      true
+    | _ -> false
+  in
   match exprp with
   | Case (((_c, clause, _c2), _unknown_bool), pats) ->
     let patterns =
@@ -430,6 +453,13 @@ let rec exprpO (exprp) : Parsetree.expression =
   | App ((_r, VarExpr (OpRef "::")), args, _line) ->
     (* OCaml has no cons operator *)
     exprpO (App ((_r, VarExpr (OpRef "List.cons")), args, _line))
+  | App (fn, ((_cs, (_r, VarExpr (TagRef _))) as arg) :: rest, _line) when firstArgIsFn fn ->
+    (* List.map Expr ... and similar *)
+    let arg = arg |> skip_preCommented |> wrapTagInLambda in
+    let rest = List.map ~f:skip_preCommented rest in
+    Exp.apply
+      (exprO fn)
+      (List.map ~f:as_arg (arg :: rest))
   | App (fn, args, _line) ->
     Exp.apply
       (exprO fn)
@@ -539,8 +569,6 @@ let rec exprpO (exprp) : Parsetree.expression =
             | None -> Some (op, Leaf lhs)
             | Some (prev_op, prev_tree) ->
               Some (op, Node (Leaf lhs, prev_op, prev_tree)))
-            (* | OpRef "|>", (_r, (VarExpr (TagRef (path, var)))) -> *)
-            (*   Node (lhs, op, Leaf (wrapTagInLambda (rhs))) *)
     in
     let tree =
       match result with
@@ -607,22 +635,6 @@ and ref_O r =
          ~fix_init:fix_module
          (path @ [var]))
       None
-
-and createLambda (pats: pattern list) (body: expr) : Parsetree.expression =
-  List.fold (List.rev pats) ~init:(exprO body)
-    ~f:(fun (prev: Parsetree.expression) (pat: pattern) ->
-        Exp.fun_ Asttypes.Nolabel None (patO pat) prev)
-
-
-and wrapTagInLambda (tagexpr: expr) : expr =
-  let arg = (Elm.fakeRegion, VarPattern "x") in
-  let body =
-    ( Elm.fakeRegion
-    , App
-        ( tagexpr
-        , [([], (fakeRegion, VarExpr (VarRef ([], "x"))))], FASplitFirst))
-  in
-  (fakeRegion, Lambda ([([], arg)], [], body, false))
 
 
 

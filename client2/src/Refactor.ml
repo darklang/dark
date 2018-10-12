@@ -185,7 +185,8 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     let origName, calls =
       match old_.metadata.name with
       | Blank _ -> (None, [])
-      | F (_, n) -> (Some n, AST.allCallsToFn n ast |> List.map PExpr)
+      | F (_, n) ->
+          (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
     in
     let newName =
       match new_.metadata.name with Blank _ -> None | F (_, n) -> Some n
@@ -274,7 +275,8 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     let origName, calls =
       match old.metadata.name with
       | Blank _ -> (None, [])
-      | F (_, n) -> (Some n, AST.allCallsToFn n ast |> List.map PExpr)
+      | F (_, n) ->
+          (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
     in
     match origName with
     | Some _ ->

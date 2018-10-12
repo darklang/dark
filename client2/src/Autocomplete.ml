@@ -341,7 +341,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
                  None <> findCompatibleThreadParam fn (RT.typeOf dv_)
                else None <> findParamByType fn (RT.typeOf dv_)
            | None -> true )
-    |> List.map ACFunction
+    |> List.map (fun x -> ACFunction x)
   in
   let extras =
     match a.target with
@@ -386,14 +386,15 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   in
   let varnames = Analysis.currentVarnamesFor m a.target in
   let keywords =
-    if isExpression then List.map ACKeyword [KLet; KIf; KLambda] else []
+    if isExpression then List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda]
+    else []
   in
   let regular =
-    List.map ACExtra extras
-    ^ List.map ACVariable varnames
+    List.map (fun x -> ACExtra x) extras
+    ^ List.map (fun x -> ACVariable x) varnames
     ^ keywords ^ functions ^ fields
   in
-  let commands = List.map ACCommand Commands.commands in
+  let commands = List.map (fun x -> ACCommand x) Commands.commands in
   if a.isCommandMode then commands else regular
 
 let asName (aci : autocompleteItem) : string =
@@ -442,7 +443,9 @@ let asTypeString (item : autocompleteItem) : string =
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 
 let dvalFields (dv : dval) : autocompleteItem list =
-  match dv with DObj dict -> Dict.keys dict |> List.map ACField | _ -> []
+  match dv with
+  | DObj dict -> Dict.keys dict |> List.map (fun x -> ACField x)
+  | _ -> []
 
 let findCompatibleThreadParam ({parameters} : function_) (tipe : tipe) :
     parameter option =
