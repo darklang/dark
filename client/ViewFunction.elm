@@ -67,9 +67,9 @@ viewMetadata : ViewState -> UserFunction -> Html.Html Msg
 viewMetadata vs fn =
   let namediv = Html.div
                  [ Attrs.class "ufn-name"]
-                 [ viewUserFnName vs [wc "fn-name-content"] fn.metadata.name ]
+                 [ viewUserFnName vs [wc "fn-name-content"] fn.metadata.ufmName ]
       coldivs =
-        fn.metadata.parameters
+        fn.metadata.ufmParameters
         |> List.map (\p ->
              Html.div
                [ Attrs.class "col" ]

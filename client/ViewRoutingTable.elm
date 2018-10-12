@@ -370,7 +370,7 @@ viewUserFunctions : Model -> Html.Html Msg
 viewUserFunctions m =
   let fns = m.userFunctions
             |> List.filter
-              (\fn -> B.isF fn.metadata.name)
+              (\fn -> B.isF fn.metadata.ufmName)
 
       fnNamedLink fn name =
         let useCount = countFnUsage m name
@@ -388,7 +388,7 @@ viewUserFunctions m =
 
       fnHtml fn =
         div "simple-route" (
-          let fnName = B.asF fn.metadata.name
+          let fnName = B.asF fn.metadata.ufmName
           in case fnName of
             Just name -> fnNamedLink fn name
             Nothing ->

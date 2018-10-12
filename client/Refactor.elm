@@ -213,11 +213,11 @@ extractFunction m tl p =
                   })
                   freeVars
           metadata =
-            { name = F (gid ()) name
-            , parameters = params
-            , description = ""
-            , returnTipe = F (gid ()) TAny
-            , infix = False
+            { ufmName = F (gid ()) name
+            , ufmParameters = params
+            , ufmDescription = ""
+            , ufmReturnTipe = F (gid ()) TAny
+            , ufmInfix = False
             }
           newF =
             { tlid = gtlid ()
@@ -245,12 +245,12 @@ renameFunction m old new =
                       PExpr (transformExpr newName_ e)
                     _ -> oldCall
             (origName, calls) =
-              case old_.metadata.name of
+              case old_.metadata.ufmName of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
             newName =
-              case new_.metadata.name of
+              case new_.metadata.ufmName of
                 Blank _ -> Nothing
                 F _ n -> Just n
         in
@@ -356,7 +356,7 @@ transformFnCalls m uf f =
                       PExpr (transformExpr e)
                     _ -> old_
             (origName, calls) =
-              case old.metadata.name of
+              case old.metadata.ufmName of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
@@ -408,7 +408,7 @@ addNewFunctionParameter m old =
 removeFunctionParameter : Model -> UserFunction -> UserFunctionParameter -> List Op
 removeFunctionParameter m uf ufp =
   let indexInList =
-        LE.findIndex (\p -> p == ufp) uf.metadata.parameters
+        LE.findIndex (\p -> p == ufp) uf.metadata.ufmParameters
         |> deMaybe "tried to remove parameter that does not exist in function"
       fn e =
         case e of
@@ -431,10 +431,10 @@ generateEmptyFunction _ =
           }
         ]
       metadata = {
-        name = F (gid ()) funcName
-        , parameters = params
-        , description = ""
-        , returnTipe = F (gid ()) TAny
-        , infix = False
+        ufmName = F (gid ()) funcName
+        , ufmParameters = params
+        , ufmDescription = ""
+        , ufmReturnTipe = F (gid ()) TAny
+        , ufmInfix = False
         }
   in (UserFunction tlid metadata (Blank (gid ())))

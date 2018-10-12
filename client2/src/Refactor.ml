@@ -157,11 +157,11 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
             freeVars
         in
         let metadata =
-          { name= F (gid (), name)
-          ; parameters= params
-          ; description= ""
-          ; returnTipe= F (gid (), TAny)
-          ; infix= false }
+          { ufmName= F (gid (), name)
+          ; ufmParameters= params
+          ; ufmDescription= ""
+          ; ufmReturnTipe= F (gid (), TAny)
+          ; ufmInfix= false }
         in
         let newF = {tlid= gtlid (); metadata; ast= AST.clone body} in
         RPC
@@ -183,13 +183,13 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
       | _ -> oldCall
     in
     let origName, calls =
-      match old_.metadata.name with
+      match old_.metadata.ufmName with
       | Blank _ -> (None, [])
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
     in
     let newName =
-      match new_.metadata.name with Blank _ -> None | F (_, n) -> Some n
+      match new_.metadata.ufmName with Blank _ -> None | F (_, n) -> Some n
     in
     match (origName, newName) with
     | Some o, Some r ->
@@ -273,7 +273,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
       match old_ with PExpr e -> PExpr (transformExpr e) | _ -> old_
     in
     let origName, calls =
-      match old.metadata.name with
+      match old.metadata.ufmName with
       | Blank _ -> (None, [])
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
@@ -316,7 +316,7 @@ let addNewFunctionParameter (m : model) (old : userFunction) : op list =
 let removeFunctionParameter (m : model) (uf : userFunction)
     (ufp : userFunctionParameter) : op list =
   let indexInList =
-    List.findIndex (fun p -> p = ufp) uf.metadata.parameters
+    List.findIndex (fun p -> p = ufp) uf.metadata.ufmParameters
     |> deOption "tried to remove parameter that does not exist in function"
   in
   let fn e =
@@ -338,10 +338,10 @@ let generateEmptyFunction (_ : unit) : userFunction =
       ; ufpDescription= "" } ]
   in
   let metadata =
-    { name= F (gid (), funcName)
-    ; parameters= params
-    ; description= ""
-    ; returnTipe= F (gid (), TAny)
-    ; infix= false }
+    { ufmName= F (gid (), funcName)
+    ; ufmParameters= params
+    ; ufmDescription= ""
+    ; ufmReturnTipe= F (gid (), TAny)
+    ; ufmInfix= false }
   in
   UserFunction (tlid, metadata, Blank (gid ()))

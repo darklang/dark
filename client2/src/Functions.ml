@@ -17,15 +17,15 @@ let ufpToP (ufp : userFunctionParameter) : parameter option =
   | _ -> None
 
 let ufmToF (ufm : userFunctionMetadata) : function_ option =
-  let ps = List.filterMap ufpToP ufm.parameters in
-  let sameLength = List.length ps = List.length ufm.parameters in
-  match (ufm.name, ufm.returnTipe, sameLength) with
+  let ps = List.filterMap ufpToP ufm.ufmParameters in
+  let sameLength = List.length ps = List.length ufm.ufmParameters in
+  match (ufm.ufmName, ufm.ufmReturnTipe, sameLength) with
   | F (_, name), F (_, tipe), true ->
       { fnName= name
       ; fnParameters= ps
-      ; fnDescription= ufm.description
+      ; fnDescription= ufm.ufmDescription
       ; fnReturnTipe= tipe
-      ; fnInfix= ufm.infix
+      ; fnInfix= ufm.ufmInfix
       ; fnPreviewExecutionSafe= false
       ; fnDeprecated= false }
       |> fun x -> Some x
@@ -48,7 +48,7 @@ let findExn (m : model) (id : tlid) : userFunction =
   find m id |> deOption "Functions.findExn"
 
 let sameName (name : string) (uf : userFunction) : bool =
-  match uf.metadata.name with F (_, n) -> n = name | _ -> false
+  match uf.metadata.ufmName with F (_, n) -> n = name | _ -> false
 
 let findByName (m : model) (s : string) : userFunction option =
   List.find (sameName s) m.userFunctions
@@ -60,19 +60,20 @@ let paramData (ufp : userFunctionParameter) : pointerData list =
   [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
 let allParamData (uf : userFunction) : pointerData list =
-  List.concat (List.map paramData uf.metadata.parameters)
+  List.concat (List.map paramData uf.metadata.ufmParameters)
 
 let rec allData (uf : userFunction) : pointerData list =
-  [PFnName uf.metadata.name] @ allParamData uf @ AST.allData uf.ast
+  [PFnName uf.metadata.ufmName] @ allParamData uf @ AST.allData uf.ast
 
 let replaceFnName (search : pointerData) (replacement : pointerData)
     (uf : userFunction) : userFunction =
   let metadata = uf.metadata in
   let sId = P.toID search in
-  if B.toID metadata.name = sId then
+  if B.toID metadata.ufmName = sId then
     let newMetadata =
       match replacement with
-      | PFnName new_ -> {metadata with name= B.replace sId new_ metadata.name}
+      | PFnName new_ ->
+          {metadata with ufmName= B.replace sId new_ metadata.ufmName}
       | _ -> metadata
     in
     {uf with metadata= newMetadata}
@@ -92,11 +93,11 @@ let replaceParamName (search : pointerData) (replacement : pointerData)
       match replacement with
       | PParamName new_ ->
           let newP =
-            metadata.parameters
+            metadata.ufmParameters
             |> List.map (fun p -> {p with ufpName= B.replace sId new_ p.ufpName}
                )
           in
-          {metadata with parameters= newP}
+          {metadata with ufmParameters= newP}
       | _ -> metadata
     in
     let newBody =
@@ -140,11 +141,11 @@ let replaceParamTipe (search : pointerData) (replacement : pointerData)
       match replacement with
       | PParamTipe new_ ->
           let newP =
-            metadata.parameters
+            metadata.ufmParameters
             |> List.map (fun p -> {p with ufpTipe= B.replace sId new_ p.ufpTipe}
                )
           in
-          {metadata with parameters= newP}
+          {metadata with ufmParameters= newP}
       | _ -> metadata
     in
     {uf with metadata= newMetadata}
@@ -165,13 +166,13 @@ let extend (uf : userFunction) : userFunction =
   in
   let metadata = uf.metadata in
   let newMetadata =
-    {metadata with parameters= uf.metadata.parameters @ [newParam]}
+    {metadata with ufmParameters= uf.metadata.ufmParameters @ [newParam]}
   in
   {uf with metadata= newMetadata}
 
 let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
     userFunction =
   let metadata = uf.metadata in
-  let params = List.filter (fun p -> p <> ufp) metadata.parameters in
-  let newM = {metadata with parameters= params} in
+  let params = List.filter (fun p -> p <> ufp) metadata.ufmParameters in
+  let newM = {metadata with ufmParameters= params} in
   {uf with metadata= newM}

@@ -556,10 +556,10 @@ and userFunctionParameter =
   ; ufpDescription: string }
 
 and userFunctionMetadata =
-  { name: string blankOr
-  ; parameters: userFunctionParameter list
-  ; description: string
-  ; returnTipe: tipe blankOr
-  ; infix: bool }
+  { ufmName: string blankOr
+  ; ufmParameters: userFunctionParameter list
+  ; ufmDescription: string
+  ; ufmReturnTipe: tipe blankOr
+  ; ufmInfix: bool }
 
 and userFunction = {tlid: tlid; metadata: userFunctionMetadata; ast: expr}

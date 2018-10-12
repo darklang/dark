@@ -25,16 +25,16 @@ ufpToP ufp =
 
 ufmToF : UserFunctionMetadata -> Maybe Function
 ufmToF ufm =
-  let ps = List.filterMap ufpToP ufm.parameters
-      sameLength = (List.length ps) == (List.length ufm.parameters)
+  let ps = List.filterMap ufpToP ufm.ufmParameters
+      sameLength = (List.length ps) == (List.length ufm.ufmParameters)
   in
-      case (ufm.name, ufm.returnTipe, sameLength) of
+      case (ufm.ufmName, ufm.ufmReturnTipe, sameLength) of
         (F _ name, F _ tipe, True) ->
           { fnName = name
           , fnParameters = ps
-          , fnDescription = ufm.description
+          , fnDescription = ufm.ufmDescription
           , fnReturnTipe = tipe
-          , fnInfix = ufm.infix
+          , fnInfix = ufm.ufmInfix
           , fnPreviewExecutionSafe = False
           , fnDeprecated = False
           } |> Just
@@ -65,7 +65,7 @@ findExn m id =
 
 sameName : String -> UserFunction -> Bool
 sameName name uf =
-  case uf.metadata.name of
+  case uf.metadata.ufmName of
     F _ n -> n == name
     _ -> False
 
@@ -84,11 +84,11 @@ paramData ufp =
 
 allParamData : UserFunction -> List PointerData
 allParamData uf =
-  List.concat (List.map paramData uf.metadata.parameters)
+  List.concat (List.map paramData uf.metadata.ufmParameters)
 
 allData : UserFunction -> List PointerData
 allData uf =
-  [PFnName uf.metadata.name]
+  [PFnName uf.metadata.ufmName]
   @ (allParamData uf)
   @ AST.allData uf.ast
 
@@ -97,12 +97,12 @@ replaceFnName search replacement uf =
   let metadata = uf.metadata
       sId = P.toID search
   in
-      if B.toID metadata.name == sId
+      if B.toID metadata.ufmName == sId
       then
         let newMetadata =
               case replacement of
                 PFnName new ->
-                  { metadata | name = (B.replace sId new metadata.name) }
+                  { metadata | ufmName = (B.replace sId new metadata.ufmName) }
                 _ -> metadata
         in
             { uf | metadata = newMetadata }
@@ -128,10 +128,10 @@ replaceParamName search replacement uf =
               case replacement of
                 PParamName new ->
                   let newP =
-                        metadata.parameters
+                        metadata.ufmParameters
                         |> List.map (\p -> { p | ufpName = B.replace sId new p.ufpName })
                   in
-                      { metadata | parameters = newP }
+                      { metadata | ufmParameters = newP }
                 _ -> metadata
             newBody =
               let sContent =
@@ -181,10 +181,10 @@ replaceParamTipe search replacement uf =
               case replacement of
                 PParamTipe new ->
                   let newP =
-                        metadata.parameters
+                        metadata.ufmParameters
                         |> List.map (\p -> { p | ufpTipe = B.replace sId new p.ufpTipe })
                   in
-                      { metadata | parameters = newP }
+                      { metadata | ufmParameters = newP }
                 _ -> metadata
         in
             { uf | metadata = newMetadata }
@@ -209,7 +209,7 @@ extend uf =
         }
       metadata = uf.metadata
       newMetadata =
-        { metadata | parameters = (uf.metadata.parameters @ [newParam]) }
+        { metadata | ufmParameters = (uf.metadata.ufmParameters @ [newParam]) }
   in
       { uf | metadata = newMetadata }
 
@@ -218,8 +218,8 @@ removeParameter : UserFunction -> UserFunctionParameter -> UserFunction
 removeParameter uf ufp =
   let metadata = uf.metadata
       params =
-        List.filter (\p -> p /= ufp) metadata.parameters
+        List.filter (\p -> p /= ufp) metadata.ufmParameters
       newM =
-        { metadata | parameters = params }
+        { metadata | ufmParameters = params }
   in
       { uf | metadata = newM }
