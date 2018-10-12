@@ -15,7 +15,7 @@ let urlOf (page : page) (pos : pos) : string =
     | Fn (tlid, _) -> [("fn", string_of_int (deTLID tlid))]
   in
   let tail = [("x", string_of_int pos.x); ("y", string_of_int pos.y)] in
-  hashUrlParams (head ^ tail)
+  hashUrlParams (head @ tail)
 
 let urlFor (page : page) : string =
   let pos =

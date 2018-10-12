@@ -11,7 +11,7 @@ import Html.Attributes as Attrs
 import Navigation
 
 -- dark
-import DontPort
+import DontPort exposing ((@))
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
@@ -33,7 +33,7 @@ urlOf page pos =
       tail =
         [ ("x", DontPort.fromInt pos.x)
         , ("y", DontPort.fromInt pos.y) ]
-  in hashUrlParams (head ++ tail)
+  in hashUrlParams (head @ tail)
 
 urlFor : Page -> String
 urlFor page =

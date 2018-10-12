@@ -7,7 +7,7 @@ open Prelude
 open Types
 
 let all (m : model) : toplevel list =
-  m.toplevels ^ List.map (ufToTL m) m.userFunctions
+  m.toplevels @ List.map (ufToTL m) m.userFunctions
 
 let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 
