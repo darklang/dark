@@ -54,12 +54,7 @@ let isAdmin (r : role) : bool = match r with Admin -> true | _ -> false
 let createEntering (role : role) : autocomplete =
   let targetBlankID = gid () in
   let tlid = gtlid () in
-  let spec =
-    { module_= B.new_ ()
-    ; name= B.new_ ()
-    ; modifier= B.new_ ()
-    ; types= {input= B.new_ (); output= B.new_ ()} }
-  in
+  let spec = {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()} in
   let toplevel =
     { id= tlid
     ; pos= {x= 0; y= 0}
