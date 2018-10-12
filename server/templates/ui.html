@@ -63,7 +63,7 @@
             result.analysis = darkAnalysis.performAnalysis(e.data.params);
           }
           catch (error) {
-            resutl.error = darkExe.handleAnalysisErrors(error)
+            result.error = darkExe.handleAnalysisErrors(error)
           }
           postMessage(result);
         }
