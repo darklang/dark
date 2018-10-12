@@ -655,11 +655,11 @@ type alias UserFunctionParameter = { ufpName: BlankOr String
                                    , ufpDescription: String
                                    }
 
-type alias UserFunctionMetadata = { name: BlankOr String
-                                  , parameters: List UserFunctionParameter
-                                  , description: String
-                                  , returnTipe: BlankOr Tipe
-                                  , infix: Bool
+type alias UserFunctionMetadata = { ufmName: BlankOr String
+                                  , ufmParameters: List UserFunctionParameter
+                                  , ufmDescription: String
+                                  , ufmReturnTipe: BlankOr Tipe
+                                  , ufmInfix: Bool
                                   }
 
 type alias UserFunction = { tlid: TLID

@@ -48,7 +48,7 @@ name tl =
       ++ db.name
     TLFunc f ->
       "Func: "
-      ++ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
+      ++ (f.metadata.ufmName |> B.toMaybe |> Maybe.withDefault "")
 
 upsertByTLID : List Toplevel -> Toplevel -> List Toplevel
 upsertByTLID tls tl =

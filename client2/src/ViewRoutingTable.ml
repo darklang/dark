@@ -278,7 +278,7 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
 
 let viewUserFunctions (m : model) : msg Html.html =
   let fns =
-    m.userFunctions |> List.filter (fun fn -> B.isF fn.metadata.name)
+    m.userFunctions |> List.filter (fun fn -> B.isF fn.metadata.ufmName)
   in
   let fnNamedLink fn name =
     let useCount = countFnUsage m name in
@@ -293,7 +293,7 @@ let viewUserFunctions (m : model) : msg Html.html =
   in
   let fnHtml fn =
     div "simple-route"
-      (let fnName = B.asF fn.metadata.name in
+      (let fnName = B.asF fn.metadata.ufmName in
        match fnName with
        | Some name -> fnNamedLink fn name
        | None -> [span "name" [fnLink fn true "should be filtered by here"]])

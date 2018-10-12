@@ -48,10 +48,10 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let namediv =
     Html.div [Attrs.class_ "ufn-name"]
-      [viewUserFnName vs [wc "fn-name-content"] fn.metadata.name]
+      [viewUserFnName vs [wc "fn-name-content"] fn.metadata.ufmName]
   in
   let coldivs =
-    fn.metadata.parameters
+    fn.metadata.ufmParameters
     |> List.map (fun p ->
            Html.div [Attrs.class_ "col"]
              [ viewParamName vs [wc "name"] p.ufpName

@@ -20,7 +20,7 @@ let name (tl : toplevel) : string =
   | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
   | TLDB db -> "DB: " ^ db.name
   | TLFunc f ->
-      "Func: " ^ (f.metadata.name |> B.toMaybe |> Option.withDefault "")
+      "Func: " ^ (f.metadata.ufmName |> B.toMaybe |> Option.withDefault "")
 
 let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
   removeByTLID tls [tl] ^ [tl]

@@ -56,7 +56,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
         match name with
         | Some n ->
             let metadata = blankfn.metadata in
-            let newMetadata = {metadata with name= F (gid (), n)} in
+            let newMetadata = {metadata with ufmName= F (gid (), n)} in
             {blankfn with metadata= newMetadata}
         | None -> blankfn
       in

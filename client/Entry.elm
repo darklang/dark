@@ -98,7 +98,7 @@ submitOmniAction m pos action =
               Just n ->
                 let metadata = blankfn.metadata
                     newMetadata =
-                      { metadata | name = F (gid ()) n }
+                      { metadata | ufmName = F (gid ()) n }
                 in
                     { blankfn | metadata = newMetadata }
               Nothing ->

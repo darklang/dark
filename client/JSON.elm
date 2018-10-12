@@ -267,11 +267,11 @@ encodeUserFunction uf =
 encodeUserFunctionMetadata : UserFunctionMetadata -> JSE.Value
 encodeUserFunctionMetadata f =
   JSE.object
-  [("name", encodeBlankOr JSE.string f.name)
-  ,("parameters", JSE.list (List.map encodeUserFunctionParameter f.parameters))
-  ,("description", JSE.string f.description)
-  ,("return_type", encodeBlankOr encodeTipe f.returnTipe)
-  ,("infix", JSE.bool f.infix)
+  [("name", encodeBlankOr JSE.string f.ufmName)
+  ,("parameters", JSE.list (List.map encodeUserFunctionParameter f.ufmParameters))
+  ,("description", JSE.string f.ufmDescription)
+  ,("return_type", encodeBlankOr encodeTipe f.ufmReturnTipe)
+  ,("infix", JSE.bool f.ufmInfix)
   ]
 
 encodeTipe : Tipe -> JSE.Value
@@ -642,11 +642,11 @@ decodeUserFunctionParameter =
 decodeUserFunctionMetadata : JSD.Decoder UserFunctionMetadata
 decodeUserFunctionMetadata =
   let toFn name params desc returnTipe infix =
-        { name = name
-        , parameters = params
-        , description = desc
-        , returnTipe = returnTipe
-        , infix = infix
+        { ufmName = name
+        , ufmParameters = params
+        , ufmDescription = desc
+        , ufmReturnTipe = returnTipe
+        , ufmInfix = infix
         }
   in
       JSDP.decode toFn
