@@ -24,11 +24,11 @@ let flag2function (fn : Flags.function_) : function_ =
   ; parameters=
       List.map
         (fun p ->
-          { name= p.name
+          { paramName= p.name
           ; paramTipe= RT.str2tipe p.tipe
-          ; block_args= p.block_args
-          ; optional= p.optional
-          ; description= p.description } )
+          ; paramBlock_args= p.block_args
+          ; paramOptional= p.optional
+          ; paramDescription= p.description } )
         fn.parameters
   ; infix= fn.infix
   ; previewExecutionSafe= fn.preview_execution_safe

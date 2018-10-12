@@ -8,11 +8,11 @@ open Types
 let ufpToP (ufp : userFunctionParameter) : parameter option =
   match (ufp.name, ufp.ufParamTipe) with
   | F (_, name), F (_, tipe) ->
-      { name
+      { paramName= name
       ; paramTipe= tipe
-      ; block_args= ufp.block_args
-      ; optional= ufp.optional
-      ; description= ufp.description }
+      ; paramBlock_args= ufp.block_args
+      ; paramOptional= ufp.optional
+      ; paramDescription= ufp.description }
       |> fun x -> Some x
   | _ -> None
 

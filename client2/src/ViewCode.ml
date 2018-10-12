@@ -252,12 +252,12 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       | true, [second; first], [p2; p1] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: all)
-            [ n [wc "lhs"] [ve p1.name incD first]
+            [ n [wc "lhs"] [ve p1.paramName incD first]
             ; fnDiv false
-            ; n [wc "rhs"] [ve p2.name incD second] ]
+            ; n [wc "rhs"] [ve p2.paramName incD second] ]
       | _ ->
           let args =
-            List.map2 (fun p e_ -> ve p.name incD e_) fn.parameters exprs
+            List.map2 (fun p e_ -> ve p.paramName incD e_) fn.parameters exprs
           in
           n
             (wc "fncall prefix" :: wc (depthString d) :: all)

@@ -632,11 +632,11 @@ type Modification = DisplayAndReportHttpError String Http.Error
 
 
 -- name, type optional
-type alias Parameter = { name: String
+type alias Parameter = { paramName: String
                        , paramTipe: Tipe
-                       , block_args: List String
-                       , optional: Bool
-                       , description: String
+                       , paramBlock_args: List String
+                       , paramOptional: Bool
+                       , paramDescription: String
                        }
 
 type alias Function = { name: String
