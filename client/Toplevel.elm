@@ -7,7 +7,7 @@ import List.Extra as LE
 import Maybe.Extra as ME
 
 -- dark
-import DontPort
+import DontPort exposing ((@))
 import DB
 import Types exposing (..)
 import Util
@@ -22,7 +22,7 @@ import Defaults
 
 all : Model -> List Toplevel
 all m =
-  m.toplevels ++ List.map (ufToTL m) m.userFunctions
+  m.toplevels @ List.map (ufToTL m) m.userFunctions
 
 -------------------------
 -- Toplevel manipulation
