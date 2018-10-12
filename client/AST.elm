@@ -860,7 +860,7 @@ getValueParent p expr =
       |> Util.listPrevious p
 
     (Field, Just (F _ (FieldAccess obj _))) ->
-      Just <| PExpr obj
+      Just (PExpr obj)
 
     _ -> Nothing
 
@@ -869,8 +869,7 @@ getValueParent p expr =
 
 within : NExpr -> ID -> Bool
 within e id =
-  e
-  |> F (ID -1)
+  F (ID -1) e
   |> allData
   |> List.map P.toID
   |> List.member id

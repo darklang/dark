@@ -539,11 +539,11 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   match (P.typeOf p, parent) with
   | Expr, Some (F (_, Thread exprs)) ->
       exprs |> List.map (fun x -> PExpr x) |> Util.listPrevious p
-  | Field, Some (F (_, FieldAccess (obj, _))) -> Some <| PExpr obj
+  | Field, Some (F (_, FieldAccess (obj, _))) -> Some (PExpr obj)
   | _ -> None
 
 let within (e : nExpr) (id : id) : bool =
-  e |> F (ID (-1)) |> allData |> List.map P.toID |> List.member id
+  F (ID (-1), e) |> allData |> List.map P.toID |> List.member id
 
 let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
   let replacement = P.emptyD_ id (P.typeOf p) in
