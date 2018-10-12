@@ -59,6 +59,63 @@ traverse fn expr =
           FeatureFlag msg cond a b ->
             FeatureFlag msg (fn cond) (fn a) (fn b))
 
+-------------------------
+-- Parents
+-------------------------
+parentOf : ID -> Expr -> Expr
+parentOf id ast =
+  deMaybe "parentOf" <| parentOf_ id ast
+
+parentOf_ : ID -> Expr -> Maybe Expr
+parentOf_ eid expr =
+  let po = parentOf_ eid
+      -- the `or` of all items in the list
+      poList xs = xs
+                  |> List.map po
+                  |> List.filterMap identity
+                  |> List.head
+  in
+  if List.member eid (children expr |> List.map P.toID)
+  then Just expr
+  else
+    case expr of
+      Blank _ -> Nothing
+      -- not really sure what to do here
+      F id nexpr ->
+        case nexpr of
+          Value _ -> Nothing
+          Variable _ -> Nothing
+          Let lhs rhs body ->
+            poList [rhs, body]
+
+          If cond ifbody elsebody ->
+            poList [cond, ifbody, elsebody]
+
+          FnCall name exprs _ ->
+            poList exprs
+
+          Lambda vars lexpr ->
+            po lexpr
+
+          Thread exprs ->
+            poList exprs
+
+          FieldAccess obj field ->
+            po obj
+
+          ListLiteral exprs ->
+            poList exprs
+
+          ObjectLiteral pairs ->
+            -- we don't check the children because it's done up top
+            pairs
+            |> List.map Tuple.second
+            |> poList
+
+          FeatureFlag msg cond a b ->
+            poList [cond, a, b]
+
+
 
 -------------------------
 -- Thread stuff
@@ -563,62 +620,6 @@ threadAncestors id expr =
         F _ (Thread _) -> True
         _ -> False)
 
-
--------------------------
--- Parents
--------------------------
-parentOf : ID -> Expr -> Expr
-parentOf id ast =
-  DontPort.deMaybe "parentOf" <| parentOf_ id ast
-
-parentOf_ : ID -> Expr -> Maybe Expr
-parentOf_ eid expr =
-  let po = parentOf_ eid
-      -- the `or` of all items in the list
-      poList xs = xs
-                  |> List.map po
-                  |> List.filterMap identity
-                  |> List.head
-  in
-  if List.member eid (children expr |> List.map P.toID)
-  then Just expr
-  else
-    case expr of
-      Blank _ -> Nothing
-      -- not really sure what to do here
-      F id nexpr ->
-        case nexpr of
-          Value _ -> Nothing
-          Variable _ -> Nothing
-          Let lhs rhs body ->
-            poList [rhs, body]
-
-          If cond ifbody elsebody ->
-            poList [cond, ifbody, elsebody]
-
-          FnCall name exprs _ ->
-            poList exprs
-
-          Lambda vars lexpr ->
-            po lexpr
-
-          Thread exprs ->
-            poList exprs
-
-          FieldAccess obj field ->
-            po obj
-
-          ListLiteral exprs ->
-            poList exprs
-
-          ObjectLiteral pairs ->
-            -- we don't check the children because it's done up top
-            pairs
-            |> List.map Tuple.second
-            |> poList
-
-          FeatureFlag msg cond a b ->
-            poList [cond, a, b]
 
 -- includes self
 siblings : PointerData -> Expr -> List PointerData
