@@ -335,8 +335,8 @@ countFnUsage m name =
 unusedDeprecatedFunctions : Model -> Set String
 unusedDeprecatedFunctions m =
   m.builtInFunctions
-  |> List.filter .deprecated
-  |> List.map .name
+  |> List.filter .fnDeprecated
+  |> List.map .fnName
   |> List.filter (\n -> (countFnUsage m n) == 0)
   |> Set.fromList
 

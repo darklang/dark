@@ -12,7 +12,7 @@ let focusItem (i : int) : msg Cmd.t =
   |> Task.attempt FocusAutocompleteItem
 
 let findFunction (a : autocomplete) (name : string) : function_ option =
-  List.find (fun f -> f.name = name) a.functions
+  List.find (fun f -> f.fnName = name) a.functions
 
 let isStringEntry (a : autocomplete) : bool = String.startsWith "\"" a.value
 
@@ -95,9 +95,9 @@ let reset (m : model) (a : autocomplete) : autocomplete =
     m.builtInFunctions
     |> List.filter (fun f ->
            not
-             (List.member f.name
-                (List.map (fun x -> x.name) userFunctionMetadata)) )
-    |> List.filter (fun f -> not (Set.member f.name unusedDeprecatedFns))
+             (List.member f.fnName
+                (List.map (fun x -> x.fnName) userFunctionMetadata)) )
+    |> List.filter (fun f -> not (Set.member f.fnName unusedDeprecatedFns))
     |> List.append userFunctionMetadata
   in
   init functions a.admin |> regenerate m
@@ -130,7 +130,7 @@ let highlighted (a : autocomplete) : autocompleteItem option =
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | ACFunction f ->
-      if String.length f.description <> 0 then Some f.description else None
+      if String.length f.fnDescription <> 0 then Some f.fnDescription else None
   | ACCommand c -> Some (c.doc ^ " (" ^ c.shortcut ^ ")")
   | _ -> None
 
@@ -318,8 +318,8 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
         |> Option.andThen (fun ast -> AST.getParamIndex ast (P.toID p))
         |> Option.andThen (fun (name, index) ->
                a.functions
-               |> List.find (fun f -> name = f.name)
-               |> Option.map (fun x -> x.parameters)
+               |> List.find (fun f -> name = f.fnName)
+               |> Option.map (fun x -> x.fnParameters)
                |> Option.andThen (List.getAt index)
                |> Option.map (fun x -> x.paramTipe) )
   in
@@ -327,12 +327,12 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   let funcList = if isExpression then a.functions else [] in
   let functions =
     funcList
-    |> List.filter (fun {returnTipe} ->
+    |> List.filter (fun {fnReturnTipe} ->
            match a.acTipe with
-           | Some t -> RT.isCompatible returnTipe t
+           | Some t -> RT.isCompatible fnReturnTipe t
            | None -> (
              match paramTipeForTarget with
-             | Some t -> RT.isCompatible returnTipe t
+             | Some t -> RT.isCompatible fnReturnTipe t
              | None -> true ) )
     |> List.filter (fun fn ->
            match dv with
@@ -399,7 +399,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
 
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACFunction {name} -> name
+  | ACFunction {fnName} -> fnName
   | ACField name -> name
   | ACVariable name -> name
   | ACExtra name -> name
@@ -422,10 +422,10 @@ let asName (aci : autocompleteItem) : string =
 let asTypeString (item : autocompleteItem) : string =
   match item with
   | ACFunction f ->
-      f.parameters
+      f.fnParameters
       |> List.map (fun x -> x.paramTipe)
       |> List.map RT.tipe2str |> String.join ", "
-      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.returnTipe
+      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | ACField _ -> "field"
   | ACVariable _ -> "variable"
   | ACExtra _ -> ""
@@ -447,15 +447,15 @@ let dvalFields (dv : dval) : autocompleteItem list =
   | DObj dict -> Dict.keys dict |> List.map (fun x -> ACField x)
   | _ -> []
 
-let findCompatibleThreadParam ({parameters} : function_) (tipe : tipe) :
+let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
-  parameters |> List.head
+  fnParameters |> List.head
   |> Option.andThen (fun fst ->
          if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
-let findParamByType ({parameters} : function_) (tipe : tipe) : parameter option
-    =
-  parameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
+let findParamByType ({fnParameters} : function_) (tipe : tipe) :
+    parameter option =
+  fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
 
 let selectSharedPrefix (ac : autocomplete) : modification =
   let sp = sharedPrefix ac in

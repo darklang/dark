@@ -18,10 +18,10 @@ let main : (Flags.flags, model, msg) program =
     {init; view= View.view; update; subscriptions}
 
 let flag2function (fn : Flags.function_) : function_ =
-  { name= fn.name
-  ; description= fn.description
-  ; returnTipe= RT.str2tipe fn.return_type
-  ; parameters=
+  { fnName= fn.name
+  ; fnDescription= fn.description
+  ; fnReturnTipe= RT.str2tipe fn.return_type
+  ; fnParameters=
       List.map
         (fun p ->
           { paramName= p.name
@@ -30,9 +30,9 @@ let flag2function (fn : Flags.function_) : function_ =
           ; paramOptional= p.optional
           ; paramDescription= p.description } )
         fn.parameters
-  ; infix= fn.infix
-  ; previewExecutionSafe= fn.preview_execution_safe
-  ; deprecated= fn.deprecated }
+  ; fnInfix= fn.infix
+  ; fnPreviewExecutionSafe= fn.preview_execution_safe
+  ; fnDeprecated= fn.deprecated }
 
 let init ({editorState; complete; userContentHost; environment} : Flags.flags)
     (location : Web.Location.location) : model * msg Cmd.t =

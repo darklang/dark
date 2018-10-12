@@ -75,18 +75,18 @@ main = Navigation.programWithFlags
 -----------------------
 flag2function : Flags.Function -> Function
 flag2function fn =
-  { name = fn.name
-  , description = fn.description
-  , returnTipe = RT.str2tipe fn.return_type
-  , parameters = List.map (\p -> { paramName = p.name
+  { fnName = fn.name
+  , fnDescription = fn.description
+  , fnReturnTipe = RT.str2tipe fn.return_type
+  , fnParameters = List.map (\p -> { paramName = p.name
                                  , paramTipe = RT.str2tipe p.tipe
                                  , paramBlock_args = p.block_args
                                  , paramOptional = p.optional
                                  , paramDescription = p.description})
                           fn.parameters
-  , infix = fn.infix
-  , previewExecutionSafe = fn.preview_execution_safe
-  , deprecated = fn.deprecated
+  , fnInfix = fn.infix
+  , fnPreviewExecutionSafe = fn.preview_execution_safe
+  , fnDeprecated = fn.deprecated
   }
 
 init : Flags.Flags -> Navigation.Location -> ( Model, Cmd Msg )

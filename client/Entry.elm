@@ -60,14 +60,14 @@ createFunction : Model -> FnName -> Maybe Expr
 createFunction m name =
   let blanks count = LE.initialize count (\_ -> B.new ())
       fn = m.complete.functions
-           |> List.filter (\fn_ -> fn_.name == name)
+           |> List.filter (\fn_ -> fn_.fnName == name)
            |> List.head
   in
     case fn of
       Just function ->
-        let r = if function.returnTipe == TOption then Rail else NoRail in
+        let r = if function.fnReturnTipe == TOption then Rail else NoRail in
         Just <|
-          B.newF (FnCall name (blanks (List.length function.parameters)) r)
+          B.newF (FnCall name (blanks (List.length function.fnParameters)) r)
       Nothing -> Nothing
 
 submitOmniAction : Model -> Pos -> OmniAction -> Modification

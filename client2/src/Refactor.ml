@@ -255,8 +255,8 @@ let countFnUsage (m : model) (name : string) : int =
 
 let unusedDeprecatedFunctions (m : model) : string set =
   m.builtInFunctions
-  |> List.filter (fun x -> x.deprecated)
-  |> List.map (fun x -> x.name)
+  |> List.filter (fun x -> x.fnDeprecated)
+  |> List.map (fun x -> x.fnName)
   |> List.filter (fun n -> countFnUsage m n = 0)
   |> Set.fromList
 

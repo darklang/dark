@@ -210,8 +210,8 @@ placeHolderFor vs id pt =
               case AST.getParamIndex ast id of
                 Just (name, index) ->
                   case Autocomplete.findFunction vs.ac name of
-                    Just {parameters} ->
-                      LE.getAt index parameters
+                    Just {fnParameters} ->
+                      LE.getAt index fnParameters
                     Nothing -> Nothing
                 _ -> Nothing)
         |> Maybe.map (\p -> p.paramName ++ ": " ++ RT.tipe2str p.paramTipe ++ "")

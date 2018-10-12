@@ -30,13 +30,13 @@ ufmToF ufm =
   in
       case (ufm.name, ufm.returnTipe, sameLength) of
         (F _ name, F _ tipe, True) ->
-          { name = name
-          , parameters = ps
-          , description = ufm.description
-          , returnTipe = tipe
-          , infix = ufm.infix
-          , previewExecutionSafe = False
-          , deprecated = False
+          { fnName = name
+          , fnParameters = ps
+          , fnDescription = ufm.description
+          , fnReturnTipe = tipe
+          , fnInfix = ufm.infix
+          , fnPreviewExecutionSafe = False
+          , fnDeprecated = False
           } |> Just
         _ -> Nothing
 

@@ -21,13 +21,13 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
   let sameLength = List.length ps = List.length ufm.parameters in
   match (ufm.name, ufm.returnTipe, sameLength) with
   | F (_, name), F (_, tipe), true ->
-      { name
-      ; parameters= ps
-      ; description= ufm.description
-      ; returnTipe= tipe
-      ; infix= ufm.infix
-      ; previewExecutionSafe= false
-      ; deprecated= false }
+      { fnName= name
+      ; fnParameters= ps
+      ; fnDescription= ufm.description
+      ; fnReturnTipe= tipe
+      ; fnInfix= ufm.infix
+      ; fnPreviewExecutionSafe= false
+      ; fnDeprecated= false }
       |> fun x -> Some x
   | _ -> None
 

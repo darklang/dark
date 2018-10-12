@@ -159,7 +159,7 @@ let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
            match AST.getParamIndex ast id with
            | Some (name, index) -> (
              match Autocomplete.findFunction vs.ac name with
-             | Some {parameters} -> List.getAt index parameters
+             | Some {fnParameters} -> List.getAt index fnParameters
              | None -> None )
            | _ -> None )
     |> Option.map (fun p -> p.paramName ^ ": " ^ RT.tipe2str p.paramTipe ^ "")

@@ -219,15 +219,15 @@ viewNExpr d id vs config e =
                 let np = withP name in
                 viewFnName np ["atom fnname"]
           fn = vs.ac.functions
-                    |> LE.find (\f -> f.name == name)
+                    |> LE.find (\f -> f.fnName == name)
                     |> Maybe.withDefault
-                      { name = "fnLookupError"
-                      , parameters = []
-                      , description = "default, fn error"
-                      , returnTipe = TError
-                      , previewExecutionSafe = True
-                      , infix = False
-                      , deprecated = False
+                      { fnName = "fnLookupError"
+                      , fnParameters = []
+                      , fnDescription = "default, fn error"
+                      , fnReturnTipe = TError
+                      , fnPreviewExecutionSafe = True
+                      , fnInfix = False
+                      , fnDeprecated = False
                       }
 
           previous =
@@ -264,7 +264,7 @@ viewNExpr d id vs config e =
           resultHasValue = isComplete id
 
           buttonUnavailable = not paramsComplete
-          showButton = not fn.previewExecutionSafe
+          showButton = not fn.fnPreviewExecutionSafe
           buttonNeeded = not resultHasValue
           showExecuting = isExecuting vs id
           exeIcon = "play"
@@ -308,7 +308,7 @@ viewNExpr d id vs config e =
               [wc "op", wc name]
               (fnname parens :: ropArrow :: button)
       in
-      case (fn.infix, exprs, fn.parameters) of
+      case (fn.fnInfix, exprs, fn.fnParameters) of
         (True, [first, second], [p1, p2]) ->
           n (wc "fncall infix" :: wc (depthString d) :: all)
           [ n [wc "lhs"] [ve p1.paramName incD first]
@@ -318,12 +318,12 @@ viewNExpr d id vs config e =
         _ ->
           let args = List.map2
                        (\p e_ -> ve p.paramName incD e_)
-                       fn.parameters
+                       fn.fnParameters
                        exprs
 
           in
           n (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv fn.infix :: args)
+            (fnDiv fn.fnInfix :: args)
 
     Lambda vars expr ->
       let varname v = t [wc "lambdavarname", atom] v in

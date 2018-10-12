@@ -639,13 +639,13 @@ type alias Parameter = { paramName: String
                        , paramDescription: String
                        }
 
-type alias Function = { name: String
-                      , parameters: List Parameter
-                      , description: String
-                      , returnTipe: Tipe
-                      , previewExecutionSafe: Bool
-                      , deprecated: Bool
-                      , infix: Bool
+type alias Function = { fnName: String
+                      , fnParameters: List Parameter
+                      , fnDescription: String
+                      , fnReturnTipe: Tipe
+                      , fnPreviewExecutionSafe: Bool
+                      , fnDeprecated: Bool
+                      , fnInfix: Bool
                       }
 
 type alias UserFunctionParameter = { name: BlankOr String
