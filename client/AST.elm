@@ -62,10 +62,6 @@ traverse fn expr =
 -------------------------
 -- Parents
 -------------------------
-parentOf : ID -> Expr -> Expr
-parentOf id ast =
-  deMaybe "parentOf" <| parentOf_ id ast
-
 parentOf_ : ID -> Expr -> Maybe Expr
 parentOf_ eid expr =
   let po = parentOf_ eid
@@ -114,6 +110,10 @@ parentOf_ eid expr =
 
           FeatureFlag msg cond a b ->
             poList [cond, a, b]
+
+parentOf : ID -> Expr -> Expr
+parentOf id ast =
+  deMaybe "parentOf" <| parentOf_ id ast
 
 
 
