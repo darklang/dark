@@ -6,21 +6,19 @@ module P = Pointer
 open Prelude
 open Types
 
-let all (m : model) : toplevel list =
-  m.toplevels @ List.map (ufToTL m) m.userFunctions
-
-let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
-
-let get (m : model) (id : tlid) : toplevel option =
-  let tls = all m in
-  List.find (fun tl -> tl.id = id) tls
-
 let name (tl : toplevel) : string =
   match tl.data with
   | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
   | TLDB db -> "DB: " ^ db.name
   | TLFunc f ->
       "Func: " ^ (f.metadata.ufmName |> B.toMaybe |> Option.withDefault "")
+
+let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
+  List.find (fun tl -> tl.id = elem.id) tls <> None
+
+let removeByTLID (origTls : toplevel list) (toBeRemoved : toplevel list) :
+    toplevel list =
+  List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
 
 let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
   removeByTLID tls [tl] ^ [tl]
@@ -34,13 +32,6 @@ let upsertAllByTLID (tls : toplevel list) (new_ : toplevel list) :
 
 let upsertAll (m : model) (tls : toplevel list) : model =
   List.foldl (fun a b -> upsert b a) m tls
-
-let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
-  List.find (fun tl -> tl.id = elem.id) tls <> None
-
-let removeByTLID (origTls : toplevel list) (toBeRemoved : toplevel list) :
-    toplevel list =
-  List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
 
 let remove (m : model) (tl : toplevel) : model =
   {m with toplevels= removeByTLID m.toplevels [tl]}
@@ -254,6 +245,15 @@ let rec allData (tl : toplevel) : pointerData list =
   | TLHandler h -> SpecHeaders.allData h.spec ^ AST.allData h.ast
   | TLDB db -> DB.allData db
   | TLFunc f -> Fns.allData f
+
+let all (m : model) : toplevel list =
+  m.toplevels @ List.map (ufToTL m) m.userFunctions
+
+let get (m : model) (id : tlid) : toplevel option =
+  let tls = all m in
+  List.find (fun tl -> tl.id = id) tls
+
+let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 
 let findExn (tl : toplevel) (id : id) : pointerData =
   find tl id |> deOption "findExn"
