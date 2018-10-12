@@ -36,14 +36,15 @@ let children (expr : expr) : pointerData list =
     | Value _ -> []
     | Variable _ -> []
     | If (cond, ifbody, elsebody) -> [PExpr cond; PExpr ifbody; PExpr elsebody]
-    | FnCall (name, exprs, _) -> List.map PExpr exprs
-    | Lambda (vars, lexpr) -> List.map PVarBind vars @ [PExpr lexpr]
-    | Thread exprs -> List.map PExpr exprs
+    | FnCall (name, exprs, _) -> List.map (fun e -> PExpr e) exprs
+    | Lambda (vars, lexpr) ->
+        List.map (fun vb -> PVarBind vb) vars @ [PExpr lexpr]
+    | Thread exprs -> List.map (fun e -> PExpr e) exprs
     | FieldAccess (obj, field) -> [PExpr obj; PField field]
     | Let (lhs, rhs, body) -> [PVarBind lhs; PExpr rhs; PExpr body]
     | ObjectLiteral pairs ->
         pairs |> List.map (fun (k, v) -> [PKey k; PExpr v]) |> List.concat
-    | ListLiteral elems -> List.map PExpr elems
+    | ListLiteral elems -> List.map (fun e -> PExpr e) elems
     | FeatureFlag (msg, cond, a, b) ->
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b] )
 
@@ -377,19 +378,20 @@ let siblings (p : pointerData) (expr : expr) : pointerData list =
   | Some parent -> (
     match parent with
     | F (_, If (cond, ifbody, elsebody)) ->
-        List.map PExpr [cond; ifbody; elsebody]
+        [PExpr cond; PExpr ifbody; PExpr elsebody]
     | F (_, Let (lhs, rhs, body)) -> [PVarBind lhs; PExpr rhs; PExpr body]
-    | F (_, FnCall (name, exprs, _)) -> List.map PExpr exprs
-    | F (_, Lambda (vars, lexpr)) -> List.map PVarBind vars @ [PExpr lexpr]
-    | F (_, Thread exprs) -> List.map PExpr exprs
+    | F (_, FnCall (name, exprs, _)) -> List.map (fun e -> PExpr e) exprs
+    | F (_, Lambda (vars, lexpr)) ->
+        List.map (fun vb -> PVarBind vb) vars @ [PExpr lexpr]
+    | F (_, Thread exprs) -> List.map (fun e -> PExpr e) exprs
     | F (_, FieldAccess (obj, field)) -> [PExpr obj; PField field]
     | F (_, Value _) -> [p]
     | F (_, Variable _) -> [p]
     | F (_, ObjectLiteral pairs) ->
         pairs |> List.map (fun (k, v) -> [PKey k; PExpr v]) |> List.concat
-    | F (_, ListLiteral exprs) -> List.map PExpr exprs
+    | F (_, ListLiteral exprs) -> List.map (fun e -> PExpr e) exprs
     | F (_, FeatureFlag (msg, cond, a, b)) ->
-        [PFFMsg msg] @ List.map PExpr [cond; a; b]
+        [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
     | Blank _ -> [p] )
 
 let getValueParent (p : pointerData) (expr : expr) : pointerData option =
