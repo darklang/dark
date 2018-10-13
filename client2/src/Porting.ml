@@ -382,6 +382,12 @@ module Native = struct
         | None ->
           raise (NativeCodeError "Native.Size.positions : Cannot find toplevels")
   end
+
+  module Location = struct
+    external queryString: string = "search" [@@bs.val][@@bs.scope "window", "location"]
+    external hashString: string = "hash" [@@bs.val][@@bs.scope "window", "location"]
+    (* TODO write string query parser *)
+  end
 end
 
 
