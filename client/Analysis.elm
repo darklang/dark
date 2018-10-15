@@ -36,7 +36,7 @@ getCurrentAnalysisResults m tlid =
   let traceIndex = cursor m tlid
       traceID = Dict.get (deTLID tlid) m.traces
                 |> Maybe.andThen (LE.getAt traceIndex)
-                |> Maybe.map .id
+                |> Maybe.map .traceID
                 |> Maybe.withDefault "invalid trace key"
   in
   -- only handlers have analysis results, but lots of stuff expect this
@@ -118,12 +118,12 @@ replaceFunctionResult m tlid traceID callerID fnName hash dval =
         |> Dict.update (deTLID tlid)
              (\ml ->
                ml
-               |> Maybe.withDefault [{ id = traceID
+               |> Maybe.withDefault [{ traceID = traceID
                                      , input = StrDict.empty
                                      , functionResults = [newResult]
                                      }]
                |> List.map (\t ->
-                              if t.id == traceID
+                              if t.traceID == traceID
                               then
                                 { t | functionResults =
                                          newResult :: t.functionResults

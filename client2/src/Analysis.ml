@@ -21,7 +21,7 @@ let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   let traceID =
     Dict.get (deTLID tlid) m.traces
     |> Option.andThen (List.getAt traceIndex)
-    |> Option.map (fun x -> x.id)
+    |> Option.map (fun x -> x.traceID)
     |> Option.withDefault "invalid trace key"
   in
   Dict.get traceID m.analyses |> Option.withDefault defaultResults
@@ -75,11 +75,11 @@ let replaceFunctionResult (m : model) (tlid : tlid) (traceID : traceID)
     |> Dict.update (deTLID tlid) (fun ml ->
            ml
            |> Option.withDefault
-                [ { id= traceID
+                [ { traceID
                   ; input= Belt.Map.String.empty
                   ; functionResults= [newResult] } ]
            |> List.map (fun t ->
-                  if t.id = traceID then
+                  if t.traceID = traceID then
                     {t with functionResults= newResult :: t.functionResults}
                   else t )
            |> fun x -> Some x )

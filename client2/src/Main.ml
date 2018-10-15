@@ -521,12 +521,12 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ExecutingFunctionRPC (tlid, id, name) -> (
       match Analysis.getCurrentTrace m tlid with
       | Some trace -> (
-        match Analysis.getArguments m tlid trace.id id with
+        match Analysis.getArguments m tlid trace.traceID id with
         | Some args ->
             let params =
               { efpTLID= tlid
               ; efpCallerID= id
-              ; efpTraceID= trace.id
+              ; efpTraceID= trace.traceID
               ; efpFnName= name
               ; efpArgs= args }
             in

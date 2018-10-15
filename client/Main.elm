@@ -685,11 +685,11 @@ updateMod mod (m, cmd) =
       ExecutingFunctionRPC tlid id name ->
         case Analysis.getCurrentTrace m tlid of
           Just trace ->
-            case Analysis.getArguments m tlid trace.id id of
+            case Analysis.getArguments m tlid trace.traceID id of
               Just args ->
                 let params = { efpTLID = tlid
                              , efpCallerID = id
-                             , efpTraceID = trace.id
+                             , efpTraceID = trace.traceID
                              , efpFnName = name
                              , efpArgs = args
                              }
