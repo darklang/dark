@@ -26,7 +26,7 @@ let viewCanvas (m : model) : msg Html.html =
     match m.currentPage with
     | Toplevels _ -> List.map (viewTL m) m.toplevels
     | Fn (tlid, _) -> (
-      match List.find (fun f -> f.tlid = tlid) m.userFunctions with
+      match List.find (fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func -> [viewTL m (TL.ufToTL m func)]
       | None -> List.map (viewTL m) m.toplevels )
   in
@@ -77,7 +77,8 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
     match tl.data with
     | TLHandler h -> (ViewCode.viewHandler vs h, ViewData.viewData vs h.ast)
     | TLDB db -> (ViewDB.viewDB vs db, [])
-    | TLFunc f -> ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ast)
+    | TLFunc f ->
+        ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
   in
   let events =
     [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)

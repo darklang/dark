@@ -32,15 +32,15 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
   | _ -> None
 
 let find (m : model) (id : tlid) : userFunction option =
-  List.find (fun f -> id = f.tlid) m.userFunctions
+  List.find (fun f -> id = f.ufTLID) m.userFunctions
 
 let upsert (m : model) (f : userFunction) : model =
-  match find m f.tlid with
+  match find m f.ufTLID with
   | Some old ->
       { m with
         userFunctions=
           m.userFunctions
-          |> List.filter (fun uf -> uf.tlid <> old.tlid)
+          |> List.filter (fun uf -> uf.ufTLID <> old.ufTLID)
           |> List.cons f }
   | None -> {m with userFunctions= f :: m.userFunctions}
 
@@ -48,7 +48,7 @@ let findExn (m : model) (id : tlid) : userFunction =
   find m id |> deOption "Functions.findExn"
 
 let sameName (name : string) (uf : userFunction) : bool =
-  match uf.metadata.ufmName with F (_, n) -> n = name | _ -> false
+  match uf.ufMetadata.ufmName with F (_, n) -> n = name | _ -> false
 
 let findByName (m : model) (s : string) : userFunction option =
   List.find (sameName s) m.userFunctions
@@ -60,14 +60,14 @@ let paramData (ufp : userFunctionParameter) : pointerData list =
   [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
 let allParamData (uf : userFunction) : pointerData list =
-  List.concat (List.map paramData uf.metadata.ufmParameters)
+  List.concat (List.map paramData uf.ufMetadata.ufmParameters)
 
 let rec allData (uf : userFunction) : pointerData list =
-  [PFnName uf.metadata.ufmName] @ allParamData uf @ AST.allData uf.ast
+  [PFnName uf.ufMetadata.ufmName] @ allParamData uf @ AST.allData uf.ufAST
 
 let replaceFnName (search : pointerData) (replacement : pointerData)
     (uf : userFunction) : userFunction =
-  let metadata = uf.metadata in
+  let metadata = uf.ufMetadata in
   let sId = P.toID search in
   if B.toID metadata.ufmName = sId then
     let newMetadata =
@@ -76,12 +76,12 @@ let replaceFnName (search : pointerData) (replacement : pointerData)
           {metadata with ufmName= B.replace sId new_ metadata.ufmName}
       | _ -> metadata
     in
-    {uf with metadata= newMetadata}
+    {uf with ufMetadata= newMetadata}
   else uf
 
 let replaceParamName (search : pointerData) (replacement : pointerData)
     (uf : userFunction) : userFunction =
-  let metadata = uf.metadata in
+  let metadata = uf.ufMetadata in
   let sId = P.toID search in
   let paramNames =
     uf |> allParamData
@@ -118,18 +118,18 @@ let replaceParamName (search : pointerData) (replacement : pointerData)
       in
       match (sContent, rContent) with
       | Some o, Some r ->
-          let uses = AST.uses o uf.ast |> List.map (fun x -> PExpr x) in
+          let uses = AST.uses o uf.ufAST |> List.map (fun x -> PExpr x) in
           List.foldr
             (fun use acc -> AST.replace use (transformUse r use) acc)
-            uf.ast uses
-      | _ -> uf.ast
+            uf.ufAST uses
+      | _ -> uf.ufAST
     in
-    {uf with metadata= newMetadata; ast= newBody}
+    {uf with ufMetadata= newMetadata; ufAST= newBody}
   else uf
 
 let replaceParamTipe (search : pointerData) (replacement : pointerData)
     (uf : userFunction) : userFunction =
-  let metadata = uf.metadata in
+  let metadata = uf.ufMetadata in
   let sId = P.toID search in
   let paramTipes =
     uf |> allParamData
@@ -148,7 +148,7 @@ let replaceParamTipe (search : pointerData) (replacement : pointerData)
           {metadata with ufmParameters= newP}
       | _ -> metadata
     in
-    {uf with metadata= newMetadata}
+    {uf with ufMetadata= newMetadata}
   else uf
 
 let replaceMetadataField (old : pointerData) (new_ : pointerData)
@@ -164,15 +164,15 @@ let extend (uf : userFunction) : userFunction =
     ; ufpOptional= false
     ; ufpDescription= "" }
   in
-  let metadata = uf.metadata in
+  let metadata = uf.ufMetadata in
   let newMetadata =
-    {metadata with ufmParameters= uf.metadata.ufmParameters @ [newParam]}
+    {metadata with ufmParameters= uf.ufMetadata.ufmParameters @ [newParam]}
   in
-  {uf with metadata= newMetadata}
+  {uf with ufMetadata= newMetadata}
 
 let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
     userFunction =
-  let metadata = uf.metadata in
+  let metadata = uf.ufMetadata in
   let params = List.filter (fun p -> p <> ufp) metadata.ufmParameters in
   let newM = {metadata with ufmParameters= params} in
-  {uf with metadata= newM}
+  {uf with ufMetadata= newM}

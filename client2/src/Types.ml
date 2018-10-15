@@ -566,4 +566,4 @@ and userFunctionMetadata =
   ; ufmReturnTipe: tipe blankOr
   ; ufmInfix: bool }
 
-and userFunction = {tlid: tlid; metadata: userFunctionMetadata; ast: expr}
+and userFunction = {ufTLID: tlid; ufMetadata: userFunctionMetadata; ufAST: expr}

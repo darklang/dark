@@ -48,8 +48,8 @@ let wrap (wl : wrapLoc) (m : model) (tl : toplevel) (p : pointerData) :
       let newH = {h with ast= newAst} in
       RPC ([SetHandler (tl.id, tl.pos, newH)], focus)
   | PExpr e, TLFunc f ->
-      let newAst, focus = wrapAst e f.ast wl in
-      let newF = {f with ast= newAst} in
+      let newAst, focus = wrapAst e f.ufAST wl in
+      let newF = {f with ufAST= newAst} in
       RPC ([SetFunction newF], focus)
   | _ -> NoChange
 
@@ -114,8 +114,8 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
         [ RPC ([SetHandler (tl.id, tl.pos, newHandler)], FocusNoChange)
         ; Enter (Filling (tl.id, enterTarget)) ]
   | PExpr e, TLFunc f ->
-      let newAst, enterTarget = extractVarInAst e f.ast in
-      let newF = {f with ast= newAst} in
+      let newAst, enterTarget = extractVarInAst e f.ufAST in
+      let newF = {f with ufAST= newAst} in
       Many
         [ RPC ([SetFunction newF], FocusNoChange)
         ; Enter (Filling (tl.id, enterTarget)) ]
@@ -163,7 +163,9 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
           ; ufmReturnTipe= F (gid (), TAny)
           ; ufmInfix= false }
         in
-        let newF = {tlid= gtlid (); metadata; ast= AST.clone body} in
+        let newF =
+          {ufTLID= gtlid (); ufMetadata= metadata; ufAST= AST.clone body}
+        in
         RPC
           ( [SetFunction newF; SetHandler (tl.id, tl.pos, newH)]
           , FocusExact (tl.id, P.toID replacement) )
@@ -183,13 +185,13 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
       | _ -> oldCall
     in
     let origName, calls =
-      match old_.metadata.ufmName with
+      match old_.ufMetadata.ufmName with
       | Blank _ -> (None, [])
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
     in
     let newName =
-      match new_.metadata.ufmName with Blank _ -> None | F (_, n) -> Some n
+      match new_.ufMetadata.ufmName with Blank _ -> None | F (_, n) -> Some n
     in
     match (origName, newName) with
     | Some o, Some r ->
@@ -212,8 +214,9 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   let newFunctions =
     m.userFunctions
     |> List.filterMap (fun uf ->
-           let newAst = renameFnCalls uf.ast old new_ in
-           if newAst <> uf.ast then Some (SetFunction {uf with ast= newAst})
+           let newAst = renameFnCalls uf.ufAST old new_ in
+           if newAst <> uf.ufAST then
+             Some (SetFunction {uf with ufAST= newAst})
            else None )
   in
   newHandlers ^ newFunctions
@@ -249,7 +252,7 @@ let countFnUsage (m : model) (name : string) : int =
            match tl.data with
            | TLHandler h -> isFunctionInExpr name h.ast
            | TLDB _ -> false
-           | TLFunc f -> isFunctionInExpr name f.ast )
+           | TLFunc f -> isFunctionInExpr name f.ufAST )
   in
   List.length usedIn
 
@@ -273,7 +276,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
       match old_ with PExpr e -> PExpr (transformExpr e) | _ -> old_
     in
     let origName, calls =
-      match old.metadata.ufmName with
+      match old.ufMetadata.ufmName with
       | Blank _ -> (None, [])
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
@@ -299,8 +302,9 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   let newFunctions =
     m.userFunctions
     |> List.filterMap (fun uf_ ->
-           let newAst = transformCallsInAst f uf_.ast uf_ in
-           if newAst <> uf_.ast then Some (SetFunction {uf_ with ast= newAst})
+           let newAst = transformCallsInAst f uf_.ufAST uf_ in
+           if newAst <> uf_.ufAST then
+             Some (SetFunction {uf_ with ufAST= newAst})
            else None )
   in
   newHandlers ^ newFunctions
@@ -316,7 +320,7 @@ let addNewFunctionParameter (m : model) (old : userFunction) : op list =
 let removeFunctionParameter (m : model) (uf : userFunction)
     (ufp : userFunctionParameter) : op list =
   let indexInList =
-    List.findIndex (fun p -> p = ufp) uf.metadata.ufmParameters
+    List.findIndex (fun p -> p = ufp) uf.ufMetadata.ufmParameters
     |> deOption "tried to remove parameter that does not exist in function"
   in
   let fn e =

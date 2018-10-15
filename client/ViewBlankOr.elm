@@ -82,7 +82,7 @@ withEditFn vs v =
     case v of
       F _ (FnCall name _ _) ->
         case LE.find (Functions.sameName name) vs.ufns of
-          Just fn -> [WithEditFn fn.tlid]
+          Just fn -> [WithEditFn fn.ufTLID]
           _ -> []
       _ -> []
   else []

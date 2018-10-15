@@ -228,7 +228,7 @@ let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
 let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
     =
   Url.linkFor
-    (Fn (fn.tlid, Defaults.centerPos))
+    (Fn (fn.ufTLID, Defaults.centerPos))
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
@@ -278,7 +278,7 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
 
 let viewUserFunctions (m : model) : msg Html.html =
   let fns =
-    m.userFunctions |> List.filter (fun fn -> B.isF fn.metadata.ufmName)
+    m.userFunctions |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName)
   in
   let fnNamedLink fn name =
     let useCount = countFnUsage m name in
@@ -286,14 +286,14 @@ let viewUserFunctions (m : model) : msg Html.html =
       [ span "name" [fnLink fn false name]
       ; buttonLink
           (fontAwesome "minus-circle")
-          (DeleteUserFunction fn.tlid) None ]
+          (DeleteUserFunction fn.ufTLID) None ]
     else
       let countedName = name ^ " (" ^ string_of_int useCount ^ ")" in
       [span "name" [fnLink fn true countedName]]
   in
   let fnHtml fn =
     div "simple-route"
-      (let fnName = B.asF fn.metadata.ufmName in
+      (let fnName = B.asF fn.ufMetadata.ufmName in
        match fnName with
        | Some name -> fnNamedLink fn name
        | None -> [span "name" [fnLink fn true "should be filtered by here"]])

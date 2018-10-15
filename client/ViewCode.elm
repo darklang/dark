@@ -237,7 +237,7 @@ viewNExpr d id vs config e =
                 |> AST.threadPrevious id
                 |> ME.toList
               TLFunc f ->
-                f.ast
+                f.ufAST
                 |> AST.threadPrevious id
                 |> ME.toList
               TLDB db ->

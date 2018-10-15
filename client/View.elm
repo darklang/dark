@@ -56,7 +56,7 @@ viewCanvas m =
           case m.currentPage of
             Toplevels _ -> List.map (viewTL m) m.toplevels
             Fn tlid _ ->
-              case LE.find (\f -> f.tlid == tlid) m.userFunctions of
+              case LE.find (\f -> f.ufTLID == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
 
@@ -122,7 +122,7 @@ viewTL_ m tlid =
             )
           TLFunc f ->
             ( [ViewFunction.viewFunction vs f]
-            , ViewData.viewData vs f.ast
+            , ViewData.viewData vs f.ufAST
             )
       events =
         [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)

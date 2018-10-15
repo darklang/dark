@@ -14,7 +14,7 @@ let copy (m : model) (tl : toplevel) (mp : pointerData option) : modification =
     | Some p -> CopyToClipboard (TL.find tl (P.toID p)) )
   | TLFunc f -> (
     match mp with
-    | None -> CopyToClipboard (Some <| PExpr f.ast)
+    | None -> CopyToClipboard (Some <| PExpr f.ufAST)
     | Some p -> CopyToClipboard (TL.find tl (P.toID p)) )
 
 let cut (m : model) (tl : toplevel) (p : pointerData) : modification =
@@ -52,11 +52,11 @@ let paste (m : model) (tl : toplevel) (id : id) : modification =
               ( [SetHandler (tl.id, tl.pos, {h with ast= newAst})]
               , FocusExact (tl.id, P.toID cloned) )
       | TLFunc f ->
-          let newAst = AST.replace (TL.findExn tl id) cloned f.ast in
-          if newAst = f.ast then NoChange
+          let newAst = AST.replace (TL.findExn tl id) cloned f.ufAST in
+          if newAst = f.ufAST then NoChange
           else
             RPC
-              ( [SetFunction {f with ast= newAst}]
+              ( [SetFunction {f with ufAST= newAst}]
               , FocusExact (tl.id, P.toID cloned) ) )
 
 let peek (m : model) : clipboard = Option.map TL.clonePointerData m.clipboard

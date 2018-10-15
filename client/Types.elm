@@ -662,9 +662,9 @@ type alias UserFunctionMetadata = { ufmName: BlankOr String
                                   , ufmInfix: Bool
                                   }
 
-type alias UserFunction = { tlid: TLID
-                          , metadata: UserFunctionMetadata
-                          , ast: Expr
+type alias UserFunction = { ufTLID: TLID
+                          , ufMetadata: UserFunctionMetadata
+                          , ufAST: Expr
                           }
 
 
