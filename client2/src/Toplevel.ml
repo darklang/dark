@@ -21,17 +21,17 @@ let removeByTLID (origTls : toplevel list) (toBeRemoved : toplevel list) :
   List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
 
 let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
-  removeByTLID tls [tl] ^ [tl]
+  removeByTLID tls [tl] @ [tl]
 
 let upsert (m : model) (tl : toplevel) : model =
   {m with toplevels= upsertByTLID m.toplevels tl}
 
-let upsertAllByTLID (tls : toplevel list) (new_ : toplevel list) :
+let upsertAllByTLID (tls : toplevel list) (news : toplevel list) :
     toplevel list =
-  List.foldl (fun a b -> upsertByTLID b a) tls new_
+  List.foldl (fun tl new_ -> upsertByTLID new_ tl) tls news
 
 let upsertAll (m : model) (tls : toplevel list) : model =
-  List.foldl (fun a b -> upsert b a) m tls
+  List.foldl (fun tl m -> upsert m tl) m tls
 
 let remove (m : model) (tl : toplevel) : model =
   {m with toplevels= removeByTLID m.toplevels [tl]}
@@ -134,7 +134,7 @@ let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
 let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   match tl.data with
   | TLHandler h ->
-      let toplevels = SpecHeaders.allData h.spec ^ [PExpr h.ast] in
+      let toplevels = SpecHeaders.allData h.spec @ [PExpr h.ast] in
       if List.member p toplevels then toplevels else AST.siblings p h.ast
   | TLDB db -> DB.siblings p db
   | TLFunc f -> AST.siblings p f.ufAST
@@ -242,7 +242,7 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
 
 let rec allData (tl : toplevel) : pointerData list =
   match tl.data with
-  | TLHandler h -> SpecHeaders.allData h.spec ^ AST.allData h.ast
+  | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
   | TLDB db -> DB.allData db
   | TLFunc f -> Fns.allData f
 

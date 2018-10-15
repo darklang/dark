@@ -49,19 +49,19 @@ removeByTLID origTls toBeRemoved =
 
 upsertByTLID : List Toplevel -> Toplevel -> List Toplevel
 upsertByTLID tls tl =
-  (removeByTLID tls [tl]) ++ [tl]
+  (removeByTLID tls [tl]) @ [tl]
 
 upsert : Model -> Toplevel -> Model
 upsert m tl =
   { m | toplevels = upsertByTLID m.toplevels tl }
 
 upsertAllByTLID : List Toplevel -> List Toplevel -> List Toplevel
-upsertAllByTLID tls new =
-  List.foldl (\a b -> upsertByTLID b a) tls new
+upsertAllByTLID tls news =
+  List.foldl (\tl new -> upsertByTLID new tl) tls news
 
 upsertAll : Model -> List Toplevel -> Model
 upsertAll m tls =
-  List.foldl (\a b -> upsert b a) m tls
+  List.foldl (\tl m -> upsert m tl) m tls
 
 remove : Model -> Toplevel -> Model
 remove m tl =
@@ -234,7 +234,7 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allData h.spec
-            ++ [ PExpr h.ast ]
+            @ [ PExpr h.ast ]
       in
       if List.member p toplevels
       then toplevels
@@ -392,7 +392,7 @@ allData tl =
   case tl.data of
     TLHandler h ->
       SpecHeaders.allData h.spec
-      ++ AST.allData h.ast
+      @ AST.allData h.ast
     TLDB db ->
       DB.allData db
     TLFunc f ->
