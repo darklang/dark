@@ -50,6 +50,10 @@ then authenticate with gcloud:
 
 - `gcloud auth login`
 
+then select the active account:
+
+- `gcloud config set account <email address>`
+
 (Note: you might need to restart your shell for gcloud to appear in your $PATH,
 or run `exec $SHELL`)
 
