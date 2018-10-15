@@ -258,11 +258,11 @@ let get (m : model) (id : tlid) : toplevel option =
 
 let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 
-let findExn (tl : toplevel) (id : id) : pointerData =
-  find tl id |> deOption "findExn"
-
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
   |> List.filter (fun d -> id = P.toID d)
   |> assert_ (fun r -> List.length r <= 1)
   |> List.head
+
+let findExn (tl : toplevel) (id : id) : pointerData =
+  find tl id |> deOption "findExn"

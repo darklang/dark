@@ -417,15 +417,16 @@ getTL m id =
   get m id
   |> deMaybe "getTL"
 
-
-findExn : Toplevel -> ID -> PointerData
-findExn tl id =
-  find tl id
-  |> deMaybe "findExn"
-
 find : Toplevel -> ID -> Maybe PointerData
 find tl id =
   allData tl
   |> List.filter (\d -> id == P.toID d)
   |> assert (\r -> List.length r <= 1) -- guard against dups
   |> List.head
+
+findExn : Toplevel -> ID -> PointerData
+findExn tl id =
+  find tl id
+  |> deMaybe "findExn"
+
+
