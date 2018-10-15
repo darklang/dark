@@ -421,7 +421,9 @@ and functionResult =
 and traceID = string
 
 and trace =
-  {id: traceID; input: inputValueDict; functionResults: functionResult list}
+  { traceID: traceID
+  ; input: inputValueDict
+  ; functionResults: functionResult list }
 
 and traces = trace list Belt.Map.Int.t
 

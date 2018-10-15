@@ -719,7 +719,7 @@ decodeTraces =
 decodeTrace : JSD.Decoder Trace
 decodeTrace =
   let toTrace id input functionResults =
-        { id = id, input = input, functionResults = functionResults }
+        { traceID = id, input = input, functionResults = functionResults }
   in
   JSDP.decode toTrace
   |> JSDP.required "id" JSD.string
@@ -734,7 +734,7 @@ encodeTrace t =
                    (Dict.toList t.input))
              , ( "function_results"
                , JSONUtils.encodeList encodeFunctionResult t.functionResults)
-             , ( "id", JSE.string t.id)
+             , ( "id", JSE.string t.traceID)
             ]
 
 encodeFunctionResult : FunctionResult -> JSE.Value

@@ -35,7 +35,7 @@ let viewInputs (vs : viewState) (ID astID : id) : msg Html.html list =
     let hoverID = tlCursorID vs.tl.id idx in
     let isHover = vs.hovering = Some hoverID in
     let astTipe =
-      Dict.get trace.id vs.analyses
+      Dict.get trace.traceID vs.analyses
       |> Option.map (fun x -> x.liveValues)
       |> Option.andThen (Dict.get astID)
       |> Option.map RT.typeOf

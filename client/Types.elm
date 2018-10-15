@@ -471,7 +471,7 @@ type alias FunctionResult = { fnName : String
                             , value : Dval
                             }
 type alias TraceID = String
-type alias Trace = { id: TraceID
+type alias Trace = { traceID: TraceID
                    , input: InputValueDict
                    , functionResults : List FunctionResult
                    }
