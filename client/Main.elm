@@ -687,11 +687,11 @@ updateMod mod (m, cmd) =
           Just trace ->
             case Analysis.getArguments m tlid trace.id id of
               Just args ->
-                let params = { tlid = tlid
-                             , callerID = id
-                             , traceID = trace.id
-                             , fnName = name
-                             , args = args
+                let params = { efpTLID = tlid
+                             , efpCallerID = id
+                             , efpTraceID = trace.id
+                             , efpFnName = name
+                             , efpArgs = args
                              }
                 in
                 (m, RPC.executeFunctionRPC m.canvasName params)
@@ -1610,9 +1610,9 @@ update_ msg m =
       DisplayError <| "Success! " ++ msg_
 
     ExecuteFunctionRPCCallback params (Ok (dval, hash)) ->
-      let tl = TL.getTL m params.tlid in
-      Many [ UpdateTraceFunctionResult params.tlid params.traceID params.callerID params.fnName hash dval
-           , ExecutingFunctionComplete [(params.tlid, params.callerID)]
+      let tl = TL.getTL m params.efpTLID in
+      Many [ UpdateTraceFunctionResult params.efpTLID params.efpTraceID params.efpCallerID params.efpFnName hash dval
+           , ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
            , RequestAnalysis [tl]
            ]
 
