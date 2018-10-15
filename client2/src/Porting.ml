@@ -17,22 +17,6 @@ end
 let toString (v : 'a) : string =
   Js.String.make v
 
-module Option = struct
-  type 'a t = 'a option
-  let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
-    match o with
-    | None -> None
-    | Some x -> fn x
-  let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
-    match mb with
-    | None -> ma
-    | Some _ -> mb
-  let map (f: 'a -> 'b) (o: 'a option) : 'b option =
-    Belt.Option.map o f
-  let withDefault (a: 'a) (o: 'a option) : 'a =
-    Belt.Option.getWithDefault o a
-end
-
 module Result = struct
   type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
   let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
@@ -145,7 +129,7 @@ module List = struct
     findIndexHelp 0 fn l
   let take (count: int) (l: 'a list) : 'a list =
     Belt.List.take l count
-    |> Option.withDefault []
+    |. Belt.Option.getWithDefault []
   let updateAt (index : int) (fn : 'a -> 'a) (list : 'a list) : 'a list =
     if index < 0 then list
     else
@@ -164,8 +148,27 @@ module List = struct
     l = []
   let cons (item: 'a) (l: 'a list) : 'a list =
     item :: l
-
 end
+
+module Option = struct
+  type 'a t = 'a option
+  let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
+    match o with
+    | None -> None
+    | Some x -> fn x
+  let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
+    match mb with
+    | None -> ma
+    | Some _ -> mb
+  let map (f: 'a -> 'b) (o: 'a option) : 'b option =
+    Belt.Option.map o f
+  let withDefault (a: 'a) (o: 'a option) : 'a =
+    Belt.Option.getWithDefault o a
+  let foldrValues (item : 'a option) (list : 'a list) : 'a list =
+    match item with None -> list | Some v -> v :: list
+  let values (l : 'a option list) : 'a list = List.foldr foldrValues [] l
+end
+
 
 module Char = struct
   let toCode (c: char) : int = Char.code c
