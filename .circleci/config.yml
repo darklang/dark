@@ -14,7 +14,7 @@ jobs:
           # coreutils for gnu date
           # bash for scripts
           command: |
-            apk add --update bash coreutils
+            apk add --update bash coreutils nginx
 
 
       # Setup for daily/weekly caches
@@ -73,6 +73,10 @@ jobs:
       - run:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
+
+      # run this here so we save a little time waiting for the server to
+      # be ready.
+      - run: nginx -t -c $(pwd)/scripts/support/nginx-toplevel.conf -g "pid $(pwd)/rundir/nginx.pid;"
 
       # The 2nd invocation of builder isn't free.
       - run: |
