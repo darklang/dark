@@ -434,8 +434,8 @@ type alias DBMigration = { startingVersion : Int
                          , cols : List DBColumn
                          }
 
-type alias DB = { tlid : TLID
-                , name : DBName
+type alias DB = { dbTLID : TLID
+                , dbName : DBName
                 , cols : List DBColumn
                 , version : Int
                 , oldMigrations : List DBMigration

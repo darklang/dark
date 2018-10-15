@@ -49,8 +49,8 @@ let viewMigraFuncs (vs : viewState) (expr : expr) (fnName : fnName)
 
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     msg Html.html =
-  let name = viewDBName db.name migra.version in
-  let cols = List.map (viewDBCol vs true db.tlid) migra.cols in
+  let name = viewDBName db.dbName migra.version in
+  let cols = List.map (viewDBCol vs true db.dbTLID) migra.cols in
   let funcs =
     [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
     ; viewMigraFuncs vs migra.rollback "Rollback" "newObj" ]
@@ -67,7 +67,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
   let cancelBtn =
     Html.button
       [ Attrs.disabled false
-      ; eventNoPropagation "click" (fun _ -> AbandonMigration db.tlid) ]
+      ; eventNoPropagation "click" (fun _ -> AbandonMigration db.dbTLID) ]
       [Html.text "cancel"]
   in
   let migrateBtn =
@@ -84,16 +84,16 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   let locked =
     if vs.dbLocked && db.activeMigration = None then
       Html.div
-        [eventNoPropagation "click" (fun _ -> StartMigration db.tlid)]
+        [eventNoPropagation "click" (fun _ -> StartMigration db.dbTLID)]
         [fontAwesome "lock"]
     else fontAwesome "unlock"
   in
-  let namediv = viewDBName db.name db.version in
+  let namediv = viewDBName db.dbName db.version in
   let cols =
     if vs.dbLocked then List.filter (fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
-  let coldivs = List.map (viewDBCol vs false db.tlid) cols in
+  let coldivs = List.map (viewDBCol vs false db.dbTLID) cols in
   let migrationView =
     match db.activeMigration with
     | Some migra ->

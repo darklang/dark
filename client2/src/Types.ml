@@ -394,8 +394,8 @@ and dBMigration =
   ; cols: dBColumn list }
 
 and dB =
-  { tlid: tlid
-  ; name: dBName
+  { dbTLID: tlid
+  ; dbName: dBName
   ; cols: dBColumn list
   ; version: int
   ; oldMigrations: dBMigration list

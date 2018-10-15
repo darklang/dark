@@ -159,8 +159,8 @@ encodeDBMigration dbm =
 
 encodeDB : DB -> JSE.Value
 encodeDB db =
-  JSE.object [ ("tlid", encodeTLID db.tlid)
-             , ("name", JSE.string db.name)
+  JSE.object [ ("tlid", encodeTLID db.dbTLID)
+             , ("name", JSE.string db.dbName)
              , ("cols", encodeColList db.cols)
              , ("version", JSE.int db.version)
              , ("old_migrations", JSE.list (List.map encodeDBMigration db.oldMigrations))
@@ -555,8 +555,8 @@ decodeDBMigration =
 decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB tlid name cols version old active =
-      { tlid = TLID tlid
-      , name = name
+      { dbTLID = TLID tlid
+      , dbName = name
       , cols = cols
       , version = version
       , oldMigrations = old

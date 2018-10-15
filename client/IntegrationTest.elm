@@ -320,8 +320,8 @@ case_sensitivity m =
     |> List.map
          (\tl ->
              case tl.data of
-               TLDB {name, cols} ->
-                 case (name, cols) of
+               TLDB {dbName, cols} ->
+                 case (dbName, cols) of
                    ( "TestUnicode"
                      , [ (F _ "cOlUmNnAmE", F _ "Str")
                      , (Blank _, Blank _)
@@ -408,7 +408,7 @@ rename_db_fields m =
   m.toplevels
   |> List.map (\tl ->
     case tl.data of
-      TLDB {name, cols} ->
+      TLDB {dbName, cols} ->
         case cols of
           [ (F id "field6", F _ "String")
           , (F _ "field2", F _ "String")
@@ -427,7 +427,7 @@ rename_db_type m =
   m.toplevels
   |> List.map (\tl ->
     case tl.data of
-      TLDB {name, cols} ->
+      TLDB {dbName, cols} ->
         case cols of
           [ (F _ "field1", F id "String")
           , (F _ "field2", F _ "Int")
