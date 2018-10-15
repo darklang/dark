@@ -31,7 +31,7 @@ name tl =
       ++ (h.spec.name |> B.toMaybe |> Maybe.withDefault "")
     TLDB db ->
       "DB: "
-      ++ db.name
+      ++ db.dbName
     TLFunc f ->
       "Func: "
       ++ (f.ufMetadata.ufmName |> B.toMaybe |> Maybe.withDefault "")

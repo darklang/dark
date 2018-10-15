@@ -342,11 +342,11 @@ viewDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
-            |> List.sortBy (\(_, db) -> db.name)
+            |> List.sortBy (\(_, db) -> db.dbName)
 
       dbHtml (pos, db) =
         div "simple-route"
-          [ span "name" [tlLink pos "default-link" db.name]]
+          [ span "name" [tlLink pos "default-link" db.dbName]]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
@@ -356,11 +356,11 @@ viewRestorableDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, tl.id, TL.asDB tl |> deMaybe "asDB"))
-            |> List.sortBy (\(_, _, db) -> db.name)
+            |> List.sortBy (\(_, _, db) -> db.dbName)
 
       dbHtml (pos, tlid, db) =
         div "simple-route"
-          [ text "name" db.name, undoButton tlid (Toplevels pos)]
+          [ text "name" db.dbName, undoButton tlid (Toplevels pos)]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes

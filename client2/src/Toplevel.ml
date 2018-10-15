@@ -9,7 +9,7 @@ open Types
 let name (tl : toplevel) : string =
   match tl.data with
   | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
-  | TLDB db -> "DB: " ^ db.name
+  | TLDB db -> "DB: " ^ db.dbName
   | TLFunc f ->
       "Func: " ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "")
 

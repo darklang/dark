@@ -242,8 +242,8 @@ let case_sensitivity (m : model) : testResult =
     m.toplevels
     |> List.map (fun tl ->
            match tl.data with
-           | TLDB {name; cols} -> (
-             match (name, cols) with
+           | TLDB {dbName; cols} -> (
+             match (dbName, cols) with
              | ( "TestUnicode"
                , [(Blank _, Blank _); (F (_, "cOlUmNnAmE"), F (_, "Str"))] ) ->
                  pass
@@ -328,7 +328,7 @@ let rename_db_fields (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
-         | TLDB {name; cols} -> (
+         | TLDB {dbName; cols} -> (
            match cols with
            | [ (Blank _, Blank _)
              ; (F (_, "field2"), F (_, "String"))
@@ -345,7 +345,7 @@ let rename_db_type (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
-         | TLDB {name; cols} -> (
+         | TLDB {dbName; cols} -> (
            match cols with
            | [ (Blank _, Blank _)
              ; (F (_, "field2"), F (_, "Int"))

@@ -255,10 +255,10 @@ let viewDBs (tls : toplevel list) : msg Html.html =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
     |> List.map (fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, db) -> db.name)
+    |> List.sortBy (fun (_, db) -> db.dbName)
   in
   let dbHtml (pos, db) =
-    div "simple-route" [span "name" [tlLink pos "default-link" db.name]]
+    div "simple-route" [span "name" [tlLink pos "default-link" db.dbName]]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
@@ -268,10 +268,10 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
     |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, _, db) -> db.name)
+    |> List.sortBy (fun (_, _, db) -> db.dbName)
   in
   let dbHtml (pos, tlid, db) =
-    div "simple-route" [text "name" db.name; undoButton tlid (Toplevels pos)]
+    div "simple-route" [text "name" db.dbName; undoButton tlid (Toplevels pos)]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
