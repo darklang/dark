@@ -78,13 +78,14 @@ update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
   { m | toplevels = updateByTLID m.toplevels tlid f }
 
-move : TLID -> Int -> Int -> Model -> Model
-move tlid xOffset yOffset m = update m tlid (moveTL xOffset yOffset)
-
 moveTL : Int -> Int -> Toplevel -> Toplevel
 moveTL xOffset yOffset tl =
   let newPos = { x = tl.pos.x + xOffset, y = tl.pos.y + yOffset }
   in { tl | pos = newPos }
+
+move : TLID -> Int -> Int -> Model -> Model
+move tlid xOffset yOffset m = update m tlid (moveTL xOffset yOffset)
+
 
 ufToTL : Model -> UserFunction -> Toplevel
 ufToTL m uf = { id = uf.ufTLID
@@ -146,6 +147,19 @@ toOp tl =
 -------------------------
 -- Generic
 -------------------------
+allData : Toplevel -> List PointerData
+allData tl =
+  case tl.data of
+    TLHandler h ->
+      SpecHeaders.allData h.spec
+      @ AST.allData h.ast
+    TLDB db ->
+      DB.allData db
+    TLFunc f ->
+      Fns.allData f
+
+
+
 isValidID : Toplevel -> ID -> Bool
 isValidID tl id =
   List.member id (tl |> allData |> List.map P.toID)
@@ -189,6 +203,15 @@ blanksWhere fn tl =
   |> allBlanks
   |> List.filter fn
 
+firstBlank : Toplevel -> Successor
+firstBlank tl =
+  tl |> allBlanks |> List.head
+
+lastBlank : Toplevel -> Successor
+lastBlank tl =
+  tl |> allBlanks |> LE.last
+
+
 getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
   case pred of
@@ -215,14 +238,6 @@ getPrevBlank tl next =
       |> ME.orElse (lastBlank tl)
     Nothing -> lastBlank tl
 
-
-firstBlank : Toplevel -> Successor
-firstBlank tl =
-  tl |> allBlanks |> List.head
-
-lastBlank : Toplevel -> Successor
-lastBlank tl =
-  tl |> allBlanks |> LE.last
 
 
 -------------------------
@@ -386,17 +401,6 @@ delete tl p newID =
   let replacement = P.emptyD_ newID (P.typeOf p)
   in replace p replacement tl
 
-
-allData : Toplevel -> List PointerData
-allData tl =
-  case tl.data of
-    TLHandler h ->
-      SpecHeaders.allData h.spec
-      @ AST.allData h.ast
-    TLDB db ->
-      DB.allData db
-    TLFunc f ->
-      Fns.allData f
 
 all : Model -> List Toplevel
 all m =

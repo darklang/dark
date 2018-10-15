@@ -43,12 +43,12 @@ let updateByTLID (tls : toplevel list) (tlid : tlid) (f : toplevel -> toplevel)
 let update (m : model) (tlid : tlid) (f : toplevel -> toplevel) : model =
   {m with toplevels= updateByTLID m.toplevels tlid f}
 
-let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  update m tlid (moveTL xOffset yOffset)
-
 let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
   let newPos = {x= tl.pos.x + xOffset; y= tl.pos.y + yOffset} in
   {tl with pos= newPos}
+
+let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
+  update m tlid (moveTL xOffset yOffset)
 
 let ufToTL (m : model) (uf : userFunction) : toplevel =
   {id= uf.ufTLID; pos= Defaults.centerPos; data= TLFunc uf}
@@ -80,6 +80,12 @@ let toOp (tl : toplevel) : op list =
   | TLFunc fn -> [SetFunction fn]
   | _ -> impossible "This isn't how database ops work"
 
+let rec allData (tl : toplevel) : pointerData list =
+  match tl.data with
+  | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
+  | TLDB db -> DB.allData db
+  | TLFunc f -> Fns.allData f
+
 let isValidID (tl : toplevel) (id : id) : bool =
   List.member id (tl |> allData |> List.map P.toID)
 
@@ -105,6 +111,10 @@ let allBlanks (tl : toplevel) : pointerData list =
 let blanksWhere (fn : pointerData -> bool) (tl : toplevel) : pointerData list =
   tl |> allBlanks |> List.filter fn
 
+let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
+
+let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
+
 let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
   match pred with
   | Some pred_ ->
@@ -127,10 +137,6 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
       blanks |> List.last |> Option.orElse (lastBlank tl)
   | None -> lastBlank tl
 
-let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
-
-let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
-
 let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   match tl.data with
   | TLHandler h ->
@@ -147,12 +153,15 @@ let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
 
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   match tl.data with
-  | TLHandler h -> AST.parentOf_ (P.toID p) h.ast |> Option.map PExpr
-  | TLFunc f -> AST.parentOf_ (P.toID p) f.ufAST |> Option.map PExpr
+  | TLHandler h ->
+      AST.parentOf_ (P.toID p) h.ast |> Option.map (fun x -> PExpr x)
+  | TLFunc f ->
+      AST.parentOf_ (P.toID p) f.ufAST |> Option.map (fun x -> PExpr x)
   | TLDB db ->
       db |> DB.astsFor
       |> List.map (AST.parentOf_ (P.toID p))
-      |> Option.values |> List.head |> Option.map PExpr
+      |> Option.values |> List.head
+      |> Option.map (fun x -> PExpr x)
 
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   let pid = P.toID pd in
@@ -239,12 +248,6 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
 let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in
   replace p replacement tl
-
-let rec allData (tl : toplevel) : pointerData list =
-  match tl.data with
-  | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
-  | TLDB db -> DB.allData db
-  | TLFunc f -> Fns.allData f
 
 let all (m : model) : toplevel list =
   m.toplevels @ List.map (ufToTL m) m.userFunctions
