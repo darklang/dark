@@ -421,7 +421,8 @@ and wrapTagInLambda (tagexpr: expr) : expr =
 and exprpO (exprp) : Parsetree.expression =
   let firstArgIsFn expr =
     match skip_located expr with
-    | VarExpr (VarRef (["List"], "map")) ->
+    | VarExpr (VarRef (["List"], "map"))
+    | VarExpr (VarRef (["Maybe"], "map")) ->
       true
     | _ -> false
   in
