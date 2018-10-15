@@ -223,7 +223,11 @@ and op =
 and rpcParams = {ops: op list}
 
 and executeFunctionRPCParams =
-  {tlid: tlid; traceID: traceID; callerID: id; args: dval list; fnName: string}
+  { efpTLID: tlid
+  ; efpTraceID: traceID
+  ; efpCallerID: id
+  ; efpArgs: dval list
+  ; efpFnName: string }
 
 and analysisParams = tlid list
 

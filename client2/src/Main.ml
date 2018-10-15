@@ -524,7 +524,11 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         match Analysis.getArguments m tlid trace.id id with
         | Some args ->
             let params =
-              {tlid; callerID= id; traceID= trace.id; fnName= name; args}
+              { efpTLID= tlid
+              ; efpCallerID= id
+              ; efpTraceID= trace.id
+              ; efpFnName= name
+              ; efpArgs= args }
             in
             (m, RPC.executeFunctionRPC m.canvasName params)
         | None -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
@@ -1185,16 +1189,16 @@ let update_ (msg : msg) (m : model) : modification =
         ; newState ]
   | SaveTestRPCCallback (Ok msg_) -> DisplayError <| "Success! " ^ msg_
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
-      let tl = TL.getTL m params.tlid in
+      let tl = TL.getTL m params.efpTLID in
       Many
         [ UpdateTraceFunctionResult
-            ( params.tlid
-            , params.traceID
-            , params.callerID
-            , params.fnName
+            ( params.efpTLID
+            , params.efpTraceID
+            , params.efpCallerID
+            , params.efpFnName
             , hash
             , dval )
-        ; ExecutingFunctionComplete [(params.tlid, params.callerID)]
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; RequestAnalysis [tl] ]
   | ExecuteFunctionCancel (tlid, id) ->
       Many

@@ -236,11 +236,11 @@ type Op
 type alias RPCParams = { ops : List Op }
 
 type alias ExecuteFunctionRPCParams =
-  { tlid: TLID
-  , traceID : TraceID
-  , callerID : ID
-  , args : List Dval
-  , fnName : String
+  { efpTLID: TLID
+  , efpTraceID : TraceID
+  , efpCallerID : ID
+  , efpArgs : List Dval
+  , efpFnName : String
   }
 
 type alias AnalysisParams = List TLID

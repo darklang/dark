@@ -244,11 +244,11 @@ encodeRPCParams params =
 encodeExecuteFunctionRPCParams : ExecuteFunctionRPCParams -> JSE.Value
 encodeExecuteFunctionRPCParams params =
   JSE.object
-    [ ("tlid", encodeTLID params.tlid)
-    , ("trace_id", JSE.string params.traceID)
-    , ("caller_id", encodeID params.callerID)
-    , ("args", encodeList encodeDval params.args)
-    , ("fnname", JSE.string params.fnName)
+    [ ("tlid", encodeTLID params.efpTLID)
+    , ("trace_id", JSE.string params.efpTraceID)
+    , ("caller_id", encodeID params.efpCallerID)
+    , ("args", encodeList encodeDval params.efpArgs)
+    , ("fnname", JSE.string params.efpFnName)
     ]
 
 encodeAnalysisParams : AnalysisParams -> JSE.Value
