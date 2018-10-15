@@ -87,7 +87,7 @@ let init (fns : function_ list) (isAdmin : bool) : autocomplete =
 let reset (m : model) (a : autocomplete) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
-    |> List.map (fun x -> x.metadata)
+    |> List.map (fun x -> x.ufMetadata)
     |> List.filterMap Functions.ufmToF
   in
   let unusedDeprecatedFns = Refactor.unusedDeprecatedFunctions m in

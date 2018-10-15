@@ -42,15 +42,15 @@ ufmToF ufm =
 
 find : Model -> TLID -> Maybe UserFunction
 find m id =
-  LE.find (\f -> id == f.tlid) m.userFunctions
+  LE.find (\f -> id == f.ufTLID) m.userFunctions
 
 upsert : Model -> UserFunction -> Model
 upsert m f =
-  case find m f.tlid of
+  case find m f.ufTLID of
     Just old ->
       { m | userFunctions =
         m.userFunctions
-        |> List.filter (\uf -> uf.tlid /= old.tlid)
+        |> List.filter (\uf -> uf.ufTLID /= old.ufTLID)
         |> (::) f
       }
     Nothing ->
@@ -65,7 +65,7 @@ findExn m id =
 
 sameName : String -> UserFunction -> Bool
 sameName name uf =
-  case uf.metadata.ufmName of
+  case uf.ufMetadata.ufmName of
     F _ n -> n == name
     _ -> False
 
@@ -84,17 +84,17 @@ paramData ufp =
 
 allParamData : UserFunction -> List PointerData
 allParamData uf =
-  List.concat (List.map paramData uf.metadata.ufmParameters)
+  List.concat (List.map paramData uf.ufMetadata.ufmParameters)
 
 allData : UserFunction -> List PointerData
 allData uf =
-  [PFnName uf.metadata.ufmName]
+  [PFnName uf.ufMetadata.ufmName]
   @ (allParamData uf)
-  @ AST.allData uf.ast
+  @ AST.allData uf.ufAST
 
 replaceFnName : PointerData -> PointerData -> UserFunction -> UserFunction
 replaceFnName search replacement uf =
-  let metadata = uf.metadata
+  let metadata = uf.ufMetadata
       sId = P.toID search
   in
       if B.toID metadata.ufmName == sId
@@ -105,13 +105,13 @@ replaceFnName search replacement uf =
                   { metadata | ufmName = (B.replace sId new metadata.ufmName) }
                 _ -> metadata
         in
-            { uf | metadata = newMetadata }
+            { uf | ufMetadata = newMetadata }
       else
         uf
 
 replaceParamName : PointerData -> PointerData -> UserFunction -> UserFunction
 replaceParamName search replacement uf =
-  let metadata = uf.metadata
+  let metadata = uf.ufMetadata
       sId = P.toID search
       paramNames =
         uf
@@ -150,21 +150,21 @@ replaceParamName search replacement uf =
               in
                   case (sContent, rContent) of
                     (Just o, Just r) ->
-                      let uses = AST.uses o uf.ast |> List.map PExpr
+                      let uses = AST.uses o uf.ufAST |> List.map PExpr
                       in
                           List.foldr
                           (\use acc -> AST.replace use (transformUse r use) acc)
-                          uf.ast
+                          uf.ufAST
                           uses
-                    _ -> uf.ast
+                    _ -> uf.ufAST
         in
-            { uf | metadata = newMetadata, ast = newBody }
+            { uf | ufMetadata = newMetadata, ufAST = newBody }
       else
         uf
 
 replaceParamTipe : PointerData -> PointerData -> UserFunction -> UserFunction
 replaceParamTipe search replacement uf =
-  let metadata = uf.metadata
+  let metadata = uf.ufMetadata
       sId = P.toID search
       paramTipes =
         uf
@@ -187,7 +187,7 @@ replaceParamTipe search replacement uf =
                       { metadata | ufmParameters = newP }
                 _ -> metadata
         in
-            { uf | metadata = newMetadata }
+            { uf | ufMetadata = newMetadata }
       else
           uf
 
@@ -207,19 +207,19 @@ extend uf =
         , ufpOptional = False
         , ufpDescription = ""
         }
-      metadata = uf.metadata
+      metadata = uf.ufMetadata
       newMetadata =
-        { metadata | ufmParameters = (uf.metadata.ufmParameters @ [newParam]) }
+        { metadata | ufmParameters = (uf.ufMetadata.ufmParameters @ [newParam]) }
   in
-      { uf | metadata = newMetadata }
+      { uf | ufMetadata = newMetadata }
 
 
 removeParameter : UserFunction -> UserFunctionParameter -> UserFunction
 removeParameter uf ufp =
-  let metadata = uf.metadata
+  let metadata = uf.ufMetadata
       params =
         List.filter (\p -> p /= ufp) metadata.ufmParameters
       newM =
         { metadata | ufmParameters = params }
   in
-      { uf | metadata = newM }
+      { uf | ufMetadata = newM }

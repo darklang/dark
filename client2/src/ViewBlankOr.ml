@@ -48,7 +48,7 @@ let withEditFn (vs : viewState) (v : nExpr blankOr) : htmlConfig list =
     match v with
     | F (_, FnCall (name, _, _)) -> (
       match List.find (Functions.sameName name) vs.ufns with
-      | Some fn -> [WithEditFn fn.tlid]
+      | Some fn -> [WithEditFn fn.ufTLID]
       | _ -> [] )
     | _ -> []
   else []

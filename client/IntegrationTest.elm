@@ -516,7 +516,7 @@ feature_flag_in_function m =
   let fun = head m.userFunctions
   in case fun of
     Just f ->
-      case f.ast of
+      case f.ufAST of
         F id
           (FnCall "+" (
             [F _
@@ -532,7 +532,7 @@ feature_flag_in_function m =
           -- in case res of
           --   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value)
           --   _ -> fail (f.ast, res)
-        _ -> fail (f.ast, Nothing)
+        _ -> fail (f.ufAST, Nothing)
     Nothing -> fail ("Cant find function", Nothing)
 
 simple_tab_ordering : Model -> TestResult

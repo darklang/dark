@@ -195,10 +195,10 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let _ = "comment" in
                  [RPC.rpc newM newM.canvasName FocusSame params]
            | TLFunc f ->
-               let replacement = AST.closeBlanks f.ast in
-               if replacement = f.ast then []
+               let replacement = AST.closeBlanks f.ufAST in
+               if replacement = f.ufAST then []
                else
-                 let newF = {f with ast= replacement} in
+                 let newF = {f with ufAST= replacement} in
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
                  let _ = "comment" in
@@ -677,27 +677,27 @@ let update_ (msg : msg) (m : model) : modification =
                       | PExpr _ ->
                           let blank = B.new_ () in
                           let replacement =
-                            AST.addThreadBlank id blank f.ast
+                            AST.addThreadBlank id blank f.ufAST
                           in
-                          if f.ast = replacement then NoChange
+                          if f.ufAST = replacement then NoChange
                           else
                             RPC
-                              ( [SetFunction {f with ast= replacement}]
+                              ( [SetFunction {f with ufAST= replacement}]
                               , FocusExact (tlid, B.toID blank) )
                       | PVarBind _ -> (
-                        match AST.parentOf_ id f.ast with
+                        match AST.parentOf_ id f.ufAST with
                         | Some (F (_, Lambda (_, _))) ->
-                            let replacement = AST.addLambdaBlank id f.ast in
+                            let replacement = AST.addLambdaBlank id f.ufAST in
                             RPC
-                              ( [SetFunction {f with ast= replacement}]
+                              ( [SetFunction {f with ufAST= replacement}]
                               , FocusNext (tlid, Some id) )
                         | _ -> NoChange )
                       | PKey _ ->
                           let nextid, _, replacement =
-                            AST.addObjectLiteralBlanks id f.ast
+                            AST.addObjectLiteralBlanks id f.ufAST
                           in
                           RPC
-                            ( [SetFunction {f with ast= replacement}]
+                            ( [SetFunction {f with ufAST= replacement}]
                             , FocusExact (tlid, nextid) )
                       | PParamTipe _ ->
                           let replacement = Functions.extend f in
@@ -1125,7 +1125,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunctionParameter (uf, upf) ->
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
-      RPC ([SetFunction replacement] ^ newCalls, FocusNext (uf.tlid, None))
+      RPC ([SetFunction replacement] ^ newCalls, FocusNext (uf.ufTLID, None))
   | DeleteUserFunction tlid -> RPC ([DeleteFunction tlid], FocusNothing)
   | RestoreToplevel tlid -> RPC ([UndoTL tlid], FocusNext (tlid, None))
   | RPCCallback
@@ -1261,7 +1261,7 @@ let update_ (msg : msg) (m : model) : modification =
       let ufun = Refactor.generateEmptyFunction () in
       Many
         [ RPC ([SetFunction ufun], FocusNothing)
-        ; MakeCmd (Url.navigateTo (Fn (ufun.tlid, Defaults.centerPos))) ]
+        ; MakeCmd (Url.navigateTo (Fn (ufun.ufTLID, Defaults.centerPos))) ]
   | LockHandler (tlid, isLocked) -> Editor.updateLockedHandlers tlid isLocked m
   | EnablePanning pan ->
       let c = m.canvas in

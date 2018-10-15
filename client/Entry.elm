@@ -96,16 +96,16 @@ submitOmniAction m pos action =
           newfn =
             case name of
               Just n ->
-                let metadata = blankfn.metadata
+                let metadata = blankfn.ufMetadata
                     newMetadata =
                       { metadata | ufmName = F (gid ()) n }
                 in
-                    { blankfn | metadata = newMetadata }
+                    { blankfn | ufMetadata = newMetadata }
               Nothing ->
                 blankfn
       in
           Many ([RPC ([ SetFunction newfn ], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn newfn.tlid Defaults.centerPos))
+                , MakeCmd (Url.navigateTo (Fn newfn.ufTLID Defaults.centerPos))
                 ])
     NewHTTPHandler ->
       let next = gid ()
@@ -340,7 +340,7 @@ submit m cursor action =
               TLHandler h ->
                 saveH { h | ast = ast} next
               TLFunc f ->
-                save ({ tl | data = TLFunc { f | ast = ast}}) next
+                save ({ tl | data = TLFunc { f | ufAST = ast}}) next
               TLDB _ -> impossible ("no vars in DBs", tl.data)
 
           replace new =
@@ -401,7 +401,7 @@ submit m cursor action =
           let ast =
                 case tl.data of
                   TLHandler h -> h.ast
-                  TLFunc f -> f.ast
+                  TLFunc f -> f.ufAST
                   TLDB _ -> impossible ("No fields in DBs", tl.data)
               parent = AST.parentOf id ast
           in
@@ -440,7 +440,7 @@ submit m cursor action =
               ast =
                 case tl.data of
                   TLHandler h -> h.ast
-                  TLFunc f -> f.ast
+                  TLFunc f -> f.ufAST
                   TLDB _ -> impossible ("No fields in DBs", tl.data)
           in
           ast
@@ -457,7 +457,7 @@ submit m cursor action =
 
             TLFunc f ->
               let (newast, newexpr) =
-                    replaceExpr m tl.id f.ast e action value
+                    replaceExpr m tl.id f.ufAST e action value
               in
               saveAst newast (PExpr newexpr)
 

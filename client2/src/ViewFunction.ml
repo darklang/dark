@@ -9,7 +9,7 @@ let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [Attrs.class_ "user-fn-toplevel"]
     [ Html.div [Attrs.class_ "metadata"] [viewMetadata vs fn]
-    ; Html.div [Attrs.class_ "ast"] [ViewCode.viewExpr 0 vs [] fn.ast] ]
+    ; Html.div [Attrs.class_ "ast"] [ViewCode.viewExpr 0 vs [] fn.ufAST] ]
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
@@ -25,7 +25,7 @@ let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
 
 let viewKillParameterBtn (vs : viewState) (uf : userFunction)
     (p : userFunctionParameter) : msg Html.html =
-  let freeVariables = AST.freeVariables uf.ast |> List.map Tuple.second in
+  let freeVariables = AST.freeVariables uf.ufAST |> List.map Tuple.second in
   let canDeleteParameter pname = List.member pname freeVariables |> not in
   let buttonContent allowed =
     if allowed then
@@ -48,10 +48,10 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let namediv =
     Html.div [Attrs.class_ "ufn-name"]
-      [viewUserFnName vs [wc "fn-name-content"] fn.metadata.ufmName]
+      [viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName]
   in
   let coldivs =
-    fn.metadata.ufmParameters
+    fn.ufMetadata.ufmParameters
     |> List.map (fun p ->
            Html.div [Attrs.class_ "col"]
              [ viewParamName vs [wc "name"] p.ufpName

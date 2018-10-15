@@ -307,7 +307,7 @@ tlLink pos class name =
 fnLink : UserFunction -> Bool -> String -> Html.Html Msg
 fnLink fn isUsed text_ =
   Url.linkFor
-    (Fn fn.tlid Defaults.centerPos)
+    (Fn fn.ufTLID Defaults.centerPos)
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
@@ -370,7 +370,7 @@ viewUserFunctions : Model -> Html.Html Msg
 viewUserFunctions m =
   let fns = m.userFunctions
             |> List.filter
-              (\fn -> B.isF fn.metadata.ufmName)
+              (\fn -> B.isF fn.ufMetadata.ufmName)
 
       fnNamedLink fn name =
         let useCount = countFnUsage m name
@@ -379,7 +379,7 @@ viewUserFunctions m =
             [ span "name" [ fnLink fn False name ]
               , buttonLink
                   (fontAwesome "minus-circle")
-                  (DeleteUserFunction fn.tlid)
+                  (DeleteUserFunction fn.ufTLID)
                   Nothing
             ]
           else
@@ -388,7 +388,7 @@ viewUserFunctions m =
 
       fnHtml fn =
         div "simple-route" (
-          let fnName = B.asF fn.metadata.ufmName
+          let fnName = B.asF fn.ufMetadata.ufmName
           in case fnName of
             Just name -> fnNamedLink fn name
             Nothing ->

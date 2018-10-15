@@ -81,9 +81,9 @@ wrap wl m tl p =
                   ,focus)
         (PExpr e, TLFunc f) ->
           let (newAst, focus) =
-                wrapAst e f.ast wl
+                wrapAst e f.ufAST wl
               newF =
-                { f | ast = newAst }
+                { f | ufAST = newAst }
           in
               RPC ([SetFunction newF]
                   ,focus)
@@ -165,9 +165,9 @@ extractVariable m tl p =
                    ]
         (PExpr e, TLFunc f) ->
           let (newAst, enterTarget) =
-                extractVarInAst e f.ast
+                extractVarInAst e f.ufAST
               newF =
-                { f | ast = newAst }
+                { f | ufAST = newAst }
           in
               Many [ RPC ([SetFunction newF]
                          , FocusNoChange)
@@ -220,9 +220,9 @@ extractFunction m tl p =
             , ufmInfix = False
             }
           newF =
-            { tlid = gtlid ()
-            , metadata = metadata
-            , ast = AST.clone body
+            { ufTLID = gtlid ()
+            , ufMetadata = metadata
+            , ufAST = AST.clone body
             }
       in
           RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
@@ -245,12 +245,12 @@ renameFunction m old new =
                       PExpr (transformExpr newName_ e)
                     _ -> oldCall
             (origName, calls) =
-              case old_.metadata.ufmName of
+              case old_.ufMetadata.ufmName of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
             newName =
-              case new_.metadata.ufmName of
+              case new_.ufMetadata.ufmName of
                 Blank _ -> Nothing
                 F _ n -> Just n
         in
@@ -279,11 +279,11 @@ renameFunction m old new =
               m.userFunctions
               |> List.filterMap
                 (\uf ->
-                  let newAst = renameFnCalls uf.ast old new
+                  let newAst = renameFnCalls uf.ufAST old new
                   in
-                      if newAst /= uf.ast
+                      if newAst /= uf.ufAST
                       then
-                        Just (SetFunction { uf | ast = newAst })
+                        Just (SetFunction { uf | ufAST = newAst })
                       else Nothing)
       in
           newHandlers ++ newFunctions
@@ -328,7 +328,7 @@ countFnUsage m name =
                   case tl.data of
                     TLHandler h -> isFunctionInExpr name h.ast
                     TLDB _ -> False
-                    TLFunc f -> isFunctionInExpr name f.ast
+                    TLFunc f -> isFunctionInExpr name f.ufAST
                 )
   in List.length usedIn
 
@@ -356,7 +356,7 @@ transformFnCalls m uf f =
                       PExpr (transformExpr e)
                     _ -> old_
             (origName, calls) =
-              case old.metadata.ufmName of
+              case old.ufMetadata.ufmName of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
@@ -386,11 +386,11 @@ transformFnCalls m uf f =
               m.userFunctions
               |> List.filterMap
                 (\uf_ ->
-                  let newAst = transformCallsInAst f uf_.ast uf_
+                  let newAst = transformCallsInAst f uf_.ufAST uf_
                   in
-                      if newAst /= uf_.ast
+                      if newAst /= uf_.ufAST
                       then
-                        Just (SetFunction { uf_ | ast = newAst })
+                        Just (SetFunction { uf_ | ufAST = newAst })
                       else Nothing)
       in
           newHandlers ++ newFunctions
@@ -408,7 +408,7 @@ addNewFunctionParameter m old =
 removeFunctionParameter : Model -> UserFunction -> UserFunctionParameter -> List Op
 removeFunctionParameter m uf ufp =
   let indexInList =
-        LE.findIndex (\p -> p == ufp) uf.metadata.ufmParameters
+        LE.findIndex (\p -> p == ufp) uf.ufMetadata.ufmParameters
         |> deMaybe "tried to remove parameter that does not exist in function"
       fn e =
         case e of

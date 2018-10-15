@@ -11,7 +11,7 @@ let name (tl : toplevel) : string =
   | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
   | TLDB db -> "DB: " ^ db.name
   | TLFunc f ->
-      "Func: " ^ (f.metadata.ufmName |> B.toMaybe |> Option.withDefault "")
+      "Func: " ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "")
 
 let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
   List.find (fun tl -> tl.id = elem.id) tls <> None
@@ -51,7 +51,7 @@ let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
   {tl with pos= newPos}
 
 let ufToTL (m : model) (uf : userFunction) : toplevel =
-  {id= uf.tlid; pos= Defaults.centerPos; data= TLFunc uf}
+  {id= uf.ufTLID; pos= Defaults.centerPos; data= TLFunc uf}
 
 let asUserFunction (tl : toplevel) : userFunction option =
   match tl.data with TLFunc f -> Some f | _ -> None
@@ -137,7 +137,7 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
       let toplevels = SpecHeaders.allData h.spec ^ [PExpr h.ast] in
       if List.member p toplevels then toplevels else AST.siblings p h.ast
   | TLDB db -> DB.siblings p db
-  | TLFunc f -> AST.siblings p f.ast
+  | TLFunc f -> AST.siblings p f.ufAST
 
 let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
   siblings tl p |> Util.listNextWrap p |> deOption "nextSibling"
@@ -148,7 +148,7 @@ let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   match tl.data with
   | TLHandler h -> AST.parentOf_ (P.toID p) h.ast |> Option.map PExpr
-  | TLFunc f -> AST.parentOf_ (P.toID p) f.ast |> Option.map PExpr
+  | TLFunc f -> AST.parentOf_ (P.toID p) f.ufAST |> Option.map PExpr
   | TLDB db ->
       db |> DB.astsFor
       |> List.map (AST.parentOf_ (P.toID p))
@@ -159,7 +159,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   let astChildren () =
     match tl.data with
     | TLHandler h -> AST.childrenOf pid h.ast
-    | TLFunc f -> AST.childrenOf pid f.ast
+    | TLFunc f -> AST.childrenOf pid f.ufAST
     | TLDB db ->
         db |> DB.astsFor |> List.map (AST.childrenOf pid) |> List.concat
   in
@@ -184,7 +184,7 @@ let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
 let rootOf (tl : toplevel) : pointerData option =
   match tl.data with
   | TLHandler h -> Some <| PExpr h.ast
-  | TLFunc f -> Some <| PExpr f.ast
+  | TLFunc f -> Some <| PExpr f.ufAST
   | _ -> None
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -198,8 +198,8 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         let newAST = AST.replace p replacement h.ast in
         {tl with data= TLHandler {h with ast= newAST}}
     | TLFunc f ->
-        let newAST = AST.replace p replacement f.ast in
-        {tl with data= TLFunc {f with ast= newAST}}
+        let newAST = AST.replace p replacement f.ufAST in
+        {tl with data= TLFunc {f with ufAST= newAST}}
     | _ -> impossible ("no AST here", tl.data)
   in
   let specHeaderReplace bo =
@@ -229,8 +229,8 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         let ast = AST.replace p replacement h.ast in
         {tl with data= TLHandler {h with spec= spec2; ast}}
     | TLFunc f ->
-        let ast = AST.replace p replacement f.ast in
-        {tl with data= TLFunc {f with ast}}
+        let ast = AST.replace p replacement f.ufAST in
+        {tl with data= TLFunc {f with ufAST= ast}}
     | _ -> tl )
   | PFnName _ -> fnMetadataReplace ()
   | PParamName _ -> fnMetadataReplace ()

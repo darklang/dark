@@ -34,7 +34,7 @@ name tl =
       ++ db.name
     TLFunc f ->
       "Func: "
-      ++ (f.metadata.ufmName |> B.toMaybe |> Maybe.withDefault "")
+      ++ (f.ufMetadata.ufmName |> B.toMaybe |> Maybe.withDefault "")
 
 containsByTLID : List Toplevel -> Toplevel -> Bool
 containsByTLID tls elem =
@@ -87,7 +87,7 @@ moveTL xOffset yOffset tl =
   in { tl | pos = newPos }
 
 ufToTL : Model -> UserFunction -> Toplevel
-ufToTL m uf = { id = uf.tlid
+ufToTL m uf = { id = uf.ufTLID
               , pos = Defaults.centerPos
               , data = TLFunc uf
               }
@@ -240,7 +240,7 @@ siblings tl p =
       then toplevels
       else AST.siblings p h.ast
     TLDB db -> DB.siblings p db
-    TLFunc f -> AST.siblings p f.ast
+    TLFunc f -> AST.siblings p f.ufAST
 
 getNextSibling : Toplevel -> PointerData -> PointerData
 getNextSibling tl p =
@@ -268,7 +268,7 @@ getParentOf tl p =
       AST.parentOf_ (P.toID p) h.ast
       |> Maybe.map PExpr
     TLFunc f ->
-      AST.parentOf_ (P.toID p) f.ast
+      AST.parentOf_ (P.toID p) f.ufAST
       |> Maybe.map PExpr
     TLDB db ->
       db
@@ -286,7 +286,7 @@ getChildrenOf tl pd =
           TLHandler h ->
             AST.childrenOf pid h.ast
           TLFunc f ->
-            AST.childrenOf pid f.ast
+            AST.childrenOf pid f.ufAST
           TLDB db ->
             db
             |> DB.astsFor
@@ -320,7 +320,7 @@ rootOf tl =
     TLHandler h ->
       Just <| PExpr h.ast
     TLFunc f ->
-      Just <| PExpr f.ast
+      Just <| PExpr f.ufAST
     _ -> Nothing
 
 
@@ -338,8 +338,8 @@ replace p replacement tl =
             let newAST = AST.replace p replacement h.ast
             in { tl | data = TLHandler { h | ast = newAST } }
           TLFunc f ->
-            let newAST = AST.replace p replacement f.ast
-            in { tl | data = TLFunc { f | ast = newAST } }
+            let newAST = AST.replace p replacement f.ufAST
+            in { tl | data = TLFunc { f | ufAST = newAST } }
           _ -> impossible ("no AST here", tl.data)
       specHeaderReplace bo =
         let h = ha ()
@@ -374,8 +374,8 @@ replace p replacement tl =
               ast = AST.replace p replacement h.ast
           in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
         TLFunc f ->
-          let ast = AST.replace p replacement f.ast
-          in { tl | data = TLFunc { f | ast = ast } }
+          let ast = AST.replace p replacement f.ufAST
+          in { tl | data = TLFunc { f | ufAST = ast } }
         _ -> tl
     PFnName _ -> fnMetadataReplace ()
     PParamName _ -> fnMetadataReplace ()

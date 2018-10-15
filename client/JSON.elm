@@ -82,7 +82,7 @@ tlidOf op =
     RedoTL tlid -> tlid
     DeleteTL tlid -> tlid
     MoveTL tlid _ -> tlid
-    SetFunction f -> f.tlid
+    SetFunction f -> f.ufTLID
     DeleteFunction tlid -> tlid
     SetExpr tlid _ _ -> tlid
     CreateDBMigration tlid _ _ _ -> tlid
@@ -258,9 +258,9 @@ encodeAnalysisParams params =
 encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
   JSE.object
-    [("tlid", encodeTLID uf.tlid)
-    ,("metadata", encodeUserFunctionMetadata uf.metadata)
-    ,("ast", encodeExpr uf.ast)
+    [("tlid", encodeTLID uf.ufTLID)
+    ,("metadata", encodeUserFunctionMetadata uf.ufMetadata)
+    ,("ast", encodeExpr uf.ufAST)
     ]
 
 
@@ -659,9 +659,9 @@ decodeUserFunctionMetadata =
 decodeUserFunction : JSD.Decoder UserFunction
 decodeUserFunction =
   let toUserFn id meta ast =
-        { tlid = id
-        , metadata = meta
-        , ast = ast
+        { ufTLID = id
+        , ufMetadata = meta
+        , ufAST = ast
         }
   in
       JSDP.decode toUserFn

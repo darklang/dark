@@ -161,7 +161,7 @@ reset : Model -> Autocomplete -> Autocomplete
 reset m a =
   let userFunctionMetadata =
         m.userFunctions
-        |> List.map .metadata
+        |> List.map .ufMetadata
         |> List.filterMap Functions.ufmToF
       unusedDeprecatedFns =
         Refactor.unusedDeprecatedFunctions m

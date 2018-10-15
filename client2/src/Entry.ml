@@ -55,14 +55,14 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let newfn =
         match name with
         | Some n ->
-            let metadata = blankfn.metadata in
+            let metadata = blankfn.ufMetadata in
             let newMetadata = {metadata with ufmName= F (gid (), n)} in
-            {blankfn with metadata= newMetadata}
+            {blankfn with ufMetadata= newMetadata}
         | None -> blankfn
       in
       Many
         [ RPC ([SetFunction newfn], FocusNothing)
-        ; MakeCmd (Url.navigateTo (Fn (newfn.tlid, Defaults.centerPos))) ]
+        ; MakeCmd (Url.navigateTo (Fn (newfn.ufTLID, Defaults.centerPos))) ]
   | NewHTTPHandler ->
       let next = gid () in
       let tlid = gtlid () in
@@ -228,7 +228,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         let saveAst ast next =
           match tl.data with
           | TLHandler h -> saveH {h with ast} next
-          | TLFunc f -> save {tl with data= TLFunc {f with ast}} next
+          | TLFunc f -> save {tl with data= TLFunc {f with ufAST= ast}} next
           | TLDB _ -> impossible ("no vars in DBs", tl.data)
         in
         let replace new_ =
@@ -275,7 +275,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             let ast =
               match tl.data with
               | TLHandler h -> h.ast
-              | TLFunc f -> f.ast
+              | TLFunc f -> f.ufAST
               | TLDB _ -> impossible ("No fields in DBs", tl.data)
             in
             let parent = AST.parentOf id ast in
@@ -306,7 +306,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             let ast =
               match tl.data with
               | TLHandler h -> h.ast
-              | TLFunc f -> f.ast
+              | TLFunc f -> f.ufAST
               | TLDB _ -> impossible ("No fields in DBs", tl.data)
             in
             ast |> AST.replace pd new_
@@ -318,7 +318,9 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               let newast, newexpr = replaceExpr m tl.id h.ast e action value in
               saveAst newast (PExpr newexpr)
           | TLFunc f ->
-              let newast, newexpr = replaceExpr m tl.id f.ast e action value in
+              let newast, newexpr =
+                replaceExpr m tl.id f.ufAST e action value
+              in
               saveAst newast (PExpr newexpr)
           | TLDB db -> (
             match db.activeMigration with

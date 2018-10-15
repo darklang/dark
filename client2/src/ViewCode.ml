@@ -186,7 +186,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let previous =
         match vs.tl.data with
         | TLHandler h -> h.ast |> AST.threadPrevious id |> Option.toList
-        | TLFunc f -> f.ast |> AST.threadPrevious id |> Option.toList
+        | TLFunc f -> f.ufAST |> AST.threadPrevious id |> Option.toList
         | TLDB db -> impossible db
       in
       let _ = "comment" in

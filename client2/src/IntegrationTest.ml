@@ -420,7 +420,7 @@ let feature_flag_in_function (m : model) : testResult =
   let fun_ = head m.userFunctions in
   match fun_ with
   | Some f -> (
-    match f.ast with
+    match f.ufAST with
     | F
         ( id
         , FnCall
@@ -435,7 +435,7 @@ let feature_flag_in_function (m : model) : testResult =
                       , F (_, Value "3") ) ) ]
             , NoRail ) ) ->
         pass
-    | _ -> fail (f.ast, None) )
+    | _ -> fail (f.ufAST, None) )
   | None -> fail ("Cant find function", None)
 
 let simple_tab_ordering (m : model) : testResult =
