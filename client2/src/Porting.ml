@@ -132,6 +132,8 @@ module List = struct
     List.partition fn l
   let foldr (fn: 'a -> 'b -> 'b) (init: 'b) (l: 'a list) : 'b =
     List.fold_right fn l init
+  let foldl (fn: 'a -> 'b -> 'b) (init: 'b) (l: 'a list) : 'b =
+    List.fold_right fn (List.rev l) init
   let rec findIndexHelp (index : int) (predicate : 'a -> bool) (list : 'a list) :
     int option =
     match list with
