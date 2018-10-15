@@ -333,9 +333,9 @@ rootOf tl =
   -- TODO SpecTypePointerDataRefactor
   case tl.data of
     TLHandler h ->
-      Just <| PExpr h.ast
+      Just (PExpr h.ast)
     TLFunc f ->
-      Just <| PExpr f.ufAST
+      Just (PExpr f.ufAST)
     _ -> Nothing
 
 
