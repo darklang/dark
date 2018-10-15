@@ -192,8 +192,8 @@ let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
 
 let rootOf (tl : toplevel) : pointerData option =
   match tl.data with
-  | TLHandler h -> Some <| PExpr h.ast
-  | TLFunc f -> Some <| PExpr f.ufAST
+  | TLHandler h -> Some (PExpr h.ast)
+  | TLFunc f -> Some (PExpr f.ufAST)
   | _ -> None
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
