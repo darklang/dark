@@ -1,7 +1,7 @@
 module FeatureFlags exposing (..)
 
 -- built-in
-import Dict
+import IntDict
 
 -- dark
 import Types exposing (..)
@@ -61,5 +61,5 @@ end m id pick =
 toggle : Model -> ID ->  Bool -> Modification
 toggle m id isExpanded =
   TweakModel (\m_ -> {
-    m_ | featureFlags = Dict.insert (deID id) isExpanded m_.featureFlags
+    m_ | featureFlags = IntDict.insert (deID id) isExpanded m_.featureFlags
   })

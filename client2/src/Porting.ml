@@ -248,31 +248,36 @@ module Set = struct
 end
 
 module StrDict = struct
-  type key = Belt.Map.String.key
-  type 'value t = 'value Belt.Map.String.t
   module Map = Belt.Map.String
+  type key = Map.key
+  type 'value t = 'value Map.t
   let toList = Map.toList
-  let empty = Belt.Map.String.empty
+  let empty = Map.empty
   let fromList (l: ('key * 'value) list) : 'value t =
     l
     |> Belt.List.toArray
-    |> Belt.Map.String.fromArray
+    |> Map.fromArray
   let get (k: key) (v: 'value t) : 'value option =
-    Belt.Map.String.get v k
+    Map.get v k
+  let insert (k: key) (v: 'value) (map: 'value t) : 'value t =
+    Map.set map k v
+
 end
 
 module IntDict = struct
-  type key = Belt.Map.Int.key
-  type 'value t = 'value Belt.Map.Int.t
   module Map = Belt.Map.Int
+  type key = Map.key
+  type 'value t = 'value Map.t
   let toList = Map.toList
-  let empty = Belt.Map.Int.empty
+  let empty = Map.empty
   let fromList (l: ('key * 'value) list) : 'value t =
     l
     |> Belt.List.toArray
-    |> Belt.Map.Int.fromArray
+    |> Map.fromArray
   let get (k: key) (v: 'value t) : 'value option =
-    Belt.Map.Int.get v k
+    Map.get v k
+  let insert (k: key) (v: 'value) (map: 'value t) : 'value t =
+    Map.set map k v
 end
 
 module Html = struct
