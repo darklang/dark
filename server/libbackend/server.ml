@@ -457,10 +457,10 @@ let to_assoc_list etags_json : (string*string) list =
     else mutated
   | _ -> Exception.internal "etags.json must be a top-level object."
 
-let admin_ui_html ~(debug:bool) frontend =
+let admin_ui_html ~(debug:bool) frontend username =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
     template
-    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
+    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
     >|= Util.string_replace "{LIVERELOADJS}"
       (if Config.browser_reload_enabled
        then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
@@ -583,7 +583,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let serve_or_error ~(debug : bool) frontend =
-    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend))
+    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend username))
       (fun body ->
          respond
            ~resp_headers:html_hdrs
@@ -798,7 +798,7 @@ let route_host req =
 let admin_ui_html_readiness_check () :string option list =
   List.map
     ~f: (fun (frontend_impl, frontend_str) ->
-        try ignore (admin_ui_html ~debug:false frontend_impl); None with
+        try ignore (admin_ui_html ~debug:false frontend_impl "test"); None with
           e -> Some ("admin_ui_html failed for frontend: " ^ frontend_str))
     [(Elm, "Elm"); (Bucklescript, "BuckleScript")]
 

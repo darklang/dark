@@ -175,8 +175,8 @@ let user_fn name params ast : user_fn =
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
-let test_execution_data ops : (C.canvas ref * exec_state * input_vars) =
-  let c = ops2c "test" ops in
+let test_execution_data ?(canvas_name="test") ops : (C.canvas ref * exec_state * input_vars) =
+  let c = ops2c canvas_name ops in
   let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
   let canvas_id = !c.id in
   let trace_id = Util.create_uuid () in
@@ -219,8 +219,8 @@ let exec_handler ?(ops=[]) (prog: string) : dval =
   |> hop
   |> fun h -> execute_ops (ops @ [h])
 
-let exec_ast (prog: string) : dval =
-  let (c, state, input_vars) = test_execution_data [] in
+let exec_ast ?(canvas_name="test") (prog: string) : dval =
+  let (c, state, input_vars) = test_execution_data ~canvas_name [] in
   Ast.execute_ast input_vars state (ast_for prog)
 
 let exec_userfn (prog: string) : dval =
@@ -1525,6 +1525,20 @@ let t_db_getAll_v2_works () =
     (exec_handler ~ops ast)
 
 
+let t_dark_internal_fns_are_internal () =
+  let ast = "(DarkInternal::checkAccess)" in
+  let check_access canvas_name =
+    match exec_ast ~canvas_name ast with
+      DError _ -> None
+    | dval -> Some dval
+  in
+  AT.check (AT.list (AT.option at_dval)) "DarkInternal:: functions are internal."
+    [ check_access "test"
+    ; check_access "test_admin"
+    ]
+    [ None
+    ; Some DNull
+    ]
 
 (* ------------------- *)
 (* Test setup *)
@@ -1605,6 +1619,7 @@ let suite =
   ; "DB::queryOneWithKey returns Nothing if more than one found", `Quick, t_db_queryOneWithKey_returns_nothing_multiple
   ; "Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips
   ; "DB::getAll_v2 works", `Quick, t_db_getAll_v2_works
+  ; "DarkInternal:: functions are internal", `Quick, t_dark_internal_fns_are_internal
   ]
 
 let () =
