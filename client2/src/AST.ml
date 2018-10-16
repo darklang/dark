@@ -606,7 +606,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            | _ -> None )
     |> List.concat
     |> List.map (B.toID >> deID)
-    |> Set.fromList
+    |> IntSet.fromList
   in
   ast |> allData
   |> List.filterMap (fun n ->
@@ -617,7 +617,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            | F (id, e) -> (
              match e with
              | Variable name ->
-                 if Set.member (deID id) definedAndUsed then None
+                 if IntSet.member (deID id) definedAndUsed then None
                  else Some (id, name)
              | _ -> None ) )
          | _ -> None )

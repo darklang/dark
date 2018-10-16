@@ -13,7 +13,7 @@ import Prelude exposing (..)
 import Util
 import Pointer as P
 import Blank as B
-import Set
+import IntSet
 
 
 -------------------------
@@ -950,7 +950,7 @@ freeVariables ast =
                              _ -> Nothing)
                        |> List.concat
                        |> List.map (B.toID >> deID)
-                       |> Set.fromList
+                       |> IntSet.fromList
    in
       ast
       |> allData
@@ -963,7 +963,7 @@ freeVariables ast =
                 F id e ->
                   case e of
                     Variable name ->
-                      if Set.member (deID id) definedAndUsed
+                      if IntSet.member (deID id) definedAndUsed
                       then Nothing
                       else Just (id, name)
                     _ -> Nothing

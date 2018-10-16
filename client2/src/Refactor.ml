@@ -72,7 +72,7 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
   let extractVarInAst e ast =
     let varname = "var" ^ string_of_int (Util.random ()) in
     let freeVariables =
-      AST.freeVariables e |> List.map Tuple.second |> Set.fromList
+      AST.freeVariables e |> List.map Tuple.second |> StrSet.fromList
     in
     let ancestors = AST.ancestors (B.toID e) ast in
     let lastPlaceWithSameVarsAndValues =
@@ -80,13 +80,14 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
       |> List.takeWhile (fun elem ->
              let id = B.toID elem in
              let availableVars =
-               Analysis.getCurrentAvailableVarnames m tl.id id |> Set.fromList
+               Analysis.getCurrentAvailableVarnames m tl.id id
+               |> StrSet.fromList
              in
              let allRequiredVariablesAvailable =
-               Set.diff freeVariables availableVars |> Set.isEmpty
+               StrSet.diff freeVariables availableVars |> StrSet.isEmpty
              in
              let noVariablesAreRedefined =
-               freeVariables |> Set.toList
+               freeVariables |> StrSet.toList
                |> List.all (not << fun v -> AST.isDefinitionOf v elem)
              in
              allRequiredVariablesAvailable && noVariablesAreRedefined )
@@ -256,12 +257,12 @@ let countFnUsage (m : model) (name : string) : int =
   in
   List.length usedIn
 
-let unusedDeprecatedFunctions (m : model) : string set =
+let unusedDeprecatedFunctions (m : model) : StrSet.set =
   m.builtInFunctions
   |> List.filter (fun x -> x.fnDeprecated)
   |> List.map (fun x -> x.fnName)
   |> List.filter (fun n -> countFnUsage m n = 0)
-  |> Set.fromList
+  |> StrSet.fromList
 
 let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     op list =
