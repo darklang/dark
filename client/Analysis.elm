@@ -15,6 +15,7 @@ import Toplevel as TL
 import AST
 import StrDict
 import IntDict
+import DontPort exposing ((@))
 
 -- "current" in this indicates that it uses the cursor to pick the right inputValue
 
@@ -150,7 +151,7 @@ getArguments m tlid traceID callerID =
               _ -> []
           args =
             case caller of
-              Just (PExpr (F _ (FnCall _ args _))) -> threadPrevious ++ args
+              Just (PExpr (F _ (FnCall _ args _))) -> threadPrevious @ args
               _ -> []
           argIDs = List.map B.toID args
           analyses = StrDict.get traceID m.analyses
