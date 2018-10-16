@@ -44,8 +44,8 @@ type jSSide =
 and htmlSizing = {centerX: float; centerY: float; id: id}
 
 let jsToHtmlSizing (obj : jSSide) : htmlSizing =
-  { centerX= (obj.left + obj.right) / 2
-  ; centerY= (obj.top + obj.bottom) / 2
+  { centerX= (obj.left +. obj.right) /. 2.
+  ; centerY= (obj.top +. obj.bottom) /. 2.
   ; id= ID obj.id }
 
 let tlToSizes (m : model) (tlid : tlid) : htmlSizing list * htmlSizing list =

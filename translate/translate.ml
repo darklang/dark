@@ -30,6 +30,7 @@ let config_module_patterns =
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
+  ; "open DontPort", ""
   ; "\\(varName, dval\\) dict", "dval Belt.Map.String.t"
   ; "deMaybe", "deOption"
   ; "^let tipe2str", "let rec tipe2str"
@@ -51,6 +52,10 @@ let config_post_process_patterns =
   ; "let rec_ancestors ", "let rec rec_ancestors "
   ; "Attrs.href", "Html.href"
   ; "Attrs.class_", "Html.class'"
+  ; "floatAdd", "(+.)"
+  ; "floatSubtract", "(-.)"
+  ; "floatMultiply", "(*.)"
+  ; "floatDivide", "(/.)"
   ]
 
 let config_type_patterns =
