@@ -75,6 +75,7 @@ let init (replacements: fn_replacement list) : unit =
              @ Libstd.fns
              @ Libstd2.fns
              @ Libhttp.fns
+             @ Libdarkinternal.fns
              (* @ Libtwitter.fns  *)
   in
   List.iter ~f:add_short_fn libs;
