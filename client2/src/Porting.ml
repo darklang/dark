@@ -167,6 +167,10 @@ module Option = struct
   let foldrValues (item : 'a option) (list : 'a list) : 'a list =
     match item with None -> list | Some v -> v :: list
   let values (l : 'a option list) : 'a list = List.foldr foldrValues [] l
+  let toList (o: 'a option) : 'a list =
+    match o with
+    | None -> []
+    | Some o -> [o]
 end
 
 

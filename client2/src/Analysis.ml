@@ -98,7 +98,7 @@ let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
       in
       let args =
         match caller with
-        | Some (PExpr (F (_, FnCall (_, args, _)))) -> threadPrevious ^ args
+        | Some (PExpr (F (_, FnCall (_, args, _)))) -> threadPrevious @ args
         | _ -> []
       in
       let argIDs = List.map B.toID args in
