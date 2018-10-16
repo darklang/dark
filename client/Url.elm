@@ -101,9 +101,9 @@ parseLocation m loc =
           Just sid ->
             case String.toInt sid of
               Ok id ->
-                Just <|
-                  Fn (TLID id)
-                     (Maybe.withDefault Defaults.centerPos center)
+                Just
+                  (Fn (TLID id)
+                     (Maybe.withDefault Defaults.centerPos center))
               _ -> Nothing
           _ -> Nothing
   in

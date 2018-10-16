@@ -64,7 +64,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
     | Some sid -> (
       match String.toInt sid with
       | Ok id ->
-          Some <| Fn (TLID id, Option.withDefault Defaults.centerPos center)
+          Some (Fn (TLID id, Option.withDefault Defaults.centerPos center))
       | _ -> None )
     | _ -> None
   in
