@@ -50,5 +50,5 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
 let toggle (m : model) (id : id) (isExpanded : bool) : modification =
   TweakModel
     (fun m_ ->
-      {m_ with featureFlags= Dict.insert (deID id) isExpanded m_.featureFlags}
-      )
+      { m_ with
+        featureFlags= IntDict.insert (deID id) isExpanded m_.featureFlags } )
