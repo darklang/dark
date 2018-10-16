@@ -155,7 +155,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
   | FnCall (name, exprs, sendToRail) -> (
       let width = approxNWidth e in
       let viewTooWideArg name_ d_ e_ =
-        Html.div [Attrs.class_ "arg-on-new-line"] [vExprTw d_ e_]
+        Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
       let ve name_ = if width > 120 then viewTooWideArg name_ else vExpr in
       let fnname parens =
@@ -240,7 +240,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         if not showButton then []
         else
           [ Html.div
-              ( [ Attrs.class_ ("execution-button " ^ class_ ^ executingClass)
+              ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
                 ; Attrs.title title ]
               ^ event )
               [fontAwesome icon] ]
@@ -301,7 +301,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       n (wc "object" :: mo :: config) ([open_] ^ List.map pexpr pairs ^ [close])
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
-        Html.label [Attrs.class_ "expr-label"] [Html.text msg_]
+        Html.label [Html.class' "expr-label"] [Html.text msg_]
       in
       let isExpanded =
         let mv = Dict.get (deID id) vs.featureFlags in
@@ -309,7 +309,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       in
       let pickA =
         Html.div
-          [ Attrs.class_ "icon pick-a parameter-btn info"
+          [ Html.class' "icon pick-a parameter-btn info"
           ; Attrs.attribute "data-content" "Use Case A"
           ; Attrs.title "delete Feature Flag & use Case A"
           ; eventNoPropagation "click" (fun _ -> EndFeatureFlag (id, PickA)) ]
@@ -317,7 +317,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       in
       let pickB =
         Html.div
-          [ Attrs.class_ "icon pick-b parameter-btn info"
+          [ Html.class' "icon pick-b parameter-btn info"
           ; Attrs.attribute "data-content" "Use Case B"
           ; Attrs.title "delete Feature Flag & use Case B"
           ; eventNoPropagation "click" (fun _ -> EndFeatureFlag (id, PickB)) ]
@@ -339,9 +339,9 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       in
       let titleBar =
         Html.div
-          [Attrs.class_ "row title-bar"]
+          [Html.class' "row title-bar"]
           [ viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
-          ; Html.div [Attrs.class_ "actions"]
+          ; Html.div [Html.class' "actions"]
               [(if isExpanded then hideModal else expandModal)] ]
       in
       let condValue =
@@ -352,16 +352,16 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       in
       let blockCondition =
         Html.div
-          [Attrs.class_ "row condition"]
+          [Html.class' "row condition"]
           [exprLabel "Condition (run Case B if...)"; vExpr 0 cond]
       in
       let exprBlock lbl act exp =
-        Html.div [Attrs.class_ "cond-expr"]
+        Html.div [Html.class' "cond-expr"]
           [exprLabel lbl; act; div vs [wc "expr-block"] [vExpr 0 exp]]
       in
       let expressions =
         Html.div
-          [Attrs.class_ "row expressions"]
+          [Html.class' "row expressions"]
           [exprBlock "Case A" pickA a_; exprBlock "Case B" pickB b_]
       in
       div vs [wc "flagged shown"]
@@ -369,7 +369,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
             (if condResult then b_ else a_)
         ; fontAwesome "flag"
         ; Html.div
-            [ Attrs.class_
+            [ Html.class'
                 ("feature-flag" ^ if isExpanded then " expand" else "") ]
             [titleBar; blockCondition; expressions] ]
 
@@ -379,7 +379,7 @@ let isExecuting (vs : viewState) (id : id) : bool =
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
-    Html.div [Attrs.class_ "ast"]
+    Html.div [Html.class' "ast"]
       [ Html.div
           [Attrs.classList [("rop-rail", showRail)]]
           [viewExpr 0 vs [] h.ast] ]
@@ -388,8 +388,8 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
     match (h.spec.modifier, h.spec.name) with
     | F (_, "GET"), F (_, name) ->
         [ Html.a
-            [ Attrs.class_ "external"
-            ; Attrs.href
+            [ Html.class' "external"
+            ; Html.href
                 ( "//"
                 ^ Http.encodeUri vs.canvasName
                 ^ "." ^ vs.userContentHost ^ name )
@@ -412,7 +412,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   in
   let header =
     Html.div
-      [Attrs.class_ "spec-header"]
+      [Html.class' "spec-header"]
       [ viewEventName vs [wc "name"] h.spec.name
       ; Html.div [] externalLink
       ; viewEventSpace vs [wc "module"] h.spec.module_

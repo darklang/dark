@@ -10,7 +10,7 @@ let viewEntry (m : model) : msg Html.html list =
   match unwrapCursorState m.cursorState with
   | Entering (Creating pos) ->
       let html =
-        Html.div [Attrs.class_ "omnibox"]
+        Html.div [Html.class' "omnibox"]
           [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
       in
       [placeHtml m pos html]
@@ -56,10 +56,10 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     else "large-string"
   in
   Html.div
-    [Attrs.class_ "string-entry"]
+    [Html.class' "string-entry"]
     [ Html.form
         [ Events.onSubmit EntrySubmitMsg
-        ; Attrs.class_ ("string-container " ^ sizeClass) ]
+        ; Html.class' ("string-container " ^ sizeClass) ]
         [input] ]
 
 let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
@@ -81,7 +81,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation "click" (fun _ -> AutocompleteClick name) ]
           [ view item []
-          ; Html.span [Attrs.class_ "types"]
+          ; Html.span [Html.class' "types"]
               [Html.text <| Autocomplete.asTypeString item] ] )
       (List.concat ac.completions)
   in
@@ -125,7 +125,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let viewForm =
     Html.form [Events.onSubmit EntrySubmitMsg] [input; autocomplete]
   in
-  let wrapper = Html.div [Attrs.class_ "entry"] [viewForm] in
+  let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper
 
 let entryHtml (permission : stringEntryPermission) (width : stringEntryWidth)

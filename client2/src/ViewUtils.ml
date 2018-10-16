@@ -86,7 +86,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; userContentHost= m.userContentHost }
 
 let fontAwesome (name : string) : msg Html.html =
-  Html.i [Attrs.class_ ("fa fa-" ^ name)] []
+  Html.i [Html.class' ("fa fa-" ^ name)] []
 
 let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
     msg Html.attribute =
@@ -112,9 +112,9 @@ let decodeClickEvent (fn : mouseEvent -> 'a) : 'a JSD.decoder =
   |> JSDP.required "button" JSD.int
 
 let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
-  let div class_ subs = Html.div [Attrs.class_ class_] subs in
+  let div class_ subs = Html.div [Html.class' class_] subs in
   Html.div
-    [ Attrs.class_ "node"
+    [ Html.class' "node"
     ; Attrs.style
         [ ("left", string_of_int pos.x ^ "px")
         ; ("top", string_of_int pos.y ^ "px") ] ]
@@ -189,6 +189,6 @@ let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
     | None -> (fnName, "0")
   in
   Html.div
-    [Attrs.class_ (String.join " " ("versioned-function" :: extraClasses))]
-    [ Html.span [Attrs.class_ "name"] [Html.text name]
-    ; Html.span [Attrs.class_ "version"] [Html.text ("v" ^ version)] ]
+    [Html.class' (String.join " " ("versioned-function" :: extraClasses))]
+    [ Html.span [Html.class' "name"] [Html.text name]
+    ; Html.span [Html.class' "version"] [Html.text ("v" ^ version)] ]

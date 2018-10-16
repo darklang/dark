@@ -28,7 +28,7 @@ let navigateTo (page : page) : msg Cmd.t = Navigation.newUrl (urlFor page)
 
 let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
     msg Html.html =
-  Html.a [Attrs.href (urlFor page); Attrs.class_ class_] content
+  Html.a [Html.href (urlFor page); Html.class' class_] content
 
 let maybeUpdateScrollUrl (m : model) : modification =
   let pos =
