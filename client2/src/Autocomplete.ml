@@ -97,7 +97,7 @@ let reset (m : model) (a : autocomplete) : autocomplete =
            not
              (List.member f.fnName
                 (List.map (fun x -> x.fnName) userFunctionMetadata)) )
-    |> List.filter (fun f -> not (Set.member f.fnName unusedDeprecatedFns))
+    |> List.filter (fun f -> not (StrSet.member f.fnName unusedDeprecatedFns))
     |> List.append userFunctionMetadata
   in
   init functions a.admin |> regenerate m

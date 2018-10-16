@@ -5,7 +5,6 @@ import Dict
 -- import Json.Decode as JSD
 import Dom.Scroll
 import Task
-import Set
 
 -- lib
 import List.Extra as LE
@@ -26,6 +25,7 @@ import AST
 import Commands
 import Refactor
 import JSON
+import StrSet
 
 ----------------------------
 -- Focus
@@ -169,7 +169,7 @@ reset m a =
         m.builtInFunctions
         |> List.filter
           (\f -> not (List.member f.fnName (List.map .fnName userFunctionMetadata)))
-        |> List.filter (\f -> not (Set.member f.fnName unusedDeprecatedFns))
+        |> List.filter (\f -> not (StrSet.member f.fnName unusedDeprecatedFns))
         |> List.append userFunctionMetadata
   in
       init functions a.admin |> regenerate m

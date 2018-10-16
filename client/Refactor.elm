@@ -2,7 +2,6 @@ module Refactor exposing (..)
 
 -- lib
 import List.Extra as LE
-import Set exposing (Set)
 
 -- Dark
 import Types exposing (..)
@@ -15,6 +14,7 @@ import Blank as B
 import Analysis
 import Util
 import DontPort
+import StrSet
 
 generateFnName : () -> String
 generateFnName _ =
@@ -114,7 +114,7 @@ extractVariable m tl p =
             freeVariables =
               AST.freeVariables e
               |> List.map Tuple.second
-              |> Set.fromList
+              |> StrSet.fromList
             ancestors =
               AST.ancestors (B.toID e) ast
             lastPlaceWithSameVarsAndValues =
@@ -124,13 +124,13 @@ extractVariable m tl p =
                   let id = B.toID elem
                       availableVars =
                         Analysis.getCurrentAvailableVarnames m tl.id id
-                        |> Set.fromList
+                        |> StrSet.fromList
                       allRequiredVariablesAvailable =
-                        Set.diff freeVariables availableVars
-                        |> Set.isEmpty
+                        StrSet.diff freeVariables availableVars
+                        |> StrSet.isEmpty
                       noVariablesAreRedefined =
                          freeVariables
-                         |> Set.toList
+                         |> StrSet.toList
                          |> List.all (not << (\v -> AST.isDefinitionOf v elem))
                   in
                       allRequiredVariablesAvailable
@@ -332,13 +332,13 @@ countFnUsage m name =
                 )
   in List.length usedIn
 
-unusedDeprecatedFunctions : Model -> Set String
+unusedDeprecatedFunctions : Model -> StrSet.Set
 unusedDeprecatedFunctions m =
   m.builtInFunctions
   |> List.filter .fnDeprecated
   |> List.map .fnName
   |> List.filter (\n -> (countFnUsage m n) == 0)
-  |> Set.fromList
+  |> StrSet.fromList
 
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =

@@ -240,16 +240,30 @@ module String = struct
     Printf.sprintf "%d" i
 end
 
-module Set = struct
-  type t = Belt.Set.Int.t
-  type value = Belt.Set.Int.value
+module IntSet = struct
+  module Set = Belt.Set.Int
+  type t = Set.t
+  type value = Set.value
   let fromList (l: value list) : t =
     l
     |> Belt.List.toArray
-    |> Belt.Set.Int.fromArray
+    |> Set.fromArray
   let member (i: value) (set: t) : bool =
-    Belt.Set.Int.has set i
+    Set.has set i
 end
+
+module StrSet = struct
+  module Set = Belt.Set.String
+  type t = Set.t
+  type value = Set.value
+  let fromList (l: value list) : t =
+    l
+    |> Belt.List.toArray
+    |> Set.fromArray
+  let member (i: value) (set: t) : bool =
+    Set.has set i
+end
+
 
 module StrDict = struct
   module Map = Belt.Map.String

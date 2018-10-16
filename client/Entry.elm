@@ -3,7 +3,6 @@ module Entry exposing (..)
 -- builtins
 import Task
 -- import Result exposing (Result)
--- import Set
 
 -- lib
 import Dom
