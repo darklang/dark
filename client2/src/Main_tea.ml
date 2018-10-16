@@ -4,11 +4,13 @@ open App
 
 open Keyboard
 open Toplevel
+open Location
 
 open Porting
 
 open Analysis
 open Errors
+open Window
 
 (* DEFINE TYPES *)
 type model = 
@@ -25,6 +27,8 @@ type msg =
   | Mouse_up of Mouse.position
   | Analysis_result of Analysis.analysis_result
   | Display_error of string
+  | Window_resize of Window.size
+  | Window_visible of bool
 [@@bs.deriving {accessors}]
 
 (* let msg2Mod model = function
@@ -40,7 +44,7 @@ let update m msg =
   | Key_event key_event ->
 
     if Keyboard.isLoc key_event
-    then Js.log (Porting.Location.hashString);
+    then Js.log (Location.hashString);
 
     if Keyboard.isError key_event
     then Rollbar.send "send error to rollbar";
@@ -55,6 +59,7 @@ let update m msg =
   | Analysis_result analysis_result ->
     Js.log "Analysis_result"; Js.log analysis_result; m, Cmd.none
   | Display_error msg -> Js.log msg; m, Cmd.none
+  | Window_resize window_resize -> Js.log msg; m, Cmd.none
   | _ -> m, Cmd.none
 
 let view m =
@@ -76,7 +81,9 @@ let subscriptions model = Sub.batch
   ; Mouse.ups mouse_up
   ; Mouse.moves mouse_move
   ; Analysis.ReceiveAnalysis.listen analysis_result
-  ; Errors.DisplayClientError.listen display_error 
+  ; Errors.DisplayClientError.listen display_error
+  ; Window.OnResize.listen window_resize 
+  ; Window.OnFocusChange.listen window_visible
   ]
 
 let main =
