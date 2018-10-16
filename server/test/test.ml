@@ -1048,18 +1048,6 @@ let t_admin_handler_ui () =
     ; 200
     ]
 
-let t_admin_handler_ops () =
-  AT.check (AT.list AT.int)
-    "/ops/ routes in admin_handler check authorization correctly."
-    (List.map
-       ~f:admin_handler_code
-       [ "test", "/ops/check-all-canvases"
-       ; "test_admin", "/ops/check-all-canvases"
-    ])
-    [ 401
-    ; 200
-    ]
-
 let t_admin_handler_api () =
   let ah_api_response (username, endpoint, body) =
     admin_handler_code ~meth:`POST ~body (username, endpoint)
@@ -1595,7 +1583,6 @@ let suite =
   ; "Handling nothing in code works", `Quick, t_nothing
   ; "authenticate_then_handle sets status codes and cookies correctly ", `Quick, t_authenticate_then_handle_code_and_cookie
   ; "UI routes in admin_handler work ", `Quick, t_admin_handler_ui
-  ; "/ops/ routes in admin_handler work ", `Quick, t_admin_handler_ops
   ; "/api/ routes in admin_handler work ", `Quick, t_admin_handler_api
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
