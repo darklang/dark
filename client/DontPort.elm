@@ -16,6 +16,12 @@ fromFloat f =
 (^) : String -> String -> String
 (^) a b = a ++ b
 
+floatAdd : Float -> Float -> Float
+floatAdd a b = a + b
+
+floatDivide : Float -> Float -> Float
+floatDivide a b = a / b
+
 replace : String -> String -> String -> String
 replace re repl str =
   Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str
