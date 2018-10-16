@@ -106,14 +106,14 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
       |> Option.andThen Autocomplete.documentationForItem
       |> Option.map (fun desc ->
              [ Html.div
-                 [Attrs.class_ "documentation-box"]
+                 [Html.class' "documentation-box"]
                  [Html.p [] [Html.text desc]] ] )
     else None
   in
   let top = match documentation with Some doc -> doc | _ -> data in
   let html =
     Html.div
-      [Attrs.class_ <| String.join " " (boxClasses ^ ["sidebar-box"; selected])]
-      [Html.div (Attrs.class_ class_ :: events) (body ^ top)]
+      [Html.class' <| String.join " " (boxClasses ^ ["sidebar-box"; selected])]
+      [Html.div (Html.class' class_ :: events) (body ^ top)]
   in
   html

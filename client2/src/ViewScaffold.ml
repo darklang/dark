@@ -13,17 +13,17 @@ let viewButtons (m : model) : msg Html.html =
             [ eventNoPropagation "mouseup" (fun _ -> FinishIntegrationTest)
             ; Attrs.src ""
             ; Attrs.id "finishIntegrationTest"
-            ; Attrs.class_ "specialButton" ]
+            ; Html.class' "specialButton" ]
             [Html.text "Finish integration tests"] ]
     | IntegrationTestFinished (Ok ()) ->
         [ Html.div
             [ Attrs.id "integrationTestSignal"
-            ; Attrs.class_ "specialButton success" ]
+            ; Html.class' "specialButton success" ]
             [Html.text "success"] ]
     | IntegrationTestFinished (Error msg) ->
         [ Html.div
             [ Attrs.id "integrationTestSignal"
-            ; Attrs.class_ "specialButton failure" ]
+            ; Html.class' "specialButton failure" ]
             [Html.text <| "failure: " ^ msg] ]
     | NoIntegrationTest -> []
   in
@@ -36,14 +36,14 @@ let viewButtons (m : model) : msg Html.html =
   in
   let status =
     match m.error.message with
-    | None -> Html.div [Attrs.class_ "status"] [Html.text "Dark"]
+    | None -> Html.div [Html.class' "status"] [Html.text "Dark"]
     | Some msg ->
         Html.div
-          [Attrs.class_ "status error"]
+          [Html.class' "status error"]
           [ Html.text "Error: "
           ; Html.a
-              [ Attrs.class_ "link"
-              ; Attrs.href "#"
+              [ Html.class' "link"
+              ; Html.href "#"
               ; eventNoPropagation "mouseup" (fun _ ->
                     ShowErrorDetails (not m.error.showDetails) ) ]
               [ Html.text
@@ -54,22 +54,22 @@ let viewButtons (m : model) : msg Html.html =
     ( [ Html.a
           [ eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
           ; Attrs.src ""
-          ; Attrs.class_ "specialButton" ]
+          ; Html.class' "specialButton" ]
           [Html.text "SaveTest"]
       ; Html.a
           [ eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
           ; Attrs.src ""
-          ; Attrs.class_ "specialButton" ]
+          ; Html.class' "specialButton" ]
           [ Html.text
               (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
       ; Html.span
-          [Attrs.class_ "specialButton"]
+          [Html.class' "specialButton"]
           [Html.text (toString m.currentPage)]
       ; Html.span
-          [Attrs.class_ "specialButton"]
+          [Html.class' "specialButton"]
           [Html.text ("Tests: " ^ toString m.tests)]
       ; Html.span
-          [Attrs.class_ ("specialButton environment " ^ m.environment)]
+          [Html.class' ("specialButton environment " ^ m.environment)]
           [Html.text m.environment] ]
     ^ integrationTestButton ^ returnButton ^ [status] )
 

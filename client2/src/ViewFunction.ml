@@ -7,9 +7,9 @@ open ViewUtils
 
 let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
-    [Attrs.class_ "user-fn-toplevel"]
-    [ Html.div [Attrs.class_ "metadata"] [viewMetadata vs fn]
-    ; Html.div [Attrs.class_ "ast"] [ViewCode.viewExpr 0 vs [] fn.ufAST] ]
+    [Html.class' "user-fn-toplevel"]
+    [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
+    ; Html.div [Html.class' "ast"] [ViewCode.viewExpr 0 vs [] fn.ufAST] ]
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
@@ -30,13 +30,13 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
   let buttonContent allowed =
     if allowed then
       Html.div
-        [ Attrs.class_ "parameter-btn allowed"
+        [ Html.class' "parameter-btn allowed"
         ; eventNoPropagation "click" (fun _ ->
               DeleteUserFunctionParameter (uf, p) ) ]
         [fontAwesome "times-circle"]
     else
       Html.div
-        [ Attrs.class_ "parameter-btn disallowed"
+        [ Html.class' "parameter-btn disallowed"
         ; Attrs.title
             "Can't delete parameter because it is used in the function body" ]
         [fontAwesome "times-circle"]
@@ -47,15 +47,15 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
 
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let namediv =
-    Html.div [Attrs.class_ "ufn-name"]
+    Html.div [Html.class' "ufn-name"]
       [viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName]
   in
   let coldivs =
     fn.ufMetadata.ufmParameters
     |> List.map (fun p ->
-           Html.div [Attrs.class_ "col"]
+           Html.div [Html.class' "col"]
              [ viewParamName vs [wc "name"] p.ufpName
              ; viewParamTipe vs [wc "type"] p.ufpTipe
              ; viewKillParameterBtn vs fn p ] )
   in
-  Html.div [Attrs.class_ "user-fn"] (namediv :: coldivs)
+  Html.div [Html.class' "user-fn"] (namediv :: coldivs)

@@ -9,10 +9,10 @@ open ViewUtils
 
 let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     (isHover : bool) (tipe : tipe) : msg Html.html =
-  let activeClass = if isActive then [Attrs.class_ "active"] else [] in
-  let hoverClass = if isHover then [Attrs.class_ "mouseovered"] else [] in
+  let activeClass = if isActive then [Html.class' "active"] else [] in
+  let hoverClass = if isHover then [Html.class' "mouseovered"] else [] in
   let tipeClassName = "tipe-" ^ RT.tipe2str tipe in
-  let tipeClass = [Attrs.class_ tipeClassName] in
+  let tipeClass = [Html.class' tipeClassName] in
   let classes = activeClass ^ hoverClass ^ tipeClass in
   let events =
     [ eventNoPropagation "click" (DataClick (tlid, idx))
@@ -58,4 +58,4 @@ let viewData (vs : viewState) (ast : expr) : msg Html.html list =
       [ Attrs.classList
           [ ("view-data", true)
           ; ("live-view-selection-active", selectedValue <> None) ] ]
-      [Html.ul [Attrs.class_ "request-cursor"] requestEls] ]
+      [Html.ul [Html.class' "request-cursor"] requestEls] ]

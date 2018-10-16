@@ -7,9 +7,9 @@ open ViewBlankOr
 open ViewUtils
 
 let viewDBName (name : string) (version : int) : msg Html.html =
-  Html.div [Attrs.class_ "dbname"]
-    [ Html.span [Attrs.class_ "name"] [Html.text name]
-    ; Html.span [Attrs.class_ "version"] [Html.text (".v" ^ toString version)]
+  Html.div [Html.class' "dbname"]
+    [ Html.span [Html.class' "name"] [Html.text name]
+    ; Html.span [Html.class' "version"] [Html.text (".v" ^ toString version)]
     ]
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -28,7 +28,7 @@ let viewDBCol (vs : viewState) (isMigra : bool) (tlid : tlid)
     if isMigra then
       if B.isF n || B.isF t then
         [ Html.div
-            [ Attrs.class_ "delete-col"
+            [ Html.class' "delete-col"
             ; eventNoPropagation "click" (fun _ ->
                   DeleteColInDB (tlid, B.toID n) ) ]
             [fontAwesome "minus-circle"] ]
@@ -36,15 +36,15 @@ let viewDBCol (vs : viewState) (isMigra : bool) (tlid : tlid)
     else []
   in
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
-  Html.div [Attrs.class_ "col"] (row ^ deleteButton)
+  Html.div [Html.class' "col"] (row ^ deleteButton)
 
 let viewMigraFuncs (vs : viewState) (expr : expr) (fnName : fnName)
     (varName : varName) : msg Html.html =
   Html.div
-    [Attrs.class_ "col roll-fn"]
-    [ Html.div [Attrs.class_ "fn-title"]
+    [Html.class' "col roll-fn"]
+    [ Html.div [Html.class' "fn-title"]
         [ Html.span [] [Html.text (fnName ^ " : ")]
-        ; Html.span [Attrs.class_ "varname"] [Html.text varName] ]
+        ; Html.span [Html.class' "varname"] [Html.text varName] ]
     ; viewExpr 0 vs [] expr ]
 
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
@@ -58,7 +58,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
   let lockReady = isMigrationLockReady migra in
   let errorMsg =
     if not lockReady then
-      [ Html.div [Attrs.class_ "col err"]
+      [ Html.div [Html.class' "col err"]
           [ Html.text
               "Fill in rollback and rollforward functions to activate your \
                migration" ] ]
@@ -74,10 +74,10 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     Html.button [Attrs.disabled (not lockReady)] [Html.text "activate"]
   in
   let actions =
-    [Html.div [Attrs.class_ "col actions"] [cancelBtn; migrateBtn]]
+    [Html.div [Html.class' "col actions"] [cancelBtn; migrateBtn]]
   in
   Html.div
-    [Attrs.class_ "db migration-view"]
+    [Html.class' "db migration-view"]
     (name :: (cols ^ funcs ^ errorMsg ^ actions))
 
 let viewDB (vs : viewState) (db : dB) : msg Html.html list =
@@ -102,4 +102,4 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
         else []
     | None -> []
   in
-  [Html.div [Attrs.class_ "db"] (locked :: namediv :: coldivs)] ^ migrationView
+  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] ^ migrationView

@@ -29,9 +29,9 @@ let nested : htmlConfig = wc "nested"
 let text (vs : viewState) (c : htmlConfig list) (str : string) : msg Html.html
     =
   div vs c
-  <| [Html.div [Attrs.class_ "quote quote-start"] []]
+  <| [Html.div [Html.class' "quote quote-start"] []]
      ^ [Html.text str]
-     ^ [Html.div [Attrs.class_ "quote quote-end"] []]
+     ^ [Html.div [Html.class' "quote quote-end"] []]
 
 let keyword (vs : viewState) (c : htmlConfig list) (name : string) :
     msg Html.html =
@@ -118,7 +118,7 @@ let div (vs : viewState) (configs : htmlConfig list)
     ^ (if isCommandTarget then ["commandTarget"] else [])
     ^ if mouseover then ["mouseovered"] else []
   in
-  let classAttr = Attrs.class_ (String.join " " allClasses) in
+  let classAttr = Html.class' (String.join " " allClasses) in
   let events =
     match clickAs with
     | Some id ->
@@ -138,7 +138,7 @@ let div (vs : viewState) (configs : htmlConfig list)
     | None -> if showFeatureFlag then [viewCreateFn] else []
   in
   let rightSideHtml =
-    Html.div [Attrs.class_ "expr-actions"] (featureFlagHtml ^ editFnHtml)
+    Html.div [Html.class' "expr-actions"] (featureFlagHtml ^ editFnHtml)
   in
   let attrs = liveValueAttr :: classAttr :: events in
   Html.div attrs (content ^ [rightSideHtml])
@@ -231,7 +231,7 @@ let viewBlankOr
   | SelectingCommand (tlid, id) ->
       if id = B.toID bo then
         Html.div
-          [Attrs.class_ "selecting-command"]
+          [Html.class' "selecting-command"]
           [ thisText
           ; ViewEntry.entryHtml StringEntryNotAllowed StringEntryNormalWidth
               "command" vs.ac ]
@@ -240,20 +240,18 @@ let viewBlankOr
 
 let viewFeatureFlag : msg Html.html =
   Html.div
-    [ Attrs.class_ "flag"
-    ; eventNoPropagation "click" (fun _ -> StartFeatureFlag) ]
+    [Html.class' "flag"; eventNoPropagation "click" (fun _ -> StartFeatureFlag)]
     [fontAwesome "flag"]
 
 let viewCreateFn : msg Html.html =
   Html.div
-    [ Attrs.class_ "exfun"
-    ; eventNoPropagation "click" (fun _ -> ExtractFunction) ]
+    [Html.class' "exfun"; eventNoPropagation "click" (fun _ -> ExtractFunction)]
     [fontAwesome "share-square"]
 
 let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
   let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
   Html.a
-    [ Attrs.class_ "edit-fn"
+    [ Html.class' "edit-fn"
     ; Attrs.style [("right", rightOffset)]
-    ; Attrs.href (Url.urlFor (Fn (tlid, Defaults.centerPos))) ]
+    ; Html.href (Url.urlFor (Fn (tlid, Defaults.centerPos))) ]
     [fontAwesome "edit"]

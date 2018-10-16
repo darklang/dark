@@ -248,6 +248,10 @@ module Set = struct
 
 end
 
+module Html = struct
+  include Tea.Html
+  type 'a html = 'a Vdom.t
+end
 
 module Native = struct
   type size = { width : int; height : int }

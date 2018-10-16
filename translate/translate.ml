@@ -51,6 +51,8 @@ let config_post_process_patterns =
   ; "^let clone \\(", "let rec clone ("
   ; "^let addThreadBlank \\(", "let rec addThreadBlank ("
   ; "let rec_ancestors ", "let rec rec_ancestors "
+  ; "Attrs.href", "Html.href"
+  ; "Attrs.class_", "Html.class'"
   ]
 
 let config_type_patterns =

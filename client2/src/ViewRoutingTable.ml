@@ -117,8 +117,8 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
       | Some n ->
           let target = String.join "" (h.prefix ^ [n]) in
           Html.a
-            [ Attrs.class_ "external"
-            ; Attrs.href
+            [ Html.class' "external"
+            ; Html.href
                 ( "//"
                 ^ Http.encodeUri m.canvasName
                 ^ "." ^ m.userContentHost ^ target )
@@ -177,20 +177,20 @@ let viewDeletedTLs (m : model) : msg Html.html =
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
-  Html.details [Attrs.class_ "routing-section deleted"] ([h] ^ routes ^ [dbs])
+  Html.details [Html.class' "routing-section deleted"] ([h] ^ routes ^ [dbs])
 
 let span (class_ : string) (subs : msg Html.html list) : msg Html.html =
-  Html.span [Attrs.class_ class_] subs
+  Html.span [Html.class' class_] subs
 
 let text (class_ : string) (msg : string) : msg Html.html =
   span class_ [Html.text msg]
 
 let div (class_ : string) (subs : msg Html.html list) : msg Html.html =
-  Html.div [Attrs.class_ class_] subs
+  Html.div [Html.class' class_] subs
 
 let header (name : string) (list : 'a list) (addHandler : msg option) :
     msg Html.html =
-  Html.summary [Attrs.class_ "header"]
+  Html.summary [Html.class' "header"]
     [ text "title" name
     ; text "parens" "("
     ; text "count" (list |> List.length |> string_of_int)
@@ -203,24 +203,24 @@ let section (name : string) (entries : 'a list) (addHandler : msg option)
     (routes : msg Html.html) : msg Html.html =
   if List.length entries = 0 then
     Html.div
-      [Attrs.class_ "routing-section empty"]
+      [Html.class' "routing-section empty"]
       [header name entries addHandler; routes]
   else
     Html.details
-      [Attrs.class_ "routing-section"]
+      [Html.class' "routing-section"]
       [header name entries addHandler; routes]
 
 let buttonLink (content : msg Html.html) (handler : msg) (page : page option) :
     msg Html.html =
   let href =
-    page |> Option.map (fun p -> Attrs.href (Url.urlFor p)) |> Option.toList
+    page |> Option.map (fun p -> Html.href (Url.urlFor p)) |> Option.toList
   in
   let event =
     match page with
     | None -> eventNoDefault "click" (fun _ -> handler)
     | Some _ -> eventNoPropagation "click" (fun _ -> handler)
   in
-  Html.a ([event; Attrs.class_ "button-link"] ^ href) [content]
+  Html.a ([event; Html.class' "button-link"] ^ href) [content]
 
 let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
   Url.linkFor (Toplevels pos) class_ [Html.text name]
@@ -309,7 +309,7 @@ let viewRoutingTable (m : model) : msg Html.html =
   in
   let html =
     Html.div
-      [ Attrs.class_ "viewing-table"
+      [ Html.class' "viewing-table"
       ; nothingMouseEvent "mouseup"
       ; eventNoPropagation "mouseenter" (fun _ -> EnablePanning false)
       ; eventNoPropagation "mouseleave" (fun _ -> EnablePanning true) ]
