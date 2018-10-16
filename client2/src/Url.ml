@@ -39,7 +39,7 @@ let maybeUpdateScrollUrl (m : model) : modification =
   let state = m.urlState in
   if pos <> state.lastPos then
     Many
-      [ TweakModel (fun m_ -> {m_ with urlState= {state with lastPos= pos}})
+      [ TweakModel (fun m_ -> {m_ with urlState= {lastPos= pos}})
       ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
   else NoChange
 
