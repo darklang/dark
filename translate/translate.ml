@@ -25,8 +25,6 @@ let config_module_patterns =
   ; "Maybe.Extra", "Option"
   ; "Maybe", "Option"
   ; "^ME$", "Option"
-  ; "IntDict", "Belt.Map.Int"
-  ; "StrDict", "Belt.Map.String"
   ]
 
 let config_post_process_patterns =

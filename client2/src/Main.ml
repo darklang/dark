@@ -283,7 +283,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ maybe "result" result
                  ^ maybe "result type" resultType
                  ^ maybe "expected" expected
-                 ^ ( if info = Belt.Map.String.empty then ""
+                 ^ ( if info = StrDict.empty then ""
                    else ", info: " ^ toString info )
                  ^
                  if workarounds = [] then ""

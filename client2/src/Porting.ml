@@ -245,7 +245,34 @@ module Set = struct
     |> Belt.Set.Int.fromArray
   let member (i: value) (set: t) : bool =
     Belt.Set.Int.has set i
+end
 
+module StrDict = struct
+  type key = Belt.Map.String.key
+  type 'value t = 'value Belt.Map.String.t
+  module Map = Belt.Map.String
+  let toList = Map.toList
+  let empty = Belt.Map.String.empty
+  let fromList (l: ('key * 'value) list) : 'value t =
+    l
+    |> Belt.List.toArray
+    |> Belt.Map.String.fromArray
+  let get (k: key) (v: 'value t) : 'value option =
+    Belt.Map.String.get v k
+end
+
+module IntDict = struct
+  type key = Belt.Map.Int.key
+  type 'value t = 'value Belt.Map.Int.t
+  module Map = Belt.Map.Int
+  let toList = Map.toList
+  let empty = Belt.Map.Int.empty
+  let fromList (l: ('key * 'value) list) : 'value t =
+    l
+    |> Belt.List.toArray
+    |> Belt.Map.Int.fromArray
+  let get (k: key) (v: 'value t) : 'value option =
+    Belt.Map.Int.get v k
 end
 
 module Html = struct

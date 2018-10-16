@@ -14,7 +14,7 @@ let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
   | Some (tlid, pd) -> getCurrentAvailableVarnames m tlid (P.toID pd)
 
 let defaultResults : analysisResults =
-  {liveValues= Belt.Map.Int.empty; availableVarnames= Belt.Map.Int.empty}
+  {liveValues= IntDict.empty; availableVarnames= IntDict.empty}
 
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   let traceIndex = cursor m tlid in
@@ -75,9 +75,7 @@ let replaceFunctionResult (m : model) (tlid : tlid) (traceID : traceID)
     |> Dict.update (deTLID tlid) (fun ml ->
            ml
            |> Option.withDefault
-                [ { traceID
-                  ; input= Belt.Map.String.empty
-                  ; functionResults= [newResult] } ]
+                [{traceID; input= StrDict.empty; functionResults= [newResult]}]
            |> List.map (fun t ->
                   if t.traceID = traceID then
                     {t with functionResults= newResult :: t.functionResults}
