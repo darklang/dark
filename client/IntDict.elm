@@ -9,4 +9,5 @@ toList = Dict.toList
 fromList = Dict.fromList
 get = Dict.get
 insert = Dict.insert
+update = Dict.update
 

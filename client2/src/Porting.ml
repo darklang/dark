@@ -278,6 +278,8 @@ module IntDict = struct
     Map.get v k
   let insert (k: key) (v: 'value) (map: 'value t) : 'value t =
     Map.set map k v
+  let update (k: key) (fn: 'v option -> 'v option) (map: 'value t) : 'value t =
+    Map.update map k fn
 end
 
 module Html = struct
