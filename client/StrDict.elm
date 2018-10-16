@@ -6,3 +6,5 @@ type alias Dict a = Dict.Dict String a
 
 empty = Dict.empty
 toList = Dict.toList
+fromList = Dict.fromList
+get = Dict.get

@@ -1,7 +1,6 @@
 module Url exposing (..)
 
 -- builtin
-import Dict
 import List
 import String
 
@@ -17,6 +16,7 @@ import Prelude exposing (..)
 import Functions
 import Defaults
 import Viewport
+import StrDict
 
 
 hashUrlParams : List (String, String) -> String
@@ -88,16 +88,16 @@ parseLocation m loc =
                         case arr of
                           a :: b :: [] -> Just (String.toLower a, b)
                           _ -> Nothing)
-                   |> Dict.fromList
+                   |> StrDict.fromList
       center =
-        case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
+        case (StrDict.get "x" unstructured, StrDict.get "y" unstructured) of
           (Just x, Just y) ->
             case (String.toInt x, String.toInt y) of
               (Ok x, Ok y) -> Just { x = x, y = y }
               _  -> Nothing
           _ -> Nothing
       editedFn =
-        case (Dict.get "fn" unstructured) of
+        case (StrDict.get "fn" unstructured) of
           Just sid ->
             case String.toInt sid of
               Ok id ->

@@ -49,10 +49,10 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
     |> List.map (String.split "=")
     |> List.filterMap (fun arr ->
            match arr with [b; a] -> Some (String.toLower a, b) | _ -> None )
-    |> Dict.fromList
+    |> StrDict.fromList
   in
   let center =
-    match (Dict.get "x" unstructured, Dict.get "y" unstructured) with
+    match (StrDict.get "x" unstructured, StrDict.get "y" unstructured) with
     | Some x, Some y -> (
       match (String.toInt x, String.toInt y) with
       | Ok x, Ok y -> Some {x; y}
@@ -60,7 +60,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
     | _ -> None
   in
   let editedFn =
-    match Dict.get "fn" unstructured with
+    match StrDict.get "fn" unstructured with
     | Some sid -> (
       match String.toInt sid with
       | Ok id ->
