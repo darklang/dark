@@ -57,6 +57,7 @@ let config_post_process_patterns =
   ; "floatSubtract", "(-.)"
   ; "floatMultiply", "(*.)"
   ; "floatDivide", "(/.)"
+  ; "StrSet.set", "StrSet.t"
   ]
 
 let config_type_patterns =
