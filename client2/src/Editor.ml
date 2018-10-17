@@ -1,7 +1,5 @@
 open Tea
 open! Porting
-module JSD = Json.Decode
-module JSE = Json.Encode
 module TL = Toplevel
 open Types
 
