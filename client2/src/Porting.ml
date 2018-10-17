@@ -19,29 +19,6 @@ end
 let toString (v : 'a) : string =
   Js.String.make v
 
-module Result = struct
-  type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
-  let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
-    Belt.Result.getWithDefault r default
-  let map2 (fn: 'a -> 'b -> 'c) (a: ('err, 'a) t) (b: ('err, 'b) t) : ('err, 'c) t =
-    match a,b with
-    | Ok a, Ok b -> Ok (fn a b)
-    | Error a, Ok _ -> Error a
-    | Ok _, Error b -> Error b
-    | Error a, Error b -> Error a
-end
-type ('err, 'ok) result = ('err, 'ok) Result.t
-
-
-
-module Regex = struct
-  let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
-  let contains (re: Js.Re.t) (s: string) : bool = Js.Re.test s re
-  let replace (re: string) (repl: string) (str: string) =
-    Js.String.replaceByRe (regex re) repl str
-  let matches (re: Js.Re.t) (s: string) : Js.Re.result option = Js.Re.exec s re
-end
-
 let toOption (value: 'a) (sentinel: 'a) : 'a option =
   if value = sentinel
   then None
@@ -50,10 +27,6 @@ let toOption (value: 'a) (sentinel: 'a) : 'a option =
 let identity (value: 'a) : 'a =
   value
 
-(* let deOption (msg: string) (value: 'a option) : 'a = *)
-(*   match value with *)
-(*   | Some v -> v *)
-(*   | None -> failwith msg *)
 
 
 module List = struct
@@ -179,6 +152,41 @@ module List = struct
       let tail = drop index l |> tail in
       match tail with None -> l | Some t -> append head t
 end
+
+
+
+module Result = struct
+  type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
+  let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
+    Belt.Result.getWithDefault r default
+  let map2 (fn: 'a -> 'b -> 'c) (a: ('err, 'a) t) (b: ('err, 'b) t) : ('err, 'c) t =
+    match a,b with
+    | Ok a, Ok b -> Ok (fn a b)
+    | Error a, Ok _ -> Error a
+    | Ok _, Error b -> Error b
+    | Error a, Error b -> Error a
+  let combine (l : ('x, 'a) t list) : ('x, 'a list) t =
+    (List.foldr (map2 (fun a b -> a :: b)) (Ok []) l)
+  let map (fn: 'ok -> 'value) (r: ('err, 'ok) t) : ('err, 'value) t =
+    Belt.Result.map r fn
+end
+type ('err, 'ok) result = ('err, 'ok) Result.t
+
+
+
+module Regex = struct
+  let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
+  let contains (re: Js.Re.t) (s: string) : bool = Js.Re.test s re
+  let replace (re: string) (repl: string) (str: string) =
+    Js.String.replaceByRe (regex re) repl str
+  let matches (re: Js.Re.t) (s: string) : Js.Re.result option = Js.Re.exec s re
+end
+
+(* let deOption (msg: string) (value: 'a option) : 'a = *)
+(*   match value with *)
+(*   | Some v -> v *)
+(*   | None -> failwith msg *)
+
 
 module Option = struct
   type 'a t = 'a option
