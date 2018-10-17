@@ -13,7 +13,7 @@ import AST
 import Blank as B
 import Analysis
 import Util
-import DontPort
+import DontPort exposing (..)
 import StrSet
 
 generateFnName : () -> String
@@ -286,7 +286,7 @@ renameFunction m old new =
                         Just (SetFunction { uf | ufAST = newAst })
                       else Nothing)
       in
-          newHandlers ++ newFunctions
+          newHandlers @ newFunctions
 
 isFunctionInExpr : String -> Expr -> Bool
 isFunctionInExpr fnName expr =
@@ -393,14 +393,14 @@ transformFnCalls m uf f =
                         Just (SetFunction { uf_ | ufAST = newAst })
                       else Nothing)
       in
-          newHandlers ++ newFunctions
+          newHandlers @ newFunctions
 
 addNewFunctionParameter : Model -> UserFunction -> List Op
 addNewFunctionParameter m old =
   let fn e =
         case e of
           FnCall name params r ->
-            FnCall name (params ++ [B.new ()]) r
+            FnCall name (params @ [B.new ()]) r
           _ -> e
   in
       transformFnCalls m old fn
