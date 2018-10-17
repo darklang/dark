@@ -263,7 +263,7 @@ and keyword = KLet | KIf | KLambda
 
 and command =
   { commandName: string
-  ; action: ((model -> toplevel) -> pointerData) -> modification
+  ; action: model -> toplevel -> pointerData -> modification
   ; doc: string
   ; shortcut: string }
 
