@@ -1,5 +1,6 @@
 let (++) (a: string) (b: string) = a ^ b
 
+
 module PageVisibility = struct
   type visibility = Hidden
 end
@@ -7,7 +8,8 @@ end
 let (<|) a b = a b
 let (>>) (f1: 'a -> 'b) (f2: 'b -> 'c) : 'a -> 'c =
   fun x -> x |> f1 |> f2
-
+let (<<) (f1: 'b -> 'c) (f2: 'a -> 'b) : 'a -> 'c =
+  fun x -> x |> f1 |> f2
 
 module Debug = struct
   let crash (str: string) : 'a =
@@ -156,6 +158,8 @@ module List = struct
         if predicate x then takeWhileMemo (x :: memo) xs else List.rev memo
     in
     takeWhileMemo [] l
+  let all (fn: 'a -> bool) (l: 'a list) : bool =
+    Belt.List.every l fn
 end
 
 module Option = struct
