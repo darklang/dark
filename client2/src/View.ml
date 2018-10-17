@@ -1,7 +1,6 @@
 open Tea
 open! Porting
 module Attrs = Html.Attributes
-module Events = Html.Events
 open Prelude
 module TL = Toplevel
 open Types
@@ -10,7 +9,7 @@ open ViewUtils
 let view (m : model) : msg Html.html =
   let attributes =
     [ Attrs.id "grid"
-    ; Events.onWithOptions "mouseup"
+    ; Html.onWithOptions "mouseup"
         {stopPropagation= false; preventDefault= true}
         (decodeClickEvent GlobalClick) ]
   in

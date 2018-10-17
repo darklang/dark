@@ -30,6 +30,7 @@ let config_module_patterns =
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
+  ; "module Events = Html.Events", ""
   ; "open DontPort", ""
   ; "\\(varName, dval\\) dict", "dval Belt.Map.String.t"
   ; "deMaybe", "deOption"
@@ -53,6 +54,7 @@ let config_post_process_patterns =
   ; "let rec_ancestors ", "let rec rec_ancestors "
   ; "Attrs.href", "Html.href"
   ; "Attrs.class_", "Html.class'"
+  ; "Events.onWithOptions", "Html.onWithOptions"
   ; "floatAdd", "(+.)"
   ; "floatSubtract", "(-.)"
   ; "floatMultiply", "(*.)"
