@@ -47,6 +47,9 @@ type alias ViewState =
   , userContentHost : String
   }
 
+isLocked: TLID -> Model -> Bool
+isLocked tlid m = List.member tlid m.lockedHandlers
+
 createVS : Model -> Toplevel -> ViewState
 createVS m tl = { tl = tl
                 , cursorState = unwrapCursorState m.cursorState
@@ -113,6 +116,16 @@ fontAwesome : String -> Html.Html Msg
 fontAwesome name =
   Html.i [Attrs.class ("fa fa-" ++ name)] []
 
+decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
+decodeClickEvent fn =
+  let toA : Int -> Int -> Int -> a
+      toA px py button =
+        fn {pos= {vx=px, vy=py}, button = button}
+  in JSDP.decode toA
+      |> JSDP.required "pageX" JSD.int
+      |> JSDP.required "pageY" JSD.int
+      |> JSDP.required "button" JSD.int
+
 eventNoPropagation : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
 eventNoPropagation event constructor =
   Events.onWithOptions
@@ -131,16 +144,6 @@ eventNoDefault event constructor =
 
 nothingMouseEvent : String -> Html.Attribute Msg
 nothingMouseEvent name = eventNoPropagation name NothingClick
-
-decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
-decodeClickEvent fn =
-  let toA : Int -> Int -> Int -> a
-      toA px py button =
-        fn {pos= {vx=px, vy=py}, button = button}
-  in JSDP.decode toA
-      |> JSDP.required "pageX" JSD.int
-      |> JSDP.required "pageY" JSD.int
-      |> JSDP.required "button" JSD.int
 
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
@@ -252,9 +255,6 @@ approxNWidth ne =
       -- probably want both taking the same size
       max (approxWidth a) (approxWidth b)
       + 1 -- the flag
-
-isLocked: TLID -> Model -> Bool
-isLocked tlid m = List.member tlid m.lockedHandlers
 
 viewFnName: FnName -> List String -> Html.Html Msg
 viewFnName fnName extraClasses =
