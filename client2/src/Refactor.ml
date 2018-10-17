@@ -220,7 +220,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
              Some (SetFunction {uf with ufAST= newAst})
            else None )
   in
-  newHandlers ^ newFunctions
+  newHandlers @ newFunctions
 
 let isFunctionInExpr (fnName : string) (expr : expr) : bool =
   let maybeNExpr = B.asF expr in
@@ -308,12 +308,12 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
              Some (SetFunction {uf_ with ufAST= newAst})
            else None )
   in
-  newHandlers ^ newFunctions
+  newHandlers @ newFunctions
 
 let addNewFunctionParameter (m : model) (old : userFunction) : op list =
   let fn e =
     match e with
-    | FnCall (name, params, r) -> FnCall (name, params ^ [B.new_ ()], r)
+    | FnCall (name, params, r) -> FnCall (name, params @ [B.new_ ()], r)
     | _ -> e
   in
   transformFnCalls m old fn
