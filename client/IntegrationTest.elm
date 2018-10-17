@@ -16,57 +16,7 @@ import AST
 import Analysis
 
 
-trigger : String -> IntegrationTestState
-trigger test_name =
-  let name = String.dropLeft 5 test_name in
-  IntegrationTestExpectation <|
-  case name of
-    "enter_changes_state" -> enter_changes_state
-    "field_access" -> field_access
-    "field_access_closes" -> field_access_closes
-    "field_access_pipes" -> field_access_pipes
-    "field_access_nested" -> field_access_nested
-    "pipeline_let_equals" -> pipeline_let_equals
-    "pipe_within_let" -> pipe_within_let
-    "tabbing_works" -> tabbing_works
-    "left_right_works" -> left_right_works
-    "varbinds_are_editable" -> varbinds_are_editable
-    "editing_request_edits_request" -> editing_request_edits_request
-    "autocomplete_highlights_on_partial_match" -> autocomplete_highlights_on_partial_match
-    "no_request_global_in_non_http_space" -> no_request_global_in_non_http_space
-    "hover_values_for_varnames" -> hover_values_for_varnames
-    "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
-    "deleting_selects_the_blank" -> deleting_selects_the_blank
-    "right_number_of_blanks" -> right_number_of_blanks
-    "ellen_hello_world_demo" -> ellen_hello_world_demo
-    "editing_does_not_deselect" -> editing_does_not_deselect
-    "editing_headers" -> editing_headers
-    "tabbing_through_let" -> tabbing_through_let
-    "case_sensitivity" -> case_sensitivity
-    "focus_on_ast_in_new_empty_tl" -> focus_on_ast_in_new_empty_tl
-    "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
-    "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
-    "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
-    "rename_db_fields" -> rename_db_fields
-    "rename_db_type" -> rename_db_type
-    "paste_right_number_of_blanks" -> paste_right_number_of_blanks
-    "paste_keeps_focus" -> paste_keeps_focus
-    "nochange_for_failed_paste" -> nochange_for_failed_paste
-    "feature_flag_works" -> feature_flag_works
-    "simple_tab_ordering" -> simple_tab_ordering
-    "variable_extraction" -> variable_extraction
-    "invalid_syntax" -> invalid_syntax
-    "editing_stays_in_same_place_with_enter" -> editing_stays_in_same_place_with_enter
-    "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
-    "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
-    "object_literals_work" -> object_literals_work
-    "rename_function" -> rename_function
-    "sending_to_rail_works" -> sending_to_rail_works
-    "feature_flag_in_function" -> feature_flag_in_function
-    "execute_function_works" -> execute_function_works
-    "function_version_renders" -> function_version_renders
-    "only_backspace_out_of_strings_on_last_char" -> only_backspace_out_of_strings_on_last_char
-    n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
+
 
 pass : TestResult
 pass = Ok ()
@@ -679,3 +629,55 @@ only_backspace_out_of_strings_on_last_char m =
   then pass
   else fail ast
 
+
+trigger : String -> IntegrationTestState
+trigger test_name =
+  let name = String.dropLeft 5 test_name in
+  IntegrationTestExpectation
+  (case name of
+    "enter_changes_state" -> enter_changes_state
+    "field_access" -> field_access
+    "field_access_closes" -> field_access_closes
+    "field_access_pipes" -> field_access_pipes
+    "field_access_nested" -> field_access_nested
+    "pipeline_let_equals" -> pipeline_let_equals
+    "pipe_within_let" -> pipe_within_let
+    "tabbing_works" -> tabbing_works
+    "left_right_works" -> left_right_works
+    "varbinds_are_editable" -> varbinds_are_editable
+    "editing_request_edits_request" -> editing_request_edits_request
+    "autocomplete_highlights_on_partial_match" -> autocomplete_highlights_on_partial_match
+    "no_request_global_in_non_http_space" -> no_request_global_in_non_http_space
+    "hover_values_for_varnames" -> hover_values_for_varnames
+    "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
+    "deleting_selects_the_blank" -> deleting_selects_the_blank
+    "right_number_of_blanks" -> right_number_of_blanks
+    "ellen_hello_world_demo" -> ellen_hello_world_demo
+    "editing_does_not_deselect" -> editing_does_not_deselect
+    "editing_headers" -> editing_headers
+    "tabbing_through_let" -> tabbing_through_let
+    "case_sensitivity" -> case_sensitivity
+    "focus_on_ast_in_new_empty_tl" -> focus_on_ast_in_new_empty_tl
+    "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
+    "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
+    "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
+    "rename_db_fields" -> rename_db_fields
+    "rename_db_type" -> rename_db_type
+    "paste_right_number_of_blanks" -> paste_right_number_of_blanks
+    "paste_keeps_focus" -> paste_keeps_focus
+    "nochange_for_failed_paste" -> nochange_for_failed_paste
+    "feature_flag_works" -> feature_flag_works
+    "simple_tab_ordering" -> simple_tab_ordering
+    "variable_extraction" -> variable_extraction
+    "invalid_syntax" -> invalid_syntax
+    "editing_stays_in_same_place_with_enter" -> editing_stays_in_same_place_with_enter
+    "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
+    "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
+    "object_literals_work" -> object_literals_work
+    "rename_function" -> rename_function
+    "sending_to_rail_works" -> sending_to_rail_works
+    "feature_flag_in_function" -> feature_flag_in_function
+    "execute_function_works" -> execute_function_works
+    "function_version_renders" -> function_version_renders
+    "only_backspace_out_of_strings_on_last_char" -> only_backspace_out_of_strings_on_last_char
+    n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger"))

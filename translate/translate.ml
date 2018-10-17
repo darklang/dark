@@ -30,6 +30,7 @@ let config_module_patterns =
 let config_post_process_patterns =
   [ "module LE = List.Extra", ""
   ; "module ME = Maybe.Extra", ""
+  ; "module RE = Result.Extra", ""
   ; "module Events = Html.Events", ""
   ; "open DontPort", ""
   ; "\\(varName, dval\\) dict", "dval Belt.Map.String.t"
