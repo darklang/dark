@@ -2,8 +2,6 @@ open Tea
 open! Porting
 module B = Blank
 module Attrs = Html.Attributes
-module JSD = Json.Decode
-module JSDP = Json.Decode.Pipeline
 module P = Pointer
 open Prelude
 module TL = Toplevel

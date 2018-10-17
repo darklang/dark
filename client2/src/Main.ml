@@ -2,8 +2,6 @@ open Tea
 open! Porting
 module AC = Autocomplete
 module B = Blank
-module JSD = Json.Decode
-module JSE = Json.Encode
 module JSEE = Json.Encode.Extra
 module Key = Keyboard.Key
 module P = Pointer
