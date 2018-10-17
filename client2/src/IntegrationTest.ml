@@ -358,7 +358,7 @@ let feature_flag_works (m : model) : testResult =
   | _ -> fail (ast, m.cursorState)
 
 let feature_flag_in_function (m : model) : testResult =
-  let fun_ = head m.userFunctions in
+  let fun_ = List.head m.userFunctions in
   match fun_ with
   | Some f -> (
     match f.ufAST with

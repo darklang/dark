@@ -463,7 +463,7 @@ feature_flag_works m =
 
 feature_flag_in_function : Model -> TestResult
 feature_flag_in_function m =
-  let fun = head m.userFunctions
+  let fun = List.head m.userFunctions
   in case fun of
     Just f ->
       case f.ufAST of
