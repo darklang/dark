@@ -60,6 +60,8 @@ let config_post_process_patterns =
   ; "floatMultiply", "(*.)"
   ; "floatDivide", "(/.)"
   ; "StrSet.set", "StrSet.t"
+  ; "action: \\(\\(model -> toplevel\\) -> pointerData\\) -> modification"
+  , "action: model -> toplevel -> pointerData -> modification"
   ]
 
 let config_type_patterns =
