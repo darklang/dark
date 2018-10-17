@@ -160,6 +160,18 @@ module List = struct
     takeWhileMemo [] l
   let all (fn: 'a -> bool) (l: 'a list) : bool =
     Belt.List.every l fn
+  let tail (l: 'a list) : 'a list option =
+    match l with
+    | [] -> None
+    | _ :: rest -> Some rest
+  let append (l1: 'a list) (l2: 'a list) : 'a list =
+    l1 @ l2
+  let removeAt (index : int) (l : 'a list) : 'a list =
+    if index < 0 then l
+    else
+      let head = take index l in
+      let tail = drop index l |> tail in
+      match tail with None -> l | Some t -> append head t
 end
 
 module Option = struct
