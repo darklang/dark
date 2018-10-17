@@ -10,11 +10,11 @@ let copy (m : model) (tl : toplevel) (mp : pointerData option) : modification =
   | TLDB _ -> NoChange
   | TLHandler h -> (
     match mp with
-    | None -> CopyToClipboard (Some <| PExpr h.ast)
+    | None -> CopyToClipboard (Some (PExpr h.ast))
     | Some p -> CopyToClipboard (TL.find tl (P.toID p)) )
   | TLFunc f -> (
     match mp with
-    | None -> CopyToClipboard (Some <| PExpr f.ufAST)
+    | None -> CopyToClipboard (Some (PExpr f.ufAST))
     | Some p -> CopyToClipboard (TL.find tl (P.toID p)) )
 
 let cut (m : model) (tl : toplevel) (p : pointerData) : modification =

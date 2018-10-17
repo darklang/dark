@@ -18,11 +18,11 @@ copy m tl mp =
       NoChange
     TLHandler h ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| PExpr h.ast)
+        Nothing -> CopyToClipboard (Just (PExpr h.ast))
         Just p -> CopyToClipboard (TL.find tl (P.toID p))
     TLFunc f ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| PExpr f.ufAST)
+        Nothing -> CopyToClipboard (Just (PExpr f.ufAST))
         Just p -> CopyToClipboard (TL.find tl (P.toID p))
 
 cut : Model -> Toplevel -> PointerData -> Modification
