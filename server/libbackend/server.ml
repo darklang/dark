@@ -435,36 +435,64 @@ let delete_404 ~(execution_id: Types.id) (host: string) body
     raise e
 
 
-let admin_ui_html ~(debug:bool) frontend =
-  let template = File.readfile_lwt ~root:Templates "ui.html" in
-  template
-  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
-  >|= Util.string_replace "{LIVERELOADJS}"
-    (if Config.browser_reload_enabled
-      then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-      else "")
-  >|= Util.string_replace "{STATIC}" Config.static_host
-  >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
-  >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-  >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
-  >|= (fun body ->
-    let glue, tag =
-      (match frontend with
-        | Elm ->
-          let content = File.readfile ~root:Templates "elm-glue.js" in
-          let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
-          (content, elmtag)
-        | Bucklescript ->
-          let content = File.readfile ~root:Templates "bs-glue.js" in
-          let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
-          (content, bstag))
-    in
-    body
-    |> Util.string_replace "{FRONTENDIMPL}" tag
-    |> Util.string_replace "{FRONTENDGLUE}" glue)
-  >|= Util.string_replace "{STATIC}" Config.static_host
-  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
+let hashed_filename (file:string) (hash : string) :string =
+  let ext,rest = match List.rev (String.split ~on:'.' file) with
+      ext::rest -> ext, rest
+    | [] -> failwith "TODO" in
+  sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
 
+let to_assoc_list etags_json : (string*string) list =
+  match etags_json with
+  `Assoc alist ->
+    List.map
+      ~f:(fun (fst, snd) ->
+          (match snd with
+           | `String inner -> (fst, inner)
+           | _ -> failwith "todo")
+        )
+      alist
+  | _ -> failwith "TODO"
+
+let admin_ui_html ~(debug:bool) () =
+    let template = File.readfile_lwt ~root:Templates "ui.html" in
+    template
+    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
+    >|= Util.string_replace "{LIVERELOADJS}"
+      (if Config.browser_reload_enabled
+       then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+       else "")
+    >|= Util.string_replace "{STATIC}" Config.static_host
+    >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
+    >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
+    >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
+    >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
+    >|= (fun body ->
+        let glue, tag =
+          (match frontend with
+           | Elm ->
+             let content = File.readfile ~root:Templates "elm-glue.js" in
+             let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
+             (content, elmtag)
+           | Bucklescript ->
+             let content = File.readfile ~root:Templates "bs-glue.js" in
+             let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
+             (content, bstag))
+        in
+        body
+        |> Util.string_replace "{FRONTENDIMPL}" tag
+        |> Util.string_replace "{FRONTENDGLUE}" glue)
+    >|= Util.string_replace "{STATIC}" Config.static_host
+    >|= (fun instr ->
+        let etags_str = File.readfile ~root:Static "etags.json" in
+        let etags_json = Yojson.Safe.from_string etags_str in
+        let etag_assoc_list = to_assoc_list etags_json in
+        List.fold
+          etag_assoc_list
+          ~init:instr
+          ~f:(fun acc (file, hash) ->
+              Util.string_replace file (hashed_filename file hash) acc
+            )
+      )
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
