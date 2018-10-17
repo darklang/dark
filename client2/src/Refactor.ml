@@ -222,7 +222,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   in
   newHandlers @ newFunctions
 
-let isFunctionInExpr (fnName : string) (expr : expr) : bool =
+let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
   let maybeNExpr = B.asF expr in
   match maybeNExpr with
   | None -> false

@@ -49,6 +49,7 @@ let config_post_process_patterns =
   ; "^let replace_", "let rec replace_"
   ; "^let clone \\(", "let rec clone ("
   ; "^let addThreadBlank \\(", "let rec addThreadBlank ("
+  ; "^let isFunctionInExpr \\(", "let rec isFunctionInExpr ("
   ; "let rec_ancestors ", "let rec rec_ancestors "
   ; "Attrs.href", "Html.href"
   ; "Attrs.class_", "Html.class'"
