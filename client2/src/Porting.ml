@@ -23,6 +23,12 @@ module Result = struct
   type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
   let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
     Belt.Result.getWithDefault r default
+  let map2 (fn: 'a -> 'b -> 'c) (a: ('err, 'a) t) (b: ('err, 'b) t) : ('err, 'c) t =
+    match a,b with
+    | Ok a, Ok b -> Ok (fn a b)
+    | Error a, Ok _ -> Error a
+    | Ok _, Error b -> Error b
+    | Error a, Error b -> Error a
 end
 type ('err, 'ok) result = ('err, 'ok) Result.t
 

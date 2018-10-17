@@ -25,6 +25,7 @@ let config_module_patterns =
   ; "Maybe.Extra", "Option"
   ; "Maybe", "Option"
   ; "^ME$", "Option"
+  ; "^RE$", "Result"
   ]
 
 let config_post_process_patterns =

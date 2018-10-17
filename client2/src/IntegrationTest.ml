@@ -229,7 +229,7 @@ let case_sensitivity (m : model) : testResult =
                  |> Option.withDefault (fail h.ast)
              | _ -> fail h.ast )
            | other -> fail other )
-    |> RE.combine
+    |> Result.combine
     |> Result.map (fun _ -> ())
 
 let focus_on_ast_in_new_empty_tl (m : model) : testResult =
@@ -279,7 +279,7 @@ let rename_db_fields (m : model) : testResult =
              | _ -> fail m.cursorState )
            | _ -> fail cols )
          | _ -> pass )
-  |> RE.combine
+  |> Result.combine
   |> Result.map (fun _ -> ())
 
 let rename_db_type (m : model) : testResult =
@@ -297,7 +297,7 @@ let rename_db_type (m : model) : testResult =
              | _ -> fail m.cursorState )
            | _ -> fail cols )
          | _ -> pass )
-  |> RE.combine
+  |> Result.combine
   |> Result.map (fun _ -> ())
 
 let paste_right_number_of_blanks (m : model) : testResult =
@@ -310,7 +310,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
            | F (_, FnCall ("-", [Blank _; Blank _], _)) -> pass
            | _ -> fail ast )
          | _ -> fail ("Shouldn't be other handlers here", tl.data) )
-  |> RE.combine
+  |> Result.combine
   |> Result.map (fun _ -> ())
 
 let paste_keeps_focus (m : model) : testResult =
