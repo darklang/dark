@@ -25,3 +25,4 @@ lib/bs
 .merlin
 .bsb.lock
 src/*.bs.js
+lib/*
