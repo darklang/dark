@@ -3,7 +3,7 @@ open Tea.Mouse
 open App
 
 open Keyboard
-open Toplevel
+open Toplevel2
 open Location
 
 open Porting
@@ -14,12 +14,14 @@ open Window
 
 (* DEFINE TYPES *)
 type model = 
-  { selected_toplevel : Toplevel.model (* TODO : make. optional *)
-  ; last_key_event: Keyboard.key_event
+  { selected_toplevel : Toplevel2.model (* TODO : make. optional *)
+  ; last_key_event : Keyboard.key_event
+  ; moving_selected_toplevel : bool
+  ; last_mouse_position : Mouse.position
   }
 
 type msg =
-  Toplevel_msg of Toplevel.msg
+  Toplevel_msg of Toplevel2.msg
   | Key_event of Keyboard.key_event
   | Mouse_click of Mouse.position
   | Mouse_move of Mouse.position
@@ -53,9 +55,30 @@ let update m msg =
     then Analysis.RequestAnalysis.send [123;342;4534];
 
     { m with last_key_event = key_event }, Cmd.none
-  | Mouse_click position ->
-    Js.log "click"; Js.log position;
-    m, Cmd.none
+  | Mouse_down position ->
+    if Toplevel2.is_inside position.x position.y m.selected_toplevel
+    then
+      { m with moving_selected_toplevel = true
+      ; last_mouse_position = position
+      }, Cmd.none
+    else
+      m, Cmd.none
+  | Mouse_move position ->
+    if m.moving_selected_toplevel
+    then
+      let dx = position.x - m.last_mouse_position.x in
+      let dy = position.y - m.last_mouse_position.y in
+      { m with selected_toplevel = Toplevel2.move m.selected_toplevel dx dy
+      ; last_mouse_position = position
+      }, Cmd.none
+    else
+      m, Cmd.none
+  | Mouse_up position ->
+    if m.moving_selected_toplevel
+    then { m with moving_selected_toplevel = false }, Cmd.none
+    else
+      m, Cmd.none
+
   | Analysis_result analysis_result ->
     Js.log "Analysis_result"; Js.log analysis_result; m, Cmd.none
   | Display_error msg -> Js.log msg; m, Cmd.none
@@ -66,12 +89,14 @@ let view m =
   let open Html in
   div
     [ class' "canvas" ]
-    [ Toplevel.view m.selected_toplevel |> map toplevel_msg
+    [ Toplevel2.view m.selected_toplevel |> map toplevel_msg
     ]
 
 let init () =
-  { selected_toplevel = Toplevel.new_http_handler "some stuff happening"
+  { selected_toplevel = Toplevel2.new_http_handler "some stuff happening"
   ; last_key_event = Keyboard.nullEvent ()
+  ; moving_selected_toplevel = false
+  ; last_mouse_position = { x = 0 ; y = 0 }
   }, Cmd.none
 
 let subscriptions model = Sub.batch
