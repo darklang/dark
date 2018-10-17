@@ -2,7 +2,6 @@ open Tea
 open! Porting
 module B = Blank
 module Attrs = Html.Attributes
-module Events = Html.Events
 module JSD = Json.Decode
 module JSDP = Json.Decode.Pipeline
 module P = Pointer
@@ -90,13 +89,13 @@ let fontAwesome (name : string) : msg Html.html =
 
 let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
     msg Html.attribute =
-  Events.onWithOptions event
+  Html.onWithOptions event
     {stopPropagation= true; preventDefault= false}
     (decodeClickEvent constructor)
 
 let eventNoDefault (event : string) (constructor : mouseEvent -> msg) :
     msg Html.attribute =
-  Events.onWithOptions event
+  Html.onWithOptions event
     {stopPropagation= false; preventDefault= true}
     (decodeClickEvent constructor)
 

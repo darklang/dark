@@ -1,7 +1,6 @@
 open Tea
 open! Porting
 module Attrs = Html.Attributes
-module Events = Html.Events
 open Prelude
 open Types
 open ViewUtils
