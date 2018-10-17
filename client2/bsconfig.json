@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "sources": {
     "dir" : "src",
-    "subdirs" : true
+    "subdirs" : false
   },
   "package-specs": {
     "module": "commonjs",
