@@ -148,6 +148,14 @@ module List = struct
     l = []
   let cons (item: 'a) (l: 'a list) : 'a list =
     item :: l
+  let takeWhile (predicate : 'a -> bool) (l : 'a list) : 'a list =
+    let rec takeWhileMemo memo list =
+      match list with
+      | [] -> List.rev memo
+      | x :: xs ->
+        if predicate x then takeWhileMemo (x :: memo) xs else List.rev memo
+    in
+    takeWhileMemo [] l
 end
 
 module Option = struct
@@ -250,6 +258,12 @@ module IntSet = struct
     |> Set.fromArray
   let member (i: value) (set: t) : bool =
     Set.has set i
+  let diff (set1: t) (set2: t) : t =
+    Set.diff set1 set2
+  let isEmpty (s: t) : bool =
+    Set.isEmpty s
+  let toList (s: t) : value list =
+    Set.toList s
 end
 
 module StrSet = struct
@@ -262,6 +276,12 @@ module StrSet = struct
     |> Set.fromArray
   let member (i: value) (set: t) : bool =
     Set.has set i
+  let diff (set1: t) (set2: t) : t =
+    Set.diff set1 set2
+  let isEmpty (s: t) : bool =
+    Set.isEmpty s
+  let toList (s: t) : value list =
+    Set.toList s
 end
 
 
