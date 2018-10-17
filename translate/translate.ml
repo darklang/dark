@@ -60,6 +60,7 @@ let config_post_process_patterns =
   ; "Attrs.href", "Html.href"
   ; "Attrs.class_", "Html.class'"
   ; "Events.onWithOptions", "Html.onWithOptions"
+  ; "Html.attribute", "Vdom.property"
   ; "floatAdd", "(+.)"
   ; "floatSubtract", "(-.)"
   ; "floatMultiply", "(*.)"

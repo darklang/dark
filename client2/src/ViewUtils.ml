@@ -31,6 +31,9 @@ type viewState =
   ; canvasName: string
   ; userContentHost: string }
 
+let isLocked (tlid : tlid) (m : model) : bool =
+  List.member tlid m.lockedHandlers
+
 let createVS (m : model) (tl : toplevel) : viewState =
   { tl
   ; cursorState= unwrapCursorState m.cursorState
@@ -85,21 +88,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
 let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
 
-let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
-    msg Html.attribute =
-  Html.onWithOptions event
-    {stopPropagation= true; preventDefault= false}
-    (decodeClickEvent constructor)
-
-let eventNoDefault (event : string) (constructor : mouseEvent -> msg) :
-    msg Html.attribute =
-  Html.onWithOptions event
-    {stopPropagation= false; preventDefault= true}
-    (decodeClickEvent constructor)
-
-let nothingMouseEvent (name : string) : msg Html.attribute =
-  eventNoPropagation name NothingClick
-
 let decodeClickEvent (fn : mouseEvent -> 'a) : 'a JSD.decoder =
   let _ = "type annotation" in
   let toA px py button = fn {pos= {vx= px; vy= py}; button} in
@@ -107,6 +95,21 @@ let decodeClickEvent (fn : mouseEvent -> 'a) : 'a JSD.decoder =
   |> JSDP.required "pageX" JSD.int
   |> JSDP.required "pageY" JSD.int
   |> JSDP.required "button" JSD.int
+
+let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
+    msg Vdom.property =
+  Html.onWithOptions event
+    {stopPropagation= true; preventDefault= false}
+    (decodeClickEvent constructor)
+
+let eventNoDefault (event : string) (constructor : mouseEvent -> msg) :
+    msg Vdom.property =
+  Html.onWithOptions event
+    {stopPropagation= false; preventDefault= true}
+    (decodeClickEvent constructor)
+
+let nothingMouseEvent (name : string) : msg Vdom.property =
+  eventNoPropagation name NothingClick
 
 let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
   let div class_ subs = Html.div [Html.class' class_] subs in
@@ -119,7 +122,7 @@ let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
 
 let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
-let widthInCh (w : int) : msg Html.attribute =
+let widthInCh (w : int) : msg Vdom.property =
   w |> inCh |> fun w_ -> Attrs.style [("width", w_)]
 
 let blankOrLength (b : string blankOr) : int =
@@ -163,9 +166,6 @@ let approxNWidth (ne : nExpr) : int =
       |> List.map (( + ) 2)
       |> List.maximum |> Option.withDefault 0 |> ( + ) 4
   | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
-
-let isLocked (tlid : tlid) (m : model) : bool =
-  List.member tlid m.lockedHandlers
 
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = regex "(\\w+::)?(\\w+)_v(\\d+)" in
