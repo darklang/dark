@@ -9,7 +9,7 @@ let (<|) a b = a b
 let (>>) (f1: 'a -> 'b) (f2: 'b -> 'c) : 'a -> 'c =
   fun x -> x |> f1 |> f2
 let (<<) (f1: 'b -> 'c) (f2: 'a -> 'b) : 'a -> 'c =
-  fun x -> x |> f1 |> f2
+  fun x -> x |> f2 |> f1
 
 module Debug = struct
   let crash (str: string) : 'a =
