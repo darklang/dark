@@ -349,4 +349,4 @@ let generateEmptyFunction (_ : unit) : userFunction =
     ; ufmReturnTipe= F (gid (), TAny)
     ; ufmInfix= false }
   in
-  UserFunction (tlid, metadata, Blank (gid ()))
+  {ufTLID= tlid; ufMetadata= metadata; ufAST= Blank (gid ())}

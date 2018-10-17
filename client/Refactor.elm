@@ -437,4 +437,7 @@ generateEmptyFunction _ =
         , ufmReturnTipe = F (gid ()) TAny
         , ufmInfix = False
         }
-  in (UserFunction tlid metadata (Blank (gid ())))
+  in ({ ufTLID = tlid
+      , ufMetadata = metadata
+      , ufAST = Blank (gid ())
+      })
