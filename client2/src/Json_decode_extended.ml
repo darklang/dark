@@ -66,4 +66,9 @@ let orNull decoder default json =
   else
     decoder json
 
+let dict decoder json =
+  dict decoder json
+  |> Js.Dict.entries
+  |> Belt.Map.String.fromArray
+
 
