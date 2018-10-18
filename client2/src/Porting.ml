@@ -310,6 +310,8 @@ module String = struct
   let concat = String.concat ""
   let fromChar (c : char) : string =
     c |> Char.toCode |> Js.String.fromCharCode
+  let slice from to_ str =
+    Js.String.slice ~from ~to_ str
 end
 
 module IntSet = struct
@@ -363,6 +365,9 @@ module StrDict = struct
     Map.get v k
   let insert (k: key) (v: 'value) (map: 'value t) : 'value t =
     Map.set map k v
+  let keys m : key list =
+    Map.keysToArray m
+    |> Belt.List.fromArray
 
 end
 
@@ -382,6 +387,10 @@ module IntDict = struct
     Map.set map k v
   let update (k: key) (fn: 'v option -> 'v option) (map: 'value t) : 'value t =
     Map.update map k fn
+  let keys m : key list =
+    Map.keysToArray m
+    |> Belt.List.fromArray
+
 end
 
 module Html = struct

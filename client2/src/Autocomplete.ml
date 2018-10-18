@@ -75,7 +75,7 @@ let highlighted (a : autocomplete) : autocompleteItem option =
 let getValue (a : autocomplete) : string =
   match highlighted a with Some item -> asName item | None -> a.value
 
-let sharedPrefix2 (l : string) (r : string) : string =
+let rec sharedPrefix2 (l : string) (r : string) : string =
   match (String.uncons l, String.uncons r) with
   | Some (l1, lrest), Some (r1, rrest) ->
       if l1 = r1 then String.fromChar l1 ^ sharedPrefix2 lrest rrest else ""
@@ -89,7 +89,7 @@ let sharedPrefixList (strs : string list) : string =
 let sharedPrefix (a : autocomplete) : string =
   a.completions |> List.concat |> List.map asName |> sharedPrefixList
 
-let containsOrdered (needle : string) (haystack : string) : bool =
+let rec containsOrdered (needle : string) (haystack : string) : bool =
   match String.uncons needle with
   | Some (c, newneedle) ->
       let char = String.fromChar c in
@@ -105,10 +105,10 @@ let compareSuggestionWithActual (a : autocomplete) (actual : string) :
   | _ -> (
       let suggestion = sharedPrefix a in
       match
-        String.indexes (String.toLower actual) (String.toLower suggestion)
+        Js.String.indexOf (String.toLower actual) (String.toLower suggestion)
       with
-      | [] -> ("", suggestion, actual)
-      | index :: _ ->
+      | -1 -> ("", suggestion, actual)
+      | index ->
           let prefix = String.slice 0 index suggestion in
           let suffix =
             String.slice
@@ -117,93 +117,23 @@ let compareSuggestionWithActual (a : autocomplete) (actual : string) :
           in
           (prefix, prefix ^ actual ^ suffix, actual) )
 
-let empty : autocomplete = init [] false
+let nonAdminFunctions (fns : function_ list) : function_ list =
+  fns
 
-let nonAdminFunctions (fns : function_ list) : function_ list = fns
+let dvalFields (dv : dval) : autocompleteItem list =
+  match dv with
+  | DObj dict -> StrDict.keys dict |> List.map (fun x -> ACField x)
+  | _ -> []
 
-let init (fns : function_ list) (isAdmin : bool) : autocomplete =
-  let functions = if isAdmin then fns else nonAdminFunctions fns in
-  { functions
-  ; admin= isAdmin
-  ; completions= [[]; []; []; []]
-  ; allCompletions= []
-  ; index= -1
-  ; value= ""
-  ; prevValue= ""
-  ; acTipe= None
-  ; target= None
-  ; isCommandMode= false }
+let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
+    parameter option =
+  fnParameters |> List.head
+  |> Option.andThen (fun fst ->
+         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
-let reset (m : model) (a : autocomplete) : autocomplete =
-  let userFunctionMetadata =
-    m.userFunctions
-    |> List.map (fun x -> x.ufMetadata)
-    |> List.filterMap Functions.ufmToF
-  in
-  let unusedDeprecatedFns = Refactor.unusedDeprecatedFunctions m in
-  let functions =
-    m.builtInFunctions
-    |> List.filter (fun f ->
-           not
-             (List.member f.fnName
-                (List.map (fun x -> x.fnName) userFunctionMetadata)) )
-    |> List.filter (fun f -> not (StrSet.member f.fnName unusedDeprecatedFns))
-    |> List.append userFunctionMetadata
-  in
-  init functions a.admin |> regenerate m
-
-let numCompletions (a : autocomplete) : int =
-  a.completions |> List.concat |> List.length
-
-let selectDown (a : autocomplete) : autocomplete =
-  let max_ = numCompletions a in
-  let max = Basics.max max_ 1 in
-  let new_ = (a.index + 1) mod max in
-  {a with index= new_}
-
-let selectUp (a : autocomplete) : autocomplete =
-  let max = numCompletions a - 1 in
-  {a with index= (if a.index <= 0 then max else a.index - 1)}
-
-let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
-
-let appendQuery (str : string) (a : autocomplete) : autocomplete =
-  let q =
-    if isStringEntry a then String.dropRight 1 a.value ^ str ^ "\""
-    else a.value ^ str
-  in
-  setQuery q a
-
-let documentationForItem (aci : autocompleteItem) : string option =
-  match aci with
-  | ACFunction f ->
-      if String.length f.fnDescription <> 0 then Some f.fnDescription else None
-  | ACCommand c -> Some (c.doc ^ " (" ^ c.shortcut ^ ")")
-  | _ -> None
-
-let setTarget (m : model) (t : (tlid * pointerData) option) (a : autocomplete)
-    : autocomplete =
-  {a with target= t} |> regenerate m
-
-let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
-    autocomplete =
-  match mod_ with
-  | ACSetQuery str -> setQuery str a
-  | ACAppendQuery str -> appendQuery str a
-  | ACReset -> reset m a
-  | ACSelectDown -> selectDown a
-  | ACSelectUp -> selectUp a
-  | ACSetTarget target -> setTarget m target a
-  | ACRegenerate -> regenerate m a
-  | ACEnableCommandMode -> enableCommandMode m a
-
-let enableCommandMode (m : model) (a : autocomplete) : autocomplete =
-  {a with isCommandMode= true}
-
-let isDynamicItem (item : autocompleteItem) : bool =
-  match item with ACLiteral _ -> true | ACOmniAction _ -> true | _ -> false
-
-let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
+let findParamByType ({fnParameters} : function_) (tipe : tipe) :
+    parameter option =
+  fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
 
 let qLiteral (s : string) : autocompleteItem option =
   if String.length s > 0 then
@@ -216,7 +146,7 @@ let qLiteral (s : string) : autocompleteItem option =
     else if String.startsWith (String.toLower s) "null" then
       Some (ACLiteral "null")
     else None
-  else if JSON.isLiteralString s then Some (ACLiteral s)
+  else if Decoders.isLiteralString s then Some (ACLiteral s)
   else None
 
 let qNewDB (s : string) : autocompleteItem option =
@@ -247,6 +177,11 @@ let qEventSpace (s : string) : autocompleteItem option =
   if Util.reExactly "[A-Z]+" s then Some (ACOmniAction (NewEventSpace s))
   else None
 
+let isDynamicItem (item : autocompleteItem) : bool =
+  match item with ACLiteral _ -> true | ACOmniAction _ -> true | _ -> false
+
+let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
+
 let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
   let always = [qLiteral] in
   let omni =
@@ -254,69 +189,14 @@ let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
       [qNewDB; qHandler; qFunction; qHTTPHandler; qHTTPRoute; qEventSpace]
     else []
   in
-  let items = always ^ omni in
+  let items = always @ omni in
   items |> List.map (fun aci -> aci query) |> List.filterMap identity
 
 let withDynamicItems (target : target option) (query : string)
     (acis : autocompleteItem list) : autocompleteItem list =
   let new_ = toDynamicItems (target = None) query in
   let withoutDynamic = List.filter isStaticItem acis in
-  new_ ^ withoutDynamic
-
-let regenerate (m : model) (a : autocomplete) : autocomplete =
-  {a with allCompletions= generateFromModel m a} |> refilter a.value
-
-let refilter (query : string) (old : autocomplete) : autocomplete =
-  let fudgedCompletions =
-    withDynamicItems old.target query old.allCompletions
-  in
-  let newCompletions = filter fudgedCompletions query in
-  let newCount = newCompletions |> List.concat |> List.length in
-  let oldHighlight = highlighted old in
-  let oldHighlightNewPos =
-    oldHighlight
-    |> Option.andThen (fun oh -> List.elemIndex oh (List.concat newCompletions))
-  in
-  let index =
-    if query = "" && ((old.index <> -1 && old.value <> query) || old.index = -1)
-    then -1
-    else
-      match oldHighlightNewPos with
-      | Some i -> i
-      | None -> if newCount = 0 then -1 else 0
-  in
-  { old with
-    index; completions= newCompletions; value= query; prevValue= old.value }
-
-let filter (list : autocompleteItem list) (query : string) :
-    autocompleteItem list list =
-  let lcq = query |> String.toLower in
-  let stringify i =
-    (if 1 >= String.length lcq then asName i else asString i)
-    |> Regex.replace "\226\159\182" "->"
-  in
-  let _ = "comment" in
-  let dynamic, candidates0 = List.partition isDynamicItem list in
-  let candidates1, notSubstring =
-    List.partition
-      (stringify >> String.toLower >> String.contains lcq)
-      candidates0
-  in
-  let startsWith, candidates2 =
-    List.partition (stringify >> String.startsWith query) candidates1
-  in
-  let startsWithCI, candidates3 =
-    List.partition
-      (stringify >> String.toLower >> String.startsWith lcq)
-      candidates2
-  in
-  let substring, substringCI =
-    List.partition (stringify >> String.contains query) candidates3
-  in
-  let stringMatch =
-    List.filter (asName >> String.toLower >> containsOrdered lcq) notSubstring
-  in
-  [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
+  new_ @ withoutDynamic
 
 let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   let dv =
@@ -416,7 +296,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
             ; "UUID" ]
           in
           let compound = List.map (fun s -> "[" ^ s ^ "]") builtins in
-          builtins ^ compound
+          builtins @ compound
       | ParamTipe ->
           [ "Any"
           ; "String"
@@ -438,27 +318,150 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   in
   let regular =
     List.map (fun x -> ACExtra x) extras
-    ^ List.map (fun x -> ACVariable x) varnames
-    ^ keywords ^ functions ^ fields
+    @ List.map (fun x -> ACVariable x) varnames
+    @ keywords @ functions @ fields
   in
   let commands = List.map (fun x -> ACCommand x) Commands.commands in
   if a.isCommandMode then commands else regular
 
-let dvalFields (dv : dval) : autocompleteItem list =
-  match dv with
-  | DObj dict -> Dict.keys dict |> List.map (fun x -> ACField x)
-  | _ -> []
+let filter (list : autocompleteItem list) (query : string) :
+    autocompleteItem list list =
+  let lcq = query |> String.toLower in
+  let stringify i =
+    (if 1 >= String.length lcq then asName i else asString i)
+    |> Regex.replace "\226\159\182" "->"
+  in
+  let _ = "comment" in
+  let dynamic, candidates0 = List.partition isDynamicItem list in
+  let candidates1, notSubstring =
+    List.partition
+      (stringify >> String.toLower >> String.contains lcq)
+      candidates0
+  in
+  let startsWith, candidates2 =
+    List.partition (stringify >> String.startsWith query) candidates1
+  in
+  let startsWithCI, candidates3 =
+    List.partition
+      (stringify >> String.toLower >> String.startsWith lcq)
+      candidates2
+  in
+  let substring, substringCI =
+    List.partition (stringify >> String.contains query) candidates3
+  in
+  let stringMatch =
+    List.filter (asName >> String.toLower >> containsOrdered lcq) notSubstring
+  in
+  [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
 
-let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
-    parameter option =
-  fnParameters |> List.head
-  |> Option.andThen (fun fst ->
-         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
-let findParamByType ({fnParameters} : function_) (tipe : tipe) :
-    parameter option =
-  fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
+
+let init (fns : function_ list) (isAdmin : bool) : autocomplete =
+  let functions = if isAdmin then fns else nonAdminFunctions fns in
+  { functions
+  ; admin= isAdmin
+  ; completions= [[]; []; []; []]
+  ; allCompletions= []
+  ; index= -1
+  ; value= ""
+  ; prevValue= ""
+  ; acTipe= None
+  ; target= None
+  ; isCommandMode= false }
+
+let refilter (query : string) (old : autocomplete) : autocomplete =
+  let fudgedCompletions =
+    withDynamicItems old.target query old.allCompletions
+  in
+  let newCompletions = filter fudgedCompletions query in
+  let newCount = newCompletions |> List.concat |> List.length in
+  let oldHighlight = highlighted old in
+  let oldHighlightNewPos =
+    oldHighlight
+    |> Option.andThen (fun oh -> List.elemIndex oh (List.concat newCompletions))
+  in
+  let index =
+    if query = "" && ((old.index <> -1 && old.value <> query) || old.index = -1)
+    then -1
+    else
+      match oldHighlightNewPos with
+      | Some i -> i
+      | None -> if newCount = 0 then -1 else 0
+  in
+  { old with
+    index; completions= newCompletions; value= query; prevValue= old.value }
+
+let regenerate (m : model) (a : autocomplete) : autocomplete =
+  {a with allCompletions= generateFromModel m a} |> refilter a.value
+
+let empty : autocomplete = init [] false
+
+let reset (m : model) (a : autocomplete) : autocomplete =
+  let userFunctionMetadata =
+    m.userFunctions
+    |> List.map (fun x -> x.ufMetadata)
+    |> List.filterMap Functions.ufmToF
+  in
+  let unusedDeprecatedFns = Refactor.unusedDeprecatedFunctions m in
+  let functions =
+    m.builtInFunctions
+    |> List.filter (fun f ->
+           not
+             (List.member f.fnName
+                (List.map (fun x -> x.fnName) userFunctionMetadata)) )
+    |> List.filter (fun f -> not (StrSet.member f.fnName unusedDeprecatedFns))
+    |> List.append userFunctionMetadata
+  in
+  init functions a.admin |> regenerate m
+
+let numCompletions (a : autocomplete) : int =
+  a.completions |> List.concat |> List.length
+
+let selectDown (a : autocomplete) : autocomplete =
+  let max_ = numCompletions a in
+  let max = max max_ 1 in
+  let new_ = (a.index + 1) mod max in
+  {a with index= new_}
+
+let selectUp (a : autocomplete) : autocomplete =
+  let max = numCompletions a - 1 in
+  {a with index= (if a.index <= 0 then max else a.index - 1)}
+
+let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
+
+let appendQuery (str : string) (a : autocomplete) : autocomplete =
+  let q =
+    if isStringEntry a then String.dropRight 1 a.value ^ str ^ "\""
+    else a.value ^ str
+  in
+  setQuery q a
+
+let documentationForItem (aci : autocompleteItem) : string option =
+  match aci with
+  | ACFunction f ->
+      if String.length f.fnDescription <> 0 then Some f.fnDescription else None
+  | ACCommand c -> Some (c.doc ^ " (" ^ c.shortcut ^ ")")
+  | _ -> None
+
+let setTarget (m : model) (t : (tlid * pointerData) option) (a : autocomplete)
+    : autocomplete =
+  {a with target= t} |> regenerate m
+
+let enableCommandMode (m : model) (a : autocomplete) : autocomplete =
+  {a with isCommandMode= true}
+
+let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
+    autocomplete =
+  match mod_ with
+  | ACSetQuery str -> setQuery str a
+  | ACAppendQuery str -> appendQuery str a
+  | ACReset -> reset m a
+  | ACSelectDown -> selectDown a
+  | ACSelectUp -> selectUp a
+  | ACSetTarget target -> setTarget m target a
+  | ACRegenerate -> regenerate m a
+  | ACEnableCommandMode -> enableCommandMode m a
 
 let selectSharedPrefix (ac : autocomplete) : modification =
   let sp = sharedPrefix ac in
-  if sp = "" then NoChange else AutocompleteMod <| ACSetQuery sp
+  if sp = "" then NoChange else AutocompleteMod (ACSetQuery sp)
