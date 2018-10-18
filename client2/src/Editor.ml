@@ -1,11 +1,10 @@
-open Tea
 open! Porting
 module TL = Toplevel
 open Types
 
 let fromString (json : string option) : serializableEditor =
   json
-  |> Option.map (JSD.decodeString JSON.decodeSerializableEditor)
+  |> Option.map (Json.parseOrRaise >> Decoders.serializableEditor)
   |> Option.withDefault (Ok Defaults.defaultEditor)
   |> Result.withDefault Defaults.defaultEditor
 
