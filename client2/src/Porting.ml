@@ -32,6 +32,8 @@ let identity (value: 'a) : 'a =
 module List = struct
   let sum (l: int list) : int =
     Belt.List.reduce l 0 (+)
+  let floatSum (l: float list) : float =
+    Belt.List.reduce l 0.0 (+.)
   let map (fn: 'a -> 'b) (l: 'a list) : 'b list =
     Belt.List.map l fn
   let indexedMap (fn: 'int -> 'a -> 'b) (l: 'a list) : 'b list =
