@@ -162,8 +162,6 @@ module List = struct
     | _ -> None
 end
 
-
-
 module Result = struct
   type ('err, 'ok) t = ('ok, 'err) Belt.Result.t
   let withDefault (default: 'ok) (r: ('err, 'ok) t) : 'ok =
@@ -185,6 +183,15 @@ module Result = struct
 end
 type ('err, 'ok) result = ('err, 'ok) Result.t
 
+module Base64 = struct
+  let encode (str: string) : string =
+    Webapi.Base64.btoa str
+  let decode (b64: string) : (string, string) result =
+    try
+      Ok (Webapi.Base64.atob b64)
+    with e ->
+      Error (Printexc.to_string e)
+end
 
 
 module Regex = struct
