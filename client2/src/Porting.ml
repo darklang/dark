@@ -169,6 +169,10 @@ module Result = struct
     (List.foldr (map2 (fun a b -> a :: b)) (Ok []) l)
   let map (fn: 'ok -> 'value) (r: ('err, 'ok) t) : ('err, 'value) t =
     Belt.Result.map r fn
+  let toOption (r: ('err, 'ok) t) : 'ok option =
+    match r with
+    | Ok v -> Some v
+    | _ -> None
 end
 type ('err, 'ok) result = ('err, 'ok) Result.t
 
@@ -274,6 +278,11 @@ module String = struct
     |> List.map Char.toCode
     |> List.map Js.String.fromCharCode
     |> String.concat ""
+  let toList (s: string) : char list =
+    s
+    |> Js.String.castToArrayLike
+    |> Js.Array.from
+    |> Belt.List.fromArray
   let fromInt (i : int) : string =
     Printf.sprintf "%d" i
   let concat = String.concat ""
