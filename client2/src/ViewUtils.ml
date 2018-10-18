@@ -6,6 +6,7 @@ module P = Pointer
 open Prelude
 module TL = Toplevel
 open Types
+module JSD = Json_decode_extended
 
 type viewState =
   { tl: toplevel
@@ -88,13 +89,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
 let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
 
-let decodeClickEvent (fn : mouseEvent -> 'a) : 'a JSD.decoder =
-  let _ = "type annotation" in
-  let toA px py button = fn {pos= {vx= px; vy= py}; button} in
-  JSDP.decode toA
-  |> JSDP.required "pageX" JSD.int
-  |> JSDP.required "pageY" JSD.int
-  |> JSDP.required "button" JSD.int
+let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
+  fn
+    { pos = { vx = JSD.field "pageX" JSD.int j
+            ; vy = JSD.field "pageY" JSD.int j
+            }
+    ; button = (JSD.field "button" JSD.int j)
+    }
 
 let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
