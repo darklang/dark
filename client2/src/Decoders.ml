@@ -349,9 +349,11 @@ and getAnalysisRPC j : getAnalysisResult =
 (*   |> JSDP.required "result" decodeDval *)
 (*   |> JSDP.required "hash" string *)
 (*  *)
-(* let isLiteralString (s : string) : bool = *)
-(*   match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv *)
-(*  *)
+and isLiteralString (s : string) : bool =
+  match parseDvalLiteral s with
+  | None -> false
+  | Some dv -> RT.isLiteral dv
+
 (* let typeOfLiteralString (s : string) : tipe = *)
 (*   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv *)
 (*  *)
