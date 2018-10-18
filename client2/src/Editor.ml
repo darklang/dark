@@ -5,11 +5,10 @@ open Types
 let fromString (json : string option) : serializableEditor =
   json
   |> Option.map (Json.parseOrRaise >> Decoders.serializableEditor)
-  |> Option.withDefault (Ok Defaults.defaultEditor)
-  |> Result.withDefault Defaults.defaultEditor
+  |> Option.withDefault Defaults.defaultEditor
 
 let toString (se : serializableEditor) : string =
-  JSON.encodeSerializableEditor se |> JSE.encode 0
+  Encoders.serializableEditor se |> JSE.encode 0
 
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
