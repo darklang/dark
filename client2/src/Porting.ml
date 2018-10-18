@@ -30,6 +30,8 @@ let identity (value: 'a) : 'a =
 
 
 module List = struct
+  let sum (l: int list) : int =
+    Belt.List.reduce l 0 (+)
   let map (fn: 'a -> 'b) (l: 'a list) : 'b list =
     Belt.List.map l fn
   let indexedMap (fn: 'int -> 'a -> 'b) (l: 'a list) : 'b list =
@@ -160,6 +162,9 @@ module List = struct
     | [l_] -> Some l_
     | l_ :: ls_ -> Some (fst <| foldl minBy (l_, f l_) ls_)
     | _ -> None
+  let maximum (list : 'comparable list) : 'comparable option =
+    match list with x :: xs -> Some (foldl max x xs) | _ -> None
+
 end
 
 module Result = struct
@@ -254,6 +259,7 @@ end
 
 
 module String = struct
+  let length = String.length
   let toInt (s: string) : (string, int) result =
     try
       Ok (int_of_string s)

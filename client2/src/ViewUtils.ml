@@ -116,7 +116,7 @@ let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
   let div class_ subs = Html.div [Html.class' class_] subs in
   Html.div
     [ Html.class' "node"
-    ; Attrs.style
+    ; Html.styles
         [ ("left", string_of_int pos.x ^ "px")
         ; ("top", string_of_int pos.y ^ "px") ] ]
     [html]
@@ -124,7 +124,7 @@ let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
 let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh (w : int) : msg Vdom.property =
-  w |> inCh |> fun w_ -> Attrs.style [("width", w_)]
+  w |> inCh |> Html.style "width"
 
 let blankOrLength (b : string blankOr) : int =
   match b with Blank _ -> 6 | F (_, str) -> String.length str
@@ -132,10 +132,10 @@ let blankOrLength (b : string blankOr) : int =
 let visualStringLength (string : string) : int =
   string |> Regex.replace "\t" "        " |> String.length
 
-let approxWidth (e : expr) : int =
+let rec approxWidth (e : expr) : int =
   match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
 
-let approxNWidth (ne : nExpr) : int =
+and approxNWidth (ne : nExpr) : int =
   match ne with
   | Value v -> toString v |> String.length
   | Variable name -> String.length name
@@ -169,21 +169,29 @@ let approxNWidth (ne : nExpr) : int =
   | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
 
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
-  let pattern = regex "(\\w+::)?(\\w+)_v(\\d+)" in
-  let matches = Regex.find (Regex.AtMost 1) pattern fnName in
+  let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
+  let mResult = Js.Re.exec fnName pattern in
   let name, version =
-    match List.head matches with
-    | Some m ->
-        let name =
-          match m.submatches with
-          | [_; Some fn; None] -> fn
-          | [_; Some fn; Some modName] -> modName ^ fn
-          | _ -> fnName
-        in
-        let version =
-          match m.submatches with [Some v; _; _] -> v | _ -> "0"
-        in
-        (name, version)
+    match mResult with
+    | Some result ->
+      let captures =
+        result
+        |> Js.Re.captures
+        |> Belt.List.fromArray
+        |> List.map Js.toOption
+      in
+      let name =
+        match captures with
+        | [_; Some fn; None] -> fn
+        | [_; Some fn; Some modName] -> modName ^ fn
+        | _ -> fnName
+      in
+      let version =
+        match captures with
+        | [Some v; _; _] -> v
+        | _ -> "0"
+      in
+      (name, version)
     | None -> (fnName, "0")
   in
   Html.div
