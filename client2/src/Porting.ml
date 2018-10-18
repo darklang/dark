@@ -276,6 +276,7 @@ module String = struct
     |> String.concat ""
   let fromInt (i : int) : string =
     Printf.sprintf "%d" i
+  let concat = String.concat ""
 end
 
 module IntSet = struct
