@@ -12,8 +12,11 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "bs-platform": "^4.0.5",
     "@glennsl/bs-json": "3.0.0",
+    "bs-platform": "^4.0.5",
     "bucklescript-tea": "^0.8.0"
+  },
+  "dependencies": {
+    "bs-webapi": "^0.13.0"
   }
 }

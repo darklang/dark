@@ -12,7 +12,8 @@
   "suffix": ".bs.js",
   "bs-dependencies": [
     "bucklescript-tea",
-    "@glennsl/bs-json"
+    "@glennsl/bs-json",
+    "bs-webapi"
   ],
   "warnings": {
     "error": "+101",
