@@ -8,7 +8,9 @@ let fromString (json : string option) : serializableEditor =
   |> Option.withDefault Defaults.defaultEditor
 
 let toString (se : serializableEditor) : string =
-  Encoders.serializableEditor se |> JSE.encode 0
+  se
+  |> Encoders.serializableEditor
+  |> Json.stringify
 
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
