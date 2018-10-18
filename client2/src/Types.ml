@@ -490,6 +490,7 @@ and integrationTestState =
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
 
+[@bs.deriving accessors]
 and modification =
   | DisplayAndReportHttpError of string * string Tea.Http.error
   | DisplayAndReportError of string
