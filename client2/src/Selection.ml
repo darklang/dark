@@ -64,9 +64,9 @@ let moveUpDown (direction : udDirection) (sizes : htmlSizing list) (id : id) :
              o.centerY <> this.centerY && dir *. this.centerY < dir *. o.centerY
          )
       |> List.minimumBy (fun o ->
-             let majorDist = dir * (o.centerY -. this.centerY) in
-             let minorDist = abs (o.centerX -. this.centerX) in
-             (majorDist *. 100000) +. minorDist )
+             let majorDist = dir *. (o.centerY -. this.centerY) in
+             let minorDist = abs_float (o.centerX -. this.centerX) in
+             (majorDist *. 100000.0) +. minorDist )
       |> Option.withDefault this
       |> (fun x -> x.id)
       |> fun x -> Some x
@@ -76,26 +76,29 @@ type lrDirection = Left | Right
 
 let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
     : id option =
-  let dir = if direction = Left then -1 else 1 in
-  match List.filter (fun o -> o.id = id) sizes with
+  let dir = if direction = Left then -1.0 else 1.0 in
+  match List.filter (fun (o: htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
       |> List.filter (fun o ->
-             o.centerY = this.centerY && dir * this.centerX > dir * o.centerX
+             o.centerY = this.centerY && dir *. this.centerX > dir *. o.centerX
          )
-      |> List.minimumBy (fun o -> dir * (this.centerX - o.centerX))
+      |> List.minimumBy (fun o -> dir *. (this.centerX -. o.centerX))
       |> Option.withDefault this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ -> None
 
 let move (m : model) (tlid : tlid) (mId : id option)
-    (fn : (htmlSizing list -> id) -> id option) (default : id option) :
+    (fn : htmlSizing list -> id -> id option) (default : id option) :
     modification =
   let nested, atoms = tlToSizes m tlid in
-  Option.andThen (fn atoms) mId
+  mId
+  |> Option.andThen (fn atoms)
   |> Option.orElse (Option.andThen (fn nested) mId)
-  |> Option.orElse mId |> Option.orElse default |> Select tlid
+  |> Option.orElse mId
+  |> Option.orElse default
+  |> (fun x -> Select (tlid, x))
 
 let body (m : model) (tlid : tlid) : id option =
   let tl = TL.getTL m tlid in
@@ -122,7 +125,10 @@ let moveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
   let pd = Option.map (TL.findExn tl) cur in
-  pd |> Option.andThen (TL.getParentOf tl) |> Option.map P.toID |> Select tlid
+  pd
+  |> Option.andThen (TL.getParentOf tl)
+  |> Option.map P.toID
+  |> select tlid
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
     =
@@ -131,7 +137,9 @@ let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
   pd
   |> Option.orElse (TL.rootOf tl)
   |> Option.andThen (TL.firstChild tl)
-  |> Option.orElse pd |> Option.map P.toID |> Select tlid
+  |> Option.orElse pd
+  |> Option.map P.toID
+  |> select tlid
 
 let selectNextSibling (m : model) (tlid : tlid) (cur : id option) :
     modification =
