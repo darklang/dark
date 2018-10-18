@@ -49,7 +49,7 @@ let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd
       ; body =
           Web.XMLHttpRequest.StringBody
             (Json.stringify (Encoders.analysisParams params))
-      ; expect = Tea.Http.expectStringResponse Decoders.(wrapDecoder getAnalysisRPC)
+      ; expect = Tea.Http.expectStringResponse Decoders.(wrapExpect getAnalysisRPC)
       ; timeout = None
       ; withCredentials = false
       }
