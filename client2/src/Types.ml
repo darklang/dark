@@ -1,5 +1,4 @@
-open Tea
-open! Porting
+module Result = Porting.Result
 
 type exception_ =
   { short: string
@@ -122,19 +121,19 @@ and msg =
   | ToplevelMouseDown of tlid * mouseEvent
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
-  | DragToplevel of tlid * Mouse.position
+  | DragToplevel of tlid * Tea.Mouse.position
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of darkKeyboardEvent
   | AutocompleteClick of string
-  | FocusEntry of (Dom.errorEvent, unit) result
-  | FocusAutocompleteItem of (Dom.errorEvent, unit) result
-  | RPCCallback of focus * rpcParams * (string Http.error, rpcResult) result
-  | SaveTestRPCCallback of (string Http.error, string) result
-  | GetAnalysisRPCCallback of (string Http.error, getAnalysisResult) result
-  | GetDelete404RPCCallback of (string Http.error, fourOhFour list) result
+  | FocusEntry of (Dom.errorEvent, unit) Result.t
+  | FocusAutocompleteItem of (Dom.errorEvent, unit) Result.t
+  | RPCCallback of focus * rpcParams * (string Tea.Http.error, rpcResult) Result.t
+  | SaveTestRPCCallback of (string Tea.Http.error, string) Result.t
+  | GetAnalysisRPCCallback of (string Tea.Http.error, getAnalysisResult) Result.t
+  | GetDelete404RPCCallback of (string Tea.Http.error, fourOhFour list) Result.t
   | InitialLoadRPCCallback of
-      focus * modification * (string Http.error, initialLoadResult) result
+      focus * modification * (string Tea.Http.error, initialLoadResult) Result.t
   | LocationChange of Web.Location.location
   | AddRandom
   | FinishIntegrationTest
@@ -142,17 +141,17 @@ and msg =
   | ToggleTimers
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
-      * (string Http.error, executeFunctionRPCResult) result
+      * (string Tea.Http.error, executeFunctionRPCResult) Result.t
   | ExecuteFunctionButton of tlid * id * string
   | ExecuteFunctionCancel of tlid * id
   | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
   | WindowResize of int * int
-  | TimerFire of timerAction * Time.t
+  | TimerFire of timerAction * Tea.Time.t
   | JSError of string
-  | PageVisibilityChange of PageVisibility.visibility
-  | PageFocusChange of PageVisibility.visibility
+  | PageVisibilityChange of Porting.PageVisibility.visibility
+  | PageFocusChange of Porting.PageVisibility.visibility
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
@@ -462,7 +461,7 @@ and model =
   ; f404s: fourOhFour list
   ; unlockedDBs: tlid list
   ; integrationTestState: integrationTestState
-  ; visibility: PageVisibility.visibility
+  ; visibility: Porting.PageVisibility.visibility
   ; clipboard: clipboard
   ; syncState: syncState
   ; urlState: urlState
@@ -484,7 +483,7 @@ and serializableEditor =
 
 and darkError = {message: string option; showDetails: bool}
 
-and testResult = (string, unit) result
+and testResult = (string, unit) Result.t
 
 and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
@@ -492,7 +491,7 @@ and integrationTestState =
   | NoIntegrationTest
 
 and modification =
-  | DisplayAndReportHttpError of string * string Http.error
+  | DisplayAndReportHttpError of string * string Tea.Http.error
   | DisplayAndReportError of string
   | DisplayError of string
   | ClearError
@@ -517,7 +516,7 @@ and modification =
   | RPC of (op list * focus)
   | GetAnalysisRPC
   | NoChange
-  | MakeCmd of msg Cmd.t
+  | MakeCmd of msg Tea.Cmd.t
   | AutocompleteMod of autocompleteMod
   | Many of modification list
   | Drag of tlid * vPos * hasMoved * cursorState
