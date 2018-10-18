@@ -380,15 +380,15 @@ module Native = struct
     }
 
   type rect =
-    { id : int
-    ; bottom : float
-    ; height : float
-    ; left : float
-    ; right : float
-    ; top : float
-    ; width : float
-    ; x : float
-    ; y : float
+    { x: float
+    ; y: float
+    ; width: float
+    ; height: float
+    ; top: float
+    ; right: float
+    ; bottom: float
+    ; left: float
+    ; id: int 
     }
 
   type ast_positions = { atoms : rect list; nested : rect list }
