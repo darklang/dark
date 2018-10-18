@@ -16,11 +16,6 @@ let markResponseInModel (m : model) : model =
 
 let timedOut (s : syncState) : bool = s.ticks mod 10 = 0 && s.ticks <> 0
 
-let fetch (m : model) : model * msg Cmd.t =
-  if (not m.syncState.inFlight) || timedOut m.syncState then
-    (markRequestInModel m, RPC.getAnalysisRPC m.canvasName (toAnalyse m))
-  else (markTickInModel m, Cmd.none)
-
 let toAnalyse (m : model) : tlid list =
   match m.cursorState with
   | Selecting (tlid, _) -> [tlid]
@@ -36,3 +31,10 @@ let toAnalyse (m : model) : tlid list =
       |> Option.andThen (fun i -> List.getAt i ids)
       |> Option.map (fun e -> [e])
       |> Option.withDefault []
+
+let fetch (m : model) : model * msg Cmd.t =
+  if (not m.syncState.inFlight) || timedOut m.syncState then
+    (markRequestInModel m, RPC.getAnalysisRPC m.canvasName (toAnalyse m))
+  else (markTickInModel m, Cmd.none)
+
+
