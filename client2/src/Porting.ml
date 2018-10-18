@@ -151,6 +151,15 @@ module List = struct
       let head = take index l in
       let tail = drop index l |> tail in
       match tail with None -> l | Some t -> append head t
+  let minimumBy (f : 'a -> 'comparable) (ls : 'a list) : 'a option =
+    let minBy x (y, fy) =
+      let fx = f x in
+      if fx < fy then (x, fx) else (y, fy)
+    in
+    match ls with
+    | [l_] -> Some l_
+    | l_ :: ls_ -> Some (fst <| foldl minBy (l_, f l_) ls_)
+    | _ -> None
 end
 
 
@@ -388,7 +397,7 @@ module Native = struct
     ; right: float
     ; bottom: float
     ; left: float
-    ; id: int 
+    ; id: int
     }
 
   type ast_positions = { atoms : rect list; nested : rect list }

@@ -52,29 +52,29 @@ let tlToSizes (m : model) (tlid : tlid) : htmlSizing list * htmlSizing list =
   let poses = Native.Size.positions (deTLID tlid) in
   (List.map jsToHtmlSizing poses.nested, List.map jsToHtmlSizing poses.atoms)
 
-type uDDirection = Up | Down
+type udDirection = Up | Down
 
-let moveUpDown (direction : uDDirection) (sizes : htmlSizing list) (id : id) :
+let moveUpDown (direction : udDirection) (sizes : htmlSizing list) (id : id) :
     id option =
-  let dir = if direction = Up then -1 else 1 in
-  match List.filter (fun o -> o.id = id) sizes with
+  let dir = if direction = Up then -1.0 else 1.0 in
+  match List.filter (fun (o: htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
       |> List.filter (fun o ->
-             o.centerY <> this.centerY && dir * this.centerY < dir * o.centerY
+             o.centerY <> this.centerY && dir *. this.centerY < dir *. o.centerY
          )
       |> List.minimumBy (fun o ->
-             let majorDist = dir * (o.centerY - this.centerY) in
-             let minorDist = abs (o.centerX - this.centerX) in
-             (majorDist * 100000) + minorDist )
+             let majorDist = dir * (o.centerY -. this.centerY) in
+             let minorDist = abs (o.centerX -. this.centerX) in
+             (majorDist *. 100000) +. minorDist )
       |> Option.withDefault this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ -> None
 
-type lRDirection = Left | Right
+type lrDirection = Left | Right
 
-let moveLeftRight (direction : lRDirection) (sizes : htmlSizing list) (id : id)
+let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
     : id option =
   let dir = if direction = Left then -1 else 1 in
   match List.filter (fun o -> o.id = id) sizes with
