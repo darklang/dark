@@ -101,16 +101,16 @@ let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
   Html.onWithOptions event
     {stopPropagation= true; preventDefault= false}
-    (decodeClickEvent constructor)
+    (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 let eventNoDefault (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
   Html.onWithOptions event
     {stopPropagation= false; preventDefault= true}
-    (decodeClickEvent constructor)
+    (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
-  eventNoPropagation name NothingClick
+  eventNoPropagation name (fun e -> NothingClick e)
 
 let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
   let div class_ subs = Html.div [Html.class' class_] subs in

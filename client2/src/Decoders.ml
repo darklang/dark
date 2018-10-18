@@ -428,11 +428,30 @@ and dval j : dval =
     ]
     j
 
-let wrapDecoder (fn: Js.Json.t -> 'a) : (string -> ('ok, string) Tea.Result.t) =
+(* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
+let wrapExpect (fn: Js.Json.t -> 'a) : (string -> ('ok, string) Tea.Result.t) =
   fun j ->
     try
-
       Ok (fn (Json.parseOrRaise j))
     with e ->
       Error (Printexc.to_string e)
+
+(* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
+let wrapDecoder (fn: Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
+   Decoder
+      ( fun value ->
+          let open Web.Json in
+          match classify value with
+          | JSONString s -> Tea_result.Ok (fn (Json.parseOrRaise s))
+          | _ -> Tea_result.Error "Non-string value"
+      )
+
+  (*  *)
+  (* fun j -> *)
+  (*   try *)
+  (*     Ok (fn (Json.parseOrRaise j)) *)
+  (*   with e -> *)
+  (*     Error (Printexc.to_string e) *)
+  (*  *)
+
 
