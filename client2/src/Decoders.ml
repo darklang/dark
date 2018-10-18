@@ -1,5 +1,3 @@
-module OrigJson = Json
-open Tea
 open! Porting
 module RT = Runtime
 open Types
@@ -295,32 +293,36 @@ and tipe j : tipe =
 (*   |> JSDP.required "metadata" decodeUserFunctionMetadata *)
 (*   |> JSDP.required "ast" decodeExpr *)
 (*  *)
-(* let 404 : fourOhFour decoder = *)
-(*   map3 FourOhFour (index 0 string) (index 1 string) *)
-(*     (index 2 string) *)
-(*  *)
-(* let inputValueDict : inputValueDict decoder = *)
-(*   map Dict.fromList (list (decodetuple2 string decodeDval)) *)
-(*  *)
-(* let functionResult : functionResult decoder = *)
-(*   let toFunctionResult (fnName, id, hash, value) = *)
-(*     {fnName; callerID= id; argHash= hash; value} *)
-(*   in *)
-(*   map toFunctionResult *)
-(*     (JSONUtils.decodeQuadriple string id string decodeDval) *)
-(*  *)
-(* let traces : traces decoder = *)
-(*   map Dict.fromList (list (decodetuple2 int (list decodeTrace))) *)
-(*  *)
-(* let trace : trace decoder = *)
-(*   let toTrace id input functionResults = *)
-(*     {traceID= id; input; functionResults} *)
-(*   in *)
-(*   JSDP.decode toTrace *)
-(*   |> JSDP.required "id" string *)
-(*   |> JSDP.required "input" decodeInputValueDict *)
-(*   |> JSDP.required "function_results" (list decodeFunctionResult) *)
-(*  *)
+and fof j : fourOhFour =
+  { space= index 0 string j
+  ; path= index 1 string j
+  ; modifier= index 2 string j
+  }
+
+and inputValueDict j : inputValueDict =
+  j
+  |> list (tuple2 string dval)
+  |> StrDict.fromList
+
+and functionResult j : functionResult =
+  let (fnName, callerID, argHash, value) = tuple4 string id string dval j in
+  {fnName; callerID; argHash; value}
+
+
+and traces j : traces =
+  j
+  |> list (tuple2 int (list trace))
+  |> IntDict.fromList
+
+and trace j : trace =
+  (* let toTrace id input functionResults = *)
+  (*   {traceID= id; input; functionResults} *)
+  (* in *)
+  { traceID = field "id" string j
+  ; input = field "input" inputValueDict j
+  ; functionResults = field "function_results" (list functionResult) j
+  }
+
 (* let executeFunctionTarget : (tlid * id) decoder = *)
 (*   map2 Tuple2.create (index 0 tlid) (index 1 id) *)
 (*  *)
@@ -333,13 +335,13 @@ and tipe j : tipe =
 (*   |> JSDP.required "user_functions" (list decodeUserFunction) *)
 (*   |> JSDP.required "unlocked_dbs" (list tlid) *)
 (*  *)
-(* let getAnalysisRPC : getAnalysisResult decoder = *)
-(*   JSDP.decode Tuple4.create *)
-(*   |> JSDP.required "traces" decodeTraces *)
-(*   |> JSDP.required "global_varnames" (list string) *)
-(*   |> JSDP.required "404s" (list decode404) *)
-(*   |> JSDP.required "unlocked_dbs" (list tlid) *)
-(*  *)
+and getAnalysisRPC j : getAnalysisResult =
+  ( field "traces" traces j
+  , field "global_varnames" (list string) j
+  , field "404s" (list fof) j
+  , field "unlocked_dbs" (list tlid) j
+  )
+
 (* let initialLoadRPC : initialLoadResult decoder = decodeRPC *)
 (*  *)
 (* let executeFunctionRPC : executeFunctionRPCResult decoder = *)
@@ -365,7 +367,7 @@ and parseDvalLiteral (str : string) : dval option =
           |> (fun x -> DStr x)
           |> fun x -> Some x
         else None
-    | _ -> str |> OrigJson.parseOrRaise |> parseBasicDval |> (fun x -> Some x)
+    | _ -> str |> Json.parseOrRaise |> parseBasicDval |> (fun x -> Some x)
 
 and parseBasicDval str : dval =
   oneOf
@@ -426,4 +428,11 @@ and dval j : dval =
     ]
     j
 
+let wrapDecoder (fn: Js.Json.t -> 'a) : (string -> ('ok, string) Tea.Result.t) =
+  fun j ->
+    try
+
+      Ok (fn (Json.parseOrRaise j))
+    with e ->
+      Error (Printexc.to_string e)
 
