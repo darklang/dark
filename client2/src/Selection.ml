@@ -200,7 +200,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
       let tl = TL.getTL m tlid in
       match tl.data with
       | TLHandler h ->
-          if isLocked tlid m then NoChange
+          if ViewUtils.isLocked tlid m then NoChange
           else
             Many
               [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
