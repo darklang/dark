@@ -7,20 +7,70 @@ open Types
 
 let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
-let focusItem (i : int) : msg Cmd.t =
-  Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
-  |> Task.attempt FocusAutocompleteItem
+(* let focusItem (i : int) : msg Cmd.t = *)
+(*   Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat) *)
+(*   |> Task.attempt FocusAutocompleteItem *)
+
+let asName (aci : autocompleteItem) : string =
+  match aci with
+  | ACFunction {fnName} -> fnName
+  | ACField name -> name
+  | ACVariable name -> name
+  | ACExtra name -> name
+  | ACCommand command -> ":" ^ command.commandName
+  | ACLiteral lit -> lit
+  | ACOmniAction ac -> (
+    match ac with
+    | NewDB name -> "Create new database: " ^ name
+    | NewHandler -> "Create new handler"
+    | NewFunction maybeName -> (
+      match maybeName with
+      | Some name -> "Create new function: " ^ name
+      | None -> "Create new function" )
+    | NewHTTPHandler -> "Create new HTTP handler"
+    | NewHTTPRoute name -> "Create new HTTP handler for " ^ name
+    | NewEventSpace name -> "Create new " ^ name ^ " handler" )
+  | ACKeyword k -> (
+    match k with KLet -> "let" | KIf -> "if" | KLambda -> "lambda" )
+
+let asTypeString (item : autocompleteItem) : string =
+  match item with
+  | ACFunction f ->
+      f.fnParameters
+      |> List.map (fun x -> x.paramTipe)
+      |> List.map RT.tipe2str |> String.join ", "
+      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
+  | ACField _ -> "field"
+  | ACVariable _ -> "variable"
+  | ACExtra _ -> ""
+  | ACCommand _ -> ""
+  | ACLiteral lit ->
+      let tipe =
+        lit |> Decoders.parseDvalLiteral
+        |> Option.withDefault DIncomplete
+        |> RT.typeOf |> RT.tipe2str
+      in
+      tipe ^ " literal"
+  | ACOmniAction _ -> ""
+  | ACKeyword _ -> "keyword"
+
+let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
+
+
 
 let findFunction (a : autocomplete) (name : string) : function_ option =
   List.find (fun f -> f.fnName = name) a.functions
 
 let isStringEntry (a : autocomplete) : bool = String.startsWith "\"" a.value
 
+let isLargeStringEntry (a : autocomplete) : bool =
+  isStringEntry a && String.contains "\n" a.value
+
 let isSmallStringEntry (a : autocomplete) : bool =
   isStringEntry a && not (isLargeStringEntry a)
 
-let isLargeStringEntry (a : autocomplete) : bool =
-  isStringEntry a && String.contains "\n" a.value
+let highlighted (a : autocomplete) : autocompleteItem option =
+  List.getAt a.index (List.concat a.completions)
 
 let getValue (a : autocomplete) : string =
   match highlighted a with Some item -> asName item | None -> a.value
@@ -123,9 +173,6 @@ let appendQuery (str : string) (a : autocomplete) : autocomplete =
     else a.value ^ str
   in
   setQuery q a
-
-let highlighted (a : autocomplete) : autocompleteItem option =
-  List.getAt a.index (List.concat a.completions)
 
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
@@ -396,51 +443,6 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   in
   let commands = List.map (fun x -> ACCommand x) Commands.commands in
   if a.isCommandMode then commands else regular
-
-let asName (aci : autocompleteItem) : string =
-  match aci with
-  | ACFunction {fnName} -> fnName
-  | ACField name -> name
-  | ACVariable name -> name
-  | ACExtra name -> name
-  | ACCommand command -> ":" ^ command.commandName
-  | ACLiteral lit -> lit
-  | ACOmniAction ac -> (
-    match ac with
-    | NewDB name -> "Create new database: " ^ name
-    | NewHandler -> "Create new handler"
-    | NewFunction maybeName -> (
-      match maybeName with
-      | Some name -> "Create new function: " ^ name
-      | None -> "Create new function" )
-    | NewHTTPHandler -> "Create new HTTP handler"
-    | NewHTTPRoute name -> "Create new HTTP handler for " ^ name
-    | NewEventSpace name -> "Create new " ^ name ^ " handler" )
-  | ACKeyword k -> (
-    match k with KLet -> "let" | KIf -> "if" | KLambda -> "lambda" )
-
-let asTypeString (item : autocompleteItem) : string =
-  match item with
-  | ACFunction f ->
-      f.fnParameters
-      |> List.map (fun x -> x.paramTipe)
-      |> List.map RT.tipe2str |> String.join ", "
-      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
-  | ACField _ -> "field"
-  | ACVariable _ -> "variable"
-  | ACExtra _ -> ""
-  | ACCommand _ -> ""
-  | ACLiteral lit ->
-      let tipe =
-        lit |> JSON.parseDvalLiteral
-        |> Option.withDefault DIncomplete
-        |> RT.typeOf |> RT.tipe2str
-      in
-      tipe ^ " literal"
-  | ACOmniAction _ -> ""
-  | ACKeyword _ -> "keyword"
-
-let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 
 let dvalFields (dv : dval) : autocompleteItem list =
   match dv with
