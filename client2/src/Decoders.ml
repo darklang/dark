@@ -1,8 +1,6 @@
+module OrigJson = Json
 open Tea
 open! Porting
-(* module DE = Dict.Extra *)
-(* open JSONUtils *)
-(* module JSEE = Json.Encode.Extra *)
 module RT = Runtime
 open Types
 module JSD = Json_decode_extended
@@ -301,15 +299,6 @@ and tipe j : tipe =
 (*   map3 FourOhFour (index 0 string) (index 1 string) *)
 (*     (index 2 string) *)
 (*  *)
-(* let encode404 (fof : fourOhFour) : JSE.value = *)
-(*   JSE.object_ *)
-(*     [ ("space", JSE.string fof.space) *)
-(*     ; ("path", JSE.string fof.path) *)
-(*     ; ("modifier", JSE.string fof.modifier) ] *)
-(*  *)
-(* let encodeInputValueDict (dict : inputValueDict) : JSE.value = *)
-(*   dict |> Dict.toList |> encodeList (encodetuple2 JSE.string encodeDval) *)
-(*  *)
 (* let inputValueDict : inputValueDict decoder = *)
 (*   map Dict.fromList (list (decodetuple2 string decodeDval)) *)
 (*  *)
@@ -331,23 +320,6 @@ and tipe j : tipe =
 (*   |> JSDP.required "id" string *)
 (*   |> JSDP.required "input" decodeInputValueDict *)
 (*   |> JSDP.required "function_results" (list decodeFunctionResult) *)
-(*  *)
-(* let encodeTrace (t : trace) : JSE.value = *)
-(*   JSE.object_ *)
-(*     [ ( "input" *)
-(*       , JSONUtils.encodeList *)
-(*           (encodetuple2 JSE.string encodeDval) *)
-(*           (Dict.toList t.input) ) *)
-(*     ; ( "function_results" *)
-(*       , JSONUtils.encodeList encodeFunctionResult t.functionResults ) *)
-(*     ; ("id", JSE.string t.traceID) ] *)
-(*  *)
-(* let encodeFunctionResult (fr : functionResult) : JSE.value = *)
-(*   JSE.list *)
-(*     [ JSE.string fr.fnName *)
-(*     ; encodeID fr.callerID *)
-(*     ; JSE.string fr.argHash *)
-(*     ; encodeDval fr.value ] *)
 (*  *)
 (* let executeFunctionTarget : (tlid * id) decoder = *)
 (*   map2 Tuple2.create (index 0 tlid) (index 1 id) *)
@@ -381,108 +353,74 @@ and tipe j : tipe =
 (* let typeOfLiteralString (s : string) : tipe = *)
 (*   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv *)
 (*  *)
-(* let parseDvalLiteral (str : string) : dval option = *)
-(*   let firstChar = String.uncons str |> Option.map Tuple.first in *)
-(*   if String.toLower str = "nothing" then Some (DOption OptNothing) *)
-(*   else *)
-(*     match String.toList str with *)
-(*     | ['\''; c; '\''] -> Some (DChar c) *)
-(*     | '"' :: rest -> *)
-(*         if List.last rest = Some '"' then *)
-(*           List.init rest |> Option.withDefault [] |> String.fromList *)
-(*           |> (fun x -> DStr x) *)
-(*           |> fun x -> Some x *)
-(*         else None *)
-(*     | _ -> decodeString parseBasicDval str |> Result.toOption *)
-(*  *)
-(* let parseBasicDval : dval decoder = *)
-(*   let dd = lazy_ (fun _ -> decodeDval) in *)
-(*   oneOf *)
-(*     [ map DInt int *)
-(*     ; map DFloat float *)
-(*     ; map DBool bool *)
-(*     ; null DNull *)
-(*     ; map DStr string *)
-(*     ; map DList (list dd) ] *)
-(*  *)
-(* let dval : dval decoder = *)
-(*   let dv0 = variant0 in *)
-(*   let dv1 = variant1 in *)
-(*   let dv2 = variant2 in *)
-(*   let dd = lazy_ (fun _ -> decodeDval) in *)
-(*   let optionT = *)
-(*     variants [("OptJust", dv1 OptJust dd); ("OptNothing", dv0 OptNothing)] *)
-(*   in *)
-(*   let dhttp = *)
-(*     variants *)
-(*       [ ("Redirect", dv1 Redirect string) *)
-(*       ; ( "Response" *)
-(*         , dv2 Response int *)
-(*             (list (JSONUtils.decodetuple2 string string)) ) ] *)
-(*   in *)
-(*   variants *)
-(*     [ ("DInt", dv1 DInt int) *)
-(*     ; ("DFloat", dv1 DFloat float) *)
-(*     ; ("DBool", dv1 DBool bool) *)
-(*     ; ("DNull", dv0 DNull) *)
-(*     ; ("DStr", dv1 DStr string) *)
-(*     ; ("DList", dv1 DList (list dd)) *)
-(*     ; ("DObj", dv1 DObj (dict dd)) *)
-(*     ; ("DIncomplete", dv0 DIncomplete) *)
-(*     ; ("DError", dv1 DError string) *)
-(*     ; ("DBlock", dv0 DBlock) *)
-(*     ; ("DErrorRail", dv1 DErrorRail dd) *)
-(*     ; ( "DResp" *)
-(*       , dv1 *)
-(*           (fun (h, dv) -> DResp (h, dv)) *)
-(*           (JSONUtils.decodetuple2 decodeDhttp dd) ) *)
-(*     ; ("DDB", dv1 DDB string) *)
-(*     ; ("DID", dv1 DID string) *)
-(*     ; ("DDate", dv1 DDate string) *)
-(*     ; ("DTitle", dv1 DTitle string) *)
-(*     ; ("DUrl", dv1 DUrl string) *)
-(*     ; ( "DPassword" *)
-(*       , dv1 *)
-(*           ( Base64.decode *)
-(*           >> Result.withDefault "<Internal error in base64 decoding>" *)
-(*           >> DPassword ) *)
-(*           string ) *)
-(*     ; ("DUuid", dv1 DUuid string) *)
-(*     ; ("DOption", dv1 DOption decodeOptionT) ] *)
-(*  *)
-(* let encodeDval (dv : dval) : JSE.value = *)
-(*   let ev = encodeVariant in *)
-(*   let encodeDhttp h = *)
-(*     match h with *)
-(*     | Redirect s -> ev "Redirect" [JSE.string s] *)
-(*     | Response (code, headers) -> *)
-(*         ev "Response" *)
-(*           [JSE.int code; encodeList (encodetuple2 JSE.string JSE.string) headers] *)
-(*   in *)
-(*   match dv with *)
-(*   | DInt i -> ev "DInt" [JSE.int i] *)
-(*   | DFloat f -> ev "DFloat" [JSE.float f] *)
-(*   | DBool b -> ev "DBool" [JSE.bool b] *)
-(*   | DNull -> ev "DNull" [] *)
-(*   | DStr s -> ev "DStr" [JSE.string s] *)
-(*   | DList l -> ev "DList" [encodeList encodeDval l] *)
-(*   | DObj o -> ev "DObj" [JSEE.dict identity encodeDval o] *)
-(*   | DBlock -> ev "DBlock" [] *)
-(*   | DIncomplete -> ev "DIncomplete" [] *)
-(*   | DChar c -> ev "DChar" [JSE.string (String.fromList [c])] *)
-(*   | DError msg -> ev "DError" [JSE.string msg] *)
-(*   | DResp (h, hdv) -> *)
-(*       ev "DResp" [JSONUtils.encodetuple2 encodeDhttp encodeDval (h, hdv)] *)
-(*   | DDB name -> ev "DDB" [JSE.string name] *)
-(*   | DID id -> ev "DID" [JSE.string id] *)
-(*   | DUrl url -> ev "DUrl" [JSE.string url] *)
-(*   | DTitle title -> ev "DTitle" [JSE.string title] *)
-(*   | DDate date -> ev "DDate" [JSE.string date] *)
-(*   | DPassword hashed -> ev "DPassword" [JSE.string (Base64.encode hashed)] *)
-(*   | DUuid uuid -> ev "DUuid" [JSE.string uuid] *)
-(*   | DOption opt -> *)
-(*       ev "DOption" *)
-(*         [ ( match opt with *)
-(*           | OptNothing -> ev "OptNothing" [] *)
-(*           | OptJust dv -> ev "OptJust" [encodeDval dv] ) ] *)
-(*   | DErrorRail dv -> ev "DErrorRail" [encodeDval dv] *)
+and parseDvalLiteral (str : string) : dval option =
+  let firstChar = String.uncons str |> Option.map Tuple.first in
+  if String.toLower str = "nothing" then Some (DOption OptNothing)
+  else
+    match String.toList str with
+    | ['\''; c; '\''] -> Some (DChar c)
+    | '"' :: rest ->
+        if List.last rest = Some '"' then
+          List.init rest |> Option.withDefault [] |> String.fromList
+          |> (fun x -> DStr x)
+          |> fun x -> Some x
+        else None
+    | _ -> str |> OrigJson.parseOrRaise |> parseBasicDval |> (fun x -> Some x)
+
+and parseBasicDval : dval decoder =
+  oneOf
+    [ map (fun x -> DInt x) int
+    ; map (fun x -> DFloat x) float
+    ; map (fun x -> DBool x) bool
+    ; nullAs DNull
+    ; map (fun x -> DStr x) string
+    ; map (fun x -> DList x) (list dval)
+    ]
+
+and dval : dval decoder =
+  let dv0 = variant0 in
+  let dv1 = variant1 in
+  let dv2 = variant2 in
+  let dd = dval in
+  let optionT =
+    variants [ ("OptJust", dv1 (fun x -> OptJust x) dd)
+             ; ("OptNothing", dv0 OptNothing)]
+  in
+  let dhttp =
+    variants
+      [ ("Redirect", dv1 (fun x -> Redirect x) string)
+      ; ( "Response"
+        , dv2 (fun a b -> Response (a,b)) int
+            (list (tuple2 string string)) ) ]
+  in
+  variants
+    [ ("DInt", dv1 (fun x -> DInt x) int)
+    ; ("DFloat", dv1 (fun x -> DFloat x) float)
+    ; ("DBool", dv1 (fun x -> DBool x) bool)
+    ; ("DNull", dv0 DNull)
+    ; ("DStr", dv1 (fun x -> DStr x) string)
+    ; ("DList", dv1 (fun x -> DList x) (list dd))
+    ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
+    ; ("DIncomplete", dv0 DIncomplete)
+    ; ("DError", dv1 (fun x -> DError x) string)
+    ; ("DBlock", dv0 DBlock)
+    ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
+    ; ( "DResp"
+      , dv1
+          (fun (h, dv) -> DResp (h, dv))
+          (JSONUtils.decodetuple2 decodeDhttp dd) )
+    ; ("DDB", dv1 (fun x -> DDB x) string)
+    ; ("DID", dv1 (fun x -> DID x) string)
+    ; ("DDate", dv1 (fun x -> DDate x) string)
+    ; ("DTitle", dv1 (fun x -> DTitle x) string)
+    ; ("DUrl", dv1 (fun x -> DUrl x) string)
+    ; ( "DPassword"
+      , dv1
+          ( Base64.decode
+          >> Result.withDefault "<Internal error in base64 decoding>"
+          >> DPassword )
+          string )
+    ; ("DUuid", dv1 (fun x -> DUuid x) string)
+    ; ("DOption", dv1 (fun x -> DOption x) decodeOptionT) ]
+
+
