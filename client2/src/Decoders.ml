@@ -367,7 +367,7 @@ and parseDvalLiteral (str : string) : dval option =
         else None
     | _ -> str |> OrigJson.parseOrRaise |> parseBasicDval |> (fun x -> Some x)
 
-and parseBasicDval : dval decoder =
+and parseBasicDval str : dval =
   oneOf
     [ map (fun x -> DInt x) int
     ; map (fun x -> DFloat x) float
@@ -376,8 +376,9 @@ and parseBasicDval : dval decoder =
     ; map (fun x -> DStr x) string
     ; map (fun x -> DList x) (list dval)
     ]
+    str
 
-and dval : dval decoder =
+and dval j : dval =
   let dv0 = variant0 in
   let dv1 = variant1 in
   let dv2 = variant2 in
@@ -408,7 +409,7 @@ and dval : dval decoder =
     ; ( "DResp"
       , dv1
           (fun (h, dv) -> DResp (h, dv))
-          (JSONUtils.decodetuple2 decodeDhttp dd) )
+          (tuple2 dhttp dd) )
     ; ("DDB", dv1 (fun x -> DDB x) string)
     ; ("DID", dv1 (fun x -> DID x) string)
     ; ("DDate", dv1 (fun x -> DDate x) string)
@@ -418,9 +419,11 @@ and dval : dval decoder =
       , dv1
           ( Base64.decode
           >> Result.withDefault "<Internal error in base64 decoding>"
-          >> DPassword )
+          >> (fun x -> DPassword x))
           string )
     ; ("DUuid", dv1 (fun x -> DUuid x) string)
-    ; ("DOption", dv1 (fun x -> DOption x) decodeOptionT) ]
+    ; ("DOption", dv1 (fun x -> DOption x) optionT)
+    ]
+    j
 
 
