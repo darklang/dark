@@ -302,6 +302,8 @@ module String = struct
   let fromInt (i : int) : string =
     Printf.sprintf "%d" i
   let concat = String.concat ""
+  let fromChar (c : char) : string =
+    c |> Char.toCode |> Js.String.fromCharCode
 end
 
 module IntSet = struct
