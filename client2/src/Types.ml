@@ -1,5 +1,3 @@
-module Result = Porting.Result
-
 type exception_ =
   { short: string
   ; long: string option
@@ -126,10 +124,10 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of darkKeyboardEvent
   | AutocompleteClick of string
-  | FocusEntry of (Dom.errorEvent, unit) Result.t
-  | FocusAutocompleteItem of (Dom.errorEvent, unit) Result.t
-  | RPCCallback of focus * rpcParams * (rpcResult, string Tea.Http.error) Result.t
-  | SaveTestRPCCallback of (string, string Tea.Http.error) Result.t
+  | FocusEntry of (Dom.errorEvent, unit) Porting.Result.t
+  | FocusAutocompleteItem of (Dom.errorEvent, unit) Porting.Result.t
+  | RPCCallback of focus * rpcParams * (rpcResult, string Tea.Http.error) Porting.Result.t
+  | SaveTestRPCCallback of (string, string Tea.Http.error) Tea.Result.t
   | GetAnalysisRPCCallback of (getAnalysisResult, string Tea.Http.error) Tea.Result.t
   | GetDelete404RPCCallback of (fourOhFour list, string Tea.Http.error) Tea.Result.t
   | InitialLoadRPCCallback of
@@ -141,7 +139,7 @@ and msg =
   | ToggleTimers
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
-      * (string Tea.Http.error, executeFunctionRPCResult) Result.t
+      * (string Tea.Http.error, executeFunctionRPCResult) Tea.Result.t
   | ExecuteFunctionButton of tlid * id * string
   | ExecuteFunctionCancel of tlid * id
   | Initialization
@@ -483,7 +481,7 @@ and serializableEditor =
 
 and darkError = {message: string option; showDetails: bool}
 
-and testResult = (string, unit) Result.t
+and testResult = (string, unit) Porting.Result.t
 
 and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
