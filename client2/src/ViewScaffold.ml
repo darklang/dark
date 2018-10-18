@@ -1,6 +1,6 @@
 open Tea
 open! Porting
-module Attrs = Html.Attributes
+module Html = Html.Attributes
 open Types
 open ViewUtils
 
@@ -10,18 +10,18 @@ let viewButtons (m : model) : msg Html.html =
     | IntegrationTestExpectation _ ->
         [ Html.a
             [ eventNoPropagation "mouseup" (fun _ -> FinishIntegrationTest)
-            ; Attrs.src ""
-            ; Attrs.id "finishIntegrationTest"
+            ; Html.src ""
+            ; Html.id "finishIntegrationTest"
             ; Html.class' "specialButton" ]
             [Html.text "Finish integration tests"] ]
     | IntegrationTestFinished (Ok ()) ->
         [ Html.div
-            [ Attrs.id "integrationTestSignal"
+            [ Html.id "integrationTestSignal"
             ; Html.class' "specialButton success" ]
             [Html.text "success"] ]
     | IntegrationTestFinished (Error msg) ->
         [ Html.div
-            [ Attrs.id "integrationTestSignal"
+            [ Html.id "integrationTestSignal"
             ; Html.class' "specialButton failure" ]
             [Html.text <| "failure: " ^ msg] ]
     | NoIntegrationTest -> []
@@ -49,15 +49,15 @@ let viewButtons (m : model) : msg Html.html =
                   ( if m.error.showDetails then "hide details"
                   else "see details" ) ] ]
   in
-  Html.div [Attrs.id "buttons"]
+  Html.div [Html.id "buttons"]
     ( [ Html.a
           [ eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
-          ; Attrs.src ""
+          ; Html.src ""
           ; Html.class' "specialButton" ]
           [Html.text "SaveTest"]
       ; Html.a
           [ eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
-          ; Attrs.src ""
+          ; Html.src ""
           ; Html.class' "specialButton" ]
           [ Html.text
               (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
@@ -79,7 +79,7 @@ let viewError (err : darkError) : msg Html.html =
     | Some result -> [Html.text result]
   in
   Html.div
-    [Attrs.classList [("error-panel", true); ("show", err.showDetails)]]
+    [Html.classList [("error-panel", true); ("show", err.showDetails)]]
     ( match err.message with
     | None -> []
     | Some msg -> (

@@ -5,16 +5,6 @@ open Prelude
 open Types
 open ViewUtils
 
-let viewEntry (m : model) : msg Html.html list =
-  match unwrapCursorState m.cursorState with
-  | Entering (Creating pos) ->
-      let html =
-        Html.div [Html.class' "omnibox"]
-          [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
-      in
-      [placeHtml m pos html]
-  | _ -> []
-
 let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     msg Html.html =
   let maxWidthChars =
@@ -31,10 +21,13 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   let rowCount =
     value |> String.split "\n"
     |> List.map (fun line ->
-           line |> visualStringLength |> toFloat
-           |> ( * ) (1. / toFloat longestLineLength)
-           |> ceiling |> max 1 )
-    |> List.sum
+           line
+           |> visualStringLength
+           |> float_of_int
+           |> ( *. ) (1. /. float_of_int longestLineLength)
+           |> ceil
+           |> max 1. )
+    |> List.floatSum
   in
   let input =
     Html.textarea
@@ -134,3 +127,15 @@ let entryHtml (permission : stringEntryPermission) (width : stringEntryWidth)
       if Autocomplete.isStringEntry ac then stringEntryHtml ac width
       else normalEntryHtml placeholder ac
   | StringEntryNotAllowed -> normalEntryHtml placeholder ac
+
+let viewEntry (m : model) : msg Html.html list =
+  match unwrapCursorState m.cursorState with
+  | Entering (Creating pos) ->
+      let html =
+        Html.div [Html.class' "omnibox"]
+          [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
+      in
+      [placeHtml m pos html]
+  | _ -> []
+
+
