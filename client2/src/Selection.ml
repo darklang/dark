@@ -128,7 +128,7 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   pd
   |> Option.andThen (TL.getParentOf tl)
   |> Option.map P.toID
-  |> select tlid
+  |> fun id -> Select (tlid, id)
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
     =
@@ -139,7 +139,7 @@ let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
   |> Option.andThen (TL.firstChild tl)
   |> Option.orElse pd
   |> Option.map P.toID
-  |> select tlid
+  |> fun id -> Select (tlid, id)
 
 let selectNextSibling (m : model) (tlid : tlid) (cur : id option) :
     modification =
@@ -147,7 +147,9 @@ let selectNextSibling (m : model) (tlid : tlid) (cur : id option) :
   let pd = Option.map (TL.findExn tl) cur in
   pd
   |> Option.map (TL.getNextSibling tl)
-  |> Option.orElse pd |> Option.map P.toID |> Select tlid
+  |> Option.orElse pd
+  |> Option.map P.toID
+  |> fun id -> Select (tlid, id)
 
 let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
     modification =
@@ -155,13 +157,18 @@ let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
   let pd = Option.map (TL.findExn tl) cur in
   pd
   |> Option.map (TL.getPrevSibling tl)
-  |> Option.orElse pd |> Option.map P.toID |> Select tlid
+  |> Option.orElse pd
+  |> Option.map P.toID
+  |> fun id -> Select (tlid, id)
 
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   let tl = TL.getTL m tlid in
   let pd = Option.map (TL.findExn tl) cur in
-  pd |> TL.getNextBlank tl |> Option.map P.toID |> Select tlid
+  pd
+  |> TL.getNextBlank tl
+  |> Option.map P.toID
+  |> fun id -> Select (tlid, id)
 
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
@@ -174,12 +181,16 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   let tl = TL.getTL m tlid in
   let pd = Option.map (TL.findExn tl) cur in
-  pd |> TL.getPrevBlank tl |> Option.map P.toID |> Select tlid
+  pd
+  |> TL.getPrevBlank tl
+  |> Option.map P.toID
+  |> fun id -> Select (tlid, id)
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
   let pd = Option.map (TL.findExn tl) cur in
-  pd |> TL.getPrevBlank tl
+  pd
+  |> TL.getPrevBlank tl
   |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
   |> Option.withDefault NoChange
 
