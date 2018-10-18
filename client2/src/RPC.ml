@@ -1,4 +1,3 @@
-open Tea
 open! Porting
 (* open JSON *)
 open Types
@@ -37,15 +36,25 @@ open Types
 (*   let request = Http.post url json decodeExecuteFunctionRPC in *)
 (*   Http.send (ExecuteFunctionRPCCallback params) request *)
 (*  *)
-let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Cmd.t
+let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd.t
     =
   let url =
-    String.concat ["/api/"; Http.encodeUri canvasName; "/get_analysis"]
+    String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/get_analysis"]
   in
-  let payload = Encoders.analysisParams params in
-  let json = Http.jsonBody payload in
-  let request = Http.post url json decodeGetAnalysisRPC in
-  Http.send GetAnalysisRPCCallback request
+  let request =
+    Tea.Http.request
+      { method' = "POST"
+      ; headers = [Header ("Content-type", "application/json")]
+      ; url
+      ; body =
+          Web.XMLHttpRequest.StringBody
+            (Json.stringify (Encoders.analysisParams params))
+      ; expect = Tea.Http.expectStringResponse Decoders.(wrapDecoder getAnalysisRPC)
+      ; timeout = None
+      ; withCredentials = false
+      }
+  in
+  Tea.Http.send (fun x -> GetAnalysisRPCCallback x) request
 
 (* let delete404RPC (canvasName : string) (param : delete404Param) : msg Cmd.t = *)
 (*   let url = *)

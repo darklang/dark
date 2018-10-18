@@ -128,12 +128,12 @@ and msg =
   | AutocompleteClick of string
   | FocusEntry of (Dom.errorEvent, unit) Result.t
   | FocusAutocompleteItem of (Dom.errorEvent, unit) Result.t
-  | RPCCallback of focus * rpcParams * (string Tea.Http.error, rpcResult) Result.t
-  | SaveTestRPCCallback of (string Tea.Http.error, string) Result.t
-  | GetAnalysisRPCCallback of (string Tea.Http.error, getAnalysisResult) Result.t
-  | GetDelete404RPCCallback of (string Tea.Http.error, fourOhFour list) Result.t
+  | RPCCallback of focus * rpcParams * (rpcResult, string Tea.Http.error) Result.t
+  | SaveTestRPCCallback of (string, string Tea.Http.error) Result.t
+  | GetAnalysisRPCCallback of (getAnalysisResult, string Tea.Http.error) Tea.Result.t
+  | GetDelete404RPCCallback of (fourOhFour list, string Tea.Http.error) Tea.Result.t
   | InitialLoadRPCCallback of
-      focus * modification * (string Tea.Http.error, initialLoadResult) Result.t
+      focus * modification * (initialLoadResult, string Tea.Http.error) Tea.Result.t
   | LocationChange of Web.Location.location
   | AddRandom
   | FinishIntegrationTest
