@@ -170,9 +170,9 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
 (*     ; ("args", encodeList encodeDval params.efpArgs) *)
 (*     ; ("fnname", string params.efpFnName) ] *)
 (*  *)
-(* let analysisParams (params : analysisParams) : Js.Json.t = *)
-(*   encodeList encodeTLID params *)
-(*  *)
+and analysisParams (params : Types.analysisParams) : Js.Json.t =
+  list tlid params
+
 (* let userFunction (uf : userFunction) : Js.Json.t = *)
 (*   object_ *)
 (*     [ ("tlid", encodeTLID uf.ufTLID) *)
