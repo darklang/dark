@@ -72,3 +72,8 @@ let dict decoder json =
   |> Belt.Map.String.fromArray
 
 
+let decodeString decoder str =
+  try
+    Belt.Result.Ok (decoder (Json.parseOrRaise str))
+  with e ->
+    Belt.Result.Error (Printexc.to_string e)
