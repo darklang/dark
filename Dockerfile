@@ -269,7 +269,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       -y \
       less
 
-RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git
+RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git \
+# utop is useful for development
+    && opam install -y utop
 
 ############################
 # Finish
