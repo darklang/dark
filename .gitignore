@@ -13,6 +13,7 @@
 /server/static/base.css
 /server/static/elm.js
 /server/static/elm-debug.js
+/server/static/**/*.gz
 /tags
 /transaction.yaml
 client/DEBUG
