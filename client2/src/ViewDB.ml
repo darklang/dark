@@ -59,7 +59,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
     ; viewMigraFuncs vs migra.rollback "Rollback" "newObj" ]
   in
-  let lockReady = isMigrationLockReady migra in
+  let lockReady = DB.isMigrationLockReady migra in
   let errorMsg =
     if not lockReady then
       [ Html.div [Html.class' "col err"]
