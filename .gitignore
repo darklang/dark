@@ -4,6 +4,7 @@
 /client/tests/elm-stuff
 /gcp-rundir
 /gcp-persistdir
+/gzipped_assets
 /rundir
 /persistdir
 /server/*/.merlin
@@ -13,7 +14,6 @@
 /server/static/base.css
 /server/static/elm.js
 /server/static/elm-debug.js
-/server/static/**/*.gz
 /tags
 /transaction.yaml
 client/DEBUG

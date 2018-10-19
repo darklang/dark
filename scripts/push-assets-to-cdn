@@ -3,6 +3,7 @@ set -euo pipefail
 set -x
 
 PREFIX_TO_REMOVE="server/static/"
+rm -rf gzipped_assets; mkdir -p gzipped_assets
 
 # We're not hashing the files in server/static/vendor
 for file in $(find server/static -maxdepth 1 -type f -and -not -name etags.json -and -not -name *.gz); do
@@ -10,13 +11,19 @@ for file in $(find server/static -maxdepth 1 -type f -and -not -name etags.json 
     filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' server/static/etags.json)"
     hashed_file="${file%.*}-${filehash}.${basefile##*.}"
 
-    tar czvf "${hashed_file}.gz" "$file"
-
-    gsutil cp "${hashed_file}.gz" "gs://darklang-static-assets/${hashed_file//$PREFIX_TO_REMOVE}.gz"
+    tar czvf "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}.gz" "${file}"
 done
 
 # We do want to compress the vendored files, though
 for file in $(find server/static -mindepth 2 -type f -and -not -name *.gz); do
-    tar czvf "${file}.gz" "${file}"
-    gsutil cp "${file}.gz" "gs://darklang-static-assets/${file//$PREFIX_TO_REMOVE}.gz"
+    mkdir -p "gzipped_assets/$(dirname "${file//$PREFIX_TO_REMOVE}")"
+    tar czvf "gzipped_assets/${file//$PREFIX_TO_REMOVE}.gz" "${file}"
 done
+
+# -m parallelizes upload
+# -n no-clobber - we don't need upload assets already there
+cd gzipped_assets
+time gsutil -m cp -n -r . gs://darklang-static-assets
+cd -
+
+rm -r gzipped_assets
