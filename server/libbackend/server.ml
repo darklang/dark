@@ -436,22 +436,26 @@ let delete_404 ~(execution_id: Types.id) (host: string) body
 
 
 let hashed_filename (file:string) (hash : string) :string =
-  let ext,rest = match List.rev (String.split ~on:'.' file) with
-      ext::rest -> ext, rest
-    | [] -> failwith "TODO" in
-  sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
+  match List.rev (String.split ~on:'.' file) with
+  | [] -> Exception.internal "Tried splitting an empty filename key"
+  | [_] -> Exception.internal "Tried splitting a filename key with no extension"
+  |  ext::rest ->
+    sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
 
 let to_assoc_list etags_json : (string*string) list =
   match etags_json with
   `Assoc alist ->
-    List.map
+  let mutated = List.filter_map
       ~f:(fun (fst, snd) ->
           (match snd with
-           | `String inner -> (fst, inner)
-           | _ -> failwith "todo")
+           | `String inner -> Some (fst, inner)
+           | _ -> None)
         )
-      alist
-  | _ -> failwith "TODO"
+      alist in
+    if not (phys_equal (List.length mutated) (List.length alist))
+    then Exception.internal "Some asset in etags.json lacked a hash value."
+    else mutated
+  | _ -> Exception.internal "etags.json must be a top-level object."
 
 let admin_ui_html ~(debug:bool) () =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
@@ -483,7 +487,7 @@ let admin_ui_html ~(debug:bool) () =
         |> Util.string_replace "{FRONTENDGLUE}" glue)
     >|= Util.string_replace "{STATIC}" Config.static_host
     >|= (fun x ->
-        if (String.equal "static.darklang.localhost:8000" Config.static_host)
+        if not (Config.hash_static_filenames)
         then x
         else x
              |> (fun instr ->
@@ -492,16 +496,16 @@ let admin_ui_html ~(debug:bool) () =
                  let etag_assoc_list = to_assoc_list etags_json in
                  etag_assoc_list
                  |> List.filter
-                   ~f:(fun (file, _) -> not (String.equal "date" file))
+                   ~f:(fun (file, _) -> not (String.equal "__date" file))
                  |> List.filter
                    (* Only hash our assets, not vendored assets *)
                    ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
                  |> List.fold
                    ~init:instr
                    ~f:(fun acc (file, hash) ->
-                       Util.string_replace file (hashed_filename file hash) acc
-                     )
-               ))
+                       (Util.string_replace file (hashed_filename file hash))
+                   acc)
+      ))
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
@@ -578,33 +582,35 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
+  let serve_or_error frontend =
+    Lwt.try_bind (admin_ui_html ~debug: false frontend)
+      (fun body ->
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      )
+      (fun e ->
+         let bt = Exception.get_backtrace () in
+         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);
+         (respond ~execution_id
+            `Internal_server_error "Dark Internal Error"))
+  in
   match (verb, path) with
   (* Canvas webpages... *)
   | (`GET, [ "a" ; canvas ; "integration_test" ]) when Config.allow_test_routes ->
      when_can_edit ~canvas
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
-         let%lwt body = admin_ui_html ~debug:false frontend in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+         serve_or_error frontend
+      )
+
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         let%lwt body = admin_ui_html ~debug:true frontend in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+    when_can_edit ~canvas
+      (fun _ -> serve_or_error frontend)
   | (`GET, [ "a" ; canvas; ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         let%lwt body = admin_ui_html ~debug:false frontend in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+    when_can_edit ~canvas
+      (fun _ -> serve_or_error frontend)
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
