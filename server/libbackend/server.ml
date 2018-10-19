@@ -486,8 +486,10 @@ let admin_ui_html ~(debug:bool) () =
         let etags_str = File.readfile ~root:Static "etags.json" in
         let etags_json = Yojson.Safe.from_string etags_str in
         let etag_assoc_list = to_assoc_list etags_json in
-        List.fold
-          etag_assoc_list
+        etag_assoc_list
+        |> List.filter
+          ~f:(fun (file, _) -> not (String.equal "date" file))
+        |> List.fold
           ~init:instr
           ~f:(fun acc (file, hash) ->
               Util.string_replace file (hashed_filename file hash) acc
