@@ -38,3 +38,5 @@ val rollbar_js : string
 
 
 val public_domain : string
+
+val browser_reload_enabled : bool

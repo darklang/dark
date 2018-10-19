@@ -442,7 +442,7 @@ let admin_ui_html ~(debug:bool) () =
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
   >|= Util.string_replace "{LIVERELOADJS}"
-    (if String.equal "dev" Config.env_display_name
+    (if Config.browser_reload_enabled
       then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
       else "")
   >|= Util.string_replace "{STATIC}" Config.static_host

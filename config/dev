@@ -48,6 +48,9 @@ DARK_CONFIG_HEALTH_CHECK_PORT=8081
 # Publicly accessible domain
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
 
+# Other
+DARK_CONFIG_BROWSER_RELOAD_ENABLED=y
+
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
 ######################################
