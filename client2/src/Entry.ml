@@ -33,7 +33,7 @@ let createFunction (m : model) (name : fnName) : expr option =
   | Some function_ ->
       let r = if function_.fnReturnTipe = TOption then Rail else NoRail in
       Some
-      <| B.newF (FnCall (name, blanks (List.length function_.fnParameters), r))
+      (B.newF (FnCall (name, blanks (List.length function_.fnParameters), r)))
   | None -> None
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
@@ -91,12 +91,32 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let handler =
         { ast= B.new_ ()
         ; spec=
-            { spec with
-              name= B.newF route; module_= B.newF "HTTP"; modifier= Blank next
+            { name= B.newF route; module_= B.newF "HTTP"; modifier= Blank next
             }
         ; tlid }
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+
+type nextAction = StartThread | StayHere | GotoNext
+
+let parseAst (m : model) (str : string) : expr option =
+  let eid = gid () in
+  let b1 = B.new_ () in
+  let b2 = B.new_ () in
+  let b3 = B.new_ () in
+  let firstWord = String.split " " str in
+  match firstWord with
+  | ["if"] -> Some (F (eid, If (b1, b2, b3)))
+  | ["let"] -> Some (F (eid, Let (b1, b2, b3)))
+  | ["lambda"] -> Some (F (eid, Lambda ([B.newF "var"], b2)))
+  | [""] -> Some b1
+  | ["[]"] -> Some (F (eid, ListLiteral [B.new_ ()]))
+  | ["["] -> Some (F (eid, ListLiteral [B.new_ ()]))
+  | ["{}"] -> Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+  | ["{"] -> Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+  | _ ->
+      if Decoders.isLiteralString str then Some (F (eid, Value str))
+      else createFunction m str
 
 let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
     (action : nextAction) (value : string) : expr * expr =
@@ -134,26 +154,39 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
   in
   (newAst, new_)
 
-let parseAst (m : model) (str : string) : expr option =
-  let eid = gid () in
-  let b1 = B.new_ () in
-  let b2 = B.new_ () in
-  let b3 = B.new_ () in
-  let firstWord = String.split " " str in
-  match firstWord with
-  | ["if"] -> Some <| F (eid, If (b1, b2, b3))
-  | ["let"] -> Some <| F (eid, Let (b1, b2, b3))
-  | ["lambda"] -> Some <| F (eid, Lambda ([B.newF "var"], b2))
-  | [""] -> Some b1
-  | ["[]"] -> Some <| F (eid, ListLiteral [B.new_ ()])
-  | ["["] -> Some <| F (eid, ListLiteral [B.new_ ()])
-  | ["{}"] -> Some <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
-  | ["{"] -> Some <| F (eid, ObjectLiteral [(B.new_ (), B.new_ ())])
-  | _ ->
-      if JSON.isLiteralString str then Some <| F (eid, Value str)
-      else createFunction m str
-
-type nextAction = StartThread | StayHere | GotoNext
+let validate (tl : toplevel) (pd : pointerData) (value : string) :
+    string option =
+  let v pattern name =
+    if Util.reExactly pattern value then None
+    else Some (name ^ " must match /" ^ pattern ^ "/")
+  in
+  match pd with
+  | PDBColType ct -> v "\\[?[A-Z]\\w+\\]?" "DB type"
+  | PDBColName cn ->
+      if value = "id" then
+        Some
+          "The field name 'id' was reserved when IDs were implicit. We are \
+           transitioning to allowing it, but we're not there just yet. Sorry!"
+      else v "\\w+" "DB column name"
+  | PVarBind _ -> v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
+  | PEventName _ ->
+      let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
+      let http = "/(" ^ urlSafeCharacters ^ "*)" in
+      let _ = "comment" in
+      let event = urlSafeCharacters ^ "+" in
+      let _ = "comment" in
+      if TL.isHTTPHandler tl then v http "route name" else v event "event name"
+  | PEventModifier _ ->
+      if TL.isHTTPHandler tl then v "[A-Z]+" "verb"
+      else v "[a-zA-Z_][\\sa-zA-Z0-9_]*" "event modifier"
+  | PEventSpace _ -> v "[A-Z_]+" "event space"
+  | PField _ -> v ".+" "fieldname"
+  | PKey _ -> v ".+" "key"
+  | PExpr e -> None
+  | PFFMsg _ -> None
+  | PFnName _ -> None
+  | PParamName _ -> None
+  | PParamTipe _ -> v "[A-Z][a-z]*" "param type"
 
 let submit (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
@@ -172,7 +205,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         let focus =
           newAst |> AST.allData |> List.filter P.isBlank |> List.head
           |> Option.map P.toID
-          |> Option.map (FocusExact tlid)
+          |> Option.map (fun x -> FocusExact (tlid, x))
           |> Option.withDefault (FocusNext (tlid, None))
         in
         let _ = "comment" in
@@ -180,7 +213,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         let op =
           SetHandler
             ( tlid
-            , {pos with x= pos.x - 17; y= pos.y - 70}
+            , {x= pos.x - 17; y= pos.y - 70}
             , {ast= newAst; spec= newHandlerSpec (); tlid} )
         in
         RPC ([op], focus)
@@ -199,7 +232,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
       let pd = TL.findExn tl id in
       let result = validate tl pd value in
       if result <> None then
-        DisplayAndReportError <| deOption "checked above" result
+        DisplayAndReportError (deOption "checked above" result)
       else if String.length value < 1 then NoChange
       else
         let maybeH = TL.asHandler tl in
@@ -355,36 +388,4 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         | PParamName _ -> replace (PParamName (B.newF value))
         | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value))) )
 
-let validate (tl : toplevel) (pd : pointerData) (value : string) :
-    string option =
-  let v pattern name =
-    if Util.reExactly pattern value then None
-    else Some (name ^ " must match /" ^ pattern ^ "/")
-  in
-  match pd with
-  | PDBColType ct -> v "\\[?[A-Z]\\w+\\]?" "DB type"
-  | PDBColName cn ->
-      if value = "id" then
-        Some
-          "The field name 'id' was reserved when IDs were implicit. We are \
-           transitioning to allowing it, but we're not there just yet. Sorry!"
-      else v "\\w+" "DB column name"
-  | PVarBind _ -> v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
-  | PEventName _ ->
-      let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
-      let http = "/(" ^ urlSafeCharacters ^ "*)" in
-      let _ = "comment" in
-      let event = urlSafeCharacters ^ "+" in
-      let _ = "comment" in
-      if TL.isHTTPHandler tl then v http "route name" else v event "event name"
-  | PEventModifier _ ->
-      if TL.isHTTPHandler tl then v "[A-Z]+" "verb"
-      else v "[a-zA-Z_][\\sa-zA-Z0-9_]*" "event modifier"
-  | PEventSpace _ -> v "[A-Z_]+" "event space"
-  | PField _ -> v ".+" "fieldname"
-  | PKey _ -> v ".+" "key"
-  | PExpr e -> None
-  | PFFMsg _ -> None
-  | PFnName _ -> None
-  | PParamName _ -> None
-  | PParamTipe _ -> v "[A-Z][a-z]*" "param type"
+
