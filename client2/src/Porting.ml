@@ -244,6 +244,7 @@ module Option = struct
     match o with
     | None -> []
     | Some o -> [o]
+  let isSome = Belt.Option.isSome
 end
 
 
