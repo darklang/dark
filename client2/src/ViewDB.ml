@@ -3,8 +3,12 @@ open! Porting
 module B = Blank
 module Attrs = Html.Attributes
 open Types
-open ViewBlankOr
-open ViewUtils
+type viewState = ViewUtils.viewState
+type htmlConfig = ViewBlankOr.htmlConfig
+let idConfigs = ViewBlankOr.idConfigs
+let eventNoPropagation = ViewUtils.eventNoPropagation
+let fontAwesome = ViewUtils.fontAwesome
+let wc = ViewBlankOr.wc
 
 let viewDBName (name : string) (version : int) : msg Html.html =
   Html.div [Html.class' "dbname"]
@@ -14,13 +18,13 @@ let viewDBName (name : string) (version : int) : msg Html.html =
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = if B.isBlank v || not vs.dbLocked then idConfigs ^ c else c in
-  viewText DBColName vs configs v
+  let configs = if B.isBlank v || not vs.dbLocked then idConfigs @ c else c in
+  ViewBlankOr.viewText DBColName vs configs v
 
 let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = idConfigs ^ c in
-  viewText DBColType vs configs v
+  let configs = idConfigs @ c in
+  ViewBlankOr.viewText DBColType vs configs v
 
 let viewDBCol (vs : viewState) (isMigra : bool) (tlid : tlid)
     ((n, t) : dBColumn) : msg Html.html =
@@ -36,7 +40,7 @@ let viewDBCol (vs : viewState) (isMigra : bool) (tlid : tlid)
     else []
   in
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
-  Html.div [Html.class' "col"] (row ^ deleteButton)
+  Html.div [Html.class' "col"] (row @ deleteButton)
 
 let viewMigraFuncs (vs : viewState) (expr : expr) (fnName : fnName)
     (varName : varName) : msg Html.html =
@@ -45,7 +49,7 @@ let viewMigraFuncs (vs : viewState) (expr : expr) (fnName : fnName)
     [ Html.div [Html.class' "fn-title"]
         [ Html.span [] [Html.text (fnName ^ " : ")]
         ; Html.span [Html.class' "varname"] [Html.text varName] ]
-    ; viewExpr 0 vs [] expr ]
+    ; ViewCode.viewExpr 0 vs [] expr ]
 
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     msg Html.html =
@@ -78,7 +82,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
   in
   Html.div
     [Html.class' "db migration-view"]
-    (name :: (cols ^ funcs ^ errorMsg ^ actions))
+    (name :: (cols @ funcs @ errorMsg @ actions))
 
 let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   let locked =
@@ -102,4 +106,4 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
         else []
     | None -> []
   in
-  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] ^ migrationView
+  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] @ migrationView

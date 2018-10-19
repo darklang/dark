@@ -28,7 +28,8 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
     |> Option.andThen B.toMaybe
     |> Option.withDefault missingEventSpaceDesc
   in
-  tls |> List.sortBy spaceName_
+  tls 
+  |> List.sortBy spaceName_
   |> List.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
   |> List.map (fun hs ->
          let space =

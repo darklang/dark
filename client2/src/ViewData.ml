@@ -1,10 +1,10 @@
 open Tea
 open! Porting
-module B = Blank
-module Attrs = Html.Attributes
 open Prelude
-module RT = Runtime
 open Types
+module Attrs = Html.Attributes
+module B = Blank
+module RT = Runtime
 
 let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     (isHover : bool) (tipe : tipe) : msg Html.html =
@@ -14,9 +14,9 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
   let tipeClass = [Html.class' tipeClassName] in
   let classes = activeClass @ hoverClass @ tipeClass in
   let events =
-    [ eventNoPropagation "click" (fun x -> DataClick (tlid, idx, x))
-    ; eventNoPropagation "mouseenter" (fun x -> DataMouseEnter (tlid, idx, x))
-    ; eventNoPropagation "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
+    [ ViewUtils.eventNoPropagation "click" (fun x -> DataClick (tlid, idx, x))
+    ; ViewUtils.eventNoPropagation "mouseenter" (fun x -> DataMouseEnter (tlid, idx, x))
+    ; ViewUtils.eventNoPropagation "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
   in
   Html.li
     ([Vdom.prop "data-content" value] @ classes @ events)
@@ -25,7 +25,7 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
 let asValue (inputValue : inputValueDict) : string =
   RT.inputValueAsString inputValue
 
-let viewInputs (vs : viewState) (ID astID : id) : msg Html.html list =
+let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
   let traceToHtml idx trace =
     let value = asValue trace.input in
     let _ = "comment" in
@@ -34,9 +34,9 @@ let viewInputs (vs : viewState) (ID astID : id) : msg Html.html list =
     let hoverID = tlCursorID vs.tl.id idx in
     let isHover = vs.hovering = Some hoverID in
     let astTipe =
-      Dict.get trace.traceID vs.analyses
+      StrDict.get trace.traceID vs.analyses
       |> Option.map (fun x -> x.liveValues)
-      |> Option.andThen (Dict.get astID)
+      |> Option.andThen (IntDict.get astID)
       |> Option.map RT.typeOf
       |> Option.withDefault TIncomplete
     in
@@ -44,7 +44,7 @@ let viewInputs (vs : viewState) (ID astID : id) : msg Html.html list =
   in
   List.indexedMap traceToHtml vs.traces
 
-let viewData (vs : viewState) (ast : expr) : msg Html.html list =
+let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let astID = B.toID ast in
   let requestEls = viewInputs vs astID in
   let selectedValue =

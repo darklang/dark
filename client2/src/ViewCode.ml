@@ -1,27 +1,25 @@
 open Tea
 open! Porting
+open Prelude
+open Types
 module B = Blank
 module Attrs = Html.Attributes
-open Prelude
 module RT = Runtime
 module SA = Svg.Attributes
-open Types
-open ViewBlankOr
-open ViewUtils
 
 let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     msg Html.html =
-  let configs = c ^ [ClickSelectAs (B.toID f)] ^ withFeatureFlag vs f in
+  let configs = c @ [ClickSelectAs (B.toID f)] @ withFeatureFlag vs f in
   viewBlankOr viewNFieldName Field vs configs f
 
 let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = idConfigs ^ c in
+  let configs = idConfigs @ c in
   viewBlankOr viewNVarBind VarBind vs configs v
 
 let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
     msg Html.html =
-  let configs = idConfigs ^ c in
+  let configs = idConfigs @ c in
   viewBlankOr viewNVarBind Key vs configs k
 
 let viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
@@ -29,27 +27,27 @@ let viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
   let width = approxWidth e in
   let widthClass =
     [wc ("width-" ^ string_of_int width)]
-    ^ if width > 120 then [wc "too-wide"] else []
+    @ if width > 120 then [wc "too-wide"] else []
   in
   let configs =
-    idConfigs ^ c ^ withFeatureFlag vs e ^ withEditFn vs e ^ widthClass
+    idConfigs @ c @ withFeatureFlag vs e @ withEditFn vs e @ widthClass
   in
   let id = B.toID e in
   viewBlankOr (viewNExpr depth id) Expr vs configs e
 
 let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = idConfigs ^ c in
+  let configs = idConfigs @ c in
   viewText EventName vs configs v
 
 let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
-  let configs = idConfigs ^ c in
+  let configs = idConfigs @ c in
   viewText EventSpace vs configs v
 
 let viewEventModifier (vs : viewState) (c : htmlConfig list)
     (v : string blankOr) : msg Html.html =
-  let configs = idConfigs ^ c in
+  let configs = idConfigs @ c in
   viewText EventModifier vs configs v
 
 let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
@@ -109,7 +107,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
   let n c = div vs (nested :: c) in
   let a c = text vs (atom :: c) in
   let kw = keyword vs in
-  let all = idConfigs ^ config in
+  let all = idConfigs @ config in
   let cs = ClickSelect in
   let mo = Mouseover in
   let incD = d + 1 in
@@ -123,7 +121,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
-      a (wc cssClass :: wc "value" :: (all ^ tooWide)) value
+      a (wc cssClass :: wc "value" :: (all @ tooWide)) value
   | Variable name ->
       if List.member id vs.relatedBlankOrs then
         a (wc "variable" :: wc "related-change" :: all) vs.ac.value
@@ -190,7 +188,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         | TLDB db -> impossible db
       in
       let _ = "comment" in
-      let allExprs = previous ^ exprs in
+      let allExprs = previous @ exprs in
       let isComplete v =
         v
         |> getLiveValue vs.currentResults.liveValues
@@ -242,7 +240,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
           [ Html.div
               ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
                 ; Attrs.title title ]
-              ^ event )
+              @ event )
               [fontAwesome icon] ]
       in
       let fnDiv parens =
@@ -290,7 +288,7 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "listelem"; ClickSelectAs (B.toID e_)] [vExpr 0 e_]
       in
       let new_ = List.map lexpr exprs |> List.intersperse comma in
-      n (wc "list" :: mo :: config) ([open_] ^ new_ ^ [close])
+      n (wc "list" :: mo :: config) ([open_] @ new_ @ [close])
   | ObjectLiteral pairs ->
       let colon = a [wc "colon"] ":" in
       let open_ = a [wc "openbrace"] "{" in
@@ -298,13 +296,13 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let pexpr (k, v) =
         n [wc "objectpair"] [viewKey vs [] k; colon; vExpr 0 v]
       in
-      n (wc "object" :: mo :: config) ([open_] ^ List.map pexpr pairs ^ [close])
+      n (wc "object" :: mo :: config) ([open_] @ List.map pexpr pairs @ [close])
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
         Html.label [Html.class' "expr-label"] [Html.text msg_]
       in
       let isExpanded =
-        let mv = Dict.get (deID id) vs.featureFlags in
+        let mv = IntDict.get (deID id) vs.featureFlags in
         match mv with Some b -> b | None -> true
       in
       let pickA =
