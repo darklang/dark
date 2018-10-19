@@ -6,6 +6,33 @@ open Prelude
 module TL = Toplevel
 open Types
 open ViewUtils
+type viewState = ViewUtils.viewState
+type htmlConfig = ViewBlankOr.htmlConfig
+let idConfigs = ViewBlankOr.idConfigs
+let eventNoPropagation = ViewUtils.eventNoPropagation
+let fontAwesome = ViewUtils.fontAwesome
+let wc = ViewBlankOr.wc
+let nested = ViewBlankOr.nested
+let atom = ViewBlankOr.atom
+let keyword = ViewBlankOr.keyword
+
+
+type collapseVerbs = CollapseVerbs | DontCollapseVerbs
+
+and showLink = ShowLink | DontShowLink
+
+and showUndo = ShowUndo | DontShowUndo
+
+
+let span (class_ : string) (subs : msg Html.html list) : msg Html.html =
+  Html.span [Html.class' class_] subs
+
+let text (class_ : string) (msg : string) : msg Html.html =
+  span class_ [Html.text msg]
+
+let div (class_ : string) (subs : msg Html.html list) : msg Html.html =
+  Html.div [Html.class' class_] subs
+
 
 type entry =
   { name: string option
@@ -28,7 +55,7 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
     |> Option.andThen B.toMaybe
     |> Option.withDefault missingEventSpaceDesc
   in
-  tls 
+  tls
   |> List.sortBy spaceName_
   |> List.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
   |> List.map (fun hs ->
@@ -64,12 +91,12 @@ let collapseByVerb (es : entry list) : entry list =
               match list with
               | [] -> [curr]
               | prev :: rest ->
-                  let new_ = {prev with verbs= prev.verbs ^ curr.verbs} in
+                  let new_ = {prev with verbs= prev.verbs @ curr.verbs} in
                   new_ :: rest )
           [])
   |> List.concat
 
-let prefixify (hs : entry list) : entry list =
+let rec prefixify (hs : entry list) : entry list =
   match hs with
   | [] -> hs
   | [_] -> hs
@@ -83,7 +110,7 @@ let prefixify (hs : entry list) : entry list =
           match h2.name with
           | Some name2 ->
               let newName = String.dropLeft len name2 in
-              {h2 with name= Some newName; prefix= h.prefix ^ [name]}
+              {h2 with name= Some newName; prefix= h.prefix @ [name]}
           | _ -> h2
         in
         let isPrefixOf h2 =
@@ -94,19 +121,42 @@ let prefixify (hs : entry list) : entry list =
         match List.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
         | None -> h :: (rest |> List.map makePrefix |> prefixify)
         | Some (matched, unmatched) ->
-            h :: (prefixify <| List.map makePrefix matched ^ unmatched) ) )
+            h :: (prefixify <| List.map makePrefix matched @ unmatched) ) )
 
-let ordering (a : string) (b : string) : order =
+let ordering (a : string) (b : string) : int =
   match (a, b) with
-  | "HTTP", _ -> LT
-  | _, "HTTP" -> GT
+  | "HTTP", _ -> -1
+  | _, "HTTP" -> 1
   | _ ->
-      if b = missingEventRouteDesc then LT
-      else if a = missingEventRouteDesc then GT
+      if b = missingEventRouteDesc then -1
+      else if a = missingEventRouteDesc then 1
       else compare a b
+
+let buttonLink (content : msg Html.html) (handler : msg) (page : page option) :
+    msg Html.html =
+  let href =
+    page |> Option.map (fun p -> Html.href (Url.urlFor p)) |> Option.toList
+  in
+  let event =
+    match page with
+    | None -> eventNoDefault "click" (fun _ -> handler)
+    | Some _ -> eventNoPropagation "click" (fun _ -> handler)
+  in
+  Html.a ([event; Html.class' "button-link"] @ href) [content]
 
 let undoButton (tlid : tlid) (page : page) : msg Html.html =
   buttonLink (text "undo" "Restore") (RestoreToplevel tlid) (Some page)
+
+let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
+  Url.linkFor (Toplevels pos) class_ [Html.text name]
+
+let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
+    =
+  Url.linkFor
+    (Fn (fn.ufTLID, Defaults.centerPos))
+    (if isUsed then "default-link" else "default-link unused")
+    [Html.text text_]
+
 
 let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     ((spacename, entries) : string * entry list) : msg Html.html =
@@ -116,14 +166,14 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     then
       match h.name with
       | Some n ->
-          let target = String.join "" (h.prefix ^ [n]) in
+          let target = String.join "" (h.prefix @ [n]) in
           Html.a
             [ Html.class' "external"
             ; Html.href
                 ( "//"
                 ^ Http.encodeUri m.canvasName
                 ^ "." ^ m.userContentHost ^ target )
-            ; Attrs.target "_blank" ]
+            ; Html.target "_blank" ]
             [fontAwesome "external-link-alt"]
       | None -> Html.div [] []
     else Html.div [] []
@@ -154,12 +204,6 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
   in
   section spacename distinctEntries button routes
 
-type collapseVerbs = CollapseVerbs | DontCollapseVerbs
-
-and showLink = ShowLink | DontShowLink
-
-and showUndo = ShowUndo | DontShowUndo
-
 let viewRoutes (m : model) (collapse : collapseVerbs) (showLink : showLink)
     (showUndo : showUndo) : msg Html.html list =
   let tls = m.toplevels in
@@ -179,15 +223,6 @@ let viewDeletedTLs (m : model) : msg Html.html =
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
   Html.details [Html.class' "routing-section deleted"] ([h] ^ routes ^ [dbs])
-
-let span (class_ : string) (subs : msg Html.html list) : msg Html.html =
-  Html.span [Html.class' class_] subs
-
-let text (class_ : string) (msg : string) : msg Html.html =
-  span class_ [Html.text msg]
-
-let div (class_ : string) (subs : msg Html.html list) : msg Html.html =
-  Html.div [Html.class' class_] subs
 
 let header (name : string) (list : 'a list) (addHandler : msg option) :
     msg Html.html =
@@ -210,28 +245,6 @@ let section (name : string) (entries : 'a list) (addHandler : msg option)
     Html.details
       [Html.class' "routing-section"]
       [header name entries addHandler; routes]
-
-let buttonLink (content : msg Html.html) (handler : msg) (page : page option) :
-    msg Html.html =
-  let href =
-    page |> Option.map (fun p -> Html.href (Url.urlFor p)) |> Option.toList
-  in
-  let event =
-    match page with
-    | None -> eventNoDefault "click" (fun _ -> handler)
-    | Some _ -> eventNoPropagation "click" (fun _ -> handler)
-  in
-  Html.a ([event; Html.class' "button-link"] ^ href) [content]
-
-let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
-  Url.linkFor (Toplevels pos) class_ [Html.text name]
-
-let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
-    =
-  Url.linkFor
-    (Fn (fn.ufTLID, Defaults.centerPos))
-    (if isUsed then "default-link" else "default-link unused")
-    [Html.text text_]
 
 let view404s (f404s : fourOhFour list) : msg Html.html =
   let theCreateLink fof =
