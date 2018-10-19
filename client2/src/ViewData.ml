@@ -5,7 +5,6 @@ module Attrs = Html.Attributes
 open Prelude
 module RT = Runtime
 open Types
-open ViewUtils
 
 let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     (isHover : bool) (tipe : tipe) : msg Html.html =
@@ -20,7 +19,7 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     ; eventNoPropagation "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
   in
   Html.li
-    ([Html.property "data-content" value] @ classes @ events)
+    ([Vdom.prop "data-content" value] @ classes @ events)
     [Html.text "\226\128\162"]
 
 let asValue (inputValue : inputValueDict) : string =
