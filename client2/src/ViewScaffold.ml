@@ -1,15 +1,15 @@
 open Tea
-open! Porting
-module Html = Html.Attributes
 open Types
-open ViewUtils
+open! Porting
+module JSD = Json_decode_extended
+
 
 let viewButtons (m : model) : msg Html.html =
   let integrationTestButton =
     match m.integrationTestState with
     | IntegrationTestExpectation _ ->
         [ Html.a
-            [ eventNoPropagation "mouseup" (fun _ -> FinishIntegrationTest)
+            [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> FinishIntegrationTest)
             ; Html.src ""
             ; Html.id "finishIntegrationTest"
             ; Html.class' "specialButton" ]
@@ -43,7 +43,7 @@ let viewButtons (m : model) : msg Html.html =
           ; Html.a
               [ Html.class' "link"
               ; Html.href "#"
-              ; eventNoPropagation "mouseup" (fun _ ->
+              ; ViewUtils.eventNoPropagation "mouseup" (fun _ ->
                     ShowErrorDetails (not m.error.showDetails) ) ]
               [ Html.text
                   ( if m.error.showDetails then "hide details"
@@ -51,12 +51,12 @@ let viewButtons (m : model) : msg Html.html =
   in
   Html.div [Html.id "buttons"]
     ( [ Html.a
-          [ eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
+          [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
           ; Html.src ""
           ; Html.class' "specialButton" ]
           [Html.text "SaveTest"]
       ; Html.a
-          [ eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
+          [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
           ; Html.src ""
           ; Html.class' "specialButton" ]
           [ Html.text
@@ -70,7 +70,7 @@ let viewButtons (m : model) : msg Html.html =
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
           [Html.text m.environment] ]
-    ^ integrationTestButton ^ returnButton ^ [status] )
+    @ integrationTestButton @ returnButton @ [status] )
 
 let viewError (err : darkError) : msg Html.html =
   let viewException exc =
