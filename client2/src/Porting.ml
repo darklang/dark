@@ -166,7 +166,15 @@ module List = struct
     | _ -> None
   let maximum (list : 'comparable list) : 'comparable option =
     match list with x :: xs -> Some (foldl max x xs) | _ -> None
-
+  let sortBy (fn: 'a -> 'b) (l: 'a list) : 'a list =
+    Belt.List.sort l (fun a b ->
+        let a' = fn a in
+        let b' = fn b in
+        if a' = b'
+        then 0
+        else if a' < b'
+        then -1
+        else 1)
 end
 
 module Result = struct
