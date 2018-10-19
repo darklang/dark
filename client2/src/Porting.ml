@@ -27,8 +27,6 @@ let toOption (value: 'a) (sentinel: 'a) : 'a option =
 let identity (value: 'a) : 'a =
   value
 
-
-
 module List = struct
   let sum (l: int list) : int =
     Belt.List.reduce l 0 (+)
@@ -175,32 +173,29 @@ module List = struct
         else if a' < b'
         then -1
         else 1)
-  let rec oneGroupWhileHelper (condition : 'a -> 'a -> bool) (first : 'a)
-      (list : 'a list) : 'a list * 'a list =
-    match list with
-    | [] -> ([], [])
-    | second :: rest ->
-      if condition first second then
-        let thisGroup, ungroupedRest =
-          oneGroupWhileHelper condition second rest
-        in
-        (second :: thisGroup, ungroupedRest)
-      else ([], list)
+  let span (p : 'a -> bool) (xs : 'a list) : 'a list * 'a list =
+    (takeWhile p xs, dropWhile p xs)
 
+  let rec groupWhile (eq : 'a -> 'a -> bool) (xs_ : 'a list) : 'a list list =
+    match xs_ with
+    | [] -> []
+    | x :: xs ->
+      let ys, zs = span (eq x) xs in
+      (x :: ys) :: groupWhile eq zs
 
-  let rec accumulateGroupWhile (condition : 'a -> 'a -> bool) (list : 'a list)
-      (accum : ('a * 'a list) list) : ('a * 'a list) list =
-    match list with
-    | [] -> List.rev accum
-    | first :: rest ->
-      let thisGroup, ungroupedRest =
-        oneGroupWhileHelper condition first rest
-      in
-      accumulateGroupWhile condition ungroupedRest ((first, thisGroup) :: accum)
+  let splitAt (n : int) (xs : 'a list) : 'a list * 'a list =
+    (take n xs, drop n xs)
+  let splitWhen (predicate : 'a -> bool) (list : 'a list) :
+    ('a list * 'a list) option =
+    findIndex predicate list |. Belt.Option.map (fun i -> splitAt i list)
+  let intersperse (sep : 'a) (xs : 'a list) : 'a list =
+    match xs with
+    | [] -> []
+    | hd :: tl ->
+      let step x rest = sep :: x :: rest in
+      let spersed = foldr step [] tl in
+      hd :: spersed
 
-  let groupWhile (condition : 'a -> 'a -> bool) (list : 'a list) :
-    ('a * 'a list) list =
-    accumulateGroupWhile condition list []
 end
 
 module Result = struct
