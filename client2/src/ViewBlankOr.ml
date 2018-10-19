@@ -6,7 +6,6 @@ open Prelude
 module RT = Runtime
 module TL = Toplevel
 open Types
-open ViewUtils
 
 type htmlConfig =
   | WithClass of string
@@ -26,44 +25,7 @@ let atom : htmlConfig = wc "atom"
 
 let nested : htmlConfig = wc "nested"
 
-let text (vs : viewState) (c : htmlConfig list) (str : string) : msg Html.html
-    =
-  div vs c
-  <| [Html.div [Html.class' "quote quote-start"] []]
-     ^ [Html.text str]
-     ^ [Html.div [Html.class' "quote quote-end"] []]
-
-let keyword (vs : viewState) (c : htmlConfig list) (name : string) :
-    msg Html.html =
-  text vs (atom :: wc "keyword" :: wc name :: c) name
-
-let tipe (vs : viewState) (c : htmlConfig list) (t : tipe) : msg Html.html =
-  text vs c (Runtime.tipe2str t)
-
-let withFeatureFlag (vs : viewState) (v : 'a blankOr) : htmlConfig list =
-  if idOf vs.cursorState = Some (B.toID v) then [WithFF] else []
-
-let withEditFn (vs : viewState) (v : nExpr blankOr) : htmlConfig list =
-  if idOf vs.cursorState = Some (B.toID v) then
-    match v with
-    | F (_, FnCall (name, _, _)) -> (
-      match List.find (Functions.sameName name) vs.ufns with
-      | Some fn -> [WithEditFn fn.ufTLID]
-      | _ -> [] )
-    | _ -> []
-  else []
-
-let getLiveValue (lvs : lvDict) (ID id : id) : dval option = Dict.get id lvs
-
-let renderLiveValue (vs : viewState) (id : id option) : string =
-  let cursorLiveValue =
-    match id with
-    | Some (ID id) -> Dict.get id vs.currentResults.liveValues
-    | _ -> None
-  in
-  match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
-
-let div (vs : viewState) (configs : htmlConfig list)
+let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
   let getFirst fn = configs |> List.filterMap fn |> List.head in
   let _ = "comment" in
@@ -101,7 +63,7 @@ let div (vs : viewState) (configs : htmlConfig list)
   let selectedID =
     match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
   in
-  let selected = thisID = selectedID && Option.isJust thisID in
+  let selected = thisID = selectedID && Option.isSome thisID in
   let displayLivevalue =
     thisID = idOf vs.cursorState && Option.isJust thisID && vs.showLivevalue
   in
@@ -143,15 +105,53 @@ let div (vs : viewState) (configs : htmlConfig list)
   let attrs = liveValueAttr :: classAttr :: events in
   Html.div attrs (content ^ [rightSideHtml])
 
-let viewText (pt : pointerType) (vs : viewState) (c : htmlConfig list)
+
+let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) : msg Html.html
+    =
+  div vs c
+  <| [Html.div [Html.class' "quote quote-start"] []]
+     ^ [Html.text str]
+     ^ [Html.div [Html.class' "quote quote-end"] []]
+
+let keyword (vs : ViewUtils.viewState) (c : htmlConfig list) (name : string) :
+    msg Html.html =
+  text vs (atom :: wc "keyword" :: wc name :: c) name
+
+let tipe (vs : ViewUtils.viewState) (c : htmlConfig list) (t : tipe) : msg Html.html =
+  text vs c (Runtime.tipe2str t)
+
+let withFeatureFlag (vs : ViewUtils.viewState) (v : 'a blankOr) : htmlConfig list =
+  if idOf vs.cursorState = Some (B.toID v) then [WithFF] else []
+
+let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list =
+  if idOf vs.cursorState = Some (B.toID v) then
+    match v with
+    | F (_, FnCall (name, _, _)) -> (
+      match List.find (Functions.sameName name) vs.ufns with
+      | Some fn -> [WithEditFn fn.ufTLID]
+      | _ -> [] )
+    | _ -> []
+  else []
+
+let getLiveValue (lvs : lvDict) (ID id : id) : dval option = Dict.get id lvs
+
+let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
+  let cursorLiveValue =
+    match id with
+    | Some (ID id) -> Dict.get id vs.currentResults.liveValues
+    | _ -> None
+  in
+  match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
+
+let viewText (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list)
     (str : string blankOr) : msg Html.html =
   viewBlankOr text pt vs c str
 
-let viewTipe (pt : pointerType) (vs : viewState) (c : htmlConfig list)
+let viewTipe (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list)
     (str : tipe blankOr) : msg Html.html =
   viewBlankOr tipe pt vs c str
 
-let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
+let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : string =
   let paramPlaceholder =
     vs.tl |> TL.asHandler
     |> Option.map (fun x -> x.ast)
@@ -191,8 +191,8 @@ let placeHolderFor (vs : viewState) (id : id) (pt : pointerType) : string =
   | ParamTipe -> "param type"
 
 let viewBlankOr
-    (htmlFn : ((viewState -> htmlConfig list) -> 'a) -> msg Html.html)
-    (pt : pointerType) (vs : viewState) (c : htmlConfig list) (bo : 'a blankOr)
+    (htmlFn : ((ViewUtils.viewState -> htmlConfig list) -> 'a) -> msg Html.html)
+    (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list) (bo : 'a blankOr)
     : msg Html.html =
   let wID id = [WithID id] in
   let drawBlank id =
