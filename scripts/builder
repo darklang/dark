@@ -81,14 +81,10 @@ do
   case $i in
     --watch)
     FSWATCH="fswatch --event-flag-separator=, -r * -x"
-
-    # Added b/c otherwise --watch infinite-loops on Linux.
-    # May be okay on OS X, haven't tried.
-    case "$(uname -s)" in
-      Linux*) FSWATCH+=" --event=Updated --event=Created"
-        ;;
-    esac
-    ;;
+    # Need to specify --event types, or something in client/tests/elm-stuff will fire
+    # endless IsDir and PlatformSpecific ("This event maps a platform-specific
+    # event that has no corresponding flag.") events
+    FSWATCH+=" --event=Created --event=Updated --event=Removed --event=Renamed --event=MovedFrom --event=MovedTo"
   esac
 done
 
