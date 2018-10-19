@@ -11,19 +11,21 @@ for file in $(find server/static -maxdepth 1 -type f -and -not -name etags.json 
     filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' server/static/etags.json)"
     hashed_file="${file%.*}-${filehash}.${basefile##*.}"
 
-    tar czvf "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}.gz" "${file}"
+    # No .gz extension because gcloud cloud cdn doesn't want that
+    gzip -c "${file}" > "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}"
 done
 
 # We do want to compress the vendored files, though
 for file in $(find server/static -mindepth 2 -type f -and -not -name *.gz); do
     mkdir -p "gzipped_assets/$(dirname "${file//$PREFIX_TO_REMOVE}")"
-    tar czvf "gzipped_assets/${file//$PREFIX_TO_REMOVE}.gz" "${file}"
+    # No .gz extension because gcloud cloud cdn doesn't want that
+    gzip -c "${file}" > "gzipped_assets/${file//$PREFIX_TO_REMOVE}"
 done
 
 cd gzipped_assets
 # -m parallelizes upload
 # -n no-clobber - we don't need upload assets already there
-time gsutil -m cp -n -h 'Content-Encoding: gzip' -r . gs://darklang-static-assets
+gsutil -m -h 'Content-Encoding: gzip' cp -n -r . gs://darklang-static-assets
 cd -
 
 rm -r gzipped_assets
