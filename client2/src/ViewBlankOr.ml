@@ -65,29 +65,29 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   in
   let selected = thisID = selectedID && Option.isSome thisID in
   let displayLivevalue =
-    thisID = idOf vs.cursorState && Option.isJust thisID && vs.showLivevalue
+    thisID = idOf vs.cursorState && Option.isSome thisID && vs.showLivevalue
   in
-  let mouseover = mouseoverAs = vs.hovering && Option.isJust mouseoverAs in
+  let mouseover = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
   let idClasses =
     match thisID with
     | Some id -> ["blankOr"; "id-" ^ string_of_int (deID id)]
     | _ -> []
   in
   let allClasses =
-    classes ^ idClasses
-    ^ (if displayLivevalue then ["display-livevalue"] else [])
-    ^ (if selected then ["selected"] else [])
-    ^ (if isCommandTarget then ["commandTarget"] else [])
-    ^ if mouseover then ["mouseovered"] else []
+    classes @ idClasses
+    @ (if displayLivevalue then ["display-livevalue"] else [])
+    @ (if selected then ["selected"] else [])
+    @ (if isCommandTarget then ["commandTarget"] else [])
+    @ if mouseover then ["mouseovered"] else []
   in
   let classAttr = Html.class' (String.join " " allClasses) in
   let events =
     match clickAs with
     | Some id ->
-        [ eventNoPropagation "click" (BlankOrClick (vs.tl.id, id))
-        ; eventNoPropagation "dblclick" (BlankOrDoubleClick (vs.tl.id, id))
-        ; eventNoPropagation "mouseenter" (BlankOrMouseEnter (vs.tl.id, id))
-        ; eventNoPropagation "mouseleave" (BlankOrMouseLeave (vs.tl.id, id)) ]
+        [ ViewUtils.eventNoPropagation "click" (fun x -> BlankOrClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation "dblclick" (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation "mouseenter" (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation "mouseleave" (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
     | _ -> []
   in
   let liveValueAttr =
