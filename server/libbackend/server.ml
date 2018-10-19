@@ -489,6 +489,9 @@ let admin_ui_html ~(debug:bool) () =
         etag_assoc_list
         |> List.filter
           ~f:(fun (file, _) -> not (String.equal "date" file))
+        |> List.filter
+          (* Only hash our assets, not vendored assets *)
+          ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
         |> List.fold
           ~init:instr
           ~f:(fun acc (file, hash) ->
