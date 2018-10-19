@@ -238,12 +238,25 @@ let viewRoutes (m : model) (collapse : collapseVerbs) (showLink : showLink)
   |> List.map (Tuple.mapSecond prefixify)
   |> List.map (viewGroup m showLink showUndo)
 
+let viewRestorableDBs (tls : toplevel list) : msg Html.html =
+  let dbs =
+    tls
+    |> List.filter (fun tl -> TL.asDB tl <> None)
+    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy (fun (_, _, db) -> db.dbName)
+  in
+  let dbHtml (pos, tlid, db) =
+    div "simple-route" [text "name" db.dbName; undoButton tlid (Toplevels pos)]
+  in
+  let routes = div "dbs" (List.map dbHtml dbs) in
+  section "DBs" dbs None routes
+
 let viewDeletedTLs (m : model) : msg Html.html =
   let tls = m.deletedToplevels in
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
-  Html.details [Html.class' "routing-section deleted"] ([h] ^ routes ^ [dbs])
+  Html.details [Html.class' "routing-section deleted"] ([h] @ routes @ [dbs])
 
 let view404s (f404s : fourOhFour list) : msg Html.html =
   let theCreateLink fof =
@@ -276,25 +289,12 @@ let viewDBs (tls : toplevel list) : msg Html.html =
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
 
-let viewRestorableDBs (tls : toplevel list) : msg Html.html =
-  let dbs =
-    tls
-    |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, _, db) -> db.dbName)
-  in
-  let dbHtml (pos, tlid, db) =
-    div "simple-route" [text "name" db.dbName; undoButton tlid (Toplevels pos)]
-  in
-  let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs None routes
-
 let viewUserFunctions (m : model) : msg Html.html =
   let fns =
     m.userFunctions |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName)
   in
   let fnNamedLink fn name =
-    let useCount = countFnUsage m name in
+    let useCount = Refactor.countFnUsage m name in
     if useCount = 0 then
       [ span "name" [fnLink fn false name]
       ; buttonLink
@@ -317,8 +317,8 @@ let viewUserFunctions (m : model) : msg Html.html =
 let viewRoutingTable (m : model) : msg Html.html =
   let sections =
     viewRoutes m CollapseVerbs ShowLink DontShowUndo
-    ^ [viewDBs m.toplevels] ^ [view404s m.f404s] ^ [viewUserFunctions m]
-    ^ [viewDeletedTLs m]
+    @ [viewDBs m.toplevels] @ [view404s m.f404s] @ [viewUserFunctions m]
+    @ [viewDeletedTLs m]
   in
   let html =
     Html.div
@@ -328,4 +328,4 @@ let viewRoutingTable (m : model) : msg Html.html =
       ; eventNoPropagation "mouseleave" (fun _ -> EnablePanning true) ]
       sections
   in
-  Html.div [Attrs.id "sidebar-left"] [html]
+  Html.div [Html.id "sidebar-left"] [html]

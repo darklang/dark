@@ -198,6 +198,8 @@ module List = struct
   let initialize (n : int) (f : int -> 'a) : 'a list =
     let rec step i acc = if i < 0 then acc else step (i - 1) (f i :: acc) in
     step (n - 1) []
+  let sortWith (fn: 'a -> 'a -> int) (l: 'a list) : 'a list =
+    Belt.List.sort l fn
 end
 
 module Result = struct
@@ -501,21 +503,6 @@ module Native = struct
 
   module Random = struct
     let random () : int = Js_math.random_int 0 2147483647
-  end
-
-  module Cache = struct
-    let set _k v =
-      Dom.Storage.setItem
-        (String.fromInt _k)
-        (Js.Json.stringify v)
-        Dom.Storage.sessionStorage
-    let get _k =
-      Dom.Storage.getItem
-        (String.fromInt _k)
-        Dom.Storage.sessionStorage
-    let clear _k =
-      Dom.Storage.clear
-        Dom.Storage.sessionStorage
   end
 
   module Size = struct

@@ -34,13 +34,25 @@ let listPreviousWrap (a : 'a) (l : 'a list) : 'a option =
 let listNextWrap (a : 'a) (l : 'a list) : 'a option =
   l |> listNext a |> Option.orElse (List.head l)
 
-let cacheSet (k : 'k) (v : 'v) : unit =
-  let _ = Native.Cache.set k v in
-  ()
+type cacheT = Types.msg Html.html
+type cacheType = Types.msg Html.html Js.Dict.t
 
-let cacheGet (k : 'k) : 'v option = Native.Cache.get k
+let cache : cacheType = Js.Dict.empty()
 
-let cacheClear (k : 'k) : unit = Native.Cache.clear k
+let cacheSet (k : int) (v : cacheT) : unit =
+  Js.Dict.set cache (string_of_int k) v
+
+let cacheGet (k : int) : cacheT option =
+  Js.Dict.get cache (string_of_int k)
+
+let cacheClear (k : int) : unit =
+  let unsafeDeleteKey : (cacheType -> string -> unit) = [%raw fun dict key -> {|
+  function(dict,key){
+     delete dict[key];
+     return 0
+   }
+|}] in
+  ignore(unsafeDeleteKey cache (string_of_int k))
 
 let transformToStringEntry (s_ : string) : string =
   let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in
