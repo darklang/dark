@@ -1,9 +1,16 @@
 open Tea
 open! Porting
-module Attrs = Html.Attributes
 open Prelude
 open Types
 open ViewUtils
+module Attrs = Tea.Html2.Attributes
+module Events = Tea.Html2.Events
+
+let onSubmit fn =
+  Html.onWithOptions "submit"
+    {stopPropagation= true; preventDefault= true}
+    (Decoders.wrapDecoder fn)
+
 
 let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     msg Html.html =
@@ -28,11 +35,12 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
            |> ceil
            |> max 1. )
     |> List.floatSum
+    |> int_of_float
   in
   let input =
     Html.textarea
       [ Attrs.id Defaults.entryID
-      ; Events.onInput (EntryInputMsg << Util.transformFromStringEntry)
+      ; Events.onInput ((fun x -> EntryInputMsg x) << Util.transformFromStringEntry)
       ; Attrs.value value
       ; Attrs.spellcheck false
       ; nothingMouseEvent "mouseup"
@@ -50,7 +58,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   Html.div
     [Html.class' "string-entry"]
     [ Html.form
-        [ Events.onSubmit EntrySubmitMsg
+        [ onSubmit (fun _ -> EntrySubmitMsg)
         ; Html.class' ("string-container " ^ sizeClass) ]
         [input] ]
 
@@ -90,9 +98,9 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
     |> fun n -> if 0 = n then String.length placeholder else n
   in
   let searchInput =
-    Html.input
+    Html.input'
       [ Attrs.id Defaults.entryID
-      ; Events.onInput EntryInputMsg
+      ; Events.onInput (fun x -> EntryInputMsg x)
       ; Attrs.value search
       ; Attrs.placeholder placeholder
       ; Attrs.spellcheck false
@@ -106,7 +114,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let _ = "comment" in
   let fluidWidthSpan =
     Html.span
-      [Attrs.id "fluidWidthSpan"; Attrs.attribute "contentEditable" ""]
+      [Attrs.id "fluidWidthSpan"; Vdom.prop "contentEditable" ""]
       [Html.text search]
   in
   let input =
@@ -115,7 +123,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       [searchInput; suggestionSpan; fluidWidthSpan]
   in
   let viewForm =
-    Html.form [Events.onSubmit EntrySubmitMsg] [input; autocomplete]
+    Html.form [onSubmit (fun x -> EntrySubmitMsg)] [input; autocomplete]
   in
   let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper
