@@ -482,22 +482,26 @@ let admin_ui_html ~(debug:bool) () =
         |> Util.string_replace "{FRONTENDIMPL}" tag
         |> Util.string_replace "{FRONTENDGLUE}" glue)
     >|= Util.string_replace "{STATIC}" Config.static_host
-    >|= (fun instr ->
-        let etags_str = File.readfile ~root:Static "etags.json" in
-        let etags_json = Yojson.Safe.from_string etags_str in
-        let etag_assoc_list = to_assoc_list etags_json in
-        etag_assoc_list
-        |> List.filter
-          ~f:(fun (file, _) -> not (String.equal "date" file))
-        |> List.filter
-          (* Only hash our assets, not vendored assets *)
-          ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
-        |> List.fold
-          ~init:instr
-          ~f:(fun acc (file, hash) ->
-              Util.string_replace file (hashed_filename file hash) acc
-            )
-      )
+    >|= (fun x ->
+        if (String.equal "static.darklang.localhost:8000" Config.static_host)
+        then x
+        else x
+             |> (fun instr ->
+                 let etags_str = File.readfile ~root:Static "etags.json" in
+                 let etags_json = Yojson.Safe.from_string etags_str in
+                 let etag_assoc_list = to_assoc_list etags_json in
+                 etag_assoc_list
+                 |> List.filter
+                   ~f:(fun (file, _) -> not (String.equal "date" file))
+                 |> List.filter
+                   (* Only hash our assets, not vendored assets *)
+                   ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
+                 |> List.fold
+                   ~init:instr
+                   ~f:(fun acc (file, hash) ->
+                       Util.string_replace file (hashed_filename file hash) acc
+                     )
+               ))
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
