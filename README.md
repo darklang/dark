@@ -6,6 +6,7 @@
 - Install Homebrew for Mac from https://brew.sh/
 - Run `brew install bash`
 - Run `brew install fswatch`
+- Run `pip install livereload`
 - Run `scripts/builder --compile --watch --test`
 - Wait til the terminal says "Finished initial compile" - this means the build server is ready
 - Open your browser to http://builtwithdark.localhost:8000/YOURNAME/

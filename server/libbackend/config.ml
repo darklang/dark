@@ -143,3 +143,5 @@ let rollbar_js =
 let public_domain =
   string "DARK_CONFIG_PUBLIC_DOMAIN"
 
+let browser_reload_enabled =
+    bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
