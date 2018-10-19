@@ -24,16 +24,19 @@ PROJECT="balmy-ground-195100"
 IMAGE_ID=$(docker images "${PREFIX}dark-gcp" -q | head -n 1)
 QW_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-qw" -q | head -n 1)
 CRON_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-cron" -q | head -n 1)
+TUNNEL_IMAGE_ID="$(docker images "${PREFIX}tunnel" -q | head -n 1)"
 
 # get the image tag corresponding to the latest local image id
 IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp:$IMAGE_ID"
 QW_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
 CRON_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
+TUNNEL_IMAGE="gcr.io/$PROJECT/${PREFIX}tunnel:$TUNNEL_IMAGE_ID"
 
 # the tags we'll tag them with.
 IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp:latest"
 QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
 CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
+TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
 
 #########################
 # Deploy Docker image
@@ -48,6 +51,7 @@ docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE"
 docker tag "${PREFIX}dark-gcp:latest" "$IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE_LATEST"
+docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE_LATEST"
 
 # hook up gcloud docker
 docker-credential-gcr configure-docker
@@ -59,3 +63,4 @@ docker push "$QW_IMAGE"
 docker push "$QW_IMAGE_LATEST"
 docker push "$CRON_IMAGE"
 docker push "$CRON_IMAGE_LATEST"
+docker push "$TUNNEL_IMAGE_LATEST"
