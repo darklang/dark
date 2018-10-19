@@ -353,9 +353,9 @@ and isLiteralString (s : string) : bool =
   | None -> false
   | Some dv -> RT.isLiteral dv
 
-(* let typeOfLiteralString (s : string) : tipe = *)
-(*   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv *)
-(*  *)
+and typeOfLiteralString (s : string) : tipe =
+  match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
+
 and parseDvalLiteral (str : string) : dval option =
   let firstChar = String.uncons str |> Option.map Tuple.first in
   if String.toLower str = "nothing" then Some (DOption OptNothing)

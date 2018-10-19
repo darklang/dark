@@ -50,11 +50,11 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let selectedValue =
     match vs.cursorState with
     | Selecting (tlid, Some (ID id)) ->
-        Dict.get id vs.currentResults.liveValues
+        IntDict.get id vs.currentResults.liveValues
     | _ -> None
   in
   [ Html.div
-      [ Attrs.classList
+      [ Html.classList
           [ ("view-data", true)
           ; ("live-view-selection-active", selectedValue <> None) ] ]
       [Html.ul [Html.class' "request-cursor"] requestEls] ]

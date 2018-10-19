@@ -6,97 +6,55 @@ module B = Blank
 module Attrs = Html.Attributes
 module RT = Runtime
 module SA = Svg.Attributes
-
-let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
-    msg Html.html =
-  let configs = c @ [ClickSelectAs (B.toID f)] @ withFeatureFlag vs f in
-  viewBlankOr viewNFieldName Field vs configs f
-
-let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs = idConfigs @ c in
-  viewBlankOr viewNVarBind VarBind vs configs v
-
-let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
-    msg Html.html =
-  let configs = idConfigs @ c in
-  viewBlankOr viewNVarBind Key vs configs k
-
-let viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
-    msg Html.html =
-  let width = approxWidth e in
-  let widthClass =
-    [wc ("width-" ^ string_of_int width)]
-    @ if width > 120 then [wc "too-wide"] else []
-  in
-  let configs =
-    idConfigs @ c @ withFeatureFlag vs e @ withEditFn vs e @ widthClass
-  in
-  let id = B.toID e in
-  viewBlankOr (viewNExpr depth id) Expr vs configs e
-
-let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs = idConfigs @ c in
-  viewText EventName vs configs v
-
-let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
-    : msg Html.html =
-  let configs = idConfigs @ c in
-  viewText EventSpace vs configs v
-
-let viewEventModifier (vs : viewState) (c : htmlConfig list)
-    (v : string blankOr) : msg Html.html =
-  let configs = idConfigs @ c in
-  viewText EventModifier vs configs v
-
-let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
-    msg Html.html =
-  text vs config f
+type viewState = ViewUtils.viewState
+type htmlConfig = ViewBlankOr.htmlConfig
+let idConfigs = ViewBlankOr.idConfigs
+let eventNoPropagation = ViewUtils.eventNoPropagation
+let fontAwesome = ViewUtils.fontAwesome
+let wc = ViewBlankOr.wc
+let text = ViewBlankOr.text
+let div = ViewBlankOr.div
+let nested = ViewBlankOr.nested
+let atom = ViewBlankOr.atom
+let keyword = ViewBlankOr.keyword
 
 let viewNFieldName (vs : viewState) (config : htmlConfig list) (f : string) :
     msg Html.html =
   text vs config f
 
-let depthString (n : int) : string = "precedence-" ^ string_of_int n
+let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
+    msg Html.html =
+  let configs = c @ [ViewBlankOr.ClickSelectAs (B.toID f)] @ ViewBlankOr.withFeatureFlag vs f in
+  ViewBlankOr.viewBlankOr viewNFieldName Field vs configs f
 
-let viewRopArrow (vs : viewState) : msg Html.html =
-  let line =
-    Svg.path
-      [ SA.stroke "red"
-      ; SA.strokeWidth "1.5px"
-      ; SA.d "M 0,0 z"
-      ; VirtualDom.attribute "opacity" "0.3"
-      ; SA.markerEnd "url(#arrow)" ]
-      []
-  in
-  let head =
-    Svg.defs []
-      [ Svg.marker
-          [ SA.id "arrow"
-          ; SA.markerWidth "10"
-          ; SA.markerHeight "10"
-          ; SA.refX "0"
-          ; SA.refY "3"
-          ; SA.orient "auto"
-          ; SA.markerUnits "strokeWidth" ]
-          [Svg.path [SA.d "M0,0 L0,6 L9,3 z"; SA.fill "#f00"] []] ]
-  in
-  let svg =
-    Svg.svg
-      [ Attrs.style
-          [ ("position", "absolute")
-          ; ("pointer-events", "none")
-          ; ("margin-top", "-10px")
-          ; ("fill", "none") ] ]
-      [line; head]
-  in
-  Html.node "rop-arrow"
-    [ VirtualDom.attribute "update" (Util.random () |> string_of_int)
-    ; VirtualDom.attribute "tlid" (string_of_int (deTLID vs.tl.id)) ]
-    [svg]
+let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
+    msg Html.html =
+  text vs config f
 
-let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
+let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
+  let configs = idConfigs @ c in
+  ViewBlankOr.viewBlankOr viewNVarBind VarBind vs configs v
+
+let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
+    msg Html.html =
+  let configs = idConfigs @ c in
+  ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
+
+let rec viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
+    msg Html.html =
+  let width = ViewUtils.approxWidth e in
+  let widthClass =
+    [wc ("width-" ^ string_of_int width)]
+    @ if width > 120 then [wc "too-wide"] else []
+  in
+  let configs =
+    idConfigs @ c @ ViewBlankOr.withFeatureFlag vs e @ ViewBlankOr.withEditFn vs e @ widthClass
+  in
+  let id = B.toID e in
+  ViewBlankOr.viewBlankOr (viewNExpr depth id) Expr vs configs e
+
+and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
     (e : nExpr) : msg Html.html =
   let vExpr d_ = viewExpr d_ vs [] in
   let vExprTw d_ =
@@ -108,16 +66,16 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
   let a c = text vs (atom :: c) in
   let kw = keyword vs in
   let all = idConfigs @ config in
-  let cs = ClickSelect in
-  let mo = Mouseover in
+  let cs = ViewBlankOr.ClickSelect in
+  let mo = ViewBlankOr.Mouseover in
   let incD = d + 1 in
   match e with
   | Value v ->
       let cssClass =
-        v |> JSON.typeOfLiteralString |> toString |> String.toLower
+        v |> Decoders.typeOfLiteralString |> toString |> String.toLower
       in
       let value =
-        if JSON.typeOfLiteralString v = TStr then transformToStringEntry v
+        if Decoders.typeOfLiteralString v = TStr then transformToStringEntry v
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
@@ -370,6 +328,59 @@ let viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
             [ Html.class'
                 ("feature-flag" ^ if isExpanded then " expand" else "") ]
             [titleBar; blockCondition; expressions] ]
+
+let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
+  let configs = idConfigs @ c in
+  viewText EventName vs configs v
+
+let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
+    : msg Html.html =
+  let configs = idConfigs @ c in
+  viewText EventSpace vs configs v
+
+let viewEventModifier (vs : viewState) (c : htmlConfig list)
+    (v : string blankOr) : msg Html.html =
+  let configs = idConfigs @ c in
+  viewText EventModifier vs configs v
+
+let depthString (n : int) : string = "precedence-" ^ string_of_int n
+
+let viewRopArrow (vs : viewState) : msg Html.html =
+  let line =
+    Svg.path
+      [ SA.stroke "red"
+      ; SA.strokeWidth "1.5px"
+      ; SA.d "M 0,0 z"
+      ; VirtualDom.attribute "opacity" "0.3"
+      ; SA.markerEnd "url(#arrow)" ]
+      []
+  in
+  let head =
+    Svg.defs []
+      [ Svg.marker
+          [ SA.id "arrow"
+          ; SA.markerWidth "10"
+          ; SA.markerHeight "10"
+          ; SA.refX "0"
+          ; SA.refY "3"
+          ; SA.orient "auto"
+          ; SA.markerUnits "strokeWidth" ]
+          [Svg.path [SA.d "M0,0 L0,6 L9,3 z"; SA.fill "#f00"] []] ]
+  in
+  let svg =
+    Svg.svg
+      [ Attrs.style
+          [ ("position", "absolute")
+          ; ("pointer-events", "none")
+          ; ("margin-top", "-10px")
+          ; ("fill", "none") ] ]
+      [line; head]
+  in
+  Html.node "rop-arrow"
+    [ VirtualDom.attribute "update" (Util.random () |> string_of_int)
+    ; VirtualDom.attribute "tlid" (string_of_int (deTLID vs.tl.id)) ]
+    [svg]
 
 let isExecuting (vs : viewState) (id : id) : bool =
   List.member id vs.executingFunctions
