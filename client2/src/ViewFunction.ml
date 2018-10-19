@@ -2,26 +2,33 @@ open Tea
 open! Porting
 module Attrs = Html.Attributes
 open Types
-open ViewBlankOr
-open ViewUtils
 
-let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
-  Html.div
-    [Html.class' "user-fn-toplevel"]
-    [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
-    ; Html.div [Html.class' "ast"] [ViewCode.viewExpr 0 vs [] fn.ufAST] ]
+type viewState = ViewUtils.viewState
+type htmlConfig = ViewBlankOr.htmlConfig
+let idConfigs = ViewBlankOr.idConfigs
+let eventNoPropagation = ViewUtils.eventNoPropagation
+let fontAwesome = ViewUtils.fontAwesome
+let viewText = ViewBlankOr.viewText
+let wc = ViewBlankOr.wc
+let text = ViewBlankOr.text
+let div = ViewBlankOr.div
+let nested = ViewBlankOr.nested
+let atom = ViewBlankOr.atom
+let keyword = ViewBlankOr.keyword
+
+
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
-  viewText FnName vs (idConfigs ^ c) v
+  viewText FnName vs (idConfigs @ c) v
 
 let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  viewText ParamName vs (idConfigs ^ c) v
+  viewText ParamName vs (idConfigs @ c) v
 
 let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
     msg Html.html =
-  viewTipe ParamTipe vs (idConfigs ^ c) v
+  ViewBlankOr.viewTipe ParamTipe vs (idConfigs @ c) v
 
 let viewKillParameterBtn (vs : viewState) (uf : userFunction)
     (p : userFunctionParameter) : msg Html.html =
@@ -37,7 +44,7 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
     else
       Html.div
         [ Html.class' "parameter-btn disallowed"
-        ; Attrs.title
+        ; Html.title
             "Can't delete parameter because it is used in the function body" ]
         [fontAwesome "times-circle"]
   in
@@ -59,3 +66,11 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
              ; viewKillParameterBtn vs fn p ] )
   in
   Html.div [Html.class' "user-fn"] (namediv :: coldivs)
+
+let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
+  Html.div
+    [Html.class' "user-fn-toplevel"]
+    [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
+    ; Html.div [Html.class' "ast"] [ViewCode.viewExpr 0 vs [] fn.ufAST] ]
+
+
