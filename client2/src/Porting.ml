@@ -175,6 +175,32 @@ module List = struct
         else if a' < b'
         then -1
         else 1)
+  let rec oneGroupWhileHelper (condition : 'a -> 'a -> bool) (first : 'a)
+      (list : 'a list) : 'a list * 'a list =
+    match list with
+    | [] -> ([], [])
+    | second :: rest ->
+      if condition first second then
+        let thisGroup, ungroupedRest =
+          oneGroupWhileHelper condition second rest
+        in
+        (second :: thisGroup, ungroupedRest)
+      else ([], list)
+
+
+  let rec accumulateGroupWhile (condition : 'a -> 'a -> bool) (list : 'a list)
+      (accum : ('a * 'a list) list) : ('a * 'a list) list =
+    match list with
+    | [] -> List.rev accum
+    | first :: rest ->
+      let thisGroup, ungroupedRest =
+        oneGroupWhileHelper condition first rest
+      in
+      accumulateGroupWhile condition ungroupedRest ((first, thisGroup) :: accum)
+
+  let groupWhile (condition : 'a -> 'a -> bool) (list : 'a list) :
+    ('a * 'a list) list =
+    accumulateGroupWhile condition list []
 end
 
 module Result = struct
