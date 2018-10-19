@@ -437,23 +437,26 @@ let delete_404 ~(execution_id: Types.id) (host: string) body
     raise e
 
 
-let hashed_filename (file:string) (hash : string) :string =
-  let ext,rest = match List.rev (String.split ~on:'.' file) with
-      ext::rest -> ext, rest
-    | [] -> failwith "TODO" in
-  sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
+let hashed_filename (file:string) (hash : string) :(string, string) Result.t =
+  match List.rev (String.split ~on:'.' file) with
+  |  ext::rest ->
+    Result.Ok (sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext)
+  | [] -> Result.Error "Tried splitting a filename with no extension"
 
-let to_assoc_list etags_json : (string*string) list =
+let to_assoc_list etags_json : ((string*string) list, string) Result.t=
   match etags_json with
   `Assoc alist ->
-    List.map
+  let mutated = List.filter_map
       ~f:(fun (fst, snd) ->
           (match snd with
-           | `String inner -> (fst, inner)
-           | _ -> failwith "todo")
+           | `String inner -> Some (fst, inner)
+           | _ -> None)
         )
-      alist
-  | _ -> failwith "TODO"
+      alist in
+    if not (phys_equal (List.length mutated) (List.length alist))
+    then Result.Error "Some asset in etags.json lacked a hash value."
+    else Result.Ok mutated
+  | _ -> Result.Error "etags.json must be a top-level object."
 
 let admin_ui_html ~(debug:bool) () =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
@@ -470,24 +473,29 @@ let admin_ui_html ~(debug:bool) () =
     >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
     >|= (fun x ->
         if (String.equal "static.darklang.localhost:8000" Config.static_host)
-        then x
+        then Result.Ok x
         else x
              |> (fun instr ->
                  let etags_str = File.readfile ~root:Static "etags.json" in
                  let etags_json = Yojson.Safe.from_string etags_str in
                  let etag_assoc_list = to_assoc_list etags_json in
-                 etag_assoc_list
+                 etag_assoc_list |> Result.bind ~f:(fun ok -> ok
                  |> List.filter
                    ~f:(fun (file, _) -> not (String.equal "date" file))
                  |> List.filter
                    (* Only hash our assets, not vendored assets *)
                    ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
                  |> List.fold
-                   ~init:instr
+                   ~init:(Result.Ok instr)
                    ~f:(fun acc (file, hash) ->
-                       Util.string_replace file (hashed_filename file hash) acc
+                       match (acc, hashed_filename file hash) with
+                       | (Result.Ok acc, Result.Ok hf) ->
+                         Result.Ok (Util.string_replace file hf acc)
+                       | (Result.Ok acc, Result.Error hash_err) ->
+                         Result.Error hash_err
+                       | _ -> acc
                      )
-               ))
+               )))
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
@@ -570,26 +578,47 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
          let%lwt body = admin_ui_html ~debug:false () in
-         respond
+         (match body with
+          Result.Ok bodyok -> respond
            ~resp_headers:html_hdrs
            ~execution_id
-           `OK body)
+           `OK bodyok
+          |Result.Error bodyerr -> respond
+            ~resp_headers:html_hdrs
+            ~execution_id
+            `Internal_server_error "Error generating static asset paths."
+         ))
+
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
      when_can_edit ~canvas
        (fun _ ->
-         let%lwt body = admin_ui_html ~debug:true () in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+          let%lwt body = admin_ui_html ~debug:true () in
+          (match body with
+             Result.Ok bodyok ->
+             respond
+               ~resp_headers:html_hdrs
+               ~execution_id
+               `OK bodyok
+           | Result.Error bodyerr -> respond
+                                      ~resp_headers:html_hdrs
+                                      ~execution_id
+                                      `Internal_server_error "Error generating static asset paths."
+         ))
   | (`GET, [ "a" ; canvas; ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
+    when_can_edit ~canvas
+      (fun _ ->
          let%lwt body = admin_ui_html ~debug:false () in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+         (match body with
+            Result.Ok bodyok ->
+            respond
+              ~resp_headers:html_hdrs
+              ~execution_id
+              `OK bodyok
+          | Result.Error bodyerr -> respond
+                                    ~resp_headers:html_hdrs
+                                    ~execution_id
+            `Internal_server_error "Error generating static asset paths."
+))
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
