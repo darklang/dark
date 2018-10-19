@@ -11,6 +11,7 @@ type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
 let eventNoPropagation = ViewUtils.eventNoPropagation
 let fontAwesome = ViewUtils.fontAwesome
+let viewText = ViewBlankOr.viewText
 let wc = ViewBlankOr.wc
 let text = ViewBlankOr.text
 let div = ViewBlankOr.div
@@ -40,6 +41,49 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
     msg Html.html =
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
+
+let viewRopArrow (vs : viewState) : msg Html.html =
+  let line =
+    Svg.path
+      [ SA.stroke "red"
+      ; SA.strokeWidth "1.5px"
+      ; SA.d "M 0,0 z"
+      ; Vdom.attribute "" "opacity" "0.3"
+      ; SA.markerEnd "url(#arrow)" ]
+      []
+  in
+  let head =
+    Svg.defs []
+      [ Svg.marker
+          [ SA.id "arrow"
+          ; SA.markerWidth "10"
+          ; SA.markerHeight "10"
+          ; SA.refX "0"
+          ; SA.refY "3"
+          ; SA.orient "auto"
+          ; SA.markerUnits "strokeWidth" ]
+          [Svg.path [SA.d "M0,0 L0,6 L9,3 z"; SA.fill "#f00"] []] ]
+  in
+  let svg =
+    Svg.svg
+      [ Html.styles
+          [ ("position", "absolute")
+          ; ("pointer-events", "none")
+          ; ("margin-top", "-10px")
+          ; ("fill", "none") ] ]
+      [line; head]
+  in
+  Html.node "rop-arrow"
+    [ Vdom.attribute "" "update" (Util.random () |> string_of_int)
+    ; Vdom.attribute "" "tlid" (string_of_int (deTLID vs.tl.id)) ]
+    [svg]
+
+let isExecuting (vs : viewState) (id : id) : bool =
+  List.member id vs.executingFunctions
+
+type ('a, 'b, 'c, 'd) x = { class_: 'a ; event: 'b; title: 'c; icon: 'd }
+
+let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
 let rec viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
     msg Html.html =
@@ -75,7 +119,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         v |> Decoders.typeOfLiteralString |> toString |> String.toLower
       in
       let value =
-        if Decoders.typeOfLiteralString v = TStr then transformToStringEntry v
+        if Decoders.typeOfLiteralString v = TStr then Util.transformToStringEntry v
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
@@ -109,7 +153,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         ; kw [] "else"
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (name, exprs, sendToRail) -> (
-      let width = approxNWidth e in
+      let width = ViewUtils.approxNWidth e in
       let viewTooWideArg name_ d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
@@ -122,10 +166,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
             n [wc "namegroup"; atom]
               [ t [wc "module"] mod_
               ; t [wc "moduleseparator"] "::"
-              ; viewFnName np ["fnname"] ]
+              ; ViewUtils.viewFnName np ["fnname"] ]
         | _ ->
             let np = withP name in
-            viewFnName np ["atom fnname"]
+            ViewUtils.viewFnName np ["atom fnname"]
       in
       let fn =
         vs.ac.functions
@@ -149,7 +193,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let allExprs = previous @ exprs in
       let isComplete v =
         v
-        |> getLiveValue vs.currentResults.liveValues
+        |> ViewBlankOr.getLiveValue vs.currentResults.liveValues
         |> fun v_ ->
         match v_ with
         | None -> false
@@ -170,9 +214,9 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let events =
         [ eventNoPropagation "click" (fun _ ->
               ExecuteFunctionButton (vs.tl.id, id, name) )
-        ; nothingMouseEvent "mouseup"
-        ; nothingMouseEvent "mousedown"
-        ; nothingMouseEvent "dblclick" ]
+        ; ViewUtils.nothingMouseEvent "mouseup"
+        ; ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.nothingMouseEvent "dblclick" ]
       in
       let {class_; event; title; icon} =
         if buttonNeeded then
@@ -197,7 +241,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         else
           [ Html.div
               ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
-                ; Attrs.title title ]
+                ; Html.title title ]
               @ event )
               [fontAwesome icon] ]
       in
@@ -266,29 +310,29 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let pickA =
         Html.div
           [ Html.class' "icon pick-a parameter-btn info"
-          ; Attrs.attribute "data-content" "Use Case A"
-          ; Attrs.title "delete Feature Flag & use Case A"
+          ; Vdom.attribute "" "data-content" "Use Case A"
+          ; Html.title "delete Feature Flag & use Case A"
           ; eventNoPropagation "click" (fun _ -> EndFeatureFlag (id, PickA)) ]
           [fontAwesome "check"]
       in
       let pickB =
         Html.div
           [ Html.class' "icon pick-b parameter-btn info"
-          ; Attrs.attribute "data-content" "Use Case B"
-          ; Attrs.title "delete Feature Flag & use Case B"
+          ; Vdom.attribute "" "data-content" "Use Case B"
+          ; Html.title "delete Feature Flag & use Case B"
           ; eventNoPropagation "click" (fun _ -> EndFeatureFlag (id, PickB)) ]
           [fontAwesome "check"]
       in
       let hideModal =
         Html.div
-          [ Attrs.attribute "data-content" "Hide ff details"
+          [ Vdom.attribute "" "data-content" "Hide ff details"
           ; eventNoPropagation "click" (fun _ -> ToggleFeatureFlag (id, false))
           ]
           [fontAwesome "minus"]
       in
       let expandModal =
         Html.div
-          [ Attrs.attribute "data-content" "Show ff details"
+          [ Vdom.attribute "" "data-content" "Show ff details"
           ; eventNoPropagation "click" (fun _ -> ToggleFeatureFlag (id, true))
           ]
           [fontAwesome "flag"]
@@ -344,53 +388,12 @@ let viewEventModifier (vs : viewState) (c : htmlConfig list)
   let configs = idConfigs @ c in
   viewText EventModifier vs configs v
 
-let depthString (n : int) : string = "precedence-" ^ string_of_int n
-
-let viewRopArrow (vs : viewState) : msg Html.html =
-  let line =
-    Svg.path
-      [ SA.stroke "red"
-      ; SA.strokeWidth "1.5px"
-      ; SA.d "M 0,0 z"
-      ; VirtualDom.attribute "opacity" "0.3"
-      ; SA.markerEnd "url(#arrow)" ]
-      []
-  in
-  let head =
-    Svg.defs []
-      [ Svg.marker
-          [ SA.id "arrow"
-          ; SA.markerWidth "10"
-          ; SA.markerHeight "10"
-          ; SA.refX "0"
-          ; SA.refY "3"
-          ; SA.orient "auto"
-          ; SA.markerUnits "strokeWidth" ]
-          [Svg.path [SA.d "M0,0 L0,6 L9,3 z"; SA.fill "#f00"] []] ]
-  in
-  let svg =
-    Svg.svg
-      [ Attrs.style
-          [ ("position", "absolute")
-          ; ("pointer-events", "none")
-          ; ("margin-top", "-10px")
-          ; ("fill", "none") ] ]
-      [line; head]
-  in
-  Html.node "rop-arrow"
-    [ VirtualDom.attribute "update" (Util.random () |> string_of_int)
-    ; VirtualDom.attribute "tlid" (string_of_int (deTLID vs.tl.id)) ]
-    [svg]
-
-let isExecuting (vs : viewState) (id : id) : bool =
-  List.member id vs.executingFunctions
-
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
     Html.div [Html.class' "ast"]
       [ Html.div
-          [Attrs.classList [("rop-rail", showRail)]]
+          [Html.classList [("rop-rail", showRail)]]
           [viewExpr 0 vs [] h.ast] ]
   in
   let externalLink =
@@ -402,7 +405,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
                 ( "//"
                 ^ Http.encodeUri vs.canvasName
                 ^ "." ^ vs.userContentHost ^ name )
-            ; Attrs.target "_blank" ]
+            ; Html.target "_blank" ]
             [fontAwesome "external-link-alt"] ]
     | _ -> []
   in
@@ -413,7 +416,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   in
   let lock =
     Html.div
-      [ Attrs.classList
+      [ Html.classList
           [("handler-lock", true); ("is-locked", vs.handlerLocked)]
       ; eventNoPropagation "click" (fun _ ->
             LockHandler (vs.tlid, not vs.handlerLocked) ) ]

@@ -157,6 +157,27 @@ let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
+let header (name : string) (list : 'a list) (addHandler : msg option) :
+    msg Html.html =
+  Html.summary [Html.class' "header"]
+    [ text "title" name
+    ; text "parens" "("
+    ; text "count" (list |> List.length |> string_of_int)
+    ; text "parens" ")"
+    ; ( match addHandler with
+      | Some msg -> buttonLink (fontAwesome "plus-circle") msg None
+      | None -> text "" "" ) ]
+
+let section (name : string) (entries : 'a list) (addHandler : msg option)
+    (routes : msg Html.html) : msg Html.html =
+  if List.length entries = 0 then
+    Html.div
+      [Html.class' "routing-section empty"]
+      [header name entries addHandler; routes]
+  else
+    Html.details
+      [Html.class' "routing-section"]
+      [header name entries addHandler; routes]
 
 let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     ((spacename, entries) : string * entry list) : msg Html.html =
@@ -189,9 +210,9 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     in
     div "handler"
       ( [ div "name"
-            (List.map (text "prefix") e.prefix ^ [Html.text (def e.name)])
+            (List.map (text "prefix") e.prefix @ [Html.text (def e.name)])
         ; div "extra" [span "verbs" (verbs e); externalLink e] ]
-      ^ if showUndo = ShowUndo then [undoButton e.tlid (Toplevels pos)] else []
+      @ if showUndo = ShowUndo then [undoButton e.tlid (Toplevels pos)] else []
       )
   in
   let routes = div "routes" (List.map entryHtml entries) in
@@ -223,28 +244,6 @@ let viewDeletedTLs (m : model) : msg Html.html =
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
   Html.details [Html.class' "routing-section deleted"] ([h] ^ routes ^ [dbs])
-
-let header (name : string) (list : 'a list) (addHandler : msg option) :
-    msg Html.html =
-  Html.summary [Html.class' "header"]
-    [ text "title" name
-    ; text "parens" "("
-    ; text "count" (list |> List.length |> string_of_int)
-    ; text "parens" ")"
-    ; ( match addHandler with
-      | Some msg -> buttonLink (fontAwesome "plus-circle") msg None
-      | None -> text "" "" ) ]
-
-let section (name : string) (entries : 'a list) (addHandler : msg option)
-    (routes : msg Html.html) : msg Html.html =
-  if List.length entries = 0 then
-    Html.div
-      [Html.class' "routing-section empty"]
-      [header name entries addHandler; routes]
-  else
-    Html.details
-      [Html.class' "routing-section"]
-      [header name entries addHandler; routes]
 
 let view404s (f404s : fourOhFour list) : msg Html.html =
   let theCreateLink fof =
