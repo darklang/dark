@@ -195,7 +195,9 @@ module List = struct
       let step x rest = sep :: x :: rest in
       let spersed = foldr step [] tl in
       hd :: spersed
-
+  let initialize (n : int) (f : int -> 'a) : 'a list =
+    let rec step i acc = if i < 0 then acc else step (i - 1) (f i :: acc) in
+    step (n - 1) []
 end
 
 module Result = struct
@@ -344,6 +346,7 @@ module String = struct
     c |> Char.toCode |> Js.String.fromCharCode
   let slice from to_ str =
     Js.String.slice ~from ~to_ str
+  let trim = Js.String.trim
 end
 
 module IntSet = struct
