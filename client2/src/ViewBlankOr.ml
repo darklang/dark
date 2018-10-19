@@ -25,6 +25,32 @@ let atom : htmlConfig = wc "atom"
 
 let nested : htmlConfig = wc "nested"
 
+let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
+  let cursorLiveValue =
+    match id with
+    | Some (ID id) -> IntDict.get id vs.currentResults.liveValues
+    | _ -> None
+  in
+  match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
+
+let viewFeatureFlag : msg Html.html =
+  Html.div
+    [Html.class' "flag"; ViewUtils.eventNoPropagation "click" (fun _ -> StartFeatureFlag)]
+    [ViewUtils.fontAwesome "flag"]
+
+let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
+  let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
+  Html.a
+    [ Html.class' "edit-fn"
+    ; Vdom.styles [("right", rightOffset)]
+    ; Html.href (Url.urlFor (Fn (tlid, Defaults.centerPos))) ]
+    [ViewUtils.fontAwesome "edit"]
+
+let viewCreateFn : msg Html.html =
+  Html.div
+    [Html.class' "exfun"; ViewUtils.eventNoPropagation "click" (fun _ -> ExtractFunction)]
+    [ViewUtils.fontAwesome "share-square"]
+
 let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
   let getFirst fn = configs |> List.filterMap fn |> List.head in
@@ -100,18 +126,18 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     | None -> if showFeatureFlag then [viewCreateFn] else []
   in
   let rightSideHtml =
-    Html.div [Html.class' "expr-actions"] (featureFlagHtml ^ editFnHtml)
+    Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)
   in
   let attrs = liveValueAttr :: classAttr :: events in
-  Html.div attrs (content ^ [rightSideHtml])
+  Html.div attrs (content @ [rightSideHtml])
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) : msg Html.html
     =
   div vs c
   <| [Html.div [Html.class' "quote quote-start"] []]
-     ^ [Html.text str]
-     ^ [Html.div [Html.class' "quote quote-end"] []]
+     @ [Html.text str]
+     @ [Html.div [Html.class' "quote quote-end"] []]
 
 let keyword (vs : ViewUtils.viewState) (c : htmlConfig list) (name : string) :
     msg Html.html =
@@ -133,23 +159,7 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list 
     | _ -> []
   else []
 
-let getLiveValue (lvs : lvDict) (ID id : id) : dval option = Dict.get id lvs
-
-let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
-  let cursorLiveValue =
-    match id with
-    | Some (ID id) -> Dict.get id vs.currentResults.liveValues
-    | _ -> None
-  in
-  match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
-
-let viewText (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list)
-    (str : string blankOr) : msg Html.html =
-  viewBlankOr text pt vs c str
-
-let viewTipe (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list)
-    (str : tipe blankOr) : msg Html.html =
-  viewBlankOr tipe pt vs c str
+let getLiveValue (lvs : lvDict) (ID id : id) : dval option = IntDict.get id lvs
 
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : string =
   let paramPlaceholder =
@@ -191,17 +201,17 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : str
   | ParamTipe -> "param type"
 
 let viewBlankOr
-    (htmlFn : ((ViewUtils.viewState -> htmlConfig list) -> 'a) -> msg Html.html)
+    (htmlFn : ViewUtils.viewState -> htmlConfig list -> 'a -> msg Html.html)
     (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list) (bo : 'a blankOr)
     : msg Html.html =
   let wID id = [WithID id] in
   let drawBlank id =
     div vs
-      ([WithClass "blank"] ^ c ^ wID id)
+      ([WithClass "blank"] @ c @ wID id)
       [Html.text (placeHolderFor vs id pt)]
   in
   let drawFilled id fill =
-    let configs = wID id ^ c in
+    let configs = wID id @ c in
     htmlFn vs configs fill
   in
   let thisText =
@@ -223,7 +233,7 @@ let viewBlankOr
           in
           let placeholder = placeHolderFor vs id pt in
           div vs
-            (c ^ wID id)
+            (c @ wID id)
             [ ViewEntry.entryHtml allowStringEntry stringEntryWidth placeholder
                 vs.ac ]
         else Html.text vs.ac.value
@@ -238,20 +248,12 @@ let viewBlankOr
       else thisText
   | _ -> thisText
 
-let viewFeatureFlag : msg Html.html =
-  Html.div
-    [Html.class' "flag"; eventNoPropagation "click" (fun _ -> StartFeatureFlag)]
-    [fontAwesome "flag"]
+let viewText (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list)
+    (str : string blankOr) : msg Html.html =
+  viewBlankOr text pt vs c str
 
-let viewCreateFn : msg Html.html =
-  Html.div
-    [Html.class' "exfun"; eventNoPropagation "click" (fun _ -> ExtractFunction)]
-    [fontAwesome "share-square"]
+let viewTipe (pt : pointerType) (vs : ViewUtils.viewState) (c : htmlConfig list)
+    (str : tipe blankOr) : msg Html.html =
+  viewBlankOr tipe pt vs c str
 
-let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
-  let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
-  Html.a
-    [ Html.class' "edit-fn"
-    ; Attrs.style [("right", rightOffset)]
-    ; Html.href (Url.urlFor (Fn (tlid, Defaults.centerPos))) ]
-    [fontAwesome "edit"]
+
