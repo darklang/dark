@@ -20,10 +20,10 @@ for file in $(find server/static -mindepth 2 -type f -and -not -name *.gz); do
     tar czvf "gzipped_assets/${file//$PREFIX_TO_REMOVE}.gz" "${file}"
 done
 
+cd gzipped_assets
 # -m parallelizes upload
 # -n no-clobber - we don't need upload assets already there
-cd gzipped_assets
-time gsutil -m cp -n -r . gs://darklang-static-assets
+time gsutil -m cp -n -h 'Content-Encoding: gzip' -r . gs://darklang-static-assets
 cd -
 
 rm -r gzipped_assets
