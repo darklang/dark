@@ -1,12 +1,7 @@
-open Tea
-open! Porting
-module B = Blank
-module Attrs = Html.Attributes
-module P = Pointer
-open Prelude
-module TL = Toplevel
 open Types
-module JSD = Json_decode_extended
+open Porting
+open Prelude
+
 
 type viewState =
   { tl: toplevel
@@ -44,10 +39,10 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> Option.andThen (fun i ->
              match idOf m.cursorState with
              | Some cur -> (
-               match TL.find tl i with
+               match Toplevel.find tl i with
                | Some (PExpr exp) ->
                    let cursorSubsumedByHover =
-                     exp |> AST.allData |> List.map P.toID |> List.member cur
+                     exp |> AST.allData |> List.map Pointer.toID |> List.member cur
                    in
                    if cursorSubsumedByHover then None else Some i
                | _ -> if cur = i then None else Some i )
@@ -55,7 +50,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; ac= m.complete
   ; showEntry= true
   ; showLivevalue= true
-  ; handlerSpace= TL.spaceOf tl |> Option.withDefault HSOther
+  ; handlerSpace= Toplevel.spaceOf tl |> Option.withDefault HSOther
   ; dbLocked= DB.isLocked m tl.id
   ; ufns= m.userFunctions
   ; currentResults= Analysis.getCurrentAnalysisResults m tl.id
@@ -64,13 +59,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; relatedBlankOrs=
       ( match unwrapCursorState m.cursorState with
       | Entering (Filling (_, id)) -> (
-        match TL.find tl id with
+        match Toplevel.find tl id with
         | Some (PVarBind (F (_, var))) as pd -> (
-          match TL.getParentOf tl (deOption "impossible" pd) with
+          match Toplevel.getParentOf tl (deOption "impossible" pd) with
           | Some (PExpr e) -> (
             match e with
-            | F (_, Let (_, _, body)) -> AST.uses var body |> List.map B.toID
-            | F (_, Lambda (_, body)) -> AST.uses var body |> List.map B.toID
+            | F (_, Let (_, _, body)) -> AST.uses var body |> List.map Blank.toID
+            | F (_, Lambda (_, body)) -> AST.uses var body |> List.map Blank.toID
             | _ -> [] )
           | _ -> [] )
         | _ -> [] )
@@ -90,6 +85,7 @@ let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
 
 let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
+  let module JSD = Json_decode_extended in
   fn
     { pos = { vx = JSD.field "pageX" JSD.int j
             ; vy = JSD.field "pageY" JSD.int j
