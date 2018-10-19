@@ -1,7 +1,6 @@
 open! Porting
 module RT = Runtime
 open Types
-module JSD = Json_decode_extended
 open Json_decode_extended
 
 let id j =
@@ -430,6 +429,19 @@ and dval j : dval =
     ]
     j
 
+let exception_ j : exception_ =
+  { short = field "short" string j
+  ; long = field "long" (optional string) j
+  ; exceptionTipe = field "tipe" string j
+  ; actual = field "actual" (optional string) j
+  ; actualType  = field "actual_tipe" (optional string) j
+  ; result = field "result" (optional string) j
+  ; resultType = field "result_tipe" (optional string) j
+  ; expected = field "expected" (optional string) j
+  ; info = field "info" (dict string) j
+  ; workarounds = field "workaround" (list string) j
+  }
+
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
 let wrapExpect (fn: Js.Json.t -> 'a) : (string -> ('ok, string) Tea.Result.t) =
   fun j ->
@@ -447,13 +459,5 @@ let wrapDecoder (fn: Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
           | JSONString s -> Tea_result.Ok (fn (Json.parseOrRaise s))
           | _ -> Tea_result.Error "Non-string value"
       )
-
-  (*  *)
-  (* fun j -> *)
-  (*   try *)
-  (*     Ok (fn (Json.parseOrRaise j)) *)
-  (*   with e -> *)
-  (*     Error (Printexc.to_string e) *)
-  (*  *)
 
 

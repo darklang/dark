@@ -14,3 +14,5 @@ val index : int -> 'a decoder -> 'a decoder
 val orNull : 'a decoder -> 'a -> 'a decoder
 
 val dict : 'a decoder -> 'a Belt.Map.String.t decoder
+
+val decodeString : 'a decoder -> string -> (string, 'a) Porting.Result.t
