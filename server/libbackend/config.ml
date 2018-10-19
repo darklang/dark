@@ -37,6 +37,12 @@ let user_content_host = string "DARK_CONFIG_USER_CONTENT_HOST"
 
 let env_display_name = Libservice.Config.env_display_name
 
+(* ------------------------- *)
+(* Kubernetes *)
+(* ------------------------- *)
+
+let curl_tunnel_url = Sys.getenv "DARK_CONFIG_CURL_TUNNEL_URL"
+
 (* -------------------- *)
 (* For use in Util *)
 (* -------------------- *)
