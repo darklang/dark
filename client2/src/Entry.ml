@@ -12,12 +12,13 @@ let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
 let focusEntry (m : model) : msg Cmd.t =
-  match unwrapCursorState m.cursorState with
-  | Entering _ -> Dom.focus Defaults.entryID |> Task.attempt FocusEntry
-  | SelectingCommand (_, _) ->
-      Dom.focus Defaults.entryID |> Task.attempt FocusEntry
-  | _ -> Cmd.none
-
+  Cmd.none
+(*   match unwrapCursorState m.cursorState with *)
+(*   | Entering _ -> Dom.focus Defaults.entryID |> Task.attempt FocusEntry *)
+(*   | SelectingCommand (_, _) -> *)
+(*       Dom.focus Defaults.entryID |> Task.attempt FocusEntry *)
+(*   | _ -> Cmd.none *)
+(*  *)
 let newHandlerSpec (_ : unit) : handlerSpec =
   {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()}
 
