@@ -2,13 +2,10 @@ open Tea
 open! Porting
 module AC = Autocomplete
 module B = Blank
-module JSEE = Json.Encode.Extra
-module Key = Keyboard.Key
 module P = Pointer
-open Prelude
 module RT = Runtime
-module SE = String.Extra
 module TL = Toplevel
+open Prelude
 open Types
 
 let main : (Flags.flags, model, msg) program =
