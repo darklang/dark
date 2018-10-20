@@ -8,26 +8,22 @@ module TL = Toplevel
 open Prelude
 open Types
 
-let main : (Flags.flags, model, msg) program =
-  Navigation.navigationProgram LocationChange
-    {init; view= View.view; update; subscriptions}
-
-let flag2function (fn : Flags.function_) : function_ =
-  { fnName= fn.name
-  ; fnDescription= fn.description
-  ; fnReturnTipe= RT.str2tipe fn.return_type
-  ; fnParameters=
-      List.map
-        (fun p ->
-          { paramName= p.name
-          ; paramTipe= RT.str2tipe p.tipe
-          ; paramBlock_args= p.block_args
-          ; paramOptional= p.optional
-          ; paramDescription= p.description } )
-        fn.parameters
-  ; fnInfix= fn.infix
-  ; fnPreviewExecutionSafe= fn.preview_execution_safe
-  ; fnDeprecated= fn.deprecated }
+(* let flag2function (fn : Flags.function_) : function_ = *)
+(*   { fnName= fn.name *)
+(*   ; fnDescription= fn.description *)
+(*   ; fnReturnTipe= RT.str2tipe fn.return_type *)
+(*   ; fnParameters= *)
+(*       List.map *)
+(*         (fun p -> *)
+(*           { paramName= p.name *)
+(*           ; paramTipe= RT.str2tipe p.tipe *)
+(*           ; paramBlock_args= p.block_args *)
+(*           ; paramOptional= p.optional *)
+(*           ; paramDescription= p.description } ) *)
+(*         fn.parameters *)
+(*   ; fnInfix= fn.infix *)
+(*   ; fnPreviewExecutionSafe= fn.preview_execution_safe *)
+(*   ; fnDeprecated= fn.deprecated } *)
 
 let init ({editorState; complete; userContentHost; environment} : Flags.flags)
     (location : Web.Location.location) : model * msg Cmd.t =
@@ -42,7 +38,7 @@ let init ({editorState; complete; userContentHost; environment} : Flags.flags)
     ; currentPage= (Defaults.defaultModel |> fun x -> x.currentPage) }
   in
   let tests =
-    match parseVariantTestsFromQueryString location.search with
+    match VariantTesting.parseVariantTestsFromQueryString location.search with
     | Some t -> t
     | None -> []
   in
@@ -55,14 +51,15 @@ let init ({editorState; complete; userContentHost; environment} : Flags.flags)
     | Toplevels pos -> {canvas with offset= pos}
     | Fn (_, pos) -> {canvas with fnOffset= pos}
   in
-  let visibilityTask =
-    Task.perform PageVisibilityChange PageVisibility.visibility
-  in
+  (* let visibilityTask = *)
+  (*   Task.perform PageVisibilityChange PageVisibility.visibility *)
+  (* in *)
   let shouldRunIntegrationTest =
     String.endsWith "/integration_test" location.pathname
   in
   let isAdmin = false in
-  let builtins = List.map flag2function complete in
+  (* let builtins = List.map flag2function complete in *)
+  let builtins = [] in
   let canvasName = Url.parseCanvasName location in
   let integrationTestName = canvasName in
   let m2 =
@@ -80,7 +77,9 @@ let init ({editorState; complete; userContentHost; environment} : Flags.flags)
   if shouldRunIntegrationTest then
     ( m2
     , Cmd.batch
-        [RPC.integrationRPC m canvasName integrationTestName; visibilityTask]
+        [RPC.integrationRPC m canvasName integrationTestName
+        (* ; visibilityTask *)
+        ]
     )
   else
     ( m2
@@ -1320,3 +1319,9 @@ let subscriptions (m : model) : msg sub =
        ; onError
        ; mousewheelSubs
        ; [receiveAnalysis ReceiveAnalysis] ])
+
+let main =
+  App.standardProgram
+    {init; view= View.view; update; subscriptions}
+
+
