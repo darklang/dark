@@ -385,14 +385,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Toplevels pos2, Toplevels _ ->
               ( { m with
                   currentPage= page
-                ; urlState= UrlState pos2
+                ; urlState= { lastPos = pos2 }
                 ; canvas= {canvas with offset= pos2} }
               , Cmd.none )
           | Fn (_, pos2), _ ->
               ( { m with
                   currentPage= page
                 ; cursorState= Deselected
-                ; urlState= UrlState pos2
+                ; urlState= { lastPos = pos2 }
                 ; canvas= {canvas with fnOffset= pos2} }
               , Cmd.none )
           | _ ->
