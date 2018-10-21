@@ -14,6 +14,10 @@ let (<<) (f1: 'b -> 'c) (f2: 'a -> 'b) : 'a -> 'c =
 module Debug = struct
   let crash (str: string) : 'a =
     failwith str
+  let log (msg: string) (data: 'a) : 'a  =
+    Js.log msg;
+    Js.log data;
+    data
 end
 
 let toString (v : 'a) : string =
