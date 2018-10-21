@@ -139,7 +139,7 @@ and msg =
   | ToggleTimers
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
-      * (string Tea.Http.error, executeFunctionRPCResult) Tea.Result.t
+      * (executeFunctionRPCResult, string Tea.Http.error) Tea.Result.t
   | ExecuteFunctionButton of tlid * id * string
   | ExecuteFunctionCancel of tlid * id
   | Initialization

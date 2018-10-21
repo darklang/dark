@@ -497,9 +497,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; ("dbs", JSE.list Encoders.db dbs)
               ; ("user_fns" , JSE.list Encoders.userFunction userFns ) ]
           in
-          trace
-          |> Option.map (fun t -> requestAnalysis (param t))
-          |> Option.toList
+          []
+          (* trace *)
+          (* |> Option.map (fun t -> requestAnalysis (param t)) *)
+          (* |> Option.toList *)
         in
         (m, Cmd.batch (handlers |> List.map req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
@@ -548,7 +549,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {m with cursorState= Dragging (tlid, offset, hasMoved, state)}
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
-        let nexecutingFunctions = m.executingFunctions ^ [(tlid, id)] in
+        let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
         ({m with executingFunctions= nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionRPC (tlid, id, name) -> (
       match Analysis.getCurrentTrace m tlid with
@@ -563,8 +564,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; efpArgs= args }
             in
             (m, RPC.executeFunctionRPC m.canvasName params)
-        | None -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
-      | None -> ( ! ) m [sendTask (ExecuteFunctionCancel (tlid, id))] )
+        | None -> (m, Cmd.none
+                   (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
+      ))
+      | None -> (m,
+                 (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
+                 Cmd.none
+                ) )
     | ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets in
         let nexecutingFunctions =
