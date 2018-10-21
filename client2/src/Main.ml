@@ -87,9 +87,10 @@ let init ({editorState; complete; userContentHost; environment} : Flags.flags)
         [ RPC.initialLoadRPC canvasName
             (FocusPageAndCursor (page, savedCursorState))
         ; RPC.getAnalysisRPC canvasName []
-        ; visibilityTask ] )
+        (* ; visibilityTask *)
+        ] )
 
-let sendTask (t : msg) : msg Cmd.t = Task.succeed t |> Task.perform identity
+(* let sendTask (t : msg) : msg Cmd.t = Task.succeed t |> Task.perform identity *)
 
 let processFocus (m : model) (focus : focus) : modification =
   match focus with
