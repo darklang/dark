@@ -43,46 +43,68 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
   | PParamName msg -> ev "PParamName" [blankOr string msg]
   | PParamTipe msg -> ev "PParamTipe" [blankOr tipe msg]
 
-(* let ops (ops : op list) : Js.Json.t = *)
-(*   ops *)
-(*   |> (fun ops_ -> *)
-(*        match ops_ with *)
-(*        | [UndoTL _] -> ops_ *)
-(*        | [RedoTL _] -> ops_ *)
-(*        | [] -> ops_ *)
-(*        | _ -> *)
-(*            let savepoints = *)
-(*              ops_ |> List.map tlidOf |> List.map (fun x -> TLSavepoint x) *)
-(*            in *)
-(*            savepoints ^ ops_ ) *)
-(*   |> List.map encodeOp |> list *)
-(*  *)
-(* let spec (spec : handlerSpec) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("name", blankOr string spec.name) *)
-(*     ; ("module", blankOr string spec.module_) *)
-(*     ; ("modifier", blankOr string spec.modifier) *)
-(*     ; ( "types" *)
-(*       , object_ *)
-(*           [ ("input", blankOr int (Blank.new_ ())) *)
-(*           ; ("output", blankOr int (Blank.new_ ())) ] ) ] *)
-(*  *)
-(* let handler (h : handler) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("tlid", encodeTLID h.tlid) *)
-(*     ; ("spec", encodeSpec h.spec) *)
-(*     ; ("ast", encodeExpr h.ast) ] *)
-(*  *)
-(* let dBMigrationKind (k : dBMigrationKind) : Js.Json.t = *)
-(*   let ev = variant in *)
-(*   match k with DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" [] *)
-(*  *)
-(* let colList (cols : dBColumn list) : Js.Json.t = *)
-(*   let col = *)
-(*     encodePair (blankOr string) (blankOr string) *)
-(*   in *)
-(*   list (List.map encodeCol cols) *)
-(*  *)
+and tlidOf (op : Types.op) : Types.tlid =
+  match op with
+  | SetHandler (tlid, _, _) -> tlid
+  | CreateDB (tlid, _, _) -> tlid
+  | AddDBCol (tlid, _, _) -> tlid
+  | SetDBColName (tlid, _, _) -> tlid
+  | ChangeDBColName (tlid, _, _) -> tlid
+  | SetDBColType (tlid, _, _) -> tlid
+  | ChangeDBColType (tlid, _, _) -> tlid
+  | DeprecatedInitDbm (tlid, _, _, _, _) -> tlid
+  | TLSavepoint tlid -> tlid
+  | UndoTL tlid -> tlid
+  | RedoTL tlid -> tlid
+  | DeleteTL tlid -> tlid
+  | MoveTL (tlid, _) -> tlid
+  | SetFunction f -> f.ufTLID
+  | DeleteFunction tlid -> tlid
+  | SetExpr (tlid, _, _) -> tlid
+  | CreateDBMigration (tlid, _, _, _) -> tlid
+  | AddDBColToDBMigration (tlid, _, _) -> tlid
+  | SetDBColNameInDBMigration (tlid, _, _) -> tlid
+  | SetDBColTypeInDBMigration (tlid, _, _) -> tlid
+  | AbandonDBMigration tlid -> tlid
+  | DeleteColInDBMigration (tlid, _) -> tlid
+
+
+and ops (ops : Types.op list) : Js.Json.t =
+  list op
+    (match ops with
+     | [UndoTL _] -> ops
+     | [RedoTL _] -> ops
+     | [] -> ops
+     | _ ->
+       let savepoints =
+         List.map (fun op -> Types.TLSavepoint (tlidOf op)) ops
+       in
+       savepoints @ ops)
+
+and spec (spec : Types.handlerSpec) : Js.Json.t =
+  object_
+    [ ("name", blankOr string spec.name)
+    ; ("module", blankOr string spec.module_)
+    ; ("modifier", blankOr string spec.modifier)
+    ; ( "types"
+      , object_
+          [ ("input", blankOr int (Blank.new_ ()))
+          ; ("output", blankOr int (Blank.new_ ())) ] ) ]
+
+and handler (h : Types.handler) : Js.Json.t =
+  object_
+    [ ("tlid", tlid h.tlid)
+    ; ("spec", spec h.spec)
+    ; ("ast", expr h.ast) ]
+
+and dbMigrationKind (k : Types.dBMigrationKind) : Js.Json.t =
+  let ev = variant in
+  match k with
+    DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
+
+and colList (cols : Types.dBColumn list) : Js.Json.t =
+  list (pair (blankOr string) (blankOr string)) cols
+
 (* let dBMigrationState (s : dBMigrationState) : Js.Json.t = *)
 (*   let ev = variant in *)
 (*   match s with *)
@@ -93,101 +115,101 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
 (*   object_ *)
 (*     [ ("starting_version", int dbm.startingVersion) *)
 (*     ; ("version", int dbm.version) *)
-(*     ; ("state", encodeDBMigrationState dbm.state) *)
-(*     ; ("cols", encodeColList dbm.cols) *)
-(*     ; ("rollforward", encodeExpr dbm.rollforward) *)
-(*     ; ("rollback", encodeExpr dbm.rollback) ] *)
+(*     ; ("state", dBMigrationState dbm.state) *)
+(*     ; ("cols", colList dbm.cols) *)
+(*     ; ("rollforward", expr dbm.rollforward) *)
+(*     ; ("rollback", expr dbm.rollback) ] *)
 (*  *)
 (* let dB (db : dB) : Js.Json.t = *)
 (*   object_ *)
-(*     [ ("tlid", encodeTLID db.dbTLID) *)
+(*     [ ("tlid", tlid db.dbTLID) *)
 (*     ; ("name", string db.dbName) *)
-(*     ; ("cols", encodeColList db.cols) *)
+(*     ; ("cols", colList db.cols) *)
 (*     ; ("version", int db.version) *)
-(*     ; ("old_migrations", list (List.map encodeDBMigration db.oldMigrations)) *)
+(*     ; ("old_migrations", list (List.map dBMigration db.oldMigrations)) *)
 (*     ; ( "active_migration" *)
-(*       , Option.map encodeDBMigration db.activeMigration *)
+(*       , Option.map dBMigration db.activeMigration *)
 (*         |> Option.withDefault null ) ] *)
-(*  *)
-(* let op (call : op) : Js.Json.t = *)
-(*   let ev = variant in *)
-(*   match call with *)
-(*   | SetHandler (id, pos, h) -> *)
-(*       ev "SetHandler" [encodeTLID id; encodePos pos; encodeHandler h] *)
-(*   | CreateDB (id, pos, name) -> *)
-(*       ev "CreateDB" [encodeTLID id; encodePos pos; string name] *)
-(*   | AddDBCol (tlid, colnameid, coltypeid) -> *)
-(*       ev "AddDBCol" [encodeTLID tlid; encodeID colnameid; encodeID coltypeid] *)
-(*   | SetDBColName (tlid, id, name) -> *)
-(*       ev "SetDBColName" [encodeTLID tlid; encodeID id; string name] *)
-(*   | ChangeDBColName (tlid, id, name) -> *)
-(*       ev "ChangeDBColName" [encodeTLID tlid; encodeID id; string name] *)
-(*   | SetDBColType (tlid, id, tipe) -> *)
-(*       ev "SetDBColType" [encodeTLID tlid; encodeID id; string tipe] *)
-(*   | ChangeDBColType (tlid, id, name) -> *)
-(*       ev "ChangeDBColType" [encodeTLID tlid; encodeID id; string name] *)
-(*   | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) -> *)
-(*       ev "DeprecatedInitDbm" *)
-(*         [ encodeTLID tlid *)
-(*         ; encodeID id *)
-(*         ; encodeID rbid *)
-(*         ; encodeID rfid *)
-(*         ; encodeDBMigrationKind kind ] *)
-(*   | CreateDBMigration (tlid, rbid, rfid, cols) -> *)
-(*       ev "CreateDBMigration" *)
-(*         [encodeTLID tlid; encodeID rbid; encodeID rfid; encodeColList cols] *)
-(*   | AddDBColToDBMigration (tlid, colnameid, coltypeid) -> *)
-(*       ev "AddDBColToDBMigration" *)
-(*         [encodeTLID tlid; encodeID colnameid; encodeID coltypeid] *)
-(*   | SetDBColNameInDBMigration (tlid, id, name) -> *)
-(*       ev "SetDBColNameInDBMigration" *)
-(*         [encodeTLID tlid; encodeID id; string name] *)
-(*   | SetDBColTypeInDBMigration (tlid, id, tipe) -> *)
-(*       ev "SetDBColTypeInDBMigration" *)
-(*         [encodeTLID tlid; encodeID id; string tipe] *)
-(*   | AbandonDBMigration tlid -> ev "AbandonDBMigration" [encodeTLID tlid] *)
-(*   | DeleteColInDBMigration (tlid, id) -> *)
-(*       ev "DeleteColInDBMigration" [encodeTLID tlid; encodeID id] *)
-(*   | TLSavepoint tlid -> ev "TLSavepoint" [encodeTLID tlid] *)
-(*   | UndoTL tlid -> ev "UndoTL" [encodeTLID tlid] *)
-(*   | RedoTL tlid -> ev "RedoTL" [encodeTLID tlid] *)
-(*   | DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid] *)
-(*   | MoveTL (tlid, pos) -> ev "MoveTL" [encodeTLID tlid; encodePos pos] *)
-(*   | SetFunction uf -> ev "SetFunction" [encodeUserFunction uf] *)
-(*   | DeleteFunction tlid -> ev "DeleteFunction" [encodeTLID tlid] *)
-(*   | SetExpr (tlid, id, e) -> *)
-(*       ev "SetExpr" [encodeTLID tlid; encodeID id; encodeExpr e] *)
-(*  *)
-(* let rPCParams (params : rpcParams) : Js.Json.t = *)
-(*   object_ [("ops", encodeOps params.ops)] *)
-(*  *)
+
+and op (call : Types.op) : Js.Json.t =
+  let ev = variant in
+  match call with
+  | SetHandler (t, p, h) ->
+      ev "SetHandler" [tlid t; pos p; handler h]
+  | CreateDB (t, p, name) ->
+      ev "CreateDB" [tlid t; pos p; string name]
+  | AddDBCol (t, cn, ct) ->
+      ev "AddDBCol" [tlid t; id cn; id ct]
+  | SetDBColName (t, i, name) ->
+      ev "SetDBColName" [tlid t; id i; string name]
+  | ChangeDBColName (t, i, name) ->
+      ev "ChangeDBColName" [tlid t; id i; string name]
+  | SetDBColType (t, i, tipe) ->
+      ev "SetDBColType" [tlid t; id i; string tipe]
+  | ChangeDBColType (t, i, name) ->
+      ev "ChangeDBColType" [tlid t; id i; string name]
+  | DeprecatedInitDbm (t, i, rbid, rfid, kind) ->
+      ev "DeprecatedInitDbm"
+        [ tlid t
+        ; id i
+        ; id rbid
+        ; id rfid
+        ; dbMigrationKind kind ]
+  | CreateDBMigration (t, rbid, rfid, cols) ->
+      ev "CreateDBMigration"
+        [tlid t; id rbid; id rfid; colList cols]
+  | AddDBColToDBMigration (t, colnameid, coltypeid) ->
+      ev "AddDBColToDBMigration"
+        [tlid t; id colnameid; id coltypeid]
+  | SetDBColNameInDBMigration (t, i, name) ->
+      ev "SetDBColNameInDBMigration"
+        [tlid t; id i; string name]
+  | SetDBColTypeInDBMigration (t, i, tipe) ->
+      ev "SetDBColTypeInDBMigration"
+        [tlid t; id i; string tipe]
+  | AbandonDBMigration t -> ev "AbandonDBMigration" [tlid t]
+  | DeleteColInDBMigration (t, i) ->
+      ev "DeleteColInDBMigration" [tlid t; id i]
+  | TLSavepoint t -> ev "TLSavepoint" [tlid t]
+  | UndoTL t -> ev "UndoTL" [tlid t]
+  | RedoTL t -> ev "RedoTL" [tlid t]
+  | DeleteTL t -> ev "DeleteTL" [tlid t]
+  | MoveTL (t, p) -> ev "MoveTL" [tlid t; pos p]
+  | SetFunction uf -> ev "SetFunction" [userFunction uf]
+  | DeleteFunction t -> ev "DeleteFunction" [tlid t]
+  | SetExpr (t, i, e) ->
+      ev "SetExpr" [tlid t; id i; expr e]
+
+and rpcParams (params : Types.rpcParams) : Js.Json.t =
+  object_ [("ops", ops params.ops)]
+
 (* let executeFunctionRPCParams (params : executeFunctionRPCParams) : *)
 (*     Js.Json.t = *)
 (*   object_ *)
-(*     [ ("tlid", encodeTLID params.efpTLID) *)
+(*     [ ("tlid", tlid params.efpTLID) *)
 (*     ; ("trace_id", string params.efpTraceID) *)
-(*     ; ("caller_id", encodeID params.efpCallerID) *)
-(*     ; ("args", encodeList encodeDval params.efpArgs) *)
+(*     ; ("caller_id", id params.efpCallerID) *)
+(*     ; ("args", list dval params.efpArgs) *)
 (*     ; ("fnname", string params.efpFnName) ] *)
 (*  *)
 and analysisParams (params : Types.analysisParams) : Js.Json.t =
   list tlid params
 
-(* let userFunction (uf : userFunction) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("tlid", encodeTLID uf.ufTLID) *)
-(*     ; ("metadata", encodeUserFunctionMetadata uf.ufMetadata) *)
-(*     ; ("ast", encodeExpr uf.ufAST) ] *)
-(*  *)
-(* let userFunctionMetadata (f : userFunctionMetadata) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("name", blankOr string f.ufmName) *)
-(*     ; ( "parameters" *)
-(*       , list (List.map encodeUserFunctionParameter f.ufmParameters) ) *)
-(*     ; ("description", string f.ufmDescription) *)
-(*     ; ("return_type", blankOr tipe f.ufmReturnTipe) *)
-(*     ; ("infix", bool f.ufmInfix) ] *)
-(*  *)
+and userFunction (uf : Types.userFunction) : Js.Json.t =
+  object_
+    [ ("tlid", tlid uf.ufTLID)
+    ; ("metadata", userFunctionMetadata uf.ufMetadata)
+    ; ("ast", expr uf.ufAST) ]
+
+and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
+  object_
+    [ ("name", blankOr string f.ufmName)
+    ; ("parameters" , list userFunctionParameter f.ufmParameters)
+    ; ("description", string f.ufmDescription)
+    ; ("return_type", blankOr tipe f.ufmReturnTipe)
+    ; ("infix", bool f.ufmInfix)
+    ]
+
 and tipe (t : Types.tipe) : Js.Json.t =
   let ev = variant in
   match t with
@@ -217,14 +239,14 @@ and tipe (t : Types.tipe) : Js.Json.t =
   | TOption -> ev "TOption" []
   | TErrorRail -> ev "TErrorRail" []
 
-(* let userFunctionParameter (p : userFunctionParameter) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("name", blankOr string p.ufpName) *)
-(*     ; ("tipe", blankOr tipe p.ufpTipe) *)
-(*     ; ("block_args", list (List.map string p.ufpBlock_args)) *)
-(*     ; ("optional", bool p.ufpOptional) *)
-(*     ; ("description", string p.ufpDescription) ] *)
-(*  *)
+and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
+  object_
+    [ ("name", blankOr string p.ufpName)
+    ; ("tipe", blankOr tipe p.ufpTipe)
+    ; ("block_args", list string p.ufpBlock_args)
+    ; ("optional", bool p.ufpOptional)
+    ; ("description", string p.ufpDescription) ]
+
 and expr (expr : Types.expr) : Js.Json.t =
   blankOr nExpr expr
 
@@ -247,8 +269,7 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   | Value v -> ev "Value" [string v]
   | Thread exprs -> ev "Thread" [list e exprs]
   | ObjectLiteral pairs ->
-      let encoder = pair (blankOr string) e in
-      ev "ObjectLiteral" [list encoder pairs]
+      ev "ObjectLiteral" [list (pair (blankOr string) expr) pairs]
   | ListLiteral elems -> ev "ListLiteral" [list e elems]
   | FeatureFlag (msg, cond, a, b) ->
       ev "FeatureFlag" [blankOr string msg; e cond; e a; e b]

@@ -43,31 +43,6 @@ let rec pointerData j : pointerData =
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe)) ]
     j
 
-(* let tlidOf (op : op) : tlid = *)
-(*   match op with *)
-(*   | SetHandler (tlid, _, _) -> tlid *)
-(*   | CreateDB (tlid, _, _) -> tlid *)
-(*   | AddDBCol (tlid, _, _) -> tlid *)
-(*   | SetDBColName (tlid, _, _) -> tlid *)
-(*   | ChangeDBColName (tlid, _, _) -> tlid *)
-(*   | SetDBColType (tlid, _, _) -> tlid *)
-(*   | ChangeDBColType (tlid, _, _) -> tlid *)
-(*   | DeprecatedInitDbm (tlid, _, _, _, _) -> tlid *)
-(*   | TLSavepoint tlid -> tlid *)
-(*   | UndoTL tlid -> tlid *)
-(*   | RedoTL tlid -> tlid *)
-(*   | DeleteTL tlid -> tlid *)
-(*   | MoveTL (tlid, _) -> tlid *)
-(*   | SetFunction f -> f.ufTLID *)
-(*   | DeleteFunction tlid -> tlid *)
-(*   | SetExpr (tlid, _, _) -> tlid *)
-(*   | CreateDBMigration (tlid, _, _, _) -> tlid *)
-(*   | AddDBColToDBMigration (tlid, _, _) -> tlid *)
-(*   | SetDBColNameInDBMigration (tlid, _, _) -> tlid *)
-(*   | SetDBColTypeInDBMigration (tlid, _, _) -> tlid *)
-(*   | AbandonDBMigration tlid -> tlid *)
-(*   | DeleteColInDBMigration (tlid, _) -> tlid *)
-(*  *)
 (* let serializableEditor : serializableEditor decoder = *)
 (*   JSDP.decode SerializableEditor *)
 (*   |> JSDP.optional "clipboard" (maybe pointerData) None *)
@@ -292,7 +267,7 @@ and trace j : trace =
 (* let executeFunctionTarget : (tlid * id) decoder = *)
 (*   map2 Tuple2.create (index 0 tlid) (index 1 id) *)
 (*  *)
-and rPC j : rpcResult =
+and rpc j : rpcResult =
   ( field "toplevels" (list toplevel) j
   , field "deleted_toplevels" (list toplevel) j
   , field "new_traces" traces j
@@ -308,7 +283,7 @@ and getAnalysisRPC j : getAnalysisResult =
   , field "unlocked_dbs" (list tlid) j
   )
 
-and initialLoadRPC j : initialLoadResult = rPC j
+and initialLoadRPC j : initialLoadResult = rpc j
 
 (* let executeFunctionRPC : executeFunctionRPCResult decoder = *)
 (*   JSDP.decode Tuple2.create *)
