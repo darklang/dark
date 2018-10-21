@@ -79,13 +79,13 @@ let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd
 (*   let request = Http.post url json (JSD.list decode404) in *)
 (*   Http.send GetDelete404RPCCallback request *)
 (*  *)
-(* let initialLoadRPC (canvasName : string) (focus : focus) : msg Cmd.t = *)
-(*   let url = *)
-(*     String.concat ["/api/"; Http.encodeUri canvasName; "/initial_load"] *)
-(*   in *)
-(*   let request = Http.post url Http.emptyBody decodeInitialLoadRPC in *)
-(*   Http.send (InitialLoadRPCCallback (focus, NoChange)) request *)
-(*  *)
+let initialLoadRPC (canvasName : string) (focus : focus) : msg Tea.Cmd.t =
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/initial_load"]
+  in
+  let request = postEmpty Decoders.initialLoadRPC url in
+  Tea.Http.send (fun x -> InitialLoadRPCCallback (focus, NoChange, x)) request
+
 (* let saveTestRPC (canvasName : string) : msg Cmd.t = *)
 (*   let url = String.concat ["/api/"; Http.encodeUri canvasName; "/save_test"] in *)
 (*   let request = postString url in *)
@@ -101,6 +101,6 @@ let integrationRPC (m : model) (canvasName : string) (name : string) :
     String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/initial_load"]
   in
   let request = postEmpty Decoders.initialLoadRPC url in
-  Http.send
-    (InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name))
+  Tea.Http.send
+    (fun x -> InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x))
     request
