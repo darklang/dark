@@ -595,7 +595,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
 let isFieldAccessDot (m : model) (baseStr : string) : bool =
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
-    String.startsWith "\"" str || JSON.typeOfLiteralString str = TInt
+    String.startsWith "\"" str || Decoders.typeOfLiteralString str = TInt
   in
   match m.cursorState with
   | Entering (Creating _) -> not intOrString
