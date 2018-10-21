@@ -362,3 +362,33 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
 (*           | OptNothing -> ev "OptNothing" [] *)
 (*           | OptJust dv -> ev "OptJust" [encodeDval dv] ) ] *)
 (*   | DErrorRail dv -> ev "DErrorRail" [encodeDval dv] *)
+let httpError (e : string Http.error) : Js.Json.t =
+  let response (r: Http.response)  =
+    object_
+      [ ("url", string r.url)
+      ; ( "status"
+        , object_
+            [ ("code", int r.status.code)
+            ; ("message", string r.status.message) ] )
+      ; ("TODO", string "some more fields")
+
+      (* ; ("headers", dict identity string r.headers) *)
+      (* ; ("body", string r.body) *)
+      ]
+  in
+  match e with
+  | Http.BadUrl url ->
+      object_ [("type", string "BadUrl"); ("url", string url)]
+  | Http.Timeout -> object_ [("type", string "Timeout")]
+  | Http.NetworkError -> object_ [("type", string "NetworkError")]
+  | Http.BadStatus r ->
+      object_
+        [ ("type", string "BadStatus")
+        ; ("response", response r) ]
+  | Http.BadPayload (msg, r) ->
+      object_
+        [ ("type", string "BadPayload")
+        ; ("message", string msg)
+        ; ("response", response r) ]
+  | Http.Aborted ->
+      object_ [ ("type", string "Aborted") ]

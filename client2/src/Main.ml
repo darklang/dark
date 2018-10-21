@@ -7,6 +7,8 @@ module RT = Runtime
 module TL = Toplevel
 open Prelude
 open Types
+module JSE = Json_encode_extended
+module JSD = Json_decode_extended
 
 (* let flag2function (fn : Flags.function_) : function_ = *)
 (*   { fnName= fn.name *)
@@ -90,6 +92,14 @@ let init ({editorState; complete; userContentHost; environment} : Flags.flags)
         (* ; visibilityTask *)
         ] )
 
+let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
+  if oldErr.message = Some newErrMsg && not oldErr.showDetails then oldErr
+  else {message= Some newErrMsg; showDetails= true}
+
+let sendRollbar x : msg Tea.Cmd.t =
+  Js.log "TODO: sendRollbar";
+  Tea.Cmd.none
+
 (* let sendTask (t : msg) : msg Cmd.t = Task.succeed t |> Task.perform identity *)
 
 let processFocus (m : model) (focus : focus) : modification =
@@ -161,7 +171,7 @@ let processFocus (m : model) (focus : focus) : modification =
   | FocusNothing -> Deselect
   | FocusNoChange -> NoChange
 
-let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
+let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   let _ =
     if m.integrationTestState <> NoIntegrationTest then
@@ -251,7 +261,7 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
           in
           str
-          |> JSD.decodeString JSONUtils.decodeException
+          |> JSD.decodeString Decoders.exception_
           |> Result.toOption
           |> Option.map
                (fun { short
@@ -284,8 +294,12 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.Timeout -> "Timeout"
           | Http.NetworkError -> "Network error - is the server running?"
           | Http.BadStatus response ->
-              "Bad status: " ^ response.status.message ^ body response.body
+              "Bad status: "
+              ^ response.status.message
+              (* ^ body response.body *)
+              ^ "TODO: decode body response"
           | Http.BadPayload (msg, _) -> "Bad payload (" ^ context ^ "): " ^ msg
+          | Http.Aborted -> "Request Aborted"
         in
         let url =
           match e with
@@ -294,13 +308,14 @@ let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.NetworkError -> None
           | Http.BadStatus response -> Some response.url
           | Http.BadPayload (_, response) -> Some response.url
+          | Http.Aborted -> None
         in
         let shouldRollbar = e <> Http.NetworkError in
         let json =
           JSE.object_
             [ ("message", JSE.string (msg ^ " (" ^ context ^ ")"))
-            ; ("url", JSEE.maybe JSE.string url)
-            ; ("custom", JSONUtils.encodeHttpError e) ]
+            ; ("url", JSE.nullable JSE.string url)
+            ; ("custom", Encoders.httpError e) ]
         in
         let cmds = if shouldRollbar then [sendRollbar json] else [] in
         ({m with error= updateError m.error msg}, Cmd.batch cmds)
@@ -1277,10 +1292,6 @@ let disableTimers (m : model) : model = {m with timersEnabled= false}
 
 let toggleTimers (m : model) : model =
   {m with timersEnabled= not m.timersEnabled}
-
-let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
-  if oldErr.message = Some newErrMsg && not oldErr.showDetails then oldErr
-  else {message= Some newErrMsg; showDetails= true}
 
 let subscriptions (m : model) : msg sub =
   let keySubs =
