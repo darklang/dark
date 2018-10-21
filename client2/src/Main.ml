@@ -171,6 +171,36 @@ let processFocus (m : model) (focus : focus) : modification =
   | FocusNothing -> Deselect
   | FocusNoChange -> NoChange
 
+let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
+    model * msg Cmd.t =
+  let _ =
+    if m.integrationTestState <> NoIntegrationTest then
+      Debug.log "autocompletemod update" mods
+    else mods
+  in
+  let complete =
+    List.foldl
+      (fun mod_ complete_ -> AC.update m mod_ complete_)
+      m.complete mods
+  in
+  let focus =
+    match unwrapCursorState m.cursorState with
+    (* TODO: porting *)
+    (* | Entering _ -> AC.focusItem complete.index *)
+    (* | SelectingCommand (_, _) -> AC.focusItem complete.index *)
+    | _ -> Cmd.none
+  in
+  let _ =
+    if m.integrationTestState <> NoIntegrationTest then
+      let i = complete.index in
+      let val_ = AC.getValue complete in
+      Debug.log "autocompletemod result: "
+        (string_of_int complete.index ^ " => " ^ val_)
+    else ""
+  in
+  ({m with complete}, focus)
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   let _ =
@@ -555,34 +585,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
   (newm, Cmd.batch [cmd; newcmd])
-
-let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
-    model * msg Cmd.t =
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      Debug.log "autocompletemod update" mods
-    else mods
-  in
-  let complete =
-    List.foldl
-      (fun mod_ complete_ -> AC.update m mod_ complete_)
-      m.complete mods
-  in
-  let focus =
-    match unwrapCursorState m.cursorState with
-    | Entering _ -> AC.focusItem complete.index
-    | SelectingCommand (_, _) -> AC.focusItem complete.index
-    | _ -> Cmd.none
-  in
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      let i = complete.index in
-      let val_ = AC.getValue complete in
-      Debug.log "autocompletemod result: "
-        (string_of_int complete.index ^ " => " ^ val_)
-    else ""
-  in
-  ({m with complete}, focus)
 
 let isFieldAccessDot (m : model) (baseStr : string) : bool =
   let str = Regex.replace "\\.*$" "" baseStr in
