@@ -149,79 +149,62 @@ and nExpr j : nExpr =
 (* let analysisEnvelope : (traceID * analysisResults) decoder = *)
 (*   JSONUtils.decodetuple2 string decodeAnalysisResults *)
 (*  *)
-(* let handlerSpec : handlerSpec decoder = *)
-(*   let toHS module_ name modifier = {module_; name; modifier} in *)
-(*   JSDP.decode toHS *)
-(*   |> JSDP.required "module" (blankOr string) *)
-(*   |> JSDP.required "name" (blankOr string) *)
-(*   |> JSDP.required "modifier" (blankOr string) *)
-(*  *)
-(* let handler : handler decoder = *)
-(*   let toHandler ast spec tlid = {ast; spec; tlid} in *)
-(*   JSDP.decode toHandler *)
-(*   |> JSDP.required "ast" decodeExpr *)
-(*   |> JSDP.required "spec" decodeHandlerSpec *)
-(*   |> JSDP.required "tlid" tlid *)
-(*  *)
-(* let tipeString : string decoder = map RT.tipe2str decodeTipe *)
-(*  *)
-(* let dBColList : dBColumn list decoder = *)
-(*   list *)
-(*     (decodetuple2 (blankOr string) (blankOr decodeTipeString)) *)
-(*  *)
-(* let dBMigrationState : dBMigrationState decoder = *)
-(*   let dv0 = variant0 in *)
-(*   variants *)
-(*     [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned) *)
-(*     ; ("DBMigrationInitialized", dv0 DBMigrationInitialized) ] *)
-(*  *)
-(* let dBMigration : dBMigration decoder = *)
-(*   let toDBM sv v s cols rollf rollb = *)
-(*     { startingVersion= sv *)
-(*     ; version= v *)
-(*     ; state= s *)
-(*     ; cols *)
-(*     ; rollforward= rollf *)
-(*     ; rollback= rollb } *)
-(*   in *)
-(*   JSDP.decode toDBM *)
-(*   |> JSDP.required "starting_version" int *)
-(*   |> JSDP.required "version" int *)
-(*   |> JSDP.required "state" decodeDBMigrationState *)
-(*   |> JSDP.required "cols" decodeDBColList *)
-(*   |> JSDP.required "rollforward" decodeExpr *)
-(*   |> JSDP.required "rollback" decodeExpr *)
-(*  *)
-(* let dB : dB decoder = *)
-(*   let toDB tlid name cols version old active = *)
-(*     { dbTLID= TLID tlid *)
-(*     ; dbName= name *)
-(*     ; cols *)
-(*     ; version *)
-(*     ; oldMigrations= old *)
-(*     ; activeMigration= active } *)
-(*   in *)
-(*   JSDP.decode toDB *)
-(*   |> JSDP.required "tlid" int *)
-(*   |> JSDP.required "name" string *)
-(*   |> JSDP.required "cols" decodeDBColList *)
-(*   |> JSDP.required "version" int *)
-(*   |> JSDP.required "old_migrations" (list decodeDBMigration) *)
-(*   |> JSDP.required "active_migration" (maybe decodeDBMigration) *)
-(*  *)
-(* let toplevel : toplevel decoder = *)
-(*   let toToplevel id x y data = {id; pos= {x; y}; data} in *)
-(*   let variant = *)
-(*     variants *)
-(*       [ ("Handler", variant1 TLHandler decodeHandler) *)
-(*       ; ("DB", variant1 TLDB decodeDB) ] *)
-(*   in *)
-(*   JSDP.decode toToplevel *)
-(*   |> JSDP.required "tlid" tlid *)
-(*   |> JSDP.requiredAt ["pos"; "x"] int *)
-(*   |> JSDP.requiredAt ["pos"; "y"] int *)
-(*   |> JSDP.required "data" variant *)
-(*  *)
+and handlerSpec j : handlerSpec =
+  { module_ = field "module" (blankOr string) j
+  ; name = field "name" (blankOr string) j
+  ; modifier = field "modifier" (blankOr string) j
+  }
+
+and handler j : handler =
+  { ast = field "ast" expr j
+  ; spec = field "spec" handlerSpec j
+  ; tlid = field "tlid" tlid j
+  }
+
+and tipeString j : string = map RT.tipe2str tipe j
+
+and dbColList j : dBColumn list =
+  list
+    (tuple2 (blankOr string) (blankOr tipeString))
+    j
+
+and dbMigrationState j : dBMigrationState =
+  let dv0 = variant0 in
+  variants
+    [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
+    ; ("DBMigrationInitialized", dv0 DBMigrationInitialized)
+    ]
+    j
+
+and dbMigration j : dBMigration =
+  { startingVersion = field "starting_version" int j
+  ; version = field "version" int j
+  ; state = field "state" dbMigrationState j
+  ; cols = field "cols" dbColList j
+  ; rollforward = field "rollforward" expr j
+  ; rollback = field "rollback" expr j
+  }
+
+and db j : dB =
+  { dbTLID = field "tlid" tlid j
+  ; dbName = field "name" string j
+  ; cols = field "cols" dbColList j
+  ; version = field "version" int j
+  ; oldMigrations = field "old_migrations" (list dbMigration) j
+  ; activeMigration = field "active_migration" (optional dbMigration) j
+  }
+
+and toplevel j : toplevel =
+  let variant =
+    variants
+      [ ("Handler", variant1 (fun x -> TLHandler x) handler)
+      ; ("DB", variant1 (fun x -> TLDB x) db) ]
+  in
+  { id = field "tlid" tlid j
+  ; pos = field "pos" pos j
+  ; data = field "data" variant j
+  }
+
 and tipe j : tipe =
   let dv0 = variant0 in
   let dv1 = variant1 in
@@ -254,48 +237,32 @@ and tipe j : tipe =
     ]
     j
 
+and userFunctionParameter j : userFunctionParameter =
+  { ufpName = field "name" (blankOr string) j
+  ; ufpTipe = field "tupe" (blankOr tipe) j
+  ; ufpBlock_args = field "block_args" (list string) j
+  ; ufpOptional = field "optional" bool j
+  ; ufpDescription = field "description" string j
+  }
 
-(* let userFunctionParameter : userFunctionParameter decoder = *)
-(*   let toParam name tipe args option desc = *)
-(*     { ufpName= name *)
-(*     ; ufpTipe= tipe *)
-(*     ; ufpBlock_args= args *)
-(*     ; ufpOptional= option *)
-(*     ; ufpDescription= desc } *)
-(*   in *)
-(*   JSDP.decode toParam *)
-(*   |> JSDP.required "name" (blankOr string) *)
-(*   |> JSDP.required "tipe" (blankOr decodeTipe) *)
-(*   |> JSDP.required "block_args" (list string) *)
-(*   |> JSDP.required "optional" bool *)
-(*   |> JSDP.required "description" string *)
-(*  *)
-(* let userFunctionMetadata : userFunctionMetadata decoder = *)
-(*   let toFn name params desc returnTipe infix = *)
-(*     { ufmName= name *)
-(*     ; ufmParameters= params *)
-(*     ; ufmDescription= desc *)
-(*     ; ufmReturnTipe= returnTipe *)
-(*     ; ufmInfix= infix } *)
-(*   in *)
-(*   JSDP.decode toFn *)
-(*   |> JSDP.required "name" (blankOr string) *)
-(*   |> JSDP.required "parameters" (list decodeUserFunctionParameter) *)
-(*   |> JSDP.required "description" string *)
-(*   |> JSDP.required "return_type" (blankOr decodeTipe) *)
-(*   |> JSDP.required "infix" bool *)
-(*  *)
-(* let userFunction : userFunction decoder = *)
-(*   let toUserFn id meta ast = {ufTLID= id; ufMetadata= meta; ufAST= ast} in *)
-(*   JSDP.decode toUserFn *)
-(*   |> JSDP.required "tlid" tlid *)
-(*   |> JSDP.required "metadata" decodeUserFunctionMetadata *)
-(*   |> JSDP.required "ast" decodeExpr *)
-(*  *)
+and userFunctionMetadata j : userFunctionMetadata =
+  { ufmName = field "name" (blankOr string) j
+  ; ufmParameters = field "parameters" (list userFunctionParameter) j
+  ; ufmDescription = field "description" string j
+  ; ufmReturnTipe = field "return_type" (blankOr tipe) j
+  ; ufmInfix = field "infix" bool j
+  }
+
+and userFunction j : userFunction =
+  { ufTLID = field "tlid" tlid j
+  ; ufMetadata = field "metadata" userFunctionMetadata j
+  ; ufAST = field "ast" expr j
+  }
+
 and fof j : fourOhFour =
-  { space= index 0 string j
-  ; path= index 1 string j
-  ; modifier= index 2 string j
+  { space = index 0 string j
+  ; path = index 1 string j
+  ; modifier = index 2 string j
   }
 
 and inputValueDict j : inputValueDict =
@@ -325,15 +292,15 @@ and trace j : trace =
 (* let executeFunctionTarget : (tlid * id) decoder = *)
 (*   map2 Tuple2.create (index 0 tlid) (index 1 id) *)
 (*  *)
-(* let rPC : rpcResult decoder = *)
-(*   JSDP.decode Tuple6.create *)
-(*   |> JSDP.required "toplevels" (list decodeToplevel) *)
-(*   |> JSDP.required "deleted_toplevels" (list decodeToplevel) *)
-(*   |> JSDP.required "new_traces" decodeTraces *)
-(*   |> JSDP.required "global_varnames" (list string) *)
-(*   |> JSDP.required "user_functions" (list decodeUserFunction) *)
-(*   |> JSDP.required "unlocked_dbs" (list tlid) *)
-(*  *)
+and rPC j : rpcResult =
+  ( field "toplevels" (list toplevel) j
+  , field "deleted_toplevels" (list toplevel) j
+  , field "new_traces" traces j
+  , field "global_varnames" (list string) j
+  , field "user_functions" (list userFunction) j
+  , field "unlocked_dbs" (list tlid) j
+  )
+
 and getAnalysisRPC j : getAnalysisResult =
   ( field "traces" traces j
   , field "global_varnames" (list string) j
@@ -341,13 +308,13 @@ and getAnalysisRPC j : getAnalysisResult =
   , field "unlocked_dbs" (list tlid) j
   )
 
-(* let initialLoadRPC : initialLoadResult decoder = decodeRPC *)
-(*  *)
+and initialLoadRPC j : initialLoadResult = rPC j
+
 (* let executeFunctionRPC : executeFunctionRPCResult decoder = *)
 (*   JSDP.decode Tuple2.create *)
 (*   |> JSDP.required "result" decodeDval *)
 (*   |> JSDP.required "hash" string *)
-(*  *)
+
 and isLiteralString (s : string) : bool =
   match parseDvalLiteral s with
   | None -> false
