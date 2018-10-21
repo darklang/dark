@@ -42,17 +42,18 @@ let rpc (m : model) (canvasName : string) (focus : focus) (params : rpcParams)
   let request = postJson Decoders.rpc url (Encoders.rpcParams params) in
   Tea.Http.send (fun x -> RPCCallback (focus, params, x)) request
 
-(* let executeFunctionRPC (canvasName : string) *)
-(*     (params : executeFunctionRPCParams) : msg Cmd.t = *)
-(*   let url = *)
-(*     String.concat ["/api/"; Http.encodeUri canvasName; "/execute_function"] *)
-(*   in *)
-(*   let payload = encodeExecuteFunctionRPCParams params in *)
-(*   let json = Http.jsonBody payload in *)
-(*   let request = Http.post url json decodeExecuteFunctionRPC in *)
-(*   Http.send (ExecuteFunctionRPCCallback params) request *)
-(*  *)
-
+let executeFunctionRPC (canvasName : string)
+    (params : executeFunctionRPCParams) : msg Tea.Cmd.t =
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/execute_function"]
+  in
+  let request =
+    postJson
+      Decoders.executeFunctionRPC
+      url
+      (Encoders.executeFunctionRPCParams params)
+  in
+  Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
 
 let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd.t
     =

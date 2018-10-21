@@ -26,6 +26,45 @@ let blankOr (encoder: 'a -> Js.Json.t)(v: 'a Types.blankOr) =
   | F (ID id, s) -> variant "Filled" [int id; encoder s]
   | Blank (ID id) -> variant "Blank" [int id]
 
+let rec dval (dv : Types.dval) : Js.Json.t =
+  let open Types in
+  let ev = variant in
+  let dhttp h =
+    match h with
+    | Redirect s -> ev "Redirect" [string s]
+    | Response (code, headers) ->
+        ev "Response" [int code; list (tuple2 string string) headers]
+  in
+  match dv with
+  | DInt i -> ev "DInt" [int i]
+  | DFloat f -> ev "DFloat" [float f]
+  | DBool b -> ev "DBool" [bool b]
+  | DNull -> ev "DNull" []
+  | DStr s -> ev "DStr" [string s]
+  | DList l -> ev "DList" [list dval l]
+  | DObj o -> ev "DObj" [] (* TODO: PORTING *)
+  | DBlock -> ev "DBlock" []
+  | DIncomplete -> ev "DIncomplete" []
+  | DChar c -> ev "DChar" [string (String.fromList [c])]
+  | DError msg -> ev "DError" [string msg]
+  | DResp (h, hdv) ->
+      ev "DResp" [tuple2 dhttp dval (h, hdv)]
+  | DDB name -> ev "DDB" [string name]
+  | DID id -> ev "DID" [string id]
+  | DUrl url -> ev "DUrl" [string url]
+  | DTitle title -> ev "DTitle" [string title]
+  | DDate date -> ev "DDate" [string date]
+  | DPassword hashed -> ev "DPassword" [string (Base64.encode hashed)]
+  | DUuid uuid -> ev "DUuid" [string uuid]
+  | DOption opt ->
+      ev "DOption"
+        [ ( match opt with
+          | OptNothing -> ev "OptNothing" []
+          | OptJust dv -> ev "OptJust" [dval dv] ) ]
+  | DErrorRail dv -> ev "DErrorRail" [dval dv]
+
+
+
 let rec pointerData (pd : Types.pointerData) : Js.Json.t =
   let ev = variant in
   match pd with
@@ -183,15 +222,15 @@ and op (call : Types.op) : Js.Json.t =
 and rpcParams (params : Types.rpcParams) : Js.Json.t =
   object_ [("ops", ops params.ops)]
 
-(* let executeFunctionRPCParams (params : executeFunctionRPCParams) : *)
-(*     Js.Json.t = *)
-(*   object_ *)
-(*     [ ("tlid", tlid params.efpTLID) *)
-(*     ; ("trace_id", string params.efpTraceID) *)
-(*     ; ("caller_id", id params.efpCallerID) *)
-(*     ; ("args", list dval params.efpArgs) *)
-(*     ; ("fnname", string params.efpFnName) ] *)
-(*  *)
+and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
+    Js.Json.t =
+  object_
+    [ ("tlid", tlid params.efpTLID)
+    ; ("trace_id", string params.efpTraceID)
+    ; ("caller_id", id params.efpCallerID)
+    ; ("args", list dval params.efpArgs)
+    ; ("fnname", string params.efpFnName) ]
+
 and analysisParams (params : Types.analysisParams) : Js.Json.t =
   list tlid params
 
@@ -309,43 +348,6 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
 (* let inputValueDict (dict : inputValueDict) : Js.Json.t = *)
 (*   dict |> Dict.toList |> encodeList (encodePair string encodeDval) *)
 (*  *)
-let rec dval (dv : Types.dval) : Js.Json.t =
-  let open Types in
-  let ev = variant in
-  let dhttp h =
-    match h with
-    | Redirect s -> ev "Redirect" [string s]
-    | Response (code, headers) ->
-        ev "Response" [int code; list (tuple2 string string) headers]
-  in
-  match dv with
-  | DInt i -> ev "DInt" [int i]
-  | DFloat f -> ev "DFloat" [float f]
-  | DBool b -> ev "DBool" [bool b]
-  | DNull -> ev "DNull" []
-  | DStr s -> ev "DStr" [string s]
-  | DList l -> ev "DList" [list dval l]
-  | DObj o -> ev "DObj" [] (* TODO: PORTING *)
-  | DBlock -> ev "DBlock" []
-  | DIncomplete -> ev "DIncomplete" []
-  | DChar c -> ev "DChar" [string (String.fromList [c])]
-  | DError msg -> ev "DError" [string msg]
-  | DResp (h, hdv) ->
-      ev "DResp" [tuple2 dhttp dval (h, hdv)]
-  | DDB name -> ev "DDB" [string name]
-  | DID id -> ev "DID" [string id]
-  | DUrl url -> ev "DUrl" [string url]
-  | DTitle title -> ev "DTitle" [string title]
-  | DDate date -> ev "DDate" [string date]
-  | DPassword hashed -> ev "DPassword" [string (Base64.encode hashed)]
-  | DUuid uuid -> ev "DUuid" [string uuid]
-  | DOption opt ->
-      ev "DOption"
-        [ ( match opt with
-          | OptNothing -> ev "OptNothing" []
-          | OptJust dv -> ev "OptJust" [dval dv] ) ]
-  | DErrorRail dv -> ev "DErrorRail" [dval dv]
-
 let functionResult (fr : Types.functionResult) : Js.Json.t =
   list identity
     [ string fr.fnName

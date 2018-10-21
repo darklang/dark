@@ -285,10 +285,10 @@ and getAnalysisRPC j : getAnalysisResult =
 
 and initialLoadRPC j : initialLoadResult = rpc j
 
-(* let executeFunctionRPC : executeFunctionRPCResult decoder = *)
-(*   JSDP.decode Tuple2.create *)
-(*   |> JSDP.required "result" decodeDval *)
-(*   |> JSDP.required "hash" string *)
+and executeFunctionRPC j : executeFunctionRPCResult =
+  ( field "result" dval j
+  , field "hash" string j
+  )
 
 and isLiteralString (s : string) : bool =
   match parseDvalLiteral s with
