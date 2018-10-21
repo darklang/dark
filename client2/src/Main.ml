@@ -419,13 +419,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m3 = {m2 with cursorState= Entering entry} in
-        (m3, Cmd.batch (closeBlanks m3 ^ [acCmd; Entry.focusEntry m3]))
+        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
     | SelectCommand (tlid, id) ->
         let m2 = {m with cursorState= SelectingCommand (tlid, id)} in
         let m3, acCmd =
           processAutocompleteMods m2 [ACEnableCommandMode; ACRegenerate]
         in
-        (m3, Cmd.batch (closeBlanks m3 ^ [acCmd; Entry.focusEntry m3]))
+        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
     | SetGlobalVariables globals ->
         let m2 = {m with globals} in
         processAutocompleteMods m2 [ACRegenerate]
@@ -492,11 +492,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let trace = Analysis.getCurrentTrace m h.tlid in
           let param t =
             JSE.object_
-              [ ("handler", JSON.encodeHandler h)
-              ; ("trace", JSON.encodeTrace t)
-              ; ("dbs", JSONUtils.encodeList JSON.encodeDB dbs)
-              ; ( "user_fns"
-                , JSONUtils.encodeList JSON.encodeUserFunction userFns ) ]
+              [ ("handler", Encoders.handler h)
+              ; ("trace", Encoders.trace t)
+              ; ("dbs", JSE.list Encoders.db dbs)
+              ; ("user_fns" , JSE.list Encoders.userFunction userFns ) ]
           in
           trace
           |> Option.map (fun t -> requestAnalysis (param t))
