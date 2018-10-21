@@ -126,7 +126,7 @@ and msg =
   | AutocompleteClick of string
   | FocusEntry of (Dom.errorEvent, unit) Porting.Result.t
   | FocusAutocompleteItem of (Dom.errorEvent, unit) Porting.Result.t
-  | RPCCallback of focus * rpcParams * (rpcResult, string Tea.Http.error) Porting.Result.t
+  | RPCCallback of focus * rpcParams * (rpcResult, string Tea.Http.error) Tea.Result.t
   | SaveTestRPCCallback of (string, string Tea.Http.error) Tea.Result.t
   | GetAnalysisRPCCallback of (getAnalysisResult, string Tea.Http.error) Tea.Result.t
   | GetDelete404RPCCallback of (fourOhFour list, string Tea.Http.error) Tea.Result.t
