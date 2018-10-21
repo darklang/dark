@@ -105,31 +105,31 @@ and dbMigrationKind (k : Types.dBMigrationKind) : Js.Json.t =
 and colList (cols : Types.dBColumn list) : Js.Json.t =
   list (pair (blankOr string) (blankOr string)) cols
 
-(* let dBMigrationState (s : dBMigrationState) : Js.Json.t = *)
-(*   let ev = variant in *)
-(*   match s with *)
-(*   | DBMigrationAbandoned -> ev "DBMigrationAbandoned" [] *)
-(*   | DBMigrationInitialized -> ev "DBMigrationInitialized" [] *)
-(*  *)
-(* let dBMigration (dbm : dBMigration) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("starting_version", int dbm.startingVersion) *)
-(*     ; ("version", int dbm.version) *)
-(*     ; ("state", dBMigrationState dbm.state) *)
-(*     ; ("cols", colList dbm.cols) *)
-(*     ; ("rollforward", expr dbm.rollforward) *)
-(*     ; ("rollback", expr dbm.rollback) ] *)
-(*  *)
-(* let dB (db : dB) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("tlid", tlid db.dbTLID) *)
-(*     ; ("name", string db.dbName) *)
-(*     ; ("cols", colList db.cols) *)
-(*     ; ("version", int db.version) *)
-(*     ; ("old_migrations", list (List.map dBMigration db.oldMigrations)) *)
-(*     ; ( "active_migration" *)
-(*       , Option.map dBMigration db.activeMigration *)
-(*         |> Option.withDefault null ) ] *)
+and dbMigrationState (s : Types.dBMigrationState) : Js.Json.t =
+  let ev = variant in
+  match s with
+  | DBMigrationAbandoned -> ev "DBMigrationAbandoned" []
+  | DBMigrationInitialized -> ev "DBMigrationInitialized" []
+
+and dbMigration (dbm : Types.dBMigration) : Js.Json.t =
+  object_
+    [ ("starting_version", int dbm.startingVersion)
+    ; ("version", int dbm.version)
+    ; ("state", dbMigrationState dbm.state)
+    ; ("cols", colList dbm.cols)
+    ; ("rollforward", expr dbm.rollforward)
+    ; ("rollback", expr dbm.rollback) ]
+
+and db (db : Types.dB) : Js.Json.t =
+  object_
+    [ ("tlid", tlid db.dbTLID)
+    ; ("name", string db.dbName)
+    ; ("cols", colList db.cols)
+    ; ("version", int db.version)
+    ; ("old_migrations", list dbMigration db.oldMigrations)
+    ; ( "active_migration"
+      , Option.map dbMigration db.activeMigration
+        |> Option.withDefault null ) ]
 
 and op (call : Types.op) : Js.Json.t =
   let ev = variant in
@@ -309,59 +309,56 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
 (* let inputValueDict (dict : inputValueDict) : Js.Json.t = *)
 (*   dict |> Dict.toList |> encodeList (encodePair string encodeDval) *)
 (*  *)
-(* let trace (t : trace) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ( "input" *)
-(*       , JSONUtils.encodeList *)
-(*           (encodePair string encodeDval) *)
-(*           (Dict.toList t.input) ) *)
-(*     ; ( "function_results" *)
-(*       , JSONUtils.encodeList encodeFunctionResult t.functionResults ) *)
-(*     ; ("id", string t.traceID) ] *)
-(*  *)
-(* let functionResult (fr : functionResult) : Js.Json.t = *)
-(*   list *)
-(*     [ string fr.fnName *)
-(*     ; encodeID fr.callerID *)
-(*     ; string fr.argHash *)
-(*     ; encodeDval fr.value ] *)
-(*  *)
-(* let dval (dv : dval) : Js.Json.t = *)
-(*   let ev = variant in *)
-(*   let dhttp h = *)
-(*     match h with *)
-(*     | Redirect s -> ev "Redirect" [string s] *)
-(*     | Response (code, headers) -> *)
-(*         ev "Response" *)
-(*           [int code; encodeList (encodePair string string) headers] *)
-(*   in *)
-(*   match dv with *)
-(*   | DInt i -> ev "DInt" [int i] *)
-(*   | DFloat f -> ev "DFloat" [float f] *)
-(*   | DBool b -> ev "DBool" [bool b] *)
-(*   | DNull -> ev "DNull" [] *)
-(*   | DStr s -> ev "DStr" [string s] *)
-(*   | DList l -> ev "DList" [encodeList encodeDval l] *)
-(*   | DObj o -> ev "DObj" [JSEE.dict identity encodeDval o] *)
-(*   | DBlock -> ev "DBlock" [] *)
-(*   | DIncomplete -> ev "DIncomplete" [] *)
-(*   | DChar c -> ev "DChar" [string (String.fromList [c])] *)
-(*   | DError msg -> ev "DError" [string msg] *)
-(*   | DResp (h, hdv) -> *)
-(*       ev "DResp" [JSONUtils.encodePair encodeDhttp encodeDval (h, hdv)] *)
-(*   | DDB name -> ev "DDB" [string name] *)
-(*   | DID id -> ev "DID" [string id] *)
-(*   | DUrl url -> ev "DUrl" [string url] *)
-(*   | DTitle title -> ev "DTitle" [string title] *)
-(*   | DDate date -> ev "DDate" [string date] *)
-(*   | DPassword hashed -> ev "DPassword" [string (Base64.encode hashed)] *)
-(*   | DUuid uuid -> ev "DUuid" [string uuid] *)
-(*   | DOption opt -> *)
-(*       ev "DOption" *)
-(*         [ ( match opt with *)
-(*           | OptNothing -> ev "OptNothing" [] *)
-(*           | OptJust dv -> ev "OptJust" [encodeDval dv] ) ] *)
-(*   | DErrorRail dv -> ev "DErrorRail" [encodeDval dv] *)
+let rec dval (dv : Types.dval) : Js.Json.t =
+  let open Types in
+  let ev = variant in
+  let dhttp h =
+    match h with
+    | Redirect s -> ev "Redirect" [string s]
+    | Response (code, headers) ->
+        ev "Response" [int code; list (tuple2 string string) headers]
+  in
+  match dv with
+  | DInt i -> ev "DInt" [int i]
+  | DFloat f -> ev "DFloat" [float f]
+  | DBool b -> ev "DBool" [bool b]
+  | DNull -> ev "DNull" []
+  | DStr s -> ev "DStr" [string s]
+  | DList l -> ev "DList" [list dval l]
+  | DObj o -> ev "DObj" [] (* TODO: PORTING *)
+  | DBlock -> ev "DBlock" []
+  | DIncomplete -> ev "DIncomplete" []
+  | DChar c -> ev "DChar" [string (String.fromList [c])]
+  | DError msg -> ev "DError" [string msg]
+  | DResp (h, hdv) ->
+      ev "DResp" [tuple2 dhttp dval (h, hdv)]
+  | DDB name -> ev "DDB" [string name]
+  | DID id -> ev "DID" [string id]
+  | DUrl url -> ev "DUrl" [string url]
+  | DTitle title -> ev "DTitle" [string title]
+  | DDate date -> ev "DDate" [string date]
+  | DPassword hashed -> ev "DPassword" [string (Base64.encode hashed)]
+  | DUuid uuid -> ev "DUuid" [string uuid]
+  | DOption opt ->
+      ev "DOption"
+        [ ( match opt with
+          | OptNothing -> ev "OptNothing" []
+          | OptJust dv -> ev "OptJust" [dval dv] ) ]
+  | DErrorRail dv -> ev "DErrorRail" [dval dv]
+
+let functionResult (fr : Types.functionResult) : Js.Json.t =
+  list identity
+    [ string fr.fnName
+    ; id fr.callerID
+    ; string fr.argHash
+    ; dval fr.value ]
+
+let trace (t : Types.trace) : Js.Json.t =
+  object_
+    [ ( "input" , list (tuple2 string dval) (StrDict.toList t.input))
+    ; ( "function_results" , list functionResult t.functionResults)
+    ; ( "id", string t.traceID) ]
+
 let httpError (e : string Http.error) : Js.Json.t =
   let response (r: Http.response)  =
     object_
