@@ -284,63 +284,9 @@ let code (key : key) : int option =
   | ScrollLock -> Some 145
   | Unknown _ -> None
 
-let toChar (key : key) : char option =
-  match key with
-  | Spacebar -> Some ' '
-  | Zero -> Some '0'
-  | One -> Some '1'
-  | Two -> Some '2'
-  | Three -> Some '3'
-  | Four -> Some '4'
-  | Five -> Some '5'
-  | Six -> Some '6'
-  | Seven -> Some '7'
-  | Eight -> Some '8'
-  | Nine -> Some '9'
-  | A -> Some 'A'
-  | B -> Some 'B'
-  | C -> Some 'C'
-  | D -> Some 'D'
-  | E -> Some 'E'
-  | F -> Some 'F'
-  | G -> Some 'G'
-  | H -> Some 'H'
-  | I -> Some 'I'
-  | J -> Some 'J'
-  | K -> Some 'K'
-  | L -> Some 'L'
-  | M -> Some 'M'
-  | N -> Some 'N'
-  | O -> Some 'O'
-  | P -> Some 'P'
-  | Q -> Some 'Q'
-  | R -> Some 'R'
-  | S -> Some 'S'
-  | T -> Some 'T'
-  | U -> Some 'U'
-  | V -> Some 'V'
-  | W -> Some 'W'
-  | X -> Some 'X'
-  | Y -> Some 'Y'
-  | Z -> Some 'Z'
-  | NumpadZero -> Some '0'
-  | NumpadOne -> Some '1'
-  | NumpadTwo -> Some '2'
-  | NumpadThree -> Some '3'
-  | NumpadFour -> Some '4'
-  | NumpadFive -> Some '5'
-  | NumpadSix -> Some '6'
-  | NumpadSeven -> Some '7'
-  | NumpadEight -> Some '8'
-  | NumpadNine -> Some '9'
-  | Multiply -> Some '*'
-  | Add -> Some '+'
-  | Subtract -> Some '-'
-  | Divide -> Some '/'
-  | _ -> None
-
 type keyEvent =
   { keyCode : key
+  ; key : string option
   ; shiftKey : bool
   ; ctrlKey : bool
   ; altKey : bool
@@ -352,6 +298,7 @@ type keyEvent =
 let keyEvent j =
   let open Json_decode_extended in
   { keyCode = field "keyCode" int j |> fromCode
+  ; key = field "key" string j |> (fun s -> if s = "" then None else Some s)
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
