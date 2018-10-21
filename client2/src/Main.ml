@@ -160,13 +160,6 @@ let processFocus (m : model) (focus : focus) : modification =
   | FocusNothing -> Deselect
   | FocusNoChange -> NoChange
 
-let update (msg : msg) (m : model) : model * msg Cmd.t =
-  let mods = update_ msg m in
-  let newm, newc = updateMod mods (m, Cmd.none) in
-  ( {newm with lastMsg= msg; lastMod= mods}
-  , Cmd.batch [newc; m |> Editor.model2editor |> Editor.toString |> setStorage]
-  )
-
 let updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   let _ =
@@ -1264,6 +1257,13 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error= {e with showDetails= show}})
   | _ -> NoChange
+
+let update (msg : msg) (m : model) : model * msg Cmd.t =
+  let mods = update_ msg m in
+  let newm, newc = updateMod mods (m, Cmd.none) in
+  ( {newm with lastMsg= msg; lastMod= mods}
+  , Cmd.batch [newc; m |> Editor.model2editor |> Editor.toString |> setStorage]
+  )
 
 let findCenter (m : model) : pos =
   match m.currentPage with
