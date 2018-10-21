@@ -76,11 +76,6 @@ and tlid = TLID of int
 
 and id = ID of int
 
-and darkKeyboardEvent =
-  { standard: Dom.keyboardEvent
-  ; selectionStart: int option
-  ; selectionEnd: int option }
-
 and entryCursor = Creating of pos | Filling of tlid * id
 
 and hasMoved = bool
@@ -122,7 +117,7 @@ and msg =
   | DragToplevel of tlid * Tea.Mouse.position
   | EntryInputMsg of string
   | EntrySubmitMsg
-  | GlobalKeyPress of darkKeyboardEvent
+  | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
   | FocusEntry of (Dom.errorEvent, unit) Porting.Result.t
   | FocusAutocompleteItem of (Dom.errorEvent, unit) Porting.Result.t

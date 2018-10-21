@@ -9,6 +9,7 @@ open Prelude
 open Types
 module JSE = Json_encode_extended
 module JSD = Json_decode_extended
+module Key = Keyboard
 
 (* let flag2function (fn : Flags.function_) : function_ = *)
 (*   { fnName= fn.name *)
@@ -611,8 +612,7 @@ let update_ (msg : msg) (m : model) : modification =
     else msg
   in
   match msg with
-  | GlobalKeyPress devent -> (
-      let event = devent.standard in
+  | GlobalKeyPress event -> (
       if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z then
         match tlidOf m.cursorState with
         | Some tlid -> (
@@ -1301,10 +1301,7 @@ let toggleTimers (m : model) : model =
   {m with timersEnabled= not m.timersEnabled}
 
 let subscriptions (m : model) : msg sub =
-  let keySubs =
-    [ onWindow "keydown"
-        (JSD.map GlobalKeyPress DarkKeyboard.decodeDarkKeyboardEvent) ]
-  in
+  let keySubs = Keyboard.downs (fun x -> GlobalKeyPressed x) in
   let resizes =
     [Window.resizes (fun {height; width} -> WindowResize (height, width))]
   in
