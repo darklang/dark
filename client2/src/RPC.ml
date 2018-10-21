@@ -36,23 +36,37 @@ open Types
 (*   let request = Http.post url json decodeExecuteFunctionRPC in *)
 (*   Http.send (ExecuteFunctionRPCCallback params) request *)
 (*  *)
+
+let postJson decoder (url: string) (body: Js.Json.t) =
+  Tea.Http.request
+    { method' = "POST"
+    ; headers = [Header ("Content-type", "application/json")]
+    ; url
+    ; body = Web.XMLHttpRequest.StringBody (Json.stringify body)
+    ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
+    ; timeout = None
+    ; withCredentials = false
+    }
+
+let postEmpty decoder (url: string) =
+  Tea.Http.request
+    { method' = "POST"
+    ; headers = [Header ("Content-type", "application/json")]
+    ; url
+    ; body = Web.XMLHttpRequest.EmptyBody
+    ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
+    ; timeout = None
+    ; withCredentials = false
+    }
+
+
 let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd.t
     =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/get_analysis"]
   in
   let request =
-    Tea.Http.request
-      { method' = "POST"
-      ; headers = [Header ("Content-type", "application/json")]
-      ; url
-      ; body =
-          Web.XMLHttpRequest.StringBody
-            (Json.stringify (Encoders.analysisParams params))
-      ; expect = Tea.Http.expectStringResponse Decoders.(wrapExpect getAnalysisRPC)
-      ; timeout = None
-      ; withCredentials = false
-      }
+    postJson Decoders.getAnalysisRPC url (Encoders.analysisParams params)
   in
   Tea.Http.send (fun x -> GetAnalysisRPCCallback x) request
 
@@ -81,12 +95,12 @@ let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd
 (*  *)
 (* let opsParams (ops : op list) : rpcParams = {ops} *)
 (*  *)
-(* let integrationRPC (m : model) (canvasName : string) (name : string) : *)
-(*     msg Cmd.t = *)
-(*   let url = *)
-(*     String.concat ["/api/"; Http.encodeUri canvasName; "/initial_load"] *)
-(*   in *)
-(*   let request = Http.post url Http.emptyBody decodeInitialLoadRPC in *)
-(*   Http.send *)
-(*     (InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name)) *)
-(*     request *)
+let integrationRPC (m : model) (canvasName : string) (name : string) :
+    msg Tea.Cmd.t =
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/initial_load"]
+  in
+  let request = postEmpty Decoders.initialLoadRPC url in
+  Http.send
+    (InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name))
+    request
