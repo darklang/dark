@@ -22,3 +22,4 @@ node_modules
 elm-format
 translate/.merlin
 translate/_build
+/server/static/bsmain.js
