@@ -159,127 +159,110 @@ let options_handler ~(execution_id: Types.id) (c: C.canvas) (req: CRequest.t) =
 
 let user_page_handler ~(execution_id: Types.id) ~(canvas: string) ~(ip: string) ~(uri: Uri.t)
       ~(body: string) (req: CRequest.t) =
-  (* HACK temporarily redirect /admin/ui to the right url.
-     remove this once customers understand it's the right place. *)
   Log.infO "user_page_handler" ~params:["uri", Uri.to_string uri];
-  if Uri.path uri = "/admin/ui"
-  then
-    (* change the domain to the admin host and the
-       path to /a/canvas. *)
-    let (host, port) =
-      match String.lsplit2 ~on:':' Config.admin_host with
-      | None -> (Config.admin_host, None)
-      | Some (a, b) -> (a, Some (int_of_string b))
-    in
-    let uri = with_x_forwarded_proto req
-              |> (fun u -> Uri.with_host u (Some host))
-              |> (fun u -> Uri.with_port u port)
-              |> (fun u -> Uri.with_path u ("/a/" ^ Uri.pct_encode canvas))
-    in S.respond_redirect ~uri ()
-  else
-    let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
-    let headers = req |> CRequest.headers |> Header.to_list in
-    let query = req |> CRequest.uri |> Uri.query in
-    let c = C.load_http canvas ~verb ~path:(Uri.path uri) in
-    let pages = !c.handlers |> TL.http_handlers in
-    let pages =
-      if List.length pages > 1
-      then List.filter pages
-             ~f:(fun h ->
-               not (Http.has_route_variables
-                    (Handler.event_name_for_exn h)))
-      else pages in
+  let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
+  let headers = req |> CRequest.headers |> Header.to_list in
+  let query = req |> CRequest.uri |> Uri.query in
+  let c = C.load_http canvas ~verb ~path:(Uri.path uri) in
+  let pages = !c.handlers |> TL.http_handlers in
+  let pages =
+    if List.length pages > 1
+    then List.filter pages
+           ~f:(fun h ->
+             not (Http.has_route_variables
+                  (Handler.event_name_for_exn h)))
+    else pages in
 
-    let trace_id = Util.create_uuid () in
-    let canvas_id = !c.id in
-    match pages with
-    | [] when String.Caseless.equal verb "OPTIONS" ->
-       options_handler ~execution_id !c req
-    | [] ->
-       PReq.from_request headers query body
-       |> PReq.to_dval
-       |> Stored_event.store_event ~trace_id ~canvas_id ("HTTP", Uri.path uri, verb) ;
-       let resp_headers = Cohttp.Header.of_list [cors] in
-       respond ~resp_headers ~execution_id `Not_found "404: No page matches"
-    | a :: b :: _ ->
-       let resp_headers = Cohttp.Header.of_list [cors] in
-       respond `Internal_server_error ~resp_headers ~execution_id
-         "500: More than one page matches"
-    | [page] ->
-       let input = PReq.from_request headers query body in
-       (match (Handler.module_for page, Handler.modifier_for page) with
-        | (Some m, Some mo) ->
-           (* Store the event with the input path not the event name, because we
-            * want to be able to
-            *    a) use this event if this particular handler changes
-            *    b) use the input url params in the analysis for this handler
-            *)
-           let desc = (m, Uri.path uri, mo) in
-           Stored_event.store_event ~trace_id ~canvas_id desc (PReq.to_dval input)
-        | _-> ());
+  let trace_id = Util.create_uuid () in
+  let canvas_id = !c.id in
+  match pages with
+  | [] when String.Caseless.equal verb "OPTIONS" ->
+     options_handler ~execution_id !c req
+  | [] ->
+     PReq.from_request headers query body
+     |> PReq.to_dval
+     |> Stored_event.store_event ~trace_id ~canvas_id ("HTTP", Uri.path uri, verb) ;
+     let resp_headers = Cohttp.Header.of_list [cors] in
+     respond ~resp_headers ~execution_id `Not_found "404: No page matches"
+  | a :: b :: _ ->
+     let resp_headers = Cohttp.Header.of_list [cors] in
+     respond `Internal_server_error ~resp_headers ~execution_id
+       "500: More than one page matches"
+  | [page] ->
+     let input = PReq.from_request headers query body in
+     (match (Handler.module_for page, Handler.modifier_for page) with
+      | (Some m, Some mo) ->
+         (* Store the event with the input path not the event name, because we
+          * want to be able to
+          *    a) use this event if this particular handler changes
+          *    b) use the input url params in the analysis for this handler
+          *)
+         let desc = (m, Uri.path uri, mo) in
+         Stored_event.store_event ~trace_id ~canvas_id desc (PReq.to_dval input)
+      | _-> ());
 
-       let bound = Libexecution.Execution.http_route_input_vars
-                     page (Uri.path uri)
-       in
-       let result = Libexecution.Execution.execute_handler page
-                      ~execution_id
-                      ~account_id:!c.owner
-                      ~canvas_id
-                      ~user_fns:!c.user_functions
-                      ~tlid:page.tlid
-                      ~dbs:(TL.dbs !c.dbs)
-                      ~input_vars:([("request", PReq.to_dval input)] @ bound)
-                      ~store_fn_arguments:(Stored_function_arguments.store ~canvas_id ~trace_id)
-                      ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
-       in
-       let maybe_infer_headers resp_headers value =
-         if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
-         then
-           resp_headers
-         else
-           match value with
-           | RTT.DObj _ | RTT.DList _ ->
-              List.Assoc.add
-                resp_headers
-                ~equal:(=)
-                "Content-Type"
-                "application/json; charset=utf-8"
-           | _ ->
-              List.Assoc.add
-                resp_headers
-                ~equal:(=)
-                "Content-Type"
-                "text/plain; charset=utf-8"
-       in
-       match result with
-       | DIncomplete ->
-          respond ~execution_id `Internal_server_error
-            "Program error: program was incomplete"
-       | RTT.DResp (Redirect url, value) ->
-          S.respond_redirect (Uri.of_string url) ()
-       | RTT.DResp (Response (code, resp_headers), value) ->
-          let body =
-            if List.exists resp_headers ~f:(fun (name, value) ->
-                   String.lowercase name = "content-type"
-                   && String.is_prefix value ~prefix:"text/html")
-            then Dval.to_human_repr value
-                                    (* TODO: only pretty print for a webbrowser *)
-            else
-              Dval.unsafe_dval_to_pretty_json_string value
-          in
-          let resp_headers = maybe_infer_headers resp_headers value in
-          let status = Cohttp.Code.status_of_code code in
-          let resp_headers = Cohttp.Header.of_list ([cors]
-                                                    @ resp_headers)
-          in
-          respond ~resp_headers ~execution_id status body
-       | _ ->
-          let body = Dval.unsafe_dval_to_pretty_json_string result in
-          let ct_headers = maybe_infer_headers [] result in
-          let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
-          (* for demonstrations sake, let's return 200 Okay when
-           * no HTTP response object is returned *)
-          respond ~resp_headers ~execution_id `OK body
+     let bound = Libexecution.Execution.http_route_input_vars
+                   page (Uri.path uri)
+     in
+     let result = Libexecution.Execution.execute_handler page
+                    ~execution_id
+                    ~account_id:!c.owner
+                    ~canvas_id
+                    ~user_fns:!c.user_functions
+                    ~tlid:page.tlid
+                    ~dbs:(TL.dbs !c.dbs)
+                    ~input_vars:([("request", PReq.to_dval input)] @ bound)
+                    ~store_fn_arguments:(Stored_function_arguments.store ~canvas_id ~trace_id)
+                    ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
+     in
+     let maybe_infer_headers resp_headers value =
+       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
+       then
+         resp_headers
+       else
+         match value with
+         | RTT.DObj _ | RTT.DList _ ->
+            List.Assoc.add
+              resp_headers
+              ~equal:(=)
+              "Content-Type"
+              "application/json; charset=utf-8"
+         | _ ->
+            List.Assoc.add
+              resp_headers
+              ~equal:(=)
+              "Content-Type"
+              "text/plain; charset=utf-8"
+     in
+     match result with
+     | DIncomplete ->
+        respond ~execution_id `Internal_server_error
+          "Program error: program was incomplete"
+     | RTT.DResp (Redirect url, value) ->
+        S.respond_redirect (Uri.of_string url) ()
+     | RTT.DResp (Response (code, resp_headers), value) ->
+        let body =
+          if List.exists resp_headers ~f:(fun (name, value) ->
+                 String.lowercase name = "content-type"
+                 && String.is_prefix value ~prefix:"text/html")
+          then Dval.to_human_repr value
+                                  (* TODO: only pretty print for a webbrowser *)
+          else
+            Dval.unsafe_dval_to_pretty_json_string value
+        in
+        let resp_headers = maybe_infer_headers resp_headers value in
+        let status = Cohttp.Code.status_of_code code in
+        let resp_headers = Cohttp.Header.of_list ([cors]
+                                                  @ resp_headers)
+        in
+        respond ~resp_headers ~execution_id status body
+     | _ ->
+        let body = Dval.unsafe_dval_to_pretty_json_string result in
+        let ct_headers = maybe_infer_headers [] result in
+        let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
+        (* for demonstrations sake, let's return 200 Okay when
+         * no HTTP response object is returned *)
+        respond ~resp_headers ~execution_id `OK body
 
 (* -------------------------------------------- *)
 (* Admin server *)
