@@ -2,6 +2,19 @@
 set -euo pipefail
 . ./scripts/support/assert-in-container $0 $@
 
+PREFIX=""
+for i in "$@"
+do
+  case "${i}" in
+    --prefix=*)
+      PREFIX="${i/--prefix=/''}-"
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      exit 1
+      ;;
+  esac
+done
 
 DIR=$(mktemp -d --suffix _gcp-builddir)
 
@@ -23,7 +36,7 @@ cp -Rf server/swagger/*  $DIR/swagger/
 mkdir -p $DIR/migrations
 cp -Rf server/migrations/* $DIR/migrations/
 
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp:latest $DIR
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp:latest" $DIR
 
 
 NDIR=$(mktemp -d --suffix _gcp-qw-builddir)
@@ -46,7 +59,7 @@ cp -Rf server/swagger/*  $NDIR/swagger/
 mkdir -p $NDIR/migrations
 cp -Rf server/migrations/* $NDIR/migrations/
 
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp-qw:latest $NDIR
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-qw:latest" $NDIR
 
 CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
 
@@ -68,6 +81,4 @@ cp -Rf server/swagger/*  $CDIR/swagger/
 mkdir -p $CDIR/migrations
 cp -Rf server/migrations/* $CDIR/migrations/
 
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp-cron:latest $CDIR
-
-
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-cron:latest" $CDIR
