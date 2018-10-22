@@ -67,15 +67,15 @@ let getAnalysisRPC (canvasName : string) (params : analysisParams) : msg Tea.Cmd
   in
   Tea.Http.send (fun x -> GetAnalysisRPCCallback x) request
 
-(* let delete404RPC (canvasName : string) (param : delete404Param) : msg Cmd.t = *)
-(*   let url = *)
-(*     String.concat ["/api/"; Http.encodeUri canvasName; "/delete_404"] *)
-(*   in *)
-(*   let payload = encode404 param in *)
-(*   let json = Http.jsonBody payload in *)
-(*   let request = Http.post url json (JSD.list decode404) in *)
-(*   Http.send GetDelete404RPCCallback request *)
-(*  *)
+let delete404RPC (canvasName : string) (param : delete404Param) : msg Tea.Cmd.t =
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/delete_404"]
+  in
+  let request =
+    postJson (JSD.list Decoders.fof) url (Encoders.fof param)
+  in
+  Tea.Http.send (fun x -> GetDelete404RPCCallback x) request
+
 let initialLoadRPC (canvasName : string) (focus : focus) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri canvasName; "/initial_load"]

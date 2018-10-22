@@ -1204,7 +1204,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; ClearError
         ; extraMod
         ; newState ]
-  | SaveTestRPCCallback (Ok msg_) -> DisplayError <| "Success! " ^ msg_
+  | SaveTestRPCCallback (Ok msg_) -> DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
       let tl = TL.getTL m params.efpTLID in
       Many
