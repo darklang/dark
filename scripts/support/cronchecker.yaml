@@ -95,7 +95,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: NetworkPolicy
 metadata:
-  name: qw-network-policy
+  name: cc-network-policy
 spec:
   podSelector:
     matchLabels:
