@@ -605,6 +605,13 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
       (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString
   | _ -> false
 
+let enableTimers (m : model) : model = {m with timersEnabled= true}
+
+let disableTimers (m : model) : model = {m with timersEnabled= false}
+
+let toggleTimers (m : model) : model =
+  {m with timersEnabled= not m.timersEnabled}
+
 let update_ (msg : msg) (m : model) : modification =
   let _ =
     if m.integrationTestState <> NoIntegrationTest then
@@ -916,7 +923,7 @@ let update_ (msg : msg) (m : model) : modification =
                           let newQ =
                             String.insertAt "\t" (idx + 1) m.complete.value
                           in
-                          AutocompleteMod <| ACSetQuery newQ
+                          AutocompleteMod (ACSetQuery newQ)
                       | None -> NoChange
                     else
                       let content = AC.getValue m.complete in
@@ -969,7 +976,7 @@ let update_ (msg : msg) (m : model) : modification =
                     else m.complete.value
                   in
                   Many
-                    [ AutocompleteMod <| ACSetQuery v
+                    [ AutocompleteMod (ACSetQuery v)
                     ; MakeCmd (Entry.focusEntry m) ]
               | key -> NoChange )
         | Deselected -> (
@@ -1009,7 +1016,7 @@ let update_ (msg : msg) (m : model) : modification =
       let query = if target = "\"" then "\"\"" else target in
       if String.endsWith "." query && isFieldAccessDot m query then NoChange
       else
-        Many [AutocompleteMod <| ACSetQuery query; MakeCmd (Entry.focusEntry m)]
+        Many [AutocompleteMod (ACSetQuery query); MakeCmd (Entry.focusEntry m)]
   | EntrySubmitMsg -> NoChange
   | AutocompleteClick value -> (
     match unwrapCursorState m.cursorState with
@@ -1035,8 +1042,8 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (_, id, _) -> ClearHover id
   | MouseWheel (x, y) ->
       if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
-  | DataMouseEnter (tlid, idx, _) -> SetHover <| tlCursorID tlid idx
-  | DataMouseLeave (tlid, idx, _) -> ClearHover <| tlCursorID tlid idx
+  | DataMouseEnter (tlid, idx, _) -> SetHover (tlCursorID tlid idx)
+  | DataMouseLeave (tlid, idx, _) -> ClearHover (tlCursorID tlid idx)
   | DragToplevel (_, mousePos) -> (
     match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -1292,13 +1299,6 @@ let findCenter (m : model) : pos =
   match m.currentPage with
   | Toplevels center -> Viewport.toCenter center
   | _ -> Defaults.centerPos
-
-let enableTimers (m : model) : model = {m with timersEnabled= true}
-
-let disableTimers (m : model) : model = {m with timersEnabled= false}
-
-let toggleTimers (m : model) : model =
-  {m with timersEnabled= not m.timersEnabled}
 
 let subscriptions (m : model) : msg sub =
   let keySubs = Keyboard.downs (fun x -> GlobalKeyPressed x) in
