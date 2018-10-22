@@ -153,7 +153,7 @@ and msg =
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent
   | BlankOrMouseLeave of tlid * id * mouseEvent
-  | MouseWheel of (int * int)
+  | MouseWheel of int * int
   | DataClick of tlid * int * mouseEvent
   | DataMouseEnter of tlid * int * mouseEvent
   | DataMouseLeave of tlid * int * mouseEvent
