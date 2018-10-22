@@ -310,7 +310,10 @@ and parseDvalLiteral (str : string) : dval option =
           |> (fun x -> DStr x)
           |> fun x -> Some x
         else None
-    | _ -> str |> Json.parseOrRaise |> parseBasicDval |> (fun x -> Some x)
+    | _ ->
+      try
+        Some (parseBasicDval (Json.parseOrRaise str))
+      with _ -> None
 
 and parseBasicDval str : dval =
   oneOf
