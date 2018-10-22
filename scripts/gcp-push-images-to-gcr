@@ -4,33 +4,58 @@
 set -euo pipefail
 set -x
 
+PREFIX=""
+for i in "$@"
+do
+  case "${i}" in
+    --prefix=*)
+      PREFIX="${i/--prefix=/''}-"
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      exit 1
+      ;;
+  esac
+done
+
 PROJECT="balmy-ground-195100"
 
-IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
-QW_IMAGE_ID=$(docker images dark-gcp-qw -q | head -n 1)
-CRON_IMAGE_ID=$(docker images dark-gcp-cron -q | head -n 1)
-IMAGE="gcr.io/$PROJECT/dark-gcp:$IMAGE_ID"
-QW_IMAGE="gcr.io/$PROJECT/dark-gcp-qw:$QW_IMAGE_ID"
-CRON_IMAGE="gcr.io/$PROJECT/dark-gcp-cron:$CRON_IMAGE_ID"
-IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
-QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-qw:latest"
-CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
+# get the latest local image ids
+IMAGE_ID=$(docker images "${PREFIX}dark-gcp" -q | head -n 1)
+QW_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-qw" -q | head -n 1)
+CRON_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-cron" -q | head -n 1)
+
+# get the image tag corresponding to the latest local image id
+IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp:$IMAGE_ID"
+QW_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
+CRON_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
+
+# the tags we'll tag them with.
+IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp:latest"
+QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
+CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
 
 #########################
 # Deploy Docker image
 #########################
 
 echo "Deploying container to GCR"
-docker tag dark-gcp:latest $IMAGE
-docker tag dark-gcp-qw:latest $QW_IMAGE
-docker tag dark-gcp-cron:latest $CRON_IMAGE
-docker tag dark-gcp:latest $IMAGE_LATEST
-docker tag dark-gcp-qw:latest $QW_IMAGE_LATEST
-docker tag dark-gcp-cron:latest $CRON_IMAGE_LATEST
+
+# tag everything so that the most recent local id becomes :latest
+docker tag "${PREFIX}dark-gcp:latest" "$IMAGE"
+docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE"
+docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE"
+docker tag "${PREFIX}dark-gcp:latest" "$IMAGE_LATEST"
+docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE_LATEST"
+docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE_LATEST"
+
+# hook up gcloud docker
 docker-credential-gcr configure-docker
-docker push $IMAGE
-docker push $IMAGE_LATEST
-docker push $QW_IMAGE
-docker push $QW_IMAGE_LATEST
-docker push $CRON_IMAGE
-docker push $CRON_IMAGE_LATEST
+
+# push the newly-tagged images
+docker push "$IMAGE"
+docker push "$IMAGE_LATEST"
+docker push "$QW_IMAGE"
+docker push "$QW_IMAGE_LATEST"
+docker push "$CRON_IMAGE"
+docker push "$CRON_IMAGE_LATEST"
