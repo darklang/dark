@@ -2,9 +2,23 @@ module Prelude exposing (..)
 
 -- dark
 import Types exposing (..)
+import DontPort
 import Util
-import Nineteen.Debug as Debug
-import Nineteen.String as String
+
+--------------------------------------
+-- IDs
+--------------------------------------
+deID : ID -> Int
+deID (ID i) = i
+
+deTLID : TLID -> Int
+deTLID (TLID i) = i
+
+gid : () -> ID -- Generate ID
+gid unit = ID (Util.random unit)
+
+gtlid : () -> TLID -- Generate ID
+gtlid unit = TLID (Util.random unit)
 
 --------------------------------------
 -- CursorState
@@ -12,7 +26,7 @@ import Nineteen.String as String
 
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
-  let stringID = (String.fromInt (deTLID tlid)) ++ (String.fromInt idx)
+  let stringID = (DontPort.fromInt (deTLID tlid)) ++ (DontPort.fromInt idx)
       intID = Result.withDefault 0 (String.toInt stringID)
   in
     (ID intID)
@@ -48,37 +62,15 @@ idOf s =
     SelectingCommand _ id -> Just id
 
 
---------------------------------------
--- IDs
---------------------------------------
-deID : ID -> Int
-deID (ID i) = i
-
-deTLID : TLID -> Int
-deTLID (TLID i) = i
-
-gid : () -> ID -- Generate ID
-gid unit = ID (Util.random unit)
-
-gtlid : () -> TLID -- Generate ID
-gtlid unit = TLID (Util.random unit)
-
 
 --------------------------------------
 -- Crashing
 --------------------------------------
-
 deMaybe : String -> Maybe a -> a
 deMaybe msg x =
   case x of
     Just y -> y
-    Nothing -> impossible ("got Nothing but expected something", msg)
-
-assert : (a -> Bool) -> a -> a
-assert fn a =
-  if fn a
-  then a
-  else impossible ("assertion failure", a)
+    Nothing -> Debug.crash ("something impossible occurred: got None but expected something" ++ toString msg)
 
 -- `Impossible` crashes with the value provided.
 -- Is it very obvious why?
@@ -91,8 +83,14 @@ assert fn a =
 --   impossible ("The widges can't arrive in this order:", myVar)
 impossible : a -> b
 impossible a =
-  Debug.todo ("something impossible occurred: " ++ (Debug.toString a))
+  Debug.crash ("something impossible occurred: " ++ (toString a))
 
+
+assert : (a -> Bool) -> a -> a
+assert fn a =
+  if fn a
+  then a
+  else impossible ("assertion failure", a)
 
 -- Like impossible but has a different semantic meaning. If you have a
 -- value you _could_ continue with, consider this.
@@ -101,16 +99,16 @@ recoverable msg val =
   let error = "An unexpected but recoverable error happened. "
             ++ "For now we crash. "
             ++ "Message: "
-            ++ Debug.toString msg
+            ++ toString msg
             ++ "Value: "
-            ++ Debug.toString val
+            ++ toString val
       -- TODO: surface the error to the user and in rollbar and
       -- continue.
-      _ = Debug.todo error
+      _ = Debug.crash error
   in
   val
 
 -- Like impossible but with the message TODO
 todo : a -> b
 todo a =
-  Debug.todo ("TODO: " ++ (Debug.toString a))
+  Debug.crash ("TODO: " ++ (toString a))

@@ -2,7 +2,6 @@ module Runtime exposing (..)
 
 -- stldib
 -- import Json.Decode as JSD
-import Dict
 
 -- libs
 import List.Extra as LE
@@ -11,11 +10,11 @@ import List.Extra as LE
 import Types exposing (..)
 -- import Prelude exposing (..)
 -- import Util
--- import JSON
+import StrDict
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
-  t1 == TAny || t2 == TAny || t1 == t2
+  (t1 == TAny) || (t2 == TAny) || (t1 == t2)
 
 tipe2str : Tipe -> String
 tipe2str t =
@@ -154,23 +153,6 @@ isTrue : Dval -> Bool
 isTrue dv =
   dv == DBool True
 
-inputValueAsString : InputValueDict -> String
-inputValueAsString iv =
-  iv
-  |> DObj
-  |> toRepr
-  |> String.split "\n"
-  |> List.drop 1
-  |> LE.init
-  |> Maybe.withDefault []
-  |> List.map (String.dropLeft 2)
-  |> String.join "\n"
-
--- Copied from Dval.to_repr in backend code
-toRepr : Dval -> String
-toRepr dv =
-  toRepr_ 0 dv
-
 toRepr_ : Int -> Dval -> String
 toRepr_ oldIndent dv =
   let wrap value =
@@ -206,7 +188,7 @@ toRepr_ oldIndent dv =
     DIncomplete -> asType
     DResp (Redirect url) dv_ -> "302 " ++ url ++ nl ++ toRepr_ indent dv_
     DResp (Response code hs) dv_ ->
-      let headers = objToString (List.map (Tuple.mapSecond DStr) hs) in
+      let headers = objToString (List.map (Tuple.mapSecond (\s -> DStr s)) hs) in
       toString code ++ " " ++ headers ++ nl ++ toRepr dv_
     DOption OptNothing -> "Nothing"
     DOption (OptJust dv_) -> "Some " ++ (toRepr dv_)
@@ -224,5 +206,23 @@ toRepr_ oldIndent dv =
         l ->
           "[ " ++ String.join ", " (List.map (toRepr_ indent) l) ++ "]"
     DObj o ->
-      objToString (Dict.toList o)
+      objToString (StrDict.toList o)
+
+-- Copied from Dval.to_repr in backend code
+toRepr : Dval -> String
+toRepr dv =
+  toRepr_ 0 dv
+
+inputValueAsString : InputValueDict -> String
+inputValueAsString iv =
+  iv
+  |> \i -> DObj i
+  |> toRepr
+  |> String.split "\n"
+  |> List.drop 1
+  |> LE.init
+  |> Maybe.withDefault []
+  |> List.map (String.dropLeft 2)
+  |> String.join "\n"
+
 

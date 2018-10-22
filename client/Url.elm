@@ -1,10 +1,8 @@
 module Url exposing (..)
 
 -- builtin
-import Dict
 import List
 import String
-import Nineteen.String as String
 
 -- lib
 import Html
@@ -12,11 +10,13 @@ import Html.Attributes as Attrs
 import Navigation
 
 -- dark
+import DontPort exposing ((@))
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
 import Defaults
 import Viewport
+import StrDict
 
 
 hashUrlParams : List (String, String) -> String
@@ -29,11 +29,11 @@ urlOf page pos =
   let head =
         case page of
           Toplevels _ -> []
-          Fn tlid _ -> [("fn", String.fromInt (deTLID tlid))]
+          Fn tlid _ -> [("fn", DontPort.fromInt (deTLID tlid))]
       tail =
-        [ ("x", String.fromInt pos.x)
-        , ("y", String.fromInt pos.y) ]
-  in hashUrlParams (head ++ tail)
+        [ ("x", DontPort.fromInt pos.x)
+        , ("y", DontPort.fromInt pos.y) ]
+  in hashUrlParams (head @ tail)
 
 urlFor : Page -> String
 urlFor page =
@@ -71,7 +71,7 @@ maybeUpdateScrollUrl m =
   if pos /= state.lastPos
   then
     Many
-      [ TweakModel (\m_ -> { m_ | urlState = { state | lastPos = pos } })
+      [ TweakModel (\m_ -> { m_ | urlState = { lastPos = pos } })
       , MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos))
       ]
   else NoChange
@@ -88,22 +88,22 @@ parseLocation m loc =
                         case arr of
                           a :: b :: [] -> Just (String.toLower a, b)
                           _ -> Nothing)
-                   |> Dict.fromList
+                   |> StrDict.fromList
       center =
-        case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
+        case (StrDict.get "x" unstructured, StrDict.get "y" unstructured) of
           (Just x, Just y) ->
             case (String.toInt x, String.toInt y) of
               (Ok x, Ok y) -> Just { x = x, y = y }
               _  -> Nothing
           _ -> Nothing
       editedFn =
-        case (Dict.get "fn" unstructured) of
+        case (StrDict.get "fn" unstructured) of
           Just sid ->
             case String.toInt sid of
               Ok id ->
-                Just <|
-                  Fn (TLID id)
-                     (Maybe.withDefault Defaults.centerPos center)
+                Just
+                  (Fn (TLID id)
+                     (Maybe.withDefault Defaults.centerPos center))
               _ -> Nothing
           _ -> Nothing
   in

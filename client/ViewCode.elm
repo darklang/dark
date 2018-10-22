@@ -1,4 +1,4 @@
-module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
+module ViewCode exposing (viewExpr, viewHandler)
 
 -- builtin
 import Dict
@@ -12,14 +12,13 @@ import Maybe.Extra as ME
 import Svg
 import VirtualDom
 import Svg.Attributes as SA
-import Nineteen.Debug as Debug
-import Nineteen.String as String
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
-import RPC
+import JSON
 import AST
 import Blank as B
 import ViewBlankOr exposing (..)
@@ -29,30 +28,25 @@ import SpecHeaders
 import Util exposing (transformToStringEntry)
 
 
-viewFieldName : BlankViewer String
+viewFieldName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewFieldName vs c f =
   let configs = c ++ [ClickSelectAs (B.toID f)] ++ withFeatureFlag vs f in
   viewBlankOr viewNFieldName Field vs configs f
 
-viewVarBind : BlankViewer String
+viewVarBind : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewVarBind vs c v =
   let configs = idConfigs ++ c in
   viewBlankOr viewNVarBind VarBind vs configs v
 
-viewKey : BlankViewer String
+viewKey : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewKey vs c k =
   let configs = idConfigs ++ c in
   viewBlankOr viewNVarBind Key vs configs k
 
-viewDarkType : BlankViewer NDarkType
-viewDarkType vs c dt =
-  let configs = idConfigs ++ c in
-  viewBlankOr viewNDarkType DarkType vs configs dt
-
-viewExpr : Int -> BlankViewer NExpr
+viewExpr : Int -> ViewState -> List HtmlConfig -> Expr -> Html.Html Msg
 viewExpr depth vs c e =
   let width = approxWidth e
-      widthClass = [wc ("width-" ++ String.fromInt width)]
+      widthClass = [wc ("width-" ++ DontPort.fromInt width)]
                    ++ (if width > 120 then [wc "too-wide"] else [])
       configs = idConfigs
                 ++ c
@@ -63,57 +57,32 @@ viewExpr depth vs c e =
   in
   viewBlankOr (viewNExpr depth id) Expr vs configs e
 
-viewEventName : BlankViewer String
+viewEventName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewEventName vs c v =
   let configs = idConfigs ++ c in
   viewText EventName vs configs v
 
-viewEventSpace : BlankViewer String
+viewEventSpace : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewEventSpace vs c v =
   let configs = idConfigs ++ c in
   viewText EventSpace vs configs v
 
-viewEventModifier : BlankViewer String
+viewEventModifier : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewEventModifier vs c v =
   let configs = idConfigs ++ c in
   viewText EventModifier vs configs v
 
 
-viewNDarkType : Viewer NDarkType
-viewNDarkType vs c d =
-  case d of
-    DTEmpty -> text vs c "Empty"
-    DTString -> text vs c "String"
-    DTAny -> text vs c "Any"
-    DTInt -> text vs c "Int"
-    DTObj ts ->
-      let nested =
-            ts
-            |> List.map (\(n,dt) ->
-                 [ viewText DarkTypeField vs [wc "fieldname"] n
-                 , text vs [wc "colon"] ":"
-                 , viewDarkType vs [wc "fieldvalue"] dt
-                 ])
-            |> List.intersperse
-                 [text vs [wc "separator"] ","]
-            |> List.concat
-          open = text vs [wc "open"] "{"
-          close = text vs [wc "close"] "}"
-      in
-      Html.div
-        [Attrs.class "type-object"]
-        ([open] ++ nested ++ [close])
-
-viewNVarBind : Viewer VarName
+viewNVarBind : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 viewNVarBind vs config f =
   text vs config f
 
-viewNFieldName : Viewer FieldName
+viewNFieldName : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 viewNFieldName vs config f =
   text vs config f
 
 depthString : Int -> String
-depthString n = "precedence-" ++ (String.fromInt n)
+depthString n = "precedence-" ++ (DontPort.fromInt n)
 
 viewRopArrow : ViewState -> Html.Html Msg
 viewRopArrow vs =
@@ -156,12 +125,12 @@ viewRopArrow vs =
   Html.node
     "rop-arrow"
     -- Force the rop-webcomponent to update to fix the size
-    [ VirtualDom.attribute "update" (Util.random () |> String.fromInt)
-    , VirtualDom.attribute "tlid" (String.fromInt (deTLID vs.tl.id))]
+    [ VirtualDom.attribute "update" (Util.random () |> DontPort.fromInt)
+    , VirtualDom.attribute "tlid" (DontPort.fromInt (deTLID vs.tl.id))]
     [svg]
 
 
-viewNExpr : Int -> ID -> Viewer NExpr
+viewNExpr : Int -> ID -> ViewState -> List HtmlConfig -> NExpr -> Html.Html Msg
 viewNExpr d id vs config e =
   let vExpr d_ = viewExpr d_ vs []
       vExprTw d_ =
@@ -179,10 +148,10 @@ viewNExpr d id vs config e =
   in
   case e of
     Value v ->
-      let cssClass = v |> RPC.typeOfLiteralString |> Debug.toString |> String.toLower
+      let cssClass = v |> JSON.typeOfLiteralString |> toString |> String.toLower
           value =
             -- TODO: remove
-            if RPC.typeOfLiteralString v == TStr
+            if JSON.typeOfLiteralString v == TStr
             then transformToStringEntry v
             else v
           tooWide = if vs.tooWide
@@ -250,15 +219,15 @@ viewNExpr d id vs config e =
                 let np = withP name in
                 viewFnName np ["atom fnname"]
           fn = vs.ac.functions
-                    |> LE.find (\f -> f.name == name)
+                    |> LE.find (\f -> f.fnName == name)
                     |> Maybe.withDefault
-                      { name = "fnLookupError"
-                      , parameters = []
-                      , description = "default, fn error"
-                      , returnTipe = TError
-                      , previewExecutionSafe = True
-                      , infix = False
-                      , deprecated = False
+                      { fnName = "fnLookupError"
+                      , fnParameters = []
+                      , fnDescription = "default, fn error"
+                      , fnReturnTipe = TError
+                      , fnPreviewExecutionSafe = True
+                      , fnInfix = False
+                      , fnDeprecated = False
                       }
 
           previous =
@@ -268,7 +237,7 @@ viewNExpr d id vs config e =
                 |> AST.threadPrevious id
                 |> ME.toList
               TLFunc f ->
-                f.ast
+                f.ufAST
                 |> AST.threadPrevious id
                 |> ME.toList
               TLDB db ->
@@ -295,7 +264,7 @@ viewNExpr d id vs config e =
           resultHasValue = isComplete id
 
           buttonUnavailable = not paramsComplete
-          showButton = not fn.previewExecutionSafe
+          showButton = not fn.fnPreviewExecutionSafe
           buttonNeeded = not resultHasValue
           showExecuting = isExecuting vs id
           exeIcon = "play"
@@ -339,22 +308,22 @@ viewNExpr d id vs config e =
               [wc "op", wc name]
               (fnname parens :: ropArrow :: button)
       in
-      case (fn.infix, exprs, fn.parameters) of
+      case (fn.fnInfix, exprs, fn.fnParameters) of
         (True, [first, second], [p1, p2]) ->
           n (wc "fncall infix" :: wc (depthString d) :: all)
-          [ n [wc "lhs"] [ve p1.name incD first]
+          [ n [wc "lhs"] [ve p1.paramName incD first]
           , fnDiv False
-          , n [wc "rhs"] [ve p2.name incD second]
+          , n [wc "rhs"] [ve p2.paramName incD second]
           ]
         _ ->
           let args = List.map2
-                       (\p e_ -> ve p.name incD e_)
-                       fn.parameters
+                       (\p e_ -> ve p.paramName incD e_)
+                       fn.fnParameters
                        exprs
 
           in
           n (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv fn.infix :: args)
+            (fnDiv fn.fnInfix :: args)
 
     Lambda vars expr ->
       let varname v = t [wc "lambdavarname", atom] v in
@@ -526,17 +495,6 @@ viewHandler vs h =
                     ]
                     [fontAwesome "external-link-alt"]]
           _ -> []
-
-      input =
-        Html.div
-          [Attrs.class "spec-type input-type"]
-          [ Html.span [Attrs.class "header"] [Html.text "Input:"]
-          , viewDarkType vs [] h.spec.types.input]
-      output =
-        Html.div
-          [Attrs.class "spec-type output-type"]
-          [ Html.span [Attrs.class "header"] [Html.text "Output:"]
-          , viewDarkType vs [] h.spec.types.output]
 
       modifier =
         if SpecHeaders.visibleModifier h.spec

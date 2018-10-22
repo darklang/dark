@@ -7,6 +7,7 @@ import List.Extra as LE
 import Maybe.Extra as ME
 
 -- dark
+import DontPort exposing ((@))
 import DB
 import Types exposing (..)
 import Util
@@ -15,28 +16,13 @@ import AST
 import Blank as B
 import Pointer as P
 import Functions as Fns
-import SpecTypes
 import SpecHeaders
 import DB
 import Defaults
 
-all : Model -> List Toplevel
-all m =
-  m.toplevels ++ List.map (ufToTL m) m.userFunctions
-
 -------------------------
 -- Toplevel manipulation
 -------------------------
-getTL : Model -> TLID -> Toplevel
-getTL m id =
-  get m id
-  |> deMaybe "getTL"
-
-get : Model -> TLID -> Maybe Toplevel
-get m id =
-  let tls = all m in
-  LE.find (\tl -> tl.id == id) tls
-
 name : Toplevel -> String
 name tl =
   case tl.data of
@@ -45,26 +31,10 @@ name tl =
       ++ (h.spec.name |> B.toMaybe |> Maybe.withDefault "")
     TLDB db ->
       "DB: "
-      ++ db.name
+      ++ db.dbName
     TLFunc f ->
       "Func: "
-      ++ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
-
-upsertByTLID : List Toplevel -> Toplevel -> List Toplevel
-upsertByTLID tls tl =
-  (removeByTLID tls [tl]) ++ [tl]
-
-upsert : Model -> Toplevel -> Model
-upsert m tl =
-  { m | toplevels = upsertByTLID m.toplevels tl }
-
-upsertAllByTLID : List Toplevel -> List Toplevel -> List Toplevel
-upsertAllByTLID tls new =
-  List.foldl (\a b -> upsertByTLID b a) tls new
-
-upsertAll : Model -> List Toplevel -> Model
-upsertAll m tls =
-  List.foldl (\a b -> upsert b a) m tls
+      ++ (f.ufMetadata.ufmName |> B.toMaybe |> Maybe.withDefault "")
 
 containsByTLID : List Toplevel -> Toplevel -> Bool
 containsByTLID tls elem =
@@ -75,6 +45,23 @@ removeByTLID origTls toBeRemoved =
   List.filter
     (\origTl -> not (containsByTLID toBeRemoved origTl))
     origTls
+
+
+upsertByTLID : List Toplevel -> Toplevel -> List Toplevel
+upsertByTLID tls tl =
+  (removeByTLID tls [tl]) @ [tl]
+
+upsert : Model -> Toplevel -> Model
+upsert m tl =
+  { m | toplevels = upsertByTLID m.toplevels tl }
+
+upsertAllByTLID : List Toplevel -> List Toplevel -> List Toplevel
+upsertAllByTLID tls news =
+  List.foldl (\tl new -> upsertByTLID new tl) tls news
+
+upsertAll : Model -> List Toplevel -> Model
+upsertAll m tls =
+  List.foldl (\tl m -> upsert m tl) m tls
 
 remove : Model -> Toplevel -> Model
 remove m tl =
@@ -91,16 +78,17 @@ update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
   { m | toplevels = updateByTLID m.toplevels tlid f }
 
-move : TLID -> Int -> Int -> Model -> Model
-move tlid xOffset yOffset m = update m tlid (moveTL xOffset yOffset)
-
 moveTL : Int -> Int -> Toplevel -> Toplevel
 moveTL xOffset yOffset tl =
   let newPos = { x = tl.pos.x + xOffset, y = tl.pos.y + yOffset }
   in { tl | pos = newPos }
 
+move : TLID -> Int -> Int -> Model -> Model
+move tlid xOffset yOffset m = update m tlid (moveTL xOffset yOffset)
+
+
 ufToTL : Model -> UserFunction -> Toplevel
-ufToTL m uf = { id = uf.tlid
+ufToTL m uf = { id = uf.ufTLID
               , pos = Defaults.centerPos
               , data = TLFunc uf
               }
@@ -159,6 +147,19 @@ toOp tl =
 -------------------------
 -- Generic
 -------------------------
+allData : Toplevel -> List PointerData
+allData tl =
+  case tl.data of
+    TLHandler h ->
+      SpecHeaders.allData h.spec
+      @ AST.allData h.ast
+    TLDB db ->
+      DB.allData db
+    TLFunc f ->
+      Fns.allData f
+
+
+
 isValidID : Toplevel -> ID -> Bool
 isValidID tl id =
   List.member id (tl |> allData |> List.map P.toID)
@@ -182,8 +183,6 @@ clonePointerData pd =
       PKey (B.clone identity k)
     PDBColName cn -> pd
     PDBColType ct -> pd
-    PDarkType dt -> todo ("clonePointerData", pd)
-    PDarkTypeField dt -> todo ("clonePointerData", pd)
     PFFMsg msg -> PFFMsg (B.clone identity msg)
     PFnName name_ -> PFnName (B.clone identity name_)
     PParamName name_ -> PParamName (B.clone identity name_)
@@ -203,6 +202,15 @@ blanksWhere fn tl =
   tl
   |> allBlanks
   |> List.filter fn
+
+firstBlank : Toplevel -> Successor
+firstBlank tl =
+  tl |> allBlanks |> List.head
+
+lastBlank : Toplevel -> Successor
+lastBlank tl =
+  tl |> allBlanks |> LE.last
+
 
 getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
@@ -231,14 +239,6 @@ getPrevBlank tl next =
     Nothing -> lastBlank tl
 
 
-firstBlank : Toplevel -> Successor
-firstBlank tl =
-  tl |> allBlanks |> List.head
-
-lastBlank : Toplevel -> Successor
-lastBlank tl =
-  tl |> allBlanks |> LE.last
-
 
 -------------------------
 -- Siblings
@@ -249,20 +249,13 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allData h.spec
-            -- types are disabled for now
-            ++ [ --PDarkType h.spec.types.input
-                PExpr h.ast
-               --, PDarkType h.spec.types.output
-               ] in
-
+            @ [ PExpr h.ast ]
+      in
       if List.member p toplevels
       then toplevels
-      else
-         AST.siblings p h.ast
-         ++ SpecTypes.siblings p h.spec.types.input
-         ++ SpecTypes.siblings p h.spec.types.output
+      else AST.siblings p h.ast
     TLDB db -> DB.siblings p db
-    TLFunc f -> AST.siblings p f.ast
+    TLFunc f -> AST.siblings p f.ufAST
 
 getNextSibling : Toplevel -> PointerData -> PointerData
 getNextSibling tl p =
@@ -290,7 +283,7 @@ getParentOf tl p =
       AST.parentOf_ (P.toID p) h.ast
       |> Maybe.map PExpr
     TLFunc f ->
-      AST.parentOf_ (P.toID p) f.ast
+      AST.parentOf_ (P.toID p) f.ufAST
       |> Maybe.map PExpr
     TLDB db ->
       db
@@ -308,16 +301,12 @@ getChildrenOf tl pd =
           TLHandler h ->
             AST.childrenOf pid h.ast
           TLFunc f ->
-            AST.childrenOf pid f.ast
+            AST.childrenOf pid f.ufAST
           TLDB db ->
             db
             |> DB.astsFor
             |> List.map (AST.childrenOf pid)
             |> List.concat
-      specChildren () =
-        let h = asHandler tl |> deMaybe "getChildrenOf - spec" in
-        SpecTypes.childrenOf (P.toID pd) h.spec.types.input
-        ++ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
   in
   case pd of
     PVarBind _ -> []
@@ -329,8 +318,6 @@ getChildrenOf tl pd =
     PEventSpace d -> []
     PDBColName d -> []
     PDBColType d -> []
-    PDarkType _ -> specChildren ()
-    PDarkTypeField d -> []
     PFFMsg _ -> []
     PFnName _ -> []
     PParamName _ -> []
@@ -346,9 +333,9 @@ rootOf tl =
   -- TODO SpecTypePointerDataRefactor
   case tl.data of
     TLHandler h ->
-      Just <| PExpr h.ast
+      Just (PExpr h.ast)
     TLFunc f ->
-      Just <| PExpr f.ast
+      Just (PExpr f.ufAST)
     _ -> Nothing
 
 
@@ -366,13 +353,9 @@ replace p replacement tl =
             let newAST = AST.replace p replacement h.ast
             in { tl | data = TLHandler { h | ast = newAST } }
           TLFunc f ->
-            let newAST = AST.replace p replacement f.ast
-            in { tl | data = TLFunc { f | ast = newAST } }
+            let newAST = AST.replace p replacement f.ufAST
+            in { tl | data = TLFunc { f | ufAST = newAST } }
           _ -> impossible ("no AST here", tl.data)
-      specTypeReplace () =
-        let h = ha ()
-            newSpec = SpecTypes.replace p replacement h.spec
-        in { tl | data = TLHandler { h | spec = newSpec } }
       specHeaderReplace bo =
         let h = ha ()
             newSpec = SpecHeaders.replace id bo h.spec
@@ -393,8 +376,6 @@ replace p replacement tl =
     PEventName en -> specHeaderReplace en
     PEventModifier em -> specHeaderReplace em
     PEventSpace es -> specHeaderReplace es
-    PDarkType _ -> specTypeReplace ()
-    PDarkTypeField _ -> specTypeReplace ()
     PDBColType tipe ->
       tl
       -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
@@ -408,8 +389,8 @@ replace p replacement tl =
               ast = AST.replace p replacement h.ast
           in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
         TLFunc f ->
-          let ast = AST.replace p replacement f.ast
-          in { tl | data = TLFunc { f | ast = ast } }
+          let ast = AST.replace p replacement f.ufAST
+          in { tl | data = TLFunc { f | ufAST = ast } }
         _ -> tl
     PFnName _ -> fnMetadataReplace ()
     PParamName _ -> fnMetadataReplace ()
@@ -421,23 +402,20 @@ delete tl p newID =
   in replace p replacement tl
 
 
-allData : Toplevel -> List PointerData
-allData tl =
-  case tl.data of
-    TLHandler h ->
-      SpecHeaders.allData h.spec
-      ++ SpecTypes.allData h.spec.types.input
-      ++ AST.allData h.ast
-      ++ SpecTypes.allData h.spec.types.output
-    TLDB db ->
-      DB.allData db
-    TLFunc f ->
-      Fns.allData f
+all : Model -> List Toplevel
+all m =
+  m.toplevels @ List.map (ufToTL m) m.userFunctions
 
-findExn : Toplevel -> ID -> PointerData
-findExn tl id =
-  find tl id
-  |> deMaybe "findExn"
+get : Model -> TLID -> Maybe Toplevel
+get m id =
+  let tls = all m in
+  LE.find (\tl -> tl.id == id) tls
+
+
+getTL : Model -> TLID -> Toplevel
+getTL m id =
+  get m id
+  |> deMaybe "getTL"
 
 find : Toplevel -> ID -> Maybe PointerData
 find tl id =
@@ -445,3 +423,10 @@ find tl id =
   |> List.filter (\d -> id == P.toID d)
   |> assert (\r -> List.length r <= 1) -- guard against dups
   |> List.head
+
+findExn : Toplevel -> ID -> PointerData
+findExn tl id =
+  find tl id
+  |> deMaybe "findExn"
+
+

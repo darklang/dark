@@ -10,6 +10,7 @@ import List.Extra as LE
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
+import DontPort exposing (..)
 import Toplevel as TL
 import DB
 import Analysis
@@ -17,6 +18,7 @@ import Pointer as P
 import Blank as B
 import Util
 import ViewUtils exposing (isLocked)
+import Native.Size
 
 -------------------------------
 -- Cursors
@@ -110,8 +112,8 @@ type alias HtmlSizing = { centerX: Float
                         }
 jsToHtmlSizing : JSSide -> HtmlSizing
 jsToHtmlSizing obj =
-  { centerX = (obj.left + obj.right) / 2
-  , centerY = (obj.top + obj.bottom) / 2
+  { centerX = floatDivide (floatAdd obj.left obj.right) 2.0
+  , centerY = floatDivide (floatAdd obj.top obj.bottom) 2.0
   , id = ID obj.id
   }
 

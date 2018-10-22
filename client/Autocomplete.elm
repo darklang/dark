@@ -5,7 +5,6 @@ import Dict
 -- import Json.Decode as JSD
 import Dom.Scroll
 import Task
-import Set
 
 -- lib
 import List.Extra as LE
@@ -14,7 +13,8 @@ import List.Extra as LE
 
 -- dark
 -- import Prelude exposing (..)
-import Util exposing (int2letter, letter2int)
+import Util
+import DontPort
 import Types exposing (..)
 import Functions
 import Runtime as RT
@@ -24,7 +24,8 @@ import Toplevel as TL
 import AST
 import Commands
 import Refactor
-import RPC
+import JSON
+import StrSet
 
 ----------------------------
 -- Focus
@@ -48,7 +49,7 @@ focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
 
 findFunction : Autocomplete -> String -> Maybe Function
 findFunction a name =
-  LE.find (\f -> f.name == name) a.functions
+  LE.find (\f -> f.fnName == name) a.functions
 
 isStringEntry : Autocomplete -> Bool
 isStringEntry a = String.startsWith "\"" a.value
@@ -151,7 +152,7 @@ init fns isAdmin =
   , index = -1
   , value = ""
   , prevValue = ""
-  , tipe = Nothing
+  , acTipe = Nothing
   , target = Nothing
   , isCommandMode = False
   }
@@ -160,15 +161,15 @@ reset : Model -> Autocomplete -> Autocomplete
 reset m a =
   let userFunctionMetadata =
         m.userFunctions
-        |> List.map .metadata
+        |> List.map .ufMetadata
         |> List.filterMap Functions.ufmToF
       unusedDeprecatedFns =
         Refactor.unusedDeprecatedFunctions m
       functions =
         m.builtInFunctions
         |> List.filter
-          (\f -> not (List.member f.name (List.map .name userFunctionMetadata)))
-        |> List.filter (\f -> not (Set.member f.name unusedDeprecatedFns))
+          (\f -> not (List.member f.fnName (List.map .fnName userFunctionMetadata)))
+        |> List.filter (\f -> not (StrSet.member f.fnName unusedDeprecatedFns))
         |> List.append userFunctionMetadata
   in
       init functions a.admin |> regenerate m
@@ -221,8 +222,8 @@ documentationForItem : AutocompleteItem -> Maybe String
 documentationForItem aci =
   case aci of
     ACFunction f ->
-      if String.length f.description /= 0
-      then Just f.description
+      if String.length f.fnDescription /= 0
+      then Just f.fnDescription
       else Nothing
     ACCommand c -> Just (c.doc ++ " (" ++ c.shortcut ++ ")")
     _ -> Nothing
@@ -268,7 +269,7 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  if RPC.isLiteralString s
+  if JSON.isLiteralString s
   then Just (ACLiteral s)
   else
     -- isLiteral only works for the full word
@@ -413,7 +414,7 @@ filter list query =
       stringify i = (if 1 >= String.length lcq
                      then asName i
                      else asString i)
-                    |> Util.replace "⟶" "->"
+                    |> DontPort.replace "⟶" "->"
 
 
       -- split into different lists
@@ -515,24 +516,24 @@ generateFromModel m a =
             |> Maybe.andThen
               (\(name, index) ->
                 a.functions
-                |> LE.find (\f -> name == f.name)
-                |> Maybe.map .parameters
+                |> LE.find (\f -> name == f.fnName)
+                |> Maybe.map .fnParameters
                 |> Maybe.andThen
                   (LE.getAt index)
-                |> Maybe.map .tipe)
+                |> Maybe.map .paramTipe)
 
       -- functions
       funcList = if isExpression then a.functions else []
       functions =
         funcList
         |> List.filter
-           (\{returnTipe} ->
-              case a.tipe of
-                Just t -> RT.isCompatible returnTipe t
+           (\{fnReturnTipe} ->
+              case a.acTipe of
+                Just t -> RT.isCompatible fnReturnTipe t
                 Nothing ->
                   case paramTipeForTarget of
                     Just t ->
-                      RT.isCompatible returnTipe t
+                      RT.isCompatible fnReturnTipe t
                     Nothing -> True)
         |> List.filter
           (\fn ->
@@ -594,13 +595,6 @@ generateFromModel m a =
                 in
                     builtins ++ compound
 
-              DarkType ->
-                [ "Any"
-                , "Empty"
-                , "String"
-                , "Int"
-                , "{"
-                ]
               ParamTipe ->
                 [ "Any"
                 , "String"
@@ -641,11 +635,11 @@ generateFromModel m a =
 asName : AutocompleteItem -> String
 asName aci =
   case aci of
-    ACFunction {name} -> name
+    ACFunction {fnName} -> fnName
     ACField name -> name
     ACVariable name -> name
     ACExtra name -> name
-    ACCommand command -> (":" ++ command.name)
+    ACCommand command -> (":" ++ command.commandName)
     ACLiteral lit -> lit
     ACOmniAction ac ->
       case ac of
@@ -668,18 +662,18 @@ asName aci =
 asTypeString : AutocompleteItem -> String
 asTypeString item =
   case item of
-    ACFunction f -> f.parameters
-                    |> List.map .tipe
+    ACFunction f -> f.fnParameters
+                    |> List.map .paramTipe
                     |> List.map RT.tipe2str
                     |> String.join ", "
-                    |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
+                    |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.fnReturnTipe))
     ACField _ -> "field"
     ACVariable _ -> "variable"
     ACExtra _ -> ""
     ACCommand _ -> ""
     ACLiteral lit ->
       let tipe = lit
-                 |> RPC.parseDvalLiteral
+                 |> JSON.parseDvalLiteral
                  |> Maybe.withDefault DIncomplete
                  |> RT.typeOf
                  |> RT.tipe2str
@@ -701,19 +695,19 @@ dvalFields dv =
     _ -> []
 
 findCompatibleThreadParam : Function -> Tipe -> Maybe Parameter
-findCompatibleThreadParam {parameters} tipe =
-  parameters
+findCompatibleThreadParam {fnParameters} tipe =
+  fnParameters
   |> List.head
   |> Maybe.andThen
       (\fst ->
-        if RT.isCompatible fst.tipe tipe
+        if RT.isCompatible fst.paramTipe tipe
         then Just fst
         else Nothing)
 
 findParamByType : Function -> Tipe -> Maybe Parameter
-findParamByType {parameters} tipe =
-  parameters
-  |> LE.find (\p -> RT.isCompatible p.tipe tipe)
+findParamByType {fnParameters} tipe =
+  fnParameters
+  |> LE.find (\p -> RT.isCompatible p.paramTipe tipe)
 
 ---------------------------
 -- Modifications

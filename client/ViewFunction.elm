@@ -21,25 +21,25 @@ viewFunction vs fn =
     [ viewMetadata vs fn ]
     ,  Html.div
     [ Attrs.class "ast" ]
-    [ ViewCode.viewExpr 0 vs [] fn.ast ]
+    [ ViewCode.viewExpr 0 vs [] fn.ufAST ]
   ]
 
-viewUserFnName : BlankViewer String
+viewUserFnName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewUserFnName vs c v =
   viewText FnName vs (idConfigs ++ c) v
 
-viewParamName : BlankViewer String
+viewParamName : ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewParamName vs c v =
   viewText ParamName vs (idConfigs ++ c)  v
 
-viewParamTipe : BlankViewer Tipe
+viewParamTipe : ViewState -> List HtmlConfig -> BlankOr Tipe -> Html.Html Msg
 viewParamTipe vs c v =
   viewTipe ParamTipe vs (idConfigs ++ c) v
 
 viewKillParameterBtn : ViewState -> UserFunction -> UserFunctionParameter -> Html.Html Msg
 viewKillParameterBtn vs uf p =
   let freeVariables =
-        AST.freeVariables uf.ast |> List.map Tuple.second
+        AST.freeVariables uf.ufAST |> List.map Tuple.second
       canDeleteParameter pname =
         List.member pname freeVariables
         |> not
@@ -57,7 +57,7 @@ viewKillParameterBtn vs uf p =
             ]
             [ fontAwesome "times-circle" ]
   in
-      case p.name of
+      case p.ufpName of
         F _ pname ->
           buttonContent (canDeleteParameter pname)
         _ ->
@@ -67,14 +67,14 @@ viewMetadata : ViewState -> UserFunction -> Html.Html Msg
 viewMetadata vs fn =
   let namediv = Html.div
                  [ Attrs.class "ufn-name"]
-                 [ viewUserFnName vs [wc "fn-name-content"] fn.metadata.name ]
+                 [ viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName ]
       coldivs =
-        fn.metadata.parameters
+        fn.ufMetadata.ufmParameters
         |> List.map (\p ->
              Html.div
                [ Attrs.class "col" ]
-               [ viewParamName vs [wc "name"] p.name
-               , viewParamTipe vs [wc "type"] p.tipe
+               [ viewParamName vs [wc "name"] p.ufpName
+               , viewParamTipe vs [wc "type"] p.ufpTipe
                , viewKillParameterBtn vs fn p
                ])
   in

@@ -5,7 +5,6 @@ import Test exposing (describe)
 import Expect exposing (Expectation)
 
 -- builtins
-import Nineteen.Debug as Debug
 
 -- libs
 
@@ -19,7 +18,7 @@ pass : TestResult
 pass = Ok ()
 
 fail : a -> TestResult
-fail v = Err (Debug.toString v)
+fail v = Err (toString v)
 
 expectOk : TestResult -> Expectation
 expectOk r =
@@ -28,10 +27,10 @@ expectOk r =
     Err msg -> Expect.fail msg
 
 expectTrue : Bool -> Expectation
-expectTrue = Expect.true ""
+expectTrue b = Expect.true "" b
 
 expectFalse : Bool -> Expectation
-expectFalse = Expect.false ""
+expectFalse b = Expect.false "" b
 
 test : String -> Expectation -> Test.Test
 test msg e =

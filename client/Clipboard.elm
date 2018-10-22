@@ -2,6 +2,7 @@ module Clipboard exposing (..)
 
 
 -- Dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -17,11 +18,11 @@ copy m tl mp =
       NoChange
     TLHandler h ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| PExpr h.ast)
+        Nothing -> CopyToClipboard (Just (PExpr h.ast))
         Just p -> CopyToClipboard (TL.find tl (P.toID p))
     TLFunc f ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| PExpr f.ast)
+        Nothing -> CopyToClipboard (Just (PExpr f.ufAST))
         Just p -> CopyToClipboard (TL.find tl (P.toID p))
 
 cut : Model -> Toplevel -> PointerData -> Modification
@@ -71,11 +72,11 @@ paste m tl id =
             RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
             , FocusExact tl.id (P.toID cloned))
         TLFunc f ->
-          let newAst = AST.replace (TL.findExn tl id) cloned f.ast in
-          if newAst == f.ast
+          let newAst = AST.replace (TL.findExn tl id) cloned f.ufAST in
+          if newAst == f.ufAST
           then NoChange -- paste doesn't always make sense
           else
-            RPC ( [ SetFunction { f | ast = newAst } ]
+            RPC ( [ SetFunction { f | ufAST = newAst } ]
             , FocusExact tl.id (P.toID cloned))
 
 peek : Model -> Clipboard

@@ -1,5 +1,7 @@
 module Types exposing (..)
 
+import Keyboard.Event
+
 -- builtin
 import Dict exposing (Dict)
 import Http
@@ -9,13 +11,11 @@ import Mouse
 import Time exposing (Time)
 import PageVisibility
 
--- libs
-import Keyboard.Event exposing (KeyboardEvent)
 
 type alias Exception =
   { short : String
   , long : Maybe String
-  , tipe : String
+  , exceptionTipe : String
   , actual : Maybe String
   , actualType : Maybe String
   , result : Maybe String
@@ -90,7 +90,6 @@ type alias VPos = {vx: Int, vy: Int }
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
-type alias Special = Int
 type TLID = TLID Int
 type ID = ID Int
 
@@ -98,7 +97,7 @@ type ID = ID Int
 -- CursorState
 -----------------------------
 type alias DarkKeyboardEvent =
-    { standard : KeyboardEvent
+    { standard : Keyboard.Event.KeyboardEvent
     , selectionStart : Maybe Int
     , selectionEnd : Maybe Int
     }
@@ -237,11 +236,11 @@ type Op
 type alias RPCParams = { ops : List Op }
 
 type alias ExecuteFunctionRPCParams =
-  { tlid: TLID
-  , traceID : String
-  , callerID : ID
-  , args : List Dval
-  , fnName : String
+  { efpTLID: TLID
+  , efpTraceID : TraceID
+  , efpCallerID : ID
+  , efpArgs : List Dval
+  , efpFnName : String
   }
 
 type alias AnalysisParams = List TLID
@@ -260,7 +259,7 @@ type alias Autocomplete = { functions : List Function
                           , value : String
                           , prevValue : String
                           , target : Maybe (TLID, PointerData)
-                          , tipe : Maybe Tipe
+                          , acTipe : Maybe Tipe
                           , isCommandMode : Bool
                           }
 
@@ -282,7 +281,7 @@ type Keyword = KLet
              | KIf
              | KLambda
 
-type alias Command = { name: String
+type alias Command = { commandName: String
                      , action : Model -> Toplevel -> PointerData -> Modification
                      , doc : String
                      , shortcut : String
@@ -327,10 +326,8 @@ type alias Class = String
 type Pick = PickA
           | PickB
 
-type alias FFIntID = Int
 type alias FFIsExpanded = Bool
-
-type alias FlagsVS = Dict FFIntID FFIsExpanded
+type alias FlagsVS = Dict Int FFIsExpanded
 
 -----------------------------
 -- AST
@@ -373,8 +370,6 @@ type PointerData = PVarBind VarBind
                  | PKey (BlankOr String)
                  | PDBColName (BlankOr String)
                  | PDBColType (BlankOr String)
-                 | PDarkType DarkType
-                 | PDarkTypeField (BlankOr String)
                  | PFFMsg (BlankOr String)
                  | PFnName (BlankOr String)
                  | PParamName (BlankOr String)
@@ -390,8 +385,6 @@ type PointerType = VarBind
                  | Key
                  | DBColName
                  | DBColType
-                 | DarkType
-                 | DarkTypeField
                  | FFMsg
                  | FnName
                  | ParamName
@@ -403,26 +396,13 @@ type BlankOr a = Blank ID
 type PointerOwner = POSpecHeader
                   | POAst
                   | PODb
-                  | POSpecType
 
 -----------------------------
 -- Top-levels
 -----------------------------
-type alias DarkType = BlankOr NDarkType
-type NDarkType = DTEmpty -- empty body
-               | DTAny
-               | DTString
-               | DTInt
-               | DTObj (List (BlankOr String, DarkType))
-
-type alias SpecTypes = { input : DarkType
-                       , output : DarkType
-                       }
-
 type alias HandlerSpec = { module_ : BlankOr String
                          , name : BlankOr String
                          , modifier : BlankOr String
-                         , types : SpecTypes
                          }
 
 type HandlerSpace = HSHTTP
@@ -454,8 +434,8 @@ type alias DBMigration = { startingVersion : Int
                          , cols : List DBColumn
                          }
 
-type alias DB = { tlid : TLID
-                , name : DBName
+type alias DB = { dbTLID : TLID
+                , dbName : DBName
                 , cols : List DBColumn
                 , version : Int
                 , oldMigrations : List DBMigration
@@ -479,7 +459,7 @@ type alias AVDict = Dict Int (List VarName)
 type alias AnalysisResults = { liveValues : LVDict
                              , availableVarnames : AVDict
                              }
-type alias Analyses = Dict TraceID AnalysisResults
+type alias Analyses = Dict String AnalysisResults -- TraceID
 
 -----------------------------
 -- From the server
@@ -491,7 +471,7 @@ type alias FunctionResult = { fnName : String
                             , value : Dval
                             }
 type alias TraceID = String
-type alias Trace = { id: TraceID
+type alias Trace = { traceID: TraceID
                    , input: InputValueDict
                    , functionResults : List FunctionResult
                    }
@@ -650,62 +630,41 @@ type Modification = DisplayAndReportHttpError String Http.Error
 -- Flags / function types
 -----------------------------
 
-type alias Flags =
-  { editorState: Maybe String
-  , complete: List FlagFunction
-  , userContentHost : String
-  , environment: String
-  }
-
 
 -- name, type optional
-type alias Parameter = { name: String
-                       , tipe: Tipe
-                       , block_args: List String
-                       , optional: Bool
-                       , description: String
+type alias Parameter = { paramName: String
+                       , paramTipe: Tipe
+                       , paramBlock_args: List String
+                       , paramOptional: Bool
+                       , paramDescription: String
                        }
 
-type alias Function = { name: String
-                      , parameters: List Parameter
-                      , description: String
-                      , returnTipe: Tipe
-                      , previewExecutionSafe: Bool
-                      , deprecated: Bool
-                      , infix: Bool
+type alias Function = { fnName: String
+                      , fnParameters: List Parameter
+                      , fnDescription: String
+                      , fnReturnTipe: Tipe
+                      , fnPreviewExecutionSafe: Bool
+                      , fnDeprecated: Bool
+                      , fnInfix: Bool
                       }
 
-type alias UserFunctionParameter = { name: BlankOr String
-                                   , tipe: BlankOr Tipe
-                                   , block_args: List String
-                                   , optional: Bool
-                                   , description: String
+type alias UserFunctionParameter = { ufpName: BlankOr String
+                                   , ufpTipe: BlankOr Tipe
+                                   , ufpBlock_args: List String
+                                   , ufpOptional: Bool
+                                   , ufpDescription: String
                                    }
 
-type alias UserFunctionMetadata = { name: BlankOr String
-                                  , parameters: List UserFunctionParameter
-                                  , description: String
-                                  , returnTipe: BlankOr Tipe
-                                  , infix: Bool
+type alias UserFunctionMetadata = { ufmName: BlankOr String
+                                  , ufmParameters: List UserFunctionParameter
+                                  , ufmDescription: String
+                                  , ufmReturnTipe: BlankOr Tipe
+                                  , ufmInfix: Bool
                                   }
 
-type alias UserFunction = { tlid: TLID
-                          , metadata: UserFunctionMetadata
-                          , ast: Expr
+type alias UserFunction = { ufTLID: TLID
+                          , ufMetadata: UserFunctionMetadata
+                          , ufAST: Expr
                           }
 
-type alias FlagParameter = { name: String
-                           , tipe: String
-                           , block_args: List String
-                           , optional: Bool
-                           , description: String
-                           }
 
-type alias FlagFunction = { name: String
-                          , parameters: List FlagParameter
-                          , description: String
-                          , return_type: String
-                          , preview_execution_safe: Bool
-                          , deprecated: Bool
-                          , infix: Bool
-                          }

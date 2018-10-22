@@ -8,11 +8,11 @@ import Html.Attributes as Attrs
 import Http
 import List.Extra as LE
 import Maybe.Extra as ME
-import Nineteen.String as String
 
 -- dark
-import Types exposing (..)
+import DontPort
 import Prelude exposing (..)
+import Types exposing (..)
 import Toplevel as TL
 import Blank as B
 import Toplevel
@@ -261,7 +261,7 @@ header name list addHandler =
     [ Attrs.class "header" ]
     [ text "title" name
     , text "parens" "("
-    , text "count" (list |> List.length |> String.fromInt)
+    , text "count" (list |> List.length |> DontPort.fromInt)
     , text "parens" ")",
     case addHandler of
         Just msg ->
@@ -307,7 +307,7 @@ tlLink pos class name =
 fnLink : UserFunction -> Bool -> String -> Html.Html Msg
 fnLink fn isUsed text_ =
   Url.linkFor
-    (Fn fn.tlid Defaults.centerPos)
+    (Fn fn.ufTLID Defaults.centerPos)
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
@@ -342,11 +342,11 @@ viewDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
-            |> List.sortBy (\(_, db) -> db.name)
+            |> List.sortBy (\(_, db) -> db.dbName)
 
       dbHtml (pos, db) =
         div "simple-route"
-          [ span "name" [tlLink pos "default-link" db.name]]
+          [ span "name" [tlLink pos "default-link" db.dbName]]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
@@ -356,11 +356,11 @@ viewRestorableDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, tl.id, TL.asDB tl |> deMaybe "asDB"))
-            |> List.sortBy (\(_, _, db) -> db.name)
+            |> List.sortBy (\(_, _, db) -> db.dbName)
 
       dbHtml (pos, tlid, db) =
         div "simple-route"
-          [ text "name" db.name, undoButton tlid (Toplevels pos)]
+          [ text "name" db.dbName, undoButton tlid (Toplevels pos)]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
@@ -370,7 +370,7 @@ viewUserFunctions : Model -> Html.Html Msg
 viewUserFunctions m =
   let fns = m.userFunctions
             |> List.filter
-              (\fn -> B.isF fn.metadata.name)
+              (\fn -> B.isF fn.ufMetadata.ufmName)
 
       fnNamedLink fn name =
         let useCount = countFnUsage m name
@@ -379,16 +379,16 @@ viewUserFunctions m =
             [ span "name" [ fnLink fn False name ]
               , buttonLink
                   (fontAwesome "minus-circle")
-                  (DeleteUserFunction fn.tlid)
+                  (DeleteUserFunction fn.ufTLID)
                   Nothing
             ]
           else
-            let countedName = name ++ " (" ++ (String.fromInt useCount) ++ ")"
+            let countedName = name ++ " (" ++ (DontPort.fromInt useCount) ++ ")"
             in [ span "name" [fnLink fn True countedName] ]
 
       fnHtml fn =
         div "simple-route" (
-          let fnName = B.asF fn.metadata.name
+          let fnName = B.asF fn.ufMetadata.ufmName
           in case fnName of
             Just name -> fnNamedLink fn name
             Nothing ->

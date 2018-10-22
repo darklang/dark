@@ -7,9 +7,9 @@ import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import List.Extra as LE
-import Nineteen.String as String
 
 -- dark
+import DontPort
 import Analysis
 import Types exposing (..)
 import Prelude exposing (..)
@@ -56,7 +56,7 @@ viewCanvas m =
           case m.currentPage of
             Toplevels _ -> List.map (viewTL m) m.toplevels
             Fn tlid _ ->
-              case LE.find (\f -> f.tlid == tlid) m.userFunctions of
+              case LE.find (\f -> f.ufTLID == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
 
@@ -65,8 +65,8 @@ viewCanvas m =
                 case m.currentPage of
                   Toplevels _ -> m.canvas.offset
                   Fn _ _ -> m.canvas.fnOffset
-              x = String.fromInt (-offset.x)
-              y = String.fromInt (-offset.y)
+              x = DontPort.fromInt (-offset.x)
+              y = DontPort.fromInt (-offset.y)
           in
           "translate(" ++ x ++ "px, " ++ y ++ "px)"
 
@@ -122,7 +122,7 @@ viewTL_ m tlid =
             )
           TLFunc f ->
             ( [ViewFunction.viewFunction vs f]
-            , ViewData.viewData vs f.ast
+            , ViewData.viewData vs f.ufAST
             )
       events =
         [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)
@@ -140,9 +140,9 @@ viewTL_ m tlid =
           _ -> []
       class =
         [ selected
-        , "tl-" ++ String.fromInt (deTLID tl.id)
+        , "tl-" ++ DontPort.fromInt (deTLID tl.id)
         , "toplevel"
-        , "cursor-" ++ (String.fromInt (Analysis.cursor m tl.id))
+        , "cursor-" ++ (DontPort.fromInt (Analysis.cursor m tl.id))
         ]
         |> String.join " "
 

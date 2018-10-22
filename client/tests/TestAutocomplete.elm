@@ -5,10 +5,11 @@ import Test exposing (..)
 import Expect exposing (Expectation)
 
 -- dark
+import Util
+import DontPort
 import Autocomplete exposing (..)
 import Types exposing (..)
 import Defaults
-import Nineteen.String as String
 import Blank as B
 import Prelude exposing (..)
 
@@ -17,7 +18,7 @@ d : String -> List (() -> Bool) -> Test
 d s fs = describe s (List.indexedMap
                        (\i f ->
                           test
-                          ("test " ++ (String.fromInt i))
+                          ("test " ++ (DontPort.fromInt i))
                           (\_ -> Expect.true "" (f ())))
                        fs
                     )
@@ -42,18 +43,19 @@ sampleFunctions =
   ]
   |> List.map
     (\(name,tipe) ->
-      { name = name
-      , parameters = [{ name = "x"
-      , tipe = tipe
-      , block_args = []
-      , optional = False
-      , description = ""
-      }]
-      , returnTipe = TBool
-      , previewExecutionSafe = False
-      , description = ""
-      , infix = True
-      , deprecated = False
+      { fnName = name
+      , fnParameters =
+          [{ paramName = "x"
+           , paramTipe = tipe
+           , paramBlock_args = []
+           , paramOptional = False
+           , paramDescription = ""
+           }]
+      , fnReturnTipe = TBool
+      , fnPreviewExecutionSafe = False
+      , fnDescription = ""
+      , fnInfix = True
+      , fnDeprecated = False
       })
 
 debug : String -> Autocomplete -> Autocomplete
@@ -76,7 +78,6 @@ createEntering role =
       spec = { module_ = B.new ()
              , name = B.new ()
              , modifier = B.new ()
-             , types = { input = B.new (), output = B.new () }
              }
       toplevel =
         { id = tlid
