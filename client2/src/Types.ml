@@ -140,7 +140,7 @@ and msg =
   | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
-  | WindowResize of int * int
+  | WindowResize of Window.size
   | TimerFire of timerAction * Tea.Time.t
   | JSError of string
   | PageVisibilityChange of Porting.PageVisibility.visibility
@@ -170,6 +170,7 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
+  [@@bs.deriving {accessors}]
 
 and predecessor = pointerData option
 

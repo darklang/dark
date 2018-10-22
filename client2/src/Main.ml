@@ -1,4 +1,5 @@
 open Tea
+open Tea.Mouse
 open! Porting
 module AC = Autocomplete
 module B = Blank
@@ -1251,7 +1252,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GetAnalysisRPCCallback (Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
   | JSError msg_ -> DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (x, y) -> NoChange
+  | WindowResize boxSize -> NoChange
   | FocusEntry _ -> NoChange
   | NothingClick _ -> NoChange
   | FocusAutocompleteItem _ -> NoChange
@@ -1307,9 +1308,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 let subscriptions (m : model) : msg Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
-  let resizes =
-    (* [Window.resizes (fun {height; width} -> WindowResize (height, width))] *)
-    []
+  let resizes = [Window.OnResize.listen (fun s -> WindowResize s)]
   in
   let dragSubs =
     match m.cursorState with
