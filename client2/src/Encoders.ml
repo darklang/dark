@@ -339,12 +339,12 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("lockedHandlers", list tlid se.lockedHandlers)
     ]
 
-(* let 404 (fof : fourOhFour) : Js.Json.t = *)
-(*   object_ *)
-(*     [ ("space", string fof.space) *)
-(*     ; ("path", string fof.path) *)
-(*     ; ("modifier", string fof.modifier) ] *)
-(*  *)
+let fof (fof : Types.fourOhFour) : Js.Json.t =
+  object_
+    [ ("space", string fof.space)
+    ; ("path", string fof.path)
+    ; ("modifier", string fof.modifier) ]
+
 (* let inputValueDict (dict : inputValueDict) : Js.Json.t = *)
 (*   dict |> Dict.toList |> encodeList (encodePair string encodeDval) *)
 (*  *)
