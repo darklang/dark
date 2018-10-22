@@ -47,10 +47,8 @@ let cacheGet (k : int) : cacheT option =
 
 let cacheClear (k : int) : unit =
   let unsafeDeleteKey : (cacheType -> string -> unit) = [%raw fun dict key -> {|
-  function(dict,key){
      delete dict[key];
      return 0
-   }
 |}] in
   ignore(unsafeDeleteKey cache (string_of_int k))
 
