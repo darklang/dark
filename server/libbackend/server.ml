@@ -27,6 +27,21 @@ module Dbconnection = Libservice.Dbconnection
 (* ------------------------------- *)
 (* utils *)
 (* ------------------------------- *)
+type frontendImpl = Elm
+                  | Bucklescript
+
+let query_string_to_frontend_impl query =
+  let bs_val =
+    List.Assoc.find
+      query
+      ~equal:String.Caseless.equal
+      "bs"
+  in
+  match bs_val with
+  | Some ["true"] | Some ["1"] -> Bucklescript
+  | _ -> Elm
+
+
 type timing_header = string * float * string
 
 let shutdown = ref false
@@ -437,15 +452,30 @@ let delete_404 ~(execution_id: Types.id) (host: string) body
     raise e
 
 
-let admin_ui_html ~(debug:bool) () =
+let admin_ui_html ~(debug:bool) frontend =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
-  >|= Util.string_replace "{STATIC}" Config.static_host
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
+  >|= (fun body ->
+    let glue, tag =
+      (match frontend with
+        | Elm ->
+          let content = File.readfile ~root:Templates "elm-glue.js" in
+          let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
+          (content, elmtag)
+        | Bucklescript ->
+          let content = File.readfile ~root:Templates "bs-glue.js" in
+          let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
+          (content, bstag))
+    in
+    body
+    |> Util.string_replace "{FRONTENDIMPL}" tag
+    |> Util.string_replace "{FRONTENDGLUE}" glue)
+  >|= Util.string_replace "{STATIC}" Config.static_host
+  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
 
 
 let save_test_handler ~(execution_id: Types.id) host =
@@ -498,10 +528,11 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
      | _ ->
         respond ~execution_id `Unauthorized "Invalid session"
 
-
 let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
       ~(body: string) ~(username:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
+  let query = req |> CRequest.uri |> Uri.query in
+  let frontend = query_string_to_frontend_impl query in
   let html_hdrs =
     Header.of_list
       [ ("Content-type", "text/html; charset=utf-8")
@@ -528,7 +559,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
      when_can_edit ~canvas
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
-         let%lwt body = admin_ui_html ~debug:false () in
+         let%lwt body = admin_ui_html ~debug:false frontend in
          respond
            ~resp_headers:html_hdrs
            ~execution_id
@@ -536,7 +567,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
      when_can_edit ~canvas
        (fun _ ->
-         let%lwt body = admin_ui_html ~debug:true () in
+         let%lwt body = admin_ui_html ~debug:true frontend in
          respond
            ~resp_headers:html_hdrs
            ~execution_id
@@ -544,7 +575,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   | (`GET, [ "a" ; canvas; ]) ->
      when_can_edit ~canvas
        (fun _ ->
-         let%lwt body = admin_ui_html ~debug:false () in
+         let%lwt body = admin_ui_html ~debug:false frontend in
          respond
            ~resp_headers:html_hdrs
            ~execution_id
