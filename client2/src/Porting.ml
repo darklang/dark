@@ -525,29 +525,6 @@ module Native = struct
       { width = Ext.getWidth Ext.window
       ; height = Ext.getHeight Ext.window
       }
-
-    module OnResize = struct
-      let decode =
-        let open Tea.Json.Decoder in
-        let decodeDetail =
-          map2 (fun width height -> { width; height} )
-          (field "width" int)
-          (field "height" int)
-        in
-        map (fun msg -> msg)
-          (field "detail" decodeDetail)
-      let listen ?(key="") tagger =
-        registerGlobal "windowResize" key tagger decode
-    end
-
-    module OnFocusChange = struct
-      let decode =
-        let open Tea.Json.Decoder in
-        map (fun visible -> visible)
-          (field "detail" bool)
-      let listen?(key="") tagger =
-        registerGlobal "windowFocusChange" key tagger decode
-    end
   end
 
   module Random = struct
@@ -615,6 +592,30 @@ module Native = struct
   end
 end
 
+module Window = struct
+  module OnResize = struct
+    let decode =
+      let open Tea.Json.Decoder in
+      let decodeDetail =
+        map2 (fun width height -> (width, height) )
+        (field "width" int)
+        (field "height" int)
+      in
+      map (fun msg -> msg)
+        (field "detail" decodeDetail)
+    let listen ?(key="") tagger =
+      registerGlobal "windowResize" key tagger decode
+  end
+
+  module OnFocusChange = struct
+    let decode =
+      let open Tea.Json.Decoder in
+      map (fun visible -> visible)
+        (field "detail" bool)
+    let listen?(key="") tagger =
+      registerGlobal "windowFocusChange" key tagger decode
+  end
+end
 
 module Rollbar = struct
   external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Rollbar"]

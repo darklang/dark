@@ -140,7 +140,7 @@ and msg =
   | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
-  | WindowResize of Window.size
+  | WindowResize of int * int
   | TimerFire of timerAction * Tea.Time.t
   | JSError of string
   | PageVisibilityChange of Porting.PageVisibility.visibility
