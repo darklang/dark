@@ -2,7 +2,6 @@ module Refactor exposing (..)
 
 -- lib
 import List.Extra as LE
-import Set exposing (Set)
 
 -- Dark
 import Types exposing (..)
@@ -14,11 +13,12 @@ import AST
 import Blank as B
 import Analysis
 import Util
-import Nineteen.String as String
+import DontPort exposing (..)
+import StrSet
 
 generateFnName : () -> String
 generateFnName _ =
-  "fn_" ++ (() |> Util.random |> String.fromInt)
+  "fn_" ++ (() |> Util.random |> DontPort.fromInt)
 
 convertTipe : Tipe -> Tipe
 convertTipe tipe =
@@ -81,9 +81,9 @@ wrap wl m tl p =
                   ,focus)
         (PExpr e, TLFunc f) ->
           let (newAst, focus) =
-                wrapAst e f.ast wl
+                wrapAst e f.ufAST wl
               newF =
-                { f | ast = newAst }
+                { f | ufAST = newAst }
           in
               RPC ([SetFunction newF]
                   ,focus)
@@ -110,11 +110,11 @@ toggleOnRail m tl p =
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
   let extractVarInAst e ast  =
-        let varname = "var" ++ String.fromInt (Util.random())
+        let varname = "var" ++ DontPort.fromInt (Util.random())
             freeVariables =
               AST.freeVariables e
               |> List.map Tuple.second
-              |> Set.fromList
+              |> StrSet.fromList
             ancestors =
               AST.ancestors (B.toID e) ast
             lastPlaceWithSameVarsAndValues =
@@ -124,13 +124,13 @@ extractVariable m tl p =
                   let id = B.toID elem
                       availableVars =
                         Analysis.getCurrentAvailableVarnames m tl.id id
-                        |> Set.fromList
+                        |> StrSet.fromList
                       allRequiredVariablesAvailable =
-                        Set.diff freeVariables availableVars
-                        |> Set.isEmpty
+                        StrSet.diff freeVariables availableVars
+                        |> StrSet.isEmpty
                       noVariablesAreRedefined =
                          freeVariables
-                         |> Set.toList
+                         |> StrSet.toList
                          |> List.all (not << (\v -> AST.isDefinitionOf v elem))
                   in
                       allRequiredVariablesAvailable
@@ -165,9 +165,9 @@ extractVariable m tl p =
                    ]
         (PExpr e, TLFunc f) ->
           let (newAst, enterTarget) =
-                extractVarInAst e f.ast
+                extractVarInAst e f.ufAST
               newF =
-                { f | ast = newAst }
+                { f | ufAST = newAst }
           in
               Many [ RPC ([SetFunction newF]
                          , FocusNoChange)
@@ -205,24 +205,24 @@ extractFunction m tl p =
                          |> Maybe.withDefault TAny
                          |> convertTipe
               in
-                  { name = F (gid ()) name_
-                  , tipe = F (gid ()) tipe
-                  , block_args = []
-                  , optional = False
-                  , description = ""
+                  { ufpName = F (gid ()) name_
+                  , ufpTipe = F (gid ()) tipe
+                  , ufpBlock_args = []
+                  , ufpOptional = False
+                  , ufpDescription = ""
                   })
                   freeVars
           metadata =
-            { name = F (gid ()) name
-            , parameters = params
-            , description = ""
-            , returnTipe = F (gid ()) TAny
-            , infix = False
+            { ufmName = F (gid ()) name
+            , ufmParameters = params
+            , ufmDescription = ""
+            , ufmReturnTipe = F (gid ()) TAny
+            , ufmInfix = False
             }
           newF =
-            { tlid = gtlid ()
-            , metadata = metadata
-            , ast = AST.clone body
+            { ufTLID = gtlid ()
+            , ufMetadata = metadata
+            , ufAST = AST.clone body
             }
       in
           RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
@@ -245,12 +245,12 @@ renameFunction m old new =
                       PExpr (transformExpr newName_ e)
                     _ -> oldCall
             (origName, calls) =
-              case old_.metadata.name of
+              case old_.ufMetadata.ufmName of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
             newName =
-              case new_.metadata.name of
+              case new_.ufMetadata.ufmName of
                 Blank _ -> Nothing
                 F _ n -> Just n
         in
@@ -279,14 +279,14 @@ renameFunction m old new =
               m.userFunctions
               |> List.filterMap
                 (\uf ->
-                  let newAst = renameFnCalls uf.ast old new
+                  let newAst = renameFnCalls uf.ufAST old new
                   in
-                      if newAst /= uf.ast
+                      if newAst /= uf.ufAST
                       then
-                        Just (SetFunction { uf | ast = newAst })
+                        Just (SetFunction { uf | ufAST = newAst })
                       else Nothing)
       in
-          newHandlers ++ newFunctions
+          newHandlers @ newFunctions
 
 isFunctionInExpr : String -> Expr -> Bool
 isFunctionInExpr fnName expr =
@@ -328,17 +328,17 @@ countFnUsage m name =
                   case tl.data of
                     TLHandler h -> isFunctionInExpr name h.ast
                     TLDB _ -> False
-                    TLFunc f -> isFunctionInExpr name f.ast
+                    TLFunc f -> isFunctionInExpr name f.ufAST
                 )
   in List.length usedIn
 
-unusedDeprecatedFunctions : Model -> Set String
+unusedDeprecatedFunctions : Model -> StrSet.Set
 unusedDeprecatedFunctions m =
   m.builtInFunctions
-  |> List.filter .deprecated
-  |> List.map .name
+  |> List.filter .fnDeprecated
+  |> List.map .fnName
   |> List.filter (\n -> (countFnUsage m n) == 0)
-  |> Set.fromList
+  |> StrSet.fromList
 
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
@@ -356,7 +356,7 @@ transformFnCalls m uf f =
                       PExpr (transformExpr e)
                     _ -> old_
             (origName, calls) =
-              case old.metadata.name of
+              case old.ufMetadata.ufmName of
                 Blank _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
@@ -386,21 +386,21 @@ transformFnCalls m uf f =
               m.userFunctions
               |> List.filterMap
                 (\uf_ ->
-                  let newAst = transformCallsInAst f uf_.ast uf_
+                  let newAst = transformCallsInAst f uf_.ufAST uf_
                   in
-                      if newAst /= uf_.ast
+                      if newAst /= uf_.ufAST
                       then
-                        Just (SetFunction { uf_ | ast = newAst })
+                        Just (SetFunction { uf_ | ufAST = newAst })
                       else Nothing)
       in
-          newHandlers ++ newFunctions
+          newHandlers @ newFunctions
 
 addNewFunctionParameter : Model -> UserFunction -> List Op
 addNewFunctionParameter m old =
   let fn e =
         case e of
           FnCall name params r ->
-            FnCall name (params ++ [B.new ()]) r
+            FnCall name (params @ [B.new ()]) r
           _ -> e
   in
       transformFnCalls m old fn
@@ -408,7 +408,7 @@ addNewFunctionParameter m old =
 removeFunctionParameter : Model -> UserFunction -> UserFunctionParameter -> List Op
 removeFunctionParameter m uf ufp =
   let indexInList =
-        LE.findIndex (\p -> p == ufp) uf.metadata.parameters
+        LE.findIndex (\p -> p == ufp) uf.ufMetadata.ufmParameters
         |> deMaybe "tried to remove parameter that does not exist in function"
       fn e =
         case e of
@@ -423,18 +423,21 @@ generateEmptyFunction _ =
   let funcName = generateFnName ()
       tlid = gtlid ()
       params = [
-          { name = F (gid ()) "var"
-          , tipe = F (gid ()) TAny
-          , block_args = []
-          , optional = True
-          , description = ""
+          { ufpName = F (gid ()) "var"
+          , ufpTipe = F (gid ()) TAny
+          , ufpBlock_args = []
+          , ufpOptional = True
+          , ufpDescription = ""
           }
         ]
       metadata = {
-        name = F (gid ()) funcName
-        , parameters = params
-        , description = ""
-        , returnTipe = F (gid ()) TAny
-        , infix = False
+        ufmName = F (gid ()) funcName
+        , ufmParameters = params
+        , ufmDescription = ""
+        , ufmReturnTipe = F (gid ()) TAny
+        , ufmInfix = False
         }
-  in (UserFunction tlid metadata (Blank (gid ())))
+  in ({ ufTLID = tlid
+      , ufMetadata = metadata
+      , ufAST = Blank (gid ())
+      })

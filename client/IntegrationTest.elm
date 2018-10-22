@@ -6,6 +6,7 @@ import Result.Extra as RE
 import List exposing (head)
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
@@ -13,74 +14,23 @@ import Blank as B
 import Pointer as P
 import AST
 import Analysis
-import Nineteen.Debug as Debug
 
 
-trigger : String -> IntegrationTestState
-trigger test_name =
-  let name = String.dropLeft 5 test_name in
-  IntegrationTestExpectation <|
-  case name of
-    "enter_changes_state" -> enter_changes_state
-    "field_access" -> field_access
-    "field_access_closes" -> field_access_closes
-    "field_access_pipes" -> field_access_pipes
-    "field_access_nested" -> field_access_nested
-    "pipeline_let_equals" -> pipeline_let_equals
-    "pipe_within_let" -> pipe_within_let
-    "tabbing_works" -> tabbing_works
-    "left_right_works" -> left_right_works
-    "varbinds_are_editable" -> varbinds_are_editable
-    "editing_request_edits_request" -> editing_request_edits_request
-    "autocomplete_highlights_on_partial_match" -> autocomplete_highlights_on_partial_match
-    "no_request_global_in_non_http_space" -> no_request_global_in_non_http_space
-    "hover_values_for_varnames" -> hover_values_for_varnames
-    "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
-    "deleting_selects_the_blank" -> deleting_selects_the_blank
-    "right_number_of_blanks" -> right_number_of_blanks
-    "ellen_hello_world_demo" -> ellen_hello_world_demo
-    "editing_does_not_deselect" -> editing_does_not_deselect
-    "editing_headers" -> editing_headers
-    "tabbing_through_let" -> tabbing_through_let
-    "case_sensitivity" -> case_sensitivity
-    "focus_on_ast_in_new_empty_tl" -> focus_on_ast_in_new_empty_tl
-    "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
-    "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
-    "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
-    "rename_db_fields" -> rename_db_fields
-    "rename_db_type" -> rename_db_type
-    "paste_right_number_of_blanks" -> paste_right_number_of_blanks
-    "paste_keeps_focus" -> paste_keeps_focus
-    "nochange_for_failed_paste" -> nochange_for_failed_paste
-    "feature_flag_works" -> feature_flag_works
-    "simple_tab_ordering" -> simple_tab_ordering
-    "variable_extraction" -> variable_extraction
-    "invalid_syntax" -> invalid_syntax
-    "editing_stays_in_same_place_with_enter" -> editing_stays_in_same_place_with_enter
-    "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
-    "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
-    "object_literals_work" -> object_literals_work
-    "rename_function" -> rename_function
-    "sending_to_rail_works" -> sending_to_rail_works
-    "feature_flag_in_function" -> feature_flag_in_function
-    "execute_function_works" -> execute_function_works
-    "function_version_renders" -> function_version_renders
-    "only_backspace_out_of_strings_on_last_char" -> only_backspace_out_of_strings_on_last_char
-    n -> Debug.todo ("Test " ++ n ++ " not added to IntegrationTest.trigger")
+
 
 pass : TestResult
 pass = Ok ()
 
 fail : a -> TestResult
-fail v = Err (Debug.toString v)
+fail v = Err (toString v)
 
 onlyTL : Model -> Toplevel
 onlyTL m =
   let len = List.length m.toplevels
       _ = if len == 0
-          then Debug.todo ("no toplevels")
+          then Debug.crash ("no toplevels")
           else if len > 1
-          then Debug.todo ("too many toplevels: " ++ (Debug.toString m.toplevels))
+          then Debug.crash ("too many toplevels: " ++ (toString m.toplevels))
           else "nothing to see here" in
   m.toplevels
   |> List.head
@@ -320,8 +270,8 @@ case_sensitivity m =
     |> List.map
          (\tl ->
              case tl.data of
-               TLDB {name, cols} ->
-                 case (name, cols) of
+               TLDB {dbName, cols} ->
+                 case (dbName, cols) of
                    ( "TestUnicode"
                      , [ (F _ "cOlUmNnAmE", F _ "Str")
                      , (Blank _, Blank _)
@@ -408,7 +358,7 @@ rename_db_fields m =
   m.toplevels
   |> List.map (\tl ->
     case tl.data of
-      TLDB {name, cols} ->
+      TLDB {dbName, cols} ->
         case cols of
           [ (F id "field6", F _ "String")
           , (F _ "field2", F _ "String")
@@ -427,7 +377,7 @@ rename_db_type m =
   m.toplevels
   |> List.map (\tl ->
     case tl.data of
-      TLDB {name, cols} ->
+      TLDB {dbName, cols} ->
         case cols of
           [ (F _ "field1", F id "String")
           , (F _ "field2", F _ "Int")
@@ -513,10 +463,10 @@ feature_flag_works m =
 
 feature_flag_in_function : Model -> TestResult
 feature_flag_in_function m =
-  let fun = head m.userFunctions
+  let fun = List.head m.userFunctions
   in case fun of
     Just f ->
-      case f.ast of
+      case f.ufAST of
         F id
           (FnCall "+" (
             [F _
@@ -532,7 +482,7 @@ feature_flag_in_function m =
           -- in case res of
           --   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value)
           --   _ -> fail (f.ast, res)
-        _ -> fail (f.ast, Nothing)
+        _ -> fail (f.ufAST, Nothing)
     Nothing -> fail ("Cant find function", Nothing)
 
 simple_tab_ordering : Model -> TestResult
@@ -679,3 +629,55 @@ only_backspace_out_of_strings_on_last_char m =
   then pass
   else fail ast
 
+
+trigger : String -> IntegrationTestState
+trigger test_name =
+  let name = String.dropLeft 5 test_name in
+  IntegrationTestExpectation
+  (case name of
+    "enter_changes_state" -> enter_changes_state
+    "field_access" -> field_access
+    "field_access_closes" -> field_access_closes
+    "field_access_pipes" -> field_access_pipes
+    "field_access_nested" -> field_access_nested
+    "pipeline_let_equals" -> pipeline_let_equals
+    "pipe_within_let" -> pipe_within_let
+    "tabbing_works" -> tabbing_works
+    "left_right_works" -> left_right_works
+    "varbinds_are_editable" -> varbinds_are_editable
+    "editing_request_edits_request" -> editing_request_edits_request
+    "autocomplete_highlights_on_partial_match" -> autocomplete_highlights_on_partial_match
+    "no_request_global_in_non_http_space" -> no_request_global_in_non_http_space
+    "hover_values_for_varnames" -> hover_values_for_varnames
+    "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
+    "deleting_selects_the_blank" -> deleting_selects_the_blank
+    "right_number_of_blanks" -> right_number_of_blanks
+    "ellen_hello_world_demo" -> ellen_hello_world_demo
+    "editing_does_not_deselect" -> editing_does_not_deselect
+    "editing_headers" -> editing_headers
+    "tabbing_through_let" -> tabbing_through_let
+    "case_sensitivity" -> case_sensitivity
+    "focus_on_ast_in_new_empty_tl" -> focus_on_ast_in_new_empty_tl
+    "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
+    "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
+    "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
+    "rename_db_fields" -> rename_db_fields
+    "rename_db_type" -> rename_db_type
+    "paste_right_number_of_blanks" -> paste_right_number_of_blanks
+    "paste_keeps_focus" -> paste_keeps_focus
+    "nochange_for_failed_paste" -> nochange_for_failed_paste
+    "feature_flag_works" -> feature_flag_works
+    "simple_tab_ordering" -> simple_tab_ordering
+    "variable_extraction" -> variable_extraction
+    "invalid_syntax" -> invalid_syntax
+    "editing_stays_in_same_place_with_enter" -> editing_stays_in_same_place_with_enter
+    "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
+    "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
+    "object_literals_work" -> object_literals_work
+    "rename_function" -> rename_function
+    "sending_to_rail_works" -> sending_to_rail_works
+    "feature_flag_in_function" -> feature_flag_in_function
+    "execute_function_works" -> execute_function_works
+    "function_version_renders" -> function_version_renders
+    "only_backspace_out_of_strings_on_last_char" -> only_backspace_out_of_strings_on_last_char
+    n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger"))

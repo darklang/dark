@@ -8,9 +8,9 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
-import Nineteen.String as String
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
@@ -45,7 +45,7 @@ type HtmlConfig =
 
 
 wc : String -> HtmlConfig
-wc = WithClass
+wc s = WithClass s
 
 idConfigs : List HtmlConfig
 idConfigs =
@@ -82,7 +82,7 @@ withEditFn vs v =
     case v of
       F _ (FnCall name _ _) ->
         case LE.find (Functions.sameName name) vs.ufns of
-          Just fn -> [WithEditFn fn.tlid]
+          Just fn -> [WithEditFn fn.ufTLID]
           _ -> []
       _ -> []
   else []
@@ -154,7 +154,7 @@ div vs configs content =
         mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
       idClasses = case thisID of
-                    Just id -> ["blankOr", "id-" ++ String.fromInt (deID id)]
+                    Just id -> ["blankOr", "id-" ++ DontPort.fromInt (deID id)]
                     _ -> []
       allClasses = classes
                   ++ idClasses
@@ -191,9 +191,6 @@ div vs configs content =
     Html.div attrs (content ++ [rightSideHtml])
 
 
-type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
-type alias BlankViewer a = Viewer (BlankOr a)
-
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
   viewBlankOr text pt vs c str
@@ -213,11 +210,11 @@ placeHolderFor vs id pt =
               case AST.getParamIndex ast id of
                 Just (name, index) ->
                   case Autocomplete.findFunction vs.ac name of
-                    Just {parameters} ->
-                      LE.getAt index parameters
+                    Just {fnParameters} ->
+                      LE.getAt index fnParameters
                     Nothing -> Nothing
                 _ -> Nothing)
-        |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
+        |> Maybe.map (\p -> p.paramName ++ ": " ++ RT.tipe2str p.paramTipe ++ "")
         |> Maybe.withDefault ""
   in
   case pt of
@@ -240,8 +237,6 @@ placeHolderFor vs id pt =
     Key -> "keyname"
     DBColName -> "db field name"
     DBColType -> "db type"
-    DarkType -> "type"
-    DarkTypeField -> "fieldname"
     FFMsg -> "flag name"
     FnName -> "function name"
     ParamName -> "param name"

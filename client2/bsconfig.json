@@ -1,0 +1,23 @@
+{
+  "name": "client2",
+  "version": "0.1.0",
+  "sources": {
+    "dir" : "src",
+    "subdirs" : false
+  },
+  "package-specs": {
+    "module": "es6",
+    "in-source": false
+  },
+  "suffix": ".bs.js",
+  "bs-dependencies": [
+    "bucklescript-tea",
+    "@glennsl/bs-json",
+    "bs-webapi"
+  ],
+  "warnings": {
+    "error": "+101",
+    "number": "-33-27-39-26-101"
+  },
+  "refmt": 3
+}

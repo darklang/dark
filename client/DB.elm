@@ -6,6 +6,7 @@ module DB exposing (..)
 import Types exposing (..)
 import Blank as B
 import AST
+import DontPort exposing ((@))
 
 astsFor : DB -> List Expr
 astsFor db =
@@ -18,14 +19,14 @@ allData db =
   let (cols, rolls) =
         case db.activeMigration of
           Just migra ->
-            ( db.cols ++ migra.cols
+            ( db.cols @ migra.cols
             , List.concat [AST.allData migra.rollforward, AST.allData migra.rollback])
           Nothing -> (db.cols, [])
       colpointers =
         cols
           |> List.map (\(lhs,rhs) -> [PDBColName lhs, PDBColType rhs] )
           |> List.concat
-  in colpointers ++ rolls
+  in colpointers @ rolls
 
 siblings : PointerData -> DB -> List PointerData
 siblings _ db = allData db

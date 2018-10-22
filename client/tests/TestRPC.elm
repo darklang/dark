@@ -5,7 +5,6 @@ import Test exposing (describe)
 import Expect exposing (Expectation)
 
 -- builtins
-import Nineteen.Debug as Debug
 import Json.Decode as JSD
 import Json.Encode as JSE
 import Dict
@@ -18,6 +17,7 @@ import AST
 import Blank as B
 import UtilsForTests exposing (..)
 import RPC exposing (..)
+import JSON exposing (..)
 
 id1 = ID 5
 id2 = ID 10

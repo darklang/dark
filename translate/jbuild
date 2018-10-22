@@ -1,0 +1,20 @@
+(jbuild_version 1)
+
+(executable
+  (
+    (name translate)
+    (public_name translate)
+    (flags (-warn-error (+A)))
+    (libraries (core
+                yojson
+                re2
+                str
+                reason
+                ppx_deriving_yojson.runtime))
+    (preprocess (pps (ppx_deriving.std
+                      ppx_deriving_yojson
+                      )))
+    (package translate)
+  )
+)
+

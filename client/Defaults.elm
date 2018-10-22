@@ -2,11 +2,12 @@ module Defaults exposing (..)
 
 -- builtin
 -- lib
-import Dict
 
 -- dark
 import Types exposing (..)
 import PageVisibility
+import StrDict
+import IntDict
 
 
 entryID : String
@@ -69,7 +70,7 @@ defaultModel = { error = { message = Nothing
                             , index = -1
                             , value = ""
                             , prevValue = ""
-                            , tipe = Nothing
+                            , acTipe = Nothing
                             , target = Nothing
                             , isCommandMode = False
                             }
@@ -80,8 +81,8 @@ defaultModel = { error = { message = Nothing
                , tests = []
                , toplevels = []
                , deletedToplevels = []
-               , analyses = Dict.empty
-               , traces = Dict.empty
+               , analyses = StrDict.empty
+               , traces = IntDict.empty
                , globals = []
                , f404s = []
                , unlockedDBs = []
@@ -95,8 +96,8 @@ defaultModel = { error = { message = Nothing
                , clipboard = Nothing
                , cursorState = Deselected
                , executingFunctions = []
-               , tlCursors = Dict.empty
-               , featureFlags = Dict.empty
+               , tlCursors = IntDict.empty
+               , featureFlags = IntDict.empty
                , lockedHandlers = []
                , canvas = defaultCanvas
                , canvasName = "builtwithdark"

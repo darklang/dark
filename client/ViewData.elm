@@ -44,7 +44,7 @@ viewInputs vs (ID astID) =
             -- Note: this is not the same tlCursor as above
             hoverID = tlCursorID vs.tl.id idx
             isHover = vs.hovering == Just hoverID
-            astTipe = Dict.get trace.id vs.analyses
+            astTipe = Dict.get trace.traceID vs.analyses
                       |> Maybe.map .liveValues
                       |> Maybe.andThen (Dict.get astID)
                       |> Maybe.map RT.typeOf

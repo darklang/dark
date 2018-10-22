@@ -24,8 +24,6 @@ emptyD_ id pt =
     Field -> PField (Blank id)
     DBColName -> PDBColName (Blank id)
     DBColType -> PDBColType (Blank id)
-    DarkType -> PDarkType (Blank id)
-    DarkTypeField -> PDarkTypeField (Blank id)
     FFMsg -> PFFMsg (Blank id)
     FnName -> PFnName (Blank id)
     ParamName -> PParamName (Blank id)
@@ -43,8 +41,6 @@ typeOf pd =
     PKey _ -> Key
     PDBColName _ -> DBColName
     PDBColType _ -> DBColType
-    PDarkType _ -> DarkType
-    PDarkTypeField _ -> DarkTypeField
     PFFMsg _ -> FFMsg
     PFnName _ -> FnName
     PParamName _ -> ParamName
@@ -67,8 +63,6 @@ toID pd =
     PEventSpace d -> B.toID d
     PDBColName d -> B.toID d
     PDBColType d -> B.toID d
-    PDarkType d -> B.toID d
-    PDarkTypeField d -> B.toID d
     PFFMsg d -> B.toID d
     PFnName d -> B.toID d
     PParamName d -> B.toID d
@@ -87,8 +81,6 @@ isBlank pd =
     PEventSpace d -> B.isBlank d
     PDBColName d -> B.isBlank d
     PDBColType d -> B.isBlank d
-    PDarkType d -> B.isBlank d
-    PDarkTypeField d -> B.isBlank d
     PFFMsg d -> B.isBlank d
     PFnName d -> B.isBlank d
     PParamName d -> B.isBlank d
@@ -114,19 +106,11 @@ toContent pd =
     PEventSpace d -> bs2s d
     PDBColName d -> bs2s d
     PDBColType d -> bs2s d
-    PDarkType _ -> Nothing
-    PDarkTypeField d -> bs2s d
     PFFMsg d -> bs2s d
     PFnName d -> bs2s d
     PParamName d -> bs2s d
     PParamTipe d ->
       d |> B.toMaybe |> Maybe.map Runtime.tipe2str |> Maybe.withDefault "" |> Just
-
-dtmap : (DarkType -> DarkType) -> PointerData -> PointerData
-dtmap fn pd =
-  case pd of
-    PDarkType d -> PDarkType (fn d)
-    _ -> pd
 
 exprmap : (Expr -> Expr) -> PointerData -> PointerData
 exprmap fn pd =
@@ -134,28 +118,4 @@ exprmap fn pd =
     PExpr d -> PExpr (fn d)
     _ -> pd
 
-tmap : (BlankOr Tipe -> BlankOr Tipe) -> PointerData -> PointerData
-tmap fn pd =
-  case pd of
-    PParamTipe d -> PParamTipe (fn d)
-    _ -> pd
-
-strmap : (PointerType -> BlankOr String -> BlankOr String) -> PointerData -> PointerData
-strmap fn pd =
-  case pd of
-    PVarBind d -> PVarBind (fn VarBind d)
-    PField d -> PField (fn Field d)
-    PKey d -> PKey (fn Key d)
-    PExpr _ -> pd
-    PEventModifier d -> PEventModifier (fn EventModifier d)
-    PEventName d -> PEventName (fn EventName d)
-    PEventSpace d -> PEventSpace (fn EventSpace d)
-    PDBColName d -> PDBColName (fn DBColName d)
-    PDBColType d -> PDBColType (fn DBColType d)
-    PDarkType _ -> pd
-    PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
-    PFFMsg d -> PFFMsg (fn FFMsg d)
-    PFnName d -> PFnName (fn FnName d)
-    PParamName d -> PParamName (fn ParamName d)
-    PParamTipe _ -> pd
 

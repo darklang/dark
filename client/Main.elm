@@ -15,14 +15,14 @@ import Navigation
 import Mouse
 import PageVisibility
 import String
-import Nineteen.String as String
 import String.Extra as SE
 import Time
 import Task
 import Window
-import Dict
 
 -- dark
+import DontPort
+import StrDict
 import Analysis
 import RPC
 import Types exposing (..)
@@ -43,25 +43,25 @@ import Functions
 import Toplevel
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
-import Util
 import Pointer as P
 import Blank as B
 import AST
+import JSONUtils
 import JSON
 import Selection
 import Sync
 import DB
 import Runtime
 import Toplevel as TL
-import Util
 import Url
 import IntegrationTest
+import Flags
 
 
 -----------------------
 -- TOP-LEVEL
 -----------------------
-main : Program Flags Model Msg
+main : Program Flags.Flags Model Msg
 main = Navigation.programWithFlags
          LocationChange
          { init = init
@@ -73,23 +73,23 @@ main = Navigation.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-flag2function : FlagFunction -> Function
+flag2function : Flags.Function -> Function
 flag2function fn =
-  { name = fn.name
-  , description = fn.description
-  , returnTipe = RT.str2tipe fn.return_type
-  , parameters = List.map (\p -> { name = p.name
-                                 , tipe = RT.str2tipe p.tipe
-                                 , block_args = p.block_args
-                                 , optional = p.optional
-                                 , description = p.description})
+  { fnName = fn.name
+  , fnDescription = fn.description
+  , fnReturnTipe = RT.str2tipe fn.return_type
+  , fnParameters = List.map (\p -> { paramName = p.name
+                                 , paramTipe = RT.str2tipe p.tipe
+                                 , paramBlock_args = p.block_args
+                                 , paramOptional = p.optional
+                                 , paramDescription = p.description})
                           fn.parameters
-  , infix = fn.infix
-  , previewExecutionSafe = fn.preview_execution_safe
-  , deprecated = fn.deprecated
+  , fnInfix = fn.infix
+  , fnPreviewExecutionSafe = fn.preview_execution_safe
+  , fnDeprecated = fn.deprecated
   }
 
-init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init : Flags.Flags -> Navigation.Location -> ( Model, Cmd Msg )
 init {editorState, complete, userContentHost, environment} location =
   let savedEditor = Editor.fromString editorState
 
@@ -289,11 +289,11 @@ updateMod mod (m, cmd) =
                   -- call RPC on the new model
                   in [RPC.rpc newM newM.canvasName FocusSame params]
               TLFunc f ->
-                let replacement = AST.closeBlanks f.ast in
-                if replacement == f.ast
+                let replacement = AST.closeBlanks f.ufAST in
+                if replacement == f.ufAST
                 then []
                 else
-                  let newF = { f | ast = replacement }
+                  let newF = { f | ufAST = replacement }
                       ops = [ SetFunction newF ]
                       params = RPC.opsParams ops
                   -- call RPC on the new model
@@ -369,12 +369,12 @@ updateMod mod (m, cmd) =
                       Nothing -> ""
               in
               str
-              |> JSD.decodeString JSON.decodeException
+              |> JSD.decodeString JSONUtils.decodeException
               |> Result.toMaybe
               |> Maybe.map
                    (\{ short
                      , long
-                     , tipe
+                     , exceptionTipe
                      , actual
                      , actualType
                      , expected
@@ -384,19 +384,19 @@ updateMod mod (m, cmd) =
                      , workarounds
                      } ->
                        " ("
-                       ++ tipe
+                       ++ exceptionTipe
                        ++ "): "
                        ++ short
-                       |> (++) (maybe "message" long)
-                       |> (++) (maybe "actual value" actual)
-                       |> (++) (maybe "actual type" actualType)
-                       |> (++) (maybe "result" result)
-                       |> (++) (maybe "result type" resultType)
-                       |> (++) (maybe "expected" expected)
-                       |> (++) (if info == Dict.empty
+                       ++ (maybe "message" long)
+                       ++ (maybe "actual value" actual)
+                       ++ (maybe "actual type" actualType)
+                       ++ (maybe "result" result)
+                       ++ (maybe "result type" resultType)
+                       ++ (maybe "expected" expected)
+                       ++ (if info == StrDict.empty
                                 then ""
                                 else ", info: " ++ toString info)
-                       |> (++) (if workarounds == []
+                       ++ (if workarounds == []
                                 then ""
                                 else ", workarounds: " ++ toString workarounds))
               |> Maybe.withDefault str
@@ -423,7 +423,7 @@ updateMod mod (m, cmd) =
                                 , JSE.string
                                     (msg ++ " (" ++ context ++ ")"))
                               , ("url", JSEE.maybe JSE.string url)
-                              , ("custom", JSON.encodeHttpError e)
+                              , ("custom", JSONUtils.encodeHttpError e)
                               ]
             cmds = if shouldRollbar then [sendRollbar json] else []
         in
@@ -609,11 +609,11 @@ updateMod mod (m, cmd) =
             req h =
               let trace = Analysis.getCurrentTrace m h.tlid
                   param t =
-                    JSE.object [ ( "handler" , RPC.encodeHandler h)
-                               , ( "trace" , RPC.encodeTrace t)
-                               , ( "dbs", JSON.encodeList RPC.encodeDB dbs)
+                    JSE.object [ ( "handler" , JSON.encodeHandler h)
+                               , ( "trace" , JSON.encodeTrace t)
+                               , ( "dbs", JSONUtils.encodeList JSON.encodeDB dbs)
                                , ( "user_fns"
-                                 , JSON.encodeList RPC.encodeUserFunction userFns)
+                                 , JSONUtils.encodeList JSON.encodeUserFunction userFns)
                                ]
               in
               trace
@@ -685,13 +685,13 @@ updateMod mod (m, cmd) =
       ExecutingFunctionRPC tlid id name ->
         case Analysis.getCurrentTrace m tlid of
           Just trace ->
-            case Analysis.getArguments m tlid trace.id id of
+            case Analysis.getArguments m tlid trace.traceID id of
               Just args ->
-                let params = { tlid = tlid
-                             , callerID = id
-                             , traceID = trace.id
-                             , fnName = name
-                             , args = args
+                let params = { efpTLID = tlid
+                             , efpCallerID = id
+                             , efpTraceID = trace.traceID
+                             , efpFnName = name
+                             , efpArgs = args
                              }
                 in
                 (m, RPC.executeFunctionRPC m.canvasName params)
@@ -740,7 +740,7 @@ processAutocompleteMods m mods =
             let i = complete.index
                 val = AC.getValue complete
             in Debug.log "autocompletemod result: "
-                (String.fromInt complete.index ++ " => " ++ val)
+                (DontPort.fromInt complete.index ++ " => " ++ val)
           else ""
   in ({m | complete = complete}, focus)
 
@@ -751,9 +751,9 @@ isFieldAccessDot m baseStr =
   -- We know from the fact that this function is called that there has
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
-  let str = Util.replace "\\.*$" "" baseStr
+  let str = DontPort.replace "\\.*$" "" baseStr
       intOrString = String.startsWith "\"" str
-                    || RPC.typeOfLiteralString str == TInt
+                    || JSON.typeOfLiteralString str == TInt
   in
   case m.cursorState of
     Entering (Creating _) -> not intOrString
@@ -855,24 +855,24 @@ update_ msg m =
                           case (TL.findExn tl id) of
                             PExpr _ ->
                               let blank = B.new ()
-                                  replacement = AST.addThreadBlank id blank f.ast
+                                  replacement = AST.addThreadBlank id blank f.ufAST
                               in
-                              if f.ast == replacement
+                              if f.ufAST == replacement
                               then NoChange
                               else
-                                RPC ( [ SetFunction { f | ast = replacement}]
+                                RPC ( [ SetFunction { f | ufAST = replacement}]
                                     , FocusExact tlid (B.toID blank))
                             PVarBind _ ->
-                              case AST.parentOf_ id f.ast of
+                              case AST.parentOf_ id f.ufAST of
                                 Just (F _ (Lambda _ _)) ->
-                                  let replacement = AST.addLambdaBlank id f.ast in
-                                  RPC ( [ SetFunction { f | ast = replacement}]
+                                  let replacement = AST.addLambdaBlank id f.ufAST in
+                                  RPC ( [ SetFunction { f | ufAST = replacement}]
                                       , FocusNext tlid (Just id))
                                 _ ->
                                   NoChange
                             PKey _ ->
-                              let (nextid, _, replacement) = AST.addObjectLiteralBlanks id f.ast in
-                              RPC ( [ SetFunction { f | ast = replacement}]
+                              let (nextid, _, replacement) = AST.addObjectLiteralBlanks id f.ufAST in
+                              RPC ( [ SetFunction { f | ufAST = replacement}]
                                   , FocusExact tlid nextid)
                             PParamTipe _ ->
                               let replacement = Functions.extend f
@@ -1539,7 +1539,7 @@ update_ msg m =
           newCalls = Refactor.removeFunctionParameter m uf upf
       in
           RPC ([ SetFunction replacement] ++ newCalls
-               , FocusNext uf.tlid Nothing)
+               , FocusNext uf.ufTLID Nothing)
 
     DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusNothing)
@@ -1610,9 +1610,9 @@ update_ msg m =
       DisplayError <| "Success! " ++ msg_
 
     ExecuteFunctionRPCCallback params (Ok (dval, hash)) ->
-      let tl = TL.getTL m params.tlid in
-      Many [ UpdateTraceFunctionResult params.tlid params.traceID params.callerID params.fnName hash dval
-           , ExecutingFunctionComplete [(params.tlid, params.callerID)]
+      let tl = TL.getTL m params.efpTLID in
+      Many [ UpdateTraceFunctionResult params.efpTLID params.efpTraceID params.efpCallerID params.efpFnName hash dval
+           , ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
            , RequestAnalysis [tl]
            ]
 
@@ -1635,7 +1635,7 @@ update_ msg m =
         Set404s f404s
 
     ReceiveAnalysis json ->
-      let envelope = JSD.decodeString RPC.decodeAnalysisEnvelope json in
+      let envelope = JSD.decodeString JSON.decodeAnalysisEnvelope json in
       case envelope of
         Ok (id, analysisResults) -> UpdateAnalysis id analysisResults
         Err str -> DisplayError str
@@ -1707,10 +1707,6 @@ update_ msg m =
               { module_ = B.newF space
               , name = B.newF path
               , modifier = B.newF modifier
-              , types =
-                { input = B.new ()
-                , output = B.new ()
-                }
               }
             , tlid = anId
             }
@@ -1726,7 +1722,7 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
       in
           Many ([RPC ([SetFunction ufun], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn ufun.tlid Defaults.centerPos))
+                , MakeCmd (Url.navigateTo (Fn ufun.ufTLID Defaults.centerPos))
                 ])
     LockHandler tlid isLocked ->
       Editor.updateLockedHandlers tlid isLocked m

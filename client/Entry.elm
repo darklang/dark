@@ -3,7 +3,6 @@ module Entry exposing (..)
 -- builtins
 import Task
 -- import Result exposing (Result)
--- import Set
 
 -- lib
 import Dom
@@ -12,6 +11,7 @@ import Dom
 import List.Extra as LE
 
 -- dark
+import DontPort
 import Types exposing (..)
 import Prelude  exposing (..)
 import Util
@@ -28,7 +28,7 @@ import SpecHeaders
 import Blank as B
 import Autocomplete as AC
 import Url
-import RPC
+import JSON
 
 
 createFindSpace : Model -> Modification
@@ -53,23 +53,20 @@ newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { module_ = B.new ()
                    , name = B.new ()
                    , modifier = B.new ()
-                   , types = { input = B.new ()
-                             , output = B.new ()
-                             }
                    }
 
 createFunction : Model -> FnName -> Maybe Expr
 createFunction m name =
   let blanks count = LE.initialize count (\_ -> B.new ())
       fn = m.complete.functions
-           |> List.filter (\fn_ -> fn_.name == name)
+           |> List.filter (\fn_ -> fn_.fnName == name)
            |> List.head
   in
     case fn of
       Just function ->
-        let r = if function.returnTipe == TOption then Rail else NoRail in
+        let r = if function.fnReturnTipe == TOption then Rail else NoRail in
         Just <|
-          B.newF (FnCall name (blanks (List.length function.parameters)) r)
+          B.newF (FnCall name (blanks (List.length function.fnParameters)) r)
       Nothing -> Nothing
 
 submitOmniAction : Model -> Pos -> OmniAction -> Modification
@@ -98,16 +95,16 @@ submitOmniAction m pos action =
           newfn =
             case name of
               Just n ->
-                let metadata = blankfn.metadata
+                let metadata = blankfn.ufMetadata
                     newMetadata =
-                      { metadata | name = F (gid ()) n }
+                      { metadata | ufmName = F (gid ()) n }
                 in
-                    { blankfn | metadata = newMetadata }
+                    { blankfn | ufMetadata = newMetadata }
               Nothing ->
                 blankfn
       in
           Many ([RPC ([ SetFunction newfn ], FocusNothing)
-                , MakeCmd (Url.navigateTo (Fn newfn.tlid Defaults.centerPos))
+                , MakeCmd (Url.navigateTo (Fn newfn.ufTLID Defaults.centerPos))
                 ])
     NewHTTPHandler ->
       let next = gid ()
@@ -234,7 +231,7 @@ parseAst m str =
     ["{"] ->
       Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
-      if RPC.isLiteralString str
+      if JSON.isLiteralString str
       then Just <| F eid (Value str)
       else createFunction m str
 
@@ -342,7 +339,7 @@ submit m cursor action =
               TLHandler h ->
                 saveH { h | ast = ast} next
               TLFunc f ->
-                save ({ tl | data = TLFunc { f | ast = ast}}) next
+                save ({ tl | data = TLFunc { f | ufAST = ast}}) next
               TLDB _ -> impossible ("no vars in DBs", tl.data)
 
           replace new =
@@ -403,7 +400,7 @@ submit m cursor action =
           let ast =
                 case tl.data of
                   TLHandler h -> h.ast
-                  TLFunc f -> f.ast
+                  TLFunc f -> f.ufAST
                   TLDB _ -> impossible ("No fields in DBs", tl.data)
               parent = AST.parentOf id ast
           in
@@ -442,7 +439,7 @@ submit m cursor action =
               ast =
                 case tl.data of
                   TLHandler h -> h.ast
-                  TLFunc f -> f.ast
+                  TLFunc f -> f.ufAST
                   TLDB _ -> impossible ("No fields in DBs", tl.data)
           in
           ast
@@ -459,7 +456,7 @@ submit m cursor action =
 
             TLFunc f ->
               let (newast, newexpr) =
-                    replaceExpr m tl.id f.ast e action value
+                    replaceExpr m tl.id f.ufAST e action value
               in
               saveAst newast (PExpr newexpr)
 
@@ -479,20 +476,6 @@ submit m cursor action =
                     in wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else
                     NoChange
-        PDarkType _ ->
-          let specType =
-                case value of
-                  "String" -> DTString
-                  "Any" -> DTAny
-                  "Int" -> DTInt
-                  "Empty" -> DTEmpty
-                  "{" -> DTObj [(B.new (), B.new ())]
-                  _ -> todo "disallowed value"
-          in
-          replace (PDarkType (B.newF specType))
-
-        PDarkTypeField _ ->
-          replace (PDarkTypeField (B.newF value))
         PFFMsg _ ->
           replace (PFFMsg (B.newF value))
         PFnName _ ->
@@ -550,10 +533,6 @@ validate tl pd value =
       v ".+" "key"
     PExpr e ->
       Nothing -- done elsewhere
-    PDarkType _ ->
-      v "(String|Int|Any|Empty|{)" "type"
-    PDarkTypeField _ ->
-      Nothing
     PFFMsg _ ->
       Nothing
     PFnName _ ->

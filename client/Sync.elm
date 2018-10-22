@@ -13,7 +13,7 @@ markRequestInModel m =
   let oldSyncState = m.syncState
   in
       { m | syncState =
-        { oldSyncState | inFlight = True, ticks = 0 } }
+        { inFlight = True, ticks = 0 } }
 
 markTickInModel : Model -> Model
 markTickInModel m =
@@ -27,7 +27,7 @@ markResponseInModel m =
   let oldSyncState = m.syncState
   in
       { m | syncState =
-        { oldSyncState | inFlight = False, ticks = 0 } }
+        { inFlight = False, ticks = 0 } }
 
 
 timedOut : SyncState -> Bool

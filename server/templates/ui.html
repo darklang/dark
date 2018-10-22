@@ -24,29 +24,29 @@
     <script type="text/javascript">
       function stopKeys(event) {
         if (event.keyCode == 9) { // Tab
-           event.preventDefault();
+          event.preventDefault();
         }
         if (event.keyCode == 32 // Space
           && !event.target.parentNode.className.includes("string-container")) {
-           event.preventDefault();
+          event.preventDefault();
         }
         if (event.keyCode == 13 // Enter
           && !event.target.parentNode.className.includes("large-string")) {
-           event.preventDefault();
+          event.preventDefault();
         }
         if (
-            event.keyCode == 38 // Up
-         || event.keyCode == 40 // Down
-         ) {
-           if (document.activeElement.tagName.toLowerCase() !== 'textarea') event.preventDefault();
+          event.keyCode == 38 // Up
+          || event.keyCode == 40 // Down
+        ) {
+          if (document.activeElement.tagName.toLowerCase() !== 'textarea') event.preventDefault();
         }
       }
     </script>
     <script type="text/javascript" src="//{STATIC}/bundle.js"> </script>
     <script type="text/javascript" src="//{STATIC}/darkjs.bc.js"> </script>
-    <script type="text/javascript" src="//{STATIC}/elm{ELMDEBUG}.js"> </script>
     <script type="text/javascript" src="//{STATIC}/darkex.js"> </script>
     {LIVERELOADJS}
+    {FRONTENDIMPL}
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
     <script id="analysisScript" type="javascript/worker">
@@ -54,143 +54,64 @@
         importScripts(e.data.proto+'//{STATIC}/darkex.js');
         importScripts(e.data.proto+'//{STATIC}/darkjs.bc.js');
 
-          var result =
+        var result =
           {
             analysis: null,
             error: null
           };
 
-          try {
-            result.analysis = darkAnalysis.performAnalysis(e.data.params);
-          }
-          catch (error) {
-            result.error = darkExe.handleAnalysisErrors(error)
-          }
-          postMessage(result);
+        try {
+          result.analysis = darkAnalysis.performAnalysis(e.data.params);
         }
+        catch (error) {
+          result.error = darkExe.handleAnalysisErrors(error)
+        }
+        postMessage(result);
+      }
     </script>
     <script type="text/javascript">
+      const rollbarConfig = {ROLLBARCONFIG};
+      complete = {ALLFUNCTIONS};
+      const userContentHost = "{USER_CONTENT_HOST}";
+      const environmentName = "{ENVIRONMENT_NAME}";
 
-      var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
+      document.title = window.location.hostname.split('.')[0] + " - Dark";
 
-      const sendError = function (error, route, tlid){
-        // send to rollbar
-        Rollbar.error(
-          error.str,
-          error.obj,
-          { route: route
-          , tlid: tlid
-          }
-        );
+      {FRONTENDGLUE}
 
-       // log to console
-       console.log(`Error processing analysis in (${route}): ${error.str}`);
-       console.log(error.obj);
-
-       // send to client
-       elmapp.ports.displayError.send(
-         `Error while executing (${route}): ${error}`);
-      };
-        
-       window.Rollbar.configure({ROLLBARCONFIG});
-       complete = {ALLFUNCTIONS};
-       elmapp = Elm.Main.fullscreen({
-         editorState: window.localStorage.getItem('editorState'),
-         complete: complete,
-         userContentHost: "{USER_CONTENT_HOST}",
-         environment: "{ENVIRONMENT_NAME}"
-       });
-
-       elmapp.ports.setStorage.subscribe(function(editorState) {
-         window.localStorage.setItem('editorState', editorState);
-       });
-
-       elmapp.ports.requestAnalysis.subscribe(function(params) {
-         const bToString = (blankOr) => blankOr[2] || null;
-         const spec = params.handler.spec;
-         const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-
-        if (window.Worker) {
-          analysisWorker = new Worker(analysisWorkerUrl);
-          analysisWorker.postMessage(
-            { proto: window.location.protocol,
-              params: JSON.stringify(params)
-            }
-          );
-          
-          analysisWorker.onmessage = function (e) {
-            var result = e.data.analysis;
-            var error = e.data.error;
-            
-            if (result && !error){
-              elmapp.ports.receiveAnalysis.send(result);
-            } else if (error) {
-              sendError(error)
-            }
-          }
-        } else {
-          // do it without workers, it will be slow though
-          Rollbar.error(
-            'Web worker not available user browser.',
-            navigator.userAgent,
-            { route: route
-            , tlid: params.handler.tlid
-            }
-          );
-          elmapp.ports.displayError.send('Cannot perform analysis. Please use a browser that supports web workers.');
-          // TODO provide link to list of browsers that support webworkers. Currently there's no easy way to do render injectable HTML in Elm.
+      class RopArrow extends HTMLElement {
+        constructor() {
+          super();
         }
-       })
+        update() {
+          var tlid = this.getAttribute("tlid");
+          var target = document.querySelector(".tl-" + tlid + " .rop-rail");
+          if(target) {
+            const targetPos = target.getBoundingClientRect();
+            const sourcePos = this.getBoundingClientRect();
+            const arrowHeadLength = 12;
+            const x2 = targetPos.right - sourcePos.left - arrowHeadLength;
+            const x1 = x2 / 3;
 
-       elmapp.ports.sendRollbar.subscribe(function(obj) {
-         window.Rollbar.error(obj.message, obj.url, null, null, obj.custom);
-       });
+            var arrowRight = document.querySelector("rop-arrow > svg > path");
+            var svg = document.querySelector("rop-arrow > svg");
+            svg.setAttribute("width", x2 + arrowHeadLength);
 
-       window.onerror = function (msg, url, line, col, error) {
-         window.Rollbar.error(msg, error);
-         elmapp.ports.displayError.send(msg);
-       };
-
-       bundle.mousewheel(function(dx,dy, dz, ev){
-         // NB: rounding values here because Elm wants ints
-         elmapp.ports.mousewheel.send([Math.round(dx),Math.round(dy)]);
-       });
-
-       document.title = window.location.hostname.split('.')[0] + " - Dark";
-
-       class RopArrow extends HTMLElement {
-         constructor() {
-           super();
-         }
-         update() {
-           var tlid = this.getAttribute("tlid");
-           var target = document.querySelector(".tl-" + tlid + " .rop-rail");
-           if(target) {
-             const targetPos = target.getBoundingClientRect();
-             const sourcePos = this.getBoundingClientRect();
-             const arrowHeadLength = 12;
-             const x2 = targetPos.right - sourcePos.left - arrowHeadLength;
-             const x1 = x2 / 3;
-
-             var arrowRight = document.querySelector("rop-arrow > svg > path");
-             var svg = document.querySelector("rop-arrow > svg");
-             svg.setAttribute("width", x2 + arrowHeadLength);
-
-             var d = "M 0,20 C 0,8 " + x1 + ",8 " + x2 + ",15";
-             arrowRight.setAttribute("d", d);
-           }
-         }
-         connectedCallback() {
-           this.update();
-         }
-         static get observedAttributes() {
-           return ['update'];
-         }
-         attributeChangedCallback(attr, _, val) {
-           this.update();
-         }
-       }
-       window.customElements.define('rop-arrow', RopArrow);
+            var d = "M 0,20 C 0,8 " + x1 + ",8 " + x2 + ",15";
+            arrowRight.setAttribute("d", d);
+          }
+        }
+        connectedCallback() {
+          this.update();
+        }
+        static get observedAttributes() {
+          return ['update'];
+        }
+        attributeChangedCallback(attr, _, val) {
+          this.update();
+        }
+      }
+      window.customElements.define('rop-arrow', RopArrow);
 
     </script>
   </body>
