@@ -911,7 +911,7 @@ let update_ (msg : msg) (m : model) : modification =
                 match cursor with
                 | Filling (tlid, p) ->
                     if AC.isLargeStringEntry m.complete then
-                      match devent.selectionStart with
+                      match event.targetSelectionStart with
                       | Some idx ->
                           let newQ =
                             SE.insertAt "\t" (idx + 1) m.complete.value
