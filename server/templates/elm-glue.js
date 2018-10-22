@@ -19,12 +19,12 @@ const sendError = function (error, route, tlid){
     `Error while executing (${route}): ${error}`);
 };
 
-window.Rollbar.configure({ROLLBARCONFIG});
+window.Rollbar.configure(rollbarConfig);
 elmapp = Elm.Main.fullscreen({
   editorState: window.localStorage.getItem('editorState'),
   complete: complete,
-  userContentHost: "{USER_CONTENT_HOST}",
-  environment: "{ENVIRONMENT_NAME}"
+  userContentHost: userContentHost,
+  environment: environmentName
 });
 
 elmapp.ports.setStorage.subscribe(function(editorState) {
