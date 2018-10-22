@@ -11,6 +11,7 @@ open Types
 module JSE = Json_encode_extended
 module JSD = Json_decode_extended
 module Key = Keyboard
+open Analysis
 
 (* let flag2function (fn : Flags.function_) : function_ = *)
 (*   { fnName= fn.name *)
@@ -1341,6 +1342,9 @@ let subscriptions (m : model) : msg Sub.t =
     (* TODO: PORTING *)
     (* [mousewheel MouseWheel] *)
   in
+  let analysisSubs =
+    [Analysis.ReceiveAnalysis.listen (fun s -> ReceiveAnalysis s)]
+  in
   Sub.batch
     (List.concat
        [ keySubs
@@ -1350,8 +1354,7 @@ let subscriptions (m : model) : msg Sub.t =
        ; visibility
        ; onError
        ; mousewheelSubs
-    (* TODO: PORTING *)
-       (* ; [receiveAnalysis ReceiveAnalysis] *)
+       ; analysisSubs
        ])
 
 let main =
