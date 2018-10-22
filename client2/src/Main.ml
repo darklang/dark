@@ -715,7 +715,7 @@ let update_ (msg : msg) (m : model) : modification =
                             Refactor.addNewFunctionParameter m f
                           in
                           RPC
-                            ( [SetFunction replacement] ^ newCalls
+                            ( [SetFunction replacement] @ newCalls
                             , FocusNext (tlid, Some id) )
                       | PParamName _ ->
                           let replacement = Functions.extend f in
@@ -723,7 +723,7 @@ let update_ (msg : msg) (m : model) : modification =
                             Refactor.addNewFunctionParameter m f
                           in
                           RPC
-                            ( [SetFunction replacement] ^ newCalls
+                            ( [SetFunction replacement] @ newCalls
                             , FocusNext (tlid, Some id) )
                       | PFnName _ ->
                           let replacement = Functions.extend f in
@@ -731,7 +731,7 @@ let update_ (msg : msg) (m : model) : modification =
                             Refactor.addNewFunctionParameter m f
                           in
                           RPC
-                            ( [SetFunction replacement] ^ newCalls
+                            ( [SetFunction replacement] @ newCalls
                             , FocusNext (tlid, Some id) )
                       | _ -> NoChange )
                     | None -> NoChange )
@@ -1317,7 +1317,7 @@ let subscriptions (m : model) : msg sub =
         [Time.every Time.second (TimerFire RefreshAnalysis)]
   in
   let urlTimer = [Time.every Time.second (TimerFire CheckUrlHashPosition)] in
-  let timers = if m.timersEnabled then syncTimer ^ urlTimer else [] in
+  let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
   let onError = [displayError JSError] in
   let visibility =
     [ PageVisibility.visibilityChanges PageVisibilityChange
