@@ -20,7 +20,6 @@ DARK_CONFIG_ALLOW_SERVER_SHUTDOWN=y
 DARK_CONFIG_ALLOW_TEST_ROUTES=y
 DARK_CONFIG_TRIGGER_QUEUE_WORKERS=y
 
-DARK_CONFIG_ADMIN_HOST=darklang.localhost:8000
 DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8000
 DARK_CONFIG_USER_CONTENT_HOST=builtwithdark.localhost:8000
 
@@ -47,6 +46,9 @@ DARK_CONFIG_HEALTH_CHECK_PORT=8081
 
 # Publicly accessible domain
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
+
+# Other
+DARK_CONFIG_BROWSER_RELOAD_ENABLED=y
 
 ######################################
 # XXX: Changes won't take effect until you restart script/builder

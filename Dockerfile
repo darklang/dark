@@ -278,6 +278,10 @@ RUN cd elm-format && git checkout elm-escape && stack install -j 4
 RUN opam pin add -y reason https://github.com/facebook/reason.git
 RUN opam update && opam install -y ocamlformat
 RUN yarn add @glennsl/bs-json
+# utop is useful for development
+RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git \
+    && opam install -y utop
+
 ############################
 # Finish
 ############################

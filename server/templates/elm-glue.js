@@ -1,9 +1,30 @@
-window.Rollbar.configure(rollbarConfig);
+var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
+
+const sendError = function (error, route, tlid){
+  // send to rollbar
+  Rollbar.error(
+    error.str,
+    error.obj,
+    { route: route
+      , tlid: tlid
+    }
+  );
+
+  // log to console
+  console.log(`Error processing analysis in (${route}): ${error.str}`);
+  console.log(error.obj);
+
+  // send to client
+  elmapp.ports.displayError.send(
+    `Error while executing (${route}): ${error}`);
+};
+
+window.Rollbar.configure({ROLLBARCONFIG});
 elmapp = Elm.Main.fullscreen({
   editorState: window.localStorage.getItem('editorState'),
   complete: complete,
-  userContentHost: userContentHost,
-  environment: environmentName
+  userContentHost: "{USER_CONTENT_HOST}",
+  environment: "{ENVIRONMENT_NAME}"
 });
 
 elmapp.ports.setStorage.subscribe(function(editorState) {
@@ -11,43 +32,39 @@ elmapp.ports.setStorage.subscribe(function(editorState) {
 });
 
 elmapp.ports.requestAnalysis.subscribe(function(params) {
-  function bToString (blankOr) { return blankOr[2] || null; }
+  const bToString = (blankOr) => blankOr[2] || null;
   const spec = params.handler.spec;
-  const route =
-    `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-  try {
-    <!-- console.log("Performing analysis for: " + route); -->
-    <!-- console.log(params); -->
-    var result = darkAnalysis.performAnalysis(JSON.stringify(params));
-    <!-- console.log(JSON.parse(result)); -->
-    elmapp.ports.receiveAnalysis.send(result);
-  }
-  catch (error) {
-    var errorName = null;
-    var errorMsg = null;
-    var errString = null;
+  const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
 
-    try {
-      // OCaml errors come in a few constructs - get the data we can
-      try { errorName = error[1][1].c; } catch (_) {}
-      try { errorMsg = error[2][1].c; } catch (_) {}
-      try { errorMsg = error[2].c; } catch (_) {}
-      errString = `${errorName} - ${errorMsg}`;
-    } catch (_) { }
+  if (window.Worker) {
+    analysisWorker = new Worker(analysisWorkerUrl);
+    analysisWorker.postMessage(
+      { proto: window.location.protocol,
+        params: JSON.stringify(params)
+      }
+    );
 
-    // send to rollbar
-    window.Rollbar.error(errString, error, { route: route
-                                          , tlid: params.handler.tlid});
+    analysisWorker.onmessage = function (e) {
+      var result = e.data.analysis;
+      var error = e.data.error;
 
-    // log to console
-    console.log(`Error processing analysis in (${route}): ${errString}`);
-    if (!errorName || !errorMsg) {
-      console.log(error);
+      if (result && !error){
+        elmapp.ports.receiveAnalysis.send(result);
+      } else if (error) {
+        sendError(error)
+      }
     }
-
-    // send to client
-    elmapp.ports.displayError.send(
-      `Error while executing (${route}): ${errString}`);
+  } else {
+    // do it without workers, it will be slow though
+    Rollbar.error(
+      'Web worker not available user browser.',
+      navigator.userAgent,
+      { route: route
+        , tlid: params.handler.tlid
+      }
+    );
+    elmapp.ports.displayError.send('Cannot perform analysis. Please use a browser that supports web workers.');
+    // TODO provide link to list of browsers that support webworkers. Currently there's no easy way to do render injectable HTML in Elm.
   }
 })
 
@@ -64,4 +81,3 @@ bundle.mousewheel(function(dx,dy, dz, ev){
   // NB: rounding values here because Elm wants ints
   elmapp.ports.mousewheel.send([Math.round(dx),Math.round(dy)]);
 });
-

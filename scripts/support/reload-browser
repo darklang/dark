@@ -5,11 +5,5 @@ set -euo pipefail
 # Kill other processes
 (ps aux | pgrep -f '.browser-trigger' | xargs kill -9 > /dev/null 2>&1) || true
 
-fswatch -m fsevents_monitor .browser-trigger |
-    {
-        while read event
-        do
-            echo "triggering reload"
-            osascript scripts/support/chrome-reload.osa
-        done
-    }
+
+livereload -t $(dirname $0)/../../.browser-trigger

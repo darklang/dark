@@ -32,7 +32,6 @@ let __unused_bin_scripts_dir = absolute_dir "DARK_CONFIG_SCRIPTS_DIR"
 (* ------------------------- *)
 (* Web configuration *)
 (* ------------------------- *)
-let admin_host = string "DARK_CONFIG_ADMIN_HOST"
 let static_host = string "DARK_CONFIG_STATIC_HOST"
 let user_content_host = string "DARK_CONFIG_USER_CONTENT_HOST"
 
@@ -143,3 +142,5 @@ let rollbar_js =
 let public_domain =
   string "DARK_CONFIG_PUBLIC_DOMAIN"
 
+let browser_reload_enabled =
+    bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
