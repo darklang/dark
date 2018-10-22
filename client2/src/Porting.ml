@@ -629,3 +629,13 @@ module DisplayClientError = struct
   let listen ?(key="") tagger =
     registerGlobal "displayError" key tagger decode
 end
+
+module OnWheel = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    map2 (fun dX dY -> (dX, dY))
+      (field "deltaX" int)
+      (field "deltaY" int)
+  let listen?(key="") tagger =
+    registerGlobal "wheel" key tagger decode
+end

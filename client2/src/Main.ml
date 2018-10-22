@@ -1338,9 +1338,7 @@ let subscriptions (m : model) : msg Sub.t =
     ]
   in
   let mousewheelSubs =
-    []
-    (* TODO: PORTING *)
-    (* [mousewheel MouseWheel] *)
+    [OnWheel.listen (fun (dx, dy) -> MouseWheel (dx, dy))]
   in
   let analysisSubs =
     [Analysis.ReceiveAnalysis.listen (fun s -> ReceiveAnalysis s)]
