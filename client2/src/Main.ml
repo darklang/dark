@@ -1325,9 +1325,7 @@ let subscriptions (m : model) : msg Sub.t =
   in
   let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
   let onError =
-    []
-    (* TODO: PORTING *)
-    (* [displayError JSError] *)
+    [DisplayClientError.listen (fun s -> JSError s)]
   in
   let visibility =
     [Window.OnFocusChange.listen
@@ -1337,8 +1335,6 @@ let subscriptions (m : model) : msg Sub.t =
         else PageVisibilityChange Hidden
      )
     ]
-    (* ; onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible)) *)
-    (* ; onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden)) *)
   in
   let mousewheelSubs =
     []

@@ -1,4 +1,4 @@
-open Helpers
+open Porting
 
 (* Recieve Analysis *)
 
@@ -28,7 +28,7 @@ module ReceiveAnalysis = struct
     map (fun detail -> detail)
       (field "detail" decodeDetail)
   let listen ?(key="") tagger =
-    Helpers.registerGlobal "receiveAnalysis" key tagger decode
+    Porting.registerGlobal "receiveAnalysis" key tagger decode
 end
 
 (* Request analysis *)

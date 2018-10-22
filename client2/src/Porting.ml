@@ -1,7 +1,22 @@
-open Helpers
-
 let (++) (a: string) (b: string) = a ^ b
 
+let registerGlobal name key tagger decoder =
+  let open Vdom in
+  let enableCall callbacks_base =
+    let callbacks = ref callbacks_base in
+    let fn = fun ev ->
+      let open Tea_json.Decoder in
+      let open Tea_result in
+      match decodeEvent decoder ev with
+      | Error _ -> None
+      | Ok pos -> Some (tagger pos) in
+    let handler = EventHandlerCallback (key, fn) in
+    let elem = Web_node.document_node in
+    let cache = eventHandler_Register callbacks elem name handler in
+    fun () ->
+      let _ = eventHandler_Unregister elem name cache in
+      ()
+  in Tea_sub.registration key enableCall
 
 module PageVisibility = struct
   type visibility = Hidden | Visible
@@ -522,7 +537,7 @@ module Native = struct
         map (fun msg -> msg)
           (field "detail" decodeDetail)
       let listen ?(key="") tagger =
-        Helpers.registerGlobal "windowResize" key tagger decode
+        registerGlobal "windowResize" key tagger decode
     end
 
     module OnFocusChange = struct
@@ -531,7 +546,7 @@ module Native = struct
         map (fun visible -> visible)
           (field "detail" bool)
       let listen?(key="") tagger =
-        Helpers.registerGlobal "windowFocusChange" key tagger decode
+        registerGlobal "windowFocusChange" key tagger decode
     end
   end
 
@@ -603,4 +618,13 @@ end
 
 module Rollbar = struct
   external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Rollbar"]
+end
+
+module DisplayClientError = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    map (fun msg -> msg)
+      (field "detail" string)
+  let listen ?(key="") tagger =
+    registerGlobal "displayError" key tagger decode
 end
