@@ -1315,16 +1315,13 @@ let subscriptions (m : model) : msg Sub.t =
     | Dragging (id, offset, _, _) -> [Mouse.moves (fun x -> DragToplevel (id, x))]
     | _ -> []
   in
-  let syncTimer = []
-    (* TODO: PORTING *)
-    (* match m.visibility with *)
-    (* | PageVisibility.Hidden -> [] *)
-    (* | PageVisibility.Visible -> *)
-    (*     [Time.every Time.second (TimerFire RefreshAnalysis)] *)
+  let syncTimer =
+    match m.visibility with
+    | Hidden -> []
+    | Visible ->
+      [Tea.Time.every Tea.Time.second (fun f -> TimerFire (RefreshAnalysis, f))]
   in
-  let urlTimer = []
-    (* TODO: PORTING *)
-      (* [Time.every Time.second (TimerFire CheckUrlHashPosition)]  *)
+  let urlTimer = [Time.every Time.second (fun f -> TimerFire (CheckUrlHashPosition, f))]
   in
   let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
   let onError =
@@ -1333,12 +1330,15 @@ let subscriptions (m : model) : msg Sub.t =
     (* [displayError JSError] *)
   in
   let visibility =
-    [
-    (* TODO: PORTING *)
-      (* PageVisibility.visibilityChanges PageVisibilityChange *)
+    [Window.OnFocusChange.listen
+      (fun v ->
+        if v
+        then PageVisibilityChange Visible
+        else PageVisibilityChange Hidden
+     )
+    ]
     (* ; onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible)) *)
     (* ; onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden)) *)
-  ]
   in
   let mousewheelSubs =
     []

@@ -4,7 +4,7 @@ let (++) (a: string) (b: string) = a ^ b
 
 
 module PageVisibility = struct
-  type visibility = Hidden
+  type visibility = Hidden | Visible
 end
 
 let (<|) a b = a b
@@ -515,7 +515,7 @@ module Native = struct
       let decode =
         let open Tea.Json.Decoder in
         let decodeDetail =
-          map2 (fun width height -> { width; height})
+          map2 (fun width height -> { width; height} )
           (field "width" int)
           (field "height" int)
         in
