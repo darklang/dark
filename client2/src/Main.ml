@@ -848,7 +848,7 @@ let update_ (msg : msg) (m : model) : modification =
                   if event.key = Some ":" then
                     Many
                       [ SelectCommand (tlid, id)
-                      ; AutocompleteMod <| ACSetQuery ":" ]
+                      ; AutocompleteMod (ACSetQuery ":") ]
                   else NoChange )
             | _ -> NoChange )
         | Entering cursor -> (
