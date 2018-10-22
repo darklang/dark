@@ -27,7 +27,6 @@ val allow_test_routes : bool
 (* DO NOT DISPATCH OFF THIS VALUE UNDER ANY CIRCUMSTANCES *)
 val env_display_name : string
 
-val admin_host : string
 val static_host : string
 val user_content_host : string
 
@@ -38,3 +37,5 @@ val rollbar_js : string
 
 
 val public_domain : string
+
+val browser_reload_enabled : bool

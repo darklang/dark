@@ -120,9 +120,14 @@ def server_build():
                   , "@darkjs"
                   ])
 
+  if os.environ.get("CI"):
+      compilation_profile = "release"
+  else:
+      compilation_profile = "dev"
+
   build = "unbuffer" \
         + " dune build" \
-        + " --profile dev" \
+        + " --profile " + compilation_profile \
         + " --display short" \
         + " --root server" \
         + " -j 8 " \

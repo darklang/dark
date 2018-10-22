@@ -91,3 +91,22 @@ spec:
 #########################
 # End postgres proxy config
 #########################
+---
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: cc-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: cron-checker
+  policyTypes:
+  - Egress
+  - Ingress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.0.0/16
+  ingress:

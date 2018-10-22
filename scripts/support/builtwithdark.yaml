@@ -115,25 +115,28 @@ spec:
       protocol: TCP
       port: 80
       targetPort: http-proxy-port
-
-
 ---
 apiVersion: extensions/v1beta1
 kind: NetworkPolicy
 metadata:
   name: bwd-network-policy
 spec:
+  podSelector:
+    matchLabels:
+      app: bwd-app
   policyTypes:
   - Egress
+  - Ingress
   egress:
   - to:
     - ipBlock:
         cidr: 0.0.0.0/0
         except:
         - 169.254.0.0/16
-  podSelector:
-    matchLabels:
-      app: bwd-app
+  ingress:
+    - ports:
+      - protocol: TCP
+        port: 8000
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -172,4 +175,3 @@ spec:
     servicePort: 80
   tls:
     - secretName: darklang-tls
----
