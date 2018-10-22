@@ -190,7 +190,7 @@ let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
     else []
   in
   let items = always @ omni in
-  items |> List.map (fun aci -> aci query) |> List.filterMap identity
+  items |> List.filterMap (fun aci -> aci query)
 
 let withDynamicItems (target : target option) (query : string)
     (acis : autocompleteItem list) : autocompleteItem list =
