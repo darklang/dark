@@ -504,8 +504,8 @@ let admin_ui_html ~(debug:bool) () =
                    ~init:instr
                    ~f:(fun acc (file, hash) ->
                        (Util.string_replace file (hashed_filename file hash))
-                   acc)
-      ))
+                         acc)
+               ))
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
