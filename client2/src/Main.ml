@@ -914,7 +914,7 @@ let update_ (msg : msg) (m : model) : modification =
                       match event.targetSelectionStart with
                       | Some idx ->
                           let newQ =
-                            SE.insertAt "\t" (idx + 1) m.complete.value
+                            String.insertAt "\t" (idx + 1) m.complete.value
                           in
                           AutocompleteMod <| ACSetQuery newQ
                       | None -> NoChange

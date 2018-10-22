@@ -353,6 +353,11 @@ module String = struct
   let slice from to_ str =
     Js.String.slice ~from ~to_ str
   let trim = Js.String.trim
+  let insertAt (newStr: string) (pos: int) (origStr: string) : string =
+    (Js.String.slice ~from:0 ~to_:pos origStr)
+    ^ newStr
+    ^ (Js.String.sliceToEnd ~from:pos origStr)
+
 end
 
 module IntSet = struct
