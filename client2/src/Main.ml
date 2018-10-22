@@ -1295,7 +1295,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m -> {m with error= {e with showDetails= show}})
   | _ -> NoChange
 
-let update (msg : msg) (m : model) : model * msg Cmd.t =
+let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   ( {newm with lastMsg= msg; lastMod= mods}
@@ -1360,7 +1360,12 @@ let subscriptions (m : model) : msg Sub.t =
        ])
 
 let main =
-  App.standardProgram
-    {init; view= View.view; update; subscriptions}
+  Navigation.navigationProgram (fun x -> LocationChange x)
+    { init
+    ; view= View.view
+    ; update
+    ; subscriptions
+    ; shutdown = (fun _ -> Cmd.none)
+    }
 
 
