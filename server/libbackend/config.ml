@@ -148,3 +148,6 @@ let public_domain =
 
 let browser_reload_enabled =
     bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
+
+let hash_static_filenames =
+    bool "DARK_CONFIG_HASH_STATIC_FILENAMES"

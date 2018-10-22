@@ -472,7 +472,7 @@ let admin_ui_html ~(debug:bool) () =
     >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
     >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
     >|= (fun x ->
-        if (String.equal "static.darklang.localhost:8000" Config.static_host)
+        if not (Config.hash_static_filenames)
         then Result.Ok x
         else x
              |> (fun instr ->
