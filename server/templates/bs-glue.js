@@ -93,7 +93,7 @@ function addWheelListener(elem){
                       originalEvent.returnValue = false;
               }
           };
-          
+
           // calculate deltaY (and deltaX) according to the event
           if ( support == "mousewheel" ) {
               event.deltaY = - 1/40 * originalEvent.wheelDelta;
@@ -110,7 +110,14 @@ function addWheelListener(elem){
 }
 
 setTimeout(function(){
-  app = buckle.main(document.body);
+  app = buckle.main(
+    document.body,
+    {
+      editorState: window.localStorage.getItem('editorState'),
+      complete: complete,
+      userContentHost: userContentHost,
+      environment: environmentName
+    });
 
   window.onresize = function(evt){
     const size = {
