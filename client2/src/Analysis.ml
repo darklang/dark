@@ -112,3 +112,20 @@ let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
         | None -> []
       in
       if List.length dvals = List.length argIDs then Some dvals else None
+
+module ReceiveAnalysis = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    map (fun msg -> msg)
+      (field "detail" string)
+  let listen ?(key="") tagger =
+    Porting.registerGlobal "receiveAnalysis" key tagger decode
+end
+
+(* Request analysis *)
+
+module RequestAnalysis = struct
+
+  external send : (int list -> unit) = "requestAnalysis" [@@bs.val][@@bs.scope "window", "darkAnalysis"]
+
+end
