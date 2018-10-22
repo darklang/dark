@@ -1253,7 +1253,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GetAnalysisRPCCallback (Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
   | JSError msg_ -> DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize boxSize -> NoChange
+  | WindowResize (w, h) -> NoChange
   | FocusEntry _ -> NoChange
   | NothingClick _ -> NoChange
   | FocusAutocompleteItem _ -> NoChange
@@ -1309,7 +1309,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 let subscriptions (m : model) : msg Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
-  let resizes = [Window.OnResize.listen (fun s -> WindowResize s)]
+  let resizes = [Window.OnResize.listen (fun (w, h) -> WindowResize (w, h) )]
   in
   let dragSubs =
     match m.cursorState with
@@ -1338,9 +1338,7 @@ let subscriptions (m : model) : msg Sub.t =
     ]
   in
   let mousewheelSubs =
-    []
-    (* TODO: PORTING *)
-    (* [mousewheel MouseWheel] *)
+    [OnWheel.listen (fun (dx, dy) -> MouseWheel (dx, dy))]
   in
   let analysisSubs =
     [Analysis.ReceiveAnalysis.listen (fun s -> ReceiveAnalysis s)]
