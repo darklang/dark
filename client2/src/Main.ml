@@ -1306,7 +1306,7 @@ let update (msg : msg) (m : model) : model * msg Cmd.t =
   )
 
 let subscriptions (m : model) : msg Sub.t =
-  let keySubs = Keyboard.downs (fun x -> GlobalKeyPress x) in
+  let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let resizes =
     (* [Window.resizes (fun {height; width} -> WindowResize (height, width))] *)
     []
@@ -1328,13 +1328,24 @@ let subscriptions (m : model) : msg Sub.t =
       (* [Time.every Time.second (TimerFire CheckUrlHashPosition)]  *)
   in
   let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
-  let onError = [displayError JSError] in
-  let visibility =
-    [ PageVisibility.visibilityChanges PageVisibilityChange
-    ; onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))
-    ; onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden)) ]
+  let onError =
+    []
+    (* TODO: PORTING *)
+    (* [displayError JSError] *)
   in
-  let mousewheelSubs = [mousewheel MouseWheel] in
+  let visibility =
+    [
+    (* TODO: PORTING *)
+      (* PageVisibility.visibilityChanges PageVisibilityChange *)
+    (* ; onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible)) *)
+    (* ; onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden)) *)
+  ]
+  in
+  let mousewheelSubs =
+    []
+    (* TODO: PORTING *)
+    (* [mousewheel MouseWheel] *)
+  in
   Sub.batch
     (List.concat
        [ keySubs
@@ -1344,7 +1355,9 @@ let subscriptions (m : model) : msg Sub.t =
        ; visibility
        ; onError
        ; mousewheelSubs
-       ; [receiveAnalysis ReceiveAnalysis] ])
+    (* TODO: PORTING *)
+       (* ; [receiveAnalysis ReceiveAnalysis] *)
+       ])
 
 let main =
   App.standardProgram
