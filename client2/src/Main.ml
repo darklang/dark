@@ -612,6 +612,11 @@ let disableTimers (m : model) : model = {m with timersEnabled= false}
 let toggleTimers (m : model) : model =
   {m with timersEnabled= not m.timersEnabled}
 
+let findCenter (m : model) : pos =
+  match m.currentPage with
+  | Toplevels center -> Viewport.toCenter center
+  | _ -> Defaults.centerPos
+
 let update_ (msg : msg) (m : model) : modification =
   let _ =
     if m.integrationTestState <> NoIntegrationTest then
@@ -1142,7 +1147,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunctionParameter (uf, upf) ->
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
-      RPC ([SetFunction replacement] ^ newCalls, FocusNext (uf.ufTLID, None))
+      RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
   | DeleteUserFunction tlid -> RPC ([DeleteFunction tlid], FocusNothing)
   | RestoreToplevel tlid -> RPC ([UndoTL tlid], FocusNext (tlid, None))
   | RPCCallback
@@ -1231,12 +1236,14 @@ let update_ (msg : msg) (m : model) : modification =
         ; RequestAnalysis m.toplevels ]
   | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
   | ReceiveAnalysis json -> (
-      let envelope = JSD.decodeString JSON.decodeAnalysisEnvelope json in
-      match envelope with
-      | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
-      | Error str -> DisplayError str )
+      DisplayError "TODO: receive analysis"
+      (* let envelope = JSD.decodeString Decoders.analysisEnvelope json in *)
+      (* match envelope with *)
+      (* | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults) *)
+      (* | Error str -> DisplayError str *)
+    )
   | RPCCallback (_, _, Error err) -> DisplayAndReportHttpError ("RPC", err)
-  | SaveTestRPCCallback (Error err) -> DisplayError <| "Error: " ^ toString err
+  | SaveTestRPCCallback (Error err) -> DisplayError ("Error: " ^ toString err)
   | ExecuteFunctionRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
@@ -1292,31 +1299,34 @@ let update (msg : msg) (m : model) : model * msg Cmd.t =
   let mods = update_ msg m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   ( {newm with lastMsg= msg; lastMod= mods}
-  , Cmd.batch [newc; m |> Editor.model2editor |> Editor.toString |> setStorage]
+  , Cmd.batch [newc
+                (* TODO: PORTING *)
+              (* ; m |> Editor.model2editor |> Editor.toString |> setStorage *)
+              ]
   )
 
-let findCenter (m : model) : pos =
-  match m.currentPage with
-  | Toplevels center -> Viewport.toCenter center
-  | _ -> Defaults.centerPos
-
-let subscriptions (m : model) : msg sub =
-  let keySubs = Keyboard.downs (fun x -> GlobalKeyPressed x) in
+let subscriptions (m : model) : msg Sub.t =
+  let keySubs = Keyboard.downs (fun x -> GlobalKeyPress x) in
   let resizes =
-    [Window.resizes (fun {height; width} -> WindowResize (height, width))]
+    (* [Window.resizes (fun {height; width} -> WindowResize (height, width))] *)
+    []
   in
   let dragSubs =
     match m.cursorState with
-    | Dragging (id, offset, _, _) -> [Mouse.moves (DragToplevel id)]
+    | Dragging (id, offset, _, _) -> [Mouse.moves (fun x -> DragToplevel (id, x))]
     | _ -> []
   in
-  let syncTimer =
-    match m.visibility with
-    | PageVisibility.Hidden -> []
-    | PageVisibility.Visible ->
-        [Time.every Time.second (TimerFire RefreshAnalysis)]
+  let syncTimer = []
+    (* TODO: PORTING *)
+    (* match m.visibility with *)
+    (* | PageVisibility.Hidden -> [] *)
+    (* | PageVisibility.Visible -> *)
+    (*     [Time.every Time.second (TimerFire RefreshAnalysis)] *)
   in
-  let urlTimer = [Time.every Time.second (TimerFire CheckUrlHashPosition)] in
+  let urlTimer = []
+    (* TODO: PORTING *)
+      (* [Time.every Time.second (TimerFire CheckUrlHashPosition)]  *)
+  in
   let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
   let onError = [displayError JSError] in
   let visibility =
