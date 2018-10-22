@@ -140,7 +140,7 @@ and msg =
   | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
-  | WindowResize of Window.size
+  | WindowResize of int * int
   | TimerFire of timerAction * Tea.Time.t
   | JSError of string
   | PageVisibilityChange of Porting.PageVisibility.visibility
@@ -153,7 +153,7 @@ and msg =
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent
   | BlankOrMouseLeave of tlid * id * mouseEvent
-  | MouseWheel of (int * int)
+  | MouseWheel of int * int
   | DataClick of tlid * int * mouseEvent
   | DataMouseEnter of tlid * int * mouseEvent
   | DataMouseLeave of tlid * int * mouseEvent
