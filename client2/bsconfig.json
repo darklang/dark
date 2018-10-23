@@ -15,6 +15,7 @@
     "@glennsl/bs-json",
     "bs-webapi"
   ],
+  "bsc-flags": ["-bs-g"],
   "warnings": {
     "error": "+101",
     "number": "-33-27-39-26-101"
