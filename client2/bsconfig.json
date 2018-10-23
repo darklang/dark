@@ -20,5 +20,6 @@
     "error": "+101",
     "number": "-33-27-39-26-101"
   },
-  "refmt": 3
+  "refmt": 3,
+  "bsc-flags": ["-bs-g"]
 }

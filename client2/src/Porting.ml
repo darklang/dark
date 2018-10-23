@@ -262,12 +262,6 @@ module Regex = struct
   let matches (re: Js.Re.t) (s: string) : Js.Re.result option = Js.Re.exec s re
 end
 
-(* let deOption (msg: string) (value: 'a option) : 'a = *)
-(*   match value with *)
-(*   | Some v -> v *)
-(*   | None -> failwith msg *)
-
-
 module Option = struct
   type 'a t = 'a option
   let andThen (fn: 'a -> 'b option) (o: 'a option) : 'b option =
