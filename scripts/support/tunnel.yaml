@@ -43,9 +43,12 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-    - ports:
-      - protocol: TCP
-        port: 1080
+    - from:
+        - podSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values: [bwd-app, qw-worker, cron-checker]
 ---
 kind: Service
 apiVersion: v1
