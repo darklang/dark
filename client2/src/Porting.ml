@@ -256,7 +256,7 @@ end
 
 
 module Regex = struct
-  let regex s : Js.Re.t = Js.Re.fromString ("/" ^ s ^ "/")
+  let regex s : Js.Re.t = Js.Re.fromString s
   let contains (re: Js.Re.t) (s: string) : bool = Js.Re.test s re
   let replace (re: string) (repl: string) (str: string) =
     Js.String.replaceByRe (regex re) repl str
