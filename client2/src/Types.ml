@@ -119,7 +119,7 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
-  | FocusEntry of (Dom.errorEvent, unit) Porting.Result.t
+  | FocusEntry of (unit, Dom.errorEvent) Tea.Result.t
   | FocusAutocompleteItem of (Dom.errorEvent, unit) Porting.Result.t
   | RPCCallback of focus * rpcParams * (rpcResult, string Tea.Http.error) Tea.Result.t
   | SaveTestRPCCallback of (string, string Tea.Http.error) Tea.Result.t
