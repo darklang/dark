@@ -25,7 +25,10 @@ done
 cd gzipped_assets
 # -m parallelizes upload
 # -n no-clobber - we don't need upload assets already there
-gsutil -m -h 'Content-Encoding: gzip' cp -n -r . gs://darklang-static-assets
+gsutil -m \
+    -h 'Content-Encoding: gzip' \
+    -h 'Cache-Control:public' \
+    cp -a public-read -n -r . gs://darklang-static-assets
 cd -
 
 rm -r gzipped_assets
