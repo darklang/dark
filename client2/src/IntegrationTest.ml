@@ -50,7 +50,7 @@ let field_access_closes (m : model) : testResult =
 let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
   | Thread
-      [Blank _; F (_, FieldAccess (F (_, Variable "request"), F (_, "body")))]
+      [F (_, FieldAccess (F (_, Variable "request"), F (_, "body"))); Blank _]
     ->
       pass
   | expr -> fail expr
@@ -86,8 +86,8 @@ let pipe_within_let (m : model) : testResult =
       , F
           ( _
           , Thread
-              [ F (_, FnCall ("assoc", [Blank _; Blank _], _))
-              ; F (_, Variable "value") ] ) ) ->
+              [ F (_, Variable "value")
+              ; F (_, FnCall ("assoc", [Blank _; Blank _], _)) ] ) ) ->
       pass
   | e -> fail e
 
@@ -119,7 +119,7 @@ let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (id1, Variable "request"), Blank _) -> (
     match m.complete.completions with
-    | [_; _; _; _; cs; _] -> (
+    | [_; cs; _; _; _; _] -> (
       match cs with [ACVariable "request"] -> pass | _ -> fail cs )
     | allcs -> fail allcs )
   | e -> fail e
@@ -186,7 +186,9 @@ let case_sensitivity (m : model) : testResult =
            | TLDB {dbName; cols} -> (
              match (dbName, cols) with
              | ( "TestUnicode"
-               , [(Blank _, Blank _); (F (_, "cOlUmNnAmE"), F (_, "Str"))] ) ->
+               , [ (F (_, "cOlUmNnAmE"), F (_, "Str"))
+                 ; ( Blank _, Blank _)
+                 ] ) ->
                  pass
              | other -> fail other )
            | TLHandler h -> (
@@ -194,24 +196,27 @@ let case_sensitivity (m : model) : testResult =
              | F
                  ( _
                  , Thread
-                     [ F
+                     [ F (_, Value "{}")
+                     ; F ( _ , FnCall
+                             ( "assoc"
+                             , [ F (_, Value "\"cOlUmNnAmE\"")
+                               ; F (_, Value "\"some value\"")
+                               ]
+                             , _ ) )
+                     ; F
                          ( _
                          , FnCall
                              ("DB::insert", [F (_, Variable "TestUnicode")], _)
                          )
-                     ; F
-                         ( _
-                         , FnCall
-                             ( "assoc"
-                             , [ F (_, Value "\"some value\"")
-                               ; F (_, Value "\"cOlUmNnAmE\"") ]
-                             , _ ) )
-                     ; F (_, Value "{}") ] ) ->
+                     ] ) ->
                  pass
              | F
                  ( id
                  , Thread
-                     [ F
+                     [ F (_, Variable "TestUnicode")
+                     ; F (_, FnCall ("DB::fetchAll", [], _))
+                     ; F (_, FnCall ("List::head", [], _))
+                     ; F
                          ( _
                          , Lambda
                              ( [F (_, "var")]
@@ -220,9 +225,7 @@ let case_sensitivity (m : model) : testResult =
                                  , FieldAccess
                                      ( F (_, Variable "var")
                                      , F (_, "cOlUmNnAmE") ) ) ) )
-                     ; F (_, FnCall ("List::head", [], _))
-                     ; F (_, FnCall ("DB::fetchAll", [], _))
-                     ; F (_, Variable "TestUnicode") ] ) ->
+                     ] ) ->
                  Analysis.getCurrentLiveValue m tl.id id
                  |> Option.map (fun lv ->
                         if lv = DStr "some value" then pass else fail lv )
@@ -306,7 +309,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
          match tl.data with
          | TLHandler {ast} -> (
            match ast with
-           | F (_, Thread [F (_, FnCall ("-", [Blank _], _)); _]) -> pass
+             | F (_, Thread [_; F (_, FnCall ("-", [Blank _], _))]) -> pass
            | F (_, FnCall ("-", [Blank _; Blank _], _)) -> pass
            | _ -> fail ast )
          | _ -> fail ("Shouldn't be other handlers here", tl.data) )
@@ -366,14 +369,14 @@ let feature_flag_in_function (m : model) : testResult =
         ( id
         , FnCall
             ( "+"
-            , [ F (_, Value "5")
-              ; F
-                  ( _
+            , [ F ( _
                   , FeatureFlag
                       ( F (_, "myflag")
                       , F (_, Value "true")
                       , F (_, Value "5")
-                      , F (_, Value "3") ) ) ]
+                      , F (_, Value "3") ) )
+              ; F (_, Value "5")
+            ]
             , NoRail ) ) ->
         pass
     | _ -> fail (f.ufAST, None) )
@@ -410,8 +413,8 @@ let variable_extraction (m : model) : testResult =
                               ( _
                               , FnCall
                                   ( "+"
-                                  , [ F (_, Variable "bar")
-                                    ; F (_, Variable "foo") ]
+                                  , [ F (_, Variable "foo")
+                                    ; F (_, Variable "bar") ]
                                   , _ ) )
                           , F
                               ( _
@@ -447,7 +450,7 @@ let editing_goes_to_next_with_tab (m : model) : testResult =
 let editing_starts_a_thread_with_shift_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (_, id1))
-    , Let (_, F (_, Thread [Blank id2; F (_, Value "52")]), _) ) ->
+    , Let (_, F (_, Thread [F (_, Value "52"); Blank id2]), _) ) ->
       if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
   | other -> fail other
 
@@ -455,11 +458,12 @@ let object_literals_work (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (tlid, id))
     , ObjectLiteral
-        [ (Blank _, Blank _)
-        ; (F (_, "k4"), Blank _)
-        ; (F (_, "k3"), F (_, Value "3"))
+        [ (F (_, "k1"), Blank _)
         ; (F (_, "k2"), F (_, Value "2"))
-        ; (F (_, "k1"), Blank _) ] ) -> (
+        ; (F (_, "k3"), F (_, Value "3"))
+        ; (F (_, "k4"), Blank _)
+        ; (Blank _, Blank _)
+        ] ) -> (
       let tl = TL.getTL m tlid in
       let target = TL.findExn tl id in
       match target with

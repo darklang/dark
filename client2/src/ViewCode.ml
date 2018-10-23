@@ -161,7 +161,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let fnname parens =
         let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
         match String.split "::" name with
-        | [justname; mod_] ->
+        | [mod_; justname] ->
             let np = withP justname in
             n [wc "namegroup"; atom]
               [ t [wc "module"] mod_
@@ -249,7 +249,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
       in
       match (fn.fnInfix, exprs, fn.fnParameters) with
-      | true, [second; first], [p2; p1] ->
+      | true, [first; second], [p1; p2] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: all)
             [ n [wc "lhs"] [ve p1.paramName incD first]
