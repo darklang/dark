@@ -399,10 +399,10 @@ let wrapExpect (fn: Js.Json.t -> 'a) : (string -> ('ok, string) Tea.Result.t) =
 let wrapDecoder (fn: Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
    Decoder
       ( fun value ->
-          let open Web.Json in
-          match classify value with
-          | JSONString s -> Tea_result.Ok (fn (Json.parseOrRaise s))
-          | _ -> Tea_result.Error "Non-string value"
+        try
+          Tea_result.Ok (fn value)
+        with e ->
+          Tea_result.Error ("Json error: " ^ (Printexc.to_string e))
       )
 
 
