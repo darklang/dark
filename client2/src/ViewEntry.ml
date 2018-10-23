@@ -114,7 +114,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let _ = "comment" in
   let fluidWidthSpan =
     Html.span
-      [Attrs.id "fluidWidthSpan"; Vdom.prop "contentEditable" ""]
+      [Attrs.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
       [Html.text search]
   in
   let input =
