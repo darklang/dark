@@ -50,7 +50,7 @@ DARK_CONFIG_PUBLIC_DOMAIN=localhost
 
 # Other
 DARK_CONFIG_BROWSER_RELOAD_ENABLED=y
-DARK_CONFIG_HASH_STATIC_FILENAMES=n
+DARK_CONFIG_HASH_STATIC_FILENAMES=y
 
 ######################################
 # XXX: Changes won't take effect until you restart script/builder

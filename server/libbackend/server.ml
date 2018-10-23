@@ -437,13 +437,14 @@ let delete_404 ~(execution_id: Types.id) (host: string) body
     raise e
 
 
-let hashed_filename (file:string) (hash : string) :(string, string) Result.t =
+let hashed_filename (file:string) (hash : string) :string =
   match List.rev (String.split ~on:'.' file) with
+  | [] -> Exception.internal "Tried splitting a filename with no extension"
+  | [_] -> Exception.internal "Tried splitting a filename with no extension"
   |  ext::rest ->
-    Result.Ok (sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext)
-  | [] -> Result.Error "Tried splitting a filename with no extension"
+    sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
 
-let to_assoc_list etags_json : ((string*string) list, string) Result.t=
+let to_assoc_list etags_json : (string*string) list =
   match etags_json with
   `Assoc alist ->
   let mutated = List.filter_map
@@ -454,9 +455,9 @@ let to_assoc_list etags_json : ((string*string) list, string) Result.t=
         )
       alist in
     if not (phys_equal (List.length mutated) (List.length alist))
-    then Result.Error "Some asset in etags.json lacked a hash value."
-    else Result.Ok mutated
-  | _ -> Result.Error "etags.json must be a top-level object."
+    then Exception.internal "Some asset in etags.json lacked a hash value."
+    else mutated
+  | _ -> Exception.internal "etags.json must be a top-level object."
 
 let admin_ui_html ~(debug:bool) () =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
@@ -473,29 +474,24 @@ let admin_ui_html ~(debug:bool) () =
     >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
     >|= (fun x ->
         if not (Config.hash_static_filenames)
-        then Result.Ok x
+        then x
         else x
              |> (fun instr ->
                  let etags_str = File.readfile ~root:Static "etags.json" in
                  let etags_json = Yojson.Safe.from_string etags_str in
                  let etag_assoc_list = to_assoc_list etags_json in
-                 etag_assoc_list |> Result.bind ~f:(fun ok -> ok
+                 etag_assoc_list
                  |> List.filter
-                   ~f:(fun (file, _) -> not (String.equal "date" file))
+                   ~f:(fun (file, _) -> not (String.equal "__date" file))
                  |> List.filter
                    (* Only hash our assets, not vendored assets *)
                    ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
                  |> List.fold
-                   ~init:(Result.Ok instr)
+                   ~init:instr
                    ~f:(fun acc (file, hash) ->
-                       match (acc, hashed_filename file hash) with
-                       | (Result.Ok acc, Result.Ok hf) ->
-                         Result.Ok (Util.string_replace file hf acc)
-                       | (Result.Ok acc, Result.Error hash_err) ->
-                         Result.Error hash_err
-                       | _ -> acc
-                     )
-               )))
+                       (Util.string_replace file (hashed_filename file hash))
+                   acc)
+      ))
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
@@ -514,29 +510,29 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
 
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) ->
-     let username = Auth.Session.username_for session in
-     if path = "/logout"
-     then
-       (Auth.Session.clear Auth.Session.backend session;%lwt
-        let headers =
-          (Header.of_list
-             (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-            let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
-            S.respond_redirect ~headers ~uri ())
-     else
-       handler ~username req
+    let username = Auth.Session.username_for session in
+    if path = "/logout"
+    then
+      (Auth.Session.clear Auth.Session.backend session;%lwt
+       let headers =
+         (Header.of_list
+            (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
+       let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
+       S.respond_redirect ~headers ~uri ())
+    else
+      handler ~username req
   | _ ->
-     match Header.get_authorization headers with
-     | (Some (`Basic (username, password))) ->
-        (if Account.authenticate ~username ~password
-         then
-           let%lwt session = Auth.Session.new_for_username username in
-           let https_only_cookie = req |> CRequest.uri |> should_use_https in
-           let headers = Auth.Session.to_cookie_hdrs
-                           ~http_only:true
-                           ~secure:https_only_cookie
-                           ~path:"/"
-                           Auth.Session.cookie_key session
+    match Header.get_authorization headers with
+    | (Some (`Basic (username, password))) ->
+      (if Account.authenticate ~username ~password
+       then
+         let%lwt session = Auth.Session.new_for_username username in
+         let https_only_cookie = req |> CRequest.uri |> should_use_https in
+         let headers = Auth.Session.to_cookie_hdrs
+             ~http_only:true
+             ~secure:https_only_cookie
+             ~path:"/"
+             Auth.Session.cookie_key session
            in
            over_headers_promise ~f:(fun h -> Header.add_list h headers)
              (handler ~username req)
@@ -574,55 +570,38 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   match (verb, path) with
   (* Canvas webpages... *)
   | (`GET, [ "a" ; canvas ; "integration_test" ]) when Config.allow_test_routes ->
-     when_can_edit ~canvas
-       (fun _ ->
+    when_can_edit ~canvas
+      (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
          let%lwt body = admin_ui_html ~debug:false () in
-         (match body with
-          Result.Ok bodyok -> respond
+         respond
            ~resp_headers:html_hdrs
            ~execution_id
-           `OK bodyok
-          |Result.Error bodyerr -> respond
-            ~resp_headers:html_hdrs
-            ~execution_id
-            `Internal_server_error "Error generating static asset paths."
-         ))
+           `OK body
+      )
 
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-          let%lwt body = admin_ui_html ~debug:true () in
-          (match body with
-             Result.Ok bodyok ->
-             respond
-               ~resp_headers:html_hdrs
-               ~execution_id
-               `OK bodyok
-           | Result.Error bodyerr -> respond
-                                      ~resp_headers:html_hdrs
-                                      ~execution_id
-                                      `Internal_server_error "Error generating static asset paths."
-         ))
+    when_can_edit ~canvas
+      (fun _ ->
+         let%lwt body = admin_ui_html ~debug:true () in
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      )
   | (`GET, [ "a" ; canvas; ]) ->
     when_can_edit ~canvas
       (fun _ ->
          let%lwt body = admin_ui_html ~debug:false () in
-         (match body with
-            Result.Ok bodyok ->
-            respond
-              ~resp_headers:html_hdrs
-              ~execution_id
-              `OK bodyok
-          | Result.Error bodyerr -> respond
-                                    ~resp_headers:html_hdrs
-                                    ~execution_id
-            `Internal_server_error "Error generating static asset paths."
-))
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      )
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
-      ~(body: string) ~(username:string) (req: CRequest.t) =
+    ~(body: string) ~(username:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
@@ -635,13 +614,13 @@ let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
   (* Operational APIs.... maybe these shouldn't be here, but
      they start with /api so they need to be. *)
   | (`POST, [ "api" ; "shutdown" ]) when Config.allow_server_shutdown ->
-     Lwt.wakeup stopper ();
-     respond ~execution_id `OK "Disembowelment"
+    Lwt.wakeup stopper ();
+    respond ~execution_id `OK "Disembowelment"
   | (`POST, [ "api" ; "clear-benchmarking-data" ] ) ->
-     Db.delete_benchmarking_data ();
-     respond ~execution_id `OK "Cleared"
+    Db.delete_benchmarking_data ();
+    respond ~execution_id `OK "Cleared"
   | (`POST, [ "api" ; canvas; "save_test" ]) when Config.allow_test_routes ->
-     save_test_handler ~execution_id canvas
+    save_test_handler ~execution_id canvas
 
   (* Canvas API *)
   | (`POST, [ "api" ; canvas ;  "rpc" ]) ->
@@ -858,6 +837,7 @@ let server () =
     let ip = get_ip_address ch in
 
     let handle_error ~(include_internals:bool) (e:exn) =
+      (Log.infO "HERE");
       try
         let bt = Exception.get_backtrace () in
         let%lwt _ =
