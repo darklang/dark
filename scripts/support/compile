@@ -296,6 +296,7 @@ def ignore(filename):
             , "server/static/elm-debug.js"
             , "server/static/elm.js"
             , "server/static/darkjs.bc.js"
+            , "server/static/bsmain.js"
             , "etags.json"
             , "client2/node_modules"
             , "client2/lib"
