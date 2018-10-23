@@ -15,7 +15,9 @@ let tlCursorID (tlid : tlid) (idx : int) : id =
   ID intID
 
 let unwrapCursorState (s : cursorState) : cursorState =
-  match s with Dragging (_, _, _, unwrap) -> unwrap | _ -> s
+  match s with
+  | Dragging (_, _, _, unwrap) -> unwrap
+  | _ -> s
 
 let tlidOf (s : cursorState) : tlid option =
   match unwrapCursorState s with

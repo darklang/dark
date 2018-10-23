@@ -11,14 +11,26 @@ open Types
 let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
+(* fixed from Tea_html_cmds *)
+let focusIdTask id =
+  Tea_cmd.call
+    (fun _ ->
+      let ecb _ignored =
+        match Js.Nullable.toOption (Web.Document.getElementById id) with
+        | None -> Js.log ("Attempted to focus a non-existant element of: ", id)
+        | Some elem -> Web.Node.focus elem
+      in
+      (* One to get out of the current render frame*)
+      let cb _ignored = ignore (Web.Window.requestAnimationFrame ecb); in
+      (* And another to properly focus *)
+      ignore (Web.Window.requestAnimationFrame cb);
+      ())
+
 let focusEntry (m : model) : msg Cmd.t =
-  Cmd.none
-(*   match unwrapCursorState m.cursorState with *)
-(*   | Entering _ -> Dom.focus Defaults.entryID |> Task.attempt FocusEntry *)
-(*   | SelectingCommand (_, _) -> *)
-(*       Dom.focus Defaults.entryID |> Task.attempt FocusEntry *)
-(*   | _ -> Cmd.none *)
-(*  *)
+  match unwrapCursorState m.cursorState with
+  | Entering _ | SelectingCommand (_, _) -> focusIdTask Defaults.entryID
+  | _ -> Cmd.none
+
 let newHandlerSpec (_ : unit) : handlerSpec =
   {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()}
 
