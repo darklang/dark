@@ -48,7 +48,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
     loc.hash |> String.dropLeft 1 |> String.split "&"
     |> List.map (String.split "=")
     |> List.filterMap (fun arr ->
-           match arr with [b; a] -> Some (String.toLower a, b) | _ -> None )
+        match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
   let center =

@@ -178,13 +178,13 @@ let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
       in
       let name =
         match captures with
-        | [_; Some fn; None] -> fn
-        | [_; Some fn; Some modName] -> modName ^ fn
+        | [None; Some fn; _] -> fn
+        | [Some modName; Some fn; _] -> modName ^ fn
         | _ -> fnName
       in
       let version =
         match captures with
-        | [Some v; _; _] -> v
+        | [_; _; Some v] -> v
         | _ -> "0"
       in
       (name, version)

@@ -29,7 +29,7 @@ let all : Test.test =
              (B.newF (Thread [orig; B.new_ ()]))
          in
          match result with
-         | F (_, Thread [_; r]) ->
+         | F (_, Thread [r; _]) ->
              if r = replacement then pass else fail (orig, result)
          | _ -> fail (orig, result) )
     ; test
@@ -46,7 +46,7 @@ let all : Test.test =
                 ; B.new_ () ])
          in
          match AST.closeThreads threaded with
-         | F (ID 6, FnCall ("+", [Blank (ID 5); Blank _], NoRail)) -> pass
+         | F (ID 6, FnCall ("+", [Blank _; Blank (ID 5)], NoRail)) -> pass
          | r -> fail r )
     ; test "don't readd the argument if it was already in the right place"
       <| ( expectOk
