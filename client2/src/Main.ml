@@ -1052,19 +1052,19 @@ let update_ (msg : msg) (m : model) : modification =
       if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
   | DataMouseEnter (tlid, idx, _) -> SetHover (tlCursorID tlid idx)
   | DataMouseLeave (tlid, idx, _) -> ClearHover (tlCursorID tlid idx)
-  | DragToplevel (_, vPos) -> (
+  | DragToplevel mousePos -> (
     match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
-      let xDiff = vPos.vx - startVPos.vx in
-      let yDiff = vPos.vy - startVPos.vy in
-        let m2 = TL.move draggingTLID xDiff yDiff m in
-        Many
-          [ SetToplevels (m2.toplevels, true)
-          ; Drag
-              ( draggingTLID
-              , vPos
-              , true
-              , origCursorState ) ]
+      let xDiff = mousePos.x - startVPos.vx in
+      let yDiff = mousePos.y - startVPos.vy in
+      let m2 = TL.move draggingTLID xDiff yDiff m in
+      Many
+        [ SetToplevels (m2.toplevels, true)
+        ; Drag
+            ( draggingTLID
+            , { vx = mousePos.x; vy = mousePos.y }
+            , true
+            , origCursorState ) ]
     | _ -> NoChange )
   | ToplevelMouseDown (targetTLID, event) ->
       if event.button = Defaults.leftButton then
@@ -1312,17 +1312,12 @@ let subscriptions (m : model) : msg Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let resizes = [Window.OnResize.listen (fun (w, h) -> WindowResize (w, h) )]
   in
-  let dragSubs = []
-                 (*
+  let dragSubs =
     match m.cursorState with
-    (*| Dragging (id, offset, _, _) -> (Js.log "dragging"; [(Mouse.moves (fun x ->
-        ([%debugger]; DragToplevel (id,
-                                                                           x))))])
-      *)
-    | Dragging (_,_,_,_) -> (Mouse.moves (fun x -> (Js.log "M.m"; Js.log x));
-                             [])
+    | Dragging (_, _, _, _)
+    | Selecting (_, _)
+    | Deselected -> [Mouse.moves (fun x -> DragToplevel x)]
     | _ -> []
-                    *)
   in
   let syncTimer =
     match m.visibility with

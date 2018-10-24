@@ -32,7 +32,6 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
   let events =
     [ eventNoPropagation "mousedown" (fun x -> ToplevelMouseDown (tl.id, x))
     ; eventNoPropagation "mouseup" (fun x -> ToplevelMouseUp (tl.id, x))
-    ; eventNoPropagation "mousemove" (fun x -> DragToplevel (tl.id, x.pos))
     ; eventNoPropagation "click" (fun x -> ToplevelClick (tl.id, x)) ]
   in
   let selected =

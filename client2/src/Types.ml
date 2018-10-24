@@ -114,7 +114,7 @@ and msg =
   | ToplevelMouseDown of tlid * mouseEvent
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
-  | DragToplevel of tlid * vPos
+  | DragToplevel of Tea.Mouse.position
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
