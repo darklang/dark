@@ -4,11 +4,10 @@
   "scripts": {
     "clean": "bsb -clean-world",
     "build:bsb": "bsb -make-world",
-    "build:js": "rollup -c",
+    "build:js": "browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js",
     "build": "npm run build:bsb && npm run build:js",
     "watch:bsb": "bsb -make-world -w",
-    "watch:js": "rollup -c -w",
-    "watch": "npm run watch:bsb && npm run watch:js"
+    "watch": "npm run watch:bsb && npm run build:js"
   },
   "keywords": [
     "BuckleScript"
@@ -19,8 +18,8 @@
     "@glennsl/bs-json": "3.0.0",
     "bs-platform": "^4.0.5",
     "bucklescript-tea": "^0.8.0",
-    "rollup": "^0.53.3",
-    "rollup-plugin-node-resolve": "^3.0.0"
+    "browserify": "^16.1.1",
+    "@glennsl/bs-jest": "^0.4.4"
   },
   "dependencies": {
     "bs-webapi": "^0.13.0"
