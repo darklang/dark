@@ -94,7 +94,7 @@ def less_compile():
 
 def client2_build():
   start = time.time()
-  build = "cd client2 && unbuffer npm run build"
+  build = "cd client2 && unbuffer bsb -make-world && browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js"
   result = run_frontend(start, build)
   # For now, ignore client2 on CI
   if os.environ.get("CI"):
@@ -105,6 +105,13 @@ def client2_install():
   start = time.time()
   build = "cd client2 && unbuffer yarn install"
   return run_frontend(start, build)
+
+def client2_test():
+  start = time.time()
+  return run_test(start, \
+          "cd client2" \
+          + " && unbuffer" \
+          + " ./node_modules/jest/bin/jest.js")
 
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
@@ -182,6 +189,7 @@ class Should:
     self.server_test = False
     self.client2_install = False
     self.client2_build = False
+    self.client2_test = False
     self.elm_package = False
     self.elm_test_package = False
     self.elm_make = False
@@ -198,6 +206,9 @@ def execute(should):
   c2i = should.client2_install and client2_install ()
   should.client2_build |= c2i
   c2b = should.client2_build and client2_build()
+
+  should.client2_test |= c2b
+  c2t = should.client2_test and client2_test()
 
   ep = should.elm_package and elm_package()
   should.elm_make |= ep
