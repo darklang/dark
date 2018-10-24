@@ -1,12 +1,18 @@
 {
   "name": "client2",
   "version": "0.1.0",
-  "sources": {
-    "dir" : "src",
-    "subdirs" : false
-  },
+  "sources": [
+    {
+      "dir" : "src",
+      "subdirs" : false
+    },
+    {
+      "dir": "__tests__",
+      "type": "dev"
+    }
+  ],
   "package-specs": {
-    "module": "es6",
+    "module": "commonjs",
     "in-source": false
   },
   "suffix": ".bs.js",
@@ -14,6 +20,9 @@
     "bucklescript-tea",
     "@glennsl/bs-json",
     "bs-webapi"
+  ],
+  "bs-dev-dependencies": [
+    "@glennsl/bs-jest"
   ],
   "bsc-flags": ["-bs-g"],
   "warnings": {
