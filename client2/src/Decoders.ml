@@ -214,7 +214,7 @@ and tipe j : tipe =
 
 and userFunctionParameter j : userFunctionParameter =
   { ufpName = field "name" (blankOr string) j
-  ; ufpTipe = field "tupe" (blankOr tipe) j
+  ; ufpTipe = field "tipe" (blankOr tipe) j
   ; ufpBlock_args = field "block_args" (list string) j
   ; ufpOptional = field "optional" bool j
   ; ufpDescription = field "description" string j
