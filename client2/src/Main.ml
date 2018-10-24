@@ -1,5 +1,3 @@
-[%%debugger.chrome]
-
 open Tea
 open Tea.Mouse
 open! Porting
