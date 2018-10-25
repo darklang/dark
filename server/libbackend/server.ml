@@ -452,7 +452,7 @@ let to_assoc_list etags_json : (string*string) list =
            | _ -> None)
         )
       alist in
-    if not (phys_equal (List.length mutated) (List.length alist))
+    if (List.length mutated) <> (List.length alist)
     then Exception.internal "Some asset in etags.json lacked a hash value."
     else mutated
   | _ -> Exception.internal "etags.json must be a top-level object."
@@ -582,8 +582,8 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error frontend =
-    Lwt.try_bind (admin_ui_html ~debug: false frontend)
+  let serve_or_error ~(debug : bool) =
+    Lwt.try_bind (admin_ui_html ~debug:false frontend)
       (fun body ->
          respond
            ~resp_headers:html_hdrs
@@ -602,15 +602,15 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
      when_can_edit ~canvas
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
-         serve_or_error frontend
+         serve_or_error ~debug:false frontend
       )
 
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
     when_can_edit ~canvas
-      (fun _ -> serve_or_error frontend)
+      (fun _ -> serve_or_error ~debug:true frontend)
   | (`GET, [ "a" ; canvas; ]) ->
     when_can_edit ~canvas
-      (fun _ -> serve_or_error frontend)
+      (fun _ -> serve_or_error ~debug:false frontend)
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
