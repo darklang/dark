@@ -109,8 +109,6 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER dark
 WORKDIR /home/dark
 RUN mkdir bin
-# otherwise this gets created by the mount, and it'll be owned by root if your docker host os is linux
-RUN mkdir .config
 
 ############################
 # Locales
