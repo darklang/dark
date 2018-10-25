@@ -498,20 +498,21 @@ module Native = struct
       "innerHeight" [@@bs.get]
 
     external getElementsByClassName :
-      (string -> Dom.element list) =
+      string -> Dom.element list =
       "getElementsByClassName" [@@bs.val][@@bs.scope "document"]
 
     external querySelectorAll :
-      (Dom.element -> string -> Dom.element list) =
-      "querySelectorAll" [@@bs.val]
+      Dom.element -> string -> Dom.nodeList =
+      "querySelectorAll" [@@bs.send]
 
     external getBoundingClientRect :
       Dom.element -> bounding_rect =
-      "getBoundingClientRect" [@@bs.val]
+      "getBoundingClientRect" [@@bs.send]
 
-    external classList :
-      Dom.element -> string list =
-      "classList" [@@bs.get]
+    external classes :
+      Dom.element -> string =
+      "className" [@@bs.get]
+
   end
 
   module Window = struct
@@ -528,20 +529,14 @@ module Native = struct
   module Size = struct
 
     let getId (n : Dom.element) : int  =
-      let classes = Ext.classList n in
-      let r =  Regex.regex "id-(\\d+)" in
-      List.find (fun c -> Regex.contains r c) classes
-      |> function
-        | Some cls ->
-          Regex.matches r cls
-          |> (function
-            | Some res ->
-              Js.Nullable.toOption (Js.Re.captures res).(1)
-              |> (function
-                | Some id -> int_of_string id
-                | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int"))
-            | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id"))
-        | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id")
+      Regex.matches (Regex.regex ".*id-([0-9]+).*") (Ext.classes n)
+        |> (function
+          | Some res ->
+            Js.Nullable.toOption (Js.Re.captures res).(1)
+            |> (function
+              | Some id -> int_of_string id
+              | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int"))
+          | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id"))
 
     let find (tl: Dom.element) (nested: bool) : rect list =
       let selector =
