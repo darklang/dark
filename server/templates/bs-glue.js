@@ -23,7 +23,6 @@ function displayError (msg){
 }
 
 function windowFocusChange (visible){
-  console.log('window focus changed '+visible);
   var event = new CustomEvent('windowFocusChange', {detail: visible});
   document.dispatchEvent(event);
 }
