@@ -5,18 +5,33 @@ set -euo pipefail
 
 set -x
 
+PREFIX=""
+PROJECT=""
+for i in "$@"
+do
+  case "${i}" in
+    --prefix=*)
+      PREFIX="${i/--prefix=/''}-"
+      ;;
+    --project=*)
+      PROJECT="${i/--project=/''}"
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      exit 1
+      ;;
+  esac
+done
 
 #################################
 # Fetch latest containers from GCR
 #################################
 
-PROJECT="$1"
-
 echo "Fetching latest containers from GCR"
 
-IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
-QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-qw:latest"
-CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
+IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp:latest"
+QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
+CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
 
 docker-credential-gcr configure-docker
 docker pull $IMAGE_LATEST

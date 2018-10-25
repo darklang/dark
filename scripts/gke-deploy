@@ -7,6 +7,9 @@ DARK_REGION="us-west1"
 DARK_PROJECT="balmy-ground-195100"
 DARK_CLUSTER="$(< current-cluster)"
 
+PREFIX=""
+PREFIX_ARG=""
+
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
 
@@ -18,9 +21,9 @@ Options:
   --project=...          The Google cloud project to deploy into (default $DARK_PROJECT).
   --cluster=...          The name of the cluster to deploy to (default $DARK_CLUSTER).
   --help	     	 Display this menu.
-
 EOF
 )"
+
 for i in "$@"
 do
   case "${i}" in
@@ -32,6 +35,9 @@ do
       ;;
     --cluster=*)
       DARK_CLUSTER="${i/--cluster=/''}"
+      ;;
+    --prefix=*)
+      PREFIX="${i/--prefix=/''}-"
       ;;
     --help)
       echo "$HELP"
@@ -57,7 +63,7 @@ GCR="gcr.io/$DARK_PROJECT"
 ## Only fetch if we haven't just built, which we do on CI
 if [[ "$CI" == "" ]]; then
   echo "Not on CI: fetching latest containers"
-  ./scripts/gcp-fetch-latest-containers "$DARK_PROJECT"
+  ./scripts/gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
 else
   echo "On CI: not fetching latest containers"
 fi
@@ -65,12 +71,13 @@ fi
 #########################
 # Tell Kubernetes what to do
 #########################
-IMAGE_ID="$(docker images $GCR/dark-gcp -q | head -n 1)"
-QW_IMAGE_ID="$(docker images $GCR/dark-gcp-qw -q | head -n 1)"
-CRON_IMAGE_ID="$(docker images $GCR/dark-gcp-cron -q | head -n 1)"
-IMAGE="$GCR/dark-gcp:$IMAGE_ID"
-QW_IMAGE="$GCR/dark-gcp-qw:$QW_IMAGE_ID"
-CRON_IMAGE="$GCR/dark-gcp-cron:$CRON_IMAGE_ID"
+IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp -q | head -n 1)"
+QW_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-qw -q | head -n 1)"
+CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
+
+IMAGE="$GCR/${PREFIX}dark-gcp:$IMAGE_ID"
+QW_IMAGE="$GCR/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
+CRON_IMAGE="$GCR/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
 
 
 # get creds
