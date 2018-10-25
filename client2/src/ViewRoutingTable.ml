@@ -128,8 +128,8 @@ let ordering (a : string) (b : string) : int =
   | "HTTP", _ -> -1
   | _, "HTTP" -> 1
   | _ ->
-      if b = missingEventRouteDesc then -1
-      else if a = missingEventRouteDesc then 1
+      if a = missingEventRouteDesc then 1
+      else if b = missingEventRouteDesc then -1
       else compare a b
 
 let buttonLink (content : msg Html.html) (handler : msg) (page : page option) :
