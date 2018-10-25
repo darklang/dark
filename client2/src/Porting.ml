@@ -34,6 +34,8 @@ module Debug = struct
   let log (msg: string) (data: 'a) : 'a  =
     Js.log2 msg data;
     data
+  let loG (msg: string) (data: 'a) : unit =
+    Js.log2 msg data
 end
 
 let toString (v : 'a) : string =

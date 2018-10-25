@@ -13,8 +13,9 @@ let fail (v : 'a) : testResult = Error (toString v)
 let onlyTL (m : model) : toplevel =
   let len = List.length m.toplevels in
   let _ =
-    if len > 1 then Debug.crash ("too many toplevels: " ^ toString m.toplevels)
-    else if len = 0 then Debug.crash "no toplevels"
+    if len = 0
+    then Debug.crash "no toplevels"
+    else if len > 1 then Debug.crash ("too many toplevels: " ^ toString m.toplevels)
     else "nothing to see here"
   in
   m.toplevels |> List.head |> deOption "onlytl1"
