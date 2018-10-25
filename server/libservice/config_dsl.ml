@@ -38,6 +38,10 @@ let string name : string =
   Sys.getenv_exn name
   |> lowercase name
 
+let maybe_string name : string option =
+  let v = string name
+  in if v  = "none" then None else Some v
+
 let string_option name (options: string list) : string =
   let v = Sys.getenv_exn name |> lowercase name in
   if List.mem ~equal:(=) options v
