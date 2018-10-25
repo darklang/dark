@@ -1,24 +1,46 @@
-open Tea
 open! Porting
+open Types
+module RT = Runtime
 
-type parameter =
-  { name: string
-  ; tipe: string
-  ; block_args: string list
-  ; optional: bool
-  ; description: string }
+(* In Elm, there were flags, which were converted directly into data without
+ * passing through decoders. These decoders read from a slightly odd format,
+ * and have a few other intricacies that make them different from our more
+ * normal decoders. *)
 
-and function_ =
-  { name: string
-  ; parameters: parameter list
-  ; description: string
-  ; return_type: string
-  ; preview_execution_safe: bool
-  ; deprecated: bool
-  ; infix: bool }
+let parameter j : parameter =
+  let open Json_decode_extended in
+  { paramName = field "name" string j
+  ; paramTipe = field "tipe" (string >> RT.str2tipe) j
+  ; paramBlock_args = field "block_args" (list string) j
+  ; paramOptional = field "optional" bool j
+  ; paramDescription = field "description" string j
+  }
 
-and flags =
+let function_ j : function_ =
+  let open Json_decode_extended in
+  { fnName = field "name" string j
+  ; fnParameters = field "parameters" (list parameter) j
+  ; fnDescription = field "description" string j
+  ; fnReturnTipe = field "return_type" (string >> RT.str2tipe) j
+  ; fnPreviewExecutionSafe = field "preview_execution_safe" bool j
+  ; fnDeprecated = field "deprecated" bool j
+  ; fnInfix = field "infix" bool j
+  }
+
+type flags =
   { editorState: string option
-  ; complete: function_ list
+  ; complete: Types.function_ list
   ; userContentHost: string
   ; environment: string }
+
+let fromString (strJ: string) : flags =
+  let open Json_decode_extended in
+  let j = Json.parseOrRaise strJ in
+  { editorState = field "editorState" (optional string) j
+  ; complete = field "complete" (list function_) j
+  ; userContentHost = field "userContentHost" string j
+  ; environment = field "environment" string j
+  }
+
+
+

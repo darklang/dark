@@ -110,14 +110,15 @@ function addWheelListener(elem){
 }
 
 setTimeout(function(){
-  app = buckle.main(
-    document.body,
+
+  const params = JSON.stringify(
     {
       editorState: window.localStorage.getItem('editorState'),
       complete: complete,
       userContentHost: userContentHost,
       environment: environmentName
     });
+  app = buckle.main(document.body, params);
 
   window.onresize = function(evt){
     const size = {
