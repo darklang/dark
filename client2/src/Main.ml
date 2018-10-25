@@ -1314,7 +1314,10 @@ let subscriptions (m : model) : msg Sub.t =
     match m.cursorState with
     | Dragging (_, _, _, _)
     | Selecting (_, _)
-    | Deselected -> [Mouse.moves (fun x -> DragToplevel x)]
+    | Deselected ->
+      (* Register listener in other cursorStates where a TL might be selected too.
+      DragTopLevel will ensure that we only move if it's cursor state is Dragging *)
+      [Mouse.moves (fun x -> DragToplevel x)]
     | _ -> []
   in
   let syncTimer =
