@@ -457,7 +457,7 @@ let to_assoc_list etags_json : (string*string) list =
     else mutated
   | _ -> Exception.internal "etags.json must be a top-level object."
 
-let admin_ui_html ~(debug:bool) () =
+let admin_ui_html ~(debug:bool) frontend =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
     template
     >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
@@ -468,7 +468,6 @@ let admin_ui_html ~(debug:bool) () =
     >|= Util.string_replace "{STATIC}" Config.static_host
     >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
     >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-    >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
     >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
     >|= (fun body ->
         let glue, tag =
@@ -485,6 +484,7 @@ let admin_ui_html ~(debug:bool) () =
         body
         |> Util.string_replace "{FRONTENDIMPL}" tag
         |> Util.string_replace "{FRONTENDGLUE}" glue)
+    >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
     >|= Util.string_replace "{STATIC}" Config.static_host
     >|= (fun x ->
         if not (Config.hash_static_filenames)
@@ -582,8 +582,8 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error ~(debug : bool) =
-    Lwt.try_bind (admin_ui_html ~debug:false frontend)
+  let serve_or_error ~(debug : bool) frontend =
+    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend))
       (fun body ->
          respond
            ~resp_headers:html_hdrs
