@@ -11,27 +11,11 @@ open Types
 module JSE = Json_encode_extended
 module JSD = Json_decode_extended
 module Key = Keyboard
-open Analysis
 
-let flag2function (fn : Flags.function_) : function_ =
-  { fnName= fn.name
-  ; fnDescription= fn.description
-  ; fnReturnTipe= RT.str2tipe fn.return_type
-  ; fnParameters=
-      List.map
-        (fun (p : Flags.parameter)  ->
-          { paramName= p.name
-          ; paramTipe= RT.str2tipe p.tipe
-          ; paramBlock_args= p.block_args
-          ; paramOptional= p.optional
-          ; paramDescription= p.description } )
-        fn.parameters
-  ; fnInfix= fn.infix
-  ; fnPreviewExecutionSafe= fn.preview_execution_safe
-  ; fnDeprecated= fn.deprecated }
-
-let init ({editorState; complete; userContentHost; environment} : Flags.flags)
-    (location : Web.Location.location) : model * msg Cmd.t =
+let init (flagString: string) (location : Web.Location.location) : model * msg Cmd.t =
+  let {Flags.editorState; complete; userContentHost; environment} =
+    Flags.fromString flagString
+  in
   let savedEditor = Editor.fromString editorState in
   let m0 = Editor.editor2model savedEditor in
   let _ = "comment" in
@@ -63,13 +47,12 @@ let init ({editorState; complete; userContentHost; environment} : Flags.flags)
     String.endsWith "/integration_test" location.pathname
   in
   let isAdmin = false in
-  let builtins = List.map flag2function complete in
   let canvasName = Url.parseCanvasName location in
   let integrationTestName = canvasName in
   let m2 =
     { m with
-      builtInFunctions= builtins
-    ; complete= AC.init builtins isAdmin
+      builtInFunctions = complete
+    ; complete= AC.init complete isAdmin
     ; tests
     ; toplevels= []
     ; currentPage= page
