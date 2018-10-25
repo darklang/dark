@@ -20,7 +20,7 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
   in
   Html.li
     ([Vdom.prop "data-content" value] @ classes @ events)
-    [Html.text "\226\128\162"]
+    [Html.text {js|•|js}]
 
 let asValue (inputValue : inputValueDict) : string =
   RT.inputValueAsString inputValue
