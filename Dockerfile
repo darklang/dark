@@ -274,6 +274,9 @@ RUN yarn add bs-platform@4.0.5
 RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git \
     && opam install -y utop
 
+# otherwise this gets created by the mount, and it'll be owned by root if your docker host os is linux
+RUN mkdir .config
+
 ############################
 # Finish
 ############################
