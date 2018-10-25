@@ -43,14 +43,6 @@ let rec pointerData j : pointerData =
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe)) ]
     j
 
-(* let serializableEditor : serializableEditor decoder = *)
-(*   JSDP.decode SerializableEditor *)
-(*   |> JSDP.optional "clipboard" (maybe pointerData) None *)
-(*   |> JSDP.optional "timersEnabled" bool true *)
-(*   |> JSDP.optional "cursorState" cursorState Deselected *)
-(*   |> JSDP.optional "lockedHandlers" (list tlid) [] *)
-(*  *)
-
 and serializableEditor (j: Js.Json.t) : serializableEditor =
   { clipboard = orNull (field "clipboard" (optional pointerData)) None j
   ; timersEnabled = orNull (field "timersEnabled" bool) true j
@@ -256,9 +248,6 @@ and traces j : traces =
   |> IntDict.fromList
 
 and trace j : trace =
-  (* let toTrace id input functionResults = *)
-  (*   {traceID= id; input; functionResults} *)
-  (* in *)
   { traceID = field "id" string j
   ; input = field "input" inputValueDict j
   ; functionResults = field "function_results" (list functionResult) j
