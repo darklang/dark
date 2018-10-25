@@ -329,7 +329,7 @@ let filter (list : autocompleteItem list) (query : string) :
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
-    |> Regex.replace "\226\159\182" "->"
+    |> Regex.replace {js|⟶|js} "->"
   in
   let _ = "comment" in
   let dynamic, candidates0 = List.partition isDynamicItem list in
