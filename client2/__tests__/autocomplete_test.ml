@@ -386,5 +386,132 @@ let () =
         |> toEqual (Some (ACKeyword KLambda))
       );
     );
+
+    describe "queryWhenCreating" (fun () ->
+      let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
+        List.member aci (List.concat ac.completions)
+      in
+
+      let itemMissing (aci : autocompleteItem) (ac : autocomplete) : bool =
+        not (itemPresent aci ac)
+      in
+
+      test "entering a DB name works" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "Mydbname"
+            |> itemPresent (ACOmniAction (NewDB "Mydbname"))
+          end
+        |> toEqual true
+      );
+      test "entering a DB name works" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "Mydbname"
+            |> itemPresent (ACOmniAction (NewDB "Mydbname"))
+          end
+        |> toEqual true
+      );
+      test "db names can be multicase" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "MyDBnaMe"
+            |> itemPresent (ACOmniAction (NewDB "MyDBnaMe"))
+          end
+        |> toEqual true
+      );
+      test "alphabetical only DB names #1" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "dbname1234::"
+            |> itemMissing (ACOmniAction (NewDB "dbname1234::"))
+          end
+        |> toEqual true
+      );
+      test "alphabetical only DB names #2" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "db_name::"
+            |> itemMissing (ACOmniAction (NewDB "db_name::"))
+          end
+        |> toEqual true
+      );
+      test "require capital for DB names" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "mydbname"
+            |> itemMissing (ACOmniAction (NewDB "mydbname"))
+          end
+        |> toEqual true
+      );
+      test "No HTTP handler in general" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "asdkkasd"
+            |> itemMissing (ACOmniAction NewHTTPHandler)
+          end
+        |> toEqual true
+      );
+      test "can create handlers for spaces that are substrings of HTTP" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "HTT"
+            |> itemPresent (ACOmniAction (NewEventSpace "HTT"))
+          end
+        |> toEqual true
+      );
+      test "can create routes #1" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "/"
+            |> itemPresent (ACOmniAction (NewHTTPRoute "/"))
+          end
+        |> toEqual true
+      );
+      test "can create routes #2" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "/asasdasd"
+            |> itemPresent (ACOmniAction (NewHTTPRoute "/asasdasd"))
+          end
+        |> toEqual true
+      );
+      test "new handler option available by default" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> itemPresent (ACOmniAction NewHandler)
+          end
+        |> toEqual true
+      );
+      test "new function option available by default" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> itemPresent (ACOmniAction (NewFunction None))
+          end
+        |> toEqual true
+      );
+      test "can create function with name from query" (fun () ->
+        expect
+          begin
+            createCreating User
+            |> setQuery "myfunction"
+            |> itemPresent (ACOmniAction (NewFunction (Some "myfunction")))
+          end
+        |> toEqual true
+      );
+
+    );
   );
   ()
