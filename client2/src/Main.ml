@@ -40,9 +40,6 @@ let init (flagString: string) (location : Web.Location.location) : model * msg C
     | Toplevels pos -> {canvas with offset= pos}
     | Fn (_, pos) -> {canvas with fnOffset= pos}
   in
-  (* let visibilityTask = *)
-  (*   Task.perform PageVisibilityChange PageVisibility.visibility *)
-  (* in *)
   let shouldRunIntegrationTest =
     String.endsWith "/integration_test" location.pathname
   in
@@ -65,7 +62,6 @@ let init (flagString: string) (location : Web.Location.location) : model * msg C
     ( m2
     , Cmd.batch
         [RPC.integrationRPC m canvasName integrationTestName
-        (* ; visibilityTask *)
         ]
     )
   else
@@ -74,7 +70,6 @@ let init (flagString: string) (location : Web.Location.location) : model * msg C
         [ RPC.initialLoadRPC canvasName
             (FocusPageAndCursor (page, savedCursorState))
         ; RPC.getAnalysisRPC canvasName []
-        (* ; visibilityTask *)
         ] )
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
