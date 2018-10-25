@@ -502,7 +502,7 @@ module Native = struct
       "getElementsByClassName" [@@bs.val][@@bs.scope "document"]
 
     external querySelectorAll :
-      Dom.element -> string -> Dom.nodeList =
+      Dom.element -> string -> Dom.element list =
       "querySelectorAll" [@@bs.send]
 
     external getBoundingClientRect :
@@ -607,7 +607,7 @@ module Window = struct
 end
 
 module Rollbar = struct
-  external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Rollbar"]
+  external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Dark", "rollbar"]
 end
 
 module DisplayClientError = struct

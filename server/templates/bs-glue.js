@@ -1,14 +1,15 @@
 var pageHidden = false;
 
-window.Rollbar = {
-  error: (errorObj) => console.error(errorObj)
-}
-
-window.darkAnalysis = {
-  requestAnalysis : (params) => { console.log('request analysis'); console.log(params); },
-  receiveAnalysis : (results) => {
-    var event = new CustomEvent('receiveAnalysis', {detail: results});
-    document.dispatchEvent(event);
+window.Dark = {
+  rollbar: {
+    error: (errorObj) => console.error(errorObj)
+  },
+  analysis: {
+    requestAnalysis : (params) => { console.log('request analysis'); console.log(params); },
+    receiveAnalysis : (results) => {
+      var event = new CustomEvent('receiveAnalysis', {detail: results});
+      document.dispatchEvent(event);
+    }
   }
 }
 
