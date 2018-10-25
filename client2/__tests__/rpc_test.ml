@@ -1,4 +1,3 @@
-open Tea
 open! Porting
 open Types
 open Jest
