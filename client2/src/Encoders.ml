@@ -42,7 +42,14 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DNull -> ev "DNull" []
   | DStr s -> ev "DStr" [string s]
   | DList l -> ev "DList" [list dval l]
-  | DObj o -> ev "DObj" [] (* TODO: PORTING *)
+  | DObj o ->
+    o
+    |. Belt.Map.String.map dval
+    |> Belt.Map.String.toList
+    |> Js.Dict.fromList
+    |> dict
+    |> fun x -> [x]
+    |> ev "DObj"
   | DBlock -> ev "DBlock" []
   | DIncomplete -> ev "DIncomplete" []
   | DChar c -> ev "DChar" [string (String.fromList [c])]
