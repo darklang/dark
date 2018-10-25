@@ -39,7 +39,7 @@ end
 let toString (v : 'a) : string =
   Js.String.make v
 
-let toOption (value: 'a) (sentinel: 'a) : 'a option =
+let toOption ~(sentinel: 'a) (value: 'a) : 'a option =
   if value = sentinel
   then None
   else Some value
@@ -64,7 +64,7 @@ module List = struct
     l
     |> Array.of_list
     |> Js.Array.findIndex ((=) a)
-    |> toOption (-1)
+    |> toOption ~sentinel:(-1)
   let rec last (l : 'a list) : 'a option =
     match l with
     | [] -> None
