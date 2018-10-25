@@ -50,6 +50,7 @@ let jsToHtmlSizing (obj : jSSide) : htmlSizing =
 
 let tlToSizes (m : model) (tlid : tlid) : htmlSizing list * htmlSizing list =
   let poses = Native.Size.positions (deTLID tlid) in
+  Debug.log "positions" poses;
   (List.map jsToHtmlSizing poses.nested, List.map jsToHtmlSizing poses.atoms)
 
 type udDirection = Up | Down
