@@ -7,7 +7,11 @@ open Types
 let spaceOf (hs : handlerSpec) : handlerSpace =
   let spaceOfStr s =
     let lwr = String.toLower s in
-    if lwr = "cron" then HSCron else if lwr = "http" then HSHTTP else HSOther
+    if lwr = "http"
+    then HSHTTP
+    else if lwr = "cron"
+    then HSCron
+    else HSOther
   in
   match hs.module_ with Blank _ -> HSEmpty | F (_, s) -> spaceOfStr s
 
