@@ -458,17 +458,6 @@ end
 module Native = struct
   type size = { width : int; height : int }
 
-  type bounding_rect =
-    { x : float
-    ; y : float
-    ; width : float
-    ; height : float
-    ; left : float
-    ; top : float
-    ; right : float
-    ; bottom : float
-    }
-
   type rect =
     { x: float
     ; y: float
@@ -482,7 +471,6 @@ module Native = struct
     }
 
   type ast_positions = { atoms : rect list; nested : rect list }
-
 
   exception NativeCodeError of string
 
@@ -505,10 +493,6 @@ module Native = struct
       Dom.element -> string -> Dom.element list =
       "querySelectorAll" [@@bs.send]
 
-    external getBoundingClientRect :
-      Dom.element -> bounding_rect =
-      "getBoundingClientRect" [@@bs.send]
-
     external classes :
       Dom.element -> string =
       "className" [@@bs.get]
@@ -527,51 +511,9 @@ module Native = struct
   end
 
   module Size = struct
-
-    let getId (n : Dom.element) : int  =
-      Regex.matches (Regex.regex ".*id-([0-9]+).*") (Ext.classes n)
-        |> (function
-          | Some res ->
-            Js.Nullable.toOption (Js.Re.captures res).(1)
-            |> (function
-              | Some id -> int_of_string id
-              | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int"))
-          | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id"))
-
-    let find (tl: Dom.element) (nested: bool) : rect list =
-      let selector =
-        if nested
-        then ".blankOr.nested"
-        else ".blankOr:not(.nested)"
-      in
-      let matches = Ext.querySelectorAll tl selector in
-      List.map
-        (fun n ->
-          let rect = Ext.getBoundingClientRect n in
-          let blankId = getId n in
-          { id = blankId
-          ; x = rect.x
-          ; y = rect.y
-          ; width = rect.width
-          ; height = rect.height
-          ; left = rect.left
-          ; top = rect.top
-          ; right = rect.right
-          ; bottom = rect.bottom
-          }
-        ) matches
-
-    let positions (tlid: int) : ast_positions =
-      let selector = Printf.sprintf "toplevel tl-%d" tlid in
-      let elems = Ext.getElementsByClassName selector in
-      List.head elems
-      |> function
-        | Some tl ->
-          { atoms = find tl false
-          ; nested = find tl true
-          }
-        | None ->
-          raise (NativeCodeError "Native.Size.positions : Cannot find toplevels")
+    external positions :
+      int -> ast_positions =
+      "atomPositions" [@@bs.val][@@bs.scope "window", "Dark", "ast"]
   end
 
   module Location = struct

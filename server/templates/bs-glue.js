@@ -10,6 +10,43 @@ window.Dark = {
       var event = new CustomEvent('receiveAnalysis', {detail: results});
       document.dispatchEvent(event);
     }
+  },
+  ast: {
+    atomPositions: (tlid) => {
+      var extractId = (elem) => {
+        var m = /.*id-([0-9]+).*/g.exec(elem.className);
+        var id = m[1];
+        if (typeof id === 'undefined')
+          throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for '+elem.className;
+        
+        var intID = parseInt(id);
+        if(isNaN(intID))
+          throw 'Dark.ast.atomPositions: Fail to parseInt '+id;
+
+        return intID;
+      };
+
+      var find = (tl, nested) => {
+        var atoms = [];
+        tl.querySelectorAll(nested ? '.blankOr.nested' : '.blankOr:not(.nested)')
+        .forEach((v,i,l) => {
+          var rect = v.getBoundingClientRect();
+          rect['id'] = extractId(v);
+          atoms.push(rect);
+        })
+        return atoms;
+      }
+
+      var toplevels = document.getElementsByClassName('toplevel tl-'+tlid);
+      if (toplevels.length == 0){
+        throw 'Dark.ast.atomPositions: Cannot find toplevel: '+tlid;
+      }
+      var tl = toplevels[0];
+      return {
+        atoms: find(tl, false),
+        nested: find(tl, true)
+      }
+    }
   }
 }
 
