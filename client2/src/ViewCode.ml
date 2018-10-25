@@ -219,15 +219,15 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         ; ViewUtils.nothingMouseEvent "dblclick" ]
       in
       let {class_; event; title; icon} =
-        if buttonNeeded then
-          { class_= "execution-button-needed"
-          ; event= events
-          ; title= "Click to execute function"
-          ; icon= exeIcon }
-        else if buttonUnavailable then
+        if buttonUnavailable then
           { class_= "execution-button-unavailable"
           ; event= []
           ; title= "Cannot run: some parameters are incomplete"
+          ; icon= exeIcon }
+        else if buttonNeeded then
+          { class_= "execution-button-needed"
+          ; event= events
+          ; title= "Click to execute function"
           ; icon= exeIcon }
         else
           { class_= "execution-button-repeat"

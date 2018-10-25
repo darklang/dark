@@ -136,22 +136,23 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
   fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
 
 let qLiteral (s : string) : autocompleteItem option =
-  if String.length s > 0 then
-    if String.startsWith (String.toLower s) "nothing" then
-      Some (ACLiteral "Nothing")
-    else if String.startsWith (String.toLower s) "false" then
-      Some (ACLiteral "false")
-    else if String.startsWith (String.toLower s) "true" then
-      Some (ACLiteral "true")
-    else if String.startsWith (String.toLower s) "null" then
-      Some (ACLiteral "null")
+  if Decoders.isLiteralString s
+  then Some (ACLiteral s)
+  else if String.length s > 0
+  then
+    if String.startsWith (String.toLower s) "nothing"
+    then Some (ACLiteral "Nothing")
+    else if String.startsWith (String.toLower s) "false"
+    then Some (ACLiteral "false")
+    else if String.startsWith (String.toLower s) "true"
+    then Some (ACLiteral "true")
+    else if String.startsWith (String.toLower s) "null"
+    then Some (ACLiteral "null")
     else None
-  else if Decoders.isLiteralString s then Some (ACLiteral s)
   else None
 
 let qNewDB (s : string) : autocompleteItem option =
-  if
-    String.length s >= 3
+  if String.length s >= 3
     && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
     && s <> "HTTP" && s <> "HTT"
   then Some (ACOmniAction (NewDB s))
@@ -164,9 +165,9 @@ let qHandler (s : string) : autocompleteItem option =
   if String.length s = 0 then Some (ACOmniAction NewHandler) else None
 
 let qFunction (s : string) : autocompleteItem option =
-  if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s then
-    Some (ACOmniAction (NewFunction (Some s)))
-  else if String.length s = 0 then Some (ACOmniAction (NewFunction None))
+  if String.length s = 0 then Some (ACOmniAction (NewFunction None))
+  else if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s
+  then Some (ACOmniAction (NewFunction (Some s)))
   else None
 
 let qHTTPRoute (s : string) : autocompleteItem option =
