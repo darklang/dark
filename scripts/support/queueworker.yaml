@@ -101,6 +101,8 @@ spec:
   - to:
     - ipBlock:
         cidr: 0.0.0.0/0
+        # make sure to block link-local addresses,
+        # since there's sensitive data in http://metadata
         except:
         - 169.254.0.0/16
   ingress:
