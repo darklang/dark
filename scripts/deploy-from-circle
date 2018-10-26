@@ -28,7 +28,7 @@ else
     echo "--------------------------"
     echo "Pushing gzipped static assets"
     echo "--------------------------"
-    ./scripts/push-assets-to-cdn
+    ./scripts/run-in-docker scripts/push-assets-to-cdn
 
     echo "--------------------------"
     echo "Pushing deploy to kubernetes"
