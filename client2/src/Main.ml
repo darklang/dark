@@ -763,15 +763,15 @@ let update_ (msg : msg) (m : model) : modification =
                   Selection.selectPreviousSibling m tlid mId
                 else NoChange
             | Key.C ->
-                if event.ctrlKey then
-                  let mPd = Option.map (TL.findExn tl) mId in
-                  Clipboard.copy m tl mPd
-                else if event.ctrlKey && event.altKey then
+                if event.ctrlKey && event.altKey then
                   match mId with
                   | None -> NoChange
                   | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WIfCond m tl pd
+                else if event.ctrlKey then
+                  let mPd = Option.map (TL.findExn tl) mId in
+                  Clipboard.copy m tl mPd
                 else NoChange
             | Key.V ->
                 if event.ctrlKey then
@@ -807,32 +807,32 @@ let update_ (msg : msg) (m : model) : modification =
                       Refactor.wrap WLetBody m tl pd
                 else NoChange
             | Key.L ->
-                if event.ctrlKey then
-                  match mId with
-                  | None -> NoChange
-                  | Some id ->
-                      let pd = TL.findExn tl id in
-                      Refactor.wrap WLetRHS m tl pd
-                else if event.ctrlKey && event.shiftKey then
+                if event.ctrlKey && event.shiftKey then
                   match mId with
                   | None -> NoChange
                   | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.extractVariable m tl pd
-                else NoChange
-            | Key.I ->
-                if event.ctrlKey then
+                else if event.ctrlKey then
                   match mId with
                   | None -> NoChange
                   | Some id ->
                       let pd = TL.findExn tl id in
-                      Refactor.wrap WIfThen m tl pd
-                else if event.ctrlKey && event.altKey then
+                      Refactor.wrap WLetRHS m tl pd
+                else NoChange
+            | Key.I ->
+                if event.ctrlKey && event.altKey then
                   match mId with
                   | None -> NoChange
                   | Some id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap WIfElse m tl pd
+                else if event.ctrlKey then
+                  match mId with
+                  | None -> NoChange
+                  | Some id ->
+                      let pd = TL.findExn tl id in
+                      Refactor.wrap WIfThen m tl pd
                 else NoChange
             | Key.E ->
                 if event.altKey then
@@ -853,15 +853,24 @@ let update_ (msg : msg) (m : model) : modification =
                   else NoChange )
             | _ -> NoChange )
         | Entering cursor -> (
-            if event.altKey then
+            if event.ctrlKey then
               match event.keyCode with
-              | Key.E -> (
-                match cursor with
-                | Creating pos -> NoChange
-                | Filling (tlid, id) ->
+              | Key.P -> AutocompleteMod ACSelectUp
+              | Key.N -> AutocompleteMod ACSelectDown
+              | Key.Enter ->
+                if AC.isSmallStringEntry m.complete then
+                  Many
+                    [ AutocompleteMod (ACAppendQuery "\n")
+                    ; MakeCmd (Entry.focusEntry m) ]
+                else if AC.isLargeStringEntry m.complete then
+                  Entry.submit m cursor Entry.StayHere
+                else NoChange
+              | Key.V -> (
+                  match cursor with
+                  | Creating pos -> Clipboard.newFromClipboard m pos
+                  | Filling (tlid, p) ->
                     let tl = TL.getTL m tlid in
-                    let pd = TL.findExn tl id in
-                    Refactor.toggleOnRail m tl pd )
+                    Clipboard.paste m tl p )
               | _ -> NoChange
             else if event.shiftKey && event.keyCode = Key.Enter then
               match cursor with
@@ -872,24 +881,16 @@ let update_ (msg : msg) (m : model) : modification =
                   | TLHandler h -> Entry.submit m cursor Entry.StartThread
                   | TLFunc f -> Entry.submit m cursor Entry.StartThread )
               | Creating _ -> Entry.submit m cursor Entry.StartThread
-            else if event.ctrlKey then
+
+            else if event.altKey then
               match event.keyCode with
-              | Key.P -> AutocompleteMod ACSelectUp
-              | Key.N -> AutocompleteMod ACSelectDown
-              | Key.Enter ->
-                  if AC.isSmallStringEntry m.complete then
-                    Many
-                      [ AutocompleteMod (ACAppendQuery "\n")
-                      ; MakeCmd (Entry.focusEntry m) ]
-                  else if AC.isLargeStringEntry m.complete then
-                    Entry.submit m cursor Entry.StayHere
-                  else NoChange
-              | Key.V -> (
+              | Key.E -> (
                 match cursor with
-                | Creating pos -> Clipboard.newFromClipboard m pos
-                | Filling (tlid, p) ->
+                | Creating pos -> NoChange
+                | Filling (tlid, id) ->
                     let tl = TL.getTL m tlid in
-                    Clipboard.paste m tl p )
+                    let pd = TL.findExn tl id in
+                    Refactor.toggleOnRail m tl pd )
               | _ -> NoChange
             else
               match event.keyCode with
@@ -922,10 +923,10 @@ let update_ (msg : msg) (m : model) : modification =
                     else
                       let content = AC.getValue m.complete in
                       let hasContent = content |> String.length |> ( < ) 0 in
-                      if hasContent then Entry.submit m cursor Entry.GotoNext
-                      else if event.shiftKey then
+                      if event.shiftKey then
                         if hasContent then NoChange
                         else Selection.enterPrevBlank m tlid (Some p)
+                      else if hasContent then Entry.submit m cursor Entry.GotoNext
                       else Selection.enterNextBlank m tlid (Some p)
                 | Creating _ -> NoChange )
               | Key.Unknown c ->

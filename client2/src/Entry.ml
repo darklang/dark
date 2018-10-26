@@ -127,7 +127,8 @@ let parseAst (m : model) (str : string) : expr option =
   | ["{}"] -> Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
   | ["{"] -> Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
   | _ ->
-      if Decoders.isLiteralString str then Some (F (eid, Value str))
+      if Decoders.isLiteralString str
+      then Some (F (eid, Value str))
       else createFunction m str
 
 let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
@@ -135,14 +136,8 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
   let id = B.toID old_ in
   let target = Some (tlid, PExpr old_) in
   let old, new_ =
-    if List.member value (Analysis.currentVarnamesFor m target) then
-      (old_, B.newF (Variable value))
-    else if String.endsWith "." value then
-      ( old_
-      , B.newF
-          (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
-      )
-    else if Util.reExactly "=[a-zA-Z].*" value then
+    if Util.reExactly "=[a-zA-Z].*" value
+    then
       match AST.threadAncestors id ast with
       | (F (_, Thread _) as thread) :: _ ->
           let bindName = value |> String.dropLeft 1 |> String.trim in
@@ -150,6 +145,14 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
           , B.newF (Let (B.newF bindName, AST.closeThreads thread, B.new_ ()))
           )
       | _ -> (old_, old_)
+    else if String.endsWith "." value
+    then
+      ( old_
+      , B.newF
+          (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
+      )
+    else if List.member value (Analysis.currentVarnamesFor m target)
+    then (old_, B.newF (Variable value))
     else (old_, parseAst m value |> Option.withDefault old_)
   in
   let newAst =
@@ -230,22 +233,22 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         in
         RPC ([op], focus)
       in
-      if List.member value (Analysis.currentVarnamesFor m None) then
-        wrapExpr <| B.newF (Variable value)
-      else if String.endsWith "." value then
+      if String.endsWith "." value then
         wrapExpr
         <| B.newF
              (FieldAccess
                 (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
+      else if List.member value (Analysis.currentVarnamesFor m None) then
+        wrapExpr <| B.newF (Variable value)
       else
         match parseAst m value with None -> NoChange | Some v -> wrapExpr v )
   | Filling (tlid, id) -> (
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
       let result = validate tl pd value in
-      if result <> None then
+      if String.length value < 1 then NoChange
+      else if result <> None then
         DisplayAndReportError (deOption "checked above" result)
-      else if String.length value < 1 then NoChange
       else
         let maybeH = TL.asHandler tl in
         let db = TL.asDB tl in
@@ -283,25 +286,26 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         match pd with
         | PDBColType ct ->
             let db1 = deOption "db" db in
-            if B.isBlank ct then
-              wrapID
-                [ SetDBColType (tlid, id, value)
-                ; AddDBCol (tlid, gid (), gid ()) ]
+            if B.asF ct = Some value then Select (tlid, Some id)
             else if DB.isMigrationCol db1 id then
               wrapID
                 [ SetDBColTypeInDBMigration (tlid, id, value)
                 ; AddDBColToDBMigration (tlid, gid (), gid ()) ]
-            else if B.asF ct = Some value then Select (tlid, Some id)
+            else if B.isBlank ct then
+              wrapID
+                [ SetDBColType (tlid, id, value)
+                ; AddDBCol (tlid, gid (), gid ()) ]
             else wrapID [ChangeDBColType (tlid, id, value)]
         | PDBColName cn ->
             let db1 = deOption "db" db in
-            if B.isBlank cn then wrapID [SetDBColName (tlid, id, value)]
+            if B.asF cn = Some value then Select (tlid, Some id)
+            else
+            if DB.isMigrationCol db1 id then
+              wrapID [SetDBColNameInDBMigration (tlid, id, value)]
             else if DB.hasCol db1 value then
               DisplayError
                 ("Can't have two DB fields with the same name: " ^ value)
-            else if DB.isMigrationCol db1 id then
-              wrapID [SetDBColNameInDBMigration (tlid, id, value)]
-            else if B.asF cn = Some value then Select (tlid, Some id)
+            else if B.isBlank cn then wrapID [SetDBColName (tlid, id, value)]
             else wrapID [ChangeDBColName (tlid, id, value)]
         | PVarBind _ -> replace (PVarBind (B.newF value))
         | PEventName _ -> replace (PEventName (B.newF value))
@@ -325,11 +329,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               | TLDB _ -> impossible ("No fields in DBs", tl.data)
             in
             let parent = AST.parentOf id ast in
-            if action = StartThread then
-              let replacement = AST.replace pd (PField (B.newF value)) ast in
-              let newAst = AST.wrapInThread (B.toID parent) replacement in
-              saveAst newAst (PExpr parent)
-            else if String.endsWith "." value then
+            if String.endsWith "." value then
               let fieldname = String.dropRight 1 value in
               let _ = "comment" in
               let _ = "comment" in
@@ -346,7 +346,13 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               let new_ = PExpr wrapped in
               let replacement = TL.replace (PExpr parent) new_ tl in
               save replacement new_
-            else replace (PField (B.newF value))
+
+            else if action = StartThread then
+              let replacement = AST.replace pd (PField (B.newF value)) ast in
+              let newAst = AST.wrapInThread (B.toID parent) replacement in
+              saveAst newAst (PExpr parent)
+            else
+              replace (PField (B.newF value))
         | PKey k ->
             let new_ = PKey (B.newF value) in
             let ast =
@@ -372,14 +378,14 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             match db.activeMigration with
             | None -> NoChange
             | Some am ->
-                if List.member pd (AST.allData am.rollforward) then
-                  let newast, newexpr =
-                    replaceExpr m tl.id am.rollforward e action value
-                  in
-                  wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
-                else if List.member pd (AST.allData am.rollback) then
+                if List.member pd (AST.allData am.rollback) then
                   let newast, newexpr =
                     replaceExpr m tl.id am.rollback e action value
+                  in
+                  wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
+                else if List.member pd (AST.allData am.rollforward) then
+                  let newast, newexpr =
+                    replaceExpr m tl.id am.rollforward e action value
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else NoChange ) )
