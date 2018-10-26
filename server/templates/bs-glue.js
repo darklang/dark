@@ -90,7 +90,7 @@ function visibilityCheck(){
   }
 
   if (pageHidden != hidden) {
-    windowFocusChange(hidden);
+    windowFocusChange(!hidden);
     pageHidden = hidden;
   }
 }
