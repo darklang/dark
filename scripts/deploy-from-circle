@@ -26,6 +26,11 @@ else
     ./scripts/run-in-docker scripts/gcp-push-images-to-gcr
 
     echo "--------------------------"
+    echo "Pushing gzipped static assets"
+    echo "--------------------------"
+    ./scripts/push-assets-to-cdn
+
+    echo "--------------------------"
     echo "Pushing deploy to kubernetes"
     echo "--------------------------"
     ./scripts/run-in-docker scripts/gke-deploy

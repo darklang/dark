@@ -435,36 +435,77 @@ let delete_404 ~(execution_id: Types.id) (host: string) body
     raise e
 
 
-let admin_ui_html ~(debug:bool) frontend =
-  let template = File.readfile_lwt ~root:Templates "ui.html" in
-  template
-  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
-  >|= Util.string_replace "{LIVERELOADJS}"
-    (if Config.browser_reload_enabled
-      then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-      else "")
-  >|= Util.string_replace "{STATIC}" Config.static_host
-  >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
-  >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-  >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
-  >|= (fun body ->
-    let glue, tag =
-      (match frontend with
-        | Elm ->
-          let content = File.readfile ~root:Templates "elm-glue.js" in
-          let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
-          (content, elmtag)
-        | Bucklescript ->
-          let content = File.readfile ~root:Templates "bs-glue.js" in
-          let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
-          (content, bstag))
-    in
-    body
-    |> Util.string_replace "{FRONTENDIMPL}" tag
-    |> Util.string_replace "{FRONTENDGLUE}" glue)
-  >|= Util.string_replace "{STATIC}" Config.static_host
-  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
+let hashed_filename (file:string) (hash : string) :string =
+  match List.rev (String.split ~on:'.' file) with
+  | [] -> Exception.internal "Tried splitting an empty filename key"
+  | [_] -> Exception.internal "Tried splitting a filename key with no extension"
+  |  ext::rest ->
+    sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
 
+let to_assoc_list etags_json : (string*string) list =
+  match etags_json with
+  `Assoc alist ->
+  let mutated = List.filter_map
+      ~f:(fun (fst, snd) ->
+          (match snd with
+           | `String inner -> Some (fst, inner)
+           | _ -> None)
+        )
+      alist in
+    if (List.length mutated) <> (List.length alist)
+    then Exception.internal "Some asset in etags.json lacked a hash value."
+    else mutated
+  | _ -> Exception.internal "etags.json must be a top-level object."
+
+let admin_ui_html ~(debug:bool) frontend =
+    let template = File.readfile_lwt ~root:Templates "ui.html" in
+    template
+    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
+    >|= Util.string_replace "{LIVERELOADJS}"
+      (if Config.browser_reload_enabled
+       then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+       else "")
+    >|= Util.string_replace "{STATIC}" Config.static_host
+    >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
+    >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
+    >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
+    >|= (fun body ->
+        let glue, tag =
+          (match frontend with
+           | Elm ->
+             let content = File.readfile ~root:Templates "elm-glue.js" in
+             let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
+             (content, elmtag)
+           | Bucklescript ->
+             let content = File.readfile ~root:Templates "bs-glue.js" in
+             let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
+             (content, bstag))
+        in
+        body
+        |> Util.string_replace "{FRONTENDIMPL}" tag
+        |> Util.string_replace "{FRONTENDGLUE}" glue)
+    >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
+    >|= Util.string_replace "{STATIC}" Config.static_host
+    >|= (fun x ->
+        if not (Config.hash_static_filenames)
+        then x
+        else x
+             |> (fun instr ->
+                 let etags_str = File.readfile ~root:Static "etags.json" in
+                 let etags_json = Yojson.Safe.from_string etags_str in
+                 let etag_assoc_list = to_assoc_list etags_json in
+                 etag_assoc_list
+                 |> List.filter
+                   ~f:(fun (file, _) -> not (String.equal "__date" file))
+                 |> List.filter
+                   (* Only hash our assets, not vendored assets *)
+                   ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
+                 |> List.fold
+                   ~init:instr
+                   ~f:(fun acc (file, hash) ->
+                       (Util.string_replace file (hashed_filename file hash))
+                         acc)
+               ))
 
 let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load_all host [] in
@@ -541,33 +582,35 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
+  let serve_or_error ~(debug : bool) frontend =
+    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend))
+      (fun body ->
+         respond
+           ~resp_headers:html_hdrs
+           ~execution_id
+           `OK body
+      )
+      (fun e ->
+         let bt = Exception.get_backtrace () in
+         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);
+         (respond ~execution_id
+            `Internal_server_error "Dark Internal Error"))
+  in
   match (verb, path) with
   (* Canvas webpages... *)
   | (`GET, [ "a" ; canvas ; "integration_test" ]) when Config.allow_test_routes ->
      when_can_edit ~canvas
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
-         let%lwt body = admin_ui_html ~debug:false frontend in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+         serve_or_error ~debug:false frontend
+      )
+
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         let%lwt body = admin_ui_html ~debug:true frontend in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+    when_can_edit ~canvas
+      (fun _ -> serve_or_error ~debug:true frontend)
   | (`GET, [ "a" ; canvas; ]) ->
-     when_can_edit ~canvas
-       (fun _ ->
-         let%lwt body = admin_ui_html ~debug:false frontend in
-         respond
-           ~resp_headers:html_hdrs
-           ~execution_id
-           `OK body)
+    when_can_edit ~canvas
+      (fun _ -> serve_or_error ~debug:false frontend)
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper

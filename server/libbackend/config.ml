@@ -23,6 +23,7 @@ let completed_test_dir = run_dir ^ "completed_tests/"
 (* Configurable dirs *)
 (* ------------------------- *)
 let templates_dir = absolute_dir "DARK_CONFIG_TEMPLATES_DIR"
+let static_dir = root_dir ^ "server/static/"
 let webroot_dir = absolute_dir "DARK_CONFIG_WEBROOT_DIR"
 let swagger_dir = absolute_dir "DARK_CONFIG_SWAGGER_DIR"
 let migrations_dir = absolute_dir "DARK_CONFIG_MIGRATIONS_DIR"
@@ -43,6 +44,7 @@ let env_display_name = Libservice.Config.env_display_name
 type root = Log
           | Serialization
           | Templates
+          | Static
           | Webroot
           | Completed_test
           | Testdata
@@ -58,6 +60,7 @@ let dir root =
   | Log -> log_dir
   | Serialization -> serialization_dir
   | Templates -> templates_dir
+  | Static -> static_dir
   | Webroot -> webroot_dir
   | Completed_test -> completed_test_dir
   | Bin_root -> bin_root_dir
@@ -144,3 +147,6 @@ let public_domain =
 
 let browser_reload_enabled =
     bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
+
+let hash_static_filenames =
+    bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
