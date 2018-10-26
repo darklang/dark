@@ -1289,12 +1289,10 @@ let update_ (msg : msg) (m : model) : modification =
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m in
   let newm, newc = updateMod mods (m, Cmd.none) in
+  let state = m |> Editor.model2editor |> Editor.toString in
+  Dom.Storage.setItem "editorState" state Dom.Storage.localStorage;
   ( {newm with lastMsg= msg; lastMod= mods}
-  , Cmd.batch [newc
-                (* TODO: PORTING *)
-              (* ; m |> Editor.model2editor |> Editor.toString |> setStorage *)
-              ]
-  )
+  , newc)
 
 let subscriptions (m : model) : msg Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
