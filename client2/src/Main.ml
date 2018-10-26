@@ -82,6 +82,7 @@ let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
   else {message= Some newErrMsg; showDetails= true}
 
 let sendRollbar x : msg Tea.Cmd.t =
+  (* TODO: porting *)
   Js.log "TODO: sendRollbar";
   Tea.Cmd.none
 
@@ -311,6 +312,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadStatus response ->
               "Bad status: "
               ^ response.status.message
+                  (* TODO: PORTING  *)
               (* ^ body response.body *)
               ^ "TODO: decode body response"
           | Http.BadPayload (msg, _) -> "Bad payload (" ^ context ^ "): " ^ msg
@@ -483,6 +485,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; ("user_fns" , JSE.list Encoders.userFunction userFns ) ]
           in
           []
+          (* TODO: porting *)
           (* trace *)
           (* |> Option.map (fun t -> requestAnalysis (param t)) *)
           (* |> Option.toList *)
@@ -550,9 +553,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             in
             (m, RPC.executeFunctionRPC m.canvasName params)
         | None -> (m, Cmd.none
+                        (* TODO: PORTING *)
                    (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
       ))
       | None -> (m,
+                        (* TODO: PORTING *)
                  (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
                  Cmd.none
                 ) )
@@ -1221,6 +1226,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
   | ReceiveAnalysis json -> (
       DisplayError "TODO: receive analysis"
+          (* TODO: porting *)
       (* let envelope = JSD.decodeString Decoders.analysisEnvelope json in *)
       (* match envelope with *)
       (* | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults) *)
