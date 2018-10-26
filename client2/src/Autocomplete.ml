@@ -7,10 +7,16 @@ open Types
 
 let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
-(* TODO: porting *)
-(* let focusItem (i : int) : msg Cmd.t = *)
-(*   Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat) *)
-(*   |> Task.attempt FocusAutocompleteItem *)
+let focusItem (i : int) : msg Cmd.t =
+  Tea_task.attempt
+    (fun x -> FocusAutocompleteItem x)
+    (Tea_task.nativeBinding
+       (fun _ ->
+          let open Webapi.Dom in
+          match Document.getElementById "autocomplete-holder" document with
+          | Some el -> Element.setScrollTop el (i |> height |> float_of_int)
+          | None -> ()
+       ))
 
 let asName (aci : autocompleteItem) : string =
   match aci with
