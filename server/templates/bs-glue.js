@@ -2,22 +2,27 @@ var pageHidden = false;
 
 window.Dark = {
   rollbar: {
-    error: (errorObj) => console.error(errorObj)
+    error: function (errorObj){ console.error(errorObj) }
   },
   analysis: {
-    requestAnalysis : (params) => { console.log('request analysis'); console.log(params); },
-    receiveAnalysis : (results) => {
+    requestAnalysis : function (params) {
+      console.log('request analysis');
+      console.log(params);
+    },
+    receiveAnalysis : function (results) {
       var event = new CustomEvent('receiveAnalysis', {detail: results});
       document.dispatchEvent(event);
     }
   },
   ast: {
-    atomPositions: (tlid) => {
-      var extractId = (elem) => {
-        var m = /.*id-([0-9]+).*/g.exec(elem.className);
-        var id = m[1];
+    positions: function (tlid) {
+      var extractId = function (elem) {
+        var className = elem.className;
+        var matches = /.*id-([0-9]+).*/g.exec(className);
+        var id = matches[1];
+        
         if (typeof id === 'undefined')
-          throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for '+elem.className;
+          throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for '+className;
         
         var intID = parseInt(id);
         if(isNaN(intID))
@@ -26,7 +31,7 @@ window.Dark = {
         return intID;
       };
 
-      var find = (tl, nested) => {
+      var find = function (tl, nested) {
         var atoms = [];
         tl.querySelectorAll(nested ? '.blankOr.nested' : '.blankOr:not(.nested)')
         .forEach((v,i,l) => {
@@ -43,10 +48,12 @@ window.Dark = {
       }
 
       var toplevels = document.getElementsByClassName('toplevel tl-'+tlid);
-      if (toplevels.length == 0){
+      
+      if (toplevels.length == 0)
         throw 'Dark.ast.atomPositions: Cannot find toplevel: '+tlid;
-      }
+      
       var tl = toplevels[0];
+      
       return {
         atoms: find(tl, false),
         nested: find(tl, true)
