@@ -3,6 +3,7 @@ open Core_kernel
 type root = Log
           | Serialization
           | Templates
+          | Static
           | Webroot
           | Completed_test
           | Testdata
@@ -39,3 +40,4 @@ val rollbar_js : string
 val public_domain : string
 
 val browser_reload_enabled : bool
+val hash_static_filenames : bool

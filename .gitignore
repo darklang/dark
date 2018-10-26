@@ -4,6 +4,7 @@
 /client/tests/elm-stuff
 /gcp-rundir
 /gcp-persistdir
+/gzipped_assets
 /rundir
 /persistdir
 /server/*/.merlin
