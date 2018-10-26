@@ -37,17 +37,22 @@ type jSSide = Porting.Native.rect =
   ; right: int
   ; bottom: int
   }
-
-and htmlSizing = {centerX: float; centerY: float; id: id}
+and htmlSizing =
+  { centerX: float
+  ; centerY: float
+  ; id: id
+}
 
 let jsToHtmlSizing (obj : jSSide) : htmlSizing =
-  { centerX= (float_of_int (obj.left + obj.right)) /. 2.
-  ; centerY= (float_of_int (obj.top + obj.bottom)) /. 2.
-  ; id= ID obj.id }
+  { centerX = (float_of_int (obj.left + obj.right)) /. 2.
+  ; centerY = (float_of_int (obj.top + obj.bottom)) /. 2.
+  ; id = ID obj.id
+  }
 
 let tlToSizes (m : model) (tlid : tlid) : htmlSizing list * htmlSizing list =
   let poses = Native.Size.positions (deTLID tlid) in
-  (List.map jsToHtmlSizing poses.nested, List.map jsToHtmlSizing poses.atoms)
+  ( List.map jsToHtmlSizing poses.nested
+  , List.map jsToHtmlSizing poses.atoms )
 
 type udDirection = Up | Down
 

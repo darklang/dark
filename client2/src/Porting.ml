@@ -223,8 +223,7 @@ module List = struct
   let sortWith (fn: 'a -> 'a -> int) (l: 'a list) : 'a list =
     Belt.List.sort l fn
   let fromArray (arr: 'a Js.Array.t) : 'a list =
-    arr
-    |> Belt.List.fromArray
+    Belt.List.fromArray arr
 end
 
 module Result = struct
@@ -474,6 +473,7 @@ module Native = struct
     }
 
   type jsRect = int Js.Dict.t
+  type jsRectArr = (jsRect array) Js.Dict.t
 
 
   exception NativeCodeError of string
@@ -489,17 +489,9 @@ module Native = struct
       Dom.window -> int =
       "innerHeight" [@@bs.get]
 
-    external getElementsByClassName :
-      string -> Dom.element list =
-      "getElementsByClassName" [@@bs.val][@@bs.scope "document"]
-
-    external querySelectorAll :
-      Dom.element -> string -> Dom.element list =
-      "querySelectorAll" [@@bs.send]
-
-    external classes :
-      Dom.element -> string =
-      "className" [@@bs.get]
+    external astPositions :
+      int -> jsRectArr =
+      "positions" [@@bs.val][@@bs.scope "window", "Dark", "ast"]
 
   end
 
@@ -515,25 +507,22 @@ module Native = struct
   end
 
   module Size = struct
-    external _positions :
-      int -> (jsRect array) Js.Dict.t =
-      "atomPositions" [@@bs.val][@@bs.scope "window", "Dark", "ast"]
+
+    let _convert (key: string) (pos: jsRectArr) : rect list =
+      Js.Dict.unsafeGet pos key
+      |> List.fromArray
+      |> List.map (fun jsRect ->
+        { id = Js.Dict.unsafeGet jsRect "id"
+        ; top = Js.Dict.unsafeGet jsRect "top"
+        ; left = Js.Dict.unsafeGet jsRect "left"
+        ; right = Js.Dict.unsafeGet jsRect "right"
+        ; bottom = Js.Dict.unsafeGet jsRect "bottom"
+        })
 
     let positions (tlid: int) : list_pos =
-      let pos = _positions tlid in
-      let convert2rect key =
-        Js.Dict.unsafeGet pos key
-        |> List.fromArray
-        |> List.map (fun jsRect ->
-          { id = Js.Dict.unsafeGet jsRect "id"
-          ; top = Js.Dict.unsafeGet jsRect "top"
-          ; left = Js.Dict.unsafeGet jsRect "left"
-          ; right = Js.Dict.unsafeGet jsRect "right"
-          ; bottom = Js.Dict.unsafeGet jsRect "bottom"
-          })
-      in
-      { atoms = convert2rect "atoms"
-      ; nested = convert2rect "nested"
+      let pos = Ext.astPositions tlid in
+      { atoms = _convert "atoms" pos
+      ; nested = _convert "nested" pos
       }
   end
 
