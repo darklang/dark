@@ -31,8 +31,13 @@ window.Dark = {
         tl.querySelectorAll(nested ? '.blankOr.nested' : '.blankOr:not(.nested)')
         .forEach((v,i,l) => {
           var rect = v.getBoundingClientRect();
-          rect['id'] = extractId(v);
-          atoms.push(rect);
+          atoms.push({
+            id: extractId(v),
+            left: rect.left | 0,
+            right: rect.right | 0,
+            top: rect.top | 0,
+            bottom: rect | 0
+          });
         })
         return atoms;
       }
