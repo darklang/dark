@@ -171,9 +171,8 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   in
   let focus =
     match unwrapCursorState m.cursorState with
-    (* TODO: porting *)
-    (* | Entering _ -> AC.focusItem complete.index *)
-    (* | SelectingCommand (_, _) -> AC.focusItem complete.index *)
+    | Entering _ -> AC.focusItem complete.index
+    | SelectingCommand (_, _) -> AC.focusItem complete.index
     | _ -> Cmd.none
   in
   let _ =
