@@ -1311,12 +1311,18 @@ let subscriptions (m : model) : msg Sub.t =
   let resizes = [Window.OnResize.listen (fun (w, h) -> WindowResize (w, h) )]
   in
   let dragSubs =
+    (* It seems subscription list updates happens only when model gets updated.
+    Adding Mouse.move when cursorstate = Dragging seems to be too late,
+    and therefore Mouse.move subscription does not get added
+    to app's subscription list, according to chrome's event list.
+    Within DragToplevel case handler, it only activates when cursorState is Dragging,
+    it should be safe to register the Mouse.move sub at other points of cursor state,
+    except when the cursorstate seems super irrelevant,
+    such as command entering or entering in code. *)
     match m.cursorState with
     | Dragging (_, _, _, _)
     | Selecting (_, _)
     | Deselected ->
-      (* Register listener in other cursorStates where a TL might be selected too.
-      DragTopLevel will ensure that we only move if it's cursor state is Dragging *)
       [Mouse.moves (fun x -> DragToplevel x)]
     | _ -> []
   in
