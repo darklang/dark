@@ -95,6 +95,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       gcc \
       python-dev \
       python-setuptools \
+      less \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -109,6 +110,8 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER dark
 WORKDIR /home/dark
 RUN mkdir bin
+# otherwise this gets created by the mount, and it'll be owned by root if your docker host os is linux
+RUN mkdir .config
 
 ############################
 # Locales
@@ -131,7 +134,8 @@ RUN yarn add \
   elm-oracle@1.1.1 \
   elm-live@2.7.5 \
   less@2.7.3 \
-  testcafe@0.19.0
+  testcafe@0.22.0 \
+  bs-platform@4.0.5
 
 RUN git clone https://github.com/NoRedInk/elm-ops-tooling
 
@@ -217,12 +221,11 @@ ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
 #ENV OPAMDEBUG true
-# RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 RUN opam install -y \
   ppx_deriving.4.2.1 \
   core.v0.11.2  \
   core_extended.v0.11.0 \
-  dune.1.1.1 \
+  dune.1.4.0 \
   re2.v0.11.0 \
   conf-libev.4-11 \
   lwt.3.3.0 \
@@ -248,7 +251,8 @@ RUN opam install -y \
   js_of_ocaml.3.2.0 \
   js_of_ocaml-ppx.3.2.0 \
   js_of_ocaml-lwt.3.2.0 \
-  sodium.0.6.0
+  sodium.0.6.0 \
+  utop
 
 
 ############################
@@ -260,22 +264,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-RUN yarn add testcafe@0.22.0
-RUN DEBIAN_FRONTEND=noninteractive \
-    sudo apt-get update && \
-    DEBIAN_FRONTEND=noninteractive \
-    sudo apt-get install \
-      --no-install-recommends \
-      -y \
-      less
-
-RUN yarn add bs-platform@4.0.5
-# utop is useful for development
-RUN opam update && opam pin add -y dune https://github.com/ocaml/dune.git \
-    && opam install -y utop
-
-# otherwise this gets created by the mount, and it'll be owned by root if your docker host os is linux
-RUN mkdir .config
 
 ############################
 # Finish
