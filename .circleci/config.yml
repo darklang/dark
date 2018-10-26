@@ -14,7 +14,7 @@ jobs:
           # coreutils for gnu date
           # bash for scripts
           command: |
-            apk add --update bash coreutils nginx
+            apk add --update bash coreutils nginx jq
 
 
       # Setup for daily/weekly caches
