@@ -88,8 +88,6 @@ let saveTestRPC (canvasName : string) : msg Tea.Cmd.t =
   let request = postEmptyString JSD.string url in
   Tea.Http.send (fun x -> SaveTestRPCCallback x) request
 
-(* let emptyParams : rpcParams = {ops= []} *)
-(*  *)
 let opsParams (ops : op list) : rpcParams = {ops}
 
 let integrationRPC (m : model) (canvasName : string) (name : string) :

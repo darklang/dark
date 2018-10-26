@@ -255,7 +255,6 @@ module Base64 = struct
       Error (Printexc.to_string e)
 end
 
-
 module Regex = struct
   let regex s : Js.Re.t = Js.Re.fromString s
   let contains (re: Js.Re.t) (s: string) : bool = Js.Re.test s re
@@ -263,12 +262,6 @@ module Regex = struct
     Js.String.replaceByRe (regex re) repl str
   let matches (re: Js.Re.t) (s: string) : Js.Re.result option = Js.Re.exec s re
 end
-
-(* let deOption (msg: string) (value: 'a option) : 'a = *)
-(*   match value with *)
-(*   | Some v -> v *)
-(*   | None -> failwith msg *)
-
 
 module Option = struct
   type 'a t = 'a option
