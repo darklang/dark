@@ -7,6 +7,7 @@ open Types
 
 let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
+(* TODO: porting *)
 (* let focusItem (i : int) : msg Cmd.t = *)
 (*   Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat) *)
 (*   |> Task.attempt FocusAutocompleteItem *)
