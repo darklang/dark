@@ -491,7 +491,7 @@ let admin_ui_html ~(debug:bool) frontend =
         then x
         else x
              |> (fun instr ->
-                 let etags_str = File.readfile ~root:Static "etags.json" in
+                 let etags_str = File.readfile ~root:Webroot "etags.json" in
                  let etags_json = Yojson.Safe.from_string etags_str in
                  let etag_assoc_list = to_assoc_list etags_json in
                  etag_assoc_list
