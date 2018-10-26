@@ -31,26 +31,22 @@ let selectPrevToplevel (m : model) (cur : tlid option) : modification =
   match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
 type jSSide = Porting.Native.rect =
-  { x: float
-  ; y: float
-  ; width: float
-  ; height: float
-  ; top: float
-  ; right: float
-  ; bottom: float
-  ; left: float
-  ; id: int }
+  { id: int
+  ; top: int
+  ; left: int
+  ; right: int
+  ; bottom: int
+  }
 
 and htmlSizing = {centerX: float; centerY: float; id: id}
 
 let jsToHtmlSizing (obj : jSSide) : htmlSizing =
-  { centerX= (obj.left +. obj.right) /. 2.
-  ; centerY= (obj.top +. obj.bottom) /. 2.
+  { centerX= (float_of_int (obj.left + obj.right)) /. 2.
+  ; centerY= (float_of_int (obj.top + obj.bottom)) /. 2.
   ; id= ID obj.id }
 
 let tlToSizes (m : model) (tlid : tlid) : htmlSizing list * htmlSizing list =
   let poses = Native.Size.positions (deTLID tlid) in
-  Debug.log "positions" poses;
   (List.map jsToHtmlSizing poses.nested, List.map jsToHtmlSizing poses.atoms)
 
 type udDirection = Up | Down

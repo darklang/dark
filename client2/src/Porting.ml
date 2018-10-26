@@ -222,6 +222,9 @@ module List = struct
     step (n - 1) []
   let sortWith (fn: 'a -> 'a -> int) (l: 'a list) : 'a list =
     Belt.List.sort l fn
+  let fromArray (arr: 'a Js.Array.t) : 'a list =
+    arr
+    |> Belt.List.fromArray
 end
 
 module Result = struct
@@ -368,7 +371,6 @@ module String = struct
     (Js.String.slice ~from:0 ~to_:pos origStr)
     ^ newStr
     ^ (Js.String.sliceToEnd ~from:pos origStr)
-
 end
 
 module IntSet = struct
@@ -459,18 +461,20 @@ module Native = struct
   type size = { width : int; height : int }
 
   type rect =
-    { x: float
-    ; y: float
-    ; width: float
-    ; height: float
-    ; top: float
-    ; right: float
-    ; bottom: float
-    ; left: float
-    ; id: int
+    { id: int
+    ; top: int
+    ; left: int
+    ; right: int
+    ; bottom: int
     }
 
-  type ast_positions = { atoms : rect list; nested : rect list }
+  type list_pos = 
+    { atoms : rect list
+    ; nested : rect list
+    }
+
+  type jsRect = int Js.Dict.t
+
 
   exception NativeCodeError of string
 
@@ -511,9 +515,26 @@ module Native = struct
   end
 
   module Size = struct
-    external positions :
-      int -> ast_positions =
+    external _positions :
+      int -> (jsRect array) Js.Dict.t =
       "atomPositions" [@@bs.val][@@bs.scope "window", "Dark", "ast"]
+
+    let positions (tlid: int) : list_pos =
+      let pos = _positions tlid in
+      let convert2rect key =
+        Js.Dict.unsafeGet pos key
+        |> List.fromArray
+        |> List.map (fun jsRect ->
+          { id = Js.Dict.unsafeGet jsRect "id"
+          ; top = Js.Dict.unsafeGet jsRect "top"
+          ; left = Js.Dict.unsafeGet jsRect "left"
+          ; right = Js.Dict.unsafeGet jsRect "right"
+          ; bottom = Js.Dict.unsafeGet jsRect "bottom"
+          })
+      in
+      { atoms = convert2rect "atoms"
+      ; nested = convert2rect "nested"
+      }
   end
 
   module Location = struct
