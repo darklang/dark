@@ -222,6 +222,8 @@ module List = struct
     step (n - 1) []
   let sortWith (fn: 'a -> 'a -> int) (l: 'a list) : 'a list =
     Belt.List.sort l fn
+  let fromArray (arr: 'a Js.Array.t) : 'a list =
+    Belt.List.fromArray arr
 end
 
 module Result = struct
@@ -368,7 +370,6 @@ module String = struct
     (Js.String.slice ~from:0 ~to_:pos origStr)
     ^ newStr
     ^ (Js.String.sliceToEnd ~from:pos origStr)
-
 end
 
 module IntSet = struct
@@ -458,30 +459,21 @@ end
 module Native = struct
   type size = { width : int; height : int }
 
-  type bounding_rect =
-    { x : float
-    ; y : float
-    ; width : float
-    ; height : float
-    ; left : float
-    ; top : float
-    ; right : float
-    ; bottom : float
-    }
-
   type rect =
-    { x: float
-    ; y: float
-    ; width: float
-    ; height: float
-    ; top: float
-    ; right: float
-    ; bottom: float
-    ; left: float
-    ; id: int
+    { id: int
+    ; top: int
+    ; left: int
+    ; right: int
+    ; bottom: int
     }
 
-  type ast_positions = { atoms : rect list; nested : rect list }
+  type list_pos = 
+    { atoms : rect list
+    ; nested : rect list
+    }
+
+  type jsRect = int Js.Dict.t
+  type jsRectArr = (jsRect array) Js.Dict.t
 
 
   exception NativeCodeError of string
@@ -497,21 +489,10 @@ module Native = struct
       Dom.window -> int =
       "innerHeight" [@@bs.get]
 
-    external getElementsByClassName :
-      (string -> Dom.element list) =
-      "getElementsByClassName" [@@bs.val][@@bs.scope "document"]
+    external astPositions :
+      int -> jsRectArr =
+      "positions" [@@bs.val][@@bs.scope "window", "Dark", "ast"]
 
-    external querySelectorAll :
-      (Dom.element -> string -> Dom.element list) =
-      "querySelectorAll" [@@bs.val]
-
-    external getBoundingClientRect :
-      Dom.element -> bounding_rect =
-      "getBoundingClientRect" [@@bs.val]
-
-    external classList :
-      Dom.element -> string list =
-      "classList" [@@bs.get]
   end
 
   module Window = struct
@@ -527,56 +508,22 @@ module Native = struct
 
   module Size = struct
 
-    let getId (n : Dom.element) : int  =
-      let classes = Ext.classList n in
-      let r =  Regex.regex "id-(\\d+)" in
-      List.find (fun c -> Regex.contains r c) classes
-      |> function
-        | Some cls ->
-          Regex.matches r cls
-          |> (function
-            | Some res ->
-              Js.Nullable.toOption (Js.Re.captures res).(1)
-              |> (function
-                | Some id -> int_of_string id
-                | None -> raise (NativeCodeError "Native.size.getId : cannot convert string to int"))
-            | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id"))
-        | None -> raise (NativeCodeError "Native.size.getId : cannot find expr id")
+    let _convert (key: string) (pos: jsRectArr) : rect list =
+      Js.Dict.unsafeGet pos key
+      |> List.fromArray
+      |> List.map (fun jsRect ->
+        { id = Js.Dict.unsafeGet jsRect "id"
+        ; top = Js.Dict.unsafeGet jsRect "top"
+        ; left = Js.Dict.unsafeGet jsRect "left"
+        ; right = Js.Dict.unsafeGet jsRect "right"
+        ; bottom = Js.Dict.unsafeGet jsRect "bottom"
+        })
 
-    let find (tl: Dom.element) (nested: bool) : rect list =
-      let selector =
-        if nested
-        then ".blankOr.nested"
-        else ".blankOr:not(.nested)"
-      in
-      let matches = Ext.querySelectorAll tl selector in
-      List.map
-        (fun n ->
-          let rect = Ext.getBoundingClientRect n in
-          let blankId = getId n in
-          { id = blankId
-          ; x = rect.x
-          ; y = rect.y
-          ; width = rect.width
-          ; height = rect.height
-          ; left = rect.left
-          ; top = rect.top
-          ; right = rect.right
-          ; bottom = rect.bottom
-          }
-        ) matches
-
-    let positions (tlid: int) : ast_positions =
-      let selector = Printf.sprintf "toplevel tl-%d" tlid in
-      let elems = Ext.getElementsByClassName selector in
-      List.head elems
-      |> function
-        | Some tl ->
-          { atoms = find tl false
-          ; nested = find tl true
-          }
-        | None ->
-          raise (NativeCodeError "Native.Size.positions : Cannot find toplevels")
+    let positions (tlid: int) : list_pos =
+      let pos = Ext.astPositions tlid in
+      { atoms = _convert "atoms" pos
+      ; nested = _convert "nested" pos
+      }
   end
 
   module Location = struct
@@ -612,7 +559,7 @@ module Window = struct
 end
 
 module Rollbar = struct
-  external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Rollbar"]
+  external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Dark", "rollbar"]
 end
 
 module DisplayClientError = struct
