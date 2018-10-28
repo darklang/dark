@@ -90,6 +90,13 @@ do
     # endless IsDir and PlatformSpecific ("This event maps a platform-specific
     # event that has no corresponding flag.") events
     FSWATCH+=" --event=Created --event=Updated --event=Removed --event=Renamed --event=MovedFrom --event=MovedTo"
+
+    # ismith seeing poll_monitor work more reliably than inotify on his laptop
+    # (`fswatch -x -r *` with default inotify only shows IsDir and
+    # PlatformSpecific events)
+    if [[ "$FSWATCH_MONITOR" != "" ]]; then
+        FSWATCH+=" -m ${FSWATCH_MONITOR}"
+    fi
   esac
 done
 
