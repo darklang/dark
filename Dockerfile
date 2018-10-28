@@ -95,7 +95,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       gcc \
       python-dev \
       python-setuptools \
-      less \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -253,6 +252,19 @@ RUN opam install -y \
   js_of_ocaml-lwt.3.2.0 \
   sodium.0.6.0 \
   utop
+
+
+############################
+# Incredibly -- and reproducibly -- if we move this to the top the
+# execute_function_works integration test fails
+############################
+RUN DEBIAN_FRONTEND=noninteractive \
+    sudo apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    sudo apt-get install \
+      --no-install-recommends \
+      -y \
+      less
 
 
 ############################
