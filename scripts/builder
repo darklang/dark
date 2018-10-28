@@ -56,9 +56,13 @@ if [ -v CI ]; then
   MOUNTS="--volumes-from vols"
 else
   MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
+
+
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
-  MOUNTS+=" -v /home/dark/app/server/_build"
-  MOUNTS+=" -v /home/dark/app/translate/_build"
+  MOUNTS+=" --mount type=volume,src=dark_server_build,dst=/home/dark/app/server/_build"
+  MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
+  MOUNTS+=" --mount type=volume,src=dark_client2_node_modules,dst=/home/dark/app/client2/node_modules"
+  MOUNTS+=" --mount type=volume,src=dark_client2_lib,dst=/home/dark/app/client2/lib"
 
   if [[ -e "../conduit-frontend" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
