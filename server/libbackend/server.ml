@@ -794,6 +794,19 @@ let route_host req =
   (* Not a match... *)
   | _ -> None
 
+
+let admin_ui_html_readiness_check () :string option list =
+  List.map
+    ~f: (fun (frontend_impl, frontend_str) ->
+        try ignore (admin_ui_html ~debug:false frontend_impl); None with
+          e -> Some ("admin_ui_html failed for frontend: " ^ frontend_str))
+    [(Elm, "Elm"); (Bucklescript, "BuckleScript")]
+
+let db_conn_readiness_check () :string option =
+  (match Dbconnection.status () with
+   | `Healthy -> None
+   | `Disconnected -> Some "Dbconnection.status = `Disconnected")
+
 let k8s_handler req ~execution_id ~stopper =
   match req |> CRequest.uri |> Uri.path with
   (* For GKE health check *)
@@ -809,19 +822,22 @@ let k8s_handler req ~execution_id ~stopper =
            respond ~execution_id `OK "Hello internal overlord"
       | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
   | "/ready" ->
-     (match Dbconnection.status () with
-        | `Healthy ->
-           if !ready
-           then
-             respond ~execution_id `OK "Hello internal overlord"
-           else begin
-               (* exception here caught by handle_error *)
-               Canvas.check_tier_one_hosts ();
-               Log.infO "All canvases loaded correctly - Service ready";
-               ready := true;
-               respond ~execution_id `OK "Hello internal overlord"
-             end
-        | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+    let checks = (db_conn_readiness_check ())::(admin_ui_html_readiness_check ())
+                 |> List.filter_map ~f:(fun x -> x)
+    in (match checks with
+    | [] ->
+      if !ready
+      then
+        respond ~execution_id `OK "Hello internal overlord"
+      else begin
+        (* exception here caught by handle_error *)
+        Canvas.check_tier_one_hosts ();
+        Log.infO "All canvases loaded correctly - Service ready";
+        ready := true;
+        respond ~execution_id `OK "Hello internal overlord"
+      end
+    | _ -> (Log.erroR ("Failed readiness check(s): " ^ (String.concat checks ~sep:": "));
+      respond ~execution_id `Service_unavailable "Sorry internal overlord"))
   (* For GKE graceful termination *)
   | "/pkill" ->
      if !shutdown (* note: this is a ref, not a boolean `not` *)
