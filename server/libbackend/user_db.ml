@@ -110,6 +110,7 @@ let rec query ~state ~magic db (pairs:(string*dval) list) : dval =
        WHERE table_tlid = $1
        AND user_version = $2
        AND dark_version = $3
+       AND canvas_id = $4
        %s"
       conds
   in
@@ -118,7 +119,9 @@ let rec query ~state ~magic db (pairs:(string*dval) list) : dval =
     sql
     ~params:[ ID db.tlid
             ; Int db.version
-            ; Int current_dark_version]
+            ; Int current_dark_version
+            ; Uuid state.canvas_id
+            ]
   |> List.map
     ~f:(fun return_val ->
         match return_val with
