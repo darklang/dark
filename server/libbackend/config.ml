@@ -88,7 +88,7 @@ let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 (* ------------------------- *)
 let log_format : [ `Stackdriver | `Regular | `Decorated ] =
   let as_str =
-    string_option "DARK_CONFIG_LOGGING_FORMAT"
+    string_choice "DARK_CONFIG_LOGGING_FORMAT"
       ["stackdriver"; "regular"; "decorated"]
   in
   match as_str with
@@ -100,7 +100,7 @@ let log_format : [ `Stackdriver | `Regular | `Decorated ] =
 
 let log_level =
   let as_str =
-    string_option
+    string_choice
       "DARK_CONFIG_LOGLEVEL"
       [ "off"; "inspect"; "fatal"; "error"
        ; "warn"; "info"; "success"; "debug"; "all"]
