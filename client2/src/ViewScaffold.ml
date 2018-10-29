@@ -75,7 +75,9 @@ let viewButtons (m : model) : msg Html.html =
           [Html.text (pageToString m.currentPage)]
       ; Html.span
           [Html.class' "specialButton"]
-          [Html.text ("Tests: (" ^ toString (List.length m.tests) ^ ")")]
+          [Html.text ("Tests: [" ^ Js.String.make (Array.of_list (List.map
+                                                    VariantTesting.toString
+                                                    m.tests))^ "]")]
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
           [Html.text m.environment] ]
