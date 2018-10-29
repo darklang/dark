@@ -5,6 +5,11 @@ open Types
 let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member vt m.tests
 
+
+let toString (vt : variantTest) : string =
+  match vt with
+  StubVariant -> "StubVariant"
+
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false -> None

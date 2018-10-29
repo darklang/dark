@@ -49,6 +49,15 @@ let viewButtons (m : model) : msg Html.html =
                   ( if m.error.showDetails then "hide details"
                   else "see details" ) ] ]
   in
+  let posToString pos :string =
+    Printf.sprintf "{ x = %i, y = %i}" pos.x pos.y
+  in
+  let pageToString pg =
+    match pg with
+      Toplevels pos -> "Toplevels " ^ (posToString pos)
+    | Fn (tlid, pos) ->
+      (Printf.sprintf "Fn (TLID %i %s)" (Prelude.deTLID tlid) (posToString pos))
+  in
   Html.div [Html.id "buttons"]
     ( [ Html.a
           [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
@@ -63,10 +72,12 @@ let viewButtons (m : model) : msg Html.html =
               (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
       ; Html.span
           [Html.class' "specialButton"]
-          [Html.text (toString m.currentPage)]
+          [Html.text (pageToString m.currentPage)]
       ; Html.span
           [Html.class' "specialButton"]
-          [Html.text ("Tests: " ^ toString m.tests)]
+          [Html.text ("Tests: [" ^ Js.String.make (Array.of_list (List.map
+                                                    VariantTesting.toString
+                                                    m.tests))^ "]")]
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
           [Html.text m.environment] ]
