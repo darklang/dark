@@ -82,3 +82,5 @@ mkdir -p $CDIR/migrations
 cp -Rf server/migrations/* $CDIR/migrations/
 
 docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-cron:latest" $CDIR
+
+docker build . -t "${PREFIX}tunnel:latest" -f scripts/support/tunnel.dockerfile
