@@ -568,6 +568,7 @@ generateFromModel m a =
                     , "Fortnightly"
                     , "Every 1hr"
                     , "Every 12hrs"
+                    , "Every 1min"
                     ]
                   Just HSOther -> []
                   Just HSEmpty -> []
