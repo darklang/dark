@@ -41,7 +41,7 @@ let env_display_name = Libservice.Config.env_display_name
 (* Kubernetes *)
 (* ------------------------- *)
 
-let curl_tunnel_url = maybe_string "DARK_CONFIG_CURL_TUNNEL_URL"
+let curl_tunnel_url = string_option "DARK_CONFIG_CURL_TUNNEL_URL"
 
 (* -------------------- *)
 (* For use in Util *)
