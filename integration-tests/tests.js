@@ -8,7 +8,7 @@ fixture `Integration Tests`
     var queryString = "?bs=1";
 
     // do not run bucklescript if on master and in CI
-    if (process.env.CI !== '' && process.env.BRANCH === 'master') {
+    if (process.env.CI !== '' && process.env.CIRCLE_BRANCH === 'master') {
       queryString = "?bs=0";
     }
 
