@@ -77,11 +77,12 @@ fi
 IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp -q | head -n 1)"
 QW_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-qw -q | head -n 1)"
 CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
+TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 
 IMAGE="$GCR/${PREFIX}dark-gcp:$IMAGE_ID"
 QW_IMAGE="$GCR/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
 CRON_IMAGE="$GCR/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
-
+TUNNEL_IMAGE="$GCR/${PREFIX}tunnel:$TUNNEL_IMAGE_ID"
 
 # get creds
 gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
@@ -99,6 +100,7 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 kubectl apply -f scripts/support/builtwithdark.yaml
 kubectl apply -f scripts/support/queueworker.yaml
 kubectl apply -f scripts/support/cronchecker.yaml
+kubectl apply -f scripts/support/tunnel.yaml
 
 # deploy the image and set the change-cause field
 kubectl set image deployment/bwd-deployment "bwd-ctr=${IMAGE}"
@@ -110,6 +112,8 @@ kubectl annotate deployment/qw-deployment \
     kubernetes.io/change-cause="'${CHANGE_CAUSE} ; orig-time: $(date)'"
 
 kubectl set image deployment/cron-deployment "cron-ctr=${CRON_IMAGE}"
+kubectl set image deployment/tunnel-deployment "tunnel-ctr=${TUNNEL_IMAGE}"
+
 kubectl annotate deployment/cron-deployment \
     kubernetes.io/change-cause="'${CHANGE_CAUSE} ; orig-time: $(date)'"
 

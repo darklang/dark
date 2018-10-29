@@ -1,0 +1,65 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: tunnel-deployment
+spec:
+  selector:
+    matchLabels:
+      app: tunnel-app
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: tunnel-app
+    spec:
+      containers:
+      - name: tunnel-ctr
+        image: gcr.io/balmy-ground-195100/tunnel:latest
+        ports:
+          - name: tunnel-port
+            containerPort: 1080
+        livenessProbe:
+          exec:
+            command:
+              ["curl", "--max-time", "5", "-x", "socks5h://localhost:1080", "example.com" ]
+          initialDelaySeconds: 1
+          periodSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+              ["curl", "--max-time", "5", "-x", "socks5h://localhost:1080", "example.com" ]
+          initialDelaySeconds: 1
+          periodSeconds: 5
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-tunnel
+spec:
+  podSelector:
+    matchLabels:
+      app:
+        tunnel-app
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values: [bwd-app, qw-worker, cron-checker]
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: tunnel-service
+spec:
+  type: ClusterIP
+  selector:
+    app: tunnel-app
+  ports:
+    - name: tunnel-clusterip-port
+      protocol: TCP
+      port: 1080
+      targetPort: tunnel-port

@@ -134,7 +134,11 @@ let http_call (url: string) (query_params : (string * string list) list)
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS;];
       (* Seems like redirects can be used to get around the above list... *)
       C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS;];
-
+      (* If we have the tunnel options, proxy Curl through it with socks ... *)
+      Option.value_map
+        ~default:()
+        ~f:(fun u -> u |> Curl.CURLOPT_PROXY |> C.setopt c)
+        Config.curl_tunnel_url;
       (match verb with
        | PUT ->
          C.set_postfields c body;
