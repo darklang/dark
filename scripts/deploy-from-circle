@@ -33,7 +33,7 @@ else
     echo "--------------------------"
     echo "Pushing deploy to kubernetes"
     echo "--------------------------"
-    ./scripts/run-in-docker scripts/gke-deploy --change-cause='circle=${CIRCLE_BUILD_URL}'
+    ./scripts/run-in-docker scripts/gke-deploy
   else
     echo "Not on master, not deploying"
   fi

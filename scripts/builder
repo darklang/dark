@@ -122,14 +122,6 @@ if [ -v POLL_FREQUENCY ]; then
   POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
 fi
 
-if [ ! -v CI ]; then
-  CI=
-fi
-
-if [ ! -v CIRCLE_BRANCH ]; then
-  CIRCLE_BRANCH=
-fi
-
 ./scripts/support/create-dark-dev-network
 
 # --------------
@@ -149,8 +141,9 @@ $FSWATCH | docker run \
              --env-file $ENV_FILE \
              --env HOST_PWD=$PWD \
              --env IN_DEV_CONTAINER=true \
-             --env CI=$CI \
-             --env CIRCLE_BRANCH=$CIRCLE_BRANCH \
+             --env CI="${CI-}" \
+             --env CIRCLE_BRANCH="${CIRCLE_BRANCH-}" \
+             --env CIRCLE_BUILD_URL="${CIRCLE_BUILD_URL-}" \
              $POLL_FREQ \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
