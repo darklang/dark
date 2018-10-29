@@ -4,6 +4,7 @@ kind: Deployment
 metadata:
   name: cron-deployment
 spec:
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
       app: cron-checker

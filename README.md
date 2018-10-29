@@ -65,6 +65,15 @@ Trigger the deploy:
 
 - `./script/gke-deploy`
 
+## How to rollback a deploy (or pause deploys):
+Use:
+- `kubectl rollout history <deployment>`
+- `kubectl rollout undo <deployment> --to-revision=N`
+- `kubectl rollout pause <deployment>` (keeps CI from deploying while you work on a fix)
+- `kubectl rollout resume <deployment>` (to resume after pausing)
+
+See `docs/kubectl-rollout.md` for details.
+
 ## Troubleshooting GCP/GKE:
 
 If gcloud auth is hanging, you can pass `--no-launch-browser` to `gcloud auth login` to have a CLI based workflow.
