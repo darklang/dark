@@ -44,10 +44,13 @@ TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
 
 echo "Deploying container to GCR"
 
-# tag everything so that the most recent local id becomes :latest
+# tag the most recent local containers with their ids.
 docker tag "${PREFIX}dark-gcp:latest" "$IMAGE"
 docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE"
 docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE"
+docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE"
+
+# tag the most recent local containers with :latest.
 docker tag "${PREFIX}dark-gcp:latest" "$IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE_LATEST"
