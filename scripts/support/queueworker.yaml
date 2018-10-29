@@ -4,6 +4,7 @@ kind: Deployment
 metadata:
   name: qw-deployment
 spec:
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
       app: qw-worker
