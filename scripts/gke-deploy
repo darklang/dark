@@ -20,7 +20,6 @@ Options:
   --region=...           The Google cloud region to deploy into (default $DARK_REGION).
   --project=...          The Google cloud project to deploy into (default $DARK_PROJECT).
   --cluster=...          The name of the cluster to deploy to (default $DARK_CLUSTER).
-  --change-cause=...     A change-cause value for the rollout - usually circle=CIRCLE_BUILD_URL
   --help	     	 Display this menu.
 EOF
 )"
@@ -39,9 +38,6 @@ do
       ;;
     --prefix=*)
       PREFIX="${i/--prefix=/''}-"
-      ;;
-    --change-cause=*)
-      CHANGE_CAUSE="${i/--change-cause=/''}"
       ;;
     --help)
       echo "$HELP"
@@ -103,15 +99,15 @@ kubectl apply -f scripts/support/cronchecker.yaml
 # deploy the image and set the change-cause field
 kubectl set image deployment/bwd-deployment "bwd-ctr=${IMAGE}"
 kubectl annotate deployment/bwd-deployment \
-    kubernetes.io/change-cause="'${CHANGE_CAUSE} ; orig-time: $(date)'"
+    kubernetes.io/change-cause="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
 kubectl set image deployment/qw-deployment "qw-ctr=${QW_IMAGE}"
 kubectl annotate deployment/qw-deployment \
-    kubernetes.io/change-cause="'${CHANGE_CAUSE} ; orig-time: $(date)'"
+    kubernetes.io/change-cause="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
 kubectl set image deployment/cron-deployment "cron-ctr=${CRON_IMAGE}"
 kubectl annotate deployment/cron-deployment \
-    kubernetes.io/change-cause="'${CHANGE_CAUSE} ; orig-time: $(date)'"
+    kubernetes.io/change-cause="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
 #########################
 # Tell everyone else what's going on

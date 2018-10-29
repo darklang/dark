@@ -130,6 +130,10 @@ if [ ! -v CIRCLE_BRANCH ]; then
   CIRCLE_BRANCH=
 fi
 
+if [ ! -v CIRCLE_BUILD_URL ]; then
+  CIRCLE_BUILD_URL=
+fi
+
 ./scripts/support/create-dark-dev-network
 
 # --------------
@@ -151,6 +155,7 @@ $FSWATCH | docker run \
              --env IN_DEV_CONTAINER=true \
              --env CI=$CI \
              --env CIRCLE_BRANCH=$CIRCLE_BRANCH \
+             --env CIRCLE_BUILD_URL=$CIRCLE_BUILD_URL \
              $POLL_FREQ \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
