@@ -144,7 +144,6 @@ and msg =
   | TimerFire of timerAction * Tea.Time.t
   | JSError of string
   | PageVisibilityChange of Porting.PageVisibility.visibility
-  | PageFocusChange of Porting.PageVisibility.visibility
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool

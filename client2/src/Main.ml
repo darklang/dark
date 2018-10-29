@@ -1247,8 +1247,8 @@ let update_ (msg : msg) (m : model) : modification =
     | CheckUrlHashPosition -> Url.maybeUpdateScrollUrl m )
   | Initialization -> NoChange
   | AddRandom -> NoChange
-  | PageVisibilityChange vis -> TweakModel (fun m_ -> {m_ with visibility= vis})
-  | PageFocusChange vis -> TweakModel (fun m_ -> {m_ with visibility= vis})
+  | PageVisibilityChange vis ->
+    TweakModel (fun m_ -> {m_ with visibility = vis })
   | CreateHandlerFrom404 {space; path; modifier} ->
       let center = findCenter m in
       let anId = gtlid () in

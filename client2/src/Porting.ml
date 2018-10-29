@@ -1,5 +1,10 @@
 let (++) (a: string) (b: string) = a ^ b
 
+let createEventHandler callbacks elem name handlerType =
+  let open Vdom in
+  let cb = ref (eventHandler_GetCB handlerType) in
+  eventHandler callbacks cb
+
 let registerGlobal name key tagger decoder =
   let open Vdom in
   let enableCall callbacks_base =
@@ -10,13 +15,15 @@ let registerGlobal name key tagger decoder =
       match decodeEvent decoder ev with
       | Error _ -> None
       | Ok pos -> Some (tagger pos) in
-    let handler = EventHandlerCallback (key, fn) in
+    let handlerType = EventHandlerCallback (key, fn) in
     let elem = Web_node.document_node in
-    let cache = eventHandler_Register callbacks elem name handler in
+    let handler = createEventHandler callbacks elem name handlerType in
     fun () ->
-      let _ = eventHandler_Unregister elem name cache in
-      ()
+      Web.Node.removeEventListener elem name handler false;
+      Web.Node.addEventListener elem name handler false; ()
   in Tea_sub.registration key enableCall
+
+
 
 module PageVisibility = struct
   type visibility = Hidden | Visible
@@ -544,18 +551,24 @@ module Window = struct
       in
       map (fun msg -> msg)
         (field "detail" decodeDetail)
+
     let listen ?(key="") tagger =
       registerGlobal "windowResize" key tagger decode
+
   end
 
   module OnFocusChange = struct
+
     let decode =
       let open Tea.Json.Decoder in
       map (fun visible -> visible)
         (field "detail" bool)
-    let listen?(key="") tagger =
+
+    let listen ?(key="") tagger =
       registerGlobal "windowFocusChange" key tagger decode
+
   end
+
 end
 
 module Rollbar = struct
@@ -577,6 +590,6 @@ module OnWheel = struct
     map2 (fun dX dY -> (dX, dY))
       (field "deltaX" int)
       (field "deltaY" int)
-  let listen?(key="") tagger =
+  let listen ?(key="") tagger =
     registerGlobal "wheel" key tagger decode
 end
