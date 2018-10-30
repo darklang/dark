@@ -24,3 +24,4 @@ elm-format
 translate/.merlin
 translate/_build
 /server/static/bsmain.js
+client2/yarn-error.log
