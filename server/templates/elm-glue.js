@@ -24,7 +24,8 @@ elmapp = Elm.Main.fullscreen({
   editorState: window.localStorage.getItem('editorState'),
   complete: complete,
   userContentHost: userContentHost,
-  environment: environmentName
+  environment: environmentName,
+  csrfToken: csrfToken
 });
 
 elmapp.ports.setStorage.subscribe(function(editorState) {

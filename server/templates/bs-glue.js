@@ -165,7 +165,8 @@ setTimeout(function(){
       editorState: window.localStorage.getItem('editorState'),
       complete: complete,
       userContentHost: userContentHost,
-      environment: environmentName
+      environment: environmentName,
+      csrfToken: csrfToken
     });
   app = buckle.main(document.body, params);
 

@@ -13,7 +13,7 @@ module JSD = Json_decode_extended
 module Key = Keyboard
 
 let init (flagString: string) (location : Web.Location.location) : model * msg Cmd.t =
-  let {Flags.editorState; complete; userContentHost; environment} =
+  let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
   in
   let savedEditor = Editor.fromString editorState in
@@ -56,20 +56,22 @@ let init (flagString: string) (location : Web.Location.location) : model * msg C
     ; canvas= newCanvas
     ; canvasName
     ; userContentHost
-    ; environment }
+    ; environment
+    ; csrfToken
+    }
   in
   if shouldRunIntegrationTest then
     ( m2
     , Cmd.batch
-        [RPC.integrationRPC m canvasName integrationTestName
+        [RPC.integrationRPC m (contextFromModel m) integrationTestName
         ]
     )
   else
     ( m2
     , Cmd.batch
-        [ RPC.initialLoadRPC canvasName
+        [ RPC.initialLoadRPC (contextFromModel m2)
             (FocusPageAndCursor (page, savedCursorState))
-        ; RPC.getAnalysisRPC canvasName []
+        ; RPC.getAnalysisRPC (contextFromModel m2) []
         ] )
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -201,7 +203,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
                  let params = RPC.opsParams ops in
                  let _ = "comment" in
-                 [RPC.rpc newM newM.canvasName FocusSame params]
+                 [RPC.rpc newM (contextFromModel newM) FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ufAST in
                if replacement = f.ufAST then []
@@ -210,7 +212,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
                  let _ = "comment" in
-                 [RPC.rpc newM newM.canvasName FocusSame params]
+                 [RPC.rpc newM (contextFromModel newM) FocusSame params]
            | _ -> [] )
     |> Option.withDefault []
     |> fun rpc ->
@@ -227,7 +229,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | _ -> true )
           params.ops
       in
-      if hasNonHandlers then (m, RPC.rpc m m.canvasName focus params)
+      if hasNonHandlers then (m, RPC.rpc m (contextFromModel m) focus params)
       else
         let localM =
           List.foldl
@@ -246,7 +248,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ( withFocus
         , Cmd.batch
-            [wfCmd; RPC.rpc withFocus withFocus.canvasName FocusNoChange params]
+            [wfCmd; RPC.rpc withFocus (contextFromModel withFocus) FocusNoChange params]
         )
     in
     match mod_ with
@@ -545,7 +547,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; efpFnName= name
               ; efpArgs= args }
             in
-            (m, RPC.executeFunctionRPC m.canvasName params)
+            (m, RPC.executeFunctionRPC (contextFromModel m) params)
         | None -> (m, Cmd.none
                         (* TODO: PORTING *)
                    (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
@@ -1113,7 +1115,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteColInDB (tlid, nameId) ->
       RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
   | ToggleTimers -> TweakModel toggleTimers
-  | SaveTestButton -> MakeCmd (RPC.saveTestRPC m.canvasName)
+  | SaveTestButton -> MakeCmd (RPC.saveTestRPC (contextFromModel m))
   | FinishIntegrationTest -> EndIntegrationTest
   | StartFeatureFlag -> FeatureFlags.start m
   | EndFeatureFlag (id, pick) -> FeatureFlags.end_ m id pick
@@ -1262,7 +1264,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; tlid= anId }
       in
       RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
-  | Delete404 fof -> MakeCmd (RPC.delete404RPC m.canvasName fof)
+  | Delete404 fof -> MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
   | CreateRouteHandler ->
       let center = findCenter m in
       Entry.submitOmniAction m center NewHTTPHandler

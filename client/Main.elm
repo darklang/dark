@@ -90,7 +90,7 @@ flag2function fn =
   }
 
 init : Flags.Flags -> Navigation.Location -> ( Model, Cmd Msg )
-init {editorState, complete, userContentHost, environment} location =
+init {editorState, complete, userContentHost, environment, csrfToken} location =
   let savedEditor = Editor.fromString editorState
 
       m0 = Editor.editor2model savedEditor
@@ -139,15 +139,17 @@ init {editorState, complete, userContentHost, environment} location =
                , canvasName = canvasName
                , userContentHost = userContentHost
                , environment = environment
+               , csrfToken = csrfToken
            }
 
   in
     if shouldRunIntegrationTest
-    then (m2, Cmd.batch [ RPC.integrationRPC m canvasName integrationTestName
+    then (m2, Cmd.batch [ RPC.integrationRPC m2 integrationTestName
                         , visibilityTask])
-    else (m2, Cmd.batch [ RPC.initialLoadRPC canvasName (FocusPageAndCursor page savedCursorState)
+    else (m2, Cmd.batch [ RPC.initialLoadRPC (contextFromModel m2)
+                           (FocusPageAndCursor page savedCursorState)
                         -- load the analysis even if the timers are off
-                        , RPC.getAnalysisRPC canvasName []
+                        , RPC.getAnalysisRPC (contextFromModel m2) []
                         , visibilityTask])
 
 
@@ -287,7 +289,7 @@ updateMod mod (m, cmd) =
                       ops = [ SetHandler tl.id tl.pos newH]
                       params = RPC.opsParams ops
                   -- call RPC on the new model
-                  in [RPC.rpc newM newM.canvasName FocusSame params]
+                  in [RPC.rpc newM FocusSame params]
               TLFunc f ->
                 let replacement = AST.closeBlanks f.ufAST in
                 if replacement == f.ufAST
@@ -297,7 +299,7 @@ updateMod mod (m, cmd) =
                       ops = [ SetFunction newF ]
                       params = RPC.opsParams ops
                   -- call RPC on the new model
-                  in [RPC.rpc newM newM.canvasName FocusSame params]
+                  in [RPC.rpc newM FocusSame params]
               _ -> [])
         |> Maybe.withDefault []
         |> \rpc -> if tlidOf newM.cursorState == tlidOf m.cursorState
@@ -319,7 +321,7 @@ updateMod mod (m, cmd) =
           in
           if hasNonHandlers
           then
-            (m , RPC.rpc m m.canvasName focus params)
+            (m , RPC.rpc m focus params)
           else
             let localM =
                   List.foldl (\call m ->
@@ -340,7 +342,7 @@ updateMod mod (m, cmd) =
                                   ])
                             (localM, Cmd.none)
              in
-             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus withFocus.canvasName FocusNoChange params])
+             (withFocus, Cmd.batch [wfCmd, RPC.rpc withFocus FocusNoChange params])
 
     in
     case mod of
@@ -694,7 +696,7 @@ updateMod mod (m, cmd) =
                              , efpArgs = args
                              }
                 in
-                (m, RPC.executeFunctionRPC m.canvasName params)
+                (m, RPC.executeFunctionRPC (contextFromModel m) params)
               Nothing ->
                 m ! [sendTask (ExecuteFunctionCancel tlid id)]
           Nothing ->
@@ -1503,7 +1505,7 @@ update_ msg m =
       TweakModel toggleTimers
 
     SaveTestButton ->
-      MakeCmd (RPC.saveTestRPC m.canvasName)
+      MakeCmd (RPC.saveTestRPC (contextFromModel m))
 
     FinishIntegrationTest ->
       EndIntegrationTest
@@ -1713,7 +1715,7 @@ update_ msg m =
       in
         RPC ([SetHandler anId aPos aHandler], FocusNothing)
     Delete404 fof ->
-        MakeCmd (RPC.delete404RPC m.canvasName fof)
+        MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
 
     CreateRouteHandler ->
       let center = findCenter m
