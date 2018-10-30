@@ -54,17 +54,6 @@ let upsert_admin (account:account) : unit =
             ; String account.email
             ; String account.password]
 
-(************************)
-(* Querying *)
-(************************)
-let username_of_id id  =
-  Db.fetch_one_option
-    ~name:"account_of_id"
-    ~subject:(Uuidm.to_string id)
-    "SELECT username from accounts
-     WHERE accounts.id = $1"
-    ~params:[ Uuid id ]
-  |> Option.map ~f:List.hd_exn
 
 (************************)
 (* Check access *)
