@@ -286,7 +286,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
         match TL.spaceOf (TL.getTL m tlid) with
         | Some HSHTTP -> ["GET"; "POST"; "PUT"; "DELETE"; "PATCH"]
         | Some HSCron ->
-            ["Daily"; "Weekly"; "Fortnightly"; "Every 1hr"; "Every 12hrs", "Every 1 min"]
+            ["Daily"; "Weekly"; "Fortnightly"; "Every 1hr"; "Every 12hrs", "Every 1min"]
         | Some HSOther -> []
         | Some HSEmpty -> []
         | None -> [] )
