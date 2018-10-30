@@ -1,4 +1,5 @@
 var pageHidden = false;
+var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
 
 window.Dark = {
   rollbar: {
@@ -8,10 +9,28 @@ window.Dark = {
     requestAnalysis : function (params) {
       console.log('request analysis');
       console.log(params);
-    },
-    receiveAnalysis : function (results) {
-      var event = new CustomEvent('receiveAnalysis', {detail: results});
-      document.dispatchEvent(event);
+      // const bToString = (blankOr) => blankOr[2] || null;
+      // const spec = params.handler.spec;
+      // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
+
+      analysisWorker = new Worker(analysisWorkerUrl);
+      analysisWorker.postMessage(
+        { proto: window.location.protocol,
+          params: params
+        }
+      );
+
+      analysisWorker.onmessage = function (e) {
+        var result = e.data.analysis;
+        var error = e.data.error;
+
+        if (result && !error) {
+          var event = new CustomEvent('receiveAnalysis', {detail: result});
+          document.dispatchEvent(event);
+        } else if (error) {
+          console.error(error);
+        }
+      }
     }
   },
   ast: {
@@ -20,10 +39,10 @@ window.Dark = {
         var className = elem.className;
         var matches = /.*id-([0-9]+).*/g.exec(className);
         var id = matches[1];
-        
+
         if (typeof id === 'undefined')
           throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for '+className;
-        
+
         var intID = parseInt(id);
         if(isNaN(intID))
           throw 'Dark.ast.atomPositions: Fail to parseInt '+id;
@@ -48,12 +67,12 @@ window.Dark = {
       }
 
       var toplevels = document.getElementsByClassName('toplevel tl-'+tlid);
-      
+
       if (toplevels.length == 0)
         throw 'Dark.ast.atomPositions: Cannot find toplevel: '+tlid;
-      
+
       var tl = toplevels[0];
-      
+
       return {
         atoms: find(tl, false),
         nested: find(tl, true)
