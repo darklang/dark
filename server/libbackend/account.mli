@@ -23,9 +23,6 @@ val auth_domain_for : string -> string
 (* Get the owner of a host *)
 val for_host : string -> Uuidm.t
 
-(* Get a username from an ID *)
-val username_of_id : Uuidm.t -> string option
-
 (* get the id of the domain, for accounting/storage. Note that we need
  * this even for unauthenticated access, as all data and compute need a
  * Dark user to own them (pay for them, etc). *)

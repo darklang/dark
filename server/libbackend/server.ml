@@ -457,10 +457,10 @@ let to_assoc_list etags_json : (string*string) list =
     else mutated
   | _ -> Exception.internal "etags.json must be a top-level object."
 
-let admin_ui_html ~(debug:bool) frontend username =
+let admin_ui_html ~(debug:bool) frontend =
     let template = File.readfile_lwt ~root:Templates "ui.html" in
     template
-    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
+    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
     >|= Util.string_replace "{LIVERELOADJS}"
       (if Config.browser_reload_enabled
        then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
@@ -583,7 +583,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let serve_or_error ~(debug : bool) frontend =
-    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend username))
+    Lwt.try_bind (fun _ -> (admin_ui_html ~debug frontend))
       (fun body ->
          respond
            ~resp_headers:html_hdrs
@@ -658,6 +658,50 @@ let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
          wrap_json_headers (delete_404 ~execution_id canvas body))
   | _ -> respond ~execution_id `Not_found "Not found"
 
+let ops_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
+      ~(body: string) ~(username:string) (req: CRequest.t) =
+  let verb = req |> CRequest.meth in
+  (* this could be more middleware like in the future *if and only if* we
+     only make changes in promises .*)
+  let when_can_ops f =
+    if Account.can_access_operations username
+    then f ()
+    else respond ~execution_id `Unauthorized "Unauthorized"
+  in
+  match (verb, List.drop path 1) with
+  | (`POST, [ "migrate-all-canvases" ]) ->
+     when_can_ops
+       (fun _ ->
+         Canvas.migrate_all_hosts ();
+         respond ~execution_id `OK "Migrated")
+  | (`POST, [ "check-all-canvases" ]) ->
+     when_can_ops
+       (fun _ ->
+         Canvas.check_all_hosts ();
+         respond ~execution_id `OK "Checked")
+  | (`POST, [ "cleanup-old-traces" ]) ->
+     when_can_ops
+       (fun _ ->
+         Canvas.cleanup_old_traces ();
+         respond ~execution_id `OK "Cleanedup")
+    | (`GET, [ "check-all-canvases" ]) ->
+       when_can_ops
+         (fun _ ->
+           respond ~execution_id `OK "<html>
+           <body>
+           <form action='/admin/ops/check-all-canvases' method='post'>
+           <input type='submit' value='Check all canvases'>
+           </form>
+           <form action='/admin/ops/migrate-all-canvases' method='post'>
+           <input type='submit' value='Migrate all canvases'>
+           </form>
+           <form action='/admin/ops/cleanup-old-traces' method='post'>
+           <input type='submit' value='Cleanup old traces (done nightly by cron)'>
+           </form>
+           </body></html>")
+  | _ ->
+     respond ~execution_id `Not_found "Not found"
+
 let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
       ~(body: string) ~(username:string) (req: CRequest.t) =
   let path = uri
@@ -668,6 +712,7 @@ let admin_handler ~(execution_id: Types.id) ~(uri: Uri.t) ~stopper
 
   (* routing *)
   match path with
+  | "ops" :: _ ->  ops_api_handler ~execution_id ~path ~stopper ~body ~username req
   | "api" :: _ ->  admin_api_handler ~execution_id ~path ~stopper ~body ~username req
   | "a" :: _ ->  admin_ui_handler ~execution_id ~path ~stopper ~body ~username req
   | _ -> respond ~execution_id `Not_found "Not found"
@@ -753,7 +798,7 @@ let route_host req =
 let admin_ui_html_readiness_check () :string option list =
   List.map
     ~f: (fun (frontend_impl, frontend_str) ->
-        try ignore (admin_ui_html ~debug:false frontend_impl "test"); None with
+        try ignore (admin_ui_html ~debug:false frontend_impl); None with
           e -> Some ("admin_ui_html failed for frontend: " ^ frontend_str))
     [(Elm, "Elm"); (Bucklescript, "BuckleScript")]
 
