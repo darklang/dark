@@ -75,9 +75,10 @@ type function_metadata = { name: string
                          ; deprecated : bool
                          } [@@deriving yojson]
 
-let functions () =
+let functions ~username =
   !Libs.static_fns
   |> String.Map.to_alist
+  |> List.filter ~f:(fun (k, _) -> Account.can_access_operations username || not (String.is_prefix ~prefix:"DarkInternal::" k))
   |> List.map
     ~f:(fun (k,(v: RuntimeT.fn))
          -> { name = k
