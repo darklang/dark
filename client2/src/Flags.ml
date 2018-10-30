@@ -1,4 +1,4 @@
-open! Porting
+ open! Porting
 open Types
 module RT = Runtime
 
@@ -31,7 +31,9 @@ type flags =
   { editorState: string option
   ; complete: Types.function_ list
   ; userContentHost: string
-  ; environment: string }
+  ; environment: string
+  ; csrfToken : string
+  }
 
 let fromString (strJ: string) : flags =
   let open Json_decode_extended in
@@ -40,6 +42,7 @@ let fromString (strJ: string) : flags =
   ; complete = field "complete" (list function_) j
   ; userContentHost = field "userContentHost" string j
   ; environment = field "environment" string j
+  ; csrfToken = field "csrfToken" string j
   }
 
 
