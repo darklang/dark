@@ -7,11 +7,8 @@ the history:
 
 ```
 REVISION  CHANGE-CAUSE
-1         <none>
-4         <none>
-5         <none>
-6         <none>
-7         <none>
+677       'circle=https://circleci.com/gh/darklang/dark/2242 ; orig-time: Mon Oct 29 23:36:47 UTC 2018'
+<more lines here>
 ```
 Note here that #2 and #3 are missing, because we rolled back to them (rev 6 is a
 rollback to 3, rev 7 is a rollback to 2).
