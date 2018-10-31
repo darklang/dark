@@ -37,6 +37,9 @@ let parse_interval (h: handler) : Time.Span.t option =
   | "every 12hrs" ->
     Time.Span.create ~sign:Sign.Pos ~hr:12 ()
     |> Some
+  | "every 1min" ->
+    Time.Span.create ~sign:Sign.Pos ~min:1 ()
+    |> Some
   | _ -> None
 
 let should_execute (canvas_id: Uuidm.t) (h: handler) : bool =
