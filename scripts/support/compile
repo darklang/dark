@@ -96,9 +96,6 @@ def client2_build():
   start = time.time()
   build = "cd client2 && unbuffer bsb -make-world && browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js"
   result = run_frontend(start, build)
-  # For now, ignore client2 on CI
-  if os.environ.get("CI"):
-    result = True
   return result
 
 def client2_install():
