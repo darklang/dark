@@ -7,9 +7,6 @@ let windowSize (a : unit) : int * int =
 
 let random (a : unit) : int = Native.Random.random a
 
-let toIntWithDefault (d : int) (s : string) : int =
-  s |> String.toInt |> Result.withDefault d
-
 let reContains (re : string) (s : string) : bool =
   Regex.contains (Regex.regex re) s
 
