@@ -19,6 +19,7 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     ; ViewUtils.eventNoPropagation "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
   in
   Html.li
+    (* TODO: should this be `Vdom.attribute "" "data-content" value`? *)
     ([Vdom.prop "data-content" value] @ classes @ events)
     [Html.text {js|•|js}]
 

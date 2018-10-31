@@ -448,7 +448,13 @@ module IntDict = struct
   let keys m : key list =
     Map.keysToArray m
     |> Belt.List.fromArray
-
+  let fromStrDict ~(default: key) (d: 'value StrDict.t) : 'value t =
+    d
+    |> StrDict.toList
+    |> List.map
+      (fun (k, v) -> (k |> String.toInt |> Result.withDefault default, v))
+    |> Belt.List.toArray
+    |> Map.fromArray
 end
 
 module Html = struct
@@ -467,7 +473,7 @@ module Native = struct
     ; bottom: int
     }
 
-  type list_pos = 
+  type list_pos =
     { atoms : rect list
     ; nested : rect list
     }

@@ -126,6 +126,6 @@ end
 
 module RequestAnalysis = struct
 
-  external send : (int list -> unit) = "requestAnalysis" [@@bs.val][@@bs.scope "window", "Dark", "analysis"]
+  external send : (string -> unit) = "requestAnalysis" [@@bs.val][@@bs.scope "window", "Dark", "analysis"]
 
 end

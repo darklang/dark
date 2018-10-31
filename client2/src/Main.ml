@@ -471,6 +471,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let handlers = TL.handlers tls in
         let dbs = TL.dbs tls in
         let userFns = m.userFunctions in
+        let requestAnalysis s =
+          Tea_cmd.call (fun _ ->
+            Analysis.RequestAnalysis.send s
+          )
+        in
+
         let req h =
           let trace = Analysis.getCurrentTrace m h.tlid in
           let param t =
@@ -479,12 +485,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; ("trace", Encoders.trace t)
               ; ("dbs", JSE.list Encoders.db dbs)
               ; ("user_fns" , JSE.list Encoders.userFunction userFns ) ]
+            |> Js.Json.stringify
           in
-          []
-          (* TODO: porting *)
-          (* trace *)
-          (* |> Option.map (fun t -> requestAnalysis (param t)) *)
-          (* |> Option.toList *)
+          trace
+          |> Option.map (fun t -> requestAnalysis (param t))
+          |> Option.toList
         in
         (m, Cmd.batch (handlers |> List.map req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
@@ -1222,12 +1227,10 @@ let update_ (msg : msg) (m : model) : modification =
         ; RequestAnalysis m.toplevels ]
   | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
   | ReceiveAnalysis json -> (
-      DisplayError "TODO: receive analysis"
-          (* TODO: porting *)
-      (* let envelope = JSD.decodeString Decoders.analysisEnvelope json in *)
-      (* match envelope with *)
-      (* | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults) *)
-      (* | Error str -> DisplayError str *)
+      let envelope = JSD.decodeString Decoders.analysisEnvelope json in
+      match envelope with
+      | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
+      | Error str -> DisplayError str
     )
   | RPCCallback (_, _, Error err) -> DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) -> DisplayError ("Error: " ^ toString err)

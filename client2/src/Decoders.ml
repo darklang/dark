@@ -103,19 +103,24 @@ and nExpr j : nExpr =
     ]
     j
 
-(* let analysisResults : analysisResults decoder = *)
-(*   let toAResult liveValues availableVarnames = *)
-(*     { liveValues= DE.mapKeys (Util.toIntWithDefault 0) liveValues *)
-(*     ; availableVarnames= DE.mapKeys (Util.toIntWithDefault 0) availableVarnames *)
-(*     } *)
-(*   in *)
-(*   JSDP.decode toAResult *)
-(*   |> JSDP.required "live_values" (dict decodeDval) *)
-(*   |> JSDP.required "available_varnames" (dict (list string)) *)
-(*  *)
-(* let analysisEnvelope : (traceID * analysisResults) decoder = *)
-(*   JSONUtils.decodetuple2 string decodeAnalysisResults *)
-(*  *)
+and lvDict j : lvDict =
+  j
+  |> dict dval
+  |> IntDict.fromStrDict ~default:0
+
+and avDict j : avDict =
+  j
+  |> dict (list string)
+  |> IntDict.fromStrDict ~default:0
+
+and analysisResults j : analysisResults =
+  { liveValues = field "live_values" (lvDict) j
+  ; availableVarnames = field "available_varnames" (avDict) j
+  }
+
+and analysisEnvelope j : (traceID * analysisResults) =
+  (tuple2 string analysisResults) j
+
 and handlerSpec j : handlerSpec =
   { module_ = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
