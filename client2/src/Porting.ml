@@ -27,19 +27,34 @@ module Events = struct
         | Ok pos -> Some (tagger pos) in
       let handlerType = EventHandlerCallback (key, fn) in
       let elem = Web_node.document_node in
-      let (handler, isRegistered) =
-        match (cacheGet name) with
-        | Some h -> (h, true)
-        | None ->
-           let newHandler = createEventHandler callbacks elem name handlerType in
-           cacheSet name newHandler;
-           (newHandler, false)
-      in
       fun () ->
-        if isRegistered
-        then Web.Node.removeEventListener elem name handler false;
-        
+        let handler =
+          match (cacheGet name) with
+          | Some h ->
+            Web.Node.removeEventListener elem name h false; h
+          | None ->
+            let newHandler = createEventHandler callbacks elem name handlerType in
+            cacheSet name newHandler; newHandler
+        in
         Web.Node.addEventListener elem name handler false; ()
+    in Tea_sub.registration key enableCall
+
+  let registerGlobal name key tagger decoder =
+    let open Vdom in
+    let enableCall callbacks_base =
+      let callbacks = ref callbacks_base in
+      let fn = fun ev ->
+        let open Tea_json.Decoder in
+        let open Tea_result in
+        match decodeEvent decoder ev with
+        | Error _ -> None
+        | Ok pos -> Some (tagger pos) in
+      let handler = EventHandlerCallback (key, fn) in
+      let elem = Web_node.document_node in
+      let cache = eventHandler_Register callbacks elem name handler in
+      fun () ->
+        let _ = eventHandler_Unregister elem name cache in
+        ()
     in Tea_sub.registration key enableCall
 
 end
@@ -629,9 +644,9 @@ end
 module OnWheel = struct
   let decode =
     let open Tea.Json.Decoder in
-    map2 (fun dX dY -> (dX, dY))
-      (field "deltaX" int)
-      (field "deltaY" int)
+    map2 (fun dX dY -> (dX, dY) )
+        (field "deltaX" int)
+        (field "deltaY" int)
   let listen ?(key="") tagger =
-    Events.register "wheel" key tagger decode
+    Events.registerGlobal "wheel" key tagger decode
 end
