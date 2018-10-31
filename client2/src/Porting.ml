@@ -329,8 +329,11 @@ module String = struct
     | s -> Some (String.get s 0, String.sub s 1 (String.length s - 1))
   let dropLeft (from: int) (s: string) : string =
     Js.String.substr ~from s
-  let dropRight (from: int) (s: string) : string =
-    Js.String.sliceToEnd ~from s
+  let dropRight (num: int) (s: string) : string =
+    if num < 1 then
+      s
+    else
+      Js.String.slice ~from:0 ~to_:(-num) s
   let split (delimiter : string) (s: string) : string list =
     Js.String.split delimiter s
     |> Belt.List.fromArray
@@ -467,7 +470,7 @@ module Native = struct
     ; bottom: int
     }
 
-  type list_pos = 
+  type list_pos =
     { atoms : rect list
     ; nested : rect list
     }
