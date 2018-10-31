@@ -464,21 +464,6 @@ let delete_all ~state (db: db) =
             ; Int db.version
             ; Int current_dark_version]
 
-let count (db: db) =
-  (* covered by idx_user_data_current_data_for_tlid *)
-  Db.fetch_one
-    ~name:"count"
-    "SELECT COUNT(*) AS c
-     FROM user_data
-     WHERE table_tlid = $1
-     AND user_version = $2
-     AND dark_version = $3"
-    ~params:[ ID db.tlid
-            ; Int db.version
-            ; Int current_dark_version]
-  |> List.hd_exn
-  |> int_of_string
-
 (* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)

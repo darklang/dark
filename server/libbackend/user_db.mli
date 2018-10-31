@@ -15,7 +15,6 @@ val query : state:exec_state -> magic:bool -> DbT.db -> (string * dval) list -> 
 val query_by_one : state:exec_state -> magic:bool -> DbT.db -> string -> dval -> dval
 val delete : state:exec_state -> DbT.db -> string -> unit
 val delete_all : state:exec_state -> DbT.db -> unit
-val count : DbT.db -> int
 
 (* Deprecated: only used in legacy in deprecated libdb *)
 val update : state:exec_state -> DbT.db -> dval_map -> unit
