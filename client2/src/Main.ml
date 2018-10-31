@@ -63,7 +63,7 @@ let init (flagString: string) (location : Web.Location.location) : model * msg C
   if shouldRunIntegrationTest then
     ( m2
     , Cmd.batch
-        [RPC.integrationRPC m (contextFromModel m) integrationTestName
+        [RPC.integrationRPC m2 (contextFromModel m2) integrationTestName
         ]
     )
   else
