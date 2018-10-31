@@ -9,3 +9,4 @@ gcp-rundir
 gcp-persistdir
 gcp-builddir
 sqldump*.gz
+client2/node_modules
