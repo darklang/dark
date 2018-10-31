@@ -119,7 +119,7 @@ module ReceiveAnalysis = struct
     map (fun msg -> msg)
       (field "detail" string)
   let listen ?(key="") tagger =
-    Porting.registerGlobal "receiveAnalysis" key tagger decode
+    Porting.Events.register "receiveAnalysis" key tagger decode
 end
 
 (* Request analysis *)

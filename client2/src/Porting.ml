@@ -1,29 +1,71 @@
 let (++) (a: string) (b: string) = a ^ b
 
-let createEventHandler callbacks elem name handlerType =
-  let open Vdom in
-  let cb = ref (eventHandler_GetCB handlerType) in
-  eventHandler callbacks cb
+module Events = struct
+  type eventCacheType = Web.Node.event_cb Js.Dict.t
+  let cache : eventCacheType = Js.Dict.empty()
 
-let registerGlobal name key tagger decoder =
-  let open Vdom in
-  let enableCall callbacks_base =
-    let callbacks = ref callbacks_base in
-    let fn = fun ev ->
-      let open Tea_json.Decoder in
-      let open Tea_result in
-      match decodeEvent decoder ev with
-      | Error _ -> None
-      | Ok pos -> Some (tagger pos) in
-    let handlerType = EventHandlerCallback (key, fn) in
-    let elem = Web_node.document_node in
-    let handler = createEventHandler callbacks elem name handlerType in
+  let cacheSet (k: string) (v : Web.Node.event_cb) : unit =
+    Js.Dict.set cache k v
+
+  let cacheGet (k: string) : Web.Node.event_cb option =
+    Js.Dict.get cache k 
+
+  let createEventHandler callbacks elem name handlerType =
+    let open Vdom in
+    let cb = ref (eventHandler_GetCB handlerType) in
+    eventHandler callbacks cb
+
+  let register name key tagger decoder =
+    let open Vdom in
+    let enableCall callbacks_base =
+      let callbacks = ref callbacks_base in
+      let fn = fun ev ->
+        let open Tea_json.Decoder in
+        let open Tea_result in
+        match decodeEvent decoder ev with
+        | Error _ -> None
+        | Ok pos -> Some (tagger pos) in
+      let handlerType = EventHandlerCallback (key, fn) in
+      let elem = Web_node.document_node in
+      let (handler, isRegistered) =
+        match (cacheGet name) with
+        | Some h -> (h, true)
+        | None ->
+           let newHandler = createEventHandler callbacks elem name handlerType in
+           cacheSet name newHandler;
+           (newHandler, false)
+      in
+      fun () ->
+        if isRegistered
+        then Web.Node.removeEventListener elem name handler false;
+        
+        Web.Node.addEventListener elem name handler false; ()
+    in Tea_sub.registration key enableCall
+
+end
+
+module DarkTime = struct
+  type timeCacheType = int Js.Dict.t
+  let cache : timeCacheType = Js.Dict.empty()
+
+  let _refresh_analysis : string = "refresh_analysis"
+  let _check_url_hash_position : string = "check_url_hash_position"
+
+  let every interval tagger key =
+    let open Vdom in
+    let enableCall callbacks =
+    let id = (Web.Window.setInterval (fun () -> callbacks.enqueue (tagger (Web.Date.now ())) ) interval) in
     fun () ->
-      Web.Node.removeEventListener elem name handler false;
-      Web.Node.addEventListener elem name handler false; ()
-  in Tea_sub.registration key enableCall
+      Js.Dict.set cache key id;
+      Web.Window.clearTimeout id
+    in Tea_sub.registration key enableCall
 
-
+  let stopEvery key =
+    match (Js.Dict.get cache key) with
+    | Some id -> Web.Window.clearTimeout id; 0
+    | None -> 0
+  
+end
 
 module PageVisibility = struct
   type visibility = Hidden | Visible
@@ -553,7 +595,7 @@ module Window = struct
         (field "detail" decodeDetail)
 
     let listen ?(key="") tagger =
-      registerGlobal "windowResize" key tagger decode
+      Events.register "windowResize" key tagger decode
 
   end
 
@@ -565,7 +607,7 @@ module Window = struct
         (field "detail" bool)
 
     let listen ?(key="") tagger =
-      registerGlobal "windowFocusChange" key tagger decode
+      Events.register "windowFocusChange" key tagger decode
 
   end
 
@@ -581,7 +623,7 @@ module DisplayClientError = struct
     map (fun msg -> msg)
       (field "detail" string)
   let listen ?(key="") tagger =
-    registerGlobal "displayError" key tagger decode
+    Events.register "displayError" key tagger decode
 end
 
 module OnWheel = struct
@@ -591,5 +633,5 @@ module OnWheel = struct
       (field "deltaX" int)
       (field "deltaY" int)
   let listen ?(key="") tagger =
-    registerGlobal "wheel" key tagger decode
+    Events.register "wheel" key tagger decode
 end

@@ -1248,6 +1248,7 @@ let update_ (msg : msg) (m : model) : modification =
   | Initialization -> NoChange
   | AddRandom -> NoChange
   | PageVisibilityChange vis ->
+    DarkTime.stopEvery DarkTime._refresh_analysis;
     TweakModel (fun m_ -> {m_ with visibility = vis })
   | CreateHandlerFrom404 {space; path; modifier} ->
       let center = findCenter m in
@@ -1301,9 +1302,9 @@ let subscriptions (m : model) : msg Sub.t =
     match m.visibility with
     | Hidden -> []
     | Visible ->
-      [Tea.Time.every Tea.Time.second (fun f -> TimerFire (RefreshAnalysis, f))]
+      [DarkTime.every Tea.Time.second (fun f -> TimerFire (RefreshAnalysis, f)) DarkTime._refresh_analysis]
   in
-  let urlTimer = [Time.every Time.second (fun f -> TimerFire (CheckUrlHashPosition, f))]
+  let urlTimer = [DarkTime.every Time.second (fun f -> TimerFire (CheckUrlHashPosition, f)) DarkTime._check_url_hash_position]
   in
   let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
   let onError =
