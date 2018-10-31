@@ -109,10 +109,16 @@ def client2_install():
 
 def client2_test():
   start = time.time()
-  return run_test(start, \
+  result = run_test(start, \
           "cd client2" \
           + " && unbuffer" \
           + " ./node_modules/jest/bin/jest.js")
+
+  # Don't require bs tests to pass on master, b/c we might want a hotfix
+  if os.environ.get("CIRCLE_BRANCH") == "master":
+      return True
+
+  return result
 
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
@@ -236,7 +242,7 @@ def execute(should):
   should.elm_test |= em
   et = should.elm_test and elm_test()
 
-  return sb and rs and ep and em and lc and rb and ot and etp and et and ge and c2b
+  return sb and rs and ep and em and lc and rb and ot and etp and et and ge and c2b and c2t
 
 
 
