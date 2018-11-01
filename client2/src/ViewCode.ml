@@ -9,7 +9,6 @@ module SA = Svg.Attributes
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
-let eventNoPropagation = ViewUtils.eventNoPropagation
 let fontAwesome = ViewUtils.fontAwesome
 let viewText = ViewBlankOr.viewText
 let wc = ViewBlankOr.wc
@@ -212,7 +211,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let showExecuting = isExecuting vs id in
       let exeIcon = "play" in
       let events =
-        [ eventNoPropagation "click" (fun _ ->
+        [ ViewUtils.eventNoPropagation
+            ~key:("efb-" ^ (showTLID vs.tl.id) ^ "-" ^ (showID id) ^ "-" ^ name)
+            "click"
+            (fun _ ->
               ExecuteFunctionButton (vs.tl.id, id, name) )
         ; ViewUtils.nothingMouseEvent "mouseup"
         ; ViewUtils.nothingMouseEvent "mousedown"
@@ -312,7 +314,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
           [ Html.class' "icon pick-a parameter-btn info"
           ; Vdom.attribute "" "data-content" "Use Case A"
           ; Html.title "delete Feature Flag & use Case A"
-          ; eventNoPropagation "click" (fun _ -> EndFeatureFlag (id, PickA)) ]
+          ; ViewUtils.eventNoPropagation
+              ~key:("effa-" ^ showID id)
+              "click"
+              (fun _ -> EndFeatureFlag (id, PickA)) ]
           [fontAwesome "check"]
       in
       let pickB =
@@ -320,20 +325,29 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
           [ Html.class' "icon pick-b parameter-btn info"
           ; Vdom.attribute "" "data-content" "Use Case B"
           ; Html.title "delete Feature Flag & use Case B"
-          ; eventNoPropagation "click" (fun _ -> EndFeatureFlag (id, PickB)) ]
+          ; ViewUtils.eventNoPropagation
+              ~key:("effb-" ^ showID id)
+              "click"
+              (fun _ -> EndFeatureFlag (id, PickB)) ]
           [fontAwesome "check"]
       in
       let hideModal =
         Html.div
           [ Vdom.attribute "" "data-content" "Hide ff details"
-          ; eventNoPropagation "click" (fun _ -> ToggleFeatureFlag (id, false))
+          ; ViewUtils.eventNoPropagation
+              ~key:("tfff-" ^ showID id)
+              "click"
+              (fun _ -> ToggleFeatureFlag (id, false))
           ]
           [fontAwesome "minus"]
       in
       let expandModal =
         Html.div
           [ Vdom.attribute "" "data-content" "Show ff details"
-          ; eventNoPropagation "click" (fun _ -> ToggleFeatureFlag (id, true))
+          ; ViewUtils.eventNoPropagation
+              ~key:("tfft-" ^ showID id)
+              "click"
+              (fun _ -> ToggleFeatureFlag (id, true))
           ]
           [fontAwesome "flag"]
       in
@@ -418,7 +432,10 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
     Html.div
       [ Html.classList
           [("handler-lock", true); ("is-locked", vs.handlerLocked)]
-      ; eventNoPropagation "click" (fun _ ->
+      ; ViewUtils.eventNoPropagation
+          ~key:("lh-" ^ (showTLID vs.tlid) ^ "-" ^ (string_of_bool vs.handlerLocked))
+          "click"
+          (fun _ ->
             LockHandler (vs.tlid, not vs.handlerLocked) ) ]
       [fontAwesome (if vs.handlerLocked then "lock" else "lock-open")]
   in

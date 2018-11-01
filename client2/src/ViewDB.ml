@@ -3,10 +3,10 @@ open! Porting
 module B = Blank
 module Attrs = Html.Attributes
 open Types
+open Prelude
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
-let eventNoPropagation = ViewUtils.eventNoPropagation
 let fontAwesome = ViewUtils.fontAwesome
 let wc = ViewBlankOr.wc
 
@@ -33,7 +33,10 @@ let viewDBCol (vs : viewState) (isMigra : bool) (tlid : tlid)
       if B.isF n || B.isF t then
         [ Html.div
             [ Html.class' "delete-col"
-            ; eventNoPropagation "click" (fun _ ->
+            ; ViewUtils.eventNoPropagation
+                ~key:("dcidb-" ^ (showTLID tlid) ^ "-" ^ (n |> B.toID |> showID))
+                "click"
+                (fun _ ->
                   DeleteColInDB (tlid, B.toID n) ) ]
             [fontAwesome "minus-circle"] ]
       else []
@@ -71,7 +74,10 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
   let cancelBtn =
     Html.button
       [ Attrs.disabled false
-      ; eventNoPropagation "click" (fun _ -> AbandonMigration db.dbTLID) ]
+      ; ViewUtils.eventNoPropagation
+          ~key:("am-" ^ (showTLID db.dbTLID))
+          "click"
+          (fun _ -> AbandonMigration db.dbTLID) ]
       [Html.text "cancel"]
   in
   let migrateBtn =
@@ -88,7 +94,10 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   let locked =
     if vs.dbLocked && db.activeMigration = None then
       Html.div
-        [eventNoPropagation "click" (fun _ -> StartMigration db.dbTLID)]
+        [ViewUtils.eventNoPropagation
+           ~key:("sm-" ^ (showTLID db.dbTLID))
+           "click"
+           (fun _ -> StartMigration db.dbTLID)]
         [fontAwesome "lock"]
     else fontAwesome "unlock"
   in

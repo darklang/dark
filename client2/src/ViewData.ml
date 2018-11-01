@@ -13,10 +13,13 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
   let tipeClassName = "tipe-" ^ RT.tipe2str tipe in
   let tipeClass = [Html.class' tipeClassName] in
   let classes = activeClass @ hoverClass @ tipeClass in
+  let eventKey constructor tlid id =
+    constructor ^ "-" ^ (showTLID tlid) ^ "-" ^ (string_of_int id)
+  in
   let events =
-    [ ViewUtils.eventNoPropagation "click" (fun x -> DataClick (tlid, idx, x))
-    ; ViewUtils.eventNoPropagation "mouseenter" (fun x -> DataMouseEnter (tlid, idx, x))
-    ; ViewUtils.eventNoPropagation "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
+    [ ViewUtils.eventNoPropagation ~key:(eventKey "dc" tlid idx) "click" (fun x -> DataClick (tlid, idx, x))
+    ; ViewUtils.eventNoPropagation ~key:(eventKey "dme" tlid idx) "mouseenter" (fun x -> DataMouseEnter (tlid, idx, x))
+    ; ViewUtils.eventNoPropagation ~key:(eventKey "dml" tlid idx) "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
   in
   Html.li
     (* TODO: should this be `Vdom.attribute "" "data-content" value`? *)

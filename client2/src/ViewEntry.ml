@@ -79,7 +79,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
               [("autocomplete-item", true); ("highlighted", highlighted)]
           ; nothingMouseEvent "mouseup"
           ; nothingMouseEvent "mousedown"
-          ; eventNoPropagation "click" (fun _ -> AutocompleteClick name) ]
+          ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ -> AutocompleteClick name) ]
           [ view item []
           ; Html.span [Html.class' "types"]
               [Html.text <| Autocomplete.asTypeString item] ] )
