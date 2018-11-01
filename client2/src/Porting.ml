@@ -553,7 +553,7 @@ module Window = struct
       in
       map (fun msg -> msg)
         (field "detail" decodeDetail)
-    let listen ?(key="") tagger =
+    let listen ?(key="window_resize") tagger =
       registerGlobal "windowResize" key tagger decode
   end
 
@@ -576,7 +576,7 @@ module DisplayClientError = struct
     let open Tea.Json.Decoder in
     map (fun msg -> msg)
       (field "detail" string)
-  let listen ?(key="") tagger =
+  let listen ?(key="display_client_error") tagger =
     registerGlobal "displayError" key tagger decode
 end
 
@@ -586,7 +586,7 @@ module OnWheel = struct
     map2 (fun dX dY -> (dX, dY))
       (field "deltaX" int)
       (field "deltaY" int)
-  let listen ?(key="") tagger =
+  let listen ?(key="wheel") tagger =
     registerGlobal "wheel" key tagger decode
 end
 
