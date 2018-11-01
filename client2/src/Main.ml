@@ -1,5 +1,4 @@
 open Tea
-open Tea.Mouse
 open! Porting
 module AC = Autocomplete
 module B = Blank
@@ -1299,7 +1298,9 @@ let subscriptions (m : model) : msg Sub.t =
   in
   let dragSubs =
     match m.cursorState with
-    | Dragging (id, offset, _, _) -> [Mouse.moves (fun x -> DragToplevel (id, x))]
+    | Dragging (id, offset, _, _) ->
+      let listenerKey = "mouse_moves_" ^ string_of_int (deTLID id) in
+      [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ -> []
   in
   let syncTimer =
