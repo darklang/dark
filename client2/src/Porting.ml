@@ -19,8 +19,6 @@ let registerGlobal name key tagger decoder =
   in Tea_sub.registration key enableCall
 
 module DarkTime = struct
-  type timeCacheType = int Js.Dict.t
-  let cache : timeCacheType = Js.Dict.empty()
 
   let _refresh_analysis : string = "refresh_analysis"
   let _check_url_hash_position : string = "check_url_hash_position"
@@ -30,14 +28,8 @@ module DarkTime = struct
     let enableCall callbacks =
     let id = (Web.Window.setInterval (fun () -> callbacks.enqueue (tagger (Web.Date.now ())) ) interval) in
     fun () ->
-      Js.Dict.set cache key id;
       Web.Window.clearTimeout id
     in Tea_sub.registration key enableCall
-
-  let stopEvery key =
-    match (Js.Dict.get cache key) with
-    | Some id -> Web.Window.clearTimeout id; 0
-    | None -> 0
 end
 
 module PageVisibility = struct

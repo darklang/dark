@@ -1252,9 +1252,7 @@ let update_ (msg : msg) (m : model) : modification =
   | Initialization -> NoChange
   | AddRandom -> NoChange
   | PageVisibilityChange vis ->
-    DarkTime.stopEvery DarkTime._refresh_analysis;
     TweakModel (fun m_ -> {m_ with visibility= vis})
-  | PageFocusChange vis -> TweakModel (fun m_ -> {m_ with visibility= vis})
   | CreateHandlerFrom404 {space; path; modifier} ->
       let center = findCenter m in
       let anId = gtlid () in
@@ -1309,24 +1307,24 @@ let subscriptions (m : model) : msg Sub.t =
       [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ -> []
   in
-  let syncTimer =
-    match m.visibility with
-    | Hidden -> []
-    | Visible ->
+  let timers =
+    if m.timersEnabled
+    then
+      (match m.visibility with
+      | Hidden -> []
+      | Visible ->
+        [ DarkTime.every
+          Tea.Time.second
+          (fun f -> TimerFire (RefreshAnalysis, f))
+          DarkTime._refresh_analysis
+        ]
+      ) @ 
       [ DarkTime.every
-        Tea.Time.second
-        (fun f -> TimerFire (RefreshAnalysis, f))
-        DarkTime._refresh_analysis
+        Time.second
+        (fun f -> TimerFire (CheckUrlHashPosition, f))
+        DarkTime._check_url_hash_position
       ]
-  in
-  let urlTimer =
-    [ DarkTime.every
-      Time.second
-      (fun f -> TimerFire (CheckUrlHashPosition, f))
-      DarkTime._check_url_hash_position
-    ]
-  in
-  let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
+    else [] in
   let onError =
     [DisplayClientError.listen ~key:"display_client_error" (fun s -> JSError s)]
   in
