@@ -8,7 +8,6 @@ open Types
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
-let eventNoPropagation = ViewUtils.eventNoPropagation
 let fontAwesome = ViewUtils.fontAwesome
 let viewText = ViewBlankOr.viewText
 let wc = ViewBlankOr.wc
@@ -30,9 +29,18 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
   in
   let events =
-    [ eventNoPropagation "mousedown" (fun x -> ToplevelMouseDown (tl.id, x))
-    ; eventNoPropagation "mouseup" (fun x -> ToplevelMouseUp (tl.id, x))
-    ; eventNoPropagation "click" (fun x -> ToplevelClick (tl.id, x)) ]
+    [ ViewUtils.eventNoPropagation
+        ~key:("tlmd-" ^ showTLID tl.id)
+        "mousedown"
+        (fun x -> ToplevelMouseDown (tl.id, x))
+    ; ViewUtils.eventNoPropagation
+        ~key:("tlmu-" ^ showTLID tl.id)
+        "mouseup"
+        (fun x -> ToplevelMouseUp (tl.id, x))
+    ; ViewUtils.eventNoPropagation
+        ~key:("tlc-" ^ showTLID tl.id)
+        "click"
+        (fun x -> ToplevelClick (tl.id, x)) ]
   in
   let selected =
     if Some tl.id = tlidOf m.cursorState then "selected" else ""
