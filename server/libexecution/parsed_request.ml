@@ -80,6 +80,21 @@ let json_body =
 let form_body =
   body_of_fmt ~fmt:Form ~key:"formBody"
 
+let parsed_cookies cookies =
+  cookies
+  |> String.split ~on:';'
+  |> List.map ~f:String.strip
+  |> List.map ~f:(String.lsplit2 ~on:'=')
+  |> List.filter_opt
+  |> List.map ~f:(fun (k, v) -> (k, DStr v))
+  |> Dval.to_dobj
+
+let cookies (headers : (string * string) list) =
+  List.Assoc.find ~equal:(=) headers "cookie"
+  |> Option.map ~f:parsed_cookies
+  |> Option.value ~default:(Dval.to_dobj [])
+  |> fun x ->  Dval.to_dobj [("cookies",  x)]
+
 (* ------------------------- *)
 (* Exported *)
 (* ------------------------- *)
@@ -94,6 +109,7 @@ let from_request (headers: header list) (query:query_val list) rbody =
     ; parsed_query_string query
     ; parsed_headers headers
     ; unparsed_body rbody
+    ; cookies headers
     ]
   in
   List.fold_left
