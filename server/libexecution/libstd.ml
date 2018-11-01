@@ -897,7 +897,14 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s]) ->
-              DInt (int_of_string s)
+            (try
+               DInt (int_of_string s)
+             with
+             | e ->
+               Exception.user
+                 ~actual:s
+                 ~expected:"\d+"
+                 "Expected a string with only numbers")
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -914,7 +921,13 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s]) ->
-              DFloat (float_of_string s)
+            (try
+               DFloat (float_of_string s)
+             with
+             | e ->
+               Exception.user
+                 ~actual:s
+                 "Expected a string representation of an IEEE float")
           | args -> fail args)
   ; pr = None
   ; ps = true
