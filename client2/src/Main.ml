@@ -1,5 +1,4 @@
 open Tea
-open Tea.Mouse
 open! Porting
 module AC = Autocomplete
 module B = Blank
@@ -1295,11 +1294,17 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 let subscriptions (m : model) : msg Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
-  let resizes = [Window.OnResize.listen (fun (w, h) -> WindowResize (w, h) )]
+  let resizes =
+    [ Window.OnResize.listen
+      ~key:"window_on_resize"
+      (fun (w, h) -> WindowResize (w, h) )
+    ]
   in
   let dragSubs =
     match m.cursorState with
-    | Dragging (id, offset, _, _) -> [Mouse.moves (fun x -> DragToplevel (id, x))]
+    | Dragging (id, offset, _, _) ->
+      let listenerKey = "mouse_moves_" ^ string_of_int (deTLID id) in
+      [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ -> []
   in
   let syncTimer =
@@ -1312,10 +1317,10 @@ let subscriptions (m : model) : msg Sub.t =
   in
   let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
   let onError =
-    [DisplayClientError.listen (fun s -> JSError s)]
+    [DisplayClientError.listen ~key:"display_client_error" (fun s -> JSError s)]
   in
   let visibility =
-    [Window.OnFocusChange.listen
+    [Window.OnFocusChange.listen ~key:"window_on_focus_change"
       (fun v ->
         if v
         then PageVisibilityChange Visible
@@ -1324,10 +1329,16 @@ let subscriptions (m : model) : msg Sub.t =
     ]
   in
   let mousewheelSubs =
-    [OnWheel.listen (fun (dx, dy) -> MouseWheel (dx, dy))]
+    [ OnWheel.listen
+      ~key:"on_wheel"
+      (fun (dx, dy) -> MouseWheel (dx, dy))
+    ]
   in
   let analysisSubs =
-    [Analysis.ReceiveAnalysis.listen (fun s -> ReceiveAnalysis s)]
+    [ Analysis.ReceiveAnalysis.listen
+      ~key:"receive_analysis"
+      (fun s -> ReceiveAnalysis s)
+    ]
   in
   Sub.batch
     (List.concat
