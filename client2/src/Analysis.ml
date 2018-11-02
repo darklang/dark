@@ -118,7 +118,7 @@ module ReceiveAnalysis = struct
     let open Tea.Json.Decoder in
     map (fun msg -> msg)
       (field "detail" string)
-  let listen ?(key="") tagger =
+  let listen ~key tagger =
     Porting.registerGlobal "receiveAnalysis" key tagger decode
 end
 
