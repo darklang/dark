@@ -166,4 +166,58 @@ let fns : Lib.shortfn list = [
   ; dep = false
   }
 
+  ;
+
+  { pns = ["Http::setCookie"]
+  ; ins = []
+  ; p = [par "name" TStr; par "value" TStr; par "params" TObj]
+  ; r = TObj
+  ; d = "Generate an HTTP Set-Cookie header Object suitable for Http::respondWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
+  ; f = InProcess
+        (function
+         | (_, [DStr name; DStr value; DObj o]) ->
+            o
+
+            (* Transform a DOBj into a cookie list of individual cookie params *)
+            |> Map.to_alist
+            |> List.concat_map
+                 ~f:(fun (x, y) ->
+                   match (String.lowercase x, y) with
+
+                   (* Single boolean set-cookie params *)
+                   | ("secure", DBool b)
+                   | ("httponly", DBool b) ->
+                      if b then [x] else []
+
+                   (* X=y set-cookie params *)
+                   | ("path", DStr _)
+                   | ("domain", DStr _)
+                   | ("samesite", DStr _)
+                   | ("max-age", DInt _)
+                   | ("expires", DInt _) ->
+                      [Format.sprintf "%s=%s" x (Dval.as_string y)]
+
+                   (* Throw if there's not a good way to transform the k/v pair *)
+                   | _ ->
+                      y
+                      |> Dval.as_string
+                      |> Format.sprintf "Unknown set-cookie param: %s: %s" x
+                      |> Exception.user)
+
+            (* Combine it into a set-cookie header *)
+            |> String.concat ~sep:"; "
+            |> Format.sprintf "%s=%s; %s"
+                 (Uri.pct_encode name)
+                 (Uri.pct_encode value)
+            |> DStr
+            |> fun x ->  Dval.to_dobj [("Set-Cookie", x)]
+
+         | args -> fail args)
+  ; pr = None
+  ; ps = true
+  ; dep = false
+  }
+
+  ;
+
 ]
