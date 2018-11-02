@@ -10,6 +10,13 @@ DARK_CLUSTER="$(< current-cluster)"
 PREFIX=""
 PREFIX_ARG=""
 
+# Doing this instead of ${CIRCLE_BUILD_URL-manual-deploy} because
+# CIRCLE_BUILD_URL='' is the unset case. (Because of the docker run command in
+# scripts/builder,)
+if [[ "${CIRCLE_BUILD_URL}" == "" ]]; then
+  CIRCLE_BUILD_URL='manual-deploy'
+fi
+
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
 
