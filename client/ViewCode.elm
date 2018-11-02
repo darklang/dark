@@ -241,7 +241,10 @@ viewNExpr d id vs config e =
                 |> AST.threadPrevious id
                 |> ME.toList
               TLDB db ->
-                impossible db
+                case db.activeMigration of
+                  Nothing -> []
+                  Just am -> [am.rollforward, am.rollback]
+                  |> List.filterMap (\m -> AST.threadPrevious id m)
 
           -- buttons
           allExprs = previous ++ exprs

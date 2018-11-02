@@ -186,7 +186,11 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         match vs.tl.data with
         | TLHandler h -> h.ast |> AST.threadPrevious id |> Option.toList
         | TLFunc f -> f.ufAST |> AST.threadPrevious id |> Option.toList
-        | TLDB db -> impossible db
+        | TLDB db ->
+          match db.activeMigration with
+            None -> []
+          | Some am -> [am.rollforward; am.rollback]
+                       |> List.filterMap (fun m -> AST.threadPrevious id m)
       in
       let _ = "comment" in
       let allExprs = previous @ exprs in
