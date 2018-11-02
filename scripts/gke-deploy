@@ -120,5 +120,6 @@ curl -s https://api.rollbar.com/api/1/deploy/ \
   -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
   -F "environment=${ENVIRONMENT}" \
   -F "revision=${IMAGE}" \
+  -F "comment=${CIRCLE_BUILD_URL}" \
   -F "local_username=${LOCAL_USERNAME}" > /dev/null
 echo "Rollbar notified."
