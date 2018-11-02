@@ -18,20 +18,6 @@ let registerGlobal name key tagger decoder =
       ()
   in Tea_sub.registration key enableCall
 
-module DarkTime = struct
-
-  let _refresh_analysis : string = "refresh_analysis"
-  let _check_url_hash_position : string = "check_url_hash_position"
-
-  let every interval tagger key =
-    let open Vdom in
-    let enableCall callbacks =
-    let id = (Web.Window.setInterval (fun () -> callbacks.enqueue (tagger (Web.Date.now ())) ) interval) in
-    fun () ->
-      Web.Window.clearTimeout id
-    in Tea_sub.registration key enableCall
-end
-
 module PageVisibility = struct
   type visibility = Hidden | Visible
 end
