@@ -9,7 +9,6 @@ open ViewUtils
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
-let eventNoPropagation = ViewUtils.eventNoPropagation
 let fontAwesome = ViewUtils.fontAwesome
 let wc = ViewBlankOr.wc
 let nested = ViewBlankOr.nested
@@ -132,20 +131,21 @@ let ordering (a : string) (b : string) : int =
       else if b = missingEventRouteDesc then -1
       else compare a b
 
-let buttonLink (content : msg Html.html) (handler : msg) (page : page option) :
+let buttonLink ~(key: string) (content : msg Html.html) (handler : msg) (page : page option) :
     msg Html.html =
   let href =
     page |> Option.map (fun p -> Html.href (Url.urlFor p)) |> Option.toList
   in
   let event =
     match page with
-    | None -> eventNoDefault "click" (fun _ -> handler)
-    | Some _ -> eventNoPropagation "click" (fun _ -> handler)
+    | None -> ViewUtils.eventNoDefault ~key "click" (fun _ -> handler)
+    | Some _ ->
+      ViewUtils.eventNoPropagation ~key "click" (fun _ -> handler)
   in
   Html.a ([event; Html.class' "button-link"] @ href) [content]
 
 let undoButton (tlid : tlid) (page : page) : msg Html.html =
-  buttonLink (text "undo" "Restore") (RestoreToplevel tlid) (Some page)
+  buttonLink ~key:("rt" ^ showTLID tlid) (text "undo" "Restore") (RestoreToplevel tlid) (Some page)
 
 let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
   Url.linkFor (Toplevels pos) class_ [Html.text name]
@@ -157,7 +157,9 @@ let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
     (if isUsed then "default-link" else "default-link unused")
     [Html.text text_]
 
-let header (name : string) (list : 'a list) (addHandler : msg option) :
+(* TODO: refactor `addHandler` from weird tuple to better API for passing msg
+ * + the cache key for the vdom *)
+let header (name : string) (list : 'a list) (addHandler : (string * msg) option) :
     msg Html.html =
   Html.summary [Html.class' "header"]
     [ text "title" name
@@ -165,10 +167,10 @@ let header (name : string) (list : 'a list) (addHandler : msg option) :
     ; text "count" (list |> List.length |> string_of_int)
     ; text "parens" ")"
     ; ( match addHandler with
-      | Some msg -> buttonLink (fontAwesome "plus-circle") msg None
+      | Some (key, msg) -> buttonLink ~key (fontAwesome "plus-circle") msg None
       | None -> text "" "" ) ]
 
-let section (name : string) (entries : 'a list) (addHandler : msg option)
+let section (name : string) (entries : 'a list) (addHandler : (string * msg) option)
     (routes : msg Html.html) : msg Html.html =
   if List.length entries = 0 then
     Html.div
@@ -220,7 +222,8 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     entries |> List.map (fun x -> x.verbs) |> List.concat
   in
   let button =
-    if spacename = "HTTP" && showUndo <> ShowUndo then Some CreateRouteHandler
+    if spacename = "HTTP" && showUndo <> ShowUndo
+    then Some ("crh", CreateRouteHandler)
     else None
   in
   section spacename distinctEntries button routes
@@ -259,11 +262,14 @@ let viewDeletedTLs (m : model) : msg Html.html =
   Html.details [Html.class' "routing-section deleted"] ([h] @ routes @ [dbs])
 
 let view404s (f404s : fourOhFour list) : msg Html.html =
+  let fofToKey fof =
+    fof.space ^ "-" ^ fof.path ^ "-" ^ fof.modifier
+  in
   let theCreateLink fof =
-    buttonLink (fontAwesome "plus-circle") (CreateHandlerFrom404 fof) None
+    buttonLink ~key:(fofToKey fof) (fontAwesome "plus-circle") (CreateHandlerFrom404 fof) None
   in
   let theDeleteLink fof =
-    buttonLink (fontAwesome "minus-circle") (Delete404 fof) None
+    buttonLink ~key:(fofToKey fof) (fontAwesome "minus-circle") (Delete404 fof) None
   in
   let fofHtml ({space; path; modifier} as fof) =
     div "fof"
@@ -298,6 +304,7 @@ let viewUserFunctions (m : model) : msg Html.html =
     if useCount = 0 then
       [ span "name" [fnLink fn false name]
       ; buttonLink
+          ~key:("duf-" ^ (showTLID fn.ufTLID))
           (fontAwesome "minus-circle")
           (DeleteUserFunction fn.ufTLID) None ]
     else
@@ -312,7 +319,7 @@ let viewUserFunctions (m : model) : msg Html.html =
        | None -> [span "name" [fnLink fn true "should be filtered by here"]])
   in
   let routes = div "fns" (List.map fnHtml fns) in
-  section "Functions" fns (Some CreateFunction) routes
+  section "Functions" fns (Some ("cf", CreateFunction)) routes
 
 let viewRoutingTable (m : model) : msg Html.html =
   let sections =
@@ -324,8 +331,8 @@ let viewRoutingTable (m : model) : msg Html.html =
     Html.div
       [ Html.class' "viewing-table"
       ; nothingMouseEvent "mouseup"
-      ; eventNoPropagation "mouseenter" (fun _ -> EnablePanning false)
-      ; eventNoPropagation "mouseleave" (fun _ -> EnablePanning true) ]
+      ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ -> EnablePanning false)
+      ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ -> EnablePanning true) ]
       sections
   in
   Html.div [Html.id "sidebar-left"] [html]

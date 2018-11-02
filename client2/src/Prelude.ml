@@ -2,8 +2,10 @@ open! Porting
 open Types
 
 let deID (ID i : id) : int = i
+let showID (ID i) = string_of_int i
 
 let deTLID (TLID i : tlid) : int = i
+let showTLID (TLID i) = string_of_int i
 
 let gid (unit : unit) : id = ID (Util.random unit)
 

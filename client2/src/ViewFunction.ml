@@ -2,11 +2,12 @@ open Tea
 open! Porting
 module Attrs = Html.Attributes
 open Types
+open Prelude
+module B = Blank
 
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
-let eventNoPropagation = ViewUtils.eventNoPropagation
 let fontAwesome = ViewUtils.fontAwesome
 let viewText = ViewBlankOr.viewText
 let wc = ViewBlankOr.wc
@@ -38,7 +39,10 @@ let viewKillParameterBtn (vs : viewState) (uf : userFunction)
     if allowed then
       Html.div
         [ Html.class' "parameter-btn allowed"
-        ; eventNoPropagation "click" (fun _ ->
+        ; ViewUtils.eventNoPropagation
+            ~key:("dufp-" ^ (showTLID uf.ufTLID) ^ "-" ^ (p.ufpName |> B.toID |> showID))
+            "click"
+            (fun _ ->
               DeleteUserFunctionParameter (uf, p) ) ]
         [fontAwesome "times-circle"]
     else

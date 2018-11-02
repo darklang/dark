@@ -35,7 +35,7 @@ let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
 
 let viewFeatureFlag : msg Html.html =
   Html.div
-    [Html.class' "flag"; ViewUtils.eventNoPropagation "click" (fun _ -> StartFeatureFlag)]
+    [Html.class' "flag"; ViewUtils.eventNoPropagation ~key:"sff" "click" (fun _ -> StartFeatureFlag)]
     [ViewUtils.fontAwesome "flag"]
 
 let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
@@ -48,7 +48,7 @@ let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
 
 let viewCreateFn : msg Html.html =
   Html.div
-    [Html.class' "exfun"; ViewUtils.eventNoPropagation "click" (fun _ -> ExtractFunction)]
+    [Html.class' "exfun"; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)]
     [ViewUtils.fontAwesome "share-square"]
 
 let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
@@ -110,10 +110,10 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   let events =
     match clickAs with
     | Some id ->
-        [ ViewUtils.eventNoPropagation "click" (fun x -> BlankOrClick (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "dblclick" (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "mouseenter" (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "mouseleave" (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
+        [ ViewUtils.eventNoPropagation "click" ~key:("bcc-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation "dblclick" ~key:("bcdc-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation "mouseenter" ~key:("me-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation "mouseleave" ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
     | _ -> []
   in
   let liveValueAttr =
