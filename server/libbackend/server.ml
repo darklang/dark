@@ -231,7 +231,7 @@ let user_page_handler ~(execution_id: Types.id) ~(canvas: string) ~(ip: string) 
                     ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
      in
      let maybe_infer_headers resp_headers value =
-       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
+       if List.Assoc.mem resp_headers ~equal:(String.Caseless.equal) "Content-Type"
        then
          resp_headers
        else
