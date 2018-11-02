@@ -1578,6 +1578,36 @@ let t_dark_internal_fns_are_internal () =
     ; Some DNull
     ]
 
+let t_parsed_request_cookies () =
+  let with_headers h =
+    Parsed_request.from_request h [] ""
+    |> Parsed_request.to_dval
+    |> fun v -> match v with
+               DObj o -> DvalMap.find_exn o "cookies"
+             | _ -> failwith "didn't end up with 'cookies' in the DObj"
+  in
+  let with_cookies c = with_headers [("cookie", c)]
+  in
+  AT.check (AT.list at_dval) "Parsed_request.from_request parses cookies correctly."
+    [ with_headers []
+    ; with_cookies ""
+    ; with_cookies "a"
+    ; with_cookies "a="
+    ; with_cookies "a=b"
+    ; with_cookies "a=b;"
+    ; with_cookies "a=b; c=d"
+    ; with_cookies "a=b; c=d;"
+    ]
+    [ Dval.to_dobj []
+    ; Dval.to_dobj []
+    ; Dval.to_dobj []
+    ; Dval.to_dobj [("a", DStr "")]
+    ; Dval.to_dobj [("a", DStr "b")]
+    ; Dval.to_dobj [("a", DStr "b")]
+    ; Dval.to_dobj [("a", DStr "b") ; ("c", DStr "d")]
+    ; Dval.to_dobj [("a", DStr "b") ; ("c", DStr "d")]
+  ]
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1658,6 +1688,7 @@ let suite =
   ; "Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips
   ; "DB::getAll_v2 works", `Quick, t_db_getAll_v2_works
   ; "DarkInternal:: functions are internal", `Quick, t_dark_internal_fns_are_internal
+  ; "Parsed_request.from_request parses cookies", `Quick, t_parsed_request_cookies
   ]
 
 let () =
