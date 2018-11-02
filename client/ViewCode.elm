@@ -241,13 +241,10 @@ viewNExpr d id vs config e =
                 |> AST.threadPrevious id
                 |> ME.toList
               TLDB db ->
-                -- this feels inefficient if all I want is the _first_ elt that
-                -- matches id ... but probably okay
-                (db.activeMigration :: (List.map (\m -> Just m) db.oldMigrations))
-                |> List.filterMap identity
-                |> List.map (\m -> [m.rollforward, m.rollback])
-                |> (List.foldr (++) [])
-                |> List.filterMap (\m -> AST.threadPrevious id m)
+                case db.activeMigration of
+                  Nothing -> []
+                  Just am -> [am.rollforward, am.rollback]
+                  |> List.filterMap (\m -> AST.threadPrevious id m)
 
           -- buttons
           allExprs = previous ++ exprs

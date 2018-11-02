@@ -188,11 +188,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         | TLHandler h -> h.ast |> AST.threadPrevious id |> Option.toList
         | TLFunc f -> f.ufAST |> AST.threadPrevious id |> Option.toList
         | TLDB db ->
-          db.activeMigration :: (List.map (fun m -> Some m) db.oldMigrations)
-          |> List.filterMap (fun m -> m)
-          |> List.map (fun m -> [m.rollforward; m.rollback])
-          |> List.foldr List.append []
-          |> List.filterMap (fun m -> AST.threadPrevious id m)
+          match db.activeMigration with
+            None -> []
+          | Some am -> [am.rollforward; am.rollback]
+                       |> List.filterMap (fun m -> AST.threadPrevious id m)
       in
       let _ = "comment" in
       let allExprs = previous @ exprs in
