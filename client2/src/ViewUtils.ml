@@ -93,20 +93,20 @@ let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
     ; button = (JSD.field "button" JSD.int j)
     }
 
-let eventNoPropagation (event : string) (constructor : mouseEvent -> msg) :
+let eventNoPropagation ~(key: string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Html.onWithOptions event
+  Patched_tea_html.onWithOptions ~key event
     {stopPropagation= true; preventDefault= false}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
-let eventNoDefault (event : string) (constructor : mouseEvent -> msg) :
+let eventNoDefault ~(key: string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Html.onWithOptions event
+  Patched_tea_html.onWithOptions ~key event
     {stopPropagation= false; preventDefault= true}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
-  eventNoPropagation name (fun e -> NothingClick e)
+  eventNoPropagation ~key:"" name (fun e -> NothingClick e)
 
 let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
   let div class_ subs = Html.div [Html.class' class_] subs in

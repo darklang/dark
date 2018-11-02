@@ -9,7 +9,7 @@ let viewButtons (m : model) : msg Html.html =
     match m.integrationTestState with
     | IntegrationTestExpectation _ ->
         [ Html.a
-            [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> FinishIntegrationTest)
+            [ ViewUtils.eventNoPropagation ~key:"fit" "mouseup" (fun _ -> FinishIntegrationTest)
             ; Html.src ""
             ; Html.id "finishIntegrationTest"
             ; Html.class' "specialButton" ]
@@ -43,7 +43,7 @@ let viewButtons (m : model) : msg Html.html =
           ; Html.a
               [ Html.class' "link"
               ; Html.href "#"
-              ; ViewUtils.eventNoPropagation "mouseup" (fun _ ->
+              ; ViewUtils.eventNoPropagation ~key:(string_of_bool m.error.showDetails)"mouseup" (fun _ ->
                     ShowErrorDetails (not m.error.showDetails) ) ]
               [ Html.text
                   ( if m.error.showDetails then "hide details"
@@ -60,12 +60,12 @@ let viewButtons (m : model) : msg Html.html =
   in
   Html.div [Html.id "buttons"]
     ( [ Html.a
-          [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> SaveTestButton)
+          [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ -> SaveTestButton)
           ; Html.src ""
           ; Html.class' "specialButton" ]
           [Html.text "SaveTest"]
       ; Html.a
-          [ ViewUtils.eventNoPropagation "mouseup" (fun _ -> ToggleTimers)
+          [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
           ; Html.src ""
           ; Html.class' "specialButton" ]
           [ Html.text
