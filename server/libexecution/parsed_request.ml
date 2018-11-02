@@ -86,7 +86,7 @@ let parsed_cookies cookies =
   |> List.map ~f:String.strip
   |> List.map ~f:(String.lsplit2 ~on:'=')
   |> List.filter_opt
-  |> List.map ~f:(fun (k, v) -> (k, DStr v))
+  |> List.map ~f:(fun (k, v) -> (Uri.pct_decode k, DStr (Uri.pct_decode v)))
   |> Dval.to_dobj
 
 let cookies (headers : (string * string) list) =
