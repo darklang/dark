@@ -20,6 +20,7 @@ let registerGlobal name key tagger decoder =
 
 module PageVisibility = struct
   type visibility = Hidden | Visible
+  [@@deriving show]
 end
 
 let (<|) a b = a b
@@ -244,8 +245,17 @@ module Result = struct
     match r with
     | Ok v -> Some v
     | _ -> None
+  let pp
+    (ferr: Format.formatter -> 'err -> unit)
+    (fok: Format.formatter -> 'ok -> unit)
+    (fmt: Format.formatter)
+    (v: ('err, 'ok) t)
+  = ()
+
+
 end
 type ('err, 'ok) result = ('err, 'ok) Result.t
+[@@deriving show]
 
 module Base64 = struct
   let encode (str: string) : string =
