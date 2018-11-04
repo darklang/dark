@@ -155,11 +155,8 @@ let processFocus (m : model) (focus : focus) : modification =
 
 let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     model * msg Cmd.t =
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      Debug.log "autocompletemod update" mods
-    else mods
-  in
+  if m.integrationTestState <> NoIntegrationTest then
+    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods);
   let complete =
     List.foldl
       (fun mod_ complete_ -> AC.update m mod_ complete_)
@@ -184,11 +181,9 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      Debug.log "mod update" mod_
-    else mod_
-  in
+  if m.integrationTestState <> NoIntegrationTest then
+    Debug.loG "mod update" (show_modification mod_);
+
   let closeBlanks newM =
     m.cursorState |> tlidOf
     |> Option.andThen (TL.get m)
@@ -607,11 +602,8 @@ let findCenter (m : model) : pos =
   | _ -> Defaults.centerPos
 
 let update_ (msg : msg) (m : model) : modification =
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      Debug.log "msg update" msg
-    else msg
-  in
+  if m.integrationTestState <> NoIntegrationTest then
+    Debug.loG "msg update" (show_msg msg);
   match msg with
   | GlobalKeyPress event -> (
       if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z then
@@ -1029,7 +1021,7 @@ let update_ (msg : msg) (m : model) : modification =
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
-                ; Enter (Creating (Viewport.toAbsolute m event.pos)) ]
+                ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
           | _ -> Deselect
         else NoChange
     | _ -> NoChange )
@@ -1058,7 +1050,7 @@ let update_ (msg : msg) (m : model) : modification =
         let tl = TL.getTL m targetTLID in
         match tl.data with
         | TLFunc _ -> NoChange
-        | _ -> Drag (targetTLID, event.pos, false, m.cursorState)
+        | _ -> Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (targetTLID, event) ->
       if event.button = Defaults.leftButton then
@@ -1318,7 +1310,7 @@ let subscriptions (m : model) : msg Sub.t =
           Tea.Time.second
           (fun f -> TimerFire (RefreshAnalysis, f))
         ]
-      ) @ 
+      ) @
       [ Patched_tea_time.every
         ~key: "check_url_hash_position"
         Time.second
