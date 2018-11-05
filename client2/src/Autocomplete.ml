@@ -38,7 +38,11 @@ let asName (aci : autocompleteItem) : string =
     | NewHTTPRoute name -> "Create new HTTP handler for " ^ name
     | NewEventSpace name -> "Create new " ^ name ^ " handler" )
   | ACKeyword k -> (
-    match k with KLet -> "let" | KIf -> "if" | KLambda -> "lambda" )
+    match k with
+    | KLet -> "let"
+    | KIf -> "if"
+    | KLambda -> "lambda"
+    | KMatch -> "match")
 
 let asTypeString (item : autocompleteItem) : string =
   match item with
@@ -321,7 +325,11 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   in
   let varnames = Analysis.currentVarnamesFor m a.target in
   let keywords =
-    if isExpression then List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda]
+    if isExpression
+    then
+      List.map
+        (fun x -> ACKeyword x)
+        [KLet; KIf; KLambda; KMatch]
     else []
   in
   let regular =
