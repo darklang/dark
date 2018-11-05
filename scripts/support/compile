@@ -284,6 +284,9 @@ def mark(should, f):
   elif ".html" in f:
     should.reload_browser = True
 
+  elif f.endswith(".md"):
+      pass
+
   # Other
   else:
     print("unknown file: " + f, end='')
