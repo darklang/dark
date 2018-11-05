@@ -121,6 +121,9 @@ let log_level =
 let should_write_shape_data =
   bool "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST"
 
+let show_stacktrace =
+  bool "DARK_CONFIG_SHOW_STACKTRACE"
+
 (* ------------------------- *)
 (* Rollbar *)
 (* ------------------------- *)
