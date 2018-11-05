@@ -100,8 +100,19 @@ and nExpr j : nExpr =
       , dv1 (fun x -> ObjectLiteral x) (list (tuple2 (blankOr string) de))
       )
     ; ("FeatureFlag", dv4 (fun a b c d -> FeatureFlag (a,b,c,d)) (blankOr string) de de de)
+    ; ("Match", dv2 (fun a b -> Match (a,b)) de (list (tuple2 pattern de)))
     ]
     j
+
+
+and pattern j : pattern =
+  blankOr nPattern j
+
+and nPattern j : nPattern =
+  variants
+  [ ("PVariable", variant0 PVariable)
+  ]
+  j
 
 and lvDict j : lvDict =
   j

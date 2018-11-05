@@ -26,7 +26,14 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
               |> fun x -> ObjectLiteral x
           | ListLiteral elems -> ListLiteral (List.map fn elems)
           | FeatureFlag (msg, cond, a, b) ->
-              FeatureFlag (msg, fn cond, fn a, fn b) )
+              FeatureFlag (msg, fn cond, fn a, fn b)
+          | Match (matchExpr, cases) ->
+            let traversedCases =
+              cases
+              |> List.map (fun (k, v) -> (k, fn v))
+            in
+            Match (fn matchExpr, traversedCases)
+          )
 
 let rec allData (expr : expr) : pointerData list =
   let e2ld e = PExpr e in
@@ -49,7 +56,12 @@ let rec allData (expr : expr) : pointerData list =
     | ListLiteral exprs -> rl exprs
     | ObjectLiteral pairs ->
         pairs |> List.map (fun (k, v) -> PKey k :: allData v) |> List.concat
-    | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] @ rl [cond; a; b] )
+    | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] @ rl [cond; a; b]
+    | Match (matchExpr, cases) ->
+        (* TODO(ian): patterns *)
+        (allData matchExpr)
+        @ (cases |> List.map Tuple.second |> rl))
+
 
 let find (id : id) (expr : expr) : pointerData option =
   expr |> allData
@@ -84,18 +96,20 @@ let rec uses (var : varName) (expr : expr) : expr list =
     | ListLiteral exprs -> exprs |> List.map u |> List.concat
     | ObjectLiteral pairs ->
         pairs |> List.map Tuple.second |> List.map u |> List.concat
-    | FeatureFlag (msg, cond, a, b) -> List.concat [u cond; u a; u b] )
+    | FeatureFlag (msg, cond, a, b) -> List.concat [u cond; u a; u b]
+    | Match (matchExpr, cases) -> [])
+      (* TODO(ian): check cases for use and patterns as potential rebindings *)
 
 let rec replace_ (search : pointerData) (replacement : pointerData)
     (parent : expr option) (expr : expr) : expr =
-  let r = replace_ search replacement (Some expr) in
-  let _ = "comment" in
+  let r = replace_ search replacement (Some expr) in (* expr is new parent *)
   let sId = P.toID search in
   if B.toID expr = sId then
     match replacement with
     | PExpr e ->
         let repl_ =
           match parent with
+          (* if pasting it into a thread, make the shape fit *)
           | Some (F (_, Thread (first :: _))) -> (
             match e with
             | F (id, FnCall (fn, (_ :: rest as args), r_)) ->
@@ -212,7 +226,13 @@ let children (expr : expr) : pointerData list =
         pairs |> List.map (fun (k, v) -> [PKey k; PExpr v]) |> List.concat
     | ListLiteral elems -> List.map (fun e -> PExpr e) elems
     | FeatureFlag (msg, cond, a, b) ->
-        [PFFMsg msg; PExpr cond; PExpr a; PExpr b] )
+        [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
+    | Match (matchExpr, cases) ->
+        let casePointers =
+          (* TODO(ian): add pattern pointers *)
+          cases |> List.map (fun (k, v) -> [PExpr v]) |> List.concat
+        in
+        (PExpr matchExpr) :: casePointers)
 
 let rec childrenOf (pid : id) (expr : expr) : pointerData list =
   let co = childrenOf pid in
@@ -233,11 +253,17 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
       | ObjectLiteral pairs ->
           pairs |> List.map Tuple.second |> List.map co |> List.concat
       | ListLiteral pairs -> pairs |> List.map co |> List.concat
-      | FeatureFlag (msg, cond, a, b) -> co cond @ co a @ co b )
+      | FeatureFlag (msg, cond, a, b) -> co cond @ co a @ co b
+      | Match (matchExpr, cases) ->
+        let cCases =
+          cases |> List.map Tuple.second |> List.map co |> List.concat
+        in
+        co matchExpr @ cCases
+    )
 
 let rec parentOf_ (eid : id) (expr : expr) : expr option =
   let po = parentOf_ eid in
-  let _ = "comment" in
+  (* the `or` of all items in the list *)
   let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
   if List.member eid (children expr |> List.map P.toID) then Some expr
   else
@@ -255,7 +281,10 @@ let rec parentOf_ (eid : id) (expr : expr) : expr option =
       | FieldAccess (obj, field) -> po obj
       | ListLiteral exprs -> poList exprs
       | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> poList
-      | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b] )
+      | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b]
+      | Match (matchExpr, cases) ->
+        poList (matchExpr :: (cases |> List.map Tuple.second))
+    )
 
 let parentOf (id : id) (ast : expr) : expr =
   deOption "parentOf" <| parentOf_ id ast
@@ -281,6 +310,8 @@ let rec listThreadBlanks (expr : expr) : id list =
     | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> rList
     | ListLiteral exprs -> rList exprs
     | FeatureFlag (_, cond, a, b) -> r cond @ r a @ r b
+    | Match (matchExpr, cases) ->
+        r matchExpr @ (cases |> List.map Tuple.second |> rList)
   in
   match expr with Blank _ -> [] | F (_, f) -> rn f
 
@@ -330,6 +361,7 @@ let rec closeListLiterals (expr : expr) : expr =
   | _ -> traverse closeObjectLiterals expr
 
 let closeBlanks (expr : expr) : expr =
+  (* TODO(ian): close patterns in Match *)
   expr |> closeThreads |> closeObjectLiterals |> closeListLiterals
 
 let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
@@ -477,8 +509,7 @@ let rec usesRail (ast : expr) : bool =
     (allData ast)
 
 let ancestors (id : id) (expr : expr) : expr list =
-  let _ = "type annotation" in
-  let rec rec_ancestors tofind walk exp =
+  let rec rec_ancestors (tofind : id) (walk : expr list) (exp : expr) =
     let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
     let reclist id_ e_ walk_ exprs =
       exprs |> List.map (rec_ id_ e_ walk_) |> List.concat
@@ -501,7 +532,9 @@ let ancestors (id : id) (expr : expr) : expr list =
         | ListLiteral exprs -> reclist id expr walk exprs
         | ObjectLiteral pairs ->
             pairs |> List.map Tuple.second |> reclist id expr walk
-        | FeatureFlag (msg, cond, a, b) -> reclist id exp walk [cond; a; b] )
+        | FeatureFlag (msg, cond, a, b) -> reclist id exp walk [cond; a; b]
+        | Match (matchExpr, cases) ->
+          reclist id exp walk (matchExpr :: (List.map Tuple.second cases)))
   in
   rec_ancestors id [] expr
 
@@ -509,8 +542,11 @@ let ancestorsWhere (id : id) (expr : expr) (fn : expr -> bool) : expr list =
   List.filter fn (ancestors id expr)
 
 let threadAncestors (id : id) (expr : expr) : expr list =
-  ancestorsWhere id expr (fun e ->
-      match e with F (_, Thread _) -> true | _ -> false )
+  ancestorsWhere id expr
+    (fun e ->
+      match e with
+        | F (_, Thread _) -> true
+        | _ -> false)
 
 let siblings (p : pointerData) (expr : expr) : pointerData list =
   match parentOf_ (P.toID p) expr with
@@ -532,6 +568,9 @@ let siblings (p : pointerData) (expr : expr) : pointerData list =
     | F (_, ListLiteral exprs) -> List.map (fun e -> PExpr e) exprs
     | F (_, FeatureFlag (msg, cond, a, b)) ->
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
+    | F (_, Match (matchExpr, cases)) ->
+      (* TODO(ian): patterns *)
+      (PExpr matchExpr) :: (cases |> List.map (fun (k, v) -> [PExpr v]) |> List.concat)
     | Blank _ -> [p] )
 
 let getValueParent (p : pointerData) (expr : expr) : pointerData option =
@@ -570,6 +609,9 @@ let rec clone (expr : expr) : expr =
         ObjectLiteral (List.map (fun (k, v) -> (cString k, c v)) pairs)
     | FeatureFlag (msg, cond, a, b) ->
         FeatureFlag (cString msg, c cond, c a, c b)
+    | Match (matchExpr, cases) ->
+        (* TODO(ian): clone patterns *)
+        Match (c matchExpr, List.map (fun (k, v) -> (k, c v)) cases)
   in
   B.clone cNExpr expr
 

@@ -319,6 +319,16 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   | ListLiteral elems -> ev "ListLiteral" [list e elems]
   | FeatureFlag (msg, cond, a, b) ->
       ev "FeatureFlag" [blankOr string msg; e cond; e a; e b]
+  | Match (matchExpr, cases) ->
+    ev "Match" [e matchExpr; (list (pair pattern expr) cases)]
+
+and pattern (p : Types.pattern) : Js.Json.t =
+  blankOr nPattern p
+
+and nPattern (npat : Types.nPattern) : Js.Json.t =
+  let ev = variant in
+  match npat with
+  | PVariable -> ev "Variable" []
 
 and cursorState (cs : Types.cursorState) : Js.Json.t =
   let ev = variant in

@@ -71,6 +71,9 @@ and field = fieldName blankOr
 and key = keyName blankOr
 and lambdaParameter = varName blankOr
 and sendToRail = Rail | NoRail
+and nPattern = PVariable
+and pattern = nPattern blankOr
+
 and expr = nExpr blankOr
 and nExpr =
   | If of expr * expr * expr
@@ -84,6 +87,7 @@ and nExpr =
   | Thread of expr list
   | FieldAccess of expr * field
   | FeatureFlag of string blankOr * expr * expr * expr
+  | Match of expr * (pattern * expr) list
 
 and pointerData =
   | PVarBind of varBind

@@ -163,6 +163,7 @@ and approxNWidth (ne : nExpr) : int =
       |> List.map (( + ) 2)
       |> List.maximum |> Option.withDefault 0 |> ( + ) 4
   | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
+  | Match (matchExpr, cases) -> 0 (* TODO(ian): actually figure this out *)
 
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
