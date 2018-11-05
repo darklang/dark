@@ -30,7 +30,7 @@ module Dbconnection = Libservice.Dbconnection
 type frontendImpl = Elm
                   | Bucklescript
 
-let query_string_to_frontend_impl query =
+let query_string_to_frontend_impl ~username query =
   let bs_val =
     List.Assoc.find
       query
@@ -39,7 +39,11 @@ let query_string_to_frontend_impl query =
   in
   match bs_val with
   | Some ["true"] | Some ["1"] -> Bucklescript
-  | _ -> Elm
+  | Some ["false"] | Some ["0"] -> Elm
+  | _ ->
+    if Account.can_access_operations username
+    then Bucklescript
+    else Elm
 
 
 type timing_header = string * float * string
@@ -458,54 +462,54 @@ let to_assoc_list etags_json : (string*string) list =
   | _ -> Exception.internal "etags.json must be a top-level object."
 
 let admin_ui_html ~(csrf_token:string) ~(debug:bool) frontend username =
-    let template = File.readfile_lwt ~root:Templates "ui.html" in
-    template
-    >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
-    >|= Util.string_replace "{LIVERELOADJS}"
-      (if Config.browser_reload_enabled
-       then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-       else "")
-    >|= Util.string_replace "{STATIC}" Config.static_host
-    >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
-    >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-    >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
-    >|= (fun body ->
-        let glue, tag =
-          (match frontend with
-           | Elm ->
-             let content = File.readfile ~root:Templates "elm-glue.js" in
-             let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
-             (content, elmtag)
-           | Bucklescript ->
-             let content = File.readfile ~root:Templates "bs-glue.js" in
-             let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
-             (content, bstag))
-        in
-        body
-        |> Util.string_replace "{FRONTENDIMPL}" tag
-        |> Util.string_replace "{FRONTENDGLUE}" glue)
-    >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
-    >|= Util.string_replace "{STATIC}" Config.static_host
-    >|= (fun x ->
-        if not (Config.hash_static_filenames)
-        then x
-        else x
-             |> (fun instr ->
-                 let etags_str = File.readfile ~root:Webroot "etags.json" in
-                 let etags_json = Yojson.Safe.from_string etags_str in
-                 let etag_assoc_list = to_assoc_list etags_json in
-                 etag_assoc_list
-                 |> List.filter
-                   ~f:(fun (file, _) -> not (String.equal "__date" file))
-                 |> List.filter
-                   (* Only hash our assets, not vendored assets *)
-                   ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
-                 |> List.fold
-                   ~init:instr
-                   ~f:(fun acc (file, hash) ->
-                       (Util.string_replace file (hashed_filename file hash))
-                         acc)
-               ))
+  let template = File.readfile_lwt ~root:Templates "ui.html" in
+  template
+  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
+  >|= Util.string_replace "{LIVERELOADJS}"
+    (if Config.browser_reload_enabled
+     then "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+     else "")
+  >|= Util.string_replace "{STATIC}" Config.static_host
+  >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
+  >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
+  >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
+  >|= (fun body ->
+      let glue, tag =
+        (match frontend with
+         | Elm ->
+           let content = File.readfile ~root:Templates "elm-glue.js" in
+           let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
+           (content, elmtag)
+         | Bucklescript ->
+           let content = File.readfile ~root:Templates "bs-glue.js" in
+           let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
+           (content, bstag))
+      in
+      body
+      |> Util.string_replace "{FRONTENDIMPL}" tag
+      |> Util.string_replace "{FRONTENDGLUE}" glue)
+  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
+  >|= Util.string_replace "{STATIC}" Config.static_host
+  >|= (fun x ->
+      if not (Config.hash_static_filenames)
+      then x
+      else x
+           |> (fun instr ->
+               let etags_str = File.readfile ~root:Webroot "etags.json" in
+               let etags_json = Yojson.Safe.from_string etags_str in
+               let etag_assoc_list = to_assoc_list etags_json in
+               etag_assoc_list
+               |> List.filter
+                 ~f:(fun (file, _) -> not (String.equal "__date" file))
+               |> List.filter
+                 (* Only hash our assets, not vendored assets *)
+                 ~f:(fun (file, _) -> not (String.is_substring ~substring:"vendor/" file))
+               |> List.fold
+                 ~init:instr
+                 ~f:(fun acc (file, hash) ->
+                     (Util.string_replace file (hashed_filename file hash))
+                       acc)
+             ))
   >|= Util.string_replace "{CSRF_TOKEN}" csrf_token
 
 let save_test_handler ~(execution_id: Types.id) host =
@@ -579,7 +583,7 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
       ~(body: string) ~(username:string) ~(csrf_token:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
   let query = req |> CRequest.uri |> Uri.query in
-  let frontend = query_string_to_frontend_impl query in
+  let frontend = query_string_to_frontend_impl ~username query in
   let html_hdrs =
     Header.of_list
       [ ("Content-type", "text/html; charset=utf-8")
