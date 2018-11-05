@@ -1314,15 +1314,15 @@ let subscriptions (m : model) : msg Sub.t =
       | Hidden -> []
       | Visible ->
         [ Patched_tea_time.every
+          ~key: "refresh_analysis"
           Tea.Time.second
           (fun f -> TimerFire (RefreshAnalysis, f))
-          "refresh_analysis"
         ]
       ) @ 
       [ Patched_tea_time.every
+        ~key: "check_url_hash_position"
         Time.second
         (fun f -> TimerFire (CheckUrlHashPosition, f))
-        "check_url_hash_position"
       ]
     else [] in
   let onError =
