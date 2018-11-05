@@ -121,6 +121,7 @@ let parseAst (m : model) (str : string) : expr option =
   | ["if"] -> Some (F (eid, If (b1, b2, b3)))
   | ["let"] -> Some (F (eid, Let (b1, b2, b3)))
   | ["lambda"] -> Some (F (eid, Lambda ([B.newF "var"], b2)))
+  | ["match"] -> Some (F (eid, Match (b1, [(b2, b3)])))
   | [""] -> Some b1
   | ["[]"] -> Some (F (eid, ListLiteral [B.new_ ()]))
   | ["["] -> Some (F (eid, ListLiteral [B.new_ ()]))
@@ -153,7 +154,7 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
       )
     else if List.member value (Analysis.currentVarnamesFor m target)
     then (old_, B.newF (Variable value))
-    else (old_, parseAst m value |> Option.withDefault old_)
+    else (old_, Debug.log "parsed" (parseAst m value |> Option.withDefault old_))
   in
   let newAst =
     match action with
@@ -205,7 +206,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
 
 let submit (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
-  let value = AC.getValue m.complete in
+  let value = Debug.log "value of ac" (AC.getValue m.complete) in
   match cursor with
   | Creating pos -> (
       let tlid = gtlid () in

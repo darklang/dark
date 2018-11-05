@@ -305,6 +305,8 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "objectpair"] [viewKey vs [] k; colon; vExpr 0 v]
       in
       n (wc "object" :: mo :: config) ([open_] @ List.map pexpr pairs @ [close])
+  | Match (matchExpr, cases) ->
+    Html.text "idk how to use this library"
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
         Html.label [Html.class' "expr-label"] [Html.text msg_]
