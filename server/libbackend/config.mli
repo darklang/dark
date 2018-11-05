@@ -29,6 +29,7 @@ val env_display_name : string
 
 val static_host : string
 val user_content_host : string
+val show_stacktrace : bool
 
 val rollbar_enabled : bool
 val rollbar_environment : string

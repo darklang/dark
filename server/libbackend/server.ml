@@ -865,13 +865,17 @@ let server () =
                "Dark Internal Error: " ^ Exn.to_string e
           with _ -> "UNHANDLED ERROR: real_err"
         in
+        let real_err =
+          real_err ^ (Exception.get_backtrace ()
+                      |> Exception.backtrace_to_string)
+        in
         Log.erroR real_err ~bt ~params:["execution_id", Log.dump execution_id];
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
            respond ~execution_id `Bad_request e.short
         | _ ->
            let body =
-             if include_internals
+             if include_internals || Config.show_stacktrace
              then real_err
              else "Dark Internal Error"
            in
