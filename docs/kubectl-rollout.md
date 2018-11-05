@@ -6,9 +6,14 @@ Use `kubectl rollout history <deployment>` to get
 the history:
 
 ```
+dark@dark-dev:~/app$ kubectl rollout history deployment/bwd-deployment
+deployment.extensions/bwd-deployment 
 REVISION  CHANGE-CAUSE
-677       'circle=https://circleci.com/gh/darklang/dark/2242 ; orig-time: Mon Oct 29 23:36:47 UTC 2018'
-<more lines here>
+701       'circle=https://circleci.com/gh/darklang/dark/2276 ; orig-time: Wed Oct 31 23:01:15 UTC 2018'
+703       'circle=https://circleci.com/gh/darklang/dark/2279 ; orig-time: Thu Nov  1 18:33:05 UTC 2018'
+705       'circle=https://circleci.com/gh/darklang/dark/2280 ; orig-time: Thu Nov  1 21:03:19 UTC 2018'
+707       'circle=https://circleci.com/gh/darklang/dark/2290 ; orig-time: Fri Nov  2 18:07:32 UTC 2018'
+[etc]
 ```
 Note here that #2 and #3 are missing, because we rolled back to them (rev 6 is a
 rollback to 3, rev 7 is a rollback to 2).
