@@ -1251,8 +1251,8 @@ let update_ (msg : msg) (m : model) : modification =
     | CheckUrlHashPosition -> Url.maybeUpdateScrollUrl m )
   | Initialization -> NoChange
   | AddRandom -> NoChange
-  | PageVisibilityChange vis -> TweakModel (fun m_ -> {m_ with visibility= vis})
-  | PageFocusChange vis -> TweakModel (fun m_ -> {m_ with visibility= vis})
+  | PageVisibilityChange vis ->
+    TweakModel (fun m_ -> {m_ with visibility= vis})
   | CreateHandlerFrom404 {space; path; modifier} ->
       let center = findCenter m in
       let anId = gtlid () in
@@ -1307,15 +1307,24 @@ let subscriptions (m : model) : msg Sub.t =
       [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ -> []
   in
-  let syncTimer =
-    match m.visibility with
-    | Hidden -> []
-    | Visible ->
-      [Tea.Time.every Tea.Time.second (fun f -> TimerFire (RefreshAnalysis, f))]
-  in
-  let urlTimer = [Time.every Time.second (fun f -> TimerFire (CheckUrlHashPosition, f))]
-  in
-  let timers = if m.timersEnabled then syncTimer @ urlTimer else [] in
+  let timers =
+    if m.timersEnabled
+    then
+      (match m.visibility with
+      | Hidden -> []
+      | Visible ->
+        [ Patched_tea_time.every
+          ~key: "refresh_analysis"
+          Tea.Time.second
+          (fun f -> TimerFire (RefreshAnalysis, f))
+        ]
+      ) @ 
+      [ Patched_tea_time.every
+        ~key: "check_url_hash_position"
+        Time.second
+        (fun f -> TimerFire (CheckUrlHashPosition, f))
+      ]
+    else [] in
   let onError =
     [DisplayClientError.listen ~key:"display_client_error" (fun s -> JSError s)]
   in
