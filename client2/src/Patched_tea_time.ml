@@ -8,15 +8,17 @@ open Tea
 let every ~key interval tagger =
   let open Vdom in
   let enableCall callbacks =
-  let id =
-    (Web.Window.setInterval
-      (fun () -> 
-        Web.Date.now ()
-        |>tagger
-        |>callbacks.enqueue
+    let id =
+      (Web.Window.setInterval
+        (fun () ->
+          Web.Date.now ()
+          |> tagger
+          |> callbacks.enqueue
+        )
+        interval
       )
-      interval
-    ) in
-  fun () ->
-    Web.Window.clearTimeout id
-  in Tea_sub.registration key enableCall
+    in
+    fun () ->
+      Web.Window.clearTimeout id
+  in
+  Tea_sub.registration key enableCall
