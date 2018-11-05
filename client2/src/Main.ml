@@ -1313,13 +1313,13 @@ let subscriptions (m : model) : msg Sub.t =
       (match m.visibility with
       | Hidden -> []
       | Visible ->
-        [ Patched_tea_html.every
+        [ Patched_tea_time.every
           Tea.Time.second
           (fun f -> TimerFire (RefreshAnalysis, f))
           "refresh_analysis"
         ]
       ) @ 
-      [ Patched_tea_html.every
+      [ Patched_tea_time.every
         Time.second
         (fun f -> TimerFire (CheckUrlHashPosition, f))
         "check_url_hash_position"
