@@ -336,7 +336,7 @@ and function_ =
 
 (* autocomplete items *)
 and literal = string
-and keyword = KLet | KIf | KLambda
+and keyword = KLet | KIf | KLambda | KMatch
 and command =
   { commandName: string
   ; action: model -> toplevel -> pointerData -> modification
