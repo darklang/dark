@@ -15,13 +15,6 @@ REVISION  CHANGE-CAUSE
 707       'circle=https://circleci.com/gh/darklang/dark/2290 ; orig-time: Fri Nov  2 18:07:32 UTC 2018'
 [etc]
 ```
-Note here that #2 and #3 are missing, because we rolled back to them (rev 6 is a
-rollback to 3, rev 7 is a rollback to 2).
-
-`CHANGE-CAUSE` in the above example is `<none>`, but we're setting that value
-now in `scripts/gke-deploy` using `kubectl annotate`, to include both a
-timestamp (of the original deploy, rollbacks won't change the timestamp) and a
-link to the circleci build.
 
 ## undo
 `kubectl rollout undo <deployment> --to-revision=N`
