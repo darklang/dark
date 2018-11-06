@@ -277,6 +277,14 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+# To use PPXes in bucklescript, we need to install them from opam
+RUN opam switch create 4.02.3
+RUN eval $(opam env) \
+  && opam install -y \
+    ppx_deriving_yojson \
+    ppx_deriving
+RUN opam switch 4.07.0
+
 ############################
 # Finish
 ############################
