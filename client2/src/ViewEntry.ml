@@ -88,8 +88,10 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let autocomplete =
     Html.ul [Attrs.id "autocomplete-holder"] autocompleteList
   in
-  let _ = "comment" in
-  let _ = "comment" in
+
+
+  (* two overlapping input boxes, one to provide suggestions, one *)
+  (* to provide the search *)
   let _, suggestion, search =
     Autocomplete.compareSuggestionWithActual ac ac.value
   in
@@ -107,11 +109,12 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       ; Attrs.autocomplete false ]
       []
   in
-  let _ = "comment" in
-  let _ = "comment" in
-  let _ = "comment" in
+  (* TODO(ian): deliberately using an empty string here *)
+  (* and changing absolutely nothing else re: the layout/width *)
+  (* here because I have no idea what the effects will be *)
   let suggestionSpan = Html.span [Attrs.id "suggestionBox"] [Html.text ""] in
-  let _ = "comment" in
+
+  (* http://making.fiftythree.com/fluid-text-inputs/ *)
   let fluidWidthSpan =
     Html.span
       [Attrs.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
