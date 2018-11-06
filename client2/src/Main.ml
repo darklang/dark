@@ -11,7 +11,7 @@ module JSE = Json_encode_extended
 module JSD = Json_decode_extended
 module Key = Keyboard
 
-let init (flagString: string) (location : Web.Location.location) : model * msg Cmd.t =
+let init (flagString: string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
   in
@@ -1352,13 +1352,40 @@ let subscriptions (m : model) : msg Sub.t =
        ; analysisSubs
        ])
 
-let main =
-  Navigation.navigationProgram (fun x -> LocationChange x)
+let debugging =
+  let prog =
+    Tea.Debug.debug
+      show_msg
+      { init = (fun a -> init a (Navigation.getLocation ()))
+      ; view = View.view
+      ; update
+      ; subscriptions
+      ; shutdown = (fun _ -> Cmd.none)
+      }
+  in
+  let myInit = fun flag loc -> prog.init flag in
+  Navigation.navigationProgram
+    (fun x -> Tea.Debug.ClientMsg (LocationChange x))
+    { init = myInit
+    ; update = prog.update
+    ; view = prog.view
+    ; subscriptions = prog.subscriptions
+    ; shutdown = prog.shutdown
+    }
+
+let normal =
+  let program : (string, model, msg) Tea.Navigation.navigationProgram =
     { init
-    ; view= View.view
+    ; view = View.view
     ; update
     ; subscriptions
     ; shutdown = (fun _ -> Cmd.none)
     }
+  in
+  Navigation.navigationProgram
+    (fun x -> LocationChange x)
+    program
+
+let main = normal
 
 
