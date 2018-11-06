@@ -9,7 +9,7 @@ open Types
 let pass : testResult = Ok ()
 
 let fail ?(f : 'a -> string = toString) (v: 'a)  : testResult =
-  Error (f v)
+  Error (show_clean (f v))
 
 let onlyTL (m : model) : toplevel =
   let len = List.length m.toplevels in

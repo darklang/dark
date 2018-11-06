@@ -156,7 +156,7 @@ let processFocus (m : model) (focus : focus) : modification =
 let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods);
+    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods |> show_clean);
   let complete =
     List.foldl
       (fun mod_ complete_ -> AC.update m mod_ complete_)
@@ -168,21 +168,19 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     | SelectingCommand (_, _) -> AC.focusItem complete.index
     | _ -> Cmd.none
   in
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      let i = complete.index in
-      let val_ = AC.getValue complete in
-      Debug.log "autocompletemod result: "
-        (string_of_int complete.index ^ " => " ^ val_)
-    else ""
-  in
-  ({m with complete}, focus)
 
+  (if m.integrationTestState <> NoIntegrationTest then
+    let i = complete.index in
+    let val_ = AC.getValue complete in
+    Debug.loG "autocompletemod result: "
+      (string_of_int complete.index ^ " => '" ^ val_ ^ "'"));
+
+  ({m with complete}, focus)
 
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "mod update" (show_modification mod_);
+    Debug.loG "mod update" (show_modification mod_ |> show_clean);
 
   let closeBlanks newM =
     m.cursorState |> tlidOf
@@ -603,7 +601,7 @@ let findCenter (m : model) : pos =
 
 let update_ (msg : msg) (m : model) : modification =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "msg update" (show_msg msg);
+    Debug.loG "msg update" (show_msg msg |> show_clean);
   match msg with
   | GlobalKeyPress event -> (
       if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z then
