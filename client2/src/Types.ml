@@ -71,7 +71,9 @@ and field = fieldName blankOr
 and key = keyName blankOr
 and lambdaParameter = varName blankOr
 and sendToRail = Rail | NoRail
-and nPattern = PVariable
+and nPattern = PVariable of varName
+             | PLiteral of string
+             | PConstructor of string blankOr * pattern list
 and pattern = nPattern blankOr
 
 and expr = nExpr blankOr
