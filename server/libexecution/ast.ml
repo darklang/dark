@@ -70,6 +70,9 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
 
              | FeatureFlag (msg, cond, a, b) ->
                FeatureFlag (msg, f cond, f a, f b)
+
+             | Match (matchExpr, cases) ->
+               Match (f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
            ))
 
 (* Example usage of traverse. See also AST.elm *)
@@ -140,6 +143,10 @@ let rec sym_exec
 
         | Filled (_, ListLiteral exprs) ->
           List.iter ~f:(sexe st) exprs
+
+        | Filled (_, Match (matchExpr, cases)) ->
+          (* TODO(ian): implement binding *)
+          List.iter ~f:(sexe st) (matchExpr :: (List.map ~f:Tuple.T2.get2 cases))
 
         | Filled (_, ObjectLiteral exprs) ->
           exprs
@@ -430,6 +437,9 @@ let rec exec ~(engine: engine)
                 (* DErrorRail is handled by inject_param_and_execute *)
                 | _ -> result)
         | [] -> DIncomplete)
+
+     | Filled (id, Match (matchExpr, cases)) ->
+       DIncomplete (* TODO(ian) fix *)
 
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
