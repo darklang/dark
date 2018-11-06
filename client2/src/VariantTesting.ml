@@ -8,20 +8,29 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
 
 let toString (vt : variantTest) : string =
   match vt with
-  StubVariant -> "StubVariant"
+  SelectEnterVariant -> "SelectEnterVariant"
+  | StubVariant -> "StubVariant"
 
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false -> None
-  | test, _ -> ( match String.toLower test with _ -> None )
+  | test, _ -> (
+      match String.toLower test with
+        "selectenter" -> Some SelectEnterVariant
+      | _ -> None )
 
 let toCSSClass (vt : variantTest) : string =
-  let test = match vt with StubVariant -> "stub" in
+  let test = match vt with
+      StubVariant -> "stub"
+    | SelectEnterVariant -> "selectenter"
+  in
   let _ = "comment" in
   test ^ "-variant"
 
 let uniqueTests (xs : variantTest list) : variantTest list =
-  xs |> List.uniqueBy (fun x -> match x with StubVariant -> "SV")
+  xs |> List.uniqueBy (fun x -> match x with
+      | SelectEnterVariant -> "SEV"
+      | StubVariant -> "SV")
 
 let splitOnEquals (s : string) : (string * bool) option =
   if String.contains "=" s then

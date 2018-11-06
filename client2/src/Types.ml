@@ -528,7 +528,7 @@ and stringEntryPermission = StringEntryAllowed | StringEntryNotAllowed
 
 and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
 
-and variantTest = StubVariant
+and variantTest = StubVariant | SelectEnterVariant
 
 and class_ = string
 
