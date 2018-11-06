@@ -919,15 +919,16 @@ let update_ (msg : msg) (m : model) : modification =
                       else if hasContent then Entry.submit m cursor Entry.GotoNext
                       else Selection.enterNextBlank m tlid (Some p)
                 | Creating _ -> NoChange )
-              | Key.Unknown c ->
-                  if
-                    event.key = Some "." && isFieldAccessDot m m.complete.value
+              | Key.Unknown _ ->
+                  if event.key = Some "."
+                     && isFieldAccessDot m m.complete.value
                   then
-                    let c_ = m.complete in
-                    let _ = "comment" in
-                    let _ = "comment" in
+                    let c = m.complete in
+                    (* big hack to for Entry.submit to see field access *)
                     let newC =
-                      {c_ with value= AC.getValue c_ ^ "."; index= -1}
+                      { c with value = AC.getValue c ^ "."
+                             ; index= -1
+                      }
                     in
                     let newM = {m with complete= newC} in
                     Entry.submit newM cursor Entry.GotoNext
