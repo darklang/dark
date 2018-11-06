@@ -92,6 +92,7 @@ type key =
   | Unknown of int
 
 and side = LeftHand | RightHand
+[@@deriving show]
 
 let fromCode (keyCode : int) : key =
   match keyCode with
@@ -294,6 +295,7 @@ type keyEvent =
   ; targetSelectionStart : int option
   ; targetSelectionEnd : int option
   }
+[@@deriving show]
 
 let keyEvent j =
   let open Json_decode_extended in
