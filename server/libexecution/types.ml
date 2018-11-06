@@ -78,11 +78,11 @@ module RuntimeT = struct
   type key = keyname or_blank
   [@@deriving eq, compare, yojson, show, bin_io]
 
-  type npattern = PVariable
-  [@@deriving eq, compare, yojson, show, bin_io]
+  type npattern = PVariable of varname
+                | PLiteral of string
+                | PConstructor of string or_blank * pattern list
 
-
-  type pattern = npattern or_blank
+  and pattern = npattern or_blank
   [@@deriving eq, compare, yojson, show, bin_io]
 
   type nexpr = If of expr * expr * expr
