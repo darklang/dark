@@ -1,6 +1,9 @@
 let show_list (f: 'a -> string) (x: 'a list) : string =
   "[" ^ String.concat "," (List.map f x) ^ "]"
 
+let show_clean s =
+  Porting.Regex.replace "Types\\." "" s
+
 let opaque msg fmt _ =
   Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">");
   ()
@@ -464,7 +467,7 @@ and msg =
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
   | EntrySubmitMsg
-  | GlobalKeyPress of Keyboard.keyEvent [@printer opaque "GlobalKeyPress"]
+  | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
   | FocusEntry of (unit, Dom.errorEvent) Tea.Result.t [@printer opaque "FocusEntry"]
   | FocusAutocompleteItem of (unit, Dom.errorEvent) Tea.Result.t [@printer opaque "FocusAutocompleteItem"]
