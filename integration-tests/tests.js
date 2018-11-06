@@ -25,7 +25,7 @@ fixture `Integration Tests`
     const signal = Selector('#integrationTestSignal');
     await t
       .click("#finishIntegrationTest")
-      .expect(signal.exists).ok("Error checking end state (maybe crash in Elm?)")
+      .expect(signal.exists).ok("Error checking end state (maybe crash in Bucklescript?)")
       ;
 
     const { log, error } = await t.getBrowserConsoleMessages();
