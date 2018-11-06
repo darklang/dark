@@ -182,6 +182,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   if m.integrationTestState <> NoIntegrationTest then
     Debug.loG "mod update" (show_modification mod_ |> show_clean);
 
+  (match (VariantTesting.variantIsActive m SelectEnterVariant), mod_ with
+     true, (Types.Select (tlid, Some id)) ->
+       updateMod (Types.Enter (Filling (tlid, id))) (m, cmd)
+   | _ ->
+
   let closeBlanks newM =
     m.cursorState |> tlidOf
     |> Option.andThen (TL.get m)
@@ -572,7 +577,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | AutocompleteMod mod_ -> processAutocompleteMods m [mod_]
     | Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
-  (newm, Cmd.batch [cmd; newcmd])
+  (newm, Cmd.batch [cmd; newcmd]))
 
 let isFieldAccessDot (m : model) (baseStr : string) : bool =
   let str = Regex.replace "\\.*$" "" baseStr in
