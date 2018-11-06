@@ -80,7 +80,7 @@ let viewButtons (m : model) : msg Html.html =
                                                     m.tests))^ "]")]
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
-          [Html.text m.environment] ]
+          [Html.text (m.environment ^ "/" ^ "Bucklescript")] ]
     @ integrationTestButton @ returnButton @ [status] )
 
 let viewError (err : darkError) : msg Html.html =
