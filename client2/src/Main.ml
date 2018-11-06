@@ -927,7 +927,7 @@ let update_ (msg : msg) (m : model) : modification =
                     (* big hack to for Entry.submit to see field access *)
                     let newC =
                       { c with value = AC.getValue c ^ "."
-                             ; index= -1
+                             ; index = -1
                       }
                     in
                     let newM = {m with complete= newC} in
@@ -998,12 +998,44 @@ let update_ (msg : msg) (m : model) : modification =
           | Key.Right -> AC.selectSharedPrefix m.complete
           | _ -> NoChange )
         | Dragging (_, _, _, _) -> NoChange )
+
+  (* ------------------------ *)
+  (* entry node *)
+  (* ------------------------ *)
   | EntryInputMsg target ->
-      let query = if target = "\"" then "\"\"" else target in
-      if String.endsWith "." query && isFieldAccessDot m query then NoChange
-      else
-        Many [AutocompleteMod (ACSetQuery query); MakeCmd (Entry.focusEntry m)]
-  | EntrySubmitMsg -> NoChange
+    (* There are functions to convert strings to and from quoted strings,
+     * but they don't get to run until later, so hack around the problem
+     * here. *)
+    let query =
+      if target = "\""
+      then "\"\""
+      else target
+    in
+    (* After seeing a '.' in GlobalKeyPress, TEA will continue to see '.' at
+     * the start of its EntryInputMsg msgs, so ignore them if we're in a
+     * field. *)
+    if isFieldAccessDot m target
+    && String.startsWith "." query
+    then
+      Many [ AutocompleteMod (ACSetQuery (String.dropLeft 1 query))
+           ; MakeCmd (Entry.focusEntry m)]
+    else
+      Many [ AutocompleteMod (ACSetQuery query)
+           ; MakeCmd (Entry.focusEntry m)]
+
+  | EntrySubmitMsg ->
+    NoChange (* just keep this here to prevent the page from loading *)
+
+  (* ------------------------ *)
+  (* mouse *)
+  (* ------------------------ *)
+
+  (* The interaction between the different mouse states is a little *)
+  (* tricky. We use stopPropagating a lot of ensure the interactions *)
+  (* work, but also combine multiple interactions into single *)
+  (* handlers to make it easier to choose between the desired *)
+  (* interactions (esp ToplevelMouseUp) *)
+
   | AutocompleteClick value -> (
     match unwrapCursorState m.cursorState with
     | Entering cursor ->
@@ -1386,6 +1418,6 @@ let normal =
     (fun x -> LocationChange x)
     program
 
-let main = normal
+let main = debugging
 
 
