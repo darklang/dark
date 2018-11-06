@@ -78,6 +78,13 @@ module RuntimeT = struct
   type key = keyname or_blank
   [@@deriving eq, compare, yojson, show, bin_io]
 
+  type npattern = PVariable
+  [@@deriving eq, compare, yojson, show, bin_io]
+
+
+  type pattern = npattern or_blank
+  [@@deriving eq, compare, yojson, show, bin_io]
+
   type nexpr = If of expr * expr * expr
              | Thread of expr list
              | FnCall of fnname * expr list
@@ -93,6 +100,7 @@ module RuntimeT = struct
               * migration because we don't know how this is going to work
               * in the end. *)
              | FnCallSendToRail of fnname * expr list
+             | Match of expr * (pattern * expr) list
   [@@deriving eq, compare, yojson, show, bin_io]
 and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
