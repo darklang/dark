@@ -11,7 +11,7 @@ module JSE = Json_encode_extended
 module JSD = Json_decode_extended
 module Key = Keyboard
 
-let init (flagString: string) (location : Web.Location.location) : model * msg Cmd.t =
+let init (flagString: string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
   in
@@ -156,7 +156,7 @@ let processFocus (m : model) (focus : focus) : modification =
 let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods);
+    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods |> show_clean);
   let complete =
     List.foldl
       (fun mod_ complete_ -> AC.update m mod_ complete_)
@@ -168,21 +168,19 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     | SelectingCommand (_, _) -> AC.focusItem complete.index
     | _ -> Cmd.none
   in
-  let _ =
-    if m.integrationTestState <> NoIntegrationTest then
-      let i = complete.index in
-      let val_ = AC.getValue complete in
-      Debug.log "autocompletemod result: "
-        (string_of_int complete.index ^ " => " ^ val_)
-    else ""
-  in
-  ({m with complete}, focus)
 
+  (if m.integrationTestState <> NoIntegrationTest then
+    let i = complete.index in
+    let val_ = AC.getValue complete in
+    Debug.loG "autocompletemod result: "
+      (string_of_int complete.index ^ " => '" ^ val_ ^ "'"));
+
+  ({m with complete}, focus)
 
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "mod update" (show_modification mod_);
+    Debug.loG "mod update" (show_modification mod_ |> show_clean);
 
   let closeBlanks newM =
     m.cursorState |> tlidOf
@@ -603,7 +601,7 @@ let findCenter (m : model) : pos =
 
 let update_ (msg : msg) (m : model) : modification =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "msg update" (show_msg msg);
+    Debug.loG "msg update" (show_msg msg |> show_clean);
   match msg with
   | GlobalKeyPress event -> (
       if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z then
@@ -921,15 +919,16 @@ let update_ (msg : msg) (m : model) : modification =
                       else if hasContent then Entry.submit m cursor Entry.GotoNext
                       else Selection.enterNextBlank m tlid (Some p)
                 | Creating _ -> NoChange )
-              | Key.Unknown c ->
-                  if
-                    event.key = Some "." && isFieldAccessDot m m.complete.value
+              | Key.Unknown _ ->
+                  if event.key = Some "."
+                     && isFieldAccessDot m m.complete.value
                   then
-                    let c_ = m.complete in
-                    let _ = "comment" in
-                    let _ = "comment" in
+                    let c = m.complete in
+                    (* big hack to for Entry.submit to see field access *)
                     let newC =
-                      {c_ with value= AC.getValue c_ ^ "."; index= -1}
+                      { c with value = AC.getValue c ^ "."
+                             ; index= -1
+                      }
                     in
                     let newM = {m with complete= newC} in
                     Entry.submit newM cursor Entry.GotoNext
@@ -1353,13 +1352,40 @@ let subscriptions (m : model) : msg Sub.t =
        ; analysisSubs
        ])
 
-let main =
-  Navigation.navigationProgram (fun x -> LocationChange x)
+let debugging =
+  let prog =
+    Tea.Debug.debug
+      show_msg
+      { init = (fun a -> init a (Navigation.getLocation ()))
+      ; view = View.view
+      ; update
+      ; subscriptions
+      ; shutdown = (fun _ -> Cmd.none)
+      }
+  in
+  let myInit = fun flag loc -> prog.init flag in
+  Navigation.navigationProgram
+    (fun x -> Tea.Debug.ClientMsg (LocationChange x))
+    { init = myInit
+    ; update = prog.update
+    ; view = prog.view
+    ; subscriptions = prog.subscriptions
+    ; shutdown = prog.shutdown
+    }
+
+let normal =
+  let program : (string, model, msg) Tea.Navigation.navigationProgram =
     { init
-    ; view= View.view
+    ; view = View.view
     ; update
     ; subscriptions
     ; shutdown = (fun _ -> Cmd.none)
     }
+  in
+  Navigation.navigationProgram
+    (fun x -> LocationChange x)
+    program
+
+let main = normal
 
 
