@@ -15,6 +15,9 @@
     "module": "commonjs",
     "in-source": false
   },
+  "ppx-flags": [
+    "./run-ppxes"
+  ],
   "suffix": ".bs.js",
   "bs-dependencies": [
     "bucklescript-tea",

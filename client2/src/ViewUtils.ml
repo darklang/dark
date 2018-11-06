@@ -87,9 +87,9 @@ let fontAwesome (name : string) : msg Html.html =
 let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
   let module JSD = Json_decode_extended in
   fn
-    { pos = { vx = JSD.field "pageX" JSD.int j
-            ; vy = JSD.field "pageY" JSD.int j
-            }
+    { mePos = { vx = JSD.field "pageX" JSD.int j
+              ; vy = JSD.field "pageY" JSD.int j
+              }
     ; button = (JSD.field "button" JSD.int j)
     }
 
