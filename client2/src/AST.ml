@@ -58,9 +58,14 @@ let rec allData (expr : expr) : pointerData list =
         pairs |> List.map (fun (k, v) -> PKey k :: allData v) |> List.concat
     | FeatureFlag (msg, cond, a, b) -> [PFFMsg msg] @ rl [cond; a; b]
     | Match (matchExpr, cases) ->
-        (* TODO(ian): patterns *)
-        (allData matchExpr)
-        @ (cases |> List.map Tuple.second |> rl))
+        let matchData = allData matchExpr in
+        let caseData =
+          cases
+            |> List.map (fun (p, e) -> ( Pattern.allData p) @ rl [e])
+            |> List.concat
+        in
+        matchData @ caseData
+  )
 
 
 let find (id : id) (expr : expr) : pointerData option =
