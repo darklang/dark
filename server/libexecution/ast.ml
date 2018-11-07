@@ -101,6 +101,16 @@ let rec sym_exec
     (expr: expr)
   : unit =
   let sexe = sym_exec ~trace state in
+  let rec variables_in_pattern p =
+    match p with
+    | Blank _ -> []
+    | Filled (_, PLiteral _) -> []
+    | Filled (_, PVariable v) -> [v]
+    | Filled (_, PConstructor (_, inner)) ->
+        inner
+        |> List.map ~f:variables_in_pattern
+        |> List.concat
+  in
   try
     ignore
       ((match expr with
@@ -145,8 +155,16 @@ let rec sym_exec
           List.iter ~f:(sexe st) exprs
 
         | Filled (_, Match (matchExpr, cases)) ->
-          (* TODO(ian): implement binding *)
-          List.iter ~f:(sexe st) (matchExpr :: (List.map ~f:Tuple.T2.get2 cases))
+          sexe st matchExpr;
+          List.iter cases ~f:(fun (p, caseExpr) ->
+            let new_st =
+              p
+              |> variables_in_pattern
+              |> SymSet.of_list
+              |> SymSet.union st
+            in
+            sexe new_st caseExpr
+          );
 
         | Filled (_, ObjectLiteral exprs) ->
           exprs
