@@ -203,6 +203,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PFnName _ -> None
   | PParamName _ -> None
   | PParamTipe _ -> v "[A-Z][a-z]*" "param type"
+  | PPattern _ -> None
 
 let submit (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
@@ -405,6 +406,8 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               :: changedNames )
               newPD
         | PParamName _ -> replace (PParamName (B.newF value))
-        | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value))) )
+        | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value)))
+        | PPattern _ -> replace (PPattern (B.newF (PLiteral value))) (* TODO: why not actually implement this? *)
+        )
 
 

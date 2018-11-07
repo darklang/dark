@@ -105,6 +105,7 @@ and pointerData =
   | PFnName of string blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
+  | PPattern of pattern
 
 and pointerType =
   | VarBind
@@ -120,6 +121,7 @@ and pointerType =
   | FnName
   | ParamName
   | ParamTipe
+  | Pattern
 
 and pointerOwner = POSpecHeader | POAst | PODb
 

@@ -41,6 +41,14 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
 
+let viewNPattern (vs : viewState) (c : htmlConfig list) (np : nPattern) :
+    msg Html.html =
+  Html.text "nx"
+
+let viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
+  let configs = idConfigs @ c in
+  ViewBlankOr.viewBlankOr viewNPattern Pattern vs configs p
+
 let viewRopArrow (vs : viewState) : msg Html.html =
   let line =
     Svg.path
@@ -307,7 +315,6 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       n (wc "object" :: mo :: config) ([open_] @ List.map pexpr pairs @ [close])
   | Match (matchExpr, cases) ->
       let separator = a [wc "separator"] "->" in
-      let viewPattern vs configs p = Html.text "x" in
       let vCase (k, v) =
         n [wc "matchcase"] [viewPattern vs [] k; separator; vExpr 0 v]
       in

@@ -104,6 +104,7 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PFnName name_ -> PFnName (B.clone identity name_)
   | PParamName name_ -> PParamName (B.clone identity name_)
   | PParamTipe tipe -> PParamTipe (B.clone identity tipe)
+  | PPattern pattern -> PPattern (B.clone identity pattern) (* TODO: for real though, AST.clone_pattern *)
 
 let allBlanks (tl : toplevel) : pointerData list =
   tl |> allData |> List.filter P.isBlank
@@ -186,6 +187,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   | PFnName _ -> []
   | PParamName _ -> []
   | PParamTipe _ -> []
+  | PPattern _ -> [] (* TODO *)
 
 let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
   getChildrenOf tl id |> List.head
@@ -244,6 +246,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   | PFnName _ -> fnMetadataReplace ()
   | PParamName _ -> fnMetadataReplace ()
   | PParamTipe _ -> fnMetadataReplace ()
+  | PPattern _ -> astReplace ()
 
 let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in

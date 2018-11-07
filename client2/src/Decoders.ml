@@ -40,7 +40,9 @@ let rec pointerData j : pointerData =
     ; ("PFFMsg", dv1 (fun x -> PFFMsg x) (blankOr string))
     ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
-    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe)) ]
+    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
+    ; ("PPattern", dv1 (fun x -> PPattern x) pattern)
+    ]
     j
 
 and serializableEditor (j: Js.Json.t) : serializableEditor =
