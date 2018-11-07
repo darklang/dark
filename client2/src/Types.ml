@@ -73,7 +73,7 @@ and lambdaParameter = varName blankOr
 and sendToRail = Rail | NoRail
 and nPattern = PVariable of varName
              | PLiteral of string
-             | PConstructor of string blankOr * pattern list
+             | PConstructor of string * pattern list
 and pattern = nPattern blankOr
 
 and expr = nExpr blankOr

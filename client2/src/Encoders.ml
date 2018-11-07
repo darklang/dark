@@ -331,7 +331,7 @@ and nPattern (npat : Types.nPattern) : Js.Json.t =
   match npat with
   | PVariable a -> ev "PVariable" [string a]
   | PLiteral a -> ev "PLiteral" [string a]
-  | PConstructor (a, b) -> ev "PConstructor" [(blankOr string a); (list pattern b)]
+  | PConstructor (a, b) -> ev "PConstructor" [(string a); (list pattern b)]
 
 and cursorState (cs : Types.cursorState) : Js.Json.t =
   let ev = variant in
