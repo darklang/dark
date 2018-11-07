@@ -118,6 +118,7 @@ let isLiteral (dv : dval) : bool =
   | DNull -> true
   | DChar _ -> true
   | DStr _ -> true
+  | DOption OptNothing -> true
   | _ -> false
 
 let isComplete (dv : dval) : bool =
