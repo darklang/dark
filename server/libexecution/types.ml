@@ -80,7 +80,7 @@ module RuntimeT = struct
 
   type npattern = PVariable of varname
                 | PLiteral of string
-                | PConstructor of string or_blank * pattern list
+                | PConstructor of string * pattern list
 
   and pattern = npattern or_blank
   [@@deriving eq, compare, yojson, show, bin_io]

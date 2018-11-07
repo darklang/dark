@@ -114,7 +114,7 @@ and nPattern j : nPattern =
   variants
   [ ("PVariable", variant1 (fun a -> PVariable a) (string))
   ; ("PLiteral", variant1 (fun a -> PLiteral a) (string))
-  ; ("PConstructor", variant2 (fun a b -> PConstructor (a,b)) (blankOr string) (list pattern))
+  ; ("PConstructor", variant2 (fun a b -> PConstructor (a,b)) string (list pattern))
   ]
   j
 
