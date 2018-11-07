@@ -1423,6 +1423,6 @@ let normal =
     (fun x -> LocationChange x)
     program
 
-let main = debugging
+let main = normal
 
 
