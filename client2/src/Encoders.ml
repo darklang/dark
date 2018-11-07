@@ -88,6 +88,7 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
   | PFnName msg -> ev "PFnName" [blankOr string msg]
   | PParamName msg -> ev "PParamName" [blankOr string msg]
   | PParamTipe msg -> ev "PParamTipe" [blankOr tipe msg]
+  | PPattern p -> ev "PPattern" [pattern p]
 
 and tlidOf (op : Types.op) : Types.tlid =
   match op with
