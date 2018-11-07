@@ -140,6 +140,7 @@ isLiteral dv =
     DNull -> True
     DChar _ -> True
     DStr _ -> True
+    DOption OptNothing -> True
     _ -> False
 
 isComplete : Dval -> Bool
