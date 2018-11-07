@@ -101,8 +101,8 @@ module RuntimeT = struct
               * in the end. *)
              | FnCallSendToRail of fnname * expr list
              | Match of expr * (pattern * expr) list
+  and expr = nexpr or_blank
   [@@deriving eq, compare, yojson, show, bin_io]
-and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module DbT = struct
