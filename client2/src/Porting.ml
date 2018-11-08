@@ -284,6 +284,10 @@ module Option = struct
     match o with
     | None -> None
     | Some x -> fn x
+  let or_ (ma : 'a option) (mb: 'a option) : ('a option) =
+    match ma with
+    | None -> mb
+    | Some _ -> ma
   let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
     match mb with
     | None -> ma
