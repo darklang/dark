@@ -364,6 +364,8 @@ module String = struct
     String.lowercase s
   let toUpper (s: string) : string =
     String.uppercase s
+  let isCapitalized (s: string) : bool = 
+    s = String.capitalize s
   let contains (needle: string) (haystack: string) : bool =
     Js.String.includes needle haystack
   let repeat (count: int) (s: string) : string =

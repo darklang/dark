@@ -240,12 +240,18 @@ let children (expr : expr) : pointerData list =
     | FeatureFlag (msg, cond, a, b) ->
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
     | Match (matchExpr, cases) ->
-        let casePointers =
-          cases
-          |> List.map (fun (k, v) -> [PPattern k; PExpr v])
-          |> List.concat
-        in
-        (PExpr matchExpr) :: casePointers)
+      (* We list all the descendents of the pattern here. This isn't ideal,
+       * but it's challenging with the current setup to do otherwise, because
+       * all of these things take exprs *)
+      let casePointers =
+        cases
+        |> List.map
+          (fun (p, e) ->
+             let ps = Pattern.allData p in
+             ps @ [PExpr e])
+        |> List.concat
+      in
+      (PExpr matchExpr) :: casePointers)
 
 let rec childrenOf (pid : id) (expr : expr) : pointerData list =
   let co = childrenOf pid in
@@ -504,12 +510,11 @@ let maybeExtendPatternAt (pd : pointerData) (ast : expr) : expr =
   let id = P.toID pd in
   match pd with
   | PPattern pat -> (
-    match parentOf id ast |> Debug.log "parent" ~f:show_expr with
+    match parentOf id ast with
     | F (olid, Match (_, pairs)) ->
         if pairs
            |> List.last
            |> Option.map Tuple.first
-           |> Debug.log "first"
            |> (=) (Some pat)
         then
           let _, _, replacement = addPatternBlanks id ast in
