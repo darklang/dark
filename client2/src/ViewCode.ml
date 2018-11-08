@@ -41,12 +41,12 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
 
-let viewNPattern (vs : viewState) (c : htmlConfig list) (np : nPattern) :
+let viewNPattern (vs : viewState) (config : htmlConfig list) (np : nPattern) :
     msg Html.html =
   match np with
-  | PLiteral l -> Html.text l
-  | PVariable v -> Html.text v
-  | PConstructor _ -> Html.text "no constructor"
+  | PLiteral l -> text vs config l
+  | PVariable v -> text vs config v
+  | PConstructor _ -> text vs config "no constructor"
 
 let viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
   let configs = idConfigs @ c in
