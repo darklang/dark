@@ -43,7 +43,10 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
 
 let viewNPattern (vs : viewState) (c : htmlConfig list) (np : nPattern) :
     msg Html.html =
-  Html.text "nx"
+  match np with
+  | PLiteral l -> Html.text l
+  | PVariable v -> Html.text v
+  | PConstructor _ -> Html.text "no constructor"
 
 let viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
   let configs = idConfigs @ c in

@@ -207,6 +207,12 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
                (newK, r v) )
         |> (fun x -> ObjectLiteral x)
         |> fun e -> F (id, e)
+    | F (id, Match (matchExpr, cases)), PPattern replacement_ ->
+        let newCases =
+          cases
+            |> List.map (fun (p, e) -> Pattern.replace search replacement p, r e)
+        in
+        F (id, Match (r matchExpr, newCases))
     | _ -> traverse r expr
 
 let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
