@@ -188,7 +188,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
    | _ ->
 
   let closeBlanks newM =
-    m.cursorState |> tlidOf
+    m.cursorState
+    |> tlidOf
     |> Option.andThen (TL.get m)
     |> Option.map (fun tl ->
            match tl.data with
