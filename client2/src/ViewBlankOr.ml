@@ -110,11 +110,27 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   let events =
     match clickAs with
     | Some id ->
-        [ ViewUtils.eventNoPropagation "click" ~key:("bcc-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrClick (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "dblclick" ~key:("bcdc-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "mouseenter" ~key:("me-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "mouseleave" ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
-    | _ -> []
+        [ ViewUtils.eventNoPropagation
+            "click"
+            ~key:("bcc-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation
+            "dblclick"
+            ~key:("bcdc-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation
+            "mouseenter"
+            ~key:("me-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation
+            "mouseleave"
+            ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrMouseLeave (vs.tl.id, id, x))
+        ]
+    | _ ->
+      (* Rather than relying on property lengths changing, we should use noProp to indicate
+       * that the property at idx N has changed. *)
+      [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let liveValueAttr =
     Vdom.attribute "" "data-live-value" (renderLiveValue vs thisID)
