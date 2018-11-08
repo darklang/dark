@@ -210,7 +210,8 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
     | F (id, Match (matchExpr, cases)), PPattern replacement_ ->
         let newCases =
           cases
-            |> List.map (fun (p, e) -> Pattern.replace search replacement p, r e)
+            |> List.map (fun (p, e) ->
+              (Pattern.replace search replacement p, r e))
         in
         F (id, Match (r matchExpr, newCases))
     | _ -> traverse r expr
@@ -240,8 +241,9 @@ let children (expr : expr) : pointerData list =
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
     | Match (matchExpr, cases) ->
         let casePointers =
-          (* TODO(ian): add pattern pointers *)
-          cases |> List.map (fun (k, v) -> [PExpr v]) |> List.concat
+          cases
+          |> List.map (fun (k, v) -> [PPattern k; PExpr v])
+          |> List.concat
         in
         (PExpr matchExpr) :: casePointers)
 
@@ -462,6 +464,38 @@ let maybeExtendListLiteralAt (pd : pointerData) (expr : expr) : expr =
         replacement
       else expr
   | _ -> expr
+
+let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
+  match findExn id expr with
+  | PPattern pat -> (
+    match parentOf id expr with
+    | F (olid, Match (cond, pairs)) as old ->
+        let newPat = B.new_ () in
+        let newExpr = B.new_ () in
+        let newPairs = pairs @ [(newPat, newExpr)] in
+        let new_ = F (olid, Match (cond, newPairs)) in
+        let replacement = replace (PExpr old) (PExpr new_) expr in
+        (B.toID newPat, B.toID newExpr, replacement)
+    | _ -> impossible ("pattern parent must be match", id, expr) )
+  | _ -> impossible ("must add to pattern", id, expr)
+
+let maybeExtendPatternAt (pd : pointerData) (ast : expr) : expr =
+  let id = P.toID pd in
+  match pd with
+  | PPattern pat -> (
+    match parentOf id ast |> Debug.log "parent" ~f:show_expr with
+    | F (olid, Match (_, pairs)) ->
+        if pairs
+           |> List.last
+           |> Option.map Tuple.first
+           |> Debug.log "first"
+           |> (=) (Some pat)
+        then
+          let _, _, replacement = addPatternBlanks id ast in
+          replacement
+        else ast
+    | _ -> ast )
+  | _ -> ast
 
 let rec wrapInThread (id : id) (expr : expr) : expr =
   if B.toID expr = id then
