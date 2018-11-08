@@ -457,30 +457,20 @@ let rec exec ~(engine: engine)
         | [] -> DIncomplete)
 
      | Filled (id, Match (matchExpr, cases)) ->
+
        let matchVal = exe st matchExpr in
-       let matches dv case =
-         (match case with
-         | Blank _, _ -> None
-         | Filled (_, PLiteral l), _ -> None
-         | Filled (_, PVariable v), _ -> None
-         | Filled (_, PConstructor ("Just", [_])), _ -> None
-         | Filled (_, PConstructor ("Nothing", [])), _ -> None
-         | _ -> None)
+       let matches (pat, e) =
+         (match pat with
+         | Filled (_, PLiteral l) when Dval.parse_literal l = Some matchVal ->
+           true
+         | Filled (_, PVariable v) -> true
+         | _ -> false)
        in
-       let matched = List.filter_map ~f:(matches matchVal) cases in
+       let matched = List.filter ~f:matches cases in
        (match matched with
        | [] -> DIncomplete
-       | (p, e) :: _ ->
-           let newSt =
-             match variables_in_pattern p with
-             | [v] -> DvalMap.set ~key:v ~data:matchVal st
-             | [] -> st
-             | _ -> Exception.internal "TODO: match supports more than one variable"
-           in
-           exe newSt e)
+       | (p, e) :: _ -> exe st e)
 
-       (* pattern & expression are both blank*)
-       (* matched constructor contains a blank *)
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
        let result =
