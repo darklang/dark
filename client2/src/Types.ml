@@ -590,7 +590,7 @@ and model =
   ; userContentHost: string
   ; environment: string
   ; csrfToken: string}
-[@@deriving show]
+[@@deriving show {with_path=false}]
 
 and rpcContext = { canvasName : string; csrfToken : string }
 
