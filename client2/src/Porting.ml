@@ -208,6 +208,9 @@ module List = struct
 
   let splitAt (n : int) (xs : 'a list) : 'a list * 'a list =
     (take n xs, drop n xs)
+  let insertAt (n: int) (xs : 'a list) (newVal: 'a) : 'a list =
+    take n xs @ (newVal :: drop n xs)
+
   let splitWhen (predicate : 'a -> bool) (list : 'a list) :
     ('a list * 'a list) option =
     findIndex predicate list |. Belt.Option.map (fun i -> splitAt i list)

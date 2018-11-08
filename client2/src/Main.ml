@@ -675,6 +675,15 @@ let update_ (msg : msg) (m : model) : modification =
                             ( [ SetHandler
                                   (tl.id, tl.pos, {h with ast= replacement}) ]
                             , FocusExact (tlid, nextid) )
+                      | PPattern _ ->
+                          let nextid, _, replacement =
+                            AST.addPatternBlanks id h.ast
+                          in
+                          RPC
+                            ( [ SetHandler
+                                  (tl.id, tl.pos, {h with ast= replacement}) ]
+                            , FocusExact (tlid, nextid) )
+
                       | _ -> NoChange )
                     | None -> NoChange )
                   | TLFunc f -> (

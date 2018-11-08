@@ -490,7 +490,10 @@ let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
     | F (olid, Match (cond, pairs)) as old ->
         let newPat = B.new_ () in
         let newExpr = B.new_ () in
-        let newPairs = pairs @ [(newPat, newExpr)] in
+        let pos = List.findIndex (fun (p2, _) -> B.toID p2 = id) pairs
+                  |> Option.withDefault 0
+        in
+        let newPairs = List.insertAt (pos+1) pairs (newPat, newExpr) in
         let new_ = F (olid, Match (cond, newPairs)) in
         let replacement = replace (PExpr old) (PExpr new_) expr in
         (B.toID newPat, B.toID newExpr, replacement)
