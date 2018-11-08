@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+docker volume rm \
+  dark_server_build \
+  dark_node_modules \
+  dark_client2_node_modules \
+  dark_client2_lib
