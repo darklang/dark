@@ -145,7 +145,13 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)
   in
   let attrs = liveValueAttr :: classAttr :: events in
-  Html.div attrs (content @ [rightSideHtml])
+  Html.div
+    (* if the id of the blank_or changes, this whole node should be redrawn
+     * without any further diffing. there's no good reason for the Vdom/Dom node
+     * to be re-used for a different blank_or *)
+    ~unique:(thisID |> Option.map showID |> Option.withDefault "")
+    attrs
+    (content @ [rightSideHtml])
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) : msg Html.html
