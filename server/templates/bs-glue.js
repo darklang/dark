@@ -187,7 +187,12 @@ setTimeout(function(){
       environment: environmentName,
       csrfToken: csrfToken
     });
-  app = buckle.main(document.body, params);
+  var urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('debug')) {
+    app = buckle.debugging(document.body, params);
+  } else {
+    app = buckle.normal(document.body, params);
+  }
 
   window.onresize = function(evt){
     const size = {
