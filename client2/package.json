@@ -7,7 +7,8 @@
     "build:js": "browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js",
     "build": "npm run build:bsb && npm run build:js",
     "watch:bsb": "bsb -make-world -w",
-    "watch": "npm run watch:bsb && npm run build:js"
+    "watch": "npm run watch:bsb && npm run build:js",
+    "test": "jest"
   },
   "keywords": [
     "BuckleScript"
