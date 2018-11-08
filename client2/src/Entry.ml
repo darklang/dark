@@ -408,7 +408,11 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         | PParamName _ -> replace (PParamName (B.newF value))
         | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value)))
         | PPattern _ ->
-          let new_ = (PPattern (B.newF (PVariable value))) in
+          let new_ =
+            if Decoders.isLiteralString value
+            then (PPattern (B.newF (PLiteral value)))
+            else (PPattern (B.newF (PVariable value)))
+          in
           let ast =
             match tl.data with
             | TLHandler h -> h.ast
