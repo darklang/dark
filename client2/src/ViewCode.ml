@@ -115,7 +115,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
   match e with
   | Value v ->
       let cssClass =
-        v |> Decoders.typeOfLiteralString |> toString |> String.toLower
+        v |> Decoders.typeOfLiteralString |> show_tipe |> String.toLower
       in
       let value =
         if Decoders.typeOfLiteralString v = TStr then Util.transformToStringEntry v

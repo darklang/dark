@@ -1,9 +1,6 @@
 let show_list (f: 'a -> string) (x: 'a list) : string =
   "[" ^ String.concat "," (List.map f x) ^ "]"
 
-let show_clean s =
-  Porting.Regex.replace "Types\\." "" s
-
 let opaque msg fmt _ =
   Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">");
   ()
@@ -590,7 +587,7 @@ and model =
   ; userContentHost: string
   ; environment: string
   ; csrfToken: string}
-[@@deriving show]
+[@@deriving show {with_path=false}]
 
 and rpcContext = { canvasName : string; csrfToken : string }
 

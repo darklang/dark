@@ -156,7 +156,7 @@ let processFocus (m : model) (focus : focus) : modification =
 let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods |> show_clean);
+    Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods);
   let complete =
     List.foldl
       (fun mod_ complete_ -> AC.update m mod_ complete_)
@@ -180,7 +180,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "mod update" (show_modification mod_ |> show_clean);
+    Debug.loG "mod update" (show_modification mod_);
 
   (match (VariantTesting.variantIsActive m SelectEnterVariant), mod_ with
      true, (Types.Select (tlid, Some id)) ->
@@ -606,7 +606,7 @@ let findCenter (m : model) : pos =
 
 let update_ (msg : msg) (m : model) : modification =
   if m.integrationTestState <> NoIntegrationTest then
-    Debug.loG "msg update" (show_msg msg |> show_clean);
+    Debug.loG "msg update" (show_msg msg);
   match msg with
   | GlobalKeyPress event -> (
       if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z then
