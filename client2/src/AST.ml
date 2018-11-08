@@ -425,19 +425,19 @@ let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
     | _ -> impossible ("key parent must be object", id, expr) )
   | _ -> impossible ("must add to key", id, expr)
 
-let maybeExtendObjectLiteralAt (pd : pointerData) (expr : expr) : expr =
+let maybeExtendObjectLiteralAt (pd : pointerData) (ast : expr) : expr =
   let id = P.toID pd in
   match pd with
   | PKey key -> (
-    match parentOf id expr with
+    match parentOf id ast with
     | F (olid, ObjectLiteral pairs) ->
         if pairs |> List.last |> Option.map Tuple.first |> ( = ) (Some key)
         then
-          let _, _, replacement = addObjectLiteralBlanks id expr in
+          let _, _, replacement = addObjectLiteralBlanks id ast in
           replacement
-        else expr
-    | _ -> expr )
-  | _ -> expr
+        else ast
+    | _ -> ast )
+  | _ -> ast
 
 let addListLiteralBlanks (id : id) (expr : expr) : expr =
   let new1 = B.new_ () in
