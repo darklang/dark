@@ -407,7 +407,18 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               newPD
         | PParamName _ -> replace (PParamName (B.newF value))
         | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value)))
-        | PPattern _ -> replace (PPattern (B.newF (PVariable value))) (* TODO: why not actually implement this? *)
+        | PPattern _ ->
+          let new_ = (PPattern (B.newF (PVariable value))) in
+          let ast =
+            match tl.data with
+            | TLHandler h -> h.ast
+            | TLFunc f -> f.ufAST
+            | TLDB _ -> impossible ("No fields in DBs", tl.data)
+          in
+          ast
+          |> AST.replace pd new_
+          |> AST.maybeExtendPatternAt new_
+          |. saveAst new_
         )
 
 
