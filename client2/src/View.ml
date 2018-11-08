@@ -86,15 +86,16 @@ let viewTL (m : model) (tl : toplevel) : msg Html.html =
     | Fn (tLID, _) -> Defaults.centerPos
   in
   let html =
-    if Some tl.id = tlidOf m.cursorState || isDB then
-      let _ = Util.cacheClear id in
+    if Some tl.id = tlidOf m.cursorState || isDB then begin
+      Util.cacheClear id;
       recalc ()
+    end
     else
       match Util.cacheGet id with
       | Some html -> html
       | None ->
           let result = recalc () in
-          let _ = Util.cacheSet id result in
+          Util.cacheSet id result;
           result
   in
   ViewUtils.placeHtml m pos html
@@ -103,7 +104,14 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Toplevels _ -> List.map (viewTL m) m.toplevels
+    | Toplevels _ ->
+      m.toplevels
+      (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
+       * if not (though only when using our Util cache). This leads to the
+       * clicks going to the wrong toplevel. Sorting solves it, though I don't
+       * know exactly how. *)
+      |> List.sortBy (fun tl -> deTLID (tl.id))
+      |> List.map (viewTL m)
     | Fn (tlid, _) -> (
       match List.find (fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func -> [viewTL m (TL.ufToTL m func)]
