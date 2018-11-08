@@ -407,7 +407,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               newPD
         | PParamName _ -> replace (PParamName (B.newF value))
         | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value)))
-        | PPattern _ -> replace (PPattern (B.newF (PLiteral value))) (* TODO: why not actually implement this? *)
+        | PPattern _ -> replace (PPattern (B.newF (PVariable value))) (* TODO: why not actually implement this? *)
         )
 
 

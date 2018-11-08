@@ -94,6 +94,16 @@ let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
 (* Symbolically gather varnames *)
 (* -------------------- *)
 
+let rec variables_in_pattern p =
+  match p with
+  | Blank _ -> []
+  | Filled (_, PLiteral _) -> []
+  | Filled (_, PVariable v) -> [v]
+  | Filled (_, PConstructor (_, inner)) ->
+      inner
+      |> List.map ~f:variables_in_pattern
+      |> List.concat
+
 let rec sym_exec
     ~(trace: (expr -> sym_set -> unit))
     (state: exec_state)
@@ -101,16 +111,6 @@ let rec sym_exec
     (expr: expr)
   : unit =
   let sexe = sym_exec ~trace state in
-  let rec variables_in_pattern p =
-    match p with
-    | Blank _ -> []
-    | Filled (_, PLiteral _) -> []
-    | Filled (_, PVariable v) -> [v]
-    | Filled (_, PConstructor (_, inner)) ->
-        inner
-        |> List.map ~f:variables_in_pattern
-        |> List.concat
-  in
   try
     ignore
       ((match expr with
@@ -457,8 +457,30 @@ let rec exec ~(engine: engine)
         | [] -> DIncomplete)
 
      | Filled (id, Match (matchExpr, cases)) ->
-       DIncomplete (* TODO(ian) fix *)
+       let matchVal = exe st matchExpr in
+       let matches dv case =
+         (match case with
+         | Blank _, _ -> None
+         | Filled (_, PLiteral l), _ -> None
+         | Filled (_, PVariable v), _ -> None
+         | Filled (_, PConstructor ("Just", [_])), _ -> None
+         | Filled (_, PConstructor ("Nothing", [])), _ -> None
+         | _ -> None)
+       in
+       let matched = List.filter_map ~f:(matches matchVal) cases in
+       (match matched with
+       | [] -> DIncomplete
+       | (p, e) :: _ ->
+           let newSt =
+             match variables_in_pattern p with
+             | [v] -> DvalMap.set ~key:v ~data:matchVal st
+             | [] -> st
+             | _ -> Exception.internal "TODO: match supports more than one variable"
+           in
+           exe newSt e)
 
+       (* pattern & expression are both blank*)
+       (* matched constructor contains a blank *)
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
        let result =
