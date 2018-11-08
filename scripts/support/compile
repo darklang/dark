@@ -109,10 +109,7 @@ def client2_install():
 
 def client2_test():
   start = time.time()
-  result = run_test(start, \
-          "cd client2" \
-          + " && unbuffer" \
-          + " ./node_modules/jest/bin/jest.js")
+  result = run_test(start, "cd client2 && unbuffer yarn test")
 
   # Don't require bs tests to pass on master, b/c we might want a hotfix
   if os.environ.get("CIRCLE_BRANCH") == "master":
