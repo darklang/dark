@@ -162,7 +162,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       in
       toString code ^ " " ^ headers ^ nl ^ toRepr dv_
   | DOption OptNothing -> "Nothing"
-  | DOption (OptJust dv_) -> "Some " ^ toRepr dv_
+  | DOption (OptJust dv_) -> "Just " ^ toRepr dv_
   | DErrorRail dv_ -> wrap (toRepr dv_)
   | DList l -> (
     match l with
