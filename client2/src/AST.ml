@@ -373,9 +373,27 @@ let rec closeListLiterals (expr : expr) : expr =
       F (id, ListLiteral (exprs3 @ [B.new_ ()]))
   | _ -> traverse closeObjectLiterals expr
 
+let rec closeMatchPatterns (expr : expr) : expr =
+  match expr with
+  | F (id, Match (cond, pairs)) ->
+      pairs
+      |> List.filterMap (fun (p, e) ->
+             if B.isBlank p && B.isBlank e
+             then None
+             else Some (p, closeMatchPatterns e))
+      |> (fun l -> if l <> [] then l else [(B.new_ (), B.new_ ())])
+      |> (fun l -> Match (closeMatchPatterns cond, l))
+      |> fun m -> F (id, m)
+  | _ -> traverse closeMatchPatterns expr
+
+
+
 let closeBlanks (expr : expr) : expr =
-  (* TODO(ian): close patterns in Match *)
-  expr |> closeThreads |> closeObjectLiterals |> closeListLiterals
+  expr
+  |> closeThreads
+  |> closeObjectLiterals
+  |> closeListLiterals
+  |> closeMatchPatterns
 
 let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
     expr list =
