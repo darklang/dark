@@ -106,6 +106,10 @@ let viewCanvas (m : model) : msg Html.html =
     match m.currentPage with
     | Toplevels _ ->
       m.toplevels
+      (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
+       * if not (though only when using our Util cache). This leads to the
+       * clicks going to the wrong toplevel. Sorting solves it, though I don't
+       * know exactly how. *)
       |> List.sortBy (fun tl -> deTLID (tl.id))
       |> List.map (viewTL m)
     | Fn (tlid, _) -> (
