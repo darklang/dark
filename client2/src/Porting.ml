@@ -29,18 +29,18 @@ let (>>) (f1: 'a -> 'b) (f2: 'b -> 'c) : 'a -> 'c =
 let (<<) (f1: 'b -> 'c) (f2: 'a -> 'b) : 'a -> 'c =
   fun x -> x |> f2 |> f1
 
+let toString (v : 'a) : string =
+  Js.String.make v
+
 module Debug = struct
   let crash (str: string) : 'a =
     failwith str
-  let log (msg: string) (data: 'a) : 'a  =
-    Js.log2 msg data;
+  let log ?(f : 'a -> string = toString) (msg: string) (data: 'a) : 'a  =
+    Js.log2 msg (f data);
     data
-  let loG (msg: string) (data: 'a) : unit =
-    Js.log2 msg data
+  let loG ?(f : 'a -> string = toString) (msg: string) (data: 'a) : unit =
+    Js.log2 msg (f data)
 end
-
-let toString (v : 'a) : string =
-  Js.String.make v
 
 let toOption ~(sentinel: 'a) (value: 'a) : 'a option =
   if value = sentinel
