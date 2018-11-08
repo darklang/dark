@@ -484,7 +484,9 @@ let rec exec ~(engine: engine)
        | (p, e) :: _ ->
          let newSt =
            match p with
-           | Filled (_, PLiteral _) -> st
+           | Filled (_, PLiteral _) ->
+             trace (pattern2expr p) matchVal st;
+             st
            | Filled (_, (PVariable v)) ->
              trace (pattern2expr p) matchVal st;
              DvalMap.set ~key:v ~data:matchVal st
