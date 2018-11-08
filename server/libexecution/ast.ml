@@ -26,6 +26,18 @@ let is_blank (bo : 'a or_blank) : bool =
   | Blank _ -> true
 
 
+(* -------------------- *)
+(* Patterns *)
+(* -------------------- *)
+let rec pattern2expr p : expr =
+  match p with
+  | Blank id -> Blank id
+  | Filled (id, PLiteral p) ->
+    Filled (id, Value p)
+  | Filled (id, PVariable p) ->
+    Filled (id, Variable p)
+  | Filled (id, PConstructor (_, _)) ->
+    Blank id
 
 (* -------------------- *)
 (* AST traversal *)
@@ -469,7 +481,17 @@ let rec exec ~(engine: engine)
        let matched = List.filter ~f:matches cases in
        (match matched with
        | [] -> DIncomplete
-       | (p, e) :: _ -> exe st e)
+       | (p, e) :: _ ->
+         let newSt =
+           match p with
+           | Filled (_, PLiteral _) -> st
+           | Filled (_, (PVariable v)) ->
+             trace (pattern2expr p) matchVal st;
+             DvalMap.set ~key:v ~data:matchVal st
+           | Filled (_, PConstructor _) -> st
+           | Blank _-> st
+         in
+         exe newSt e)
 
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
