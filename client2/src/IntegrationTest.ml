@@ -108,7 +108,7 @@ let left_right_works (m : model) : testResult =
       let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
       match pd with
       | Some (PEventSpace _) -> pass
-      | other -> fail (m.cursorState, other))
+      | other -> fail ~f:show_cursorState m.cursorState)
   | s -> fail ~f:show_cursorState m.cursorState
 
 let varbinds_are_editable (m : model) : testResult =
@@ -118,9 +118,9 @@ let varbinds_are_editable (m : model) : testResult =
     | Entering (Filling (_, id2)) ->
         if id1 = id2
         then pass
-        else fail (l, m.cursorState)
-    | s -> fail (l, m.cursorState))
-  | e -> fail ~f: show_nExpr e
+        else fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState)
+    | s -> fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState))
+  | e -> fail ~f:show_nExpr e
 
 let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
@@ -129,7 +129,7 @@ let editing_request_edits_request (m : model) : testResult =
     | [_; cs; _; _; _; _] -> (
       match cs with
       | [ACVariable "request"] -> pass
-      | _ -> fail cs
+      | _ -> fail ~f:(show_list show_autocompleteItem) cs
     )
     | allcs -> fail ~f:(show_list (show_list show_autocompleteItem)) allcs
   )
@@ -193,7 +193,8 @@ let tabbing_through_let (m : model) : testResult =
   | e -> fail ~f:show_nExpr e
 
 let case_sensitivity (m : model) : testResult =
-  if List.length m.toplevels <> 3 then fail m.toplevels
+  if List.length m.toplevels <> 3
+  then fail ~f:(show_list show_toplevel) m.toplevels
   else
     m.toplevels
     |> List.map (fun tl ->
@@ -248,20 +249,24 @@ let case_sensitivity (m : model) : testResult =
                         else fail ~f:show_dval lv)
                  |> Option.withDefault (fail ~f:show_expr h.ast)
              | _ -> fail ~f:show_expr h.ast )
-           | other -> fail other )
+           | other -> fail ~f:show_tLData other )
     |> Result.combine
     |> Result.map (fun _ -> ())
 
 let focus_on_ast_in_new_empty_tl (m : model) : testResult =
   match (onlyHandler m).ast with
   | Blank id ->
-      if idOf m.cursorState = Some id then pass else fail (id, m.cursorState)
+      if idOf m.cursorState = Some id
+      then pass
+      else fail (show_id id ^ ", " ^ show_cursorState m.cursorState)
   | e -> fail ~f:show_expr e
 
 let focus_on_path_in_new_filled_tl (m : model) : testResult =
   match (onlyHandler m).spec.name with
   | Blank id ->
-      if idOf m.cursorState = Some id then pass else fail (id, m.cursorState)
+      if idOf m.cursorState = Some id
+      then pass
+      else fail (show_id id ^ ", " ^ show_cursorState m.cursorState)
   | e -> fail e
 
 let focus_on_cond_in_new_tl_with_if (m : model) : testResult =
@@ -282,8 +287,11 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
           |> B.toID
           |> fun x -> Some x )
       then pass
-      else fail (m.toplevels, m.cursorState)
-  | s -> fail (m.toplevels, m.cursorState)
+      else fail (show_list show_toplevel m.toplevels
+                 ^ ", " ^ show_cursorState m.cursorState)
+  | s ->
+    fail (show_list show_toplevel m.toplevels
+          ^ ", " ^ show_cursorState m.cursorState)
 
 let rename_db_fields (m : model) : testResult =
   m.toplevels
@@ -297,7 +305,7 @@ let rename_db_fields (m : model) : testResult =
              match m.cursorState with
              | Selecting (_, None) -> pass
              | _ -> fail ~f:show_cursorState m.cursorState )
-           | _ -> fail cols )
+           | _ -> fail ~f:(show_list show_dBColumn) cols )
          | _ -> pass )
   |> Result.combine
   |> Result.map (fun _ -> ())
@@ -313,9 +321,13 @@ let rename_db_type (m : model) : testResult =
              ; (F (_, "field1"), F (id, "String")) ] -> (
              match m.cursorState with
              | Selecting (_, Some sid) ->
-                 if sid = id then pass else fail (cols, m.cursorState)
+                 if sid = id
+                 then pass
+                 else fail (show_list show_dBColumn cols
+                            ^ ", "
+                            ^ show_cursorState m.cursorState)
              | _ -> fail ~f:show_cursorState m.cursorState )
-           | _ -> fail cols )
+           | _ -> fail ~f:(show_list show_dBColumn) cols )
          | _ -> pass )
   |> Result.combine
   |> Result.map (fun _ -> ())
@@ -329,7 +341,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
              | F (_, Thread [_; F (_, FnCall ("-", [Blank _], _))]) -> pass
            | F (_, FnCall ("-", [Blank _; Blank _], _)) -> pass
            | _ -> fail ~f:show_expr ast )
-         | _ -> fail ("Shouldn't be other handlers here", tl.data) )
+         | _ -> fail ("Shouldn't be other handlers here" ^ show_tLData tl.data) )
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -338,8 +350,10 @@ let paste_keeps_focus (m : model) : testResult =
   | FnCall ("+", [F (id, Value "3"); F (_, Value "3")], _) as fn -> (
     match m.cursorState with
     | Selecting (_, sid) ->
-        if Some id = sid then pass else fail (fn, m.cursorState)
-    | _ -> fail (fn, m.cursorState) )
+        if Some id = sid
+        then pass
+        else fail (show_nExpr fn ^ ", " ^ show_cursorState m.cursorState)
+    | _ -> fail (show_nExpr fn ^ ", " ^ show_cursorState m.cursorState))
   | other -> fail ~f:show_nExpr other
 
 let nochange_for_failed_paste (m : model) : testResult =
@@ -376,9 +390,12 @@ let feature_flag_works (m : model) : testResult =
                   , F (_, Value "\"B\"") ) ) ) ) -> (
       let res = Analysis.getCurrentLiveValue m h.tlid id in
       match res with
-      | Some val_ -> if val_ = DStr "B" then pass else fail (ast, val_)
-      | _ -> fail (ast, res) )
-  | _ -> fail (ast, m.cursorState)
+      | Some val_ ->
+        if val_ = DStr "B"
+        then pass
+        else fail (show_expr ast, val_)
+      | _ -> fail (show_expr ast, res) )
+  | _ -> fail (show_expr ast, show_cursorState m.cursorState)
 
 let feature_flag_in_function (m : model) : testResult =
   let fun_ = List.head m.userFunctions in
@@ -399,8 +416,8 @@ let feature_flag_in_function (m : model) : testResult =
             ]
             , NoRail ) ) ->
         pass
-    | _ -> fail (f.ufAST, None) )
-  | None -> fail ("Cant find function", None)
+    | _ -> fail ~f:show_expr f.ufAST)
+  | None -> fail "Cant find function"
 
 let simple_tab_ordering (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
@@ -408,9 +425,11 @@ let simple_tab_ordering (m : model) : testResult =
   | F (_, Let (Blank _, F (_, Value "4"), Blank id)) -> (
     match m.cursorState with
     | Entering (Filling (_, sid)) ->
-        if id = sid then pass else fail (ast, m.cursorState, id)
-    | _ -> fail (ast, m.cursorState, id) )
-  | _ -> fail (ast, m.cursorState)
+        if id = sid
+        then pass
+        else fail (show_expr ast, show_cursorState m.cursorState, id)
+    | _ -> fail (show_expr ast, show_cursorState m.cursorState, id) )
+  | _ -> fail (show_expr ast, show_cursorState m.cursorState)
 
 let variable_extraction (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
@@ -444,35 +463,43 @@ let variable_extraction (m : model) : testResult =
                                   , F (_, Variable "new_variable") ) ) ) ) ) )
           ) ) ->
       pass
-  | _ -> fail (ast, m.cursorState)
+  | _ -> fail (show_expr ast ^ ", " ^ show_cursorState m.cursorState)
 
 let invalid_syntax (m : model) : testResult =
   match onlyHandler m |> fun x -> x.ast with
   | Blank id -> (
     match m.cursorState with
     | Entering (Filling (_, sid)) ->
-        if id = sid then pass else fail m.cursorState
-    | _ -> fail m.cursorState )
+        if id = sid
+        then pass
+        else fail ~f:show_cursorState m.cursorState
+    | _ -> fail ~f:show_cursorState m.cursorState )
   | other -> fail ~f:show_expr other
 
 let editing_stays_in_same_place_with_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | Selecting (_, id1), Let (F (id2, "v2"), _, _) ->
-      if id1 = Some id2 then pass else fail (m.cursorState, onlyExpr m)
-  | other -> fail other
+      if id1 = Some id2
+      then pass
+      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
+  | _ -> fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
 
 let editing_goes_to_next_with_tab (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | Entering (Filling (_, id1)), Let (F (_, "v2"), Blank id2, _) ->
-      if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
-  | other -> fail other
+      if id1 = id2
+      then pass
+      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
+  | _ -> fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
 
 let editing_starts_a_thread_with_shift_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (_, id1))
     , Let (_, F (_, Thread [F (_, Value "52"); Blank id2]), _) ) ->
-      if id1 = id2 then pass else fail (m.cursorState, onlyExpr m)
-  | other -> fail other
+      if id1 = id2
+      then pass
+      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
+  | _ -> fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
 
 let object_literals_work (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
@@ -488,8 +515,8 @@ let object_literals_work (m : model) : testResult =
       let target = TL.findExn tl id in
       match target with
       | PEventName _ -> pass
-      | other -> fail (m.cursorState, other) )
-  | other -> fail other
+      | _ -> fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m)))
+  | _ -> fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
 
 let rename_function (m : model) : testResult =
   match onlyExpr m with
@@ -508,7 +535,9 @@ let function_version_renders (m : model) : testResult = pass
 
 let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
-  if m.complete.value = "" then pass else fail ast
+  if m.complete.value = ""
+  then pass
+  else fail ~f:show_expr ast
 
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft 5 test_name in
