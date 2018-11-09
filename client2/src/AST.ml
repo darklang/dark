@@ -161,6 +161,7 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
           in
           F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
         else traverse r expr
+    (* TODO(match): match should be like this *)
     | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
       match List.findIndex (fun v -> B.toID v = sId) vars with
       | None -> traverse r expr
@@ -641,7 +642,7 @@ let siblings (p : pointerData) (expr : expr) : pointerData list =
     | F (_, FeatureFlag (msg, cond, a, b)) ->
         [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
     | F (_, Match (matchExpr, cases)) ->
-      (* TODO(ian): patterns *)
+      (* TODO(match): patterns - no one uses siblings so it should really be deleted *)
       (PExpr matchExpr) :: (cases |> List.map (fun (k, v) -> [PExpr v]) |> List.concat)
     | Blank _ -> [p] )
 

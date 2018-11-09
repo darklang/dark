@@ -66,6 +66,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
             match e with
             | F (_, Let (_, _, body)) -> AST.uses var body |> List.map Blank.toID
             | F (_, Lambda (_, body)) -> AST.uses var body |> List.map Blank.toID
+            (* TODO(match): match *)
             | _ -> [] )
           | _ -> [] )
         | _ -> [] )
