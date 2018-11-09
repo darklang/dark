@@ -104,7 +104,7 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PFnName name_ -> PFnName (B.clone identity name_)
   | PParamName name_ -> PParamName (B.clone identity name_)
   | PParamTipe tipe -> PParamTipe (B.clone identity tipe)
-  | PPattern pattern -> PPattern (B.clone identity pattern) (* TODO: for real though, AST.clone_pattern *)
+  | PPattern pattern -> PPattern (AST.clonePattern pattern)
 
 let allBlanks (tl : toplevel) : pointerData list =
   tl |> allData |> List.filter P.isBlank
