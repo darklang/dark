@@ -659,11 +659,20 @@ let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
   let replacement = P.emptyD_ id (P.typeOf p) in
   replace p replacement expr
 
+let rec clonePattern (pattern : pattern) : pattern =
+  let cNPattern npat =
+    match npat with
+    | PLiteral _
+    | PVariable _ -> npat
+    | PConstructor (name, args) ->
+      PConstructor (name, List.map clonePattern args)
+  in
+  B.clone cNPattern pattern
+
+
 let rec clone (expr : expr) : expr =
-  let nid = gid () in
   let c be = clone be in
   let cl bes = List.map c bes in
-  let _ = "type annotation" in
   let cString = B.clone identity in
   let cNExpr nexpr =
     match nexpr with
@@ -681,8 +690,7 @@ let rec clone (expr : expr) : expr =
     | FeatureFlag (msg, cond, a, b) ->
         FeatureFlag (cString msg, c cond, c a, c b)
     | Match (matchExpr, cases) ->
-        (* TODO(ian): clone patterns *)
-        Match (c matchExpr, List.map (fun (k, v) -> (k, c v)) cases)
+        Match (c matchExpr, List.map (fun (k, v) -> (clonePattern k, c v)) cases)
   in
   B.clone cNExpr expr
 
