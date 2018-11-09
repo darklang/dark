@@ -102,8 +102,9 @@ let rec uses (var : varName) (expr : expr) : expr list =
     | ObjectLiteral pairs ->
         pairs |> List.map Tuple.second |> List.map u |> List.concat
     | FeatureFlag (msg, cond, a, b) -> List.concat [u cond; u a; u b]
-    | Match (matchExpr, cases) -> [])
-      (* TODO(ian): check cases for use and patterns as potential rebindings *)
+    | Match (matchExpr, cases) ->
+        u matchExpr
+        @ (cases |> List.map Tuple.second |> List.map u |> List.concat))
 
 let rec replace_ (search : pointerData) (replacement : pointerData)
     (parent : expr option) (expr : expr) : expr =
