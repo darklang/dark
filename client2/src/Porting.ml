@@ -39,9 +39,6 @@ module Debug = struct
     Js.log2 msg data
 end
 
-let toString (v : 'a) : string =
-  Js.String.make v
-
 let toOption ~(sentinel: 'a) (value: 'a) : 'a option =
   if value = sentinel
   then None

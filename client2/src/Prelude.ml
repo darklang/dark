@@ -47,10 +47,12 @@ let deOption (msg : string) (x : 'a option) : 'a =
   | None ->
       Debug.crash
         ( "something impossible occurred: got None but expected something"
-        ^ toString msg )
+        ^ msg )
 
 let impossible (a : 'a) : 'b =
-  Debug.crash ("something impossible occurred: " ^ toString a)
+        (* Js.String.make is unreliable, but Debug.crash is sort of a last ditch
+           handler anyway *)
+  Debug.crash ("something impossible occurred: " ^ Js.String.make a)
 
 let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
   if fn a then a else impossible ("assertion failure", a)
@@ -58,11 +60,11 @@ let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
 let recoverable (msg : 'a) (val_ : 'b) : 'b =
   let error =
     "An unexpected but recoverable error happened. " ^ "For now we crash. "
-    ^ "Message: " ^ toString msg ^ "Value: " ^ toString val_
+    ^ "Message: " ^ Js.String.make msg ^ "Value: " ^ Js.String.make val_
   in
   let _ = "comment" in
   let _ = "comment" in
   let _ = Debug.crash error in
   val_
 
-let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ toString a)
+let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ Js.String.make a)

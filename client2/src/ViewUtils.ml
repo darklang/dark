@@ -133,7 +133,7 @@ let rec approxWidth (e : expr) : int =
 
 and approxNWidth (ne : nExpr) : int =
   match ne with
-  | Value v -> toString v |> String.length
+  | Value v -> v |> String.length
   | Variable name -> String.length name
   | Let (lhs, rhs, body) ->
       max (blankOrLength lhs + approxWidth rhs + 4 + 3) (approxWidth body)
