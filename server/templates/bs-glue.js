@@ -9,8 +9,10 @@ window.Dark = {
     requestAnalysis : function (params) {
       // debug is not one of the default log levels in chrome devtools - to see
       // these, set log levels to include 'Verbose'
+      /*
       console.debug('request analysis');
       console.debug(params);
+      */
       // const bToString = (blankOr) => blankOr[2] || null;
       // const spec = params.handler.spec;
       // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
