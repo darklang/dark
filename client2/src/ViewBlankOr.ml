@@ -199,7 +199,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : str
   | FnName -> "function name"
   | ParamName -> "param name"
   | ParamTipe -> "param type"
-  | Pattern -> "pattern" (* TODO: make context sensitive *)
+  | Pattern -> "pattern"
 
 let viewBlankOr
     (htmlFn : ViewUtils.viewState -> htmlConfig list -> 'a -> msg Html.html)

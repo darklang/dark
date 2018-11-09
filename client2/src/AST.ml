@@ -161,7 +161,7 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
           in
           F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
         else traverse r expr
-    (* TODO(match): match should be like this *)
+    (* TODO(match): match should support variable renaming too *)
     | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
       match List.findIndex (fun v -> B.toID v = sId) vars with
       | None -> traverse r expr

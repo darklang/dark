@@ -187,7 +187,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   | PFnName _ -> []
   | PParamName _ -> []
   | PParamTipe _ -> []
-  | PPattern _ -> [] (* TODO *)
+  | PPattern _ -> [] (* TODO(match) *)
 
 let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
   getChildrenOf tl id |> List.head
