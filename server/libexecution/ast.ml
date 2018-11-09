@@ -470,30 +470,35 @@ let rec exec ~(engine: engine)
 
      | Filled (id, Match (matchExpr, cases)) ->
 
-       let matchVal = exe st matchExpr in
-       let matches (pat, e) =
-         (match pat with
-         | Filled (_, PLiteral l) when Dval.parse_literal l = Some matchVal ->
-           true
-         | Filled (_, PVariable v) -> true
-         | _ -> false)
-       in
-       let matched = List.filter ~f:matches cases in
-       (match matched with
-       | [] -> DIncomplete
-       | (p, e) :: _ ->
-         let newSt =
-           match p with
-           | Filled (_, PLiteral _) ->
-             trace (pattern2expr p) matchVal st;
-             st
-           | Filled (_, (PVariable v)) ->
-             trace (pattern2expr p) matchVal st;
-             DvalMap.set ~key:v ~data:matchVal st
-           | Filled (_, PConstructor _) -> st
-           | Blank _-> st
+       let rec matches dv (pat, e) =
+         let result =
+           (match pat with
+           | Filled (_, PLiteral l) when Dval.parse_literal l = Some dv ->
+             Some (e, [])
+           | Filled (_, PVariable v) ->
+             Some (e, [v, dv])
+           | Filled (_, PConstructor ("Just", [p])) ->
+             (match dv with
+             | DOption (OptJust v) -> matches v (p, e)
+             | _ -> None)
+           | Filled (_, PConstructor ("Nothing", [])) ->
+             if dv = DOption OptNothing
+             then Some (e, [])
+             else None
+           | _ -> None)
          in
-         exe newSt e)
+         if Option.is_some result
+         then trace (pattern2expr pat) dv st;
+         result
+       in
+       let matchVal = exe st matchExpr in
+       let matched = List.filter_map ~f:(matches matchVal) cases in
+       (match matched with
+        | [] -> DIncomplete
+        | (e, vars) :: _ ->
+          let newVars = DvalMap.of_alist_exn vars in
+          let newSt = Util.merge_left newVars st in
+          exe newSt e)
 
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
