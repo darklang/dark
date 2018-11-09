@@ -128,76 +128,49 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
         B.replace sId repl_ expr
     | _ -> recoverable ("cannot occur", replacement) expr
   else
+    let renameVariable currentName newName target =
+      let toPointer name = PExpr (F (gid (), Variable name)) in
+      let replaceOccurrence use acc = replace_ use (toPointer newName) (Some expr) acc in
+
+      (uses currentName target)
+      |> List.map (fun x -> PExpr x)
+      |> List.foldr replaceOccurrence target
+    in
+
+    let pairCurrentAndNew currentName newName =
+      match currentName, newName with
+      | Some (c), Some (n) -> Some (c, n)
+      | _ -> None
+    in
+
     match (expr, replacement) with
     | F (id, FeatureFlag (msg, cond, a, b)), PFFMsg newMsg ->
         if B.toID msg = sId then F (id, FeatureFlag (newMsg, cond, a, b))
         else traverse r expr
-    | F (id, Let (lhs, rhs, body)), PVarBind replacement_ ->
+    | F (id, Let (lhs, rhs, body)), PVarBind newBinding ->
         if B.toID lhs = sId then
-          let replacementContent =
-            match replacement_ with Blank _ -> None | F (_, var) -> Some var
-          in
-          let orig =
-            match lhs with Blank _ -> None | F (_, var) -> Some var
-          in
           let newBody =
-            let usesOf =
-              match orig with
-              | Some var -> uses var body |> List.map (fun x -> PExpr x)
-              | _ -> []
-            in
-            let transformUse replacementContent_ old =
-              match old with
-              | PExpr (F (_, _)) ->
-                  PExpr (F (gid (), Variable replacementContent_))
-              | _ -> impossible old
-            in
-            match (orig, replacementContent) with
-            | Some _, Some r_ ->
-                List.foldr
-                  (fun use acc ->
-                    replace_ use (transformUse r_ use) (Some expr) acc )
-                  body usesOf
+            match pairCurrentAndNew (Blank.toMaybe lhs) (Blank.toMaybe newBinding) with
+            | Some (c, n) -> renameVariable c n body
             | _ -> body
           in
-          F (id, Let (B.replace sId replacement_ lhs, rhs, newBody))
+
+          F (id, Let (B.replace sId newBinding lhs, rhs, newBody))
         else traverse r expr
-    (* TODO(match): match should support variable renaming too *)
-    | F (id, Lambda (vars, body)), PVarBind replacement_ -> (
+    | F (id, Lambda (vars, body)), PVarBind newBinding -> (
       match List.findIndex (fun v -> B.toID v = sId) vars with
       | None -> traverse r expr
       | Some i ->
-          let replacementContent =
-            match replacement_ with Blank _ -> None | F (_, var) -> Some var
-          in
-          let orig =
-            match List.getAt i vars |> deOption "we somehow lost it?" with
-            | Blank _ -> None
-            | F (_, var) -> Some var
+          let currentName = List.getAt i vars |> deOption "we somehow lost it?" in
+          let newVars =
+            List.updateAt i (fun old -> B.replace sId newBinding old) vars
           in
           let newBody =
-            let usesInBody =
-              match orig with
-              | Some v -> uses v body |> List.map (fun x -> PExpr x)
-              | None -> []
-            in
-            let transformUse replacementContent_ old =
-              match old with
-              | PExpr (F (_, _)) ->
-                  PExpr (F (gid (), Variable replacementContent_))
-              | _ -> impossible old
-            in
-            match (orig, replacementContent) with
-            | Some _, Some r_ ->
-                List.foldr
-                  (fun use acc ->
-                    replace_ use (transformUse r_ use) (Some expr) acc )
-                  body usesInBody
+            match pairCurrentAndNew (Blank.toMaybe currentName) (Blank.toMaybe newBinding) with
+            | Some (c, n) -> renameVariable c n body
             | _ -> body
           in
-          let newVars =
-            List.updateAt i (fun old -> B.replace sId replacement_ old) vars
-          in
+
           F (id, Lambda (newVars, newBody)) )
     | F (id, FieldAccess (obj, field)), PField replacement_ ->
         if B.toID field = sId then
