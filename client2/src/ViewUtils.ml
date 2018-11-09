@@ -123,8 +123,13 @@ let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 let widthInCh (w : int) : msg Vdom.property =
   w |> inCh |> Html.style "width"
 
-let blankOrLength (b : string blankOr) : int =
-  match b with Blank _ -> 6 | F (_, str) -> String.length str
+let blankOrLength ~(f: 'a -> int) (b : 'a blankOr) : int =
+  match b with
+  | Blank _ -> 6
+  | F (_, value) -> f value
+
+let strBlankOrLength (b : string blankOr) : int =
+  blankOrLength ~f:String.length b
 
 let visualStringLength (string : string) : int =
   string |> Regex.replace "\t" "        " |> String.length
@@ -137,7 +142,7 @@ and approxNWidth (ne : nExpr) : int =
   | Value v -> toString v |> String.length
   | Variable name -> String.length name
   | Let (lhs, rhs, body) ->
-      max (blankOrLength lhs + approxWidth rhs + 4 + 3) (approxWidth body)
+      max (strBlankOrLength lhs + approxWidth rhs + 4 + 3) (approxWidth body)
   | If (cond, ifbody, elsebody) ->
       3
       |> ( + ) (approxWidth cond)
@@ -152,19 +157,38 @@ and approxNWidth (ne : nExpr) : int =
   | Thread exprs ->
       exprs |> List.map approxWidth |> List.maximum |> Option.withDefault 2
       |> ( + ) 1
-  | FieldAccess (obj, field) -> approxWidth obj + 1 + blankOrLength field
+  | FieldAccess (obj, field) -> approxWidth obj + 1 + strBlankOrLength field
   | ListLiteral exprs ->
       exprs |> List.map approxWidth
       |> List.map (( + ) 2)
       |> List.sum |> ( + ) 4
   | ObjectLiteral pairs ->
       pairs
-      |> List.map (fun (k, v) -> blankOrLength k + approxWidth v)
+      |> List.map (fun (k, v) -> strBlankOrLength k + approxWidth v)
       |> List.map (( + ) 2)
       |> List.map (( + ) 2)
       |> List.maximum |> Option.withDefault 0 |> ( + ) 4
   | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
-  | Match (matchExpr, cases) -> 0 (* TODO(ian): actually figure this out *)
+  | Match (matchExpr, cases) ->
+    let rec pWidth p =
+      (match p with
+       | PLiteral l -> String.length l
+       | PVariable v -> String.length v
+       | PConstructor (name, args) ->
+         String.length name
+         + List.sum (List.map (blankOrLength ~f:pWidth) args)
+         + List.length args)
+    in
+    let caseWidth (p, e) =
+      (blankOrLength ~f:pWidth p)
+      + 2 (* indent *)
+      + 4 (* arrow and spaces *)
+      + approxWidth e
+    in
+    List.maximum
+      ((6 + approxWidth matchExpr) :: List.map caseWidth cases)
+    |> Option.withDefault 0
+
 
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
