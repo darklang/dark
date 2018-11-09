@@ -291,7 +291,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ maybe "result type" resultType
                  ^ maybe "expected" expected
                  ^ ( if info = StrDict.empty then ""
-                   else ", info: " ^ Js.String.make info)
+                   else ", info: " ^ StrDict.toString info)
                  ^
                  if workarounds = [] then ""
                  else ", workarounds: [" ^ (String.concat workarounds) ^ "]")
