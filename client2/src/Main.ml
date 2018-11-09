@@ -1260,7 +1260,7 @@ let update_ (msg : msg) (m : model) : modification =
       | Error str -> DisplayError str
     )
   | RPCCallback (_, _, Error err) -> DisplayAndReportHttpError ("RPC", err)
-  | SaveTestRPCCallback (Error err) -> DisplayError ("Error: " ^ Js.String.make err)
+  | SaveTestRPCCallback (Error err) -> DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
