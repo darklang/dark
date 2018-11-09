@@ -110,11 +110,27 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   let events =
     match clickAs with
     | Some id ->
-        [ ViewUtils.eventNoPropagation "click" ~key:("bcc-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrClick (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "dblclick" ~key:("bcdc-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "mouseenter" ~key:("me-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
-        ; ViewUtils.eventNoPropagation "mouseleave" ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id) (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
-    | _ -> []
+        [ ViewUtils.eventNoPropagation
+            "click"
+            ~key:("bcc-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation
+            "dblclick"
+            ~key:("bcdc-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation
+            "mouseenter"
+            ~key:("me-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
+        ; ViewUtils.eventNoPropagation
+            "mouseleave"
+            ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
+            (fun x -> BlankOrMouseLeave (vs.tl.id, id, x))
+        ]
+    | _ ->
+      (* Rather than relying on property lengths changing, we should use noProp to indicate
+       * that the property at idx N has changed. *)
+      [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let liveValueAttr =
     Vdom.attribute "" "data-live-value" (renderLiveValue vs thisID)
@@ -129,7 +145,13 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)
   in
   let attrs = liveValueAttr :: classAttr :: events in
-  Html.div attrs (content @ [rightSideHtml])
+  Html.div
+    (* if the id of the blank_or changes, this whole node should be redrawn
+     * without any further diffing. there's no good reason for the Vdom/Dom node
+     * to be re-used for a different blank_or *)
+    ~unique:(thisID |> Option.map showID |> Option.withDefault "")
+    attrs
+    (content @ [rightSideHtml])
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) : msg Html.html
