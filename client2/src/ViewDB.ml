@@ -13,7 +13,7 @@ let wc = ViewBlankOr.wc
 let viewDBName (name : string) (version : int) : msg Html.html =
   Html.div [Html.class' "dbname"]
     [ Html.span [Html.class' "name"] [Html.text name]
-    ; Html.span [Html.class' "version"] [Html.text (".v" ^ toString version)]
+    ; Html.span [Html.class' "version"] [Html.text (".v" ^ Js.Int.toString version)]
     ]
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :

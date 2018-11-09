@@ -291,10 +291,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ maybe "result type" resultType
                  ^ maybe "expected" expected
                  ^ ( if info = StrDict.empty then ""
-                   else ", info: " ^ toString info )
+                   else ", info: " ^ Js.String.make info)
                  ^
                  if workarounds = [] then ""
-                 else ", workarounds: " ^ toString workarounds )
+                 else ", workarounds: [" ^ (String.concat workarounds) ^ "]")
           |> Option.withDefault str
         in
         let msg =
@@ -1260,7 +1260,7 @@ let update_ (msg : msg) (m : model) : modification =
       | Error str -> DisplayError str
     )
   | RPCCallback (_, _, Error err) -> DisplayAndReportHttpError ("RPC", err)
-  | SaveTestRPCCallback (Error err) -> DisplayError ("Error: " ^ toString err)
+  | SaveTestRPCCallback (Error err) -> DisplayError ("Error: " ^ Js.String.make err)
   | ExecuteFunctionRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
