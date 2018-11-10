@@ -75,6 +75,11 @@ let dict decoder json =
 let decodeString decoder str =
   try
     Belt.Result.Ok (decoder (Json.parseOrRaise str))
-  with DecodeError str ->
+  with
+  | DecodeError str ->
     Porting.Debug.loG "decoding error" str;
+    Belt.Result.Error str
+  | e ->
+    let str = Printexc.to_string e in
+    Porting.Debug.loG "decodeString error, not DecodeError" str;
     Belt.Result.Error str
