@@ -71,6 +71,11 @@ and field = fieldName blankOr
 and key = keyName blankOr
 and lambdaParameter = varName blankOr
 and sendToRail = Rail | NoRail
+and nPattern = PVariable of varName
+             | PLiteral of string
+             | PConstructor of string * pattern list
+and pattern = nPattern blankOr
+
 and expr = nExpr blankOr
 and nExpr =
   | If of expr * expr * expr
@@ -84,6 +89,7 @@ and nExpr =
   | Thread of expr list
   | FieldAccess of expr * field
   | FeatureFlag of string blankOr * expr * expr * expr
+  | Match of expr * (pattern * expr) list
 
 and pointerData =
   | PVarBind of varBind
@@ -99,6 +105,7 @@ and pointerData =
   | PFnName of string blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
+  | PPattern of pattern
 
 and pointerType =
   | VarBind
@@ -114,6 +121,7 @@ and pointerType =
   | FnName
   | ParamName
   | ParamTipe
+  | Pattern
 
 and pointerOwner = POSpecHeader | POAst | PODb
 
@@ -336,7 +344,7 @@ and function_ =
 
 (* autocomplete items *)
 and literal = string
-and keyword = KLet | KIf | KLambda
+and keyword = KLet | KIf | KLambda | KMatch
 and command =
   { commandName: string
   ; action: model -> toplevel -> pointerData -> modification

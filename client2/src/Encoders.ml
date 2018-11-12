@@ -88,6 +88,7 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
   | PFnName msg -> ev "PFnName" [blankOr string msg]
   | PParamName msg -> ev "PParamName" [blankOr string msg]
   | PParamTipe msg -> ev "PParamTipe" [blankOr tipe msg]
+  | PPattern p -> ev "PPattern" [pattern p]
 
 and tlidOf (op : Types.op) : Types.tlid =
   match op with
@@ -319,6 +320,18 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   | ListLiteral elems -> ev "ListLiteral" [list e elems]
   | FeatureFlag (msg, cond, a, b) ->
       ev "FeatureFlag" [blankOr string msg; e cond; e a; e b]
+  | Match (matchExpr, cases) ->
+    ev "Match" [e matchExpr; (list (pair pattern expr) cases)]
+
+and pattern (p : Types.pattern) : Js.Json.t =
+  blankOr nPattern p
+
+and nPattern (npat : Types.nPattern) : Js.Json.t =
+  let ev = variant in
+  match npat with
+  | PVariable a -> ev "PVariable" [string a]
+  | PLiteral a -> ev "PLiteral" [string a]
+  | PConstructor (a, b) -> ev "PConstructor" [(string a); (list pattern b)]
 
 and cursorState (cs : Types.cursorState) : Js.Json.t =
   let ev = variant in

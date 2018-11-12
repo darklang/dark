@@ -29,18 +29,18 @@ let (>>) (f1: 'a -> 'b) (f2: 'b -> 'c) : 'a -> 'c =
 let (<<) (f1: 'b -> 'c) (f2: 'a -> 'b) : 'a -> 'c =
   fun x -> x |> f2 |> f1
 
+let toString (v : 'a) : string =
+  Js.String.make v
+
 module Debug = struct
   let crash (str: string) : 'a =
     failwith str
-  let log (msg: string) (data: 'a) : 'a  =
-    Js.log2 msg data;
+  let log ?(f : 'a -> string = toString) (msg: string) (data: 'a) : 'a  =
+    Js.log2 msg (f data);
     data
-  let loG (msg: string) (data: 'a) : unit =
-    Js.log2 msg data
+  let loG ?(f : 'a -> string = toString) (msg: string) (data: 'a) : unit =
+    Js.log2 msg (f data)
 end
-
-let toString (v : 'a) : string =
-  Js.String.make v
 
 let toOption ~(sentinel: 'a) (value: 'a) : 'a option =
   if value = sentinel
@@ -208,6 +208,9 @@ module List = struct
 
   let splitAt (n : int) (xs : 'a list) : 'a list * 'a list =
     (take n xs, drop n xs)
+  let insertAt (n: int) (xs : 'a list) (newVal: 'a) : 'a list =
+    take n xs @ (newVal :: drop n xs)
+
   let splitWhen (predicate : 'a -> bool) (list : 'a list) :
     ('a list * 'a list) option =
     findIndex predicate list |. Belt.Option.map (fun i -> splitAt i list)
@@ -281,6 +284,10 @@ module Option = struct
     match o with
     | None -> None
     | Some x -> fn x
+  let or_ (ma : 'a option) (mb: 'a option) : ('a option) =
+    match ma with
+    | None -> mb
+    | Some _ -> ma
   let orElse  (ma : 'a option) (mb: 'a option) : ('a option) =
     match mb with
     | None -> ma
@@ -357,6 +364,8 @@ module String = struct
     String.lowercase s
   let toUpper (s: string) : string =
     String.uppercase s
+  let isCapitalized (s: string) : bool = 
+    s = String.capitalize s
   let contains (needle: string) (haystack: string) : bool =
     Js.String.includes needle haystack
   let repeat (count: int) (s: string) : string =

@@ -244,7 +244,11 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
     | FieldAccess (ex, filed) -> isFunctionInExpr fnName ex
     | FeatureFlag (_, cond, a, b) ->
         isFunctionInExpr fnName cond
-        || isFunctionInExpr fnName a || isFunctionInExpr fnName b )
+        || isFunctionInExpr fnName a || isFunctionInExpr fnName b
+    | Match (matchExpr, cases) ->
+      isFunctionInExpr fnName matchExpr
+      || List.any (isFunctionInExpr fnName) (List.map Tuple.second cases)
+  )
 
 let countFnUsage (m : model) (name : string) : int =
   let usedIn =

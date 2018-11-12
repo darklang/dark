@@ -19,6 +19,7 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
   | FnName -> PFnName (Blank id)
   | ParamName -> PParamName (Blank id)
   | ParamTipe -> PParamTipe (Blank id)
+  | Pattern -> PPattern (Blank id)
 
 let typeOf (pd : pointerData) : pointerType =
   match pd with
@@ -35,6 +36,7 @@ let typeOf (pd : pointerData) : pointerType =
   | PFnName _ -> FnName
   | PParamName _ -> ParamName
   | PParamTipe _ -> ParamTipe
+  | PPattern _ -> Pattern
 
 let emptyD (pt : pointerType) : pointerData = emptyD_ (gid ()) pt
 
@@ -53,6 +55,7 @@ let toID (pd : pointerData) : id =
   | PFnName d -> B.toID d
   | PParamName d -> B.toID d
   | PParamTipe d -> B.toID d
+  | PPattern d -> B.toID d
 
 let isBlank (pd : pointerData) : bool =
   match pd with
@@ -69,8 +72,9 @@ let isBlank (pd : pointerData) : bool =
   | PFnName d -> B.isBlank d
   | PParamName d -> B.isBlank d
   | PParamTipe d -> B.isBlank d
+  | PPattern d -> B.isBlank d
 
-let toContent (pd : pointerData) : string option =
+let rec toContent (pd : pointerData) : string option =
   let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> fun x -> Some x in
   match pd with
   | PVarBind v -> bs2s v
@@ -94,6 +98,10 @@ let toContent (pd : pointerData) : string option =
       |> Option.map Runtime.tipe2str
       |> Option.withDefault ""
       |> fun x -> Some x
-
+  | PPattern d -> (
+      match d with
+      | F (_, PLiteral l) -> Some l
+      | F (_, PVariable v) -> Some v
+      | _ -> None)
 let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
   match pd with PExpr d -> PExpr (fn d) | _ -> pd

@@ -40,7 +40,9 @@ let rec pointerData j : pointerData =
     ; ("PFFMsg", dv1 (fun x -> PFFMsg x) (blankOr string))
     ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
-    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe)) ]
+    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
+    ; ("PPattern", dv1 (fun x -> PPattern x) pattern)
+    ]
     j
 
 and serializableEditor (j: Js.Json.t) : serializableEditor =
@@ -100,8 +102,21 @@ and nExpr j : nExpr =
       , dv1 (fun x -> ObjectLiteral x) (list (tuple2 (blankOr string) de))
       )
     ; ("FeatureFlag", dv4 (fun a b c d -> FeatureFlag (a,b,c,d)) (blankOr string) de de de)
+    ; ("Match", dv2 (fun a b -> Match (a,b)) de (list (tuple2 pattern de)))
     ]
     j
+
+
+and pattern j : pattern =
+  blankOr nPattern j
+
+and nPattern j : nPattern =
+  variants
+  [ ("PVariable", variant1 (fun a -> PVariable a) (string))
+  ; ("PLiteral", variant1 (fun a -> PLiteral a) (string))
+  ; ("PConstructor", variant2 (fun a b -> PConstructor (a,b)) string (list pattern))
+  ]
+  j
 
 and lvDict j : lvDict =
   j

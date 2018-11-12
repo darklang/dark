@@ -217,7 +217,7 @@ let rec to_repr ?(pp=true) ?(open_="<") ?(close_=">")
           (String.concat ~sep:("," ^ inl) strs)
           ^ nl ^ "}"
     | DOption OptNothing -> "Nothing"
-    | DOption (OptJust dv) -> "Some " ^ (to_repr_ indent pp dv)
+    | DOption (OptJust dv) -> "Just " ^ (to_repr_ indent pp dv)
     | DErrorRail dv -> "ErrorRail: " ^ (to_repr_ indent pp dv)
     | _ -> failwith ("printing an unprintable value:" ^ to_simple_repr dv)
     in to_repr_ 0 pp dv

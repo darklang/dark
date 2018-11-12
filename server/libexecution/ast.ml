@@ -26,6 +26,18 @@ let is_blank (bo : 'a or_blank) : bool =
   | Blank _ -> true
 
 
+(* -------------------- *)
+(* Patterns *)
+(* -------------------- *)
+let rec pattern2expr p : expr =
+  match p with
+  | Blank id -> Blank id
+  | Filled (id, PLiteral p) ->
+    Filled (id, Value p)
+  | Filled (id, PVariable p) ->
+    Filled (id, Variable p)
+  | Filled (id, PConstructor (_, _)) ->
+    Blank id
 
 (* -------------------- *)
 (* AST traversal *)
@@ -70,6 +82,9 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
 
              | FeatureFlag (msg, cond, a, b) ->
                FeatureFlag (msg, f cond, f a, f b)
+
+             | Match (matchExpr, cases) ->
+               Match (f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
            ))
 
 (* Example usage of traverse. See also AST.elm *)
@@ -90,6 +105,16 @@ let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
 (* -------------------- *)
 (* Symbolically gather varnames *)
 (* -------------------- *)
+
+let rec variables_in_pattern p =
+  match p with
+  | Blank _ -> []
+  | Filled (_, PLiteral _) -> []
+  | Filled (_, PVariable v) -> [v]
+  | Filled (_, PConstructor (_, inner)) ->
+      inner
+      |> List.map ~f:variables_in_pattern
+      |> List.concat
 
 let rec sym_exec
     ~(trace: (expr -> sym_set -> unit))
@@ -140,6 +165,18 @@ let rec sym_exec
 
         | Filled (_, ListLiteral exprs) ->
           List.iter ~f:(sexe st) exprs
+
+        | Filled (_, Match (matchExpr, cases)) ->
+          sexe st matchExpr;
+          List.iter cases ~f:(fun (p, caseExpr) ->
+            let new_st =
+              p
+              |> variables_in_pattern
+              |> SymSet.of_list
+              |> SymSet.union st
+            in
+            sexe new_st caseExpr
+          );
 
         | Filled (_, ObjectLiteral exprs) ->
           exprs
@@ -430,6 +467,38 @@ let rec exec ~(engine: engine)
                 (* DErrorRail is handled by inject_param_and_execute *)
                 | _ -> result)
         | [] -> DIncomplete)
+
+     | Filled (id, Match (matchExpr, cases)) ->
+
+       let rec matches dv (pat, e) =
+         let result =
+           (match pat with
+           | Filled (_, PLiteral l) when Dval.parse_literal l = Some dv ->
+             Some (e, [])
+           | Filled (_, PVariable v) ->
+             Some (e, [v, dv])
+           | Filled (_, PConstructor ("Just", [p])) ->
+             (match dv with
+             | DOption (OptJust v) -> matches v (p, e)
+             | _ -> None)
+           | Filled (_, PConstructor ("Nothing", [])) ->
+             if dv = DOption OptNothing
+             then Some (e, [])
+             else None
+           | _ -> None)
+         in
+         if Option.is_some result
+         then trace (pattern2expr pat) dv st;
+         result
+       in
+       let matchVal = exe st matchExpr in
+       let matched = List.filter_map ~f:(matches matchVal) cases in
+       (match matched with
+        | [] -> DIncomplete
+        | (e, vars) :: _ ->
+          let newVars = DvalMap.of_alist_exn vars in
+          let newSt = Util.merge_left newVars st in
+          exe newSt e)
 
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in

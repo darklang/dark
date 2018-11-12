@@ -105,6 +105,7 @@ let () =
             |> selectDown
             |> selectDown
             |> selectDown
+            |> selectDown
             |> setQuery "T"
             |> highlighted
             |> Option.map asName
@@ -243,6 +244,7 @@ let () =
         expect
           begin
             createEntering User
+            |> selectUp
             |> selectUp
             |> selectUp
             |> selectUp
