@@ -104,8 +104,21 @@ let rec uses (var : varName) (expr : expr) : expr list =
         pairs |> List.map Tuple.second |> List.map u |> List.concat
     | FeatureFlag (_, cond, a, b) -> List.concat [u cond; u a; u b]
     | Match (matchExpr, cases) ->
-        u matchExpr
-        @ (cases |> List.map Tuple.second |> List.map u |> List.concat))
+        let findReplacements (p, e) =
+          match Pattern.extractVariableName p with
+          | Some originalVar ->
+              if originalVar = var then [] else u e
+          | None -> u e
+        in
+
+        let replacements =
+          cases
+          |> List.map findReplacements
+          |> List.concat
+        in
+
+        (u matchExpr) @ replacements
+  )
 
 let rec replace_ (search : pointerData) (replacement : pointerData)
     (parent : expr option) (expr : expr) : expr =
@@ -183,12 +196,27 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
                (newK, r v) )
         |> (fun x -> ObjectLiteral x)
         |> fun e -> F (id, e)
-    | F (id, Match (matchExpr, cases)), PPattern _ ->
+    | F (id, Match (matchExpr, cases)), PPattern newPattern ->
         let newCases =
           cases
-            |> List.map (fun (p, e) ->
-              (Pattern.replace search replacement p, r e))
+          |> List.map (fun (p, e) ->
+            if Pattern.contains search p then
+            begin
+                let currentName = Pattern.extractVariableName p in
+                let newName = Pattern.extractVariableName newPattern in
+                let currentAndNew = pairCurrentAndNew currentName newName in
+                let newBody =
+                  match currentAndNew with
+                  | Some (c, n) -> renameVariable c n e
+                  | _ -> e
+                in
+
+                (Pattern.replace search replacement p, newBody)
+            end
+            else (p, r e)
+          )
         in
+
         F (id, Match (r matchExpr, newCases))
     | _ -> traverse r expr
 
