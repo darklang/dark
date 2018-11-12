@@ -4,10 +4,10 @@ module RT = Runtime
 open Json_encode_extended
 
 let id (Types.ID id) =
-  int id
+  string id
 
 let tlid (Types.TLID tlid) =
-  int tlid
+  string tlid
 
 let pos (p: Types.pos) =
   object_
@@ -23,8 +23,8 @@ let vPos (vp: Types.vPos) =
 
 let blankOr (encoder: 'a -> Js.Json.t)(v: 'a Types.blankOr) =
   match v with
-  | F (ID id, s) -> variant "Filled" [int id; encoder s]
-  | Blank (ID id) -> variant "Blank" [int id]
+  | F (i, s) -> variant "Filled" [id i; encoder s]
+  | Blank i -> variant "Blank" [id i]
 
 let rec dval (dv : Types.dval) : Js.Json.t =
   let open Types in

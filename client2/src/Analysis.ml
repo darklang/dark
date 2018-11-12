@@ -8,21 +8,21 @@ module TL = Toplevel
 open Types
 
 let defaultResults : analysisResults =
-  {liveValues= IntDict.empty; availableVarnames= IntDict.empty}
+  {liveValues= StrDict.empty; availableVarnames= StrDict.empty}
 
 let cursor_ (cursors : tLCursors) (tlid : tlid) : int =
-  IntDict.get (deTLID tlid) cursors |> Option.withDefault 0
+  StrDict.get (deTLID tlid) cursors |> Option.withDefault 0
 
 let cursor (m : model) (tlid : tlid) : int = cursor_ m.tlCursors tlid
 
 let setCursor (m : model) (tlid : tlid) (cursorNum : int) : model =
-  let newCursors = IntDict.insert (deTLID tlid) cursorNum m.tlCursors in
+  let newCursors = StrDict.insert (deTLID tlid) cursorNum m.tlCursors in
   {m with tlCursors= newCursors}
 
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   let traceIndex = cursor m tlid in
   let traceID =
-    IntDict.get (deTLID tlid) m.traces
+    StrDict.get (deTLID tlid) m.traces
     |> Option.andThen (List.getAt traceIndex)
     |> Option.map (fun x -> x.traceID)
     |> Option.withDefault "invalid trace key"
@@ -37,7 +37,7 @@ let getCurrentLiveValuesDict (m : model) (tlid : tlid) : lvDict =
   getCurrentAnalysisResults m tlid |> fun x -> x.liveValues
 
 let getCurrentLiveValue (m : model) (tlid : tlid) (ID id : id) : dval option =
-  tlid |> getCurrentLiveValuesDict m |> IntDict.get id
+  tlid |> getCurrentLiveValuesDict m |> StrDict.get id
 
 let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
   match getCurrentLiveValue m tlid id with
@@ -51,7 +51,7 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
     varName list =
   tlid
   |> getCurrentAvailableVarnamesDict m
-  |> IntDict.get id |> Option.withDefault []
+  |> StrDict.get id |> Option.withDefault []
 
 let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
     varName list =
@@ -60,10 +60,10 @@ let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
   | Some (tlid, pd) -> getCurrentAvailableVarnames m tlid (P.toID pd)
 
 let getTraces (m : model) (tlid : tlid) : trace list =
-  IntDict.get (deTLID tlid) m.traces |> Option.withDefault []
+  StrDict.get (deTLID tlid) m.traces |> Option.withDefault []
 
 let getCurrentTrace (m : model) (tlid : tlid) : trace option =
-  IntDict.get (deTLID tlid) m.traces
+  StrDict.get (deTLID tlid) m.traces
   |> Option.andThen (List.getAt (cursor m tlid))
 
 let replaceFunctionResult (m : model) (tlid : tlid) (traceID : traceID)
@@ -72,7 +72,7 @@ let replaceFunctionResult (m : model) (tlid : tlid) (traceID : traceID)
   let newResult = {fnName; callerID; argHash= hash; value= dval} in
   let traces =
     m.traces
-    |> IntDict.update (deTLID tlid) (fun ml ->
+    |> StrDict.update (deTLID tlid) (fun ml ->
            ml
            |> Option.withDefault
                 [{traceID; input= StrDict.empty; functionResults= [newResult]}]
@@ -107,7 +107,7 @@ let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
         match analyses with
         | Some analyses_ ->
             List.filterMap
-              (fun id -> IntDict.get (deID id) analyses_.liveValues)
+              (fun id -> StrDict.get (deID id) analyses_.liveValues)
               argIDs
         | None -> []
       in

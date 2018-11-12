@@ -1,20 +1,22 @@
 open! Porting
 open Types
 
-let deID (ID i : id) : int = i
-let showID (ID i) = string_of_int i
+let deID (ID i : id) : string = i
+let showID (ID i) = i
 
-let deTLID (TLID i : tlid) : int = i
-let showTLID (TLID i) = string_of_int i
+let deTLID (TLID i : tlid) : string = i
+let showTLID (TLID i) = i
 
-let gid (unit : unit) : id = ID (Util.random unit)
+let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
 
-let gtlid (unit : unit) : tlid = TLID (Util.random unit)
+let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
 
+(* wtf -- this concatenates the tlid+id to a string, and then
+ * uses that as a cursor id to do the hovering over the dots?
+ * this almost certainly doesn't work *)
 let tlCursorID (tlid : tlid) (idx : int) : id =
-  let stringID = string_of_int (deTLID tlid) ^ string_of_int idx in
-  let intID = Result.withDefault 0 (String.toInt stringID) in
-  ID intID
+  let stringID = (showTLID tlid) ^ string_of_int idx in
+  ID stringID
 
 let unwrapCursorState (s : cursorState) : cursorState =
   match s with

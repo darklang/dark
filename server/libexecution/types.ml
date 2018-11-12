@@ -15,6 +15,7 @@ let id_of_yojson (json: Yojson.Safe.json) : (id, string) result =
   match json with
   | `Int i -> Ok (id_of_int i)
   | `Intlit i -> Ok (id_of_string i)
+  | `String i -> Ok (id_of_string i)
   | _ -> Error "Types.id"
 
 let id_to_yojson (i: Int63.t) : Yojson.Safe.json =

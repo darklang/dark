@@ -448,6 +448,8 @@ module StrDict = struct
   let keys m : key list =
     Map.keysToArray m
     |> Belt.List.fromArray
+  let update (k: key) (fn: 'v option -> 'v option) (map: 'value t) : 'value t =
+    Map.update map k fn
 
   (* Js.String.make gives us "[object Object]", so we actually want our own
      toString. Not perfect, but slightly nicer (e.g., for Main.ml's
@@ -498,7 +500,7 @@ module Native = struct
   type size = { width : int; height : int }
 
   type rect =
-    { id: int
+    { id: string
     ; top: int
     ; left: int
     ; right: int
@@ -510,7 +512,7 @@ module Native = struct
     ; nested : rect list
     }
 
-  type jsRect = int Js.Dict.t
+  type jsRect = string Js.Dict.t
   type jsRectArr = (jsRect array) Js.Dict.t
 
 
@@ -528,7 +530,7 @@ module Native = struct
       "innerHeight" [@@bs.get]
 
     external astPositions :
-      int -> jsRectArr =
+      string -> jsRectArr =
       "positions" [@@bs.val][@@bs.scope "window", "Dark", "ast"]
 
   end
@@ -551,13 +553,13 @@ module Native = struct
       |> List.fromArray
       |> List.map (fun jsRect ->
         { id = Js.Dict.unsafeGet jsRect "id"
-        ; top = Js.Dict.unsafeGet jsRect "top"
-        ; left = Js.Dict.unsafeGet jsRect "left"
-        ; right = Js.Dict.unsafeGet jsRect "right"
-        ; bottom = Js.Dict.unsafeGet jsRect "bottom"
+        ; top = int_of_string (Js.Dict.unsafeGet jsRect "top")
+        ; left = int_of_string (Js.Dict.unsafeGet jsRect "left")
+        ; right = int_of_string (Js.Dict.unsafeGet jsRect "right")
+        ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom")
         })
 
-    let positions (tlid: int) : list_pos =
+    let positions (tlid: string) : list_pos =
       let pos = Ext.astPositions tlid in
       { atoms = _convert "atoms" pos
       ; nested = _convert "nested" pos

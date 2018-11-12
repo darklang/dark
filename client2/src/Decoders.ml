@@ -3,11 +3,18 @@ module RT = Runtime
 open Types
 open Json_decode_extended
 
+external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 let id j =
-  ID (int j)
+  try
+    ID (string j)
+  with _ ->
+    ID (stringify j)
 
 let tlid j =
-  TLID (int j)
+  try
+    TLID (string j)
+  with _ ->
+    TLID (stringify j)
 
 let pos j : pos =
   { x = field "x" int j
@@ -48,8 +55,16 @@ let rec pointerData j : pointerData =
 and serializableEditor (j: Js.Json.t) : serializableEditor =
   { clipboard = orNull (field "clipboard" (optional pointerData)) None j
   ; timersEnabled = orNull (field "timersEnabled" bool) true j
-  ; cursorState = orNull (field "cursorState" cursorState) Deselected j
-  ; lockedHandlers = orNull (field "lockedHandlers" (list tlid)) [] j
+  ; cursorState =
+      (try
+        orNull (field "cursorState" cursorState) Deselected j
+       with
+       | _ -> Deselected)
+  ; lockedHandlers =
+      (try
+         orNull (field "lockedHandlers" (list tlid)) [] j
+       with _ ->
+         [])
   }
 
 and cursorState j =
@@ -121,12 +136,10 @@ and nPattern j : nPattern =
 and lvDict j : lvDict =
   j
   |> dict dval
-  |> IntDict.fromStrDict ~default:0
 
 and avDict j : avDict =
   j
   |> dict (list string)
-  |> IntDict.fromStrDict ~default:0
 
 and analysisResults j : analysisResults =
   { liveValues = field "live_values" (lvDict) j
@@ -264,8 +277,8 @@ and functionResult j : functionResult =
 
 and traces j : traces =
   j
-  |> list (tuple2 int (list trace))
-  |> IntDict.fromList
+  |> list (tuple2 string (list trace))
+  |> StrDict.fromList
 
 and trace j : trace =
   { traceID = field "id" string j

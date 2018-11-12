@@ -31,7 +31,7 @@ let selectPrevToplevel (m : model) (cur : tlid option) : modification =
   match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
 type jSSide = Porting.Native.rect =
-  { id: int
+  { id: string
   ; top: int
   ; left: int
   ; right: int

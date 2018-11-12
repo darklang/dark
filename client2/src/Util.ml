@@ -37,18 +37,18 @@ type cacheType = Types.msg Html.html Js.Dict.t
 
 let cache : cacheType = Js.Dict.empty()
 
-let cacheSet (k : int) (v : cacheT) : unit =
-  Js.Dict.set cache (string_of_int k) v
+let cacheSet (k : string) (v : cacheT) : unit =
+  Js.Dict.set cache k v
 
-let cacheGet (k : int) : cacheT option =
-  Js.Dict.get cache (string_of_int k)
+let cacheGet (k : string) : cacheT option =
+  Js.Dict.get cache k
 
-let cacheClear (k : int) : unit =
+let cacheClear (k : string) : unit =
   let unsafeDeleteKey : (cacheType -> string -> unit) = [%raw fun dict key -> {|
      delete dict[key];
      return 0
 |}] in
-  ignore(unsafeDeleteKey cache (string_of_int k))
+  ignore(unsafeDeleteKey cache k)
 
 let transformToStringEntry (s_ : string) : string =
   let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in

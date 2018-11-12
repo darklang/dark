@@ -56,7 +56,7 @@ let viewButtons (m : model) : msg Html.html =
     match pg with
       Toplevels pos -> "Toplevels " ^ (posToString pos)
     | Fn (tlid, pos) ->
-      (Printf.sprintf "Fn (TLID %i %s)" (Prelude.deTLID tlid) (posToString pos))
+      (Printf.sprintf "Fn (TLID %s %s)" (Prelude.deTLID tlid) (posToString pos))
   in
   Html.div [Html.id "buttons"]
     ( [ Html.a
