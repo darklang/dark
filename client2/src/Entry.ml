@@ -121,6 +121,7 @@ let parseAst (m : model) (str : string) : expr option =
   | ["if"] -> Some (F (eid, If (b1, b2, b3)))
   | ["let"] -> Some (F (eid, Let (b1, b2, b3)))
   | ["lambda"] -> Some (F (eid, Lambda ([B.newF "var"], b2)))
+  | ["match"] -> Some (F (eid, Match (b1, [(b2, b3)])))
   | [""] -> Some b1
   | ["[]"] -> Some (F (eid, ListLiteral [B.new_ ()]))
   | ["["] -> Some (F (eid, ListLiteral [B.new_ ()]))
@@ -153,7 +154,7 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
       )
     else if List.member value (Analysis.currentVarnamesFor m target)
     then (old_, B.newF (Variable value))
-    else (old_, parseAst m value |> Option.withDefault old_)
+    else (old_, Debug.log "parsed" (parseAst m value |> Option.withDefault old_))
   in
   let newAst =
     match action with
@@ -169,12 +170,27 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
   in
   (newAst, new_)
 
+let parsePattern (m : model) (str : string) : pattern option =
+  match str with
+  | "Nothing" -> Some (B.newF (PConstructor ("Nothing", [])))
+  | "Just" -> Some (B.newF (PConstructor ("Just", [B.new_ ()])))
+  | _ ->
+    let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
+    if Decoders.isLiteralString str
+    then Some (B.newF (PLiteral str))
+    else if Util.reExactly variablePattern str
+    then Some (B.newF (PVariable str))
+    else None
+
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
     string option =
   let v pattern name =
-    if Util.reExactly pattern value then None
+    if Util.reExactly pattern value
+    then None
     else Some (name ^ " must match /" ^ pattern ^ "/")
   in
+  let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
+  let constructorPattern = "[A-Z_][a-zA-Z0-9_]*" in
   match pd with
   | PDBColType ct -> v "\\[?[A-Z]\\w+\\]?" "DB type"
   | PDBColName cn ->
@@ -183,7 +199,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
           "The field name 'id' was reserved when IDs were implicit. We are \
            transitioning to allowing it, but we're not there just yet. Sorry!"
       else v "\\w+" "DB column name"
-  | PVarBind _ -> v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
+  | PVarBind _ -> v variablePattern "variable name"
   | PEventName _ ->
       let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
       let http = "/(" ^ urlSafeCharacters ^ "*)" in
@@ -202,10 +218,16 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PFnName _ -> None
   | PParamName _ -> None
   | PParamTipe _ -> v "[A-Z][a-z]*" "param type"
+  | PPattern _ ->
+    if Decoders.isLiteralString value
+    || v variablePattern "variable pattern" = None
+    || v constructorPattern "constructor pattern" = None
+    then None
+    else Some "pattern must be literal or variable or constructor"
 
 let submit (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
-  let value = AC.getValue m.complete in
+  let value = Debug.log "value of ac" (AC.getValue m.complete) in
   match cursor with
   | Creating pos -> (
       let tlid = gtlid () in
@@ -404,6 +426,22 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               :: changedNames )
               newPD
         | PParamName _ -> replace (PParamName (B.newF value))
-        | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value))) )
+        | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value)))
+        | PPattern _ ->
+          (match parsePattern m value with
+           | None -> DisplayError "not a pattern"
+           | Some p ->
+             let new_ = PPattern p in
+             let ast =
+               match tl.data with
+               | TLHandler h -> h.ast
+               | TLFunc f -> f.ufAST
+               | TLDB _ -> impossible ("No fields in DBs", tl.data)
+             in
+             ast
+             |> AST.replace pd new_
+             |> AST.maybeExtendPatternAt new_
+             |. saveAst new_)
+        )
 
 

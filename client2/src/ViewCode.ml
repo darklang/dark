@@ -41,6 +41,20 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
 
+let rec viewNPattern (vs : viewState) (config : htmlConfig list) (np : nPattern) :
+    msg Html.html =
+  match np with
+  | PLiteral l -> text vs config l
+  | PVariable v -> text vs config v
+  | PConstructor (name, params) ->
+    let ps = List.map (viewPattern vs []) params in
+    div vs [] ((text vs (atom :: wc "constructor-pattern" :: config) name) :: ps)
+
+
+and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
+  let configs = idConfigs @ c in
+  ViewBlankOr.viewBlankOr viewNPattern Pattern vs configs p
+
 let viewRopArrow (vs : viewState) : msg Html.html =
   let line =
     Svg.path
@@ -305,6 +319,15 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "objectpair"] [viewKey vs [] k; colon; vExpr 0 v]
       in
       n (wc "object" :: mo :: config) ([open_] @ List.map pexpr pairs @ [close])
+  | Match (matchExpr, cases) ->
+      let separator = a [wc "separator"] "->" in
+      let vCase (k, v) =
+        n [wc "matchcase"] [viewPattern vs [] k; separator; vExpr 0 v]
+      in
+      n (wc "matchexpr" :: all)
+        ([ kw [] "match"
+        ; n [wc "mexpr"] [vExpr d matchExpr]
+        ] @ List.map vCase cases)
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
         Html.label [Html.class' "expr-label"] [Html.text msg_]

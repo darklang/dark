@@ -188,7 +188,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
    | _ ->
 
   let closeBlanks newM =
-    m.cursorState |> tlidOf
+    m.cursorState
+    |> tlidOf
     |> Option.andThen (TL.get m)
     |> Option.map (fun tl ->
            match tl.data with
@@ -674,6 +675,15 @@ let update_ (msg : msg) (m : model) : modification =
                             ( [ SetHandler
                                   (tl.id, tl.pos, {h with ast= replacement}) ]
                             , FocusExact (tlid, nextid) )
+                      | PPattern _ ->
+                          let nextid, _, replacement =
+                            AST.addPatternBlanks id h.ast
+                          in
+                          RPC
+                            ( [ SetHandler
+                                  (tl.id, tl.pos, {h with ast= replacement}) ]
+                            , FocusExact (tlid, nextid) )
+
                       | _ -> NoChange )
                     | None -> NoChange )
                   | TLFunc f -> (
