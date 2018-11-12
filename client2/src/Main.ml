@@ -82,8 +82,6 @@ let sendRollbar x : msg Tea.Cmd.t =
   Js.log "TODO: sendRollbar";
   Tea.Cmd.none
 
-(* let sendTask (t : msg) : msg Cmd.t = Task.succeed t |> Task.perform identity *)
-
 let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) -> (
@@ -551,15 +549,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; efpArgs= args }
             in
             (m, RPC.executeFunctionRPC (contextFromModel m) params)
-        | None -> (m, Cmd.none
-                        (* TODO: PORTING *)
-                   (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
-      ))
-      | None -> (m,
-                        (* TODO: PORTING *)
-                 (* sendTask (ExecuteFunctionCancel (tlid, id)) *)
-                 Cmd.none
-                ) )
+        | None -> (m, Cmd.none)
+                  |> updateMod (DisplayError "Traces are not loaded for this handler")
+                  |> updateMod (ExecutingFunctionComplete [(tlid, id)])
+      )
+      | None -> (m, Cmd.none)
+                |> updateMod (DisplayError "Traces are not loaded for this handler")
+                |> updateMod (ExecutingFunctionComplete [(tlid, id)])
+                )
     | ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member target targets in
         let nexecutingFunctions =
@@ -1250,10 +1247,6 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; RequestAnalysis [tl] ]
-  | ExecuteFunctionCancel (tlid, id) ->
-      Many
-        [ DisplayError "Traces are not loaded for this handler"
-        ; ExecutingFunctionComplete [(tlid, id)] ]
   | GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
       Many
         [ TweakModel Sync.markResponseInModel
