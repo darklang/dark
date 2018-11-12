@@ -25,6 +25,15 @@ let is_blank (bo : 'a or_blank) : bool =
   | Filled _ -> false
   | Blank _ -> true
 
+let blank_map ~(f: 'a -> 'b) (bo : 'a or_blank) : 'b or_blank =
+  match bo with
+  | Filled (id, a) -> Filled (id, f a)
+  | Blank id -> Blank id
+
+let blank_to_string (bo : string or_blank) : string =
+  match bo with
+  | Filled (_, a) -> a
+  | Blank _ -> "___"
 
 (* -------------------- *)
 (* Patterns *)
