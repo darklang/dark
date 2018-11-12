@@ -1,10 +1,25 @@
 var pageHidden = false;
 var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
 
+const sendError = function (error, route, tlid){
+  // send to rollbar
+  Rollbar.error(
+    error.str,
+    error.obj,
+    { route: route
+      , tlid: tlid
+    }
+  );
+
+  // log to console
+  console.log(`Error processing analysis in (${route}): ${error.str}`);
+  console.log(error.obj);
+
+  // send to client
+  displayError(`Error while executing (${route}): ${error}`);
+};
+
 window.Dark = {
-  rollbar: {
-    error: function (errorObj){ console.error(errorObj) }
-  },
   analysis: {
     requestAnalysis : function (params) {
       // debug is not one of the default log levels in chrome devtools - to see

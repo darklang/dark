@@ -599,7 +599,11 @@ module Window = struct
 end
 
 module Rollbar = struct
-  external send : (string -> unit) = "error" [@@bs.val][@@bs.scope "window", "Dark", "rollbar"]
+  external rollbarError : string -> string Js.nullable -> 'a -> 'a -> Js.Json.t -> unit = "error" [@@bs.val][@@bs.scope "window", "Rollbar"]
+  let send (msg: string) (url: string option) (custom: Js.Json.t) : unit =
+    let url = Js.Nullable.fromOption url in
+    rollbarError msg url Js.null Js.null custom;
+
 end
 
 module DisplayClientError = struct

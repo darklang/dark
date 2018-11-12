@@ -79,11 +79,6 @@ let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
   if oldErr.message = Some newErrMsg && not oldErr.showDetails then oldErr
   else {message= Some newErrMsg; showDetails= true}
 
-let sendRollbar _ : msg Tea.Cmd.t =
-  (* TODO: porting *)
-  Js.log "TODO: sendRollbar";
-  Tea.Cmd.none
-
 let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) -> (
@@ -251,15 +246,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     match mod_ with
     | DisplayError e -> ({m with error= updateError m.error e}, Cmd.none)
     | DisplayAndReportError e ->
-        let json =
-          let open Json_encode_extended in
-          object_
-            [ ("message", string e)
-            ; ("url", null)
-            ; ("custom", object_ [])
-            ]
-        in
-        ({m with error= updateError m.error e}, sendRollbar json)
+      ( {m with error= updateError m.error e}
+      , Tea.Cmd.call (fun _ -> Rollbar.send e None Js.Json.null))
     | DisplayAndReportHttpError (context, e) ->
         let body (body: Tea.Http.responseBody) =
           let maybe name m =
@@ -326,15 +314,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.Aborted -> None
         in
         let shouldRollbar = e <> Http.NetworkError in
-        let json =
-          let open Json_encode_extended in
-          object_
-            [ ("message", string (msg ^ " (" ^ context ^ ")"))
-            ; ("url", nullable string url)
-            ; ("custom", Encoders.httpError e)
-            ]
+        let msg = msg ^ " (" ^ context ^ ")" in
+        let custom = Encoders.httpError e in
+        let cmds =
+          if shouldRollbar
+          then [Tea.Cmd.call (fun _ -> Rollbar.send msg url custom)]
+          else []
         in
-        let cmds = if shouldRollbar then [sendRollbar json] else [] in
         ({m with error= updateError m.error msg}, Cmd.batch cmds)
     | ClearError ->
         ({m with error= {message= None; showDetails= false}}, Cmd.none)
