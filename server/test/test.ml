@@ -1083,6 +1083,8 @@ let t_admin_handler_ui () =
        [ "test", "test"
        (* everyone can edit demo *)
        ; "test", "demo"
+       (* and sample, which is the new demo *)
+       ; "test", "sample"
        (* a la dabblefox *)
        ; "test", "test-something"
        (* arbitrary canvas belonging to another user *)
