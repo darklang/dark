@@ -60,7 +60,7 @@ window.Dark = {
             left: "" + (rect.left | 0),
             right: "" + (rect.right | 0),
             top: "" + (rect.top | 0),
-            bottom: "" + (rect | 0)
+            bottom: "" + (rect.bottom | 0)
           });
         })
         return atoms;
