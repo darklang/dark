@@ -4,6 +4,9 @@ open Types
 open Json_decode_extended
 
 external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
+(* identifiers are strings to the bucklescript client -- it knows nothing
+ * about them being parseable as ints. if it doesn't look like a string
+ * to bs-json we'll just json stringify it and use that *)
 let id j =
   try
     ID (string j)
