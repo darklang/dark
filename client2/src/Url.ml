@@ -12,7 +12,7 @@ let urlOf (page : page) (pos : pos) : string =
   let head =
     match page with
     | Toplevels _ -> []
-    | Fn (tlid, _) -> [("fn", string_of_int (deTLID tlid))]
+    | Fn (tlid, _) -> [("fn", deTLID tlid)]
   in
   let tail = [("x", string_of_int pos.x); ("y", string_of_int pos.y)] in
   hashUrlParams (head @ tail)
@@ -61,11 +61,8 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
   in
   let editedFn =
     match StrDict.get "fn" unstructured with
-    | Some sid -> (
-      match String.toInt sid with
-      | Ok id ->
-          Some (Fn (TLID id, Option.withDefault Defaults.centerPos center))
-      | _ -> None )
+    | Some sid ->
+        Some (Fn (TLID sid, Option.withDefault Defaults.centerPos center))
     | _ -> None
   in
   match (center, editedFn) with

@@ -1341,7 +1341,7 @@ let subscriptions (m : model) : msg Sub.t =
   let dragSubs =
     match m.cursorState with
     | Dragging (id, offset, _, _) ->
-      let listenerKey = "mouse_moves_" ^ string_of_int (deTLID id) in
+      let listenerKey = "mouse_moves_" ^ (deTLID id) in
       [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ -> []
   in

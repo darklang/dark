@@ -88,7 +88,7 @@ let viewRopArrow (vs : viewState) : msg Html.html =
   in
   Html.node "rop-arrow"
     [ Vdom.attribute "" "update" (Util.random () |> string_of_int)
-    ; Vdom.attribute "" "tlid" (string_of_int (deTLID vs.tl.id)) ]
+    ; Vdom.attribute "" "tlid" (deTLID vs.tl.id) ]
     [svg]
 
 let isExecuting (vs : viewState) (id : id) : bool =
@@ -333,7 +333,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         Html.label [Html.class' "expr-label"] [Html.text msg_]
       in
       let isExpanded =
-        let mv = IntDict.get (deID id) vs.featureFlags in
+        let mv = StrDict.get (deID id) vs.featureFlags in
         match mv with Some b -> b | None -> true
       in
       let pickA =

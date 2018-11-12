@@ -21,8 +21,8 @@ type exception_ =
 (* Basic types *)
 (* ---------------------- *)
 
-and tlid = TLID of int
-and id = ID of int
+and tlid = TLID of string
+and id = ID of string
 and 'a blankOr = Blank of id
                | F of id * 'a
 
@@ -238,8 +238,8 @@ and timerAction = RefreshAnalysis | CheckUrlHashPosition
 (* ------------------- *)
 and globalVariable = string
 and traceID = string
-and lvDict = dval GMap.Int.t
-and avDict = varName list GMap.Int.t
+and lvDict = dval GMap.String.t
+and avDict = varName list GMap.String.t
 and inputValueDict = dval GMap.String.t
 and analysisResults = {liveValues: lvDict; availableVarnames: avDict}
 
@@ -253,7 +253,7 @@ and trace =
   ; input: inputValueDict
   ; functionResults: functionResult list
   }
-and traces = trace list GMap.Int.t
+and traces = trace list GMap.String.t
 
 and fourOhFour = {space: string; path: string; modifier: string}
 
@@ -539,13 +539,13 @@ and class_ = string
 
 and ffIsExpanded = bool
 
-and flagsVS = ffIsExpanded GMap.Int.t
+and flagsVS = ffIsExpanded GMap.String.t
 
 and syncState = {inFlight: bool; ticks: int}
 
 and urlState = {lastPos: pos}
 
-and tLCursors = int GMap.Int.t
+and tLCursors = int GMap.String.t
 
 and serializableEditor =
   { clipboard: pointerData option
