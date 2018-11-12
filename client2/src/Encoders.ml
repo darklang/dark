@@ -3,6 +3,10 @@ open! Porting
 module RT = Runtime
 open Json_encode_extended
 
+(* Don't attempt to encode these as integers, because we're not capable
+ * of expressing all existing ids as ints because bucklescript is strict
+ * about int == 32 bit. As far as we're concerned, ids are strings and
+ * we know nothing about their parseability as ints *)
 let id (Types.ID id) =
   string id
 
