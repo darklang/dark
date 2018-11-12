@@ -138,8 +138,8 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
     |> fun s -> "{" ^ inl ^ s ^ nl ^ "}"
   in
   match dv with
-  | DInt i -> toString i
-  | DFloat f -> toString f
+  | DInt i -> string_of_int i
+  | DFloat f -> string_of_float f
   | DStr s -> "\"" ^ s ^ "\""
   | DBool true -> "true"
   | DBool false -> "false"
@@ -160,7 +160,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       let headers =
         objToString (List.map (Tuple.mapSecond (fun s -> DStr s)) hs)
       in
-      toString code ^ " " ^ headers ^ nl ^ toRepr dv_
+     string_of_int code ^ " " ^ headers ^ nl ^ toRepr dv_
   | DOption OptNothing -> "Nothing"
   | DOption (OptJust dv_) -> "Just " ^ toRepr dv_
   | DErrorRail dv_ -> wrap (toRepr dv_)
