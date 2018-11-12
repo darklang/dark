@@ -7,17 +7,17 @@ external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 (* identifiers are strings to the bucklescript client -- it knows nothing
  * about them being parseable as ints. if it doesn't look like a string
  * to bs-json we'll just json stringify it and use that *)
-let id j =
+let wireIdentifier j =
   try
-    ID (string j)
+    string j
   with _ ->
-    ID (stringify j)
+    stringify j
+
+let id j =
+  ID (wireIdentifier j)
 
 let tlid j =
-  try
-    TLID (string j)
-  with _ ->
-    TLID (stringify j)
+  TLID (wireIdentifier j)
 
 let pos j : pos =
   { x = field "x" int j
@@ -280,7 +280,7 @@ and functionResult j : functionResult =
 
 and traces j : traces =
   j
-  |> list (tuple2 string (list trace))
+  |> list (tuple2 wireIdentifier (list trace))
   |> StrDict.fromList
 
 and trace j : trace =
