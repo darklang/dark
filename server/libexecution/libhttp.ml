@@ -73,6 +73,21 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Http::respondWithText"]
+  ; ins = []
+  ; p = [par "response" TAny; par "code" TInt]
+  ; r = TResp
+  ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
+  ; f = InProcess
+        (function
+          | (_, [dv; DInt code]) -> DResp (Response (code, ["Content-Type", "text/plain"]), dv)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  ; dep = false
+  }
+  ;
+
   { pns = ["Http::respondWithJson"]
   ; ins = []
   ; p = [par "response" TAny; par "code" TInt]
