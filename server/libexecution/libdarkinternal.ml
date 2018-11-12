@@ -75,4 +75,17 @@ let fns : Lib.shortfn list = [
   ; dep = false
   }
   ;
+
+  { pns = ["DarkInternal::canvasAsText"]
+  ; ins = []
+  ; p = [par "host" TStr]
+  ; r = TStr
+  ; d = "TODO"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = false
+  }
+  ;
+
   ]

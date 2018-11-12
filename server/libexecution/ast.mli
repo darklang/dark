@@ -10,6 +10,10 @@ val blank_to_option :
   'a Types.or_blank ->
   'a option
 
+val blank_map : f: ('a -> 'b) -> 'a Types.or_blank -> 'b Types.or_blank
+
+val blank_to_string : string Types.or_blank -> string
+
 val execute_ast :
   input_vars: Types.RuntimeT.input_vars ->
   Types.RuntimeT.exec_state ->
