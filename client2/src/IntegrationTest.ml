@@ -8,7 +8,7 @@ open Types
 
 let pass : testResult = Ok ()
 
-let fail ?(f : 'a -> string = toString) (v: 'a)  : testResult =
+let fail ?(f : 'a -> string = Js.String.make) (v: 'a)  : testResult =
   Error (f v)
 
 let onlyTL (m : model) : toplevel =

@@ -6,17 +6,13 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member vt m.tests
 
 
-let toString (vt : variantTest) : string =
-  match vt with
-  SelectEnterVariant -> "SelectEnterVariant"
-  | StubVariant -> "StubVariant"
-
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false -> None
   | test, _ -> (
       match String.toLower test with
         "selectenter" -> Some SelectEnterVariant
+      | "stub" -> Some StubVariant
       | _ -> None )
 
 let toCSSClass (vt : variantTest) : string =
@@ -28,9 +24,7 @@ let toCSSClass (vt : variantTest) : string =
   test ^ "-variant"
 
 let uniqueTests (xs : variantTest list) : variantTest list =
-  xs |> List.uniqueBy (fun x -> match x with
-      | SelectEnterVariant -> "SEV"
-      | StubVariant -> "SV")
+  List.uniqueBy show_variantTest xs
 
 let splitOnEquals (s : string) : (string * bool) option =
   if String.contains "=" s then

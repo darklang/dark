@@ -75,9 +75,9 @@ let viewButtons (m : model) : msg Html.html =
           [Html.text (pageToString m.currentPage)]
       ; Html.span
           [Html.class' "specialButton"]
-          [Html.text ("Tests: [" ^ Js.String.make (Array.of_list (List.map
-                                                    VariantTesting.toString
-                                                    m.tests))^ "]")]
+          [Html.text ("Tests: [" ^ Js.Array.toString (Array.of_list (List.map
+                                                                       show_variantTest
+                                                                       m.tests))^ "]")]
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
           [Html.text (m.environment ^ "/" ^ "Bucklescript")] ]

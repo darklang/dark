@@ -449,6 +449,16 @@ module StrDict = struct
     Map.keysToArray m
     |> Belt.List.fromArray
 
+  (* Js.String.make gives us "[object Object]", so we actually want our own
+     toString. Not perfect, but slightly nicer (e.g., for Main.ml's
+     DisplayAndReportHttpError, info's values are all strings, which this
+     handles) *)
+  let toString d =
+    d
+    |> toList
+    |> List.map (fun (k,v) -> "\"" ^ k ^ "\": \"" ^ (Js.String.make v) ^ "\"")
+    |> String.join ", "
+  |> fun s -> "{" ^ s ^ "}"
 end
 
 module IntDict = struct

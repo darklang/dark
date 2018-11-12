@@ -42,7 +42,7 @@ let idOf (s : cursorState) : id option =
   | SelectingCommand (_, id) -> Some id
 
 let impossible (a : 'a) : 'b =
-  Debug.crash ("something impossible occurred: " ^ toString a)
+  Debug.crash ("something impossible occurred: " ^ Js.String.make a)
 
 let deOption (msg : string) (x : 'a option) : 'a =
   match x with
@@ -55,11 +55,11 @@ let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
 let recoverable (msg : 'a) (val_ : 'b) : 'b =
   let error =
     "An unexpected but recoverable error happened. " ^ "For now we crash. "
-    ^ "Message: " ^ toString msg ^ "Value: " ^ toString val_
+    ^ "Message: " ^ Js.String.make msg ^ "Value: " ^ Js.String.make val_
   in
   let _ = "comment" in
   let _ = "comment" in
   let _ = Debug.crash error in
   val_
 
-let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ toString a)
+let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ Js.String.make a)
