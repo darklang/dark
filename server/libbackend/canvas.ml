@@ -8,22 +8,21 @@ open Types
 module RTT = Types.RuntimeT
 module TL = Toplevel
 
-type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
               ; owner : Uuidm.t
               ; id : Uuidm.t
               ; ops : (tlid * Op.oplist) list
-              ; handlers : toplevellist
-              ; dbs: toplevellist
-              ; deleted: toplevellist
+              ; handlers : TL.toplevel_list
+              ; dbs: TL.toplevel_list
+              ; deleted: TL.toplevel_list
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
-let upsert_tl (tlid: tlid) (pos: pos) (data: TL.tldata) (tls : toplevellist)
-  : toplevellist =
+let upsert_tl (tlid: tlid) (pos: pos) (data: TL.tldata) (tls : TL.toplevel_list)
+  : TL.toplevel_list =
   let tl : TL.toplevel =
     { tlid = tlid
     ; pos = pos
@@ -69,7 +68,7 @@ let remove_toplevel (tlid: tlid) (c: canvas) : canvas =
          ; deleted = deleted @ removed
   }
 
-let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (tls: toplevellist) =
+let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (tls: TL.toplevel_list) =
   match List.find ~f:(fun t -> t.tlid = tlid) tls with
   | Some tl ->
     let newtl = f tl in
@@ -388,4 +387,15 @@ let cleanup_old_traces () : unit =
         Stored_event.trim_events ~canvas_id ~keep ();
         Stored_function_result.trim_results ~canvas_id ~keep ()))
 
+let to_string (host: string) : string =
+  let c = load_all host [] in
+  let handlers = List.map ~f:TL.to_string !c.handlers in
+  let user_fns = List.map ~f:TL.user_fn_to_string !c.user_functions in
+  let dbs = List.map ~f:TL.to_string !c.dbs in
+  let deleted = List.map ~f:TL.to_string !c.deleted in
+  String.concat ~sep:"\n\n\n"
+    ([" ------------- Handlers ------------- "] @ handlers
+     @ [" ------------- User functions ------------- "] @ user_fns
+     @ [" ------------- DBs ------------- "] @ dbs
+     @ [" ------------- Deleted ------------- "] @ deleted)
 
