@@ -273,9 +273,6 @@ and trace j : trace =
   ; functionResults = field "function_results" (list functionResult) j
   }
 
-(* let executeFunctionTarget : (tlid * id) decoder = *)
-(*   map2 Tuple2.create (index 0 tlid) (index 1 id) *)
-(*  *)
 and rpc j : rpcResult =
   ( field "toplevels" (list toplevel) j
   , field "deleted_toplevels" (list toplevel) j
