@@ -54,7 +54,7 @@ let viewCreateFn : msg Html.html =
 let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
   let getFirst fn = configs |> List.filterMap fn |> List.head in
-  let _ = "comment" in
+  (* Extract config *)
   let thisID =
     getFirst (fun a -> match a with WithID id -> Some id | _ -> None)
   in

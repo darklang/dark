@@ -206,7 +206,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
           | Some am -> [am.rollforward; am.rollback]
                        |> List.filterMap (fun m -> AST.threadPrevious id m)
       in
-      let _ = "comment" in
+      (* buttons *)
       let allExprs = previous @ exprs in
       let isComplete v =
         v

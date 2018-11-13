@@ -262,7 +262,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
                |> Option.andThen (List.getAt index)
                |> Option.map (fun x -> x.paramTipe) )
   in
-  let _ = "comment" in
+  (* functions *)
   let funcList = if isExpression then a.functions else [] in
   let functions =
     funcList
@@ -347,7 +347,7 @@ let filter (list : autocompleteItem list) (query : string) :
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace {js|⟶|js} "->"
   in
-  let _ = "comment" in
+  (* split into different lists *)
   let dynamic, candidates0 = List.partition isDynamicItem list in
   let candidates1, notSubstring =
     List.partition
