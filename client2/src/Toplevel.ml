@@ -155,12 +155,12 @@ let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   match tl.data with
   | TLHandler h ->
-      AST.parentOf_ (P.toID p) h.ast |> Option.map (fun x -> PExpr x)
+      AST.findParentOfWithin_ (P.toID p) h.ast |> Option.map (fun x -> PExpr x)
   | TLFunc f ->
-      AST.parentOf_ (P.toID p) f.ufAST |> Option.map (fun x -> PExpr x)
+      AST.findParentOfWithin_ (P.toID p) f.ufAST |> Option.map (fun x -> PExpr x)
   | TLDB db ->
       db |> DB.astsFor
-      |> List.map (AST.parentOf_ (P.toID p))
+      |> List.map (AST.findParentOfWithin_ (P.toID p))
       |> Option.values |> List.head
       |> Option.map (fun x -> PExpr x)
 
