@@ -43,9 +43,7 @@ let replacements =
     , (fun _ -> DNull)
 
     ; "DarkInternal::checkAllCanvases"
-    , (fun _ ->
-      Canvas.check_all_hosts ();
-      DNull)
+    , (fun _ -> DNull)
 
     ; "DarkInternal::migrateAllCanvases"
     , (fun _ ->
@@ -56,4 +54,20 @@ let replacements =
     , (fun _ ->
       Canvas.cleanup_old_traces ();
       DNull)
+
+    ; "DarkInternal::checkCanvas"
+    , (function
+        | (state, [DStr host]) ->
+          (try
+            Canvas.validate_host host;
+            DBool true
+           with
+           | _ -> DBool false)
+        | args -> fail args)
+
+    ; "DarkInternal::getAllCanvases"
+    , (fun _ ->
+         Serialize.current_hosts ()
+         |> List.map ~f:(fun s -> DStr s)
+         |> DList)
   ]

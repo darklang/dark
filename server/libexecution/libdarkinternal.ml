@@ -24,7 +24,7 @@ let fns : Lib.shortfn list = [
   ; f = NotClientAvailable
   ; pr = None
   ; ps = false
-  ; dep = false
+  ; dep = true
   }
   ;
 
@@ -44,6 +44,30 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = []
   ; r = TNull
+  ; d = "TODO"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = false
+  }
+  ;
+
+  { pns = ["DarkInternal::checkCanvas"]
+  ; ins = []
+  ; p = [par "host" TStr]
+  ; r = TBool
+  ; d = "TODO"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = false
+  }
+  ;
+
+  { pns = ["DarkInternal::getAllCanvases"]
+  ; ins = []
+  ; p = []
+  ; r = TList
   ; d = "TODO"
   ; f = NotClientAvailable
   ; pr = None
