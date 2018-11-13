@@ -1,13 +1,14 @@
-open Tea
 open! Porting
+open Types
+
+(* Dark *)
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-open Types
 
 let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
-let focusItem (i : int) : msg Cmd.t =
+let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
     (fun x -> FocusAutocompleteItem x)
     (Tea_task.nativeBinding

@@ -1,14 +1,17 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Tea *)
+module Cmd = Tea.Cmd
+module Http = Tea.Http
+
+(* Dark *)
 module AC = Autocomplete
 module B = Blank
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-open Prelude
-open Types
-module JSE = Json_encode_extended
-module JSD = Json_decode_extended
 module Key = Keyboard
 
 let init (flagString: string) (location : Web.Location.location) =
@@ -251,10 +254,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | DisplayError e -> ({m with error= updateError m.error e}, Cmd.none)
     | DisplayAndReportError e ->
         let json =
-          JSE.object_
-            [ ("message", JSE.string e)
-            ; ("url", JSE.null)
-            ; ("custom", JSE.object_ []) ]
+          let open Json_encode_extended in
+          object_
+            [ ("message", string e)
+            ; ("url", null)
+            ; ("custom", object_ [])
+            ]
         in
         ({m with error= updateError m.error e}, sendRollbar json)
     | DisplayAndReportHttpError (context, e) ->
@@ -280,7 +285,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | RawResponse (str, _) -> str
           in
           str
-          |> JSD.decodeString Decoders.exception_
+          |> Json_decode_extended.decodeString Decoders.exception_
           |> Result.toOption
           |> Option.map
                (fun { short
@@ -330,10 +335,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let shouldRollbar = e <> Http.NetworkError in
         let json =
-          JSE.object_
-            [ ("message", JSE.string (msg ^ " (" ^ context ^ ")"))
-            ; ("url", JSE.nullable JSE.string url)
-            ; ("custom", Encoders.httpError e) ]
+          let open Json_encode_extended in
+          object_
+            [ ("message", string (msg ^ " (" ^ context ^ ")"))
+            ; ("url", nullable string url)
+            ; ("custom", Encoders.httpError e)
+            ]
         in
         let cmds = if shouldRollbar then [sendRollbar json] else [] in
         ({m with error= updateError m.error msg}, Cmd.batch cmds)
@@ -485,11 +492,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let req h =
           let trace = Analysis.getCurrentTrace m h.tlid in
           let param t =
-            JSE.object_
+            let open Json_encode_extended in
+            object_
               [ ("handler", Encoders.handler h)
               ; ("trace", Encoders.trace t)
-              ; ("dbs", JSE.list Encoders.db dbs)
-              ; ("user_fns" , JSE.list Encoders.userFunction userFns ) ]
+              ; ("dbs", list Encoders.db dbs)
+              ; ("user_fns" , list Encoders.userFunction userFns)
+              ]
             |> Js.Json.stringify
           in
           trace
@@ -1266,7 +1275,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; RequestAnalysis m.toplevels ]
   | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
   | ReceiveAnalysis json -> (
-      let envelope = JSD.decodeString Decoders.analysisEnvelope json in
+      let envelope = Json_decode_extended.decodeString Decoders.analysisEnvelope json in
       match envelope with
       | Ok (id, analysisResults) -> UpdateAnalysis (id, analysisResults)
       | Error str -> DisplayError str
@@ -1332,7 +1341,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   ( {newm with lastMsg= msg; lastMod= mods}
   , newc)
 
-let subscriptions (m : model) : msg Sub.t =
+let subscriptions (m : model) : msg Tea.Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let resizes =
     [ Window.OnResize.listen
@@ -1361,7 +1370,7 @@ let subscriptions (m : model) : msg Sub.t =
       ) @
       [ Patched_tea_time.every
         ~key: "check_url_hash_position"
-        Time.second
+        Tea.Time.second
         (fun f -> TimerFire (CheckUrlHashPosition, f))
       ]
     else [] in
@@ -1389,7 +1398,7 @@ let subscriptions (m : model) : msg Sub.t =
       (fun s -> ReceiveAnalysis s)
     ]
   in
-  Sub.batch
+  Tea.Sub.batch
     (List.concat
        [ keySubs
        ; dragSubs
@@ -1405,7 +1414,7 @@ let debugging =
   let prog =
     Tea.Debug.debug
       show_msg
-      { init = (fun a -> init a (Navigation.getLocation ()))
+      { init = (fun a -> init a (Tea.Navigation.getLocation ()))
       ; view = View.view
       ; update
       ; subscriptions
@@ -1413,7 +1422,7 @@ let debugging =
       }
   in
   let myInit = fun flag loc -> prog.init flag in
-  Navigation.navigationProgram
+  Tea.Navigation.navigationProgram
     (fun x -> Tea.Debug.ClientMsg (LocationChange x))
     { init = myInit
     ; update = prog.update
@@ -1431,7 +1440,7 @@ let normal =
     ; shutdown = (fun _ -> Cmd.none)
     }
   in
-  Navigation.navigationProgram
+  Tea.Navigation.navigationProgram
     (fun x -> LocationChange x)
     program
 

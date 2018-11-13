@@ -1,9 +1,10 @@
-open Tea
 open! Porting
 open Prelude
 open Types
 open ViewUtils
-module Attrs = Tea.Html2.Attributes
+
+(* Tea *)
+module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 
 let onSubmit fn =
@@ -39,16 +40,16 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   in
   let input =
     Html.textarea
-      [ Attrs.id Defaults.entryID
+      [ Attributes.id Defaults.entryID
       ; Events.onInput ((fun x -> EntryInputMsg x) << Util.transformFromStringEntry)
-      ; Attrs.value value
-      ; Attrs.spellcheck false
+      ; Attributes.value value
+      ; Attributes.spellcheck false
       ; nothingMouseEvent "mouseup"
       ; nothingMouseEvent "click"
       ; nothingMouseEvent "mousedown"
-      ; Attrs.rows rowCount
+      ; Attributes.rows rowCount
       ; widthInCh longestLineLength
-      ; Attrs.autocomplete false ]
+      ; Attributes.autocomplete false ]
       []
   in
   let sizeClass =
@@ -75,7 +76,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           | _ -> Html.text name
         in
         Html.li
-          [ Attrs.classList
+          [ Attributes.classList
               [("autocomplete-item", true); ("highlighted", highlighted)]
           ; nothingMouseEvent "mouseup"
           ; nothingMouseEvent "mousedown"
@@ -86,7 +87,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       (List.concat ac.completions)
   in
   let autocomplete =
-    Html.ul [Attrs.id "autocomplete-holder"] autocompleteList
+    Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
   in
 
 
@@ -101,28 +102,28 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   in
   let searchInput =
     Html.input'
-      [ Attrs.id Defaults.entryID
+      [ Attributes.id Defaults.entryID
       ; Events.onInput (fun x -> EntryInputMsg x)
-      ; Attrs.value search
-      ; Attrs.placeholder placeholder
-      ; Attrs.spellcheck false
-      ; Attrs.autocomplete false ]
+      ; Attributes.value search
+      ; Attributes.placeholder placeholder
+      ; Attributes.spellcheck false
+      ; Attributes.autocomplete false ]
       []
   in
   (* TODO(ian): deliberately using an empty string here *)
   (* and changing absolutely nothing else re: the layout/width *)
   (* here because I have no idea what the effects will be *)
-  let suggestionSpan = Html.span [Attrs.id "suggestionBox"] [Html.text ""] in
+  let suggestionSpan = Html.span [Attributes.id "suggestionBox"] [Html.text ""] in
 
   (* http://making.fiftythree.com/fluid-text-inputs/ *)
   let fluidWidthSpan =
     Html.span
-      [Attrs.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
+      [Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
       [Html.text search]
   in
   let input =
     Html.fieldset
-      [Attrs.id "search-container"; widthInCh searchWidth]
+      [Attributes.id "search-container"; widthInCh searchWidth]
       [searchInput; suggestionSpan; fluidWidthSpan]
   in
   let viewForm =

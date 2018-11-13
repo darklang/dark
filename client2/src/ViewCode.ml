@@ -1,11 +1,13 @@
-open Tea
 open! Porting
 open Prelude
 open Types
+
+(* Tea *)
+module Svg = Tea.Svg
+
+(* Dark *)
 module B = Blank
-module Attrs = Html.Attributes
-module RT = Runtime
-module SA = Svg.Attributes
+
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
@@ -58,24 +60,31 @@ and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
 let viewRopArrow (vs : viewState) : msg Html.html =
   let line =
     Svg.path
-      [ SA.stroke "red"
-      ; SA.strokeWidth "1.5px"
-      ; SA.d "M 0,0 z"
+      [ Svg.Attributes.stroke "red"
+      ; Svg.Attributes.strokeWidth "1.5px"
+      ; Svg.Attributes.d "M 0,0 z"
       ; Vdom.attribute "" "opacity" "0.3"
-      ; SA.markerEnd "url(#arrow)" ]
+      ; Svg.Attributes.markerEnd "url(#arrow)" ]
       []
   in
   let head =
     Svg.defs []
       [ Svg.marker
-          [ SA.id "arrow"
-          ; SA.markerWidth "10"
-          ; SA.markerHeight "10"
-          ; SA.refX "0"
-          ; SA.refY "3"
-          ; SA.orient "auto"
-          ; SA.markerUnits "strokeWidth" ]
-          [Svg.path [SA.d "M0,0 L0,6 L9,3 z"; SA.fill "#f00"] []] ]
+        [ Svg.Attributes.id "arrow"
+        ; Svg.Attributes.markerWidth "10"
+        ; Svg.Attributes.markerHeight "10"
+        ; Svg.Attributes.refX "0"
+        ; Svg.Attributes.refY "3"
+        ; Svg.Attributes.orient "auto"
+        ; Svg.Attributes.markerUnits "strokeWidth"
+        ]
+        [ Svg.path
+          [ Svg.Attributes.d "M0,0 L0,6 L9,3 z"
+          ; Svg.Attributes.fill "#f00"
+          ]
+          []
+        ]
+      ]
   in
   let svg =
     Svg.svg
@@ -444,7 +453,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
             [ Html.class' "external"
             ; Html.href
                 ( "//"
-                ^ Http.encodeUri vs.canvasName
+                ^ Tea.Http.encodeUri vs.canvasName
                 ^ "." ^ vs.userContentHost ^ name )
             ; Html.target "_blank" ]
             [fontAwesome "external-link-alt"] ]

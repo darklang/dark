@@ -2,7 +2,6 @@ open Types
 open Porting
 open Prelude
 
-
 type viewState =
   { tl: toplevel
   ; cursorState: cursorState

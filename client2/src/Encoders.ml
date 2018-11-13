@@ -1,7 +1,11 @@
-open Tea
 open! Porting
-module RT = Runtime
 open Json_encode_extended
+
+(* Tea *)
+module Http = Tea.Http
+
+(* Dark *)
+module RT = Runtime
 
 (* Don't attempt to encode these as integers, because we're not capable
  * of expressing all existing ids as ints because bucklescript is strict

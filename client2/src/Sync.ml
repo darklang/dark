@@ -1,4 +1,3 @@
-open Tea
 open! Porting
 open Types
 
@@ -32,9 +31,9 @@ let toAnalyse (m : model) : tlid list =
       |> Option.map (fun e -> [e])
       |> Option.withDefault []
 
-let fetch (m : model) : model * msg Cmd.t =
+let fetch (m : model) : model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState then
     (markRequestInModel m, RPC.getAnalysisRPC (contextFromModel m) (toAnalyse m))
-  else (markTickInModel m, Cmd.none)
+  else (markTickInModel m, Tea.Cmd.none)
 
 

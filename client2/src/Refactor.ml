@@ -1,10 +1,11 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module TL = Toplevel
-open Types
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)

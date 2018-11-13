@@ -1,6 +1,5 @@
- open! Porting
+open! Porting
 open Types
-module RT = Runtime
 
 (* In Elm, there were flags, which were converted directly into data without
  * passing through decoders. These decoders read from a slightly odd format,
@@ -10,7 +9,7 @@ module RT = Runtime
 let parameter j : parameter =
   let open Json_decode_extended in
   { paramName = field "name" string j
-  ; paramTipe = field "tipe" (string >> RT.str2tipe) j
+  ; paramTipe = field "tipe" (string >> Runtime.str2tipe) j
   ; paramBlock_args = field "block_args" (list string) j
   ; paramOptional = field "optional" bool j
   ; paramDescription = field "description" string j
@@ -21,7 +20,7 @@ let function_ j : function_ =
   { fnName = field "name" string j
   ; fnParameters = field "parameters" (list parameter) j
   ; fnDescription = field "description" string j
-  ; fnReturnTipe = field "return_type" (string >> RT.str2tipe) j
+  ; fnReturnTipe = field "return_type" (string >> Runtime.str2tipe) j
   ; fnPreviewExecutionSafe = field "preview_execution_safe" bool j
   ; fnDeprecated = field "deprecated" bool j
   ; fnInfix = field "infix" bool j

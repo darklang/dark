@@ -1,10 +1,10 @@
-open Tea
 open! Porting
-module B = Blank
-module Fns = Functions
-module P = Pointer
 open Prelude
 open Types
+
+(* Dark *)
+module B = Blank
+module P = Pointer
 
 let name (tl : toplevel) : string =
   match tl.data with
@@ -84,7 +84,7 @@ let rec allData (tl : toplevel) : pointerData list =
   match tl.data with
   | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
   | TLDB db -> DB.allData db
-  | TLFunc f -> Fns.allData f
+  | TLFunc f -> Functions.allData f
 
 let isValidID (tl : toplevel) (id : id) : bool =
   List.member id (tl |> allData |> List.map P.toID)
@@ -220,7 +220,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   in
   let fnMetadataReplace () =
     let f = fn () in
-    let newF = Fns.replaceMetadataField p replacement f in
+    let newF = Functions.replaceMetadataField p replacement f in
     {tl with data= TLFunc newF}
   in
   match replacement with

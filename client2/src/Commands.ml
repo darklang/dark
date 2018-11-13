@@ -1,7 +1,8 @@
-open Tea
 open! Porting
-module TL = Toplevel
 open Types
+
+(* Dark *)
+module TL = Toplevel
 
 let executeCommand (m : model) (tlid : tlid) (id : id)
     (highlighted : autocompleteItem option) : modification =

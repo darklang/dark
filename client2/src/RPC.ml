@@ -1,7 +1,5 @@
 open! Porting
 open Types
-module JSD = Json_decode_extended
-
 
 let postJson decoder (csrfToken : string) (url: string) (body: Js.Json.t) =
   Tea.Http.request
@@ -77,7 +75,7 @@ let delete404RPC (c : rpcContext) (param : delete404Param) : msg Tea.Cmd.t =
     String.concat ["/api/"; Tea.Http.encodeUri c.canvasName; "/delete_404"]
   in
   let request =
-    postJson (JSD.list Decoders.fof) c.csrfToken url (Encoders.fof param)
+    postJson (Json_decode_extended.list Decoders.fof) c.csrfToken url (Encoders.fof param)
   in
   Tea.Http.send (fun x -> GetDelete404RPCCallback x) request
 
@@ -90,7 +88,7 @@ let initialLoadRPC (c : rpcContext) (focus : focus) : msg Tea.Cmd.t =
 
 let saveTestRPC (c : rpcContext) : msg Tea.Cmd.t =
   let url = String.concat ["/api/"; Tea.Http.encodeUri c.canvasName; "/save_test"] in
-  let request = postEmptyString JSD.string c.csrfToken url in
+  let request = postEmptyString Json_decode_extended.string c.csrfToken url in
   Tea.Http.send (fun x -> SaveTestRPCCallback x) request
 let opsParams (ops : op list) : rpcParams = {ops}
 
