@@ -340,22 +340,23 @@ let validate_op host op =
     Exception.internal "bad op"
       ~info:["host", host] ~actual:(Op.show_op op)
 
-(* just load, don't save *)
+let validate_host host =
+  let c = load_all host [] in
+
+  (* check ops *)
+  List.iter (Op.tlid_oplists2oplist !c.ops)
+    ~f:(validate_op host)
+
+(* just load, don't save -- also don't validate the ops don't
+ * have deprecate ops (via validate_op or validate_host). this
+ * function is used by the readiness check to gate deploys, so
+ * we don't want to prevent deploys because someone forgot a deprecatedop
+ * in a tier 1 canvas somewhere *)
 let check_tier_one_hosts () : unit =
   let hosts = Serialize.tier_one_hosts () in
-  List.iter hosts
+  List.iter
     ~f:(fun host -> ignore (load_all host []))
-
-let check_all_hosts () : unit =
-  let hosts = Serialize.current_hosts () in
-
-  List.iter hosts
-    ~f:(fun host ->
-      let c = load_all host [] in
-
-      (* check ops *)
-      List.iter (Op.tlid_oplists2oplist !c.ops)
-        ~f:(validate_op host))
+    hosts
 
 let migrate_all_hosts () : unit =
   (* let hosts = Serialize.current_hosts () in *)
