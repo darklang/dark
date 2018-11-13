@@ -343,7 +343,7 @@ and parseDvalLiteral (str : string) : dval option =
 and parseBasicDval str : dval =
   oneOf
     [ map (fun x -> DInt x) int
-    ; map (fun x -> DFloat x) float
+    ; map (fun x -> DFloat x) Json_decode_extended.float
     ; map (fun x -> DBool x) bool
     ; nullAs DNull
     ; map (fun x -> DStr x) string
@@ -369,7 +369,7 @@ and dval j : dval =
   in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
-    ; ("DFloat", dv1 (fun x -> DFloat x) float)
+    ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
     ; ("DBool", dv1 (fun x -> DBool x) bool)
     ; ("DNull", dv0 DNull)
     ; ("DStr", dv1 (fun x -> DStr x) string)
