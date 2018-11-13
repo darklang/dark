@@ -15,7 +15,7 @@ let func ?(d:string = "") ?(name:string="f") args : param =
   par name TBlock ~args ~d
 
 
-(* Shorthand *)
+(* Shorthand - see Libs.ml's add_short_fn for expansions *)
 type shortfn = { pns : string list
                ; ins : string list
                ; p : param list
