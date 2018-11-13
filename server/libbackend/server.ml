@@ -869,9 +869,10 @@ let server () =
                "Dark Internal Error: " ^ Exn.to_string e
           with _ -> "UNHANDLED ERROR: real_err"
         in
-        let real_err =
-          real_err ^ (Exception.get_backtrace ()
-                      |> Exception.backtrace_to_string)
+        let real_err = real_err
+          (* Commented out because API handlers need to be JSON decoded *)
+          (* ^ (Exception.get_backtrace () *)
+          (*             |> Exception.backtrace_to_string) *)
         in
         Log.erroR real_err ~bt ~params:["execution_id", Log.dump execution_id];
         match e with

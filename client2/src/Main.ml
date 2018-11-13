@@ -266,9 +266,20 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadPayload (_, r) -> Some r
           | _ -> None
         in
-        let body str =
+        let body (body: Tea.Http.responseBody) =
           let maybe name m =
             match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
+          in
+          let str =
+            match body with
+            | NoResponse -> "todo-noresponse"
+            | StringResponse str -> str
+            | ArrayBufferResponse _ -> "todo-arratbufferresponse"
+            | BlobResponse _ -> "todo-blobresponse"
+            | DocumentResponse _ -> "todo-document-response"
+            | JsonResponse _ -> "todo-jsonresponse"
+            | TextResponse str -> str
+            | RawResponse (str, _) -> str
           in
           str
           |> JSD.decodeString Decoders.exception_
@@ -306,9 +317,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadStatus response ->
               "Bad status: "
               ^ response.status.message
-                  (* TODO: PORTING  *)
-              (* ^ body response.body *)
-              ^ "TODO: decode body response"
+              ^ body response.body
           | Http.BadPayload (msg, _) -> "Bad payload (" ^ context ^ "): " ^ msg
           | Http.Aborted -> "Request Aborted"
         in

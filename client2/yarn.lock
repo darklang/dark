@@ -673,10 +673,10 @@ bser@^2.0.0:
   dependencies:
     node-int64 "^0.4.0"
 
-bucklescript-tea@^0.8.0:
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/bucklescript-tea/-/bucklescript-tea-0.8.0.tgz#73d2a824154435acc4b34e192aa37b5630952d6f"
-  integrity sha512-V3WzQZmQQ0dTHH6Umtkr0oE6cJWX6j5CFkqNIJfiq4C4otSqM+IpO74jQLGARpVJkY2IMwTighIIDY8w0Vgi9w==
+bucklescript-tea@^0.9.0:
+  version "0.9.0"
+  resolved "https://registry.yarnpkg.com/bucklescript-tea/-/bucklescript-tea-0.9.0.tgz#479753defe460ddc01c2498fa1ffceb52e010b67"
+  integrity sha512-GFWJZmPYLJ3VZZsYKYH+tZu783tL2FiPf6kbhtMS2bws+2eUraDWjh0ctEMHgKy/gpONIdIV6jvZZzUqrNI3ag==
 
 buffer-from@^1.0.0:
   version "1.1.1"
