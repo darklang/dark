@@ -100,7 +100,6 @@ and expr j : expr =
 
 and nExpr j : nExpr =
   let de = expr in
-  let did = id in
   let dv4 = variant4 in
   let dv3 = variant3 in
   let dv2 = variant2 in
@@ -326,7 +325,6 @@ and typeOfLiteralString (s : string) : tipe =
   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
 
 and parseDvalLiteral (str : string) : dval option =
-  let firstChar = String.uncons str |> Option.map Tuple.first in
   if String.toLower str = "nothing" then Some (DOption OptNothing)
   else
     match String.toList str with

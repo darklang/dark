@@ -22,7 +22,6 @@ let init (flagString: string) (location : Web.Location.location) =
   let m0 = Editor.editor2model savedEditor in
   (* these saved values may not be valid yet *)
   let savedCursorState = m0.cursorState in
-  let savedCurrentPage = m0.currentPage in
   let m =
     { m0 with
       cursorState= Deselected
@@ -171,7 +170,6 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   in
 
   (if m.integrationTestState <> NoIntegrationTest then
-    let i = complete.index in
     let val_ = AC.getValue complete in
     Debug.loG "autocompletemod result: "
       (string_of_int complete.index ^ " => '" ^ val_ ^ "'"));
@@ -263,12 +261,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with error= updateError m.error e}, sendRollbar json)
     | DisplayAndReportHttpError (context, e) ->
-        let response =
-          match e with
-          | Http.BadStatus r -> Some r
-          | Http.BadPayload (_, r) -> Some r
-          | _ -> None
-        in
         let body (body: Tea.Http.responseBody) =
           let maybe name m =
             match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
@@ -1154,10 +1146,10 @@ let update_ (msg : msg) (m : model) : modification =
     | Deselected -> Select (targetTLID, None)
     | Entering _ -> Select (targetTLID, None) )
   | ExecuteFunctionButton (tlid, id, name) ->
-      let tl = TL.getTL m tlid in
       Many
         [ ExecutingFunctionBegan (tlid, id)
-        ; ExecutingFunctionRPC (tlid, id, name) ]
+        ; ExecutingFunctionRPC (tlid, id, name)
+        ]
   | DataClick (tlid, idx, _) -> (
     match m.cursorState with
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
