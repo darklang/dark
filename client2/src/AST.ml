@@ -471,7 +471,6 @@ let maybeExtendObjectLiteralAt (pd : pointerData) (ast : expr) : expr =
 
 let addListLiteralBlanks (id : id) (expr : expr) : expr =
   let new1 = B.new_ () in
-  let new2 = B.new_ () in
   let parent = findParentOfWithin id expr in
   match parent with
   | F (lid, ListLiteral exprs) ->
@@ -719,7 +718,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            | PExpr boe -> (
              match boe with
              | Blank _ -> None
-             | F (id, e) as expr -> (
+             | F (id, e) -> (
                match e with
                | Let (F (_, lhs), rhs, body) -> Some (uses lhs body)
                | Lambda (vars, body) ->

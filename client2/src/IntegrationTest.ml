@@ -103,7 +103,7 @@ let tabbing_works (m : model) : testResult =
   | e -> fail ~f:show_nExpr e
 
 let left_right_works (m : model) : testResult =
-  let h = onlyHandler m in
+  ignore (onlyHandler m);
   match m.cursorState with
   | Selecting (tlid, Some id) -> (
       let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
@@ -147,7 +147,7 @@ let no_request_global_in_non_http_space (m : model) : testResult =
   | e -> fail ~f:show_nExpr e
 
 let hover_values_for_varnames (m : model) : testResult =
-  let tlid = m.toplevels |> List.head |> deOption "test" |> fun x -> x.id in
+  ignore (m.toplevels |> List.head |> deOption "test" |> fun x -> x.id);
   pass
 
 let pressing_up_doesnt_return_to_start (m : model) : testResult =

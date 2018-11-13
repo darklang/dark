@@ -294,7 +294,6 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
             (wc "fncall prefix" :: wc (depthString d) :: all)
             (fnDiv fn.fnInfix :: args) )
   | Lambda (vars, expr) ->
-      let varname v = t [wc "lambdavarname"; atom] v in
       n (wc "lambdaexpr" :: all)
         [ n [wc "lambdabinding"] (List.map (viewVarBind vs [atom]) vars)
         ; a [wc "arrow"] "->"

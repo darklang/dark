@@ -109,7 +109,6 @@ let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun e -> NothingClick e)
 
 let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
-  let div class_ subs = Html.div [Html.class' class_] subs in
   Html.div
     [ Html.class' "node"
     ; Html.styles

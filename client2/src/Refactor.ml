@@ -129,7 +129,6 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
   else
     match p with
     | PExpr body ->
-        let pred = TL.getPrevBlank tl (Some p) |> Option.map P.toID in
         let name = generateFnName () in
         let freeVars = AST.freeVariables body in
         let paramExprs =

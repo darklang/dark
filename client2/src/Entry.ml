@@ -100,7 +100,6 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   | NewHTTPRoute route ->
       let next = gid () in
       let tlid = gtlid () in
-      let spec = newHandlerSpec () in
       let handler =
         { ast= B.new_ ()
         ; spec=
