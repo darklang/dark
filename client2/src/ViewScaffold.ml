@@ -14,19 +14,21 @@ let isDebugging () =
   | _ -> false
 
 let debuggerLinkLoc () =
-  let debug = not (isDebugging ())
-  in let loc = Tea_navigation.getLocation()
-  in let newSearch = match (debug, String.uncons loc.search) with
-      | true, Some ('?', rest) -> ("?" ^ rest ^ "&debug")
-      | true, _ -> "?debug"
-      | false, Some ('?', "debug") -> ""
-      | false, Some ('?', rest) -> (rest
-                                    |> String.split "&"
-                                    |> List.filter ((!=) "debug")
-                                    |> String.join "&"
-                                    |> (++) "?")
-      | false, _ -> ""
-  in Printf.sprintf "%s//%s%s%s%s" loc.protocol loc.host loc.pathname newSearch loc.hash
+let debug = not (isDebugging ()) in
+let loc = Tea_navigation.getLocation() in
+let newSearch =
+  match (debug, String.uncons loc.search) with
+  | true, Some ('?', rest) -> ("?" ^ rest ^ "&debug")
+  | true, _ -> "?debug"
+  | false, Some ('?', "debug") -> ""
+  | false, Some ('?', rest) -> (rest
+                                |> String.split "&"
+                                |> List.filter ((!=) "debug")
+                                |> String.join "&"
+                                |> (++) "?")
+  | false, _ -> ""
+in
+Printf.sprintf "%s//%s%s%s%s" loc.protocol loc.host loc.pathname newSearch loc.hash
 
 
 let viewButtons (m : model) : msg Html.html =
