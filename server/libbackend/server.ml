@@ -263,7 +263,8 @@ let user_page_handler ~(execution_id: Types.id) ~(canvas: string) ~(ip: string) 
         let body =
           if List.exists resp_headers ~f:(fun (name, value) ->
                  String.lowercase name = "content-type"
-                 && String.is_prefix value ~prefix:"text/html")
+                 && (String.is_prefix value ~prefix:"text/html"
+                    || String.is_prefix value ~prefix:"text/plain"))
           then Dval.to_human_repr value
                                   (* TODO: only pretty print for a webbrowser *)
           else

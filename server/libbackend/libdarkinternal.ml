@@ -70,4 +70,8 @@ let replacements =
          Serialize.current_hosts ()
          |> List.map ~f:(fun s -> DStr s)
          |> DList)
+
+    ; "DarkInternal::canvasAsText"
+    , (function  | (_, [DStr host]) -> DStr (Canvas.to_string host)
+                 | args -> fail args)
   ]
