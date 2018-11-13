@@ -77,7 +77,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "response" TAny; par "code" TInt]
   ; r = TResp
-  ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
+  ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\""
   ; f = InProcess
         (function
           | (_, [dv; DInt code]) -> DResp (Response (code, ["Content-Type", "text/plain"]), dv)
