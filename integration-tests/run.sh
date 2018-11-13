@@ -118,12 +118,5 @@ RESULT=$?
 # Fix xunit output for CircleCI flaky-tests stats
 sed -i 's/ (screenshots: .*)"/"/' ${TEST_RESULTS_XML}
 
-# TODO(bucklescript): remove after ship
-# Intent: make integration tests report legitimate result when running elm tests
-# and return 0 for bucklescript
-if [[ "${CIRCLE_BRANCH:+$CIRCLE_BRANCH}" == "master" ]]; then
-  exit $RESULT
-else
-  exit 0
-fi
+exit $RESULT
 
