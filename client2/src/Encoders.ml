@@ -41,7 +41,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   in
   match dv with
   | DInt i -> ev "DInt" [int i]
-  | DFloat f -> ev "DFloat" [float f]
+  | DFloat f -> ev "DFloat" [Json_encode_extended.float f]
   | DBool b -> ev "DBool" [bool b]
   | DNull -> ev "DNull" []
   | DStr s -> ev "DStr" [string s]
