@@ -19,8 +19,9 @@ let toCSSClass (vt : variantTest) : string =
   let test = match vt with
       StubVariant -> "stub"
     | SelectEnterVariant -> "selectenter"
+    (* _ -> "default" *) (* Please never do this, let the compiler tell you if
+                            you missed a variant *)
   in
-  let _ = "comment" in
   test ^ "-variant"
 
 let uniqueTests (xs : variantTest list) : variantTest list =

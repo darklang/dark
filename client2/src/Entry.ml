@@ -202,10 +202,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PVarBind _ -> v variablePattern "variable name"
   | PEventName _ ->
       let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
-      let http = "/(" ^ urlSafeCharacters ^ "*)" in
-      let _ = "comment" in
-      let event = urlSafeCharacters ^ "+" in
-      let _ = "comment" in
+      let http = "/(" ^ urlSafeCharacters ^ "*)" in (* preceeding slash *)
+      let event = urlSafeCharacters ^ "+" in (* at least one *)
       if TL.isHTTPHandler tl then v http "route name" else v event "event name"
   | PEventModifier _ ->
       if TL.isHTTPHandler tl then v "[A-Z]+" "verb"
@@ -245,8 +243,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
           |> Option.map (fun x -> FocusExact (tlid, x))
           |> Option.withDefault (FocusNext (tlid, None))
         in
-        let _ = "comment" in
-        let _ = "comment" in
+        (* NB: these pos magic numbers position the tl body where the click was *)
         let op =
           SetHandler
             ( tlid
@@ -353,9 +350,9 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             let parent = AST.parentOf id ast in
             if String.endsWith "." value then
               let fieldname = String.dropRight 1 value in
-              let _ = "comment" in
-              let _ = "comment" in
-              let _ = "comment" in
+              (* wrap the field access with another field access *)
+              (* get the parent ID from the old AST, cause it has the blank.
+                 Then get the parent structure from the new ID *)
               let wrapped =
                 match parent with
                 | F (id_, FieldAccess (lhs, rhs)) ->

@@ -17,7 +17,7 @@ let init (flagString: string) (location : Web.Location.location) =
   in
   let savedEditor = Editor.fromString editorState in
   let m0 = Editor.editor2model savedEditor in
-  let _ = "comment" in
+  (* these saved values may not be valid yet *)
   let savedCursorState = m0.cursorState in
   let savedCurrentPage = m0.currentPage in
   let m =
@@ -198,7 +198,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let newH = {h with ast= replacement} in
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
                  let params = RPC.opsParams ops in
-                 let _ = "comment" in
+                 (* call RPC on the new model *)
                  [RPC.rpc newM (contextFromModel newM) FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ufAST in
@@ -207,7 +207,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let newF = {f with ufAST= replacement} in
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
-                 let _ = "comment" in
+                 (* call RPC on the new model *)
                  [RPC.rpc newM (contextFromModel newM) FocusSame params]
            | _ -> [] )
     |> Option.withDefault []
@@ -420,8 +420,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RemoveToplevel tl -> (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (tls, updateCurrent) ->
         let m2 = {m with toplevels= tls} in
-        let _ = "comment" in
-        let _ = "comment" in
+        (* Bring back the TL being edited, so we don't lose work done since the
+           API call *)
         let m3 =
           match tlidOf m.cursorState with
           | Some tlid -> (
@@ -440,8 +440,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m4 [ACRegenerate]
     | UpdateToplevels (tls, updateCurrent) ->
         let m2 = TL.upsertAll m tls in
-        let _ = "comment" in
-        let _ = "comment" in
+        (* Bring back the TL being edited, so we don't lose work done since the
+           API call *)
         let m3 =
           match tlidOf m.cursorState with
           | Some tlid -> (
@@ -512,8 +512,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | SetUserFunctions (userFuncs, updateCurrent) ->
         let m2 = {m with userFunctions= userFuncs} in
-        let _ = "comment" in
-        let _ = "comment" in
+        (* Bring back the TL being edited, so we don't lose work done since the
+           API call *)
         let m3 =
           match tlidOf m.cursorState with
           | Some tlid -> (

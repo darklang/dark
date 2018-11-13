@@ -59,8 +59,7 @@ let recoverable (msg : 'a) (val_ : 'b) : 'b =
     "An unexpected but recoverable error happened. " ^ "For now we crash. "
     ^ "Message: " ^ Js.String.make msg ^ "Value: " ^ Js.String.make val_
   in
-  let _ = "comment" in
-  let _ = "comment" in
+  (* TODO: surface the error to the user and in rollbar and continue *)
   let _ = Debug.crash error in
   val_
 
