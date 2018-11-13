@@ -4,6 +4,33 @@ open! Porting
 module JSD = Json_decode_extended
 
 
+let isDebugging () =
+  match String.uncons (Tea_navigation.getLocation()).search with
+  | Some ('?', rest) ->
+    rest
+    |> String.toLower
+    |> String.split "&"
+    |> (fun strs -> Belt.List.some strs ((=) "debug"))
+  | _ -> false
+
+let debuggerLinkLoc () =
+let debug = not (isDebugging ()) in
+let loc = Tea_navigation.getLocation() in
+let newSearch =
+  match (debug, String.uncons loc.search) with
+  | true, Some ('?', rest) -> ("?" ^ rest ^ "&debug")
+  | true, _ -> "?debug"
+  | false, Some ('?', "debug") -> ""
+  | false, Some ('?', rest) -> (rest
+                                |> String.split "&"
+                                |> List.filter ((!=) "debug")
+                                |> String.join "&"
+                                |> (++) "?")
+  | false, _ -> ""
+in
+Printf.sprintf "%s//%s%s%s%s" loc.protocol loc.host loc.pathname newSearch loc.hash
+
+
 let viewButtons (m : model) : msg Html.html =
   let integrationTestButton =
     match m.integrationTestState with
@@ -80,7 +107,13 @@ let viewButtons (m : model) : msg Html.html =
                                                                        m.tests))^ "]")]
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
-          [Html.text (m.environment ^ "/" ^ "Bucklescript")] ]
+          [Html.text (m.environment ^ "/" ^ "Bucklescript")]
+      ; Html.a
+          [Html.href (debuggerLinkLoc ())
+          ; Html.src ""
+          ; Html.class' "specialButton" ]
+          [ Html.text
+              (if isDebugging () then "DisableDebugger" else "EnableDebugger") ] ]
     @ integrationTestButton @ returnButton @ [status] )
 
 let viewError (err : darkError) : msg Html.html =
