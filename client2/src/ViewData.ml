@@ -22,8 +22,7 @@ let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml" tlid idx) "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
   in
   Html.li
-    (* TODO: should this be `Vdom.attribute "" "data-content" value`? *)
-    ([Vdom.prop "data-content" value] @ classes @ events)
+    ([Vdom.attribute "" "data-content" value] @ classes @ events)
     [Html.text {js|•|js}]
 
 let asValue (inputValue : inputValueDict) : string =
@@ -32,11 +31,11 @@ let asValue (inputValue : inputValueDict) : string =
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
   let traceToHtml idx trace =
     let value = asValue trace.input in
-    let _ = "comment" in
+    (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive = Analysis.cursor_ vs.tlCursors vs.tl.id = idx in
-    let _ = "comment" in
     let hoverID = tlCursorID vs.tl.id idx in
     let isHover = vs.hovering = Some hoverID in
+    (Js.log ("isHover: " ^ (Js.String.make isHover)));
     let astTipe =
       StrDict.get trace.traceID vs.analyses
       |> Option.map (fun x -> x.liveValues)
@@ -44,6 +43,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
       |> Option.map RT.typeOf
       |> Option.withDefault TIncomplete
     in
+    (Js.log ("AST: " ^ show_tipe astTipe));
     viewInput vs.tl.id idx value isActive isHover astTipe
   in
   List.indexedMap traceToHtml vs.traces
