@@ -78,7 +78,7 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
 let viewTL (m : model) (tl : toplevel) : msg Html.html =
   let id = deTLID tl.id in
   let recalc () = viewTL_ m tl.id in
-  let _ = "comment" in
+  (* Allow the DB locked status to update *)
   let isDB = match tl.data with TLDB _ -> true | _ -> false in
   let pos =
     match m.currentPage with
@@ -115,9 +115,8 @@ let viewCanvas (m : model) : msg Html.html =
     | Fn (tlid, _) -> (
       match List.find (fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func -> [viewTL m (TL.ufToTL m func)]
-      | None -> List.map (viewTL m) m.toplevels )
+      | None -> List.map (viewTL m) m.toplevels ) (* TODO(ian): change to crash *)
   in
-  let _ = "comment" in
   let canvasTransform =
     let offset =
       match m.currentPage with
