@@ -655,7 +655,7 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   | _ -> None
 
 let within (e : nExpr) (id : id) : bool =
-  F (ID (-1), e) |> allData |> List.map P.toID |> List.member id
+  F (ID "invalidIDforASTwithin", e) |> allData |> List.map P.toID |> List.member id
 
 let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
   let replacement = P.emptyD_ id (P.typeOf p) in
@@ -729,7 +729,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            | _ -> None )
     |> List.concat
     |> List.map (B.toID >> deID)
-    |> IntSet.fromList
+    |> StrSet.fromList
   in
   ast |> allData
   |> List.filterMap (fun n ->
@@ -740,7 +740,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            | F (id, e) -> (
              match e with
              | Variable name ->
-                 if IntSet.member (deID id) definedAndUsed then None
+                 if StrSet.member (deID id) definedAndUsed then None
                  else Some (id, name)
              | _ -> None ) )
          | _ -> None )

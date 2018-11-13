@@ -41,17 +41,13 @@ window.Dark = {
     positions: function (tlid) {
       var extractId = function (elem) {
         var className = elem.className;
-        var matches = /.*id-([0-9]+).*/g.exec(className);
+        var matches = /.*id-(\S+).*/g.exec(className);
         var id = matches[1];
 
         if (typeof id === 'undefined')
           throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for '+className;
 
-        var intID = parseInt(id);
-        if(isNaN(intID))
-          throw 'Dark.ast.atomPositions: Fail to parseInt '+id;
-
-        return intID;
+        return id;
       };
 
       var find = function (tl, nested) {
@@ -61,10 +57,10 @@ window.Dark = {
           var rect = v.getBoundingClientRect();
           atoms.push({
             id: extractId(v),
-            left: rect.left | 0,
-            right: rect.right | 0,
-            top: rect.top | 0,
-            bottom: rect | 0
+            left: "" + (rect.left | 0),
+            right: "" + (rect.right | 0),
+            top: "" + (rect.top | 0),
+            bottom: "" + (rect.bottom | 0)
           });
         })
         return atoms;

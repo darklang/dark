@@ -40,7 +40,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
     let astTipe =
       StrDict.get trace.traceID vs.analyses
       |> Option.map (fun x -> x.liveValues)
-      |> Option.andThen (IntDict.get astID)
+      |> Option.andThen (StrDict.get astID)
       |> Option.map RT.typeOf
       |> Option.withDefault TIncomplete
     in
@@ -54,7 +54,7 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let selectedValue =
     match vs.cursorState with
     | Selecting (tlid, Some (ID id)) ->
-        IntDict.get id vs.currentResults.liveValues
+        StrDict.get id vs.currentResults.liveValues
     | _ -> None
   in
   [ Html.div
