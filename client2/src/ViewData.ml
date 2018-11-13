@@ -8,8 +8,8 @@ module RT = Runtime
 
 let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
     (isHover : bool) (tipe : tipe) : msg Html.html =
-  let activeClass = if isActive then [Html.class' "active"] else [] in
-  let hoverClass = if isHover then [Html.class' "mouseovered"] else [] in
+  let activeClass = if isActive then [Html.class' "active"] else [Vdom.noProp] in
+  let hoverClass = if isHover then [Html.class' "mouseovered"] else [Vdom.noProp] in
   let tipeClassName = "tipe-" ^ RT.tipe2str tipe in
   let tipeClass = [Html.class' tipeClassName] in
   let classes = activeClass @ hoverClass @ tipeClass in
