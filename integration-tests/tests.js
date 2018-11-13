@@ -755,18 +755,16 @@ test('execute_function_works', async t => {
     .typeText("#entry-box", "Uuid::gen", slow)
     .pressKey("enter")
     .click(Selector('.fa-play'))
-    .click(Selector('.fncall').withText('Uuid::generate'))
+    .click(Selector('.fncall'))
     ;
 
   let v1 = await Selector('.selected[data-live-value]').getAttribute('data-live-value');
-  console.log(v1);
 
   await t
     .click(Selector('.fa-redo'))
     ;
 
   let v2 = await Selector('.selected[data-live-value]').getAttribute('data-live-value');
-  console.log(v2);
 
   let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
   await t.expect(v1).match(re);
