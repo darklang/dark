@@ -30,7 +30,7 @@
   "bsc-flags": ["-bs-g", "-bs-super-errors"],
   "warnings": {
     "error": "+101",
-    "number": "-27-39-26"
+    "number": "-27-26"
   },
   "refmt": 3
 }

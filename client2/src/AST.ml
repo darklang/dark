@@ -577,7 +577,7 @@ let allCallsToFn (s : string) (e : expr) : expr list =
              if name = s then Some (F (id, FnCall (name, params, r))) else None
          | _ -> None )
 
-let rec usesRail (ast : expr) : bool =
+let usesRail (ast : expr) : bool =
   List.any
     (fun e ->
       match e with PExpr (F (_, FnCall (_, _, Rail))) -> true | _ -> false )

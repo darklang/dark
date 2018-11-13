@@ -9,7 +9,7 @@ let astsFor (db : dB) : expr list =
   | None -> []
   | Some am -> [am.rollforward; am.rollback]
 
-let rec allData (db : dB) : pointerData list =
+let allData (db : dB) : pointerData list =
   let cols, rolls =
     match db.activeMigration with
     | Some migra ->

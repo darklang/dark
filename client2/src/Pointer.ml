@@ -75,7 +75,7 @@ let isBlank (pd : pointerData) : bool =
   | PParamTipe d -> B.isBlank d
   | PPattern d -> B.isBlank d
 
-let rec toContent (pd : pointerData) : string option =
+let toContent (pd : pointerData) : string option =
   let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> fun x -> Some x in
   match pd with
   | PVarBind v -> bs2s v
