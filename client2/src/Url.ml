@@ -1,8 +1,9 @@
-open Tea
 open! Porting
-module Attrs = Html.Attributes
 open Prelude
 open Types
+
+module Cmd = Tea.Cmd
+module Navigation = Tea.Navigation
 
 let hashUrlParams (params : (string * string) list) : string =
   let merged = List.map (fun (k, v) -> k ^ "=" ^ v) params in

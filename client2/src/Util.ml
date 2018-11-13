@@ -1,4 +1,3 @@
-open Tea
 open! Porting
 
 let windowSize (a : unit) : int * int =

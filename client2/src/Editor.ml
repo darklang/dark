@@ -1,5 +1,4 @@
 open! Porting
-module TL = Toplevel
 open Types
 
 let fromString (json : string option) : serializableEditor =
@@ -28,7 +27,7 @@ let model2editor (m : model) : serializableEditor =
 
 let updateLockedHandlers (tlid : tlid) (lockHandler : bool) (m : model) :
     modification =
-  let tl = TL.getTL m tlid in
+  let tl = Toplevel.getTL m tlid in
   match tl.data with
   | TLHandler _ ->
       let lockedList =

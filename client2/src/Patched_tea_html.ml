@@ -1,5 +1,3 @@
-open Tea
-
 (* TODO(ian): push to fork + upstream *)
 let onWithOptions ?(key="") eventName (options: Tea_html.options) decoder =
   Tea_html.onCB eventName key (fun event ->

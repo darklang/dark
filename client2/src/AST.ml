@@ -1,9 +1,10 @@
-open Tea
 open! Porting
-module B = Blank
-module P = Pointer
 open Prelude
 open Types
+
+(* Dark *)
+module B = Blank
+module P = Pointer
 
 let traverse (fn : expr -> expr) (expr : expr) : expr =
   match expr with

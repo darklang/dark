@@ -1,10 +1,11 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module TL = Toplevel
-open Types
 
 let moveCursorBackInTime (m : model) (tlid : tlid) : modification =
   let maxCursor = List.length (Analysis.getTraces m tlid) - 1 in

@@ -1,7 +1,6 @@
 open! Porting
 open Types
 open Jest
-open Expect
 
 let testRoundtrip decoder encoder
     (name : string) (v : 'a) =

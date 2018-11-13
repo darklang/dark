@@ -1,7 +1,4 @@
 open! Porting
-open Types
-open Autocomplete
-open Prelude
 open Jest
 open Expect
 

@@ -1,9 +1,9 @@
-open Tea
 open! Porting
-module Attrs = Html.Attributes
 open Prelude
-module TL = Toplevel
 open Types
+
+(* Dark *)
+module TL = Toplevel
 
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig

@@ -1,19 +1,20 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module AC = Autocomplete
 module B = Blank
 module P = Pointer
-open Prelude
 module RT = Runtime
 module TL = Toplevel
-open Types
 
 let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
 (* fixed from Tea_html_cmds *)
 let focusIdTask id =
-  Tea_cmd.call
+  Tea.Cmd.call
     (fun _ ->
       let ecb _ignored =
         match Js.Nullable.toOption (Web.Document.getElementById id) with
@@ -26,10 +27,10 @@ let focusIdTask id =
       ignore (Web.Window.requestAnimationFrame cb);
       ())
 
-let focusEntry (m : model) : msg Cmd.t =
+let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) -> focusIdTask Defaults.entryID
-  | _ -> Cmd.none
+  | _ -> Tea.Cmd.none
 
 let newHandlerSpec (_ : unit) : handlerSpec =
   {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()}
