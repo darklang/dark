@@ -299,9 +299,10 @@ let rename_db_fields (m : model) : testResult =
          match tl.data with
          | TLDB {dbName; cols} -> (
            match cols with
-           | [ (Blank _, Blank _)
+           | [ (F (id, "field6"), F (_, "String"))
              ; (F (_, "field2"), F (_, "String"))
-             ; (F (id, "field6"), F (_, "String")) ] -> (
+             ; (Blank _, Blank _)
+             ] -> (
              match m.cursorState with
              | Selecting (_, None) -> pass
              | _ -> fail ~f:show_cursorState m.cursorState )
@@ -316,9 +317,10 @@ let rename_db_type (m : model) : testResult =
          match tl.data with
          | TLDB {dbName; cols} -> (
            match cols with
-           | [ (Blank _, Blank _)
+           | [ (F (_, "field1"), F (id, "String"))
              ; (F (_, "field2"), F (_, "Int"))
-             ; (F (_, "field1"), F (id, "String")) ] -> (
+             ; (Blank _, Blank _)
+             ] -> (
              match m.cursorState with
              | Selecting (_, Some sid) ->
                  if sid = id
@@ -347,7 +349,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
 
 let paste_keeps_focus (m : model) : testResult =
   match onlyExpr m with
-  | FnCall ("+", [F (id, Value "3"); F (_, Value "3")], _) as fn -> (
+  | FnCall ("+", [F (_, Value "3"); F (id, Value "3")], _) as fn -> (
     match m.cursorState with
     | Selecting (_, sid) ->
         if Some id = sid
