@@ -52,7 +52,7 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
   in
   let class_ =
     [ selected
-    ; "tl-" ^ string_of_int (deTLID tl.id)
+    ; "tl-" ^ (deTLID tl.id)
     ; "toplevel"
     ; "cursor-" ^ string_of_int (Analysis.cursor m tl.id) ]
     |> String.join " "

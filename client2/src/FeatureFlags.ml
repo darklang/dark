@@ -51,4 +51,4 @@ let toggle (m : model) (id : id) (isExpanded : bool) : modification =
   TweakModel
     (fun m_ ->
       { m_ with
-        featureFlags= IntDict.insert (deID id) isExpanded m_.featureFlags } )
+        featureFlags= StrDict.insert (deID id) isExpanded m_.featureFlags } )

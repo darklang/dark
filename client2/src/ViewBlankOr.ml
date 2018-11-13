@@ -28,7 +28,7 @@ let nested : htmlConfig = wc "nested"
 let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
   let cursorLiveValue =
     match id with
-    | Some (ID id) -> IntDict.get id vs.currentResults.liveValues
+    | Some (ID id) -> StrDict.get id vs.currentResults.liveValues
     | _ -> None
   in
   match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
@@ -96,7 +96,7 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   let mouseover = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
   let idClasses =
     match thisID with
-    | Some id -> ["blankOr"; "id-" ^ string_of_int (deID id)]
+    | Some id -> ["blankOr"; "id-" ^ (deID id)]
     | _ -> []
   in
   let allClasses =
@@ -139,7 +139,7 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   let editFnHtml =
     match editFn with
     | Some editFn_ -> [viewEditFn editFn_ showFeatureFlag]
-    | None -> if showFeatureFlag then [viewCreateFn] else []
+    | None -> if showFeatureFlag then [viewCreateFn] else [Vdom.noNode]
   in
   let rightSideHtml =
     Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)
@@ -181,7 +181,7 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list 
     | _ -> []
   else []
 
-let getLiveValue (lvs : lvDict) (ID id : id) : dval option = IntDict.get id lvs
+let getLiveValue (lvs : lvDict) (ID id : id) : dval option = StrDict.get id lvs
 
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : string =
   let paramPlaceholder =

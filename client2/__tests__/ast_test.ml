@@ -11,8 +11,8 @@ type ('a, 'b) transformation_test_result =
 
 let () =
   describe "ast" (fun () ->
-    let id1 = ID 5 in
-    let id2 = ID 10 in
+    let id1 = ID "5" in
+    let id2 = ID "10" in
 
     test "isThreadBlank for thread" (fun () ->
       expect (AST.isThreadBlank (F (id1, Thread [Blank id2])) id2)
@@ -48,11 +48,11 @@ let () =
             (Thread
               [ B.new_ ()
               ; B.new_ ()
-              ; F (ID 6, FnCall ("+", [Blank (ID 5)], NoRail))
+              ; F (ID "6", FnCall ("+", [Blank (ID "5")], NoRail))
               ; B.new_ () ])
          in
          match AST.closeThreads threaded with
-         | F (ID 6, FnCall ("+", [Blank _; Blank (ID 5)], NoRail)) -> Pass
+         | F (ID "6", FnCall ("+", [Blank _; Blank (ID "5")], NoRail)) -> Pass
          | r -> Fail (threaded, r))
       |> toEqual Pass);
     test "don't re-add the argument if it was already in the right place" (fun () ->

@@ -13,6 +13,12 @@ let string_of_id = Int63.to_string
 
 let id_of_yojson (json: Yojson.Safe.json) : (id, string) result =
   match json with
+  (* IDs are strings _everywhere_ on the bucklescript client now.
+   * so they'll be sent to us as JSON strings. Bucklescript
+   * still generates them as ints, and the existing ones in
+   * stored canvases are ints so they'll all parse as ints
+   * fine for us *)
+  | `String i -> Ok (id_of_string i)
   | `Int i -> Ok (id_of_int i)
   | `Intlit i -> Ok (id_of_string i)
   | _ -> Error "Types.id"
