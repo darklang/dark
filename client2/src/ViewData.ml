@@ -35,7 +35,6 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
     let isActive = Analysis.cursor_ vs.tlCursors vs.tl.id = idx in
     let hoverID = tlCursorID vs.tl.id idx in
     let isHover = vs.hovering = Some hoverID in
-    (Js.log ("isHover: " ^ (Js.String.make isHover)));
     let astTipe =
       StrDict.get trace.traceID vs.analyses
       |> Option.map (fun x -> x.liveValues)
@@ -43,7 +42,6 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
       |> Option.map RT.typeOf
       |> Option.withDefault TIncomplete
     in
-    (Js.log ("AST: " ^ show_tipe astTipe));
     viewInput vs.tl.id idx value isActive isHover astTipe
   in
   List.indexedMap traceToHtml vs.traces
