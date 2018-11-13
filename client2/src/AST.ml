@@ -282,33 +282,34 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
         co matchExpr @ cCases
     )
 
-let rec parentOf_ (eid : id) (expr : expr) : expr option =
-  let po = parentOf_ eid in
+let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
+  let fpow = findParentOfWithin_ eid in
   (* the `or` of all items in the list *)
-  let poList xs = xs |> List.map po |> List.filterMap identity |> List.head in
-  if List.member eid (children expr |> List.map P.toID) then Some expr
+  let fpowList xs = xs |> List.map fpow |> List.filterMap identity |> List.head in
+  if List.member eid (haystack |> children |> List.map P.toID)
+  then Some haystack
   else
-    match expr with
+    match haystack with
     | Blank _ -> None
     | F (id, nexpr) -> (
       match nexpr with
       | Value _ -> None
       | Variable _ -> None
-      | Let (lhs, rhs, body) -> poList [rhs; body]
-      | If (cond, ifbody, elsebody) -> poList [cond; ifbody; elsebody]
-      | FnCall (name, exprs, _) -> poList exprs
-      | Lambda (vars, lexpr) -> po lexpr
-      | Thread exprs -> poList exprs
-      | FieldAccess (obj, field) -> po obj
-      | ListLiteral exprs -> poList exprs
-      | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> poList
-      | FeatureFlag (msg, cond, a, b) -> poList [cond; a; b]
+      | Let (lhs, rhs, body) -> fpowList [rhs; body]
+      | If (cond, ifbody, elsebody) -> fpowList [cond; ifbody; elsebody]
+      | FnCall (name, exprs, _) -> fpowList exprs
+      | Lambda (vars, lexpr) -> fpow lexpr
+      | Thread exprs -> fpowList exprs
+      | FieldAccess (obj, field) -> fpow obj
+      | ListLiteral exprs -> fpowList exprs
+      | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> fpowList
+      | FeatureFlag (msg, cond, a, b) -> fpowList [cond; a; b]
       | Match (matchExpr, cases) ->
-        poList (matchExpr :: (cases |> List.map Tuple.second))
+        fpowList (matchExpr :: (cases |> List.map Tuple.second))
     )
 
-let parentOf (id : id) (ast : expr) : expr =
-  deOption "parentOf" <| parentOf_ id ast
+let findParentOfWithin (id : id) (haystack : expr) : expr =
+  deOption "findParentOfWithin" <| findParentOfWithin_ id haystack
 
 let rec listThreadBlanks (expr : expr) : id list =
   let r = listThreadBlanks in
@@ -433,7 +434,7 @@ let rec addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
     | _ -> traverse atb expr
 
 let addLambdaBlank (id : id) (expr : expr) : expr =
-  match parentOf_ id expr with
+  match findParentOfWithin_ id expr with
   | Some (F (lid, Lambda (vars, body))) as old ->
       let r = F (lid, Lambda (vars @ [B.new_ ()], body)) in
       replace (old |> deOption "impossible" |> fun x -> PExpr x) (PExpr r) expr
@@ -442,7 +443,7 @@ let addLambdaBlank (id : id) (expr : expr) : expr =
 let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
   match findExn id expr with
   | PKey key -> (
-    match parentOf id expr with
+    match findParentOfWithin id expr with
     | F (olid, ObjectLiteral pairs) as old ->
         let newKey = B.new_ () in
         let newExpr = B.new_ () in
@@ -457,7 +458,7 @@ let maybeExtendObjectLiteralAt (pd : pointerData) (ast : expr) : expr =
   let id = P.toID pd in
   match pd with
   | PKey key -> (
-    match parentOf id ast with
+    match findParentOfWithin id ast with
     | F (olid, ObjectLiteral pairs) ->
         if pairs |> List.last |> Option.map Tuple.first |> ( = ) (Some key)
         then
@@ -470,7 +471,7 @@ let maybeExtendObjectLiteralAt (pd : pointerData) (ast : expr) : expr =
 let addListLiteralBlanks (id : id) (expr : expr) : expr =
   let new1 = B.new_ () in
   let new2 = B.new_ () in
-  let parent = parentOf id expr in
+  let parent = findParentOfWithin id expr in
   match parent with
   | F (lid, ListLiteral exprs) ->
       let newExprs =
@@ -483,7 +484,7 @@ let addListLiteralBlanks (id : id) (expr : expr) : expr =
 
 let maybeExtendListLiteralAt (pd : pointerData) (expr : expr) : expr =
   let id = P.toID pd in
-  match parentOf_ id expr with
+  match findParentOfWithin_ id expr with
   | Some (F (lid, ListLiteral exprs)) ->
       if exprs |> List.filter B.isBlank |> List.length |> fun l -> l <= 1 then
         let replacement = addListLiteralBlanks id expr in
@@ -494,7 +495,7 @@ let maybeExtendListLiteralAt (pd : pointerData) (expr : expr) : expr =
 let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
   match findExn id expr with
   | PPattern pat -> (
-    match parentOf id expr with
+    match findParentOfWithin id expr with
     | F (olid, Match (cond, pairs)) as old ->
         let newPat = B.new_ () in
         let newExpr = B.new_ () in
@@ -512,7 +513,7 @@ let maybeExtendPatternAt (pd : pointerData) (ast : expr) : expr =
   let id = P.toID pd in
   match pd with
   | PPattern pat -> (
-    match parentOf id ast with
+    match findParentOfWithin id ast with
     | F (olid, Match (_, pairs)) ->
         if pairs
            |> List.last
@@ -539,7 +540,7 @@ let isThreadBlank (expr : expr) (p : id) : bool =
 let grandparentIsThread (expr : expr) (parent : expr option) : bool =
   parent
   |> Option.map (fun p ->
-         match parentOf_ (B.toID p) expr with
+         match findParentOfWithin_ (B.toID p) expr with
          | Some (F (_, Thread ts)) ->
              ts |> List.head
              |> Option.map (( <> ) p)
@@ -548,7 +549,7 @@ let grandparentIsThread (expr : expr) (parent : expr option) : bool =
   |> Option.withDefault false
 
 let getParamIndex (expr : expr) (id : id) : (string * int) option =
-  let parent = parentOf_ id expr in
+  let parent = findParentOfWithin_ id expr in
   let inThread = grandparentIsThread expr parent in
   match parent with
   | Some (F (_, FnCall (name, args, _))) ->
@@ -558,7 +559,7 @@ let getParamIndex (expr : expr) (id : id) : (string * int) option =
   | _ -> None
 
 let threadPrevious (id : id) (ast : expr) : expr option =
-  let parent = parentOf_ id ast in
+  let parent = findParentOfWithin_ id ast in
   match parent with
   | Some (F (_, Thread exprs)) ->
       exprs
@@ -622,7 +623,7 @@ let threadAncestors (id : id) (expr : expr) : expr list =
         | _ -> false)
 
 let siblings (p : pointerData) (expr : expr) : pointerData list =
-  match parentOf_ (P.toID p) expr with
+  match findParentOfWithin_ (P.toID p) expr with
   | None -> [p]
   | Some parent -> (
     match parent with
@@ -647,7 +648,7 @@ let siblings (p : pointerData) (expr : expr) : pointerData list =
     | Blank _ -> [p] )
 
 let getValueParent (p : pointerData) (expr : expr) : pointerData option =
-  let parent = parentOf_ (P.toID p) expr in
+  let parent = findParentOfWithin_ (P.toID p) expr in
   match (P.typeOf p, parent) with
   | Expr, Some (F (_, Thread exprs)) ->
       exprs |> List.map (fun x -> PExpr x) |> Util.listPrevious p

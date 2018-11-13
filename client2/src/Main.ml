@@ -664,7 +664,7 @@ let update_ (msg : msg) (m : model) : modification =
                                 ]
                               , FocusExact (tlid, B.toID blank) )
                       | PVarBind _ -> (
-                        match AST.parentOf_ id h.ast with
+                        match AST.findParentOfWithin_ id h.ast with
                         | Some (F (_, Lambda (_, _))) ->
                             let replacement = AST.addLambdaBlank id h.ast in
                             RPC
@@ -707,7 +707,7 @@ let update_ (msg : msg) (m : model) : modification =
                               ( [SetFunction {f with ufAST= replacement}]
                               , FocusExact (tlid, B.toID blank) )
                       | PVarBind _ -> (
-                        match AST.parentOf_ id f.ufAST with
+                        match AST.findParentOfWithin_ id f.ufAST with
                         | Some (F (_, Lambda (_, _))) ->
                             let replacement = AST.addLambdaBlank id f.ufAST in
                             RPC
