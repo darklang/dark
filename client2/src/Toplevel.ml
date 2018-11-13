@@ -80,7 +80,7 @@ let toOp (tl : toplevel) : op list =
   | TLFunc fn -> [SetFunction fn]
   | _ -> impossible "This isn't how database ops work"
 
-let rec allData (tl : toplevel) : pointerData list =
+let allData (tl : toplevel) : pointerData list =
   match tl.data with
   | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
   | TLDB db -> DB.allData db
