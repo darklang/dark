@@ -389,11 +389,11 @@ let exception_ j : exception_ =
   ; exceptionTipe = field "tipe" string j
   ; actual = field "actual" (optional string) j
   ; actualType  = field "actual_tipe" (optional string) j
+  ; expected = field "expected" (optional string) j
   ; result = field "result" (optional string) j
   ; resultType = field "result_tipe" (optional string) j
-  ; expected = field "expected" (optional string) j
   ; info = field "info" (dict string) j
-  ; workarounds = field "workaround" (list string) j
+  ; workarounds = field "workarounds" (list string) j
   }
 
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
