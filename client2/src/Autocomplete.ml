@@ -242,7 +242,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
         TL.get m tlid
         |> Option.andThen TL.asHandler
         |> Option.map (fun x -> x.ast)
-        |> Option.andThen (AST.parentOf_ (P.toID p))
+        |> Option.andThen (AST.findParentOfWithin_ (P.toID p))
         |> Option.map (fun e ->
                match e with F (_, Thread _) -> true | _ -> false )
         |> Option.withDefault false
