@@ -47,7 +47,7 @@ window.Dark = {
           var event = new CustomEvent('receiveAnalysis', {detail: result});
           document.dispatchEvent(event);
         } else if (error) {
-          console.error(error);
+          sendError(error);
         }
       }
     }
