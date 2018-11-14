@@ -50,7 +50,7 @@ let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
   update m tlid (moveTL xOffset yOffset)
 
-let ufToTL (m : model) (uf : userFunction) : toplevel =
+let ufToTL (uf : userFunction) : toplevel =
   {id= uf.ufTLID; pos= Defaults.centerPos; data= TLFunc uf}
 
 let asUserFunction (tl : toplevel) : userFunction option =
@@ -98,8 +98,8 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PExpr expr -> PExpr (AST.clone expr)
   | PField f -> PField (B.clone identity f)
   | PKey k -> PKey (B.clone identity k)
-  | PDBColName cn -> pd
-  | PDBColType ct -> pd
+  | PDBColName _ -> pd
+  | PDBColType _ -> pd
   | PFFMsg msg -> PFFMsg (B.clone identity msg)
   | PFnName name_ -> PFnName (B.clone identity name_)
   | PParamName name_ -> PParamName (B.clone identity name_)
@@ -175,14 +175,14 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   in
   match pd with
   | PVarBind _ -> []
-  | PField d -> []
-  | PKey d -> []
+  | PField _ -> []
+  | PKey _ -> []
   | PExpr _ -> astChildren ()
-  | PEventModifier d -> []
-  | PEventName d -> []
-  | PEventSpace d -> []
-  | PDBColName d -> []
-  | PDBColType d -> []
+  | PEventModifier _ -> []
+  | PEventName _ -> []
+  | PEventSpace _ -> []
+  | PDBColName _ -> []
+  | PDBColType _ -> []
   | PFFMsg _ -> []
   | PFnName _ -> []
   | PParamName _ -> []
@@ -224,14 +224,14 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     {tl with data= TLFunc newF}
   in
   match replacement with
-  | PVarBind vb -> astReplace ()
+  | PVarBind _ -> astReplace ()
   | PField _ -> astReplace ()
   | PKey _ -> astReplace ()
   | PExpr _ -> astReplace ()
   | PEventName en -> specHeaderReplace en
   | PEventModifier em -> specHeaderReplace em
   | PEventSpace es -> specHeaderReplace es
-  | PDBColType tipe -> tl
+  | PDBColType _ -> tl
   | PDBColName _ -> tl
   | PFFMsg bo -> (
     match tl.data with
@@ -253,7 +253,7 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   replace p replacement tl
 
 let all (m : model) : toplevel list =
-  m.toplevels @ List.map (ufToTL m) m.userFunctions
+  m.toplevels @ List.map ufToTL m.userFunctions
 
 let get (m : model) (id : tlid) : toplevel option =
   let tls = all m in

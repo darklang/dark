@@ -260,7 +260,7 @@ let viewBlankOr
                 vs.ac ]
         else Html.text vs.ac.value
       else thisText
-  | SelectingCommand (tlid, id) ->
+  | SelectingCommand (_, id) ->
       if id = B.toID bo then
         Html.div
           [Html.class' "selecting-command"]

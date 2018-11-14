@@ -38,7 +38,7 @@ let postEmptyString decoder (csrfToken : string) (url: string) =
     ; withCredentials = false
     }
 
-let rpc (m : model) (c : rpcContext) (focus : focus) (params : rpcParams)
+let rpc (c : rpcContext) (focus : focus) (params : rpcParams)
     : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri c.canvasName; "/rpc"]
@@ -92,7 +92,7 @@ let saveTestRPC (c : rpcContext) : msg Tea.Cmd.t =
   Tea.Http.send (fun x -> SaveTestRPCCallback x) request
 let opsParams (ops : op list) : rpcParams = {ops}
 
-let integrationRPC (m : model) (c : rpcContext) (name : string) :
+let integrationRPC (c : rpcContext) (name : string) :
     msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri c.canvasName; "/initial_load"]

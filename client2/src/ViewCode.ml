@@ -176,10 +176,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (name, exprs, sendToRail) -> (
       let width = ViewUtils.approxNWidth e in
-      let viewTooWideArg name_ d_ e_ =
+      let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
-      let ve name_ = if width > 120 then viewTooWideArg name_ else vExpr in
+      let ve = if width > 120 then viewTooWideArg else vExpr in
       let fnname parens =
         let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
         match String.split "::" name with
@@ -278,16 +278,16 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
       in
       match (fn.fnInfix, exprs, fn.fnParameters) with
-      | true, [first; second], [p1; p2] ->
+      | true, [first; second], [_; _] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: all)
-            [ n [wc "lhs"] [ve p1.paramName incD first]
+            [ n [wc "lhs"] [ve incD first]
             ; fnDiv false
-            ; n [wc "rhs"] [ve p2.paramName incD second] ]
+            ; n [wc "rhs"] [ve incD second] ]
       | _ ->
           let args =
             List.map2
-              (fun p e_ -> ve p.paramName incD e_)
+              (fun _ e_ -> ve incD e_)
               fn.fnParameters exprs
           in
           n

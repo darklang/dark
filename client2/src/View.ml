@@ -83,7 +83,7 @@ let viewTL (m : model) (tl : toplevel) : msg Html.html =
   let pos =
     match m.currentPage with
     | Toplevels _ -> tl.pos
-    | Fn (tLID, _) -> Defaults.centerPos
+    | Fn (_, _) -> Defaults.centerPos
   in
   let html =
     if Some tl.id = tlidOf m.cursorState || isDB then begin
@@ -98,7 +98,7 @@ let viewTL (m : model) (tl : toplevel) : msg Html.html =
           Util.cacheSet id result;
           result
   in
-  ViewUtils.placeHtml m pos html
+  ViewUtils.placeHtml pos html
 
 let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
@@ -114,7 +114,7 @@ let viewCanvas (m : model) : msg Html.html =
       |> List.map (viewTL m)
     | Fn (tlid, _) -> (
       match List.find (fun f -> f.ufTLID = tlid) m.userFunctions with
-      | Some func -> [viewTL m (TL.ufToTL m func)]
+      | Some func -> [viewTL m (TL.ufToTL func)]
       | None -> List.map (viewTL m) m.toplevels ) (* TODO(ian): change to crash *)
   in
   let canvasTransform =

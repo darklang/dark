@@ -72,8 +72,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ -> [] )
   ; tooWide= false
   ; executingFunctions=
-      List.filter (fun (tlid, id) -> tlid = tl.id) m.executingFunctions
-      |> List.map (fun (tlid, id) -> id)
+      List.filter (fun (tlid, _) -> tlid = tl.id) m.executingFunctions
+      |> List.map (fun (_, id) -> id)
   ; tlCursors= m.tlCursors
   ; testVariants= m.tests
   ; featureFlags= m.featureFlags
@@ -108,7 +108,7 @@ let eventNoDefault ~(key: string) (event : string) (constructor : mouseEvent -> 
 let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun e -> NothingClick e)
 
-let placeHtml (m : model) (pos : pos) (html : msg Html.html) : msg Html.html =
+let placeHtml (pos : pos) (html : msg Html.html) : msg Html.html =
   Html.div
     [ Html.class' "node"
     ; Html.styles
@@ -151,7 +151,7 @@ and approxNWidth (ne : nExpr) : int =
         exprs |> List.map approxWidth |> List.map (( + ) 1) |> List.sum
       in
       String.length name + sizes
-  | Lambda (vars, expr) -> max (approxWidth expr) 7
+  | Lambda (_, expr) -> max (approxWidth expr) 7
   | Thread exprs ->
       exprs |> List.map approxWidth |> List.maximum |> Option.withDefault 2
       |> ( + ) 1
@@ -166,7 +166,7 @@ and approxNWidth (ne : nExpr) : int =
       |> List.map (( + ) 2)
       |> List.map (( + ) 2)
       |> List.maximum |> Option.withDefault 0 |> ( + ) 4
-  | FeatureFlag (msg, cond, a, b) -> max (approxWidth a) (approxWidth b) + 1
+  | FeatureFlag (_, _, a, b) -> max (approxWidth a) (approxWidth b) + 1
   | Match (matchExpr, cases) ->
     let rec pWidth p =
       (match p with

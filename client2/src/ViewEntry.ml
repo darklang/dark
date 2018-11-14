@@ -93,7 +93,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
 
   (* two overlapping input boxes, one to provide suggestions, one *)
   (* to provide the search *)
-  let _, suggestion, search =
+  let _, _, search =
     Autocomplete.compareSuggestionWithActual ac ac.value
   in
   let searchWidth =
@@ -127,7 +127,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       [searchInput; suggestionSpan; fluidWidthSpan]
   in
   let viewForm =
-    Html.form [onSubmit (fun x -> EntrySubmitMsg)] [input; autocomplete]
+    Html.form [onSubmit (fun _ -> EntrySubmitMsg)] [input; autocomplete]
   in
   let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper
@@ -147,7 +147,7 @@ let viewEntry (m : model) : msg Html.html list =
         Html.div [Html.class' "omnibox"]
           [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
       in
-      [placeHtml m pos html]
+      [placeHtml pos html]
   | _ -> []
 
 
