@@ -287,7 +287,7 @@ RUN opam switch 4.07.0
 
 USER root
 RUN DEBIAN_FRONTEND=noninteractive \
-    apt update && \
+    apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
     apt install \
       -y \
