@@ -2,4 +2,4 @@
 -- (Because replace is a substr replace, not regexp replace)
 UPDATE canvases
 SET name = replace(name, 'demo-', 'sample-')
-WHERE name LIKE 'demo-%';
+WHERE name LIKE 'demo-%'

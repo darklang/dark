@@ -1,1 +1,1 @@
-DELETE FROM accounts WHERE username = 'demo';
+DELETE FROM accounts WHERE username = 'demo'
