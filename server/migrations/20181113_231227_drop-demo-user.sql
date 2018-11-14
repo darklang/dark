@@ -2,4 +2,4 @@
 -- we can make it impossible to log in
 UPDATE accounts
 SET password = ''
-WHERE username = 'demo';
+WHERE username = 'demo'
