@@ -19,6 +19,7 @@ const sendError = function (error, route, tlid){
   displayError(`Error while executing (${route}): ${error}`);
 };
 
+window.Rollbar.configure(rollbarConfig);
 window.Dark = {
   analysis: {
     requestAnalysis : function (params) {
