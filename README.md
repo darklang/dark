@@ -231,7 +231,6 @@ require the whole toolchain to get installed unless you want to hack it.
   - `opam install merlin`
   - `opam install ocp-indent`
 
-
 ## (Not) Rebuilding the dev container
 
 If you pull a commit with a Dockerfile update, and then restart your
