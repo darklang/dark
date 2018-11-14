@@ -105,10 +105,9 @@ let rec uses (var : varName) (expr : expr) : expr list =
     | FeatureFlag (_, cond, a, b) -> List.concat [u cond; u a; u b]
     | Match (matchExpr, cases) ->
         let findReplacements (p, e) =
-          match Pattern.extractVariableName p with
-          | Some originalVar ->
-              if originalVar = var then [] else u e
-          | None -> u e
+          (* do not replace shadowed variables *)
+          let originalNames = Pattern.variableNames p in
+          if List.member var originalNames then [] else u e
         in
 
         let replacements =
@@ -200,20 +199,26 @@ let rec replace_ (search : pointerData) (replacement : pointerData)
         let newCases =
           cases
           |> List.map (fun (p, e) ->
-            if Pattern.contains search p then
-            begin
-                let currentName = Pattern.extractVariableName p in
-                let newName = Pattern.extractVariableName newPattern in
-                let currentAndNew = pairCurrentAndNew currentName newName in
-                let newBody =
-                  match currentAndNew with
-                  | Some (c, n) -> renameVariable c n e
-                  | _ -> e
-                in
+            match Pattern.extractById p (P.toID search) with
+            | Some currentPattern ->
+              let newBody =
+                match currentPattern, newPattern with
+                | Blank _, _
+                | F (_, PLiteral _), _ -> e
+                | F (_, PVariable c), F (_, PVariable n) -> renameVariable c n e
+                | _ ->
+                  (*
+                   * For now, only allow if all variables in the replaced
+                   * pattern are unused in the RHS of the case. Otherwise,
+                   * the RHS could end up with unbound variables.
+                   *
+                   * This check is perfomed by Entry.validate
+                   * *)
+                  e
+              in
 
-                (Pattern.replace search replacement p, newBody)
-            end
-            else (p, r e)
+              (Pattern.replace search replacement p, newBody)
+            | None -> (p, r e)
           )
         in
 
