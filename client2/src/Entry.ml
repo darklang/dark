@@ -182,6 +182,12 @@ let parsePattern (str : string) : pattern option =
     then Some (B.newF (PVariable str))
     else None
 
+let getAstFromTopLevel tl =
+  match tl.data with
+  | TLHandler h -> h.ast
+  | TLFunc f -> f.ufAST
+  | TLDB _ -> impossible ("No fields in DBs", tl.data)
+
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
     string option =
   let v pattern name =
@@ -216,12 +222,57 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PFnName _ -> None
   | PParamName _ -> None
   | PParamTipe _ -> v "[A-Z][a-z]*" "param type"
-  | PPattern _ ->
-    if Decoders.isLiteralString value
-    || v variablePattern "variable pattern" = None
-    || v constructorPattern "constructor pattern" = None
-    then None
-    else Some "pattern must be literal or variable or constructor"
+  | PPattern currentPattern ->
+    let validPattern value =
+      Decoders.isLiteralString value
+      || v variablePattern "variable pattern" = None
+      || v constructorPattern "constructor pattern" = None
+    in
+
+    let body =
+      let ast = getAstFromTopLevel tl in
+      let parent =
+        if B.toID ast = P.toID pd
+        then ast
+        else AST.findParentOfWithin (P.toID pd) ast
+      in
+
+      (
+        match parent with
+        | F (_, Match (_, cases)) ->
+          cases
+          |> List.find (fun (p, _) ->
+            Pattern.extractById p (B.toID currentPattern) |> Option.isSome
+          )
+        | _ -> None
+      )
+      |> deOption "validate: impossible! pattern without parent match"
+      |> Tuple.second
+    in
+
+    match parsePattern value with
+    | Some newPattern ->
+      (match currentPattern, newPattern with
+      | Blank _, _
+      | F (_, PLiteral _), _ ->
+        if validPattern value
+        then None
+        else Some "pattern must be literal or variable or constructor"
+      | F (_, PVariable _), F (_, PVariable _) -> None
+      | _ ->
+        let noUses =
+          (Pattern.variableNames currentPattern)
+          |> List.map (fun v -> AST.uses v body)
+          |> List.all List.isEmpty
+        in
+
+        if not noUses
+        then Some "Unsafe pattern replacement, remove RHS variable uses first"
+        else if not (validPattern value)
+        then Some "pattern must be literal or variable or constructor"
+        else None
+      )
+    | _ -> Some "Invalid Pattern"
 
 let submit (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
@@ -341,12 +392,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
             in
             saveH {h with spec= replacement2} (PEventSpace new_)
         | PField _ ->
-            let ast =
-              match tl.data with
-              | TLHandler h -> h.ast
-              | TLFunc f -> f.ufAST
-              | TLDB _ -> impossible ("No fields in DBs", tl.data)
-            in
+            let ast = getAstFromTopLevel tl in
             let parent = AST.findParentOfWithin id ast in
             if String.endsWith "." value then
               let fieldname = String.dropRight 1 value in
@@ -374,13 +420,8 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               replace (PField (B.newF value))
         | PKey _ ->
             let new_ = PKey (B.newF value) in
-            let ast =
-              match tl.data with
-              | TLHandler h -> h.ast
-              | TLFunc f -> f.ufAST
-              | TLDB _ -> impossible ("No fields in DBs", tl.data)
-            in
-            ast |> AST.replace pd new_
+            (getAstFromTopLevel tl)
+            |> AST.replace pd new_
             |> AST.maybeExtendObjectLiteralAt new_
             |> fun ast_ -> saveAst ast_ new_
         | PExpr e -> (
@@ -429,13 +470,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
            | None -> DisplayError "not a pattern"
            | Some p ->
              let new_ = PPattern p in
-             let ast =
-               match tl.data with
-               | TLHandler h -> h.ast
-               | TLFunc f -> f.ufAST
-               | TLDB _ -> impossible ("No fields in DBs", tl.data)
-             in
-             ast
+             (getAstFromTopLevel tl)
              |> AST.replace pd new_
              |> AST.maybeExtendPatternAt new_
              |. saveAst new_)
