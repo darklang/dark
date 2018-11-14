@@ -1,4 +1,3 @@
-open Tea
 open! Porting
 open Types
 
@@ -167,7 +166,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DList l -> (
     match l with
     | [] -> "[]"
-    | DObj _ :: rest ->
+    | DObj _ :: _ ->
         "[" ^ inl
         ^ String.join (inl ^ ", ") (List.map (toRepr_ indent) l)
         ^ nl ^ "]"

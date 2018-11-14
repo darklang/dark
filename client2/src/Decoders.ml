@@ -1,7 +1,9 @@
 open! Porting
-module RT = Runtime
 open Types
 open Json_decode_extended
+
+(* Dark *)
+module RT = Runtime
 
 external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 (* identifiers are strings to the bucklescript client -- it knows nothing
@@ -98,7 +100,6 @@ and expr j : expr =
 
 and nExpr j : nExpr =
   let de = expr in
-  let did = id in
   let dv4 = variant4 in
   let dv3 = variant3 in
   let dv2 = variant2 in
@@ -324,7 +325,6 @@ and typeOfLiteralString (s : string) : tipe =
   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
 
 and parseDvalLiteral (str : string) : dval option =
-  let firstChar = String.uncons str |> Option.map Tuple.first in
   if String.toLower str = "nothing" then Some (DOption OptNothing)
   else
     match String.toList str with
@@ -343,7 +343,7 @@ and parseDvalLiteral (str : string) : dval option =
 and parseBasicDval str : dval =
   oneOf
     [ map (fun x -> DInt x) int
-    ; map (fun x -> DFloat x) float
+    ; map (fun x -> DFloat x) Json_decode_extended.float
     ; map (fun x -> DBool x) bool
     ; nullAs DNull
     ; map (fun x -> DStr x) string
@@ -369,7 +369,7 @@ and dval j : dval =
   in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
-    ; ("DFloat", dv1 (fun x -> DFloat x) float)
+    ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
     ; ("DBool", dv1 (fun x -> DBool x) bool)
     ; ("DNull", dv0 DNull)
     ; ("DStr", dv1 (fun x -> DStr x) string)

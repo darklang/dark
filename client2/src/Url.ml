@@ -1,8 +1,9 @@
-open Tea
 open! Porting
-module Attrs = Html.Attributes
 open Prelude
 open Types
+
+module Cmd = Tea.Cmd
+module Navigation = Tea.Navigation
 
 let hashUrlParams (params : (string * string) list) : string =
   let merged = List.map (fun (k, v) -> k ^ "=" ^ v) params in
@@ -34,7 +35,7 @@ let maybeUpdateScrollUrl (m : model) : modification =
   let pos =
     match m.currentPage with
     | Toplevels _ -> m.canvas.offset
-    | Fn (tlid, _) -> m.canvas.fnOffset
+    | Fn (_, _) -> m.canvas.fnOffset
   in
   let state = m.urlState in
   if pos <> state.lastPos then
@@ -43,7 +44,7 @@ let maybeUpdateScrollUrl (m : model) : modification =
       ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
   else NoChange
 
-let parseLocation (m : model) (loc : Web.Location.location) : page option =
+let parseLocation (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash |> String.dropLeft 1 |> String.split "&"
     |> List.map (String.split "=")
@@ -66,12 +67,12 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
     | _ -> None
   in
   match (center, editedFn) with
-  | _, Some fn -> editedFn
+  | _, Some _ -> editedFn
   | Some pos, _ -> Some (Toplevels pos)
   | _ -> None
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
-  let mPage = parseLocation m loc in
+  let mPage = parseLocation loc in
   match mPage with
   | Some (Fn (id, pos)) -> (
     match Functions.find m id with

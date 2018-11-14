@@ -1,11 +1,10 @@
-open Tea
 open! Porting
-module B = Blank
-module Attrs = Html.Attributes
 open Prelude
-module RT = Runtime
-module TL = Toplevel
 open Types
+
+(* Dark *)
+module B = Blank
+module TL = Toplevel
 
 type htmlConfig =
   | WithClass of string
@@ -31,7 +30,7 @@ let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
     | Some (ID id) -> StrDict.get id vs.currentResults.liveValues
     | _ -> None
   in
-  match cursorLiveValue with Some dv -> RT.toRepr dv | _ -> ""
+  match cursorLiveValue with Some dv -> Runtime.toRepr dv | _ -> ""
 
 let viewFeatureFlag : msg Html.html =
   Html.div
@@ -194,7 +193,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : str
              | Some {fnParameters} -> List.getAt index fnParameters
              | None -> None )
            | _ -> None )
-    |> Option.map (fun p -> p.paramName ^ ": " ^ RT.tipe2str p.paramTipe ^ "")
+    |> Option.map (fun p -> p.paramName ^ ": " ^ Runtime.tipe2str p.paramTipe ^ "")
     |> Option.withDefault ""
   in
   match pt with
@@ -261,7 +260,7 @@ let viewBlankOr
                 vs.ac ]
         else Html.text vs.ac.value
       else thisText
-  | SelectingCommand (tlid, id) ->
+  | SelectingCommand (_, id) ->
       if id = B.toID bo then
         Html.div
           [Html.class' "selecting-command"]

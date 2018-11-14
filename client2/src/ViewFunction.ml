@@ -1,8 +1,8 @@
-open Tea
 open! Porting
-module Attrs = Html.Attributes
 open Types
 open Prelude
+
+(* Dark *)
 module B = Blank
 
 type viewState = ViewUtils.viewState
@@ -31,8 +31,8 @@ let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
     msg Html.html =
   ViewBlankOr.viewTipe ParamTipe vs (idConfigs @ c) v
 
-let viewKillParameterBtn (vs : viewState) (uf : userFunction)
-    (p : userFunctionParameter) : msg Html.html =
+let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter)
+  : msg Html.html =
   let freeVariables = AST.freeVariables uf.ufAST |> List.map Tuple.second in
   let canDeleteParameter pname = List.member pname freeVariables |> not in
   let buttonContent allowed =
@@ -67,7 +67,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
            Html.div [Html.class' "col"]
              [ viewParamName vs [wc "name"] p.ufpName
              ; viewParamTipe vs [wc "type"] p.ufpTipe
-             ; viewKillParameterBtn vs fn p ] )
+             ; viewKillParameterBtn fn p ] )
   in
   Html.div [Html.class' "user-fn"] (namediv :: coldivs)
 

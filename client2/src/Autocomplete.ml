@@ -1,13 +1,14 @@
-open Tea
 open! Porting
+open Types
+
+(* Dark *)
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-open Types
 
 let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
-let focusItem (i : int) : msg Cmd.t =
+let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
     (fun x -> FocusAutocompleteItem x)
     (Tea_task.nativeBinding
@@ -463,7 +464,7 @@ let setTarget (m : model) (t : (tlid * pointerData) option) (a : autocomplete)
     : autocomplete =
   {a with target= t} |> regenerate m
 
-let enableCommandMode (m : model) (a : autocomplete) : autocomplete =
+let enableCommandMode (a : autocomplete) : autocomplete =
   {a with isCommandMode= true}
 
 let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
@@ -476,7 +477,7 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
   | ACSelectUp -> selectUp a
   | ACSetTarget target -> setTarget m target a
   | ACRegenerate -> regenerate m a
-  | ACEnableCommandMode -> enableCommandMode m a
+  | ACEnableCommandMode -> enableCommandMode a
 
 let selectSharedPrefix (ac : autocomplete) : modification =
   let sp = sharedPrefix ac in

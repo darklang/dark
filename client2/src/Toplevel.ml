@@ -1,10 +1,10 @@
-open Tea
 open! Porting
-module B = Blank
-module Fns = Functions
-module P = Pointer
 open Prelude
 open Types
+
+(* Dark *)
+module B = Blank
+module P = Pointer
 
 let name (tl : toplevel) : string =
   match tl.data with
@@ -50,7 +50,7 @@ let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
   update m tlid (moveTL xOffset yOffset)
 
-let ufToTL (m : model) (uf : userFunction) : toplevel =
+let ufToTL (uf : userFunction) : toplevel =
   {id= uf.ufTLID; pos= Defaults.centerPos; data= TLFunc uf}
 
 let asUserFunction (tl : toplevel) : userFunction option =
@@ -80,11 +80,11 @@ let toOp (tl : toplevel) : op list =
   | TLFunc fn -> [SetFunction fn]
   | _ -> impossible "This isn't how database ops work"
 
-let rec allData (tl : toplevel) : pointerData list =
+let allData (tl : toplevel) : pointerData list =
   match tl.data with
   | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
   | TLDB db -> DB.allData db
-  | TLFunc f -> Fns.allData f
+  | TLFunc f -> Functions.allData f
 
 let isValidID (tl : toplevel) (id : id) : bool =
   List.member id (tl |> allData |> List.map P.toID)
@@ -98,8 +98,8 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PExpr expr -> PExpr (AST.clone expr)
   | PField f -> PField (B.clone identity f)
   | PKey k -> PKey (B.clone identity k)
-  | PDBColName cn -> pd
-  | PDBColType ct -> pd
+  | PDBColName _ -> pd
+  | PDBColType _ -> pd
   | PFFMsg msg -> PFFMsg (B.clone identity msg)
   | PFnName name_ -> PFnName (B.clone identity name_)
   | PParamName name_ -> PParamName (B.clone identity name_)
@@ -175,14 +175,14 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   in
   match pd with
   | PVarBind _ -> []
-  | PField d -> []
-  | PKey d -> []
+  | PField _ -> []
+  | PKey _ -> []
   | PExpr _ -> astChildren ()
-  | PEventModifier d -> []
-  | PEventName d -> []
-  | PEventSpace d -> []
-  | PDBColName d -> []
-  | PDBColType d -> []
+  | PEventModifier _ -> []
+  | PEventName _ -> []
+  | PEventSpace _ -> []
+  | PDBColName _ -> []
+  | PDBColType _ -> []
   | PFFMsg _ -> []
   | PFnName _ -> []
   | PParamName _ -> []
@@ -220,18 +220,18 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   in
   let fnMetadataReplace () =
     let f = fn () in
-    let newF = Fns.replaceMetadataField p replacement f in
+    let newF = Functions.replaceMetadataField p replacement f in
     {tl with data= TLFunc newF}
   in
   match replacement with
-  | PVarBind vb -> astReplace ()
+  | PVarBind _ -> astReplace ()
   | PField _ -> astReplace ()
   | PKey _ -> astReplace ()
   | PExpr _ -> astReplace ()
   | PEventName en -> specHeaderReplace en
   | PEventModifier em -> specHeaderReplace em
   | PEventSpace es -> specHeaderReplace es
-  | PDBColType tipe -> tl
+  | PDBColType _ -> tl
   | PDBColName _ -> tl
   | PFFMsg bo -> (
     match tl.data with
@@ -253,7 +253,7 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   replace p replacement tl
 
 let all (m : model) : toplevel list =
-  m.toplevels @ List.map (ufToTL m) m.userFunctions
+  m.toplevels @ List.map ufToTL m.userFunctions
 
 let get (m : model) (id : tlid) : toplevel option =
   let tls = all m in

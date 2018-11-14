@@ -1,10 +1,11 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module TL = Toplevel
-open Types
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
@@ -14,7 +15,7 @@ let convertTipe (tipe : tipe) : tipe =
 
 type wrapLoc = WLetRHS | WLetBody | WIfCond | WIfThen | WIfElse
 
-let wrap (wl : wrapLoc) (m : model) (tl : toplevel) (p : pointerData) :
+let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
     modification =
   let wrapAst e ast wl_ =
     let replacement, focus =
@@ -53,7 +54,7 @@ let wrap (wl : wrapLoc) (m : model) (tl : toplevel) (p : pointerData) :
       RPC ([SetFunction newF], focus)
   | _ -> NoChange
 
-let toggleOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
+let toggleOnRail (_ : model) (tl : toplevel) (p : pointerData) : modification =
   let new_ =
     match p with
     | PExpr (F (id, FnCall (name, exprs, Rail))) ->
@@ -128,7 +129,6 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
   else
     match p with
     | PExpr body ->
-        let pred = TL.getPrevBlank tl (Some p) |> Option.map P.toID in
         let name = generateFnName () in
         let freeVars = AST.freeVariables body in
         let paramExprs =
@@ -195,7 +195,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
       match new_.ufMetadata.ufmName with Blank _ -> None | F (_, n) -> Some n
     in
     match (origName, newName) with
-    | Some o, Some r ->
+    | Some _, Some r ->
         List.foldr
           (fun call acc -> AST.replace call (transformCall r call) acc)
           ast calls
@@ -241,7 +241,7 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
         List.any (isFunctionInExpr fnName) valuesMap
     | ListLiteral li -> List.any (isFunctionInExpr fnName) li
     | Thread li -> List.any (isFunctionInExpr fnName) li
-    | FieldAccess (ex, filed) -> isFunctionInExpr fnName ex
+    | FieldAccess (ex, _) -> isFunctionInExpr fnName ex
     | FeatureFlag (_, cond, a, b) ->
         isFunctionInExpr fnName cond
         || isFunctionInExpr fnName a || isFunctionInExpr fnName b

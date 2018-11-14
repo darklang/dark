@@ -1,7 +1,11 @@
-open Tea
 open! Porting
-module RT = Runtime
 open Json_encode_extended
+
+(* Tea *)
+module Http = Tea.Http
+
+(* Dark *)
+module RT = Runtime
 
 (* Don't attempt to encode these as integers, because we're not capable
  * of expressing all existing ids as ints because bucklescript is strict
@@ -41,7 +45,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   in
   match dv with
   | DInt i -> ev "DInt" [int i]
-  | DFloat f -> ev "DFloat" [float f]
+  | DFloat f -> ev "DFloat" [Json_encode_extended.float f]
   | DBool b -> ev "DBool" [bool b]
   | DNull -> ev "DNull" []
   | DStr s -> ev "DStr" [string s]

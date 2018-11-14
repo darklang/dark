@@ -1,19 +1,20 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module AC = Autocomplete
 module B = Blank
 module P = Pointer
-open Prelude
 module RT = Runtime
 module TL = Toplevel
-open Types
 
 let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
 (* fixed from Tea_html_cmds *)
 let focusIdTask id =
-  Tea_cmd.call
+  Tea.Cmd.call
     (fun _ ->
       let ecb _ignored =
         match Js.Nullable.toOption (Web.Document.getElementById id) with
@@ -26,10 +27,10 @@ let focusIdTask id =
       ignore (Web.Window.requestAnimationFrame cb);
       ())
 
-let focusEntry (m : model) : msg Cmd.t =
+let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) -> focusIdTask Defaults.entryID
-  | _ -> Cmd.none
+  | _ -> Tea.Cmd.none
 
 let newHandlerSpec (_ : unit) : handlerSpec =
   {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()}
@@ -48,7 +49,7 @@ let createFunction (m : model) (name : fnName) : expr option =
       (B.newF (FnCall (name, blanks (List.length function_.fnParameters), r)))
   | None -> None
 
-let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
+let submitOmniAction (pos : pos) (action : omniAction) :
     modification =
   match action with
   | NewDB dbname ->
@@ -99,7 +100,6 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   | NewHTTPRoute route ->
       let next = gid () in
       let tlid = gtlid () in
-      let spec = newHandlerSpec () in
       let handler =
         { ast= B.new_ ()
         ; spec=
@@ -170,7 +170,7 @@ let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
   in
   (newAst, new_)
 
-let parsePattern (m : model) (str : string) : pattern option =
+let parsePattern (str : string) : pattern option =
   match str with
   | "Nothing" -> Some (B.newF (PConstructor ("Nothing", [])))
   | "Just" -> Some (B.newF (PConstructor ("Just", [B.new_ ()])))
@@ -192,8 +192,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
   let constructorPattern = "[A-Z_][a-zA-Z0-9_]*" in
   match pd with
-  | PDBColType ct -> v "\\[?[A-Z]\\w+\\]?" "DB type"
-  | PDBColName cn ->
+  | PDBColType _ -> v "\\[?[A-Z]\\w+\\]?" "DB type"
+  | PDBColName _ ->
       if value = "id" then
         Some
           "The field name 'id' was reserved when IDs were implicit. We are \
@@ -211,7 +211,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PEventSpace _ -> v "[A-Z_]+" "event space"
   | PField _ -> v ".+" "fieldname"
   | PKey _ -> v ".+" "key"
-  | PExpr e -> None
+  | PExpr _ -> None
   | PFFMsg _ -> None
   | PFnName _ -> None
   | PParamName _ -> None
@@ -355,7 +355,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
                  Then get the parent structure from the new ID *)
               let wrapped =
                 match parent with
-                | F (id_, FieldAccess (lhs, rhs)) ->
+                | F (id_, FieldAccess (lhs, _)) ->
                     B.newF
                       (FieldAccess
                          ( F (id_, FieldAccess (lhs, B.newF fieldname))
@@ -372,7 +372,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               saveAst newAst (PExpr parent)
             else
               replace (PField (B.newF value))
-        | PKey k ->
+        | PKey _ ->
             let new_ = PKey (B.newF value) in
             let ast =
               match tl.data with
@@ -425,7 +425,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         | PParamName _ -> replace (PParamName (B.newF value))
         | PParamTipe _ -> replace (PParamTipe (B.newF (RT.str2tipe value)))
         | PPattern _ ->
-          (match parsePattern m value with
+          (match parsePattern value with
            | None -> DisplayError "not a pattern"
            | Some p ->
              let new_ = PPattern p in

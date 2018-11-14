@@ -1,10 +1,11 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module TL = Toplevel
-open Types
 
 let moveCursorBackInTime (m : model) (tlid : tlid) : modification =
   let maxCursor = List.length (Analysis.getTraces m tlid) - 1 in
@@ -49,7 +50,7 @@ let jsToHtmlSizing (obj : jSSide) : htmlSizing =
   ; id = ID obj.id
   }
 
-let tlToSizes (m : model) (tlid : tlid) : htmlSizing list * htmlSizing list =
+let tlToSizes (tlid : tlid) : htmlSizing list * htmlSizing list =
   let poses = Native.Size.positions (deTLID tlid) in
   ( List.map jsToHtmlSizing poses.nested
   , List.map jsToHtmlSizing poses.atoms )
@@ -91,10 +92,10 @@ let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
       |> fun x -> Some x
   | _ -> None
 
-let move (m : model) (tlid : tlid) (mId : id option)
+let move (tlid : tlid) (mId : id option)
     (fn : htmlSizing list -> id -> id option) (default : id option) :
     modification =
-  let nested, atoms = tlToSizes m tlid in
+  let nested, atoms = tlToSizes tlid in
   mId
   |> Option.andThen (fn atoms)
   |> Option.orElse (Option.andThen (fn nested) mId)
@@ -108,21 +109,21 @@ let body (m : model) (tlid : tlid) : id option =
 
 let moveUp (m : model) (tlid : tlid) (mId : id option) : modification =
   let default = body m tlid in
-  move m tlid mId (moveUpDown Up) default
+  move tlid mId (moveUpDown Up) default
 
 let moveDown (m : model) (tlid : tlid) (mId : id option) : modification =
   let default =
     TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
   in
-  move m tlid mId (moveUpDown Down) default
+  move tlid mId (moveUpDown Down) default
 
 let moveRight (m : model) (tlid : tlid) (mId : id option) : modification =
   let default = body m tlid in
-  move m tlid mId (moveLeftRight Left) default
+  move tlid mId (moveLeftRight Left) default
 
 let moveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
   let default = body m tlid in
-  move m tlid mId (moveLeftRight Right) default
+  move tlid mId (moveLeftRight Right) default
 
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
@@ -201,7 +202,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   | None -> (
       let tl = TL.getTL m tlid in
       match tl.data with
-      | TLHandler h ->
+      | TLHandler _ ->
           if ViewUtils.isLocked tlid m then NoChange
           else
             Many
@@ -247,11 +248,11 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
   in
   let _ = pd in
   match pd with
-  | PDBColName d ->
+  | PDBColName _ ->
       if isLocked && not isMigrationCol then NoChange else enterField false
-  | PDBColType d ->
+  | PDBColType _ ->
       if isLocked && not isMigrationCol then NoChange else enterField true
-  | PExpr ex -> enterField true
+  | PExpr _ -> enterField true
   | _ -> NoChange
 
 let enter (m : model) (tlid : tlid) (id : id) : modification =
