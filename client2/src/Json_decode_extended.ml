@@ -76,10 +76,13 @@ let decodeString decoder str =
   try
     Belt.Result.Ok (decoder (Json.parseOrRaise str))
   with
-  | DecodeError str ->
-    Porting.Debug.loG "decoding error" str;
-    Belt.Result.Error str
+  | DecodeError e ->
+    Porting.Debug.loG ("json decoding error: '" ^ e ^ "'") str;
+    Belt.Result.Error e
+  | Json.ParseError e ->
+    Porting.Debug.loG ("json parse error: '" ^ e ^ "'") str;
+    Belt.Result.Error e
   | e ->
-    let str = Printexc.to_string e in
-    Porting.Debug.loG "decodeString error, not DecodeError" str;
+    let errStr = Printexc.to_string e in
+    Porting.Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str;
     Belt.Result.Error str
