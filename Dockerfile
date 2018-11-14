@@ -285,6 +285,16 @@ RUN eval $(opam env) \
     ppx_deriving
 RUN opam switch 4.07.0
 
+USER root
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install \
+      -y \
+      --no-install-recommends \
+      pgcli
+USER dark
+
 ############################
 # Finish
 ############################
