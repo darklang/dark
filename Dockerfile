@@ -272,6 +272,9 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+RUN opam install -y \
+  ocamlformat
+
 ############################
 # Finish
 ############################
