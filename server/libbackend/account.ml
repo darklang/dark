@@ -100,9 +100,9 @@ let can_access_operations ~(username:username) : bool =
 
 let can_edit_canvas ~(auth_domain:string) ~(username:username) : bool =
   String.Caseless.equal username auth_domain
-  || String.Caseless.equal "demo" auth_domain
+  || String.Caseless.equal "sample" auth_domain
   || is_admin username
- 
+
 
 type permissions = CanEdit | CanAccessOperations | NoPermission
 let get_permissions ~(auth_domain:string) ~(username:username) () : permissions =
@@ -465,11 +465,6 @@ let init () : unit =
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQnh1UUlqRmxjd2JCdjhZcXJpdWxDdyRVVTZyZFhKYzAvSEJDN0pFeXVEWk1DdjdFbm9ZVHdjZWZTZHlkazhwMEVBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "loganm1881@gmail.com"
     ; name = "Logan McPhail"};
-  upsert_account
-    { username = "demo"
-    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQVYrR3RxRVhFa3owRi92YnpDNmVJdyR4T2tTblMvUFZVK3JCUDJVRm5WaVU1MUZNakxFYzBxeFg0d2d5K2dmbUxJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ops+demo@darklang.com"
-    ; name = "Demo McDemoFace"};
   upsert_account
     { username = "darragh"
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkaFlQYjZ3RGtrTVk5SzNpdzhJUmNMZyRCV0VaU0hrd1FKVG1wZEZhL0s1ZEI5VG8zcEQ3dkNzeXBlaHlRdm1PdjZRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="

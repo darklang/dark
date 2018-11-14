@@ -1081,8 +1081,8 @@ let t_admin_handler_ui () =
     (List.map
        ~f:ah_ui_response
        [ "test", "test"
-       (* everyone can edit demo *)
-       ; "test", "demo"
+       (* everyone can edit sample *)
+       ; "test", "sample"
        (* a la dabblefox *)
        ; "test", "test-something"
        (* arbitrary canvas belonging to another user *)
