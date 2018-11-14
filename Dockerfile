@@ -289,7 +289,7 @@ USER root
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update && \
     DEBIAN_FRONTEND=noninteractive \
-    apt-get install \
+    apt install \
       -y \
       --no-install-recommends \
       pgcli
