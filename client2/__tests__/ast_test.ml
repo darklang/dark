@@ -80,7 +80,7 @@ let () =
         (let obj = B.newF (Variable "obj") in
          let fieldname = B.newF "field" in
          let expr = B.newF (FieldAccess (obj, fieldname)) in
-         let parent = AST.parentOf (B.toID fieldname) expr in
+         let parent = AST.findParentOfWithin (B.toID fieldname) expr in
          if parent = expr
          then Pass
          else Fail (parent, expr))

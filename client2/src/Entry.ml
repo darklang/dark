@@ -347,7 +347,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               | TLFunc f -> f.ufAST
               | TLDB _ -> impossible ("No fields in DBs", tl.data)
             in
-            let parent = AST.parentOf id ast in
+            let parent = AST.findParentOfWithin id ast in
             if String.endsWith "." value then
               let fieldname = String.dropRight 1 value in
               (* wrap the field access with another field access *)
