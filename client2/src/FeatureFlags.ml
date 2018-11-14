@@ -1,14 +1,15 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module TL = Toplevel
-open Types
 
 let toFlagged (msgId : id) (expr : expr) : expr =
   match expr with
-  | F (id, FeatureFlag (_, _, _, _)) ->
+  | F (_, FeatureFlag (_, _, _, _)) ->
       impossible ("cant convert flagged to flagged", expr)
   | _ -> F (gid (), FeatureFlag (Blank msgId, B.new_ (), expr, B.new_ ()))
 
@@ -47,7 +48,7 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
       | TLFunc f -> RPC ([SetFunction f], focus)
       | _ -> NoChange )
 
-let toggle (m : model) (id : id) (isExpanded : bool) : modification =
+let toggle (id : id) (isExpanded : bool) : modification =
   TweakModel
     (fun m_ ->
       { m_ with

@@ -1,11 +1,11 @@
-open Tea
 open! Porting
-module B = Blank
-module Attrs = Html.Attributes
 open Prelude
-module TL = Toplevel
 open Types
 open ViewUtils
+
+module B = Blank
+module TL = Toplevel
+
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
@@ -194,7 +194,7 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
             [ Html.class' "external"
             ; Html.href
                 ( "//"
-                ^ Http.encodeUri m.canvasName
+                ^ Tea.Http.encodeUri m.canvasName
                 ^ "." ^ m.userContentHost ^ target )
             ; Html.target "_blank" ]
             [fontAwesome "external-link-alt"]

@@ -1,11 +1,12 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module RT = Runtime
 module TL = Toplevel
-open Types
 
 let defaultResults : analysisResults =
   {liveValues= StrDict.empty; availableVarnames= StrDict.empty}

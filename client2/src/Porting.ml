@@ -239,7 +239,7 @@ module Result = struct
     | Ok a, Ok b -> Ok (fn a b)
     | Error a, Ok _ -> Error a
     | Ok _, Error b -> Error b
-    | Error a, Error b -> Error a
+    | Error a, Error _ -> Error a
   let combine (l : ('x, 'a) t list) : ('x, 'a list) t =
     (List.foldr (map2 (fun a b -> a :: b)) (Ok []) l)
   let map (fn: 'ok -> 'value) (r: ('err, 'ok) t) : ('err, 'value) t =
@@ -249,10 +249,10 @@ module Result = struct
     | Ok v -> Some v
     | _ -> None
   let pp
-    (ferr: Format.formatter -> 'err -> unit)
-    (fok: Format.formatter -> 'ok -> unit)
-    (fmt: Format.formatter)
-    (v: ('err, 'ok) t)
+    (_: Format.formatter -> 'err -> unit)
+    (_: Format.formatter -> 'ok -> unit)
+    (_: Format.formatter)
+    (_: ('err, 'ok) t)
   = ()
 
 
@@ -319,9 +319,9 @@ end
 module Tuple = struct
   let mapSecond (fn: 'b -> 'c) ((a,b): 'a * 'b) : 'a * 'c =
     (a, fn b)
-  let second ((a,b): 'a * 'b) : 'b =
+  let second ((_,b): 'a * 'b) : 'b =
     b
-  let first ((a,b): 'a * 'b) : 'a =
+  let first ((a,_): 'a * 'b) : 'a =
     a
 
   let create a b = (a,b)
@@ -364,7 +364,7 @@ module String = struct
     String.lowercase s
   let toUpper (s: string) : string =
     String.uppercase s
-  let isCapitalized (s: string) : bool = 
+  let isCapitalized (s: string) : bool =
     s = String.capitalize s
   let contains (needle: string) (haystack: string) : bool =
     Js.String.includes needle haystack

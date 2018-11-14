@@ -1,9 +1,10 @@
-open Tea
 open! Porting
-module B = Blank
-module Attrs = Html.Attributes
 open Types
 open Prelude
+
+(* Dark *)
+module B = Blank
+
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
@@ -73,7 +74,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
   in
   let cancelBtn =
     Html.button
-      [ Attrs.disabled false
+      [ Html.Attributes.disabled false
       ; ViewUtils.eventNoPropagation
           ~key:("am-" ^ (showTLID db.dbTLID))
           "click"
@@ -81,7 +82,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
       [Html.text "cancel"]
   in
   let migrateBtn =
-    Html.button [Attrs.disabled (not lockReady)] [Html.text "activate"]
+    Html.button [Html.Attributes.disabled (not lockReady)] [Html.text "activate"]
   in
   let actions =
     [Html.div [Html.class' "col actions"] [cancelBtn; migrateBtn]]

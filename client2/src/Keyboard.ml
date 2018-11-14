@@ -317,7 +317,7 @@ let registerGlobal name key tagger =
     let fn = fun ev ->
       try
         Some (tagger (keyEvent (Obj.magic ev)))
-      with e ->
+      with _ ->
         None
     in
     let handler = Vdom.EventHandlerCallback (key, fn) in

@@ -1,10 +1,11 @@
-open Tea
 open! Porting
+open Prelude
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Prelude
 module TL = Toplevel
-open Types
 
 let pass : testResult = Ok ()
 
@@ -41,7 +42,7 @@ let field_access (m : model) : testResult =
 
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
-  | Entering (Filling (_, id)) ->
+  | Entering (Filling (_, _)) ->
       let ast =
         onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast
       in
@@ -102,14 +103,14 @@ let tabbing_works (m : model) : testResult =
   | e -> fail ~f:show_nExpr e
 
 let left_right_works (m : model) : testResult =
-  let h = onlyHandler m in
+  ignore (onlyHandler m);
   match m.cursorState with
   | Selecting (tlid, Some id) -> (
       let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
       match pd with
       | Some (PEventSpace _) -> pass
-      | other -> fail ~f:show_cursorState m.cursorState)
-  | s -> fail ~f:show_cursorState m.cursorState
+      | _ -> fail ~f:show_cursorState m.cursorState)
+  | _ -> fail ~f:show_cursorState m.cursorState
 
 let varbinds_are_editable (m : model) : testResult =
   match onlyExpr m with
@@ -119,12 +120,12 @@ let varbinds_are_editable (m : model) : testResult =
         if id1 = id2
         then pass
         else fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState)
-    | s -> fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState))
+    | _ -> fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState))
   | e -> fail ~f:show_nExpr e
 
 let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
-  | FieldAccess (F (id1, Variable "request"), Blank _) -> (
+  | FieldAccess (F (_, Variable "request"), Blank _) -> (
     match m.complete.completions with
     | [_; cs; _; _; _; _] -> (
       match cs with
@@ -146,7 +147,7 @@ let no_request_global_in_non_http_space (m : model) : testResult =
   | e -> fail ~f:show_nExpr e
 
 let hover_values_for_varnames (m : model) : testResult =
-  let tlid = m.toplevels |> List.head |> deOption "test" |> fun x -> x.id in
+  ignore (m.toplevels |> List.head |> deOption "test" |> fun x -> x.id);
   pass
 
 let pressing_up_doesnt_return_to_start (m : model) : testResult =
@@ -289,7 +290,7 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
       then pass
       else fail (show_list show_toplevel m.toplevels
                  ^ ", " ^ show_cursorState m.cursorState)
-  | s ->
+  | _ ->
     fail (show_list show_toplevel m.toplevels
           ^ ", " ^ show_cursorState m.cursorState)
 
@@ -297,9 +298,9 @@ let rename_db_fields (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
-         | TLDB {dbName; cols} -> (
+         | TLDB {cols} -> (
            match cols with
-           | [ (F (id, "field6"), F (_, "String"))
+           | [ (F (_, "field6"), F (_, "String"))
              ; (F (_, "field2"), F (_, "String"))
              ; (Blank _, Blank _)
              ] -> (
@@ -315,7 +316,7 @@ let rename_db_type (m : model) : testResult =
   m.toplevels
   |> List.map (fun tl ->
          match tl.data with
-         | TLDB {dbName; cols} -> (
+         | TLDB {cols} -> (
            match cols with
            | [ (F (_, "field1"), F (id, "String"))
              ; (F (_, "field2"), F (_, "Int"))
@@ -405,7 +406,7 @@ let feature_flag_in_function (m : model) : testResult =
   | Some f -> (
     match f.ufAST with
     | F
-        ( id
+        ( _
         , FnCall
             ( "+"
             , [ F ( _
@@ -531,9 +532,9 @@ let sending_to_rail_works (m : model) : testResult =
   | F (_, FnCall ("List::head_v1", _, NoRail)) -> pass
   | _ -> fail ~f:show_expr ast
 
-let execute_function_works (m : model) : testResult = pass
+let execute_function_works (_ : model) : testResult = pass
 
-let function_version_renders (m : model) : testResult = pass
+let function_version_renders (_ : model) : testResult = pass
 
 let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in

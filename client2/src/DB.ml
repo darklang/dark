@@ -1,14 +1,15 @@
-open Tea
 open! Porting
-module B = Blank
 open Types
+
+(* Dark *)
+module B = Blank
 
 let astsFor (db : dB) : expr list =
   match db.activeMigration with
   | None -> []
   | Some am -> [am.rollforward; am.rollback]
 
-let rec allData (db : dB) : pointerData list =
+let allData (db : dB) : pointerData list =
   let cols, rolls =
     match db.activeMigration with
     | Some migra ->

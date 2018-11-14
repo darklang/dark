@@ -1,8 +1,5 @@
-open Tea
 open Types
 open! Porting
-module JSD = Json_decode_extended
-
 
 let isDebugging () =
   match String.uncons (Tea_navigation.getLocation()).search with
@@ -63,7 +60,7 @@ let viewButtons (m : model) : msg Html.html =
   let status =
     match m.error.message with
     | None -> Html.div [Html.class' "status"] [Html.text "Dark"]
-    | Some msg ->
+    | Some _ ->
         Html.div
           [Html.class' "status error"]
           [ Html.text "Error: "
@@ -127,6 +124,6 @@ let viewError (err : darkError) : msg Html.html =
     ( match err.message with
     | None -> []
     | Some msg -> (
-      match JSD.decodeString Decoders.exception_ msg with
+      match Json_decode_extended.decodeString Decoders.exception_ msg with
       | Error _ -> [Html.text msg]
       | Ok exc -> viewException exc ) )

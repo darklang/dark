@@ -1,8 +1,9 @@
-open Tea
 open! Porting
+open Types
+
+(* Dark *)
 module B = Blank
 module P = Pointer
-open Types
 
 let spaceOf (hs : handlerSpec) : handlerSpace =
   let spaceOfStr s =
@@ -44,5 +45,5 @@ let replace (search : id) (replacement : string blankOr) (hs : handlerSpec) :
 let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
   replace (P.toID pd) (Blank newID) hs
 
-let rec allData (spec : handlerSpec) : pointerData list =
+let allData (spec : handlerSpec) : pointerData list =
   [PEventName spec.name; PEventSpace spec.module_; PEventModifier spec.modifier]

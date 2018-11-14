@@ -1,11 +1,13 @@
-open Tea
 open! Porting
 open Prelude
 open Types
+
+(* Tea *)
+module Svg = Tea.Svg
+
+(* Dark *)
 module B = Blank
-module Attrs = Html.Attributes
-module RT = Runtime
-module SA = Svg.Attributes
+
 type viewState = ViewUtils.viewState
 type htmlConfig = ViewBlankOr.htmlConfig
 let idConfigs = ViewBlankOr.idConfigs
@@ -58,24 +60,31 @@ and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
 let viewRopArrow (vs : viewState) : msg Html.html =
   let line =
     Svg.path
-      [ SA.stroke "red"
-      ; SA.strokeWidth "1.5px"
-      ; SA.d "M 0,0 z"
+      [ Svg.Attributes.stroke "red"
+      ; Svg.Attributes.strokeWidth "1.5px"
+      ; Svg.Attributes.d "M 0,0 z"
       ; Vdom.attribute "" "opacity" "0.3"
-      ; SA.markerEnd "url(#arrow)" ]
+      ; Svg.Attributes.markerEnd "url(#arrow)" ]
       []
   in
   let head =
     Svg.defs []
       [ Svg.marker
-          [ SA.id "arrow"
-          ; SA.markerWidth "10"
-          ; SA.markerHeight "10"
-          ; SA.refX "0"
-          ; SA.refY "3"
-          ; SA.orient "auto"
-          ; SA.markerUnits "strokeWidth" ]
-          [Svg.path [SA.d "M0,0 L0,6 L9,3 z"; SA.fill "#f00"] []] ]
+        [ Svg.Attributes.id "arrow"
+        ; Svg.Attributes.markerWidth "10"
+        ; Svg.Attributes.markerHeight "10"
+        ; Svg.Attributes.refX "0"
+        ; Svg.Attributes.refY "3"
+        ; Svg.Attributes.orient "auto"
+        ; Svg.Attributes.markerUnits "strokeWidth"
+        ]
+        [ Svg.path
+          [ Svg.Attributes.d "M0,0 L0,6 L9,3 z"
+          ; Svg.Attributes.fill "#f00"
+          ]
+          []
+        ]
+      ]
   in
   let svg =
     Svg.svg
@@ -167,10 +176,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (name, exprs, sendToRail) -> (
       let width = ViewUtils.approxNWidth e in
-      let viewTooWideArg name_ d_ e_ =
+      let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
-      let ve name_ = if width > 120 then viewTooWideArg name_ else vExpr in
+      let ve = if width > 120 then viewTooWideArg else vExpr in
       let fnname parens =
         let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
         match String.split "::" name with
@@ -269,23 +278,22 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
       in
       match (fn.fnInfix, exprs, fn.fnParameters) with
-      | true, [first; second], [p1; p2] ->
+      | true, [first; second], [_; _] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: all)
-            [ n [wc "lhs"] [ve p1.paramName incD first]
+            [ n [wc "lhs"] [ve incD first]
             ; fnDiv false
-            ; n [wc "rhs"] [ve p2.paramName incD second] ]
+            ; n [wc "rhs"] [ve incD second] ]
       | _ ->
           let args =
             List.map2
-              (fun p e_ -> ve p.paramName incD e_)
+              (fun _ e_ -> ve incD e_)
               fn.fnParameters exprs
           in
           n
             (wc "fncall prefix" :: wc (depthString d) :: all)
             (fnDiv fn.fnInfix :: args) )
   | Lambda (vars, expr) ->
-      let varname v = t [wc "lambdavarname"; atom] v in
       n (wc "lambdaexpr" :: all)
         [ n [wc "lambdabinding"] (List.map (viewVarBind vs [atom]) vars)
         ; a [wc "arrow"] "->"
@@ -444,7 +452,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
             [ Html.class' "external"
             ; Html.href
                 ( "//"
-                ^ Http.encodeUri vs.canvasName
+                ^ Tea.Http.encodeUri vs.canvasName
                 ^ "." ^ vs.userContentHost ^ name )
             ; Html.target "_blank" ]
             [fontAwesome "external-link-alt"] ]

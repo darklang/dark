@@ -524,7 +524,6 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
-  [@@bs.deriving {accessors}]
 
 and predecessor = pointerData option
 
