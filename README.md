@@ -231,6 +231,15 @@ require the whole toolchain to get installed unless you want to hack it.
   - `opam install merlin`
   - `opam install ocp-indent`
 
+You will also want to support ocamlformat. For emacs, see [the
+readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
+- install [ALE](https://github.com/w0rp/ale)
+- Add to your `.vimrc` (with an appropriate path-to-dark replacement):
+```
+set rtp+=~/[path to dark]/dark/scripts/ocamlformat
+let g:ale_fixers = {'ocaml':['ocamlformat']}
+```
+
 ## (Not) Rebuilding the dev container
 
 If you pull a commit with a Dockerfile update, and then restart your
