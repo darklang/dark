@@ -33,7 +33,7 @@ let init (flagString: string) (location : Web.Location.location) =
     | None -> []
   in
   let page =
-    Url.parseLocation m location |> Option.withDefault m.currentPage
+    Url.parseLocation location |> Option.withDefault m.currentPage
   in
   let canvas = m.canvas in
   let newCanvas =
@@ -64,7 +64,7 @@ let init (flagString: string) (location : Web.Location.location) =
   if shouldRunIntegrationTest then
     ( m2
     , Cmd.batch
-        [RPC.integrationRPC m2 (contextFromModel m2) integrationTestName
+        [RPC.integrationRPC (contextFromModel m2) integrationTestName
         ]
     )
   else
@@ -79,7 +79,7 @@ let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
   if oldErr.message = Some newErrMsg && not oldErr.showDetails then oldErr
   else {message= Some newErrMsg; showDetails= true}
 
-let sendRollbar x : msg Tea.Cmd.t =
+let sendRollbar _ : msg Tea.Cmd.t =
   (* TODO: porting *)
   Js.log "TODO: sendRollbar";
   Tea.Cmd.none
@@ -105,7 +105,7 @@ let processFocus (m : model) (focus : focus) : modification =
       match (TL.get m tlid, mId) with
       | Some tl, Some id ->
           if TL.isValidID tl id then NoChange else Select (tlid, None)
-      | Some tl, None -> Select (tlid, None)
+      | Some _, None -> Select (tlid, None)
       | _ -> Deselect )
     | Entering (Filling (tlid, id)) -> (
       match TL.get m tlid with
@@ -133,7 +133,7 @@ let processFocus (m : model) (focus : focus) : modification =
               if TL.isValidID tl id && tlOnPage tl then
                 (setCS, target (tlid, TL.findExn tl id))
               else (Deselect, noTarget)
-          | Some tl, None -> (setCS, noTarget)
+          | Some _, None -> (setCS, noTarget)
           | _ -> (Deselect, noTarget) )
         | Entering (Filling (tlid, id)) -> (
           match TL.get m tlid with
@@ -200,7 +200,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc newM (contextFromModel newM) FocusSame params]
+                 [RPC.rpc (contextFromModel newM) FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ufAST in
                if replacement = f.ufAST then []
@@ -209,7 +209,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc newM (contextFromModel newM) FocusSame params]
+                 [RPC.rpc (contextFromModel newM) FocusSame params]
            | _ -> [] )
     |> Option.withDefault []
     |> fun rpc ->
@@ -226,7 +226,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | _ -> true )
           params.ops
       in
-      if hasNonHandlers then (m, RPC.rpc m (contextFromModel m) focus params)
+      if hasNonHandlers then (m, RPC.rpc (contextFromModel m) focus params)
       else
         let localM =
           List.foldl
@@ -245,7 +245,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ( withFocus
         , Cmd.batch
-            [wfCmd; RPC.rpc withFocus (contextFromModel withFocus) FocusNoChange params]
+            [wfCmd; RPC.rpc (contextFromModel withFocus) FocusNoChange params]
         )
     in
     match mod_ with
@@ -387,8 +387,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               (newM, Cmd.batch (closeBlanks newM)) )
     | SetCenter center -> (
       match m.currentPage with
-      | Toplevels pos -> ({m with currentPage= Toplevels center}, Cmd.none)
-      | Fn (id, pos) -> ({m with currentPage= Fn (id, center)}, Cmd.none) )
+      | Toplevels _ -> ({m with currentPage= Toplevels center}, Cmd.none)
+      | Fn (id, _) -> ({m with currentPage= Fn (id, center)}, Cmd.none) )
     | Select (tlid, p) ->
         let newM = {m with cursorState= Selecting (tlid, p)} in
         (newM, Cmd.batch (closeBlanks newM))
@@ -430,7 +430,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 match tl.data with
                 | TLDB _ -> TL.upsert m2 tl
                 | TLHandler _ -> TL.upsert m2 tl
-                | TLFunc f -> m2 )
+                | TLFunc _ -> m2 )
           | None -> m2
         in
         let m4 =
@@ -450,7 +450,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 match tl.data with
                 | TLDB _ -> TL.upsert m2 tl
                 | TLHandler _ -> TL.upsert m2 tl
-                | TLFunc f -> m2 )
+                | TLFunc _ -> m2 )
           | None -> m2
         in
         let m4 =
@@ -625,7 +625,7 @@ let update_ (msg : msg) (m : model) : modification =
               else RPC ([UndoTL tlid], FocusSame)
             in
             match TL.getTL m tlid |> TL.asDB with
-            | Some db ->
+            | Some _ ->
                 if DB.isLocked m tlid then
                   DisplayError "Cannot undo/redo in locked DBs"
                 else undo
@@ -783,7 +783,7 @@ let update_ (msg : msg) (m : model) : modification =
                       Refactor.wrap WIfCond m tl pd
                 else if event.ctrlKey then
                   let mPd = Option.map (TL.findExn tl) mId in
-                  Clipboard.copy m tl mPd
+                  Clipboard.copy tl mPd
                 else NoChange
             | Key.V ->
                 if event.ctrlKey then
@@ -800,7 +800,7 @@ let update_ (msg : msg) (m : model) : modification =
                   | None -> NoChange
                   | Some id ->
                       let pd = TL.findExn tl id in
-                      Clipboard.cut m tl pd
+                      Clipboard.cut tl pd
                 else NoChange
             | Key.F ->
                 if event.ctrlKey then
@@ -854,7 +854,7 @@ let update_ (msg : msg) (m : model) : modification =
                       let pd = TL.findExn tl id in
                       Refactor.toggleOnRail m tl pd
                 else NoChange
-            | Key.Unknown c -> (
+            | Key.Unknown _ -> (
               match mId with
               | None -> NoChange
               | Some id ->
@@ -886,19 +886,19 @@ let update_ (msg : msg) (m : model) : modification =
               | _ -> NoChange
             else if event.shiftKey && event.keyCode = Key.Enter then
               match cursor with
-              | Filling (tlid, p) -> (
+              | Filling (tlid, _) -> (
                   let tl = TL.getTL m tlid in
                   match tl.data with
                   | TLDB _ -> NoChange
-                  | TLHandler h -> Entry.submit m cursor Entry.StartThread
-                  | TLFunc f -> Entry.submit m cursor Entry.StartThread )
+                  | TLHandler _ -> Entry.submit m cursor Entry.StartThread
+                  | TLFunc _ -> Entry.submit m cursor Entry.StartThread )
               | Creating _ -> Entry.submit m cursor Entry.StartThread
 
             else if event.altKey then
               match event.keyCode with
               | Key.E -> (
                 match cursor with
-                | Creating pos -> NoChange
+                | Creating _ -> NoChange
                 | Filling (tlid, id) ->
                     let tl = TL.getTL m tlid in
                     let pd = TL.findExn tl id in
@@ -918,7 +918,7 @@ let update_ (msg : msg) (m : model) : modification =
                     | Creating pos -> (
                       match AC.highlighted m.complete with
                       | Some (ACOmniAction action) ->
-                          Entry.submitOmniAction m pos action
+                          Entry.submitOmniAction pos action
                       | _ -> Entry.submit m cursor Entry.StayHere )
                     | Filling (_, _) -> Entry.submit m cursor Entry.StayHere )
               | Key.Tab -> (
@@ -986,11 +986,11 @@ let update_ (msg : msg) (m : model) : modification =
                   Many
                     [ AutocompleteMod (ACSetQuery v)
                     ; MakeCmd (Entry.focusEntry m) ]
-              | key -> NoChange )
+              | _ -> NoChange )
         | Deselected -> (
           match m.currentPage with
           | Fn (_, _) -> NoChange
-          | Toplevels center -> (
+          | Toplevels _ -> (
             match event.keyCode with
             | Key.Enter -> Entry.createFindSpace m
             | Key.A -> if event.ctrlKey then Viewport.pageLeft m else NoChange
@@ -1008,7 +1008,7 @@ let update_ (msg : msg) (m : model) : modification =
             | _ -> NoChange ) )
         | SelectingCommand (tlid, id) -> (
           match event.keyCode with
-          | Key.Escape -> Commands.endCommandExecution m tlid id
+          | Key.Escape -> Commands.endCommandExecution tlid id
           | Key.Enter ->
               Commands.executeCommand m tlid id (AC.highlighted m.complete)
           | Key.P ->
@@ -1105,10 +1105,10 @@ let update_ (msg : msg) (m : model) : modification =
         | TLFunc _ -> NoChange
         | _ -> Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
-  | ToplevelMouseUp (targetTLID, event) ->
+  | ToplevelMouseUp (_, event) ->
       if event.button = Defaults.leftButton then
         match m.cursorState with
-        | Dragging (draggingTLID, startVPos, hasMoved, origCursorState) ->
+        | Dragging (draggingTLID, _, hasMoved, origCursorState) ->
             if hasMoved then
               let tl = TL.getTL m draggingTLID in
               Many
@@ -1141,8 +1141,8 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelClick (targetTLID, _) -> (
     match m.cursorState with
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
-    | Selecting (selectingTLID, _) -> Select (targetTLID, None)
-    | SelectingCommand (selectingTLID, _) -> Select (targetTLID, None)
+    | Selecting (_, _) -> Select (targetTLID, None)
+    | SelectingCommand (_, _) -> Select (targetTLID, None)
     | Deselected -> Select (targetTLID, None)
     | Entering _ -> Select (targetTLID, None) )
   | ExecuteFunctionButton (tlid, id, name) ->
@@ -1168,7 +1168,7 @@ let update_ (msg : msg) (m : model) : modification =
   | FinishIntegrationTest -> EndIntegrationTest
   | StartFeatureFlag -> FeatureFlags.start m
   | EndFeatureFlag (id, pick) -> FeatureFlags.end_ m id pick
-  | ToggleFeatureFlag (id, is) -> FeatureFlags.toggle m id is
+  | ToggleFeatureFlag (id, is) -> FeatureFlags.toggle id is
   | ExtractFunction -> (
     match m.cursorState with
     | Selecting (tlid, mId) -> (
@@ -1187,7 +1187,7 @@ let update_ (msg : msg) (m : model) : modification =
   | RestoreToplevel tlid -> RPC ([UndoTL tlid], FocusNext (tlid, None))
   | RPCCallback
       ( focus
-      , calls
+      , _
       , Ok
           ( newToplevels
           , newDeletedToplevels
@@ -1281,12 +1281,12 @@ let update_ (msg : msg) (m : model) : modification =
   | GetAnalysisRPCCallback (Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
   | JSError msg_ -> DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (w, h) -> NoChange
+  | WindowResize (_, _) -> NoChange
   | FocusEntry _ -> NoChange
   | NothingClick _ -> NoChange
   | FocusAutocompleteItem _ -> NoChange
   | LocationChange loc -> Url.changeLocation m loc
-  | TimerFire (action, time) -> (
+  | TimerFire (action, _) -> (
     match action with
     | RefreshAnalysis -> GetAnalysisRPC
     | CheckUrlHashPosition -> Url.maybeUpdateScrollUrl m )
@@ -1310,7 +1310,7 @@ let update_ (msg : msg) (m : model) : modification =
   | Delete404 fof -> MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
   | CreateRouteHandler ->
       let center = findCenter m in
-      Entry.submitOmniAction m center NewHTTPHandler
+      Entry.submitOmniAction center NewHTTPHandler
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
@@ -1343,7 +1343,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   in
   let dragSubs =
     match m.cursorState with
-    | Dragging (id, offset, _, _) ->
+    | Dragging (id, _, _, _) ->
       let listenerKey = "mouse_moves_" ^ (deTLID id) in
       [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ -> []
@@ -1413,7 +1413,7 @@ let debugging =
       ; shutdown = (fun _ -> Cmd.none)
       }
   in
-  let myInit = fun flag loc -> prog.init flag in
+  let myInit = fun flag _ -> prog.init flag in
   Tea.Navigation.navigationProgram
     (fun x -> Tea.Debug.ClientMsg (LocationChange x))
     { init = myInit

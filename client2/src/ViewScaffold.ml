@@ -60,7 +60,7 @@ let viewButtons (m : model) : msg Html.html =
   let status =
     match m.error.message with
     | None -> Html.div [Html.class' "status"] [Html.text "Dark"]
-    | Some msg ->
+    | Some _ ->
         Html.div
           [Html.class' "status error"]
           [ Html.text "Error: "

@@ -50,7 +50,7 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let requestEls = viewInputs vs astID in
   let selectedValue =
     match vs.cursorState with
-    | Selecting (tlid, Some (ID id)) ->
+    | Selecting (_, Some (ID id)) ->
         StrDict.get id vs.currentResults.liveValues
     | _ -> None
   in

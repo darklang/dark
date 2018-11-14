@@ -6,7 +6,7 @@ open Types
 module P = Pointer
 module TL = Toplevel
 
-let copy (m : model) (tl : toplevel) (mp : pointerData option) : modification =
+let copy (tl : toplevel) (mp : pointerData option) : modification =
   match tl.data with
   | TLDB _ -> NoChange
   | TLHandler h -> (
@@ -18,18 +18,18 @@ let copy (m : model) (tl : toplevel) (mp : pointerData option) : modification =
     | None -> CopyToClipboard (Some (PExpr f.ufAST))
     | Some p -> CopyToClipboard (TL.find tl (P.toID p)) )
 
-let cut (m : model) (tl : toplevel) (p : pointerData) : modification =
+let cut (tl : toplevel) (p : pointerData) : modification =
   let pid = P.toID p in
   let pred = TL.getPrevBlank tl (Some p) |> Option.map P.toID in
   match tl.data with
   | TLDB _ -> NoChange
-  | TLHandler h ->
+  | TLHandler _ ->
       let newClipboard = TL.find tl pid in
       let newH = TL.delete tl p (gid ()) |> TL.asHandler |> deOption "cut" in
       Many
         [ CopyToClipboard newClipboard
         ; RPC ([SetHandler (tl.id, tl.pos, newH)], FocusNext (tl.id, pred)) ]
-  | TLFunc f ->
+  | TLFunc _ ->
       let newClipboard = TL.find tl pid in
       let newF =
         TL.delete tl p (gid ()) |> TL.asUserFunction |> deOption "cut"

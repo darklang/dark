@@ -13,7 +13,7 @@ let executeCommand (m : model) (tlid : tlid) (id : id)
       command.action m tl pd
   | _ -> NoChange
 
-let endCommandExecution (m : model) (tlid : tlid) (id : id) : modification =
+let endCommandExecution (tlid : tlid) (id : id) : modification =
   Many [AutocompleteMod ACReset; Select (tlid, Some id)]
 
 let commands : command list =

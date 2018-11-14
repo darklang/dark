@@ -2,7 +2,7 @@ include Json.Decode
 
 external _stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 
-let succeed any json = any
+let succeed any _ = any
 
 let index i decode json =
   if Js.Array.isArray json then begin
