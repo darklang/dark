@@ -287,7 +287,7 @@ RUN opam switch 4.07.0
 
 USER root
 RUN DEBIAN_FRONTEND=noninteractive \
-    apt-get update && \
+    apt update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install \
       -y \
