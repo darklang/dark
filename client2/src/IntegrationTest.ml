@@ -526,6 +526,19 @@ let rename_function (m : model) : testResult =
   | FnCall ("hello", _, _) -> pass
   | other -> fail ~f:show_nExpr other
 
+let rename_pattern_variable (m : model) : testResult =
+  let expr = onlyExpr m in
+  match expr with
+  | Let (_, _, F (_, Match (_, cases))) -> (
+    match cases with
+    | (F (_, PLiteral "1"), F (_, Variable "foo"))
+      :: (F (_, PVariable "bar"), F(_, Variable "bar"))
+      :: (Blank _, Blank _)
+      :: [] -> pass
+    | _ -> fail ~f:show_nExpr expr
+  )
+  | _ -> fail ~f:show_nExpr expr
+
 let sending_to_rail_works (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
@@ -592,6 +605,7 @@ let trigger (test_name : string) : integrationTestState =
         editing_starts_a_thread_with_shift_enter
     | "object_literals_work" -> object_literals_work
     | "rename_function" -> rename_function
+    | "rename_pattern_variable" -> rename_pattern_variable
     | "sending_to_rail_works" -> sending_to_rail_works
     | "feature_flag_in_function" -> feature_flag_in_function
     | "execute_function_works" -> execute_function_works
