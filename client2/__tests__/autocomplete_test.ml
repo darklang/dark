@@ -106,6 +106,8 @@ let () =
             |> selectDown
             |> selectDown
             |> selectDown
+            |> selectDown
+            |> selectDown
             |> setQuery "T"
             |> highlighted
             |> Option.map asName
@@ -252,7 +254,7 @@ let () =
             |> selectUp
             |> (fun x -> x.index)
           end
-        |> toEqual 13
+        |> toEqual 15
       );
       test "Don't highlight when the list is empty" (fun () ->
         expect
