@@ -746,3 +746,98 @@ let freeVariables (ast : expr) : (id * varName) list =
              | _ -> None ) )
          | _ -> None )
   |> List.uniqueBy (fun (_, name) -> name)
+
+module SymSet = Porting.StrSet
+module IDTable = Belt.MutableMap.String
+type sym_set = SymSet.t
+type sym_store = sym_set IDTable.t
+
+let rec sym_exec
+    ~(trace: (expr -> sym_set -> unit))
+    (st: sym_set)
+    (expr: expr)
+  : unit =
+  let sexe = sym_exec ~trace in
+  ignore
+    ((match expr with
+        | Blank _ -> ()
+        | F (_, Value _) -> ()
+        | F (_, Variable _) -> ()
+
+        | F (_, Let (lhs, rhs, body)) ->
+          let bound = match lhs with
+            | F (_, name) ->
+              sexe st rhs;
+              SymSet.add st name
+            | Blank _ -> st
+          in sexe bound body
+
+        | F (_, FnCall (_, exprs, _)) ->
+          List.iter ~f:(sexe st) exprs
+
+        | F (_, If (cond, ifbody, elsebody))
+        | F (_, FeatureFlag(_, cond, elsebody, ifbody)) ->
+          sexe st cond;
+          sexe st ifbody;
+          sexe st elsebody;
+
+        | F (_, Lambda (vars, body)) ->
+          let new_st =
+            vars
+            |> List.filterMap Blank.toMaybe
+            |> SymSet.ofList
+            |> SymSet.union st
+          in
+          sexe new_st body
+
+        | F (_, Thread (exprs)) ->
+          List.iter ~f:(sexe st) exprs
+
+        | F (_, FieldAccess (obj, _)) ->
+          sexe st obj
+
+        | F (_, ListLiteral exprs) ->
+          List.iter ~f:(sexe st) exprs
+
+        | F (_, Match (matchExpr, cases)) ->
+          let rec variables_in_pattern p =
+            match p with
+            | Blank _ -> []
+            | F (_, PLiteral _) -> []
+            | F (_, PVariable v) -> [v]
+            | F (_, PConstructor (_, inner)) ->
+              inner
+              |> List.map variables_in_pattern
+              |> List.concat
+          in
+
+          sexe st matchExpr;
+          List.iter cases ~f:(fun (p, caseExpr) ->
+              let new_st =
+                p
+                |> variables_in_pattern
+                |> SymSet.ofList
+                |> SymSet.union st
+              in
+              sexe new_st caseExpr
+            );
+
+        | F (_, ObjectLiteral exprs) ->
+          exprs
+          |> List.map Tuple.second
+          |> List.iter ~f:(sexe st)));
+  trace expr st
+
+let variablesIn (ast: expr) : avDict =
+  let sym_store = IDTable.make () in
+  let trace expr st =
+    IDTable.set sym_store (deID (Blank.toID expr)) st
+  in
+  sym_exec ~trace SymSet.empty ast;
+  sym_store
+  |> IDTable.toList
+  |> StrDict.fromList
+  |. StrDict.map SymSet.toList
+
+
+

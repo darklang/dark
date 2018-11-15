@@ -45,14 +45,66 @@ let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
   | None -> None
   | Some dv -> Some (RT.typeOf dv)
 
-let getCurrentAvailableVarnamesDict (m : model) (tlid : tlid) : avDict =
-  getCurrentAnalysisResults m tlid |> fun x -> x.availableVarnames
+(* TODO: copied from Libexecution/http.ml *)
+let route_variable_pairs (route: string) : (int * string) list =
+  let split_uri_path (path: string) : string list =
+    let subs = String.split "/" path in
+    List.filter (fun x -> String.length x > 0) subs
+  in
+  route
+  |> split_uri_path
+  |> List.mapi (fun i x -> (i, x))
+  |> List.filter (fun (_, x) -> String.startsWith ":" x)
+  |> List.map (fun (i, x) -> (i, String.dropLeft 1 (* ":" *) x))
+
+let route_variables (route: string) : string list =
+  route
+  |> route_variable_pairs
+  |> List.map Tuple.second
+
 
 let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
     varName list =
-  tlid
-  |> getCurrentAvailableVarnamesDict m
-  |> StrDict.get id |> Option.withDefault []
+  (* TODO: Calling out is so slow that calculating on the fly is faster. But we
+   * can also cache this so that's it's not in the display hot-path. *)
+  let varsFor ast =
+    ast
+    |> AST.variablesIn
+    |> StrDict.get id
+    |> Option.withDefault []
+  in
+  let tl = TL.getTL m tlid in
+  let dbs = m.toplevels
+            |> List.filterMap TL.asDB
+            |> List.map (fun db -> db.dbName)
+  in
+  match tl.data with
+  | TLHandler h ->
+    let extras =
+      match h.spec.module_ with
+      | F (_, m) when String.toLower "http" = m ->
+        let fromRoute =
+          h.spec.name
+          |> Blank.toMaybe
+          |> Option.map route_variables
+          |> Option.withDefault []
+        in
+        ["request"] @ fromRoute
+      | F (_, m) when String.toLower "cron" = m -> []
+      | F (_, _) -> ["event"]
+      | _ -> ["request"; "event"]
+    in
+    (varsFor h.ast) @ dbs @ extras
+  | TLDB _ -> []
+  | TLFunc fn ->
+    let params =
+      fn.ufMetadata.ufmParameters
+      |> List.filterMap (fun p -> Blank.toMaybe p.ufpName)
+    in
+    varsFor fn.ufAST @ params
+
+
+
 
 let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
     varName list =
