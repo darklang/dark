@@ -228,6 +228,18 @@ module List = struct
     Belt.List.sort l fn
   let fromArray (arr: 'a Js.Array.t) : 'a list =
     Belt.List.fromArray arr
+  let iter ~(f: 'a -> unit) (l: 'a list) : unit =
+    List.iter f l
+  let for_all2_exn (l1: 'a list) (l2: 'b list) (f: 'a -> 'b -> bool) : bool =
+    let n1 = length l1 in
+    let n2 = length l2 in
+    if n1 <> n2
+    then
+      raise (Invalid_argument (Printf.sprintf "length mismatch in for_all2_exn: %d <> %d " n1 n2))
+    else
+      List.for_all2 f l1 l2
+  let mapi = List.mapi
+
 end
 
 module Result = struct
@@ -410,6 +422,11 @@ module IntSet = struct
     Set.isEmpty s
   let toList (s: t) : value list =
     Set.toList s
+  let ofList (s: value list) : t =
+    s |> Array.of_list |> Set.fromArray
+  let add = Set.add
+  let union = Set.union
+  let empty = Set.empty
 end
 
 module StrSet = struct
@@ -428,6 +445,11 @@ module StrSet = struct
     Set.isEmpty s
   let toList (s: t) : value list =
     Set.toList s
+  let ofList (s: value list) : t =
+    s |> Array.of_list |> Set.fromArray
+  let add = Set.add
+  let union = Set.union
+  let empty = Set.empty
 end
 
 
@@ -450,6 +472,7 @@ module StrDict = struct
     |> Belt.List.fromArray
   let update (k: key) (fn: 'v option -> 'v option) (map: 'value t) : 'value t =
     Map.update map k fn
+  let map = Map.map
 
   (* Js.String.make gives us "[object Object]", so we actually want our own
      toString. Not perfect, but slightly nicer (e.g., for Main.ml's
@@ -482,6 +505,7 @@ module IntDict = struct
   let keys m : key list =
     Map.keysToArray m
     |> Belt.List.fromArray
+  let map = Map.map
   let fromStrDict ~(default: key) (d: 'value StrDict.t) : 'value t =
     d
     |> StrDict.toList
