@@ -495,4 +495,9 @@ let init () : unit =
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcE9ZT1AwYUpML25xbXBPbWFoRHdBQSR4Q2RlaFZFMEQzeTNOWnRiVEtRUlFwSDUwR1Eydm5MbnZOQ1M0dmJ6VDJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "jeremy@darklang.com"
     ; name = "Jeremy Morony"};
+  upsert_admin
+    { username = "sample"
+    ; password = ""
+    ; email = "nouser@example.com"
+    ; name = "Sample Owner"};
   ()
