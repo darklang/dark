@@ -76,3 +76,12 @@
   (preprocess (pps lwt.ppx))
   (package dark)
 )
+
+(executable
+  (name migration_runner)
+  (public_name migration_runner)
+  (modules migration_runner)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (package dark)
+)

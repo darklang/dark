@@ -127,6 +127,7 @@ def server_build():
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
                   , "bin/cleanup_traces.exe"
+                  , "bin/migration_runner.exe"
                   , "bin/darkjs.bc.js"
                   , "@darkjs"
                   ])
@@ -158,16 +159,28 @@ def server_test():
   password = "DARK_CONFIG_DB_PASSWORD=eapnsdc"
   env = "DARK_CONFIG_ENV_DISPLAY_NAME=test"
   dbenv = host + " " + dbname + " " + user + " " + password
-  return run_test(start,
-          "unbuffer dune build --root server test/test.exe"
-          + " && dropdb --if-exists testdb"
-          + " && createdb testdb"
-          + " && cd " + rundir
-          + " && " + dbenv
-          + " unbuffer ../server/_build/default/test/test.exe"
-          + " --show-errors "
-          + ci
-          + " 2>&1")
+  return (
+    run_test(start,
+      "unbuffer dune build --root server bin/migration_runner.exe"
+      + " && dropdb --if-exists testdb"
+      + " && createdb testdb"
+      + " && cd " + rundir
+      + " && " + dbenv
+      + " unbuffer ../server/_build/default/bin/migration_runner.exe"
+      + " --show-errors "
+      + ci
+      + " 2>&1")
+  and
+    run_test(start,
+      "unbuffer dune build --root server test/test.exe"
+      + " && dropdb --if-exists testdb"
+      + " && createdb testdb"
+      + " && cd " + rundir
+      + " && " + dbenv
+      + " unbuffer ../server/_build/default/test/test.exe"
+      + " --show-errors "
+      + ci
+      + " 2>&1"))
 
 def reload_server():
   start = time.time()
