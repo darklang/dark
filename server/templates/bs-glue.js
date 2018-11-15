@@ -1,18 +1,31 @@
 var pageHidden = false;
 var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
 
+const sendError = function (error, route, tlid){
+  // send to rollbar
+  Rollbar.error(
+    error.str,
+    error.obj,
+    { route: route
+      , tlid: tlid
+    }
+  );
+
+  // log to console
+  console.log(`Error processing analysis in (${route}): ${error.str}`);
+  console.log(error.obj);
+
+  // send to client
+  displayError(`Error while executing (${route}): ${error}`);
+};
+
+window.Rollbar.configure(rollbarConfig);
 window.Dark = {
-  rollbar: {
-    error: function (errorObj){ console.error(errorObj) }
-  },
   analysis: {
     requestAnalysis : function (params) {
-      // debug is not one of the default log levels in chrome devtools - to see
-      // these, set log levels to include 'Verbose'
-      /*
-      console.debug('request analysis');
-      console.debug(params);
-      */
+      // console.debug('request analysis');
+      // console.debug(params);
+
       // const bToString = (blankOr) => blankOr[2] || null;
       // const spec = params.handler.spec;
       // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
@@ -32,7 +45,7 @@ window.Dark = {
           var event = new CustomEvent('receiveAnalysis', {detail: result});
           document.dispatchEvent(event);
         } else if (error) {
-          console.error(error);
+          sendError(error);
         }
       }
     }
