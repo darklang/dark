@@ -502,7 +502,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m2 = {m with analyses= Analysis.record m.analyses id analysis} in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
-        let m2 = {m with traces} in
+        let newTraces =
+          GMap.String.merge
+            m.traces
+            traces
+            (fun _ maybeOld maybeNew ->
+               (match maybeOld, maybeNew with
+                | None, None -> None
+                | Some o, None -> Some o
+                | None, Some n -> Some n
+                | Some _, Some n -> Some n)
+            )
+        in
+        let m2 = {m with traces = newTraces} in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
       ->
