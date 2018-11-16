@@ -736,6 +736,20 @@ test('rename_function', async t => {
     .pressKey('enter')
 })
 
+test('rename_pattern_variable', async t => {
+  await t
+    .click(Selector('.letvarname'))
+    .pressKey('backspace')
+    .typeText('#entry-box', 'foo', slow)
+    .pressKey('enter')
+    .doubleClick(Selector('.matchexpr .matchcase').nth(1).child(0))
+    .pressKey('backspace')
+    .pressKey('backspace')
+    .pressKey('backspace')
+    .typeText('#entry-box', 'bar', slow)
+    .pressKey('enter')
+})
+
 test('sending_to_rail_works', async t => {
   await t
     .pressKey("enter")
