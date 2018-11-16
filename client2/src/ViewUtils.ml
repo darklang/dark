@@ -65,8 +65,25 @@ let createVS (m : model) (tl : toplevel) : viewState =
             match e with
             | F (_, Let (_, _, body)) -> AST.uses var body |> List.map Blank.toID
             | F (_, Lambda (_, body)) -> AST.uses var body |> List.map Blank.toID
-            (* TODO(match): match *)
             | _ -> [] )
+          | _ -> [] )
+        | Some (PPattern (F (_, _)) as pd) -> (
+          let parent = Toplevel.getParentOf tl pd in
+          let caseContainingPattern (p, _) =
+            Pattern.extractById p (Pointer.toID pd) |> Option.isSome
+          in
+          let relatedVariableIds (p, body) =
+            Pattern.variableNames p
+            |> List.map (fun var -> AST.uses var body |> List.map Blank.toID)
+            |> List.concat
+          in
+
+          match parent with
+          | Some (PExpr (F (_, Match (_, cases)))) ->
+            cases
+            |> List.filter caseContainingPattern
+            |> List.map relatedVariableIds
+            |> List.concat
           | _ -> [] )
         | _ -> [] )
       | _ -> [] )

@@ -26,3 +26,25 @@ let rec replace (search : pointerData) (replacement : pointerData) (p : pattern)
       let replacedArgs = List.map (replace search replacement) args in
       F (id, PConstructor (cons, replacedArgs))
     | _ -> p
+
+let rec hasVariableNamed (name : varName) (p : pattern) : bool =
+  match p with
+  | F (_, PConstructor (_, args)) -> List.any (hasVariableNamed name) args
+  | F (_, PVariable _) -> true
+  | _ -> false
+
+let rec variableNames (p : pattern) : varName list =
+  match p with
+  | Blank _ | F (_, PLiteral _) -> []
+  | F (_, PVariable name) -> [name]
+  | F (_, PConstructor (_, args)) ->
+    args |> List.map variableNames |> List.concat
+
+let rec extractById (p : pattern) (patternId : id) : pattern option =
+  if B.toID p = patternId
+  then Some p
+  else
+    match p with
+    | F (_, PConstructor (_, args)) ->
+      args |> List.find (fun arg -> extractById arg patternId |> Option.isSome)
+    | _ -> None
