@@ -72,6 +72,7 @@ let init (flagString: string) (location : Web.Location.location) =
     , Cmd.batch
         [ RPC.initialLoadRPC (contextFromModel m2)
             (FocusPageAndCursor (page, savedCursorState))
+        (* load the analysis even if the timers are off *)
         ; RPC.getAnalysisRPC (contextFromModel m2) []
         ] )
 
@@ -146,6 +147,7 @@ let processFocus (m : model) (focus : focus) : modification =
       in
       Many [SetPage page; nextCursor; AutocompleteMod acTarget]
   | FocusNothing -> Deselect
+  (* used instead of focussame when we've already done the focus *)
   | FocusNoChange -> NoChange
 
 let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
@@ -182,6 +184,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
    | _ ->
 
   let closeBlanks newM =
+    (* close open threads in the previous TL *)
     m.cursorState
     |> tlidOf
     |> Option.andThen (TL.get m)
@@ -212,6 +215,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   in
   let newm, newcmd =
     let handleRPC params focus =
+      (* immediately update the model based on SetHandler and focus, if
+         possible *)
       let hasNonHandlers =
         List.any
           (fun c ->
@@ -356,6 +361,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let canvas = m.canvas in
           match (page, m.currentPage) with
           | Toplevels pos2, Toplevels _ ->
+              (* scrolling *)
               ( { m with
                   currentPage= page
                 ; urlState= { lastPos = pos2 }
@@ -581,11 +587,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with canvas= canvas2}, Cmd.none)
     | TweakModel fn -> (fn m, Cmd.none)
     | AutocompleteMod mod_ -> processAutocompleteMods m [mod_]
+    (* applied from left to right *)
     | Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
   (newm, Cmd.batch [cmd; newcmd]))
 
+(* Figure out from the string and the state whether this '.' means field
+   access. *)
 let isFieldAccessDot (m : model) (baseStr : string) : bool =
+  (* We know from the fact that this function is called that there has
+     been a '.' entered. However, it might not be in baseStr, so
+     canonicalize it first. *)
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
     String.startsWith "\"" str || Decoders.typeOfLiteralString str = TInt
@@ -624,9 +636,16 @@ let update_ (msg : msg) (m : model) : modification =
             in
             match TL.getTL m tlid |> TL.asDB with
             | Some _ ->
-                if DB.isLocked m tlid then
-                  DisplayError "Cannot undo/redo in locked DBs"
-                else undo
+              (* We could do it on the server but it's really hard
+                 atm. To do it on the server, efficiently, we'd create
+                 a canvas with almost all the ops, check if the tlid
+                 is a DB, then recreate the canvas with all the ops
+                 (such that preprocess with the DB works). That way we
+                 load from disk/db once, but still check server side.
+              *)
+              if DB.isLocked m tlid then
+                DisplayError "Cannot undo/redo in locked DBs"
+              else undo
             | None -> undo )
         | None -> NoChange
       else
@@ -637,7 +656,12 @@ let update_ (msg : msg) (m : model) : modification =
             | Key.Delete -> Selection.delete m tlid mId
             | Key.Backspace -> Selection.delete m tlid mId
             | Key.Escape -> (
-              match mId with Some _ -> Select (tlid, None) | None -> Deselect )
+                match mId with
+                (* if we're selecting an expression,
+                   go 'up' to selecting the toplevel only *)
+                | Some _ -> Select (tlid, None)
+                (* if we're selecting a toplevel only, deselect. *)
+                | None -> Deselect )
             | Key.Enter -> (
                 if event.shiftKey then
                   match tl.data with
@@ -750,10 +774,10 @@ let update_ (msg : msg) (m : model) : modification =
                   match mId with
                   | Some id -> Selection.enter m tlid id
                   | None -> Selection.selectDownLevel m tlid mId )
-            | Key.Up ->
+            | Key.Up -> (* NB: see `stopKeys` in ui.html *)
                 if event.shiftKey then Selection.selectUpLevel m tlid mId
                 else Selection.moveUp m tlid mId
-            | Key.Down ->
+            | Key.Down -> (* NB: see `stopKeys` in ui.html *)
                 if event.shiftKey then Selection.selectDownLevel m tlid mId
                 else Selection.moveDown m tlid mId
             | Key.Right ->
@@ -762,9 +786,18 @@ let update_ (msg : msg) (m : model) : modification =
             | Key.Left ->
                 if event.altKey then Selection.moveCursorForwardInTime m tlid
                 else Selection.moveLeft m tlid mId
-            | Key.Tab ->
+            | Key.Tab -> (* NB: see `stopKeys` in ui.html *)
                 if event.shiftKey then Selection.selectPrevBlank m tlid mId
                 else Selection.selectNextBlank m tlid mId
+            (* Disabled to make room for Windows keyboards *)
+            (* | Key.O -> *)
+            (*   if event.ctrlKey *)
+            (*   then Selection.selectUpLevel m tlid mId *)
+            (*   else NoChange *)
+            (* |  Key.I -> *)
+            (*   if event.ctrlKey *)
+            (*   then Selection.selectDownLevel m tlid mId *)
+            (*   else NoChange *)
             | Key.N ->
                 if event.ctrlKey then Selection.selectNextSibling m tlid mId
                 else NoChange
@@ -852,7 +885,7 @@ let update_ (msg : msg) (m : model) : modification =
                       let pd = TL.findExn tl id in
                       Refactor.toggleOnRail m tl pd
                 else NoChange
-            | Key.Unknown _ -> (
+            | Key.Unknown _ -> (  (* colon *)
               match mId with
               | None -> NoChange
               | Some id ->
@@ -964,26 +997,44 @@ let update_ (msg : msg) (m : model) : modification =
                         if replacement = h.ast then
                           Many [Select (tlid, Some p); AutocompleteMod ACReset]
                         else
+                          (* TODO: in this case, when filling a keyname on an
+                           * object, nothing happens which is unexpected *)
                           RPC
                             ( [ SetHandler
                                   (tl.id, tl.pos, {h with ast= replacement}) ]
                             , FocusNext (tl.id, None) )
                     | _ -> Many [Select (tlid, Some p); AutocompleteMod ACReset]
                     ) )
-              | Key.Up -> AutocompleteMod ACSelectUp
-              | Key.Down -> AutocompleteMod ACSelectDown
+              | Key.Up -> AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
+              | Key.Down -> AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
               | Key.Right -> AC.selectSharedPrefix m.complete
               | Key.Backspace ->
-                  let v =
-                    if
-                      m.complete.value = "\"\""
-                      && String.length m.complete.prevValue <= 2
-                    then ""
-                    else m.complete.value
-                  in
-                  Many
-                    [ AutocompleteMod (ACSetQuery v)
-                    ; MakeCmd (Entry.focusEntry m) ]
+
+                (* This was the case in Elm, unclear about bucklescript  *)
+
+                (* NB: when we backspace, we _almost_ always get an *)
+                (* EntryInputMsg first. I believe the only time we don't *)
+                (* get one when we backspace over '""'. That means that *)
+                (* we'll get \""' if the previous value was '"a"' (cause *)
+                (* EntryInputMsg will have run, and m.c.v will already be *)
+                (* set to the new value '""') or the previous value was *)
+                (* '""' (in which case EntryInputMsg will not have run so *)
+                (* m.c.v will not have changed. *)
+
+                (* The way we can tell the difference is based on *)
+                (* m.c.prevValue. If m.c.pv is '""' or longer, that means *)
+                (* EntryInputMsg was run and we are coming from a longer *)
+                (* string. *)
+                let v =
+                  if
+                    m.complete.value = "\"\""
+                    && String.length m.complete.prevValue <= 2
+                  then ""
+                  else m.complete.value
+                in
+                Many
+                  [ AutocompleteMod (ACSetQuery v)
+                  ; MakeCmd (Entry.focusEntry m) ]
               | _ -> NoChange )
         | Deselected -> (
           match m.currentPage with
@@ -997,12 +1048,12 @@ let update_ (msg : msg) (m : model) : modification =
             | Key.B -> if event.ctrlKey then Viewport.pageUp m else NoChange
             | Key.PageUp -> Viewport.pageUp m
             | Key.PageDown -> Viewport.pageDown m
-            | Key.Up -> Viewport.moveUp m
-            | Key.Down -> Viewport.moveDown m
+            | Key.Up -> Viewport.moveUp m (* NB: see `stopKeys` in ui.html *)
+            | Key.Down -> Viewport.moveDown m (* NB: see `stopKeys` in ui.html *)
             | Key.Left -> Viewport.moveLeft m
             | Key.Right -> Viewport.moveRight m
             | Key.Zero -> Viewport.moveToOrigin m
-            | Key.Tab -> Selection.selectNextToplevel m None
+            | Key.Tab -> Selection.selectNextToplevel m None (* NB: see `stopKeys` in ui.html *)
             | _ -> NoChange ) )
         | SelectingCommand (tlid, id) -> (
           match event.keyCode with
@@ -1013,8 +1064,8 @@ let update_ (msg : msg) (m : model) : modification =
               if event.ctrlKey then AutocompleteMod ACSelectUp else NoChange
           | Key.N ->
               if event.ctrlKey then AutocompleteMod ACSelectDown else NoChange
-          | Key.Up -> AutocompleteMod ACSelectUp
-          | Key.Down -> AutocompleteMod ACSelectDown
+          | Key.Up -> AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
+          | Key.Down -> AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
           | Key.Right -> AC.selectSharedPrefix m.complete
           | _ -> NoChange )
         | Dragging (_, _, _, _) -> NoChange )
@@ -1107,12 +1158,21 @@ let update_ (msg : msg) (m : model) : modification =
       if event.button = Defaults.leftButton then
         match m.cursorState with
         | Dragging (draggingTLID, _, hasMoved, origCursorState) ->
-            if hasMoved then
-              let tl = TL.getTL m draggingTLID in
-              Many
-                [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange) ]
-            else SetCursorState origCursorState
+          if hasMoved then
+            let tl = TL.getTL m draggingTLID in
+            (* We've been updating tl.pos as mouse moves, *)
+            (* now want to report last pos to server *)
+
+            (* the SetCursorState here isn't always necessary *)
+            (* because in the happy case we'll also receive *)
+            (* a ToplevelClick event, but it seems that sometimes *)
+            (* we don't, perhaps due to overlapping click handlers *)
+            (* There doesn't seem to be any harm in stopping dragging *)
+            (* here though *)
+            Many
+              [ SetCursorState origCursorState
+              ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange) ]
+          else SetCursorState origCursorState
         | _ -> NoChange
       else NoChange
   | BlankOrClick (targetTLID, targetID, _) -> (
@@ -1220,7 +1280,7 @@ let update_ (msg : msg) (m : model) : modification =
           ; newState ]
   | InitialLoadRPCCallback
       ( focus
-      , extraMod
+      , extraMod (* for integration tests, maybe more *)
       , Ok
           ( toplevels
           , deletedToplevels
@@ -1279,7 +1339,10 @@ let update_ (msg : msg) (m : model) : modification =
   | GetAnalysisRPCCallback (Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
   | JSError msg_ -> DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (_, _) -> NoChange
+  | WindowResize (_, _) ->
+    (* just receiving the subscription will cause a redraw, which uses *)
+    (* the native sizing function. *)
+    NoChange
   | FocusEntry _ -> NoChange
   | NothingClick _ -> NoChange
   | FocusAutocompleteItem _ -> NoChange
@@ -1341,6 +1404,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   in
   let dragSubs =
     match m.cursorState with
+    (* we use IDs here because the node will change *)
+    (* before they're triggered *)
     | Dragging (id, _, _, _) ->
       let listenerKey = "mouse_moves_" ^ (deTLID id) in
       [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
