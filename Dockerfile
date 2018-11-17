@@ -295,6 +295,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pgcli
 USER dark
 
+RUN yarn add \
+  bs-platform@4.0.7
+
+
 ############################
 # Finish
 ############################
