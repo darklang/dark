@@ -321,7 +321,11 @@ let viewUserFunctions (m : model) : msg Html.html =
   let routes = div "fns" (List.map fnHtml fns) in
   section "Functions" fns (Some ("cf", CreateFunction)) routes
 
-let viewRoutingTable (m : model) : msg Html.html =
+let rtCache = ref None
+let rtCacheKey m =
+  (m.toplevels, m.f404s, m.userFunctions, m.deletedToplevels)
+
+let viewRoutingTable_ (m : model) : msg Html.html =
   let sections =
     viewRoutes m CollapseVerbs ShowLink DontShowUndo
     @ [viewDBs m.toplevels] @ [view404s m.f404s] @ [viewUserFunctions m]
@@ -331,8 +335,29 @@ let viewRoutingTable (m : model) : msg Html.html =
     Html.div
       [ Html.class' "viewing-table"
       ; nothingMouseEvent "mouseup"
-      ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ -> EnablePanning false)
-      ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ -> EnablePanning true) ]
+      ; ViewUtils.eventNoPropagation
+          ~key:"ept"
+          "mouseenter"
+          (fun _ -> EnablePanning false)
+      ; ViewUtils.eventNoPropagation
+          ~key:"epf"
+          "mouseleave"
+          (fun _ -> EnablePanning true)
+      ]
       sections
   in
   Html.div [Html.id "sidebar-left"] [html]
+
+let cacheWith1 keyFn expensiveFn cache arg =
+  let cacheKey = keyFn arg in
+  match !cache with
+  | Some (key, result) when cacheKey = key -> result
+  | _ ->
+    let result = expensiveFn arg in
+    cache := Some (cacheKey, result);
+    result
+
+let viewRoutingTable =
+  cacheWith1 rtCacheKey viewRoutingTable_ rtCache
+
+
