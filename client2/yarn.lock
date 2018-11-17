@@ -656,10 +656,10 @@ browserify@^16.1.1:
     vm-browserify "^1.0.0"
     xtend "^4.0.0"
 
-bs-platform@^4.0.5:
-  version "4.0.5"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.5.tgz#d4fd9bbdd11765af5b75110a5655065ece05eed6"
-  integrity sha512-wK+yUx/5ojlrxgk/EB3Hla7+9NEnE8PxtGb71e4IsKnWPXrRAaVtdTuoWWClv8z77xntOFg8qTgYfYyh9xLMWA==
+bs-platform@4.0.7:
+  version "4.0.7"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.7.tgz#1a0bbf0fef439fef5f1a88ba60d5ac8a6d73570c"
+  integrity sha512-39ZXSugB03PznE7eSVwxq5z4S8Cn44r22T2eFd7rgFQ94HaB/mCNHXG0epF3mJLYhhhyPT9w3e/t+FAIjSdAkg==
 
 bs-webapi@^0.13.0:
   version "0.13.0"
