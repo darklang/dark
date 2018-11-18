@@ -1,5 +1,4 @@
 var pageHidden = false;
-var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
 
 const sendError = function (error, route, tlid){
   // send to rollbar
@@ -30,23 +29,26 @@ window.Dark = {
       // const spec = params.handler.spec;
       // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
 
-      analysisWorker = new Worker(analysisWorkerUrl);
-      analysisWorker.postMessage(
-        { proto: window.location.protocol,
-          params: params
-        }
-      );
+      if (window.analysisWorker) {
+        window.analysisWorker.postMessage(
+          { proto: window.location.protocol,
+            params: params
+          }
+        );
 
-      analysisWorker.onmessage = function (e) {
-        var result = e.data.analysis;
-        var error = e.data.error;
+        window.analysisWorker.onmessage = function (e) {
+          var result = e.data.analysis;
+          var error = e.data.error;
 
-        if (result && !error) {
-          var event = new CustomEvent('receiveAnalysis', {detail: result});
-          document.dispatchEvent(event);
-        } else if (error) {
-          sendError(error);
+          if (result && !error) {
+            var event = new CustomEvent('receiveAnalysis', {detail: result});
+            document.dispatchEvent(event);
+          } else if (error) {
+            sendError(error);
+          }
         }
+      } else {
+        console.log("analysisworker not loaded yet");
       }
     }
   },
