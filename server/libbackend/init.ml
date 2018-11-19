@@ -41,5 +41,9 @@ let init ~run_side_effects =
       has_inited := true;
   with e ->
     let bt = Libexecution.Exception.get_backtrace () in
-    Rollbar.last_ditch e ~bt "backend initialization" "no execution id"
+    Rollbar.last_ditch e ~bt "backend initialization" "no execution id" ;
 
+    (* If we've gotten here, die - this is not a recoverable error (for example,
+     * failing to run migrations should fail hard *)
+    Caml.print_endline (Libexecution.Exception.to_string e);
+    exit 1
