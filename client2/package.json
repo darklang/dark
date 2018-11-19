@@ -17,7 +17,7 @@
   "license": "MIT",
   "devDependencies": {
     "browserify": "^16.1.1",
-    "@glennsl/bs-jest": "^0.4.4",
+    "@glennsl/bs-jest": "^0.4.5",
     "bs-platform": "4.0.7"
   },
   "dependencies": {
