@@ -736,7 +736,8 @@ test('rename_function', async t => {
     .pressKey('enter')
 })
 
-test('rename_pattern_variable', async t => {
+// TODO: re-enable when tests no longer run against elm
+test.skip('rename_pattern_variable', async t => {
   await t
     .click(Selector('.letvarname'))
     .pressKey('backspace')
