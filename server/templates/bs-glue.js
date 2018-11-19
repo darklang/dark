@@ -94,11 +94,6 @@ window.Dark = {
   }
 }
 
-function triggerAnalysis (){
-  var res = { liveValues: "stuff", availableVarnames: ["a", "b", "c"] };
-  darkAnalysis.receiveAnalysis(res);
-}
-
 function displayError (msg){
   var event = new CustomEvent('displayError', {detail: msg});
   document.dispatchEvent(event);
