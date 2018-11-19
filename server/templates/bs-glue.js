@@ -104,6 +104,12 @@ function windowFocusChange (visible){
   document.dispatchEvent(event);
 }
 
+window.onerror = function (msg, url, line, col, error) {
+  window.Rollbar.error(msg, error);
+  displayError(msg);
+};
+
+
 function visibilityCheck(){
   var hidden = false;
   if (typeof document.hidden !== 'undefined') {
