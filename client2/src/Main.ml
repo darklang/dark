@@ -1018,44 +1018,12 @@ let update_ (msg : msg) (m : model) : modification =
           | Key.Right -> AC.selectSharedPrefix m.complete
           | _ -> NoChange )
         | Dragging (_, _, _, _) -> NoChange )
-
-  (* ------------------------ *)
-  (* entry node *)
-  (* ------------------------ *)
   | EntryInputMsg target ->
-    (* There are functions to convert strings to and from quoted strings,
-     * but they don't get to run until later, so hack around the problem
-     * here. *)
-    let query =
-      if target = "\""
-      then "\"\""
-      else target
-    in
-    (* After seeing a '.' in GlobalKeyPress, TEA will continue to see '.' at
-     * the start of its EntryInputMsg msgs, so ignore them if we're in a
-     * field. *)
-    if isFieldAccessDot m target
-    && String.startsWith "." query
-    then
-      Many [ AutocompleteMod (ACSetQuery (String.dropLeft 1 query))
-           ; MakeCmd (Entry.focusEntry m)]
-    else
-      Many [ AutocompleteMod (ACSetQuery query)
-           ; MakeCmd (Entry.focusEntry m)]
-
-  | EntrySubmitMsg ->
-    NoChange (* just keep this here to prevent the page from loading *)
-
-  (* ------------------------ *)
-  (* mouse *)
-  (* ------------------------ *)
-
-  (* The interaction between the different mouse states is a little *)
-  (* tricky. We use stopPropagating a lot of ensure the interactions *)
-  (* work, but also combine multiple interactions into single *)
-  (* handlers to make it easier to choose between the desired *)
-  (* interactions (esp ToplevelMouseUp) *)
-
+      let query = if target = "\"" then "\"\"" else target in
+      if String.endsWith "." query && isFieldAccessDot m query then NoChange
+      else
+        Many [AutocompleteMod (ACSetQuery query); MakeCmd (Entry.focusEntry m)]
+  | EntrySubmitMsg -> NoChange
   | AutocompleteClick value -> (
     match unwrapCursorState m.cursorState with
     | Entering cursor ->
