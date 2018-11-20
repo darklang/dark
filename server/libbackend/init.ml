@@ -41,5 +41,5 @@ let init ~run_side_effects =
       has_inited := true;
   with e ->
     let bt = Libexecution.Exception.get_backtrace () in
-    Rollbar.last_ditch e ~bt "backend initialization" "no execution id"
-
+    Rollbar.last_ditch e ~bt "backend initialization" "no execution id" ;
+    raise e
