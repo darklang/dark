@@ -90,12 +90,13 @@ let viewRopArrow (vs : viewState) : msg Html.html =
     Svg.svg
       [ Html.styles
           [ ("position", "absolute")
-          ; ("pointer-events", "none")
+          ; ("pointer-events", "none") (* dont eat clicks *)
           ; ("margin-top", "-10px")
           ; ("fill", "none") ] ]
       [line; head]
   in
   Html.node "rop-arrow"
+    (* Force the rop-webcomponent to update to fix the size *)
     [ Vdom.attribute "" "update" (Util.random () |> string_of_int)
     ; Vdom.attribute "" "tlid" (deTLID vs.tl.id) ]
     [svg]
@@ -141,7 +142,9 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         v |> Decoders.typeOfLiteralString |> show_tipe |> String.toLower
       in
       let value =
-        if Decoders.typeOfLiteralString v = TStr then Util.transformToStringEntry v
+        (* TODO: remove *)
+        if Decoders.typeOfLiteralString v = TStr
+        then Util.transformToStringEntry v
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
