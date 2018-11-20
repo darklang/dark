@@ -478,13 +478,13 @@ let admin_ui_html ~(csrf_token:string) ~(debug:bool) frontend username =
       let glue, tag =
         (match frontend with
          | Elm ->
-           let content = File.readfile ~root:Templates "elm-glue.js" in
+           let elmglue = File.readfile ~root:Templates "elm-glue.js" in
            let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
-           (content, elmtag)
+           (elmglue, elmtag)
          | Bucklescript ->
-           let content = File.readfile ~root:Templates "bs-glue.js" in
+           let bsglue = File.readfile ~root:Templates "bs-glue.js" in
            let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
-           (content, bstag))
+           (bsglue, bstag))
       in
       body
       |> Util.string_replace "{FRONTENDIMPL}" tag

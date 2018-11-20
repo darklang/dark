@@ -254,14 +254,17 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
 
-let viewDeletedTLs (m : model) : msg Html.html =
+let viewDeletedTLs_ (m : model) : msg Html.html =
   let tls = m.deletedToplevels in
   let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
   Html.details [Html.class' "routing-section deleted"] ([h] @ routes @ [dbs])
 
-let view404s (f404s : fourOhFour list) : msg Html.html =
+let viewDeletedTLs =
+  Cache.cache1 (fun m -> m.deletedToplevels) viewDeletedTLs_
+
+let view404s_ (f404s : fourOhFour list) : msg Html.html =
   let fofToKey fof =
     fof.space ^ "-" ^ fof.path ^ "-" ^ fof.modifier
   in
@@ -282,7 +285,10 @@ let view404s (f404s : fourOhFour list) : msg Html.html =
   let routes = div "404s" (List.map fofHtml f404s) in
   section "404s" f404s None routes
 
-let viewDBs (tls : toplevel list) : msg Html.html =
+let view404s =
+  Cache.cache1 (fun f404s -> f404s) view404s_
+
+let viewDBs_ (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
@@ -295,7 +301,11 @@ let viewDBs (tls : toplevel list) : msg Html.html =
   let routes = div "dbs" (List.map dbHtml dbs) in
   section "DBs" dbs None routes
 
-let viewUserFunctions (m : model) : msg Html.html =
+let viewDBs =
+  Cache.cache1 (fun tls -> TL.dbs tls) viewDBs_
+
+
+let viewUserFunctions_ (m : model) : msg Html.html =
   let fns =
     m.userFunctions |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName)
   in
@@ -321,7 +331,10 @@ let viewUserFunctions (m : model) : msg Html.html =
   let routes = div "fns" (List.map fnHtml fns) in
   section "Functions" fns (Some ("cf", CreateFunction)) routes
 
-let viewRoutingTable (m : model) : msg Html.html =
+let viewUserFunctions =
+  Cache.cache1 (fun m -> (m.userFunctions, m.toplevels)) viewUserFunctions_
+
+let viewRoutingTable_ (m : model) : msg Html.html =
   let sections =
     viewRoutes m CollapseVerbs ShowLink DontShowUndo
     @ [viewDBs m.toplevels] @ [view404s m.f404s] @ [viewUserFunctions m]
@@ -331,8 +344,22 @@ let viewRoutingTable (m : model) : msg Html.html =
     Html.div
       [ Html.class' "viewing-table"
       ; nothingMouseEvent "mouseup"
-      ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ -> EnablePanning false)
-      ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ -> EnablePanning true) ]
+      ; ViewUtils.eventNoPropagation
+          ~key:"ept"
+          "mouseenter"
+          (fun _ -> EnablePanning false)
+      ; ViewUtils.eventNoPropagation
+          ~key:"epf"
+          "mouseleave"
+          (fun _ -> EnablePanning true)
+      ]
       sections
   in
   Html.div [Html.id "sidebar-left"] [html]
+
+let rtCacheKey m =
+  (m.toplevels, m.f404s, m.userFunctions, m.deletedToplevels)
+let viewRoutingTable m =
+  Cache.cache1 rtCacheKey viewRoutingTable_ m
+
+
