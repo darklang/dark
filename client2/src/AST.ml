@@ -6,6 +6,9 @@ open Types
 module B = Blank
 module P = Pointer
 
+(* ------------------------- *)
+(* Generic *)
+(* ------------------------- *)
 let traverse (fn : expr -> expr) (expr : expr) : expr =
   match expr with
   | Blank _ -> expr
@@ -35,6 +38,11 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
             in
             Match (fn matchExpr, traversedCases)
           )
+
+
+(* -------------------------------- *)
+(* PointerData *)
+(* -------------------------------- *)
 
 let rec allData (expr : expr) : pointerData list =
   let e2ld e = PExpr e in
@@ -72,7 +80,7 @@ let rec allData (expr : expr) : pointerData list =
 let find (id : id) (expr : expr) : pointerData option =
   expr |> allData
   |> List.filter (fun d -> id = P.toID d)
-  |> assert_ (fun r -> List.length r <= 1)
+  |> assert_ (fun r -> List.length r <= 1) (* guard against dups *)
   |> List.head
 
 let findExn (id : id) (expr : expr) : pointerData =
@@ -229,6 +237,9 @@ let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
     expr =
   replace_ search replacement None expr
 
+(* ------------------------- *)
+(* Children *)
+(* ------------------------- *)
 let children (expr : expr) : pointerData list =
   match expr with
   | Blank _ -> []
@@ -262,6 +273,7 @@ let children (expr : expr) : pointerData list =
       in
       (PExpr matchExpr) :: casePointers)
 
+(* Look through an AST for the expr with the id, then return its children. *)
 let rec childrenOf (pid : id) (expr : expr) : pointerData list =
   let co = childrenOf pid in
   if pid = B.toID expr then children expr
@@ -289,6 +301,9 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
         co matchExpr @ cCases
     )
 
+(* ------------------------- *)
+(* Parents *)
+(* ------------------------- *)
 let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
   let fpow = findParentOfWithin_ eid in
   (* the `or` of all items in the list *)
@@ -309,6 +324,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
       | Thread exprs -> fpowList exprs
       | FieldAccess (obj, _) -> fpow obj
       | ListLiteral exprs -> fpowList exprs
+      (* we don't check the children because it's done up top *)
       | ObjectLiteral pairs -> pairs |> List.map Tuple.second |> fpowList
       | FeatureFlag (_, cond, a, b) -> fpowList [cond; a; b]
       | Match (matchExpr, cases) ->
@@ -318,6 +334,9 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
 let findParentOfWithin (id : id) (haystack : expr) : expr =
   deOption "findParentOfWithin" <| findParentOfWithin_ id haystack
 
+(* ------------------------- *)
+(* Thread stuff *)
+(* ------------------------- *)
 let rec listThreadBlanks (expr : expr) : id list =
   let r = listThreadBlanks in
   let _ = "type annotation" in
@@ -357,6 +376,8 @@ let rec closeThreads (expr : expr) : expr =
       let newExprs = List.filter B.isF exprs |> List.map closeThreads in
       let adjusted =
         match newExprs with
+        (* if an fncall moved into the first slot, we need to add a *)
+        (* blank in front. *)
         | F (id_, FnCall (name, args, r)) :: rest ->
             if addBlank then
               [F (id_, FnCall (name, B.new_ () :: args, r))] @ rest
@@ -411,6 +432,7 @@ let closeBlanks (expr : expr) : expr =
   |> closeListLiterals
   |> closeMatchPatterns
 
+(* Find the child with the id `at` in the thread, and add a blank after it. *)
 let extendThreadChild (at : id) (blank : expr) (threadExprs : expr list) :
     expr list =
   List.foldr
@@ -427,6 +449,10 @@ let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
       F (tid, Thread newExprs)
   | _ -> traverse (maybeExtendThreadAt id blank) expr
 
+(* take an expression, and if *)
+(* - it is a thread, add a blank at the end *)
+(* - it is part of a thread, insert a blank just after the expr *)
+(* - if it is not part of a thread, wrap it in a thread *)
 let rec addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
   let atb = addThreadBlank id blank in
   if id = B.toID expr then
@@ -461,6 +487,8 @@ let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
     | _ -> impossible ("key parent must be object", id, expr) )
   | _ -> impossible ("must add to key", id, expr)
 
+(* Extend the object literal automatically, only if it's the last key in *)
+(* the object. *)
 let maybeExtendObjectLiteralAt (pd : pointerData) (ast : expr) : expr =
   let id = P.toID pd in
   match pd with
@@ -532,14 +560,18 @@ let maybeExtendPatternAt (pd : pointerData) (ast : expr) : expr =
     | _ -> ast )
   | _ -> ast
 
+(* takes an ID of an expr in the AST to wrap in a thread *)
 let rec wrapInThread (id : id) (expr : expr) : expr =
   if B.toID expr = id then
     match expr with
     | F (_, Thread _) -> expr
     | F (_, _) -> B.newF (Thread [expr; B.new_ ()])
-    | Blank _ -> B.newF (Thread [expr])
+    | Blank _ ->
+      (* decide based on the displayed value, so flatten *)
+      B.newF (Thread [expr])
   else traverse (wrapInThread id) expr
 
+(* Is PointerData a blank inside a thread *)
 let isThreadBlank (expr : expr) (p : id) : bool =
   expr |> listThreadBlanks |> List.member p
 
@@ -588,6 +620,9 @@ let usesRail (ast : expr) : bool =
       match e with PExpr (F (_, FnCall (_, _, Rail))) -> true | _ -> false )
     (allData ast)
 
+(* ------------------------- *)
+(* Ancestors *)
+(* ------------------------- *)
 let ancestors (id : id) (expr : expr) : expr list =
   let rec rec_ancestors (tofind : id) (walk : expr list) (exp : expr) =
     let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
@@ -628,6 +663,7 @@ let threadAncestors (id : id) (expr : expr) : expr list =
         | F (_, Thread _) -> true
         | _ -> false)
 
+(* includes self *)
 let siblings (p : pointerData) (expr : expr) : pointerData list =
   match findParentOfWithin_ (P.toID p) expr with
   | None -> [p]
