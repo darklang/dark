@@ -1,7 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- Analysis.elm
 -- Autocomplete.elm
 -- Blank.elm
 -- Clipboard.elm
