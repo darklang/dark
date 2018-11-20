@@ -6,6 +6,9 @@ open Types
 module B = Blank
 module P = Pointer
 
+(* ------------------------- *)
+(* Toplevel manipulation *)
+(* ------------------------- *)
 let name (tl : toplevel) : string =
   match tl.data with
   | TLHandler h -> "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
@@ -80,6 +83,9 @@ let toOp (tl : toplevel) : op list =
   | TLFunc fn -> [SetFunction fn]
   | _ -> impossible "This isn't how database ops work"
 
+(* ------------------------- *)
+(* Generic *)
+(* ------------------------- *)
 let allData (tl : toplevel) : pointerData list =
   match tl.data with
   | TLHandler h -> SpecHeaders.allData h.spec @ AST.allData h.ast
@@ -106,6 +112,10 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PParamTipe tipe -> PParamTipe (B.clone identity tipe)
   | PPattern pattern -> PPattern (AST.clonePattern pattern)
 
+
+(* ------------------------- *)
+(* Blanks *)
+(* ------------------------- *)
 let allBlanks (tl : toplevel) : pointerData list =
   tl |> allData |> List.filter P.isBlank
 
@@ -138,6 +148,9 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
       blanks |> List.last |> Option.orElse (lastBlank tl)
   | None -> lastBlank tl
 
+(* ------------------------- *)
+(* Siblings *)
+(* ------------------------- *)
 let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   match tl.data with
   | TLHandler h ->
@@ -147,12 +160,22 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   | TLFunc f -> AST.siblings p f.ufAST
 
 let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p |> Util.listNextWrap p |> deOption "nextSibling"
+  siblings tl p
+  |> Util.listNextWrap p
+  (* 'safe' to deOption as there's always at least one member in the array *)
+  |> deOption "nextSibling"
 
 let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p |> Util.listPreviousWrap p |> deOption "prevSibling"
+  siblings tl p
+  |> Util.listPreviousWrap p
+  (* 'safe' to deOption as there's always at least one member in the array *)
+  |> deOption "prevSibling"
 
+(* ------------------------- *)
+(* Up/Down the tree *)
+(* ------------------------- *)
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
+  (* TODO SpecTypePointerDataRefactor *)
   match tl.data with
   | TLHandler h ->
       AST.findParentOfWithin_ (P.toID p) h.ast |> Option.map (fun x -> PExpr x)
@@ -193,6 +216,7 @@ let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
   getChildrenOf tl id |> List.head
 
 let rootOf (tl : toplevel) : pointerData option =
+  (* TODO SpecTypePointerDataRefactor *)
   match tl.data with
   | TLHandler h -> Some (PExpr h.ast)
   | TLFunc f -> Some (PExpr f.ufAST)
@@ -231,8 +255,12 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   | PEventName en -> specHeaderReplace en
   | PEventModifier em -> specHeaderReplace em
   | PEventSpace es -> specHeaderReplace es
-  | PDBColType _ -> tl
-  | PDBColName _ -> tl
+  | PDBColType _ ->
+    tl
+    (* SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe") *)
+  | PDBColName _ ->
+    tl
+    (* SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name") *)
   | PFFMsg bo -> (
     match tl.data with
     | TLHandler h ->
@@ -264,7 +292,7 @@ let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
   |> List.filter (fun d -> id = P.toID d)
-  |> assert_ (fun r -> List.length r <= 1)
+  |> assert_ (fun r -> List.length r <= 1) (* guard against dups *)
   |> List.head
 
 let findExn (tl : toplevel) (id : id) : pointerData =
