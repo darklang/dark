@@ -1,14 +1,5 @@
 port module Main exposing (..)
 
--- these are the files which have not had their comments copied over to bucklescript.
--- Viewport.elm
--- Window/Events.elm
--- tests/TestAST.elm
--- tests/TestAutocomplete.elm
--- tests/TestRPC.elm
--- tests/UtilsForTests.elm
---
-
 -- builtins
 import Maybe
 
