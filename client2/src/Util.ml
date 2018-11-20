@@ -31,24 +31,6 @@ let listPreviousWrap (a : 'a) (l : 'a list) : 'a option =
 let listNextWrap (a : 'a) (l : 'a list) : 'a option =
   l |> listNext a |> Option.orElse (List.head l)
 
-type cacheT = Types.msg Html.html
-type cacheType = Types.msg Html.html Js.Dict.t
-
-let cache : cacheType = Js.Dict.empty()
-
-let cacheSet (k : string) (v : cacheT) : unit =
-  Js.Dict.set cache k v
-
-let cacheGet (k : string) : cacheT option =
-  Js.Dict.get cache k
-
-let cacheClear (k : string) : unit =
-  let unsafeDeleteKey : (cacheType -> string -> unit) = [%raw fun dict key -> {|
-     delete dict[key];
-     return 0
-|}] in
-  ignore(unsafeDeleteKey cache k)
-
 let transformToStringEntry (s_ : string) : string =
   let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in
   s |> String.dropLeft 1 |> String.dropRight 1 |> Regex.replace "\\\\\"" "\""

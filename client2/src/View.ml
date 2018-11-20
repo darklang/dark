@@ -18,8 +18,7 @@ let atom = ViewBlankOr.atom
 let keyword = ViewBlankOr.keyword
 
 
-let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
-  let tl = TL.getTL m tlid in
+let viewTL_ (m : model) (tl: toplevel) : msg Html.html =
   let vs = ViewUtils.createVS m tl in
   let body, data =
     match tl.data with
@@ -68,37 +67,32 @@ let viewTL_ (m : model) (tlid : tlid) : msg Html.html =
     else None
   in
   let top = match documentation with Some doc -> doc | _ -> data in
-  let html =
-    Html.div
-      [Html.class' <| String.join " " (boxClasses @ ["sidebar-box"; selected])]
-      [Html.div (Html.class' class_ :: events) (body @ top)]
-  in
-  html
-
-let viewTL (m : model) (tl : toplevel) : msg Html.html =
-  let id = deTLID tl.id in
-  let recalc () = viewTL_ m tl.id in
-  (* Allow the DB locked status to update *)
-  let isDB = match tl.data with TLDB _ -> true | _ -> false in
   let pos =
     match m.currentPage with
     | Toplevels _ -> tl.pos
     | Fn (_, _) -> Defaults.centerPos
   in
   let html =
-    if Some tl.id = tlidOf m.cursorState || isDB then begin
-      Util.cacheClear id;
-      recalc ()
-    end
-    else
-      match Util.cacheGet id with
-      | Some html -> html
-      | None ->
-          let result = recalc () in
-          Util.cacheSet id result;
-          result
+    Html.div
+      [Html.class' <| String.join " " (boxClasses @ ["sidebar-box"; selected])]
+      [Html.div (Html.class' class_ :: events) (body @ top)]
   in
   ViewUtils.placeHtml pos html
+
+let tlCacheKey m tl =
+  if Some tl.id = tlidOf m.cursorState
+  then None
+  else Some tl
+
+let tlCacheKeyDB m tl =
+  if Some tl.id = tlidOf m.cursorState
+  then None
+  else Some (tl, DB.isLocked m tl.id)
+
+let viewTL m tl =
+  match tl.data with
+  | TLDB _ -> Cache.cache2m tlCacheKeyDB viewTL_ m tl
+  | _ -> Cache.cache2m tlCacheKey viewTL_ m tl
 
 let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
@@ -109,7 +103,7 @@ let viewCanvas (m : model) : msg Html.html =
       (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
-       * know exactly how. *)
+       * know exactly how. TODO: we removed the Util cache so it might work. *)
       |> List.sortBy (fun tl -> deTLID (tl.id))
       |> List.map (viewTL m)
     | Fn (tlid, _) -> (
