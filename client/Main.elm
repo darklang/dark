@@ -1,14 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- Blank.elm
--- Clipboard.elm
--- Commands.elm
--- DB.elm
--- DarkKeyboard.elm
--- Defaults.elm
--- DontPort.elm
--- Editor.elm
 -- Entry.elm
 -- FeatureFlags.elm
 -- Flags.elm
