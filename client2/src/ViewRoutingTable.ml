@@ -302,7 +302,7 @@ let viewDBs_ (tls : toplevel list) : msg Html.html =
   section "DBs" dbs None routes
 
 let viewDBs =
-  Cache.cache1 (fun m -> TL.dbs m) viewDBs_
+  Cache.cache1 (fun tls -> TL.dbs tls) viewDBs_
 
 
 let viewUserFunctions_ (m : model) : msg Html.html =
@@ -332,7 +332,7 @@ let viewUserFunctions_ (m : model) : msg Html.html =
   section "Functions" fns (Some ("cf", CreateFunction)) routes
 
 let viewUserFunctions =
-  Cache.cache1 (fun m -> (m.userFunctions, m.toplevels)) viewUserFunctions_ 
+  Cache.cache1 (fun m -> (m.userFunctions, m.toplevels)) viewUserFunctions_
 
 let viewRoutingTable_ (m : model) : msg Html.html =
   let sections =
