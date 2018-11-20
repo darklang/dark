@@ -8,10 +8,14 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 
+(* "current" in this indicates that it uses the cursor to pick the right inputValue *)
+
 let defaultResults : analysisResults =
   {liveValues= StrDict.empty; availableVarnames= StrDict.empty}
 
 let cursor_ (cursors : tLCursors) (tlid : tlid) : int =
+  (* We briefly do analysis on a toplevel which does not have an *)
+  (* analysis available, so be careful here. *)
   StrDict.get (deTLID tlid) cursors |> Option.withDefault 0
 
 let cursor (m : model) (tlid : tlid) : int = cursor_ m.tlCursors tlid
@@ -28,6 +32,9 @@ let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
     |> Option.map (fun x -> x.traceID)
     |> Option.withDefault "invalid trace key"
   in
+  (* only handlers have analysis results, but lots of stuff expect this *)
+  (* data to exist. It may be better to not do that, but this is fine *)
+  (* for now. *)
   StrDict.get traceID m.analyses |> Option.withDefault defaultResults
 
 let record (old : analyses) (id : traceID) (result : analysisResults) :
