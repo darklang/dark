@@ -1,8 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- RPC.elm
--- Refactor.elm
 -- Runtime.elm
 -- Selection.elm
 -- SpecHeaders.elm

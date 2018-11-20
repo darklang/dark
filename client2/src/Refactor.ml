@@ -103,6 +103,8 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
         let nlet = B.newF (Let (newVar, e, nbody)) in
         (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
     | None ->
+        (* something weird is happening because we couldn't find anywhere to *)
+        (* extract to, we can just wrap the entire AST in a Let *)
         let newAST =
           AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
         in
