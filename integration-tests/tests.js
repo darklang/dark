@@ -4,17 +4,9 @@ fixture `Integration Tests`
   // To add this user, run the backend tests
   .httpAuth({ username: 'test', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
-    // run bucklescript by default
-    var queryString = "?bs=1";
-
-    // do not run bucklescript if on master and in CI
-    if (process.env.CI !== '' && process.env.CIRCLE_BRANCH === 'master') {
-      queryString = "?bs=0";
-    }
-
     const testname = t.testRun.test.name;
     const host = process.env.TEST_HOST
-    const url = "http://" + host + "/a/test-" + testname + "/integration_test" + queryString;
+    const url = "http://" + host + "/a/test-" + testname + "/integration_test";
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)

@@ -40,10 +40,7 @@ let query_string_to_frontend_impl ~username query =
   match bs_val with
   | Some ["true"] | Some ["1"] -> Bucklescript
   | Some ["false"] | Some ["0"] -> Elm
-  | _ ->
-    if Account.can_access_operations username
-    then Bucklescript
-    else Elm
+  | _ -> Bucklescript
 
 
 type timing_header = string * float * string
