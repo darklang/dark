@@ -7,6 +7,9 @@ module B = Blank
 module P = Pointer
 module TL = Toplevel
 
+(* ------------------------------- *)
+(* Cursors *)
+(* ------------------------------- *)
 let moveCursorBackInTime (m : model) (tlid : tlid) : modification =
   let maxCursor = List.length (Analysis.getTraces m tlid) - 1 in
   let current = Analysis.cursor m tlid in
@@ -19,6 +22,9 @@ let moveCursorForwardInTime (m : model) (tlid : tlid) : modification =
   let newCursor = max 0 (min (current - 1) maxCursor) in
   SetCursor (tlid, newCursor)
 
+(* ------------------------------- *)
+(* Toplevels *)
+(* ------------------------------- *)
 let selectNextToplevel (m : model) (cur : tlid option) : modification =
   let tls = List.map (fun x -> x.id) m.toplevels in
   let next = cur |> Option.andThen (fun cur_ -> Util.listNextWrap cur_ tls) in
@@ -30,6 +36,38 @@ let selectPrevToplevel (m : model) (cur : tlid option) : modification =
     cur |> Option.andThen (fun cur_ -> Util.listPreviousWrap cur_ tls)
   in
   match next with Some nextId -> Select (nextId, None) | None -> Deselect
+
+(* ------------------------------- *)
+(* Move direction-wise *)
+(* ------------------------------- *)
+
+(* This is not an easy problem. *)
+(* We want to move to the _thing_ above us, to the right of us, etc. *)
+
+(* Left and right are pretty straightforward, until you hit interesting *)
+(* edge cases: *)
+(*   (1 |> + 2) + (4 |> + 5) *)
+(* In this example, pressing right on 2 should go to 5. That pretty much *)
+(* rules out a straightforward AST traversal, though we could try up and *)
+(* down, it seems tricky to get right. *)
+(* *)
+(* Up and down are pretty complicated even in simple cases: *)
+(*   L1: 4 + 5 + 6 + 7 *)
+(*   L2: 485960020 + 8 *)
+(* From 8, if you press up you should go to 7. How can we know? *)
+(* *)
+(* The most obvious implementation is to model a grid (just like a text *)
+(* editor) and then use simple integer to go up/down using the column *)
+(* numbers. However, this is subject to a lot of weird errors: what if *)
+(* the gear or flag icons are showing for example? Or what if we change *)
+(* the fonts, etc. We tried to simulate sizes before for a similar *)
+(* problem, and kept getting it wrong. *)
+(* *)
+(* So the easiest thing to get correct -- and, importantly, to keep *)
+(* correct over time -- is to use the browser to figure this out. Take *)
+(* the TL, draw it, get the sizes and positions of the elements and use *)
+(* them to figure out what's "above" and "below". *)
+
 
 type jSSide = Porting.Native.rect =
   { id: string
@@ -79,6 +117,8 @@ type lrDirection = Left | Right
 
 let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
     : id option =
+  (* I seem to recall some of these values seemed weird, and now I see *)
+  (* that moveLeft passes Right and moveRight passes Left. Whoops. *)
   let dir = if direction = Left then -1.0 else 1.0 in
   match List.filter (fun (o: htmlSizing) -> o.id = id) sizes with
   | [this] ->
@@ -99,6 +139,9 @@ let move (tlid : tlid) (mId : id option)
   mId
   |> Option.andThen (fn atoms)
   |> Option.orElse (Option.andThen (fn nested) mId)
+  (* TODO: if neither, check nested+atoms. this would allow us to *)
+  (* press Left on the expr of a let and go to the varbind. I think we *)
+  (* would need to switch to use .left and .right instead of .centerX. *)
   |> Option.orElse mId
   |> Option.orElse default
   |> (fun x -> Select (tlid, x))
@@ -125,6 +168,9 @@ let moveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
   let default = body m tlid in
   move tlid mId (moveLeftRight Right) default
 
+(* ------------------------------- *)
+(* Move AST-wide *)
+(* ------------------------------- *)
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
   let pd = Option.map (TL.findExn tl) cur in
@@ -164,6 +210,9 @@ let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
   |> Option.map P.toID
   |> fun id -> Select (tlid, id)
 
+(* ------------------------------- *)
+(* Blanks *)
+(* ------------------------------- *)
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   let tl = TL.getTL m tlid in
@@ -197,6 +246,9 @@ let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
   |> Option.withDefault NoChange
 
+(* ------------------------------- *)
+(* misc *)
+(* ------------------------------- *)
 let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   match mId with
   | None -> (
@@ -253,6 +305,7 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
   | PDBColType _ ->
       if isLocked && not isMigrationCol then NoChange else enterField true
   | PExpr _ -> enterField true
+  (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
   | _ -> NoChange
 
 let enter (m : model) (tlid : tlid) (id : id) : modification =
