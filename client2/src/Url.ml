@@ -31,6 +31,9 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
     msg Html.html =
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
+(* When scrolling, there are way too many events to process them through *)
+(* the History/location handlers. So instead we process them directly, *)
+(* and update the browser url periodically. *)
 let maybeUpdateScrollUrl (m : model) : modification =
   let pos =
     match m.currentPage with
@@ -82,6 +85,8 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
   | _ -> NoChange
 
 let parseCanvasName (loc : Web.Location.location) : string =
-  match loc.pathname |> String.dropLeft 1 |> String.split "/" with
+  match loc.pathname
+        |> String.dropLeft 1  (* remove lead "/" *)
+        |> String.split "/" with
   | "a" :: canvasName :: _ -> canvasName
   | _ -> "builtwithdark"
