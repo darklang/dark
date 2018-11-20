@@ -1,37 +1,46 @@
-type 'a t = 'a option ref
-
-let create () : 'a t =
-  ref None
-
 let enabled = true
 
-let cache1 keyFn expensiveFn =
-  let cache = create () in
-  (fun arg ->
-     if enabled
-     then
-       let cacheKey = keyFn arg in
-       match !cache with
-       | Some (key, result) when cacheKey = key -> result
-       | _ ->
-         let result = expensiveFn arg in
-         cache := Some (cacheKey, result);
-         result
-     else expensiveFn arg)
+let cache1m
+    (keyFn: 'a -> 'b option)
+    (expensiveFn: 'a -> 'msg Vdom.t)
+    (arg1: 'a)
+  : 'msg Vdom.t =
+  let eFn () = expensiveFn arg1 in
+  let keyFn k = keyFn k |> Porting.Option.andThen Js.Json.stringifyAny in
+  if not enabled
+  then eFn ()
+  else
+    match keyFn arg1 with
+    | Some k -> Tea_html.lazy1 k eFn
+    | _ -> eFn ()
 
+let cache1
+    (keyFn: 'a -> 'b)
+    (expensiveFn: 'a -> 'msg Vdom.t)
+    (arg1: 'a)
+  : 'msg Vdom.t =
+  cache1m (fun x -> Some (keyFn x)) expensiveFn arg1
 
-let cache2 keyFn expensiveFn =
-  let cache = create () in
-  (fun arg1 arg2 ->
-     if enabled
-     then
-       let cacheKey = keyFn arg1 arg2 in
-       match !cache with
-       | Some (key, result) when cacheKey = key -> result
-       | _ ->
-         let result = expensiveFn arg1 arg2 in
-         cache := Some (cacheKey, result);
-         result
-     else expensiveFn arg1 arg2)
+let cache2m
+    (keyFn: 'a -> 'b -> 'c option)
+    (expensiveFn: 'a -> 'b -> 'msg Vdom.t)
+    (arg1: 'a)
+    (arg2: 'b)
+  : 'msg Vdom.t =
+  let keyFn k1 k2 = keyFn k1 k2 |> Porting.Option.andThen Js.Json.stringifyAny in
+  let eFn () = expensiveFn arg1 arg2 in
+  if not enabled
+  then eFn ()
+  else
+    match keyFn arg1 arg2 with
+    | Some k -> Tea_html.lazy1 k eFn
+    | _ -> eFn ()
 
+let cache2
+    (keyFn: 'a -> 'b -> 'c)
+    (expensiveFn: 'a -> 'b -> 'msg Vdom.t)
+    (arg1: 'a)
+    (arg2: 'b)
+  : 'msg Vdom.t =
+  cache2m (fun a1 a2 -> Some (keyFn a1 a2)) expensiveFn arg1 arg2
 
