@@ -1,5 +1,3 @@
-var analysisWorkerUrl = window.URL.createObjectURL(new Blob([document.querySelector('#analysisScript').textContent]));
-
 const sendError = function (error, route, tlid){
   // send to rollbar
   Rollbar.error(
@@ -38,22 +36,25 @@ elmapp.ports.requestAnalysis.subscribe(function(params) {
   const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
 
   if (window.Worker) {
-    analysisWorker = new Worker(analysisWorkerUrl);
-    analysisWorker.postMessage(
-      { proto: window.location.protocol,
-        params: JSON.stringify(params)
-      }
-    );
+    if (window.analysisWorker) {
+      window.analysisWorker.postMessage(
+        { proto: window.location.protocol,
+          params: JSON.stringify(params)
+        }
+      );
 
-    analysisWorker.onmessage = function (e) {
-      var result = e.data.analysis;
-      var error = e.data.error;
+      window.analysisWorker.onmessage = function (e) {
+        var result = e.data.analysis;
+        var error = e.data.error;
 
-      if (result && !error){
-        elmapp.ports.receiveAnalysis.send(result);
-      } else if (error) {
-        sendError(error)
+        if (result && !error){
+          elmapp.ports.receiveAnalysis.send(result);
+        } else if (error) {
+          sendError(error)
+        }
       }
+    } else {
+      console.log("analysisworker not loaded yet");
     }
   } else {
     // do it without workers, it will be slow though

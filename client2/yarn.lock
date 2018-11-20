@@ -18,10 +18,10 @@
     esutils "^2.0.2"
     js-tokens "^4.0.0"
 
-"@glennsl/bs-jest@^0.4.4":
-  version "0.4.4"
-  resolved "https://registry.yarnpkg.com/@glennsl/bs-jest/-/bs-jest-0.4.4.tgz#71cd14217023efd14e09f0030c08f2103e90d734"
-  integrity sha512-jO//I5OO2YQO8mbjMTD8oI2aXfLvsz3tzAWF/k/VTUDsrvDglgtj5APE8Qz1yNzJIQIo8u55UQOH/ojtCGryEA==
+"@glennsl/bs-jest@^0.4.5":
+  version "0.4.5"
+  resolved "https://registry.yarnpkg.com/@glennsl/bs-jest/-/bs-jest-0.4.5.tgz#f6259f8457cc9f09b3c07f97073c6b00c81a048d"
+  integrity sha512-iDhVxPdZf5yMBJlMY+b9BR4G8/DQICbWvxYwI71VpEOKxhZW9h8Sx+pm4Y6xpVZOenT7sVJ5O62Q+UW6Rmducw==
   dependencies:
     jest "^23.5.0"
 
@@ -656,10 +656,10 @@ browserify@^16.1.1:
     vm-browserify "^1.0.0"
     xtend "^4.0.0"
 
-bs-platform@^4.0.5:
-  version "4.0.5"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.5.tgz#d4fd9bbdd11765af5b75110a5655065ece05eed6"
-  integrity sha512-wK+yUx/5ojlrxgk/EB3Hla7+9NEnE8PxtGb71e4IsKnWPXrRAaVtdTuoWWClv8z77xntOFg8qTgYfYyh9xLMWA==
+bs-platform@4.0.7:
+  version "4.0.7"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.7.tgz#1a0bbf0fef439fef5f1a88ba60d5ac8a6d73570c"
+  integrity sha512-39ZXSugB03PznE7eSVwxq5z4S8Cn44r22T2eFd7rgFQ94HaB/mCNHXG0epF3mJLYhhhyPT9w3e/t+FAIjSdAkg==
 
 bs-webapi@^0.13.0:
   version "0.13.0"
@@ -673,10 +673,10 @@ bser@^2.0.0:
   dependencies:
     node-int64 "^0.4.0"
 
-bucklescript-tea@^0.9.0:
-  version "0.9.0"
-  resolved "https://registry.yarnpkg.com/bucklescript-tea/-/bucklescript-tea-0.9.0.tgz#479753defe460ddc01c2498fa1ffceb52e010b67"
-  integrity sha512-GFWJZmPYLJ3VZZsYKYH+tZu783tL2FiPf6kbhtMS2bws+2eUraDWjh0ctEMHgKy/gpONIdIV6jvZZzUqrNI3ag==
+bucklescript-tea@^0.9.1:
+  version "0.9.1"
+  resolved "https://registry.yarnpkg.com/bucklescript-tea/-/bucklescript-tea-0.9.1.tgz#d83033d34f1788b34ef4e24c29d520a5f7e44318"
+  integrity sha512-ggK1kamcz7ZekyMwovwD7G6awSpCKToTxnfOZtOaSFF0pCWaTmE+mMNx+3mg+kmeHcwcZ278TZEYWxm9f0ZONg==
 
 buffer-from@^1.0.0:
   version "1.1.1"

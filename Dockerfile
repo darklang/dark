@@ -293,7 +293,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       -y \
       --no-install-recommends \
       pgcli
-USER dark
+
+RUN npm install -g yarn@1.12.3
+RUN yarn remove bs-platform
+
 
 ############################
 # Finish
