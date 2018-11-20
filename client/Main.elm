@@ -1,10 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- JSONUtils.elm
--- Main.elm
--- Pointer.elm
--- Prelude.elm
 -- RPC.elm
 -- Refactor.elm
 -- Runtime.elm
