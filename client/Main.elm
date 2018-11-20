@@ -1,10 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- SpecHeaders.elm
--- StrDict.elm
--- StrSet.elm
--- Sync.elm
 -- Toplevel.elm
 -- Types.elm
 -- Url.elm
