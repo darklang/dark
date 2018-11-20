@@ -96,11 +96,6 @@ window.Dark = {
   }
 }
 
-function triggerAnalysis (){
-  var res = { liveValues: "stuff", availableVarnames: ["a", "b", "c"] };
-  darkAnalysis.receiveAnalysis(res);
-}
-
 function displayError (msg){
   var event = new CustomEvent('displayError', {detail: msg});
   document.dispatchEvent(event);
@@ -110,6 +105,12 @@ function windowFocusChange (visible){
   var event = new CustomEvent('windowFocusChange', {detail: visible});
   document.dispatchEvent(event);
 }
+
+window.onerror = function (msg, url, line, col, error) {
+  window.Rollbar.error(msg, error);
+  displayError(msg);
+};
+
 
 function visibilityCheck(){
   var hidden = false;
