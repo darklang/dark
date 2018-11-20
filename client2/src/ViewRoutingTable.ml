@@ -23,6 +23,9 @@ and showLink = ShowLink | DontShowLink
 and showUndo = ShowUndo | DontShowUndo
 
 
+(* ---------------------------------- *)
+(* Html *)
+(* ---------------------------------- *)
 let span (class_ : string) (subs : msg Html.html list) : msg Html.html =
   Html.span [Html.class' class_] subs
 
@@ -117,6 +120,8 @@ let rec prefixify (hs : entry list) : entry list =
           | None -> false
           | Some n2 -> String.startsWith name n2
         in
+        (* this should short circuit immediately when not matching, as *)
+        (* first handler will make the fn succeed *)
         match List.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
         | None -> h :: (rest |> List.map makePrefix |> prefixify)
         | Some (matched, unmatched) ->
@@ -124,8 +129,10 @@ let rec prefixify (hs : entry list) : entry list =
 
 let ordering (a : string) (b : string) : int =
   match (a, b) with
+  (* to the start *)
   | "HTTP", _ -> -1
   | _, "HTTP" -> 1
+  (* to the end *)
   | _ ->
       if a = missingEventRouteDesc then 1
       else if b = missingEventRouteDesc then -1
