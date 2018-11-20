@@ -28,12 +28,16 @@ let defaultSyncState : syncState = {inFlight= false; ticks= 0}
 let defaultUrlState : urlState = {lastPos= {x= 0; y= 0}}
 
 let defaultCanvas : canvasProps =
-  {offset= origin; fnOffset= origin; enablePan= true}
+  { offset= origin (* These is intended to be (Viewport.toCentedOn centerPos) *)
+  ; fnOffset= origin
+  ; enablePan= true
+  }
 
 let defaultModel : model =
   { error= {message= None; showDetails= false}
   ; lastMsg= Initialization
   ; lastMod= NoChange
+  (* this is awkward, but avoids circular deps *)
   ; complete=
       { functions= []
       ; admin= false
@@ -59,9 +63,11 @@ let defaultModel : model =
   ; unlockedDBs= []
   ; integrationTestState= NoIntegrationTest
   ; visibility= PageVisibility.Visible
+  (* partially saved in editor *)
   ; syncState= defaultSyncState
   ; urlState= defaultUrlState
   ; timersEnabled= true
+  (* saved in editor *)
   ; clipboard= None
   ; cursorState= Deselected
   ; executingFunctions= []
