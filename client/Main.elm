@@ -1,7 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- Types.elm
 -- Url.elm
 -- Util.elm
 -- VariantTesting.elm

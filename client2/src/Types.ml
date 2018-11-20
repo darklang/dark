@@ -25,7 +25,11 @@ and tlid = TLID of string
 and id = ID of string
 and 'a blankOr = Blank of id
                | F of id * 'a
-
+(* There are two coordinate systems. Pos is an absolute position in the *)
+(* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
+(* within the viewport and we map Absolute positions back to the *)
+(* viewport to display in the browser. *)
+(* TODO: Can we depreciate VPos? *)
 and pos = {x: int; y: int}
 and vPos = {vx: int; vy: int}
 (* ---------------------- *)
@@ -91,6 +95,9 @@ and nExpr =
   | FeatureFlag of string blankOr * expr * expr * expr
   | Match of expr * (pattern * expr) list
 
+(* ----------------------------- *)
+(* Pointers *)
+(* ----------------------------- *)
 and pointerData =
   | PVarBind of varBind
   | PEventName of string blankOr
@@ -220,6 +227,9 @@ and mouseEvent = {mePos: vPos; button: int}
 
 and isLeftButton = bool
 
+(* ----------------------------- *)
+(* CursorState *)
+(* ----------------------------- *)
 and entryCursor = Creating of pos | Filling of tlid * id
 
 and hasMoved = bool
@@ -391,6 +401,7 @@ and autocompleteMod =
   | ACSetTarget of target option
   | ACRegenerate
   | ACEnableCommandMode
+  (* | ACFilterByParamType of tipe nodeList *)
 
 (* ------------------- *)
 (* Modifications *)
@@ -403,13 +414,11 @@ and focus =
   | FocusExact of tlid * id
   | FocusNext of tlid * id option
   | FocusPageAndCursor of page * cursorState
-  | FocusSame
-  | FocusNoChange
+  | FocusSame (* unchanged *)
+  | FocusNoChange (* unchanged *)
 
 and clipboard = pointerData option
 and canvasProps = {offset: pos; fnOffset: pos; enablePan: bool}
-
-and pick = PickA | PickB
 
 and httpError = string Tea.Http.error [@opaque]
 
@@ -458,6 +467,7 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
+  (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 
 (* ------------------- *)
@@ -467,6 +477,8 @@ and msg =
   | GlobalClick of mouseEvent
   | NothingClick of mouseEvent
   | ToplevelMouseDown of tlid * mouseEvent
+  (* we have the actual node when ToplevelMouseUp is created, *)
+  (* but by the time we use it the proper node will be changed *)
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
@@ -532,11 +544,19 @@ and stringEntryPermission = StringEntryAllowed | StringEntryNotAllowed
 
 and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
 
+(* ----------------------------- *)
+(* AB tests *)
+(* ----------------------------- *)
 and variantTest = StubVariant | SelectEnterVariant
 
 and class_ = string
 
 and ffIsExpanded = bool
+
+(* ----------------------------- *)
+(* FeatureFlags *)
+(* ----------------------------- *)
+and pick = PickA | PickB
 
 and flagsVS = ffIsExpanded GMap.String.t
 
@@ -546,16 +566,18 @@ and urlState = {lastPos: pos}
 
 and tLCursors = int GMap.String.t
 
+(* Values that we serialize *)
 and serializableEditor =
   { clipboard: pointerData option
   ; timersEnabled: bool
   ; cursorState: cursorState
   ; lockedHandlers: tlid list }
 
+(* Error Handling *)
 and darkError = {message: string option; showDetails: bool}
 
+(* Testing *)
 and testResult = (string, unit) Porting.Result.t
-
 and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
   | IntegrationTestFinished of testResult
@@ -573,6 +595,8 @@ and model =
   ; currentPage: page
   ; hovering: id list
   ; toplevels: toplevel list
+  (* These are read direct from the server. The ones that are *)
+  (* analysed are in analysis *)
   ; deletedToplevels: toplevel list
   ; traces: traces
   ; analyses: analyses
@@ -586,6 +610,10 @@ and model =
   ; urlState: urlState
   ; timersEnabled: bool
   ; executingFunctions: (tlid * id) list
+  (* This is TLID id to cursor index (the cursor being *)
+  (* the input to the toplevel currently used, not to *)
+  (* be condused with cursorState, which is the code *)
+  (* that is currently selected.) *)
   ; tlCursors: tLCursors
   ; featureFlags: flagsVS
   ; lockedHandlers: tlid list
