@@ -12,6 +12,9 @@ module TL = Toplevel
 let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
+(* --------------------- *)
+(* Focus *)
+(* --------------------- *)
 (* fixed from Tea_html_cmds *)
 let focusIdTask id =
   Tea.Cmd.call
@@ -132,28 +135,37 @@ let parseAst (m : model) (str : string) : expr option =
       then Some (F (eid, Value str))
       else createFunction m str
 
+(* Assumes PD is within AST. Returns (new AST, new Expr) *)
 let replaceExpr (m : model) (tlid : tlid) (ast : expr) (old_ : expr)
     (action : nextAction) (value : string) : expr * expr =
   let id = B.toID old_ in
   let target = Some (tlid, PExpr old_) in
   let old, new_ =
+    (* assign thread to variable *)
     if Util.reExactly "=[a-zA-Z].*" value
     then
       match AST.threadAncestors id ast with
+      (* turn the current thread into a let-assignment to this *)
+      (* name, and close the thread *)
       | (F (_, Thread _) as thread) :: _ ->
           let bindName = value |> String.dropLeft 1 |> String.trim in
           ( thread
           , B.newF (Let (B.newF bindName, AST.closeThreads thread, B.new_ ()))
           )
       | _ -> (old_, old_)
+
+    (* field access *)
     else if String.endsWith "." value
     then
       ( old_
       , B.newF
-          (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
-      )
+          (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ())))
+
+    (* variables *)
     else if List.member value (Analysis.currentVarnamesFor m target)
     then (old_, B.newF (Variable value))
+
+    (* parsed exprs *)
     else (old_, Debug.log "parsed" (parseAst m value |> Option.withDefault old_))
   in
   let newAst =
@@ -217,7 +229,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PEventSpace _ -> v "[A-Z_]+" "event space"
   | PField _ -> v ".+" "fieldname"
   | PKey _ -> v ".+" "key"
-  | PExpr _ -> None
+  | PExpr _ -> None (* Done elsewhere *)
   | PFFMsg _ -> None
   | PFnName _ -> None
   | PParamName _ -> None
@@ -276,7 +288,9 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
 
 let submit (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
-  let value = Debug.log "value of ac" (AC.getValue m.complete) in
+  (* TODO: replace parsing with taking the autocomplete suggestion and *)
+  (* doing what we're told with it. *)
+  let value = AC.getValue m.complete in
   match cursor with
   | Creating pos -> (
       let tlid = gtlid () in
@@ -303,13 +317,19 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         in
         RPC ([op], focus)
       in
+
+      (* field access *)
       if String.endsWith "." value then
         wrapExpr
         <| B.newF
              (FieldAccess
                 (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
+
+      (* varnames *)
       else if List.member value (Analysis.currentVarnamesFor m None) then
         wrapExpr <| B.newF (Variable value)
+
+      (* start new AST *)
       else
         match parseAst m value with None -> NoChange | Some v -> wrapExpr v )
   | Filling (tlid, id) -> (
@@ -394,6 +414,7 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
         | PField _ ->
             let ast = getAstFromTopLevel tl in
             let parent = AST.findParentOfWithin id ast in
+            (* Nested field? *)
             if String.endsWith "." value then
               let fieldname = String.dropRight 1 value in
               (* wrap the field access with another field access *)
@@ -413,10 +434,12 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               save replacement new_
 
             else if action = StartThread then
+              (* Starting a new thread from the field *)
               let replacement = AST.replace pd (PField (B.newF value)) ast in
               let newAst = AST.wrapInThread (B.toID parent) replacement in
               saveAst newAst (PExpr parent)
             else
+              (* Changing a field *)
               replace (PField (B.newF value))
         | PKey _ ->
             let new_ = PKey (B.newF value) in
