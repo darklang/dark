@@ -1,8 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- VariantTesting.elm
--- View.elm
 -- ViewBlankOr.elm
 -- ViewCode.elm
 -- ViewDB.elm
