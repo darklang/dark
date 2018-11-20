@@ -58,6 +58,8 @@ let rec pointerData j : pointerData =
     j
 
 and serializableEditor (j: Js.Json.t) : serializableEditor =
+  (* always make these optional so that we don't crash the page when we *)
+  (* change the structure *)
   { clipboard = orNull (field "clipboard" (optional pointerData)) None j
   ; timersEnabled = orNull (field "timersEnabled" bool) true j
   ; cursorState =
@@ -104,6 +106,8 @@ and nExpr j : nExpr =
   let dv3 = variant3 in
   let dv2 = variant2 in
   let dv1 = variant1 in
+  (* In order to ignore the server for now, we tweak from one format *)
+  (* to the other. *)
   variants
     [ ("Let", dv3 (fun a b c-> Let (a,b,c)) (blankOr string) de de)
     ; ("Value", dv1 (fun x -> Value x) string)
@@ -313,6 +317,9 @@ and executeFunctionRPC j : executeFunctionRPCResult =
   , field "hash" string j
   )
 
+(* -------------------------- *)
+(* Dval (some here because of cyclic dependencies) *)
+(* ------------------------- *)
 and isLiteralString (s : string) : bool =
   match parseDvalLiteral s with
   | None -> false
@@ -321,6 +328,7 @@ and isLiteralString (s : string) : bool =
 and typeOfLiteralString (s : string) : tipe =
   match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
 
+(* Ported directly from Dval.parse in the backend *)
 and parseDvalLiteral (str : string) : dval option =
   if String.toLower str = "nothing" then Some (DOption OptNothing)
   else
@@ -369,6 +377,7 @@ and dval j : dval =
     ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
     ; ("DBool", dv1 (fun x -> DBool x) bool)
     ; ("DNull", dv0 DNull)
+    (* ; ("DChar", dv1 (fun x -> DChar) decodeChar) -- TODO *)
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (list dd))
     ; ("DObj", dv1 (fun x -> DObj x) (dict dd))

@@ -58,8 +58,12 @@ let rec dval (dv : Types.dval) : Js.Json.t =
     |> dict
     |> fun x -> [x]
     |> ev "DObj"
+
+  (* opaque types *)
   | DBlock -> ev "DBlock" []
   | DIncomplete -> ev "DIncomplete" []
+
+  (* user-ish types *)
   | DChar c -> ev "DChar" [string (String.fromList [c])]
   | DError msg -> ev "DError" [string msg]
   | DResp (h, hdv) ->
