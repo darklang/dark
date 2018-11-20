@@ -298,14 +298,12 @@ and rpc j : rpcResult =
   ( field "toplevels" (list toplevel) j
   , field "deleted_toplevels" (list toplevel) j
   , field "new_traces" traces j
-  , field "global_varnames" (list string) j
   , field "user_functions" (list userFunction) j
   , field "unlocked_dbs" (list tlid) j
   )
 
 and getAnalysisRPC j : getAnalysisResult =
   ( field "traces" traces j
-  , field "global_varnames" (list string) j
   , field "404s" (list fof) j
   , field "unlocked_dbs" (list tlid) j
   )

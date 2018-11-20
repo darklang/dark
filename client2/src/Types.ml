@@ -246,7 +246,6 @@ and timerAction = RefreshAnalysis | CheckUrlHashPosition
 (* ------------------- *)
 (* Analysis *)
 (* ------------------- *)
-and globalVariable = string
 and traceID = string
 and lvDict = dval GMap.String.t
 and avDict = varName list GMap.String.t
@@ -319,7 +318,6 @@ and rpcResult =
   toplevel list
   * toplevel list
   * traces
-  * globalVariable list
   * userFunction list
   * tlid list
 
@@ -328,7 +326,7 @@ and dvalArgsHash = string
 and executeFunctionRPCResult = dval * dvalArgsHash
 
 and getAnalysisResult =
-  traces * globalVariable list * fourOhFour list * tlid list
+  traces * fourOhFour list * tlid list
 
 and initialLoadResult = rpcResult
 
@@ -439,7 +437,6 @@ and modification =
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
   | RequestAnalysis of toplevel list
-  | SetGlobalVariables of globalVariable list
   | SetUserFunctions of userFunction list * bool
   | SetUnlockedDBs of tlid list
   | Set404s of fourOhFour list
@@ -600,7 +597,6 @@ and model =
   ; deletedToplevels: toplevel list
   ; traces: traces
   ; analyses: analyses
-  ; globals: globalVariable list
   ; f404s: fourOhFour list
   ; unlockedDBs: tlid list
   ; integrationTestState: integrationTestState
