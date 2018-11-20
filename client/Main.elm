@@ -1,5 +1,59 @@
 port module Main exposing (..)
 
+-- these are the files which have not had their comments copied over to bucklescript.
+-- AST.elm
+-- Analysis.elm
+-- Autocomplete.elm
+-- Blank.elm
+-- Clipboard.elm
+-- Commands.elm
+-- DB.elm
+-- DarkKeyboard.elm
+-- Defaults.elm
+-- DontPort.elm
+-- Editor.elm
+-- Entry.elm
+-- FeatureFlags.elm
+-- Flags.elm
+-- Functions.elm
+-- IntDict.elm
+-- IntSet.elm
+-- IntegrationTest.elm
+-- JSON.elm
+-- JSONUtils.elm
+-- Main.elm
+-- Pointer.elm
+-- Prelude.elm
+-- RPC.elm
+-- Refactor.elm
+-- Runtime.elm
+-- Selection.elm
+-- SpecHeaders.elm
+-- StrDict.elm
+-- StrSet.elm
+-- Sync.elm
+-- Toplevel.elm
+-- Types.elm
+-- Url.elm
+-- Util.elm
+-- VariantTesting.elm
+-- View.elm
+-- ViewBlankOr.elm
+-- ViewCode.elm
+-- ViewDB.elm
+-- ViewData.elm
+-- ViewEntry.elm
+-- ViewFunction.elm
+-- ViewRoutingTable.elm
+-- ViewScaffold.elm
+-- ViewUtils.elm
+-- Viewport.elm
+-- Window/Events.elm
+-- tests/TestAST.elm
+-- tests/TestAutocomplete.elm
+-- tests/TestRPC.elm
+-- tests/UtilsForTests.elm
+--
 
 -- builtins
 import Maybe
