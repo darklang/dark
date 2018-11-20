@@ -85,7 +85,9 @@ let tlCacheKey m tl =
   else Some tl
 
 let tlCacheKeyDB m tl =
-  Some (tl, DB.isLocked m tl.id)
+  if Some tl.id = tlidOf m.cursorState
+  then None
+  else Some (tl, DB.isLocked m tl.id)
 
 let viewTL m tl =
   match tl.data with
