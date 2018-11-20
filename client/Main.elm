@@ -1,11 +1,6 @@
 port module Main exposing (..)
 
 -- these are the files which have not had their comments copied over to bucklescript.
--- FeatureFlags.elm
--- Flags.elm
--- Functions.elm
--- IntDict.elm
--- IntSet.elm
 -- IntegrationTest.elm
 -- JSON.elm
 -- JSONUtils.elm
