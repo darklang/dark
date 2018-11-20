@@ -80,15 +80,17 @@ let viewTL_ (m : model) (tl: toplevel) : msg Html.html =
   ViewUtils.placeHtml pos html
 
 let tlCacheKey m tl =
-  match tl.data with
-  | TLDB _ -> None
-  | _ ->
-    if Some tl.id = tlidOf m.cursorState
-    then None
-    else Some tl
+  if Some tl.id = tlidOf m.cursorState
+  then None
+  else Some tl
+
+let tlCacheKeyDB m tl =
+  Some (tl, DB.isLocked m tl.id)
 
 let viewTL m tl =
-  Cache.cache2m tlCacheKey viewTL_ m tl
+  match tl.data with
+  | TLDB _ -> Cache.cache2m tlCacheKeyDB viewTL_ m tl
+  | _ -> Cache.cache2m tlCacheKey viewTL_ m tl
 
 let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
