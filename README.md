@@ -219,7 +219,7 @@ any other env var.
 
 ## Setting up your editor
 
-Ideally, you'd be able to use elm-make and merlin inside the container.
+Ideally, you'd be able to use merlin inside the container.
 We have this kinda working, but not fully. You can use ocamlmerlin in
 the container, but it needs some vim/emacs scripts locally, which
 require the whole toolchain to get installed unless you want to hack it.
@@ -231,9 +231,6 @@ require the whole toolchain to get installed unless you want to hack it.
   - `opam install merlin`
   - `opam install ocp-indent`
 
-To get elm to work, we added scripts/elm-make-vim, which handles how ALE uses
-elm-make. It's possible this may need changes, or it may work out of the
-box.
 
 ## (Not) Rebuilding the dev container
 
@@ -261,14 +258,14 @@ You can also disable the polling (ans consequently the building):
 
 - `scripts/builder --compile --serve`
 
-## Debugging elm
+## Debugging the client
 
-Go to `http://builtwithdark.localhost:8000/YOURNAME/ui-debug` instead of `YOURNAME/`.
+Go to `http://darklang.localhost:8000/a/YOURNAME/debug`.
 
 ## Debugging ppx stuff
 
 PPX is an ocaml preprocessor we use. The ppx libraries are all pretty
-opaque. To read the prprocessed output, run jbuilder with the --verbose
+opaque. To read the preprocessed output, run jbuilder with the --verbose
 flag to see the commands run. You'll see something that looks like this:
 
 ```
