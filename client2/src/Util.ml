@@ -31,7 +31,12 @@ let listPreviousWrap (a : 'a) (l : 'a list) : 'a option =
 let listNextWrap (a : 'a) (l : 'a list) : 'a option =
   l |> listNext a |> Option.orElse (List.head l)
 
+(* The view we see is different from the value representation in a few *)
+(* ways: *)
+(* - the start and end quotes are skipped *)
+(* - all other quotes are escaped *)
 let transformToStringEntry (s_ : string) : string =
+  (* the first time we won't have a closing quote so add it *)
   let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in
   s |> String.dropLeft 1 |> String.dropRight 1 |> Regex.replace "\\\\\"" "\""
 

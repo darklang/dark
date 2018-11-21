@@ -6,7 +6,15 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 
-let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
+(* ---------------------------- *)
+(* Focus *)
+(* ---------------------------- *)
+(* show the prev 5 *)
+(* obvi this should use getClientBoundingBox, but that's tough in Elm *)
+let height (i : int) : int =
+  if i < 4
+  then 0
+  else 14 * (i - 4)
 
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
@@ -19,6 +27,9 @@ let focusItem (i : int) : msg Tea.Cmd.t =
           | None -> ()
        ))
 
+(* ---------------------------- *)
+(* display *)
+(* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
   | ACFunction {fnName} -> fnName
@@ -70,6 +81,9 @@ let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 
 
 
+(* ---------------------------- *)
+(* External: utils *)
+(* ---------------------------- *)
 let findFunction (a : autocomplete) (name : string) : function_ option =
   List.find (fun f -> f.fnName = name) a.functions
 
@@ -98,6 +112,7 @@ let sharedPrefixList (strs : string list) : string =
   | None -> ""
   | Some s -> List.foldl sharedPrefix2 s strs
 
+(* Find the shared prefix of all the possible suggestions (eg "List::") *)
 let sharedPrefix (a : autocomplete) : string =
   a.completions |> List.concat |> List.map asName |> sharedPrefixList
 
@@ -110,6 +125,11 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
            (haystack |> String.split char |> List.drop 1 |> String.join char)
   | None -> true
 
+(* returns (indent, suggestion, search), where: *)
+(* - indent is the string that occurs before the match *)
+(* - suggestion is the match rewritten with the search *)
+(* - search is the search rewritten to match the suggestion *)
+(* Returns no suggestion or indent for an OmniAction *)
 let compareSuggestionWithActual (a : autocomplete) (actual : string) :
     string * string * string =
   match highlighted a with
@@ -147,6 +167,11 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
 
+
+(* ------------------------------------ *)
+(* Dynamic Items *)
+(* ------------------------------------ *)
+
 let qLiteral (s : string) : autocompleteItem option =
   if Decoders.isLiteralString s
   then Some (ACLiteral s)
@@ -166,6 +191,7 @@ let qLiteral (s : string) : autocompleteItem option =
 let qNewDB (s : string) : autocompleteItem option =
   if String.length s >= 3
     && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
+    (* annoying to offer a DB when looking for HTTP handler *)
     && s <> "HTTP" && s <> "HTT"
   then Some (ACOmniAction (NewDB s))
   else None
@@ -211,6 +237,9 @@ let withDynamicItems (target : target option) (query : string)
   let withoutDynamic = List.filter isStaticItem acis in
   new_ @ withoutDynamic
 
+(* ------------------------------------ *)
+(* Create the list *)
+(* ------------------------------------ *)
 let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   let dv =
     match a.target with
@@ -222,6 +251,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
         |> Option.andThen (AST.getValueParent p)
         |> Option.map P.toID
         |> Option.andThen (Analysis.getCurrentLiveValue m tlid)
+        (* don't filter on incomplete values *)
         |> Option.andThen (fun dv_ ->
                if dv_ = DIncomplete then None else Some dv_ )
   in
@@ -287,6 +317,7 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
     match a.target with
     | Some (tlid, p) -> (
       match P.typeOf p with
+        (* autocomplete HTTP verbs if the handler is in the HTTP event space *)
       | EventModifier -> (
         match TL.spaceOf (TL.getTL m tlid) with
         | Some HSHTTP -> ["GET"; "POST"; "PUT"; "DELETE"; "PATCH"]
@@ -387,6 +418,7 @@ let init (fns : function_ list) (isAdmin : bool) : autocomplete =
   ; isCommandMode= false }
 
 let refilter (query : string) (old : autocomplete) : autocomplete =
+  (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
     withDynamicItems old.target query old.allCompletions
   in
@@ -398,12 +430,26 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
     |> Option.andThen (fun oh -> List.elemIndex oh (List.concat newCompletions))
   in
   let index =
-    if query = "" && ((old.index <> -1 && old.value <> query) || old.index = -1)
+    (* Clear the highlight conditions *)
+    if query = ""
+    (* when we had previously highlighted something due to any actual match *)
+    && ((old.index <> -1 && old.value <> query)
+        (* or this condition previously held and nothing has changed *)
+        || old.index = -1)
     then -1
     else
+      (* If an entry is highlighted, and you press another *)
+      (* valid key for that entry, keep it highlighted *)
       match oldHighlightNewPos with
       | Some i -> i
-      | None -> if newCount = 0 then -1 else 0
+      (* If an entry vanishes, highlight 0 *)
+      | None ->
+        (* if nothing matches, highlight nothing *)
+        if newCount = 0
+        then -1
+        (* we matched something but its gone, go to top of *)
+        (* list *)
+        else 0
   in
   { old with
     index; completions= newCompletions; value= query; prevValue= old.value }
@@ -411,6 +457,10 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
 let regenerate (m : model) (a : autocomplete) : autocomplete =
   {a with allCompletions= generateFromModel m a} |> refilter a.value
 
+
+(* ---------------------------- *)
+(* Autocomplete state *)
+(* ---------------------------- *)
 let empty : autocomplete = init [] false
 
 let reset (m : model) (a : autocomplete) : autocomplete =
@@ -444,6 +494,19 @@ let selectUp (a : autocomplete) : autocomplete =
   let max = numCompletions a - 1 in
   {a with index= (if a.index <= 0 then max else a.index - 1)}
 
+(* Implementation: *)
+(* n The autocomplete list should include: *)
+(*    y all imported functions *)
+(*    y restricted by types that are allowed *)
+(*    y allowed field names *)
+(*    n library names *)
+(*    y case-insensitive *)
+(* n order by most likely, offer other alternatives below *)
+(*   n slight typos *)
+(*   n slight typeos *)
+(* y Press enter to select *)
+(* y Press right to fill as much as is definitive *)
+(*  *)
 let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
 
 let appendQuery (str : string) (a : autocomplete) : autocomplete =
@@ -464,6 +527,9 @@ let setTarget (m : model) (t : (tlid * pointerData) option) (a : autocomplete)
     : autocomplete =
   {a with target= t} |> regenerate m
 
+(* ------------------------------------ *)
+(* Commands *)
+(* ------------------------------------ *)
 let enableCommandMode (a : autocomplete) : autocomplete =
   {a with isCommandMode= true}
 
@@ -479,6 +545,9 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
   | ACRegenerate -> regenerate m a
   | ACEnableCommandMode -> enableCommandMode a
 
+(* --------------------------- *)
+(* Modifications *)
+(* --------------------------- *)
 let selectSharedPrefix (ac : autocomplete) : modification =
   let sp = sharedPrefix ac in
   if sp = "" then NoChange else AutocompleteMod (ACSetQuery sp)

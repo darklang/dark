@@ -12,7 +12,7 @@ type viewState =
   ; showEntry: bool
   ; showLivevalue: bool
   ; dbLocked: bool
-  ; currentResults: analysisResults
+  ; currentResults: analysisResults (* for current selected cursor/trace *)
   ; traces: trace list
   ; analyses: analyses
   ; ufns: userFunction list
@@ -147,43 +147,67 @@ let strBlankOrLength (b : string blankOr) : int =
   blankOrLength ~f:String.length b
 
 let visualStringLength (string : string) : int =
-  string |> Regex.replace "\t" "        " |> String.length
+  string
+  |> Regex.replace "\t" "        " (* replace tabs with 8 ch for ch counting *)
+  |> String.length
 
 let rec approxWidth (e : expr) : int =
   match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
 
 and approxNWidth (ne : nExpr) : int =
   match ne with
-  | Value v -> v |> String.length
+  | Value v ->
+    (* -- TODO: calculate visual width here *)
+    v |> String.length
   | Variable name -> String.length name
   | Let (lhs, rhs, body) ->
-      max (strBlankOrLength lhs + approxWidth rhs + 4 + 3) (approxWidth body)
+      max (strBlankOrLength lhs
+           + approxWidth rhs
+           + 4  (* "let" *)
+           + 3) (* " = " *)
+        (approxWidth body)
   | If (cond, ifbody, elsebody) ->
-      3
+      3 (* "if " *)
       |> ( + ) (approxWidth cond)
-      |> max (approxWidth ifbody + 2)
-      |> max (approxWidth elsebody + 2)
+      |> max (approxWidth ifbody + 2) (* indent *)
+      |> max (approxWidth elsebody + 2) (* indent *)
   | FnCall (name, exprs, _) ->
       let sizes =
-        exprs |> List.map approxWidth |> List.map (( + ) 1) |> List.sum
+        exprs
+        |> List.map approxWidth
+        |> List.map (( + ) 1) (* the space in between *)
+        |> List.sum
       in
       String.length name + sizes
-  | Lambda (_, expr) -> max (approxWidth expr) 7
+  | Lambda (_, expr) ->
+    max
+      (approxWidth expr)
+      7 (* "| var -->" *) (* TODO: deal with more vars *)
   | Thread exprs ->
       exprs |> List.map approxWidth |> List.maximum |> Option.withDefault 2
-      |> ( + ) 1
-  | FieldAccess (obj, field) -> approxWidth obj + 1 + strBlankOrLength field
+      |> ( + ) 1 (* the pipe *)
+  | FieldAccess (obj, field) ->
+    approxWidth obj
+    + 1  (* "." *)
+    + strBlankOrLength field
   | ListLiteral exprs ->
-      exprs |> List.map approxWidth
-      |> List.map (( + ) 2)
-      |> List.sum |> ( + ) 4
+      exprs
+      |> List.map approxWidth
+      |> List.map (( + ) 2) (* ", " *)
+      |> List.sum
+      |> ( + ) 4 (* "[  ]" *)
   | ObjectLiteral pairs ->
       pairs
       |> List.map (fun (k, v) -> strBlankOrLength k + approxWidth v)
-      |> List.map (( + ) 2)
-      |> List.map (( + ) 2)
-      |> List.maximum |> Option.withDefault 0 |> ( + ) 4
-  | FeatureFlag (_, _, a, b) -> max (approxWidth a) (approxWidth b) + 1
+      |> List.map (( + ) 2) (* ": " *)
+      |> List.map (( + ) 2) (* ", " *)
+      |> List.maximum
+      |> Option.withDefault 0
+      |> ( + ) 4 (* "{  }" *)
+  | FeatureFlag (_, _, a, b) ->
+    (* probably want both taking the same size *)
+    max (approxWidth a) (approxWidth b)
+    + 1 (* the flag *)
   | Match (matchExpr, cases) ->
     let rec pWidth p =
       (match p with

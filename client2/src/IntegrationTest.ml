@@ -72,6 +72,7 @@ let field_access_nested (m : model) : testResult =
   | expr -> fail ~f:show_nExpr expr
 
 let pipeline_let_equals (m : model) : testResult =
+  (* should be a simple let, not in a pipeline, entering 1 blank *)
   let astR =
     match onlyExpr m with
     | Let (F (_, "value"), F (_, Value "3"), Blank _) -> pass
@@ -142,6 +143,7 @@ let autocomplete_highlights_on_partial_match (m : model) : testResult =
   | e -> fail ~f:show_nExpr e
 
 let no_request_global_in_non_http_space (m : model) : testResult =
+  (* this might change but this is the answer for now. *)
   match onlyExpr m with
   | FnCall ("Http::badRequest", _, _) -> pass
   | e -> fail ~f:show_nExpr e
@@ -342,7 +344,8 @@ let paste_right_number_of_blanks (m : model) : testResult =
          | TLHandler {ast} -> (
            match ast with
              | F (_, Thread [_; F (_, FnCall ("-", [Blank _], _))]) -> pass
-           | F (_, FnCall ("-", [Blank _; Blank _], _)) -> pass
+           | F (_, FnCall ("-", [Blank _; Blank _], _)) ->
+             pass (* ignore this TL *)
            | _ -> fail ~f:show_expr ast )
          | _ -> fail ("Shouldn't be other handlers here" ^ show_tLData tl.data) )
   |> Result.combine
@@ -419,6 +422,12 @@ let feature_flag_in_function (m : model) : testResult =
             ]
             , NoRail ) ) ->
         pass
+    (* TODO: validate result should evaluate true turning  5 + 5 --> 3 + 5 == 8 *)
+    (* let res = Analysis.getLiveValue m f.tlid id in *)
+    (* case res of *)
+    (*   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value) *)
+    (*   _ -> fail (f.ast, res) *)
+
     | _ -> fail ~f:show_expr f.ufAST)
   | None -> fail "Cant find function"
 
@@ -545,9 +554,13 @@ let sending_to_rail_works (m : model) : testResult =
   | F (_, FnCall ("List::head_v1", _, NoRail)) -> pass
   | _ -> fail ~f:show_expr ast
 
-let execute_function_works (_ : model) : testResult = pass
+let execute_function_works (_ : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
 
-let function_version_renders (_ : model) : testResult = pass
+let function_version_renders (_ : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
 
 let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in

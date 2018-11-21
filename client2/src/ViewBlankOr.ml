@@ -7,14 +7,22 @@ module B = Blank
 module TL = Toplevel
 
 type htmlConfig =
+  (* Add this class (can be done multiple times) *)
   | WithClass of string
+  (* when you click this node, select this pointer *)
   | ClickSelectAs of id
   | ClickSelect
+  (* highlight this node as if it were ID *)
   | MouseoverAs of id
   | Mouseover
+  (* use this as ID for Mouseover, ClickSelect *)
   | WithID of id
+  (* show a featureflag *)
   | WithFF
+  (* show an 'edit function' link *)
   | WithEditFn of tlid
+
+
 
 let wc (s : string) : htmlConfig = WithClass s
 
@@ -50,6 +58,8 @@ let viewCreateFn : msg Html.html =
     [Html.class' "exfun"; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)]
     [ViewUtils.fontAwesome "share-square"]
 
+(* Create a Html.div for this ID, incorporating all ID-related data, *)
+(* such as whether it's selected, appropriate events, mouseover, etc. *)
 let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
   let getFirst fn = configs |> List.filterMap fn |> List.head in

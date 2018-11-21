@@ -16,7 +16,7 @@ let onSubmit fn =
 let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     msg Html.html =
   let maxWidthChars =
-    match width with
+    match width with (* max-width rules from CSS *)
     | StringEntryNormalWidth -> 120
     | StringEntryShortWidth -> 40
   in
@@ -44,6 +44,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
       ; Events.onInput ((fun x -> EntryInputMsg x) << Util.transformFromStringEntry)
       ; Attributes.value value
       ; Attributes.spellcheck false
+      (* Stop other events firing *)
       ; nothingMouseEvent "mouseup"
       ; nothingMouseEvent "click"
       ; nothingMouseEvent "mousedown"

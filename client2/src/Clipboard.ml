@@ -47,14 +47,16 @@ let paste (m : model) (tl : toplevel) (id : id) : modification =
       | TLDB _ -> NoChange
       | TLHandler h ->
           let newAst = AST.replace (TL.findExn tl id) cloned h.ast in
-          if newAst = h.ast then NoChange
+          if newAst = h.ast
+          then NoChange (* paste doesn't always make sense *)
           else
             RPC
               ( [SetHandler (tl.id, tl.pos, {h with ast= newAst})]
               , FocusExact (tl.id, P.toID cloned) )
       | TLFunc f ->
           let newAst = AST.replace (TL.findExn tl id) cloned f.ufAST in
-          if newAst = f.ufAST then NoChange
+          if newAst = f.ufAST
+          then NoChange (* -- paste doesn't always make sense *)
           else
             RPC
               ( [SetFunction {f with ufAST= newAst}]
