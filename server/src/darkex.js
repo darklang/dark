@@ -22,7 +22,32 @@ const handleErrors = function (error){
    }
 }
 
+self.onmessage = function(e) {
+  var result = {
+    analysis: null,
+    error: null
+  };
+
+  try {
+    result.analysis = darkAnalysis.performAnalysis(e.data.params);
+  }
+  catch (error) {
+    try {
+      console.log("Worker has analysis error", error);
+      result.error = handleErrors(error)
+    }
+    catch (error) {
+      console.log ("Error handling error", error);
+    }
+  }
+  try {
+    postMessage(result);
+  } catch (error) {
+    console.log ("Error posting result", error, result);
+  }
+}
+
+
 module.exports = {
   sha2: sha2,
-  handleAnalysisErrors: handleErrors
 };

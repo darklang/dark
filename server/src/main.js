@@ -68,6 +68,7 @@ var rollbar = require('rollbar');
 
 var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
+window.Rollbar.configure(rollbarConfig);
 
 var pageHidden = false;
 
@@ -89,7 +90,6 @@ const sendError = function (error, route, tlid){
   displayError(`Error while executing (${route}): ${error}`);
 };
 
-window.Rollbar.configure(rollbarConfig);
 window.Dark = {
   analysis: {
     requestAnalysis : function (params) {
