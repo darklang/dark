@@ -454,10 +454,8 @@ let admin_ui_html ~(csrf_token:string) ~(debug:bool) username =
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
-  >|= (fun body ->
-      let glue = File.readfile ~root:Templates "bs-glue.js" in
-      body
-      |> Util.string_replace "{FRONTENDGLUE}" glue)
+  >|= Util.string_replace "{FRONTENDGLUE}" (File.readfile ~root:Templates "bs-glue.js")
+  >|= Util.string_replace "{BUNDLEJS}" (File.readfile ~root:Webroot "bundle.js")
   >|= Util.string_replace "{STATIC}" Config.static_host
   >|= (fun x ->
       if not (Config.hash_static_filenames)
