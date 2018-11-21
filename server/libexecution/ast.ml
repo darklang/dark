@@ -96,7 +96,7 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
                Match (f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
            ))
 
-(* Example usage of traverse. See also AST.elm *)
+(* Example usage of traverse. See also AST.ml *)
 let rec example_traversal expr =
   match expr with
   | Blank _ -> Filled (Util.create_id (), Value "\"example\"")
