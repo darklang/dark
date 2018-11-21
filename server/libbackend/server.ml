@@ -456,9 +456,7 @@ let admin_ui_html ~(csrf_token:string) ~(debug:bool) username =
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
   >|= (fun body ->
       let glue = File.readfile ~root:Templates "bs-glue.js" in
-      let tag = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
       body
-      |> Util.string_replace "{FRONTENDTAGS}" tag
       |> Util.string_replace "{FRONTENDGLUE}" glue)
   >|= Util.string_replace "{STATIC}" Config.static_host
   >|= (fun x ->
