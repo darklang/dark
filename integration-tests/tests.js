@@ -571,7 +571,7 @@ test('nochange_for_failed_paste', async t => {
     .pressKey("ctrl+v")
 });
 
-test.skip('feature_flag_works', async t => {
+test('feature_flag_works', async t => {
   await t
     // Create an empty let
     .pressKey("enter")
@@ -728,8 +728,7 @@ test('rename_function', async t => {
     .pressKey('enter')
 })
 
-// TODO: re-enable when tests no longer run against elm
-test.skip('rename_pattern_variable', async t => {
+test('rename_pattern_variable', async t => {
   await t
     .click(Selector('.letvarname'))
     .pressKey('backspace')
