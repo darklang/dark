@@ -87,15 +87,11 @@ jobs:
           name: Copy out caches
           when: always
           command: |
-            docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
-            docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
             docker cp vols:/home/dark/app/server/_build server/
 
       - save_cache:
           when: always
           paths:
-            - client/elm-stuff
-            - client/tests/elm-stuff
             - server/_build
           key: v1-build-{{ checksum "today-timestamp" }}
 
