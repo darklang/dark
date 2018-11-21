@@ -40,11 +40,8 @@ def compile(files):
 
 
 def initial_compile():
-  files = [ "client/elm-package.json"
-          , "client/Main.elm"
-          , "server/bin/dark.ml"
+  files = [ "server/bin/dark.ml"
           , "server/static/base.less"
-          , "client/Tests/elm-package.json"
           , "client2/src/demo.ml"
           , "client2/package.json"
           , "server/test/test.ml" ]
