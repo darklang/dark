@@ -78,7 +78,7 @@ function acHighlighted(content) {
 
 
 // ------------------------
-// Tests below here. Don't forget to update client/IntegrationTest.elm
+// Tests below here. Don't forget to update client2/src/IntegrationTest.ml
 // ------------------------
 
 test('enter_changes_state', async t => {
@@ -803,6 +803,6 @@ test('only_backspace_out_of_strings_on_last_char', async t => {
     .click(Selector('.ast .tstr'))
     .pressKey("enter")
     .pressKey("backspace")
-    // we should have gone over the backspace - checking in elm
+    // we should have gone over the backspace - checking in client
     ;
 })
