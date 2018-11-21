@@ -52,7 +52,7 @@ def less_compile():
 
 def client2_build():
   start = time.time()
-  build = "cd client2 && unbuffer ./node_modules/.bin/bsb -make-world && browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js"
+  build = "cd client2 && unbuffer ./node_modules/.bin/bsb -make-world && ./node_modules/.bin/browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js"
   result = run_frontend(start, build)
   # For now, ignore client2 on CI#master
   # (allow client2_build to fail on CI#master so as not to block hotfixes)
