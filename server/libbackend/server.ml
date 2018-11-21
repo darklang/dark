@@ -27,21 +27,6 @@ module Dbconnection = Libservice.Dbconnection
 (* ------------------------------- *)
 (* utils *)
 (* ------------------------------- *)
-type frontendImpl = Elm
-                  | Bucklescript
-
-let query_string_to_frontend_impl ~username query =
-  let bs_val =
-    List.Assoc.find
-      query
-      ~equal:String.Caseless.equal
-      "bs"
-  in
-  match bs_val with
-  | Some ["true"] | Some ["1"] -> Bucklescript
-  | Some ["false"] | Some ["0"] -> Elm
-  | _ -> Bucklescript
-
 
 type timing_header = string * float * string
 
@@ -457,7 +442,7 @@ let to_assoc_list etags_json : (string*string) list =
     else mutated
   | _ -> Exception.internal "etags.json must be a top-level object."
 
-let admin_ui_html ~(csrf_token:string) ~(debug:bool) frontend username =
+let admin_ui_html ~(csrf_token:string) ~(debug:bool) username =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
@@ -470,21 +455,11 @@ let admin_ui_html ~(csrf_token:string) ~(debug:bool) frontend username =
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
   >|= (fun body ->
-      let glue, tag =
-        (match frontend with
-         | Elm ->
-           let elmglue = File.readfile ~root:Templates "elm-glue.js" in
-           let elmtag  = "<script type=\"text/javascript\" src=\"//{STATIC}/elm{ELMDEBUG}.js\"></script>" in
-           (elmglue, elmtag)
-         | Bucklescript ->
-           let bsglue = File.readfile ~root:Templates "bs-glue.js" in
-           let bstag  = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
-           (bsglue, bstag))
-      in
+      let glue = File.readfile ~root:Templates "bs-glue.js" in
+      let tag = "<script type=\"text/javascript\" src=\"//{STATIC}/bsmain.js\"></script>" in
       body
-      |> Util.string_replace "{FRONTENDIMPL}" tag
+      |> Util.string_replace "{FRONTENDTAGS}" tag
       |> Util.string_replace "{FRONTENDGLUE}" glue)
-  >|= Util.string_replace "{ELMDEBUG}" (if debug then "-debug" else "")
   >|= Util.string_replace "{STATIC}" Config.static_host
   >|= (fun x ->
       if not (Config.hash_static_filenames)
@@ -578,8 +553,6 @@ let authenticate_then_handle ~(execution_id: Types.id) handler req =
 let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
       ~(body: string) ~(username:string) ~(csrf_token:string) (req: CRequest.t) =
   let verb = req |> CRequest.meth in
-  let query = req |> CRequest.uri |> Uri.query in
-  let frontend = query_string_to_frontend_impl ~username query in
   let html_hdrs =
     Header.of_list
       [ ("Content-type", "text/html; charset=utf-8")
@@ -600,8 +573,8 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error ~(debug : bool) frontend =
-    Lwt.try_bind (fun _ -> (admin_ui_html ~csrf_token ~debug frontend username))
+  let serve_or_error ~(debug : bool) () =
+    Lwt.try_bind (fun _ -> (admin_ui_html ~csrf_token ~debug username))
       (fun body ->
          respond
            ~resp_headers:html_hdrs
@@ -620,15 +593,15 @@ let admin_ui_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
      when_can_edit ~canvas
        (fun _ ->
          Canvas.load_and_resave_from_test_file canvas;
-         serve_or_error ~debug:false frontend
+         serve_or_error ~debug:false ()
       )
 
   | (`GET, [ "a"; canvas; "ui-debug" ]) ->
     when_can_edit ~canvas
-      (fun _ -> serve_or_error ~debug:true frontend)
+      (fun _ -> serve_or_error ~debug:true ())
   | (`GET, [ "a" ; canvas; ]) ->
     when_can_edit ~canvas
-      (fun _ -> serve_or_error ~debug:false frontend)
+      (fun _ -> serve_or_error ~debug:false ())
   | _ -> respond ~execution_id `Not_found "Not found"
 
 let admin_api_handler ~(execution_id: Types.id) ~(path: string list) ~stopper
@@ -772,14 +745,14 @@ let route_host req =
   | _ -> None
 
 
-let admin_ui_html_readiness_check () :string option list =
-  List.map
-    ~f: (fun (frontend_impl, frontend_str) ->
-        try ignore (admin_ui_html ~csrf_token:"" ~debug:false frontend_impl "test"); None with
-          e -> Some ("admin_ui_html failed for frontend: " ^ frontend_str))
-    [(Elm, "Elm"); (Bucklescript, "BuckleScript")]
+let admin_ui_html_readiness_check () : string option =
+  try
+    ignore (admin_ui_html ~csrf_token:"" ~debug:false "test");
+    None
+  with e ->
+    Some ("admin_ui_html failed for frontend")
 
-let db_conn_readiness_check () :string option =
+let db_conn_readiness_check () : string option =
   (match Dbconnection.status () with
    | `Healthy -> None
    | `Disconnected -> Some "Dbconnection.status = `Disconnected")
@@ -799,7 +772,9 @@ let k8s_handler req ~execution_id ~stopper =
            respond ~execution_id `OK "Hello internal overlord"
       | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
   | "/ready" ->
-    let checks = (db_conn_readiness_check ())::(admin_ui_html_readiness_check ())
+    let checks = [ db_conn_readiness_check ()
+                 ; admin_ui_html_readiness_check ()
+                 ]
                  |> List.filter_map ~f:(fun x -> x)
     in (match checks with
     | [] ->
