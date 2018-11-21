@@ -149,6 +149,42 @@ function toPX(str, element) {
   return 1
 }
 },{"parse-unit":3}],6:[function(require,module,exports){
+document.title = window.location.hostname.split('.')[0] + " - Dark";
+
+class RopArrow extends HTMLElement {
+  constructor() {
+    super();
+  }
+  update() {
+    var tlid = this.getAttribute("tlid");
+    var target = document.querySelector(".tl-" + tlid + " .rop-rail");
+    if(target) {
+      const targetPos = target.getBoundingClientRect();
+      const sourcePos = this.getBoundingClientRect();
+      const arrowHeadLength = 12;
+      const x2 = targetPos.right - sourcePos.left - arrowHeadLength;
+      const x1 = x2 / 3;
+
+      var arrowRight = document.querySelector("rop-arrow > svg > path");
+      var svg = document.querySelector("rop-arrow > svg");
+      svg.setAttribute("width", x2 + arrowHeadLength);
+
+      var d = "M 0,20 C 0,8 " + x1 + ",8 " + x2 + ",15";
+      arrowRight.setAttribute("d", d);
+    }
+  }
+  connectedCallback() {
+    this.update();
+  }
+  static get observedAttributes() {
+    return ['update'];
+  }
+  attributeChangedCallback(attr, _, val) {
+    this.update();
+  }
+}
+window.customElements.define('rop-arrow', RopArrow);
+
 const mousewheel = function(callback){
   require("domready")(function () {
     require("mouse-wheel")(document.body, callback);
