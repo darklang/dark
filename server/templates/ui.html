@@ -35,45 +35,16 @@
     </script>
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
-    <script id="analysisScript" type="javascript/worker">
-      self.onmessage = function(e) {
-        var result = {
-          analysis: null,
-          error: null
-        };
-
-        try {
-          result.analysis = darkAnalysis.performAnalysis(e.data.params);
-        }
-        catch (error) {
-          try {
-            console.log("Worker has analysis error", error);
-            result.error = darkExe.handleAnalysisErrors(error)
-          }
-          catch (error) {
-            console.log ("Error handling error", error);
-          }
-        }
-        try {
-          postMessage(result);
-        } catch (error) {
-          console.log ("Error posting result", error, result);
-        }
-      }
-    </script>
     <script type="text/javascript">
       let darkjsbc = fetch("//{STATIC}/darkjs.bc.js").then(r => r.text());
       let darkjsexe = fetch("//{STATIC}/darkex.js").then(r => r.text());
       var analysisWorkerUrl;
       (async function () {
-        var analysisScript = document.querySelector('#analysisScript').textContent;
         window.analysisWorkerUrl = window.URL.createObjectURL(
           new Blob(
             [ await darkjsbc
             , "\n\n"
             , await darkjsexe
-            , "\n\n"
-            , analysisScript
             ]));
         window.analysisWorker = new Worker(analysisWorkerUrl);
       })();

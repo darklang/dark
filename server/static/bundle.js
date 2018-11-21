@@ -219,6 +219,7 @@ var rollbar = require('rollbar');
 
 var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
+window.Rollbar.configure(rollbarConfig);
 
 var pageHidden = false;
 
@@ -240,7 +241,6 @@ const sendError = function (error, route, tlid){
   displayError(`Error while executing (${route}): ${error}`);
 };
 
-window.Rollbar.configure(rollbarConfig);
 window.Dark = {
   analysis: {
     requestAnalysis : function (params) {
@@ -446,6 +446,20 @@ setTimeout(function(){
   window.onblur = function(evt){ windowFocusChange(false) };
   setInterval(visibilityCheck, 2000);
   addWheelListener(document);
+
+  // Set up web worker for analysis
+  let darkjsbc = fetch("//{STATIC}/darkjs.bc.js").then(r => r.text());
+  let darkjsexe = fetch("//{STATIC}/darkex.js").then(r => r.text());
+  var analysisWorkerUrl;
+  (async function () {
+    window.analysisWorkerUrl = window.URL.createObjectURL(
+      new Blob(
+        [ await darkjsbc
+        , "\n\n"
+        , await darkjsexe
+        ]));
+    window.analysisWorker = new Worker(analysisWorkerUrl);
+  })();
 
 }, 1)
 // ---------------------------
