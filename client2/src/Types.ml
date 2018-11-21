@@ -490,7 +490,7 @@ and msg =
   | FocusAutocompleteItem of (unit, Dom.errorEvent) Tea.Result.t [@printer opaque "FocusAutocompleteItem"]
   | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t [@printer opaque "RPCCallback"]
   | SaveTestRPCCallback of (string, httpError) Tea.Result.t [@printer opaque "SavetestRPCCallback"]
-  | GetAnalysisRPCCallback of (getAnalysisResult, httpError) Tea.Result.t [@printer opaque "GetAnalysisRPCCallback"]
+  | GetAnalysisRPCCallback of (analysisParams * (getAnalysisResult, httpError) Tea.Result.t) [@printer opaque "GetAnalysisRPCCallback"]
   | GetDelete404RPCCallback of (fourOhFour list, httpError) Tea.Result.t [@printer opaque "GetDelete404RPCCallback"]
   | InitialLoadRPCCallback of
       focus * modification * (initialLoadResult, httpError) Tea.Result.t [@printer opaque "InitialLoadRPCCallback"]
