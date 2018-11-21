@@ -68,7 +68,7 @@ let getAnalysisRPC (c : rpcContext) (params : analysisParams) : msg Tea.Cmd.t
   let request =
     postJson Decoders.getAnalysisRPC c.csrfToken url (Encoders.analysisParams params)
   in
-  Tea.Http.send (fun x -> GetAnalysisRPCCallback x) request
+  Tea.Http.send (fun x -> GetAnalysisRPCCallback (params, x)) request
 
 let delete404RPC (c : rpcContext) (param : delete404Param) : msg Tea.Cmd.t =
   let url =

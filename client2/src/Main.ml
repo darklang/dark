@@ -1283,14 +1283,17 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; RequestAnalysis [tl] ]
-  | GetAnalysisRPCCallback (Ok (newTraces, globals, f404s, unlockedDBs)) ->
-      Many
-        [ TweakModel Sync.markResponseInModel
-        ; UpdateTraces newTraces
-        ; SetGlobalVariables globals
-        ; Set404s f404s
-        ; SetUnlockedDBs unlockedDBs
-        ; RequestAnalysis m.toplevels ]
+  | GetAnalysisRPCCallback (tlids, (Ok (newTraces, globals, f404s, unlockedDBs))) ->
+    let analysisTLs =
+      List.filter (fun tl -> List.member tl.id tlids) m.toplevels
+    in
+    Many
+      [ TweakModel Sync.markResponseInModel
+      ; UpdateTraces newTraces
+      ; SetGlobalVariables globals
+      ; Set404s f404s
+      ; SetUnlockedDBs unlockedDBs
+      ; RequestAnalysis analysisTLs ]
   | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
   | ReceiveAnalysis json -> (
       let envelope = Json_decode_extended.decodeString Decoders.analysisEnvelope json in
@@ -1304,7 +1307,7 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("InitialLoad", err)
-  | GetAnalysisRPCCallback (Error err) ->
+  | GetAnalysisRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
   | JSError msg_ -> DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (_, _) ->
