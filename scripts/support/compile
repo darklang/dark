@@ -45,48 +45,6 @@ def run_test(start, bash):
   else:
     return True
 
-def elm_package():
-  start = time.time()
-  return run_frontend(start, \
-          "cd client" \
-          + " && unbuffer" \
-          + " sysconfcpus -n 1" \
-          + " ~/elm-ops-tooling/with_retry.rb" \
-          + " elm-package install --yes")
-
-def elm_test_package():
-  start = time.time()
-  return run_frontend(start, \
-          "cd client/tests" \
-          + " && unbuffer" \
-          + " sysconfcpus -n 1" \
-          + " ~/elm-ops-tooling/with_retry.rb" \
-          + " elm-package install --yes")
-
-def elm_make():
-  start = time.time()
-  # unbuffer makes elm think it's talking a terminal
-  return run_frontend(start, \
-          "cd client" \
-          + " && unbuffer" \
-          + " sysconfcpus -n 1" \
-          + " elm-make Main.elm" \
-          + " --warn --yes --debug --output" \
-          + " ../server/static/elm-debug.js" \
-          + " && cd ../server/static" \
-          + " && patch -p0 -R -u elm-debug.js" \
-          + " -i ../../scripts/support/debugless.patch" \
-          + " -o elm.js"
-          + " && perl -i -pe 's/(_user\$project\$Main\$main\(Elm\[.Main.\], .Main.,).*/\\1 undefined\);/g' elm.js")
-
-def elm_test():
-  start = time.time()
-  return run_test(start, \
-          "cd client" \
-          + " && unbuffer" \
-          + " sysconfcpus -n 1" \
-          + " elm-test")
-
 def less_compile():
   start = time.time()
   return run_frontend(start, "lessc server/static/base.less server/static/base.css")
@@ -194,10 +152,6 @@ class Should:
     self.client2_install = False
     self.client2_build = False
     self.client2_test = False
-    self.elm_package = False
-    self.elm_test_package = False
-    self.elm_make = False
-    self.elm_test = False
     self.less_compile = False
     self.reload_browser = False
     self.reload_server = False
@@ -214,32 +168,21 @@ def execute(should):
   should.client2_test |= c2b
   c2t = should.client2_test and client2_test()
 
-  ep = should.elm_package and elm_package()
-  should.elm_make |= ep
-  em = should.elm_make and elm_make()
-
   lc = should.less_compile and less_compile()
 
-  should.generate_etags |= em or sb or lc
+  should.generate_etags |= sb or lc
   ge = should.generate_etags and generate_etags()
 
   should.reload_server |= ge
   rs = should.reload_server and reload_server()
 
-  should.reload_browser |= rs or em or lc or c2b
+  should.reload_browser |= rs or lc or c2b
   rb = should.reload_browser and reload_browser()
 
   should.server_test |= sb
   ot = should.server_test and server_test()
 
-  should.elm_test_package |= ep
-  etp = should.elm_test_package and elm_test_package()
-
-  should.elm_test |= etp
-  should.elm_test |= em
-  et = should.elm_test and elm_test()
-
-  return sb and rs and ep and em and lc and rb and ot and etp and et and ge and c2b and c2t
+  return sb and rs and lc and rb and ot and ge and c2b and c2t
 
 
 
@@ -257,22 +200,13 @@ def mark(should, f):
                   or ("libtarget.js" in f)):
     should.server_build = True
 
+  # Frontend
   elif "client2/package.json" in f:
     should.client2_install = True
   elif ("client2/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
     should.client2_build = True
-
-  # Frontend
-  elif "client/elm-package.json" in f:
-    should.elm_package = True
-  elif "client/tests/elm-package.json" in f:
-    should.elm_test_package = True
-  elif "client/tests" in f:
-    should.elm_test = True
-  elif ".elm" in f or ".js" in f and not ".bs.js" in f and not ".bc.js":
-    should.elm_make = True
 
   # Web
   elif ".less" in f:
@@ -293,9 +227,6 @@ def ignore(filename):
   # substring
   ignores = [ ".git"
             , ".merlin"
-            , "client/elm-stuff"
-            , "client/repl-temp"
-            , "client/tests/elm-stuff"
             , "integration-tests/"
             , "rundir/"
             , "gcp_rundir/"
@@ -308,8 +239,6 @@ def ignore(filename):
             , "server/profile.json"
             , "server/serialization/"
             , "server/static/base.css"
-            , "server/static/elm-debug.js"
-            , "server/static/elm.js"
             , "server/static/darkjs.bc.js"
             , "server/static/bsmain.js"
             , "etags.json"
