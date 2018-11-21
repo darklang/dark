@@ -9,7 +9,7 @@ until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
     sleep 1
 done
 
-test_url="http://${DARK_CONFIG_STATIC_HOST}/elm.js"
+test_url="http://${DARK_CONFIG_STATIC_HOST}/bsmain.js"
 until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
     printf '.'
     sleep 1
