@@ -48,13 +48,6 @@ function user_content_url (t, endpoint) {
 // Avoiding test race conditions
 //********************************
 
-// If you're typing using .typeText, and the text is more than 3
-// characters, using { speed: 0.4 } to get testCafe to slow down a bit.
-// Elm has a bug where typing quickly jumps to the end of the input box,
-// and TestCafe types very quickly.
-// TODO: remove from the application?
-const slow = { speed: 0.4 };
-
 // Testcafe automatically waits for the next thing you've specified. So
 // if you .typeText("#entry-box", ...), it will wait for the entryBox.
 // But we sometimes need to explicitly wait if TestCafe can't tell what
@@ -92,7 +85,7 @@ test('field_access', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "req", slow)
+    .typeText("#entry-box", "req")
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
@@ -111,7 +104,7 @@ test('field_access_closes', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "req", slow)
+    .typeText("#entry-box", "req")
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
@@ -129,11 +122,11 @@ test('field_access_pipes', async t => {
     .pressKey("enter")
     .pressKey("enter")
 
-    .typeText("#entry-box", "req", slow)
+    .typeText("#entry-box", "req")
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
-    .typeText("#entry-box", "bo", slow)
+    .typeText("#entry-box", "bo")
     .expect(acHighlighted("body")).ok()
     .pressKey("shift+enter")
     ;
@@ -144,7 +137,7 @@ test('field_access_nested', async t => {
     .pressKey("enter")
     .pressKey("enter")
 
-    .typeText("#entry-box", "req", slow)
+    .typeText("#entry-box", "req")
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
@@ -152,8 +145,8 @@ test('field_access_nested', async t => {
     .expect(acHighlighted("body")).ok()
     .typeText("#entry-box", ".")
 
-    .typeText("#entry-box", "field.", slow)
-    .typeText("#entry-box", "field2", slow)
+    .typeText("#entry-box", "field.")
+    .typeText("#entry-box", "field2")
     .pressKey("enter")
     ;
 });
@@ -165,7 +158,7 @@ test('pipeline_let_equals', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "=value", slow)
+    .typeText("#entry-box", "=value")
     .pressKey("enter")
     ;
 });
@@ -176,11 +169,11 @@ test('pipe_within_let', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "=value", slow)
+    .typeText("#entry-box", "=value")
     .pressKey("enter")
-    .typeText("#entry-box", "value", slow)
+    .typeText("#entry-box", "value")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "assoc", slow)
+    .typeText("#entry-box", "assoc")
     .pressKey("enter")
     .pressKey("esc")
     ;
@@ -248,7 +241,7 @@ test('autocomplete_highlights_on_partial_match', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "nt::add", slow)
+    .typeText("#entry-box", "nt::add")
     .expect(acHighlighted("Int::add")).ok()
     .pressKey("enter")
     ;
@@ -260,7 +253,7 @@ test('no_request_global_in_non_http_space', async t => {
     .pressKey("enter")
     .click(".module")
     .pressKey("enter")
-    .typeText("#entry-box", "NOT_HTTP_SPACE", slow)
+    .typeText("#entry-box", "NOT_HTTP_SPACE")
     .pressKey("enter")
     .typeText("#entry-box", "request")
     .expect(acHighlighted("Http::badRequest")).ok()
@@ -273,7 +266,7 @@ test('hover_values_for_varnames', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
-    .typeText("#entry-box", "myvar", slow)
+    .typeText("#entry-box", "myvar")
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
@@ -284,12 +277,12 @@ test('pressing_up_doesnt_return_to_start', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "Char::", slow)
+    .typeText("#entry-box", "Char::")
     .expect(acHighlighted("Char::toASCIIChar")).ok()
     .pressKey("down")
     .pressKey("up")
     .expect(acHighlighted("Char::toASCIIChar")).ok()
-    .typeText("#entry-box", "toASCII", slow)
+    .typeText("#entry-box", "toASCII")
     .pressKey("enter")
 });
 
@@ -309,7 +302,7 @@ test('right_number_of_blanks', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "assoc", slow)
+    .typeText("#entry-box", "assoc")
     .pressKey("enter")
 });
 
@@ -322,7 +315,7 @@ test('ellen_hello_world_demo', async t => {
 
     // route
     .pressKey("tab")
-    .typeText("#entry-box", "/hello", slow)
+    .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
     // space
@@ -336,7 +329,7 @@ test('ellen_hello_world_demo', async t => {
     .pressKey("enter")
 
     // string
-    .typeText("#entry-box", "\"Hello world!", slow)
+    .typeText("#entry-box", "\"Hello world!")
     .pressKey("enter")
 });
 
@@ -347,16 +340,16 @@ test('editing_headers', async t => {
 
     // add headers
     .doubleClick(".spec-header > .name")
-    .typeText("#entry-box", "/hello", slow)
+    .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
     .doubleClick(".spec-header > .modifier")
-    .typeText("#entry-box", "PO", slow)
+    .typeText("#entry-box", "PO")
     .expect(acHighlighted("POST")).ok()
     .pressKey("enter")
 
     .doubleClick(".spec-header > .module")
-    .typeText("#entry-box", "HTTP", slow)
+    .typeText("#entry-box", "HTTP")
     .pressKey("enter")
 
     // edit them
@@ -367,12 +360,12 @@ test('editing_headers', async t => {
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
-    .typeText("#entry-box", "/myroute", slow)
+    .typeText("#entry-box", "/myroute")
     .pressKey("enter")
 
     .click(".spec-header > .modifier")
     .pressKey("delete")
-    .typeText("#entry-box", "GET", slow)
+    .typeText("#entry-box", "GET")
     .pressKey("enter")
 });
 
@@ -387,9 +380,9 @@ test('tabbing_through_let', async t => {
     .pressKey("tab")
     .pressKey("tab")
     .pressKey("tab")
-    .typeText("#entry-box", "/route", slow)
+    .typeText("#entry-box", "/route")
     .pressKey("enter")
-    .typeText("#entry-box", "HTTP", slow)
+    .typeText("#entry-box", "HTTP")
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter")
@@ -411,7 +404,7 @@ test('tabbing_through_let', async t => {
     .pressKey("enter")
 
     // fill in the var
-    .typeText("#entry-box", "myvar", slow)
+    .typeText("#entry-box", "myvar")
     .pressKey("enter")
 });
 
@@ -445,7 +438,7 @@ test('dont_shift_focus_after_filling_last_blank', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "/")
     .pressKey("enter")
-    .typeText("#entry-box", "HTTP", slow)
+    .typeText("#entry-box", "HTTP")
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter")
@@ -594,7 +587,7 @@ test('feature_flag_works', async t => {
     .pressKey("enter")
 
     // Set condition
-    .typeText("#entry-box", "Int::greaterThan", slow)
+    .typeText("#entry-box", "Int::greaterThan")
     .pressKey("enter")
     .typeText("#entry-box", "a")
     .pressKey("enter")
@@ -631,7 +624,7 @@ test('feature_flag_in_function', async t => {
     .pressKey("enter")
 
     // Set condition
-    .typeText("#entry-box", "true", slow)
+    .typeText("#entry-box", "true")
     .pressKey("enter")
 
     // Case B
@@ -655,7 +648,7 @@ test('variable_extraction', async t => {
   await t
     .click(Selector('.fnname').withText('+'))
     .pressKey("ctrl+shift+l")
-    .typeText("#entry-box", "new_variable", slow)
+    .typeText("#entry-box", "new_variable")
     .pressKey("enter")
 })
 
@@ -664,7 +657,7 @@ test('invalid_syntax', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "in:valid", slow)
+    .typeText("#entry-box", "in:valid")
     .pressKey("enter")
 })
 
@@ -724,7 +717,7 @@ test('rename_function', async t => {
     .click(Selector('.fa-edit'))
     .click(Selector('.fn-name-content'))
     .pressKey('backspace')
-    .typeText('#entry-box', 'hello', slow)
+    .typeText('#entry-box', 'hello')
     .pressKey('enter')
 })
 
@@ -732,13 +725,13 @@ test('rename_pattern_variable', async t => {
   await t
     .click(Selector('.letvarname'))
     .pressKey('backspace')
-    .typeText('#entry-box', 'foo', slow)
+    .typeText('#entry-box', 'foo')
     .pressKey('enter')
     .doubleClick(Selector('.matchexpr .matchcase').nth(1).child(0))
     .pressKey('backspace')
     .pressKey('backspace')
     .pressKey('backspace')
-    .typeText('#entry-box', 'bar', slow)
+    .typeText('#entry-box', 'bar')
     .pressKey('enter')
 })
 
@@ -746,7 +739,7 @@ test('sending_to_rail_works', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "List::head_v1", slow)
+    .typeText("#entry-box", "List::head_v1")
     .pressKey("enter")
     .pressKey("esc")
     .pressKey("shift+up")
@@ -758,7 +751,7 @@ test('execute_function_works', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "Uuid::gen", slow)
+    .typeText("#entry-box", "Uuid::gen")
     .pressKey("enter")
     .click(Selector('.fa-play'))
     .click(Selector('.fncall'))
@@ -782,7 +775,7 @@ test('function_version_renders', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "DB::del", slow)
+    .typeText("#entry-box", "DB::del")
     .expect(
       Selector('.autocomplete-item.highlighted .versioned-function')
       .withText("DB::deleteAll1")
@@ -793,7 +786,7 @@ test('only_backspace_out_of_strings_on_last_char', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "\"t", slow)
+    .typeText("#entry-box", "\"t")
     .pressKey("backspace")
     .pressKey("tab") // moved selection to a different blank
     // test that it's an empty string. Note this needs to not be selected or
