@@ -268,6 +268,26 @@ let () =
           end
         |> toEqual (-1)
       );
+
+      (* -- Filter by method signature for typed values *)
+      (* -- , \_ -> createEntering User *)
+      (* -- |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing} *)
+      (* -- |> setQuery "" *)
+      (* -- |> .completions *)
+      (* -- |> List.map asName *)
+      (* -- |> Set.fromList *)
+      (* -- |> (==) (Set.fromList ["List::head"]) *)
+      (*  *)
+      (* -- Show allowed fields for objects *)
+      (* -- , \_ -> createEntering User *)
+      (* -- |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing} *)
+      (* -- |> setQuery "" *)
+      (* -- |> .completions *)
+      (* -- |> List.map asName *)
+      (* -- |> Set.fromList *)
+      (* -- |> (==) (Set.fromList ["Int::add", "+"]) *)
+      (*  *)
+
       test "By default the list shows results" (fun () ->
         expect
           begin

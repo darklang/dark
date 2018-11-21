@@ -1,6 +1,9 @@
 open! Porting
 open Types
 
+(* -------------------------------------- *)
+(* IDs *)
+(* -------------------------------------- *)
 let deID (ID i : id) : string = i
 let showID (ID i) = i
 
@@ -10,6 +13,10 @@ let showTLID (TLID i) = i
 let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
 
 let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
+
+(* -------------------------------------- *)
+(* CursorState *)
+(* -------------------------------------- *)
 
 (* wtf -- this concatenates the tlid+id to a string, and then
  * uses that as a cursor id to do the hovering over the dots?
@@ -43,6 +50,20 @@ let idOf (s : cursorState) : id option =
   | Dragging (_, _, _, _) -> None
   | SelectingCommand (_, id) -> Some id
 
+
+(* -------------------------------------- *)
+(* Crashing *)
+(* -------------------------------------- *)
+
+(* `Impossible` crashes with the value provided. *)
+(* Is it very obvious why? *)
+(*   impossible () *)
+(* Want a string message? *)
+(*   impossible "The widgets can't arrive in this order" *)
+(* Show a value: *)
+(*   impossible myVar *)
+(* Combine them: *)
+(*   impossible ("The widges can't arrive in this order:", myVar) *)
 let impossible (a : 'a) : 'b =
   Debug.crash ("something impossible occurred: " ^ Js.String.make a)
 
@@ -54,6 +75,8 @@ let deOption (msg : string) (x : 'a option) : 'a =
 let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
   if fn a then a else impossible ("assertion failure", a)
 
+(* Like impossible but has a different semantic meaning. If you have a *)
+(* value you _could_ continue with, consider this. *)
 let recoverable (msg : 'a) (val_ : 'b) : 'b =
   let error =
     "An unexpected but recoverable error happened. " ^ "For now we crash. "
@@ -63,4 +86,5 @@ let recoverable (msg : 'a) (val_ : 'b) : 'b =
   let _ = Debug.crash error in
   val_
 
+(* Like impossible but with the message TODO *)
 let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ Js.String.make a)

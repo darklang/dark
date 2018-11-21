@@ -124,6 +124,7 @@ let isComplete (dv : dval) : bool =
 
 let isTrue (dv : dval) : bool = dv = DBool true
 
+(* Copied from Dval.to_repr in backend code *)
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
   let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in
@@ -163,6 +164,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DOption OptNothing -> "Nothing"
   | DOption (OptJust dv_) -> "Just " ^ toRepr dv_
   | DErrorRail dv_ -> wrap (toRepr dv_)
+    (* TODO: newlines and indentation *)
   | DList l -> (
     match l with
     | [] -> "[]"

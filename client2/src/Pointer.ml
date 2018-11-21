@@ -5,6 +5,9 @@ open Types
 (* Dark *)
 module B = Blank
 
+(* ------------------------ *)
+(* PointerData *)
+(* ------------------------ *)
 let emptyD_ (id : id) (pt : pointerType) : pointerData =
   match pt with
   | VarBind -> PVarBind (Blank id)
@@ -85,6 +88,8 @@ let toContent (pd : pointerData) : string option =
     match e with
     | F (_, Value s) -> Some s
     | F (_, Variable v) -> Some v
+    (* feature flags are ignored because you want to enter the *)
+    (* feature flag and this is how this is used. *)
     | _ -> None )
   | PEventModifier d -> bs2s d
   | PEventName d -> bs2s d

@@ -74,6 +74,7 @@ let viewTL_ (m : model) (tl: toplevel) : msg Html.html =
   in
   let html =
     Html.div
+      (* -- see comment in css *)
       [Html.class' <| String.join " " (boxClasses @ ["sidebar-box"; selected])]
       [Html.div (Html.class' class_ :: events) (body @ top)]
   in
