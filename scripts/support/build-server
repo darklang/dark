@@ -41,10 +41,12 @@ def compile(files):
 
 def initial_compile():
   files = [ "server/bin/dark.ml"
+          , "server/test/test.ml"
           , "server/static/base.less"
-          , "client2/src/demo.ml"
           , "client2/package.json"
-          , "server/test/test.ml" ]
+          , "client2/src/main.ml"
+          , "client2/__tests__/ast_test.ml"
+          ]
   exit = compile(files)
 
   print("--------------------------")
