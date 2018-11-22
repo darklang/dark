@@ -167,6 +167,7 @@ let to_getanalysis_frontend (traces: tlid_trace list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
   { traces
+  (* TODO: remove global vars. It's not used on the frontend *)
   ; global_varnames = global_vars c
   ; unlocked_dbs = unlocked
   ; fofs = f404s

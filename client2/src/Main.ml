@@ -405,9 +405,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           processAutocompleteMods m2 [ACEnableCommandMode; ACRegenerate]
         in
         (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
-    | SetGlobalVariables globals ->
-        let m2 = {m with globals} in
-        processAutocompleteMods m2 [ACRegenerate]
     | RemoveToplevel tl -> (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (tls, updateCurrent) ->
         let m2 = {m with toplevels= tls} in
@@ -1218,7 +1215,6 @@ let update_ (msg : msg) (m : model) : modification =
           ( newToplevels
           , newDeletedToplevels
           , newTraces
-          , globals
           , userFuncs
           , unlockedDBs ) ) ->
       if focus = FocusNoChange then
@@ -1226,7 +1222,6 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (newToplevels, false)
           ; UpdateDeletedToplevels newDeletedToplevels
           ; UpdateTraces newTraces
-          ; SetGlobalVariables globals
           ; SetUserFunctions (userFuncs, false)
           ; SetUnlockedDBs unlockedDBs
           ; RequestAnalysis newToplevels
@@ -1239,7 +1234,6 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (newToplevels, true)
           ; UpdateDeletedToplevels newDeletedToplevels
           ; UpdateTraces newTraces
-          ; SetGlobalVariables globals
           ; SetUserFunctions (userFuncs, true)
           ; SetUnlockedDBs unlockedDBs
           ; RequestAnalysis newToplevels
@@ -1253,7 +1247,6 @@ let update_ (msg : msg) (m : model) : modification =
           ( toplevels
           , deletedToplevels
           , newTraces
-          , globals
           , userFuncs
           , unlockedDBs ) ) ->
       let m2 = {m with toplevels; userFunctions= userFuncs} in
@@ -1262,7 +1255,6 @@ let update_ (msg : msg) (m : model) : modification =
         [ SetToplevels (toplevels, true)
         ; SetDeletedToplevels deletedToplevels
         ; UpdateTraces newTraces
-        ; SetGlobalVariables globals
         ; SetUserFunctions (userFuncs, true)
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis toplevels
@@ -1283,14 +1275,13 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; RequestAnalysis [tl] ]
-  | GetAnalysisRPCCallback (tlids, (Ok (newTraces, globals, f404s, unlockedDBs))) ->
+  | GetAnalysisRPCCallback (tlids, (Ok (newTraces, f404s, unlockedDBs))) ->
     let analysisTLs =
       List.filter (fun tl -> List.member tl.id tlids) m.toplevels
     in
     Many
       [ TweakModel Sync.markResponseInModel
       ; UpdateTraces newTraces
-      ; SetGlobalVariables globals
       ; Set404s f404s
       ; SetUnlockedDBs unlockedDBs
       ; RequestAnalysis analysisTLs ]
