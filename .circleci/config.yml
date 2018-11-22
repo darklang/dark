@@ -109,22 +109,6 @@ jobs:
       - run: scripts/run-in-docker scripts/gcp-build-containers
       - run: scripts/deploy-from-circle
 
-      # # For now, we do integration tests after the deploy. If they work
-      # # above, then it works. This needs more work but I'm stopping here
-      # # for now.
-      # - run:
-      #     command: scripts/run-in-docker scripts/gcp-run-locally
-      #     background: true
-
-      # - run: scripts/run-in-docker integration-tests/run.sh --gcp
-
-      # TODO: figure this out when the container actually runs
-      # - run:
-      #     name: Copy out artifacts
-      #     when: always
-      #     command: |
-      #       docker cp vols:/home/dark/app/rundir artifacts/rundir2
-
       - store_artifacts:
           path: artifacts
       - store_test_results:
