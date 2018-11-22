@@ -148,7 +148,13 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
-      a (wc cssClass :: wc "value" :: (all @ tooWide)) value
+      let c = (wc cssClass :: wc "value" :: atom :: (all @ tooWide)) in
+      div vs c
+        [ Html.div [Html.class' "quote quote-start"] []
+        ; Html.text value
+        ; Html.div [Html.class' "quote quote-end"] []
+        ]
+
   | Variable name ->
       if List.member id vs.relatedBlankOrs then
         a (wc "variable" :: wc "related-change" :: all) vs.ac.value

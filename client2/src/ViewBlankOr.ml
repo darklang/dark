@@ -164,11 +164,7 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) : msg Html.html
-    =
-  div vs c
-  <| [Html.div [Html.class' "quote quote-start"] []]
-     @ [Html.text str]
-     @ [Html.div [Html.class' "quote quote-end"] []]
+    = div vs c [Html.text str]
 
 let keyword (vs : ViewUtils.viewState) (c : htmlConfig list) (name : string) :
     msg Html.html =
