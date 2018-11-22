@@ -142,7 +142,9 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
       [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let liveValueAttr =
-    Vdom.attribute "" "data-live-value" (renderLiveValue vs thisID)
+    if displayLivevalue
+    then Vdom.attribute "" "data-live-value" (renderLiveValue vs thisID)
+    else Vdom.noProp
   in
   let featureFlagHtml = if showFeatureFlag then [viewFeatureFlag] else [] in
   let editFnHtml =
