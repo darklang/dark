@@ -58,16 +58,6 @@ commands:
       #       date +"%A" > server/_build/CACHE_DAY
       #
 
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
-            docker cp . vols:/home/dark/app
-            # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
-
-
 
 # TODO:
 # make the separate jobs work
@@ -81,7 +71,18 @@ jobs:
     steps:
       - initialize
       - checkout
+      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+      - run:
+          name: Copy app directory into dev container
+          command: |
+            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
+            docker cp . vols:/home/dark/app
+            # set the ownership of all this
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
       - run: scripts/builder --compile --test
+
+
+
       - run:
           name: Copy out compiled binaries
           when: always
