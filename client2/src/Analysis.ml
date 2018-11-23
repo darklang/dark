@@ -89,7 +89,7 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
   | TLHandler h ->
     let extras =
       match h.spec.module_ with
-      | F (_, m) when String.toLower "http" = m ->
+      | F (_, m) when String.toLower m = "http" ->
         let fromRoute =
           h.spec.name
           |> Blank.toMaybe
