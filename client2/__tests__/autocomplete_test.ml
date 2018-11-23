@@ -49,10 +49,15 @@ let isAdmin (r : role) : bool =
     Admin -> true
   | _ -> false
 
-let createEntering (role : role) : autocomplete =
+let createEntering ?(module_:string option=None) (role : role) : autocomplete =
+  let module_ =
+    match module_ with
+    | None -> B.new_ ()
+    | Some name -> B.newF name
+  in
   let targetBlankID = gid () in
   let tlid = gtlid () in
-  let spec = {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()} in
+  let spec = {module_; name= B.new_ (); modifier= B.new_ ()} in
   let toplevel =
     { id= tlid
     ; pos= {x= 0; y= 0}
@@ -534,6 +539,30 @@ let () =
             |> itemPresent (ACOmniAction (NewFunction (Some "myfunction")))
           end
         |> toEqual true
+      );
+      test "http handlers have request" (fun () ->
+        expect
+          begin
+            createEntering ~module_:(Some "HTTP") User
+            |> setQuery "request"
+            |> itemPresent (ACVariable "request")
+          end
+        |> toEqual true
+      );
+      test "handlers with no route have request and event" (fun () ->
+        expect
+          begin
+            let handler = createEntering User in
+            [ handler
+              |> setQuery "request"
+              |> itemPresent (ACVariable "request")
+            ; handler
+              |> setQuery "event"
+              |> itemPresent (ACVariable "event")]
+
+
+          end
+        |> toEqual [true; true]
       );
 
     );
