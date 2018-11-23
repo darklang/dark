@@ -3,7 +3,7 @@
 set -euo pipefail
 
 until [[ "$(docker ps --last 1 --filter "ancestor=dark" --filter status=running --quiet)" != "" ]]; do
-    printf '.'
+    printf 'd'
     sleep 1
 done
 
