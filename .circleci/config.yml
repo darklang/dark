@@ -93,7 +93,7 @@ jobs:
       #     paths: [ "server/_build" ]
       #     key: v1-build-{{ checksum "today-timestamp" }}
 
-      - persist_to_workspace: { root: ".", paths: "app" }
+      - persist_to_workspace: { root: ".", paths: "." }
 
 
       # - run:
