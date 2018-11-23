@@ -142,7 +142,7 @@ def main():
       global run_tests
       run_tests = True
 
-  run_or_fail("sudo chown dark:dark server/_build")
+  run_or_fail("sudo chown dark:dark server/_build || true")
   run_or_fail("sudo chown dark:dark node_modules || true")
   run_or_fail("sudo chown dark:dark client2/node_modules || true")
   run_or_fail("sudo chown dark:dark client2/lib || true")
