@@ -7,7 +7,6 @@ executors:
 commands:
   initialize:
     steps:
-      - checkout
       - setup_remote_docker:
           docker_layer_caching: true
 
@@ -81,25 +80,20 @@ jobs:
     executor: my-executor
     steps:
       - initialize
-
+      - checkout
       - run: scripts/builder --compile --test
+      - run:
+          name: Copy out compiled binaries
+          when: always
+          command: docker cp vols:/home/dark/app/server/ server/
 
-      # - run:
-      #     name: Copy out caches
-      #     when: always
-      #     command: |
-      #       docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
-      #       docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
-      #       docker cp vols:/home/dark/app/server/_build server/
-      #
-      # - save_cache:
-      #     when: always
-      #     paths:
-      #       - client/elm-stuff
-      #       - client/tests/elm-stuff
-      #       - server/_build
-      #     key: v1-build-{{ checksum "today-timestamp" }}
-      #
+      - save_cache:
+          when: always
+          paths: [ "server/_build" ]
+          key: v1-build-{{ checksum "today-timestamp" }}
+
+      - persist_to_workspace: { root: ".", paths: "app" }
+
 
       # - run:
       #     name: Copy out artifacts
@@ -113,18 +107,12 @@ jobs:
       #     path: artifacts
       # - store_test_results:
       #     path: artifacts/rundir1/test_results
-      #
-  deploy:
-    executor: my-executor
-    steps:
-      - initialize
-      - run: scripts/run-in-docker scripts/gcp-build-containers
-      - run: scripts/deploy-from-circle
 
   integration-tests:
     executor: my-executor
     steps:
-      - initialize
+      - attach_workspace:
+          at: .
       - run:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
@@ -138,6 +126,27 @@ jobs:
           scripts/wait-until-container-ready
           scripts/wait-until-server-ready
 
+      - run: scripts/run-in-docker integration-tests/run.sh
+
+  deploy:
+    executor: my-executor
+    steps:
+      - initialize
+      - attach_workspace:
+          at: .
+      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run: scripts/deploy-from-circle
+
+
+
+NOTES:
+- test splitting command something like: grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" | circleci tests spli t --split-by=timings
+- to get timing data, in CI try this:  circleci tests split --show-counts --verbose
+  - it hung for me
+- deploy doesn't work because we dont copy stuff over
+- there's a 4m delay before integration tests start because we recompile stuff from scratch. Reuse by saving to workspace after build.
+- there's a 2m pause before testcafe starts
+- is deploy set to just master branch? if not weird
 
 workflows:
   version: 2
