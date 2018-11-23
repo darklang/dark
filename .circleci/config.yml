@@ -5,6 +5,17 @@ executors:
       - image: docker:stable-git
 
 commands:
+  copy-into-container:
+    steps:
+      - run:
+        # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+          name: Copy app directory into dev container
+          command: |
+            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
+            docker cp . vols:/home/dark/app
+            # set the ownership of all this
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+
   initialize:
     steps:
       - setup_remote_docker:
@@ -71,16 +82,7 @@ jobs:
     steps:
       - initialize
       - checkout
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
-            docker cp . vols:/home/dark/app
-            # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
-      - run: scripts/builder --compile --test
-
+      - copy-into-container
 
 
       - run:
@@ -115,6 +117,7 @@ jobs:
       - initialize
       - attach_workspace:
           at: .
+      - copy-into-container
       - run:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
@@ -136,6 +139,7 @@ jobs:
       - initialize
       - attach_workspace:
           at: .
+      - copy-into-container
       - run: scripts/run-in-docker scripts/gcp-build-containers
       - run: scripts/deploy-from-circle
 
