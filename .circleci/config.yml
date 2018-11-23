@@ -1,9 +1,11 @@
-version: 2
-jobs:
-  build:
+version: 2.1
+executors:
+  my-executor:
     docker:
       - image: docker:stable-git
 
+commands:
+  initialize:
     steps:
       - checkout
       - setup_remote_docker:
@@ -15,49 +17,47 @@ jobs:
           # bash for scripts
           command: |
             apk add --update bash coreutils nginx jq
-
-
-      # Setup for daily/weekly caches
-      - run: date +"%F" > today-timestamp
-      - run: date +"%F" -d "today - 1 days" > minus1-timestamp
-      - run: date +"%F" -d "today - 2 days" > minus2-timestamp
-      - run: date +"%F" -d "today - 3 days" > minus3-timestamp
-      - run: date +"%F" -d "today - 4 days" > minus4-timestamp
-      - run: date +"%F" -d "today - 5 days" > minus5-timestamp
-      - run: date +"%F" -d "today - 6 days" > minus6-timestamp
-      - run: date +"%F" -d "today - 7 days" > minus7-timestamp
-
-      # main build
-      - restore_cache:
-          keys:
-            - v1-build-{{ checksum "today-timestamp" }}
-            - v1-build-{{ checksum "minus1-timestamp" }}
-            - v1-build-{{ checksum "minus2-timestamp" }}
-            - v1-build-{{ checksum "minus3-timestamp" }}
-            - v1-build-{{ checksum "minus4-timestamp" }}
-            - v1-build-{{ checksum "minus5-timestamp" }}
-            - v1-build-{{ checksum "minus6-timestamp" }}
-            - v1-build-{{ checksum "minus7-timestamp" }}
-
-      - run:
-          name: Maybe clear caches
-          # Since we don't checksum the cache on its contents, it may
-          # continue to grow. As a result, let's clear the cache weekly.
-          # We store the day the cache was built in the cache. If the
-          # cache was built on friday, and today is not Friday, then
-          # it's the first build after last week, and clear it.
-          command: |
-            if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
-              echo "Clearing caches"
-              rm -Rf client/elm-stuff
-              rm -Rf client/tests/elm-stuff
-              rm -Rf server/_build
-            else
-              echo "Not clearing caches"
-            fi
-            mkdir -p server/_build
-            date +"%A" > server/_build/CACHE_DAY
-
+      # # Setup for daily/weekly caches
+      # - run: date +"%F" > today-timestamp
+      # - run: date +"%F" -d "today - 1 days" > minus1-timestamp
+      # - run: date +"%F" -d "today - 2 days" > minus2-timestamp
+      # - run: date +"%F" -d "today - 3 days" > minus3-timestamp
+      # - run: date +"%F" -d "today - 4 days" > minus4-timestamp
+      # - run: date +"%F" -d "today - 5 days" > minus5-timestamp
+      # - run: date +"%F" -d "today - 6 days" > minus6-timestamp
+      # - run: date +"%F" -d "today - 7 days" > minus7-timestamp
+      #
+      # # main build
+      # - restore_cache:
+      #     keys:
+      #       - v1-build-{{ checksum "today-timestamp" }}
+      #       - v1-build-{{ checksum "minus1-timestamp" }}
+      #       - v1-build-{{ checksum "minus2-timestamp" }}
+      #       - v1-build-{{ checksum "minus3-timestamp" }}
+      #       - v1-build-{{ checksum "minus4-timestamp" }}
+      #       - v1-build-{{ checksum "minus5-timestamp" }}
+      #       - v1-build-{{ checksum "minus6-timestamp" }}
+      #       - v1-build-{{ checksum "minus7-timestamp" }}
+      #
+      # - run:
+      #     name: Maybe clear caches
+      #     # Since we don't checksum the cache on its contents, it may
+      #     # continue to grow. As a result, let's clear the cache weekly.
+      #     # We store the day the cache was built in the cache. If the
+      #     # cache was built on friday, and today is not Friday, then
+      #     # it's the first build after last week, and clear it.
+      #     command: |
+      #       if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
+      #         echo "Clearing caches"
+      #         rm -Rf client/elm-stuff
+      #         rm -Rf client/tests/elm-stuff
+      #         rm -Rf server/_build
+      #       else
+      #         echo "Not clearing caches"
+      #       fi
+      #       mkdir -p server/_build
+      #       date +"%A" > server/_build/CACHE_DAY
+      #
 
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
@@ -68,8 +68,63 @@ jobs:
             # set the ownership of all this
             docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
 
+
+
+# TODO:
+# make the separate jobs work
+# enable caching and artifacts again for each job
+# split the integration tests by test time
+# optimize workflow
+
+jobs:
+  build:
+    executor: my-executor
+    steps:
+      - initialize
+
       - run: scripts/builder --compile --test
 
+      # - run:
+      #     name: Copy out caches
+      #     when: always
+      #     command: |
+      #       docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
+      #       docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
+      #       docker cp vols:/home/dark/app/server/_build server/
+      #
+      # - save_cache:
+      #     when: always
+      #     paths:
+      #       - client/elm-stuff
+      #       - client/tests/elm-stuff
+      #       - server/_build
+      #     key: v1-build-{{ checksum "today-timestamp" }}
+      #
+
+      # - run:
+      #     name: Copy out artifacts
+      #     when: always
+      #     command: |
+      #       mkdir -p artifacts
+      #       docker cp vols:/home/dark/app/rundir artifacts/rundir1/
+      #
+      #
+      # - store_artifacts:
+      #     path: artifacts
+      # - store_test_results:
+      #     path: artifacts/rundir1/test_results
+      #
+  deploy:
+    executor: my-executor
+    steps:
+      - initialize
+      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run: scripts/deploy-from-circle
+
+  integration-tests:
+    executor: my-executor
+    steps:
+      - initialize
       - run:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
@@ -83,35 +138,16 @@ jobs:
           scripts/wait-until-container-ready
           scripts/wait-until-server-ready
 
-      - run:
-          name: Copy out caches
-          when: always
-          command: |
-            docker cp vols:/home/dark/app/server/_build server/
 
-      - save_cache:
-          when: always
-          paths:
-            - server/_build
-          key: v1-build-{{ checksum "today-timestamp" }}
-
-
-      - run: scripts/run-in-docker integration-tests/run.sh
-
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir1/
-
-
-      - run: scripts/run-in-docker scripts/gcp-build-containers
-      - run: scripts/deploy-from-circle
-
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir1/test_results
-
-
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+      - integration-tests:
+          requires:
+            - build
+      - deploy:
+          requires:
+            - integration-tests
+            - build
