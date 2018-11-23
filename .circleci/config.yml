@@ -112,6 +112,7 @@ jobs:
   integration-tests:
     executor: my-executor
     steps:
+      - initialize
       - attach_workspace:
           at: .
       - run:
