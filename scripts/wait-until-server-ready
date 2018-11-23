@@ -3,15 +3,27 @@
 
 set -euo pipefail
 
+until [ -e .dark-config]; do
+    printf 'c'
+    sleep 1
+done
+
+
+
 test_url="http://${DARK_CONFIG_STATIC_HOST}/darkjs.bc.js"
 until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
-    printf '.'
+    printf 'j'
     sleep 1
 done
 
 test_url="http://${DARK_CONFIG_STATIC_HOST}/bsmain.js"
 until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
-    printf '.'
+    printf 'e'
     sleep 1
 done
 
+test_url="http://${DARK_CONFIG_STATIC_HOST}/bsmain.js"
+until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
+    printf 'b'
+    sleep 1
+done
