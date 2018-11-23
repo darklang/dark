@@ -88,10 +88,10 @@ jobs:
           when: always
           command: docker cp vols:/home/dark/app/server/ server/
 
-      - save_cache:
-          when: always
-          paths: [ "server/_build" ]
-          key: v1-build-{{ checksum "today-timestamp" }}
+      # - save_cache:
+      #     when: always
+      #     paths: [ "server/_build" ]
+      #     key: v1-build-{{ checksum "today-timestamp" }}
 
       - persist_to_workspace: { root: ".", paths: "app" }
 
