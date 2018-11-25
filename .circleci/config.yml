@@ -83,7 +83,7 @@ jobs:
       - initialize
       - checkout
       - copy-into-container
-
+      - run: scripts/builder --compile --test
 
       - run:
           name: Copy out compiled binaries
