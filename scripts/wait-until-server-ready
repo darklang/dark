@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-until [ -e /home/dark/.dark-config]; do
+until [ -e /home/dark/.dark-config ]; do
     printf 'c'
     sleep 1
 done
