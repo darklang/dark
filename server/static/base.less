@@ -19,6 +19,7 @@ html {
 @blue  : #7cafc2;
 @purple: #ba8baf;
 @brown : #a16946;
+@darkblue: #0e1b38; // selected text color
 
 @selected-background: lighten(@black1, 5%);
 @top-border: lighten(@black1, 5%) 2px dotted;
@@ -256,7 +257,7 @@ body #grid * {
 
   &.selected {
     background-color: @selected-background;
-    outline: 2px darken(@cyan, 25%) solid;
+    outline: 2px @darkblue solid;
   }
 
 
@@ -266,10 +267,6 @@ body #grid * {
     &.blank {
       color: @grey3;
     }
-  }
-
-  .selected {
-    outline: 0.5px @cyan solid;
   }
 
   .commandTarget {
@@ -806,7 +803,6 @@ body #grid * {
   padding-bottom: 24px;
   white-space: pre;
   width: max-content;
-  // border: @top-border;
   .layout-block;
 
   div {
@@ -842,12 +838,24 @@ body #grid * {
 
   .value.tstr {
     .string-style;
-    background: @selected-background;
+    background-color: @selected-background;
     border: 0;
     font-size: @code-font-size;
     margin: 0;
     .quote {
       display: inline-block;
+    }
+
+    &.selected {
+      background-color: @darkblue;
+    }
+
+    .selected & {
+      background-color: transparent;
+
+      &.selected {
+        background-color: @darkblue;
+      }
     }
   }
 
@@ -924,6 +932,10 @@ body #grid * {
     color: @green;
   }
 
+  .atom.selected, .nested.selected {
+    background-color: @darkblue;
+  }
+
   .fncall {
     .arg-on-new-line {
       .layout-block;
@@ -976,6 +988,11 @@ body #grid * {
     {
       background-color: lighten(@black1, 10%);
     }
+
+    .selected & {
+      background-color: transparent;
+    }
+
     .precedence-2 {
       &,
       & .entry form #search-container #suggestionBox,
@@ -983,6 +1000,11 @@ body #grid * {
       {
         background-color: lighten(@black1, 15%);
       }
+
+      .selected & {
+        background-color: transparent;
+      }
+
       .precedence-3{
         &,
         & .entry form #search-container #suggestionBox,
@@ -990,6 +1012,11 @@ body #grid * {
         {
           background-color: lighten(@black1, 20%);
         }
+
+        .selected & {
+          background-color: transparent;
+        }
+
         .precedence-4 {
           &,
           & .entry form #search-container #suggestionBox,
@@ -997,6 +1024,11 @@ body #grid * {
           {
             background-color: lighten(@black1, 25%);
           }
+
+          .selected & {
+            background-color: transparent;
+          }
+
           .precedence-5 {
             &,
             & .entry form #search-container #suggestionBox,
@@ -1004,12 +1036,21 @@ body #grid * {
             {
               background-color: lighten(@black1, 30%);
             }
+
+            .selected & {
+              background-color: transparent;
+            }
+
             .precedence-6 {
               &,
               & .entry form #search-container #suggestionBox,
               & .string-entry
               {
                 background-color: lighten(@black1, 35%);
+              }
+
+              .selected & {
+                background-color: transparent;
               }
             }
           }
@@ -1139,7 +1180,7 @@ body #grid * {
       background: @black2;
 
       &.highlighted {
-        background: #1c3670;
+        background: @darkblue;
       }
 
       &.greyed {
