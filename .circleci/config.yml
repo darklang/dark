@@ -94,6 +94,9 @@ jobs:
 
       - run: scripts/builder --compile --test
 
+      # test that we can build the docker containers too
+      - run: scripts/run-in-docker scripts/gcp-build-containers
+
       - run:
           name: Copy out generated files and caches
           when: always
@@ -170,7 +173,9 @@ jobs:
       - attach_workspace:
           at: .
       - copy-into-container
-      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run:
+          command: NEVER_REBUILD_DOCKER=1 scripts/builder --ci-serve
+          background: true
       - run: scripts/deploy-from-circle
 
 
@@ -193,6 +198,9 @@ workflows:
           requires:
             - build
       - deploy:
+          filters:
+            branches:
+              only: master
           requires:
             - integration-tests
             - build
