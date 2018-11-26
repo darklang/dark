@@ -117,6 +117,9 @@ jobs:
       - initialize
       - attach_workspace:
           at: .
+      - run: pwd
+      - run: ls
+      - run: find .
       - copy-into-container
       - run:
           command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
