@@ -71,15 +71,6 @@ let delete_404s
       ; Db.String modifier
       ]
 
-let global_vars (c: canvas) : string list =
-  c.dbs
-  |> TL.dbs
-  |> Execution.dbs_as_input_vars
-  |> (@) Execution.sample_unknown_handler_input_vars
-  |> List.map ~f:Tuple.T2.get1
-
-
-
 (* ------------------------- *)
 (* Input vars *)
 (* ------------------------- *)
@@ -100,10 +91,25 @@ let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) : (Uuidm.t * input_va
           | `Unknown -> (id, []) (* can't happen *)
       )
 
-let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
-  : RTT.input_vars list =
-  Stored_function_arguments.load ~canvas_id:c.id fn.tlid
-  |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
+let traces_for_user_fn (c: canvas) (fn: RTT.user_fn) : trace list =
+  let ivs =
+    match Stored_function_arguments.load_for_analysis c.id fn.tlid with
+    | [] ->
+        [( Uuidm.v5 Uuidm.nil (string_of_id fn.tlid), [])]
+    | ivs -> ivs
+  in
+  List.map ivs
+    ~f:(fun (trace_id, input_vars) ->
+        let function_results =
+          Stored_function_result.load
+            ~trace_id
+            ~canvas_id:c.id
+            fn.tlid
+        in
+        { input = input_vars
+        ; function_results
+        ; id = trace_id
+        })
 
 let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : trace list =
@@ -157,7 +163,6 @@ let call_function (c: canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnn
 (* Response with miscellaneous stuff, and specific responses from tlids *)
 type get_analysis_response =
   { traces : tlid_trace list
-  ; global_varnames : string list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list [@key "404s"]
   } [@@deriving to_yojson]
@@ -167,8 +172,6 @@ let to_getanalysis_frontend (traces: tlid_trace list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
   { traces
-  (* TODO: remove global vars. It's not used on the frontend *)
-  ; global_varnames = global_vars c
   ; unlocked_dbs = unlocked
   ; fofs = f404s
   }
@@ -185,7 +188,6 @@ let to_getanalysis_frontend (traces: tlid_trace list)
 (* A subset of responses to be merged in *)
 type rpc_response =
   { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
-  ; global_varnames : string list (* replace *)
   ; toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
@@ -197,7 +199,6 @@ let to_rpc_response_frontend (c: canvas) (traces: tlid_trace list)
     (unlocked : tlid list)
   : string =
   { new_traces = traces
-  ; global_varnames = global_vars c
   ; toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted
   ; user_functions = c.user_functions
