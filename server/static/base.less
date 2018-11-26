@@ -809,6 +809,15 @@ body #grid * {
     vertical-align: top;
   }
 
+  .blankOr.selected {
+    background-color: @darkblue;
+    color: @grey3;
+
+    &.tstr {
+      color: @string-color;
+    }
+  }
+
   .rop-rail {
     padding-right: 30px;
     border-right: solid 2px rgba(255, 0, 0, 0.3);
@@ -842,10 +851,6 @@ body #grid * {
     margin: 0;
     .quote {
       display: inline-block;
-    }
-
-    &.selected {
-      background-color: @darkblue;
     }
   }
 
@@ -922,15 +927,6 @@ body #grid * {
     color: @green;
   }
 
-  .blankOr.selected {
-    background-color: @darkblue;
-    color: @grey3;
-
-    &.tstr {
-      color: @string-color;
-    }
-  }
-
   .fncall {
     .arg-on-new-line {
       .layout-block;
@@ -981,11 +977,11 @@ body #grid * {
     & .entry form #search-container #suggestionBox,
     & .string-entry
     {
-      background-color: lighten(@black1, 10%);
+      background-color: fade(@grey2, 10%);
     }
 
-    .selected & {
-      background-color: transparent;
+    &.selected {
+      background-color: fade(@darkblue, 75%);
     }
 
     .precedence-2 {
@@ -993,11 +989,11 @@ body #grid * {
       & .entry form #search-container #suggestionBox,
       & .string-entry
       {
-        background-color: lighten(@black1, 15%);
+        background-color: fade(@grey2, 15%);
       }
 
-      .selected & {
-        background-color: transparent;
+      &.selected {
+        background-color: fade(@darkblue, 80%);
       }
 
       .precedence-3{
@@ -1005,11 +1001,11 @@ body #grid * {
         & .entry form #search-container #suggestionBox,
         & .string-entry
         {
-          background-color: lighten(@black1, 20%);
+          background-color: fade(@grey2, 20%);
         }
 
-        .selected & {
-          background-color: transparent;
+        &.selected {
+          background-color: fade(@darkblue, 85%);
         }
 
         .precedence-4 {
@@ -1017,11 +1013,11 @@ body #grid * {
           & .entry form #search-container #suggestionBox,
           & .string-entry
           {
-            background-color: lighten(@black1, 25%);
+            background-color: fade(@grey2, 25%);
           }
 
-          .selected & {
-            background-color: transparent;
+          &.selected {
+            background-color: fade(@darkblue, 90%);
           }
 
           .precedence-5 {
@@ -1029,11 +1025,11 @@ body #grid * {
             & .entry form #search-container #suggestionBox,
             & .string-entry
             {
-              background-color: lighten(@black1, 30%);
+              background-color: fade(@grey2, 30%);
             }
 
-            .selected & {
-              background-color: transparent;
+            &.selected {
+              background-color: fade(@darkblue, 95%);
             }
 
             .precedence-6 {
@@ -1041,11 +1037,11 @@ body #grid * {
               & .entry form #search-container #suggestionBox,
               & .string-entry
               {
-                background-color: lighten(@black1, 35%);
+                background-color: fade(@grey2, 35%);
               }
 
-              .selected & {
-                background-color: transparent;
+              &.selected {
+                background-color: fade(@darkblue, 100%);
               }
             }
           }
