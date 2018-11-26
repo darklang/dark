@@ -12,7 +12,7 @@ for i in 1 2 3 4 5; do
   if [ $i -ne 1 ]; then
     echo "Yarn install failed; retrying"
   fi
-  yarn install
+  yarn install "${@}"
   retval=$?
 
   if [[ $retval -eq 0 ]]; then
