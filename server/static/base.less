@@ -3,23 +3,23 @@ html {
 }
 
 /* From "default dark" in https://chriskempson.github.io/base16/ */
-@black1: #181818;
-@black2: #282828;
-@grey1 : #383838;
-@grey2 : #585858;
+@black1: #181818; // toplevel bg
+@black2: #282828; // sidebar bg, entrybox bg, debugging buttons
+@grey1 : #383838; // hovered AST bg
+@grey2 : #585858; // placeholder text
 @grey3 : #b8b8b8;
-@white3: #d8d8d8;
+@white3: #d8d8d8; // link color
 @white2: #e8e8e8;
-@white1: #f8f8f8;
-@red   : #ab4642;
-@orange: #dc9656;
-@yellow: #f7ca88;
-@green : #a1b56c;
+@white1: #f8f8f8; // active link
+@red   : #ab4642; // error
+@orange: #dc9656; // routing
+@yellow: #f7ca88; // routing table, database migration
+@green : #a1b56c; // executable buttons, feature flag icons
 @cyan  : #86c1b9;
-@blue  : #7cafc2;
+@blue  : #7cafc2; // pipe
 @purple: #ba8baf; // variation used in strings
 @brown : #a16946;
-@darkblue: #2c599e; //darken(@blue, 33%); // selected text color
+@darkblue: #2c599e; // selected AST bg
 
 @selected-background: lighten(@black1, 5%);
 @top-border: lighten(@black1, 5%) 2px dotted;
@@ -483,7 +483,7 @@ body #grid * {
     border: @top-border;
     border-color: @yellow;
     border-width: 1px;
-    background-color: @black2;
+    background-color: @black1;
 
      .dbname {
       .version {
