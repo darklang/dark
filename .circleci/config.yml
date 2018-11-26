@@ -91,6 +91,7 @@ jobs:
             - v2-build-{{ checksum "minus7-timestamp" }}
 
       - copy-into-container
+      - run: find .
 
       - run: scripts/builder --compile --test
 
