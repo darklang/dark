@@ -91,7 +91,6 @@ jobs:
             - v2-build-{{ checksum "minus7-timestamp" }}
 
       - copy-into-container
-      - run: find .
 
       - run: scripts/builder --compile --test
 
@@ -146,16 +145,11 @@ jobs:
     executor: my-executor
     steps:
       - initialize
-      - run: ls
-      - run: find .
       - attach_workspace:
           at: .
-      - run: pwd
-      - run: ls
-      - run: find .
       - copy-into-container
       - run:
-          command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
+          command: NEVER_REBUILD_DOCKER=1 scripts/builder --ci-serve
           background: true
 
       # run this here so we save a little time waiting for the server to
