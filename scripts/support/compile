@@ -58,7 +58,7 @@ def client2_build():
 
 def client2_install():
   start = time.time()
-  build = "cd client2 && unbuffer yarn install"
+  build = "cd client2 && unbuffer ../scripts/support/retrying-yarn-install"
   return run_frontend(start, build)
 
 def client2_test():
