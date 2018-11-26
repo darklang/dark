@@ -58,7 +58,10 @@ def client2_build():
 
 def client2_install():
   start = time.time()
-  build = "cd client2 && unbuffer ../scripts/support/retrying-yarn-install"
+  flags = ""
+  if os.environ.get("CI"):
+    flags += " --frozen-lockfiles"
+  build = "cd client2 && unbuffer ../scripts/support/retrying-yarn-install" + flags
   return run_frontend(start, build)
 
 def client2_test():
