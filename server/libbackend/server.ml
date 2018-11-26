@@ -307,11 +307,10 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body
 
     let (t4, fvals) = time "4-user-fn-analyses"
       (fun _ ->
-        []
-        (* !c.user_functions *)
-        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
-        (* |> List.map *)
-        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        !c.user_functions
+        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
+        |> List.map
+          ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
         )
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
@@ -398,11 +397,10 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
 
     let (t5, fvals) = time "5-user-fn-analyses"
       (fun _ ->
-        []
-        (* !c.user_functions *)
-        (* |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid) *)
-        (* |> List.map *)
-        (*   ~f:(fun f -> (f.tlid, Analysis.initial_input_vars_for_user_fn !c f)) *)
+        !c.user_functions
+        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
+        |> List.map
+          ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
         )
     in
 

@@ -22,10 +22,10 @@ let store ~canvas_id ~trace_id tlid args =
                       |> Yojson.Safe.to_string)
             ]
 
-let load ~canvas_id tlid : (RTT.dval_map * Time.t) list =
+let load_for_analysis ~canvas_id tlid : (Uuidm.t * Analysis_types.input_vars) list =
   Db.fetch
-    ~name:"stored_function_arguments.load"
-    "SELECT arguments_json, timestamp
+    ~name:"stored_function_arguments.load_for_analysis"
+    "SELECT trace_id, arguments_json, timestamp
      FROM function_arguments
      WHERE canvas_id = $1
        AND tlid = $2
@@ -35,11 +35,18 @@ let load ~canvas_id tlid : (RTT.dval_map * Time.t) list =
             ; Db.ID tlid
             ]
   |> List.map ~f:(function
-      | [args; ts] ->
-        (args
-         |> Yojson.Safe.from_string
-         |> Dval.unsafe_dvalmap_of_yojson
-        , Db.date_of_sqlstring ts)
-      | _ -> Exception.internal "Bad DB format for stored_functions.load")
+    | [trace_id; args; _] ->
+        let trace_id =
+          if trace_id = ""
+          then Util.create_uuid ()
+          else Util.uuid_of_string trace_id
+        in
 
-
+        let input_vars =
+          args
+          |> Yojson.Safe.from_string
+          |> Dval.unsafe_dvalmap_of_yojson
+          |> RTT.DvalMap.to_alist
+        in
+        (trace_id, input_vars)
+    | _ -> Exception.internal "Bad DB format for stored_functions.load_for_analysis")
