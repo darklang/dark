@@ -98,7 +98,6 @@ jobs:
           when: always
           command: |
             docker cp vols:/home/dark/app/server/_build server/
-            docker cp vols:/home/dark/app/node_modules .
             docker cp vols:/home/dark/app/client2/node_modules client2
             docker cp vols:/home/dark/app/client2/lib client2
             docker cp vols:/home/dark/app/client/elm-stuff client
@@ -115,7 +114,6 @@ jobs:
           when: always
           paths:
             - server/_build
-            - node_modules
             - client2/node_modules
             - client2/lib
             - client/elm-stuff
