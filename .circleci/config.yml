@@ -5,17 +5,6 @@ executors:
       - image: docker:stable-git
 
 commands:
-  copy-into-container:
-    steps:
-      - run:
-        # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
-            docker cp . vols:/home/dark/app
-            # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
-
   initialize:
     steps:
       - setup_remote_docker:
@@ -27,28 +16,21 @@ commands:
           # bash for scripts
           command: |
             apk add --update bash coreutils nginx jq
-      # # Setup for daily/weekly caches
-      # - run: date +"%F" > today-timestamp
-      # - run: date +"%F" -d "today - 1 days" > minus1-timestamp
-      # - run: date +"%F" -d "today - 2 days" > minus2-timestamp
-      # - run: date +"%F" -d "today - 3 days" > minus3-timestamp
-      # - run: date +"%F" -d "today - 4 days" > minus4-timestamp
-      # - run: date +"%F" -d "today - 5 days" > minus5-timestamp
-      # - run: date +"%F" -d "today - 6 days" > minus6-timestamp
-      # - run: date +"%F" -d "today - 7 days" > minus7-timestamp
-      #
-      # # main build
-      # - restore_cache:
-      #     keys:
-      #       - v1-build-{{ checksum "today-timestamp" }}
-      #       - v1-build-{{ checksum "minus1-timestamp" }}
-      #       - v1-build-{{ checksum "minus2-timestamp" }}
-      #       - v1-build-{{ checksum "minus3-timestamp" }}
-      #       - v1-build-{{ checksum "minus4-timestamp" }}
-      #       - v1-build-{{ checksum "minus5-timestamp" }}
-      #       - v1-build-{{ checksum "minus6-timestamp" }}
-      #       - v1-build-{{ checksum "minus7-timestamp" }}
-      #
+
+      # Setup for daily/weekly caches
+      - run:
+          name: Set up files for caches
+          command: |
+            date +"%F" > today-timestamp
+            date +"%F" -d "today - 1 days" > minus1-timestamp
+            date +"%F" -d "today - 2 days" > minus2-timestamp
+            date +"%F" -d "today - 3 days" > minus3-timestamp
+            date +"%F" -d "today - 4 days" > minus4-timestamp
+            date +"%F" -d "today - 5 days" > minus5-timestamp
+            date +"%F" -d "today - 6 days" > minus6-timestamp
+            date +"%F" -d "today - 7 days" > minus7-timestamp
+
+     #
       # - run:
       #     name: Maybe clear caches
       #     # Since we don't checksum the cache on its contents, it may
@@ -82,18 +64,40 @@ jobs:
     steps:
       - initialize
       - checkout
-      - copy-into-container
+
+      - restore_cache:
+          keys:
+            - v1-build-{{ checksum "today-timestamp" }}
+            - v1-build-{{ checksum "minus1-timestamp" }}
+            - v1-build-{{ checksum "minus2-timestamp" }}
+            - v1-build-{{ checksum "minus3-timestamp" }}
+            - v1-build-{{ checksum "minus4-timestamp" }}
+            - v1-build-{{ checksum "minus5-timestamp" }}
+            - v1-build-{{ checksum "minus6-timestamp" }}
+            - v1-build-{{ checksum "minus7-timestamp" }}
+
+      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+      - run:
+          name: Copy app directory into dev container
+          command: |
+            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
+            docker cp . vols:/home/dark/app
+            # set the ownership of all this
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+
       - run: scripts/builder --compile --test
 
       - run:
-          name: Copy out compiled binaries
+          name: Copy out generated files and caches
           when: always
-          command: docker cp vols:/home/dark/app/server/ server/
+          command: |
+            docker cp "vols:/home/dark/app/server/static/*.*" server/static
+            docker cp vols:/home/dark/app/server/_build server/
 
-      # - save_cache:
-      #     when: always
-      #     paths: [ "server/_build" ]
-      #     key: v1-build-{{ checksum "today-timestamp" }}
+      - save_cache:
+          when: always
+          paths: [ "server/_build" ]
+          key: v1-build-{{ checksum "today-timestamp" }}
 
       - persist_to_workspace: { root: ".", paths: "." }
 
@@ -115,6 +119,8 @@ jobs:
     executor: my-executor
     steps:
       - initialize
+      - run: ls
+      - run: find .
       - attach_workspace:
           at: .
       - run: pwd
