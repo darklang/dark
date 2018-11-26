@@ -97,7 +97,7 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
           |> Option.withDefault []
         in
         ["request"] @ fromRoute
-      | F (_, m) when String.toLower "cron" = m -> []
+      | F (_, m) when String.toLower m = "cron" -> []
       | F (_, _) -> ["event"]
       | _ -> ["request"; "event"]
     in
@@ -116,8 +116,8 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
 let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
     varName list =
   match target with
-  | None -> []
-  | Some (tlid, pd) -> getCurrentAvailableVarnames m tlid (P.toID pd)
+  | Some (tlid, (PExpr _ as pd)) -> getCurrentAvailableVarnames m tlid (P.toID pd)
+  | _ -> []
 
 let getTraces (m : model) (tlid : tlid) : trace list =
   StrDict.get (deTLID tlid) m.traces |> Option.withDefault []
