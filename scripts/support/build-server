@@ -54,6 +54,17 @@ def initial_compile():
   print("--------------------------")
   return exit
 
+def run_server():
+  files = [ "server/bin/dark.ml" ]
+  exit = compile(files)
+
+  print("--------------------------")
+  print("-- Started server ")
+  print("--------------------------")
+  return exit
+
+
+
 def start_background_services():
   # We wait for them in runserver
   run_or_fail("scripts/support/start-background-services dnsmasq postgresql")
@@ -161,6 +172,11 @@ def main():
         sys.exit(0)
       else:
         sys.exit(1)
+  else:
+    if serve:
+      start_background_services()
+      run_server()
+
 
   if watch:
     process_watchers()
