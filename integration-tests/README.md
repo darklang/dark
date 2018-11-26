@@ -3,7 +3,7 @@
 Note: the testcafe error "Failed to find a DNS-record for the resource"
 actually mean "Can't connect to the server".
 
-##### (Updated Dec 20, 2017)
+##### (Updated Nov 20, 2018)
 
 ## Files
 
@@ -16,9 +16,9 @@ actually mean "Can't connect to the server".
 - integration-tests/screenshots/
   - screenshots
 
-- client/IntegrationTest.elm
+- client2/src/IntegrationTest.ml
   - This contains the code to check that the tests were successful.
-    Note that this is compiled into elm.js, so we have a
+    Note that this is compiled into bsmain.js, so we have a
     single app for testing and production.
 
 
@@ -30,12 +30,12 @@ Uses testcafe with headless-chrome:
 run.sh calls testcafe, which runs tests.js on headless-chrome in the
 container. Our testcafe tests load the server and get the test programs
 from server/test_appdata. The client loads it, recognizes from the url
-that it's a test, then gets the testcode from IntegrationTest.elm and
+that it's a test, then gets the testcode from IntegrationTest.ml and
 stores it in the model.
 
 At the end of a test, the harness clicks the "finish integration test"
 button in the browser, which runs the testing function for the test
-(usually tests something on the model). Elm updates the dom with
+(usually tests something on the model). The client updates the dom with
 "success" or "failure" which the harness reads.
 
 TODO: All this should be called from scripts/build-server and

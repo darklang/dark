@@ -86,7 +86,7 @@ do
   case $i in
     --watch)
     FSWATCH="fswatch --event-flag-separator=, -r * -x"
-    # Need to specify --event types, or something in client/tests/elm-stuff will fire
+    # Need to specify --event types, or something in node_modules will fire
     # endless IsDir and PlatformSpecific ("This event maps a platform-specific
     # event that has no corresponding flag.") events
     FSWATCH+=" --event=Created --event=Updated --event=Removed --event=Renamed --event=MovedFrom --event=MovedTo"
