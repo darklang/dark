@@ -97,7 +97,7 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
           |> Option.withDefault []
         in
         ["request"] @ fromRoute
-      | F (_, m) when String.toLower "cron" = m -> []
+      | F (_, m) when String.toLower m = "cron" -> []
       | F (_, _) -> ["event"]
       | _ -> ["request"; "event"]
     in
