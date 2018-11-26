@@ -76,6 +76,7 @@ jobs:
     executor: my-executor
     steps:
       - checkout
+      - persist_to_workspace: { root: ".", paths: "." }
       - initialize
 
       - restore_cache:
@@ -119,7 +120,12 @@ jobs:
             - client/elm-stuff
           key: v2-build-{{ checksum "today-timestamp" }}
 
-      - persist_to_workspace: { root: ".", paths: "." }
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
+            - server/_build/default/bin
+            - server/static
 
 
       # - run:
