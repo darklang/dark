@@ -6,13 +6,13 @@ FROM ubuntu:17.10
 ENV FORCE_BUILD 0
 
 ############################
-## apt-get
+## apt
 ############################
 USER root
 RUN DEBIAN_FRONTEND=noninteractive \
-    apt-get update && \
+    apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
-    apt-get install \
+    apt install \
       -y \
       --no-install-recommends \
       curl \
@@ -39,7 +39,7 @@ RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_releas
 # However, sometimes the versions upgrade from under us and break the
 # build. To fix that, you need the actual package version, which you can
 # find by installing it directly:
-# $ docker run <HASH> apt-get install mypackage
+# $ docker run <HASH> apt install mypackage
 # Notes
 # - replace <HASH> with a recent hash from the docker build output.
 # - just use the package name, not the version.
@@ -49,9 +49,9 @@ RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_releas
 # - expect for unbuffer
 # - most libs re for ocaml
 RUN DEBIAN_FRONTEND=noninteractive \
-    apt-get update && \
+    apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
-    apt-get install \
+    apt install \
       --no-install-recommends \
       -y \
       software-properties-common=0.96.24.17 \
@@ -95,7 +95,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       gcc \
       python-dev \
       python-setuptools \
-      && apt-get clean \
+      pgcli \
+      && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
 ############################
@@ -122,31 +123,17 @@ ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 
 ############################
-# Elm
+# Frontend
 ############################
 USER root
-RUN npm install -g yarn
+RUN npm install -g yarn@1.12.3
 USER dark
 RUN yarn add \
-  elm@0.18.0 \
-  elm-test@0.18.13-beta \
-  elm-oracle@1.1.1 \
-  elm-live@2.7.5 \
   less@2.7.3 \
   testcafe@0.22.0 \
-  bs-platform@4.0.5
-
-RUN git clone https://github.com/NoRedInk/elm-ops-tooling
+  bs-platform@4.0.7
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
-
-# Speed up elm compiles
-RUN git clone https://github.com/obmarg/libsysconfcpus.git;
-RUN cd libsysconfcpus \
-       && ./configure \
-       && make \
-       && sudo make install
-
 
 ############################
 # Postgres
@@ -186,7 +173,7 @@ RUN pip3 install requests
 ############################
 # Google cloud
 ############################
-# New authentication for docker - not supported via apt-get
+# New authentication for docker - not supported via apt
 user root
 RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
     | tar xz --to-stdout docker-credential-gcr > /usr/bin/docker-credential-gcr \
@@ -195,8 +182,8 @@ RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/rele
 RUN docker-credential-gcr config --token-source="gcloud"
 
 # crcmod for gsutil
-# apt-get install is done above
-# RUN sudo apt-get update && sudo apt-get install -y gcc python-dev python-setuptools
+# apt install is done above
+# RUN sudo apt update && sudo apt install -y gcc python-dev python-setuptools
 RUN easy_install -U pip
 RUN pip uninstall crcmod
 RUN pip install -U crcmod
@@ -253,6 +240,14 @@ RUN opam install -y \
   sodium.0.6.0 \
   utop
 
+# To use PPXes in bucklescript, we need to install them from opam
+RUN opam switch create 4.02.3
+RUN eval $(opam env) \
+  && opam install -y \
+    ppx_deriving_yojson \
+    ppx_deriving
+RUN opam switch 4.07.0
+
 
 ############################
 # Incredibly -- and reproducibly -- if we move this to the top the
@@ -276,27 +271,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-# To use PPXes in bucklescript, we need to install them from opam
-RUN opam switch create 4.02.3
-RUN eval $(opam env) \
-  && opam install -y \
-    ppx_deriving_yojson \
-    ppx_deriving
-RUN opam switch 4.07.0
-
-USER root
-RUN DEBIAN_FRONTEND=noninteractive \
-    apt update --allow-releaseinfo-change && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt install \
-      -y \
-      --no-install-recommends \
-      pgcli
-
-RUN npm install -g yarn@1.12.3
-RUN yarn remove bs-platform
-
 
 ############################
 # Finish
