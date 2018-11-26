@@ -9,9 +9,7 @@ val store :
   Types.RuntimeT.dval_map ->
   unit
 
-val load :
+val load_for_analysis :
   canvas_id:Uuidm.t ->
   Types.tlid ->
-  (Types.RuntimeT.dval_map * Time.t) list
-
-
+  (Uuidm.t * Analysis_types.input_vars) list

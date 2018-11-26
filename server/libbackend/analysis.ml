@@ -100,10 +100,25 @@ let saved_input_vars (c: canvas) (h: RTT.HandlerT.handler) : (Uuidm.t * input_va
           | `Unknown -> (id, []) (* can't happen *)
       )
 
-let initial_input_vars_for_user_fn (c: canvas) (fn: RTT.user_fn)
-  : RTT.input_vars list =
-  Stored_function_arguments.load ~canvas_id:c.id fn.tlid
-  |> List.map ~f:(fun (m, _ts) -> RTT.DvalMap.to_alist m)
+let traces_for_user_fn (c: canvas) (fn: RTT.user_fn) : trace list =
+  let ivs =
+    match Stored_function_arguments.load_for_analysis c.id fn.tlid with
+    | [] ->
+        [( Uuidm.v5 Uuidm.nil (string_of_id fn.tlid), [])]
+    | ivs -> ivs
+  in
+  List.map ivs
+    ~f:(fun (trace_id, input_vars) ->
+        let function_results =
+          Stored_function_result.load
+            ~trace_id
+            ~canvas_id:c.id
+            fn.tlid
+        in
+        { input = input_vars
+        ; function_results
+        ; id = trace_id
+        })
 
 let traces_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : trace list =
