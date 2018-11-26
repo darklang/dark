@@ -30,9 +30,8 @@ commands:
           command: |
             apk add --update bash coreutils nginx jq
 
-      # Setup for daily/weekly caches
       - run:
-          name: Set up files for caches
+          name: Set up names for caches
           command: |
             date +"%F" > today-timestamp
             date +"%F" -d "today - 1 days" > minus1-timestamp
@@ -42,6 +41,7 @@ commands:
             date +"%F" -d "today - 5 days" > minus5-timestamp
             date +"%F" -d "today - 6 days" > minus6-timestamp
             date +"%F" -d "today - 7 days" > minus7-timestamp
+
 
      #
       # - run:
@@ -75,8 +75,8 @@ jobs:
   build:
     executor: my-executor
     steps:
-      - initialize
       - checkout
+      - initialize
 
       - restore_cache:
           keys:
