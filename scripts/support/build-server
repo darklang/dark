@@ -55,8 +55,7 @@ def initial_compile():
   return exit
 
 def run_server():
-  files = [ "server/bin/dark.ml" ]
-  exit = compile(files)
+  exit = compile([ "scripts/support/runserver" ])
 
   print("--------------------------")
   print("-- Started server ")
