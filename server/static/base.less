@@ -17,14 +17,15 @@ html {
 @green : #a1b56c;
 @cyan  : #86c1b9;
 @blue  : #7cafc2;
-@purple: #ba8baf;
+@purple: #ba8baf; // variation used in strings
 @brown : #a16946;
-@darkblue: #0e1b38; // selected text color
+@darkblue: #2c599e; //darken(@blue, 33%); // selected text color
 
 @selected-background: lighten(@black1, 5%);
 @top-border: lighten(@black1, 5%) 2px dotted;
 @blank-underline: 1px dashed @grey2;
 @code-font-size: 13.3333px;
+@string-color: lighten(@purple, 10%);
 
 /* Mixins */
  .from (colors, @color) {
@@ -259,8 +260,6 @@ body #grid * {
     background-color: @selected-background;
     outline: 2px @darkblue solid;
   }
-
-
 
   .mouseovered {
     background-color: @grey1;
@@ -748,7 +747,7 @@ body #grid * {
 }
 
 .string-style() {
-  color: @purple;
+  color: @string-color;
   font-style: italic;
   max-width: 120ch;
   min-height: 16px;
@@ -838,7 +837,6 @@ body #grid * {
 
   .value.tstr {
     .string-style;
-    background-color: @selected-background;
     border: 0;
     font-size: @code-font-size;
     margin: 0;
@@ -848,14 +846,6 @@ body #grid * {
 
     &.selected {
       background-color: @darkblue;
-    }
-
-    .selected & {
-      background-color: transparent;
-
-      &.selected {
-        background-color: @darkblue;
-      }
     }
   }
 
@@ -932,8 +922,13 @@ body #grid * {
     color: @green;
   }
 
-  .atom.selected, .nested.selected {
+  .blankOr.selected {
     background-color: @darkblue;
+    color: @grey3;
+
+    &.tstr {
+      color: @string-color;
+    }
   }
 
   .fncall {
@@ -1288,7 +1283,7 @@ body #grid * {
     word-wrap: break-word;
   }
   textarea {
-    color: @purple !important;
+    color: @string-color !important;
     display: block;
     overflow: hidden;
     resize: none;
