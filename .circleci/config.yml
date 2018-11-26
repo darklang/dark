@@ -147,8 +147,8 @@ commands:
       - run:
           name: "Wait for container"
           command: |
-            scripts/wait-until-container-ready
-            scripts/wait-until-server-ready
+            timeout 5m scripts/wait-until-container-ready
+            timeout 5m scripts/wait-until-server-ready
 
 
 
