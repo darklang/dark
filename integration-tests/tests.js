@@ -609,6 +609,7 @@ test.skip('feature_flag_works', async t => {
 
 test('feature_flag_in_function', async t => {
   await t
+    .setTestSpeed(0.4)
     // Go to function
     .click(".fun1", slow)
     .click(".fa-edit", slow)
@@ -714,6 +715,7 @@ test('object_literals_work', async t => {
 
 test('rename_function', async t => {
   await t
+    .setTestSpeed(0.4)
     .click(Selector('.fnname'), slow)
     .click(Selector('.fa-edit'), slow)
     .click(Selector('.fn-name-content'), slow)
