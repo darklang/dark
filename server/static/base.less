@@ -3,30 +3,32 @@ html {
 }
 
 /* From "default dark" in https://chriskempson.github.io/base16/ */
-@black1: #181818;
-@black2: #282828;
-@grey1 : #383838;
-@grey2 : #585858;
+@black1: #181818; // toplevel bg
+@black2: #282828; // sidebar bg, entrybox bg, debugging buttons
+@grey1 : #383838; // hovered AST bg
+@grey2 : #585858; // placeholder text
 @grey3 : #b8b8b8;
-@white3: #d8d8d8;
+@white3: #d8d8d8; // link color
 @white2: #e8e8e8;
-@white1: #f8f8f8;
-@red   : #ab4642;
-@orange: #dc9656;
-@yellow: #f7ca88;
-@green : #a1b56c;
+@white1: #f8f8f8; // active link
+@red   : #ab4642; // error
+@orange: #dc9656; // routing, lambda functions
+@yellow: #f7ca88; // routing table, database migration
+@green : #a1b56c; // executable buttons, feature flag icons
 @cyan  : #86c1b9;
-@blue  : #7cafc2;
-@purple: #ba8baf;
+@blue  : #7cafc2; // pipe
+@purple: #ba8baf; // variation used in strings
 @brown : #a16946;
+@darkblue: #2B466F; // selected AST bg
 
 @selected-background: lighten(@black1, 5%);
 @top-border: lighten(@black1, 5%) 2px dotted;
 @blank-underline: 1px dashed @grey2;
 @code-font-size: 13.3333px;
+@string-color: lighten(@purple, 10%);
 
 /* Mixins */
- .from (colors, @color) {
+.from (colors, @color) {
   color: @color;
 }
 .to (colors, @color) {
@@ -256,20 +258,14 @@ body #grid * {
 
   &.selected {
     background-color: @selected-background;
-    outline: 2px darken(@cyan, 25%) solid;
+    outline: 2px @darkblue solid;
   }
-
-
 
   .mouseovered {
     background-color: @grey1;
     &.blank {
       color: @grey3;
     }
-  }
-
-  .selected {
-    outline: 0.5px @cyan solid;
   }
 
   .commandTarget {
@@ -487,7 +483,7 @@ body #grid * {
     border: @top-border;
     border-color: @yellow;
     border-width: 1px;
-    background-color: @black2;
+    background-color: @black1;
 
      .dbname {
       .version {
@@ -751,7 +747,7 @@ body #grid * {
 }
 
 .string-style() {
-  color: @purple;
+  color: @string-color;
   font-style: italic;
   max-width: 120ch;
   min-height: 16px;
@@ -795,6 +791,21 @@ body #grid * {
   border-left: 1px solid @orange;
 }
 
+.precedence (@depth) {
+  .precedence-@{depth} {
+      &,
+      & .entry form #search-container #suggestionBox,
+      & .string-entry
+      {
+        background-color: fade(@grey2, 5% + (@depth * 5%) );
+      }
+
+      &.selected {
+        background-color: fade(@darkblue, 70% + (@depth * 5%));
+      }
+  }
+}
+
 //*************
 // AST
 //*************
@@ -806,12 +817,20 @@ body #grid * {
   padding-bottom: 24px;
   white-space: pre;
   width: max-content;
-  // border: @top-border;
   .layout-block;
 
   div {
     .layout-inline;
     vertical-align: top;
+  }
+
+  .blankOr.selected {
+    background-color: @darkblue;
+    color: @white3;
+
+    &.tstr {
+      color: @string-color;
+    }
   }
 
   .rop-rail {
@@ -842,7 +861,6 @@ body #grid * {
 
   .value.tstr {
     .string-style;
-    background: @selected-background;
     border: 0;
     font-size: @code-font-size;
     margin: 0;
@@ -969,54 +987,12 @@ body #grid * {
     }
   }
 
-  .precedence-1 {
-    &,
-    & .entry form #search-container #suggestionBox,
-    & .string-entry
-    {
-      background-color: lighten(@black1, 10%);
-    }
-    .precedence-2 {
-      &,
-      & .entry form #search-container #suggestionBox,
-      & .string-entry
-      {
-        background-color: lighten(@black1, 15%);
-      }
-      .precedence-3{
-        &,
-        & .entry form #search-container #suggestionBox,
-        & .string-entry
-        {
-          background-color: lighten(@black1, 20%);
-        }
-        .precedence-4 {
-          &,
-          & .entry form #search-container #suggestionBox,
-          & .string-entry
-          {
-            background-color: lighten(@black1, 25%);
-          }
-          .precedence-5 {
-            &,
-            & .entry form #search-container #suggestionBox,
-            & .string-entry
-            {
-              background-color: lighten(@black1, 30%);
-            }
-            .precedence-6 {
-              &,
-              & .entry form #search-container #suggestionBox,
-              & .string-entry
-              {
-                background-color: lighten(@black1, 35%);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  .precedence(1);
+  .precedence(2);
+  .precedence(3);
+  .precedence(4);
+  .precedence(5);
+  .precedence(6);
 
   .threadexpr {
 
@@ -1139,7 +1115,7 @@ body #grid * {
       background: @black2;
 
       &.highlighted {
-        background: #1c3670;
+        background: @darkblue;
       }
 
       &.greyed {
@@ -1190,7 +1166,6 @@ body #grid * {
 // Strings
 // ---------------------------
 .string-entry {
-  background: @selected-background;
   border: 0;
   font-size: @code-font-size;
   margin: 0;
@@ -1247,7 +1222,7 @@ body #grid * {
     word-wrap: break-word;
   }
   textarea {
-    color: @purple !important;
+    color: @string-color !important;
     display: block;
     overflow: hidden;
     resize: none;
