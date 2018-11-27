@@ -46,6 +46,7 @@ def initial_compile():
           , "client2/package.json"
           , "client2/src/main.ml"
           , "client2/__tests__/ast_test.ml"
+          , "stroller/Cargo.toml"
           ]
   exit = compile(files)
 
@@ -157,6 +158,7 @@ def main():
   run_or_fail("sudo chown dark:dark server/_build || true")
   run_or_fail("sudo chown dark:dark client2/node_modules || true")
   run_or_fail("sudo chown dark:dark client2/lib || true")
+  run_or_fail("sudo chown dark:dark stroller/target || true")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   create_app_dirs()
