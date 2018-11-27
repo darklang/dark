@@ -142,8 +142,9 @@ commands:
       - run:
           name: "Wait for container"
           command: |
-            timeout 5m scripts/wait-until-container-ready
-            timeout 5m scripts/wait-until-server-ready
+            # --foreground because this is run in a script by circle
+            timeout --foreground 5m scripts/wait-until-container-ready
+            timeout --foreground 5m scripts/wait-until-server-ready
 
 
 
