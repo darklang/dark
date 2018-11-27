@@ -610,15 +610,15 @@ test.skip('feature_flag_works', async t => {
 test('feature_flag_in_function', async t => {
   await t
     // Go to function
-    .click(".fun1")
-    .click(".fa-edit")
+    .click(".fun1", slow)
+    .click(".fa-edit", slow)
 
     .expect(available(".tl-2296485551")).ok()
-    .click(".tl-2296485551")
+    .click(".tl-2296485551", slow)
     .pressKey("enter", slow)
 
     // Make feature Flag
-    .click('.expr-actions .flag')
+    .click('.expr-actions .flag', slow)
 
     .expect(available(".feature-flag")).ok()
     .typeText("#entry-box", "myflag", slow)
@@ -714,9 +714,9 @@ test('object_literals_work', async t => {
 
 test('rename_function', async t => {
   await t
-    .click(Selector('.fnname'))
-    .click(Selector('.fa-edit'))
-    .click(Selector('.fn-name-content'))
+    .click(Selector('.fnname'), slow)
+    .click(Selector('.fa-edit'), slow)
+    .click(Selector('.fn-name-content'), slow)
     .pressKey('backspace', slow)
     .typeText('#entry-box', 'hello', slow)
     .pressKey('enter', slow)
