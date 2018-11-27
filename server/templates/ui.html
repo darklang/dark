@@ -21,120 +21,19 @@
     <!-- prevent favicon requests for now -->
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="icon" type="image/png" sizes="32x32" href="//{STATIC}/favicon-32x32.png">
-    <script type="text/javascript">
-      function stopKeys(event) {
-        if (event.keyCode == 9) { // Tab
-          event.preventDefault();
-        }
-        if (event.keyCode == 32 // Space
-          && !event.target.parentNode.className.includes("string-container")) {
-          event.preventDefault();
-        }
-        if (event.keyCode == 13 // Enter
-          && !event.target.parentNode.className.includes("large-string")) {
-          event.preventDefault();
-        }
-        if (
-          event.keyCode == 38 // Up
-          || event.keyCode == 40 // Down
-        ) {
-          if (document.activeElement.tagName.toLowerCase() !== 'textarea') event.preventDefault();
-        }
-      }
-    </script>
-    <script type="text/javascript" src="//{STATIC}/bundle.js"> </script>
     {LIVERELOADJS}
-    {FRONTENDIMPL}
-  </head>
-  <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
-    <script id="analysisScript" type="javascript/worker">
-      self.onmessage = function(e) {
-        var result = {
-          analysis: null,
-          error: null
-        };
+    <script type="text/javascript" src="//{STATIC}/bsmain.js"></script>
+    <script type="text/javascript">
 
-        try {
-          result.analysis = darkAnalysis.performAnalysis(e.data.params);
-        }
-        catch (error) {
-          try {
-            console.log("Worker has analysis error", error);
-            result.error = darkExe.handleAnalysisErrors(error)
-          }
-          catch (error) {
-            console.log ("Error handling error", error);
-          }
-        }
-        try {
-          postMessage(result);
-        } catch (error) {
-          console.log ("Error posting result", error, result);
-        }
-      }
-    </script>
-    <script type="text/javascript">
-      let darkjsbc = fetch("//{STATIC}/darkjs.bc.js").then(r => r.text());
-      let darkjsexe = fetch("//{STATIC}/darkex.js").then(r => r.text());
-      var analysisWorkerUrl;
-      (async function () {
-        var analysisScript = document.querySelector('#analysisScript').textContent;
-        window.analysisWorkerUrl = window.URL.createObjectURL(
-          new Blob(
-            [ await darkjsbc
-            , "\n\n"
-            , await darkjsexe
-            , "\n\n"
-            , analysisScript
-            ]));
-        window.analysisWorker = new Worker(analysisWorkerUrl);
-      })();
-    </script>
-    <script type="text/javascript">
       const rollbarConfig = {ROLLBARCONFIG};
       const complete = {ALLFUNCTIONS};
       const userContentHost = "{USER_CONTENT_HOST}";
       const environmentName = "{ENVIRONMENT_NAME}";
       const csrfToken = "{CSRF_TOKEN}";
+      const staticUrl = "{STATIC}";
 
-      document.title = window.location.hostname.split('.')[0] + " - Dark";
-
-      {FRONTENDGLUE}
-
-      class RopArrow extends HTMLElement {
-        constructor() {
-          super();
-        }
-        update() {
-          var tlid = this.getAttribute("tlid");
-          var target = document.querySelector(".tl-" + tlid + " .rop-rail");
-          if(target) {
-            const targetPos = target.getBoundingClientRect();
-            const sourcePos = this.getBoundingClientRect();
-            const arrowHeadLength = 12;
-            const x2 = targetPos.right - sourcePos.left - arrowHeadLength;
-            const x1 = x2 / 3;
-
-            var arrowRight = document.querySelector("rop-arrow > svg > path");
-            var svg = document.querySelector("rop-arrow > svg");
-            svg.setAttribute("width", x2 + arrowHeadLength);
-
-            var d = "M 0,20 C 0,8 " + x1 + ",8 " + x2 + ",15";
-            arrowRight.setAttribute("d", d);
-          }
-        }
-        connectedCallback() {
-          this.update();
-        }
-        static get observedAttributes() {
-          return ['update'];
-        }
-        attributeChangedCallback(attr, _, val) {
-          this.update();
-        }
-      }
-      window.customElements.define('rop-arrow', RopArrow);
-
+      {BUNDLEJS}
     </script>
-  </body>
+  </head>
+  <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)"></body>
 </html>
