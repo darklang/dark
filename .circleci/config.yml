@@ -66,20 +66,20 @@ commands:
             - server/_build
             - client2/node_modules
             - client2/lib
-          key: v2-build-{{ checksum "today-timestamp" }}
+          key: v3-build-{{ checksum "today-timestamp" }}
   load-caches:
     steps:
       - setup-cache-names
       - restore_cache:
           keys:
-            - v2-build-{{ checksum "today-timestamp" }}
-            - v2-build-{{ checksum "minus1-timestamp" }}
-            - v2-build-{{ checksum "minus2-timestamp" }}
-            - v2-build-{{ checksum "minus3-timestamp" }}
-            - v2-build-{{ checksum "minus4-timestamp" }}
-            - v2-build-{{ checksum "minus5-timestamp" }}
-            - v2-build-{{ checksum "minus6-timestamp" }}
-            - v2-build-{{ checksum "minus7-timestamp" }}
+            - v3-build-{{ checksum "today-timestamp" }}
+            - v3-build-{{ checksum "minus1-timestamp" }}
+            - v3-build-{{ checksum "minus2-timestamp" }}
+            - v3-build-{{ checksum "minus3-timestamp" }}
+            - v3-build-{{ checksum "minus4-timestamp" }}
+            - v3-build-{{ checksum "minus5-timestamp" }}
+            - v3-build-{{ checksum "minus6-timestamp" }}
+            - v3-build-{{ checksum "minus7-timestamp" }}
   clean-caches:
     steps:
       - run:
