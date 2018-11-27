@@ -278,6 +278,15 @@ body #grid * {
     .blank-text-style;
   }
 
+  .blankOr.selected {
+    background-color: @darkblue;
+    color: @white3;
+
+    &.tstr {
+      color: @string-color;
+    }
+  }
+
   .view-data {
     bottom: 100%;
     left: 0px;
@@ -822,15 +831,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-  }
-
-  .blankOr.selected {
-    background-color: @darkblue;
-    color: @white3;
-
-    &.tstr {
-      color: @string-color;
-    }
   }
 
   .rop-rail {
