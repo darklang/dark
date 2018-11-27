@@ -442,17 +442,11 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
-  window.onfocus = function(evt){ windowFocusChange(true) };
-  window.onblur = function(evt){ windowFocusChange(false) };
-  setInterval(visibilityCheck, 2000);
-  addWheelListener(document);
-
-  // Set up web worker for analysis
-  let darkjsbc = fetch("//{STATIC}/darkjs.bc.js").then(r => r.text());
-  let darkjsexe = fetch("//{STATIC}/darkex.js").then(r => r.text());
+  let darkjsbc  = fetch("//" + staticUrl + "/darkjs.bc.js").then(r => r.text());
+  let darkjsexe = fetch("//" + staticUrl + "/darkex.js").then(r => r.text());
   var analysisWorkerUrl;
   (async function () {
-    window.analysisWorkerUrl = window.URL.createObjectURL(
+    analysisWorkerUrl = window.URL.createObjectURL(
       new Blob(
         [ await darkjsbc
         , "\n\n"
@@ -460,6 +454,11 @@ setTimeout(function(){
         ]));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();
+
+  window.onfocus = function(evt){ windowFocusChange(true) };
+  window.onblur = function(evt){ windowFocusChange(false) };
+  setInterval(visibilityCheck, 2000);
+  addWheelListener(document);
 
 }, 1)
 // ---------------------------

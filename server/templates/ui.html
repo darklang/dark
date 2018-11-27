@@ -30,24 +30,10 @@
       const userContentHost = "{USER_CONTENT_HOST}";
       const environmentName = "{ENVIRONMENT_NAME}";
       const csrfToken = "{CSRF_TOKEN}";
+      const staticUrl = "{STATIC}";
 
       {BUNDLEJS}
     </script>
   </head>
-  <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
-    <script type="text/javascript">
-      let darkjsbc = fetch("//{STATIC}/darkjs.bc.js").then(r => r.text());
-      let darkjsexe = fetch("//{STATIC}/darkex.js").then(r => r.text());
-      var analysisWorkerUrl;
-      (async function () {
-        window.analysisWorkerUrl = window.URL.createObjectURL(
-          new Blob(
-            [ await darkjsbc
-            , "\n\n"
-            , await darkjsexe
-            ]));
-        window.analysisWorker = new Worker(analysisWorkerUrl);
-      })();
-    </script>
-  </body>
+  <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)"></body>
 </html>

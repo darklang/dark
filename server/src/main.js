@@ -291,6 +291,19 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
+  let darkjsbc  = fetch("//" + staticUrl + "/darkjs.bc.js").then(r => r.text());
+  let darkjsexe = fetch("//" + staticUrl + "/darkex.js").then(r => r.text());
+  var analysisWorkerUrl;
+  (async function () {
+    analysisWorkerUrl = window.URL.createObjectURL(
+      new Blob(
+        [ await darkjsbc
+        , "\n\n"
+        , await darkjsexe
+        ]));
+    window.analysisWorker = new Worker(analysisWorkerUrl);
+  })();
+
   window.onfocus = function(evt){ windowFocusChange(true) };
   window.onblur = function(evt){ windowFocusChange(false) };
   setInterval(visibilityCheck, 2000);
