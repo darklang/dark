@@ -1,11 +1,123 @@
-version: 2
-jobs:
-  build:
+version: 2.1
+executors:
+  my-executor:
     docker:
       - image: docker:stable-git
 
+commands:
+  ##########################
+  # Getting into the remote container
+  ##########################
+  copy-into-container:
     steps:
-      - checkout
+      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+      - run:
+          name: Copy app directory into dev container
+          command: |
+            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
+            docker cp . vols:/home/dark/app
+            # set the ownership of all this
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+
+  copy-out-of-container:
+    steps:
+      - run:
+          name: Copy out generated files and caches
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/server/_build server/
+            docker cp vols:/home/dark/app/client2/node_modules client2
+            docker cp vols:/home/dark/app/client2/lib client2
+            docker cp vols:/home/dark/app/server/static/base.css server/static
+            docker cp vols:/home/dark/app/server/static/bsmain.js server/static
+            docker cp vols:/home/dark/app/server/static/bundle.js server/static
+            docker cp vols:/home/dark/app/server/static/darkex.js server/static
+            docker cp vols:/home/dark/app/server/static/darkjs.bc.js server/static
+            docker cp vols:/home/dark/app/server/static/etags.json server/static
+
+  ##########################
+  # Artifacts
+  ##########################
+  extract-and-save-artifacts:
+    parameters:
+      description:
+        type: string
+    steps:
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            mkdir -p artifacts-<< parameters.description >>
+            docker cp vols:/home/dark/app/rundir artifacts-<< parameters.description >>/rundir
+      - store_artifacts:
+          path: artifacts-<< parameters.description >>
+      - store_test_results:
+          path: artifacts-<< parameters.description >>/test_results
+
+
+  ##########################
+  # Caches
+  ##########################
+  save-caches:
+    steps:
+      - save_cache:
+          when: always
+          paths:
+            - server/_build
+            - client2/node_modules
+            - client2/lib
+          key: v3-build-{{ checksum "today-timestamp" }}
+  load-caches:
+    steps:
+      - setup-cache-names
+      - restore_cache:
+          keys:
+            - v3-build-{{ checksum "today-timestamp" }}
+            - v3-build-{{ checksum "minus1-timestamp" }}
+            - v3-build-{{ checksum "minus2-timestamp" }}
+            - v3-build-{{ checksum "minus3-timestamp" }}
+            - v3-build-{{ checksum "minus4-timestamp" }}
+            - v3-build-{{ checksum "minus5-timestamp" }}
+            - v3-build-{{ checksum "minus6-timestamp" }}
+            - v3-build-{{ checksum "minus7-timestamp" }}
+  clean-caches:
+    steps:
+      - run:
+          name: Maybe clear caches
+          # Since we don't checksum the cache on its contents, it may
+          # continue to grow. As a result, let's clear the cache weekly.
+          # We store the day the cache was built in the cache. If the
+          # cache was built on friday, and today is not Friday, then
+          # it's the first build after last week, and clear it.
+          command: |
+            if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
+              echo "Clearing caches"
+              # TODO: add in bucklescript + node_modules
+              rm -Rf server/_build
+            else
+              echo "Not clearing caches"
+            fi
+            mkdir -p server/_build
+            date +"%A" > server/_build/CACHE_DAY
+  setup-cache-names:
+    steps:
+      - run:
+          name: Set up names for caches
+          command: |
+            date +"%F" > today-timestamp
+            date +"%F" -d "today - 1 days" > minus1-timestamp
+            date +"%F" -d "today - 2 days" > minus2-timestamp
+            date +"%F" -d "today - 3 days" > minus3-timestamp
+            date +"%F" -d "today - 4 days" > minus4-timestamp
+            date +"%F" -d "today - 5 days" > minus5-timestamp
+            date +"%F" -d "today - 6 days" > minus6-timestamp
+            date +"%F" -d "today - 7 days" > minus7-timestamp
+
+  ##########################
+  # Initializing the containers
+  ##########################
+  initialize:
+    steps:
       - setup_remote_docker:
           docker_layer_caching: true
 
@@ -17,117 +129,101 @@ jobs:
             apk add --update bash coreutils nginx jq
 
 
-      # Setup for daily/weekly caches
-      - run: date +"%F" > today-timestamp
-      - run: date +"%F" -d "today - 1 days" > minus1-timestamp
-      - run: date +"%F" -d "today - 2 days" > minus2-timestamp
-      - run: date +"%F" -d "today - 3 days" > minus3-timestamp
-      - run: date +"%F" -d "today - 4 days" > minus4-timestamp
-      - run: date +"%F" -d "today - 5 days" > minus5-timestamp
-      - run: date +"%F" -d "today - 6 days" > minus6-timestamp
-      - run: date +"%F" -d "today - 7 days" > minus7-timestamp
-
-      # main build
-      - restore_cache:
-          keys:
-            - v1-build-{{ checksum "today-timestamp" }}
-            - v1-build-{{ checksum "minus1-timestamp" }}
-            - v1-build-{{ checksum "minus2-timestamp" }}
-            - v1-build-{{ checksum "minus3-timestamp" }}
-            - v1-build-{{ checksum "minus4-timestamp" }}
-            - v1-build-{{ checksum "minus5-timestamp" }}
-            - v1-build-{{ checksum "minus6-timestamp" }}
-            - v1-build-{{ checksum "minus7-timestamp" }}
-
+  ##########################
+  # misc
+  ##########################
+  run-background-container:
+    steps:
       - run:
-          name: Maybe clear caches
-          # Since we don't checksum the cache on its contents, it may
-          # continue to grow. As a result, let's clear the cache weekly.
-          # We store the day the cache was built in the cache. If the
-          # cache was built on friday, and today is not Friday, then
-          # it's the first build after last week, and clear it.
-          command: |
-            if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
-              echo "Clearing caches"
-              rm -Rf client/elm-stuff
-              rm -Rf client/tests/elm-stuff
-              rm -Rf server/_build
-            else
-              echo "Not clearing caches"
-            fi
-            mkdir -p server/_build
-            date +"%A" > server/_build/CACHE_DAY
-
-
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
-            docker cp . vols:/home/dark/app
-            # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
-
-      - run: scripts/builder --compile --test
-
-      - run:
-          command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
+          command: NEVER_REBUILD_DOCKER=1 scripts/builder --ci-serve
           background: true
+  wait-for-container:
+    steps:
+      - run:
+          name: "Wait for container"
+          command: |
+            # --foreground because this is run in a script by circle
+            timeout --foreground 5m scripts/wait-until-container-ready
+            timeout --foreground 5m scripts/wait-until-server-ready
 
-      # run this here so we save a little time waiting for the server to
-      # be ready.
+
+
+
+# TODO:
+# split the integration tests by test time
+# optimize workflow
+
+jobs:
+  build:
+    executor: my-executor
+    steps:
+      - checkout
+      - persist_to_workspace: { root: ".", paths: "." }
+      - initialize
+      - load-caches
+      - copy-into-container
+      - run: scripts/builder --compile --test
+      - run-background-container
+      - wait-for-container
+      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - copy-out-of-container
+      - save-caches
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
+            - server/_build/default/bin
+            - server/static
+      - extract-and-save-artifacts: { description: "build" }
+
+  integration-tests:
+    executor: my-executor
+    steps:
+      - initialize
+      - attach_workspace: { at: "." }
+      - copy-into-container
+      - run-background-container
+
+      # run this here so we save a little time waiting for the server to be ready.
       - run: nginx -t -c $(pwd)/scripts/support/nginx-toplevel.conf -g "pid $(pwd)/rundir/nginx.pid;"
 
-      # The 2nd invocation of builder isn't free.
-      - run: |
-          scripts/wait-until-container-ready
-          scripts/wait-until-server-ready
-
-      - run:
-          name: Copy out caches
-          when: always
-          command: |
-            docker cp vols:/home/dark/app/server/_build server/
-
-      - save_cache:
-          when: always
-          paths:
-            - server/_build
-          key: v1-build-{{ checksum "today-timestamp" }}
-
-
+      - wait-for-container
       - run: scripts/run-in-docker integration-tests/run.sh
-
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir1/
+      - extract-and-save-artifacts: { description: "integration-tests" }
 
 
-      - run: scripts/run-in-docker scripts/gcp-build-containers
+  deploy:
+    executor: my-executor
+    steps:
+      - initialize
+      - attach_workspace: { at: "." }
+      - copy-into-container
+      - run-background-container
+      - wait-for-container
       - run: scripts/deploy-from-circle
 
-      # # For now, we do integration tests after the deploy. If they work
-      # # above, then it works. This needs more work but I'm stopping here
-      # # for now.
-      # - run:
-      #     command: scripts/run-in-docker scripts/gcp-run-locally
-      #     background: true
 
-      # - run: scripts/run-in-docker integration-tests/run.sh --gcp
-
-      # TODO: figure this out when the container actually runs
-      # - run:
-      #     name: Copy out artifacts
-      #     when: always
-      #     command: |
-      #       docker cp vols:/home/dark/app/rundir artifacts/rundir2
-
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir1/test_results
-
-
+# NOTES:
+# - test splitting command something like: grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" | circleci tests spli t --split-by=timings
+# - to get timing data, in CI try this:  circleci tests split --show-counts --verbose
+#   - it hung for me
+# - deploy doesn't work because we dont copy stuff over
+# - there's a 4m delay before integration tests start because we recompile stuff from scratch. Reuse by saving to workspace after build.
+# - there's a 2m pause before testcafe starts
+# - is deploy set to just master branch? if not weird
+#
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+      - integration-tests:
+          requires:
+            - build
+      - deploy:
+          filters:
+            branches:
+              only: master
+          requires:
+            - integration-tests
+            - build

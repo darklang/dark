@@ -63,7 +63,10 @@ def client2_build():
 
 def client2_install():
   start = time.time()
-  build = "cd client2 && unbuffer ../scripts/support/retrying-yarn-install"
+  flags = ""
+  if os.environ.get("CI"):
+    flags += " --frozen-lockfiles"
+  build = "cd client2 && unbuffer ../scripts/support/retrying-yarn-install" + flags
   return run_frontend(start, build)
 
 def client2_test():
@@ -196,7 +199,10 @@ def mark(should, f):
                   or ("libtarget.js" in f)):
     should.server_build = True
 
-  # Frontend
+  # Touch this to rerun the server
+  elif "scripts/support/runserver" in f:
+    should.reload_server = True
+
   elif "client2/package.json" in f:
     should.client2_install = True
   elif ("client2/" in f) \
@@ -220,6 +226,8 @@ def mark(should, f):
 
 
 def ignore(filename):
+  if "runserver" in filename:
+    return False
   # substring
   ignores = [ ".git"
             , ".merlin"

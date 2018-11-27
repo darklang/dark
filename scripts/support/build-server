@@ -54,6 +54,16 @@ def initial_compile():
   print("--------------------------")
   return exit
 
+def run_server():
+  exit = compile([ "scripts/support/runserver" ])
+
+  print("--------------------------")
+  print("-- Started server ")
+  print("--------------------------")
+  return exit
+
+
+
 def start_background_services():
   # We wait for them in runserver
   run_or_fail("scripts/support/start-background-services dnsmasq postgresql")
@@ -135,6 +145,8 @@ def main():
       compile = True
     elif f == "--watch":
       watch = True
+    elif f == "--ci-serve":
+      serve = True
     elif f == "--serve":
       serve = True
       compile = True
@@ -142,16 +154,16 @@ def main():
       global run_tests
       run_tests = True
 
-  run_or_fail("sudo chown dark:dark server/_build")
+  run_or_fail("sudo chown dark:dark server/_build || true")
   run_or_fail("sudo chown dark:dark node_modules || true")
   run_or_fail("sudo chown dark:dark client2/node_modules || true")
   run_or_fail("sudo chown dark:dark client2/lib || true")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
+  create_app_dirs()
+  start_background_services()
   if compile:
-    create_app_dirs()
     #  background_task(start_background_services, "start background services")
-    start_background_services()
     if watch or serve:
       background_task(initial_compile, "initial_compile")
     else:
@@ -159,6 +171,9 @@ def main():
         sys.exit(0)
       else:
         sys.exit(1)
+  else:
+    if serve:
+      run_server()
 
   if watch:
     process_watchers()
