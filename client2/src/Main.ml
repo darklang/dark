@@ -1352,7 +1352,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   let state = m |> Editor.model2editor |> Editor.toString in
-  Dom.Storage.setItem "editorState" state Dom.Storage.localStorage;
+  Dom.Storage.setItem ("editorState-" ++ m.canvasName) state Dom.Storage.localStorage;
   ( {newm with lastMsg= msg; lastMod= mods}
   , newc)
 
