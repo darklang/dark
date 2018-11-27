@@ -52,7 +52,7 @@ commands:
       - store_artifacts:
           path: artifacts-<< parameters.description >>
       - store_test_results:
-          path: artifacts-<< parameters.description >>/test_results
+          path: artifacts-<< parameters.description >>/rundir/test_results
 
 
   ##########################
