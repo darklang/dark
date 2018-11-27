@@ -51,9 +51,6 @@ sudo service dnsmasq --full-restart
 # can change this on an individual action:
 # https://devexpress.github.io/testcafe/documentation/test-api/actions/action-options.html#basic-action-options
 SPEED=1
-if [[ -v CI ]]; then
-  SPEED=0.4
-fi
 
 CONCURRENCY=4
 if [[ -v CI ]]; then

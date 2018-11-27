@@ -47,7 +47,6 @@ function user_content_url (t, endpoint) {
 //********************************
 // Avoiding test race conditions
 //********************************
-
 // Testcafe automatically waits for the next thing you've specified. So
 // if you .typeText("#entry-box", ...), it will wait for the entryBox.
 // But we sometimes need to explicitly wait if TestCafe can't tell what
@@ -608,6 +607,7 @@ test.skip('feature_flag_works', async t => {
 
 test('feature_flag_in_function', async t => {
   await t
+    .setTestSpeed(0.4)
     // Go to function
     .click(".fun1")
     .click(".fa-edit")
@@ -713,6 +713,7 @@ test('object_literals_work', async t => {
 
 test('rename_function', async t => {
   await t
+    .setTestSpeed(0.4)
     .click(Selector('.fnname'))
     .click(Selector('.fa-edit'))
     .click(Selector('.fn-name-content'))
