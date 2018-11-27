@@ -189,7 +189,20 @@ jobs:
       - run: nginx -t -c $(pwd)/scripts/support/nginx-toplevel.conf -g "pid $(pwd)/rundir/nginx.pid;"
 
       - wait-for-container
-      - run: scripts/run-in-docker integration-tests/run.sh
+      - run:
+          name: Run integration tests
+          shell: bash
+          command: |
+            # get full list of tests
+            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > all-tests
+            # split them using timing info
+            TESTS=$(circleci tests split --split-by=timings --timings-type=testname all-tests)
+            # concat them into a pattern (note: $TESTS is deliberately unquoted)
+            PATTERN=$(printf -- "^%s$|" $TESTS)
+            # remove last char
+            PATTERN=${PATTERN%?}
+            scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+
       - extract-and-save-artifacts: { description: "integration-tests" }
 
 
@@ -205,7 +218,7 @@ jobs:
 
 
 # NOTES:
-# - test splitting command something like: grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" | circleci tests spli t --split-by=timings
+# - test splitting command something like:  | circleci tests spli t --split-by=timings
 # - to get timing data, in CI try this:  circleci tests split --show-counts --verbose
 #   - it hung for me
 # - deploy doesn't work because we dont copy stuff over
