@@ -47,8 +47,6 @@ function user_content_url (t, endpoint) {
 //********************************
 // Avoiding test race conditions
 //********************************
-const slow = { speed: 0.4 };
-
 // Testcafe automatically waits for the next thing you've specified. So
 // if you .typeText("#entry-box", ...), it will wait for the entryBox.
 // But we sometimes need to explicitly wait if TestCafe can't tell what
@@ -611,27 +609,27 @@ test('feature_flag_in_function', async t => {
   await t
     .setTestSpeed(0.4)
     // Go to function
-    .click(".fun1", slow)
-    .click(".fa-edit", slow)
+    .click(".fun1")
+    .click(".fa-edit")
 
     .expect(available(".tl-2296485551")).ok()
-    .click(".tl-2296485551", slow)
-    .pressKey("enter", slow)
+    .click(".tl-2296485551")
+    .pressKey("enter")
 
     // Make feature Flag
-    .click('.expr-actions .flag', slow)
+    .click('.expr-actions .flag')
 
     .expect(available(".feature-flag")).ok()
-    .typeText("#entry-box", "myflag", slow)
-    .pressKey("enter", slow)
+    .typeText("#entry-box", "myflag")
+    .pressKey("enter")
 
     // Set condition
-    .typeText("#entry-box", "true", slow)
-    .pressKey("enter", slow)
+    .typeText("#entry-box", "true")
+    .pressKey("enter")
 
     // Case B
-    .typeText("#entry-box", "3", slow)
-    .pressKey("enter", slow)
+    .typeText("#entry-box", "3")
+    .pressKey("enter")
 
 });
 
@@ -716,12 +714,12 @@ test('object_literals_work', async t => {
 test('rename_function', async t => {
   await t
     .setTestSpeed(0.4)
-    .click(Selector('.fnname'), slow)
-    .click(Selector('.fa-edit'), slow)
-    .click(Selector('.fn-name-content'), slow)
-    .pressKey('backspace', slow)
-    .typeText('#entry-box', 'hello', slow)
-    .pressKey('enter', slow)
+    .click(Selector('.fnname'))
+    .click(Selector('.fa-edit'))
+    .click(Selector('.fn-name-content'))
+    .pressKey('backspace')
+    .typeText('#entry-box', 'hello')
+    .pressKey('enter')
 })
 
 test('rename_pattern_variable', async t => {
