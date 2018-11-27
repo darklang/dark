@@ -178,7 +178,7 @@ jobs:
 
   integration-tests:
     executor: my-executor
-    parallelism: 2
+    parallelism: 4
     steps:
       - initialize
       - attach_workspace: { at: "." }
