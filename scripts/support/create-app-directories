@@ -5,7 +5,6 @@ set -euo pipefail
 RUNDIR="${DARK_CONFIG_RUN_DIR}"
 mkdir -p "$RUNDIR"
 mkdir -p "$RUNDIR/logs"
-mkdir -p "$RUNDIR/cache"
 mkdir -p "$RUNDIR/completed_tests"
 
 
