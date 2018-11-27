@@ -217,15 +217,6 @@ jobs:
       - run: scripts/deploy-from-circle
 
 
-# NOTES:
-# - test splitting command something like:  | circleci tests spli t --split-by=timings
-# - to get timing data, in CI try this:  circleci tests split --show-counts --verbose
-#   - it hung for me
-# - deploy doesn't work because we dont copy stuff over
-# - there's a 4m delay before integration tests start because we recompile stuff from scratch. Reuse by saving to workspace after build.
-# - there's a 2m pause before testcafe starts
-# - is deploy set to just master branch? if not weird
-#
 workflows:
   version: 2
   build-and-deploy:
