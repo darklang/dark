@@ -21,8 +21,13 @@ sys.stdout.writelines = flush(sys.stdout.writelines)
 def run(start, bash):
   proc = subprocess.run(bash, shell=True)
   stop = time.time()
-  print(">> In " + str(stop-start) + "s")
-  return proc.returncode == 0
+  success = proc.returncode == 0
+  if success:
+    print(">> Success in " + str(stop-start) + "s")
+  else:
+    print(">> Failed in " + str(stop-start) + "s")
+
+  return success
 
 ###################
 # Build logic
