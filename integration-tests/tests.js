@@ -7,33 +7,53 @@ fixture `Integration Tests`
     const testname = t.testRun.test.name;
     const host = process.env.TEST_HOST
     const url = "http://" + host + "/a/test-" + testname + "/integration_test";
-    const pageLoaded = Selector('#finishIntegrationTest').exists;
+    const pageLoaded = await Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
       .takeScreenshot()
       ;
   })
   .afterEach( async t => {
+    const finish = Selector('#finishIntegrationTest');
     const signal = Selector('#integrationTestSignal');
-    await t
-      .click("#finishIntegrationTest")
-      .expect(signal.exists).ok("Error checking end state (maybe crash in Bucklescript?)")
-      ;
-
-    const { log, error } = await t.getBrowserConsoleMessages();
-    await t.expect(error).eql([])
-
-
-    if (await signal.hasClass("failure")) {
+    let flushLogs = async () => {
+      const { log } = await t.getBrowserConsoleMessages();
       console.error("msg/mod logs for: " + t.testRun.test.name);
-      await t.takeScreenshot();
       for (var l of log) {
         console.error(l)
       }
-      await t.expect("test state").eql(await signal.textContent);
+
+      return true;
     }
 
-    await t.expect(signal.hasClass("success")).eql(true)
+    let flushedLogs = false
+    try {
+      // TODO: clicks on this button are not registered in function space
+      // We should probably figure out why.
+      // For now, putting a more helpful error message
+      await t
+        .click(finish)
+        .expect(finish.exists).notOk("Finish button click failed: did you try to click it from the function space?")
+        .expect(signal.exists).ok("Test evaluation has timed out. Has the application crashed?")
+        ;
+
+      const { error } = await t.getBrowserConsoleMessages();
+      await t.expect(error).eql([])
+
+
+      if (await signal.hasClass("failure")) {
+        await t.takeScreenshot();
+        flushedLogs = flushLogs();
+        await t.expect("test state").eql(await signal.textContent);
+      }
+
+      await t.expect(signal.hasClass("success")).eql(true)
+    } catch (e) {
+      if (!flushedLogs) {
+        flushLogs();
+      }
+      throw e;
+    }
   })
 
 //********************************
@@ -607,7 +627,6 @@ test.skip('feature_flag_works', async t => {
 
 test('feature_flag_in_function', async t => {
   await t
-    .setTestSpeed(0.4)
     // Go to function
     .click(".fun1")
     .click(".fa-edit")
@@ -630,6 +649,10 @@ test('feature_flag_in_function', async t => {
     // Case B
     .typeText("#entry-box", "3")
     .pressKey("enter")
+
+    // Return to main canvas to finish tests
+    .click(".routing-section")
+    .click(".verb-link")
 
 });
 
@@ -713,13 +736,16 @@ test('object_literals_work', async t => {
 
 test('rename_function', async t => {
   await t
-    .setTestSpeed(0.4)
     .click(Selector('.fnname'))
     .click(Selector('.fa-edit'))
     .click(Selector('.fn-name-content'))
     .pressKey('backspace')
     .typeText('#entry-box', 'hello')
     .pressKey('enter')
+
+    // Return to main canvas to finish tests
+    .click(".routing-section")
+    .click(".verb-link")
 })
 
 test('rename_pattern_variable', async t => {
