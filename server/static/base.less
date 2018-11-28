@@ -262,9 +262,9 @@ body #grid * {
   }
 
   .mouseovered {
-    background-color: @grey1;
-    &.blank {
-      color: @grey3;
+    background-color: lighten(@darkblue, 10%);
+    &.blank, .blank {
+      color: @white3;
     }
   }
 
@@ -276,6 +276,19 @@ body #grid * {
     min-width: 8ch;
     .blank-box-style;
     .blank-text-style;
+  }
+
+  .blankOr.selected {
+    background-color: @darkblue;
+    color: @white2;
+
+    &.tstr {
+      color: @string-color;
+    }
+
+    &.blank {
+      color: @grey3;
+    }
   }
 
   .view-data {
@@ -793,9 +806,9 @@ body #grid * {
 
 .precedence (@depth) {
   .precedence-@{depth} {
-      &,
-      & .entry form #search-container #suggestionBox,
-      & .string-entry
+      &:not(.mouseovered),
+      &:not(.mouseovered) .entry form #search-container #suggestionBox,
+      &:not(.mouseovered) .string-entry
       {
         background-color: fade(@grey2, 5% + (@depth * 5%) );
       }
@@ -822,15 +835,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-  }
-
-  .blankOr.selected {
-    background-color: @darkblue;
-    color: @white3;
-
-    &.tstr {
-      color: @string-color;
-    }
   }
 
   .rop-rail {
