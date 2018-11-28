@@ -263,8 +263,8 @@ body #grid * {
 
   .mouseovered {
     background-color: lighten(@darkblue, 10%);
-    &.blank {
-      color: @grey3;
+    &.blank, .blank {
+      color: @white3;
     }
   }
 
@@ -280,10 +280,14 @@ body #grid * {
 
   .blankOr.selected {
     background-color: @darkblue;
-    color: @white3;
+    color: @white2;
 
     &.tstr {
       color: @string-color;
+    }
+
+    &.blank {
+      color: @grey3;
     }
   }
 
@@ -802,9 +806,9 @@ body #grid * {
 
 .precedence (@depth) {
   .precedence-@{depth} {
-      &,
-      & .entry form #search-container #suggestionBox,
-      & .string-entry
+      &:not(.mouseovered),
+      &:not(.mouseovered) .entry form #search-container #suggestionBox,
+      &:not(.mouseovered) .string-entry
       {
         background-color: fade(@grey2, 5% + (@depth * 5%) );
       }
