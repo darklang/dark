@@ -1002,9 +1002,28 @@ let update_ (msg : msg) (m : model) : modification =
                             , FocusNext (tl.id, None) )
                     | _ -> Many [Select (tlid, Some p); AutocompleteMod ACReset]
                     ) )
-              | Key.Up -> AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
-              | Key.Down -> AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
-              | Key.Right -> AC.selectSharedPrefix m.complete
+              | Key.Up ->
+                (match (VariantTesting.variantIsActive m ArrowMove), cursor with
+                 | false, _ -> AutocompleteMod ACSelectUp (* NB: see `stopKeys`
+                                                             in ui.html *)
+                 | true, Creating _ -> NoChange
+                 | true, Filling (tlid, mId) -> Selection.moveUp ~andEnter:true m tlid (Some mId))
+              | Key.Down ->
+                (match (VariantTesting.variantIsActive m ArrowMove), cursor with
+                 | false, _ -> AutocompleteMod ACSelectDown (* NB: see `stopKeys`
+                                                               in ui.html *)
+                 | true, Creating _ -> NoChange
+                 | true, Filling (tlid, mId) -> Selection.moveDown ~andEnter:true m tlid (Some mId))
+              | Key.Right ->
+                (match (VariantTesting.variantIsActive m ArrowMove), cursor with
+                 | false, _ -> AC.selectSharedPrefix m.complete
+                 | true, Creating _ -> NoChange
+                 | true, Filling (tlid, mId) -> Selection.moveRight ~andEnter:true m tlid (Some mId))
+              | Key.Left ->
+                (match (VariantTesting.variantIsActive m ArrowMove), cursor with
+                 | false, _ -> NoChange
+                 | true, Creating _ -> NoChange
+                 | true, Filling (tlid, mId) -> Selection.moveLeft ~andEnter:true m tlid (Some mId))
               | Key.Backspace ->
 
                 (* This was the case in Elm, unclear about bucklescript  *)

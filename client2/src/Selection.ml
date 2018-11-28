@@ -132,9 +132,9 @@ let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
       |> fun x -> Some x
   | _ -> None
 
-let move (tlid : tlid) (mId : id option)
+let findTargetId (tlid : tlid) (mId : id option)
     (fn : htmlSizing list -> id -> id option) (default : id option) :
-    modification =
+    id option =
   let nested, atoms = tlToSizes tlid in
   mId
   |> Option.andThen (fn atoms)
@@ -144,40 +144,12 @@ let move (tlid : tlid) (mId : id option)
   (* would need to switch to use .left and .right instead of .centerX. *)
   |> Option.orElse mId
   |> Option.orElse default
-  |> (fun x -> Select (tlid, x))
 
-let body (m : model) (tlid : tlid) : id option =
-  let tl = TL.getTL m tlid in
-  match tl.data with TLHandler h -> Some (B.toID h.ast) | _ -> None
-
-let moveUp (m : model) (tlid : tlid) (mId : id option) : modification =
-  let default = body m tlid in
-  move tlid mId (moveUpDown Up) default
-
-let moveDown (m : model) (tlid : tlid) (mId : id option) : modification =
-  let default =
-    TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
-  in
-  move tlid mId (moveUpDown Down) default
-
-let moveRight (m : model) (tlid : tlid) (mId : id option) : modification =
-  let default = body m tlid in
-  move tlid mId (moveLeftRight Left) default
-
-let moveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
-  let default = body m tlid in
-  move tlid mId (moveLeftRight Right) default
-
-(* ------------------------------- *)
-(* Move AST-wide *)
-(* ------------------------------- *)
-let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
-  pd
-  |> Option.andThen (TL.getParentOf tl)
-  |> Option.map P.toID
-  |> fun id -> Select (tlid, id)
+let move (_ : model) (tlid : tlid) (mId : id option)
+    (fn : htmlSizing list -> id -> id option) (default : id option) :
+    modification =
+  let newMId = findTargetId tlid mId fn default in
+  Select (tlid, newMId)
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
     =
@@ -187,6 +159,95 @@ let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
   |> Option.orElse (TL.rootOf tl)
   |> Option.andThen (TL.firstChild tl)
   |> Option.orElse pd
+  |> Option.map P.toID
+  |> fun id -> Select (tlid, id)
+
+let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
+  let isLocked = DB.isLocked m tl.id in
+  let isMigrationCol = DB.isMigrationCol db id in
+  let pd = TL.findExn tl id in
+  let enterField autocomplete =
+    if autocomplete then
+      Many
+        [ Enter (Filling (tl.id, id))
+        ; AutocompleteMod
+            (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
+    else Enter (Filling (tl.id, id))
+  in
+  let _ = pd in
+  match pd with
+  | PDBColName _ ->
+      if isLocked && not isMigrationCol then NoChange else enterField false
+  | PDBColType _ ->
+      if isLocked && not isMigrationCol then NoChange else enterField true
+  | PExpr _ -> enterField true
+  (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
+  | _ -> NoChange
+
+let enter (m : model) (tlid : tlid) (id : id) : modification =
+  let tl = TL.getTL m tlid in
+  match tl.data with
+  | TLDB db -> enterDB m db tl id
+  | _ ->
+      let pd = TL.findExn tl id in
+      if TL.getChildrenOf tl pd <> [] then selectDownLevel m tlid (Some id)
+      else
+        Many
+          [ Enter (Filling (tlid, id))
+          ; AutocompleteMod
+              (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
+
+let moveAndEnter (m : model) (tlid : tlid) (mId : id option)
+    (fn : htmlSizing list -> id -> id option) (default : id option) :
+    modification =
+  let newMId = findTargetId tlid mId fn default in
+  enter m tlid (deOption "mId" newMId)
+
+let body (m : model) (tlid : tlid) : id option =
+  let tl = TL.getTL m tlid in
+  match tl.data with TLHandler h -> Some (B.toID h.ast) | _ -> None
+
+let moveUp ?(andEnter=false) (m : model) (tlid : tlid) (mId : id option)
+  : modification =
+  let default = body m tlid in
+  let moveFn = match andEnter with
+      false -> move
+    | true -> moveAndEnter in
+  moveFn m tlid mId (moveUpDown Up) default
+
+let moveDown ?(andEnter=false) (m : model) (tlid : tlid) (mId : id option)
+  : modification =
+  let default =
+    TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
+  in
+  let moveFn = match andEnter with
+      false -> move
+    | true -> moveAndEnter in
+  moveFn m tlid mId (moveUpDown Down) default
+
+let moveRight ?(andEnter=false) (m : model) (tlid : tlid) (mId : id option)
+  : modification =
+  let default = body m tlid in
+  let moveFn = match andEnter with
+      false -> move
+    | true -> moveAndEnter in
+  moveFn m tlid mId (moveLeftRight Left) default
+
+let moveLeft ?(andEnter=false) (m : model) (tlid : tlid) (mId : id option) : modification =
+  let default = body m tlid in
+  let moveFn = match andEnter with
+      false -> move
+    | true -> moveAndEnter in
+  moveFn m tlid mId (moveLeftRight Right) default
+
+(* ------------------------------- *)
+(* Move AST-wide *)
+(* ------------------------------- *)
+let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
+  let tl = TL.getTL m tlid in
+  let pd = Option.map (TL.findExn tl) cur in
+  pd
+  |> Option.andThen (TL.getParentOf tl)
   |> Option.map P.toID
   |> fun id -> Select (tlid, id)
 
@@ -285,38 +346,3 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
           | TLHandler h -> RPC ([SetHandler (tlid, tl.pos, h)], focus)
           | TLFunc f -> RPC ([SetFunction f], focus)
           | TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd) ) )
-
-let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
-  let isLocked = DB.isLocked m tl.id in
-  let isMigrationCol = DB.isMigrationCol db id in
-  let pd = TL.findExn tl id in
-  let enterField autocomplete =
-    if autocomplete then
-      Many
-        [ Enter (Filling (tl.id, id))
-        ; AutocompleteMod
-            (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
-    else Enter (Filling (tl.id, id))
-  in
-  let _ = pd in
-  match pd with
-  | PDBColName _ ->
-      if isLocked && not isMigrationCol then NoChange else enterField false
-  | PDBColType _ ->
-      if isLocked && not isMigrationCol then NoChange else enterField true
-  | PExpr _ -> enterField true
-  (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
-  | _ -> NoChange
-
-let enter (m : model) (tlid : tlid) (id : id) : modification =
-  let tl = TL.getTL m tlid in
-  match tl.data with
-  | TLDB db -> enterDB m db tl id
-  | _ ->
-      let pd = TL.findExn tl id in
-      if TL.getChildrenOf tl pd <> [] then selectDownLevel m tlid (Some id)
-      else
-        Many
-          [ Enter (Filling (tlid, id))
-          ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
