@@ -903,7 +903,7 @@ let fns : Lib.shortfn list = [
              | e ->
                Exception.user
                  ~actual:s
-                 ~expected:"\d+"
+                 ~expected:"\\d+"
                  "Expected a string with only numbers")
           | args -> fail args)
   ; pr = None
