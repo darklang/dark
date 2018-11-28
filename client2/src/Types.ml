@@ -544,7 +544,10 @@ and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
-and variantTest = StubVariant | SelectEnterVariant
+and variantTest =
+  | StubVariant
+  | SelectEnterVariant
+  | ArrowMove
 
 and class_ = string
 

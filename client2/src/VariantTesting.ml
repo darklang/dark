@@ -11,6 +11,7 @@ let toVariantTest (s : string * bool) : variantTest option =
   | test, _ -> (
       match String.toLower test with
         "selectenter" -> Some SelectEnterVariant
+      | "arrowmove" -> Some ArrowMove
       | "stub" -> Some StubVariant
       | _ -> None )
 
@@ -18,6 +19,7 @@ let toCSSClass (vt : variantTest) : string =
   let test = match vt with
       StubVariant -> "stub"
     | SelectEnterVariant -> "selectenter"
+    | ArrowMove -> "arrowmove"
     (* _ -> "default" *) (* Please never do this, let the compiler tell you if
                             you missed a variant *)
   in
