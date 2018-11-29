@@ -44,7 +44,19 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = []
   ; r = TNull
-  ; d = "TODO"
+  ; d = "Deprecated, use v1"
+  ; f = NotClientAvailable
+  ; pr = None
+  ; ps = false
+  ; dep = true
+  }
+  ;
+
+  { pns = ["DarkInternal::cleanupOldTraces_v1"]
+  ; ins = []
+  ; p = [par "host" TStr]
+  ; r = TNull
+  ; d = "Cleanup the old traces from a canvas"
   ; f = NotClientAvailable
   ; pr = None
   ; ps = false

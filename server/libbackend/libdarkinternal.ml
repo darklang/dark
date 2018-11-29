@@ -52,8 +52,15 @@ let replacements =
 
     ; "DarkInternal::cleanupOldTraces"
     , (fun _ ->
-      Canvas.cleanup_old_traces ();
       DNull)
+
+    ; "DarkInternal::cleanupOldTraces_v1"
+    , (function
+        | (state, [DStr host]) ->
+          Canvas.cleanup_old_traces host;
+          DNull
+        | args -> fail args)
+
 
     ; "DarkInternal::checkCanvas"
     , (function

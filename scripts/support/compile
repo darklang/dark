@@ -83,7 +83,6 @@ def server_build():
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
-                  , "bin/cleanup_traces.exe"
                   , "bin/darkjs.bc.js"
                   , "@darkjs"
                   ])
@@ -194,7 +193,7 @@ def mark(should, f):
   elif ("server/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
-                  or ("jbuild" in f) \
+                  or ("dune" in f) \
                   or ("_tags" in f) \
                   or ("libtarget.js" in f)):
     should.server_build = True

@@ -24,14 +24,19 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
             ; DvalJson result]
 
 let load ~canvas_id ~trace_id tlid : function_result list =
+  (* Right now, we don't allow the user to see multiple results when a function
+   * is called in a loop. But, there's a lot of data when functions are called
+   * in a loop, so avoid massive responses. *)
   Db.fetch
     ~name:"sfr_load"
-    "SELECT fnname, id, hash, value, timestamp
+    "SELECT
+       DISTINCT ON (fnname, id, hash)
+       fnname, id, hash, value, timestamp
      FROM function_results_v2
      WHERE canvas_id = $1
        AND trace_id = $2
        AND tlid = $3
-     ORDER BY timestamp DESC"
+     ORDER BY fnname, id, hash, timestamp DESC"
     ~params:[ Db.Uuid canvas_id
             ; Db.Uuid trace_id
             ; Db.ID tlid
@@ -44,10 +49,11 @@ let load ~canvas_id ~trace_id tlid : function_result list =
 let trim_results ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) () =
   Db.run
     ~name:"stored_function_result.trim_results"
-    "DELETE FROM function_results
+    "DELETE FROM function_results_v2
      WHERE canvas_id = $1
        AND timestamp < CURRENT_TIMESTAMP
        AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
+    ~subject:(Uuidm.to_string canvas_id)
     ~params:[ Uuid canvas_id
             ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
             ; String Db.array_separator]
