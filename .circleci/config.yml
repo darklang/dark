@@ -39,20 +39,18 @@ commands:
   # Artifacts
   ##########################
   extract-and-save-artifacts:
-    parameters:
-      description:
-        type: string
     steps:
       - run:
           name: Copy out artifacts
           when: always
           command: |
-            mkdir -p artifacts-<< parameters.description >>
-            docker cp vols:/home/dark/app/rundir artifacts-<< parameters.description >>/rundir
+            mkdir -p artifacts
+            docker cp vols:/home/dark/app/rundir artifacts/rundir
+            docker cp vols:/home/dark/app/server/static/etags.json artifacts/
       - store_artifacts:
-          path: artifacts-<< parameters.description >>
+          path: artifacts
       - store_test_results:
-          path: artifacts-<< parameters.description >>/rundir/test_results
+          path: artifacts/rundir/test_results
 
 
   ##########################
@@ -174,7 +172,7 @@ jobs:
             # Just enough for integration tests and deploy
             - server/_build/default/bin
             - server/static
-      - extract-and-save-artifacts: { description: "build" }
+      - extract-and-save-artifacts
 
   integration-tests:
     executor: my-executor
@@ -203,7 +201,7 @@ jobs:
             PATTERN=${PATTERN%?}
             scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
 
-      - extract-and-save-artifacts: { description: "integration-tests" }
+      - extract-and-save-artifacts
 
 
   deploy:
