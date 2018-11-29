@@ -46,6 +46,7 @@ commands:
           command: |
             mkdir -p artifacts
             docker cp vols:/home/dark/app/rundir artifacts/rundir
+            docker cp vols:/home/dark/app/server/static/etags.json artifacts/
       - store_artifacts:
           path: artifacts
       - store_test_results:
