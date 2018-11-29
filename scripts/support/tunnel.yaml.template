@@ -2,6 +2,8 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: tunnel-deployment
+  annotations:
+    kubernetes.io/change-cause: {CHANGE_CAUSE}
 spec:
   selector:
     matchLabels:
@@ -14,7 +16,7 @@ spec:
     spec:
       containers:
       - name: tunnel-ctr
-        image: gcr.io/balmy-ground-195100/tunnel:latest
+        image: gcr.io/balmy-ground-195100/tunnel:{TUNNEL_IMAGE}
         ports:
           - name: tunnel-port
             containerPort: 1080

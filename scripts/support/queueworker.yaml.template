@@ -3,6 +3,8 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: qw-deployment
+  annotations:
+    kubernetes.io/change-cause: {CHANGE_CAUSE}
 spec:
   revisionHistoryLimit: 10
   selector:
@@ -16,7 +18,7 @@ spec:
     spec:
       containers:
         - name: qw-ctr
-          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:latest"
+          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:{QW_IMAGE}"
           lifecycle:
             preStop:
               httpGet:

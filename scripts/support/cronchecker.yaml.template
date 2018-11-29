@@ -2,24 +2,25 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: bwd-deployment
+  name: cron-deployment
+  annotations:
+    kubernetes.io/change-cause: {CHANGE_CAUSE}
 spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: bwd-app
-  replicas: 12
+      app: cron-checker
+  # there should only be one of these right now, as there's no locking on checking
+  # if we should enqueue or not
+  replicas: 1
   template:
     metadata:
       labels:
-        app: bwd-app
+        app: cron-checker
     spec:
       containers:
-        - name: bwd-ctr
-          image: "gcr.io/balmy-ground-195100/dark-gcp:latest"
-          ports:
-            - name: bwd-ctr-port
-              containerPort: 80
+        - name: cron-ctr
+          image: "gcr.io/balmy-ground-195100/dark-gcp-cron:{CRON_IMAGE}"
           lifecycle:
             preStop:
               httpGet:
@@ -28,14 +29,14 @@ spec:
                 port: 80
           readinessProbe:
             httpGet:
-              path: /ready
-              port: 80
+              path: /
+              port: 8081
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8081
             # Giving 2 minutes grace here, there's an outstanding k8s issue
             # preventing you from specifying "start checking liveness after an
             # ok from readiness", which is what you'd expect.
@@ -44,6 +45,9 @@ spec:
             periodSeconds: 10 # every 10 seconds
             timeoutSeconds: 10 # time out after 10 seconds
             failureThreshold: 3 # kill container after 3 successive time outs
+          ports:
+            - name: cron-ctr-port
+              containerPort: 8081
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
@@ -74,7 +78,6 @@ spec:
 
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
-          # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/128
           command: ["/bin/sh",
                     "-c",
                     "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:dark-west=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
@@ -83,48 +86,23 @@ spec:
               mountPath: /secrets/cloudsql
               readOnly: true
 
-        - name: http-proxy
-          image: nginx:1.15.3
-          ports:
-            - name: http-proxy-port
-              containerPort: 8000
-          volumeMounts:
-            - mountPath: /etc/nginx/conf.d
-              name: nginx-conf
       volumes:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
-        - name: nginx-conf
-          configMap:
-            name: nginx
 
 #########################
 # End postgres proxy config
 #########################
 ---
-kind: Service
-apiVersion: v1
-metadata:
-  name: bwd-nodeport
-spec:
-  type: NodePort
-  selector:
-    app: bwd-app
-  ports:
-    - name: bwd-nodeport-port
-      protocol: TCP
-      port: 80
-      targetPort: http-proxy-port
----
 apiVersion: extensions/v1beta1
 kind: NetworkPolicy
 metadata:
-  name: bwd-network-policy
+  name: cc-network-policy
 spec:
   podSelector:
     matchLabels:
-      app: bwd-app
+      app: cron-checker
   policyTypes:
   - Egress
   - Ingress
@@ -137,44 +115,3 @@ spec:
         # since there's sensitive data in http://metadata
         - 169.254.0.0/16
   ingress:
-    - ports:
-      - protocol: TCP
-        port: 8000
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: bwd-tls-ingress
-spec:
-  backend:
-    serviceName: bwd-nodeport
-    servicePort: 80
-  tls:
-    - secretName: bwd-tls
----
-# There need to be separate services and ingresses for darklang.com
-# so that we can serve with the correct TLS key
-kind: Service
-apiVersion: v1
-metadata:
-  name: darklang-nodeport
-spec:
-  type: NodePort
-  selector:
-    app: bwd-app
-  ports:
-    - name: darklang-nodeport-port
-      protocol: TCP
-      port: 80
-      targetPort: http-proxy-port
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: darklang-tls-ingress
-spec:
-  backend:
-    serviceName: darklang-nodeport
-    servicePort: 80
-  tls:
-    - secretName: darklang-tls
