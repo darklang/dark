@@ -375,17 +375,14 @@ let migrate_all_hosts () : unit =
   (*  *)
   ()
 
-let cleanup_old_traces () : unit =
-  let hosts = Serialize.current_hosts () in
-
-  List.iter hosts
-    ~f:(fun host ->
-        let owner = Account.for_host host in
-        let canvas_id = Serialize.fetch_canvas_id owner host in
-        let keep = Stored_event.get_all_recent_canvas_traceids canvas_id in
-        (Log.inspecT "host" (host, List.count keep);
-        Stored_event.trim_events ~canvas_id ~keep ();
-        Stored_function_result.trim_results ~canvas_id ~keep ()))
+let cleanup_old_traces (host:string) : unit =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  let keep = Stored_event.get_all_recent_canvas_traceids canvas_id in
+  Log.inspecT "host" (host, List.count keep);
+  Stored_event.trim_events ~canvas_id ~keep ();
+  Stored_function_result.trim_results ~canvas_id ~keep ();
+  ()
 
 let to_string (host: string) : string =
   let c = load_all host [] in

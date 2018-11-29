@@ -18,15 +18,6 @@
 )
 
 (executable
-  (public_name cleanup_traces)
-  (name cleanup_traces)
-  (modules cleanup_traces)
-  (flags (-warn-error +A))
-  (libraries libbackend)
-  (package dark)
-)
-
-(executable
   (name darkjs)
   (public_name darkjs)
   (modules darkjs)
