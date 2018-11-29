@@ -225,10 +225,11 @@ workflows:
       - integration-tests:
           requires:
             - build
-      - deploy:
-          filters:
-            branches:
-              only: master
-          requires:
-            - integration-tests
-            - build
+      # REVERTME:
+      # - deploy:
+      #     filters:
+      #       branches:
+      #         only: master
+      #     requires:
+      #       - integration-tests
+      #       - build
