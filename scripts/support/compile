@@ -57,11 +57,24 @@ def less_compile():
 
 def client2_build():
   start = time.time()
-  build = "cd client2 && unbuffer ./node_modules/.bin/bsb -make-world && ./node_modules/.bin/browserify lib/js/src/Main.bs.js --standalone buckle -o ../server/static/bsmain.js"
+  build = "cd client2 && unbuffer yarn run run-s build:bsb build:js"
   result = run_frontend(start, build)
   return result
 
-def client2_install():
+
+def darkex_build():
+  start = time.time()
+  build = "cd client2 && unbuffer yarn run build:exe"
+  result = run_frontend(start, build)
+  return result
+
+def bundlejs_build():
+  start = time.time()
+  build = "cd client2 && unbuffer yarn run build:bundle"
+  result = run_frontend(start, build)
+  return result
+
+def npm_install():
   start = time.time()
   flags = ""
   if os.environ.get("CI"):
@@ -147,8 +160,10 @@ class Should:
   def __init__(self):
     self.server_build = False
     self.server_test = False
-    self.client2_install = False
+    self.npm_install = False
     self.client2_build = False
+    self.bundlejs_build = False
+    self.darkex_build = False
     self.client2_test = False
     self.less_compile = False
     self.reload_browser = False
@@ -159,28 +174,32 @@ def execute(should):
   sb = should.server_build and server_build()
   should.reload_server |= sb
 
-  c2i = should.client2_install and client2_install ()
-  should.client2_build |= c2i
+  ni = should.npm_install and npm_install ()
+  should.client2_build |= ni
+  should.darkex_build |= ni
+  should.bundlejs_build |= ni
+
   c2b = should.client2_build and client2_build()
+  bjsb = should.bundlejs_build and bundlejs_build()
+  deb = should.darkex_build and darkex_build()
 
   should.client2_test |= c2b
   c2t = should.client2_test and client2_test()
 
   lc = should.less_compile and less_compile()
 
-  should.generate_etags |= sb or lc
+  should.generate_etags |= sb or lc or bjsb or deb
   ge = should.generate_etags and generate_etags()
 
-  should.reload_server |= ge
   rs = should.reload_server and reload_server()
 
-  should.reload_browser |= rs or lc or c2b
+  should.reload_browser |= rs
   rb = should.reload_browser and reload_browser()
 
   should.server_test |= sb
   ot = should.server_test and server_test()
 
-  return sb and rs and lc and rb and ot and ge and c2b and c2t
+  return sb and ni and c2b and bjsb and deb and c2t and ge and rs and rb and ot
 
 
 
@@ -202,21 +221,27 @@ def mark(should, f):
   elif "scripts/support/runserver" in f:
     should.reload_server = True
 
+  # JS
   elif "client2/package.json" in f:
-    should.client2_install = True
+    should.npm_install = True
   elif ("client2/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
     should.client2_build = True
 
-  # Web
+  elif "client2/src/bundle.js" in f:
+    should.bundlejs_build = True
+
+  elif "client2/src/darkex.js" in f:
+    should.darkex_build = True
+
+  # Other
   elif ".less" in f:
     should.less_compile = True
 
   elif ".html" in f:
     should.reload_browser = True
 
-  # Other
   else:
     print("unknown file: " + f, end='')
 
