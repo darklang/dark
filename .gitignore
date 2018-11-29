@@ -25,3 +25,9 @@ translate/.merlin
 translate/_build
 /server/static/bsmain.js
 client2/yarn-error.log
+
+# Templates for these are in scripts/support/*.yaml.template
+builtwithdark.yaml
+queueworker.yaml
+cronchecker.yaml
+tunnel.yaml
