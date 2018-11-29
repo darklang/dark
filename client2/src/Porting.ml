@@ -48,6 +48,7 @@ let identity (value: 'a) : 'a =
   value
 
 module List = struct
+  let flatten = Belt.List.flatten
   let sum (l: int list) : int =
     Belt.List.reduce l 0 (+)
   let floatSum (l: float list) : float =

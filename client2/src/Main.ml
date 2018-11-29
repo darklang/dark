@@ -178,7 +178,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   if m.integrationTestState <> NoIntegrationTest then
     Debug.loG "mod update" (show_modification mod_);
 
-  (match (VariantTesting.variantIsActive m SelectEnterVariant), mod_ with
+  (match (VariantTesting.variantIsActive m SelectEnter), mod_ with
      true, (Types.Select (tlid, Some id)) ->
        updateMod (Types.Enter (Filling (tlid, id))) (m, cmd)
    | _ ->
