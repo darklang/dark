@@ -60,7 +60,6 @@ else
 
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
   MOUNTS+=" --mount type=volume,src=dark_server_build,dst=/home/dark/app/server/_build"
-  MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client2_node_modules,dst=/home/dark/app/client2/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client2_lib,dst=/home/dark/app/client2/lib"
 
