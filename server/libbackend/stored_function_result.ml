@@ -44,10 +44,11 @@ let load ~canvas_id ~trace_id tlid : function_result list =
 let trim_results ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) () =
   Db.run
     ~name:"stored_function_result.trim_results"
-    "DELETE FROM function_results
+    "DELETE FROM function_results_v2
      WHERE canvas_id = $1
        AND timestamp < CURRENT_TIMESTAMP
        AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
+    ~subject:(Uuidm.to_string canvas_id)
     ~params:[ Uuid canvas_id
             ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
             ; String Db.array_separator]

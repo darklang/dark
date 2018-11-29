@@ -69,7 +69,7 @@ let get_recent_event_traceids ~(canvas_id:Uuidm.t) event_desc =
   let (module_, path, modifier) = event_desc in
   Db.fetch
     ~name:"stored_event.get_recent_traces"
-    "SELECT trace_id FROM stored_events
+    "SELECT trace_id FROM stored_events_v2
      WHERE canvas_id = $1
        AND module = $2
        AND path = $3
@@ -96,10 +96,11 @@ let get_all_recent_canvas_traceids (canvas_id: Uuidm.t) =
 let trim_events ~(canvas_id: Uuidm.t) ~(keep: Analysis_types.traceid list) () =
   Db.run
     ~name:"stored_event.trim_events"
-    "DELETE FROM stored_events
+    "DELETE FROM stored_events_v2
      WHERE canvas_id = $1
        AND timestamp < CURRENT_TIMESTAMP
        AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
+    ~subject:(Uuidm.to_string canvas_id)
     ~params:[ Uuid canvas_id
             ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
             ; String Db.array_separator]
