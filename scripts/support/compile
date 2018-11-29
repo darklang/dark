@@ -169,7 +169,7 @@ def execute(should):
 
   lc = should.less_compile and less_compile()
 
-  should.generate_etags |= sb or lc
+  should.generate_etags |= sb or lc or c2b
   ge = should.generate_etags and generate_etags()
 
   should.reload_server |= ge
