@@ -23,9 +23,9 @@
     "clean": "bsb -clean-world",
     "build:bsb": "bsb -make-world",
     "build:js": "browserify lib/js/src/App.bs.js --standalone app -o ../server/static/app.js",
-    "build:bundle": "browserify src/bundle.js --standalone bundle -o ../server/static/bundle.js",
+    "build:appsupport": "browserify src/appsupport.js --standalone appsupport -o ../server/static/appsupport.js",
     "build:exe": "browserify src/darkex.js --standalone darkExe -o ../server/static/darkex.js",
-    "build": "run-s build:bsb build:js build:bundle build:exe",
+    "build": "run-s build:bsb build:js build:appsupport build:exe",
     "test": "jest"
   }
 }
