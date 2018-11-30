@@ -68,9 +68,9 @@ def darkex_build():
   result = run_frontend(start, build)
   return result
 
-def bundlejs_build():
+def appsupport_build():
   start = time.time()
-  build = "cd client2 && unbuffer yarn run build:bundle"
+  build = "cd client2 && unbuffer yarn run build:appsupport"
   result = run_frontend(start, build)
   return result
 
@@ -162,7 +162,7 @@ class Should:
     self.server_test = False
     self.npm_install = False
     self.client2_build = False
-    self.bundlejs_build = False
+    self.appsupport_build = False
     self.darkex_build = False
     self.client2_test = False
     self.less_compile = False
@@ -177,10 +177,10 @@ def execute(should):
   ni = should.npm_install and npm_install ()
   should.client2_build |= ni
   should.darkex_build |= ni
-  should.bundlejs_build |= ni
+  should.appsupport_build |= ni
 
   c2b = should.client2_build and client2_build()
-  bjsb = should.bundlejs_build and bundlejs_build()
+  bjsb = should.appsupport_build and appsupport_build()
   deb = should.darkex_build and darkex_build()
 
   should.client2_test |= c2b
@@ -229,8 +229,8 @@ def mark(should, f):
                   or (".ml" in f)):
     should.client2_build = True
 
-  elif "client2/src/bundle.js" in f:
-    should.bundlejs_build = True
+  elif "client2/src/appsupport.js" in f:
+    should.appsupport_build = True
 
   elif "client2/src/darkex.js" in f:
     should.darkex_build = True
