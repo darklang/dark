@@ -268,7 +268,7 @@ You can also disable the polling (ans consequently the building):
 
 ## Debugging the client
 
-Go to `http://darklang.localhost:8000/a/YOURNAME/debug`.
+Click the "EnableDebugger" button on the bottom bar of the app.
 
 ## Debugging ppx stuff
 
