@@ -242,7 +242,9 @@ def mark(should, f):
     should.reload_server = True
 
   # Rust
-  elif "stroller/Cargo.toml" in f:
+  elif ("stroller/" in f) \
+          and (("Cargo.toml" in f) \
+                  or (".rs" in f)):
     should.stroller_build = True
 
   # JS
