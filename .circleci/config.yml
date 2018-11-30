@@ -29,7 +29,7 @@ commands:
             docker cp vols:/home/dark/app/client2/node_modules client2
             docker cp vols:/home/dark/app/client2/lib client2
             docker cp vols:/home/dark/app/server/static/base.css server/static
-            docker cp vols:/home/dark/app/server/static/bsmain.js server/static
+            docker cp vols:/home/dark/app/server/static/app.js server/static
             docker cp vols:/home/dark/app/server/static/bundle.js server/static
             docker cp vols:/home/dark/app/server/static/darkex.js server/static
             docker cp vols:/home/dark/app/server/static/darkjs.bc.js server/static
