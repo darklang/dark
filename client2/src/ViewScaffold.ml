@@ -104,7 +104,7 @@ let viewButtons (m : model) : msg Html.html =
                                                                        m.tests))^ "]")]
       ; Html.span
           [Html.class' ("specialButton environment " ^ m.environment)]
-          [Html.text (m.environment ^ "/" ^ "Bucklescript")]
+          [Html.text m.environment]
       ; Html.a
           [Html.href (debuggerLinkLoc ())
           ; Html.src ""
