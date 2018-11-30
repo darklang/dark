@@ -1,29 +1,17 @@
 .DS_Store
 /.browser-trigger
-/client/elm-stuff
-/client/tests/elm-stuff
 /gcp-rundir
-/gcp-persistdir
 /gzipped_assets
 /rundir
-/persistdir
 /server/*/.merlin
 /server/_build
 /server/ocamlbuild_output.txt
 /server/profile.json
 /server/static/base.css
-/server/static/elm.js
-/server/static/elm-debug.js
-/tags
-/transaction.yaml
-client/DEBUG
-node_modules
 /server/static/darkjs.bc.js
 /server/static/etags.json
-elm-format
-translate/.merlin
-translate/_build
 /server/static/bsmain.js
+/tags
 client2/yarn-error.log
 
 # Templates for these are in scripts/support/*.yaml.template
