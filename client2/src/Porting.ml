@@ -473,7 +473,7 @@ module StrDict = struct
   let map = Map.map
 
   (* Js.String.make gives us "[object Object]", so we actually want our own
-     toString. Not perfect, but slightly nicer (e.g., for Main.ml's
+     toString. Not perfect, but slightly nicer (e.g., for App.ml's
      DisplayAndReportHttpError, info's values are all strings, which this
      handles) *)
   let toString d =
