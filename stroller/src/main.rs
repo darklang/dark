@@ -25,3 +25,16 @@ fn main() {
 
     hyper::rt::run(server);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn responds_ok() {
+        let req = Request::get("/ignored").body(Body::empty()).unwrap();
+        let resp = hello_world(req);
+
+        assert_eq!(resp.status(), 200);
+    }
+}

@@ -155,6 +155,11 @@ def stroller_build():
   else:
     return run_backend(start, build)
 
+def stroller_test():
+  start = time.time()
+  return run_test(start,
+      "cd stroller && unbuffer cargo test")
+
 def reload_server():
   start = time.time()
   global profile
@@ -178,6 +183,7 @@ class Should:
     self.server_build = False
     self.server_test = False
     self.stroller_build = False
+    self.stroller_test = False
     self.npm_install = False
     self.client2_build = False
     self.bundlejs_build = False
@@ -193,6 +199,9 @@ def execute(should):
   should.reload_server |= sb
 
   stb = should.stroller_build and stroller_build()
+
+  should.stroller_test |= stb
+  stt = should.stroller_test and stroller_test()
 
   ni = should.npm_install and npm_install ()
   should.client2_build |= ni
@@ -219,7 +228,7 @@ def execute(should):
   should.server_test |= sb
   ot = should.server_test and server_test()
 
-  return sb and stb and ni and c2b and bjsb and deb and c2t and ge and rs and rb and ot
+  return sb and stb and stt and ni and c2b and bjsb and deb and c2t and ge and rs and rb and ot
 
 
 
