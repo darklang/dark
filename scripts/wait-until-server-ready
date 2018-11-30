@@ -15,7 +15,7 @@ until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
     sleep 1
 done
 
-test_url="http://${DARK_CONFIG_STATIC_HOST}/bundle.js"
+test_url="http://${DARK_CONFIG_STATIC_HOST}/appsupport.js"
 until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
     printf 'b'
     sleep 1
