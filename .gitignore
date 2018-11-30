@@ -13,6 +13,8 @@
 /server/static/bsmain.js
 /tags
 client2/yarn-error.log
+/server/static/bundle.js
+/server/static/darkex.js
 
 # Templates for these are in scripts/support/*.yaml.template
 builtwithdark.yaml
