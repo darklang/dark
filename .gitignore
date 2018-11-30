@@ -11,8 +11,8 @@
 /server/static/darkjs.bc.js
 /server/static/etags.json
 /server/static/app.js
-/server/static/bundle.js
-/server/static/darkex.js
+/server/static/appsupport.js
+/server/static/analysissupport.js
 /tags
 client2/yarn-error.log
 
