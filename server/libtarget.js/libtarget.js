@@ -1,13 +1,13 @@
 //Provides: dark_targetjs_digest384
 function dark_targetjs_digest384(s){
-  var b64 = darkExe.sha2.SHA384(s).toString("base64");
+  var b64 = analysissupport.sha2.SHA384(s).toString("base64");
   // the built-in Buffer.toString uses a different alphabet than the server.
   return b64.replace(/\//g, "_").replace(/\+/g, "-");
 }
 
 //Provides: dark_targetjs_digest256
 function dark_targetjs_digest256(s){
-  var b64 = darkExe.sha2.SHA256(s).toString("base64");
+  var b64 = analysissupport.sha2.SHA256(s).toString("base64");
   // the built-in Buffer.toString uses a different alphabet than the server.
   return b64.replace(/\//g, "_").replace(/\+/g, "-");
 }

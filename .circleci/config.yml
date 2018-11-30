@@ -31,7 +31,7 @@ commands:
             docker cp vols:/home/dark/app/server/static/base.css server/static
             docker cp vols:/home/dark/app/server/static/app.js server/static
             docker cp vols:/home/dark/app/server/static/appsupport.js server/static
-            docker cp vols:/home/dark/app/server/static/darkex.js server/static
+            docker cp vols:/home/dark/app/server/static/analysissupport.js server/static
             docker cp vols:/home/dark/app/server/static/darkjs.bc.js server/static
             docker cp vols:/home/dark/app/server/static/etags.json server/static
 
