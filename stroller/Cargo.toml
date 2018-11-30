@@ -5,3 +5,4 @@ authors = ["Sam Stokes <me@samstokes.co.uk>"]
 
 [dependencies]
 hyper = "0.12"
+pusher = "*"
