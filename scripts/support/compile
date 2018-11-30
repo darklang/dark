@@ -268,7 +268,7 @@ def ignore(filename):
             , "server/serialization/"
             , "server/static/base.css"
             , "server/static/darkjs.bc.js"
-            , "server/static/bsmain.js"
+            , "server/static/app.js"
             , "etags.json"
             , "client2/node_modules"
             , "client2/lib"
