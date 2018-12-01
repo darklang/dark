@@ -10,7 +10,7 @@ TEMPDB=prodcloneclone
 echo "Stopping procs, copying into $DB, restarting"
 ###########################
 killall psql || true
-killall main.exe || true
+killall server.exe || true
 dropdb $DB --if-exists
 createdb -T $TEMPDB $DB
 scripts/support/runserver

@@ -29,7 +29,7 @@ Uses testcafe with headless-chrome:
 
 run.sh calls testcafe, which runs tests.js on headless-chrome in the
 container. Our testcafe tests load the server and get the test programs
-from server/test_appdata. The client loads it, recognizes from the url
+from backend/test_appdata. The client loads it, recognizes from the url
 that it's a test, then gets the testcode from IntegrationTest.ml and
 stores it in the model.
 

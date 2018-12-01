@@ -4,8 +4,8 @@
 set -euo pipefail
 
 
-FILES=$(ls server/*/*.ml{,i})
-MLFILES=$(ls server/*/*.ml | grep -v test.ml)
+FILES=$(ls backend/*/*.ml{,i})
+MLFILES=$(ls backend/*/*.ml | grep -v test.ml)
 
 LETS=$(grep -P -h '^let ' $FILES \
         | sed 's/\s*let\s*//' \

@@ -5,6 +5,6 @@ set -euo pipefail
 NAME=$1
 DATE=$(date -u +%Y%m%d_%H%M%S)
 
-FILE=server/migrations/${DATE}_${NAME}.sql
+FILE=backend/migrations/${DATE}_${NAME}.sql
 touch "${FILE}"
 git add "${FILE}"

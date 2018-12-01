@@ -1,8 +1,8 @@
 
 (executable
-  (name main)
-  (public_name main)
-  (modules main)
+  (name server)
+  (public_name server)
+  (modules server)
   (flags (-warn-error +A))
   (libraries libbackend)
   (package dark)

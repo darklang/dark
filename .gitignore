@@ -3,11 +3,11 @@
 /gcp-rundir
 /gzipped_assets
 /rundir
-/server/*/.merlin
-/server/_build
-/server/ocamlbuild_output.txt
-/server/profile.json
-/server/static/
+/backend/*/.merlin
+/backend/_build
+/backend/ocamlbuild_output.txt
+/backend/profile.json
+/backend/static/
 /tags
 
 # Templates for these are in scripts/support/*.yaml.template
