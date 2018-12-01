@@ -4,5 +4,5 @@ set -euo pipefail
 
 docker volume rm \
   dark_server_build \
-  dark_client2_node_modules \
-  dark_client2_lib
+  dark_client_node_modules \
+  dark_client_lib

@@ -52,25 +52,25 @@ def run_test(start, bash):
 
 def less_compile():
   start = time.time()
-  return run_frontend(start, "lessc client2/src/app.less server/static/app.css")
+  return run_frontend(start, "lessc client/src/app.less server/static/app.css")
 
 
-def client2_build():
+def client_build():
   start = time.time()
-  build = "cd client2 && unbuffer yarn run run-s build:bsb build:js"
+  build = "cd client && unbuffer yarn run run-s build:bsb build:js"
   result = run_frontend(start, build)
   return result
 
 
 def analysissupport_build():
   start = time.time()
-  build = "cd client2 && unbuffer yarn run build:analysissupport"
+  build = "cd client && unbuffer yarn run build:analysissupport"
   result = run_frontend(start, build)
   return result
 
 def appsupport_build():
   start = time.time()
-  build = "cd client2 && unbuffer yarn run build:appsupport"
+  build = "cd client && unbuffer yarn run build:appsupport"
   result = run_frontend(start, build)
   return result
 
@@ -79,12 +79,12 @@ def npm_install():
   flags = ""
   if os.environ.get("CI"):
     flags += " --frozen-lockfiles"
-  build = "cd client2 && unbuffer ../scripts/support/retrying-yarn-install" + flags
+  build = "cd client && unbuffer ../scripts/support/retrying-yarn-install" + flags
   return run_frontend(start, build)
 
-def client2_test():
+def client_test():
   start = time.time()
-  result = run_test(start, "cd client2 && unbuffer yarn test")
+  result = run_test(start, "cd client && unbuffer yarn test")
   return result
 
 
@@ -160,10 +160,10 @@ class Should:
     self.server_build = False
     self.server_test = False
     self.npm_install = False
-    self.client2_build = False
+    self.client_build = False
     self.appsupport_build = False
     self.analysissupport_build = False
-    self.client2_test = False
+    self.client_test = False
     self.less_compile = False
     self.reload_browser = False
     self.reload_server = False
@@ -174,16 +174,16 @@ def execute(should):
   should.reload_server |= sb
 
   ni = should.npm_install and npm_install ()
-  should.client2_build |= ni
+  should.client_build |= ni
   should.analysissupport_build |= ni
   should.appsupport_build |= ni
 
-  c2b = should.client2_build and client2_build()
+  c2b = should.client_build and client_build()
   bjsb = should.appsupport_build and appsupport_build()
   deb = should.analysissupport_build and analysissupport_build()
 
-  should.client2_test |= c2b
-  c2t = should.client2_test and client2_test()
+  should.client_test |= c2b
+  c2t = should.client_test and client_test()
 
   lc = should.less_compile and less_compile()
 
@@ -221,17 +221,17 @@ def mark(should, f):
     should.reload_server = True
 
   # JS
-  elif "client2/package.json" in f:
+  elif "client/package.json" in f:
     should.npm_install = True
-  elif ("client2/" in f) \
+  elif ("client/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
-    should.client2_build = True
+    should.client_build = True
 
-  elif "client2/src/appsupport.js" in f:
+  elif "client/src/appsupport.js" in f:
     should.appsupport_build = True
 
-  elif "client2/src/analysissupport.js" in f:
+  elif "client/src/analysissupport.js" in f:
     should.analysissupport_build = True
 
   # Other
@@ -266,8 +266,8 @@ def ignore(filename):
             , "server/profile.json"
             , "server/serialization/"
             , "server/static/"
-            , "client2/node_modules"
-            , "client2/lib"
+            , "client/node_modules"
+            , "client/lib"
             , "build.ninja"
             , ".bs.js"
             , ".bsdeps"
