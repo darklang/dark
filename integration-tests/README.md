@@ -16,7 +16,7 @@ actually mean "Can't connect to the server".
 - integration-tests/screenshots/
   - screenshots
 
-- client2/src/IntegrationTest.ml
+- client/src/IntegrationTest.ml
   - This contains the code to check that the tests were successful.
     Note that this is compiled into app.js, so we have a
     single app for testing and production.

@@ -9,7 +9,6 @@
 /server/profile.json
 /server/static/
 /tags
-client2/yarn-error.log
 
 # Templates for these are in scripts/support/*.yaml.template
 builtwithdark.yaml
