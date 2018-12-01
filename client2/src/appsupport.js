@@ -291,15 +291,15 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
-  let darkjsbc  = fetch("//" + staticUrl + "/darkjs.bc.js").then(r => r.text());
-  let analysissupport = fetch("//" + staticUrl + "/analysissupport.js").then(r => r.text());
+  let analysisjs = fetch("//" + staticUrl + "/analysis.js").then(r => r.text());
+  let analysissupportjs = fetch("//" + staticUrl + "/analysissupport.js").then(r => r.text());
   var analysisWorkerUrl;
   (async function () {
     analysisWorkerUrl = window.URL.createObjectURL(
       new Blob(
-        [ await darkjsbc
+        [ await analysisjs
         , "\n\n"
-        , await analysissupport
+        , await analysissupportjs
         ]));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();
