@@ -25,10 +25,10 @@ commands:
           name: Copy out generated files and caches
           when: always
           command: |
-            docker cp vols:/home/dark/app/server/_build server/
-            docker cp vols:/home/dark/app/client2/node_modules client2
-            docker cp vols:/home/dark/app/client2/lib client2
-            docker cp vols:/home/dark/app/server/static/. server/static
+            docker cp vols:/home/dark/app/backend/_build backend/
+            docker cp vols:/home/dark/app/client/node_modules client
+            docker cp vols:/home/dark/app/client/lib client
+            docker cp vols:/home/dark/app/backend/static/. backend/static
 
   ##########################
   # Artifacts
@@ -41,8 +41,8 @@ commands:
           command: |
             mkdir -p artifacts
             docker cp vols:/home/dark/app/rundir artifacts/rundir
-            docker cp vols:/home/dark/app/server/static/etags.json artifacts/
-            ls -la server/static > artifacts/asset-list.txt
+            docker cp vols:/home/dark/app/backend/static/etags.json artifacts/
+            ls -la backend/static > artifacts/asset-list.txt
       - store_artifacts:
           path: artifacts
       - store_test_results:
@@ -57,9 +57,9 @@ commands:
       - save_cache:
           when: always
           paths:
-            - server/_build
-            - client2/node_modules
-            - client2/lib
+            - backend/_build
+            - client/node_modules
+            - client/lib
           key: v3-build-{{ checksum "today-timestamp" }}
   load-caches:
     steps:
@@ -84,15 +84,15 @@ commands:
           # cache was built on friday, and today is not Friday, then
           # it's the first build after last week, and clear it.
           command: |
-            if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
+            if [[ `date +"%A"` != "Friday" && `cat backend/_build/CACHE_DAY` == "Friday" ]]; then
               echo "Clearing caches"
               # TODO: add in bucklescript + node_modules
-              rm -Rf server/_build
+              rm -Rf backend/_build
             else
               echo "Not clearing caches"
             fi
-            mkdir -p server/_build
-            date +"%A" > server/_build/CACHE_DAY
+            mkdir -p backend/_build
+            date +"%A" > backend/_build/CACHE_DAY
   setup-cache-names:
     steps:
       - run:
@@ -164,8 +164,8 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - server/_build/default/bin
-            - server/static
+            - backend/_build/default/bin
+            - backend/static
       - extract-and-save-artifacts
 
   integration-tests:
