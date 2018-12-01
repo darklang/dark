@@ -379,7 +379,10 @@ let cleanup_old_traces (host:string) : unit =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let keep = Stored_event.get_all_recent_canvas_traceids canvas_id in
-  Log.inspecT "host" (host, List.count keep);
+  Log.infO "cleanup_trace"
+    ~params:[ "host", host
+            ; "count", List.length keep |> string_of_int
+            ];
   Stored_event.trim_events ~canvas_id ~keep ();
   Stored_function_result.trim_results ~canvas_id ~keep ();
   ()
