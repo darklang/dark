@@ -99,7 +99,7 @@ while [[ "$deploy_lock_claimed" != "true" ]]; do
     # if there are no deploy locks, create ours and continue
     if [[ "$max_deploy_lock" == "" ]]; then
       echo date > "deploy-lock-${THIS_DEPLOY_LOCKFILE}"
-      gsutil cp "deploy-lock-${THIS_DEPLOY_LOCKFILE} ${DEPLOY_LOCK_BUCKET}"
+      gsutil cp "deploy-lock-${THIS_DEPLOY_LOCKFILE}" "${DEPLOY_LOCK_BUCKET}"
       deploy_lock_claimed="true"
     # if the biggest # is greater than ours, then exit instead of deploying
     # NB: "manual-deploy" is greater than any numeric string, so it will always
