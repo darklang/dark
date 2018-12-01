@@ -1,0 +1,21 @@
+(executable
+  (name jsanalysis)
+  (public_name jsanalysis)
+  (flags (-no-check-prims -g -warn-error +A))
+  (js_of_ocaml
+    (flags (--opt=1
+              --setenv FORCE_DROP_INLINE_TEST=true
+              +nat.js
+              +dynlink.js
+              +toplevel.js)))
+  (libraries js_of_ocaml libtarget_js libexecution)
+  (preprocess (pps js_of_ocaml-ppx
+                   ppx_compare
+                   ppx_deriving.std
+                   ppx_deriving_yojson
+                   ppx_fields_conv
+                   ppx_sexp_conv
+                   ppx_pipebang
+                   ))
+  (package dark)
+)
