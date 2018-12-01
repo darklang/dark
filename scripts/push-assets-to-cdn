@@ -2,13 +2,13 @@
 set -euo pipefail
 set -x
 
-PREFIX_TO_REMOVE="server/static/"
+PREFIX_TO_REMOVE="backend/static/"
 rm -rf gzipped_assets; mkdir -p gzipped_assets
 
-# We're not hashing the files in server/static/vendor
-for file in $(find server/static -maxdepth 1 -type f -and -not -name etags.json -and -not -name "*.gz"); do
+# We're not hashing the files in backend/static/vendor
+for file in $(find backend/static -maxdepth 1 -type f -and -not -name etags.json -and -not -name "*.gz"); do
     basefile="$(basename "$file")"
-    filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' server/static/etags.json)"
+    filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
     hashed_file="${file%.*}-${filehash}.${basefile##*.}"
 
     # No .gz extension because gcloud cloud cdn doesn't want that
@@ -16,7 +16,7 @@ for file in $(find server/static -maxdepth 1 -type f -and -not -name etags.json 
 done
 
 # We do want to compress the vendored files, though
-for file in $(find server/static -mindepth 2 -type f -and -not -name "*.gz"); do
+for file in $(find backend/static -mindepth 2 -type f -and -not -name "*.gz"); do
     mkdir -p "gzipped_assets/$(dirname "${file//$PREFIX_TO_REMOVE}")"
     # No .gz extension because gcloud cloud cdn doesn't want that
     gzip -c "${file}" > "gzipped_assets/${file//$PREFIX_TO_REMOVE}"

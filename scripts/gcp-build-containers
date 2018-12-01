@@ -21,20 +21,20 @@ DIR=$(mktemp -d --suffix _gcp-builddir)
 cp scripts/support/gcp-server-Dockerfile $DIR/Dockerfile
 
 cp -f scripts/support/gcp-run-server $DIR/
-cp -Rf server/templates $DIR/
+cp -Rf backend/templates $DIR/
 cp -Rf scripts $DIR/
 
 mkdir -p $DIR/bin
-cp -f server/_build/default/bin/*.exe $DIR/bin/
+cp -f backend/_build/default/bin/*.exe $DIR/bin/
 
 mkdir -p $DIR/webroot
-cp -Rf server/static $DIR/webroot/
+cp -Rf backend/static $DIR/webroot/
 
 mkdir -p $DIR/swagger
-cp -Rf server/swagger/*  $DIR/swagger/
+cp -Rf backend/swagger/*  $DIR/swagger/
 
 mkdir -p $DIR/migrations
-cp -Rf server/migrations/* $DIR/migrations/
+cp -Rf backend/migrations/* $DIR/migrations/
 
 docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp:latest" $DIR
 
@@ -44,20 +44,20 @@ NDIR=$(mktemp -d --suffix _gcp-qw-builddir)
 cp scripts/support/gcp-queueworker-Dockerfile $NDIR/Dockerfile
 
 cp -f scripts/support/gcp-run-queueworker $NDIR/
-cp -Rf server/templates $NDIR/
+cp -Rf backend/templates $NDIR/
 cp -Rf scripts $NDIR/
 
 mkdir -p $NDIR/bin
-cp -f server/_build/default/bin/*.exe $NDIR/bin/
+cp -f backend/_build/default/bin/*.exe $NDIR/bin/
 
 mkdir -p $NDIR/webroot
-cp -Rf server/static $NDIR/webroot/
+cp -Rf backend/static $NDIR/webroot/
 
 mkdir -p $NDIR/swagger
-cp -Rf server/swagger/*  $NDIR/swagger/
+cp -Rf backend/swagger/*  $NDIR/swagger/
 
 mkdir -p $NDIR/migrations
-cp -Rf server/migrations/* $NDIR/migrations/
+cp -Rf backend/migrations/* $NDIR/migrations/
 
 docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-qw:latest" $NDIR
 
@@ -66,20 +66,20 @@ CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
 cp scripts/support/gcp-cronchecker-Dockerfile $CDIR/Dockerfile
 
 cp -f scripts/support/gcp-run-cronchecker $CDIR/
-cp -Rf server/templates $CDIR/
+cp -Rf backend/templates $CDIR/
 cp -Rf scripts $CDIR/
 
 mkdir -p $CDIR/bin
-cp -f server/_build/default/bin/*.exe $CDIR/bin/
+cp -f backend/_build/default/bin/*.exe $CDIR/bin/
 
 mkdir -p $CDIR/webroot
-cp -Rf server/static $CDIR/webroot/
+cp -Rf backend/static $CDIR/webroot/
 
 mkdir -p $CDIR/swagger
-cp -Rf server/swagger/*  $CDIR/swagger/
+cp -Rf backend/swagger/*  $CDIR/swagger/
 
 mkdir -p $CDIR/migrations
-cp -Rf server/migrations/* $CDIR/migrations/
+cp -Rf backend/migrations/* $CDIR/migrations/
 
 docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-cron:latest" $CDIR
 

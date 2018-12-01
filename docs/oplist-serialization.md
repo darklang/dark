@@ -18,7 +18,7 @@ If you make a change to anything with uses `[@@deriving bin_io]`, you need to ma
   - I'm not sure what's safe here. See the bin_prot docs listed below.
 
 - serialization file:
-  - commit the serialization file (server/serializations/someSha)
+  - commit the serialization file (backend/serializations/someSha)
 
 - migrations:
   - download the prod DB using prodclone, and check whether you can load the

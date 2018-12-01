@@ -52,7 +52,7 @@ def run_test(start, bash):
 
 def less_compile():
   start = time.time()
-  return run_frontend(start, "lessc client/src/app.less server/static/app.css")
+  return run_frontend(start, "lessc client/src/app.less backend/static/app.css")
 
 
 def client_build():
@@ -89,10 +89,10 @@ def client_test():
 
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
-def server_build():
+def backend_build():
   start = time.time()
   global profile
-  exes = " ".join([ "bin/main.exe"
+  exes = " ".join([ "bin/server.exe"
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
@@ -108,7 +108,7 @@ def server_build():
         + " dune build" \
         + " --profile " + compilation_profile \
         + " --display short" \
-        + " --root server" \
+        + " --root backend" \
         + " -j 8 " \
         + exes
   if profile:
@@ -116,7 +116,7 @@ def server_build():
   else:
     return run_backend(start, build)
 
-def server_test():
+def backend_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
@@ -127,12 +127,12 @@ def server_test():
   env = "DARK_CONFIG_ENV_DISPLAY_NAME=test"
   dbenv = host + " " + dbname + " " + user + " " + password
   return run_test(start,
-          "unbuffer dune build --root server test/test.exe"
+          "unbuffer dune build --root backend test/test.exe"
           + " && dropdb --if-exists testdb"
           + " && createdb testdb"
           + " && cd " + rundir
           + " && " + dbenv
-          + " unbuffer ../server/_build/default/test/test.exe"
+          + " unbuffer ../backend/_build/default/test/test.exe"
           + " --show-errors "
           + ci
           + " 2>&1")
@@ -179,8 +179,8 @@ def reload_browser():
 
 class Should:
   def __init__(self):
-    self.server_build = False
-    self.server_test = False
+    self.backend_build = False
+    self.backend_test = False
     self.stroller_build = False
     self.stroller_test = False
     self.npm_install = False
@@ -194,7 +194,7 @@ class Should:
     self.generate_etags = False
 
 def execute(should):
-  sb = should.server_build and server_build()
+  sb = should.backend_build and backend_build()
   should.reload_server |= sb
 
   stb = should.stroller_build and stroller_build()
@@ -224,8 +224,8 @@ def execute(should):
   should.reload_browser |= rs
   rb = should.reload_browser and reload_browser()
 
-  should.server_test |= sb
-  ot = should.server_test and server_test()
+  should.backend_test |= sb
+  ot = should.backend_test and backend_test()
 
   return sb and stb and stt and ni and c2b and bjsb and deb and c2t and ge and rs and rb and ot
 
@@ -235,15 +235,15 @@ def execute(should):
 def mark(should, f):
   # Ocaml
   if "test/test.ml" in f:
-    should.server_test = True
+    should.backend_test = True
 
-  elif ("server/" in f) \
+  elif ("backend/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
                   or ("dune" in f) \
                   or ("_tags" in f) \
                   or ("libtarget.js" in f)):
-    should.server_build = True
+    should.backend_build = True
 
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
@@ -295,13 +295,13 @@ def ignore(filename):
             , "gcp_rundir/"
             , "scripts/"
             , "transaction.yaml"
-            , "server/_build/"
-            , "server/dark.install"
-            , "server/gmon.out"
-            , "server/ocamlbuild_output.txt"
-            , "server/profile.json"
-            , "server/serialization/"
-            , "server/static/"
+            , "backend/_build/"
+            , "backend/dark.install"
+            , "backend/gmon.out"
+            , "backend/ocamlbuild_output.txt"
+            , "backend/profile.json"
+            , "backend/serialization/"
+            , "backend/static/"
             , "client/node_modules"
             , "client/lib"
             , "build.ninja"

@@ -849,7 +849,7 @@ let t_uuid_string_roundtrip () =
 let t_should_use_https () =
   AT.check (AT.list AT.bool) "should_use_https works"
     (List.map
-       ~f:(fun x -> Server.should_use_https (Uri.of_string x))
+       ~f:(fun x -> Webserver.should_use_https (Uri.of_string x))
        [ "http://builtwithdark.com"
        ; "http://test.builtwithdark.com"
        ; "http://localhost"
@@ -867,7 +867,7 @@ let t_redirect_to () =
        ~f:(fun x ->
            x
            |> Uri.of_string
-           |> Server.redirect_to
+           |> Webserver.redirect_to
            |> Option.map ~f:Uri.to_string)
        [ "http://example.com"
        ; "http://builtwithdark.com"
@@ -957,10 +957,10 @@ let t_authenticate_then_handle_code_and_cookie () =
   let ath_cookie (req : Req.t) : int * string option =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let%lwt (resp, _) =  Server.authenticate_then_handle
+       let%lwt (resp, _) =  Webserver.authenticate_then_handle
                               ~execution_id:test_id
                               (fun ~session ~csrf_token req ->
-                                Server.respond
+                                Webserver.respond
                                   ~execution_id:test_id
                                   `OK
                                   "test handler")
@@ -1019,11 +1019,11 @@ let t_check_csrf_then_handle () =
   let ccth (username, req : string * Req.t) : int =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let%lwt (resp, _) =  Server.check_csrf_then_handle
+       let%lwt (resp, _) =  Webserver.check_csrf_then_handle
                               ~execution_id:test_id
                               ~session:test_session
                               (fun req ->
-                                Server.respond
+                                Webserver.respond
                                   ~execution_id:test_id
                                   `OK
                                   "test handler")
@@ -1063,7 +1063,7 @@ let admin_handler_code ?(meth=`GET) ?(body="") ?(csrf=true) (username, endpoint)
                         else [])
        in
        let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let%lwt (resp, _) =  Server.admin_handler
+       let%lwt (resp, _) =  Webserver.admin_handler
                               ~execution_id:test_id
                               ~uri
                               ~stopper
@@ -1655,8 +1655,8 @@ let suite =
     t_authenticate_user
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
-  ; "Server.should_use_https works", `Quick,  t_should_use_https
-  ; "Server.redirect_to works", `Quick, t_redirect_to
+  ; "Webserver.should_use_https works", `Quick,  t_should_use_https
+  ; "Webserver.redirect_to works", `Quick, t_redirect_to
   ; "Errorrail simple", `Quick, t_errorrail_simple
   ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
   ; "Errorrail works in user_function", `Quick, t_errorrail_userfn

@@ -35,7 +35,7 @@ let () =
   (* print out the new entry for account.ml *)
   Format.printf "
   (* This user's password is as follows: %s
-     Insert everything after this into server/libbackend/account.ml *)\n
+     Insert everything after this into backend/libbackend/account.ml *)\n
   upsert_account
     { username = \"%s\"
     ; password = \"%s\"
