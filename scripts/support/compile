@@ -253,6 +253,7 @@ def mark(should, f):
   # Rust
   elif ("stroller/" in f) \
           and (("Cargo.toml" in f) \
+                  or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.stroller_build = True
 
