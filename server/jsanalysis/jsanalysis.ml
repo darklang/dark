@@ -113,3 +113,18 @@ let perform_analysis (str : string) : string =
   |> analysis_envelope_to_yojson
   |> Yojson.Safe.to_string
 
+
+open Js_of_ocaml
+
+type js_string = Js.js_string Js.t
+
+let () =
+  init ();
+  Js.export "darkAnalysis"
+    (object%js
+       method performAnalysis (tlids: js_string) : js_string =
+         let tlids = Js.to_string tlids in
+         let result = perform_analysis tlids in
+         Js.string result
+     end);
+  ()
