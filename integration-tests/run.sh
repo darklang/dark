@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 . ./scripts/support/assert-in-container $0 $@
 
 set -euo pipefail

@@ -306,6 +306,12 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
     rustc --version;
 
 ############################
+# Remove things that were moved to devDependencies
+############################
+user dark
+RUN yarn remove less bs-platform
+
+############################
 # Finish
 ############################
 user dark
