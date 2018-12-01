@@ -1638,4 +1638,25 @@ body #grid * {
   max-height: 500px;
   max-width: 500px;
   overflow: scroll;
+
+  nav {
+     max-width: 50%;
+
+    .history {
+      span {
+        &.details {
+          width: 25px;
+        }
+
+        &.message {
+          width: calc(~"100% - 75px");
+        }
+
+        &.index {
+          width: 30px;
+          clear: both;
+        }
+      }
+    }
+  }
 }
