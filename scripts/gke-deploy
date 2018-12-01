@@ -93,7 +93,7 @@ while [[ "$deploy_lock_claimed" != "true" ]]; do
   if (gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-manual-deploy); then
     true # loop
   else
-    max_deploy_lock=$(gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-* \
+    max_deploy_lock=$( (gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-* || true) \
       | sed 's/.-//' | sort -nr | head -n 1)
 
     # if there are no deploy locks, create ours and continue
