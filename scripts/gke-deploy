@@ -10,7 +10,6 @@ DARK_CLUSTER="$(< current-cluster)"
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 
 PREFIX=""
-PREFIX_ARG=""
 
 # Doing this instead of ${CIRCLE_BUILD_URL-manual-deploy} because
 # CIRCLE_BUILD_URL='' is the unset case. (Because of the docker run command in
@@ -94,8 +93,8 @@ while [[ "$deploy_lock_claimed" != "true" ]]; do
   if (gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-manual-deploy); then
     true # loop
   else
-    max_deploy_lock=$(gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-* | sed
-    's/.-//' | sort -nr | head -n 1)
+    max_deploy_lock=$(gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-* \
+      | sed 's/.-//' | sort -nr | head -n 1)
 
     # if there are no deploy locks, create ours and continue
     if [[ "$max_deploy_lock" == "" ]]; then
