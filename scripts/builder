@@ -62,6 +62,8 @@ else
   MOUNTS+=" --mount type=volume,src=dark_server_build,dst=/home/dark/app/server/_build"
   MOUNTS+=" --mount type=volume,src=dark_client2_node_modules,dst=/home/dark/app/client2/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client2_lib,dst=/home/dark/app/client2/lib"
+  MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
+  MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo"
 
   if [[ -e "../conduit-frontend" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
