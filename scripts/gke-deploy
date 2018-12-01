@@ -126,9 +126,6 @@ CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
 TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 
 IMAGE="$GCR/${PREFIX}dark-gcp:$IMAGE_ID"
-QW_IMAGE="$GCR/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
-CRON_IMAGE="$GCR/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
-TUNNEL_IMAGE="$GCR/${PREFIX}tunnel:$TUNNEL_IMAGE_ID"
 
 # get creds
 gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
