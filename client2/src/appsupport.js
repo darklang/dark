@@ -276,9 +276,9 @@ setTimeout(function(){
     });
   var urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('debug')) {
-    app = buckle.debugging(document.body, params);
+    app = app.debugging(document.body, params);
   } else {
-    app = buckle.normal(document.body, params);
+    app = app.normal(document.body, params);
   }
 
   window.onresize = function(evt){
@@ -292,14 +292,14 @@ setTimeout(function(){
   };
 
   let darkjsbc  = fetch("//" + staticUrl + "/darkjs.bc.js").then(r => r.text());
-  let darkjsexe = fetch("//" + staticUrl + "/darkex.js").then(r => r.text());
+  let analysissupport = fetch("//" + staticUrl + "/analysissupport.js").then(r => r.text());
   var analysisWorkerUrl;
   (async function () {
     analysisWorkerUrl = window.URL.createObjectURL(
       new Blob(
         [ await darkjsbc
         , "\n\n"
-        , await darkjsexe
+        , await analysissupport
         ]));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();

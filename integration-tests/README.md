@@ -18,7 +18,7 @@ actually mean "Can't connect to the server".
 
 - client2/src/IntegrationTest.ml
   - This contains the code to check that the tests were successful.
-    Note that this is compiled into bsmain.js, so we have a
+    Note that this is compiled into app.js, so we have a
     single app for testing and production.
 
 

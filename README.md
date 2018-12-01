@@ -268,7 +268,7 @@ You can also disable the polling (ans consequently the building):
 
 ## Debugging the client
 
-Go to `http://darklang.localhost:8000/a/YOURNAME/debug`.
+Click the "EnableDebugger" button on the bottom bar of the app.
 
 ## Debugging ppx stuff
 
@@ -288,33 +288,6 @@ the preprocessed version.
 - Run `./scripts/run-conduit-frontend.sh`
 - Go to `http://localhost:8001`
 - This will use http://conduit.builtwithdark.localhost:8000 as its server, so use http://darklang.localhost:8000/a/conduit/ to create the UI.
-
-## How to profile (old info, much may have changed)
-- make compilation and run use OCAML_LANDMARKS="auto,format=json,output=profile.json,allocation", in scripts/support/compile (enable the `profile` global)
-- rm server/_build
-- run the builder
-- refresh the page 10 times, then post to localhost:8000/api/shutdown (shuts
-  down the server and saves the profiling info)
-  - if the time is all spent in twitter, delete server/profile.json and
-    try again
-- upload the profile.json to https://lexifi.github.io/landmarks/viewer.html
-- look in "Source Tree Time"
-
-## Importing packages from npm
-
-When writing JS, we use some packages from NPM. To add a new package:
-
-- Add the package to package.json, perhaps using `yarn add`
-- Add the library to module.exports in server/src/main.js.
-- Run `yarn install` and `yarn build`. This puts the code in bundle.js.
-- Check in bundle.js
-
-For example, to add js-sha512:
-- `yarn add js-sha512@^0.8.0`
-- `yarn install`
-- in server/src/main.js, add `var sha512 = require('js-sha512');`
-- `yarn build`
-- then use `sha512.sha384("test value")` in js.
 
 ## Important docs which we believe are up-to-date:
 

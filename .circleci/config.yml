@@ -28,12 +28,7 @@ commands:
             docker cp vols:/home/dark/app/server/_build server/
             docker cp vols:/home/dark/app/client2/node_modules client2
             docker cp vols:/home/dark/app/client2/lib client2
-            docker cp vols:/home/dark/app/server/static/base.css server/static
-            docker cp vols:/home/dark/app/server/static/bsmain.js server/static
-            docker cp vols:/home/dark/app/server/static/bundle.js server/static
-            docker cp vols:/home/dark/app/server/static/darkex.js server/static
-            docker cp vols:/home/dark/app/server/static/darkjs.bc.js server/static
-            docker cp vols:/home/dark/app/server/static/etags.json server/static
+            docker cp vols:/home/dark/app/server/static/. server/static
 
   ##########################
   # Artifacts
@@ -47,6 +42,7 @@ commands:
             mkdir -p artifacts
             docker cp vols:/home/dark/app/rundir artifacts/rundir
             docker cp vols:/home/dark/app/server/static/etags.json artifacts/
+            ls -la server/static > artifacts/asset-list.txt
       - store_artifacts:
           path: artifacts
       - store_test_results:
