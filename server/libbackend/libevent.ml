@@ -11,7 +11,7 @@ let replacements = [
   , InProcess
       (function
         | ({ canvas_id; account_id } , [data; DStr space; DStr name]) ->
-          (* See client2/src/Entry.ml for the "_" *)
+          (* See client/src/Entry.ml for the "_" *)
           Event_queue.enqueue
             ~canvas_id
             ~account_id
