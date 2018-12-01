@@ -40,8 +40,8 @@ def compile(files):
 
 
 def initial_compile():
-  files = [ "server/bin/dark.ml"
-          , "server/test/test.ml"
+  files = [ "backend/bin/server.ml"
+          , "backend/test/test.ml"
           , "client/src/app.less"
           , "client/package.json"
           , "client/src/App.ml"
@@ -155,7 +155,7 @@ def main():
       global run_tests
       run_tests = True
 
-  run_or_fail("sudo chown dark:dark server/_build || true")
+  run_or_fail("sudo chown dark:dark backend/_build || true")
   run_or_fail("sudo chown dark:dark client/node_modules || true")
   run_or_fail("sudo chown dark:dark client/lib || true")
   run_or_fail("sudo chown dark:dark stroller/target || true")

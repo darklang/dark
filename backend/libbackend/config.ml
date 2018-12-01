@@ -12,11 +12,11 @@ open Libservice.Config_dsl
 let run_dir = absolute_dir "DARK_CONFIG_RUN_DIR"
 let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 
-let server_dir = root_dir ^ "server/"
-let testdata_dir = server_dir ^ "test_appdata/"
+let backend_dir = root_dir ^ "backend/"
+let testdata_dir = backend_dir ^ "test_appdata/"
 let testresult_dir = run_dir ^ "test_results/"
 let log_dir = run_dir ^ "logs/"
-let serialization_dir = server_dir ^ "serialization/"
+let serialization_dir = backend_dir ^ "serialization/"
 let completed_test_dir = run_dir ^ "completed_tests/"
 
 (* ------------------------- *)

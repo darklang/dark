@@ -12,4 +12,4 @@ sudo chown dark $DARK_CONFIG_RUN_DIR
 ./scripts/support/create-app-directories
 
 echo "Starting server"
-sudo --preserve-env ./bin/main.exe
+sudo --preserve-env ./bin/server.exe
