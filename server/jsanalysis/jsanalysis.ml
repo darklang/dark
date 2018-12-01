@@ -10,8 +10,6 @@ let init () =
   Libs.init [];
   print_endline "libfrontend reporting in"
 
-let host = "test"
-
 type handler_list = HandlerT.handler list [@@deriving yojson]
 
 let dval_of_yojson = Dval.unsafe_dval_of_yojson
@@ -123,8 +121,9 @@ let () =
   Js.export "darkAnalysis"
     (object%js
        method performAnalysis (tlids: js_string) : js_string =
-         let tlids = Js.to_string tlids in
-         let result = perform_analysis tlids in
-         Js.string result
+         tlids
+         |> Js.to_string
+         |> perform_analysis
+         |> Js.string
      end);
   ()
