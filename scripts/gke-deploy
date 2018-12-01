@@ -145,7 +145,7 @@ CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
 sed -e "s!{IMAGE}!${IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/builtwithdark.yaml.template > builtwithdark.yaml
 sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/queueworker.yaml.template > queueworker.yaml
-sed -e "s!{CRON_IMAGE}!${CRON_IMAGa_IDE}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/cronchecker.yaml.template > cronchecker.yaml
+sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/cronchecker.yaml.template > cronchecker.yaml
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/tunnel.yaml.template > tunnel.yaml
 
 # make sure deployment matches current understanding
