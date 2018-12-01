@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-test_url="http://${DARK_CONFIG_STATIC_HOST}/darkjs.bc.js"
+test_url="http://${DARK_CONFIG_STATIC_HOST}/analysis.js"
 until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
     printf 'j'
     sleep 1
