@@ -2,24 +2,14 @@
 
 set -euo pipefail
 
-#NATIVE=
-NATIVE=1
 
 BINPATH="backend/_build/default/bin"
-if [[ $NATIVE ]]; then
-  SERVER_EXE="$BINPATH/server.exe"
-  QW_EXE="$BINPATH/queue_worker.exe"
-  CRON_EXE="$BINPATH/cron_checker.exe"
-else
-  SERVER_EXE="$BINPATH/server.bc"
-  QW_EXE="$BINPATH/queue_worker.bc"
-  CRON_EXE="$BINPATH/cron_checker.bc"
-fi
-
+SERVER_EXE="$BINPATH/server.exe"
+QW_EXE="$BINPATH/queue_worker.exe"
+CRON_EXE="$BINPATH/cron_checker.exe"
 
 # Stop the server (note that this makes the old exes into zombies.
 # Doesn't matter though, as this only runs in dev).
-(ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep server.exe | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep queue_worker.exe | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep cron_checker.exe | xargs kill -9 > /dev/null 2>&1) || true
@@ -37,15 +27,9 @@ done
 if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUN_DIR}/logs"
   echo "Running server"
-  if [[ $NATIVE ]]; then
-    "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
-    "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
-    "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
-  else
-    ocamlrun "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
-    ocamlrun "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
-    ocamlrun "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
-  fi
+  "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+  "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+  "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
 else
   echo "Missing binaries"
   exit -1
