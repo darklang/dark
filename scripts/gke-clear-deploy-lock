@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
+
+gsutil rm "${DEPLOY_LOCK_BUCKET}/deploy-lock-*"
