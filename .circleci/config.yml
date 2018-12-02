@@ -197,7 +197,7 @@ jobs:
           paths:
             # Just enough for integration tests and deploy
             - backend/_build/default/bin
-            - backend/static
+            - backend/static/analysis.js
       - run:
           name: Copy out artifacts
           when: always
@@ -231,7 +231,10 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/static
+            - backend/static/appsupport.js
+            - backend/static/analysissupport.js
+            - backend/static/app.css
+            - backend/static/app.js
       - run:
           name: Copy out artifacts
           when: always
