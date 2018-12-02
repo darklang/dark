@@ -52,68 +52,27 @@ commands:
   ##########################
   # Caches
   ##########################
-  save-caches:
-    steps:
-      - save_cache:
-          when: always
-          paths:
-            - backend/_build
-            - client/node_modules
-            - client/lib
-          key: v3-build-{{ checksum "today-timestamp" }}
-  load-caches:
-    parameters:
-      key: { type: string }
-      specific:
-        type: string
-        default: "none"
-    steps:
-      - setup-cache-names
-      - restore_cache:
-          keys:
-            - v4-<< key >>-{{ checksum << specific >> }}
-            - v4-<< key >>-{{ checksum "today-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus1-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus2-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus3-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus4-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus5-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus6-timestamp" }}
-            - v4-<< key >>-{{ checksum "minus7-timestamp" }}
   clean-caches:
+    parameters:
+      path:
+        type: string
     steps:
       - run:
-          name: Maybe clear caches
-          # Since we don't checksum the cache on its contents, it may
-          # continue to grow. As a result, let's clear the cache weekly.
-          # We store the day the cache was built in the cache. If the
-          # cache was built on friday, and today is not Friday, then
+          name: maybe clear caches: << parameters.path >>
+          # since we don't checksum the cache on its contents, it may
+          # continue to grow. as a result, let's clear the cache weekly.
+          # we store the day the cache was built in the cache. if the
+          # cache was built on friday, and today is not friday, then
           # it's the first build after last week, and clear it.
           command: |
-            if [[ `date +"%A"` != "Friday" && `cat backend/_build/CACHE_DAY` == "Friday" ]]; then
-              echo "Clearing caches"
-              # TODO: add in bucklescript + node_modules
-              rm -Rf backend/_build
-              rm -Rf client/node_modules
-              rm -Rf stroller/target
+            if [[ `date +"%a"` != "friday" && `cat << parameters.path >>/cache_day` == "friday" ]]; then
+              echo "clearing caches"
+              rm -rf << parameters.path >>
             else
-              echo "Not clearing caches"
+              echo "not clearing caches"
             fi
-            mkdir -p backend/_build
-            date +"%A" > backend/_build/CACHE_DAY
-  setup-cache-names:
-    steps:
-      - run:
-          name: Set up names for caches
-          command: |
-            date +"%F" > today-timestamp
-            date +"%F" -d "today - 1 days" > minus1-timestamp
-            date +"%F" -d "today - 2 days" > minus2-timestamp
-            date +"%F" -d "today - 3 days" > minus3-timestamp
-            date +"%F" -d "today - 4 days" > minus4-timestamp
-            date +"%F" -d "today - 5 days" > minus5-timestamp
-            date +"%F" -d "today - 6 days" > minus6-timestamp
-            date +"%F" -d "today - 7 days" > minus7-timestamp
+            mkdir -p << parameters.path >>
+            date +"%a" > << parameters.path >>/cache_day
 
   ##########################
   # Initializing the containers
@@ -134,9 +93,16 @@ commands:
       - run:
           name: Install outer container utilities
           # coreutils for gnu date
-          # bash for scripts
           command: |
             apk add --update bash coreutils nginx jq
+
+      - run:
+          name: "Setup cache names"
+          command: |
+            date +"%F" > today-timestamp
+            date +"%F" -d "today - 1 days" > minus1-timestamp
+            date +"%F" -d "today - 2 days" > minus2-timestamp
+            date +"%F" -d "today - 3 days" > minus3-timestamp
 
 
   ##########################
@@ -165,9 +131,6 @@ commands:
             timeout --foreground 5m scripts/wait-until-server-ready
 
 
-
-
-
 # TODO:
 # optimize workflow
 
@@ -177,7 +140,13 @@ jobs:
     steps:
       - checkout
       - initialize
-      - load-caches: { key: "stroller" }
+      - restore_cache:
+          keys:
+            - v4-stroller-{{ checksum "today-timestamp" }}
+            - v4-stroller-{{ checksum "minus1-timestamp" }}
+            - v4-stroller-{{ checksum "minus2-timestamp" }}
+            - v4-stroller-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "stroller/target" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       # - run-background-container
@@ -198,7 +167,13 @@ jobs:
     steps:
       - checkout
       - initialize
-      - load-caches: { key: "backend" }
+      - restore_cache:
+          keys:
+            - v4-backend-{{ checksum "today-timestamp" }}
+            - v4-backend-{{ checksum "minus1-timestamp" }}
+            - v4-backend-{{ checksum "minus2-timestamp" }}
+            - v4-backend-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "backend/_build" }
       - copy-into-container
       - run: scripts/builder --compile-backend
       - run:
@@ -229,14 +204,20 @@ jobs:
       - store_test_results:
           path: artifacts/rundir/test_results
 
-
-
   build-client:
     executor: my-executor
     steps:
       - checkout
       - initialize
-      - load-caches: { key: "client", specific: package.json }
+      - restore_cache:
+          keys:
+            - v4-client-{{ checksum "client/package.json" }}
+            - v4-client-{{ checksum "today-timestamp" }}
+            - v4-client-{{ checksum "minus1-timestamp" }}
+            - v4-client-{{ checksum "minus2-timestamp" }}
+            - v4-client-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "client/node_modules" }
+      - clean-caches: { path: "client/lib" }
       - copy-into-container
       - run: scripts/builder --compile-client --test
       - run:
@@ -246,7 +227,6 @@ jobs:
             docker cp vols:/home/dark/app/client/node_modules client
             docker cp vols:/home/dark/app/client/lib client
             docker cp vols:/home/dark/app/backend/static/. backend/static
-
       - save_cache:
           name: "Save packagejson-specific cache"
           when: always
