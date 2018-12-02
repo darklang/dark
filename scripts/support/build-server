@@ -163,19 +163,23 @@ def main():
 
   def initial_compile():
     success = True
-    if compile_client:
-      success = success and initial_client_compile()
-    if compile_backend:
-      success = initial_backend_compile() and success
-    if compile_stroller:
-      success = initial_stroller_compile() and success
+    if compile_client and not initial_client_compile():
+      print("Failed client build")
+      success = False
+    if compile_backend and not initial_backend_compile():
+      print("Failed backend build")
+      success = False
+    if compile_stroller and not initial_stroller_compile():
+      print("Failed stroller build")
+      success = False
+
     print("--------------------------")
-    print("-- Finished initial compile")
     if success:
-      print("-- success")
+      print("-- Initial compile succeeded")
     else:
-      print("-- failed")
+      print("-- Initial compile failed")
     print("--------------------------")
+
     return success
 
   run("sudo chown dark:dark backend/_build")

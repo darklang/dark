@@ -194,42 +194,57 @@ class Should:
     self.generate_etags = False
 
 def execute(should):
-  sb = should.backend_build and backend_build()
-  should.reload_server |= sb
+  success = True
+  if should.backend_build:
+    if not backend_build(): success = False
+    should.reload_server |= success
+    should.reload_browser |= success
 
-  stb = should.stroller_build and stroller_build()
+  if should.backend_test:
+    if not backend_test(): success = False
 
-  should.stroller_test |= stb
-  stt = should.stroller_test and stroller_test()
+  if should.stroller_build:
+    if not stroller_build(): success = False
+    should.stroller_test |= success
 
-  ni = should.npm_install and npm_install ()
-  should.client_build |= ni
-  should.analysissupport_build |= ni
-  should.appsupport_build |= ni
+  if should.stroller_test:
+    if not stroller_test(): success = False
 
-  c2b = should.client_build and client_build()
-  bjsb = should.appsupport_build and appsupport_build()
-  deb = should.analysissupport_build and analysissupport_build()
+  if should.npm_install:
+    if not npm_install(): success = False
+    should.client_build |= success
+    should.analysissupport_build |= success
+    should.appsupport_build |= success
 
-  should.client_test |= c2b
-  c2t = should.client_test and client_test()
+  if should.client_build:
+    if not client_build(): success = False
+    should.client_test |= success
+    should.generate_etags |= success
+    should.reload_browser |= success
 
-  lc = should.less_compile and less_compile()
+  if should.appsupport_build:
+    if not appsupport_build(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
 
-  should.generate_etags |= sb or lc or bjsb or deb
-  ge = should.generate_etags and generate_etags()
+  if should.analysissupport_build:
+    if not analysissupport_build(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
 
-  rs = should.reload_server and reload_server()
+  if should.client_test:
+    if not client_test(): success = False
 
-  should.reload_browser |= rs
-  rb = should.reload_browser and reload_browser()
+  if should.less_compile:
+    if not less_compile(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
 
-  should.backend_test |= sb
-  ot = should.backend_test and backend_test()
+  if should.generate_etags:
+    if not generate_etags: success = False
+    should.reload_browser |= success
 
-  return sb and stb and stt and ni and c2b and bjsb and deb and c2t and ge and rs and rb and ot
-
-
+  return success
 
 
 def mark(should, f):
