@@ -129,6 +129,7 @@ commands:
   run-background-container:
     steps:
       - run:
+          name: Run background container
           command: scripts/builder --ci-serve
           background: true
   wait-for-container:
@@ -174,6 +175,8 @@ jobs:
       #       - backend/_build/default/bin
       #       - backend/static
       # - extract-and-save-artifacts
+
+
   build-backend:
     executor: my-executor
     steps:
@@ -182,9 +185,12 @@ jobs:
       - load-caches
       - copy-into-container
       - run: scripts/builder --compile-backend --test
-      - run-background-container
-      - wait-for-container
-      - copy-out-of-container
+      - run:
+          name: Copy out generated files and caches
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/backend/_build backend/
+            docker cp vols:/home/dark/app/backend/static/. backend/static
       # - save-caches
       - persist_to_workspace:
           root: "."
@@ -192,7 +198,18 @@ jobs:
             # Just enough for integration tests and deploy
             - backend/_build/default/bin
             - backend/static
-      - extract-and-save-artifacts
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            mkdir -p artifacts
+            docker cp vols:/home/dark/app/rundir artifacts/rundir
+      - store_artifacts:
+          path: artifacts
+      - store_test_results:
+          path: artifacts/rundir/test_results
+
+
 
   build-client:
     executor: my-executor
@@ -202,16 +219,33 @@ jobs:
       - load-caches
       - copy-into-container
       - run: scripts/builder --compile-client --test
-      - run-background-container
-      - wait-for-container
-      - copy-out-of-container
+      - run:
+          name: Copy out generated files and caches
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/client/node_modules client
+            docker cp vols:/home/dark/app/client/lib client
+            docker cp vols:/home/dark/app/backend/static/. backend/static
       # - save-caches
       - persist_to_workspace:
           root: "."
           paths:
             # Just enough for integration tests and deploy
             - backend/static
-      - extract-and-save-artifacts
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            mkdir -p artifacts
+            docker cp vols:/home/dark/app/rundir artifacts/rundir
+            cp backend/static/etags.json artifacts
+            ls -la backend/static > artifacts/asset-list.txt
+      - store_artifacts:
+          path: artifacts
+      - store_test_results:
+          path: artifacts/rundir/test_results
+
+
 
   integration-tests:
     executor: my-executor
