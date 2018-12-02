@@ -88,6 +88,8 @@ commands:
               echo "Clearing caches"
               # TODO: add in bucklescript + node_modules
               rm -Rf backend/_build
+              rm -Rf client/node_modules
+              rm -Rf stroller/target
             else
               echo "Not clearing caches"
             fi
