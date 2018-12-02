@@ -52,7 +52,7 @@ def run_test(start, bash):
 
 def less_compile():
   start = time.time()
-  return run_frontend(start, "lessc client/src/app.less backend/static/app.css")
+  return run_frontend(start, "client/node_modules/.bin/lessc client/src/app.less backend/static/app.css")
 
 
 def client_build():

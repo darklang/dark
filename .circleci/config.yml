@@ -129,7 +129,7 @@ commands:
   run-background-container:
     steps:
       - run:
-          command: NEVER_REBUILD_DOCKER=1 scripts/builder --ci-serve
+          command: scripts/builder --ci-serve
           background: true
   wait-for-container:
     steps:
