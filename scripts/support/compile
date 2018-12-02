@@ -195,19 +195,13 @@ class Should:
 
 def execute(should):
   success = True
+  # Fast path: get the important stuff built first
   if should.backend_build:
     if not backend_build(): success = False
     should.generate_etags |= success
     should.backend_test |= success
     should.reload_server |= success
     should.reload_browser |= success
-
-  if should.stroller_build:
-    if not stroller_build(): success = False
-    should.stroller_test |= success
-
-  if should.stroller_test:
-    if not stroller_test(): success = False
 
   if should.npm_install:
     if not npm_install(): success = False
@@ -231,9 +225,6 @@ def execute(should):
     should.generate_etags |= success
     should.reload_browser |= success
 
-  if should.client_test:
-    if not client_test(): success = False
-
   if should.less_compile:
     if not less_compile(): success = False
     should.generate_etags |= success
@@ -241,11 +232,30 @@ def execute(should):
 
   if should.generate_etags:
     if not generate_etags(): success = False
+    should.reload_server |= success
     should.reload_browser |= success
 
-  # After etags generation
+  if should.reload_server:
+    if not reload_server(): success = False
+    should.reload_browser |= success
+
+  if should.reload_browser:
+    if not reload_browser(): success = False
+
+  # After the fast path get tests run
+  if should.client_test:
+    if not client_test(): success = False
+
   if should.backend_test:
     if not backend_test(): success = False
+
+  # At the end do stroller, which isn't as important atm
+  if should.stroller_build:
+    if not stroller_build(): success = False
+    should.stroller_test |= success
+
+  if should.stroller_test:
+    if not stroller_test(): success = False
 
   return success
 
