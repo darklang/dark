@@ -62,18 +62,24 @@ commands:
             - client/lib
           key: v3-build-{{ checksum "today-timestamp" }}
   load-caches:
+    parameters:
+      key: { type: string }
+      specific:
+        type: string
+        default: "none"
     steps:
       - setup-cache-names
       - restore_cache:
           keys:
-            - v3-build-{{ checksum "today-timestamp" }}
-            - v3-build-{{ checksum "minus1-timestamp" }}
-            - v3-build-{{ checksum "minus2-timestamp" }}
-            - v3-build-{{ checksum "minus3-timestamp" }}
-            - v3-build-{{ checksum "minus4-timestamp" }}
-            - v3-build-{{ checksum "minus5-timestamp" }}
-            - v3-build-{{ checksum "minus6-timestamp" }}
-            - v3-build-{{ checksum "minus7-timestamp" }}
+            - v4-<< key >>-{{ checksum << specific >> }}
+            - v4-<< key >>-{{ checksum "today-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus1-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus2-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus3-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus4-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus5-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus6-timestamp" }}
+            - v4-<< key >>-{{ checksum "minus7-timestamp" }}
   clean-caches:
     steps:
       - run:
@@ -171,7 +177,7 @@ jobs:
     steps:
       - checkout
       - initialize
-      - load-caches
+      - load-caches: { key: "stroller" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       # - run-background-container
@@ -192,7 +198,7 @@ jobs:
     steps:
       - checkout
       - initialize
-      - load-caches
+      - load-caches: { key: "backend" }
       - copy-into-container
       - run: scripts/builder --compile-backend
       - run:
@@ -201,7 +207,11 @@ jobs:
           command: |
             docker cp vols:/home/dark/app/backend/_build backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
-      # - save-caches
+      - save_cache:
+          name: "Save daily backend cache"
+          when: always
+          paths: [ "backend/_build" ]
+          key: v4-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -226,7 +236,7 @@ jobs:
     steps:
       - checkout
       - initialize
-      - load-caches
+      - load-caches: { key: "client", specific: package.json }
       - copy-into-container
       - run: scripts/builder --compile-client --test
       - run:
@@ -236,7 +246,17 @@ jobs:
             docker cp vols:/home/dark/app/client/node_modules client
             docker cp vols:/home/dark/app/client/lib client
             docker cp vols:/home/dark/app/backend/static/. backend/static
-      # - save-caches
+
+      - save_cache:
+          name: "Save packagejson-specific cache"
+          when: always
+          paths: [ "client/node_modules" ]
+          key: v4-backend-{{ checksum "client/package.json" }}
+      - save_cache:
+          name: "Save daily client cache"
+          when: always
+          paths: [ "client/node_modules" ]
+          key: v4-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
