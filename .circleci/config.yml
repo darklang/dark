@@ -184,7 +184,7 @@ jobs:
       - initialize
       - load-caches
       - copy-into-container
-      - run: scripts/builder --compile-backend --test
+      - run: scripts/builder --compile-backend
       - run:
           name: Copy out generated files and caches
           when: always
