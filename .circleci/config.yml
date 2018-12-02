@@ -138,7 +138,15 @@ commands:
           command: |
             # --foreground because this is run in a script by circle
             timeout --foreground 5m scripts/wait-until-container-ready
+  wait-for-server:
+    steps:
+      - wait-for-container
+      - run:
+          name: "Wait for server"
+          command: |
+            # --foreground because this is run in a script by circle
             timeout --foreground 5m scripts/wait-until-server-ready
+
 
 
 
@@ -180,7 +188,7 @@ jobs:
       # run this here so we save a little time waiting for the server to be ready.
       - run: nginx -t -c $(pwd)/scripts/support/nginx-toplevel.conf -g "pid $(pwd)/rundir/nginx.pid;"
 
-      - wait-for-container
+      - wait-for-server
       - run:
           name: Run integration tests
           shell: bash
@@ -215,6 +223,7 @@ workflows:
   build-and-deploy:
     jobs:
       - build
+      - build-backend
       - integration-tests:
           requires:
             - build
