@@ -239,7 +239,7 @@ def execute(should):
     should.reload_browser |= success
 
   if should.generate_etags:
-    if not generate_etags: success = False
+    if not generate_etags(): success = False
     should.reload_browser |= success
 
   if should.backend_test:
