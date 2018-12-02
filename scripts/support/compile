@@ -276,6 +276,7 @@ def mark(should, f):
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
     should.reload_server = True
+    should.generate_etags = True
 
   # Rust
   elif ("stroller/" in f) \

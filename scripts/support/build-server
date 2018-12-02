@@ -154,10 +154,6 @@ def main():
       watch = True
     elif f == "--ci-serve":
       serve = True
-      # in CI, we merge assets from several steps, so we need to rerun
-      # the generate-etags step
-      compile = True
-      compile_client = True
     elif f == "--serve":
       serve = True
       compile = True
@@ -176,6 +172,7 @@ def main():
     if compile_stroller and not initial_stroller_compile():
       print("Failed stroller build")
       success = False
+
 
     print("--------------------------")
     if success:
