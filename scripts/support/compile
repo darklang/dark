@@ -197,6 +197,7 @@ def execute(should):
   success = True
   if should.backend_build:
     if not backend_build(): success = False
+    should.generate_etags |= success
     should.backend_test |= success
     should.reload_server |= success
     should.reload_browser |= success
@@ -242,6 +243,7 @@ def execute(should):
     if not generate_etags(): success = False
     should.reload_browser |= success
 
+  # After etags generation
   if should.backend_test:
     if not backend_test(): success = False
 
