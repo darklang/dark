@@ -4,19 +4,19 @@
 set -euo pipefail
 
 test_url="http://${DARK_CONFIG_STATIC_HOST}/analysis.js"
-until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
-    printf 'j'
+until $(curl --silent --show-error --head --fail "${test_url}"); do
+    printf 'waiting for analysis.js\n'
     sleep 1
 done
 
 test_url="http://${DARK_CONFIG_STATIC_HOST}/app.js"
-until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
-    printf 'a'
+until $(curl --silent --show-error --head --fail "${test_url}"); do
+    printf 'waiting for app.js\n'
     sleep 1
 done
 
 test_url="http://${DARK_CONFIG_STATIC_HOST}/appsupport.js"
-until $(curl --output /dev/null --silent --head --fail "${test_url}"); do
-    printf 'b'
+until $(curl --silent --show-error --head --fail "${test_url}"); do
+    printf 'waiting for appsupport.js\n'
     sleep 1
 done
