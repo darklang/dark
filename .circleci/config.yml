@@ -155,24 +155,61 @@ commands:
 # optimize workflow
 
 jobs:
-  build:
+  build-stroller:
     executor: my-executor
     steps:
       - checkout
-      - persist_to_workspace: { root: ".", paths: "." }
       - initialize
       - load-caches
       - copy-into-container
-      - run: scripts/builder --compile --test
+      - run: scripts/builder --compile-stroller --test
+      # - run-background-container
+      # - wait-for-container
+      # - copy-out-of-container
+      # - save-caches
+      # - persist_to_workspace:
+      #     root: "."
+      #     paths:
+      #       # Just enough for integration tests and deploy
+      #       - backend/_build/default/bin
+      #       - backend/static
+      # - extract-and-save-artifacts
+  build-backend:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - load-caches
+      - copy-into-container
+      - run: scripts/builder --compile-backend --test
       - run-background-container
       - wait-for-container
       - copy-out-of-container
-      - save-caches
+      # - save-caches
       - persist_to_workspace:
           root: "."
           paths:
             # Just enough for integration tests and deploy
             - backend/_build/default/bin
+            - backend/static
+      - extract-and-save-artifacts
+
+  build-client:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - load-caches
+      - copy-into-container
+      - run: scripts/builder --compile-client --test
+      - run-background-container
+      - wait-for-container
+      - copy-out-of-container
+      # - save-caches
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
             - backend/static
       - extract-and-save-artifacts
 
@@ -222,15 +259,17 @@ workflows:
   version: 2
   build-and-deploy:
     jobs:
-      - build
       - build-backend
+      - build-client
+      - build-stroller
       - integration-tests:
           requires:
-            - build
+            - build-backend
+            - build-client
       - deploy:
           filters:
             branches:
               only: master
           requires:
             - integration-tests
-            - build
+            - build-stroller
