@@ -65,13 +65,6 @@ def run_server():
 
 
 
-def start_background_services():
-  # We wait for them in runserver
-  run_or_fail("scripts/support/start-background-services dnsmasq postgresql")
-
-def create_app_dirs():
-  run_or_fail("scripts/support/create-app-directories")
-
 # It is extremely challenging to get a non-blocking read on stdin.
 # Essentially, we want to read everything from stdin and then compile.
 # And if there isn't anything on stdin, sleep for a bit. The best way
@@ -155,16 +148,15 @@ def main():
       global run_tests
       run_tests = True
 
-  run_or_fail("sudo chown dark:dark backend/_build || true")
-  run_or_fail("sudo chown dark:dark client/node_modules || true")
-  run_or_fail("sudo chown dark:dark client/lib || true")
-  run_or_fail("sudo chown dark:dark stroller/target || true")
+  run("sudo chown dark:dark backend/_build")
+  run("sudo chown dark:dark client/node_modules")
+  run("sudo chown dark:dark client/lib")
+  run("sudo chown dark:dark stroller/target")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
-  create_app_dirs()
-  start_background_services()
+  run_or_fail("scripts/support/create-app-directories")
+  run_or_fail("scripts/support/start-background-services dnsmasq postgresql")
   if compile:
-    #  background_task(start_background_services, "start background services")
     if watch or serve:
       background_task(initial_compile, "initial_compile")
     else:

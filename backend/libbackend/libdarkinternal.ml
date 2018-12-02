@@ -23,7 +23,7 @@ let internal_fn  ((name, f) : string * (exec_state * dval list -> dval)) =
            if Account.can_access_operations ~username
            then (Log.infO "internal_fn"
                    ~params:[ "user", username
-                           ; "status", "access_denied"
+                           ; "status", "starting"
                            ];
                  let result = f (es, params) in
                  (Log.infO "internal_fn"
