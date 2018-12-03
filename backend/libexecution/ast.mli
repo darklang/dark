@@ -27,12 +27,6 @@ val execute_userfn :
   Types.RuntimeT.dval list ->
   Types.RuntimeT.dval
 
-val symbolic_execute :
-  input_vars: Types.RuntimeT.input_vars ->
-  Types.RuntimeT.exec_state ->
-  Types.RuntimeT.expr ->
-  Analysis_types.sym_store
-
 val execute_saving_intermediates :
   input_vars: Types.RuntimeT.input_vars ->
   Types.RuntimeT.exec_state ->
