@@ -283,6 +283,13 @@ flag to see the commands run. You'll see something that looks like this:
 Run that without the --dump-ast and then look at the .pp.ml file to find
 the preprocessed version.
 
+## Git
+- Branch master is auto-deployed to production.
+- Create feature branches from master (naming convention: <features|chores|bugs>/trello-ticket-title-<ticket id>)
+- Rebase your feature branch before merging into development to produce clean/compact merge bubbles.
+- Always retain merge commits when merging into master (e.g. git merge --no-ff branchname).
+- Craft atomic commits that make sense on their own and can be easily cherry-picked or reverted if necessary. (please no WIP commits)
+
 ## Running conduit
 
 - Run `./scripts/run-conduit-frontend.sh`
