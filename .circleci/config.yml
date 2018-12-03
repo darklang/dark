@@ -142,10 +142,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v4-stroller-{{ checksum "today-timestamp" }}
-            - v4-stroller-{{ checksum "minus1-timestamp" }}
-            - v4-stroller-{{ checksum "minus2-timestamp" }}
-            - v4-stroller-{{ checksum "minus3-timestamp" }}
+            - v5-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v5-stroller-{{ checksum "today-timestamp" }}
+            - v5-stroller-{{ checksum "minus1-timestamp" }}
+            - v5-stroller-{{ checksum "minus2-timestamp" }}
+            - v5-stroller-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
