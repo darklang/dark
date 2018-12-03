@@ -169,10 +169,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v4-backend-{{ checksum "today-timestamp" }}
-            - v4-backend-{{ checksum "minus1-timestamp" }}
-            - v4-backend-{{ checksum "minus2-timestamp" }}
-            - v4-backend-{{ checksum "minus3-timestamp" }}
+            - v5-backend-{{ checksum "today-timestamp" }}
+            - v5-backend-{{ checksum "minus1-timestamp" }}
+            - v5-backend-{{ checksum "minus2-timestamp" }}
+            - v5-backend-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       - copy-into-container
       - run: scripts/builder --compile-backend
@@ -186,7 +186,7 @@ jobs:
           name: "Save daily backend cache"
           when: always
           paths: [ "backend/_build" ]
-          key: v4-backend-{{ checksum "today-timestamp" }}
+          key: v5-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -231,12 +231,12 @@ jobs:
           name: "Save packagejson-specific cache"
           when: always
           paths: [ "client/node_modules" ]
-          key: v4-backend-{{ checksum "client/package.json" }}
+          key: v5-backend-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
           when: always
           paths: [ "client/node_modules" ]
-          key: v4-backend-{{ checksum "today-timestamp" }}
+          key: v5-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
