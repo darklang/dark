@@ -36,20 +36,6 @@ let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
 
 
 (* -------------------- *)
-(* Symstore - save available varnames at each point *)
-(* -------------------- *)
-module SymSet = String.Set
-type sym_set = SymSet.t
-type sym_store = sym_set IDTable.t
-
-let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
-  ht_to_json_dict st ~f:(fun syms ->
-      `List (syms
-             |> SymSet.to_list
-             |> List.map ~f:(fun s -> `String s)))
-
-
-(* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
 type analysis =
