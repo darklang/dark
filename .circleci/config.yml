@@ -176,10 +176,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v5-backend-{{ checksum "today-timestamp" }}
-            - v5-backend-{{ checksum "minus1-timestamp" }}
-            - v5-backend-{{ checksum "minus2-timestamp" }}
-            - v5-backend-{{ checksum "minus3-timestamp" }}
+            - v6-backend-{{ checksum "today-timestamp" }}
+            - v6-backend-{{ checksum "minus1-timestamp" }}
+            - v6-backend-{{ checksum "minus2-timestamp" }}
+            - v6-backend-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       - copy-into-container
       - run: scripts/builder --compile-backend
@@ -193,7 +193,7 @@ jobs:
           name: "Save daily backend cache"
           when: always
           paths: [ "backend/_build" ]
-          key: v5-backend-{{ checksum "today-timestamp" }}
+          key: v6-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -218,11 +218,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v5-client-{{ checksum "client/package.json" }}
-            - v5-client-{{ checksum "today-timestamp" }}
-            - v5-client-{{ checksum "minus1-timestamp" }}
-            - v5-client-{{ checksum "minus2-timestamp" }}
-            - v5-client-{{ checksum "minus3-timestamp" }}
+            - v6-client-{{ checksum "client/package.json" }}
+            - v6-client-{{ checksum "today-timestamp" }}
+            - v6-client-{{ checksum "minus1-timestamp" }}
+            - v6-client-{{ checksum "minus2-timestamp" }}
+            - v6-client-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
@@ -238,12 +238,12 @@ jobs:
           name: "Save packagejson-specific cache"
           when: always
           paths: [ "client/node_modules" ]
-          key: v5-client-{{ checksum "client/package.json" }}
+          key: v6-client-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
           when: always
           paths: [ "client/node_modules" ]
-          key: v5-client-{{ checksum "today-timestamp" }}
+          key: v6-client-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
