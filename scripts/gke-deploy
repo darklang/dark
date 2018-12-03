@@ -44,6 +44,18 @@ do
     --cluster=*)
       DARK_CLUSTER="${i/--cluster=/''}"
       ;;
+    --server-image-id=*)
+      SERVER_IMAGE_ID="${i/--server-image-id=/''}"
+      ;;
+    --qw-image-id=*)
+      QW_IMAGE_ID="${i/--qw-image-id=/''}"
+      ;;
+    --cron-image-id=*)
+      CRON_IMAGE_ID="${i/--cron-image-id=/''}"
+      ;;
+    --tunnel-image-id=*)
+      TUNNEL_IMAGE_ID="${i/--tunnel-image-id=/''}"
+      ;;
     --prefix=*)
       PREFIX="${i/--prefix=/''}-"
       ;;
@@ -120,12 +132,18 @@ done
 #########################
 # Tell Kubernetes what to do
 #########################
-IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp -q | head -n 1)"
-QW_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-qw -q | head -n 1)"
-CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
-TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
-
-IMAGE="$GCR/${PREFIX}dark-gcp:$IMAGE_ID"
+if [[ "$SERVER_IMAGE_ID" == "" ]]; then
+  SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp -q | head -n 1)"
+fi
+if [[ "$QW_IMAGE_ID" == "" ]]; then
+  QW_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-qw -q | head -n 1)"
+fi
+if [[ "$CRON_IMAGE_ID" == "" ]]; then
+  CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
+fi
+if [[ "$TUNNEL_IMAGE_ID" == "" ]]; then
+  TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
+fi
 
 # get creds
 gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
@@ -140,7 +158,7 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 
 CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
-sed -e "s!{IMAGE}!${IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/builtwithdark.yaml.template > builtwithdark.yaml
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/builtwithdark.yaml.template > builtwithdark.yaml
 sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/queueworker.yaml.template > queueworker.yaml
 sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/cronchecker.yaml.template > cronchecker.yaml
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/tunnel.yaml.template > tunnel.yaml
