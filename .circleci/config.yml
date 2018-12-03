@@ -129,11 +129,18 @@ commands:
           command: |
             # --foreground because this is run in a script by circle
             timeout --foreground 5m scripts/wait-until-server-ready
+  auth-with-gcp:
+    steps:
+      - run:
+          name: Auth with GCP
+          command: |
+            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
+            docker cp gcloud-service-key.json dark-dev:/home/dark/app/gcloud-service-key.json
+            scripts/run-in-docker gcloud auth activate-service-account --key-file /home/dark/app/gcloud-service-key.json
 
-
-# TODO:
-# optimize workflow
-
+##########################
+# Actual workflow
+##########################
 jobs:
   build-stroller:
     executor: my-executor
@@ -299,11 +306,14 @@ jobs:
       - attach_workspace: { at: "." }
       - copy-into-container
       - run-background-container
-      - wait-for-container
-      # Now that the workspaces have combined, we need to regenerate this.
+      # Now that the workspaces have combined, we need to regenerate etags.json
+      - wait-for-server
       - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers
-      - run: scripts/deploy-from-circle
+      - auth-with-gcp
+      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
+      - run: scripts/run-in-docker scripts/push-assets-to-cdn
+      - run: scripts/run-in-docker scripts/gke-deploy
 
 
 workflows:
