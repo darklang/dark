@@ -232,8 +232,9 @@ def execute(should):
 
   if should.generate_etags:
     if not generate_etags(): success = False
-    should.reload_server |= success
     should.reload_browser |= success
+    # This should probably cause a restart, but it breaks CI atm
+    # should.reload_server |= success
 
   if should.reload_server:
     if not reload_server(): success = False
