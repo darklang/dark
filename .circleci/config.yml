@@ -306,8 +306,8 @@ jobs:
       - attach_workspace: { at: "." }
       - copy-into-container
       - run-background-container
-      - wait-for-container
-      # Now that the workspaces have combined, we need to regenerate this.
+      # Now that the workspaces have combined, we need to regenerate etags.json
+      - wait-for-server
       - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers
       - auth-with-gcp
