@@ -301,7 +301,7 @@ jobs:
       - run-background-container
       - wait-for-container
       # Now that the workspaces have combined, we need to regenerate this.
-      - run: docker cp vols:/home/dark/app/backend/static/etags.yaml backend/static
+      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers
       - run: scripts/deploy-from-circle
 
