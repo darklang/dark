@@ -297,8 +297,7 @@ jobs:
 
       - extract-and-save-artifacts
 
-
-  deploy:
+  push-to-gcp:
     executor: my-executor
     steps:
       - checkout
@@ -311,25 +310,67 @@ jobs:
       - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers
       - auth-with-gcp
-      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
       - run: scripts/run-in-docker scripts/push-assets-to-cdn
-      - run: scripts/run-in-docker scripts/gke-deploy
+      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
+      # Save the image IDs for deployment later
+      - run: |
+          mkdir gcr-image-ids
+          docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
+          docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
+          docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+          docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+      - persist_to_workspace:
+          root: "."
+          paths: [ gcr-image-ids ]
+
+
+  deploy:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - attach_workspace: { at: "." }
+      - copy-into-container
+      - run-background-container
+      - wait-for-container
+      - auth-with-gcp
+      - run: |
+          scripts/run-in-docker scripts/gke-deploy       \
+            --server-image-id=`cat gcr-image-ids/server` \
+            --qw-image-id=`    cat gcr-image-ids/qw`     \
+            --cron-image-id=`  cat gcr-image-ids/cron`   \
+            --tunnel-image-id=`cat gcr-image-ids/tunnel`
 
 
 workflows:
   version: 2
   build-and-deploy:
     jobs:
+      # initial builds & tests
       - build-backend
       - build-client
       - build-stroller
+
+      # expensive tests
       - integration-tests:
           requires:
             - build-backend
             - build-client
+
+      # pre-deploy, in parallel with integration-tests
+      - push-to-gcp:
+          filters:
+            branches:
+              only: master
+          requires:
+            - build-backend
+            - build-client
+
+      # actual deploy
       - deploy:
           filters:
             branches:
               only: master
           requires:
             - integration-tests
+            - push-to-gcp
