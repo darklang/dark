@@ -231,12 +231,12 @@ jobs:
           name: "Save packagejson-specific cache"
           when: always
           paths: [ "client/node_modules" ]
-          key: v5-backend-{{ checksum "client/package.json" }}
+          key: v5-client-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
           when: always
           paths: [ "client/node_modules" ]
-          key: v5-backend-{{ checksum "today-timestamp" }}
+          key: v5-client-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
