@@ -57,50 +57,6 @@ and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr viewNPattern Pattern vs configs p
 
-let viewRopArrow (vs : viewState) : msg Html.html =
-  let line =
-    Svg.path
-      [ Svg.Attributes.stroke "red"
-      ; Svg.Attributes.strokeWidth "1.5px"
-      ; Svg.Attributes.d "M 0,0 z"
-      ; Vdom.attribute "" "opacity" "0.3"
-      ; Svg.Attributes.markerEnd "url(#arrow)" ]
-      []
-  in
-  let head =
-    Svg.defs []
-      [ Svg.marker
-        [ Svg.Attributes.id "arrow"
-        ; Svg.Attributes.markerWidth "10"
-        ; Svg.Attributes.markerHeight "10"
-        ; Svg.Attributes.refX "0"
-        ; Svg.Attributes.refY "3"
-        ; Svg.Attributes.orient "auto"
-        ; Svg.Attributes.markerUnits "strokeWidth"
-        ]
-        [ Svg.path
-          [ Svg.Attributes.d "M0,0 L0,6 L9,3 z"
-          ; Svg.Attributes.fill "#f00"
-          ]
-          []
-        ]
-      ]
-  in
-  let svg =
-    Svg.svg
-      [ Html.styles
-          [ ("position", "absolute")
-          ; ("pointer-events", "none") (* dont eat clicks *)
-          ; ("margin-top", "-10px")
-          ; ("fill", "none") ] ]
-      [line; head]
-  in
-  Html.node "rop-arrow"
-    (* Force the rop-webcomponent to update to fix the size *)
-    [ Vdom.attribute "" "update" (Util.random () |> string_of_int)
-    ; Vdom.attribute "" "tlid" (deTLID vs.tl.id) ]
-    [svg]
-
 let isExecuting (vs : viewState) (id : id) : bool =
   List.member id vs.executingFunctions
 
@@ -236,9 +192,6 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         | Some DIncomplete -> false
         | Some _ -> true
       in
-      let ropArrow =
-        if sendToRail = NoRail then Html.div [] [] else viewRopArrow vs
-      in
       let paramsComplete = List.all (isComplete << B.toID) allExprs in
       let resultHasValue = isComplete id in
       let buttonUnavailable = not paramsComplete in
@@ -283,13 +236,15 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               @ event )
               [fontAwesome icon] ]
       in
+      let errorRail = if sendToRail = NoRail then wc "" else wc "error-prone"
+      in
       let fnDiv parens =
-        n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
+        n [wc "op"; wc name] (fnname parens :: button)
       in
       match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [first; second], [_; _] ->
           n
-            (wc "fncall infix" :: wc (depthString d) :: all)
+            (wc "fncall infix" :: wc (depthString d) :: errorRail :: all)
             [ n [wc "lhs"] [ve incD first]
             ; fnDiv false
             ; n [wc "rhs"] [ve incD second] ]
@@ -300,7 +255,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               fn.fnParameters exprs
           in
           n
-            (wc "fncall prefix" :: wc (depthString d) :: all)
+            (wc "fncall prefix" :: wc (depthString d) :: errorRail :: all)
             (fnDiv fn.fnInfix :: args) )
   | Lambda (vars, expr) ->
       n (wc "lambdaexpr" :: all)
