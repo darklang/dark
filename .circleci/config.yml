@@ -321,4 +321,3 @@ workflows:
               only: master
           requires:
             - integration-tests
-            - build-stroller
