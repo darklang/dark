@@ -54,7 +54,6 @@ let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
 (* -------------------- *)
 type analysis =
   { live_values : dval_store
-  ; available_varnames : sym_store
   } [@@deriving to_yojson]
 
 type input_vars = (string * dval) list

@@ -250,7 +250,7 @@ and traceID = string
 and lvDict = dval GMap.String.t
 and avDict = varName list GMap.String.t
 and inputValueDict = dval GMap.String.t
-and analysisResults = {liveValues: lvDict; availableVarnames: avDict}
+and analysisResults = {liveValues: lvDict}
 
 and analyses = analysisResults GMap.String.t
 and functionResult =
