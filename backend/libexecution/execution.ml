@@ -166,11 +166,8 @@ let analyse_ast
     ; store_fn_arguments = store_no_arguments
     }
   in
-  let traced_symbols =
-    Ast.symbolic_execute state ~input_vars ast in
   let (_, traced_values) =
     Ast.execute_saving_intermediates state ~input_vars ast in
   { live_values = traced_values
-  ; available_varnames = traced_symbols
   }
 
