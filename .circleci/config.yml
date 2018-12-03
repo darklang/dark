@@ -149,17 +149,16 @@ jobs:
       - clean-caches: { path: "stroller/target" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
-      # - run-background-container
-      # - wait-for-container
-      # - copy-out-of-container
-      # - save-caches
-      # - persist_to_workspace:
-      #     root: "."
-      #     paths:
-      #       # Just enough for integration tests and deploy
-      #       - backend/_build/default/bin
-      #       - backend/static
-      # - extract-and-save-artifacts
+      - save_cache:
+          name: "Save cargolock-specific stroller cache"
+          when: always
+          paths: [ "stroller/target" ]
+          key: v5-stroller-{{ checksum "stroller/Cargo.lock" }}
+      - save_cache:
+          name: "Save daily stroller cache"
+          when: always
+          paths: [ "stroller/target" ]
+          key: v5-stroller-{{ checksum "today-timestamp" }}
 
 
   build-backend:
