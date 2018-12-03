@@ -142,11 +142,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v5-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v5-stroller-{{ checksum "today-timestamp" }}
-            - v5-stroller-{{ checksum "minus1-timestamp" }}
-            - v5-stroller-{{ checksum "minus2-timestamp" }}
-            - v5-stroller-{{ checksum "minus3-timestamp" }}
+            - v6-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v6-stroller-{{ checksum "today-timestamp" }}
+            - v6-stroller-{{ checksum "minus1-timestamp" }}
+            - v6-stroller-{{ checksum "minus2-timestamp" }}
+            - v6-stroller-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
@@ -154,12 +154,12 @@ jobs:
           name: "Save cargolock-specific stroller cache"
           when: always
           paths: [ "stroller/target" ]
-          key: v5-stroller-{{ checksum "stroller/Cargo.lock" }}
+          key: v6-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           when: always
           paths: [ "stroller/target" ]
-          key: v5-stroller-{{ checksum "today-timestamp" }}
+          key: v6-stroller-{{ checksum "today-timestamp" }}
 
 
   build-backend:
@@ -211,11 +211,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v4-client-{{ checksum "client/package.json" }}
-            - v4-client-{{ checksum "today-timestamp" }}
-            - v4-client-{{ checksum "minus1-timestamp" }}
-            - v4-client-{{ checksum "minus2-timestamp" }}
-            - v4-client-{{ checksum "minus3-timestamp" }}
+            - v5-client-{{ checksum "client/package.json" }}
+            - v5-client-{{ checksum "today-timestamp" }}
+            - v5-client-{{ checksum "minus1-timestamp" }}
+            - v5-client-{{ checksum "minus2-timestamp" }}
+            - v5-client-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
