@@ -58,7 +58,7 @@ commands:
         type: string
     steps:
       - run:
-          name: maybe clear caches: << parameters.path >>
+          name: maybe clear caches
           # since we don't checksum the cache on its contents, it may
           # continue to grow. as a result, let's clear the cache weekly.
           # we store the day the cache was built in the cache. if the
