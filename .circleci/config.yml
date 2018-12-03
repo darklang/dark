@@ -264,8 +264,8 @@ jobs:
     executor: my-executor
     parallelism: 4
     steps:
-      - initialize
       - checkout
+      - initialize
       - attach_workspace: { at: "." }
       - copy-into-container
       - run-background-container
@@ -294,8 +294,8 @@ jobs:
   deploy:
     executor: my-executor
     steps:
-      - initialize
       - checkout
+      - initialize
       - attach_workspace: { at: "." }
       - copy-into-container
       - run-background-container
