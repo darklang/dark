@@ -38,26 +38,24 @@ def compile(files):
     test = ""
   return run("scripts/support/compile " + test + " ".join(files))
 
-
-def initial_compile():
+def initial_backend_compile():
   files = [ "backend/bin/server.ml"
-          , "backend/test/test.ml"
-          , "client/src/app.less"
-          , "client/package.json"
-          , "client/src/App.ml"
-          , "client/__tests__/ast_test.ml"
-          , "stroller/Cargo.toml"
-          ]
-  exit = compile(files)
+          , "backend/test/test.ml" ]
+  return compile(files)
 
-  print("--------------------------")
-  print("-- Finished initial compile")
-  print("--------------------------")
-  return exit
+def initial_client_compile():
+  files = [ "client/package.json"
+          , "client/src/App.ml"
+          , "client/src/app.less"
+          , "client/__tests__/ast_test.ml" ]
+  return compile(files)
+
+def initial_stroller_compile():
+  files = [ "stroller/src/main.rs" ]
+  return compile(files)
 
 def run_server():
   exit = compile([ "scripts/support/runserver" ])
-
   print("--------------------------")
   print("-- Started server ")
   print("--------------------------")
@@ -128,6 +126,9 @@ def main():
   # Compile it once - you usually want this to have full built code.
   # See also run_tests (--test) which runs the tests too.
   compile = False
+  compile_client = False
+  compile_backend = False
+  compile_stroller = False
 
   # Run the Dark webserver and keep the container open to serve it.
   # Useful for demoing without draining your battery. Will not recompile
@@ -137,6 +138,18 @@ def main():
   for f in sys.argv[1:]:
     if f == "--compile":
       compile = True
+      compile_backend = True
+      compile_client = True
+      compile_stroller = True
+    elif f == "--compile-backend":
+      compile = True
+      compile_backend = True
+    elif f == "--compile-client":
+      compile = True
+      compile_client = True
+    elif f == "--compile-stroller":
+      compile = True
+      compile_stroller = True
     elif f == "--watch":
       watch = True
     elif f == "--ci-serve":
@@ -147,6 +160,28 @@ def main():
     elif f == "--test":
       global run_tests
       run_tests = True
+
+  def initial_compile():
+    success = True
+    if compile_client and not initial_client_compile():
+      print("Failed client build")
+      success = False
+    if compile_backend and not initial_backend_compile():
+      print("Failed backend build")
+      success = False
+    if compile_stroller and not initial_stroller_compile():
+      print("Failed stroller build")
+      success = False
+
+
+    print("--------------------------")
+    if success:
+      print("-- Initial compile succeeded")
+    else:
+      print("-- Initial compile failed")
+    print("--------------------------")
+
+    return success
 
   run("sudo chown dark:dark backend/_build")
   run("sudo chown dark:dark client/node_modules")

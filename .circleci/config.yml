@@ -52,60 +52,27 @@ commands:
   ##########################
   # Caches
   ##########################
-  save-caches:
-    steps:
-      - save_cache:
-          when: always
-          paths:
-            - backend/_build
-            - client/node_modules
-            - client/lib
-          key: v3-build-{{ checksum "today-timestamp" }}
-  load-caches:
-    steps:
-      - setup-cache-names
-      - restore_cache:
-          keys:
-            - v3-build-{{ checksum "today-timestamp" }}
-            - v3-build-{{ checksum "minus1-timestamp" }}
-            - v3-build-{{ checksum "minus2-timestamp" }}
-            - v3-build-{{ checksum "minus3-timestamp" }}
-            - v3-build-{{ checksum "minus4-timestamp" }}
-            - v3-build-{{ checksum "minus5-timestamp" }}
-            - v3-build-{{ checksum "minus6-timestamp" }}
-            - v3-build-{{ checksum "minus7-timestamp" }}
   clean-caches:
+    parameters:
+      path:
+        type: string
     steps:
       - run:
-          name: Maybe clear caches
-          # Since we don't checksum the cache on its contents, it may
-          # continue to grow. As a result, let's clear the cache weekly.
-          # We store the day the cache was built in the cache. If the
-          # cache was built on friday, and today is not Friday, then
+          name: maybe clear caches
+          # since we don't checksum the cache on its contents, it may
+          # continue to grow. as a result, let's clear the cache weekly.
+          # we store the day the cache was built in the cache. if the
+          # cache was built on friday, and today is not friday, then
           # it's the first build after last week, and clear it.
           command: |
-            if [[ `date +"%A"` != "Friday" && `cat backend/_build/CACHE_DAY` == "Friday" ]]; then
-              echo "Clearing caches"
-              # TODO: add in bucklescript + node_modules
-              rm -Rf backend/_build
+            if [[ `date +"%a"` != "friday" && `cat << parameters.path >>/cache_day` == "friday" ]]; then
+              echo "clearing caches"
+              rm -rf << parameters.path >>
             else
-              echo "Not clearing caches"
+              echo "not clearing caches"
             fi
-            mkdir -p backend/_build
-            date +"%A" > backend/_build/CACHE_DAY
-  setup-cache-names:
-    steps:
-      - run:
-          name: Set up names for caches
-          command: |
-            date +"%F" > today-timestamp
-            date +"%F" -d "today - 1 days" > minus1-timestamp
-            date +"%F" -d "today - 2 days" > minus2-timestamp
-            date +"%F" -d "today - 3 days" > minus3-timestamp
-            date +"%F" -d "today - 4 days" > minus4-timestamp
-            date +"%F" -d "today - 5 days" > minus5-timestamp
-            date +"%F" -d "today - 6 days" > minus6-timestamp
-            date +"%F" -d "today - 7 days" > minus7-timestamp
+            mkdir -p << parameters.path >>
+            date +"%a" > << parameters.path >>/cache_day
 
   ##########################
   # Initializing the containers
@@ -115,12 +82,27 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
+      # Save the docker env: type .docker-env when sshing in, then you can
+      # use ./scripts/run-in-docker
+      - run: |
+          env \
+          | grep 'DOCKER\|NO_PROXY' \
+          | sed 's/^/export /' \
+          > /root/docker-env
+
       - run:
           name: Install outer container utilities
           # coreutils for gnu date
-          # bash for scripts
           command: |
             apk add --update bash coreutils nginx jq
+
+      - run:
+          name: "Setup cache names"
+          command: |
+            date +"%F" > today-timestamp
+            date +"%F" -d "today - 1 days" > minus1-timestamp
+            date +"%F" -d "today - 2 days" > minus2-timestamp
+            date +"%F" -d "today - 3 days" > minus3-timestamp
 
 
   ##########################
@@ -129,6 +111,7 @@ commands:
   run-background-container:
     steps:
       - run:
+          name: Run background container
           command: scripts/builder --ci-serve
           background: true
   wait-for-container:
@@ -138,40 +121,150 @@ commands:
           command: |
             # --foreground because this is run in a script by circle
             timeout --foreground 5m scripts/wait-until-container-ready
+  wait-for-server:
+    steps:
+      - wait-for-container
+      - run:
+          name: "Wait for server"
+          command: |
+            # --foreground because this is run in a script by circle
             timeout --foreground 5m scripts/wait-until-server-ready
-
-
 
 
 # TODO:
 # optimize workflow
 
 jobs:
-  build:
+  build-stroller:
     executor: my-executor
     steps:
       - checkout
-      - persist_to_workspace: { root: ".", paths: "." }
       - initialize
-      - load-caches
+      - restore_cache:
+          keys:
+            - v6-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v6-stroller-{{ checksum "today-timestamp" }}
+            - v6-stroller-{{ checksum "minus1-timestamp" }}
+            - v6-stroller-{{ checksum "minus2-timestamp" }}
+            - v6-stroller-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "stroller/target" }
       - copy-into-container
-      - run: scripts/builder --compile --test
-      - run-background-container
-      - wait-for-container
-      - copy-out-of-container
-      - save-caches
+      - run: scripts/builder --compile-stroller --test
+      - save_cache:
+          name: "Save cargolock-specific stroller cache"
+          when: always
+          paths: [ "stroller/target" ]
+          key: v6-stroller-{{ checksum "stroller/Cargo.lock" }}
+      - save_cache:
+          name: "Save daily stroller cache"
+          when: always
+          paths: [ "stroller/target" ]
+          key: v6-stroller-{{ checksum "today-timestamp" }}
+
+
+  build-backend:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - restore_cache:
+          keys:
+            - v5-backend-{{ checksum "today-timestamp" }}
+            - v5-backend-{{ checksum "minus1-timestamp" }}
+            - v5-backend-{{ checksum "minus2-timestamp" }}
+            - v5-backend-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "backend/_build" }
+      - copy-into-container
+      - run: scripts/builder --compile-backend
+      - run:
+          name: Copy out generated files and caches
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/backend/_build backend/
+            docker cp vols:/home/dark/app/backend/static/. backend/static
+      - save_cache:
+          name: "Save daily backend cache"
+          when: always
+          paths: [ "backend/_build" ]
+          key: v5-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
             # Just enough for integration tests and deploy
             - backend/_build/default/bin
-            - backend/static
-      - extract-and-save-artifacts
+            - backend/static/analysis.js
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            mkdir -p artifacts
+            docker cp vols:/home/dark/app/rundir artifacts/rundir
+      - store_artifacts:
+          path: artifacts
+      - store_test_results:
+          path: artifacts/rundir/test_results
+
+  build-client:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - restore_cache:
+          keys:
+            - v5-client-{{ checksum "client/package.json" }}
+            - v5-client-{{ checksum "today-timestamp" }}
+            - v5-client-{{ checksum "minus1-timestamp" }}
+            - v5-client-{{ checksum "minus2-timestamp" }}
+            - v5-client-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "client/node_modules" }
+      - clean-caches: { path: "client/lib" }
+      - copy-into-container
+      - run: scripts/builder --compile-client --test
+      - run:
+          name: Copy out generated files and caches
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/client/node_modules client
+            docker cp vols:/home/dark/app/client/lib client
+            docker cp vols:/home/dark/app/backend/static/. backend/static
+      - save_cache:
+          name: "Save packagejson-specific cache"
+          when: always
+          paths: [ "client/node_modules" ]
+          key: v5-client-{{ checksum "client/package.json" }}
+      - save_cache:
+          name: "Save daily client cache"
+          when: always
+          paths: [ "client/node_modules" ]
+          key: v5-client-{{ checksum "today-timestamp" }}
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
+            - backend/static/appsupport.js
+            - backend/static/analysissupport.js
+            - backend/static/app.css
+            - backend/static/app.js
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            mkdir -p artifacts
+            docker cp vols:/home/dark/app/rundir artifacts/rundir
+            cp backend/static/etags.json artifacts
+            ls -la backend/static > artifacts/asset-list.txt
+      - store_artifacts:
+          path: artifacts
+      - store_test_results:
+          path: artifacts/rundir/test_results
+
+
 
   integration-tests:
     executor: my-executor
     parallelism: 4
     steps:
+      - checkout
       - initialize
       - attach_workspace: { at: "." }
       - copy-into-container
@@ -180,7 +273,7 @@ jobs:
       # run this here so we save a little time waiting for the server to be ready.
       - run: nginx -t -c $(pwd)/scripts/support/nginx-toplevel.conf -g "pid $(pwd)/rundir/nginx.pid;"
 
-      - wait-for-container
+      - wait-for-server
       - run:
           name: Run integration tests
           shell: bash
@@ -201,6 +294,7 @@ jobs:
   deploy:
     executor: my-executor
     steps:
+      - checkout
       - initialize
       - attach_workspace: { at: "." }
       - copy-into-container
@@ -214,14 +308,16 @@ workflows:
   version: 2
   build-and-deploy:
     jobs:
-      - build
+      - build-backend
+      - build-client
+      - build-stroller
       - integration-tests:
           requires:
-            - build
+            - build-backend
+            - build-client
       - deploy:
           filters:
             branches:
               only: master
           requires:
             - integration-tests
-            - build
