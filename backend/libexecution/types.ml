@@ -203,7 +203,9 @@ module RuntimeT = struct
 
   (* time *)
   type time = Time.Stable.With_utc_sexp.V2.t
-            [@opaque][@@deriving compare, show]
+            [@@deriving compare]
+  let pp_time f (t: time) =
+    Format.fprintf f "%s" (Util.isostring_of_date t)
   let equal_time t1 t2 = t1 = t2
   let time_to_yojson time = `String (Util.isostring_of_date time)
   let time_of_yojson json =
