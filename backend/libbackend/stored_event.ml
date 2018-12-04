@@ -27,10 +27,9 @@ let store_event ~(trace_id: Uuidm.t) ~(canvas_id: Uuidm.t) ((module_, path, modi
             ; DvalJson event]
 
 
-let list_events ~(limit: [ `All | `Week | `Since of RTT.time]) ~(canvas_id: Uuidm.t) () : (event_record) list =
+let list_events ~(limit: [ `All | `Since of RTT.time]) ~(canvas_id: Uuidm.t) () : (event_record) list =
   let timestamp_constraint =
     match limit with
-    | `Week -> "AND timestamp > (now() - interval '1 week')"
     | `All -> ""
     | `Since since -> "AND timestamp > " ^ Db.escape (Time since)
   in
