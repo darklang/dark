@@ -721,9 +721,28 @@ let update_ (msg : msg) (m : model) : modification =
           else SetCursorState origCursorState
         | _ -> NoChange
       else NoChange
-  | BlankOrClick (targetTLID, targetID, _) -> (
+  | BlankOrClick (targetTLID, targetID, event) -> (
+    (* TODO: switch to ranges to get actual character offset
+     * rather than approximating *)
+    let offset =
+      match Js.Nullable.toOption (Web_document.getElementById (showID targetID)) with
+      | Some elem ->
+        let rect = elem##getBoundingClientRect () in
+        if event.mePos.vy >= (int_of_float rect##top)
+          && event.mePos.vy <= (int_of_float rect##bottom)
+          && event.mePos.vx >= (int_of_float rect##left)
+          && event.mePos.vx <= (int_of_float rect##right)
+        then
+          Some ((event.mePos.vx - (int_of_float rect##left)) / 8)
+        else
+          None
+      | None -> None
+    in
     match m.cursorState with
-    | Deselected -> Select (targetTLID, Some targetID)
+    | Deselected ->
+      (match offset with
+       | Some offset -> Selection.enterWithOffset m targetTLID targetID offset
+       | None -> Select (targetTLID, Some targetID))
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
     | Entering cursor -> (
       match cursor with
@@ -736,7 +755,10 @@ let update_ (msg : msg) (m : model) : modification =
       | Some selectingID ->
           if selectingID = targetID then NoChange
           else Select (targetTLID, Some targetID)
-      | None -> Select (targetTLID, Some targetID) )
+      | None ->
+        (match offset with
+        | Some offset -> Selection.enterWithOffset m targetTLID targetID offset
+        | None -> Select (targetTLID, Some targetID)))
     | SelectingCommand (_, selectingID) ->
         if selectingID = targetID then NoChange
         else Select (targetTLID, Some targetID) )
