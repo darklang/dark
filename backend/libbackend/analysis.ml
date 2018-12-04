@@ -21,8 +21,8 @@ let unlocked (c: canvas) : tlid list =
   |> User_db.unlocked c.id c.owner
   |> List.map ~f:(fun x -> x.tlid)
 
-let get_404s (c: canvas) : SE.four_oh_four list =
-  let events = SE.list_events ~canvas_id:c.id () in
+let get_404s ~(since:RTT.time) (c: canvas) : SE.four_oh_four list =
+  let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
     Db.fetch
       ~name:"get_404s"
@@ -32,19 +32,18 @@ let get_404s (c: canvas) : SE.four_oh_four list =
           AND name IS NOT NULL
           AND modifier IS NOT NULL
           AND tipe = 'handler'::toplevel_type")
-      ~params:[ Db.Uuid c.id]
+      ~params:[ Db.Uuid c.id ]
     |> List.map ~f:(function
                     | [modu; n; modi] -> (modu, n, modi)
                     | _ -> Exception.internal "Bad DB format for get404s")
   in
   let match_event h e : bool =
-    let (space, path, modifier) = e in
+    let (space, path, modifier, _ts) = e in
     let (h_space, h_path, h_modifier) = h in
     Http.path_matches_route ~path h_path
     && h_modifier = modifier
     && h_space = space
   in
-
   events
   |> List.filter
     ~f:(fun e ->
@@ -164,16 +163,18 @@ let call_function (c: canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnn
 type get_analysis_response =
   { traces : tlid_trace list
   ; unlocked_dbs : tlid list
-  ; fofs : SE.four_oh_four list [@key "404s"]
+  ; fofs : SE.four_oh_four list * RTT.time [@key "404s"]
   } [@@deriving to_yojson]
 
-let to_getanalysis_frontend (traces: tlid_trace list)
+let to_getanalysis_frontend
+      (req_time: RTT.time)
+      (traces: tlid_trace list)
       (unlocked : tlid list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
   { traces
   ; unlocked_dbs = unlocked
-  ; fofs = f404s
+  ; fofs = (f404s, req_time)
   }
   |> get_analysis_response_to_yojson
   |> Yojson.Safe.to_string ~std:true

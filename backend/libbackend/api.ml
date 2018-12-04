@@ -10,7 +10,11 @@ type oplist = Op.op list [@@deriving yojson]
 type rpc_params = { ops: oplist }
                   [@@deriving yojson]
 
-type analysis_params = tlid list [@@deriving eq, show, yojson]
+type analysis_params =
+  { tlids: tlid list
+  ; latest404 : RuntimeT.time
+  }
+[@@deriving eq, show, yojson]
 
 type execute_function_params = { tlid : tlid
                                ; trace_id : RuntimeT.uuid

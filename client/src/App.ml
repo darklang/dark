@@ -73,7 +73,11 @@ let init (flagString: string) (location : Web.Location.location) =
         [ RPC.initialLoadRPC (contextFromModel m2)
             (FocusPageAndCursor (page, savedCursorState))
         (* load the analysis even if the timers are off *)
-        ; RPC.getAnalysisRPC (contextFromModel m2) []
+        ; RPC.getAnalysisRPC
+            (contextFromModel m2)
+            { tlids = []
+            ; latest404 = m.latest404
+            }
         ] )
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -530,7 +534,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         processAutocompleteMods m3 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs -> ({m with unlockedDBs}, Cmd.none)
-    | Set404s f404s -> ({m with f404s}, Cmd.none)
+    | Set404s (f404s, latest404) -> ({m with f404s; latest404}, Cmd.none)
+    | Append404s (f404s, latest404) ->
+      let new404s = (f404s @ m.f404s)
+                    |> List.uniqueBy
+                      (fun f404 -> f404.space ^ f404.path ^ f404.modifier)
+      in
+      ( {m with f404s = new404s; latest404}
+      , Cmd.none)
     | SetHover p ->
         let nhovering = p :: m.hovering in
         ({m with hovering= nhovering}, Cmd.none)
@@ -833,17 +844,17 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; RequestAnalysis [tl] ]
-  | GetAnalysisRPCCallback (tlids, (Ok (newTraces, f404s, unlockedDBs))) ->
+  | GetAnalysisRPCCallback (params, (Ok (newTraces, (f404s, ts), unlockedDBs))) ->
     let analysisTLs =
-      List.filter (fun tl -> List.member tl.id tlids) m.toplevels
+      List.filter (fun tl -> List.member tl.id params.tlids) m.toplevels
     in
     Many
       [ TweakModel Sync.markResponseInModel
       ; UpdateTraces newTraces
-      ; Set404s f404s
+      ; Append404s (f404s, ts)
       ; SetUnlockedDBs unlockedDBs
       ; RequestAnalysis analysisTLs ]
-  | GetDelete404RPCCallback (Ok f404s) -> Set404s f404s
+  | GetDelete404RPCCallback (Ok (f404s, ts)) -> Set404s (f404s, ts)
   | ReceiveAnalysis json -> (
       let envelope = Json_decode_extended.decodeString Decoders.analysisEnvelope json in
       match envelope with

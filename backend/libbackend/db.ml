@@ -69,6 +69,7 @@ let rec escape (param: param) : string =
   | Time t -> t
               |> date_to_sqlstring
               |> escape_single
+              |> single_quote
   | Null -> "NULL"
   | List params -> params
                    |> List.map ~f:escape
