@@ -18,15 +18,6 @@
 )
 
 (executable
-  (name darkfile_to_rpc)
-  (public_name darkfile_to_rpc)
-  (modules darkfile_to_rpc)
-  (flags (-warn-error +A))
-  (libraries libbackend)
-  (package dark)
-)
-
-(executable
   (name queue_worker)
   (public_name queue_worker)
   (modules queue_worker)

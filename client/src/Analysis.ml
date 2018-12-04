@@ -11,7 +11,7 @@ module TL = Toplevel
 (* "current" in this indicates that it uses the cursor to pick the right inputValue *)
 
 let defaultResults : analysisResults =
-  {liveValues= StrDict.empty; availableVarnames= StrDict.empty}
+  {liveValues= StrDict.empty}
 
 let cursor_ (cursors : tLCursors) (tlid : tlid) : int =
   (* We briefly do analysis on a toplevel which does not have an *)

@@ -145,13 +145,8 @@ and lvDict j : lvDict =
   j
   |> dict dval
 
-and avDict j : avDict =
-  j
-  |> dict (list string)
-
 and analysisResults j : analysisResults =
   { liveValues = field "live_values" (lvDict) j
-  ; availableVarnames = field "available_varnames" (avDict) j
   }
 
 and analysisEnvelope j : (traceID * analysisResults) =

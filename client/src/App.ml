@@ -462,7 +462,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | RequestAnalysis tls ->
         let handlers = TL.handlers tls in
-        let dbs = TL.dbs tls in
+        let dbs = TL.dbs m.toplevels in
         let userFns = m.userFunctions in
         let requestAnalysis s =
           Tea_cmd.call (fun _ ->
