@@ -1365,6 +1365,10 @@ let update_ (msg : msg) (m : model) : modification =
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error= {e with showDetails= show}})
+  | ToggleExprOnRail (tlid, id) ->
+      let tl = TL.getTL m tlid in
+      let pd = TL.findExn tl id in
+      Refactor.toggleOnRail m tl pd
   | _ -> NoChange
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

@@ -243,6 +243,10 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
           [ Html.div
             [ Html.class' "error-icon parameter-btn info"
             ; Html.title "May result in Nothing.\nDouble-click to :toggle-expression-on-rail\nand handle the result in a match statement."
+            ; ViewUtils.eventNoPropagation
+              ~key:("efb-" ^ (showID id) ^ "togglerop")
+              "dblclick"
+              (fun _ -> ToggleExprOnRail (vs.tl.id, id))
             ]
             [ fontAwesome "exclamation-triangle" ]
           ]
