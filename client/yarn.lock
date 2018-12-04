@@ -708,10 +708,9 @@ bser@^2.0.0:
   dependencies:
     node-int64 "^0.4.0"
 
-bucklescript-tea@^0.9.1:
-  version "0.9.1"
-  resolved "https://registry.yarnpkg.com/bucklescript-tea/-/bucklescript-tea-0.9.1.tgz#d83033d34f1788b34ef4e24c29d520a5f7e44318"
-  integrity sha512-ggK1kamcz7ZekyMwovwD7G6awSpCKToTxnfOZtOaSFF0pCWaTmE+mMNx+3mg+kmeHcwcZ278TZEYWxm9f0ZONg==
+bucklescript-tea@darklang/bucklescript-tea#master:
+  version "0.10.1"
+  resolved "https://codeload.github.com/darklang/bucklescript-tea/tar.gz/ff7c5e264685dccb4d44095775964c553cc81da3"
 
 buffer-from@^1.0.0:
   version "1.1.1"
