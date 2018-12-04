@@ -403,6 +403,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m3 = {m2 with cursorState= Entering entry} in
         (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
+    | EnterWithOffset (entry, offset) ->
+        let target =
+          match entry with
+          | Creating _ -> None
+          | Filling (tlid, id) ->
+              let tl = TL.getTL m tlid in
+              let pd = TL.findExn tl id in
+              Some (tlid, pd)
+        in
+        let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
+        let m3 = {m2 with cursorState= Entering entry} in
+        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntryWithOffset m3 offset]))
     | SelectCommand (tlid, id) ->
         let m2 = {m with cursorState= SelectingCommand (tlid, id)} in
         let m3, acCmd =
