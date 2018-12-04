@@ -22,7 +22,7 @@ let unlocked (c: canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 let get_404s (c: canvas) : SE.four_oh_four list =
-  let events = SE.list_events ~canvas_id:c.id () in
+  let events = SE.list_events ~limit:`Week ~canvas_id:c.id () in
   let handlers =
     Db.fetch
       ~name:"get_404s"
@@ -38,13 +38,12 @@ let get_404s (c: canvas) : SE.four_oh_four list =
                     | _ -> Exception.internal "Bad DB format for get404s")
   in
   let match_event h e : bool =
-    let (space, path, modifier) = e in
+    let (space, path, modifier, _ts) = e in
     let (h_space, h_path, h_modifier) = h in
     Http.path_matches_route ~path h_path
     && h_modifier = modifier
     && h_space = space
   in
-
   events
   |> List.filter
     ~f:(fun e ->

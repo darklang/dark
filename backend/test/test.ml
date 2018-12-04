@@ -429,12 +429,13 @@ let t_stored_event_roundtrip () =
   SE.store_event ~canvas_id:id2 ~trace_id:t5 desc2 (DStr "3");
 
   let at_desc = AT.of_pp SE.pp_event_desc in
+  let rec2desc (t1, t2, t3, t4) = (t1, t2, t3) in
 
-  let listed = SE.list_events ~canvas_id:id1 () in
+  let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
   AT.check
     (AT.list at_desc) "list host events"
     (List.sort ~compare [desc1; desc2; desc3])
-    (List.sort ~compare listed);
+    (List.sort ~compare (List.map ~f:rec2desc listed));
 
   let loaded1 = SE.load_events ~canvas_id:id1 desc1
                 |> List.map ~f:Tuple.T2.get2
