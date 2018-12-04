@@ -31,7 +31,13 @@ let toAnalyse (m : model) : tlid list =
 
 let fetch (m : model) : model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState then
-    (markRequestInModel m, RPC.getAnalysisRPC (contextFromModel m) (toAnalyse m))
+    ( markRequestInModel m
+    , RPC.getAnalysisRPC
+        (contextFromModel m)
+        { tlids = (toAnalyse m)
+        ; latest404 = m.latest404
+        }
+    )
   else (markTickInModel m, Tea.Cmd.none)
 
 

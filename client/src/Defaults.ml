@@ -78,4 +78,5 @@ let defaultModel : model =
   ; userContentHost= "builtwithdark.com"
   ; environment= "none"
   ; csrfToken = "UNSET_CSRF"
+  ; latest404 = "1970-01-01T00:00:00Z"
   }

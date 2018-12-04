@@ -363,14 +363,17 @@ let execute_function ~(execution_id: Types.id) (host: string) body
 let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
         : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let (t1, tlids) = time "1-read-api-tlids"
+    let req_time = Time.now () in
+    let (t1, params) = time "1-read-api-tlids"
       (fun _ -> Api.to_analysis_params body) in
+
+    let tlids = params.tlids in
 
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load_only ~tlids host []) in
 
     let (t3, f404s) = time "3-get-404s"
-      (fun _ -> Analysis.get_404s !c) in
+      (fun _ -> Analysis.get_404s ~since:params.latest404 !c) in
 
     let (t4, hvals) = time "4-handler-analyses"
       (fun _ ->
@@ -393,7 +396,7 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
       (fun _ -> Analysis.unlocked !c) in
 
     let (t7, result) = time "7-to-frontend"
-      (fun _ -> Analysis.to_getanalysis_frontend (hvals @ fvals) unlocked f404s !c) in
+      (fun _ -> Analysis.to_getanalysis_frontend req_time (hvals @ fvals) unlocked f404s !c) in
 
     respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7]) `OK result
   with
@@ -403,18 +406,9 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
 
 let delete_404 ~(execution_id: Types.id) (host: string) body
         : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  (* TODO: just fetch all and replace on the client *)
   try
-    let (t1, c) = time "1-get-canvas"
-      (fun _ -> C.load_all host []) in
-    let (t2, p) = time "2-to-route-params"
-      (fun _ -> Api.to_route_params body) in
-    let (t3, _) = time "3-delete-404s"
-      (fun _ -> Analysis.delete_404s !c p.space p.path p.modifier) in
-    let (t4, f404s) = time "4-get-404s"
-      (fun _ -> Analysis.get_404s !c) in
-    let (t5, result) = time "5-to-frontend"
-      (fun _ -> Analysis.to_getanalysis_frontend [] [] f404s !c) in
-    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4; t5]) `OK result
+    respond ~execution_id ~resp_headers:(server_timing []) `OK "sdasd"
   with
   | e ->
     raise e

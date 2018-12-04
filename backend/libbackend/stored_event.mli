@@ -27,7 +27,7 @@ val load_events :
   (Uuidm.t * Types.RuntimeT.dval) list
 
 val list_events :
-  limit:[ `All | `Week ] ->
+  limit:[ `All | `Week | `Since of Types.RuntimeT.time ] ->
   canvas_id:Uuidm.t ->
   unit ->
   event_record list
