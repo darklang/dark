@@ -74,7 +74,7 @@ let viewButtons (m : model) : msg Html.html =
                   else "see details" ) ] ]
   in
   let posToString pos :string =
-    Printf.sprintf "{ x = %i, y = %i}" pos.x pos.y
+    Printf.sprintf "{x = %i, y = %i}" pos.x pos.y
   in
   let pageToString pg =
     match pg with
