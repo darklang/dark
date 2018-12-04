@@ -2,8 +2,14 @@ open Core
 open Libexecution
 
 (* space, path, modifier *)
-type event_desc = string * string * string [@@deriving show]
-type four_oh_four = event_desc [@@deriving show, yojson]
+type event_desc = string * string * string
+                [@@deriving show, yojson]
+type event_record = string * string * string * Types.RuntimeT.time
+                [@@deriving show, yojson]
+type four_oh_four = event_record
+                  [@@deriving show, yojson]
+
+
 
 (* We store a set of events for each host. The events may or may not
  * belong to a toplevel. We provide a list in advance so that they can
@@ -21,9 +27,10 @@ val load_events :
   (Uuidm.t * Types.RuntimeT.dval) list
 
 val list_events :
+  limit:[ `All | `Week ] ->
   canvas_id:Uuidm.t ->
   unit ->
-  event_desc list
+  event_record list
 
 val clear_all_events :
   canvas_id:Uuidm.t ->

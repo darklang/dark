@@ -5,7 +5,9 @@ module RTT = Types.RuntimeT
 
 type event_desc = string * string * string
                 [@@deriving show, yojson]
-type four_oh_four = event_desc
+type event_record = string * string * string * RTT.time
+                [@@deriving show, yojson]
+type four_oh_four = event_record
                   [@@deriving show, yojson]
 
 (* ------------------------- *)
@@ -24,15 +26,32 @@ let store_event ~(trace_id: Uuidm.t) ~(canvas_id: Uuidm.t) ((module_, path, modi
             ; String modifier
             ; DvalJson event]
 
-let list_events ~(canvas_id: Uuidm.t) () : event_desc list =
-  Db.fetch
+
+let list_events ~(limit: [ `All | `Week ]) ~(canvas_id: Uuidm.t) () : (event_record) list =
+  let sql =
+    if limit = `Week
+    then
+      "SELECT
+         DISTINCT ON (module, path, modifier)
+         module, path, modifier, timestamp
+       FROM stored_events_v2
+       WHERE canvas_id = $1
+         AND timestamp > (now() - interval '1 week')"
+    else
+      "SELECT
+         DISTINCT ON (module, path, modifier)
+         module, path, modifier, timestamp
+       FROM stored_events_v2
+       WHERE canvas_id = $1
+         AND timestamp > (now() - interval '1 week')"
+  in
+  Db.fetch sql
     ~name:"list_events"
-    "SELECT DISTINCT module, path, modifier FROM stored_events_v2
-     WHERE canvas_id = $1"
     ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(function
-      | [module_; path; modifier] -> (module_, path, modifier)
-      | _ -> Exception.internal "Bad DB format for stored_events")
+      | [module_; path; modifier; timestamp] ->
+        (module_, path, modifier, Util.date_of_isostring timestamp)
+      | out -> Exception.internal "Bad DB format for stored_events")
 
 let load_events ~(canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : (Uuidm.t * RTT.dval) list =
   Db.fetch
@@ -65,8 +84,8 @@ let clear_all_events ~(canvas_id: Uuidm.t) () : unit =
      WHERE canvas_id = $1"
     ~params:[ Uuid canvas_id]
 
-let get_recent_event_traceids ~(canvas_id:Uuidm.t) event_desc =
-  let (module_, path, modifier) = event_desc in
+let get_recent_event_traceids ~(canvas_id:Uuidm.t) event_rec =
+  let (module_, path, modifier, _) = event_rec in
   Db.fetch
     ~name:"stored_event.get_recent_traces"
     "SELECT trace_id FROM stored_events_v2
@@ -89,7 +108,7 @@ let get_recent_event_traceids ~(canvas_id:Uuidm.t) event_desc =
 
 
 let get_all_recent_canvas_traceids (canvas_id: Uuidm.t) =
-  list_events ~canvas_id ()
+  list_events ~limit:`All ~canvas_id ()
   |> List.map ~f:(get_recent_event_traceids ~canvas_id)
   |> List.concat
 
