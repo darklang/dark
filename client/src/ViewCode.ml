@@ -236,7 +236,16 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               @ event )
               [fontAwesome icon] ]
       in
-      let errorRail = if sendToRail = NoRail then wc "" else wc "error-prone"
+      let errorIcon =
+        if sendToRail = NoRail
+        then []
+        else 
+          [ Html.div
+            [ Html.class' "error-icon parameter-btn info"
+            ; Html.title "May result in Nothing.\nDouble-click to :toggle-expression-on-rail\nand handle the result in a match statement."
+            ]
+            [ fontAwesome "exclamation-triangle" ]
+          ]
       in
       let fnDiv parens =
         n [wc "op"; wc name] (fnname parens :: button)
@@ -244,7 +253,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [first; second], [_; _] ->
           n
-            (wc "fncall infix" :: wc (depthString d) :: errorRail :: all)
+            (wc "fncall infix" :: wc (depthString d) :: all)
             [ n [wc "lhs"] [ve incD first]
             ; fnDiv false
             ; n [wc "rhs"] [ve incD second] ]
@@ -255,8 +264,8 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               fn.fnParameters exprs
           in
           n
-            (wc "fncall prefix" :: wc (depthString d) :: errorRail :: all)
-            (fnDiv fn.fnInfix :: args) )
+            (wc "fncall prefix" :: wc (depthString d) :: all)
+            ((fnDiv fn.fnInfix :: args) @ errorIcon) )
   | Lambda (vars, expr) ->
       n (wc "lambdaexpr" :: all)
         [ n [wc "lambdabinding"] (List.map (viewVarBind vs [atom]) vars)
@@ -411,7 +420,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
         [ viewExpr 0 vs [] h.ast ]
       ; Html.div
         [ Html.classList [("rop-rail", true); ("active", showRail)] ]
-        []
+        [(* TODO will fill with content once we implement error rail for real *)]
       ]
   in
   let externalLink =
