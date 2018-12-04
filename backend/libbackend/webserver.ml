@@ -406,13 +406,23 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string)
 
 let delete_404 ~(execution_id: Types.id) (host: string) body
         : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  (* TODO: just fetch all and replace on the client *)
   try
-    respond ~execution_id ~resp_headers:(server_timing []) `OK "sdasd"
+    let req_time = Time.now () in
+    let last_week = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+    let (t1, c) = time "1-get-canvas"
+      (fun _ -> C.load_all host []) in
+    let (t2, p) = time "2-to-route-params"
+      (fun _ -> Api.to_route_params body) in
+    let (t3, _) = time "3-delete-404s"
+      (fun _ -> Analysis.delete_404s !c p.space p.path p.modifier) in
+    let (t4, f404s) = time "4-get-404s"
+      (fun _ -> Analysis.get_404s ~since:last_week !c) in
+    let (t5, result) = time "5-to-frontend"
+      (fun _ -> Analysis.to_getanalysis_frontend req_time [] [] f404s !c) in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3; t4; t5]) `OK result
   with
   | e ->
     raise e
-
 
 let hashed_filename (file:string) (hash : string) :string =
   match List.rev (String.split ~on:'.' file) with
