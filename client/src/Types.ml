@@ -309,7 +309,10 @@ and executeFunctionRPCParams =
   ; efpArgs: dval list
   ; efpFnName: string }
 
-and analysisParams = tlid list
+and analysisParams =
+  { tlids: tlid list
+  ; latest404: string
+  }
 
 and delete404Param = fourOhFour
 
@@ -326,7 +329,7 @@ and dvalArgsHash = string
 and executeFunctionRPCResult = dval * dvalArgsHash
 
 and getAnalysisResult =
-  traces * fourOhFour list * tlid list
+  traces * (fourOhFour list * string) * tlid list
 
 and initialLoadResult = rpcResult
 
@@ -439,7 +442,8 @@ and modification =
   | RequestAnalysis of toplevel list
   | SetUserFunctions of userFunction list * bool
   | SetUnlockedDBs of tlid list
-  | Set404s of fourOhFour list
+  | Set404s of fourOhFour list * string
+  | Append404s of fourOhFour list * string
   | Enter of entryCursor
   | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)
@@ -488,7 +492,7 @@ and msg =
   | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t [@printer opaque "RPCCallback"]
   | SaveTestRPCCallback of (string, httpError) Tea.Result.t [@printer opaque "SavetestRPCCallback"]
   | GetAnalysisRPCCallback of (analysisParams * (getAnalysisResult, httpError) Tea.Result.t) [@printer opaque "GetAnalysisRPCCallback"]
-  | GetDelete404RPCCallback of (fourOhFour list, httpError) Tea.Result.t [@printer opaque "GetDelete404RPCCallback"]
+  | GetDelete404RPCCallback of (fourOhFour list * string, httpError) Tea.Result.t [@printer opaque "GetDelete404RPCCallback"]
   | InitialLoadRPCCallback of
       focus * modification * (initialLoadResult, httpError) Tea.Result.t [@printer opaque "InitialLoadRPCCallback"]
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
@@ -621,7 +625,9 @@ and model =
   ; canvasName: string
   ; userContentHost: string
   ; environment: string
-  ; csrfToken: string}
+  ; csrfToken: string
+  ; latest404: string (* string of timestamp *)
+  }
 [@@deriving show {with_path=false}]
 
 and rpcContext = { canvasName : string; csrfToken : string }

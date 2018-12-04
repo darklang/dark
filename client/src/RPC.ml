@@ -63,10 +63,14 @@ let executeFunctionRPC (c : rpcContext)
 let getAnalysisRPC (c : rpcContext) (params : analysisParams) : msg Tea.Cmd.t
     =
   let url =
-    String.concat ["/api/"; Tea.Http.encodeUri c.canvasName; "/get_analysis"]
+    "/api/" ^ Tea.Http.encodeUri c.canvasName ^ "/get_analysis"
   in
   let request =
-    postJson Decoders.getAnalysisRPC c.csrfToken url (Encoders.analysisParams params)
+    postJson
+      Decoders.getAnalysisRPC
+      c.csrfToken
+      url
+      (Encoders.analysisParams params)
   in
   Tea.Http.send (fun x -> GetAnalysisRPCCallback (params, x)) request
 
@@ -75,7 +79,13 @@ let delete404RPC (c : rpcContext) (param : delete404Param) : msg Tea.Cmd.t =
     String.concat ["/api/"; Tea.Http.encodeUri c.canvasName; "/delete_404"]
   in
   let request =
-    postJson (Json_decode_extended.list Decoders.fof) c.csrfToken url (Encoders.fof param)
+    postJson
+      (Json_decode_extended.pair
+         (Json_decode_extended.list Decoders.fof)
+         Json_decode_extended.string)
+      c.csrfToken
+      url
+      (Encoders.fof param)
   in
   Tea.Http.send (fun x -> GetDelete404RPCCallback x) request
 
