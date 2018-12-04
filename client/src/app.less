@@ -839,7 +839,6 @@ body #grid * {
 
   .rop-rail {
     padding-right: 30px;
-    border-right: solid 2px darken(@red, 10%)
   }
 
   .value-error {
@@ -949,14 +948,18 @@ body #grid * {
   .fncall {
     &.error-prone {
       &:after {
-        content: "";
-        width: @code-font-size/2;
-        height: @code-font-size/2;
+        content: "!";
+        font-size: @code-font-size * 0.75;
+        text-align: center;
+        font-weight: 700;
+        width: @code-font-size;
+        height: @code-font-size;
         border-radius: 50%;
-        background-color: darken(@red, 10%);
-        margin-top: @code-font-size/4;
+        color: darken(@red, 10%);
+        border: 1px solid darken(@red, 10%);
         position: absolute;
-        left: calc(~"100% - 20px");
+        left: calc(~"100% - 30px");
+        opacity: 0.66;
       }
     }
 
