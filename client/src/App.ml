@@ -182,11 +182,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   if m.integrationTestState <> NoIntegrationTest then
     Debug.loG "mod update" (show_modification mod_);
 
-  (match (VariantTesting.variantIsActive m SelectEnter), mod_ with
-     true, (Types.Select (tlid, Some id)) ->
-       updateMod (Types.Enter (Filling (tlid, id))) (m, cmd)
-   | _ ->
-
   let closeBlanks newM =
     (* close open threads in the previous TL *)
     m.cursorState
@@ -610,7 +605,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     (* applied from left to right *)
     | Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
-  (newm, Cmd.batch [cmd; newcmd]))
+  (newm, Cmd.batch [cmd; newcmd])
 
 (* Figure out from the string and the state whether this '.' means field
    access. *)
