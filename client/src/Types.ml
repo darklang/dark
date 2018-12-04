@@ -445,6 +445,7 @@ and modification =
   | Set404s of fourOhFour list * string
   | Append404s of fourOhFour list * string
   | Enter of entryCursor
+  | EnterWithOffset of entryCursor * int
   | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)
   | GetAnalysisRPC
