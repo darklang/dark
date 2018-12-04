@@ -27,23 +27,20 @@ let store_event ~(trace_id: Uuidm.t) ~(canvas_id: Uuidm.t) ((module_, path, modi
             ; DvalJson event]
 
 
-let list_events ~(limit: [ `All | `Week ]) ~(canvas_id: Uuidm.t) () : (event_record) list =
+let list_events ~(limit: [ `All | `Week | `Since of RTT.time]) ~(canvas_id: Uuidm.t) () : (event_record) list =
+  let timestamp_constraint =
+    match limit with
+    | `Week -> "AND timestamp > (now() - interval '1 week')"
+    | `All -> ""
+    | `Since since -> "AND timestamp > " ^ Db.escape (Time since)
+  in
   let sql =
-    if limit = `Week
-    then
       "SELECT
          DISTINCT ON (module, path, modifier)
          module, path, modifier, timestamp
        FROM stored_events_v2
-       WHERE canvas_id = $1
-         AND timestamp > (now() - interval '1 week')"
-    else
-      "SELECT
-         DISTINCT ON (module, path, modifier)
-         module, path, modifier, timestamp
-       FROM stored_events_v2
-       WHERE canvas_id = $1
-         AND timestamp > (now() - interval '1 week')"
+       WHERE canvas_id = $1"
+        ^ timestamp_constraint
   in
   Db.fetch sql
     ~name:"list_events"

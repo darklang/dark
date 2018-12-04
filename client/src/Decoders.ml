@@ -304,7 +304,8 @@ and rpc j : rpcResult =
 
 and getAnalysisRPC j : getAnalysisResult =
   ( field "traces" traces j
-  , field "404s" (list fof) j
+      (* (404s, timestamp) *)
+  , field "404s" (pair (list fof) string) j
   , field "unlocked_dbs" (list tlid) j
   )
 
