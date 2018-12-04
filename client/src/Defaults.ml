@@ -78,5 +78,8 @@ let defaultModel : model =
   ; userContentHost= "builtwithdark.com"
   ; environment= "none"
   ; csrfToken = "UNSET_CSRF"
-  ; latest404 = "1970-01-01T00:00:00Z"
+  ; latest404 = Js.Date.now ()
+                |> (+.) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
+                |> Js.Date.fromFloat
+                |> Js.Date.toISOString
   }
