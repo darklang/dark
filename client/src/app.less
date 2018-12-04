@@ -749,6 +749,29 @@ body #grid * {
   }
 }
 
+.handler-body {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+
+  .ast, .rop-rail {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .rop-rail {
+    border-left: 1px dotted darken(@red, 10%);
+    display: none;
+    margin: 0;
+
+    &.active {
+      display: inline-block;
+      margin-left: 30px;
+      margin-right: 30px;
+      margin-top: 8px;
+    }
+  }
+}
 
 
 
@@ -835,10 +858,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-  }
-
-  .rop-rail {
-    padding-right: 30px;
   }
 
   .value-error {

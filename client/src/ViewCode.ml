@@ -404,10 +404,15 @@ let viewEventModifier (vs : viewState) (c : htmlConfig list)
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
-    Html.div [Html.class' "ast"]
+    Html.div
+      [Html.class' "handler-body"]
       [ Html.div
-          [Html.classList [("rop-rail", showRail)]]
-          [viewExpr 0 vs [] h.ast] ]
+        [ Html.class' "ast" ]
+        [ viewExpr 0 vs [] h.ast ]
+      ; Html.div
+        [ Html.classList [("rop-rail", true); ("active", showRail)] ]
+        []
+      ]
   in
   let externalLink =
     match (h.spec.modifier, h.spec.name) with
