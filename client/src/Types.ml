@@ -309,7 +309,7 @@ and executeFunctionRPCParams =
   ; efpArgs: dval list
   ; efpFnName: string }
 
-and analysisParams = 
+and analysisParams =
   { tlids: tlid list
   ; latest404: string
   }
@@ -443,6 +443,7 @@ and modification =
   | SetUserFunctions of userFunction list * bool
   | SetUnlockedDBs of tlid list
   | Set404s of fourOhFour list * string
+  | Append404s of fourOhFour list * string
   | Enter of entryCursor
   | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)

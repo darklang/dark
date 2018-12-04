@@ -535,6 +535,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m3 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs -> ({m with unlockedDBs}, Cmd.none)
     | Set404s (f404s, latest404) -> ({m with f404s; latest404}, Cmd.none)
+    | Append404s (f404s, latest404) ->
+      let new404s = (f404s @ m.f404s)
+                    |> List.uniqueBy
+                      (fun f404 -> f404.space ^ f404.path ^ f404.modifier)
+      in
+      ( {m with f404s = new404s; latest404}
+      , Cmd.none)
     | SetHover p ->
         let nhovering = p :: m.hovering in
         ({m with hovering= nhovering}, Cmd.none)
@@ -844,7 +851,7 @@ let update_ (msg : msg) (m : model) : modification =
     Many
       [ TweakModel Sync.markResponseInModel
       ; UpdateTraces newTraces
-      ; Set404s (f404s, ts)
+      ; Append404s (f404s, ts)
       ; SetUnlockedDBs unlockedDBs
       ; RequestAnalysis analysisTLs ]
   | GetDelete404RPCCallback (Ok (f404s, ts)) -> Set404s (f404s, ts)
