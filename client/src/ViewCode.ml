@@ -241,14 +241,14 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         then []
         else 
           [ Html.div
-            [ Html.class' "error-icon parameter-btn info"
+            [ Html.class' "error-indicator parameter-btn"
             ; Html.title "May result in Nothing.\nDouble-click to :toggle-expression-on-rail\nand handle the result in a match statement."
             ; ViewUtils.eventNoPropagation
               ~key:("efb-" ^ (showID id) ^ "togglerop")
               "dblclick"
               (fun _ -> ToggleExprOnRail (vs.tl.id, id))
             ]
-            [ fontAwesome "exclamation-triangle" ]
+            [ fontAwesome "circle" ]
           ]
       in
       let fnDiv parens =
@@ -268,7 +268,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               fn.fnParameters exprs
           in
           n
-            (wc "fncall prefix" :: wc (depthString d) :: all)
+            (wc "fncall prefix" :: wc (depthString d) :: WithROP :: all)
             ((fnDiv fn.fnInfix :: args) @ errorIcon) )
   | Lambda (vars, expr) ->
       n (wc "lambdaexpr" :: all)

@@ -760,7 +760,7 @@ body #grid * {
   }
 
   .rop-rail {
-    border-left: 1px dotted lighten(@grey1, 20%);;
+    border-left: 1px dotted lighten(@grey1, 20%);
     display: none;
     margin: 0;
 
@@ -772,10 +772,9 @@ body #grid * {
     }
   }
 
-  .ast .error-icon {
+  .ast .error-indicator {
     position: absolute;
     left: calc(~"100% - 20px");
-    
 
     &:hover {
       color: @yellow;   
@@ -796,6 +795,17 @@ body #grid * {
         text-align: left;
       }
     }
+  }
+
+  .fncall {
+    &[data-live-value="<ErrorRail: Nothing>"] .error-indicator {
+      color: darken(@yellow, 25%);
+    }
+
+    .error-indicator {
+      color: lighten(@grey1, 20%);
+    }
+
   }
 }
 
