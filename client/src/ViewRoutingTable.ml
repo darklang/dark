@@ -38,7 +38,6 @@ let div (class_ : string) (subs : msg Html.html list) : msg Html.html =
 
 type entry =
   { name: string option
-  ; prefix: string list
   ; verbs: (string * pos) list
   ; tlid: tlid }
 
@@ -74,7 +73,6 @@ let tl2entry (tls : toplevel list) : entry list =
          | None -> None )
   |> List.map (fun (pos, tlid, h) ->
          { name= (match h.spec.name with F (_, s) -> Some s | Blank _ -> None)
-         ; prefix= []
          ; verbs=
              ( match h.spec.modifier with
              | F (_, s) -> [(s, pos)]
@@ -97,35 +95,6 @@ let collapseByVerb (es : entry list) : entry list =
                   new_ :: rest )
           [])
   |> List.concat
-
-let rec prefixify (hs : entry list) : entry list =
-  match hs with
-  | [] -> hs
-  | [_] -> hs
-  | h :: rest -> (
-    match h.name with
-    | None -> h :: prefixify rest
-    | Some name -> (
-        let len = String.length name in
-        let _ = "type annotation" in
-        let makePrefix h2 =
-          match h2.name with
-          | Some name2 ->
-              let newName = String.dropLeft len name2 in
-              {h2 with name= Some newName; prefix= h.prefix @ [name]}
-          | _ -> h2
-        in
-        let isPrefixOf h2 =
-          match h2.name with
-          | None -> false
-          | Some n2 -> String.startsWith name n2
-        in
-        (* this should short circuit immediately when not matching, as *)
-        (* first handler will make the fn succeed *)
-        match List.splitWhen (fun h2 -> not (isPrefixOf h2)) rest with
-        | None -> h :: (rest |> List.map makePrefix |> prefixify)
-        | Some (matched, unmatched) ->
-            h :: (prefixify <| List.map makePrefix matched @ unmatched) ) )
 
 let ordering (a : string) (b : string) : int =
   match (a, b) with
@@ -196,13 +165,12 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
     then
       match h.name with
       | Some n ->
-          let target = String.join "" (h.prefix @ [n]) in
           Html.a
             [ Html.class' "external"
             ; Html.href
                 ( "//"
                 ^ Tea.Http.encodeUri m.canvasName
-                ^ "." ^ m.userContentHost ^ target )
+                ^ "." ^ m.userContentHost ^ n )
             ; Html.target "_blank" ]
             [fontAwesome "external-link-alt"]
       | None -> Html.div [] []
@@ -218,9 +186,9 @@ let viewGroup (m : model) (showLink : showLink) (showUndo : showUndo)
       e.verbs |> List.head |> deOption "viewGroup/entryHtml" |> Tuple.second
     in
     div "handler"
-      ( [ div "name"
-            (List.map (text "prefix") e.prefix @ [Html.text (def e.name)])
-        ; div "extra" [span "verbs" (verbs e); externalLink e] ]
+      ( [ div "name" [Html.text (def e.name)]
+        ; div "extra" [span "verbs" (verbs e); externalLink e]
+        ]
       @ if showUndo = ShowUndo then [undoButton e.tlid (Toplevels pos)] else []
       )
   in
@@ -245,7 +213,6 @@ let viewRoutes (m : model) (collapse : collapseVerbs) (showLink : showLink)
        if collapse = CollapseVerbs then
          List.map (Tuple.mapSecond collapseByVerb) entries
        else entries )
-  |> List.map (Tuple.mapSecond prefixify)
   |> List.map (viewGroup m showLink showUndo)
 
 let viewRestorableDBs (tls : toplevel list) : msg Html.html =
