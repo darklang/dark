@@ -10,7 +10,6 @@ let toVariantTest (s : string * bool) : variantTest option =
   | _, false -> None
   | test, _ -> (
       match String.toLower test with
-        "selectenter" -> Some SelectEnter
       | "arrowmove" -> Some ArrowMove
       | "fluid" -> Some FluidInputModel
       | "stub" -> Some StubVariant
@@ -19,7 +18,6 @@ let toVariantTest (s : string * bool) : variantTest option =
 let toCSSClass (vt : variantTest) : string =
   let test = match vt with
       StubVariant -> "stub"
-    | SelectEnter -> "selectenter"
     | FluidInputModel -> "fluid"
     | ArrowMove -> "arrowmove"
     (* _ -> "default" *) (* Please never do this, let the compiler tell you if
@@ -43,10 +41,10 @@ let splitOnEquals (s : string) : (string * bool) option =
       | _ -> None )
   else None
 
-(* for example: having ?fluid=1 should turn on SelectEnter and ArrowMove *)
+(* for example: having ?fluid=1 should turn on ArrowMove *)
 let rec expandTest (vt : variantTest) : variantTest list =
   match vt with
-    FluidInputModel -> FluidInputModel :: ([SelectEnter ; ArrowMove]
+    FluidInputModel -> FluidInputModel :: ([ArrowMove]
                                            |> List.map expandTest
                                            |> List.flatten)
   | x -> [x]
