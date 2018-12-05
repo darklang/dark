@@ -551,7 +551,6 @@ and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
 (* ----------------------------- *)
 and variantTest =
   | StubVariant (* just a stub *)
-  | SelectEnter (* clicking an entry box should just enter it, not select *)
   | ArrowMove (* move between entering in one box and another using arrows *)
   | FluidInputModel (* both SelectEnter and ArrowMove *)
 

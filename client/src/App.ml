@@ -719,7 +719,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrClick (targetTLID, targetID, event) -> (
     (* TODO: switch to ranges to get actual character offset
      * rather than approximating *)
-    let offset =
+    let offset ()  =
       match Js.Nullable.toOption (Web_document.getElementById (showID targetID)) with
       | Some elem ->
         let rect = elem##getBoundingClientRect () in
@@ -733,34 +733,38 @@ let update_ (msg : msg) (m : model) : modification =
           None
       | None -> None
     in
-    let enter m tlid id offset =
-      match offset with
-      | Some offset -> Selection.enterWithOffset m tlid id offset
-      | None -> Selection.enter m tlid id
+    let fluidEnterOrSelect m tlid id =
+      if VariantTesting.variantIsActive m FluidInputModel
+      then
+        match offset () with
+        | Some offset -> Selection.enterWithOffset m tlid id offset
+        | None -> Selection.enter m tlid id
+      else
+        Select (tlid, Some id)
     in
     match m.cursorState with
-    | Deselected -> enter m targetTLID targetID offset
+    | Deselected -> fluidEnterOrSelect m targetTLID targetID
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
     | Entering cursor -> (
       match cursor with
       | Filling (_, fillingID) ->
         if fillingID = targetID
         then NoChange
-        else enter m targetTLID targetID offset
+        else fluidEnterOrSelect m targetTLID targetID
       | _ ->
-        enter m targetTLID targetID offset)
+        fluidEnterOrSelect m targetTLID targetID)
     | Selecting (_, maybeSelectingID) -> (
       match maybeSelectingID with
       | Some selectingID ->
           if selectingID = targetID
           then NoChange
-          else enter m targetTLID targetID offset
+          else fluidEnterOrSelect m targetTLID targetID
       | None ->
-        enter m targetTLID targetID offset)
+        fluidEnterOrSelect m targetTLID targetID)
     | SelectingCommand (_, selectingID) ->
         if selectingID = targetID
         then NoChange
-        else enter m targetTLID targetID offset)
+        else fluidEnterOrSelect m targetTLID targetID)
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
       Selection.enter m targetTLID targetID
   | ToplevelClick (targetTLID, _) -> (
