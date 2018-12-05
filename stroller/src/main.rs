@@ -1,7 +1,12 @@
+extern crate chrono;
 #[macro_use]
 extern crate diesel;
 extern crate hyper;
 extern crate pusher;
+extern crate uuid;
+
+mod config;
+mod db;
 
 use std::collections::HashMap;
 
@@ -10,8 +15,6 @@ use hyper::service::service_fn_ok;
 use hyper::{Body, Request, Response, Server};
 use pusher::Pusher;
 
-mod config;
-mod db;
 
 const GREETING: &str = "Hello Dark!";
 
@@ -26,9 +29,27 @@ fn hello_world(_req: Request<Body>) -> Response<Body> {
 }
 
 fn main() {
+    use diesel::debug_query;
+    use diesel::pg::Pg;
+    use diesel::prelude::*;
+
+    use db::models::*;
+    use db::schema::stored_events_v2::dsl::*;
+
     let addr = ([0, 0, 0, 0], PORT).into();
 
-    let _dbconn = db::connect();
+    let dbconn = db::connect();
+
+    let test_query = stored_events_v2.order(path);
+
+    println!("{}", debug_query::<Pg, _>(&test_query));
+
+    let latest_event = test_query
+        .order(timestamp.desc())
+        .limit(1)
+        .first::<StoredEvent>(&dbconn)
+        .expect("Error loading event");
+    println!("{:?}", latest_event);
 
     let mut pusher = Pusher::new(PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET)
         .host("api-us2.pusher.com")
@@ -46,7 +67,7 @@ fn main() {
         .finalize();
 
     let mut m = HashMap::new();
-    m.insert("message", "hey");
+    m.insert("message", latest_event.value);
 
     match pusher.trigger("my-channel", "my-event", m) {
         Ok(events) => println!("Pushed events: {:?}", events),
