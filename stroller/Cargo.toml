@@ -5,7 +5,7 @@ authors = ["Sam Stokes <me@samstokes.co.uk>"]
 
 [dependencies]
 chrono = "0.4.6"
-diesel = { version = "1.0.0", features = ["chrono", "postgres", "uuid"] }
+diesel = { version = "1.0.0", features = ["chrono", "postgres", "r2d2", "uuid"] }
 hyper = "0.12"
 pusher = "*"
 rustc-serialize = "0.3.24"
