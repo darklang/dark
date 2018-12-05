@@ -77,12 +77,14 @@ let decodeString decoder str =
     Belt.Result.Ok (decoder (Json.parseOrRaise str))
   with
   | DecodeError e ->
-    Porting.Debug.loG ("json decoding error: '" ^ e ^ "'") str;
+    (* Porting.Debug.loG ("json decoding error: '" ^ e ^ "'") str; *)
     Belt.Result.Error e
+
   | Json.ParseError e ->
-    Porting.Debug.loG ("json parse error: '" ^ e ^ "'") str;
+    (* Porting.Debug.loG ("json parse error: '" ^ e ^ "'") str; *)
     Belt.Result.Error e
-  | e ->
-    let errStr = Printexc.to_string e in
-    Porting.Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str;
+
+  | _ ->
+    (* let errStr = Printexc.to_string e in *)
+    (* Porting.Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str; *)
     Belt.Result.Error str

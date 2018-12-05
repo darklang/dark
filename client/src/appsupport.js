@@ -70,56 +70,55 @@ var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
-var pageHidden = false;
-
-const sendError = function (error, route, tlid){
-  // send to rollbar
-  Rollbar.error(
-    error.str,
-    error.obj,
-    { route: route
-      , tlid: tlid
-    }
-  );
-
-  // log to console
-  console.log(`Error processing analysis in (${route}): ${error.str}`);
-  console.log(error.obj);
-
-  // send to client
-  displayError(`Error while executing (${route}): ${error}`);
-};
-
 window.Dark = {
   analysis: {
     requestAnalysis : function (params) {
-      // console.debug('request analysis');
-      // console.debug(params);
-
-      // const bToString = (blankOr) => blankOr[2] || null;
-      // const spec = params.handler.spec;
-      // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-
-      if (window.analysisWorker) {
-        window.analysisWorker.postMessage(
-          { proto: window.location.protocol,
-            params: params
-          }
-        );
-
-        window.analysisWorker.onmessage = function (e) {
-          var result = e.data.analysis;
-          var error = e.data.error;
-
-          if (result && !error) {
-            var event = new CustomEvent('receiveAnalysis', {detail: result});
-            document.dispatchEvent(event);
-          } else if (error) {
-            sendError(error);
-          }
-        }
-      } else {
+      if (!window.analysisWorker) {
         console.log("analysisworker not loaded yet");
+        return;
+      }
+
+      const handler = params.handler;
+      const bToString = (blankOr) => blankOr[2] || null;
+      const spec = params.handler.spec;
+      const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
+      const tlid = handler.tlid;
+      const trace = params.trace.id;
+
+      window.analysisWorker.postMessage(
+        { proto: window.location.protocol,
+          params: JSON.stringify (params)
+        }
+      );
+
+      window.analysisWorker.onmessage = function (e) {
+        var result = e.data.analysis;
+        var error = e.data.error;
+
+        if (!error) {
+          var event = new CustomEvent('receiveAnalysis', {detail: result});
+          document.dispatchEvent(event);
+        } else {
+          var errorName = null;
+          var errorMsg = null;
+          try { errorName = error[1][1].c; } catch (_) {}
+          try { errorMsg = error[2][1].c; } catch (_) {}
+          try { if (!errorMsg) { errorMsg = error[2].c; } } catch (_) {}
+          const errorStr = `${errorName} - ${errorMsg}`;
+
+          // send to rollbar
+          Rollbar.error( errorStr
+                       , error
+                       , { route: route
+                         , tlid: tlid
+                         , trace: trace });
+
+          // log to console
+          console.log(`Error processing analysis in (${route}, ${tlid}, ${trace})`, errorStr, error);
+
+          // send to client
+          displayError(`Error while executing (${route}, ${tlid}, ${trace}): ${errorStr}`);
+        }
       }
     }
   },
@@ -182,6 +181,8 @@ window.onerror = function (msg, url, line, col, error) {
   displayError(msg);
 };
 
+
+var pageHidden = false;
 
 function visibilityCheck(){
   var hidden = false;
