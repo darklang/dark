@@ -71,6 +71,98 @@ window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
 window.Dark = {
+  caret: {
+    // find current loc in 'old' node
+    findCaretPointWithinTextElement: function(el_id) {
+      let el = document.getElementById(el_id);
+      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+      let currOffset = document.getElementById('entry-box').selectionEnd;
+
+      let range = document.createRange();
+      range.setStart(node, currOffset);
+      range.setEnd(node, currOffset);
+
+      let rect = range.getClientRects()[0];
+      if (rect === undefined) {
+        console.log("Error: no rect found. Likely, nodename = '#text' only applies to some dom constructions, not all?")
+        return {x: 0, y: 0}
+      }
+      let retval = {x: rect.left, y: rect.bottom};
+
+      return retval;
+    },
+    // get target offset for 'new' node
+    // CLEANUP: we don't use the y param, drop it from the sig?
+    //
+    findLogicalOffsetWithinTextElement: function(el_id, x, y) {
+      let el = document.getElementById(el_id);
+      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+      if (node === undefined) {
+        console.error("No childNode found with nodeName === '#text', returning offset 0.");
+        return 0;
+      }
+
+      y = el.getBoundingClientRect().bottom;
+
+      if (el.getBoundingClientRect().right < x) {
+        console.log("X is to the right, returning offset: -1");
+        return -1;
+      } else if (el.getBoundingClientRect().left > x) {
+        console.log("X is to the left, returning offset: 0");
+        return 0;
+      }
+
+      let range = document.createRange();
+      let length = node.textContent.length;
+      function isClickInRects(rects) {
+        return Array.from(rects).some(r => (r.left<x && r.right>x));
+      }
+
+      for (let i = 0; i < length; i++) {
+        range.setStart(node, i);
+        range.setEnd(node, i + 1);
+        if (isClickInRects(range.getClientRects())) {
+          return i;
+        }
+      }
+
+      console.error("We failed to set a correct offset!");
+      return 0;
+    },
+    /* either we have room to move the caret in the node, or we return false and
+     * move to another node */
+    moveCaretLeft: function(el_id) {
+      let el = document.getElementById(el_id);
+      let currOffset = document.getElementById('entry-box').selectionEnd;
+
+      if (currOffset == 0) {
+        return false;
+      }
+
+      // selectionStart here because selectionEnd results in moving two cells at
+      // a time. :shrug:
+      document.getElementById('entry-box').selectionStart -= 1;
+      return true;
+    },
+    moveCaretRight: function(el_id) {
+      let el = document.getElementById(el_id);
+      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+      if (node === undefined) {
+        console.error("No childNode found with nodeName === '#text', returning offset 0.");
+        return false; // falling back to the old behavior of "just move to the next node"
+      }
+
+      let currOffset = document.getElementById('entry-box').selectionEnd;
+      let length = node.textContent.length;
+
+      if (currOffset == length) {
+        return false;
+      }
+
+      document.getElementById('entry-box').selectionEnd += 1;
+      return true;
+    }
+  },
   analysis: {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {

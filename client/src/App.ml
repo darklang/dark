@@ -863,7 +863,7 @@ let update_ (msg : msg) (m : model) : modification =
         then
           match offset () with
           | Some offset ->
-              Selection.enterWithOffset m tlid id offset
+              Selection.enterWithOffset m tlid id (Some offset)
           | None ->
               Selection.enter m tlid id
         else Select (tlid, Some id)
