@@ -3,6 +3,7 @@ extern crate chrono;
 extern crate diesel;
 extern crate hyper;
 extern crate pusher;
+extern crate rustc_serialize;
 extern crate uuid;
 
 mod config;
@@ -67,7 +68,10 @@ fn main() {
         .finalize();
 
     let mut m = HashMap::new();
-    m.insert("message", latest_event.value);
+    m.insert(
+        "message",
+        latest_event.value().expect("error parsing value"),
+    );
 
     match pusher.trigger("my-channel", "my-event", m) {
         Ok(events) => println!("Pushed events: {:?}", events),
