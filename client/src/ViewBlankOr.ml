@@ -191,6 +191,9 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list 
     | _ -> []
   else []
 
+let withROP (rail: sendToRail) : htmlConfig list =
+  if rail = Rail then [WithROP] else []
+
 let getLiveValue (lvs : lvDict) (ID id : id) : dval option = StrDict.get id lvs
 
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) : string =

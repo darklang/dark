@@ -19,6 +19,7 @@ let div = ViewBlankOr.div
 let nested = ViewBlankOr.nested
 let atom = ViewBlankOr.atom
 let keyword = ViewBlankOr.keyword
+let withROP = ViewBlankOr.withROP
 
 let viewNFieldName (vs : viewState) (config : htmlConfig list) (f : string) :
     msg Html.html =
@@ -254,10 +255,11 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
       let fnDiv parens =
         n [wc "op"; wc name] (fnname parens :: button)
       in
+      let configs = (withROP sendToRail) @ all in
       match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [first; second], [_; _] ->
           n
-            (wc "fncall infix" :: wc (depthString d) :: all)
+            (wc "fncall infix" :: wc (depthString d) :: configs)
             [ n [wc "lhs"] [ve incD first]
             ; fnDiv false
             ; n [wc "rhs"] [ve incD second] ]
@@ -268,7 +270,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               fn.fnParameters exprs
           in
           n
-            (wc "fncall prefix" :: wc (depthString d) :: WithROP :: all)
+            (wc "fncall prefix" :: wc (depthString d) :: configs)
             ((fnDiv fn.fnInfix :: args) @ errorIcon) )
   | Lambda (vars, expr) ->
       n (wc "lambdaexpr" :: all)
@@ -424,7 +426,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
         [ viewExpr 0 vs [] h.ast ]
       ; Html.div
         [ Html.classList [("rop-rail", true); ("active", showRail)] ]
-        [(* TODO will fill with content once we implement error rail for real *)]
+        []
       ]
   in
   let externalLink =
