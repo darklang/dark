@@ -111,6 +111,9 @@ commands:
   run-background-container:
     steps:
       - run:
+          name: Build container if necessary
+          command: scripts/builder
+      - run:
           name: Run background container
           command: scripts/builder --ci-serve
           background: true
