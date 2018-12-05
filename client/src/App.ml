@@ -733,30 +733,34 @@ let update_ (msg : msg) (m : model) : modification =
           None
       | None -> None
     in
+    let enter m tlid id offset =
+      match offset with
+      | Some offset -> Selection.enterWithOffset m tlid id offset
+      | None -> Selection.enter m tlid id
+    in
     match m.cursorState with
-    | Deselected ->
-      (match offset with
-       | Some offset -> Selection.enterWithOffset m targetTLID targetID offset
-       | None -> Select (targetTLID, Some targetID))
+    | Deselected -> enter m targetTLID targetID offset
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
     | Entering cursor -> (
       match cursor with
       | Filling (_, fillingID) ->
-          if fillingID = targetID then NoChange
-          else Select (targetTLID, Some targetID)
-      | _ -> Select (targetTLID, Some targetID) )
+        if fillingID = targetID
+        then NoChange
+        else enter m targetTLID targetID offset
+      | _ ->
+        enter m targetTLID targetID offset)
     | Selecting (_, maybeSelectingID) -> (
       match maybeSelectingID with
       | Some selectingID ->
-          if selectingID = targetID then NoChange
-          else Select (targetTLID, Some targetID)
+          if selectingID = targetID
+          then NoChange
+          else enter m targetTLID targetID offset
       | None ->
-        (match offset with
-        | Some offset -> Selection.enterWithOffset m targetTLID targetID offset
-        | None -> Select (targetTLID, Some targetID)))
+        enter m targetTLID targetID offset)
     | SelectingCommand (_, selectingID) ->
-        if selectingID = targetID then NoChange
-        else Select (targetTLID, Some targetID) )
+        if selectingID = targetID
+        then NoChange
+        else enter m targetTLID targetID offset)
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
       Selection.enter m targetTLID targetID
   | ToplevelClick (targetTLID, _) -> (
