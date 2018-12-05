@@ -11,6 +11,7 @@ mod db;
 
 use std::collections::HashMap;
 
+use diesel::pg::PgConnection;
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
@@ -25,7 +26,7 @@ const PUSHER_APP_ID: &str = "661887";
 const PUSHER_KEY: &str = "ee6267fa618c71d4d341";
 const PUSHER_SECRET: &str = "ce29d2033402c9f037e1";
 
-fn service(req: Request<Body>) -> Response<Body> {
+fn service(dbconn: &PgConnection, req: Request<Body>) -> Response<Body> {
     let mut response = Response::new(Body::empty());
 
     let path_segments: Vec<&str> = req.uri().path().split("/").collect();
@@ -39,7 +40,7 @@ fn service(req: Request<Body>) -> Response<Body> {
                 "Got an event for canvas {} and trace {}",
                 canvas_uuid, trace_uuid
             );
-            match handle_push_stored_event(canvas_uuid, trace_uuid) {
+            match handle_push_stored_event(dbconn, canvas_uuid, trace_uuid) {
                 Ok(_) => {
                     *response.status_mut() = StatusCode::ACCEPTED;
                 }
@@ -57,16 +58,20 @@ fn service(req: Request<Body>) -> Response<Body> {
     response
 }
 
-fn handle_push_stored_event(canvas_uuid: &str, trace_uuid: &str) -> Result<(), String> {
+fn handle_push_stored_event(
+    dbconn: &PgConnection,
+    canvas_uuid: &str,
+    trace_uuid: &str,
+) -> Result<(), String> {
     let canvas_id = Uuid::parse_str(canvas_uuid)
         .map_err(|e| format!("invalid canvas UUID: {}", e).to_string())?;
     let trace_id = Uuid::parse_str(trace_uuid)
         .map_err(|e| format!("invalid trace UUID: {}", e).to_string())?;
-    push_stored_event(canvas_id, trace_id)
+    push_stored_event(dbconn, canvas_id, trace_id)
 }
 
-fn push_stored_event(canvas_id: Uuid, trace_id: Uuid) -> Result<(), String> {
-    let latest_event = get_latest_event(canvas_id, trace_id)
+fn push_stored_event(dbconn: &PgConnection, canvas_id: Uuid, trace_id: Uuid) -> Result<(), String> {
+    let latest_event = get_latest_event(dbconn, canvas_id, trace_id)
         .map_err(|e| format!("error finding event: {:?}", e).to_string())?;
     println!("latest event for canvas and trace: {:?}", latest_event);
 
@@ -77,6 +82,7 @@ fn push_stored_event(canvas_id: Uuid, trace_id: Uuid) -> Result<(), String> {
 }
 
 fn get_latest_event(
+    dbconn: &PgConnection,
     for_canvas_id: Uuid,
     for_trace_id: Uuid,
 ) -> Result<StoredEvent, diesel::result::Error> {
@@ -86,16 +92,13 @@ fn get_latest_event(
 
     use db::schema::stored_events_v2::dsl::*;
 
-    // TODO reuse DB connection!
-    let dbconn = db::connect();
-
     let latest_event_query = stored_events_v2
         .filter(canvas_id.eq(&for_canvas_id).and(trace_id.eq(&for_trace_id)))
         .order(timestamp.desc())
         .limit(1);
     println!("{}", debug_query::<Pg, _>(&latest_event_query));
 
-    latest_event_query.first(&dbconn)
+    latest_event_query.first(dbconn)
 }
 
 fn push_event(event: &StoredEvent) -> Result<pusher::TriggeredEvents, String> {
@@ -127,7 +130,16 @@ fn push_event(event: &StoredEvent) -> Result<pusher::TriggeredEvents, String> {
 fn main() {
     let addr = ([0, 0, 0, 0], PORT).into();
 
-    let make_service = || service_fn_ok(service);
+    let dbpool = db::new_pool();
+
+    let make_service = move || {
+        let dbpool_ = dbpool.clone();
+
+        service_fn_ok(move |req| {
+            let dbconn = dbpool_.get().expect("failed to obtain DB connection");
+            service(&dbconn, req)
+        })
+    };
 
     let server = Server::bind(&addr)
         .serve(make_service)
@@ -145,7 +157,7 @@ mod tests {
     #[test]
     fn responds_ok() {
         let req = Request::get("/").body(Body::empty()).unwrap();
-        let resp = service(req);
+        let resp = service(&db::connect(), req);
 
         assert_eq!(resp.status(), 200);
     }
@@ -153,7 +165,7 @@ mod tests {
     #[test]
     fn responds_404() {
         let req = Request::get("/nonexistent").body(Body::empty()).unwrap();
-        let resp = service(req);
+        let resp = service(&db::connect(), req);
 
         assert_eq!(resp.status(), 404);
     }
