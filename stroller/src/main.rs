@@ -13,11 +13,11 @@ use std::collections::HashMap;
 
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
-use hyper::{Body, Request, Response, Server};
+use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use pusher::Pusher;
+use uuid::Uuid;
 
-
-const GREETING: &str = "Hello Dark!";
+use db::models::*;
 
 const PORT: u16 = 3000;
 
@@ -25,33 +25,81 @@ const PUSHER_APP_ID: &str = "661887";
 const PUSHER_KEY: &str = "ee6267fa618c71d4d341";
 const PUSHER_SECRET: &str = "ce29d2033402c9f037e1";
 
-fn hello_world(_req: Request<Body>) -> Response<Body> {
-    Response::new(Body::from(GREETING))
+fn service(req: Request<Body>) -> Response<Body> {
+    let mut response = Response::new(Body::empty());
+
+    let path_segments: Vec<&str> = req.uri().path().split("/").collect();
+
+    match (req.method(), path_segments.as_slice()) {
+        (&Method::GET, ["", ""]) => {
+            *response.body_mut() = Body::from("Try POSTing to /canvas/:uuid/trace/:uuid/events");
+        }
+        (&Method::POST, ["", "canvas", canvas_uuid, "trace", trace_uuid, "events"]) => {
+            println!(
+                "Got an event for canvas {} and trace {}",
+                canvas_uuid, trace_uuid
+            );
+            match handle_push_stored_event(canvas_uuid, trace_uuid) {
+                Ok(_) => {
+                    *response.status_mut() = StatusCode::ACCEPTED;
+                }
+                Err(e) => {
+                    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+                    eprintln!("error trying to push stored event: {}", e);
+                }
+            }
+        }
+        _ => {
+            *response.status_mut() = StatusCode::NOT_FOUND;
+        }
+    }
+
+    response
 }
 
-fn main() {
+fn handle_push_stored_event(canvas_uuid: &str, trace_uuid: &str) -> Result<(), String> {
+    let canvas_id = Uuid::parse_str(canvas_uuid)
+        .map_err(|e| format!("invalid canvas UUID: {}", e).to_string())?;
+    let trace_id = Uuid::parse_str(trace_uuid)
+        .map_err(|e| format!("invalid trace UUID: {}", e).to_string())?;
+    push_stored_event(canvas_id, trace_id)
+}
+
+fn push_stored_event(canvas_id: Uuid, trace_id: Uuid) -> Result<(), String> {
+    let latest_event = get_latest_event(canvas_id, trace_id)
+        .map_err(|e| format!("error finding event: {:?}", e).to_string())?;
+    println!("latest event for canvas and trace: {:?}", latest_event);
+
+    push_event(&latest_event).map(|result| {
+        println!("pushed event: {:?}", result);
+        ()
+    })
+}
+
+fn get_latest_event(
+    for_canvas_id: Uuid,
+    for_trace_id: Uuid,
+) -> Result<StoredEvent, diesel::result::Error> {
     use diesel::debug_query;
     use diesel::pg::Pg;
     use diesel::prelude::*;
 
-    use db::models::*;
     use db::schema::stored_events_v2::dsl::*;
 
-    let addr = ([0, 0, 0, 0], PORT).into();
-
+    // TODO reuse DB connection!
     let dbconn = db::connect();
 
-    let test_query = stored_events_v2.order(path);
-
-    println!("{}", debug_query::<Pg, _>(&test_query));
-
-    let latest_event = test_query
+    let latest_event_query = stored_events_v2
+        .filter(canvas_id.eq(&for_canvas_id).and(trace_id.eq(&for_trace_id)))
         .order(timestamp.desc())
-        .limit(1)
-        .first::<StoredEvent>(&dbconn)
-        .expect("Error loading event");
-    println!("{:?}", latest_event);
+        .limit(1);
+    println!("{}", debug_query::<Pg, _>(&latest_event_query));
 
+    latest_event_query.first(&dbconn)
+}
+
+fn push_event(event: &StoredEvent) -> Result<pusher::TriggeredEvents, String> {
+    // TODO reuse Pusher connection!
     let mut pusher = Pusher::new(PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET)
         .host("api-us2.pusher.com")
         /*
@@ -68,23 +116,21 @@ fn main() {
         .finalize();
 
     let mut m = HashMap::new();
-    m.insert(
-        "message",
-        latest_event.value().expect("error parsing value"),
-    );
+    m.insert("message", event.value()?);
 
-    match pusher.trigger("my-channel", "my-event", m) {
-        Ok(events) => println!("Pushed events: {:?}", events),
-        Err(err) => eprintln!("Error pushing events: {}", err),
-    }
-    // TODO make actual Pusher call in the background without blocking the
-    // caller (since that's the whole point of having this in a separate
-    // process)
+    // TODO use event.canvas_id (and event.trace_id?) to route event to the right user
+    pusher.trigger("my-channel", "my-event", m)
+    // TODO make actual Pusher call in the background without blocking the caller (since that's the
+    // whole point of having this in a separate process)
+}
 
-    let hello_svc = || service_fn_ok(hello_world);
+fn main() {
+    let addr = ([0, 0, 0, 0], PORT).into();
+
+    let make_service = || service_fn_ok(service);
 
     let server = Server::bind(&addr)
-        .serve(hello_svc)
+        .serve(make_service)
         .map_err(|e| eprintln!("server error: {}", e));
 
     println!("Listening on {}", addr);
@@ -98,9 +144,17 @@ mod tests {
 
     #[test]
     fn responds_ok() {
-        let req = Request::get("/ignored").body(Body::empty()).unwrap();
-        let resp = hello_world(req);
+        let req = Request::get("/").body(Body::empty()).unwrap();
+        let resp = service(req);
 
         assert_eq!(resp.status(), 200);
+    }
+
+    #[test]
+    fn responds_404() {
+        let req = Request::get("/nonexistent").body(Body::empty()).unwrap();
+        let resp = service(req);
+
+        assert_eq!(resp.status(), 404);
     }
 }
