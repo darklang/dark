@@ -248,7 +248,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               "dblclick"
               (fun _ -> ToggleExprOnRail (vs.tl.id, id))
             ]
-            [ fontAwesome "circle" ]
+            [ Html.div [Html.class' "error-icon"] [] ]
           ]
       in
       let fnDiv parens =

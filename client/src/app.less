@@ -776,10 +776,7 @@ body #grid * {
     position: absolute;
     left: calc(~"100% - 20px");
 
-    &:hover {
-      color: @yellow;   
-
-      &:after {
+    &:hover:after {
         content: attr(title);
         display: block;
         position: relative;
@@ -793,19 +790,31 @@ body #grid * {
         color: lighten(@yellow, 10%);
         word-wrap: break-word;
         text-align: left;
-      }
     }
+
   }
 
   .fncall {
-    &[data-live-value="<ErrorRail: Nothing>"] .error-indicator {
-      color: darken(@yellow, 25%);
+    .error-icon {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid lighten(@grey1, 20%);
+      background-color: transparent;
+
+      &:hover {
+        border-color: @yellow;
+      }
     }
 
-    .error-indicator {
-      color: lighten(@grey1, 20%);
-    }
+    &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
+      background-color: lighten(@grey1, 20%);
 
+      &:hover {
+        background-color: @yellow;
+      }
+    }
   }
 }
 
@@ -1416,7 +1425,7 @@ body #grid * {
 }
 
 .ast div {
-  &.display-livevalue {
+  &.display-livevalue.selected {
 
     &:before {
       content: attr(data-live-value);
