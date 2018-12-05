@@ -3,6 +3,9 @@ use diesel::Connection;
 
 use config::*;
 
+pub mod models;
+pub mod schema;
+
 pub fn connect() -> PgConnection {
     let db_url = format!(
         "postgres://{}:{}@{}/{}",
