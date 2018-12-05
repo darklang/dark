@@ -8,4 +8,5 @@ chrono = "0.4.6"
 diesel = { version = "1.0.0", features = ["chrono", "postgres", "uuid"] }
 hyper = "0.12"
 pusher = "*"
+rustc-serialize = "0.3.24"
 uuid = "0.6.5"
