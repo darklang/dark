@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Sam Stokes <me@samstokes.co.uk>"]
 
 [dependencies]
-diesel = { version = "1.0.0", features = ["postgres"] }
+chrono = "0.4.6"
+diesel = { version = "1.0.0", features = ["chrono", "postgres", "uuid"] }
 hyper = "0.12"
 pusher = "*"
+uuid = "0.6.5"
