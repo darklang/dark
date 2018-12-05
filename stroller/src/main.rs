@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate diesel;
 extern crate hyper;
 extern crate pusher;
 
@@ -7,6 +9,9 @@ use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 use hyper::{Body, Request, Response, Server};
 use pusher::Pusher;
+
+mod config;
+mod db;
 
 const GREETING: &str = "Hello Dark!";
 
@@ -22,6 +27,8 @@ fn hello_world(_req: Request<Body>) -> Response<Body> {
 
 fn main() {
     let addr = ([0, 0, 0, 0], PORT).into();
+
+    let _dbconn = db::connect();
 
     let mut pusher = Pusher::new(PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET)
         .host("api-us2.pusher.com")
