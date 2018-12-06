@@ -21,6 +21,8 @@ type htmlConfig =
   | WithFF
   (* show an 'edit function' link *)
   | WithEditFn of tlid
+  (* will end up in error rail *)
+  | WithROP
 
 
 
@@ -87,6 +89,7 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
            match a with WithClass c -> Some c | _ -> None )
   in
   let showFeatureFlag = List.member WithFF configs in
+  let showROP = List.member WithROP configs in
   let editFn =
     getFirst (fun a -> match a with WithEditFn id -> Some id | _ -> None)
   in
@@ -100,7 +103,7 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   in
   let selected = thisID = selectedID && Option.isSome thisID in
   let displayLivevalue =
-    thisID = idOf vs.cursorState && Option.isSome thisID && vs.showLivevalue
+    ((thisID = idOf vs.cursorState) || showROP) && Option.isSome thisID && vs.showLivevalue
   in
   let mouseover = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
   let idClasses =
@@ -187,6 +190,9 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list 
       | _ -> [] )
     | _ -> []
   else []
+
+let withROP (rail: sendToRail) : htmlConfig list =
+  if rail = Rail then [WithROP] else []
 
 let getLiveValue (lvs : lvDict) (ID id : id) : dval option = StrDict.get id lvs
 
