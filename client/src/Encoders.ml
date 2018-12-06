@@ -60,7 +60,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
     |> ev "DObj"
 
   (* opaque types *)
-  | DBlock -> ev "DBlock" []
+  | DBlock -> ev "DBlock" [null]
   | DIncomplete -> ev "DIncomplete" []
 
   (* user-ish types *)
