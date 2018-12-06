@@ -8,23 +8,17 @@ extern crate uuid;
 
 mod config;
 mod db;
-
-use std::collections::HashMap;
+mod push;
 
 use diesel::pg::PgConnection;
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
-use pusher::Pusher;
 use uuid::Uuid;
 
 use db::models::*;
 
 const PORT: u16 = 3000;
-
-const PUSHER_APP_ID: &str = "661887";
-const PUSHER_KEY: &str = "ee6267fa618c71d4d341";
-const PUSHER_SECRET: &str = "ce29d2033402c9f037e1";
 
 fn service(dbconn: &PgConnection, req: Request<Body>) -> Response<Body> {
     let mut response = Response::new(Body::empty());
@@ -75,10 +69,9 @@ fn push_stored_event(dbconn: &PgConnection, canvas_id: Uuid, trace_id: Uuid) -> 
         .map_err(|e| format!("error finding event: {:?}", e).to_string())?;
     println!("latest event for canvas and trace: {:?}", latest_event);
 
-    push_event(&latest_event).map(|result| {
-        println!("pushed event: {:?}", result);
-        ()
-    })
+    // TODO reuse push client!
+    let client = push::Client::connect();
+    client.trigger(&latest_event)
 }
 
 fn get_latest_event(
@@ -99,32 +92,6 @@ fn get_latest_event(
     println!("{}", debug_query::<Pg, _>(&latest_event_query));
 
     latest_event_query.first(dbconn)
-}
-
-fn push_event(event: &StoredEvent) -> Result<pusher::TriggeredEvents, String> {
-    // TODO reuse Pusher connection!
-    let mut pusher = Pusher::new(PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET)
-        .host("api-us2.pusher.com")
-        /*
-         * :( we definitely should be using HTTPS but this panics with
-         * "Invalid scheme for Http".
-         * On inspection it appears .secure() just doesn't work.
-         * pusher-http-rust depends on an old version of hyper; however, TLS
-         * support was extracted out of hyper (in an even older version) into
-         * hyper-tls, the latest version of which is incompatible with the
-         * version of hyper that pusher-http-rust requires (and in particular
-         * with pusher-http-rust's .client() builder method).
-         */
-        //.secure()
-        .finalize();
-
-    let mut m = HashMap::new();
-    m.insert("message", event.value()?);
-
-    // TODO use event.canvas_id (and event.trace_id?) to route event to the right user
-    pusher.trigger("my-channel", "my-event", m)
-    // TODO make actual Pusher call in the background without blocking the caller (since that's the
-    // whole point of having this in a separate process)
 }
 
 fn main() {
