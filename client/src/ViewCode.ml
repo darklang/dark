@@ -19,6 +19,7 @@ let div = ViewBlankOr.div
 let nested = ViewBlankOr.nested
 let atom = ViewBlankOr.atom
 let keyword = ViewBlankOr.keyword
+let withROP = ViewBlankOr.withROP
 
 let viewNFieldName (vs : viewState) (config : htmlConfig list) (f : string) :
     msg Html.html =
@@ -56,50 +57,6 @@ let rec viewNPattern (vs : viewState) (config : htmlConfig list) (np : nPattern)
 and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr viewNPattern Pattern vs configs p
-
-let viewRopArrow (vs : viewState) : msg Html.html =
-  let line =
-    Svg.path
-      [ Svg.Attributes.stroke "red"
-      ; Svg.Attributes.strokeWidth "1.5px"
-      ; Svg.Attributes.d "M 0,0 z"
-      ; Vdom.attribute "" "opacity" "0.3"
-      ; Svg.Attributes.markerEnd "url(#arrow)" ]
-      []
-  in
-  let head =
-    Svg.defs []
-      [ Svg.marker
-        [ Svg.Attributes.id "arrow"
-        ; Svg.Attributes.markerWidth "10"
-        ; Svg.Attributes.markerHeight "10"
-        ; Svg.Attributes.refX "0"
-        ; Svg.Attributes.refY "3"
-        ; Svg.Attributes.orient "auto"
-        ; Svg.Attributes.markerUnits "strokeWidth"
-        ]
-        [ Svg.path
-          [ Svg.Attributes.d "M0,0 L0,6 L9,3 z"
-          ; Svg.Attributes.fill "#f00"
-          ]
-          []
-        ]
-      ]
-  in
-  let svg =
-    Svg.svg
-      [ Html.styles
-          [ ("position", "absolute")
-          ; ("pointer-events", "none") (* dont eat clicks *)
-          ; ("margin-top", "-10px")
-          ; ("fill", "none") ] ]
-      [line; head]
-  in
-  Html.node "rop-arrow"
-    (* Force the rop-webcomponent to update to fix the size *)
-    [ Vdom.attribute "" "update" (Util.random () |> string_of_int)
-    ; Vdom.attribute "" "tlid" (deTLID vs.tl.id) ]
-    [svg]
 
 let isExecuting (vs : viewState) (id : id) : bool =
   List.member id vs.executingFunctions
@@ -236,9 +193,6 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         | Some DIncomplete -> false
         | Some _ -> true
       in
-      let ropArrow =
-        if sendToRail = NoRail then Html.div [] [] else viewRopArrow vs
-      in
       let paramsComplete = List.all (isComplete << B.toID) allExprs in
       let resultHasValue = isComplete id in
       let buttonUnavailable = not paramsComplete in
@@ -283,13 +237,23 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               @ event )
               [fontAwesome icon] ]
       in
-      let fnDiv parens =
-        n [wc "op"; wc name] (fnname parens :: ropArrow :: button)
+      let errorIcon =
+        if sendToRail = NoRail
+        then []
+        else 
+          [ Html.div
+            [ Html.class' "error-indicator" ]
+            [ Html.div [Html.class' "error-icon"] [] ]
+          ]
       in
+      let fnDiv parens =
+        n [wc "op"; wc name] (fnname parens :: button)
+      in
+      let configs = (withROP sendToRail) @ all in
       match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [first; second], [_; _] ->
           n
-            (wc "fncall infix" :: wc (depthString d) :: all)
+            (wc "fncall infix" :: wc (depthString d) :: configs)
             [ n [wc "lhs"] [ve incD first]
             ; fnDiv false
             ; n [wc "rhs"] [ve incD second] ]
@@ -300,8 +264,8 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
               fn.fnParameters exprs
           in
           n
-            (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv fn.fnInfix :: args) )
+            (wc "fncall prefix" :: wc (depthString d) :: configs)
+            ((fnDiv fn.fnInfix :: args) @ errorIcon) )
   | Lambda (vars, expr) ->
       n (wc "lambdaexpr" :: all)
         [ n [wc "lambdabinding"] (List.map (viewVarBind vs [atom]) vars)
@@ -449,10 +413,15 @@ let viewEventModifier (vs : viewState) (c : htmlConfig list)
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
-    Html.div [Html.class' "ast"]
+    Html.div
+      [Html.class' "handler-body"]
       [ Html.div
-          [Html.classList [("rop-rail", showRail)]]
-          [viewExpr 0 vs [] h.ast] ]
+        [ Html.class' "ast" ]
+        [ viewExpr 0 vs [] h.ast ]
+      ; Html.div
+        [ Html.classList [("rop-rail", true); ("active", showRail)] ]
+        []
+      ]
   in
   let externalLink =
     match (h.spec.modifier, h.spec.name) with

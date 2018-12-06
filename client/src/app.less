@@ -746,6 +746,49 @@ body #grid * {
   }
 }
 
+.handler-body {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+
+  .ast, .rop-rail {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .rop-rail {
+    border-left: 1px dotted lighten(@grey1, 20%);
+    display: none;
+    margin: 0;
+
+    &.active {
+      display: inline-block;
+      margin-left: 15px;
+      margin-right: 15px;
+      margin-top: 8px;
+    }
+  }
+
+  .ast .error-indicator {
+    position: absolute;
+    left: calc(~"100% - 18px");
+  }
+
+  .fncall {
+    .error-icon {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid lighten(@grey1, 20%);
+      background-color: transparent;
+    }
+
+    &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
+      background-color: lighten(@grey1, 20%);
+    }
+  }
+}
 
 
 
@@ -832,11 +875,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-  }
-
-  .rop-rail {
-    padding-right: 30px;
-    border-right: solid 2px rgba(255, 0, 0, 0.3);
   }
 
   .value-error {
@@ -1359,7 +1397,7 @@ body #grid * {
 }
 
 .ast div {
-  &.display-livevalue {
+  &.display-livevalue.selected {
 
     &:before {
       content: attr(data-live-value);
