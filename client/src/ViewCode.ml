@@ -242,13 +242,7 @@ and viewNExpr (d : int) (id : id) (vs : viewState) (config : htmlConfig list)
         then []
         else 
           [ Html.div
-            [ Html.class' "error-indicator parameter-btn"
-            ; Html.title "May result in Nothing.\nDouble-click to :toggle-expression-on-rail\nand handle the result in a match statement."
-            ; ViewUtils.eventNoPropagation
-              ~key:("efb-" ^ (showID id) ^ "togglerop")
-              "dblclick"
-              (fun _ -> ToggleExprOnRail (vs.tl.id, id))
-            ]
+            [ Html.class' "error-indicator" ]
             [ Html.div [Html.class' "error-icon"] [] ]
           ]
       in

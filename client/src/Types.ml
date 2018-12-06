@@ -533,7 +533,6 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
-  | ToggleExprOnRail of tlid * id
 
 and predecessor = pointerData option
 
