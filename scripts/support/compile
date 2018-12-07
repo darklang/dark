@@ -149,16 +149,19 @@ def backend_test():
           + " 2>&1")
 
 def stroller_build():
-  start = time.time()
   global profile
 
   if os.environ.get("CI"):
-      build_flags = " --release"
-      pass
-  else:
-      build_flags = ""
-      pass
+    start = time.time()
+    result = run_backend(start, "cd stroller && cargo fmt -- --check")
+    if not result:
+      return result
 
+    build_flags = " --release"
+  else:
+    build_flags = ""
+
+  start = time.time()
   build = "cd stroller && unbuffer cargo build" + build_flags
   if profile:
     return run_backend(start, landmarks + build)
