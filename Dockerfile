@@ -305,6 +305,9 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
     cargo --version; \
     rustc --version;
 
+# install Rust dev tools
+RUN rustup component add clippy-preview
+
 ############################
 # Remove things that were moved to devDependencies
 ############################
