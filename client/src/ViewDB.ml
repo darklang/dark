@@ -36,7 +36,9 @@ let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
 
 let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
+  let configs =
+    if B.isBlank v || not vs.dbLocked then (enterable :: idConfigs) @ c else c
+  in
   ViewBlankOr.viewText DBColType vs configs v
 
 
