@@ -12,8 +12,8 @@ let parameter j : parameter =
   ; paramTipe = field "tipe" (string >> Runtime.str2tipe) j
   ; paramBlock_args = field "block_args" (list string) j
   ; paramOptional = field "optional" bool j
-  ; paramDescription = field "description" string j
-  }
+  ; paramDescription = field "description" string j }
+
 
 let function_ j : function_ =
   let open Json_decode_extended in
@@ -23,26 +23,21 @@ let function_ j : function_ =
   ; fnReturnTipe = field "return_type" (string >> Runtime.str2tipe) j
   ; fnPreviewExecutionSafe = field "preview_execution_safe" bool j
   ; fnDeprecated = field "deprecated" bool j
-  ; fnInfix = field "infix" bool j
-  }
+  ; fnInfix = field "infix" bool j }
+
 
 type flags =
-  { editorState: string option
-  ; complete: Types.function_ list
-  ; userContentHost: string
-  ; environment: string
-  ; csrfToken : string
-  }
+  { editorState : string option
+  ; complete : Types.function_ list
+  ; userContentHost : string
+  ; environment : string
+  ; csrfToken : string }
 
-let fromString (strJ: string) : flags =
+let fromString (strJ : string) : flags =
   let open Json_decode_extended in
   let j = Json.parseOrRaise strJ in
   { editorState = field "editorState" (optional string) j
   ; complete = field "complete" (list function_) j
   ; userContentHost = field "userContentHost" string j
   ; environment = field "environment" string j
-  ; csrfToken = field "csrfToken" string j
-  }
-
-
-
+  ; csrfToken = field "csrfToken" string j }

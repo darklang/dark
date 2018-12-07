@@ -4,21 +4,20 @@
 
 module String = struct
   include Belt.Map.String
+
   let pp
-      (_: Format.formatter -> 'value -> unit)
-      (_: Format.formatter)
-      (_: 'value t)
-    =
+      (_ : Format.formatter -> 'value -> unit)
+      (_ : Format.formatter)
+      (_ : 'value t) =
     ()
 end
 
 module Int = struct
   include Belt.Map.Int
+
   let pp
-      (_: Format.formatter -> 'value -> unit)
-      (_: Format.formatter)
-      (_: 'value t)
-    =
+      (_ : Format.formatter -> 'value -> unit)
+      (_ : Format.formatter)
+      (_ : 'value t) =
     ()
 end
-

@@ -1,37 +1,48 @@
-let show_list (f: 'a -> string) (x: 'a list) : string =
+let show_list (f : 'a -> string) (x : 'a list) : string =
   "[" ^ String.concat "," (List.map f x) ^ "]"
 
+
 let opaque msg fmt _ =
-  Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">");
+  Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">") ;
   ()
 
+
 type exception_ =
-  { short: string
-  ; long: string option
-  ; exceptionTipe: string
-  ; actual: string option
-  ; actualType: string option
-  ; result: string option
-  ; resultType: string option
-  ; expected: string option
-  ; info: string GMap.String.t
-  ; workarounds: string list }
+  { short : string
+  ; long : string option
+  ; exceptionTipe : string
+  ; actual : string option
+  ; actualType : string option
+  ; result : string option
+  ; resultType : string option
+  ; expected : string option
+  ; info : string GMap.String.t
+  ; workarounds : string list }
 
 (* ---------------------- *)
 (* Basic types *)
 (* ---------------------- *)
-
 and tlid = TLID of string
+
 and id = ID of string
-and 'a blankOr = Blank of id
-               | F of id * 'a
+
+and 'a blankOr =
+  | Blank of id
+  | F of id * 'a
+
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
 (* within the viewport and we map Absolute positions back to the *)
 (* viewport to display in the browser. *)
 (* TODO: Can we depreciate VPos? *)
-and pos = {x: int; y: int}
-and vPos = {vx: int; vy: int}
+and pos =
+  { x : int
+  ; y : int }
+
+and vPos =
+  { vx : int
+  ; vy : int }
+
 (* ---------------------- *)
 (* Types *)
 (* ---------------------- *)
@@ -65,22 +76,35 @@ and tipe =
 (* ---------------------- *)
 (* Exprs and AST types *)
 (* ---------------------- *)
-
 and varName = string
+
 and fnName = string
+
 and fieldName = string
+
 and keyName = string
+
 and varBind = varName blankOr
+
 and field = fieldName blankOr
+
 and key = keyName blankOr
+
 and lambdaParameter = varName blankOr
-and sendToRail = Rail | NoRail
-and nPattern = PVariable of varName
-             | PLiteral of string
-             | PConstructor of string * pattern list
+
+and sendToRail =
+  | Rail
+  | NoRail
+
+and nPattern =
+  | PVariable of varName
+  | PLiteral of string
+  | PConstructor of string * pattern list
+
 and pattern = nPattern blankOr
 
 and expr = nExpr blankOr
+
 and nExpr =
   | If of expr * expr * expr
   | FnCall of fnName * expr list * sendToRail
@@ -130,8 +154,10 @@ and pointerType =
   | ParamTipe
   | Pattern
 
-and pointerOwner = POSpecHeader | POAst | PODb
-
+and pointerOwner =
+  | POSpecHeader
+  | POAst
+  | PODb
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -139,66 +165,90 @@ and pointerOwner = POSpecHeader | POAst | PODb
 
 (* handlers *)
 and handlerSpec =
-  {module_: string blankOr; name: string blankOr; modifier: string blankOr}
+  { module_ : string blankOr
+  ; name : string blankOr
+  ; modifier : string blankOr }
 
-and handlerSpace = HSHTTP | HSCron | HSOther | HSEmpty
+and handlerSpace =
+  | HSHTTP
+  | HSCron
+  | HSOther
+  | HSEmpty
 
-and handler = {ast: expr; spec: handlerSpec; tlid: tlid}
+and handler =
+  { ast : expr
+  ; spec : handlerSpec
+  ; tlid : tlid }
 
 (* dbs *)
 and dBName = string
+
 and dBColName = string
+
 and dBColType = string
+
 and dBColumn = dBColName blankOr * dBColType blankOr
+
 and dBMigrationKind = DeprecatedMigrationKind
-and dBMigrationState = DBMigrationAbandoned
-                      | DBMigrationInitialized
+
+and dBMigrationState =
+  | DBMigrationAbandoned
+  | DBMigrationInitialized
 
 and dBMigration =
-  { startingVersion: int
-  ; version: int
-  ; state: dBMigrationState
-  ; rollforward: expr
-  ; rollback: expr
-  ; cols: dBColumn list }
+  { startingVersion : int
+  ; version : int
+  ; state : dBMigrationState
+  ; rollforward : expr
+  ; rollback : expr
+  ; cols : dBColumn list }
 
 and dB =
-  { dbTLID: tlid
-  ; dbName: dBName
-  ; cols: dBColumn list
-  ; version: int
-  ; oldMigrations: dBMigration list
-  ; activeMigration: dBMigration option }
+  { dbTLID : tlid
+  ; dbName : dBName
+  ; cols : dBColumn list
+  ; version : int
+  ; oldMigrations : dBMigration list
+  ; activeMigration : dBMigration option }
 
 (* userFunctions *)
 and userFunctionParameter =
-  { ufpName: string blankOr
-  ; ufpTipe: tipe blankOr
-  ; ufpBlock_args: string list
-  ; ufpOptional: bool
-  ; ufpDescription: string }
+  { ufpName : string blankOr
+  ; ufpTipe : tipe blankOr
+  ; ufpBlock_args : string list
+  ; ufpOptional : bool
+  ; ufpDescription : string }
 
 and userFunctionMetadata =
-  { ufmName: string blankOr
-  ; ufmParameters: userFunctionParameter list
-  ; ufmDescription: string
-  ; ufmReturnTipe: tipe blankOr
-  ; ufmInfix: bool }
+  { ufmName : string blankOr
+  ; ufmParameters : userFunctionParameter list
+  ; ufmDescription : string
+  ; ufmReturnTipe : tipe blankOr
+  ; ufmInfix : bool }
 
-and userFunction = {ufTLID: tlid; ufMetadata: userFunctionMetadata; ufAST: expr}
+and userFunction =
+  { ufTLID : tlid
+  ; ufMetadata : userFunctionMetadata
+  ; ufAST : expr }
 
 (* toplevels *)
-and tLData = TLHandler of handler
-            | TLDB of dB
-            | TLFunc of userFunction
+and tLData =
+  | TLHandler of handler
+  | TLDB of dB
+  | TLFunc of userFunction
 
-and toplevel = {id: tlid; pos: pos; data: tLData}
+and toplevel =
+  { id : tlid
+  ; pos : pos
+  ; data : tLData }
 
+and dhttp =
+  | Redirect of string
+  | Response of int * (string * string) list
 
-
-and dhttp = Redirect of string | Response of int * (string * string) list
-
-and optionT = OptJust of dval | OptNothing
+and optionT =
+  | OptJust of dval
+  | OptNothing
 
 and dval =
   | DInt of int
@@ -223,14 +273,18 @@ and dval =
   | DUuid of string
   | DOption of optionT
 
-and mouseEvent = {mePos: vPos; button: int}
+and mouseEvent =
+  { mePos : vPos
+  ; button : int }
 
 and isLeftButton = bool
 
 (* ----------------------------- *)
 (* CursorState *)
 (* ----------------------------- *)
-and entryCursor = Creating of pos | Filling of tlid * id
+and entryCursor =
+  | Creating of pos
+  | Filling of tlid * id
 
 and hasMoved = bool
 
@@ -241,36 +295,50 @@ and cursorState =
   | SelectingCommand of tlid * id
   | Deselected
 
-and timerAction = RefreshAnalysis | CheckUrlHashPosition
+and timerAction =
+  | RefreshAnalysis
+  | CheckUrlHashPosition
 
 (* ------------------- *)
 (* Analysis *)
 (* ------------------- *)
 and traceID = string
+
 and lvDict = dval GMap.String.t
+
 and avDict = varName list GMap.String.t
+
 and inputValueDict = dval GMap.String.t
-and analysisResults = {liveValues: lvDict}
+
+and analysisResults = {liveValues : lvDict}
 
 and analyses = analysisResults GMap.String.t
-and functionResult =
-  {fnName: string; callerID: id; argHash: string; value: dval}
 
+and functionResult =
+  { fnName : string
+  ; callerID : id
+  ; argHash : string
+  ; value : dval }
 
 and trace =
-  { traceID: traceID
-  ; input: inputValueDict
-  ; functionResults: functionResult list
-  }
+  { traceID : traceID
+  ; input : inputValueDict
+  ; functionResults : functionResult list }
+
 and traces = trace list GMap.String.t
 
-and fourOhFour = {space: string; path: string; modifier: string}
+and fourOhFour =
+  { space : string
+  ; path : string
+  ; modifier : string }
 
 (* ------------------- *)
 (* ops *)
 (* ------------------- *)
 and rollbackID = id
+
 and rollforwardID = id
+
 and op =
   | SetHandler of tlid * pos * handler
   | CreateDB of tlid * pos * dBName
@@ -300,36 +368,30 @@ and op =
 (* RPCs *)
 (* ------------------- *)
 (* params *)
-and rpcParams = {ops: op list}
+and rpcParams = {ops : op list}
 
 and executeFunctionRPCParams =
-  { efpTLID: tlid
-  ; efpTraceID: traceID
-  ; efpCallerID: id
-  ; efpArgs: dval list
-  ; efpFnName: string }
+  { efpTLID : tlid
+  ; efpTraceID : traceID
+  ; efpCallerID : id
+  ; efpArgs : dval list
+  ; efpFnName : string }
 
 and analysisParams =
-  { tlids: tlid list
-  ; latest404: string
-  }
+  { tlids : tlid list
+  ; latest404 : string }
 
 and delete404Param = fourOhFour
 
 (* results *)
 and rpcResult =
-  toplevel list
-  * toplevel list
-  * traces
-  * userFunction list
-  * tlid list
+  toplevel list * toplevel list * traces * userFunction list * tlid list
 
 and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
-and getAnalysisResult =
-  traces * (fourOhFour list * string) * tlid list
+and getAnalysisResult = traces * (fourOhFour list * string) * tlid list
 
 and initialLoadResult = rpcResult
 
@@ -338,29 +400,35 @@ and initialLoadResult = rpcResult
 (* ------------------- *)
 (* functions *)
 and parameter =
-  { paramName: string
-  ; paramTipe: tipe
-  ; paramBlock_args: string list
-  ; paramOptional: bool
-  ; paramDescription: string }
+  { paramName : string
+  ; paramTipe : tipe
+  ; paramBlock_args : string list
+  ; paramOptional : bool
+  ; paramDescription : string }
 
 and function_ =
-  { fnName: string
-  ; fnParameters: parameter list
-  ; fnDescription: string
-  ; fnReturnTipe: tipe
-  ; fnPreviewExecutionSafe: bool
-  ; fnDeprecated: bool
-  ; fnInfix: bool }
+  { fnName : string
+  ; fnParameters : parameter list
+  ; fnDescription : string
+  ; fnReturnTipe : tipe
+  ; fnPreviewExecutionSafe : bool
+  ; fnDeprecated : bool
+  ; fnInfix : bool }
 
 (* autocomplete items *)
 and literal = string
-and keyword = KLet | KIf | KLambda | KMatch
+
+and keyword =
+  | KLet
+  | KIf
+  | KLambda
+  | KMatch
+
 and command =
-  { commandName: string
-  ; action: model -> toplevel -> pointerData -> modification
-  ; doc: string
-  ; shortcut: string }
+  { commandName : string
+  ; action : model -> toplevel -> pointerData -> modification
+  ; doc : string
+  ; shortcut : string }
 
 and omniAction =
   | NewDB of dBName
@@ -381,17 +449,18 @@ and autocompleteItem =
   | ACCommand of command
 
 and target = tlid * pointerData
+
 and autocomplete =
-  { functions: function_ list
-  ; admin: bool
-  ; completions: autocompleteItem list list
-  ; allCompletions: autocompleteItem list
-  ; index: int
-  ; value: string
-  ; prevValue: string
-  ; target: (tlid * pointerData) option
-  ; acTipe: tipe option
-  ; isCommandMode: bool }
+  { functions : function_ list
+  ; admin : bool
+  ; completions : autocompleteItem list list
+  ; allCompletions : autocompleteItem list
+  ; index : int
+  ; value : string
+  ; prevValue : string
+  ; target : (tlid * pointerData) option
+  ; acTipe : tipe option
+  ; isCommandMode : bool }
 
 and autocompleteMod =
   | ACSetQuery of string
@@ -402,26 +471,34 @@ and autocompleteMod =
   | ACSetTarget of target option
   | ACRegenerate
   | ACEnableCommandMode
-  (* | ACFilterByParamType of tipe nodeList *)
+
+(* | ACFilterByParamType of tipe nodeList *)
 
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
-and page = Toplevels of pos
-          | Fn of tlid * pos
+and page =
+  | Toplevels of pos
+  | Fn of tlid * pos
 
 and focus =
   | FocusNothing
   | FocusExact of tlid * id
   | FocusNext of tlid * id option
   | FocusPageAndCursor of page * cursorState
-  | FocusSame (* unchanged *)
-  | FocusNoChange (* unchanged *)
+  | FocusSame
+  (* unchanged *)
+  | FocusNoChange
 
+(* unchanged *)
 and clipboard = pointerData option
-and canvasProps = {offset: pos; fnOffset: pos; enablePan: bool}
 
-and httpError = string Tea.Http.error [@opaque]
+and canvasProps =
+  { offset : pos
+  ; fnOffset : pos
+  ; enablePan : bool }
+
+and httpError = (string Tea.Http.error[@opaque])
 
 and modification =
   | DisplayAndReportHttpError of string * httpError
@@ -488,14 +565,23 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
-  | FocusEntry of (unit, Dom.errorEvent) Tea.Result.t [@printer opaque "FocusEntry"]
-  | FocusAutocompleteItem of (unit, Dom.errorEvent) Tea.Result.t [@printer opaque "FocusAutocompleteItem"]
-  | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t [@printer opaque "RPCCallback"]
-  | SaveTestRPCCallback of (string, httpError) Tea.Result.t [@printer opaque "SavetestRPCCallback"]
-  | GetAnalysisRPCCallback of (analysisParams * (getAnalysisResult, httpError) Tea.Result.t) [@printer opaque "GetAnalysisRPCCallback"]
-  | GetDelete404RPCCallback of (fourOhFour list * string, httpError) Tea.Result.t [@printer opaque "GetDelete404RPCCallback"]
+  | FocusEntry of (unit, Dom.errorEvent) Tea.Result.t
+      [@printer opaque "FocusEntry"]
+  | FocusAutocompleteItem of (unit, Dom.errorEvent) Tea.Result.t
+      [@printer opaque "FocusAutocompleteItem"]
+  | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t
+      [@printer opaque "RPCCallback"]
+  | SaveTestRPCCallback of (string, httpError) Tea.Result.t
+      [@printer opaque "SavetestRPCCallback"]
+  | GetAnalysisRPCCallback of
+      (analysisParams * (getAnalysisResult, httpError) Tea.Result.t)
+      [@printer opaque "GetAnalysisRPCCallback"]
+  | GetDelete404RPCCallback of
+      (fourOhFour list * string, httpError) Tea.Result.t
+      [@printer opaque "GetDelete404RPCCallback"]
   | InitialLoadRPCCallback of
-      focus * modification * (initialLoadResult, httpError) Tea.Result.t [@printer opaque "InitialLoadRPCCallback"]
+      focus * modification * (initialLoadResult, httpError) Tea.Result.t
+      [@printer opaque "InitialLoadRPCCallback"]
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | AddRandom
   | FinishIntegrationTest
@@ -503,7 +589,8 @@ and msg =
   | ToggleTimers
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
-      * (executeFunctionRPCResult, httpError) Tea.Result.t [@printer opaque "ExecuteFunctionRPCCallback"]
+      * (executeFunctionRPCResult, httpError) Tea.Result.t
+      [@printer opaque "ExecuteFunctionRPCCallback"]
   | ExecuteFunctionButton of tlid * id * string
   | ExecuteFunctionCancel of tlid * id
   | Initialization
@@ -542,15 +629,21 @@ and msg =
 and predecessor = pointerData option
 
 and successor = pointerData option
-and stringEntryPermission = StringEntryAllowed | StringEntryNotAllowed
 
-and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
+and stringEntryPermission =
+  | StringEntryAllowed
+  | StringEntryNotAllowed
+
+and stringEntryWidth =
+  | StringEntryNormalWidth
+  | StringEntryShortWidth
 
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
 and variantTest =
-  | StubVariant (* just a stub *)
+  | StubVariant
+  (* just a stub *)
   | FluidInputModel
 
 and class_ = string
@@ -560,78 +653,87 @@ and ffIsExpanded = bool
 (* ----------------------------- *)
 (* FeatureFlags *)
 (* ----------------------------- *)
-and pick = PickA | PickB
+and pick =
+  | PickA
+  | PickB
 
 and flagsVS = ffIsExpanded GMap.String.t
 
-and syncState = {inFlight: bool; ticks: int}
+and syncState =
+  { inFlight : bool
+  ; ticks : int }
 
-and urlState = {lastPos: pos}
+and urlState = {lastPos : pos}
 
 and tLCursors = int GMap.String.t
 
 (* Values that we serialize *)
 and serializableEditor =
-  { clipboard: pointerData option
-  ; timersEnabled: bool
-  ; cursorState: cursorState
-  ; lockedHandlers: tlid list }
+  { clipboard : pointerData option
+  ; timersEnabled : bool
+  ; cursorState : cursorState
+  ; lockedHandlers : tlid list }
 
 (* Error Handling *)
-and darkError = {message: string option; showDetails: bool}
+and darkError =
+  { message : string option
+  ; showDetails : bool }
 
 (* Testing *)
 and testResult = (string, unit) Porting.Result.t
+
 and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
 
 and model =
-  { error: darkError
-  ; lastMsg: msg
-  ; lastMod: modification
-  ; tests: variantTest list
-  ; complete: autocomplete
-  ; userFunctions: userFunction list
-  ; builtInFunctions: function_ list
-  ; cursorState: cursorState
-  ; currentPage: page
-  ; hovering: id list
-  ; toplevels: toplevel list
-  (* These are read direct from the server. The ones that are *)
-  (* analysed are in analysis *)
-  ; deletedToplevels: toplevel list
-  ; traces: traces
-  ; analyses: analyses
-  ; f404s: fourOhFour list
-  ; unlockedDBs: tlid list
-  ; integrationTestState: integrationTestState
-  ; visibility: Porting.PageVisibility.visibility
-  ; clipboard: clipboard
-  ; syncState: syncState
-  ; urlState: urlState
-  ; timersEnabled: bool
-  ; executingFunctions: (tlid * id) list
-  (* This is TLID id to cursor index (the cursor being *)
-  (* the input to the toplevel currently used, not to *)
-  (* be condused with cursorState, which is the code *)
-  (* that is currently selected.) *)
-  ; tlCursors: tLCursors
-  ; featureFlags: flagsVS
-  ; lockedHandlers: tlid list
-  ; canvas: canvasProps
-  ; canvasName: string
-  ; userContentHost: string
-  ; environment: string
-  ; csrfToken: string
-  ; latest404: string (* string of timestamp *)
-  }
-[@@deriving show {with_path=false}]
+  { error : darkError
+  ; lastMsg : msg
+  ; lastMod : modification
+  ; tests : variantTest list
+  ; complete : autocomplete
+  ; userFunctions : userFunction list
+  ; builtInFunctions : function_ list
+  ; cursorState : cursorState
+  ; currentPage : page
+  ; hovering : id list
+  ; toplevels :
+      toplevel list
+      (* These are read direct from the server. The ones that are *)
+      (* analysed are in analysis *)
+  ; deletedToplevels : toplevel list
+  ; traces : traces
+  ; analyses : analyses
+  ; f404s : fourOhFour list
+  ; unlockedDBs : tlid list
+  ; integrationTestState : integrationTestState
+  ; visibility : Porting.PageVisibility.visibility
+  ; clipboard : clipboard
+  ; syncState : syncState
+  ; urlState : urlState
+  ; timersEnabled : bool
+  ; executingFunctions :
+      (tlid * id) list
+      (* This is TLID id to cursor index (the cursor being *)
+      (* the input to the toplevel currently used, not to *)
+      (* be condused with cursorState, which is the code *)
+      (* that is currently selected.) *)
+  ; tlCursors : tLCursors
+  ; featureFlags : flagsVS
+  ; lockedHandlers : tlid list
+  ; canvas : canvasProps
+  ; canvasName : string
+  ; userContentHost : string
+  ; environment : string
+  ; csrfToken : string
+  ; latest404 : string
+  (* string of timestamp *) }
+[@@deriving show {with_path = false}]
 
-and rpcContext = { canvasName : string; csrfToken : string }
+and rpcContext =
+  { canvasName : string
+  ; csrfToken : string }
 
-let contextFromModel (m : model) : rpcContext
-  = { canvasName = m.canvasName
-    ; csrfToken = m.csrfToken
-    }
+let contextFromModel (m : model) : rpcContext =
+  {canvasName = m.canvasName; csrfToken = m.csrfToken}

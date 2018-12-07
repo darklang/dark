@@ -8,37 +8,54 @@ module P = Pointer
 
 let rec allData (p : pattern) : pointerData list =
   match p with
-  | Blank _ -> [PPattern p]
-  | F (_, PLiteral _) -> [PPattern p]
-  | F (_, PVariable _) -> [PPattern p]
+  | Blank _ ->
+      [PPattern p]
+  | F (_, PLiteral _) ->
+      [PPattern p]
+  | F (_, PVariable _) ->
+      [PPattern p]
   | F (_, PConstructor (_, inner)) ->
-      (PPattern p) :: (inner |> List.map allData |> List.concat)
+      PPattern p :: (inner |> List.map allData |> List.concat)
 
-let rec replace (search : pointerData) (replacement : pointerData) (p : pattern) :
-    pattern =
-  if P.toID search = B.toID p then
+
+let rec replace
+    (search : pointerData) (replacement : pointerData) (p : pattern) : pattern
+    =
+  if P.toID search = B.toID p
+  then
     match replacement with
-    | PPattern replacement_ -> replacement_
-    | _ -> recoverable ("cannot occur", replacement) p
+    | PPattern replacement_ ->
+        replacement_
+    | _ ->
+        recoverable ("cannot occur", replacement) p
   else
     match p with
     | F (id, PConstructor (cons, args)) ->
-      let replacedArgs = List.map (replace search replacement) args in
-      F (id, PConstructor (cons, replacedArgs))
-    | _ -> p
+        let replacedArgs = List.map (replace search replacement) args in
+        F (id, PConstructor (cons, replacedArgs))
+    | _ ->
+        p
+
 
 let rec hasVariableNamed (name : varName) (p : pattern) : bool =
   match p with
-  | F (_, PConstructor (_, args)) -> List.any (hasVariableNamed name) args
-  | F (_, PVariable _) -> true
-  | _ -> false
+  | F (_, PConstructor (_, args)) ->
+      List.any (hasVariableNamed name) args
+  | F (_, PVariable _) ->
+      true
+  | _ ->
+      false
+
 
 let rec variableNames (p : pattern) : varName list =
   match p with
-  | Blank _ | F (_, PLiteral _) -> []
-  | F (_, PVariable name) -> [name]
+  | Blank _ | F (_, PLiteral _) ->
+      []
+  | F (_, PVariable name) ->
+      [name]
   | F (_, PConstructor (_, args)) ->
-    args |> List.map variableNames |> List.concat
+      args |> List.map variableNames |> List.concat
+
 
 let rec extractById (p : pattern) (patternId : id) : pattern option =
   if B.toID p = patternId
@@ -46,5 +63,7 @@ let rec extractById (p : pattern) (patternId : id) : pattern option =
   else
     match p with
     | F (_, PConstructor (_, args)) ->
-      args |> List.find (fun arg -> extractById arg patternId |> Option.isSome)
-    | _ -> None
+        args
+        |> List.find (fun arg -> extractById arg patternId |> Option.isSome)
+    | _ ->
+        None
