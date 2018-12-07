@@ -20,10 +20,10 @@ use db::models::*;
 
 const PORT: u16 = 3000;
 
-fn service(dbconn: &PgConnection, req: Request<Body>) -> Response<Body> {
+fn service(dbconn: &PgConnection, req: &Request<Body>) -> Response<Body> {
     let mut response = Response::new(Body::empty());
 
-    let path_segments: Vec<&str> = req.uri().path().split("/").collect();
+    let path_segments: Vec<&str> = req.uri().path().split('/').collect();
 
     match (req.method(), path_segments.as_slice()) {
         (&Method::GET, ["", ""]) => {
@@ -104,7 +104,7 @@ fn main() {
 
         service_fn_ok(move |req| {
             let dbconn = dbpool_.get().expect("failed to obtain DB connection");
-            service(&dbconn, req)
+            service(&dbconn, &req)
         })
     };
 
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn responds_ok() {
         let req = Request::get("/").body(Body::empty()).unwrap();
-        let resp = service(&db::connect(), req);
+        let resp = service(&db::connect(), &req);
 
         assert_eq!(resp.status(), 200);
     }
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn responds_404() {
         let req = Request::get("/nonexistent").body(Body::empty()).unwrap();
-        let resp = service(&db::connect(), req);
+        let resp = service(&db::connect(), &req);
 
         assert_eq!(resp.status(), 404);
     }
