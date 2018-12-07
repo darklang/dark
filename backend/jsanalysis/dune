@@ -3,11 +3,25 @@
   (public_name jsanalysis)
   (flags (-no-check-prims -g -warn-error +A))
   (js_of_ocaml
-    (flags (--opt=1
-              --setenv FORCE_DROP_INLINE_TEST=true
-              +nat.js
-              +dynlink.js
-              +toplevel.js)))
+    (flags (--setenv FORCE_DROP_INLINE_TEST=true
+
+            ; debugging values
+            ; --pretty
+            ; --no-inline
+            ; --source-map
+            ; --debug-info
+            ; --disable staticeval
+            ; --disable share
+            ; --disable inline
+            ; --disable shortvar
+            ; --opt 1
+
+            ; production values
+            ; --opt 3
+            +nat.js
+            +dynlink.js
+            +toplevel.js)))
+
   (libraries js_of_ocaml libtarget_js libexecution)
   (preprocess (pps js_of_ocaml-ppx
                    ppx_compare
