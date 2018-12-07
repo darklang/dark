@@ -5,29 +5,50 @@ open Types
 (* Dark *)
 module B = Blank
 
-let viewInput (tlid : tlid) (idx : int) (value : string) (isActive : bool)
-    (isHover : bool) (tipe : tipe) : msg Html.html =
-  let activeClass = if isActive then [Html.class' "active"] else [Vdom.noProp] in
-  let hoverClass = if isHover then [Html.class' "mouseovered"] else [Vdom.noProp] in
+let viewInput
+    (tlid : tlid)
+    (idx : int)
+    (value : string)
+    (isActive : bool)
+    (isHover : bool)
+    (tipe : tipe) : msg Html.html =
+  let activeClass =
+    if isActive then [Html.class' "active"] else [Vdom.noProp]
+  in
+  let hoverClass =
+    if isHover then [Html.class' "mouseovered"] else [Vdom.noProp]
+  in
   let tipeClassName = "tipe-" ^ Runtime.tipe2str tipe in
   let tipeClass = [Html.class' tipeClassName] in
   let classes = activeClass @ hoverClass @ tipeClass in
   let eventKey constructor tlid id =
-    constructor ^ "-" ^ (showTLID tlid) ^ "-" ^ (string_of_int id)
+    constructor ^ "-" ^ showTLID tlid ^ "-" ^ string_of_int id
   in
   let events =
-    [ ViewUtils.eventNoPropagation ~key:(eventKey "dc" tlid idx) "click" (fun x -> DataClick (tlid, idx, x))
-    ; ViewUtils.eventNoPropagation ~key:(eventKey "dme" tlid idx) "mouseenter" (fun x -> DataMouseEnter (tlid, idx, x))
-    ; ViewUtils.eventNoPropagation ~key:(eventKey "dml" tlid idx) "mouseleave" (fun x -> DataMouseLeave (tlid, idx, x)) ]
+    [ ViewUtils.eventNoPropagation
+        ~key:(eventKey "dc" tlid idx)
+        "click"
+        (fun x -> DataClick (tlid, idx, x) )
+    ; ViewUtils.eventNoPropagation
+        ~key:(eventKey "dme" tlid idx)
+        "mouseenter"
+        (fun x -> DataMouseEnter (tlid, idx, x) )
+    ; ViewUtils.eventNoPropagation
+        ~key:(eventKey "dml" tlid idx)
+        "mouseleave"
+        (fun x -> DataMouseLeave (tlid, idx, x) ) ]
   in
   Html.li
     ([Vdom.attribute "" "data-content" value] @ classes @ events)
     [Html.text {js|•|js}]
 
+
 let asValue (inputValue : inputValueDict) : string =
   Runtime.inputValueAsString inputValue
 
-let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
+
+let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
+    =
   let traceToHtml idx trace =
     let value = asValue trace.input in
     (* Note: the isActive and hoverID tlcursors are very different things *)
@@ -45,6 +66,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list =
   in
   List.indexedMap traceToHtml vs.traces
 
+
 let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let astID = B.toID ast in
   let requestEls = viewInputs vs astID in
@@ -52,7 +74,8 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
     match vs.cursorState with
     | Selecting (_, Some (ID id)) ->
         StrDict.get id vs.currentResults.liveValues
-    | _ -> None
+    | _ ->
+        None
   in
   [ Html.div
       [ Html.classList

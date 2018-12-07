@@ -56,6 +56,12 @@ def less_compile():
 
 
 def client_build():
+  if os.environ.get("CI"):
+    start = time.time()
+    result = run_frontend(start, "./scripts/ocamlformat-diff-all client")
+    if not result:
+      return result
+
   start = time.time()
   build = "cd client && unbuffer yarn run-s build:bsb build:js"
   result = run_frontend(start, build)
@@ -103,6 +109,11 @@ def backend_build():
       compilation_profile = "release"
   else:
       compilation_profile = "dev"
+
+  if os.environ.get("CI"):
+      result = run_backend(start, "./scripts/ocamlformat-diff-all backend")
+      if not result:
+          return result
 
   build = "unbuffer" \
         + " dune build" \
