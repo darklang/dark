@@ -186,6 +186,6 @@ end
 
 module RequestAnalysis = struct
 
-  external send : (string -> unit) = "requestAnalysis" [@@bs.val][@@bs.scope "window", "Dark", "analysis"]
+  external send : (Js.Json.t -> unit) = "requestAnalysis" [@@bs.val][@@bs.scope "window", "Dark", "analysis"]
 
 end

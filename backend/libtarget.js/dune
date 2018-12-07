@@ -5,5 +5,5 @@
   (libraries core_kernel js_of_ocaml)
   (flags (-warn-error +A))
   (js_of_ocaml
-    (flags +nat.js --opt 1)
+    (flags +nat.js)
     (javascript_files libtarget.js)))

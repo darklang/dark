@@ -354,7 +354,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     (match tipe with
      | "incomplete" -> DIncomplete
      | "option" -> DOption OptNothing
-     | "block" -> Exception.user "Can't deserialize blocks"
+     | "block" -> DBlock (fun _ -> DError "Can't deserialize blocks")
      | "errorrail" -> DErrorRail DNull
      | _ -> DObj (unsafe_dvalmap_of_yojson json))
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
