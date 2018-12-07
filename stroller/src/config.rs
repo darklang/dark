@@ -1,7 +1,7 @@
 use std::env;
 
 fn require_str(name: &str) -> String {
-    env::var(name).expect(&format!("{} must be set", name))
+    env::var(name).unwrap_or_else(|_| panic!("{} must be set", name))
 }
 
 pub fn db_host() -> String {
