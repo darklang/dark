@@ -219,7 +219,9 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int) :
         if VariantTesting.variantIsActive m FluidInputModel
         then
           (* AST-wise cursor movements don't make sense in a Fluid world! *)
-          NoChange
+          if tlidOf m.cursorState = Some tlid
+          then NoChange
+          else Select (tlid, None)
         else selectDownLevel m tlid (Some id)
       else
         let enterMod =
