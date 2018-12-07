@@ -577,7 +577,7 @@ let init () : unit =
   upsert_account
     { username = "samstokes"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZkVCS3d5N1pmS25NUEQxbjZ6OHNxUSRXU1NHR1lTTFhvQloxTjBXb3ZwajBYV004Z2lzcnhTVncxVE96VVUvNkRVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcVViUzB0USt0ZEE5WDBIUm1MME5BQSQydktjVHV2TG9FMFhNOHg3MHJZelNwQUpLT09YeFpKOVFYb2Y3NU9vMmQ0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "me@samstokes.co.uk"
     ; name = "Sam Stokes" } ;
   upsert_admin
