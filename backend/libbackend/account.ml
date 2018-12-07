@@ -585,4 +585,10 @@ let init () : unit =
     ; password = ""
     ; email = "nouser@example.com"
     ; name = "Sample Owner" } ;
+  upsert_account
+    { username = "jim"
+    ; password =
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbGxyeFlHb0NrRFNlTFNQNENYcFNIQSRTMEc5NWc0VTd1TUVoSU84OSt6VkN4Q016TnUrOWU3M0Vaa1pMZzd3VjFvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "james.t.switzer@gmail.com"
+    ; name = "James T Swifter" } ;
   ()
