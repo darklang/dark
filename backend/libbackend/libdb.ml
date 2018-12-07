@@ -1,37 +1,36 @@
 open Core_kernel
 open Libexecution
-
 open Lib
 open Runtime
 open Types.RuntimeT
 
-let find_db (dbs: DbT.db list) (name: string) : DbT.db =
-  dbs
-  |> List.filter ~f:(fun db -> db.name = name)
-  |> List.hd_exn
+let find_db (dbs : DbT.db list) (name : string) : DbT.db =
+  dbs |> List.filter ~f:(fun db -> db.name = name) |> List.hd_exn
+
 
 let fetch_by_field ~state fieldname fieldvalue db =
   if fieldname = "id"
   then
     let skey =
-      (match fieldvalue with
-        | DID id -> Uuidm.to_string id
-        | DStr s -> s
-        | x ->
+      match fieldvalue with
+      | DID id ->
+          Uuidm.to_string id
+      | DStr s ->
+          s
+      | x ->
           Exception.user
-            ("Expected an ID or a String at 'id' but got: "
-            ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)))
+            ( "Expected an ID or a String at 'id' but got: "
+            ^ (x |> Dval.tipe_of |> Dval.tipe_to_string) )
     in
     User_db.get_many ~state ~magic:true db [skey]
-  else
-    User_db.query_by_one ~state ~magic:true db fieldname fieldvalue
+  else User_db.query_by_one ~state ~magic:true db fieldname fieldvalue
+
 
 let replacements =
-  [
-  ( "DB::insert"
-  , InProcess
-      (function
-          | (state, [DObj value; DDB dbname]) ->
+  [ ( "DB::insert"
+    , InProcess
+        (function
+        | state, [DObj value; DDB dbname] ->
             let db = find_db state.dbs dbname in
             let key = Util.create_uuid () in
             ignore
@@ -39,131 +38,128 @@ let replacements =
                  ~state
                  ~magic:true
                  ~upsert:false
-                 db (Uuidm.to_string key) value);
+                 db
+                 (Uuidm.to_string key)
+                 value) ;
             DObj (Map.set value "id" (DID key))
-          | args -> fail args))
-  ;
-
-  ( "DB::delete"
-  , InProcess
-      (function
-          | (state, [DObj vals; DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::delete"
+    , InProcess
+        (function
+        | state, [DObj vals; DDB dbname] ->
             let db = find_db state.dbs dbname in
             let key =
               match Map.find_exn vals "id" with
-              | DID id -> Uuidm.to_string id
-              | _ -> Exception.internal "expected a UUID` at magic `id` field in deprecated delete"
+              | DID id ->
+                  Uuidm.to_string id
+              | _ ->
+                  Exception.internal
+                    "expected a UUID` at magic `id` field in deprecated delete"
             in
-            User_db.delete state db key;
+            User_db.delete state db key ;
             DNull
-          | args -> fail args))
-  ;
-
-  ( "DB::deleteAll"
-  , InProcess
-      (function
-          | (state, [DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::deleteAll"
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.delete_all state db;
+            User_db.delete_all state db ;
             DNull
-          | args -> fail args))
-  ;
-
-  ( "DB::update"
-  , InProcess
-      (function
-          | (state, [DObj vals; DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::update"
+    , InProcess
+        (function
+        | state, [DObj vals; DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.update state db vals;
+            User_db.update state db vals ;
             DObj vals
-          | args -> fail args))
-  ;
-
-  ( "DB::fetchBy"
-  , InProcess
-      (function
-          | (state, [value; DStr field; DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::fetchBy"
+    , InProcess
+        (function
+        | state, [value; DStr field; DDB dbname] ->
             let db = find_db state.dbs dbname in
             let result = fetch_by_field ~state field value db in
             User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
-          | args -> fail args))
-  ;
-
-  ( "DB::fetchOneBy"
-  , InProcess
-      (function
-          | (state, [value; DStr field; DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::fetchOneBy"
+    , InProcess
+        (function
+        | state, [value; DStr field; DDB dbname] ->
             let db = find_db state.dbs dbname in
             let result = fetch_by_field ~state field value db in
-            (match result with
-             | DList (x :: xs) ->
-               (match x with
-                | DList pair -> User_db.coerce_key_value_pair_to_legacy_object pair
-                | _ -> Exception.internal "bad fetch")
-             | _ -> DNull)
-          | args -> fail args))
-  ;
-
-  ( "DB::fetchByMany"
-  , InProcess
-      (function
-          | (state, [DObj map; DDB dbname]) ->
+            ( match result with
+            | DList (x :: xs) ->
+              ( match x with
+              | DList pair ->
+                  User_db.coerce_key_value_pair_to_legacy_object pair
+              | _ ->
+                  Exception.internal "bad fetch" )
+            | _ ->
+                DNull )
+        | args ->
+            fail args) )
+  ; ( "DB::fetchByMany"
+    , InProcess
+        (function
+        | state, [DObj map; DDB dbname] ->
             let db = find_db state.dbs dbname in
             map
             |> DvalMap.to_alist
             |> User_db.query ~state ~magic:true db
             |> User_db.coerce_dlist_of_kv_pairs_to_legacy_object
-          | args -> fail args))
-  ;
-
-  ( "DB::fetchOneByMany"
-  , InProcess
-      (function
-          | (state, [DObj map; DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::fetchOneByMany"
+    , InProcess
+        (function
+        | state, [DObj map; DDB dbname] ->
             let db = find_db state.dbs dbname in
             let result =
               User_db.query ~state ~magic:true db (DvalMap.to_alist map)
             in
-            (match result with
-             | DList (x :: xs) ->
-               (match x with
-                | DList pair -> User_db.coerce_key_value_pair_to_legacy_object pair
-                | _ -> Exception.internal "bad fetch")
-               (* TODO(ian): Maybe/Option *)
-             | _ -> DNull)
-          | args -> fail args))
-  ;
-
-
-  ( "DB::fetchAll"
-  , InProcess
-      (function
-          | (state, [DDB dbname]) ->
+            ( match result with
+            | DList (x :: xs) ->
+              ( match x with
+              | DList pair ->
+                  User_db.coerce_key_value_pair_to_legacy_object pair
+              | _ ->
+                  Exception.internal "bad fetch" )
+            (* TODO(ian): Maybe/Option *)
+            | _ ->
+                DNull )
+        | args ->
+            fail args) )
+  ; ( "DB::fetchAll"
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
             let result = User_db.get_all ~state ~magic:true db in
             User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
-          | args -> fail args))
-  ;
-
-  ( "DB::keys"
-  , InProcess
-      (function
-          | (state, [DDB dbname]) ->
+        | args ->
+            fail args) )
+  ; ( "DB::keys"
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
+            let db = find_db state.dbs dbname in
+            User_db.cols_for db |> List.map ~f:(fun (k, v) -> DStr k) |> DList
+        | args ->
+            fail args) )
+  ; ( "DB::schema"
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
             User_db.cols_for db
-            |> List.map ~f:(fun (k,v) -> DStr k)
-            |> DList
-          | args -> fail args))
-  ;
-
-  ( "DB::schema"
-  , InProcess
-      (function
-          | (state, [DDB dbname]) ->
-            let db = find_db state.dbs dbname in
-            User_db.cols_for db
-            |> List.map ~f:(fun (k,v) -> (k, DStr (Dval.tipe_to_string v)))
+            |> List.map ~f:(fun (k, v) -> (k, DStr (Dval.tipe_to_string v)))
             |> Dval.to_dobj
-          | args -> fail args))
-]
-
+        | args ->
+            fail args) ) ]

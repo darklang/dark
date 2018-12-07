@@ -6,8 +6,11 @@ module B = Blank
 
 let astsFor (db : dB) : expr list =
   match db.activeMigration with
-  | None -> []
-  | Some am -> [am.rollforward; am.rollback]
+  | None ->
+      []
+  | Some am ->
+      [am.rollforward; am.rollback]
+
 
 let allData (db : dB) : pointerData list =
   let cols, rolls =
@@ -16,7 +19,8 @@ let allData (db : dB) : pointerData list =
         ( db.cols @ migra.cols
         , List.concat
             [AST.allData migra.rollforward; AST.allData migra.rollback] )
-    | None -> (db.cols, [])
+    | None ->
+        (db.cols, [])
   in
   let colpointers =
     cols
@@ -25,6 +29,7 @@ let allData (db : dB) : pointerData list =
   in
   colpointers @ rolls
 
+
 let siblings (_ : pointerData) (db : dB) : pointerData list = allData db
 
 let hasCol (db : dB) (name : string) : bool =
@@ -32,11 +37,14 @@ let hasCol (db : dB) (name : string) : bool =
   |> List.any (fun (colname, _) ->
          match colname with Blank _ -> false | F (_, n) -> name = n )
 
+
 let isLocked (m : model) (tlid : tlid) : bool =
   not (List.member tlid m.unlockedDBs)
 
+
 let isMigrating (db : dB) : bool =
   match db.activeMigration with Some _ -> true | None -> false
+
 
 let isMigrationCol (db : dB) (id : id) : bool =
   match db.activeMigration with
@@ -46,10 +54,13 @@ let isMigrationCol (db : dB) (id : id) : bool =
         |> List.filter (fun (n, t) -> B.toID n = id || B.toID t = id)
       in
       not (List.isEmpty inCols)
-  | None -> false
+  | None ->
+      false
+
 
 let isMigrationLockReady (m : dBMigration) : bool =
   B.isF m.rollforward && B.isF m.rollback
+
 
 let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
   let newCols =

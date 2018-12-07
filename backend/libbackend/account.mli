@@ -2,7 +2,10 @@ open Core
 
 type username = string
 
-type permissions = CanEdit | CanAccessOperations | NoPermission
+type permissions =
+  | CanEdit
+  | CanAccessOperations
+  | NoPermission
 
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool
@@ -11,11 +14,12 @@ val authenticate : username:username -> password:string -> bool
 val hash_password : string -> string
 
 (* get the permissions that username has in authdomain *)
-val get_permissions : auth_domain:string -> username:username -> unit -> permissions
+val get_permissions :
+  auth_domain:string -> username:username -> unit -> permissions
 
-val can_access_operations : username:string ->  bool
+val can_access_operations : username:string -> bool
 
-val can_edit_canvas : auth_domain:string -> username:string ->  bool
+val can_edit_canvas : auth_domain:string -> username:string -> bool
 
 (* For a host, what user do we expect *)
 val auth_domain_for : string -> string
@@ -32,4 +36,5 @@ val username_of_id : Uuidm.t -> string option
 val owner : auth_domain:string -> Uuidm.t option
 
 val init : unit -> unit
+
 val init_testing : unit -> unit
