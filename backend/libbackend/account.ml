@@ -591,4 +591,10 @@ let init () : unit =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbGxyeFlHb0NrRFNlTFNQNENYcFNIQSRTMEc5NWc0VTd1TUVoSU84OSt6VkN4Q016TnUrOWU3M0Vaa1pMZzd3VjFvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "james.t.switzer@gmail.com"
     ; name = "James T Swifter" } ;
+  upsert_account
+    { username = "eamo"
+    ; password =
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZElHSlhiQk1pYzA1NDJWVzdIcDV4USRHZkN2R0JlbCtLMWErL0x3VU0wY05OUDFHQjlWZ0lEUkdER2g1Umg4MXBRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "eamo@eamo.net"
+    ; name = "Eamon Leonard" } ;
   ()
