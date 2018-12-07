@@ -23,6 +23,8 @@ type htmlConfig =
   | WithEditFn of tlid
   (* will end up in error rail *)
   | WithROP
+  (* editable *)
+  | Enterable
 
 let wc (s : string) : htmlConfig = WithClass s
 
@@ -125,7 +127,16 @@ let div
     && Option.isSome thisID
     && vs.showLivevalue
   in
-  let mouseover = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
+  let mouseoverClass =
+    let targetted = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
+    if targetted
+    then
+      if List.any (fun c -> c = Enterable) configs
+         && List.any (( = ) FluidInputModel) vs.testVariants
+      then ["mouseovered-enterable"]
+      else ["mouseovered-selectable"]
+    else []
+  in
   let idClasses =
     match thisID with Some id -> ["blankOr"; "id-" ^ deID id] | _ -> []
   in
@@ -135,7 +146,7 @@ let div
     @ (if displayLivevalue then ["display-livevalue"] else [])
     @ (if selected then ["selected"] else [])
     @ (if isCommandTarget then ["commandTarget"] else [])
-    @ if mouseover then ["mouseovered"] else []
+    @ mouseoverClass
   in
   let classAttr = Html.class' (String.join " " allClasses) in
   let events =
