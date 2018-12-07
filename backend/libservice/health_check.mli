@@ -6,4 +6,4 @@ open Core_kernel
  * to it at least once after receiving a request to /pkill
  *
  * *)
-val run : shutdown:(bool ref) -> execution_id:Int63.t -> unit Lwt.t
+val run : shutdown:bool ref -> execution_id:Int63.t -> unit Lwt.t

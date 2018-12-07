@@ -1,7 +1,6 @@
 open Core_kernel
 open Libcommon
 open Libexecution
-
 module PG = Postgresql
 
 (* ------------------------- *)
@@ -11,126 +10,160 @@ module PG = Postgresql
 let conn = Libservice.Dbconnection.conn
 
 let escape_single s = conn#escape_string s
+
 let single_quote v = "'" ^ v ^ "'"
+
 let cast_to ~tipe v = v ^ "::" ^ tipe
+
 let array_separator = ", "
 
-let date_of_sqlstring (str: string) : Core_kernel.Time.t =
+let date_of_sqlstring (str : string) : Core_kernel.Time.t =
   Core.Time.parse str ~fmt:"%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
 
-let date_to_sqlstring (d: Core_kernel.Time.t) : string =
+
+let date_to_sqlstring (d : Core_kernel.Time.t) : string =
   Core.Time.format d "%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
 
-type param = Int of int
-           | ID of Types.id
-           | String of string
-           | Uuid of Uuidm.t
-           | Binary of string (* only works for passed params *)
-           | Secret of string
-           | DvalJson of Types.RuntimeT.dval
-           | DvalmapJsonb of Types.RuntimeT.dval_map
-           | Time of Types.RuntimeT.time
-           | Null
-           | List of param list (* only works for in-script params *)
 
-type result = TextResult
-            | BinaryResult
+type param =
+  | Int of int
+  | ID of Types.id
+  | String of string
+  | Uuid of Uuidm.t
+  | Binary of string
+  (* only works for passed params *)
+  | Secret of string
+  | DvalJson of Types.RuntimeT.dval
+  | DvalmapJsonb of Types.RuntimeT.dval_map
+  | Time of Types.RuntimeT.time
+  | Null
+  | List of param list
+
+(* only works for in-script params *)
+
+type result =
+  | TextResult
+  | BinaryResult
 
 let to_binary_bool param : bool =
-  match param with
-  | Binary _ -> true
-  | _ -> false
+  match param with Binary _ -> true | _ -> false
 
-let rec escape (param: param) : string =
-  match param with
-  | Int i -> string_of_int i
-  | ID id -> Types.string_of_id id
-  | String str -> str
-                  |> escape_single
-                  |> single_quote
-  | Uuid uuid -> uuid
-                 |> Uuidm.to_string
-                 |> escape_single
-                 |> single_quote
-                 |> cast_to ~tipe:"uuid"
-  | Binary str -> Exception.internal "Prefer not to escape binary data"
-  | Secret str -> str
-                  |> escape_single
-                  |> single_quote
-  | DvalJson dv -> dv
-                   |> Dval.unsafe_dval_to_json_string
-                   |> escape_single
-                   |> single_quote
-  | DvalmapJsonb dvm -> dvm
-                        |> Dval.unsafe_dvalmap_to_string
-                        |> escape_single
-                        |> single_quote
-                        |> cast_to ~tipe:"jsonb"
-  | Time t -> t
-              |> date_to_sqlstring
-              |> escape_single
-              |> single_quote
-  | Null -> "NULL"
-  | List params -> params
-                   |> List.map ~f:escape
-                   |> String.concat ~sep:", "
 
-let cast_expression_for (dv: Types.RuntimeT.dval) : string option =
-  if Dval.is_json_primitive dv
-  then None
-  else Some "::jsonb"
+let rec escape (param : param) : string =
+  match param with
+  | Int i ->
+      string_of_int i
+  | ID id ->
+      Types.string_of_id id
+  | String str ->
+      str |> escape_single |> single_quote
+  | Uuid uuid ->
+      uuid
+      |> Uuidm.to_string
+      |> escape_single
+      |> single_quote
+      |> cast_to ~tipe:"uuid"
+  | Binary str ->
+      Exception.internal "Prefer not to escape binary data"
+  | Secret str ->
+      str |> escape_single |> single_quote
+  | DvalJson dv ->
+      dv |> Dval.unsafe_dval_to_json_string |> escape_single |> single_quote
+  | DvalmapJsonb dvm ->
+      dvm
+      |> Dval.unsafe_dvalmap_to_string
+      |> escape_single
+      |> single_quote
+      |> cast_to ~tipe:"jsonb"
+  | Time t ->
+      t |> date_to_sqlstring |> escape_single |> single_quote
+  | Null ->
+      "NULL"
+  | List params ->
+      params |> List.map ~f:escape |> String.concat ~sep:", "
+
+
+let cast_expression_for (dv : Types.RuntimeT.dval) : string option =
+  if Dval.is_json_primitive dv then None else Some "::jsonb"
 
 
 let rec to_sql param : string =
   match param with
-  | Int i -> string_of_int i
-  | ID i -> Types.string_of_id i
-  | String str -> str
-  | Uuid uuid -> Uuidm.to_string uuid
-  | Binary str -> str (* the to_binary_bool handled this *)
-  | Secret str -> str
-  | DvalJson dv -> Dval.unsafe_dval_to_json_string ~redact:false dv
-  | DvalmapJsonb dvm -> Dval.unsafe_dvalmap_to_string ~redact:false dvm
-  | Null -> Postgresql.null
-  | Time t -> date_to_sqlstring t
+  | Int i ->
+      string_of_int i
+  | ID i ->
+      Types.string_of_id i
+  | String str ->
+      str
+  | Uuid uuid ->
+      Uuidm.to_string uuid
+  | Binary str ->
+      str (* the to_binary_bool handled this *)
+  | Secret str ->
+      str
+  | DvalJson dv ->
+      Dval.unsafe_dval_to_json_string ~redact:false dv
+  | DvalmapJsonb dvm ->
+      Dval.unsafe_dvalmap_to_string ~redact:false dvm
+  | Null ->
+      Postgresql.null
+  | Time t ->
+      date_to_sqlstring t
   | List xs ->
-    xs
-    |> List.map ~f:to_sql
-    |> String.concat ~sep:array_separator
+      xs |> List.map ~f:to_sql |> String.concat ~sep:array_separator
+
 
 let rec to_log param : string =
   let max_length = 600 in
   let abbrev s =
     if String.length s > max_length
-    then (String.slice s 0 max_length) ^ "..."
+    then String.slice s 0 max_length ^ "..."
     else s
   in
   match param with
-  | Int i -> string_of_int i
-  | ID i -> Types.string_of_id i
-  | String str -> abbrev str
-  | Uuid uuid -> Uuidm.to_string uuid
-  | Binary str -> "<binary>"
-  | Secret str -> "<secret>"
-  | DvalJson dv -> abbrev (Dval.unsafe_dval_to_json_string dv)
-  | DvalmapJsonb dvm -> abbrev (Dval.unsafe_dvalmap_to_string dvm)
-  | Null -> "NULL"
-  | Time t -> date_to_sqlstring t
-  | List params -> params
-                   |> List.map ~f:to_log
-                   |> String.concat ~sep:array_separator
-                   |> fun s -> "[" ^ s ^ "]"
+  | Int i ->
+      string_of_int i
+  | ID i ->
+      Types.string_of_id i
+  | String str ->
+      abbrev str
+  | Uuid uuid ->
+      Uuidm.to_string uuid
+  | Binary str ->
+      "<binary>"
+  | Secret str ->
+      "<secret>"
+  | DvalJson dv ->
+      abbrev (Dval.unsafe_dval_to_json_string dv)
+  | DvalmapJsonb dvm ->
+      abbrev (Dval.unsafe_dvalmap_to_string dvm)
+  | Null ->
+      "NULL"
+  | Time t ->
+      date_to_sqlstring t
+  | List params ->
+      params
+      |> List.map ~f:to_log
+      |> String.concat ~sep:array_separator
+      |> fun s -> "[" ^ s ^ "]"
+
 
 (* ------------------------- *)
 (* All commands go through here, does logging and such *)
 (* ------------------------- *)
-let execute ~name ~op ~params ~result ?subject
-    ~(f: ?params: string array ->
-         ?binary_params : bool array ->
-         ?binary_result : bool ->
-         string ->
-         Postgresql.result)
-    ~(r: Postgresql.result -> string * 'a)
+let execute
+    ~name
+    ~op
+    ~params
+    ~result
+    ?subject
+    ~(f :
+          ?params:string array
+       -> ?binary_params:bool array
+       -> ?binary_result:bool
+       -> string
+       -> Postgresql.result)
+    ~(r : Postgresql.result -> string * 'a)
     (sql : string) : 'a =
   let start = Unix.gettimeofday () in
   let time () =
@@ -138,116 +171,149 @@ let execute ~name ~op ~params ~result ?subject
     (finish -. start) *. 1000.0
   in
   let binary_result = result = BinaryResult in
-  let binary_params =
-    params
-    |> List.map ~f:to_binary_bool
-    |> Array.of_list
-  in
-  let string_params =
-    params
-    |> List.map ~f:to_sql
-    |> Array.of_list
-  in
+  let binary_params = params |> List.map ~f:to_binary_bool |> Array.of_list in
+  let string_params = params |> List.map ~f:to_sql |> Array.of_list in
   let subject_log =
-    match subject with
-    | Some str -> ["subject", str]
-    | None -> []
+    match subject with Some str -> [("subject", str)] | None -> []
   in
   try
     let res = f ~binary_params ~binary_result ~params:string_params sql in
     (* Transform and log the result *)
-    let (logr, result) = r res in
-    let result_log =
-      if logr = ""
-      then []
-      else ["result", logr]
-    in
-    Log.succesS name ~params:(["op", op]
-                              @ result_log
-                              @ subject_log );
+    let logr, result = r res in
+    let result_log = if logr = "" then [] else [("result", logr)] in
+    Log.succesS name ~params:([("op", op)] @ result_log @ subject_log) ;
     result
-
   with e ->
     let bt = Exception.get_backtrace () in
-    let log_string =
-      params
-      |> List.map ~f:to_log
-      |> String.concat ~sep:", "
-    in
-    Log.erroR name ~params:[ "op", op
-                           ; "params", log_string
-                           ; "query", sql];
-
+    let log_string = params |> List.map ~f:to_log |> String.concat ~sep:", " in
+    Log.erroR name ~params:[("op", op); ("params", log_string); ("query", sql)] ;
     let msg =
       match e with
-      | Postgresql.Error (Unexpected_status (_, msg, _)) -> msg
-      | Postgresql.Error pge -> Postgresql.string_of_error pge
+      | Postgresql.Error (Unexpected_status (_, msg, _)) ->
+          msg
+      | Postgresql.Error pge ->
+          Postgresql.string_of_error pge
       | Exception.DarkException de ->
-        Log.erroR ~bt "Caught DarkException in DB, reraising";
-        Caml.Printexc.raise_with_backtrace e bt
-      | e -> Exception.exn_to_string e
+          Log.erroR ~bt "Caught DarkException in DB, reraising" ;
+          Caml.Printexc.raise_with_backtrace e bt
+      | e ->
+          Exception.exn_to_string e
     in
-      Exception.storage
-        msg
-        ~bt
-        ~info:[("time", time () |> string_of_float)]
+    Exception.storage msg ~bt ~info:[("time", time () |> string_of_float)]
 
 
 (* ------------------------- *)
 (* SQL Commands *)
 (* ------------------------- *)
-let run ~(params: param list) ?(result=TextResult) ~(name:string) ?subject (sql: string) : unit =
-  execute ~op:"run" ~params ~result ~name ?subject sql
+let run
+    ~(params : param list)
+    ?(result = TextResult)
+    ~(name : string)
+    ?subject
+    (sql : string) : unit =
+  execute
+    ~op:"run"
+    ~params
+    ~result
+    ~name
+    ?subject
+    sql
     ~f:(conn#exec ~expect:[PG.Command_ok])
     ~r:(fun r -> ("", ()))
   |> ignore
 
-let fetch ~(params: param list)  ?(result=TextResult) ~(name:string) ?subject (sql: string)
-  : string list list =
-  execute ~op:"fetch" ~params ~result ~name ?subject sql
+
+let fetch
+    ~(params : param list)
+    ?(result = TextResult)
+    ~(name : string)
+    ?subject
+    (sql : string) : string list list =
+  execute
+    ~op:"fetch"
+    ~params
+    ~result
+    ~name
+    ?subject
+    sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
-          let result = res#get_all_lst in
-          let length = List.length result |> string_of_int in
-          (length ^ " cols", result))
+      let result = res#get_all_lst in
+      let length = List.length result |> string_of_int in
+      (length ^ " cols", result) )
 
 
-let fetch_one ~(params: param list) ?(result=TextResult) ~(name:string) ?subject (sql: string)
-  : string list =
-  execute ~op:"fetch_one" ~params ~result ~name ?subject sql
+let fetch_one
+    ~(params : param list)
+    ?(result = TextResult)
+    ~(name : string)
+    ?subject
+    (sql : string) : string list =
+  execute
+    ~op:"fetch_one"
+    ~params
+    ~result
+    ~name
+    ?subject
+    sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
-         match res#get_all_lst with
-         | [single_result] ->
-           let lengths = List.map ~f:String.length single_result in
-           let sum = Util.int_sum lengths |> string_of_int in
-           (sum ^ "bytes", single_result)
-         | [] -> Exception.storage "Expected one result, got none"
-         | _ -> Exception.storage "Expected exactly one result, got many")
+      match res#get_all_lst with
+      | [single_result] ->
+          let lengths = List.map ~f:String.length single_result in
+          let sum = Util.int_sum lengths |> string_of_int in
+          (sum ^ "bytes", single_result)
+      | [] ->
+          Exception.storage "Expected one result, got none"
+      | _ ->
+          Exception.storage "Expected exactly one result, got many" )
 
-let fetch_one_option ~(params: param list) ?(result=TextResult) ~(name:string) ?subject (sql: string)
-  : string list option =
-  execute ~op:"fetch_one_option" ~params ~result ~name ?subject sql
+
+let fetch_one_option
+    ~(params : param list)
+    ?(result = TextResult)
+    ~(name : string)
+    ?subject
+    (sql : string) : string list option =
+  execute
+    ~op:"fetch_one_option"
+    ~params
+    ~result
+    ~name
+    ?subject
+    sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
-          match res#get_all_lst with
-          | [single_result] ->
-            let lengths = List.map ~f:String.length single_result in
-            let sum = Util.int_sum lengths |> string_of_int in
-            (sum ^ "bytes", Some single_result)
-          | [] -> ("none", None)
-          | _ -> Exception.storage "Expected exactly one result, got many")
+      match res#get_all_lst with
+      | [single_result] ->
+          let lengths = List.map ~f:String.length single_result in
+          let sum = Util.int_sum lengths |> string_of_int in
+          (sum ^ "bytes", Some single_result)
+      | [] ->
+          ("none", None)
+      | _ ->
+          Exception.storage "Expected exactly one result, got many" )
 
 
-let exists ~(params: param list) ~(name:string) ?subject (sql: string)
-  : bool =
-  execute ~op:"exists" ~params ~name ~result:TextResult ?subject sql
+let exists ~(params : param list) ~(name : string) ?subject (sql : string) :
+    bool =
+  execute
+    ~op:"exists"
+    ~params
+    ~name
+    ~result:TextResult
+    ?subject
+    sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
-         match res#get_all_lst with
-         | [["1"]] -> ("true", true)
-         | [] -> ("false", false)
-         | r -> Exception.storage "Unexpected result" ~actual:(Log.dump r))
+      match res#get_all_lst with
+      | [["1"]] ->
+          ("true", true)
+      | [] ->
+          ("false", false)
+      | r ->
+          Exception.storage "Unexpected result" ~actual:(Log.dump r) )
+
 
 let delete_benchmarking_data () : unit =
   run
@@ -255,4 +321,3 @@ let delete_benchmarking_data () : unit =
     "DELETE FROM oplists WHERE host like 'benchmarking\\_%%';
      DELETE FROM json_oplists WHERE host like 'benchmarking\\_%%';"
     ~params:[]
-
