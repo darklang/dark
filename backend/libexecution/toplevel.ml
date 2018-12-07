@@ -177,6 +177,8 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
         ^ esi b
     | Match (cond, pats) ->
         "match " ^ es ~indent:(indent + 6) cond ^ "TODO patterns"
+    | Constructor (name, args) ->
+        bs name ^ " " ^ (args |> List.map ~f:es |> String.concat ~sep:" ")
   in
   e |> Ast.blank_map ~f:(nexpr_to_string ~indent) |> bs
 

@@ -121,10 +121,11 @@ module RuntimeT = struct
     | ListLiteral of expr list
     | FeatureFlag of string or_blank * expr * expr * expr
     (* it's like this, instead of a bool on fncall, to avoid a
-              * migration because we don't know how this is going to work
-              * in the end. *)
+     * migration because we don't know how this is going to work
+     * in the end. *)
     | FnCallSendToRail of fnname * expr list
     | Match of expr * (pattern * expr) list
+    | Constructor of string or_blank * expr list
 
   and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
 
