@@ -32,6 +32,8 @@ let keyword = ViewBlankOr.keyword
 
 let withROP = ViewBlankOr.withROP
 
+let enterable = ViewBlankOr.Enterable
+
 let viewNFieldName (vs : viewState) (config : htmlConfig list) (f : string) :
     msg Html.html =
   text vs config f
@@ -41,6 +43,7 @@ let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     msg Html.html =
   let configs =
     c
+    @ [enterable]
     @ [ViewBlankOr.ClickSelectAs (B.toID f)]
     @ ViewBlankOr.withFeatureFlag vs f
   in
@@ -54,13 +57,13 @@ let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
 
 let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = idConfigs @ c in
+  let configs = (enterable :: idConfigs) @ c in
   ViewBlankOr.viewBlankOr viewNVarBind VarBind vs configs v
 
 
 let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
     msg Html.html =
-  let configs = idConfigs @ c in
+  let configs = (enterable :: idConfigs) @ c in
   ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
 
 
@@ -131,6 +134,7 @@ and viewNExpr
   let all = idConfigs @ config in
   let cs = ViewBlankOr.ClickSelect in
   let mo = ViewBlankOr.Mouseover in
+  let ent = ViewBlankOr.Enterable in
   let incD = d + 1 in
   match e with
   | Value v ->
@@ -144,7 +148,7 @@ and viewNExpr
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
-      let c = wc cssClass :: wc "value" :: atom :: (all @ tooWide) in
+      let c = ent :: wc cssClass :: wc "value" :: atom :: (all @ tooWide) in
       div
         vs
         c
@@ -153,8 +157,8 @@ and viewNExpr
         ; Html.div [Html.class' "quote quote-end"] [] ]
   | Variable name ->
       if List.member id vs.relatedBlankOrs
-      then a (wc "variable" :: wc "related-change" :: all) vs.ac.value
-      else a (wc "variable" :: all) name
+      then a (ent :: wc "variable" :: wc "related-change" :: all) vs.ac.value
+      else a (ent :: wc "variable" :: all) name
   | Let (lhs, rhs, body) ->
       let bodyID = B.toID body in
       let showRHSInstead =
@@ -451,20 +455,20 @@ and viewNExpr
 
 let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = idConfigs @ c in
+  let configs = (enterable :: idConfigs) @ c in
   viewText EventName vs configs v
 
 
 let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
-  let configs = idConfigs @ c in
+  let configs = (enterable :: idConfigs) @ c in
   viewText EventSpace vs configs v
 
 
 let viewEventModifier
     (vs : viewState) (c : htmlConfig list) (v : string blankOr) : msg Html.html
     =
-  let configs = idConfigs @ c in
+  let configs = (enterable :: idConfigs) @ c in
   viewText EventModifier vs configs v
 
 

@@ -15,6 +15,8 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let wc = ViewBlankOr.wc
 
+let enterable = ViewBlankOr.Enterable
+
 let viewDBName (name : string) (version : int) : msg Html.html =
   Html.div
     [Html.class' "dbname"]
@@ -26,13 +28,15 @@ let viewDBName (name : string) (version : int) : msg Html.html =
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = if B.isBlank v || not vs.dbLocked then idConfigs @ c else c in
+  let configs =
+    if B.isBlank v || not vs.dbLocked then (enterable :: idConfigs) @ c else c
+  in
   ViewBlankOr.viewText DBColName vs configs v
 
 
 let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = idConfigs @ c in
+  let configs = (enterable :: idConfigs) @ c in
   ViewBlankOr.viewText DBColType vs configs v
 
 
