@@ -167,8 +167,19 @@ def stroller_build():
 
 def stroller_test():
   start = time.time()
-  return run_test(start,
+  result = run_test(start,
       "cd stroller && unbuffer cargo test")
+  if not result:
+      return result
+
+  start = time.time()
+  if os.environ.get("CI"):
+      clippy_flags = "-D warnings"
+  else:
+      clippy_flags = ""
+  return run_test(start,
+      "cd stroller"
+      + " && unbuffer cargo clippy --all-targets --bin=dark-stroller --tests -- " + clippy_flags)
 
 def reload_server():
   start = time.time()
