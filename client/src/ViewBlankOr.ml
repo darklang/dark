@@ -158,7 +158,12 @@ let div (vs : ViewUtils.viewState) (configs : htmlConfig list)
   let rightSideHtml =
     Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)
   in
-  let attrs = liveValueAttr :: classAttr :: events in
+  let idAttr =
+    match thisID with
+    | Some i -> Html.id (showID i)
+    | _ -> Vdom.noProp
+  in
+  let attrs = idAttr :: liveValueAttr :: classAttr :: events in
   Html.div
     (* if the id of the blank_or changes, this whole node should be redrawn
      * without any further diffing. there's no good reason for the Vdom/Dom node

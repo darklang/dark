@@ -7,8 +7,8 @@ open ViewUtils
 module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 
-let onSubmit fn =
-  Html.onWithOptions "submit"
+let onSubmit ~key fn =
+  Html.onWithOptions ~key:key "submit"
     {stopPropagation= true; preventDefault= true}
     (Decoders.wrapDecoder fn)
 
@@ -60,7 +60,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   Html.div
     [Html.class' "string-entry"]
     [ Html.form
-        [ onSubmit (fun _ -> EntrySubmitMsg)
+        [ onSubmit ~key:"esm" (fun _ -> EntrySubmitMsg)
         ; Html.class' ("string-container " ^ sizeClass) ]
         [input] ]
 
@@ -128,7 +128,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       [searchInput; suggestionSpan; fluidWidthSpan]
   in
   let viewForm =
-    Html.form [onSubmit (fun _ -> EntrySubmitMsg)] [input; autocomplete]
+    Html.form [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)] [input; autocomplete]
   in
   let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper

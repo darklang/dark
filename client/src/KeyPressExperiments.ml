@@ -4,7 +4,7 @@ open Types
 module Key = Keyboard
 
 let arrowMoveHandler (event : Keyboard.keyEvent) (m : model) : modification option =
-  match VariantTesting.variantIsActive m ArrowMove with
+  match VariantTesting.variantIsActive m FluidInputModel with
     false -> None
   | true -> (match m.cursorState with
       | Selecting (tlid, Some mId) | Entering (Filling (tlid, mId)) -> (

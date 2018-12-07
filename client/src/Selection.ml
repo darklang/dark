@@ -184,7 +184,8 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
   (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
   | _ -> NoChange
 
-let enter (m : model) (tlid : tlid) (id : id) : modification =
+
+let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int) : modification =
   let tl = TL.getTL m tlid in
   match tl.data with
   | TLDB db -> enterDB m db tl id
@@ -192,10 +193,18 @@ let enter (m : model) (tlid : tlid) (id : id) : modification =
       let pd = TL.findExn tl id in
       if TL.getChildrenOf tl pd <> [] then selectDownLevel m tlid (Some id)
       else
+        let enterMod =
+          if offset = 0
+          then Enter (Filling (tlid, id))
+          else EnterWithOffset (Filling (tlid, id), offset)
+        in
         Many
-          [ Enter (Filling (tlid, id))
+          [ enterMod
           ; AutocompleteMod
               (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
+
+let enter (m : model) (tlid : tlid) (id : id) : modification =
+  enterWithOffset m tlid id 0
 
 let moveAndEnter (m : model) (tlid : tlid) (mId : id option)
     (fn : htmlSizing list -> id -> id option) (default : id option) :

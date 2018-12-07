@@ -10,8 +10,6 @@ let toVariantTest (s : string * bool) : variantTest option =
   | _, false -> None
   | test, _ -> (
       match String.toLower test with
-        "selectenter" -> Some SelectEnter
-      | "arrowmove" -> Some ArrowMove
       | "fluid" -> Some FluidInputModel
       | "stub" -> Some StubVariant
       | _ -> None )
@@ -19,9 +17,7 @@ let toVariantTest (s : string * bool) : variantTest option =
 let toCSSClass (vt : variantTest) : string =
   let test = match vt with
       StubVariant -> "stub"
-    | SelectEnter -> "selectenter"
     | FluidInputModel -> "fluid"
-    | ArrowMove -> "arrowmove"
     (* _ -> "default" *) (* Please never do this, let the compiler tell you if
                             you missed a variant *)
   in
@@ -43,12 +39,9 @@ let splitOnEquals (s : string) : (string * bool) option =
       | _ -> None )
   else None
 
-(* for example: having ?fluid=1 should turn on SelectEnter and ArrowMove *)
-let rec expandTest (vt : variantTest) : variantTest list =
+let expandTest (vt : variantTest) : variantTest list =
   match vt with
-    FluidInputModel -> FluidInputModel :: ([SelectEnter ; ArrowMove]
-                                           |> List.map expandTest
-                                           |> List.flatten)
+  (* eg. | Foo -> Foo :: FluidInputModel, means Foo will turn on fluid also *)
   | x -> [x]
 
 let parseVariantTestsFromQueryString (s : string) : variantTest list option =
