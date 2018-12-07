@@ -82,7 +82,8 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
               FeatureFlag (msg, f cond, f a, f b)
           | Match (matchExpr, cases) ->
               Match (f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
-        )
+          | Constructor (name, args) ->
+              Constructor (name, List.map ~f args) )
 
 
 (* Example usage of traverse. See also AST.ml *)
@@ -423,6 +424,14 @@ let rec exec
         in
         trace_blank field result st ;
         result
+    | Filled (_, Constructor (name, args)) ->
+      ( match (name, args) with
+      | Filled (_, "Nothing"), [] ->
+          DOption OptNothing
+      | Filled (_, "Just"), [arg] ->
+          DOption (OptJust (exe st arg))
+      | _ ->
+          DError "Invalid construction option" )
   in
   let execed_value = value () in
   trace expr execed_value st ;
