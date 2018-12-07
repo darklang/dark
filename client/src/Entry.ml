@@ -15,14 +15,14 @@ let createFindSpace (m : model) : modification =
 (* --------------------- *)
 (* Focus *)
 (* --------------------- *)
-(* fixed from Tea_html_cmds *)
-let focusIdTask id =
+(* Based on Tea_html_cmds, applies offset after focus *)
+let focusWithOffset id offset =
   Tea.Cmd.call
     (fun _ ->
       let ecb _ignored =
         match Js.Nullable.toOption (Web.Document.getElementById id) with
         | None -> Js.log ("Attempted to focus a non-existant element of: ", id)
-        | Some elem -> Web.Node.focus elem
+        | Some elem -> Web.Node.focus elem; elem##setSelectionRange offset offset
       in
       (* One to get out of the current render frame*)
       let cb _ignored = ignore (Web.Window.requestAnimationFrame ecb); in
@@ -32,8 +32,17 @@ let focusIdTask id =
 
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
-  | Entering _ | SelectingCommand (_, _) -> focusIdTask Defaults.entryID
-  | _ -> Tea.Cmd.none
+  | Entering _ | SelectingCommand (_, _) ->
+    Tea_html_cmds.focus Defaults.entryID
+  | _ ->
+    Tea.Cmd.none
+
+let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
+  match unwrapCursorState m.cursorState with
+  | Entering _ | SelectingCommand (_, _) ->
+    focusWithOffset Defaults.entryID offset
+  | _ ->
+    Tea.Cmd.none
 
 let newHandlerSpec (_ : unit) : handlerSpec =
   {module_= B.new_ (); name= B.new_ (); modifier= B.new_ ()}

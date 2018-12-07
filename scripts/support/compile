@@ -57,7 +57,7 @@ def less_compile():
 
 def client_build():
   start = time.time()
-  build = "cd client && unbuffer yarn run run-s build:bsb build:js"
+  build = "cd client && unbuffer yarn run-s build:bsb build:js"
   result = run_frontend(start, build)
   return result
 

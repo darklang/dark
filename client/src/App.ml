@@ -182,11 +182,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   if m.integrationTestState <> NoIntegrationTest then
     Debug.loG "mod update" (show_modification mod_);
 
-  (match (VariantTesting.variantIsActive m SelectEnter), mod_ with
-     true, (Types.Select (tlid, Some id)) ->
-       updateMod (Types.Enter (Filling (tlid, id))) (m, cmd)
-   | _ ->
-
   let closeBlanks newM =
     (* close open threads in the previous TL *)
     m.cursorState
@@ -403,6 +398,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m3 = {m2 with cursorState= Entering entry} in
         (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
+    | EnterWithOffset (entry, offset) ->
+        let target =
+          match entry with
+          | Creating _ -> None
+          | Filling (tlid, id) ->
+              let tl = TL.getTL m tlid in
+              let pd = TL.findExn tl id in
+              Some (tlid, pd)
+        in
+        let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
+        let m3 = {m2 with cursorState= Entering entry} in
+        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntryWithOffset m3 offset]))
     | SelectCommand (tlid, id) ->
         let m2 = {m with cursorState= SelectingCommand (tlid, id)} in
         let m3, acCmd =
@@ -598,7 +605,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     (* applied from left to right *)
     | Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
-  (newm, Cmd.batch [cmd; newcmd]))
+  (newm, Cmd.batch [cmd; newcmd])
 
 (* Figure out from the string and the state whether this '.' means field
    access. *)
@@ -709,25 +716,55 @@ let update_ (msg : msg) (m : model) : modification =
           else SetCursorState origCursorState
         | _ -> NoChange
       else NoChange
-  | BlankOrClick (targetTLID, targetID, _) -> (
+  | BlankOrClick (targetTLID, targetID, event) -> (
+    (* TODO: switch to ranges to get actual character offset
+     * rather than approximating *)
+    let offset ()  =
+      match Js.Nullable.toOption (Web_document.getElementById (showID targetID)) with
+      | Some elem ->
+        let rect = elem##getBoundingClientRect () in
+        if event.mePos.vy >= (int_of_float rect##top)
+          && event.mePos.vy <= (int_of_float rect##bottom)
+          && event.mePos.vx >= (int_of_float rect##left)
+          && event.mePos.vx <= (int_of_float rect##right)
+        then
+          Some ((event.mePos.vx - (int_of_float rect##left)) / 8)
+        else
+          None
+      | None -> None
+    in
+    let fluidEnterOrSelect m tlid id =
+      if VariantTesting.variantIsActive m FluidInputModel
+      then
+        match offset () with
+        | Some offset -> Selection.enterWithOffset m tlid id offset
+        | None -> Selection.enter m tlid id
+      else
+        Select (tlid, Some id)
+    in
     match m.cursorState with
-    | Deselected -> Select (targetTLID, Some targetID)
+    | Deselected -> fluidEnterOrSelect m targetTLID targetID
     | Dragging (_, _, _, origCursorState) -> SetCursorState origCursorState
     | Entering cursor -> (
       match cursor with
       | Filling (_, fillingID) ->
-          if fillingID = targetID then NoChange
-          else Select (targetTLID, Some targetID)
-      | _ -> Select (targetTLID, Some targetID) )
+        if fillingID = targetID
+        then NoChange
+        else fluidEnterOrSelect m targetTLID targetID
+      | _ ->
+        fluidEnterOrSelect m targetTLID targetID)
     | Selecting (_, maybeSelectingID) -> (
       match maybeSelectingID with
       | Some selectingID ->
-          if selectingID = targetID then NoChange
-          else Select (targetTLID, Some targetID)
-      | None -> Select (targetTLID, Some targetID) )
+          if selectingID = targetID
+          then NoChange
+          else fluidEnterOrSelect m targetTLID targetID
+      | None ->
+        fluidEnterOrSelect m targetTLID targetID)
     | SelectingCommand (_, selectingID) ->
-        if selectingID = targetID then NoChange
-        else Select (targetTLID, Some targetID) )
+        if selectingID = targetID
+        then NoChange
+        else fluidEnterOrSelect m targetTLID targetID)
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
       Selection.enter m targetTLID targetID
   | ToplevelClick (targetTLID, _) -> (

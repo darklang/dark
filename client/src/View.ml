@@ -132,7 +132,7 @@ let viewCanvas (m : model) : msg Html.html =
 let view (m : model) : msg Html.html =
   let attributes =
     [ Html.id "grid"
-    ; Html.onWithOptions "mouseup"
+    ; Html.onWithOptions ~key:"grid-mu" "mouseup"
         {stopPropagation= false; preventDefault= true}
         (Decoders.wrapDecoder (ViewUtils.decodeClickEvent (fun x -> GlobalClick x)))]
   in

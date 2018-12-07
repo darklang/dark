@@ -445,6 +445,7 @@ and modification =
   | Set404s of fourOhFour list * string
   | Append404s of fourOhFour list * string
   | Enter of entryCursor
+  | EnterWithOffset of entryCursor * int
   | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)
   | GetAnalysisRPC
@@ -550,9 +551,7 @@ and stringEntryWidth = StringEntryNormalWidth | StringEntryShortWidth
 (* ----------------------------- *)
 and variantTest =
   | StubVariant (* just a stub *)
-  | SelectEnter (* clicking an entry box should just enter it, not select *)
-  | ArrowMove (* move between entering in one box and another using arrows *)
-  | FluidInputModel (* both SelectEnter and ArrowMove *)
+  | FluidInputModel
 
 and class_ = string
 
