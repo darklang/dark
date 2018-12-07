@@ -19,19 +19,19 @@ pub struct Client(Pusher);
 impl Client {
     pub fn connect() -> Self {
         let pusher = Pusher::new(&pusher_app_id(), &pusher_key(), &pusher_secret())
-        .host(&pusher_host())
-        /*
-         * :( we definitely should be using HTTPS but this panics with
-         * "Invalid scheme for Http".
-         * On inspection it appears .secure() just doesn't work.
-         * pusher-http-rust depends on an old version of hyper; however, TLS
-         * support was extracted out of hyper (in an even older version) into
-         * hyper-tls, the latest version of which is incompatible with the
-         * version of hyper that pusher-http-rust requires (and in particular
-         * with pusher-http-rust's .client() builder method).
-         */
-        //.secure()
-        .finalize();
+            .host(&pusher_host())
+            /*
+             * :( we definitely should be using HTTPS but this panics with
+             * "Invalid scheme for Http".
+             * On inspection it appears .secure() just doesn't work.
+             * pusher-http-rust depends on an old version of hyper; however, TLS
+             * support was extracted out of hyper (in an even older version) into
+             * hyper-tls, the latest version of which is incompatible with the
+             * version of hyper that pusher-http-rust requires (and in particular
+             * with pusher-http-rust's .client() builder method).
+             */
+            //.secure()
+            .finalize();
         Client(pusher)
     }
 
