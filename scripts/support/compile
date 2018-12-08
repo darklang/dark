@@ -130,7 +130,7 @@ def backend_build():
 def backend_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
-  rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
+  rundir = os.environ.get("DARK_CONFIG_RUNDIR")
   host = "DARK_CONFIG_DB_HOST=localhost"
   dbname = "DARK_CONFIG_DB_DBNAME=testdb"
   user = "DARK_CONFIG_DB_USER=dark"

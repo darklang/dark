@@ -25,7 +25,7 @@ do
 done
 
 if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
-  LOGS="${DARK_CONFIG_RUN_DIR}/logs"
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
   echo "Running server"
   "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
   "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &

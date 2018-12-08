@@ -160,6 +160,10 @@ jobs:
       - clean-caches: { path: "stroller/target" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
+      - run:
+          name: Copy out generated files and caches
+          when: always
+          command: docker cp vols:/home/dark/app/stroller/target stroller/
       - save_cache:
           name: "Save cargolock-specific stroller cache"
           when: always

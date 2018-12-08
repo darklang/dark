@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-RUNDIR="${DARK_CONFIG_RUN_DIR}"
+RUNDIR="${DARK_CONFIG_RUNDIR}"
 mkdir -p "$RUNDIR"
 mkdir -p "$RUNDIR/logs"
 mkdir -p "$RUNDIR/completed_tests"
