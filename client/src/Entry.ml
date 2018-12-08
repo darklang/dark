@@ -562,4 +562,8 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
            submitOmniAction pos NewHandler
         | _ -> NoChange)
     | _ ->
-        submitTextAction m cursor action
+       (match AC.highlighted m.complete with
+        | Some (ACOmniAction _) -> impossible "Shouldnt allow omniactions here"
+        | Some _ ->
+            submitTextAction m cursor action
+        | _ -> NoChange)
