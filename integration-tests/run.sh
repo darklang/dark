@@ -57,7 +57,7 @@ if [[ -v CI ]]; then
 fi
 
 # Set up test reporters for CircleCI
-TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results"
+TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
 TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
 TEST_RESULTS_XML="${TEST_RESULTS_DIR}/integration_tests.xml"
 mkdir -p "${TEST_RESULTS_DIR}"
@@ -66,12 +66,12 @@ REPORTERS+=,json:${TEST_RESULTS_JSON}
 REPORTERS+=,xunit:${TEST_RESULTS_XML}
 
 echo "Clearing old test files"
-rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
-rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
+rm -f ${DARK_CONFIG_RUNDIR}/completed_tests/*
+rm -Rf ${DARK_CONFIG_RUNDIR}/screenshots/*
 rm -f ${TEST_RESULTS_DIR}/integration_tests.*
 
 # Clear DBs
-DBLOG="${DARK_CONFIG_RUN_DIR}/integration_db.log"
+DBLOG="${DARK_CONFIG_RUNDIR}/integration_db.log"
 echo "Clearing old DB data (logs in ${DBLOG})"
 DB="${DARK_CONFIG_DB_DBNAME}"
 function run_sql { psql -d $DB -c "$@" >> "$DBLOG" 2>&1; }
@@ -101,12 +101,12 @@ TEST_HOST="integration-tests:$PORT" \
     --pageload-timeout 200 \
     --speed $SPEED \
     --screenshots-on-fails \
-    --screenshots ${DARK_CONFIG_RUN_DIR}/screenshots/ \
+    --screenshots ${DARK_CONFIG_RUNDIR}/screenshots/ \
     --concurrency "$CONCURRENCY" \
     --reporter $REPORTERS \
     --test-grep "$PATTERN" \
     "chrome:headless" \
-    integration-tests/tests.js 2> ${DARK_CONFIG_RUN_DIR}/integration_error.log
+    integration-tests/tests.js 2> ${DARK_CONFIG_RUNDIR}/integration_error.log
 
 RESULT=$?
 
