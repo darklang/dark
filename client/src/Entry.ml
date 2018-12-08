@@ -71,6 +71,7 @@ let createFunction (m : model) (name : fnName) : expr option =
 
 
 let submitOmniAction (pos : pos) (action : omniAction) : modification =
+  let pos = { x = pos.x - 17; y = pos.y - 70 } in
   match action with
   | NewDB dbname ->
       let next = gid () in
@@ -343,55 +344,14 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
           Some "Invalid Pattern" )
 
 
-let submit (m : model) (cursor : entryCursor) (action : nextAction) :
+let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
     modification =
   (* TODO: replace parsing with taking the autocomplete suggestion and *)
   (* doing what we're told with it. *)
   let value = AC.getValue m.complete in
   match cursor with
-  | Creating pos ->
-      let tlid = gtlid () in
-      let threadIt expr =
-        match action with
-        | StartThread ->
-            B.newF (Thread [expr; B.new_ ()])
-        | GotoNext ->
-            expr
-        | StayHere ->
-            expr
-      in
-      let wrapExpr expr =
-        let newAst = threadIt expr in
-        let focus =
-          newAst
-          |> AST.allData
-          |> List.filter P.isBlank
-          |> List.head
-          |> Option.map P.toID
-          |> Option.map (fun x -> FocusExact (tlid, x))
-          |> Option.withDefault (FocusNext (tlid, None))
-        in
-        (* NB: these pos magic numbers position the tl body where the click was *)
-        let op =
-          SetHandler
-            ( tlid
-            , {x = pos.x - 17; y = pos.y - 70}
-            , {ast = newAst; spec = newHandlerSpec (); tlid} )
-        in
-        RPC ([op], focus)
-      in
-      (* field access *)
-      if String.endsWith "." value
-      then
-        wrapExpr
-        <| B.newF
-             (FieldAccess
-                (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
-        (* varnames *)
-      else if List.member value (Analysis.currentVarnamesFor m None)
-      then wrapExpr <| B.newF (Variable value) (* start new AST *)
-      else (
-        match parseAst m value with None -> NoChange | Some v -> wrapExpr v )
+  | Creating _ ->
+      NoChange
   | Filling (tlid, id) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
@@ -589,3 +549,17 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
               |> AST.replace pd new_
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ ) )
+
+
+let submit (m : model) (cursor : entryCursor) (action : nextAction) :
+    modification = 
+    match cursor with
+    | Creating pos ->
+        (match AC.highlighted m.complete with
+        | Some (ACOmniAction act) ->
+           submitOmniAction pos act
+        | None when m.complete.value = "" ->
+           submitOmniAction pos NewHandler
+        | _ -> NoChange)
+    | _ ->
+        submitTextAction m cursor action

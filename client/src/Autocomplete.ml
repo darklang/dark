@@ -280,13 +280,11 @@ let isDynamicItem (item : autocompleteItem) : bool =
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
 let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
-  let always = [qLiteral] in
-  let omni =
+  let items = 
     if isOmni
     then [qNewDB; qHandler; qFunction; qHTTPHandler; qHTTPRoute; qEventSpace]
-    else []
-  in
-  let items = always @ omni in
+    else [qLiteral]
+  in 
   items |> List.filterMap (fun aci -> aci query)
 
 

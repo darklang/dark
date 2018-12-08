@@ -407,16 +407,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Key.Enter ->
               if AC.isLargeStringEntry m.complete
               then AutocompleteMod (ACSetQuery m.complete.value)
-              else (
-                match cursor with
-                | Creating pos ->
-                  ( match AC.highlighted m.complete with
-                  | Some (ACOmniAction action) ->
-                      Entry.submitOmniAction pos action
-                  | _ ->
-                      Entry.submit m cursor Entry.StayHere )
-                | Filling (_, _) ->
-                    Entry.submit m cursor Entry.StayHere )
+              else Entry.submit m cursor Entry.StayHere
           | Key.Tab ->
             ( match cursor with
             | Filling (tlid, p) ->
