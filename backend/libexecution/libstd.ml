@@ -795,7 +795,7 @@ let fns : Lib.shortfn list =
   ; { pns = ["String::toUppercase"]
     ; ins = []
     ; p = [par "s" TStr]
-    ; r = TList
+    ; r = TStr
     ; d = "Returns the string, uppercased"
     ; f =
         InProcess
@@ -807,7 +807,7 @@ let fns : Lib.shortfn list =
   ; { pns = ["String::toLowercase"]
     ; ins = []
     ; p = [par "s" TStr]
-    ; r = TList
+    ; r = TStr
     ; d = "Returns the string, lowercased"
     ; f =
         InProcess
