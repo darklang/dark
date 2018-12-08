@@ -133,7 +133,7 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
 
 
-type nextAction =
+type nextMove =
   | StartThread
   | StayHere
   | GotoNext
@@ -175,7 +175,7 @@ let replaceExpr
     (tlid : tlid)
     (ast : expr)
     (old_ : expr)
-    (action : nextAction)
+    (move : nextMove)
     (value : string) : expr * expr =
   let id = B.toID old_ in
   let target = Some (tlid, PExpr old_) in
@@ -207,7 +207,7 @@ let replaceExpr
       (old_, Debug.log "parsed" (parseAst m value |> Option.withDefault old_))
   in
   let newAst =
-    match action with
+    match move with
     | StartThread ->
         ast
         |> AST.replace (PExpr old) (PExpr new_)
@@ -344,7 +344,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
           Some "Invalid Pattern" )
 
 
-let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
+let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
     modification =
   (* TODO: replace parsing with taking the autocomplete suggestion and *)
   (* doing what we're told with it. *)
@@ -366,7 +366,7 @@ let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
         let wrap ops next =
           let wasEditing = P.isBlank pd |> not in
           let focus =
-            if wasEditing && action = StayHere
+            if wasEditing && move = StayHere
             then
               match next with
               | None ->
@@ -476,7 +476,7 @@ let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
               let new_ = PExpr wrapped in
               let replacement = TL.replace (PExpr parent) new_ tl in
               save replacement new_
-            else if action = StartThread
+            else if move = StartThread
             then
               (* Starting a new thread from the field *)
               let replacement = AST.replace pd (PField (B.newF value)) ast in
@@ -493,11 +493,11 @@ let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
         | PExpr e ->
           ( match tl.data with
           | TLHandler h ->
-              let newast, newexpr = replaceExpr m tl.id h.ast e action value in
+              let newast, newexpr = replaceExpr m tl.id h.ast e move value in
               saveAst newast (PExpr newexpr)
           | TLFunc f ->
               let newast, newexpr =
-                replaceExpr m tl.id f.ufAST e action value
+                replaceExpr m tl.id f.ufAST e move value
               in
               saveAst newast (PExpr newexpr)
           | TLDB db ->
@@ -508,13 +508,13 @@ let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
                 if List.member pd (AST.allData am.rollback)
                 then
                   let newast, newexpr =
-                    replaceExpr m tl.id am.rollback e action value
+                    replaceExpr m tl.id am.rollback e move value
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else if List.member pd (AST.allData am.rollforward)
                 then
                   let newast, newexpr =
-                    replaceExpr m tl.id am.rollforward e action value
+                    replaceExpr m tl.id am.rollforward e move value
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else NoChange ) )
@@ -551,7 +551,7 @@ let submitTextAction (m : model) (cursor : entryCursor) (action : nextAction) :
               |. saveAst new_ ) )
 
 
-let submit (m : model) (cursor : entryCursor) (action : nextAction) :
+let submit (m : model) (cursor : entryCursor) (move : nextMove) :
     modification = 
     match cursor with
     | Creating pos ->
@@ -565,5 +565,5 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
        (match AC.highlighted m.complete with
         | Some (ACOmniAction _) -> impossible "Shouldnt allow omniactions here"
         | Some _ ->
-            submitTextAction m cursor action
+            submitTextAction m cursor move
         | _ -> NoChange)
