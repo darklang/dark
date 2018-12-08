@@ -146,14 +146,16 @@ let clonePointerData (pd : pointerData) : pointerData =
       pd
   | PFFMsg msg ->
       PFFMsg (B.clone identity msg)
-  | PFnName name_ ->
-      PFnName (B.clone identity name_)
-  | PParamName name_ ->
-      PParamName (B.clone identity name_)
+  | PFnName name ->
+      PFnName (B.clone identity name)
+  | PParamName name ->
+      PParamName (B.clone identity name)
   | PParamTipe tipe ->
       PParamTipe (B.clone identity tipe)
   | PPattern pattern ->
       PPattern (AST.clonePattern pattern)
+  | PConstructorName name ->
+      PConstructorName (B.clone identity name)
 
 
 (* ------------------------- *)
@@ -285,6 +287,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PPattern _ ->
       []
+  | PConstructorName _ ->
+      []
 
 
 (* TODO(match) *)
@@ -369,6 +373,8 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   | PParamTipe _ ->
       fnMetadataReplace ()
   | PPattern _ ->
+      astReplace ()
+  | PConstructorName _ ->
       astReplace ()
 
 

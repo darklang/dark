@@ -222,6 +222,12 @@ and approxNWidth (ne : nExpr) : int =
         |> List.sum
       in
       String.length name + sizes
+  | Constructor (name, exprs) ->
+      strBlankOrLength name
+      + List.sum (List.map approxWidth exprs)
+      (* spaces *)
+      + 1
+      + List.length exprs
   | Lambda (_, expr) ->
       max (approxWidth expr) 7
       (* "| var -->" *)

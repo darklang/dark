@@ -32,13 +32,6 @@ let keyword = ViewBlankOr.keyword
 
 let withROP = ViewBlankOr.withROP
 
-let enterable = ViewBlankOr.Enterable
-
-let viewNFieldName (vs : viewState) (config : htmlConfig list) (f : string) :
-    msg Html.html =
-  text vs config f
-
-
 let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     msg Html.html =
   let configs =
@@ -48,24 +41,23 @@ let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     @ [ViewBlankOr.MouseoverAs (B.toID f)]
     @ ViewBlankOr.withFeatureFlag vs f
   in
-  ViewBlankOr.viewBlankOr viewNFieldName Field vs configs f
-
-
-let viewNVarBind (vs : viewState) (config : htmlConfig list) (f : string) :
-    msg Html.html =
-  text vs config f
+  ViewBlankOr.viewBlankOr text Field vs configs f
 
 
 let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
   let configs = (enterable :: idConfigs) @ c in
-  ViewBlankOr.viewBlankOr viewNVarBind VarBind vs configs v
+  ViewBlankOr.viewBlankOr text VarBind vs configs v
 
+let viewConstructorName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
+  let configs = idConfigs @ c in
+  ViewBlankOr.viewBlankOr text VarBind vs configs v
 
 let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
     msg Html.html =
   let configs = (enterable :: idConfigs) @ c in
-  ViewBlankOr.viewBlankOr viewNVarBind Key vs configs k
+  ViewBlankOr.viewBlankOr text Key vs configs k
 
 
 let rec viewNPattern
@@ -337,6 +329,17 @@ and viewNExpr
         [ n [wc "fieldobject"] [vExpr 0 obj]
         ; a [wc "fieldaccessop operator"] "."
         ; viewFieldName vs [wc "fieldname"; atom] field ]
+  | Constructor (name, exprs) ->
+      let exprs = 
+        (List.map 
+           (fun e -> 
+              n [wc "letbody"] [viewExpr d vs [] e])
+           exprs)
+      in
+      n
+        (wc "constructor" :: all)
+        (viewConstructorName vs [wc "constructorname"] name :: exprs)
+
   | ListLiteral exprs ->
       let open_ = a [wc "openbracket"] "[" in
       let close = a [wc "closebracket"] "]" in
