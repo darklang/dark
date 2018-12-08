@@ -1,5 +1,5 @@
 # Root directories
-DARK_CONFIG_RUN_DIR=/home/dark/gcp-rundir
+DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 DARK_CONFIG_ROOT_DIR=/home/dark
 
 # Important dirs

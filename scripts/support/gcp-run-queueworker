@@ -3,10 +3,10 @@
 set -euo pipefail
 
 if [[ -v DARK_CONFIG_RUNNING_IN_GKE ]]; then
-  sudo mkdir -p $DARK_CONFIG_RUN_DIR
+  sudo mkdir -p $DARK_CONFIG_RUNDIR
 fi
 
-sudo chown dark $DARK_CONFIG_RUN_DIR
+sudo chown dark $DARK_CONFIG_RUNDIR
 
 ./scripts/support/write-config-file
 ./scripts/support/create-app-directories
