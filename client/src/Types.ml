@@ -118,6 +118,7 @@ and nExpr =
   | FieldAccess of expr * field
   | FeatureFlag of string blankOr * expr * expr * expr
   | Match of expr * (pattern * expr) list
+  | Constructor of string blankOr * expr list
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -137,6 +138,7 @@ and pointerData =
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
   | PPattern of pattern
+  | PConstructorName of string blankOr
 
 and pointerType =
   | VarBind
@@ -153,6 +155,7 @@ and pointerType =
   | ParamName
   | ParamTipe
   | Pattern
+  | ConstructorName
 
 and pointerOwner =
   | POSpecHeader

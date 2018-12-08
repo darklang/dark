@@ -38,6 +38,8 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PParamTipe (Blank id)
   | Pattern ->
       PPattern (Blank id)
+  | ConstructorName ->
+      PConstructorName (Blank id)
 
 
 let typeOf (pd : pointerData) : pointerType =
@@ -64,6 +66,8 @@ let typeOf (pd : pointerData) : pointerType =
       FFMsg
   | PFnName _ ->
       FnName
+  | PConstructorName _ ->
+      ConstructorName
   | PParamName _ ->
       ParamName
   | PParamTipe _ ->
@@ -104,6 +108,8 @@ let toID (pd : pointerData) : id =
       B.toID d
   | PPattern d ->
       B.toID d
+  | PConstructorName d ->
+      B.toID d
 
 
 let isBlank (pd : pointerData) : bool =
@@ -129,6 +135,8 @@ let isBlank (pd : pointerData) : bool =
   | PFFMsg d ->
       B.isBlank d
   | PFnName d ->
+      B.isBlank d
+  | PConstructorName d ->
       B.isBlank d
   | PParamName d ->
       B.isBlank d
@@ -172,6 +180,8 @@ let toContent (pd : pointerData) : string option =
   | PFFMsg d ->
       bs2s d
   | PFnName d ->
+      bs2s d
+  | PConstructorName d ->
       bs2s d
   | PParamName d ->
       bs2s d

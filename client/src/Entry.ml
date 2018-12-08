@@ -288,6 +288,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       None
   | PFnName _ ->
       None
+  | PConstructorName _ ->
+      v "Just|Nothing" "constructor name"
   | PParamName _ ->
       None
   | PParamTipe _ ->
@@ -571,6 +573,8 @@ let submit (m : model) (cursor : entryCursor) (action : nextAction) :
                   (TL.asUserFunction newTL |> deOption "must be function")
               :: changedNames )
               newPD
+        | PConstructorName _ ->
+            replace (PConstructorName (B.newF value))
         | PParamName _ ->
             replace (PParamName (B.newF value))
         | PParamTipe _ ->

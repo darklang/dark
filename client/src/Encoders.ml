@@ -126,6 +126,8 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
       ev "PParamTipe" [blankOr tipe msg]
   | PPattern p ->
       ev "PPattern" [pattern p]
+  | PConstructorName n ->
+      ev "PConstructorName" [blankOr string n]
 
 
 and tlidOf (op : Types.op) : Types.tlid =
@@ -434,6 +436,8 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
       ev "FeatureFlag" [blankOr string msg; e cond; e a; e b]
   | Match (matchExpr, cases) ->
       ev "Match" [e matchExpr; list (pair pattern expr) cases]
+  | Constructor (name, args) ->
+      ev "Constructor" [blankOr string name; list e args]
 
 
 and pattern (p : Types.pattern) : Js.Json.t = blankOr nPattern p
