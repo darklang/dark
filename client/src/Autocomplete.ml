@@ -61,9 +61,7 @@ let asName (aci : autocompleteItem) : string =
     | NewEventSpace name ->
         "Create new " ^ name ^ " handler" )
   | ACConstructorName name ->
-      if name = "Just"
-      then "Just ______"
-      else name
+      if name = "Just" then "Just ______" else name
   | ACKeyword k ->
     ( match k with
     | KLet ->
@@ -90,7 +88,7 @@ let asTypeString (item : autocompleteItem) : string =
       "variable"
   | ACExtra _ ->
       ""
-  | ACCommand _ ->  
+  | ACCommand _ ->
       ""
   | ACConstructorName _ ->
       "option"
@@ -284,11 +282,11 @@ let isDynamicItem (item : autocompleteItem) : bool =
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
 let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
-  let items = 
+  let items =
     if isOmni
     then [qNewDB; qHandler; qFunction; qHTTPHandler; qHTTPRoute; qEventSpace]
     else [qLiteral]
-  in 
+  in
   items |> List.filterMap (fun aci -> aci query)
 
 
@@ -444,15 +442,13 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
     | _ ->
         []
   in
-  let exprs = 
+  let exprs =
     if isExpression
     then
-      let constructors = 
-        [ ACConstructorName "Just"
-        ; ACConstructorName "Nothing"
-        ]
+      let constructors =
+        [ACConstructorName "Just"; ACConstructorName "Nothing"]
       in
-      let varnames = 
+      let varnames =
         Analysis.currentVarnamesFor m a.target
         |> List.map (fun x -> ACVariable x)
       in
@@ -460,14 +456,9 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
         List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
       in
       constructors @ keywords @ varnames @ functions
-    else
-      []
+    else []
   in
-  let regular =
-    List.map (fun x -> ACExtra x) extras
-    @ exprs
-    @ fields
-  in
+  let regular = List.map (fun x -> ACExtra x) extras @ exprs @ fields in
   let commands = List.map (fun x -> ACCommand x) Commands.commands in
   if a.isCommandMode then commands else regular
 

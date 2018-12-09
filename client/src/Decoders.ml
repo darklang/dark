@@ -109,9 +109,9 @@ and nExpr j : nExpr =
     ; ( "FeatureFlag"
       , dv4 (fun a b c d -> FeatureFlag (a, b, c, d)) (blankOr string) de de de
       )
-    ; ("Match", dv2 (fun a b -> Match (a, b)) de (list (tuple2 pattern de))) 
-    ; ("Constructor", dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) )
-    ] 
+    ; ("Match", dv2 (fun a b -> Match (a, b)) de (list (tuple2 pattern de)))
+    ; ( "Constructor"
+      , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) ) ]
     j
 
 

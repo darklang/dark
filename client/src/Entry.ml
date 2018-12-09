@@ -57,11 +57,11 @@ let newHandlerSpec (_ : unit) : handlerSpec =
 let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let r = if fn.fnReturnTipe = TOption then Rail else NoRail in
-  (B.newF (FnCall (fn.fnName, blanks (List.length fn.fnParameters), r)))
+  B.newF (FnCall (fn.fnName, blanks (List.length fn.fnParameters), r))
 
 
 let submitOmniAction (pos : pos) (action : omniAction) : modification =
-  let pos = { x = pos.x - 17; y = pos.y - 70 } in
+  let pos = {x = pos.x - 17; y = pos.y - 70} in
   match action with
   | NewDB dbname ->
       let next = gid () in
@@ -153,20 +153,20 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
   | ACVariable varname ->
       Some (B.newF (Variable varname))
   | _ ->
-    let firstWord = String.split " " str in
-    match firstWord with
-    | [""] ->
-        Some b1
-    | ["[]"] ->
-        Some (F (eid, ListLiteral [B.new_ ()]))
-    | ["["] ->
-        Some (F (eid, ListLiteral [B.new_ ()]))
-    | ["{}"] ->
-        Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
-    | ["{"] ->
-        Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
-    | _ ->
-        None
+      let firstWord = String.split " " str in
+      ( match firstWord with
+      | [""] ->
+          Some b1
+      | ["[]"] ->
+          Some (F (eid, ListLiteral [B.new_ ()]))
+      | ["["] ->
+          Some (F (eid, ListLiteral [B.new_ ()]))
+      | ["{}"] ->
+          Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+      | ["{"] ->
+          Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+      | _ ->
+          None )
 
 
 (* Assumes PD is within AST. Returns (new AST, new Expr) *)
@@ -175,8 +175,7 @@ let replaceExpr
     (ast : expr)
     (old_ : expr)
     (move : nextMove)
-    (item : autocompleteItem)
-    : expr * expr =
+    (item : autocompleteItem) : expr * expr =
   let value = AC.getValue m.complete in
   let id = B.toID old_ in
   let old, new_ =
@@ -200,8 +199,7 @@ let replaceExpr
       , B.newF
           (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
       )
-    else
-      (old_, parseAst item value |> Option.withDefault old_)
+    else (old_, parseAst item value |> Option.withDefault old_)
   in
   let newAst =
     match move with
@@ -341,8 +339,11 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
           Some "Invalid Pattern" )
 
 
-let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (move : nextMove) :
-    modification =
+let submitACItem
+    (m : model)
+    (cursor : entryCursor)
+    (item : autocompleteItem)
+    (move : nextMove) : modification =
   let stringValue = AC.getValue m.complete in
   match cursor with
   | Creating _ ->
@@ -397,7 +398,7 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
         in
-        ( match pd, item with
+        ( match (pd, item) with
         | PDBColType ct, ACExtra value ->
             let db1 = deOption "db" db in
             if B.asF ct = Some value
@@ -446,7 +447,7 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
                   replacement
             in
             saveH {h with spec = replacement2} (PEventSpace new_)
-        | PField _, ACField fieldname 
+        | PField _, ACField fieldname
         (* allow arbitrary fieldnames *)
         | PField _, ACExtra fieldname ->
             let fieldname =
@@ -483,7 +484,9 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
             else if move = StartThread
             then
               (* Starting a new thread from the field *)
-              let replacement = AST.replace pd (PField (B.newF fieldname)) ast in
+              let replacement =
+                AST.replace pd (PField (B.newF fieldname)) ast
+              in
               let newAst = AST.wrapInThread (B.toID parent) replacement in
               saveAst newAst (PExpr parent)
             else (* Changing a field *)
@@ -500,9 +503,7 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
               let newast, newexpr = replaceExpr m h.ast e move item in
               saveAst newast (PExpr newexpr)
           | TLFunc f ->
-              let newast, newexpr =
-                replaceExpr m f.ufAST e move item
-              in
+              let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
           | TLDB db ->
             ( match db.activeMigration with
@@ -554,26 +555,31 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ )
         | pd, item ->
-           DisplayAndReportError
-             ("Invalid autocomplete option: (" ^ Types.show_pointerData pd ^ ", " ^ Types.show_autocompleteItem item) )
+            DisplayAndReportError
+              ( "Invalid autocomplete option: ("
+              ^ Types.show_pointerData pd
+              ^ ", "
+              ^ Types.show_autocompleteItem item ) )
 
 
-let submit (m : model) (cursor : entryCursor) (move : nextMove) :
-    modification = 
-    match cursor with
-    | Creating pos ->
-        (match AC.highlighted m.complete with
-        | Some (ACOmniAction act) ->
-           submitOmniAction pos act
-        | None when m.complete.value = "" ->
-           submitOmniAction pos NewHandler
-        | _ -> NoChange)
+let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
+    =
+  match cursor with
+  | Creating pos ->
+    ( match AC.highlighted m.complete with
+    | Some (ACOmniAction act) ->
+        submitOmniAction pos act
+    | None when m.complete.value = "" ->
+        submitOmniAction pos NewHandler
     | _ ->
-       (match AC.highlighted m.complete with
-        | Some (ACOmniAction _) -> impossible "Shouldnt allow omniactions here"
-        | Some item ->
-            submitACItem m cursor item move
-        | _ -> 
-            (* TODO: remove this. This is a transitional step to get to fully 
+        NoChange )
+  | _ ->
+    ( match AC.highlighted m.complete with
+    | Some (ACOmniAction _) ->
+        impossible "Shouldnt allow omniactions here"
+    | Some item ->
+        submitACItem m cursor item move
+    | _ ->
+        (* TODO: remove this. This is a transitional step to get to fully 
                 typed. *)
-            submitACItem m cursor (ACExtra m.complete.value) move)
+        submitACItem m cursor (ACExtra m.complete.value) move )
