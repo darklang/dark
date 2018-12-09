@@ -116,7 +116,7 @@ def backend_build():
           return result
 
   build = "unbuffer" \
-        + " dune build" \
+        + " scripts/dune-wrapper.sh build" \
         + " --profile " + compilation_profile \
         + " --display short" \
         + " --root backend" \
@@ -138,7 +138,7 @@ def backend_test():
   env = "DARK_CONFIG_ENV_DISPLAY_NAME=test"
   dbenv = host + " " + dbname + " " + user + " " + password
   return run_test(start,
-          "unbuffer dune build --root backend test/test.exe"
+          "unbuffer scripts/dune-wrapper.sh build --root backend test/test.exe"
           + " && dropdb --if-exists testdb"
           + " && createdb testdb"
           + " && cd " + rundir
