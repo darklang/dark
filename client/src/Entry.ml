@@ -148,13 +148,13 @@ let parseAst (m : model) (item : autocompleteItem) (str : string) : expr option 
       Some (F (eid, Constructor (B.newF "Just", [b1])))
   | ACConstructorName "Nothing" ->
       Some (F (eid, Constructor (B.newF "Nothing", [])))
-  | ACKeyWord KIf ->
+  | ACKeyword KIf ->
       Some (F (eid, If (b1, b2, b3)))
-  | ACKeyWord KLet ->
+  | ACKeyword KLet ->
         Some (F (eid, Let (b1, b2, b3)))
-  | ACKeyWord KLambda ->
+  | ACKeyword KLambda ->
         Some (F (eid, Lambda ([B.newF "var"], b2)))
-  | ACKeyWord KMatch ->
+  | ACKeyword KMatch ->
         Some (F (eid, Match (b1, [(b2, b3)])))
   | _ ->
     let firstWord = String.split " " str in
