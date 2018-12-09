@@ -49,10 +49,13 @@ let viewVarBind (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
   let configs = (enterable :: idConfigs) @ c in
   ViewBlankOr.viewBlankOr text VarBind vs configs v
 
-let viewConstructorName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
+
+let viewConstructorName
+    (vs : viewState) (c : htmlConfig list) (v : string blankOr) : msg Html.html
+    =
   let configs = idConfigs @ c in
   ViewBlankOr.viewBlankOr text VarBind vs configs v
+
 
 let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
     msg Html.html =
@@ -330,16 +333,12 @@ and viewNExpr
         ; a [wc "fieldaccessop operator"] "."
         ; viewFieldName vs [wc "fieldname"; atom] field ]
   | Constructor (name, exprs) ->
-      let exprs = 
-        (List.map 
-           (fun e -> 
-              n [wc "letbody"] [viewExpr d vs [] e])
-           exprs)
+      let exprs =
+        List.map (fun e -> n [wc "letbody"] [viewExpr d vs [] e]) exprs
       in
       n
         (wc "constructor" :: all)
         (viewConstructorName vs [wc "constructorname"] name :: exprs)
-
   | ListLiteral exprs ->
       let open_ = a [wc "openbracket"] "[" in
       let close = a [wc "closebracket"] "]" in
