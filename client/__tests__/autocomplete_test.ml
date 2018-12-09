@@ -90,14 +90,7 @@ let () =
             (fun () ->
               expect
                 ( createEntering User
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
+                |> setQuery "Twit::someOtherFunc"
                 |> setQuery "T"
                 |> highlighted
                 |> Option.map asName )
@@ -206,12 +199,8 @@ let () =
                 ( createEntering User
                 |> selectUp
                 |> selectUp
-                |> selectUp
-                |> selectUp
-                |> selectUp
-                |> selectUp
                 |> fun x -> x.index )
-              |> toEqual 15 ) ;
+              |> toBeGreaterThan 15 ) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( createEntering User
