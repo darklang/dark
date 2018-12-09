@@ -311,6 +311,8 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 user dark
 RUN yarn remove less bs-platform
 
+RUN opam update && opam install -y dune.1.6.2
+
 ############################
 # Finish
 ############################
