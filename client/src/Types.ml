@@ -444,6 +444,7 @@ and omniAction =
 
 and autocompleteItem =
   | ACFunction of function_
+  | ACConstructorName of string
   | ACField of string
   | ACVariable of varName
   | ACExtra of string
