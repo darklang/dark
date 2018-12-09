@@ -297,7 +297,10 @@ def mark(should, f):
                   or ("dune" in f) \
                   or ("_tags" in f) \
                   or ("libtarget.js" in f)):
-    should.backend_build = True
+    if "test/test.ml" in f:
+      should.backend_test = True
+    else:
+      should.backend_build = True
 
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
@@ -317,7 +320,10 @@ def mark(should, f):
   elif ("client/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
-    should.client_build = True
+    if "__tests__" in f:
+      should.client_test = True
+    else:
+      should.client_build = True
 
   elif "client/src/appsupport.js" in f:
     should.appsupport_build = True
