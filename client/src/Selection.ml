@@ -239,6 +239,12 @@ let enter (m : model) (tlid : tlid) (id : id) : modification =
   enterWithOffset m tlid id 0
 
 
+let dblclick (m : model) (tlid : tlid) (id : id) : modification =
+  if VariantTesting.variantIsActive m FluidInputModel
+  then Select (tlid, Some id)
+  else enter m tlid id
+
+
 let moveAndEnter
     (m : model)
     (tlid : tlid)
