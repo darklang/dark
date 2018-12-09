@@ -54,20 +54,10 @@ let newHandlerSpec (_ : unit) : handlerSpec =
   {module_ = B.new_ (); name = B.new_ (); modifier = B.new_ ()}
 
 
-let createFunction (m : model) (name : fnName) : expr option =
+let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
-  let fn =
-    m.complete.functions
-    |> List.filter (fun fn_ -> fn_.fnName = name)
-    |> List.head
-  in
-  match fn with
-  | Some function_ ->
-      let r = if function_.fnReturnTipe = TOption then Rail else NoRail in
-      Some
-        (B.newF (FnCall (name, blanks (List.length function_.fnParameters), r)))
-  | None ->
-      None
+  let r = if fn.fnReturnTipe = TOption then Rail else NoRail in
+  (B.newF (FnCall (fn.fnName, blanks (List.length fn.fnParameters), r)))
 
 
 let submitOmniAction (pos : pos) (action : omniAction) : modification =
@@ -138,7 +128,7 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let parseAst (m : model) (item : autocompleteItem) (str : string) : expr option =
+let parseAst (item : autocompleteItem) (str : string) : expr option =
   let eid = gid () in
   let b1 = B.new_ () in
   let b2 = B.new_ () in
@@ -151,11 +141,17 @@ let parseAst (m : model) (item : autocompleteItem) (str : string) : expr option 
   | ACKeyword KIf ->
       Some (F (eid, If (b1, b2, b3)))
   | ACKeyword KLet ->
-        Some (F (eid, Let (b1, b2, b3)))
+      Some (F (eid, Let (b1, b2, b3)))
   | ACKeyword KLambda ->
-        Some (F (eid, Lambda ([B.newF "var"], b2)))
+      Some (F (eid, Lambda ([B.newF "var"], b2)))
   | ACKeyword KMatch ->
-        Some (F (eid, Match (b1, [(b2, b3)])))
+      Some (F (eid, Match (b1, [(b2, b3)])))
+  | ACLiteral litstr ->
+      Some (F (eid, Value litstr))
+  | ACFunction fn ->
+      Some (createFunction fn)
+  | ACVariable varname ->
+      Some (B.newF (Variable varname))
   | _ ->
     let firstWord = String.split " " str in
     match firstWord with
@@ -170,15 +166,12 @@ let parseAst (m : model) (item : autocompleteItem) (str : string) : expr option 
     | ["{"] ->
         Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
     | _ ->
-        if Decoders.isLiteralString str
-        then Some (F (eid, Value str))
-        else createFunction m str
+        None
 
 
 (* Assumes PD is within AST. Returns (new AST, new Expr) *)
 let replaceExpr
     (m : model)
-    (tlid : tlid)
     (ast : expr)
     (old_ : expr)
     (move : nextMove)
@@ -186,7 +179,6 @@ let replaceExpr
     : expr * expr =
   let value = AC.getValue m.complete in
   let id = B.toID old_ in
-  let target = Some (tlid, PExpr old_) in
   let old, new_ =
     (* assign thread to variable *)
     if Util.reExactly "=[a-zA-Z].*" value
@@ -208,11 +200,8 @@ let replaceExpr
       , B.newF
           (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
       )
-      (* variables *)
-    else if List.member value (Analysis.currentVarnamesFor m target)
-    then (old_, B.newF (Variable value)) (* parsed exprs *)
     else
-      (old_, parseAst m item value |> Option.withDefault old_)
+      (old_, parseAst item value |> Option.withDefault old_)
   in
   let newAst =
     match move with
@@ -508,11 +497,11 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
         | PExpr e, item ->
           ( match tl.data with
           | TLHandler h ->
-              let newast, newexpr = replaceExpr m tl.id h.ast e move item in
+              let newast, newexpr = replaceExpr m h.ast e move item in
               saveAst newast (PExpr newexpr)
           | TLFunc f ->
               let newast, newexpr =
-                replaceExpr m tl.id f.ufAST e move item
+                replaceExpr m f.ufAST e move item
               in
               saveAst newast (PExpr newexpr)
           | TLDB db ->
@@ -523,13 +512,13 @@ let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (m
                 if List.member pd (AST.allData am.rollback)
                 then
                   let newast, newexpr =
-                    replaceExpr m tl.id am.rollback e move item
+                    replaceExpr m am.rollback e move item
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else if List.member pd (AST.allData am.rollforward)
                 then
                   let newast, newexpr =
-                    replaceExpr m tl.id am.rollforward e move item
+                    replaceExpr m am.rollforward e move item
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else NoChange ) )
