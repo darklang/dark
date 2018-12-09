@@ -117,7 +117,7 @@ let pipe_within_let (m : model) : testResult =
           ( _
           , Thread
               [ F (_, Variable "value")
-              ; F (_, FnCall ("assoc", [Blank _; Blank _], _)) ] ) ) ->
+              ; F (_, FnCall ("Int::add", [Blank _], _)) ] ) ) ->
       pass
   | e ->
       fail ~f:show_nExpr e

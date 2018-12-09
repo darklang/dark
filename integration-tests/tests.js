@@ -192,7 +192,7 @@ test('pipe_within_let', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "value")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "assoc")
+    .typeText("#entry-box", "Int::add")
     .pressKey("enter")
     .pressKey("esc")
     ;
