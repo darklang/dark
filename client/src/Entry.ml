@@ -176,7 +176,9 @@ let replaceExpr
     (ast : expr)
     (old_ : expr)
     (move : nextMove)
-    (value : string) : expr * expr =
+    (_ : autocompleteItem)
+    : expr * expr =
+  let value = AC.getValue m.complete in
   let id = B.toID old_ in
   let target = Some (tlid, PExpr old_) in
   let old, new_ =
@@ -204,7 +206,7 @@ let replaceExpr
     else if List.member value (Analysis.currentVarnamesFor m target)
     then (old_, B.newF (Variable value)) (* parsed exprs *)
     else
-      (old_, Debug.log "parsed" (parseAst m value |> Option.withDefault old_))
+      (old_, parseAst m value |> Option.withDefault old_)
   in
   let newAst =
     match move with
@@ -344,21 +346,17 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
           Some "Invalid Pattern" )
 
 
-let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
+let submitACItem (m : model) (cursor : entryCursor) (item : autocompleteItem) (move : nextMove) :
     modification =
-  (* TODO: replace parsing with taking the autocomplete suggestion and *)
-  (* doing what we're told with it. *)
-  let value = AC.getValue m.complete in
+  let stringValue = AC.getValue m.complete in
   match cursor with
   | Creating _ ->
       NoChange
   | Filling (tlid, id) ->
       let tl = TL.getTL m tlid in
       let pd = TL.findExn tl id in
-      let result = validate tl pd value in
-      if String.length value < 1
-      then NoChange
-      else if result <> None
+      let result = validate tl pd stringValue in
+      if result <> None
       then DisplayAndReportError (deOption "checked above" result)
       else
         let maybeH = TL.asHandler tl in
@@ -404,8 +402,8 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
         in
-        ( match pd with
-        | PDBColType ct ->
+        ( match pd, item with
+        | PDBColType ct, ACExtra value ->
             let db1 = deOption "db" db in
             if B.asF ct = Some value
             then Select (tlid, Some id)
@@ -420,7 +418,7 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
                 [ SetDBColType (tlid, id, value)
                 ; AddDBCol (tlid, gid (), gid ()) ]
             else wrapID [ChangeDBColType (tlid, id, value)]
-        | PDBColName cn ->
+        | PDBColName cn, ACExtra value ->
             let db1 = deOption "db" db in
             if B.asF cn = Some value
             then Select (tlid, Some id)
@@ -433,13 +431,13 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
             else if B.isBlank cn
             then wrapID [SetDBColName (tlid, id, value)]
             else wrapID [ChangeDBColName (tlid, id, value)]
-        | PVarBind _ ->
-            replace (PVarBind (B.newF value))
-        | PEventName _ ->
+        | PVarBind _, ACExtra varName ->
+            replace (PVarBind (B.newF varName))
+        | PEventName _, ACExtra value ->
             replace (PEventName (B.newF value))
-        | PEventModifier _ ->
+        | PEventModifier _, ACExtra value ->
             replace (PEventModifier (B.newF value))
-        | PEventSpace _ ->
+        | PEventSpace _, ACExtra value ->
             let h = deOption "maybeH - eventspace" maybeH in
             let new_ = B.newF value in
             let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
@@ -453,13 +451,24 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
                   replacement
             in
             saveH {h with spec = replacement2} (PEventSpace new_)
-        | PField _ ->
+        | PField _, ACField fieldname 
+        (* allow arbitrary fieldnames *)
+        | PField _, ACExtra fieldname ->
+            let fieldname =
+              if String.startsWith "." fieldname
+              then String.dropLeft 1 fieldname
+              else fieldname
+            in
+            let fieldname =
+              if String.endsWith "." fieldname
+              then String.dropRight 1 fieldname
+              else fieldname
+            in
             let ast = getAstFromTopLevel tl in
             let parent = AST.findParentOfWithin id ast in
             (* Nested field? *)
-            if String.endsWith "." value
+            if String.endsWith "." m.complete.value
             then
-              let fieldname = String.dropRight 1 value in
               (* wrap the field access with another field access *)
               (* get the parent ID from the old AST, cause it has the blank.
                  Then get the parent structure from the new ID *)
@@ -479,25 +488,25 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
             else if move = StartThread
             then
               (* Starting a new thread from the field *)
-              let replacement = AST.replace pd (PField (B.newF value)) ast in
+              let replacement = AST.replace pd (PField (B.newF fieldname)) ast in
               let newAst = AST.wrapInThread (B.toID parent) replacement in
               saveAst newAst (PExpr parent)
             else (* Changing a field *)
-              replace (PField (B.newF value))
-        | PKey _ ->
+              replace (PField (B.newF fieldname))
+        | PKey _, ACExtra value ->
             let new_ = PKey (B.newF value) in
             getAstFromTopLevel tl
             |> AST.replace pd new_
             |> AST.maybeExtendObjectLiteralAt new_
             |> fun ast_ -> saveAst ast_ new_
-        | PExpr e ->
+        | PExpr e, item ->
           ( match tl.data with
           | TLHandler h ->
-              let newast, newexpr = replaceExpr m tl.id h.ast e move value in
+              let newast, newexpr = replaceExpr m tl.id h.ast e move item in
               saveAst newast (PExpr newexpr)
           | TLFunc f ->
               let newast, newexpr =
-                replaceExpr m tl.id f.ufAST e move value
+                replaceExpr m tl.id f.ufAST e move item
               in
               saveAst newast (PExpr newexpr)
           | TLDB db ->
@@ -508,19 +517,19 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
                 if List.member pd (AST.allData am.rollback)
                 then
                   let newast, newexpr =
-                    replaceExpr m tl.id am.rollback e move value
+                    replaceExpr m tl.id am.rollback e move item
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else if List.member pd (AST.allData am.rollforward)
                 then
                   let newast, newexpr =
-                    replaceExpr m tl.id am.rollforward e move value
+                    replaceExpr m tl.id am.rollforward e move item
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
                 else NoChange ) )
-        | PFFMsg _ ->
+        | PFFMsg _, ACExtra value ->
             replace (PFFMsg (B.newF value))
-        | PFnName _ ->
+        | PFnName _, ACExtra value ->
             let newPD = PFnName (B.newF value) in
             let newTL = TL.replace pd newPD tl in
             let changedNames =
@@ -533,13 +542,13 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
                   (TL.asUserFunction newTL |> deOption "must be function")
               :: changedNames )
               newPD
-        | PConstructorName _ ->
+        | PConstructorName _, ACExtra value ->
             replace (PConstructorName (B.newF value))
-        | PParamName _ ->
+        | PParamName _, ACExtra value ->
             replace (PParamName (B.newF value))
-        | PParamTipe _ ->
+        | PParamTipe _, ACExtra value ->
             replace (PParamTipe (B.newF (RT.str2tipe value)))
-        | PPattern _ ->
+        | PPattern _, ACExtra value ->
           ( match parsePattern value with
           | None ->
               DisplayError "not a pattern"
@@ -548,7 +557,10 @@ let submitTextAction (m : model) (cursor : entryCursor) (move : nextMove) :
               getAstFromTopLevel tl
               |> AST.replace pd new_
               |> AST.maybeExtendPatternAt new_
-              |. saveAst new_ ) )
+              |. saveAst new_ )
+        | pd, item ->
+           DisplayAndReportError
+             ("Invalid autocomplete option: (" ^ Types.show_pointerData pd ^ ", " ^ Types.show_autocompleteItem item) )
 
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) :
@@ -564,6 +576,9 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) :
     | _ ->
        (match AC.highlighted m.complete with
         | Some (ACOmniAction _) -> impossible "Shouldnt allow omniactions here"
-        | Some _ ->
-            submitTextAction m cursor move
-        | _ -> NoChange)
+        | Some item ->
+            submitACItem m cursor item move
+        | _ -> 
+            (* TODO: remove this. This is a transitional step to get to fully 
+                typed. *)
+            submitACItem m cursor (ACExtra m.complete.value) move)
