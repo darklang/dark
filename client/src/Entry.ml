@@ -138,35 +138,41 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let parseAst (m : model) (str : string) : expr option =
+let parseAst (m : model) (item : autocompleteItem) (str : string) : expr option =
   let eid = gid () in
   let b1 = B.new_ () in
   let b2 = B.new_ () in
   let b3 = B.new_ () in
-  let firstWord = String.split " " str in
-  match firstWord with
-  | ["if"] ->
-      Some (F (eid, If (b1, b2, b3)))
-  | ["let"] ->
-      Some (F (eid, Let (b1, b2, b3)))
-  | ["lambda"] ->
-      Some (F (eid, Lambda ([B.newF "var"], b2)))
-  | ["match"] ->
-      Some (F (eid, Match (b1, [(b2, b3)])))
-  | [""] ->
-      Some b1
-  | ["[]"] ->
-      Some (F (eid, ListLiteral [B.new_ ()]))
-  | ["["] ->
-      Some (F (eid, ListLiteral [B.new_ ()]))
-  | ["{}"] ->
-      Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
-  | ["{"] ->
-      Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+  match item with
+  | ACConstructorName "Just" ->
+      Some (F (eid, Constructor (B.newF "Just", [b1])))
+  | ACConstructorName "Nothing" ->
+      Some (F (eid, Constructor (B.newF "Nothing", [])))
   | _ ->
-      if Decoders.isLiteralString str
-      then Some (F (eid, Value str))
-      else createFunction m str
+    let firstWord = String.split " " str in
+    match firstWord with
+    | ["if"] ->
+        Some (F (eid, If (b1, b2, b3)))
+    | ["let"] ->
+        Some (F (eid, Let (b1, b2, b3)))
+    | ["lambda"] ->
+        Some (F (eid, Lambda ([B.newF "var"], b2)))
+    | ["match"] ->
+        Some (F (eid, Match (b1, [(b2, b3)])))
+    | [""] ->
+        Some b1
+    | ["[]"] ->
+        Some (F (eid, ListLiteral [B.new_ ()]))
+    | ["["] ->
+        Some (F (eid, ListLiteral [B.new_ ()]))
+    | ["{}"] ->
+        Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+    | ["{"] ->
+        Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+    | _ ->
+        if Decoders.isLiteralString str
+        then Some (F (eid, Value str))
+        else createFunction m str
 
 
 (* Assumes PD is within AST. Returns (new AST, new Expr) *)
@@ -176,7 +182,7 @@ let replaceExpr
     (ast : expr)
     (old_ : expr)
     (move : nextMove)
-    (_ : autocompleteItem)
+    (item : autocompleteItem)
     : expr * expr =
   let value = AC.getValue m.complete in
   let id = B.toID old_ in
@@ -206,7 +212,7 @@ let replaceExpr
     else if List.member value (Analysis.currentVarnamesFor m target)
     then (old_, B.newF (Variable value)) (* parsed exprs *)
     else
-      (old_, parseAst m value |> Option.withDefault old_)
+      (old_, parseAst m item value |> Option.withDefault old_)
   in
   let newAst =
     match move with

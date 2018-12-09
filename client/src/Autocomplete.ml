@@ -60,6 +60,10 @@ let asName (aci : autocompleteItem) : string =
         "Create new HTTP handler for " ^ name
     | NewEventSpace name ->
         "Create new " ^ name ^ " handler" )
+  | ACConstructorName name ->
+      if name = "Just"
+      then "Just ______"
+      else name
   | ACKeyword k ->
     ( match k with
     | KLet ->
@@ -86,8 +90,10 @@ let asTypeString (item : autocompleteItem) : string =
       "variable"
   | ACExtra _ ->
       ""
-  | ACCommand _ ->
+  | ACCommand _ ->  
       ""
+  | ACConstructorName _ ->
+      "option"
   | ACLiteral lit ->
       let tipe =
         lit
@@ -223,9 +229,7 @@ let qLiteral (s : string) : autocompleteItem option =
   then Some (ACLiteral s)
   else if String.length s > 0
   then
-    if String.startsWith (String.toLower s) "nothing"
-    then Some (ACLiteral "Nothing")
-    else if String.startsWith (String.toLower s) "false"
+    if String.startsWith (String.toLower s) "false"
     then Some (ACLiteral "false")
     else if String.startsWith (String.toLower s) "true"
     then Some (ACLiteral "true")
@@ -440,17 +444,28 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
     | _ ->
         []
   in
-  let varnames = Analysis.currentVarnamesFor m a.target in
-  let keywords =
+  let exprs = 
     if isExpression
-    then List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
-    else []
+    then
+      let constructors = 
+        [ ACConstructorName "Just"
+        ; ACConstructorName "Nothing"
+        ]
+      in
+      let varnames = 
+        Analysis.currentVarnamesFor m a.target
+        |> List.map (fun x -> ACVariable x)
+      in
+      let keywords =
+        List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
+      in
+      constructors @ keywords @ varnames @ functions
+    else
+      []
   in
   let regular =
     List.map (fun x -> ACExtra x) extras
-    @ List.map (fun x -> ACVariable x) varnames
-    @ keywords
-    @ functions
+    @ exprs
     @ fields
   in
   let commands = List.map (fun x -> ACCommand x) Commands.commands in
