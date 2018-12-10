@@ -132,6 +132,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
         apply_to_db
           ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe))
           tlid
+    | DeleteDBCol (tlid, id) ->
+        apply_to_db ~f:(User_db.delete_col id) tlid
     | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
         ident
     | CreateDBMigration (tlid, rbid, rfid, cols) ->
