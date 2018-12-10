@@ -13,7 +13,7 @@ shopt -s lastpipe
 
 unbuffer dune "$@" 2>&1 | while read -r line; do
   # this error consistently breaks our compile, esp on CI
-  if [[ "$line" == *"inconsistent assumptions over implementation"* ]]; then
+  if [[ "$line" == *"inconsistent assumptions over interface"* ]]; then
     error=1;
     errorline="$line";
   fi
