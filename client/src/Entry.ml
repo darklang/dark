@@ -153,6 +153,7 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
   | ACVariable varname ->
       Some (B.newF (Variable varname))
   | _ ->
+      (* TODO: remove all these cases, replacing them with autocomplete options *)
       let firstWord = String.split " " str in
       ( match firstWord with
       | [""] ->
