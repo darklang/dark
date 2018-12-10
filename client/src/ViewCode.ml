@@ -32,6 +32,8 @@ let keyword = ViewBlankOr.keyword
 
 let withROP = ViewBlankOr.withROP
 
+let enterable = ViewBlankOr.Enterable
+
 let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     msg Html.html =
   let configs =
