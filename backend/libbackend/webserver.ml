@@ -203,14 +203,19 @@ let user_page_handler
            ~canvas_id
            ("HTTP", Uri.path uri, verb) ;
       let resp_headers = Cohttp.Header.of_list [cors] in
-      respond ~resp_headers ~execution_id `Not_found "404: No page matches"
+      respond
+        ~resp_headers
+        ~execution_id
+        `Not_found
+        "404 Not Found: No route matches"
   | a :: b :: _ ->
       let resp_headers = Cohttp.Header.of_list [cors] in
       respond
         `Internal_server_error
         ~resp_headers
         ~execution_id
-        "500: More than one page matches"
+        ( "500 Internal Server Error: More than one handler for route: "
+        ^ Uri.path uri )
   | [page] ->
       let input = PReq.from_request headers query body in
       ( match (Handler.module_for page, Handler.modifier_for page) with
