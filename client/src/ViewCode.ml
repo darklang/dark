@@ -73,15 +73,16 @@ let rec viewNPattern
     =
   match np with
   | PLiteral l ->
-      text vs config l
+      text vs (enterable :: config) l
   | PVariable v ->
-      text vs config v
+      text vs (enterable :: config) v
   | PConstructor (name, params) ->
       let ps = List.map (viewPattern vs []) params in
       div
         vs
         []
-        (text vs (atom :: wc "constructor-pattern" :: config) name :: ps)
+        ( text vs (atom :: enterable :: wc "constructor-pattern" :: config) name
+        :: ps )
 
 
 and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
