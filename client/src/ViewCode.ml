@@ -189,10 +189,11 @@ and viewNExpr
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (name, exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
+      let height = ViewUtils.approxNHeight e in
       let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
-      let ve = if width > 120 then viewTooWideArg else vExpr in
+      let ve = if width > 120 || height > 1 then viewTooWideArg else vExpr in
       let fnname parens =
         let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
         match String.split "::" name with

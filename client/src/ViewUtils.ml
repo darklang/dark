@@ -283,6 +283,38 @@ and approxNWidth (ne : nExpr) : int =
       |> Option.withDefault 0
 
 
+let rec approxHeight (e : expr) : int =
+  match e with Blank _ -> 1 | F (_, ne) -> approxNHeight ne
+
+
+and approxNHeight (ne : nExpr) : int =
+  match ne with
+  | If (cond, ifbody, elsebody) ->
+      approxHeight cond + approxHeight ifbody + approxHeight elsebody + 1
+      (* else literal *)
+  | FnCall (_, exprs, _) ->
+      exprs |> List.map approxHeight |> List.maximum |> Option.withDefault 1
+  | Variable _ ->
+      1
+  | Let (_, rhs, _) ->
+      approxHeight rhs
+  | Lambda (_, expr) ->
+      approxHeight expr + 1 (* params *)
+  | Value _ ->
+      1
+  | ObjectLiteral pairs ->
+      pairs |> List.map (fun (_, v) -> approxHeight v) |> List.sum |> ( + ) 3
+      (* { } *)
+  | ListLiteral exprs | Thread exprs ->
+      exprs |> List.map approxHeight |> List.maximum |> Option.withDefault 1
+  | FieldAccess (expr, _) ->
+      approxHeight expr
+  | FeatureFlag _ ->
+      0
+  | Match (expr, cases) ->
+      List.length cases + approxHeight expr
+
+
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
   let mResult = Js.Re.exec fnName pattern in
