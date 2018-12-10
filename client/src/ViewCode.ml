@@ -45,6 +45,7 @@ let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     c
     @ [enterable]
     @ [ViewBlankOr.ClickSelectAs (B.toID f)]
+    @ [ViewBlankOr.MouseoverAs (B.toID f)]
     @ ViewBlankOr.withFeatureFlag vs f
   in
   ViewBlankOr.viewBlankOr viewNFieldName Field vs configs f
