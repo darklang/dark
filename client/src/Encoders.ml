@@ -174,6 +174,8 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | DeleteColInDBMigration (tlid, _) ->
       tlid
+  | DeleteDBCol (tlid, _) ->
+      tlid
 
 
 and ops (ops : Types.op list) : Js.Json.t =
@@ -265,6 +267,8 @@ and op (call : Types.op) : Js.Json.t =
       ev "SetDBColType" [tlid t; id i; string tipe]
   | ChangeDBColType (t, i, name) ->
       ev "ChangeDBColType" [tlid t; id i; string name]
+  | DeleteDBCol (t, i) ->
+      ev "DeleteDBCol" [tlid t; id i]
   | DeprecatedInitDbm (t, i, rbid, rfid, kind) ->
       ev
         "DeprecatedInitDbm"
