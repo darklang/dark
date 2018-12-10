@@ -27,19 +27,21 @@ let atom = ViewBlankOr.atom
 
 let keyword = ViewBlankOr.keyword
 
+let enterable = ViewBlankOr.Enterable
+
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
-  viewText FnName vs (idConfigs @ c) v
+  viewText FnName vs ((enterable :: idConfigs) @ c) v
 
 
 let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  viewText ParamName vs (idConfigs @ c) v
+  viewText ParamName vs ((enterable :: idConfigs) @ c) v
 
 
 let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
     msg Html.html =
-  ViewBlankOr.viewTipe ParamTipe vs (idConfigs @ c) v
+  ViewBlankOr.viewTipe ParamTipe vs ((enterable :: idConfigs) @ c) v
 
 
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :

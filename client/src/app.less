@@ -261,11 +261,15 @@ body #grid * {
     outline: 2px @darkblue solid;
   }
 
-  .mouseovered {
+  .mouseovered-selectable {
     background-color: lighten(@darkblue, 10%);
     &.blank, .blank {
       color: @white3;
     }
+  }
+
+  .mouseovered-enterable {
+    cursor: text;
   }
 
   .commandTarget {

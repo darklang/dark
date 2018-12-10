@@ -400,12 +400,13 @@ let rename_db_type (m : model) : testResult =
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
-           | [ (F (_, "field1"), F (id, "String"))
+           (* this was previously an Int *)
+           | [ (F (_, "field1"), F (_, "String"))
              ; (F (_, "field2"), F (_, "Int"))
              ; (Blank _, Blank _) ] ->
              ( match m.cursorState with
-             | Selecting (_, Some sid) ->
-                 if sid = id
+             | Selecting (tlid, None) ->
+                 if tlid = tl.id
                  then pass
                  else
                    fail
