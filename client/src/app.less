@@ -488,6 +488,17 @@ body #grid * {
   display: flex;
   flex-direction: column;
 
+  .delete-col {
+    color: @grey2;
+
+    .fa {
+      &:hover {
+        color: @white1;
+        cursor: pointer;
+      }
+    }
+  }
+
   &.migration-view {
     position: absolute;
     top: -12px;
@@ -548,15 +559,6 @@ body #grid * {
       }
     }
 
-    .delete-col {
-      color: @grey2;
-
-      .fa {
-        &:hover {
-          color: @white1;
-        }
-      }
-    }
 
   }
 
