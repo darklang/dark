@@ -224,9 +224,12 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
           else Select (tlid, None)
         else selectDownLevel m tlid (Some id)
       else
-        let enterMod = match offset with
-          None -> Enter (Filling (tlid, id))
-          | Some offset -> EnterWithOffset (Filling (tlid, id), offset)
+        let enterMod =
+          match offset with
+          | None ->
+              Enter (Filling (tlid, id))
+          | Some offset ->
+              EnterWithOffset (Filling (tlid, id), offset)
         in
         Many
           [ enterMod
