@@ -312,7 +312,10 @@ and approxNHeight (ne : nExpr) : int =
   | FeatureFlag _ ->
       0
   | Match (expr, cases) ->
-      List.length cases + approxHeight expr
+      cases
+      |> List.map (fun (_, ex) -> approxHeight ex)
+      |> List.sum
+      |> ( + ) (approxHeight expr)
 
 
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
