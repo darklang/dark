@@ -3,6 +3,7 @@
 
 # note: no set -e
 set -uo pipefail
+set +e
 
 error=0
 errorline=
@@ -13,12 +14,11 @@ shopt -s lastpipe
 
 unbuffer dune "$@" 2>&1 | while read -r line; do
   # this error consistently breaks our compile, esp on CI
-  if [[ "$line" == *"inconsistent assumptions over implementation"* ]]; then
+  if [[ "$line" == *"inconsistent assumptions over interface"* ]]; then
     error=1;
     errorline="$line";
   fi
   echo xx"$line"xx;
-  echo xx"$line"xx > rundir/logs/build.log
 done
 result=$?
 
