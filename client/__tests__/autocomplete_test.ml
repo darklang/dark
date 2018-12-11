@@ -90,7 +90,7 @@ let () =
             (fun () ->
               expect
                 ( createEntering User
-                |> setQuery "Twit::someOtherFunc"
+                |> setQuery m a "Twit::someOtherFunc"
                 |> setQuery "T"
                 |> highlighted
                 |> Option.map asName )
@@ -116,7 +116,6 @@ let () =
                 ( createEntering User
                 |> setQuery "lis"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.map asName )
               |> toEqual ["List::head"] ) ;
           test "search finds multiple results for prefix" (fun () ->
@@ -124,7 +123,6 @@ let () =
                 ( createEntering User
                 |> setQuery "twit::"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual
@@ -135,7 +133,6 @@ let () =
                 ( createEntering User
                 |> setQuery "twit::y"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual ["Twit::yetAnother"] ) ;
@@ -144,7 +141,6 @@ let () =
                 ( createEntering User
                 |> setQuery "Another"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual ["Twit::yetAnother"] ) ;
@@ -153,7 +149,6 @@ let () =
                 ( createEntering User
                 |> setQuery "List::head"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName
                 |> List.length )
@@ -237,7 +232,6 @@ let () =
                 ( createEntering User
                 |> setQuery ""
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.length )
               |> not_
               |> toEqual 0 ) ;
@@ -248,7 +242,6 @@ let () =
                 ( createEntering User
                 |> setQuery "withL"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual
@@ -299,7 +292,7 @@ let () =
               |> toEqual (Some (ACKeyword KLambda)) ) ) ;
       describe "queryWhenCreating" (fun () ->
           let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
-            List.member aci (List.concat ac.completions)
+            List.member aci ac.completions
           in
           let itemMissing (aci : autocompleteItem) (ac : autocomplete) : bool =
             not (itemPresent aci ac)
