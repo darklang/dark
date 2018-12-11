@@ -570,7 +570,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; ("trace", Encoders.trace t)
               ; ("dbs", list Encoders.db dbs)
               ; ("user_fns", list Encoders.userFunction userFns) ]
-            |> Js.Json.stringify
           in
           trace
           |> Option.map (fun t -> requestAnalysis (param t))
