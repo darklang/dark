@@ -458,12 +458,12 @@ and target = tlid * pointerData
 and autocomplete =
   { functions : function_ list
   ; admin : bool
-  ; completions : autocompleteItem list list
+  ; completions : autocompleteItem list
   ; allCompletions : autocompleteItem list
   ; index : int
   ; value : string
   ; prevValue : string
-  ; target : (tlid * pointerData) option
+  ; target : target option
   ; acTipe : tipe option
   ; isCommandMode : bool }
 

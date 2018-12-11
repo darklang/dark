@@ -99,7 +99,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; Html.span
               [Html.class' "types"]
               [Html.text <| Autocomplete.asTypeString item] ] )
-      (List.concat ac.completions)
+      ac.completions
   in
   let autocomplete =
     Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
