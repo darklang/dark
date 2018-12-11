@@ -998,17 +998,28 @@ body #grid * {
   }
 
   .fncall {
-    .arg-on-new-line {
-      .layout-block;
-      margin-left: 2ch;
+
+    &.prefix > .arg-on-new-line {
+      position: relative;
+
       &::before {
         content: attr(param-name);
         width: auto;
         position: absolute;
-        right: calc(~"100% - 10ch");
+        right: calc(~"100% + 2ch");
         color: @grey2;
         font-size: 85%;
       }
+
+      .display-livevalue.selected::before {
+        color: magenta;
+      }
+    }
+
+    .arg-on-new-line {
+      .layout-block;
+      margin-left: 2ch;
+      box-sizing: border-box;
     }
 
     .execution-button {
