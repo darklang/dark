@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Sam Stokes <me@samstokes.co.uk>"]
 
 [dependencies]
+futures = "0.1.25"
 hyper = "0.12"
 pusher = "*"
 rustc-serialize = "0.3.24"

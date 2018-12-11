@@ -94,6 +94,7 @@ dependencies = [
 name = "dark-stroller"
 version = "0.1.0"
 dependencies = [
+ "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.12.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "pusher 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
