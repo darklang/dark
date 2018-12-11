@@ -6,7 +6,22 @@ use push;
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
-pub fn handle(req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error> {
+pub trait Push {
+    fn push(json_bytes: &[u8]) -> Result<(), String>;
+}
+
+impl Push for push::Client {
+    fn push(json_bytes: &[u8]) -> Result<(), String> {
+        // TODO reuse push client!
+        let client = push::Client::connect();
+        client.trigger(json_bytes)
+    }
+}
+
+pub fn handle<PC>(req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error>
+where
+    PC: Push,
+{
     let mut response = Response::new(Body::empty());
 
     let uri = req.uri().clone();
@@ -18,7 +33,7 @@ pub fn handle(req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error> {
         }
         (&Method::POST, ["", "canvas", canvas_uuid, "traces"]) => {
             println!("Got an event for canvas {}", canvas_uuid);
-            let handled = handle_push_trace(canvas_uuid.to_string(), req.into_body())
+            let handled = handle_push_trace::<PC>(canvas_uuid.to_string(), req.into_body())
                 .map(|_| {
                     *response.status_mut() = StatusCode::ACCEPTED;
                     response
@@ -41,7 +56,10 @@ pub fn handle(req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error> {
     Box::new(future::ok(response))
 }
 
-fn handle_push_trace(canvas_uuid: String, trace_body: Body) -> BoxFut<(), push::Error> {
+fn handle_push_trace<PC>(canvas_uuid: String, trace_body: Body) -> BoxFut<(), String>
+where
+    PC: Push,
+{
     Box::new(
         trace_body
             .map_err(|e| format!("error reading body: {}", e))
@@ -53,11 +71,7 @@ fn handle_push_trace(canvas_uuid: String, trace_body: Body) -> BoxFut<(), push::
                     canvas_uuid
                 );
 
-                // TODO reuse push client!
-                let client = push::Client::connect();
-                client
-                    .trigger(&trace_bytes.to_vec())
-                    .map_err(|e| format!("failed to push trace: {}", e))
+                PC::push(&trace_bytes.to_vec()).map_err(|e| format!("failed to push trace: {}", e))
             }),
     )
 }
@@ -66,10 +80,17 @@ fn handle_push_trace(canvas_uuid: String, trace_body: Body) -> BoxFut<(), push::
 mod tests {
     use super::*;
 
+    struct FakePushClient;
+    impl Push for FakePushClient {
+        fn push(_json_bytes: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
     #[test]
     fn responds_ok() {
         let req = Request::get("/").body(Body::empty()).unwrap();
-        let resp = handle(req).wait();
+        let resp = handle::<FakePushClient>(req).wait();
 
         assert_eq!(resp.unwrap().status(), 200);
     }
@@ -77,7 +98,7 @@ mod tests {
     #[test]
     fn responds_404() {
         let req = Request::get("/nonexistent").body(Body::empty()).unwrap();
-        let resp = handle(req).wait();
+        let resp = handle::<FakePushClient>(req).wait();
 
         assert_eq!(resp.unwrap().status(), 404);
     }
@@ -87,18 +108,8 @@ mod tests {
         let req = Request::post("/canvas/8afcbf52-2954-4353-9397-b5f417c08ebb/traces")
             .body(Body::from("{\"foo\":\"bar\"}"))
             .unwrap();
-        let resp = handle(req).wait();
+        let resp = handle::<FakePushClient>(req).wait();
 
         assert_eq!(resp.unwrap().status(), 202);
-    }
-
-    #[test]
-    fn rejects_invalid_post() {
-        let req = Request::post("/canvas/8afcbf52-2954-4353-9397-b5f417c08ebb/traces")
-            .body(Body::from("not json"))
-            .unwrap();
-        let resp = handle(req).wait();
-
-        assert!(!resp.unwrap().status().is_success());
     }
 }

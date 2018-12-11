@@ -16,7 +16,7 @@ const PORT: u16 = 3000;
 fn main() {
     let addr = ([0, 0, 0, 0], PORT).into();
 
-    let make_service = || service_fn(service::handle);
+    let make_service = || service_fn(service::handle::<push::Client>);
 
     let server = Server::bind(&addr)
         .serve(make_service)
