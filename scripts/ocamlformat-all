@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 . ./scripts/support/assert-in-container $0 $@
 
+set -euo pipefail
 find "${1}" \
   -path "backend/_build" -prune \
   -o -path "client/node_modules" -prune \
