@@ -316,16 +316,18 @@ let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
     in
     let t3, hvals =
       time "3-handler-analyses" (fun _ ->
-          !c.handlers
-          |> List.filter_map ~f:TL.as_handler
-          |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
+          []
+          (* !c.handlers *)
+          (* |> List.filter_map ~f:TL.as_handler *)
+          (* |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h)) *)
       )
     in
     let t4, fvals =
       time "4-user-fn-analyses" (fun _ ->
-          !c.user_functions
-          |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
-          |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
+          []
+          (* !c.user_functions *)
+          (* |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid) *)
+          (* |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f)) *)
       )
     in
     let t5, unlocked =
