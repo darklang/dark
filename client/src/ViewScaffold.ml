@@ -70,7 +70,7 @@ let viewButtons (m : model) : msg Html.html =
     | Fn (_, _) ->
         [ Url.linkFor
             (Toplevels m.canvas.offset)
-            "specialButton default-link"
+            "specialButton default-link return-to-canvas"
             [Html.text "Return to Canvas"] ]
     | _ ->
         []
