@@ -356,7 +356,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadStatus response ->
               "Bad status: " ^ response.status.message ^ body response.body
           | Http.BadPayload (msg, _) ->
-              "Bad payload: " ^ msg
+              "Bad payload (" ^ context ^ "): " ^ msg
           | Http.Aborted ->
               "Request Aborted"
         in
@@ -570,6 +570,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; ("trace", Encoders.trace t)
               ; ("dbs", list Encoders.db dbs)
               ; ("user_fns", list Encoders.userFunction userFns) ]
+            |> Js.Json.stringify
           in
           trace
           |> Option.map (fun t -> requestAnalysis (param t))
@@ -894,7 +895,7 @@ let update_ (msg : msg) (m : model) : modification =
           then NoChange
           else fluidEnterOrSelect m targetTLID targetID )
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
-      Selection.dblclick m targetTLID targetID
+      Selection.enter m targetTLID targetID
   | ToplevelClick (targetTLID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
