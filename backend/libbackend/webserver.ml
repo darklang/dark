@@ -435,11 +435,27 @@ let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
             f404s
             !c )
     in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
-      `OK
-      result
+    let max_size = 500000 in
+    (* ~500KB *)
+    if String.length result > max_size
+    then (
+      Log.infO
+        "get_analysis_size_too_big"
+        ~params:
+          [ ("original", result)
+          ; ("max_size", Log.dump max_size)
+          ; ("execution_id", Log.dump execution_id) ] ;
+      respond
+        ~execution_id
+        ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
+        `Internal_server_error
+        "Internal error: Analysis payload size too big" )
+    else
+      respond
+        ~execution_id
+        ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
+        `OK
+        result
   with e -> raise e
 
 
