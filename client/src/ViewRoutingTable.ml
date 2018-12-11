@@ -267,8 +267,14 @@ let viewRoutes
     (showLink : showLink)
     (showUndo : showUndo) : msg Html.html list =
   let tls = m.toplevels in
+  let withHTTP entries =
+    if List.any (fun (space, _) -> space = "HTTP") entries
+    then entries
+    else ("HTTP", []) :: entries
+  in
   tls
   |> splitBySpace
+  |> withHTTP
   |> List.sortWith (fun (a, _) (b, _) -> ordering a b)
   |> List.map (Tuple.mapSecond tl2entry)
   |> (fun entries ->
