@@ -648,7 +648,7 @@ let change_col_type id newtipe db =
 let create_migration rbid rfid cols db =
   match db.active_migration with
   | Some migration ->
-      Exception.internal "TODO(ian)"
+      db
   | None ->
       let max_version =
         db.old_migrations
@@ -669,7 +669,7 @@ let create_migration rbid rfid cols db =
 let add_col_to_migration nameid typeid db =
   match db.active_migration with
   | None ->
-      Exception.internal "TODO(ian)"
+      db
   | Some migration ->
       let mutated_migration =
         {migration with cols = migration.cols @ [(Blank nameid, Blank typeid)]}
@@ -680,7 +680,7 @@ let add_col_to_migration nameid typeid db =
 let set_col_name_in_migration id name db =
   match db.active_migration with
   | None ->
-      Exception.internal "TODO(ian)"
+      db
   | Some migration ->
       let set col =
         match col with
@@ -699,7 +699,7 @@ let set_col_name_in_migration id name db =
 let set_col_type_in_migration id tipe db =
   match db.active_migration with
   | None ->
-      Exception.internal "TODO(ian)"
+      db
   | Some migration ->
       let set col =
         match col with
@@ -718,7 +718,7 @@ let set_col_type_in_migration id tipe db =
 let abandon_migration db =
   match db.active_migration with
   | None ->
-      Exception.internal "TODO(ian)"
+      db
   | Some migration ->
       let mutated_migration = {migration with state = DBMigrationAbandoned} in
       let db2 =
@@ -730,7 +730,7 @@ let abandon_migration db =
 let delete_col_in_migration id db =
   match db.active_migration with
   | None ->
-      Exception.internal "TODO(ian)"
+      db
   | Some migration ->
       let newcols =
         List.filter migration.cols ~f:(fun col ->
