@@ -71,7 +71,7 @@ where
                     canvas_uuid
                 );
 
-                PC::push(&trace_bytes.to_vec()).map_err(|e| format!("failed to push trace: {}", e))
+                PC::push(&trace_bytes).map_err(|e| format!("failed to push trace: {}", e))
             }),
     )
 }
