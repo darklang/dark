@@ -651,9 +651,7 @@ test('feature_flag_in_function', async t => {
     .pressKey("enter")
 
     // Return to main canvas to finish tests
-    .click(".routing-section")
-    .click(".verb-link")
-
+    .click(".return-to-canvas")
 });
 
 test('simple_tab_ordering', async t => {
@@ -744,8 +742,7 @@ test('rename_function', async t => {
     .pressKey('enter')
 
     // Return to main canvas to finish tests
-    .click(".routing-section")
-    .click(".verb-link")
+    .click(".return-to-canvas")
 })
 
 test('rename_pattern_variable', async t => {
