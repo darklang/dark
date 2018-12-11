@@ -37,8 +37,7 @@ where
                 .map(|_| {
                     *response.status_mut() = StatusCode::ACCEPTED;
                     response
-                })
-                .or_else(|e| {
+                }).or_else(|e| {
                     eprintln!("error trying to push trace: {}", e);
                     Ok(Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
