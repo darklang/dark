@@ -206,7 +206,7 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
       NoChange
 
 
-let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int) :
+let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
     modification =
   let tl = TL.getTL m tlid in
   match tl.data with
@@ -225,9 +225,11 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int) :
         else selectDownLevel m tlid (Some id)
       else
         let enterMod =
-          if offset = 0
-          then Enter (Filling (tlid, id))
-          else EnterWithOffset (Filling (tlid, id), offset)
+          match offset with
+          | None ->
+              Enter (Filling (tlid, id))
+          | Some offset ->
+              EnterWithOffset (Filling (tlid, id), offset)
         in
         Many
           [ enterMod
@@ -236,7 +238,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int) :
 
 
 let enter (m : model) (tlid : tlid) (id : id) : modification =
-  enterWithOffset m tlid id 0
+  enterWithOffset m tlid id None
 
 
 let dblclick (m : model) (tlid : tlid) (id : id) : modification =
