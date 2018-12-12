@@ -689,6 +689,33 @@ let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
   if m.complete.value = "" then pass else fail ~f:show_expr ast
 
 
+let delete_db_col (m : model) : testResult =
+  let db = onlyDB m in
+  match db.cols with
+  | [(Blank _, Blank _)] ->
+      pass
+  | cols ->
+      fail ~f:(show_list show_dBColumn) cols
+
+
+let cant_delete_locked_col (m : model) : testResult =
+  let db =
+    m.toplevels
+    |> List.filterMap (fun a ->
+           match a.data with TLDB data -> Some data | _ -> None )
+    |> fun dbs ->
+    if List.length dbs > 1
+    then Debug.crash "More than one db!"
+    else
+      List.head dbs |> deOption "Somehow got zero dbs after checking length?"
+  in
+  match db.cols with
+  | [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
+      pass
+  | cols ->
+      fail ~f:(show_list show_dBColumn) cols
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft 5 test_name in
   IntegrationTestExpectation
@@ -785,5 +812,9 @@ let trigger (test_name : string) : integrationTestState =
         function_version_renders
     | "only_backspace_out_of_strings_on_last_char" ->
         only_backspace_out_of_strings_on_last_char
+    | "delete_db_col" ->
+        delete_db_col
+    | "cant_delete_locked_col" ->
+        cant_delete_locked_col
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
