@@ -356,7 +356,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadStatus response ->
               "Bad status: " ^ response.status.message ^ body response.body
           | Http.BadPayload (msg, _) ->
-              "Bad payload: " ^ msg
+              "Bad payload (" ^ context ^ "): " ^ msg
           | Http.Aborted ->
               "Request Aborted"
         in
@@ -863,7 +863,7 @@ let update_ (msg : msg) (m : model) : modification =
         then
           match offset () with
           | Some offset ->
-              Selection.enterWithOffset m tlid id offset
+              Selection.enterWithOffset m tlid id (Some offset)
           | None ->
               Selection.enter m tlid id
         else Select (tlid, Some id)
@@ -894,7 +894,7 @@ let update_ (msg : msg) (m : model) : modification =
           then NoChange
           else fluidEnterOrSelect m targetTLID targetID )
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
-      Selection.dblclick m targetTLID targetID
+      Selection.enter m targetTLID targetID
   | ToplevelClick (targetTLID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
