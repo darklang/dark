@@ -484,7 +484,7 @@ let feature_flag_works (m : model) : testResult =
                       ( _
                       , FnCall
                           ( "Int::greaterThan"
-                          , [F (_, Value "10"); F (_, Variable "a")]
+                          , [F (_, Variable "a"); F (_, Value "10")]
                           , _ ) )
                   , F (_, Value "\"A\"")
                   , F (_, Value "\"B\"") ) ) ) ) ->

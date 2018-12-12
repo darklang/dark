@@ -583,7 +583,7 @@ test('nochange_for_failed_paste', async t => {
     .pressKey("ctrl+v")
 });
 
-test.skip('feature_flag_works', async t => {
+test('feature_flag_works', async t => {
   await t
     // Create an empty let
     .pressKey("enter")
