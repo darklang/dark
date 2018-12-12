@@ -717,7 +717,7 @@ and model =
       (tlid * id) list
       (* This is TLID id to cursor index (the cursor being *)
       (* the input to the toplevel currently used, not to *)
-      (* be condused with cursorState, which is the code *)
+      (* be confused with cursorState, which is the code *)
       (* that is currently selected.) *)
   ; tlCursors : tLCursors
   ; featureFlags : flagsVS
