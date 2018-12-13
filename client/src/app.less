@@ -819,7 +819,6 @@ body #grid * {
 
 .string-style() {
   color: @string-color;
-  font-style: italic;
   max-width: 120ch;
   min-height: 16px;
   white-space: pre-wrap;
@@ -929,7 +928,6 @@ body #grid * {
   .quote {
     .string-style;
     display: none;
-    width: 1.5ch;
     &.quote-start {
       left: 0;
       top: 0;
@@ -1226,8 +1224,8 @@ body #grid * {
   border: 0;
   font-size: @code-font-size;
   margin: 0;
-  padding-left: 1.5ch;
-  padding-right: 1.5ch;
+  padding-left: 1ch;
+  padding-right: 1ch;
   position: relative;
   &::before {
     content: "“";
@@ -1244,8 +1242,7 @@ body #grid * {
     bottom: 0;
     display: inline-block;
     position: absolute;
-    right: 1ch;
-    width: 1.5ch;
+    right: 0ch;
   }
   &.big-string-entry {
     padding-left: 0;
