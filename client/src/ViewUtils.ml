@@ -317,6 +317,7 @@ and approxNHeight (ne : nExpr) : int =
       |> List.sum
       |> ( + ) (approxHeight expr)
 
+
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
   let mResult = Js.Re.exec fnName pattern in
