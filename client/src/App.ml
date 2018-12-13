@@ -881,14 +881,8 @@ let update_ (msg : msg) (m : model) : modification =
             else fluidEnterOrSelect m targetTLID targetID
         | _ ->
             fluidEnterOrSelect m targetTLID targetID )
-      | Selecting (_, maybeSelectingID) ->
-        ( match maybeSelectingID with
-        | Some selectingID ->
-            if selectingID = targetID
-            then NoChange
-            else fluidEnterOrSelect m targetTLID targetID
-        | None ->
-            fluidEnterOrSelect m targetTLID targetID )
+      | Selecting (_, _) ->
+          fluidEnterOrSelect m targetTLID targetID
       | SelectingCommand (_, selectingID) ->
           if selectingID = targetID
           then NoChange
