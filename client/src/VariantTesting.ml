@@ -29,6 +29,10 @@ let toCSSClass (vt : variantTest) : string =
   test ^ "-variant"
 
 
+let activeCSSClasses (m : model) : string =
+  m.tests |> List.map toCSSClass |> String.join " "
+
+
 let uniqueTests (xs : variantTest list) : variantTest list =
   List.uniqueBy show_variantTest xs
 

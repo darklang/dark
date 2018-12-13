@@ -153,8 +153,16 @@ let viewCanvas (m : model) : msg Html.html =
 
 
 let view (m : model) : msg Html.html =
+  let activeVariantsClass =
+    match VariantTesting.activeCSSClasses m with
+    | "" ->
+        Vdom.noProp
+    | str ->
+        Html.class' str
+  in
   let attributes =
     [ Html.id "grid"
+    ; activeVariantsClass
     ; Html.onWithOptions
         ~key:"grid-mu"
         "mouseup"
