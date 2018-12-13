@@ -155,7 +155,7 @@ window.Dark = {
       if (length === null) { return false; }
       let currOffset = document.getElementById('entry-box').selectionEnd;
 
-      if (currOffset == 0) {
+      if (currOffset <= 0) {
         return false;
       }
 
@@ -168,7 +168,7 @@ window.Dark = {
       let length = Dark.caret.getLength(el_id);
       if (length === null) { return false; }
       let currOffset = document.getElementById('entry-box').selectionEnd;
-      if (currOffset == length) {
+      if (currOffset >= length) {
         return false;
       }
       document.getElementById('entry-box').selectionEnd += 1;
