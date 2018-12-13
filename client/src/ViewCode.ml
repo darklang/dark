@@ -195,7 +195,14 @@ and viewNExpr
           |> List.map ViewUtils.approxHeight
           |> List.filter (fun a -> a > 0)
         in
-        (width > 120) || (ViewUtils.adj_sizes_too_much arg_heights 2)
+        let min_max_heights = (List.minimum arg_heights, List.maximum arg_heights)
+        in
+        let heights_vary_too_much =
+          match min_max_heights with
+          | (Some minh, Some maxh) ->(maxh - minh) > 2
+          | (_, _) -> false
+        in
+        (width > 120) || heights_vary_too_much
       in
       let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]

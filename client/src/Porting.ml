@@ -221,6 +221,10 @@ module List = struct
       match tail with None -> l | Some t -> append head t
 
 
+  let minimum (list : 'comparable list) : 'comparable option =
+    match list with x :: xs -> Some (foldl min x xs) | _ -> None
+
+
   let minimumBy (f : 'a -> 'comparable) (ls : 'a list) : 'a option =
     let minBy x (y, fy) =
       let fx = f x in
