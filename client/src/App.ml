@@ -894,7 +894,7 @@ let update_ (msg : msg) (m : model) : modification =
           then NoChange
           else fluidEnterOrSelect m targetTLID targetID )
   | BlankOrDoubleClick (targetTLID, targetID, _) ->
-      Selection.enter m targetTLID targetID
+      Selection.dblclick m targetTLID targetID
   | ToplevelClick (targetTLID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
