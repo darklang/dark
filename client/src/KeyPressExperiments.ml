@@ -49,7 +49,9 @@ let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
   | false ->
       let default = body m tlid in
       let newMId = findTargetId tlid mId (moveLeftRight Right) default in
-      enterWithOffset m tlid (deOption "mId" newMId) (Some (-1))
+      if newMId = mId
+      then NoChange
+      else enterWithOffset m tlid (deOption "mId" newMId) (Some (-1))
 
 
 let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
@@ -60,7 +62,9 @@ let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
   | false ->
       let default = body m tlid in
       let newMId = findTargetId tlid mId (moveLeftRight Left) default in
-      enterWithOffset m tlid (deOption "mId" newMId) (Some 0)
+      if newMId = mId
+      then NoChange
+      else enterWithOffset m tlid (deOption "mId" newMId) (Some 0)
 
 
 let arrowMoveHandler (event : Keyboard.keyEvent) (m : model) :
