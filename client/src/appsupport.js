@@ -75,6 +75,8 @@ window.Dark = {
     // find current loc in 'old' node
     findCaretPointWithinTextElement: function(el_id) {
       let el = document.getElementById(el_id);
+      if (el == null) { return {x: 0, y: 0}; }
+
       let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
       let currOffset = document.getElementById('entry-box').selectionEnd;
 
@@ -96,6 +98,9 @@ window.Dark = {
     //
     findLogicalOffsetWithinTextElement: function(el_id, x, y) {
       let el = document.getElementById(el_id);
+      if (el == null) {
+        return false;
+      }
       let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
       if (node === undefined) {
         console.error("No childNode found with nodeName === '#text', returning offset 0.");
@@ -129,10 +134,25 @@ window.Dark = {
       console.error("We failed to set a correct offset!");
       return 0;
     },
+    getLength: function (el_id) {
+      let el = document.getElementById(el_id);
+      if (el) {
+        let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+        if (node) return node.textContent.length;
+        else console.error("No text childNode found");
+      }
+      else {
+        let node = document.getElementById("entry-box");
+        if (node) return node.value.length;
+        else console.error("Could not find an entry-box");
+      }
+      return null;
+    },
     /* either we have room to move the caret in the node, or we return false and
      * move to another node */
     moveCaretLeft: function(el_id) {
-      let el = document.getElementById(el_id);
+      let length = Dark.caret.getLength(el_id)
+      if (length === null) { return false; }
       let currOffset = document.getElementById('entry-box').selectionEnd;
 
       if (currOffset == 0) {
@@ -145,20 +165,12 @@ window.Dark = {
       return true;
     },
     moveCaretRight: function(el_id) {
-      let el = document.getElementById(el_id);
-      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-      if (node === undefined) {
-        console.error("No childNode found with nodeName === '#text', returning offset 0.");
-        return false; // falling back to the old behavior of "just move to the next node"
-      }
-
+      let length = Dark.caret.getLength(el_id);
+      if (length === null) { return false; }
       let currOffset = document.getElementById('entry-box').selectionEnd;
-      let length = node.textContent.length;
-
       if (currOffset == length) {
         return false;
       }
-
       document.getElementById('entry-box').selectionEnd += 1;
       return true;
     }
