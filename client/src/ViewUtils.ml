@@ -43,14 +43,26 @@ let createVS (m : model) (tl : toplevel) : viewState =
                ( match Toplevel.find tl i with
                | Some (PExpr exp) ->
                    let cursorSubsumedByHover =
-                     exp
-                     |> AST.allData
-                     |> List.map Pointer.toID
-                     |> List.member cur
+                     if VariantTesting.variantIsActive m FluidInputModel
+                     then
+                       exp
+                       (* children, not including self *)
+                       |> AST.children
+                       |> List.map Pointer.toID
+                       |> List.member cur
+                     else
+                       exp
+                       |> AST.allData
+                       |> List.map Pointer.toID
+                       |> List.member cur
                    in
                    if cursorSubsumedByHover then None else Some i
                | _ ->
-                   if cur = i then None else Some i )
+                   if VariantTesting.variantIsActive m FluidInputModel
+                   then Some i
+                   else if cur = i
+                   then None
+                   else Some i )
              | _ ->
                  Some i )
   ; ac = m.complete
