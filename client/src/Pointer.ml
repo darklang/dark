@@ -153,6 +153,8 @@ let toContent (pd : pointerData) : string option =
         Some s
     | F (_, Variable v) ->
         Some v
+    | F (_, FnCall (name, [], _)) ->
+        Some name
     (* feature flags are ignored because you want to enter the *)
     (* feature flag and this is how this is used. *)
     | _ ->
