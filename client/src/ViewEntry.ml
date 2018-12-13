@@ -32,7 +32,6 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     |> List.map visualStringLength
     |> List.foldr max 1
     |> min maxWidthChars
-    |> ( + ) 1
   in
   let rowCount =
     value
