@@ -201,7 +201,7 @@ and viewNExpr
         let heights_vary_too_much =
           match min_max_heights with
           | Some minh, Some maxh ->
-              maxh - minh > 2
+              maxh - minh > 1
           | _, _ ->
               false
         in
