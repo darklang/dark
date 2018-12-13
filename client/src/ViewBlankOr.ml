@@ -131,10 +131,14 @@ let div
     let targetted = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
     if targetted
     then
-      if List.any (fun c -> c = Enterable) configs
-         && List.any (( = ) FluidInputModel) vs.testVariants
-      then ["mouseovered-enterable"]
-      else ["mouseovered-selectable"]
+      if List.any (( = ) FluidInputModel) vs.testVariants
+      then
+        if List.any (fun c -> c = Enterable) configs
+        then ["mouseovered-enterable"]
+        else if idOf vs.cursorState = thisID
+        then []
+        else ["mouseovered-selectable"]
+      else []
     else []
   in
   let idClasses =
