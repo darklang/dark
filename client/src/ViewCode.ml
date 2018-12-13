@@ -189,7 +189,6 @@ and viewNExpr
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (name, exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
-      let height = ViewUtils.approxNHeight e in
       let viewTooWideArg p d_ e_ =
         Html.div
           [ Html.class' "arg-on-new-line"
