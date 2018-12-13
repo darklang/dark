@@ -46,7 +46,7 @@ let viewDBCol
     (vs : viewState) (isMigra : bool) (tlid : tlid) ((n, t) : dBColumn) :
     msg Html.html =
   let deleteButton =
-    if isMigra
+    if isMigra || not vs.dbLocked
     then
       if B.isF n || B.isF t
       then

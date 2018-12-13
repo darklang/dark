@@ -52,6 +52,8 @@ val change_col_name : id -> string -> DbT.db -> DbT.db
 
 val change_col_type : id -> tipe -> DbT.db -> DbT.db
 
+val delete_col : id -> DbT.db -> DbT.db
+
 val unlocked : Uuidm.t -> Uuidm.t -> DbT.db list -> DbT.db list
 
 val find_db : DbT.db list -> string -> DbT.db option
