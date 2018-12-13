@@ -929,7 +929,14 @@ let update_ (msg : msg) (m : model) : modification =
   | AbandonMigration tlid ->
       RPC ([AbandonDBMigration tlid], FocusNothing)
   | DeleteColInDB (tlid, nameId) ->
-      RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
+      let mdb = tlid |> TL.getTL m |> TL.asDB in
+      ( match mdb with
+      | Some db ->
+          if DB.isMigrationCol db nameId
+          then RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
+          else RPC ([DeleteDBCol (tlid, nameId)], FocusNothing)
+      | None ->
+          NoChange )
   | ToggleTimers ->
       TweakModel toggleTimers
   | SaveTestButton ->

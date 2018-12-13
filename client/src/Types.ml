@@ -363,6 +363,7 @@ and op =
   | SetDBColTypeInDBMigration of tlid * id * dBColType
   | DeleteColInDBMigration of tlid * id
   | AbandonDBMigration of tlid
+  | DeleteDBCol of tlid * id
 
 (* ------------------- *)
 (* RPCs *)

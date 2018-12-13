@@ -645,6 +645,20 @@ let change_col_type id newtipe db =
   {db with cols = List.map ~f:change db.cols}
 
 
+let delete_col id db =
+  let newcols =
+    List.filter db.cols ~f:(fun col ->
+        match col with
+        | Blank nid, _ when nid = id ->
+            false
+        | Filled (nid, _), _ when nid = id ->
+            false
+        | _ ->
+            true )
+  in
+  {db with cols = newcols}
+
+
 let create_migration rbid rfid cols db =
   match db.active_migration with
   | Some migration ->

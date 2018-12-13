@@ -822,3 +822,27 @@ test('only_backspace_out_of_strings_on_last_char', async t => {
     // we should have gone over the backspace - checking in client
     ;
 })
+
+test('delete_db_col', async t => {
+  await t
+    .click(Selector('.delete-col'))
+  ;
+})
+
+test('cant_delete_locked_col', async t => {
+  await t
+    .click(Selector('.fncall')) // this click is required due to caching
+    .click(Selector('.fa-play'))
+  ;
+
+  // the redo button only appears once the analysis has returned, so we
+  // can use this as a totally not brittle proxy for the fact that
+  // we want to wait until the data is in the DB
+  await t.expect(Selector('.fa-redo', {timeout: 5000}).exists).ok();
+
+  await t
+    .click(Selector('.db')) // this click is required due to caching
+    .expect(Selector('.delete-col').exists).notOk()
+  ;
+})
+
