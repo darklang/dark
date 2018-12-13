@@ -19,9 +19,16 @@ html {
 @blue  : #7cafc2; // pipe
 @purple: #ba8baf; // variation used in strings
 @brown : #a16946;
-@darkblue: #2B466F; // selected AST bg
+@darkblue: #2B466F;
+@vagueblue: #182635;
 
-@selected-background: lighten(@black1, 5%);
+@hovercolor: lighten(@darkblue, 10%);
+@autocomplete-highlight-color: @darkblue;
+@selected-blankor-background: @darkblue;
+
+@selected-toplevel-border: @darkblue;
+@selected-toplevel-background: lighten(@black1, 5%);
+
 @top-border: lighten(@black1, 5%) 2px dotted;
 @blank-underline: 1px dashed @grey2;
 @code-font-size: 13.3333px;
@@ -257,15 +264,20 @@ body #grid * {
   border: @top-border;
 
   &.selected {
-    background-color: @selected-background;
-    outline: 2px @darkblue solid;
+    background-color: @selected-toplevel-background;
+    outline: 2px @selected-toplevel-border solid;
   }
 
   .mouseovered-selectable {
-    background-color: lighten(@darkblue, 10%);
+    background-color: @hovercolor;
     &.blank, .blank {
       color: @white3;
     }
+  }
+
+  .mouseovered-selectable-fluid:not(.fncall) {
+    outline: 0.5px dotted lighten(@darkblue, 35%);
+    transition-delay: 0.4s;
   }
 
   .mouseovered-enterable {
@@ -283,7 +295,7 @@ body #grid * {
   }
 
   .blankOr.selected {
-    background-color: @darkblue;
+    background-color: @selected-blankor-background;
     color: @white2;
 
     &.tstr {
@@ -860,7 +872,7 @@ body #grid * {
       }
 
       &.selected {
-        background-color: fade(@darkblue, 70% + (@depth * 5%));
+        background-color: fade(@selected-blankor-background, 70% + (@depth * 5%));
       }
   }
 }
@@ -1116,7 +1128,7 @@ body #grid * {
     margin-top: -12px;
 
     #search-container {
-      background: @selected-background;
+      background: @selected-toplevel-background;
       border: 0;
       margin: 0;
       padding: 0;
@@ -1160,7 +1172,7 @@ body #grid * {
       background: @black2;
 
       &.highlighted {
-        background: @darkblue;
+        background: @autocomplete-highlight-color;
       }
 
       &.greyed {

@@ -137,8 +137,8 @@ let div
         then ["mouseovered-enterable"]
         else if idOf vs.cursorState = thisID
         then []
-        else ["mouseovered-selectable"]
-      else []
+        else ["mouseovered-selectable-fluid"]
+      else ["mouseovered-selectable"]
     else []
   in
   let idClasses =
