@@ -188,12 +188,19 @@ and viewNExpr
         ; kw [] "else"
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (name, exprs, sendToRail) ->
-      let width = ViewUtils.approxNWidth e in
-      let height = ViewUtils.approxNHeight e in
+      let inMultiline =
+        let width = ViewUtils.approxNWidth e in
+        let arg_heights =
+          exprs
+          |> List.map ViewUtils.approxHeight
+          |> List.filter (fun a -> a > 0)
+        in
+        (width > 120) || (ViewUtils.adj_sizes_too_much arg_heights 2)
+      in
       let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
-      let ve = if width > 120 || height > 1 then viewTooWideArg else vExpr in
+      let ve = if inMultiline then viewTooWideArg else vExpr in
       let fnname parens =
         let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
         match String.split "::" name with

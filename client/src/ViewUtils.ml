@@ -318,6 +318,23 @@ and approxNHeight (ne : nExpr) : int =
       |> ( + ) (approxHeight expr)
 
 
+let adj_sizes_too_much (l : 'a list) (m: int) : bool =
+  match (List.head l) with
+  | None -> false
+  | Some head ->
+    match (List.tail l) with
+    | None -> false
+    | Some tail ->
+      let d =
+        List.foldr
+          (fun a b ->
+            if b = -1 then -1
+            else if (abs (b - a)) > m then -1
+            else a
+          )
+          head tail
+      in d = -1
+
 let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
   let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
   let mResult = Js.Re.exec fnName pattern in
