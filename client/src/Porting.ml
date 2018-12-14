@@ -687,10 +687,10 @@ module Native = struct
       = "findLogicalOffsetWithinTextElement"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
-    external moveCaretLeft : string -> bool = "moveCaretLeft"
+    external moveCaretLeft : unit -> bool = "moveCaretLeft"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
-    external moveCaretRight : string -> bool = "moveCaretRight"
+    external moveCaretRight : unit -> bool = "moveCaretRight"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
   end
 
