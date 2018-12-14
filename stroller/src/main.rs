@@ -1,40 +1,28 @@
+extern crate futures;
 extern crate hyper;
+extern crate pusher;
+extern crate rustc_serialize;
+
+mod config;
+mod push;
+mod service;
 
 use hyper::rt::Future;
-use hyper::service::service_fn_ok;
-use hyper::{Body, Request, Response, Server};
-
-const GREETING: &str = "Hello Dark!";
+use hyper::service::service_fn;
+use hyper::Server;
 
 const PORT: u16 = 3000;
-
-fn hello_world(_req: Request<Body>) -> Response<Body> {
-    Response::new(Body::from(GREETING))
-}
 
 fn main() {
     let addr = ([0, 0, 0, 0], PORT).into();
 
-    let hello_svc = || service_fn_ok(hello_world);
+    let make_service = || service_fn(service::handle::<push::Client>);
 
     let server = Server::bind(&addr)
-        .serve(hello_svc)
+        .serve(make_service)
         .map_err(|e| eprintln!("server error: {}", e));
 
     println!("Listening on {}", addr);
 
     hyper::rt::run(server);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn responds_ok() {
-        let req = Request::get("/ignored").body(Body::empty()).unwrap();
-        let resp = hello_world(req);
-
-        assert_eq!(resp.status(), 200);
-    }
 }
