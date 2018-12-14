@@ -74,13 +74,33 @@ window.Rollbar.configure(rollbarConfig);
 // Entrybox Caret
 // ---------------------------
 
+function entrybox() {
+  return document.getElementById('entry-box');
+}
+
+function getLength(el_id) {
+  let el = document.getElementById(el_id);
+  if (el) {
+    let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+    if (node) return node.textContent.length;
+    else console.error("No text childNode found");
+  }
+  else {
+    let node = entrybox();
+    if (node) return node.value.length;
+    else console.error("Could not find an entry-box");
+  }
+  return null;
+}
+
+
 // find current loc in 'old' node
 function findCaretPointWithinTextElement(el_id) {
   let el = document.getElementById(el_id);
   if (el == null) { return {x: 0, y: 0}; }
 
   let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-  let currOffset = document.getElementById('entry-box').selectionEnd;
+  let currOffset = entrybox().selectionEnd;
 
   let range = document.createRange();
   range.setStart(node, currOffset);
@@ -138,27 +158,12 @@ function findLogicalOffsetWithinTextElement(el_id, x, y) {
   return 0;
 }
 
-function getLength(el_id) {
-  let el = document.getElementById(el_id);
-  if (el) {
-    let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-    if (node) return node.textContent.length;
-    else console.error("No text childNode found");
-  }
-  else {
-    let node = document.getElementById("entry-box");
-    if (node) return node.value.length;
-    else console.error("Could not find an entry-box");
-  }
-  return null;
-}
-
 /* either we have room to move the caret in the node, or we return false and
   * move to another node */
 function moveCaretLeft(el_id) {
   let length = getLength(el_id)
   if (length === null) { return false; }
-  let currOffset = document.getElementById('entry-box').selectionEnd;
+  let currOffset = entrybox().selectionEnd;
 
   if (currOffset <= 0) {
     return false;
@@ -166,18 +171,18 @@ function moveCaretLeft(el_id) {
 
   // selectionStart here because selectionEnd results in moving two cells at
   // a time. :shrug:
-  document.getElementById('entry-box').selectionStart -= 1;
+  entrybox().selectionStart -= 1;
   return true;
 }
 
 function moveCaretRight(el_id) {
   let length = getLength(el_id);
   if (length === null) { return false; }
-  let currOffset = document.getElementById('entry-box').selectionEnd;
+  let currOffset = entrybox().selectionEnd;
   if (currOffset >= length) {
     return false;
   }
-  document.getElementById('entry-box').selectionEnd += 1;
+  entrybox().selectionEnd += 1;
   return true;
 }
 
