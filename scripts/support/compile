@@ -351,6 +351,7 @@ def ignore(filename):
             , ".bsbuild"
             , ".sourcedirs.json"
             , ".md"
+            , ".sw"
   ]
   for i in ignores:
     if i in filename:
