@@ -70,111 +70,130 @@ var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
-window.Dark = {
-  caret: {
-    // find current loc in 'old' node
-    findCaretPointWithinTextElement: function(el_id) {
-      let el = document.getElementById(el_id);
-      if (el == null) { return {x: 0, y: 0}; }
+// ---------------------------
+// Entrybox Caret
+// ---------------------------
 
-      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-      let currOffset = document.getElementById('entry-box').selectionEnd;
+// find current loc in 'old' node
+function findCaretPointWithinTextElement(el_id) {
+  let el = document.getElementById(el_id);
+  if (el == null) { return {x: 0, y: 0}; }
 
-      let range = document.createRange();
-      range.setStart(node, currOffset);
-      range.setEnd(node, currOffset);
+  let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+  let currOffset = document.getElementById('entry-box').selectionEnd;
 
-      let rect = range.getClientRects()[0];
-      if (rect === undefined) {
-        console.log("Error: no rect found. Likely, nodename = '#text' only applies to some dom constructions, not all?")
-        return {x: 0, y: 0}
-      }
-      let retval = {x: rect.left, y: rect.bottom};
+  let range = document.createRange();
+  range.setStart(node, currOffset);
+  range.setEnd(node, currOffset);
 
-      return retval;
-    },
-    // get target offset for 'new' node
-    // CLEANUP: we don't use the y param, drop it from the sig?
-    //
-    findLogicalOffsetWithinTextElement: function(el_id, x, y) {
-      let el = document.getElementById(el_id);
-      if (el == null) {
-        return false;
-      }
-      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-      if (node === undefined) {
-        console.error("No childNode found with nodeName === '#text', returning offset 0.");
-        return 0;
-      }
+  let rect = range.getClientRects()[0];
+  if (rect === undefined) {
+    console.log("Error: no rect found. Likely, nodename = '#text' only applies to some dom constructions, not all?")
+    return {x: 0, y: 0}
+  }
+  let retval = {x: rect.left, y: rect.bottom};
 
-      y = el.getBoundingClientRect().bottom;
+  return retval;
+}
 
-      if (el.getBoundingClientRect().right < x) {
-        console.log("X is to the right, returning offset: -1");
-        return -1;
-      } else if (el.getBoundingClientRect().left > x) {
-        console.log("X is to the left, returning offset: 0");
-        return 0;
-      }
+// get target offset for 'new' node
+// CLEANUP: we don't use the y param, drop it from the sig?
+//
+function findLogicalOffsetWithinTextElement(el_id, x, y) {
+  let el = document.getElementById(el_id);
+  if (el == null) {
+    return false;
+  }
+  let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+  if (node === undefined) {
+    console.error("No childNode found with nodeName === '#text', returning offset 0.");
+    return 0;
+  }
 
-      let range = document.createRange();
-      let length = node.textContent.length;
-      function isClickInRects(rects) {
-        return Array.from(rects).some(r => (r.left<x && r.right>x));
-      }
+  y = el.getBoundingClientRect().bottom;
 
-      for (let i = 0; i < length; i++) {
-        range.setStart(node, i);
-        range.setEnd(node, i + 1);
-        if (isClickInRects(range.getClientRects())) {
-          return i;
-        }
-      }
+  if (el.getBoundingClientRect().right < x) {
+    console.log("X is to the right, returning offset: -1");
+    return -1;
+  } else if (el.getBoundingClientRect().left > x) {
+    console.log("X is to the left, returning offset: 0");
+    return 0;
+  }
 
-      console.error("We failed to set a correct offset!");
-      return 0;
-    },
-    getLength: function (el_id) {
-      let el = document.getElementById(el_id);
-      if (el) {
-        let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-        if (node) return node.textContent.length;
-        else console.error("No text childNode found");
-      }
-      else {
-        let node = document.getElementById("entry-box");
-        if (node) return node.value.length;
-        else console.error("Could not find an entry-box");
-      }
-      return null;
-    },
-    /* either we have room to move the caret in the node, or we return false and
-     * move to another node */
-    moveCaretLeft: function(el_id) {
-      let length = Dark.caret.getLength(el_id)
-      if (length === null) { return false; }
-      let currOffset = document.getElementById('entry-box').selectionEnd;
+  let range = document.createRange();
+  let length = node.textContent.length;
+  function isClickInRects(rects) {
+    return Array.from(rects).some(r => (r.left<x && r.right>x));
+  }
 
-      if (currOffset <= 0) {
-        return false;
-      }
-
-      // selectionStart here because selectionEnd results in moving two cells at
-      // a time. :shrug:
-      document.getElementById('entry-box').selectionStart -= 1;
-      return true;
-    },
-    moveCaretRight: function(el_id) {
-      let length = Dark.caret.getLength(el_id);
-      if (length === null) { return false; }
-      let currOffset = document.getElementById('entry-box').selectionEnd;
-      if (currOffset >= length) {
-        return false;
-      }
-      document.getElementById('entry-box').selectionEnd += 1;
-      return true;
+  for (let i = 0; i < length; i++) {
+    range.setStart(node, i);
+    range.setEnd(node, i + 1);
+    if (isClickInRects(range.getClientRects())) {
+      return i;
     }
-  },
+  }
+
+  console.error("We failed to set a correct offset!");
+  return 0;
+}
+
+function getLength(el_id) {
+  let el = document.getElementById(el_id);
+  if (el) {
+    let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+    if (node) return node.textContent.length;
+    else console.error("No text childNode found");
+  }
+  else {
+    let node = document.getElementById("entry-box");
+    if (node) return node.value.length;
+    else console.error("Could not find an entry-box");
+  }
+  return null;
+}
+
+/* either we have room to move the caret in the node, or we return false and
+  * move to another node */
+function moveCaretLeft(el_id) {
+  let length = getLength(el_id)
+  if (length === null) { return false; }
+  let currOffset = document.getElementById('entry-box').selectionEnd;
+
+  if (currOffset <= 0) {
+    return false;
+  }
+
+  // selectionStart here because selectionEnd results in moving two cells at
+  // a time. :shrug:
+  document.getElementById('entry-box').selectionStart -= 1;
+  return true;
+}
+
+function moveCaretRight(el_id) {
+  let length = getLength(el_id);
+  if (length === null) { return false; }
+  let currOffset = document.getElementById('entry-box').selectionEnd;
+  if (currOffset >= length) {
+    return false;
+  }
+  document.getElementById('entry-box').selectionEnd += 1;
+  return true;
+}
+
+const entryboxCaret = {
+  moveCaretLeft: moveCaretLeft,
+  moveCaretRight: moveCaretRight,
+  findCaretPointWithinTextElement: findCaretPointWithinTextElement,
+  findLogicalOffsetWithinTextElement: findLogicalOffsetWithinTextElement
+}
+
+// ---------------------------
+// Analysis
+// ---------------------------
+
+window.Dark = {
+  caret: entryboxCaret,
   analysis: {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {
