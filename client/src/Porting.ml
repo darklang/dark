@@ -677,14 +677,14 @@ module Native = struct
     external astPositions : string -> jsRectArr = "positions"
       [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
-    external findCaretPointWithinTextElement :
-      string -> jsPointObj
-      = "findCaretPointWithinTextElement"
+    type blankOrId = string
+
+    external findCaretPos : blankOrId -> jsPointObj = "findCaretPos"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
-    external findLogicalOffsetWithinTextElement :
-      string -> int -> int -> int
-      = "findLogicalOffsetWithinTextElement"
+    external findLogicalOffset :
+      blankOrId -> int -> int -> int
+      = "findLogicalOffset"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
     external moveCaretLeft : unit -> bool = "moveCaretLeft"
