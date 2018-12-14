@@ -190,22 +190,25 @@ and viewNExpr
   | FnCall (name, exprs, sendToRail) ->
       let inMultiline =
         let width = ViewUtils.approxNWidth e in
-        let arg_heights =
-          exprs
-          |> List.map ViewUtils.approxHeight
-          |> List.filter (fun a -> a > 0)
-        in
-        let min_max_heights =
-          (List.minimum arg_heights, List.maximum arg_heights)
-        in
-        let heights_vary_too_much =
-          match min_max_heights with
-          | Some minh, Some maxh ->
-              maxh - minh > 1
-          | _, _ ->
-              false
-        in
-        width > 120 || heights_vary_too_much
+        if List.any (( = ) MultilineFn) vs.testVariants
+        then
+          let arg_heights =
+            exprs
+            |> List.map ViewUtils.approxHeight
+            |> List.filter (fun a -> a > 0)
+          in
+          let min_max_heights =
+            (List.minimum arg_heights, List.maximum arg_heights)
+          in
+          let heights_vary_too_much =
+            match min_max_heights with
+            | Some minh, Some maxh ->
+                maxh - minh > 1
+            | _, _ ->
+                false
+          in
+          width > 120 || heights_vary_too_much
+        else width > 120
       in
       let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]

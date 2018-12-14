@@ -646,6 +646,7 @@ and variantTest =
   | StubVariant
   (* just a stub *)
   | FluidInputModel
+  | MultilineFn
 
 and class_ = string
 
