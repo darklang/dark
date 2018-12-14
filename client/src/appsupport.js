@@ -98,9 +98,9 @@ function getEntryboxLength() {
 }
 
 
-// find current loc in 'old' node
-function findCaretPointWithinTextElement(el_id) {
-  let el = document.getElementById(el_id);
+// Find location of the 'old' node, in browser coordinates.
+function findCaretPos(blankId) {
+  let el = document.getElementById(blankId);
   if (el == null) { return {x: 0, y: 0}; }
 
   let currOffset = entrybox().selectionEnd;
@@ -119,11 +119,11 @@ function findCaretPointWithinTextElement(el_id) {
   return retval;
 }
 
-// get target offset for 'new' node
+// Get target offset for 'new' node. Takes browser x/y coords in pixxels, returns 
+// offset in characters.
 // CLEANUP: we don't use the y param, drop it from the sig?
-//
-function findLogicalOffsetWithinTextElement(el_id, x, y) {
-  let el = document.getElementById(el_id);
+function findLogicalOffset(blankOrId, x, y) {
+  let el = document.getElementById(blankOrId);
   if (el == null) {
     return false;
   }
@@ -192,8 +192,8 @@ function moveCaretRight() {
 const entryboxCaret = {
   moveCaretLeft: moveCaretLeft,
   moveCaretRight: moveCaretRight,
-  findCaretPointWithinTextElement: findCaretPointWithinTextElement,
-  findLogicalOffsetWithinTextElement: findLogicalOffsetWithinTextElement
+  findCaretPos: findCaretPos,
+  findLogicalOffset: findLogicalOffset
 }
 
 // ---------------------------
