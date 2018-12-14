@@ -78,8 +78,12 @@ function entrybox() {
   return document.getElementById('entry-box');
 }
 
-function getLength(el_id) {
-  let el = document.getElementById(el_id);
+function fluidWidthSpan() {
+  return document.getElementById("fluidWidthSpan");
+}
+
+function getEntryboxLength() {
+  let el = fluidWidthSpan();
   if (el) {
     let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
     if (node) return node.textContent.length;
@@ -99,9 +103,8 @@ function findCaretPointWithinTextElement(el_id) {
   let el = document.getElementById(el_id);
   if (el == null) { return {x: 0, y: 0}; }
 
-  let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
   let currOffset = entrybox().selectionEnd;
-
+  let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
   let range = document.createRange();
   range.setStart(node, currOffset);
   range.setEnd(node, currOffset);
@@ -160,8 +163,8 @@ function findLogicalOffsetWithinTextElement(el_id, x, y) {
 
 /* either we have room to move the caret in the node, or we return false and
   * move to another node */
-function moveCaretLeft(el_id) {
-  let length = getLength(el_id)
+function moveCaretLeft() {
+  let length = getEntryboxLength()
   if (length === null) { return false; }
   let currOffset = entrybox().selectionEnd;
 
@@ -175,8 +178,8 @@ function moveCaretLeft(el_id) {
   return true;
 }
 
-function moveCaretRight(el_id) {
-  let length = getLength(el_id);
+function moveCaretRight() {
+  let length = getEntryboxLength();
   if (length === null) { return false; }
   let currOffset = entrybox().selectionEnd;
   if (currOffset >= length) {

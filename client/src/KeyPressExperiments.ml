@@ -43,7 +43,7 @@ let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
 
 let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
   (* true means we handled it in js; false means we're moving between nodes *)
-  match Native.Ext.moveCaretLeft "fluidWidthSpan" with
+  match Native.Ext.moveCaretLeft () with
   | true ->
       NoChange
   | false ->
@@ -56,7 +56,7 @@ let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
 
 let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
   (* true means we handled it in js; false means we're moving between nodes *)
-  match Native.Ext.moveCaretRight "fluidWidthSpan" with
+  match Native.Ext.moveCaretRight () with
   | true ->
       NoChange
   | false ->
