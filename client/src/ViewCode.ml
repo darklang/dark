@@ -351,7 +351,7 @@ and viewNExpr
       let open_ = a [wc "openbrace"] "{" in
       let close = a [wc "closebrace"] "}" in
       let pexpr (k, v) =
-        n [wc "objectpair"] [viewKey vs [] k; colon; vExpr 0 v]
+        n [wc "objectpair"] [viewKey vs [wc "objectkey"] k; colon; vExpr 0 v]
       in
       n (wc "object" :: mo :: config) ([open_] @ List.map pexpr pairs @ [close])
   | Match (matchExpr, cases) ->
