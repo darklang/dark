@@ -679,7 +679,7 @@ module Native = struct
 
     type blankOrId = string
 
-    external findCaretPos : blankOrId -> jsPointObj = "findCaretPos"
+    external findCaretPos : unit -> jsPointObj = "findCaretPos"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
     external findLogicalOffset :

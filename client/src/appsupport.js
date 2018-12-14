@@ -74,6 +74,12 @@ window.Rollbar.configure(rollbarConfig);
 // Entrybox Caret
 // ---------------------------
 
+// The autocomplete box has the id 'search-container', and a number of
+// subnodes, notably 'entry-box' and 'fluidWidthSpan'. 'entry-box' is where we
+// write code, and where the cursor is. fluidWidthSpan has the text content of 
+// the box.
+// However, for string entries, there is a textbox with the id 'entry-box'.
+
 function entrybox() {
   return document.getElementById('entry-box');
 }
@@ -99,8 +105,8 @@ function getEntryboxLength() {
 
 
 // Find location of the 'old' node, in browser coordinates.
-function findCaretPos(blankId) {
-  let el = document.getElementById(blankId);
+function findCaretPos() {
+  let el = fluidWidthSpan();
   if (el == null) { return {x: 0, y: 0}; }
 
   let currOffset = entrybox().selectionEnd;
