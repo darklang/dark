@@ -78,7 +78,8 @@ window.Rollbar.configure(rollbarConfig);
 // subnodes, notably 'entry-box' and 'fluidWidthSpan'. 'entry-box' is where we
 // write code, and where the cursor is. fluidWidthSpan has the text content of 
 // the box.
-// However, for string entries, there is a textbox with the id 'entry-box'.
+// However, for string entries, there is a textbox with the id 'entry-box'. This 
+// does have the text content.
 
 function entrybox() {
   return document.getElementById('entry-box');
@@ -88,58 +89,87 @@ function fluidWidthSpan() {
   return document.getElementById("fluidWidthSpan");
 }
 
-function getEntryboxLength() {
-  let el = fluidWidthSpan();
-  if (el) {
-    let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-    if (node) return node.textContent.length;
-    else console.error("No text childNode found");
-  }
-  else {
-    let node = entrybox();
-    if (node) return node.value.length;
-    else console.error("Could not find an entry-box");
-  }
-  return null;
+// utils
+function getTextNode(node) {
+  return Array.from(node.childNodes).find(n => (n.nodeName == '#text'));
 }
 
-
-// Find location of the 'old' node, in browser coordinates.
-function findCaretPos() {
-  let el = fluidWidthSpan();
-  if (el == null) { return {x: 0, y: 0}; }
-
-  let currOffset = entrybox().selectionEnd;
-  let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
+function getCoordsOf(node, offset) {
   let range = document.createRange();
-  range.setStart(node, currOffset);
-  range.setEnd(node, currOffset);
-
-  let rect = range.getClientRects()[0];
-  if (rect === undefined) {
-    console.log("Error: no rect found. Likely, nodename = '#text' only applies to some dom constructions, not all?")
-    return {x: 0, y: 0}
-  }
-  let retval = {x: rect.left, y: rect.bottom};
-
-  return retval;
+  range.setStart(node, offset);
+  range.setEnd(node, offset);
+  return range.getClientRects()[0];
 }
 
-// Get target offset for 'new' node. Takes browser x/y coords in pixxels, returns 
+// string entry box
+function stringContent() {
+  let el = entrybox();
+  if (!el) return null;
+  return el.value;
+}
+
+function stringContentNode() {
+  return entrybox();
+}
+
+// other (non string) entry box
+function nonStringContentNode() {
+  let node = fluidWidthSpan();
+  if (!node) return null;
+  return getTextNode(node);
+}
+
+function nonStringContent() {
+  let node = nonStringContentNode();
+  if (!node) return null;
+  return node.textContent;
+}
+
+// generic interface
+function getContent () {
+  return nonStringContent() || stringContent();
+}
+
+function getContentNode () {
+  return nonStringContentNode() || stringContentNode();
+}
+
+function getSelectionNode() {
+  return entrybox();
+}
+
+function getContentLength() {
+  return getContent().length;
+}
+
+function getSelectionEnd() {
+  return getSelectionNode().selectionEnd;
+}
+
+
+// Find location of the 'old' node (where the cursor is), in browser coordinates.
+function findCaretPos() {
+  if (!fluidWidthSpan()) { return {x: 0, y: 0}; }
+  let offset = getSelectionEnd();
+  console.log("offset", offset);
+  let rect = getCoordsOf(getContentNode(), offset);
+  console.log("rect", rect);
+  return {x: rect.left, y: rect.bottom};
+}
+
+// Get target offset for 'new' node. Takes browser x/y coords in pixels, returns 
 // offset in characters.
 // CLEANUP: we don't use the y param, drop it from the sig?
 function findLogicalOffset(blankOrId, x, y) {
   let el = document.getElementById(blankOrId);
-  if (el == null) {
-    return false;
-  }
-  let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-  if (node === undefined) {
-    console.error("No childNode found with nodeName === '#text', returning offset 0.");
+  if (!el) { return false; }
+  console.log("element is", el);
+
+  let node = getTextNode(el);
+  if (!node) {
+    console.error("No textNode found, returning offset 0.");
     return 0;
   }
-
-  y = el.getBoundingClientRect().bottom;
 
   if (el.getBoundingClientRect().right < x) {
     console.log("X is to the right, returning offset: -1");
@@ -148,18 +178,25 @@ function findLogicalOffset(blankOrId, x, y) {
     console.log("X is to the left, returning offset: 0");
     return 0;
   }
+  console.log("looking at", el.getBoundingClientRect());
 
-  let range = document.createRange();
-  let length = node.textContent.length;
   function isClickInRects(rects) {
-    return Array.from(rects).some(r => (r.left<x && r.right>x));
+    return Array.from(rects).some(r => (r.left<x && x<r.right));
   }
 
+  // go through the characters and see if our x value is within any of them
+  let range = document.createRange();
+  let length = node.textContent.length; // node is a blankOr, which must have a textcontent
   for (let i = 0; i < length; i++) {
+    console.log("checking", i);
     range.setStart(node, i);
     range.setEnd(node, i + 1);
     if (isClickInRects(range.getClientRects())) {
+      console.log("got it", i);
       return i;
+    }
+    else {
+      console.log("not in range", range.getClientRects());
     }
   }
 
@@ -170,7 +207,7 @@ function findLogicalOffset(blankOrId, x, y) {
 /* either we have room to move the caret in the node, or we return false and
   * move to another node */
 function moveCaretLeft() {
-  let length = getEntryboxLength()
+  let length = getContentLength()
   if (length === null) { return false; }
   let currOffset = entrybox().selectionEnd;
 
@@ -185,7 +222,7 @@ function moveCaretLeft() {
 }
 
 function moveCaretRight() {
-  let length = getEntryboxLength();
+  let length = getContentLength();
   if (length === null) { return false; }
   let currOffset = entrybox().selectionEnd;
   if (currOffset >= length) {
