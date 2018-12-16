@@ -167,15 +167,12 @@ function getSelectionEnd() {
 // Rendered means when we're not showing the input box. For strings, this includes quotes.
 function getBoundsOfRendered(element) {
   let rect = element.getBoundingClientRect();
-  if (element.classList[0] == "tstr") // TODO: check all classnames 
-  {
+  if (element.classList.contains("tstr")) {
     return [rect.left+8, rect.right-8];
   } else {
     return [rect.left, rect.right];
   }
 }
-
-
 
 
 // Find location of the 'old' node (where the cursor is), in browser coordinates.
