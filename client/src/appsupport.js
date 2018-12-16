@@ -94,27 +94,8 @@ function getTextNode(node) {
   return Array.from(node.childNodes).find(n => (n.nodeName == '#text'));
 }
 
-function getXPosOf(node, offset) {
-  if (node.nodeType == node.TEXT_NODE) {
-    let range = document.createRange();
-    range.setStart(node, offset);
-    range.setEnd(node, offset);
-    return range.getClientRects()[0].left;
-  } else {
-    // There appears to be no good way to get the actual coordinates of the
-    // cursor in a textarea, without making a clone, adding a span at the cursor,
-    // then finding the position of the span.
-    // So we simulate.
-    // Note that the text area does not include quotes, so they do not need to
-    // be accounted for.
-    // There is a small offset bug somewhere, where the expected x position of
-    // the cursor is ever so slightly less than the bounds of the target. This
-    // seems to only happen with strings, so this seems the obvious place to
-    // handle it.
-    return node.getBoundingClientRect().left
-            + (offset * 8)
-            + 0.04; // offset bug
-  }
+function isNonStringNode(node) {
+  return node.nodeType == node.TEXT_NODE;
 }
 
 // string entry box
@@ -177,8 +158,30 @@ function getBoundsOfRendered(element) {
 function findCaretXPos() {
   let contentNode = getContentNode();
   if (!contentNode) { return 0; }
-  let offset = getSelectionEnd();
-  return getXPosOf(contentNode, offset);
+  if (isNonStringNode(contentNode)) {
+    let selectionNode = getSelectionNode();
+    let offset = selectionNode.selectionEnd;
+    let range = document.createRange();
+    range.setStart(contentNode, offset);
+    range.setEnd(contentNode, offset);
+    return range.getClientRects()[0].left;
+  } else {
+    // There appears to be no good way to get the actual coordinates of the
+    // cursor in a textarea, without making a clone, adding a span at the cursor,
+    // then finding the position of the span.
+    // So we simulate.
+    // Note that the text area does not include quotes, so they do not need to
+    // be accounted for.
+    // There is a small offset bug somewhere, where the expected x position of
+    // the cursor is ever so slightly less than the bounds of the target. This
+    // seems to only happen with strings, so this seems the obvious place to
+    // handle it.
+    let selectionNode = contentNode;
+    let offset = selectionNode.selectionEnd; // already have the selection
+    return contentNode.getBoundingClientRect().left
+            + (offset * 8)
+            + 0.04; // offset bug
+  }
 }
 
 // Get target offset for 'new' node. Takes browser x/y coords in pixels, returns 
