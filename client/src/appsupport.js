@@ -158,7 +158,7 @@ function getSelectionEnd() {
 
 // Find location of the 'old' node (where the cursor is), in browser coordinates.
 function findCaretPos() {
-  if (!fluidWidthSpan()) { return {x: 0, y: 0}; }
+  if (!getContentNode()) { return {x: 0, y: 0}; }
   let offset = getSelectionEnd();
   console.log("offset", offset);
   let rect = getCoordsOf(getContentNode(), offset);
