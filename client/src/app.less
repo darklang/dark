@@ -967,6 +967,15 @@ body #grid * {
     .indent;
   }
 
+  .objectkey {
+    .entry {
+      // this is awful -- but we need to remove the margin being added to .entry
+      // we should re-organize who adds/removes margins
+      margin-left: 0px;
+      margin-right: 0px;
+    }
+  }
+
   .matchcase {
     .layout-block;
     .indent;
