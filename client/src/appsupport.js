@@ -160,8 +160,10 @@ function getSelectionEnd() {
 function findCaretPos() {
   if (!getContentNode()) { return {x: 0, y: 0}; }
   let offset = getSelectionEnd();
+  let contentNode = getContentNode();
+  console.log("node", contentNode);
   console.log("offset", offset);
-  let rect = getCoordsOf(getContentNode(), offset);
+  let rect = getCoordsOf(contentNode, offset);
   console.log("rect", rect);
   return {x: rect.left, y: rect.bottom};
 }
@@ -170,6 +172,7 @@ function findCaretPos() {
 // offset in characters.
 // CLEANUP: we don't use the y param, drop it from the sig?
 function findLogicalOffset(blankOrId, x, y) {
+  console.log("x", x);
   let el = document.getElementById(blankOrId);
   if (!el) { return false; }
   console.log("element is", el);
