@@ -175,9 +175,9 @@ function getBoundsOfRendered(element) {
 
 // Find location of the 'old' node (where the cursor is), in browser coordinates.
 function findCaretXPos() {
-  if (!getContentNode()) { return x; }
-  let offset = getSelectionEnd();
   let contentNode = getContentNode();
+  if (!contentNode) { return 0; }
+  let offset = getSelectionEnd();
   return getXPosOf(contentNode, offset);
 }
 
@@ -226,7 +226,7 @@ function findLogicalOffset(targetBlankOrId, x) {
 function moveCaretLeft() {
   let length = getContentLength()
   if (length === null) { return false; }
-  let currOffset = entrybox().selectionEnd;
+  let currOffset = getSelectionEnd();
 
   if (currOffset <= 0) {
     return false;
@@ -241,7 +241,7 @@ function moveCaretLeft() {
 function moveCaretRight() {
   let length = getContentLength();
   if (length === null) { return false; }
-  let currOffset = entrybox().selectionEnd;
+  let currOffset = getSelectionEnd();
   if (currOffset >= length) {
     return false;
   }
