@@ -188,10 +188,10 @@ function findLogicalOffset(targetBlankOrId, x) {
   if (!target) { return false; }
 
   let [tleft, tright] = getBoundsOfRendered(target);
-  if (tright < x) {
+  if (tright <= x) {
     console.log("X is to the right of target, returning offset: -1");
     return -1;
-  } else if (tleft > x) {
+  } else if (tleft >= x) {
     console.log("X is to the left of target, returning offset: 0");
     return 0;
   }
