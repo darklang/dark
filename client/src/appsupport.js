@@ -95,6 +95,7 @@ function getTextNode(node) {
 }
 
 function getCoordsOf(node, offset) {
+  console.log("node type vs TEXT_NODE", node.nodeType, node.TEXT_NODE);
   if (node.nodeType == node.TEXT_NODE) {
     let range = document.createRange();
     range.setStart(node, offset);
@@ -104,7 +105,16 @@ function getCoordsOf(node, offset) {
     // There appears to be no good way to get the actual coordinates of the
     // cursor in a textarea, without making a clone, adding a span at the cursor,
     // then finding the position of the span.
-    return { left: node.getBoundingClientRect().left + offset * 8,
+    // So we simulate.
+    // Note that the text area does not include quotes, so they do not need to
+    // be accounted for.
+    // There is a small offset bug somewhere, where the expected x position of
+    // the cursor is ever so slightly less than the bounds of the target. This
+    // seems to only happen with strings, so this seems the obvious place to
+    // handle it.
+    return { left: node.getBoundingClientRect().left
+              + (offset * 8)
+              + 0.04, // offset bug
              bottom: 0
     }
   }
@@ -155,6 +165,21 @@ function getSelectionEnd() {
   return getSelectionNode().selectionEnd;
 }
 
+// Rendered means when we're not showing the input box. For strings, this includes quotes.
+function getBoundsOfRendered(element) {
+  let rect = element.getBoundingClientRect();
+  console.log("getting bounds of", element, rect);
+  if (element.classList[0] == "tstr") // TODO: check all classnames 
+  {
+    // .3 because of some tiny offsets in rendering means it's ever so slightly wrong
+    return [rect.left+8, rect.right-8];
+  } else {
+    return [rect.left, rect.right];
+  }
+}
+
+
+
 
 // Find location of the 'old' node (where the cursor is), in browser coordinates.
 function findCaretPos() {
@@ -171,38 +196,46 @@ function findCaretPos() {
 // Get target offset for 'new' node. Takes browser x/y coords in pixels, returns 
 // offset in characters.
 // CLEANUP: we don't use the y param, drop it from the sig?
-function findLogicalOffset(blankOrId, x, y) {
-  console.log("x", x);
-  let el = document.getElementById(blankOrId);
-  if (!el) { return false; }
-  console.log("element is", el);
+function findLogicalOffset(targetBlankOrId, x, y) {
+  x+=0.04;
+  let target = document.getElementById(targetBlankOrId);
+  if (!target) { return false; }
+  console.log("target is", target);
+  // to bug is that we get the full element, which for strings includes quotes.
+  // Thus, the length is two characters too long.
 
-  let node = getTextNode(el);
-  if (!node) {
+  let [tleft, tright] = getBoundsOfRendered(target);
+  console.log("left", tleft, "right", tright);
+  if (tright < x) {
+    console.log("X is to the right of target, returning offset: -1");
+    return -1;
+  } else if (tleft > x) {
+    console.log("X is to the left of target, returning offset: 0");
+    return 0;
+  }
+
+  function isClickInRects(rects) {
+    return Array.from(rects).some(function (r) { 
+      let result = (r.left<=x && x<r.right);
+      console.log("left", r.left, "right", r.right, "x", x, "result", result);
+      return result;
+    });
+  }
+
+  let targetNode = getTextNode(target);
+  if (!targetNode) {
     console.error("No textNode found, returning offset 0.");
     return 0;
   }
 
-  if (el.getBoundingClientRect().right < x) {
-    console.log("X is to the right, returning offset: -1");
-    return -1;
-  } else if (el.getBoundingClientRect().left > x) {
-    console.log("X is to the left, returning offset: 0");
-    return 0;
-  }
-  console.log("looking at", el.getBoundingClientRect());
-
-  function isClickInRects(rects) {
-    return Array.from(rects).some(r => (r.left<x && x<r.right));
-  }
-
   // go through the characters and see if our x value is within any of them
   let range = document.createRange();
-  let length = node.textContent.length; // node is a blankOr, which must have a textcontent
+  let length = targetNode.textContent.length; // rendered, so must have a textcontent
+  // TODO: probably doesn't take into account quotes
   for (let i = 0; i < length; i++) {
     console.log("checking", i);
-    range.setStart(node, i);
-    range.setEnd(node, i + 1);
+    range.setStart(targetNode, i);
+    range.setEnd(targetNode, i + 1);
     if (isClickInRects(range.getClientRects())) {
       console.log("got it", i);
       return i;
