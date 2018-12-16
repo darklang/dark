@@ -70,111 +70,201 @@ var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
-window.Dark = {
-  caret: {
-    // find current loc in 'old' node
-    findCaretPointWithinTextElement: function(el_id) {
-      let el = document.getElementById(el_id);
-      if (el == null) { return {x: 0, y: 0}; }
+// ---------------------------
+// Entrybox Caret
+// ---------------------------
 
-      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-      let currOffset = document.getElementById('entry-box').selectionEnd;
+// The autocomplete box has the id 'search-container', and a number of
+// subnodes, notably 'entry-box' and 'fluidWidthSpan'. 'entry-box' is where we
+// write code, and where the cursor is. fluidWidthSpan has the text content of 
+// the box.
+// However, for string entries, there is a textbox with the id 'entry-box'. This 
+// does have the text content.
 
-      let range = document.createRange();
-      range.setStart(node, currOffset);
-      range.setEnd(node, currOffset);
+function entrybox() {
+  return document.getElementById('entry-box');
+}
 
-      let rect = range.getClientRects()[0];
-      if (rect === undefined) {
-        console.log("Error: no rect found. Likely, nodename = '#text' only applies to some dom constructions, not all?")
-        return {x: 0, y: 0}
-      }
-      let retval = {x: rect.left, y: rect.bottom};
+function fluidWidthSpan() {
+  return document.getElementById("fluidWidthSpan");
+}
 
-      return retval;
-    },
-    // get target offset for 'new' node
-    // CLEANUP: we don't use the y param, drop it from the sig?
-    //
-    findLogicalOffsetWithinTextElement: function(el_id, x, y) {
-      let el = document.getElementById(el_id);
-      if (el == null) {
-        return false;
-      }
-      let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-      if (node === undefined) {
-        console.error("No childNode found with nodeName === '#text', returning offset 0.");
-        return 0;
-      }
+// utils
+function getTextNode(node) {
+  return Array.from(node.childNodes).find(n => (n.nodeName == '#text'));
+}
 
-      y = el.getBoundingClientRect().bottom;
+function isNonStringNode(node) {
+  return node.nodeType == node.TEXT_NODE;
+}
 
-      if (el.getBoundingClientRect().right < x) {
-        console.log("X is to the right, returning offset: -1");
-        return -1;
-      } else if (el.getBoundingClientRect().left > x) {
-        console.log("X is to the left, returning offset: 0");
-        return 0;
-      }
+// string entry box
+function stringContent() {
+  let el = entrybox();
+  if (!el) return null;
+  return el.value;
+}
 
-      let range = document.createRange();
-      let length = node.textContent.length;
-      function isClickInRects(rects) {
-        return Array.from(rects).some(r => (r.left<x && r.right>x));
-      }
+function stringContentNode() {
+  return entrybox();
+}
 
-      for (let i = 0; i < length; i++) {
-        range.setStart(node, i);
-        range.setEnd(node, i + 1);
-        if (isClickInRects(range.getClientRects())) {
-          return i;
-        }
-      }
+// other (non string) entry box
+function nonStringContentNode() {
+  let node = fluidWidthSpan();
+  if (!node) return null;
+  return getTextNode(node);
+}
 
-      console.error("We failed to set a correct offset!");
-      return 0;
-    },
-    getLength: function (el_id) {
-      let el = document.getElementById(el_id);
-      if (el) {
-        let node = Array.from(el.childNodes).find(n => (n.nodeName == '#text'));
-        if (node) return node.textContent.length;
-        else console.error("No text childNode found");
-      }
-      else {
-        let node = document.getElementById("entry-box");
-        if (node) return node.value.length;
-        else console.error("Could not find an entry-box");
-      }
-      return null;
-    },
-    /* either we have room to move the caret in the node, or we return false and
-     * move to another node */
-    moveCaretLeft: function(el_id) {
-      let length = Dark.caret.getLength(el_id)
-      if (length === null) { return false; }
-      let currOffset = document.getElementById('entry-box').selectionEnd;
+function nonStringContent() {
+  let node = nonStringContentNode();
+  if (!node) return null;
+  return node.textContent;
+}
 
-      if (currOffset <= 0) {
-        return false;
-      }
+// generic interface
+function getContent () {
+  return nonStringContent() || stringContent();
+}
 
-      // selectionStart here because selectionEnd results in moving two cells at
-      // a time. :shrug:
-      document.getElementById('entry-box').selectionStart -= 1;
-      return true;
-    },
-    moveCaretRight: function(el_id) {
-      let length = Dark.caret.getLength(el_id);
-      if (length === null) { return false; }
-      let currOffset = document.getElementById('entry-box').selectionEnd;
-      if (currOffset >= length) {
-        return false;
-      }
-      document.getElementById('entry-box').selectionEnd += 1;
-      return true;
+function getContentNode () {
+  return nonStringContentNode() || stringContentNode();
+}
+
+function getSelectionNode() {
+  return entrybox();
+}
+
+function getContentLength() {
+  return getContent().length;
+}
+
+function getSelectionEnd() {
+  return getSelectionNode().selectionEnd;
+}
+
+// Rendered means when we're not showing the input box. For strings, this includes quotes.
+function getBoundsOfRendered(element) {
+  let rect = element.getBoundingClientRect();
+  if (element.classList.contains("tstr")) {
+    return [rect.left+8, rect.right-8];
+  } else {
+    return [rect.left, rect.right];
+  }
+}
+
+
+// Find location of the 'old' node (where the cursor is), in browser coordinates.
+function findCaretXPos() {
+  let contentNode = getContentNode();
+  if (!contentNode) { return 0; }
+  if (isNonStringNode(contentNode)) {
+    let selectionNode = getSelectionNode();
+    let offset = selectionNode.selectionEnd;
+    let range = document.createRange();
+    range.setStart(contentNode, offset);
+    range.setEnd(contentNode, offset);
+    return range.getClientRects()[0].left;
+  } else {
+    // There appears to be no good way to get the actual coordinates of the
+    // cursor in a textarea, without making a clone, adding a span at the cursor,
+    // then finding the position of the span.
+    // So we simulate.
+    // Note that the text area does not include quotes, so they do not need to
+    // be accounted for.
+    // There is a small offset bug somewhere, where the expected x position of
+    // the cursor is ever so slightly less than the bounds of the target. This
+    // seems to only happen with strings, so this seems the obvious place to
+    // handle it.
+    let selectionNode = contentNode;
+    let offset = selectionNode.selectionEnd; // already have the selection
+    return contentNode.getBoundingClientRect().left
+            + (offset * 8)
+            + 0.04; // offset bug
+  }
+}
+
+// Get target offset for 'new' node. Takes browser x/y coords in pixels, returns 
+// offset in characters.
+function findLogicalOffset(targetBlankOrId, x) {
+  let target = document.getElementById(targetBlankOrId);
+  if (!target) { return false; }
+
+  let [tleft, tright] = getBoundsOfRendered(target);
+  if (tright <= x) {
+    console.log("X is to the right of target, returning offset: -1");
+    return -1;
+  } else if (tleft >= x) {
+    console.log("X is to the left of target, returning offset: 0");
+    return 0;
+  }
+
+  function isClickInRects(rects) {
+    return Array.from(rects).some(r => (r.left<=x && x<r.right));
+  }
+
+  let targetNode = getTextNode(target);
+  if (!targetNode) {
+    console.error("No textNode found, returning offset 0.");
+    return 0;
+  }
+
+  // go through the characters and see if our x value is within any of them
+  let range = document.createRange();
+  let length = targetNode.textContent.length; // rendered, so must have a textcontent
+  for (let i = 0; i < length; i++) {
+    range.setStart(targetNode, i);
+    range.setEnd(targetNode, i + 1);
+    if (isClickInRects(range.getClientRects())) {
+      return i;
     }
-  },
+  }
+
+  console.error("We failed to set a correct offset!");
+  return 0;
+}
+
+/* either we have room to move the caret in the node, or we return false and
+  * move to another node */
+function moveCaretLeft() {
+  let length = getContentLength()
+  if (length === null) { return false; }
+  let currOffset = getSelectionEnd();
+
+  if (currOffset <= 0) {
+    return false;
+  }
+
+  // selectionStart here because selectionEnd results in moving two cells at
+  // a time. :shrug:
+  entrybox().selectionStart -= 1;
+  return true;
+}
+
+function moveCaretRight() {
+  let length = getContentLength();
+  if (length === null) { return false; }
+  let currOffset = getSelectionEnd();
+  if (currOffset >= length) {
+    return false;
+  }
+  entrybox().selectionEnd += 1;
+  return true;
+}
+
+const entryboxCaret = {
+  moveCaretLeft: moveCaretLeft,
+  moveCaretRight: moveCaretRight,
+  findCaretXPos: findCaretXPos,
+  findLogicalOffset: findLogicalOffset
+}
+
+// ---------------------------
+// Analysis
+// ---------------------------
+
+window.Dark = {
+  caret: entryboxCaret,
   analysis: {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {

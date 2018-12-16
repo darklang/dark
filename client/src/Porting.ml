@@ -663,8 +663,6 @@ module Native = struct
 
   type jsRectArr = jsRect array Js.Dict.t
 
-  type jsPointObj = int Js.Dict.t
-
   exception NativeCodeError of string
 
   module Ext = struct
@@ -677,20 +675,18 @@ module Native = struct
     external astPositions : string -> jsRectArr = "positions"
       [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
-    external findCaretPointWithinTextElement :
-      string -> jsPointObj
-      = "findCaretPointWithinTextElement"
+    type blankOrId = string
+
+    external findCaretXPos : unit -> int = "findCaretXPos"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
-    external findLogicalOffsetWithinTextElement :
-      string -> int -> int -> int
-      = "findLogicalOffsetWithinTextElement"
+    external findLogicalOffset : blankOrId -> int -> int = "findLogicalOffset"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
-    external moveCaretLeft : string -> bool = "moveCaretLeft"
+    external moveCaretLeft : unit -> bool = "moveCaretLeft"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 
-    external moveCaretRight : string -> bool = "moveCaretRight"
+    external moveCaretRight : unit -> bool = "moveCaretRight"
       [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
   end
 

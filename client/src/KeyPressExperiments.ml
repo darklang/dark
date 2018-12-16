@@ -8,18 +8,9 @@ module Key = Keyboard
 
 (* only needed for moving up/down, not left/right *)
 (* NB: assumes no id collisions in a given canvas *)
-let new_offset (newId : id) : int =
-  let oldCaretPointDict =
-    Native.Ext.findCaretPointWithinTextElement "fluidWidthSpan"
-  in
-  let oldCaretX, oldCaretY =
-    ( Js.Dict.unsafeGet oldCaretPointDict "x"
-    , Js.Dict.unsafeGet oldCaretPointDict "y" )
-  in
-  Native.Ext.findLogicalOffsetWithinTextElement
-    (showID newId)
-    oldCaretX
-    oldCaretY
+let offsetFromCurrent (newId : id) : int =
+  let oldCaretX = Native.Ext.findCaretXPos () in
+  Native.Ext.findLogicalOffset (showID newId) oldCaretX
 
 
 (* TODO this whole arrowMove* section could be DRY'd up, post-experiment *)
@@ -28,7 +19,7 @@ let arrowMoveUp (m : model) (tlid : tlid) (mId : id option) : modification =
   let newMId =
     findTargetId tlid mId (moveUpDown Up) default |> deOption "mId"
   in
-  enterWithOffset m tlid newMId (Some (new_offset newMId))
+  enterWithOffset m tlid newMId (Some (offsetFromCurrent newMId))
 
 
 let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
@@ -38,12 +29,12 @@ let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
   let newMId =
     findTargetId tlid mId (moveUpDown Down) default |> deOption "mId"
   in
-  enterWithOffset m tlid newMId (Some (new_offset newMId))
+  enterWithOffset m tlid newMId (Some (offsetFromCurrent newMId))
 
 
 let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
   (* true means we handled it in js; false means we're moving between nodes *)
-  match Native.Ext.moveCaretLeft "fluidWidthSpan" with
+  match Native.Ext.moveCaretLeft () with
   | true ->
       NoChange
   | false ->
@@ -56,7 +47,7 @@ let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
 
 let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
   (* true means we handled it in js; false means we're moving between nodes *)
-  match Native.Ext.moveCaretRight "fluidWidthSpan" with
+  match Native.Ext.moveCaretRight () with
   | true ->
       NoChange
   | false ->
