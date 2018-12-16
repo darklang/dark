@@ -94,12 +94,12 @@ function getTextNode(node) {
   return Array.from(node.childNodes).find(n => (n.nodeName == '#text'));
 }
 
-function getCoordsOf(node, offset) {
+function getXPosOf(node, offset) {
   if (node.nodeType == node.TEXT_NODE) {
     let range = document.createRange();
     range.setStart(node, offset);
     range.setEnd(node, offset);
-    return range.getClientRects()[0];
+    return range.getClientRects()[0].left;
   } else {
     // There appears to be no good way to get the actual coordinates of the
     // cursor in a textarea, without making a clone, adding a span at the cursor,
@@ -111,11 +111,9 @@ function getCoordsOf(node, offset) {
     // the cursor is ever so slightly less than the bounds of the target. This
     // seems to only happen with strings, so this seems the obvious place to
     // handle it.
-    return { left: node.getBoundingClientRect().left
-              + (offset * 8)
-              + 0.04, // offset bug
-             bottom: 0
-    }
+    return node.getBoundingClientRect().left
+            + (offset * 8)
+            + 0.04; // offset bug
   }
 }
 
@@ -176,18 +174,16 @@ function getBoundsOfRendered(element) {
 
 
 // Find location of the 'old' node (where the cursor is), in browser coordinates.
-function findCaretPos() {
+function findCaretXPos() {
   if (!getContentNode()) { return {x: 0, y: 0}; }
   let offset = getSelectionEnd();
   let contentNode = getContentNode();
-  let rect = getCoordsOf(contentNode, offset);
-  return {x: rect.left, y: rect.bottom};
+  return getXPosOf(contentNode, offset);
 }
 
 // Get target offset for 'new' node. Takes browser x/y coords in pixels, returns 
 // offset in characters.
-// CLEANUP: we don't use the y param, drop it from the sig?
-function findLogicalOffset(targetBlankOrId, x, y) {
+function findLogicalOffset(targetBlankOrId, x) {
   let target = document.getElementById(targetBlankOrId);
   if (!target) { return false; }
 
@@ -256,7 +252,7 @@ function moveCaretRight() {
 const entryboxCaret = {
   moveCaretLeft: moveCaretLeft,
   moveCaretRight: moveCaretRight,
-  findCaretPos: findCaretPos,
+  findCaretXPos: findCaretXPos,
   findLogicalOffset: findLogicalOffset
 }
 

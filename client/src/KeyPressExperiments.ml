@@ -9,12 +9,8 @@ module Key = Keyboard
 (* only needed for moving up/down, not left/right *)
 (* NB: assumes no id collisions in a given canvas *)
 let offsetFromCurrent (newId : id) : int =
-  let oldCaretPointDict = Native.Ext.findCaretPos () in
-  let oldCaretX, oldCaretY =
-    ( Js.Dict.unsafeGet oldCaretPointDict "x"
-    , Js.Dict.unsafeGet oldCaretPointDict "y" )
-  in
-  Native.Ext.findLogicalOffset (showID newId) oldCaretX oldCaretY
+  let oldCaretX = Native.Ext.findCaretXPos () in
+  Native.Ext.findLogicalOffset (showID newId) oldCaretX
 
 
 (* TODO this whole arrowMove* section could be DRY'd up, post-experiment *)
