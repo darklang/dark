@@ -95,10 +95,19 @@ function getTextNode(node) {
 }
 
 function getCoordsOf(node, offset) {
-  let range = document.createRange();
-  range.setStart(node, offset);
-  range.setEnd(node, offset);
-  return range.getClientRects()[0];
+  if (node.nodeType == node.TEXT_NODE) {
+    let range = document.createRange();
+    range.setStart(node, offset);
+    range.setEnd(node, offset);
+    return range.getClientRects()[0];
+  } else {
+    // There appears to be no good way to get the actual coordinates of the
+    // cursor in a textarea, without making a clone, adding a span at the cursor,
+    // then finding the position of the span.
+    return { left: node.getBoundingClientRect().left + offset * 8,
+             bottom: 0
+    }
+  }
 }
 
 // string entry box
