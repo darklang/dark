@@ -175,7 +175,7 @@ function getBoundsOfRendered(element) {
 
 // Find location of the 'old' node (where the cursor is), in browser coordinates.
 function findCaretXPos() {
-  if (!getContentNode()) { return {x: 0, y: 0}; }
+  if (!getContentNode()) { return x; }
   let offset = getSelectionEnd();
   let contentNode = getContentNode();
   return getXPosOf(contentNode, offset);
