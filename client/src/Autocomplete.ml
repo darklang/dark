@@ -217,7 +217,8 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
 
-let dvalForTarget (m: model) (target: target option) =
+
+let dvalForTarget (m : model) (target : target option) =
   match target with
   | None ->
       None
@@ -230,10 +231,10 @@ let dvalForTarget (m: model) (target: target option) =
       |> Option.andThen (Analysis.getCurrentLiveValue m tlid)
       (* don't filter on incomplete values *)
       |> Option.andThen (fun dv_ ->
-               if dv_ = DIncomplete then None else Some dv_ )
+             if dv_ = DIncomplete then None else Some dv_ )
 
 
-let isThreadMember (m: model) (target: target option) =
+let isThreadMember (m : model) (target : target option) =
   match target with
   | None ->
       false
@@ -243,11 +244,11 @@ let isThreadMember (m: model) (target: target option) =
       |> Option.map (fun x -> x.ast)
       |> Option.andThen (AST.findParentOfWithin_ (P.toID p))
       |> Option.map (fun e ->
-              match e with F (_, Thread _) -> true | _ -> false )
+             match e with F (_, Thread _) -> true | _ -> false )
       |> Option.withDefault false
 
 
-let paramTipeForTarget (m: model) (target: target option) =
+let paramTipeForTarget (m : model) (target : target option) =
   match target with
   | None ->
       None
@@ -257,21 +258,21 @@ let paramTipeForTarget (m: model) (target: target option) =
       |> Option.map (fun x -> x.ast)
       |> Option.andThen (fun ast -> AST.getParamIndex ast (P.toID p))
       |> Option.andThen (fun (name, index) ->
-              m.complete.functions
-              |> List.find (fun f -> name = f.fnName)
-              |> Option.map (fun x -> x.fnParameters)
-              |> Option.andThen (List.getAt index)
-              |> Option.map (fun x -> x.paramTipe) )
+             m.complete.functions
+             |> List.find (fun f -> name = f.fnName)
+             |> Option.map (fun x -> x.fnParameters)
+             |> Option.andThen (List.getAt index)
+             |> Option.map (fun x -> x.paramTipe) )
 
 
-let matchesType (m : model) (target : target option) : (function_ -> bool) =
+let matchesType (m : model) (target : target option) : function_ -> bool =
   let dv = dvalForTarget m target in
   let matchesReturnType fn =
-    ( match paramTipeForTarget m target with
+    match paramTipeForTarget m target with
     | Some t ->
         RT.isCompatible fn.fnReturnTipe t
     | None ->
-        true )
+        true
   in
   let matchesParamType fn =
     match dv with
@@ -279,9 +280,10 @@ let matchesType (m : model) (target : target option) : (function_ -> bool) =
         if isThreadMember m target
         then None <> findCompatibleThreadParam fn (RT.typeOf dv)
         else None <> findParamByType fn (RT.typeOf dv)
-    | None -> true
+    | None ->
+        true
   in
-  (fun fn -> matchesReturnType fn && matchesParamType fn)
+  fun fn -> matchesReturnType fn && matchesParamType fn
 
 
 (* ------------------------------------ *)
@@ -403,7 +405,6 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   let isExpression =
     match a.target with Some (_, p) -> P.typeOf p = Expr | None -> false
   in
-
   (* functions *)
   let funcList = if isExpression then a.functions else [] in
   let functions = List.map (fun x -> ACFunction x) funcList in
@@ -482,8 +483,11 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
   if a.isCommandMode then commands else regular
 
 
-let filter (m: model) (target : target option) (list : autocompleteItem list) (query : string) :
-    autocompleteItem list =
+let filter
+    (m : model)
+    (target : target option)
+    (list : autocompleteItem list)
+    (query : string) : autocompleteItem list =
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
@@ -510,17 +514,13 @@ let filter (m: model) (target : target option) (list : autocompleteItem list) (q
   let stringMatch =
     List.filter (asName >> String.toLower >> containsOrdered lcq) notSubstring
   in
-  let allMatches = 
+  let allMatches =
     [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
     |> List.concat
   in
   (* Now split list by type validity *)
   let matchFn = matchesType m target in
-  List.filter
-    (function ACFunction fn -> matchFn fn
-              | _ -> true)
-    allMatches
-
+  List.filter (function ACFunction fn -> matchFn fn | _ -> true) allMatches
 
 
 let init (fns : function_ list) (isAdmin : bool) : autocomplete =
@@ -532,12 +532,11 @@ let init (fns : function_ list) (isAdmin : bool) : autocomplete =
   ; index = -1
   ; value = ""
   ; prevValue = ""
-  ; acTipe = None
   ; target = None
   ; isCommandMode = false }
 
 
-let refilter (query : string) (m: model) (old : autocomplete) : autocomplete =
+let refilter (query : string) (m : model) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
     withDynamicItems old.target query old.allCompletions
@@ -546,8 +545,7 @@ let refilter (query : string) (m: model) (old : autocomplete) : autocomplete =
   let newCount = newCompletions |> List.length in
   let oldHighlight = highlighted old in
   let oldHighlightNewPos =
-    oldHighlight
-    |> Option.andThen (fun oh -> List.elemIndex oh newCompletions)
+    oldHighlight |> Option.andThen (fun oh -> List.elemIndex oh newCompletions)
   in
   let index =
     (* Clear the highlight conditions *)
@@ -577,9 +575,9 @@ let refilter (query : string) (m: model) (old : autocomplete) : autocomplete =
     index; completions = newCompletions; value = query; prevValue = old.value
   }
 
+
 let regenerate (m : model) (a : autocomplete) : autocomplete =
-  {a with allCompletions = generateFromModel m a}
-  |> refilter a.value m 
+  {a with allCompletions = generateFromModel m a} |> refilter a.value m
 
 
 (* ---------------------------- *)
@@ -607,9 +605,7 @@ let reset (m : model) (a : autocomplete) : autocomplete =
   init functions a.admin |> regenerate m
 
 
-let numCompletions (a : autocomplete) : int =
-  a.completions |> List.length
-
+let numCompletions (a : autocomplete) : int = a.completions |> List.length
 
 let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
@@ -636,10 +632,11 @@ let selectUp (a : autocomplete) : autocomplete =
 (* y Press enter to select *)
 (* y Press right to fill as much as is definitive *)
 (*  *)
-let setQuery (q : string) (m: model) (a : autocomplete) : autocomplete =
+let setQuery (q : string) (m : model) (a : autocomplete) : autocomplete =
   refilter q m a
 
-let appendQuery (str : string) (m: model) (a : autocomplete) : autocomplete =
+
+let appendQuery (str : string) (m : model) (a : autocomplete) : autocomplete =
   let q =
     if isStringEntry a
     then String.dropRight 1 a.value ^ str ^ "\""

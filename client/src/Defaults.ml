@@ -47,7 +47,6 @@ let defaultModel : model =
       ; index = -1
       ; value = ""
       ; prevValue = ""
-      ; acTipe = None
       ; target = None
       ; isCommandMode = false }
   ; userFunctions = []
