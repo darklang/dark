@@ -464,7 +464,6 @@ and autocomplete =
   ; value : string
   ; prevValue : string
   ; target : target option
-  ; acTipe : tipe option
   ; isCommandMode : bool }
 
 and autocompleteMod =
