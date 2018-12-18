@@ -455,15 +455,6 @@ and autocompleteItem =
 
 and target = tlid * pointerData
 
-and targetState =
-  { target : target option
-  ; fields : string list
-  ; dval : dval option
-  ; varnames : varName list
-  ; space : handlerSpace option
-  ; tsParamTipe : tipe
-  ; isThreadMember : bool }
-
 and autocomplete =
   { functions : function_ list
   ; admin : bool
@@ -472,7 +463,8 @@ and autocomplete =
   ; index : int
   ; value : string
   ; prevValue : string
-  ; targetState : targetState
+  ; target : target option
+  ; matcher : autocompleteItem -> bool
   ; isCommandMode : bool }
 
 and autocompleteMod =
