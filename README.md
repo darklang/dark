@@ -9,7 +9,7 @@ To build and run the server you must have the following installed (and running):
 - Homebrew for Mac (https://brew.sh/)
 - Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
 - The latest version of bash `brew install bash`
-- fswatch `brew install fswatch`
+- fswatch `brew install fswatch`fwefwef
 - PIP `brew install pip`
 - live reload `pip install livereload`
 - Dnsmasq `brew install dnsmasq`
