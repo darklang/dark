@@ -90,7 +90,7 @@ let () =
             (fun () ->
               expect
                 ( createEntering User
-                |> setQuery m a "Twit::someOtherFunc"
+                |> setQuery "Twit::someOtherFunc"
                 |> setQuery "T"
                 |> highlighted
                 |> Option.map asName )
