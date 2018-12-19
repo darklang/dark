@@ -298,6 +298,26 @@ let withDynamicItems
   new_ @ withoutDynamic
 
 
+let paramFor (m : model) (tlid : tlid) (id : id) : parameter option =
+  TL.get m tlid
+  |> Option.andThen TL.asHandler
+  |> Option.map (fun x -> x.ast)
+  |> Option.andThen (fun ast -> AST.getParamIndex ast id)
+  |> Option.andThen (fun (name, index) ->
+         m.complete.functions
+         |> List.find (fun f -> name = f.fnName)
+         |> Option.map (fun x -> x.fnParameters)
+         |> Option.andThen (List.getAt index) )
+
+
+let paramForTarget (m : model) (a : autocomplete) : parameter option =
+  match a.target with
+  | None ->
+      None
+  | Some (tlid, p) ->
+      paramFor m tlid (P.toID p)
+
+
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
@@ -344,22 +364,6 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
                match e with F (_, Thread _) -> true | _ -> false )
         |> Option.withDefault false
   in
-  let paramTipeForTarget =
-    match a.target with
-    | None ->
-        None
-    | Some (tlid, p) ->
-        TL.get m tlid
-        |> Option.andThen TL.asHandler
-        |> Option.map (fun x -> x.ast)
-        |> Option.andThen (fun ast -> AST.getParamIndex ast (P.toID p))
-        |> Option.andThen (fun (name, index) ->
-               a.functions
-               |> List.find (fun f -> name = f.fnName)
-               |> Option.map (fun x -> x.fnParameters)
-               |> Option.andThen (List.getAt index)
-               |> Option.map (fun x -> x.paramTipe) )
-  in
   (* functions *)
   let funcList = if isExpression then a.functions else [] in
   let functions =
@@ -369,9 +373,9 @@ let generateFromModel (m : model) (a : autocomplete) : autocompleteItem list =
            | Some t ->
                RT.isCompatible fnReturnTipe t
            | None ->
-             ( match paramTipeForTarget with
-             | Some t ->
-                 RT.isCompatible fnReturnTipe t
+             ( match paramForTarget m a with
+             | Some p ->
+                 RT.isCompatible fnReturnTipe p.paramTipe
              | None ->
                  true ) )
     |> List.filter (fun fn ->
