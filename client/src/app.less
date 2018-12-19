@@ -1186,8 +1186,16 @@ body #grid * {
         background: @autocomplete-highlight-color;
       }
 
-      &.greyed {
-        color: @grey2;
+      &.invalid {
+        .name, .types {
+          text-decoration: line-through solid;
+        }
+        background: @grey1;
+        color: @grey3;
+        &.highlighted {
+          background: lighten(@darkblue, 50%);
+          color: black;
+        }
       }
     }
   }

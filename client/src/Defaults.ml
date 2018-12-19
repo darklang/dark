@@ -43,6 +43,7 @@ let defaultModel : model =
       { functions = []
       ; admin = false
       ; completions = []
+      ; invalidCompletions = []
       ; allCompletions = []
       ; index = -1
       ; value = ""

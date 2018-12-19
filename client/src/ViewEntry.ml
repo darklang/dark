@@ -76,10 +76,10 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
 
 let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
     =
-  let autocompleteList =
+  let toList acis class' index =
     List.indexedMap
       (fun i item ->
-        let highlighted = ac.index = i in
+        let highlighted = index = i in
         let name = Autocomplete.asName item in
         let view item classes =
           match item with
@@ -90,7 +90,9 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
         in
         Html.li
           [ Attributes.classList
-              [("autocomplete-item", true); ("highlighted", highlighted)]
+              [ ("autocomplete-item", true)
+              ; ("highlighted", highlighted)
+              ; (class', true) ]
           ; nothingMouseEvent "mouseup"
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
@@ -99,7 +101,12 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; Html.span
               [Html.class' "types"]
               [Html.text <| Autocomplete.asTypeString item] ] )
-      ac.completions
+      acis
+  in
+  let invalidIndex = ac.index - List.length ac.completions in
+  let autocompleteList =
+    toList ac.completions "valid" ac.index
+    @ toList ac.invalidCompletions "invalid" invalidIndex
   in
   let autocomplete =
     Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
