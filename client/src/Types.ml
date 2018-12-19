@@ -459,6 +459,7 @@ and autocomplete =
   { functions : function_ list
   ; admin : bool
   ; completions : autocompleteItem list
+  ; invalidCompletions : autocompleteItem list
   ; allCompletions : autocompleteItem list
   ; index : int
   ; value : string

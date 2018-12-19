@@ -127,7 +127,7 @@ let isSmallStringEntry (a : autocomplete) : bool =
 
 
 let highlighted (a : autocomplete) : autocompleteItem option =
-  List.getAt a.index a.completions
+  List.getAt a.index (a.completions @ a.invalidCompletions)
 
 
 let getValue (a : autocomplete) : string =
@@ -482,7 +482,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
 let filter
     (matcher : autocompleteItem -> bool)
     (list : autocompleteItem list)
-    (query : string) : autocompleteItem list =
+    (query : string) : autocompleteItem list * autocompleteItem list =
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
@@ -514,7 +514,7 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.filter matcher allMatches
+  List.partition matcher allMatches
 
 
 let init (fns : function_ list) (isAdmin : bool) : autocomplete =
@@ -528,11 +528,14 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
   let fudgedCompletions =
     withDynamicItems old.target query old.allCompletions
   in
-  let newCompletions = filter old.matcher fudgedCompletions query in
-  let newCount = newCompletions |> List.length in
+  let newCompletions, invalidCompletions =
+    filter old.matcher fudgedCompletions query
+  in
   let oldHighlight = highlighted old in
+  let allCompletions = newCompletions @ invalidCompletions in
+  let newCount = List.length allCompletions in
   let oldHighlightNewPos =
-    oldHighlight |> Option.andThen (fun oh -> List.elemIndex oh newCompletions)
+    oldHighlight |> Option.andThen (fun oh -> List.elemIndex oh allCompletions)
   in
   let index =
     (* Clear the highlight conditions *)
@@ -559,8 +562,11 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
           else 0
   in
   { old with
-    index; completions = newCompletions; value = query; prevValue = old.value
-  }
+    index
+  ; completions = newCompletions
+  ; invalidCompletions
+  ; value = query
+  ; prevValue = old.value }
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
@@ -590,7 +596,9 @@ let reset (m : model) (a : autocomplete) : autocomplete =
   init functions a.admin |> regenerate m
 
 
-let numCompletions (a : autocomplete) : int = a.completions |> List.length
+let numCompletions (a : autocomplete) : int =
+  List.length a.completions + List.length a.invalidCompletions
+
 
 let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
