@@ -299,7 +299,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ^ nl
         ^ "]"
     | l ->
-        "[ " ^ String.join ", " (List.map (toRepr_ indent) l) ^ "]" )
+        "[ " ^ String.join ", " (List.map (toRepr_ indent) l) ^ " ]" )
   | DObj o ->
       objToString (StrDict.toList o)
 
