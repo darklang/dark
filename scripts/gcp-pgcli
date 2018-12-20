@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -9,14 +9,14 @@ echo "doesn't respect PGPASSWORD, or other script-friendly ways to provide a pas
 
 file="config/${1}"
 
-HOST="$(grep DARK_CONFIG_DB_HOST $file | sed 's/.*=//')"
-DBNAME="$(grep DARK_CONFIG_DB_DBNAME $file | sed 's/.*=//')"
-USER="$(grep DARK_CONFIG_DB_USER $file | sed 's/.*=//')"
-PGPASSWORD="$(grep DARK_CONFIG_DB_PASSWORD $file | sed 's/.*=//')"
+HOST="$(grep DARK_CONFIG_DB_HOST "$file" | sed 's/.*=//')"
+DBNAME="$(grep DARK_CONFIG_DB_DBNAME "$file" | sed 's/.*=//')"
+USER="$(grep DARK_CONFIG_DB_USER "$file" | sed 's/.*=//')"
+PGPASSWORD="$(grep DARK_CONFIG_DB_PASSWORD "$file" | sed 's/.*=//')"
 
 # gcp-psql handles whitelisting our IP address for a 5min window.
 # Unfortunately, despite docs saying it respects PGDATABASE, it does not
 # support PGPASSWORD
 # echo "SELECT 1" | PGPASSWORD=${PGPASSWORD} ./scripts/gcp-psql
 
-PGPASSWORD=${PGPASSWORD} pgcli -h ${HOST} -U $USER -d $DBNAME
+PGPASSWORD=${PGPASSWORD} pgcli -h "${HOST}" -U "$USER" -d "$DBNAME"
