@@ -7,4 +7,4 @@ PROJECT="balmy-ground-195100"
 ZONE="us-west1"
 CLUSTER="$(< current-cluster)"
 
-gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER --zone=$ZONE
+gcloud container clusters get-credentials "projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER" --zone=$ZONE
