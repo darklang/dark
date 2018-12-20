@@ -597,4 +597,10 @@ let init () : unit =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGZUMElBZEVDU1g4TFEyeVNLVy9LQSRyNm5CV2l2ZWJmbk4xdUtHMk1CSVlraDJvRnd5SGh4clJaYUQ4L2hQa3ZNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "eamo@eamo.net"
     ; name = "Eamon Leonard" } ;
+  upsert_account
+    { username = "yaro"
+    ; password =
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkL25DT25wU3I0UHBzZzZ0OTRXUGRkZyR1dktDVnN6S2w4aW1IT0NmV3NNVjFRbGlZQU9FSFd0Z0JCS3kzbG5HWWM4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "mike@rocketvisor.com"
+    ; name = "Michael Yaroshefsky" } ;
   ()
