@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
 
 
 FILES=$(ls backend/*/*.ml{,i})
+# shellcheck disable=SC2010
 MLFILES=$(ls backend/*/*.ml | grep -v test.ml)
 
+# shellcheck disable=SC2086,SC2010
 LETS=$(grep -P -h '^let ' $FILES \
         | sed 's/\s*let\s*//' \
         | awk '{print $1;}' \
@@ -15,5 +17,6 @@ LETS=$(grep -P -h '^let ' $FILES \
 
 for z in $LETS; do
   echo -en "$z: " ;
+  # shellcheck disable=SC2086
   (grep $z $MLFILES || true ) | wc -l;
 done | grep " 1$"
