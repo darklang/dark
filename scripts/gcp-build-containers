@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "${@}"
 
 PREFIX=""
 for i in "$@"
@@ -22,25 +22,25 @@ done
 #################################
 DIR=$(mktemp -d --suffix _gcp-builddir)
 
-cp scripts/support/gcp-server-Dockerfile $DIR/Dockerfile
+cp scripts/support/gcp-server-Dockerfile "$DIR/Dockerfile"
 
-cp -f scripts/support/gcp-run-server $DIR/
-cp -Rf backend/templates $DIR/
-cp -Rf scripts $DIR/
+cp -f scripts/support/gcp-run-server "$DIR/"
+cp -Rf backend/templates "$DIR/"
+cp -Rf scripts "$DIR/"
 
-mkdir -p $DIR/bin
-cp -f backend/_build/default/bin/server.exe $DIR/bin/
+mkdir -p "$DIR/bin"
+cp -f backend/_build/default/bin/server.exe "$DIR/bin/"
 
-mkdir -p $DIR/webroot
-cp -Rf backend/static $DIR/webroot/
+mkdir -p "$DIR/webroot"
+cp -Rf backend/static "$DIR/webroot/"
 
-mkdir -p $DIR/swagger
-cp -Rf backend/swagger/*  $DIR/swagger/
+mkdir -p "$DIR/swagger"
+cp -Rf backend/swagger/*  "$DIR/swagger/"
 
-mkdir -p $DIR/migrations
-cp -Rf backend/migrations/* $DIR/migrations/
+mkdir -p "$DIR/migrations"
+cp -Rf backend/migrations/* "$DIR/migrations/"
 
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp:latest" $DIR
+docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp:latest" "$DIR"
 
 
 #################################
@@ -48,25 +48,25 @@ docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}d
 #################################
 NDIR=$(mktemp -d --suffix _gcp-qw-builddir)
 
-cp scripts/support/gcp-queueworker-Dockerfile $NDIR/Dockerfile
+cp scripts/support/gcp-queueworker-Dockerfile "$NDIR/Dockerfile"
 
-cp -f scripts/support/gcp-run-queueworker $NDIR/
-cp -Rf backend/templates $NDIR/
-cp -Rf scripts $NDIR/
+cp -f scripts/support/gcp-run-queueworker "$NDIR/"
+cp -Rf backend/templates "$NDIR/"
+cp -Rf scripts "$NDIR/"
 
-mkdir -p $NDIR/bin
-cp -f backend/_build/default/bin/queue_worker.exe $NDIR/bin/
+mkdir -p "$NDIR/bin"
+cp -f backend/_build/default/bin/queue_worker.exe "$NDIR/bin/"
 
-mkdir -p $NDIR/webroot
-cp -Rf backend/static $NDIR/webroot/
+mkdir -p "$NDIR/webroot"
+cp -Rf backend/static "$NDIR/webroot/"
 
-mkdir -p $NDIR/swagger
-cp -Rf backend/swagger/*  $NDIR/swagger/
+mkdir -p "$NDIR/swagger"
+cp -Rf backend/swagger/*  "$NDIR/swagger/"
 
-mkdir -p $NDIR/migrations
-cp -Rf backend/migrations/* $NDIR/migrations/
+mkdir -p "$NDIR/migrations"
+cp -Rf backend/migrations/* "$NDIR/migrations/"
 
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-qw:latest" $NDIR
+docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-qw:latest" "$NDIR"
 
 #################################
 ## cronchecker
@@ -74,27 +74,27 @@ docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}d
 
 CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
 
-cp scripts/support/gcp-cronchecker-Dockerfile $CDIR/Dockerfile
+cp scripts/support/gcp-cronchecker-Dockerfile "$CDIR/Dockerfile"
 
-cp -f scripts/support/gcp-run-cronchecker $CDIR/
-cp -Rf backend/templates $CDIR/
-cp -Rf scripts $CDIR/
+cp -f scripts/support/gcp-run-cronchecker "$CDIR/"
+cp -Rf backend/templates "$CDIR/"
+cp -Rf scripts "$CDIR/"
 
-mkdir -p $CDIR/bin
-cp -f backend/_build/default/bin/cron_checker.exe $CDIR/bin/
+mkdir -p "$CDIR/bin"
+cp -f backend/_build/default/bin/cron_checker.exe "$CDIR/bin/"
 
-mkdir -p $CDIR/webroot
-cp -Rf backend/static $CDIR/webroot/
+mkdir -p "$CDIR/webroot"
+cp -Rf backend/static "$CDIR/webroot/"
 
-mkdir -p $CDIR/swagger
-cp -Rf backend/swagger/*  $CDIR/swagger/
+mkdir -p "$CDIR/swagger"
+cp -Rf backend/swagger/*  "$CDIR/swagger/"
 
-mkdir -p $CDIR/migrations
-cp -Rf backend/migrations/* $CDIR/migrations/
+mkdir -p "$CDIR/migrations"
+cp -Rf backend/migrations/* "$CDIR/migrations/"
 
 #################################
 ## tunnel
 #################################
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t "${PREFIX}dark-gcp-cron:latest" $CDIR
+docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-cron:latest" "$CDIR"
 
 docker build scripts/support -t "${PREFIX}tunnel:latest" -f scripts/support/tunnel.dockerfile
