@@ -1,10 +1,12 @@
 #!/bin/bash
+# shellcheck disable=SC2044
 
 set -euo pipefail
 
 # generate an etags doc for the following files, put it in
 # static/etags.json
 
+# shellcheck disable=SC2116
 cat > backend/static/etags.json <<EOF
 {$(
   # useful for debugging, and incidentally means we don't
