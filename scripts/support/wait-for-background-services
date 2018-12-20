@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-for name in ${@}; do
+for name in "${@}"; do
   echo "Waiting for $name"
   until sudo service "$name" status; do
     printf '.'

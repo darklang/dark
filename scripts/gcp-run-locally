@@ -24,7 +24,7 @@ docker run \
   --network dark-dev-net \
   --name $IMAGE-local \
   --env-file config/gcp-local \
-  --mount type=bind,src=${HOST_PWD}/gcp-rundir,dst=/home/dark/gcp-rundir \
+  --mount type=bind,src="${HOST_PWD}"/gcp-rundir,dst=/home/dark/gcp-rundir \
   $IMAGE:latest
 
 
