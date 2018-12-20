@@ -1,0 +1,10 @@
+echo "check bash files ..."
+# In the scripts/ directory,
+# everything with a shebang containing sh (bash, sh)
+find $(dirname $0)/../ \
+  -type f -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + | \
+  xargs shellcheck
+#  while IFS= read -r f; do
+#    echo "echoing $f ..."
+#    shellcheck "$f"
+#done
