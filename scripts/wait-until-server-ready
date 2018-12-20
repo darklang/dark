@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
 
 function wait_for {
   test_url="http://${DARK_CONFIG_STATIC_HOST}/$1"
-  until $(curl --output /dev/null --silent --show-error --head --fail "${test_url}"); do
-      printf "waiting for $1\n"
+  until curl --output /dev/null --silent --show-error --head --fail "${test_url}"; do
+      printf "waiting for %s\n" "$1"
       sleep 1
   done
 }
