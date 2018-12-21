@@ -297,10 +297,7 @@ def mark(should, f):
                   or ("dune" in f) \
                   or ("_tags" in f) \
                   or ("libtarget.js" in f)):
-    if "test/test.ml" in f:
-      should.backend_test = True
-    else:
-      should.backend_build = True
+    should.backend_build = True
 
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
