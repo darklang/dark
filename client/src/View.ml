@@ -70,16 +70,34 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> String.join " "
   in
   let documentation =
-    if Some tl.id = tlidOf m.cursorState
-    then
-      m.complete
-      |> Autocomplete.highlighted
-      |> Option.andThen Autocomplete.documentationForItem
-      |> Option.map (fun desc ->
-             [ Html.div
-                 [Html.class' "documentation-box"]
-                 [Html.p [] [Html.text desc]] ] )
-    else None
+    match (tlidOf m.cursorState, idOf m.cursorState) with
+    | Some tlid, Some id when tlid = tl.id ->
+        let fnDocString =
+          m.complete
+          |> Autocomplete.highlighted
+          |> Option.andThen Autocomplete.documentationForItem
+          |> Option.map (fun desc ->
+                 [ Html.div
+                     [Html.class' "documentation-box"]
+                     [Html.p [] [Html.text desc]] ] )
+        in
+        let paramDocString =
+          match Autocomplete.paramFor m tlid id with
+          | Some p ->
+              let header =
+                p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe
+              in
+              Some
+                [ Html.div
+                    [Html.class' "documentation-box"]
+                    [ Html.p [] [Html.text header]
+                    ; Html.p [] [Html.text p.paramDescription] ] ]
+          | _ ->
+              None
+        in
+        Option.orElse paramDocString fnDocString
+    | _ ->
+        None
   in
   let top = match documentation with Some doc -> doc | _ -> data in
   let pos =
