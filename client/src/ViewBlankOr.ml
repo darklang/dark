@@ -313,6 +313,8 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "param type"
   | Pattern ->
       "pattern"
+  | ConstructorName ->
+      "constructor name"
 
 
 let viewBlankOr

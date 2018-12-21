@@ -986,6 +986,10 @@ body #grid * {
     margin-right: 4px;
   }
 
+  .constructorname {
+    margin-right: 4px;
+  }
+
   .atom.fieldaccessop {
     margin-left: -4px;
     margin-right: 0px;
@@ -1182,8 +1186,16 @@ body #grid * {
         background: @autocomplete-highlight-color;
       }
 
-      &.greyed {
-        color: @grey2;
+      &.invalid {
+        .name, .types {
+          text-decoration: line-through solid;
+        }
+        background: @grey1;
+        color: @grey3;
+        &.highlighted {
+          background: lighten(@darkblue, 50%);
+          color: black;
+        }
       }
     }
   }

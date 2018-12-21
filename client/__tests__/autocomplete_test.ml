@@ -90,14 +90,7 @@ let () =
             (fun () ->
               expect
                 ( createEntering User
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
-                |> selectDown
+                |> setQuery "Twit::someOtherFunc"
                 |> setQuery "T"
                 |> highlighted
                 |> Option.map asName )
@@ -123,7 +116,6 @@ let () =
                 ( createEntering User
                 |> setQuery "lis"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.map asName )
               |> toEqual ["List::head"] ) ;
           test "search finds multiple results for prefix" (fun () ->
@@ -131,7 +123,6 @@ let () =
                 ( createEntering User
                 |> setQuery "twit::"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual
@@ -142,7 +133,6 @@ let () =
                 ( createEntering User
                 |> setQuery "twit::y"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual ["Twit::yetAnother"] ) ;
@@ -151,7 +141,6 @@ let () =
                 ( createEntering User
                 |> setQuery "Another"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual ["Twit::yetAnother"] ) ;
@@ -160,7 +149,6 @@ let () =
                 ( createEntering User
                 |> setQuery "List::head"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName
                 |> List.length )
@@ -206,12 +194,8 @@ let () =
                 ( createEntering User
                 |> selectUp
                 |> selectUp
-                |> selectUp
-                |> selectUp
-                |> selectUp
-                |> selectUp
                 |> fun x -> x.index )
-              |> toEqual 15 ) ;
+              |> toBeGreaterThan 15 ) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( createEntering User
@@ -221,30 +205,33 @@ let () =
                 |> setQuery "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual (-1) ) ;
-          (* -- Filter by method signature for typed values *)
-          (* -- , \_ -> createEntering User *)
-          (* -- |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing} *)
-          (* -- |> setQuery "" *)
-          (* -- |> .completions *)
-          (* -- |> List.map asName *)
-          (* -- |> Set.fromList *)
-          (* -- |> (==) (Set.fromList ["List::head"]) *)
-          (*  *)
-          (* -- Show allowed fields for objects *)
-          (* -- , \_ -> createEntering User *)
-          (* -- |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing} *)
-          (* -- |> setQuery "" *)
-          (* -- |> .completions *)
-          (* -- |> List.map asName *)
-          (* -- |> Set.fromList *)
-          (* -- |> (==) (Set.fromList ["Int::add", "+"]) *)
-          (*  *)
+          (* test "Filter by method signature for typed values" ( fun () ->
+              expect
+                ( createEntering User
+                |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
+                |> setQuery ""
+                |> (fun x -> x.completions)
+                |> List.map asName
+                |> Set.fromList
+                |> (==) (Set.fromList ["List::head"]) )
+              |> toEqual true ) ;
+          
+          test "Show allowed fields for objects" ( fun () ->
+              expect
+                ( createEntering User
+                |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
+                |> setQuery ""
+                |> (fun x -> x.completions)
+                |> List.map asName
+                |> Set.fromList
+                |> (==) (Set.fromList ["Int::add", "+"]))
+              |> toEqual true ) ;
+           *)
           test "By default the list shows results" (fun () ->
               expect
                 ( createEntering User
                 |> setQuery ""
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.length )
               |> not_
               |> toEqual 0 ) ;
@@ -255,7 +242,6 @@ let () =
                 ( createEntering User
                 |> setQuery "withL"
                 |> (fun x -> x.completions)
-                |> List.concat
                 |> List.filter isStaticItem
                 |> List.map asName )
               |> toEqual
@@ -306,7 +292,7 @@ let () =
               |> toEqual (Some (ACKeyword KLambda)) ) ) ;
       describe "queryWhenCreating" (fun () ->
           let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
-            List.member aci (List.concat ac.completions)
+            List.member aci ac.completions
           in
           let itemMissing (aci : autocompleteItem) (ac : autocomplete) : bool =
             not (itemPresent aci ac)

@@ -117,7 +117,7 @@ let pipe_within_let (m : model) : testResult =
           ( _
           , Thread
               [ F (_, Variable "value")
-              ; F (_, FnCall ("assoc", [Blank _; Blank _], _)) ] ) ) ->
+              ; F (_, FnCall ("Int::add", [Blank _], _)) ] ) ) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -163,14 +163,10 @@ let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (_, Variable "request"), Blank _) ->
     ( match m.complete.completions with
-    | [_; cs; _; _; _; _] ->
-      ( match cs with
-      | [ACVariable "request"] ->
-          pass
-      | _ ->
-          fail ~f:(show_list show_autocompleteItem) cs )
-    | allcs ->
-        fail ~f:(show_list (show_list show_autocompleteItem)) allcs )
+    | [ACVariable "request"; ACFunction {fnName = "Http::badRequest"}] ->
+        pass
+    | cs ->
+        fail ~f:(show_list show_autocompleteItem) cs )
   | e ->
       fail ~f:show_nExpr e
 

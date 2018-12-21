@@ -262,6 +262,8 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
     ( match nExpr with
     | FnCall (name, list, _) ->
         if name = fnName then true else List.any (isFunctionInExpr fnName) list
+    | Constructor (_, args) ->
+        List.any (isFunctionInExpr fnName) args
     | If (ifExpr, thenExpr, elseExpr) ->
         List.any (isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
     | Variable _ ->
