@@ -128,10 +128,7 @@ ENV LC_ALL en_US.UTF-8
 USER root
 RUN npm install -g yarn@1.12.3
 USER dark
-RUN yarn add \
-  less@2.7.3 \
-  testcafe@0.22.0 \
-  bs-platform@4.0.7
+RUN yarn add testcafe@0.23.3
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
@@ -164,11 +161,6 @@ RUN sudo chown postgres:postgres -R /var/lib/postgresql
 ############################
 USER root
 RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
-
-############################
-# benchmarking
-############################
-RUN pip3 install requests
 
 ############################
 # Google cloud
@@ -211,7 +203,7 @@ RUN opam install -y \
   ppx_deriving.4.2.1 \
   core.v0.11.2  \
   core_extended.v0.11.0 \
-  dune.1.4.0 \
+  dune.1.6.2 \
   re2.v0.11.0 \
   conf-libev.4-11 \
   lwt.3.3.0 \
@@ -238,7 +230,8 @@ RUN opam install -y \
   js_of_ocaml-ppx.3.2.0 \
   js_of_ocaml-lwt.3.2.0 \
   sodium.0.6.0 \
-  utop
+  utop \
+  ocamlformat
 
 # To use PPXes in bucklescript, we need to install them from opam
 RUN opam switch create 4.02.3
@@ -261,19 +254,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       -y \
       less
 
-
-############################
-# Environment
-############################
-USER dark
-ENV TERM=xterm-256color
-
-######################
-# Quick hacks here, to avoid massive recompiles
-######################
-
-RUN opam install -y \
-  ocamlformat
 
 ########################
 # Install Rust toolchain
@@ -308,13 +288,16 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
 
-############################
-# Remove things that were moved to devDependencies
-############################
-user dark
-RUN yarn remove less bs-platform
 
-RUN opam update && opam install -y dune.1.6.2
+############################
+# Environment
+############################
+USER dark
+ENV TERM=xterm-256color
+
+######################
+# Quick hacks here, to avoid massive recompiles
+######################
 
 ############################
 # Finish
