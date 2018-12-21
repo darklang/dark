@@ -27,6 +27,9 @@ val auth_domain_for : string -> string
 (* Get the owner of a host *)
 val for_host : string -> Uuidm.t
 
+(* Add (or update) a user *)
+val upsert_user' : username:string -> email:string -> name:string -> unit -> string
+
 (* Get a username from an ID *)
 val username_of_id : Uuidm.t -> string option
 

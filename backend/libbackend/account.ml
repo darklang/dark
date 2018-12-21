@@ -161,6 +161,11 @@ let for_host (host : string) : Uuidm.t =
   |> owner
   |> fun o -> Option.value_exn ~message:("No owner found for host " ^ host) o
 
+let upsert_user' ~(username:string) ~(email: string) ~(name:string) () : string =
+  let plaintext = Util.random_string 16 in
+  let password = hash_password plaintext in
+  upsert_account { username; email; name; password };
+  plaintext
 
 let init_testing () : unit =
   upsert_account
