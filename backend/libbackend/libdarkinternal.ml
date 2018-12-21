@@ -99,4 +99,11 @@ let replacements =
                 DBool true
               with _ -> DBool false )
         | args ->
+            fail args )
+    ; ( "DarkInternal::upsertUser"
+      , function
+        | _, [DStr username; DStr email; DStr name] ->
+            let password = Account.upsert_user' ~username ~email ~name () in
+            DStr password
+        | args ->
             fail args ) ]
