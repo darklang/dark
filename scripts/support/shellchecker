@@ -1,0 +1,8 @@
+echo "check bash files ..."
+# In the scripts/ directory,
+# everything with a shebang containing sh (bash, sh)
+#
+# SC1091: https://github.com/koalaman/shellcheck/wiki/SC1091
+find $(dirname $0)/../ \
+  -type f -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + | \
+  xargs shellcheck -e SC1091

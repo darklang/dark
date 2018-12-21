@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-for name in ${@}; do
+for name in "${@}"; do
     if [[ $name == postgres ]]; then
       # for some reason, uncommenting the equivalent line in the Dockerfile doesn't do the
       # job. don't have time right now to figure out why.
       LA="listen_addresses = '*'"
-      echo $LA >> /etc/postgresql/9.6/main/postgresql.conf
+      echo "$LA" >> /etc/postgresql/9.6/main/postgresql.conf
     fi
   echo "--------------------------"
   echo "--  Starting $name"
