@@ -211,7 +211,7 @@ RUN opam install -y \
   ppx_deriving.4.2.1 \
   core.v0.11.2  \
   core_extended.v0.11.0 \
-  dune.1.4.0 \
+  dune.1.6.2 \
   re2.v0.11.0 \
   conf-libev.4-11 \
   lwt.3.3.0 \
