@@ -118,6 +118,7 @@ and nExpr =
   | FieldAccess of expr * field
   | FeatureFlag of string blankOr * expr * expr * expr
   | Match of expr * (pattern * expr) list
+  | Constructor of string blankOr * expr list
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -137,6 +138,7 @@ and pointerData =
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
   | PPattern of pattern
+  | PConstructorName of string blankOr
 
 and pointerType =
   | VarBind
@@ -153,6 +155,7 @@ and pointerType =
   | ParamName
   | ParamTipe
   | Pattern
+  | ConstructorName
 
 and pointerOwner =
   | POSpecHeader
@@ -441,6 +444,7 @@ and omniAction =
 
 and autocompleteItem =
   | ACFunction of function_
+  | ACConstructorName of string
   | ACField of string
   | ACVariable of varName
   | ACExtra of string
@@ -454,13 +458,14 @@ and target = tlid * pointerData
 and autocomplete =
   { functions : function_ list
   ; admin : bool
-  ; completions : autocompleteItem list list
+  ; completions : autocompleteItem list
+  ; invalidCompletions : autocompleteItem list
   ; allCompletions : autocompleteItem list
   ; index : int
   ; value : string
   ; prevValue : string
-  ; target : (tlid * pointerData) option
-  ; acTipe : tipe option
+  ; target : target option
+  ; matcher : autocompleteItem -> bool
   ; isCommandMode : bool }
 
 and autocompleteMod =

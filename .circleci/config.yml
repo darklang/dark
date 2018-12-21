@@ -19,17 +19,6 @@ commands:
             # set the ownership of all this
             docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
 
-  copy-out-of-container:
-    steps:
-      - run:
-          name: Copy out generated files and caches
-          when: always
-          command: |
-            docker cp vols:/home/dark/app/backend/_build backend/
-            docker cp vols:/home/dark/app/client/node_modules client
-            docker cp vols:/home/dark/app/client/lib client
-            docker cp vols:/home/dark/app/backend/static/. backend/static
-
   ##########################
   # Artifacts
   ##########################
