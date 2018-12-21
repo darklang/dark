@@ -74,8 +74,8 @@ let rec allData (expr : expr) : pointerData list =
         rl [cond; ifbody; elsebody]
     | FnCall (_, exprs, _) ->
         rl exprs
-    | Constructor (_, exprs) ->
-        rl exprs
+    | Constructor (name, exprs) ->
+        PConstructorName name :: rl exprs
     | Lambda (vars, body) ->
         List.map (fun x -> PVarBind x) vars @ allData body
     | Thread exprs ->
