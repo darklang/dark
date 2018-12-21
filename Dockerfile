@@ -299,6 +299,9 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+# Testcafe 23.3 hangs on us.
+RUN yarn add testcafe@0.22.0
+
 ############################
 # Finish
 ############################
