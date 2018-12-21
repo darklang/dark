@@ -6,4 +6,4 @@ set -euo pipefail
 (ps aux | pgrep -f '.browser-trigger' | xargs kill -9 > /dev/null 2>&1) || true
 
 
-livereload -t $(dirname $0)/../../.browser-trigger
+livereload -t "$(dirname "$0")/../../.browser-trigger"

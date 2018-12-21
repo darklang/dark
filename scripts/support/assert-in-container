@@ -3,7 +3,7 @@
 # do not set -euo pipefail here, that's the responsibility of the scripts
 
 if [[ ! -v IN_DEV_CONTAINER ]]; then
-  scripts/run-in-docker ${@}
+  scripts/run-in-docker "${@}"
   exit $?
 fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "$@"
 
 c=$(docker ps --filter "ancestor=dark-gcp:latest" -q)
 if [[ ! -z "${c}" ]]; then
@@ -24,7 +24,7 @@ docker run \
   --network dark-dev-net \
   --name $IMAGE-local \
   --env-file config/gcp-local \
-  --mount type=bind,src=${HOST_PWD}/gcp-rundir,dst=/home/dark/gcp-rundir \
+  --mount type=bind,src="${HOST_PWD}"/gcp-rundir,dst=/home/dark/gcp-rundir \
   $IMAGE:latest
 
 
