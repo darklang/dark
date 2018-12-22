@@ -1,3 +1,8 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
 echo "check bash files ..."
 # In the scripts/ directory,
 # everything with a shebang containing sh (bash, sh)
