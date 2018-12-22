@@ -603,4 +603,10 @@ let init () : unit =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkL25DT25wU3I0UHBzZzZ0OTRXUGRkZyR1dktDVnN6S2w4aW1IT0NmV3NNVjFRbGlZQU9FSFd0Z0JCS3kzbG5HWWM4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "mike@rocketvisor.com"
     ; name = "Michael Yaroshefsky" } ;
+  upsert_account
+    { username = "jason"
+    ; password =
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkb24yR0hTZUd4ekFSNE1WSkFidXJ5dyRoVUdXNVNqWnRwa1UwTS91Qk00SldXd2VwSzdCUWJocW9uZi9HOGNDUmVFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "jason.laster.11@gmail.com"
+    ; name = "Jason Laster" } ;
   ()
