@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container $0 $@
+. ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -18,7 +18,7 @@ do
     ;;
     *)
     echo "Unexpected argument: $i"
-    exit -1
+    exit 255
     ;;
   esac
 done
@@ -66,17 +66,17 @@ REPORTERS+=,json:${TEST_RESULTS_JSON}
 REPORTERS+=,xunit:${TEST_RESULTS_XML}
 
 echo "Clearing old test files"
-rm -f ${DARK_CONFIG_RUNDIR}/completed_tests/*
-rm -Rf ${DARK_CONFIG_RUNDIR}/screenshots/*
-rm -f ${TEST_RESULTS_DIR}/integration_tests.*
+rm -f "${DARK_CONFIG_RUNDIR}/completed_tests/*"
+rm -Rf "${DARK_CONFIG_RUNDIR}/screenshots/*"
+rm -f "${TEST_RESULTS_DIR}/integration_tests.*"
 
 # Clear DBs
 DBLOG="${DARK_CONFIG_RUNDIR}/integration_db.log"
 echo "Clearing old DB data (logs in ${DBLOG})"
 DB="${DARK_CONFIG_DB_DBNAME}"
-function run_sql { psql -d $DB -c "$@" >> "$DBLOG" 2>&1; }
+function run_sql { psql -d "$DB" -c "$@" >> "$DBLOG" 2>&1; }
 
-function fetch_sql { psql -d $DB -t -c "$@"; }
+function fetch_sql { psql -d "$DB" -t -c "$@"; }
 
 CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
@@ -99,19 +99,19 @@ TEST_HOST="integration-tests:$PORT" \
     --assertion-timeout 50 \
     --app-init-delay 0 \
     --pageload-timeout 200 \
-    --speed $SPEED \
+    --speed "$SPEED" \
     --screenshots-on-fails \
-    --screenshots ${DARK_CONFIG_RUNDIR}/screenshots/ \
+    --screenshots "${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
-    --reporter $REPORTERS \
+    --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
     "chrome:headless" \
-    integration-tests/tests.js 2> ${DARK_CONFIG_RUNDIR}/integration_error.log
+    integration-tests/tests.js 2> "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
 RESULT=$?
 
 # Fix xunit output for CircleCI flaky-tests stats
-sed -i 's/ (screenshots: .*)"/"/' ${TEST_RESULTS_XML}
+sed -i 's/ (screenshots: .*)"/"/' "${TEST_RESULTS_XML}"
 
 exit $RESULT
 

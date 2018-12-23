@@ -32,5 +32,5 @@ if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
 else
   echo "Missing binaries"
-  exit -1
+  exit 255
 fi

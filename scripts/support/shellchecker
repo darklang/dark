@@ -1,8 +1,16 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
 echo "check bash files ..."
 # In the scripts/ directory,
 # everything with a shebang containing sh (bash, sh)
 #
 # SC1091: https://github.com/koalaman/shellcheck/wiki/SC1091
-find $(dirname $0)/../ \
-  -type f -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + | \
-  xargs shellcheck -e SC1091
+# shellcheck disable=SC2038
+find ./* \
+  -type f \
+  -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
+  | grep -v node_modules \
+  | xargs shellcheck -e SC1091
