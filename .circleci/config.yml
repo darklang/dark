@@ -222,6 +222,7 @@ jobs:
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
+      - run: scripts/support/shellchecker # run here cause its the fastest
       - run: scripts/builder --compile-client --test
       - run:
           name: Copy out generated files and caches
