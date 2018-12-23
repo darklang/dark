@@ -4,8 +4,12 @@
 set -euo pipefail
 
 
-# shellcheck disable=SC2010
-MLFILES=$(ls backend/*/*.ml | grep -v test.ml)
+MLFILES=()
+for mlfile in backend/*/*.ml; do
+    if ! [[ "$mlfile" =~ test.ml ]]; then
+        MLFILES+=( "$file" )
+    fi
+done
 
 LETS=$(grep -P -h '^let ' backend/*/*.ml{,i} \
         | sed 's/\s*let\s*//' \
