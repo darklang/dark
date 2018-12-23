@@ -129,9 +129,8 @@ fi
 # --------------
 echo "Run the build"
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 # shellcheck disable=SC2086
-$FSWATCH | sed -l -e "s;$DIR;/home/dark/app;g" | docker run \
+$FSWATCH | docker run \
              --rm \
              -i \
              $MOUNTS \
