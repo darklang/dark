@@ -6,9 +6,16 @@ module String = struct
   include Belt.Map.String
 
   let pp
-      (_ : Format.formatter -> 'value -> unit)
-      (_ : Format.formatter)
-      (_ : 'value t) =
+      (valueFormatter : Format.formatter -> 'value -> unit)
+      (fmt : Format.formatter)
+      (map : 'value t) =
+    Format.pp_print_string fmt "{ " ;
+    forEach map (fun k v ->
+        Format.pp_print_string fmt k ;
+        Format.pp_print_string fmt ": " ;
+        valueFormatter fmt v ;
+        Format.pp_print_string fmt ",  " ) ;
+    Format.pp_print_string fmt "}" ;
     ()
 end
 
@@ -16,8 +23,15 @@ module Int = struct
   include Belt.Map.Int
 
   let pp
-      (_ : Format.formatter -> 'value -> unit)
-      (_ : Format.formatter)
-      (_ : 'value t) =
+      (valueFormatter : Format.formatter -> 'value -> unit)
+      (fmt : Format.formatter)
+      (map : 'value t) =
+    Format.pp_print_string fmt "{ " ;
+    forEach map (fun k v ->
+        Format.pp_print_int fmt k ;
+        Format.pp_print_string fmt ": " ;
+        valueFormatter fmt v ;
+        Format.pp_print_string fmt ",  " ) ;
+    Format.pp_print_string fmt "}" ;
     ()
 end
