@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2030,SC2031
 . ./scripts/support/assert-in-container "$0" "$@"
 
 # note: no set -e
