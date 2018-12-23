@@ -50,6 +50,10 @@ def run_test(start, bash):
   else:
     return True
 
+def is_script(f):
+  filetype = subprocess.check_output(["file", f], encoding="utf-8")
+  return "Bourne-Again" in filetype
+
 def less_compile():
   start = time.time()
   return run_frontend(start, "client/node_modules/.bin/lessc client/src/app.less backend/static/app.css")
@@ -93,6 +97,10 @@ def client_test():
   result = run_test(start, "cd client && unbuffer yarn test")
   return result
 
+def shellcheck(f):
+  start = time.time()
+  result = run(start, "shellcheck -e SC1091 " + f)
+  return result
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
 def backend_build():
@@ -217,6 +225,7 @@ class Should:
     self.reload_browser = False
     self.reload_server = False
     self.generate_etags = False
+    self.shellcheck = []
 
 def execute(should):
   success = True
@@ -283,6 +292,10 @@ def execute(should):
   if should.stroller_test:
     if not stroller_test(): success = False
 
+  if should.shellcheck != []:
+    if not all([shellcheck(f) for f in should.shellcheck]):
+      success = False
+
   return success
 
 
@@ -329,6 +342,10 @@ def mark(should, f):
   elif ".less" in f:
     should.less_compile = True
 
+  elif "scripts" in f and is_script(f):
+    should.shellcheck += [f]
+
+
   elif ".html" in f:
     should.reload_browser = True
 
@@ -348,7 +365,6 @@ def ignore(filename):
             , "integration-tests/"
             , "rundir/"
             , "gcp_rundir/"
-            , "scripts/"
             , "transaction.yaml"
             , "backend/_build/"
             , "backend/dark.install"
