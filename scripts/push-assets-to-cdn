@@ -6,23 +6,25 @@ PREFIX_TO_REMOVE="backend/static/"
 rm -rf gzipped_assets; mkdir -p gzipped_assets
 
 # We're not hashing the files in backend/static/vendor
-# shellcheck disable=SC2044
-for file in $(find backend/static -maxdepth 1 -type f -and -not -name etags.json -and -not -name "*.gz"); do
+find backend/static -maxdepth 1 -type f -and -not -name etags.json -and -not -name "*.gz" > files_to_gzip
+while IFS= read -r file; do
     basefile="$(basename "$file")"
     filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
     hashed_file="${file%.*}-${filehash}.${basefile##*.}"
 
     # No .gz extension because gcloud cloud cdn doesn't want that
     gzip -c "${file}" > "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}"
-done
+done < files_to_gzip
+rm files_to_gzip
 
 # We do want to compress the vendored files, though
-# shellcheck disable=SC2044
-for file in $(find backend/static -mindepth 2 -type f -and -not -name "*.gz"); do
+find backend/static -mindepth 2 -type f -and -not -name "*.gz" > files_to_gzip
+while IFS= read -r file; do
     mkdir -p "gzipped_assets/$(dirname "${file//$PREFIX_TO_REMOVE}")"
     # No .gz extension because gcloud cloud cdn doesn't want that
     gzip -c "${file}" > "gzipped_assets/${file//$PREFIX_TO_REMOVE}"
-done
+done < files_to_gzip
+rm files_to_gzip
 
 (
   cd gzipped_assets
