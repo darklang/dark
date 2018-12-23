@@ -304,7 +304,7 @@ RUN yarn add testcafe@0.22.0
 
 # Ubuntu has very old versions of shellcheck
 RUN \
-  VERSION=v0.4.6 \
+  VERSION=v0.6.0 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \

@@ -259,4 +259,4 @@ one, try it out a few times outside of production first. Moving the
 static IPs the obvious way is flaky and seems nondeterministic. You
 may have better luck swapping DNS if you need it and can live with the
 long propagation times.
- EOF
+EOF

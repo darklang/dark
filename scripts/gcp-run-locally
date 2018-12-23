@@ -3,7 +3,7 @@ set -euo pipefail
 . ./scripts/support/assert-in-container "$0" "$@"
 
 c=$(docker ps --filter "ancestor=dark-gcp:latest" -q)
-if [[ ! -z "${c}" ]]; then
+if [[ -n "${c}" ]]; then
   echo "Killing running containers"
   docker kill "${c}";
 fi
