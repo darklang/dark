@@ -5,14 +5,9 @@ set -euo pipefail
 # generate an etags doc for the following files, put it in
 # static/etags.json
 
-# shellcheck disable=SC2116,SC2044
+# shellcheck disable=SC2044
 cat > backend/static/etags.json <<EOF
-{$(
-  # useful for debugging, and incidentally means we don't
-  # have to do complicated things to avoid having a comma
-  # in the first line of the for loop.
-  echo " \"__date\": \"$(date -Iseconds)\""
-)
+{ "__date": "$(date -Iseconds)"
 $(for file in $(find backend/static -type f -printf "%P\n"); do
   SHA="$(sha256sum backend/static/"$file" | cut -d " " -f 1)"
   echo ", \"${file/\"/\\\"}\": \"${SHA/\"/\\\"}\""
