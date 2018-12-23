@@ -50,6 +50,10 @@ def run_test(start, bash):
   else:
     return True
 
+def run_other(start, bash):
+  pretty_print(bash, 46)
+  return run(start, bash)
+
 def is_script(f):
   filetype = subprocess.check_output(["file", f], encoding="utf-8")
   return "Bourne-Again" in filetype
@@ -99,7 +103,7 @@ def client_test():
 
 def shellcheck(f):
   start = time.time()
-  result = run(start, "shellcheck -e SC1091 " + f)
+  result = run_other(start, "shellcheck -e SC1091 " + f)
   return result
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
