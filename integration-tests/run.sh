@@ -18,7 +18,7 @@ do
     ;;
     *)
     echo "Unexpected argument: $i"
-    exit -1
+    exit 255
     ;;
   esac
 done
