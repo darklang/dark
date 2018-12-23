@@ -103,7 +103,7 @@ def client_test():
 
 def shellcheck(f):
   start = time.time()
-  result = run_other(start, "shellcheck -e SC1091 " + f)
+  result = run_other(start, "shellcheck " + f)
   return result
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "

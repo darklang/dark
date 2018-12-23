@@ -10,4 +10,4 @@ find ./* \
   -type f \
   -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
   | grep -v node_modules \
-  | xargs shellcheck -e SC1091
+  | xargs shellcheck
