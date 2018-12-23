@@ -53,27 +53,27 @@ fi
 
 if [ -v CI ]; then
   # see "copy in data" in .circleci/config.yml
-  MOUNTS="--volumes-from vols"
+  MOUNTS=("--volumes-from" "vols")
 else
-  MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
+  MOUNTS=("--mount" "type=bind,src=$PWD,dst=/home/dark/app")
 
 
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
-  MOUNTS+=" --mount type=volume,src=dark_backend_build,dst=/home/dark/app/backend/_build"
-  MOUNTS+=" --mount type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules"
-  MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
-  MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
-  MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo"
+  MOUNTS+=("--mount" "type=volume,src=dark_backend_build,dst=/home/dark/app/backend/_build")
+  MOUNTS+=("--mount" "type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules")
+  MOUNTS+=("--mount" "type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib")
+  MOUNTS+=("--mount" "type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target")
+  MOUNTS+=("--mount" "type=volume,src=dark_rust_cargo,dst=/usr/local/cargo")
 
   if [[ -e "../conduit-frontend" ]]; then
-    MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
+    MOUNTS+=("--mount" "type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend")
   fi
   if [[ -e "$HOME/.config/gcloud" ]]; then
-    MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
+    MOUNTS+=("--mount" "type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud")
   fi
   # make sure this exists first, so it doesn't get created as a directory
   touch "$HOME/.dark_bash_history"
-  MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
+  MOUNTS+=("--mount" "type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history")
 fi
 
 # --------------
@@ -118,9 +118,9 @@ ENV_FILE="config/$ENV"
 
 echo "Using env: $ENV_FILE"
 
-POLL_FREQ=
+POLL_FREQ=()
 if [ -v POLL_FREQUENCY ]; then
-  POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
+    POLL_FREQ=(--env "POLL_FREQUENCY=$POLL_FREQUENCY")
 fi
 
 ./scripts/support/create-dark-dev-network
@@ -129,11 +129,10 @@ fi
 # --------------
 echo "Run the build"
 
-# shellcheck disable=SC2086
 $FSWATCH | docker run \
              --rm \
              -i \
-             $MOUNTS \
+             "${MOUNTS[@]}" \
              --privileged \
              --dns 127.0.0.1 \
              --dns 8.8.8.8 \
@@ -147,7 +146,7 @@ $FSWATCH | docker run \
              --env CI="${CI-}" \
              --env CIRCLE_BRANCH="${CIRCLE_BRANCH-}" \
              --env CIRCLE_BUILD_URL="${CIRCLE_BUILD_URL-}" \
-             $POLL_FREQ \
+             "${POLL_FREQ[@]}" \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
