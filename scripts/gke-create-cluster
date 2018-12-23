@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC1039
 
 . ./scripts/support/assert-in-container "$0" "$@"
 
@@ -49,7 +48,7 @@ Required arguments:
   --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
                          instance. You can swipe creds from the current cluster with something
                          like the following:
-                           kubectl get secret cloudsql-instance-credentials -o json \ 
+                           kubectl get secret cloudsql-instance-credentials -o json \
                              | jq -r '.data["credentials.json"]'
 
 Options:
@@ -259,4 +258,4 @@ one, try it out a few times outside of production first. Moving the
 static IPs the obvious way is flaky and seems nondeterministic. You
 may have better luck swapping DNS if you need it and can live with the
 long propagation times.
- EOF
+EOF

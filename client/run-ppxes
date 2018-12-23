@@ -2,10 +2,10 @@
 
 set -euo pipefail
 
-eval $(opam env --switch=4.02.3 --set-switch)
+eval "$(opam env --switch=4.02.3 --set-switch)"
 
 dir=$(ocamlfind query ppx_deriving)
 
 "$dir"/ppx_deriving \
   "$dir"/ppx_deriving_show.cma \
-  $@
+  "$@"

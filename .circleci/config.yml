@@ -223,6 +223,9 @@ jobs:
       - clean-caches: { path: "client/lib" }
       - copy-into-container
       - run: scripts/builder --compile-client --test
+      - run-background-container
+      - wait-for-container
+      - run: scripts/support/shellchecker # run here cause its the fastest
       - run:
           name: Copy out generated files and caches
           when: always
