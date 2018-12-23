@@ -116,10 +116,6 @@ test('field_access', async t => {
 
 
 test('field_access_closes', async t => {
-
-  // this occasionally fails in CI so keep some debug info to catch it
-  // next time
-
   await t
     .pressKey("enter")
     .pressKey("enter")
