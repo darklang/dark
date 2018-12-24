@@ -43,12 +43,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   REPORTERS+=,xunit:${TEST_RESULTS_XML}
 
   export DISPLAY=:99.0
-  set +e
-  running=`ps aux | grep [X]vfb`
-  set -e
-  if [[ ! $running ]]; then
-    sudo Xvfb :99.0 -ac &
-  fi
+  pgrep Xvfb || sudo Xvfb :99.0 -ac &
 
   set +e # Dont fail immediately so that the sed is run
 
