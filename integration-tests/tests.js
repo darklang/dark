@@ -357,13 +357,13 @@ test('editing_headers', async t => {
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
+    .doubleClick(".spec-header > .module")
+    .typeText("#entry-box", "HTTP")
+    .pressKey("enter")
+
     .doubleClick(".spec-header > .modifier")
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST")).ok()
-    .pressKey("enter")
-
-    .doubleClick(".spec-header > .module")
-    .typeText("#entry-box", "HTTP")
     .pressKey("enter")
 
     // edit them
