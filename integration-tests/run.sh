@@ -4,15 +4,11 @@
 set -euo pipefail
 
 PATTERN=".*"
-GCP=
 SCRIPT=
 
 for i in "$@"
 do
   case "${i}" in
-    --gcp)
-    GCP=y; shift
-    ;;
     --pattern=*)
     PATTERN=${1/--pattern=/''}
     ;;
@@ -23,16 +19,9 @@ do
   esac
 done
 
-if [[ $GCP == "y" ]]; then
-  echo "Running integration tests on GCP container"
-  DOMAIN="dark-local-gcp"
-  PORT="80"
-  IP=$(dig @localhost $DOMAIN | grep "^$DOMAIN" | cut -f6)
-else
-  echo "Running integration tests on dev server"
-  IP="127.0.0.1"
-  PORT="8000"
-fi
+echo "Running integration tests on dev server"
+IP="127.0.0.1"
+PORT="8000"
 
 # Set up wildcard for this domain via dnsmasq for this host. You would
 # think we'd just do a CNAME, but a CNAME only work on qualified
