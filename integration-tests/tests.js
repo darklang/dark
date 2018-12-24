@@ -826,7 +826,7 @@ test('delete_db_col', async t => {
 
 test('cant_delete_locked_col', async t => {
   await t
-    .click(Selector('.fncall')) // this click is required due to caching
+    .click(Selector('.fncall .namegroup')) // this click is required due to caching
     .click(Selector('.fa-play'))
   ;
 
