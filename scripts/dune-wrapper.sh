@@ -18,7 +18,7 @@ unbuffer dune "$@" 2>&1 | while read -r line; do
     error=1;
     errorline="$line";
   fi
-  echo xx"$line"xx;
+  echo "$line";
 done
 result=$?
 
