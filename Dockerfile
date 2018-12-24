@@ -311,6 +311,8 @@ RUN \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
 
+RUN sudo apt update && sudo apt install -y xvfb
+
 ############################
 # Finish
 ############################
