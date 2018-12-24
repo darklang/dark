@@ -19,21 +19,6 @@ do
   esac
 done
 
-echo "Running integration tests on dev server"
-IP="127.0.0.1"
-PORT="8000"
-
-# Set up wildcard for this domain via dnsmasq for this host. You would
-# think we'd just do a CNAME, but a CNAME only work on qualified
-# domains, and Docker doesn't make qualified domains.
-echo "Setting up DNS -> $IP"
-echo "address=/$DARK_CONFIG_STATIC_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-echo "address=/$DARK_CONFIG_USER_CONTENT_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-# When the container starts up, the first --full-restart takes 35s. This
-# pkill fixes that.
-sudo pkill dnsmasq
-sudo service dnsmasq --full-restart
-
 # Slowing this down massively slows down the test suite. If needed, we
 # can change this on an individual action:
 # https://devexpress.github.io/testcafe/documentation/test-api/actions/action-options.html#basic-action-options
@@ -81,7 +66,7 @@ run_sql "$SCRIPT";
 
 set +e # Dont fail immediately so that the sed is run
 
-TEST_HOST="darklang.localhost:$PORT" \
+TEST_HOST="darklang.localhost:8000" \
   testcafe \
     --selector-timeout 50 \
     --assertion-timeout 50 \
