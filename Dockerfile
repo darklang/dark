@@ -300,7 +300,7 @@ ENV TERM=xterm-256color
 ######################
 
 # Testcafe 23.3 hangs on us.
-RUN yarn add testcafe@0.22.0
+RUN yarn add testcafe@0.23.0
 
 # Ubuntu has very old versions of shellcheck
 RUN \
