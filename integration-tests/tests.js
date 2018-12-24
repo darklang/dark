@@ -17,9 +17,10 @@ fixture `Integration Tests`
     const finish = Selector('#finishIntegrationTest');
     const signal = Selector('#integrationTestSignal');
     let flushLogs = async () => {
-      const { log } = await t.getBrowserConsoleMessages();
+      const { log, warn, error, info } = await t.getBrowserConsoleMessages();
       console.error("msg/mod logs for: " + t.testRun.test.name);
-      for (var l of log) {
+      const msgs = Array.concat(["Console Logs:"], log, ["\n\nConsole Warnings"], warn, ["\n\nConsole Errors:"], error, ["\n\nConsole Infos:"], info);
+      for (var l of msgs) {
         console.error(l)
       }
 
