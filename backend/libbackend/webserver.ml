@@ -793,7 +793,6 @@ let route_host req =
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]
   | [a; "builtwithdark"; "localhost"]
-  | [a; "integration-tests"]
   | [a; "darksingleinstance"; "com"] ->
       Some (Canvas a)
   (* Specific Dark canvas: builtwithdark *)
@@ -805,10 +804,7 @@ let route_host req =
   | [a; "dabblefox"; "com"] ->
       Some (Canvas ("dabblefox-" ^ a))
   (* admin interface + outer site, conditionally *)
-  | ["integration-tests"]
-  | ["darklang"; "com"]
-  | ["darklang"; "localhost"]
-  | ["dark_dev"; "com"] ->
+  | ["darklang"; "com"] | ["darklang"; "localhost"] | ["dark_dev"; "com"] ->
       Some Admin
   (* Not a match... *)
   | _ ->

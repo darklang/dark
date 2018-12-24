@@ -26,8 +26,7 @@ PORT="8000"
 # Set up wildcard for this domain via dnsmasq for this host. You would
 # think we'd just do a CNAME, but a CNAME only work on qualified
 # domains, and Docker doesn't make qualified domains.
-echo "Setting up DNS for integration-tests -> $IP"
-echo "address=/integration-tests/$IP" | sudo tee /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+echo "Setting up DNS -> $IP"
 echo "address=/$DARK_CONFIG_STATIC_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
 echo "address=/$DARK_CONFIG_USER_CONTENT_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
 # When the container starts up, the first --full-restart takes 35s. This
@@ -82,7 +81,7 @@ run_sql "$SCRIPT";
 
 set +e # Dont fail immediately so that the sed is run
 
-TEST_HOST="integration-tests:$PORT" \
+TEST_HOST="darklang.localhost:$PORT" \
   testcafe \
     --selector-timeout 50 \
     --assertion-timeout 50 \
