@@ -4,6 +4,4 @@ integration-tests/screenshots
 stroller/target
 server/_build
 rundir
-gcp-rundir
-gcp-builddir
 sqldump*.gz

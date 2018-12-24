@@ -788,9 +788,7 @@ let route_host req =
     |> Option.value ~default:""
     |> fun h -> String.split h '.'
   with
-  | ["static"; "darklang"; "localhost"]
-  | ["static"; "darklang"; "com"]
-  | ["static"; "integration-tests"] ->
+  | ["static"; "darklang"; "localhost"] | ["static"; "darklang"; "com"] ->
       Some Static
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]

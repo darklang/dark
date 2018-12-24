@@ -1,6 +1,5 @@
 .DS_Store
 /.browser-trigger
-/gcp-rundir
 /gzipped_assets
 /rundir
 /backend/*/.merlin

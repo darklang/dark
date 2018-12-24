@@ -105,14 +105,6 @@ Build the production container (assumes that the build has succeeded):
 
 - `./scripts/gcp-build-containers`
 
-Run it locally (well, inside the dev container):
-
-- `./scripts/gcp-run-locally`
-
-Run integration tests on it:
-
-- `./integration-tests/run.sh --gcp`
-
 ### How to deploy manually.
 
 You'll need `gcloud` installed:
@@ -173,10 +165,6 @@ To run unit tests:
 Integration tests (on the dev environment):
 
 - `./integration-tests/run.sh`
-
-Integration tests (on the gcp environment):
-
-- `./integration-tests/run.sh --gcp`
 
 Read me about integration testing in integration-tests/README.
 
