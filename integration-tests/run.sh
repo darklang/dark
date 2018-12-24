@@ -12,9 +12,11 @@ do
   case "${i}" in
     --pattern=*)
     PATTERN=${1/--pattern=/''}
+    shift
     ;;
     --debug)
     DEBUG=true
+    shift
     ;;
     *)
     echo "Unexpected argument: $i"
