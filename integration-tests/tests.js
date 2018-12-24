@@ -5,8 +5,7 @@ fixture `Integration Tests`
   .httpAuth({ username: 'test', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
-    const host = process.env.TEST_HOST
-    const url = "http://" + host + "/a/test-" + testname + "/integration_test";
+    const url = "http://darklang.localhost:8000/a/test-" + testname + "/integration_test";
     const pageLoaded = await Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
@@ -62,7 +61,7 @@ fixture `Integration Tests`
 //********************************
 
 function user_content_url (t, endpoint) {
-    return "http://test-" + t.testRun.test.name + "." + process.env.DARK_CONFIG_USER_CONTENT_HOST + endpoint;
+  return "http://test-" + t.testRun.test.name + ".builtwithdark.localhost:8000" + endpoint;
 }
 
 //********************************
