@@ -84,5 +84,5 @@ else
     $debugcmd \
     --test-grep "$PATTERN" \
     "chrome" \
-    integration-tests/tests.js 2> rundir/integration_error.log
+    integration-tests/tests.js
 fi
