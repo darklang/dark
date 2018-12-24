@@ -37,10 +37,21 @@ TODO: record it automatically.
 
 ## Troubleshooting
 
+### Debugging errors
+
+Run the tests in debug mode (see above) and step through.
+
+### Errors
 - the testcafe error "Failed to find a DNS-record for the resource"
 actually means "Can't connect to the server".
 
-- solve race conditions with an `expect(someselectorwhichhasthethingIneed).ok()`.
+### Causes of intermittent failures
+
+- An `expect` call doesn't actually wait for the item in question, especially   if you use `ok()`.
+- A click can land anywhere on the selector, but some parts of the selector
+  have clicks that have other effects
+
+
 
 ## How it works:
 
