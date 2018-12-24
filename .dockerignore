@@ -1,6 +1,5 @@
 .git
 client/node_modules
-integration-tests/screenshots
 stroller/target
 server/_build
 rundir
