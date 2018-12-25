@@ -146,7 +146,7 @@ jobs:
             - v6-stroller-{{ checksum "minus1-timestamp" }}
             - v6-stroller-{{ checksum "minus2-timestamp" }}
             - v6-stroller-{{ checksum "minus3-timestamp" }}
-      - clean-caches: { path: "stroller" }
+      - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
@@ -155,19 +155,19 @@ jobs:
           when: always
           command: |
             docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp vols:/usr/local/cargo cargo/
+            docker cp vols:/usr/local/cargo cargo
       - save_cache:
           name: "Save cargolock-specific stroller cache"
           when: always
           paths:
-            - stroller
+            - stroller/target
             - cargo
           key: v6-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           when: always
           paths:
-            - stroller
+            - stroller/target
             - cargo
           key: v6-stroller-{{ checksum "today-timestamp" }}
 
