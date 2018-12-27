@@ -9,6 +9,21 @@ for name in "${@}"; do
       LA="listen_addresses = '*'"
       echo "$LA" >> /etc/postgresql/9.6/main/postgresql.conf
     fi
+    if [[ $name == dnsmasq ]]; then
+      # think we'd just do a CNAME, but a CNAME only work on qualified
+      # domains, and Docker doesn't make qualified domains.
+      IP=127.0.0.1
+      echo "Setting up DNS -> $IP"
+      echo "address=/$DARK_CONFIG_STATIC_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+      echo "address=/$DARK_CONFIG_USER_CONTENT_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+      echo "address=/darklang.localhost:8000/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+
+      # When the container starts up, the first --full-restart takes 35s. This
+      # pkill fixes that.
+      sudo pkill dnsmasq || true
+      sudo service dnsmasq --full-restart
+    fi
+
   echo "--------------------------"
   echo "--  Starting $name"
   echo "--------------------------"
