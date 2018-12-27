@@ -3,7 +3,7 @@
 
 FROM ubuntu:17.10
 
-ENV FORCE_BUILD 0
+ENV FORCE_BUILD 1
 
 ############################
 ## apt
