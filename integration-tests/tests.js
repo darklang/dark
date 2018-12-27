@@ -1,23 +1,40 @@
 import { ClientFunction, Selector } from 'testcafe';
+const child_process = require('child_process');
+
+function startXvfb(testname) {
+  if (process.env.IN_DEV_CONTAINER != "true" ) return;
+  const script = "scripts/support/start-recording-xvfb";
+  child_process.execFileSync(script, [testname]);
+}
+
+function stopXvfb(testname) {
+  if (process.env.IN_DEV_CONTAINER != "true" ) return;
+  const script = "scripts/support/stop-recording-xvfb";
+  child_process.execFileSync(script, [testname]);
+}
 
 fixture `Integration Tests`
   // To add this user, run the backend tests
   .httpAuth({ username: 'test', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
+    startXvfb(testname);
     const url = "http://darklang.localhost:8000/a/test-" + testname + "/integration_test";
     const pageLoaded = await Selector('#finishIntegrationTest').exists;
+
     await t
       .navigateTo(url)
       .takeScreenshot()
       ;
   })
   .afterEach( async t => {
+    const testname = t.testRun.test.name;
+    stopXvfb(testname);
     const finish = Selector('#finishIntegrationTest');
     const signal = Selector('#integrationTestSignal');
     let flushLogs = async () => {
       const { log, warn, error, info } = await t.getBrowserConsoleMessages();
-      console.error("msg/mod logs for: " + t.testRun.test.name);
+      console.error("msg/mod logs for: " + testname);
       const msgs = Array.concat(["Console Logs:"], log, ["\n\nConsole Warnings"], warn, ["\n\nConsole Errors:"], error, ["\n\nConsole Infos:"], info);
       for (var l of msgs) {
         console.error(l)
