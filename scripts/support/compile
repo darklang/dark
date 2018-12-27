@@ -346,7 +346,7 @@ def mark(should, f):
   elif ".less" in f:
     should.less_compile = True
 
-  elif ("scripts" in f or "run.sh" in f) and is_script(f):
+  elif ("scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
 

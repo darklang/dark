@@ -10,7 +10,7 @@ set +e
 sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep integrationTests)
 set -e
 for s in ${sessions}; do
-  tmux kill-session -t $s
+  tmux kill-session -t "$s"
 done
 
 # Set up test reporters for CircleCI
