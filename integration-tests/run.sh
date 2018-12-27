@@ -43,9 +43,11 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   REPORTERS=spec
   REPORTERS+=,json:${TEST_RESULTS_JSON}
   REPORTERS+=,xunit:${TEST_RESULTS_XML}
+  XVFB_LOG="${DARK_CONFIG_RUNDIR}/logs/xvfb-log"
 
   export DISPLAY=:99.0
-  pgrep Xvfb || sudo Xvfb :99.0 -ac &
+  # shellcheck disable=SC2024
+  pgrep Xvfb || sudo Xvfb -ac :99 -screen 0 1280x1024x24 > "$XVFB_LOG" 2>&1 &
 
   set +e # Dont fail immediately so that the sed is run
 
