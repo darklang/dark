@@ -108,42 +108,55 @@ let viewButtons (m : model) : msg Html.html =
           (Prelude.deTLID tlid)
           (posToString pos)
   in
+  let saveTestButton =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
+            SaveTestButton )
+      ; Html.src ""
+      ; Html.class' "specialButton" ]
+      [Html.text "SaveTest"]
+  in
+  let toggleTimersButton =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
+      ; Html.src ""
+      ; Html.class' "specialButton" ]
+      [Html.text (if m.timersEnabled then "DisableTimers" else "EnableTimers")]
+  in
+  let currentPage =
+    Html.span
+      [Html.class' "specialButton"]
+      [Html.text (pageToString m.currentPage)]
+  in
+  let variants =
+    Html.span
+      [Html.class' "specialButton"]
+      [ Html.text
+          ( "Tests: ["
+          ^ Js.Array.toString
+              (Array.of_list (List.map show_variantTest m.tests))
+          ^ "]" ) ]
+  in
+  let environment =
+    Html.span
+      [Html.class' ("specialButton environment " ^ m.environment)]
+      [Html.text m.environment]
+  in
+  let debugger =
+    Html.a
+      [Html.href (debuggerLinkLoc ()); Html.src ""; Html.class' "specialButton"]
+      [ Html.text
+          (if isDebugging () then "DisableDebugger" else "EnableDebugger") ]
+  in
   Html.div
     [Html.id "buttons"]
-    ( [ Html.a
-          [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
-                SaveTestButton )
-          ; Html.src ""
-          ; Html.class' "specialButton" ]
-          [Html.text "SaveTest"]
-      ; Html.a
-          [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
-                ToggleTimers )
-          ; Html.src ""
-          ; Html.class' "specialButton" ]
-          [ Html.text
-              (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
-      ; Html.span
-          [Html.class' "specialButton"]
-          [Html.text (pageToString m.currentPage)]
-      ; Html.span
-          [Html.class' "specialButton"]
-          [ Html.text
-              ( "Tests: ["
-              ^ Js.Array.toString
-                  (Array.of_list (List.map show_variantTest m.tests))
-              ^ "]" ) ]
-      ; Html.span
-          [Html.class' ("specialButton environment " ^ m.environment)]
-          [Html.text m.environment]
-      ; Html.a
-          [ Html.href (debuggerLinkLoc ())
-          ; Html.src ""
-          ; Html.class' "specialButton" ]
-          [ Html.text
-              (if isDebugging () then "DisableDebugger" else "EnableDebugger")
-          ] ]
-    @ integrationTestButton
+    ( integrationTestButton
+    @ [ saveTestButton
+      ; toggleTimersButton
+      ; currentPage
+      ; variants
+      ; environment
+      ; debugger ]
     @ returnButton
     @ [status] )
 
