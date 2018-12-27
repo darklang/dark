@@ -1,7 +1,7 @@
 [
   [ "TLSavepoint", 1385754890 ],
   [ "TLSavepoint", 1385754890 ],
-  [ "CreateDB", 1385754890, { "x": 930, "y": 345 }, "Foo" ],
+  [ "CreateDB", 1385754890, { "x": 430, "y": 345 }, "Foo" ],
   [ "AddDBCol", 1385754890, 354653401, 1126981896 ],
   [ "TLSavepoint", 1385754890 ],
   [ "SetDBColName", 1385754890, 354653401, "deleteme" ],
