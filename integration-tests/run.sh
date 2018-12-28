@@ -47,7 +47,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   export DISPLAY=:99.0
   # shellcheck disable=SC2024
-  pgrep Xvfb || sudo Xvfb -ac :99 -screen 0 1280x1024x24 > "$XVFB_LOG" 2>&1 &
+  pgrep Xvfb > /dev/null || sudo Xvfb -ac :99 -screen 0 1280x1024x24 > "$XVFB_LOG" 2>&1 &
 
   set +e # Dont fail immediately so that the sed is run
 
