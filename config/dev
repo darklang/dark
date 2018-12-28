@@ -49,7 +49,8 @@ DARK_CONFIG_CURL_TUNNEL_URL=none
 # Publicly accessible domain
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
 
-# Pusher (for pushing traces to the editor)
+# Stroller (sidecar for pushing data to the editor)
+DARK_CONFIG_STROLLER_PORT=3001
 DARK_CONFIG_PUSHER_APP_ID=661887
 DARK_CONFIG_PUSHER_KEY=ee6267fa618c71d4d341
 DARK_CONFIG_PUSHER_SECRET=ce29d2033402c9f037e1

@@ -174,7 +174,7 @@ let options_handler
 (* TODO host is the subdomain, not the uuid *)
 let push (host : string) (event : string) (payload : string) =
   Log.infO "I'm gonna push somtehing"; (*TODO*)
-  let uri = (*TODO*)sprintf "http://localhost:3000/canvas/%s/events/%s" host event in
+  let uri = sprintf "http://localhost:%d/canvas/%s/events/%s" Config.stroller_port (* TODO how not to read env var every time? *) host event in
   Lwt.async (fun () ->
     try%lwt
       let%lwt (resp, _) = Clu.Client.post (Uri.of_string uri) ~body:(Cl.Body.of_string payload) in
