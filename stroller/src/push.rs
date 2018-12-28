@@ -55,7 +55,7 @@ impl Client {
         thread::spawn(move || {
             let channel = format!("canvas_{}", canvas);
             match self.0.trigger(&channel, &event_name, parsed) {
-                Ok(_) => println!("Pushed event"),
+                Ok(_) => println!("Pushed event \"{}\" for canvas \"{}\"", event_name, canvas),
                 Err(e) => eprintln!("Error pushing event: {:?}", e),
             }
         });
