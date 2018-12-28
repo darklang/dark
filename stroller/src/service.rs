@@ -34,7 +34,6 @@ where
             *response.body_mut() = Body::from("Try POSTing to /canvas/:name/events/:event");
         }
         (&Method::POST, ["", "canvas", canvas, "events", event]) => {
-            println!("Got an event for canvas {}", canvas);
             let handled = handle_push::<PC>(canvas.to_string(), event.to_string(), req.into_body())
                 .map(|_| {
                     *response.status_mut() = StatusCode::ACCEPTED;
@@ -68,14 +67,11 @@ where
             .concat2()
             .and_then(move |payload_bytes| {
                 println!(
-                    "{}-byte event {} for canvas {}",
-                    payload_bytes.len(),
+                    "Got event \"{}\" for canvas \"{}\" ({} bytes)",
                     event_name,
-                    canvas
+                    canvas,
+                    payload_bytes.len(),
                 );
-
-                // TODO delete me
-                println!("It was: {:?}", payload_bytes);
 
                 PC::push(&canvas, &event_name, &payload_bytes)
                     .map_err(|e| format!("failed to push event {}: {}", event_name, e))
