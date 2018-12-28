@@ -500,7 +500,14 @@ setTimeout(function(){
   if (pusherConfig.enabled) {
     var pusherChannel = pusherConnection.subscribe(`canvas_${canvasName}`);
     pusherChannel.bind('traces', data => {
-      var event = new CustomEvent('newTracesPush', {detail: /*TODO stringify, really?*/JSON.stringify(data)});
+      var event = new CustomEvent('newTracesPush', {
+        /*
+         * Pusher delivers us a JS object, which we immediately stringify here
+         * so that registerGlobal can parse (and decode) it again.
+         * TODO find a less roundabout way to do this.
+         */
+        detail: JSON.stringify(data)
+      });
       document.dispatchEvent(event);
     });
   }
