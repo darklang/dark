@@ -1044,6 +1044,15 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTracesPush (Ok newTraceIDs) ->
       let module GM = GMap in
       let module GMS = GMap.String in
+      (*
+       * This push tells the client "new traces exist with these ids", but not
+       * the content of those traces. The client doesn't yet have a way of
+       * storing that information. So instead we're just fabricating empty
+       * traces with the appropriate trace id, which typechecks but does weird
+       * things to the UI.
+       *
+       * TODO handle this (e.g. mark traces as "incomplete" or "pending")
+       *)
       let emptyTrace traceID = { traceID = traceID; input = GMS.empty; functionResults = [] } in
       let newTraces = GMS.map newTraceIDs (List.map emptyTrace) in
       UpdateTraces newTraces
