@@ -1,6 +1,6 @@
 # How the integration tests work
 
-##### (Updated Dec 24, 2018)
+##### (Updated Dec 27, 2018)
 
 ## Running
 
@@ -13,7 +13,7 @@ If you want to watch the integration tests, run it on your machine:
 
 You need testcafe installed on your machine:
 
-- `npm install testcafe`
+- `npm install -g testcafe`
 
 ### In debug mode
 
@@ -33,7 +33,7 @@ https://devexpress.github.io/testcafe/documentation/recipes/debug-in-chrome-dev-
 
 This runs Chrome in xvfb, so it will not appear on your screen. Unlike other modes, this will run 4 tests at once.
 
-TODO: record it automatically.
+The tests will be recorded to video automatically, and are saved to rundir/videos/testname.mp4. They are viable using VLC.
 
 ## Troubleshooting
 
@@ -50,6 +50,7 @@ actually means "Can't connect to the server".
 - An `expect` call doesn't actually wait for the item in question, especially   if you use `ok()`.
 - A click can land anywhere on the selector, but some parts of the selector
   have clicks that have other effects
+- Expectations fail when the element is offscreen. Often moving the element to the left (esp in the JSON test_appdata file) will solve it.
 
 
 
@@ -77,14 +78,21 @@ scripts/compile.
 - integration-tests/run.sh
   - Basically just triggers testcafe
 
+- integration-tests/prep.sh
+  - prepare tests
+
 - integration-tests/tests.js
   - test harness and tests
-
-- rundir/screenshots/
-  - screenshots
 
 - client/src/IntegrationTest.ml
   - This contains the code to check that the tests were successful.
     Note that this is compiled into app.js, so we have a
     single app for testing and production.
+
+- rundir/screenshots/
+  - screenshots
+
+- rundir/videos/
+  - videos from the in-container test executions
+
 
