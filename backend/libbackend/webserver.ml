@@ -541,6 +541,7 @@ let admin_ui_html ~(csrf_token : string) ~(local : string option) username =
         else "" )
   >|= Util.string_replace "{STATIC}" static_host
   >|= Util.string_replace "{ROLLBARCONFIG}" rollbar_js
+  >|= Util.string_replace "{PUSHERCONFIG}" Config.pusher_js
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
   >|= Util.string_replace

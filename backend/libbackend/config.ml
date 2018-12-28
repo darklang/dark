@@ -198,6 +198,20 @@ let rollbar_js =
   | _ ->
       "{enabled:false}"
 
+let pusher_key = string_option "DARK_CONFIG_PUSHER_KEY"
+
+let pusher_cluster = string "DARK_CONFIG_PUSHER_CLUSTER"
+
+let pusher_js =
+  match pusher_key with
+  | Some key ->
+      Printf.sprintf
+        "{enabled: true, key: '%s', cluster: '%s'}"
+        key
+        pusher_cluster
+  | _ ->
+      "{enabled: false}"
+
 
 let public_domain = string "DARK_CONFIG_PUBLIC_DOMAIN"
 
