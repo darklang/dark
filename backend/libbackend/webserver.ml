@@ -171,7 +171,6 @@ let options_handler
     ""
 
 
-(* TODO host is the subdomain, not the uuid *)
 let push
     ~(execution_id : Types.id)
     ~(host : string)
