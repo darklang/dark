@@ -40,12 +40,14 @@ window.Rollbar.configure(rollbarConfig);
 // Pusher
 // ---------------------------
 
-var Pusher = require('pusher-js');
-Pusher.logToConsole = true; // TODO
-var pusherConnection = new Pusher(/*TODO*/'ee6267fa618c71d4d341', {
-  cluster: 'us2',
-  forceTLS: true,
-});
+if (pusherConfig.enabled) {
+  var Pusher = require('pusher-js');
+  Pusher.logToConsole = true; // TODO
+  var pusherConnection = new Pusher(pusherConfig.key, {
+    cluster: pusherConfig.cluster,
+    forceTLS: true,
+  });
+}
 
 // ---------------------------
 // Entrybox Caret
@@ -496,11 +498,13 @@ setTimeout(function(){
   setInterval(visibilityCheck, 2000);
   addWheelListener(document);
 
-  var pusherChannel = pusherConnection.subscribe(`canvas_${canvasName}`);
-  pusherChannel.bind('traces', data => {
-    var event = new CustomEvent('newTracesPush', {detail: /*TODO stringify, really?*/JSON.stringify(data)});
-    document.dispatchEvent(event);
-  });
+  if (pusherConfig.enabled) {
+    var pusherChannel = pusherConnection.subscribe(`canvas_${canvasName}`);
+    pusherChannel.bind('traces', data => {
+      var event = new CustomEvent('newTracesPush', {detail: /*TODO stringify, really?*/JSON.stringify(data)});
+      document.dispatchEvent(event);
+    });
+  }
 }, 1)
 // ---------------------------
 // Exports

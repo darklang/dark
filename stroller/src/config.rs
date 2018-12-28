@@ -17,5 +17,6 @@ pub fn pusher_secret() -> String {
 }
 
 pub fn pusher_host() -> String {
-    require_str("DARK_CONFIG_PUSHER_HOST")
+    let cluster = require_str("DARK_CONFIG_PUSHER_CLUSTER");
+    format!("api-{}.pusher.com", cluster)
 }
