@@ -198,6 +198,8 @@ let rollbar_js =
   | _ ->
       "{enabled:false}"
 
+let stroller_port = int "DARK_CONFIG_STROLLER_PORT"
+
 let pusher_key = string_option "DARK_CONFIG_PUSHER_KEY"
 
 let pusher_cluster = string "DARK_CONFIG_PUSHER_CLUSTER"

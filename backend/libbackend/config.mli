@@ -44,6 +44,8 @@ val rollbar_client_access_token : string option
 
 val rollbar_js : string
 
+val stroller_port : int
+
 val pusher_js : string
 
 val public_domain : string
