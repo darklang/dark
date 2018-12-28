@@ -150,7 +150,6 @@ $FSWATCH | docker run \
              --dns 8.8.8.8 \
              --dns 8.8.4.4 \
              --name dark-dev \
-             --network dark-dev-net \
              --hostname dark-dev \
              --env-file "$ENV_FILE" \
              --env HOST_PWD="$PWD" \
