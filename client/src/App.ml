@@ -593,7 +593,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | Some _, Some n ->
                   Some n )
         in
-        Js.log2 "new traces" newTraces;
         let m2 = {m with traces = newTraces} in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
@@ -1045,10 +1044,7 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTracesPush (Ok newTraceIDs) ->
       let module GM = GMap in
       let module GMS = GMap.String in
-      Js.log2 "NewTracesPush" newTraceIDs;
       let emptyTrace traceID = { traceID = traceID; input = GMS.empty; functionResults = [] } in
-      (*let addEmptyTraces (tlid, traceIDs) traces = GMS.add_unless_bound tlid (map emptyTrace traceIDs) traces in*)
-      (*let newTraces = GMS.fold addEmptyTrace newTraceIDs GMS.empty in*)
       let newTraces = GMS.map newTraceIDs (List.map emptyTrace) in
       UpdateTraces newTraces
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
