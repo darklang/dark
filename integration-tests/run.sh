@@ -51,7 +51,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   set +e # Dont fail immediately so that the sed is run
 
-  client/node_modules/.bin/testcafe \
+  unbuffer client/node_modules/.bin/testcafe \
     --selector-timeout 50 \
     --assertion-timeout 50 \
     --app-init-delay 0 \
@@ -62,7 +62,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
     "chrome \"--window-size=1280,1024\""  \
-    integration-tests/tests.js 2> "${DARK_CONFIG_RUNDIR}/integration_error.log"
+    integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
   RESULT=$?
 
