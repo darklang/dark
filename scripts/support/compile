@@ -48,6 +48,7 @@ def run_test(start, bash):
     pretty_print(bash, 45)
     return run(start, bash)
   else:
+    print("skipping tests")
     return True
 
 def run_other(start, bash):
