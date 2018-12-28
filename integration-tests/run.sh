@@ -57,12 +57,11 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --app-init-delay 0 \
     --pageload-timeout 200 \
     --screenshots-on-fails \
-    --window-size=1280,1024 \
     --screenshots "${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
     --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
-    "chrome" \
+    "chrome \"--window-size=1280,1024\""  \
     integration-tests/tests.js 2> "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
   RESULT=$?
