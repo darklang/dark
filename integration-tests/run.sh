@@ -51,7 +51,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   set +e # Dont fail immediately so that the sed is run
 
-  testcafe \
+  client/node_modules/.bin/testcafe \
     --selector-timeout 50 \
     --assertion-timeout 50 \
     --app-init-delay 0 \
