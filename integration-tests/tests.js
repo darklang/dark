@@ -789,7 +789,7 @@ test('execute_function_works', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "Uuid::gen")
     .pressKey("enter")
-    .click(Selector('.fa-play'))
+    .click(Selector('.execution-button-needed'))
     .click(Selector('.fncall'))
     ;
 
@@ -844,13 +844,15 @@ test('delete_db_col', async t => {
 test('cant_delete_locked_col', async t => {
   await t
     .click(Selector('.fncall .namegroup')) // this click is required due to caching
-    .click(Selector('.fa-play'))
   ;
+  await Selector('.execution-button-needed', {timeout: 5000})();
+  await t
+    .expect(Selector('.execution-button-needed').exists).ok()
+    .click(Selector('.execution-button-needed'))
+    ;
 
-  // the redo button only appears once the analysis has returned, so we
-  // can use this as a totally not brittle proxy for the fact that
-  // we want to wait until the data is in the DB
-  await t.expect(Selector('.fa-redo', {timeout: 5000}).exists).ok();
+  await Selector('.fa-lock', {timeout: 5000})();
+  await t.expect(Selector('.fa-lock').exists).ok();
 
   await t
     .click(Selector('.db')) // this click is required due to caching
