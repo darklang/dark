@@ -172,22 +172,34 @@ let options_handler
 
 
 (* TODO host is the subdomain, not the uuid *)
-let push (host : string) (event : string) (payload : string) =
-  Log.infO "I'm gonna push somtehing"; (*TODO*)
+let push
+    ~(execution_id : Types.id)
+    ~(host : string)
+    ~(event : string)
+    (payload : string) =
+  let log_params = [("host", host); ("event", event)] in
+  Log.infO "pushing via stroller" ~params:log_params;
   let uri = sprintf "http://localhost:%d/canvas/%s/events/%s" Config.stroller_port (* TODO how not to read env var every time? *) host event in
   Lwt.async (fun () ->
     try%lwt
       let%lwt (resp, _) = Clu.Client.post (Uri.of_string uri) ~body:(Cl.Body.of_string payload) in
       let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
-      Log.infO (sprintf "Pushed thing, got code %d" code); (*TODO*)
+      Log.infO "pushed via stroller" ~params:(("status", string_of_int code) :: log_params);
       Lwt.return ()
-    with e -> e |> Exception.exn_to_string |> Log.erroR(*TODO*) |> Lwt.return
+    with e ->
+      let bt = Exception.get_backtrace () in
+      Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
+      Lwt.return ()
   )
 
 
-let push_new_trace_id (host : string) (tlid : Types.tlid) (trace_id : Uuidm.t) =
+let push_new_trace_id
+    ~(execution_id : Types.id)
+    ~(host : string)
+    (tlid : Types.tlid)
+    (trace_id : Uuidm.t) =
   let payload = Analysis.to_new_traces_frontend [(tlid, [trace_id])] in
-  push host "traces" payload
+  push ~execution_id ~host ~event:"traces" payload
 
 
 let user_page_handler
@@ -270,7 +282,7 @@ let user_page_handler
             (Stored_function_arguments.store ~canvas_id ~trace_id)
           ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
       in
-      push_new_trace_id canvas page.tlid trace_id;
+      push_new_trace_id ~execution_id ~host:canvas page.tlid trace_id;
       let maybe_infer_headers resp_headers value =
         if List.Assoc.mem
              resp_headers
