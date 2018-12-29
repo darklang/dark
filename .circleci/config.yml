@@ -149,6 +149,7 @@ jobs:
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - copy-into-container
+      - run: docker run -i --volumes-from vols alpine sh -c "mv /home/dark/app/cargo /usr/local/cargo"
       - run: scripts/builder --compile-stroller --test
       - run:
           name: Copy out generated files and caches
