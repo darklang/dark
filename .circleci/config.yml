@@ -141,28 +141,39 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v6-stroller-{{ checksum "today-timestamp" }}
-            - v6-stroller-{{ checksum "minus1-timestamp" }}
-            - v6-stroller-{{ checksum "minus2-timestamp" }}
-            - v6-stroller-{{ checksum "minus3-timestamp" }}
+            - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v10-stroller-{{ checksum "today-timestamp" }}
+            - v10-stroller-{{ checksum "minus1-timestamp" }}
+            - v10-stroller-{{ checksum "minus2-timestamp" }}
+            - v10-stroller-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
+      - clean-caches: { path: "cargo" }
+      - run:
+          name: Set up volume for cargo
+          command: |
+            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
+            docker cp cargo dark_rust_cargo:/usr/local/cargo
+            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
+            rm -Rf cargo
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       - run:
           name: Copy out generated files and caches
-          when: always
-          command: docker cp vols:/home/dark/app/stroller/target stroller/
+          command: |
+            docker cp vols:/home/dark/app/stroller/target stroller/
+            docker cp dark_rust_cargo:/usr/local/cargo cargo
       - save_cache:
           name: "Save cargolock-specific stroller cache"
-          when: always
-          paths: [ "stroller/target" ]
-          key: v6-stroller-{{ checksum "stroller/Cargo.lock" }}
+          paths:
+            - stroller/target
+            - cargo
+          key: v10-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
-          when: always
-          paths: [ "stroller/target" ]
-          key: v6-stroller-{{ checksum "today-timestamp" }}
+          paths:
+            - stroller/target
+            - cargo
+          key: v10-stroller-{{ checksum "today-timestamp" }}
 
 
   build-backend:
@@ -181,13 +192,11 @@ jobs:
       - run: scripts/builder --compile-backend
       - run:
           name: Copy out generated files and caches
-          when: always
           command: |
             docker cp vols:/home/dark/app/backend/_build backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
       - save_cache:
           name: "Save daily backend cache"
-          when: always
           paths: [ "backend/_build" ]
           key: v6-backend-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
@@ -228,19 +237,16 @@ jobs:
       - run: scripts/support/shellchecker # run here cause its the fastest
       - run:
           name: Copy out generated files and caches
-          when: always
           command: |
             docker cp vols:/home/dark/app/client/node_modules client
             docker cp vols:/home/dark/app/client/lib client
             docker cp vols:/home/dark/app/backend/static/. backend/static
       - save_cache:
           name: "Save packagejson-specific cache"
-          when: always
           paths: [ "client/node_modules" ]
           key: v6-client-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
-          when: always
           paths: [ "client/node_modules" ]
           key: v6-client-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
