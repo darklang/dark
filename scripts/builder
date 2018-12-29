@@ -101,6 +101,10 @@ do
   esac
 done
 
+# --------------
+# environment
+# --------------
+
 ENV="dev"
 for i in "$@"
 do
@@ -118,11 +122,18 @@ ENV_FILE="config/$ENV"
 
 echo "Using env: $ENV_FILE"
 
+# --------------
+# save power with POLL_FREQUENCY
+# --------------
+
 POLL_FREQ=
 if [ -v POLL_FREQUENCY ]; then
   POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
 fi
 
+# --------------
+# create the network
+# --------------
 ./scripts/support/create-dark-dev-network
 
 # --------------
@@ -139,7 +150,6 @@ $FSWATCH | docker run \
              --dns 8.8.8.8 \
              --dns 8.8.4.4 \
              --name dark-dev \
-             --network dark-dev-net \
              --hostname dark-dev \
              --env-file "$ENV_FILE" \
              --env HOST_PWD="$PWD" \

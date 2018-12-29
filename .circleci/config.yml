@@ -273,6 +273,13 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
+      - restore_cache: # get testcafe
+          keys:
+            - v6-client-{{ checksum "client/package.json" }}
+            - v6-client-{{ checksum "today-timestamp" }}
+            - v6-client-{{ checksum "minus1-timestamp" }}
+            - v6-client-{{ checksum "minus2-timestamp" }}
+            - v6-client-{{ checksum "minus3-timestamp" }}
       - copy-into-container
       - run-background-container
 

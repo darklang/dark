@@ -162,11 +162,11 @@ To run unit tests:
 
 - `scripts/builder --compile --test`
 
-Integration tests (on the dev environment):
+Integration tests (run on your machine):
 
 - `./integration-tests/run.sh`
 
-Read me about integration testing in integration-tests/README.
+There are good debugging options for integration testing. See integration-tests/README.
 
 ## Accessing the container
 
