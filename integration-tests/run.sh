@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "$@"
-
 set -euo pipefail
 
+# This deliberately runs outside the container, in order to run Chrome on the
+# host
+
 PATTERN=".*"
-SCRIPT=
+DEBUG=false
 
 for i in "$@"
 do
   case "${i}" in
     --pattern=*)
     PATTERN=${1/--pattern=/''}
+    shift
+    ;;
+    --debug)
+    DEBUG=true
+    shift
     ;;
     *)
     echo "Unexpected argument: $i"
@@ -19,88 +25,68 @@ do
   esac
 done
 
-echo "Running integration tests on dev server"
-IP="127.0.0.1"
-PORT="8000"
-
-# Set up wildcard for this domain via dnsmasq for this host. You would
-# think we'd just do a CNAME, but a CNAME only work on qualified
-# domains, and Docker doesn't make qualified domains.
-echo "Setting up DNS for integration-tests -> $IP"
-echo "address=/integration-tests/$IP" | sudo tee /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-echo "address=/$DARK_CONFIG_STATIC_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-echo "address=/$DARK_CONFIG_USER_CONTENT_HOST/$IP" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-# When the container starts up, the first --full-restart takes 35s. This
-# pkill fixes that.
-sudo pkill dnsmasq
-sudo service dnsmasq --full-restart
-
-# Slowing this down massively slows down the test suite. If needed, we
-# can change this on an individual action:
-# https://devexpress.github.io/testcafe/documentation/test-api/actions/action-options.html#basic-action-options
-SPEED=1
+# Prep (in the container)
+./integration-tests/prep.sh
 
 CONCURRENCY=4
-if [[ -v CI ]]; then
+if [[ -v IN_DEV_CONTAINER ]] || [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
 fi
 
-# Set up test reporters for CircleCI
-TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
-TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
-TEST_RESULTS_XML="${TEST_RESULTS_DIR}/integration_tests.xml"
-mkdir -p "${TEST_RESULTS_DIR}"
-REPORTERS=spec
-REPORTERS+=,json:${TEST_RESULTS_JSON}
-REPORTERS+=,xunit:${TEST_RESULTS_XML}
+export TEST_HOST="darklang.localhost:8000"
 
-echo "Clearing old test files"
-rm -f "${DARK_CONFIG_RUNDIR}/completed_tests/*"
-rm -Rf "${DARK_CONFIG_RUNDIR}/screenshots/*"
-rm -f "${TEST_RESULTS_DIR}/integration_tests.*"
+if [[ -v IN_DEV_CONTAINER ]]; then
+  # Set up test reporters for CircleCI
+  TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
+  TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
+  TEST_RESULTS_XML="${TEST_RESULTS_DIR}/integration_tests.xml"
+  REPORTERS=spec
+  REPORTERS+=,json:${TEST_RESULTS_JSON}
+  REPORTERS+=,xunit:${TEST_RESULTS_XML}
+  XVFB_LOG="${DARK_CONFIG_RUNDIR}/logs/xvfb-log"
 
-# Clear DBs
-DBLOG="${DARK_CONFIG_RUNDIR}/integration_db.log"
-echo "Clearing old DB data (logs in ${DBLOG})"
-DB="${DARK_CONFIG_DB_DBNAME}"
-function run_sql { psql -d "$DB" -c "$@" >> "$DBLOG" 2>&1; }
+  export DISPLAY=:99.0
+  # shellcheck disable=SC2024
+  pgrep Xvfb > /dev/null || sudo Xvfb -ac :99 -screen 0 1280x1024x24 > "$XVFB_LOG" 2>&1 &
 
-function fetch_sql { psql -d "$DB" -t -c "$@"; }
+  set +e # Dont fail immediately so that the sed is run
 
-CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
-= 'test-';")
-for cid in $CANVASES; do
-  SCRIPT+="DELETE FROM events WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_results_v2 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM stored_events_v2 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM toplevel_oplists WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
-done
-run_sql "$SCRIPT";
-
-set +e # Dont fail immediately so that the sed is run
-
-TEST_HOST="integration-tests:$PORT" \
-  testcafe \
+  unbuffer client/node_modules/.bin/testcafe \
     --selector-timeout 50 \
     --assertion-timeout 50 \
     --app-init-delay 0 \
     --pageload-timeout 200 \
-    --speed "$SPEED" \
     --screenshots-on-fails \
     --screenshots "${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
     --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
-    "chrome:headless" \
-    integration-tests/tests.js 2> "${DARK_CONFIG_RUNDIR}/integration_error.log"
+    "chrome \"--window-size=1280,1024\""  \
+    integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
-RESULT=$?
+  RESULT=$?
 
-# Fix xunit output for CircleCI flaky-tests stats
-sed -i 's/ (screenshots: .*)"/"/' "${TEST_RESULTS_XML}"
+  # Fix xunit output for CircleCI flaky-tests stats
+  sed -i 's/ (screenshots: .*)"/"/' "${TEST_RESULTS_XML}"
 
-exit $RESULT
-
+  exit $RESULT
+else
+  if [[ "$DEBUG" == "true" ]]; then
+    debugcmd="--debug-mode --inspect"
+  else
+    debugcmd=
+  fi
+  testcafe \
+    --selector-timeout 50 \
+    --assertion-timeout 50 \
+    --app-init-delay 0 \
+    --pageload-timeout 200 \
+    --screenshots-on-fails \
+    --screenshots "rundir/screenshots/" \
+    --concurrency "$CONCURRENCY" \
+    --reporter=spec \
+    $debugcmd \
+    --test-grep "$PATTERN" \
+    "chrome" \
+    integration-tests/tests.js
+fi

@@ -1,25 +1,42 @@
 import { ClientFunction, Selector } from 'testcafe';
+const child_process = require('child_process');
+
+function startXvfb(testname) {
+  if (process.env.IN_DEV_CONTAINER != "true" ) return;
+  const script = "scripts/support/start-recording-xvfb";
+  child_process.execFileSync(script, [testname]);
+}
+
+function stopXvfb(testname) {
+  if (process.env.IN_DEV_CONTAINER != "true" ) return;
+  const script = "scripts/support/stop-recording-xvfb";
+  child_process.execFileSync(script, [testname]);
+}
 
 fixture `Integration Tests`
   // To add this user, run the backend tests
   .httpAuth({ username: 'test', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
-    const host = process.env.TEST_HOST
-    const url = "http://" + host + "/a/test-" + testname + "/integration_test";
+    startXvfb(testname);
+    const url = "http://darklang.localhost:8000/a/test-" + testname + "/integration_test";
     const pageLoaded = await Selector('#finishIntegrationTest').exists;
+
     await t
       .navigateTo(url)
       .takeScreenshot()
       ;
   })
   .afterEach( async t => {
+    const testname = t.testRun.test.name;
+    stopXvfb(testname);
     const finish = Selector('#finishIntegrationTest');
     const signal = Selector('#integrationTestSignal');
     let flushLogs = async () => {
-      const { log } = await t.getBrowserConsoleMessages();
-      console.error("msg/mod logs for: " + t.testRun.test.name);
-      for (var l of log) {
+      const { log, warn, error, info } = await t.getBrowserConsoleMessages();
+      console.error("msg/mod logs for: " + testname);
+      const msgs = Array.concat(["Console Logs:"], log, ["\n\nConsole Warnings"], warn, ["\n\nConsole Errors:"], error, ["\n\nConsole Infos:"], info);
+      for (var l of msgs) {
         console.error(l)
       }
 
@@ -61,7 +78,7 @@ fixture `Integration Tests`
 //********************************
 
 function user_content_url (t, endpoint) {
-    return "http://test-" + t.testRun.test.name + "." + process.env.DARK_CONFIG_USER_CONTENT_HOST + endpoint;
+  return "http://test-" + t.testRun.test.name + ".builtwithdark.localhost:8000" + endpoint;
 }
 
 //********************************
@@ -82,10 +99,9 @@ function available(css) {
   return Selector(css).exists;
 }
 
-// Allow us wait for a certain autocomplete entry to be selected
-function acHighlighted(content) {
-  return Selector('.autocomplete-item.highlighted')
-                 .withExactText(content);
+// Return the highlighted autocomplete entry
+function acHighlightedText() {
+  return Selector('.autocomplete-item.highlighted').innerText;
 }
 
 
@@ -105,31 +121,27 @@ test('field_access', async t => {
     .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("request")).ok()
+    .expect(acHighlightedText("requestvariable")).ok()
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
-    .expect(acHighlighted("body")).ok()
+    .expect(acHighlightedText("bodyfield")).ok()
     .pressKey("enter")
     ;
 });
 
 
 test('field_access_closes', async t => {
-
-  // this occasionally fails in CI so keep some debug info to catch it
-  // next time
-
   await t
     .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("request")).ok()
+    .expect(acHighlightedText("requestvariable")).ok()
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "b")
     .typeText("#entry-box", "o")
-    .expect(acHighlighted("body")).ok()
+    .expect(acHighlightedText("bodyfield")).ok()
     .pressKey("enter")
     ;
 });
@@ -142,11 +154,11 @@ test('field_access_pipes', async t => {
     .pressKey("enter")
 
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("request")).ok()
+    .expect(acHighlightedText()).eql("requestvariable")
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
-    .expect(acHighlighted("body")).ok()
+    .expect(acHighlightedText()).eql("bodyfield")
     .pressKey("shift+enter")
     ;
 });
@@ -157,11 +169,11 @@ test('field_access_nested', async t => {
     .pressKey("enter")
 
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("request")).ok()
+    .expect(acHighlightedText()).eql("requestvariable")
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
-    .expect(acHighlighted("body")).ok()
+    .expect(acHighlightedText()).eql("bodyfield")
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "field.")
@@ -247,7 +259,7 @@ test('editing_request_edits_request', async t => {
     .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("request")).ok()
+    .expect(acHighlightedText("requestvariable")).ok()
     .typeText("#entry-box", ".")
 
     .pressKey("esc")
@@ -261,7 +273,7 @@ test('autocomplete_highlights_on_partial_match', async t => {
     .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "nt::add")
-    .expect(acHighlighted("Int::add")).ok()
+    .expect(acHighlightedText("Int::add")).ok()
     .pressKey("enter")
     ;
 });
@@ -275,7 +287,7 @@ test('no_request_global_in_non_http_space', async t => {
     .typeText("#entry-box", "NOT_HTTP_SPACE")
     .pressKey("enter")
     .typeText("#entry-box", "request")
-    .expect(acHighlighted("Http::badRequest")).ok()
+    .expect(acHighlightedText("Http::badRequest")).ok()
     .pressKey("enter")
 });
 
@@ -297,10 +309,10 @@ test('pressing_up_doesnt_return_to_start', async t => {
     .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "Char::")
-    .expect(acHighlighted("Char::toASCIIChar")).ok()
+    .expect(acHighlightedText("Char::toASCIIChar")).ok()
     .pressKey("down")
     .pressKey("up")
-    .expect(acHighlighted("Char::toASCIIChar")).ok()
+    .expect(acHighlightedText("Char::toASCIIChar")).ok()
     .typeText("#entry-box", "toASCII")
     .pressKey("enter")
 });
@@ -362,13 +374,13 @@ test('editing_headers', async t => {
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
-    .doubleClick(".spec-header > .modifier")
-    .typeText("#entry-box", "PO")
-    .expect(acHighlighted("POST")).ok()
-    .pressKey("enter")
-
     .doubleClick(".spec-header > .module")
     .typeText("#entry-box", "HTTP")
+    .pressKey("enter")
+
+    .doubleClick(".spec-header > .modifier")
+    .typeText("#entry-box", "PO")
+    .expect(acHighlightedText("POST")).ok()
     .pressKey("enter")
 
     // edit them
@@ -777,7 +789,7 @@ test('execute_function_works', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "Uuid::gen")
     .pressKey("enter")
-    .click(Selector('.fa-play'))
+    .click(Selector('.execution-button-needed'))
     .click(Selector('.fncall'))
     ;
 
@@ -831,14 +843,16 @@ test('delete_db_col', async t => {
 
 test('cant_delete_locked_col', async t => {
   await t
-    .click(Selector('.fncall')) // this click is required due to caching
-    .click(Selector('.fa-play'))
+    .click(Selector('.fncall .namegroup')) // this click is required due to caching
   ;
+  await Selector('.execution-button-needed', {timeout: 5000})();
+  await t
+    .expect(Selector('.execution-button-needed').exists).ok()
+    .click(Selector('.execution-button-needed'))
+    ;
 
-  // the redo button only appears once the analysis has returned, so we
-  // can use this as a totally not brittle proxy for the fact that
-  // we want to wait until the data is in the DB
-  await t.expect(Selector('.fa-redo', {timeout: 5000}).exists).ok();
+  await Selector('.fa-lock', {timeout: 5000})();
+  await t.expect(Selector('.fa-lock').exists).ok();
 
   await t
     .click(Selector('.db')) // this click is required due to caching

@@ -3,7 +3,7 @@
 
 FROM ubuntu:17.10
 
-ENV FORCE_BUILD 0
+ENV FORCE_BUILD 1
 
 ############################
 ## apt
@@ -96,6 +96,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       python-dev \
       python-setuptools \
       pgcli \
+      xvfb \
+      ffmpeg \
+      tmux \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -127,8 +130,6 @@ ENV LC_ALL en_US.UTF-8
 ############################
 USER root
 RUN npm install -g yarn@1.12.3
-USER dark
-RUN yarn add testcafe@0.23.3
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
@@ -155,12 +156,6 @@ RUN sudo chown postgres:postgres -R /etc/postgresql
 RUN sudo chown postgres:postgres -R /var/log/postgresql
 RUN sudo chown postgres:postgres -R /var/lib/postgresql
 
-
-############################
-# dns for integration tests
-############################
-USER root
-RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
 
 ############################
 # Google cloud
@@ -241,6 +236,19 @@ RUN eval $(opam env) \
     ppx_deriving
 RUN opam switch 4.07.0
 
+############################
+# Shellcheck
+# Ubuntu has a very old version
+############################
+
+RUN \
+  VERSION=v0.6.0 \
+  && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
+  && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
+  && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
+  && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
+  && rm -Rf tmp_install_folder
+
 
 ############################
 # Incredibly -- and reproducibly -- if we move this to the top the
@@ -288,7 +296,6 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
 
-
 ############################
 # Environment
 ############################
@@ -299,17 +306,6 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
-# Testcafe 23.3 hangs on us.
-RUN yarn add testcafe@0.22.0
-
-# Ubuntu has very old versions of shellcheck
-RUN \
-  VERSION=v0.6.0 \
-  && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
-  && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
-  && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
-  && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
-  && rm -Rf tmp_install_folder
 
 ############################
 # Finish
