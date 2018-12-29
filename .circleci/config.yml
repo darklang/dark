@@ -141,11 +141,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v7-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v7-stroller-{{ checksum "today-timestamp" }}
-            - v7-stroller-{{ checksum "minus1-timestamp" }}
-            - v7-stroller-{{ checksum "minus2-timestamp" }}
-            - v7-stroller-{{ checksum "minus3-timestamp" }}
+            - v8-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v8-stroller-{{ checksum "today-timestamp" }}
+            - v8-stroller-{{ checksum "minus1-timestamp" }}
+            - v8-stroller-{{ checksum "minus2-timestamp" }}
+            - v8-stroller-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - copy-into-container
@@ -163,14 +163,14 @@ jobs:
           paths:
             - stroller/target
             - cargo
-          key: v7-stroller-{{ checksum "stroller/Cargo.lock" }}
+          key: v8-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           when: always
           paths:
             - stroller/target
             - cargo
-          key: v7-stroller-{{ checksum "today-timestamp" }}
+          key: v8-stroller-{{ checksum "today-timestamp" }}
 
 
   build-backend:
