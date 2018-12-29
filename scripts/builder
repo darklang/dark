@@ -57,13 +57,11 @@ if [ -v CI ]; then
 else
   MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
-
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
   MOUNTS+=" --mount type=volume,src=dark_backend_build,dst=/home/dark/app/backend/_build"
   MOUNTS+=" --mount type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
   MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
-  MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo"
 
   if [[ -e "../conduit-frontend" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
@@ -75,6 +73,7 @@ else
   touch "$HOME/.dark_bash_history"
   MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
 fi
+MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo"
 
 # --------------
 # fswatch
