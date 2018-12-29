@@ -1053,7 +1053,9 @@ let update_ (msg : msg) (m : model) : modification =
        *
        * TODO handle this (e.g. mark traces as "incomplete" or "pending")
        *)
-      let emptyTrace traceID = { traceID = traceID; input = GMS.empty; functionResults = [] } in
+      let emptyTrace traceID =
+        {traceID; input = GMS.empty; functionResults = []}
+      in
       let newTraces = GMS.map newTraceIDs (List.map emptyTrace) in
       UpdateTraces newTraces
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
@@ -1199,7 +1201,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
           ReceiveAnalysis s )
-    ; Analysis.NewTracesPush.listen ~key:"new_traces_push" (fun s -> NewTracesPush s) ]
+    ; Analysis.NewTracesPush.listen ~key:"new_traces_push" (fun s ->
+          NewTracesPush s ) ]
   in
   Tea.Sub.batch
     (List.concat

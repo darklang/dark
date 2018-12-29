@@ -171,13 +171,10 @@ let to_getanalysis_frontend
   |> Yojson.Safe.to_string ~std:true
 
 
-type new_traces_push = tlid_traceids list
-[@@deriving to_yojson]
+type new_traces_push = tlid_traceids list [@@deriving to_yojson]
 
 let to_new_traces_frontend (traceids : tlid_traceids list) : string =
-  traceids
-  |> new_traces_push_to_yojson
-  |> Yojson.Safe.to_string ~std:true
+  traceids |> new_traces_push_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
 (* Toplevel deletion:
