@@ -141,37 +141,39 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v9-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v9-stroller-{{ checksum "today-timestamp" }}
-            - v9-stroller-{{ checksum "minus1-timestamp" }}
-            - v9-stroller-{{ checksum "minus2-timestamp" }}
-            - v9-stroller-{{ checksum "minus3-timestamp" }}
+            - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v10-stroller-{{ checksum "today-timestamp" }}
+            - v10-stroller-{{ checksum "minus1-timestamp" }}
+            - v10-stroller-{{ checksum "minus2-timestamp" }}
+            - v10-stroller-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
-      - run: |
-          docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
-          docker cp cargo dark_rust_cargo:.
-          docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
-          rm -Rf cargo
+      - run:
+          name: Set up volume for cargo
+          command: |
+            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
+            docker cp cargo dark_rust_cargo:/usr/local/cargo
+            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
+            rm -Rf cargo
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       - run:
           name: Copy out generated files and caches
           command: |
             docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp dark_rust_cargo:. cargo
+            docker cp dark_rust_cargo:/usr/local/cargo cargo
       - save_cache:
           name: "Save cargolock-specific stroller cache"
           paths:
             - stroller/target
             - cargo
-          key: v9-stroller-{{ checksum "stroller/Cargo.lock" }}
+          key: v10-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           paths:
             - stroller/target
             - cargo
-          key: v9-stroller-{{ checksum "today-timestamp" }}
+          key: v10-stroller-{{ checksum "today-timestamp" }}
 
 
   build-backend:
