@@ -593,6 +593,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | Some _, Some n ->
                   Some n )
         in
+        Js.log2 "new traces" newTraces;
         let m2 = {m with traces = newTraces} in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
@@ -1041,6 +1042,15 @@ let update_ (msg : msg) (m : model) : modification =
         ; Append404s (f404s, ts)
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
+  | NewTracesPush (Ok newTraceIDs) ->
+      let module GM = GMap in
+      let module GMS = GMap.String in
+      Js.log2 "NewTracesPush" newTraceIDs;
+      let emptyTrace traceID = { traceID = traceID; input = GMS.empty; functionResults = [] } in
+      (*let addEmptyTraces (tlid, traceIDs) traces = GMS.add_unless_bound tlid (map emptyTrace traceIDs) traces in*)
+      (*let newTraces = GMS.fold addEmptyTrace newTraceIDs GMS.empty in*)
+      let newTraces = GMS.map newTraceIDs (List.map emptyTrace) in
+      UpdateTraces newTraces
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
   | ReceiveAnalysis json ->
@@ -1062,6 +1072,8 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("InitialLoad", err)
   | GetAnalysisRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
+  | NewTracesPush (Error err) ->
+      DisplayError ("Error in NewTracesPush: " ^ err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (_, _) ->
@@ -1181,7 +1193,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
-          ReceiveAnalysis s ) ]
+          ReceiveAnalysis s )
+    ; Analysis.NewTracesPush.listen ~key:"new_traces_push" (fun s -> NewTracesPush s) ]
   in
   Tea.Sub.batch
     (List.concat

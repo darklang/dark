@@ -271,6 +271,10 @@ and functionResult j : functionResult =
   {fnName; callerID; argHash; value}
 
 
+and traceIDs j : traceIDs =
+  j |> list (tuple2 wireIdentifier (list string)) |> StrDict.fromList
+
+
 and traces j : traces =
   j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
 
