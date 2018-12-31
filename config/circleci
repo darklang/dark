@@ -41,6 +41,14 @@ DARK_CONFIG_DB_PASSWORD=eapnsdc
 # Publicly accessible domain
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
 
+# Stroller (sidecar for pushing data to the editor)
+# not configured yet
+DARK_CONFIG_STROLLER_PORT=none
+DARK_CONFIG_PUSHER_APP_ID=none
+DARK_CONFIG_PUSHER_KEY=none
+DARK_CONFIG_PUSHER_SECRET=none
+DARK_CONFIG_PUSHER_CLUSTER=none
+
 # Services
 DARK_CONFIG_HEALTH_CHECK_PORT=8081
 DARK_CONFIG_CURL_TUNNEL_URL=none
