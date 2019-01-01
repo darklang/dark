@@ -127,10 +127,16 @@ function findCaretXPos() {
   if (isNonStringNode(contentNode)) {
     let selectionNode = getSelectionNode();
     let offset = selectionNode.selectionEnd;
-    let range = document.createRange();
-    range.setStart(contentNode, offset);
-    range.setEnd(contentNode, offset);
-    return range.getClientRects()[0].left;
+    if (offset != 0) {
+      let range = document.createRange();
+      range.setStart(contentNode, offset);
+      range.setEnd(contentNode, offset);
+      return range.getClientRects()[0].left;
+    } else {
+      // the above returns an empty getClientRects list for empty blanks,
+      // so special-case it
+      return selectionNode.getBoundingClientRect().x;
+    }
   } else {
     // There appears to be no good way to get the actual coordinates of the
     // cursor in a textarea, without making a clone, adding a span at the cursor,
