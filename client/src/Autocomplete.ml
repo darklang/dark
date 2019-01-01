@@ -593,7 +593,8 @@ let reset (m : model) (a : autocomplete) : autocomplete =
     |> List.filter (fun f -> not (StrSet.member f.fnName unusedDeprecatedFns))
     |> List.append userFunctionMetadata
   in
-  init functions a.admin |> regenerate m
+  let result = init functions a.admin |> regenerate m in
+  {result with visible = VariantTesting.defaultAutocompleteVisible m}
 
 
 let numCompletions (a : autocomplete) : int =
@@ -651,6 +652,10 @@ let setTarget (m : model) (t : target option) (a : autocomplete) : autocomplete
   {a with target = t} |> regenerate m
 
 
+let setVisible (visible : bool) (a : autocomplete) : autocomplete =
+  {a with visible}
+
+
 (* ------------------------------------ *)
 (* Commands *)
 (* ------------------------------------ *)
@@ -677,6 +682,8 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       regenerate m a
   | ACEnableCommandMode ->
       enableCommandMode a
+  | ACSetVisible visible ->
+      setVisible visible a
 
 
 (* --------------------------- *)
