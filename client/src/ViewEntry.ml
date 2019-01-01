@@ -149,7 +149,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let viewForm =
     Html.form
       [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)]
-      [input; autocomplete]
+      (if ac.visible then [input; autocomplete] else [input])
   in
   let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper

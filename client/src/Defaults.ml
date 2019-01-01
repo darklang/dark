@@ -50,7 +50,8 @@ let defaultModel : model =
       ; prevValue = ""
       ; target = None
       ; matcher = (fun _ -> true)
-      ; isCommandMode = false }
+      ; isCommandMode = false
+      ; visible = true }
   ; userFunctions = []
   ; builtInFunctions = []
   ; currentPage = Toplevels {x = 0; y = 0}
