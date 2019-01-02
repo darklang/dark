@@ -7,5 +7,3 @@ authors = ["Sam Stokes <me@samstokes.co.uk>"]
 futures = "0.1.25"
 hyper = "0.12"
 hyper-tls = "0.3.1"
-pusher = "*"
-rustc-serialize = "0.3.24"
