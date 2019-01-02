@@ -79,3 +79,7 @@ let parseVariantTestsFromQueryString (s : string) : variantTest list option =
       |> fun x -> Some x
   | _ ->
       None
+
+
+let defaultAutocompleteVisible m : bool =
+  not (variantIsActive m FluidInputModel)
