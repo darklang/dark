@@ -82,7 +82,13 @@ and entering j =
     j
 
 
-and expr j : expr = blankOr nExpr j
+and expr j : expr =
+  match blankOr nExpr j with
+  | F (ID id, FnCall (F (ID "fncall", name), exprs, rail)) ->
+      F (ID id, FnCall (F (ID (id ^ "_name"), name), exprs, rail))
+  | other ->
+      other
+
 
 and nExpr j : nExpr =
   let de = expr in
@@ -96,9 +102,14 @@ and nExpr j : nExpr =
     [ ("Let", dv3 (fun a b c -> Let (a, b, c)) (blankOr string) de de)
     ; ("Value", dv1 (fun x -> Value x) string)
     ; ("If", dv3 (fun a b c -> If (a, b, c)) de de de)
-    ; ("FnCall", dv2 (fun a b -> FnCall (a, b, NoRail)) string (list de))
+    ; ( "FnCall"
+      , dv2
+          (fun a b -> FnCall (F (ID "fncall", a), b, NoRail))
+          string
+          (list de) )
     ; ( "FnCallSendToRail"
-      , dv2 (fun a b -> FnCall (a, b, Rail)) string (list de) )
+      , dv2 (fun a b -> FnCall (F (ID "fncall", a), b, Rail)) string (list de)
+      )
     ; ("Lambda", dv2 (fun a b -> Lambda (a, b)) (list (blankOr string)) de)
     ; ("Variable", dv1 (fun x -> Variable x) string)
     ; ("Thread", dv1 (fun x -> Thread x) (list de))
