@@ -17,6 +17,5 @@ LETS=$(grep -P -h '^let ' ${FILES} \
 
 for z in $LETS; do
   echo -en "$z: " ;
-  # shellcheck disable=SC2086
   (grep $z $MLFILES || true ) | wc -l;
 done | grep " 1$"

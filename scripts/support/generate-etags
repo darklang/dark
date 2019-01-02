@@ -5,7 +5,6 @@ set -euo pipefail
 # generate an etags doc for the following files, put it in
 # static/etags.json
 
-# shellcheck disable=SC2044
 cat > backend/static/etags.json <<EOF
 { "__date": "$(date -Iseconds)"
 $(for file in $(find backend/static -type f -printf "%P\n"); do
