@@ -24,8 +24,10 @@ let focusWithOffset id offset =
         | None ->
             Js.log ("Attempted to focus a non-existant element of: ", id)
         | Some elem ->
+            (* We have to focus after setting range, or the cursor will vanish when the offset is 0 *)
+            elem##setSelectionRange offset offset ;
             Web.Node.focus elem ;
-            elem##setSelectionRange offset offset
+            ()
       in
       (* One to get out of the current render frame*)
       let cb _ignored = ignore (Web.Window.requestAnimationFrame ecb) in
