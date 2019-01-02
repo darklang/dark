@@ -139,7 +139,6 @@ fi
 # --------------
 echo "Run the build"
 
-# shellcheck disable=SC2086
 $FSWATCH | docker run \
              --rm \
              -i \
