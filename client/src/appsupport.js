@@ -60,6 +60,11 @@ function getTextNode(node) {
   return Array.from(node.childNodes).find(n => (n.nodeName == '#text'));
 }
 
+function getFnCallNode(node) {
+  return Array.from(node.childNodes).find(n => (n.className == 'namegroup atom'));
+}
+
+
 function isNonStringNode(node) {
   return node.nodeType == node.TEXT_NODE;
 }
@@ -176,21 +181,24 @@ function findLogicalOffset(targetBlankOrId, x) {
   }
 
   let targetNode = getTextNode(target);
-  if (!targetNode) {
-    console.error("No textNode found, returning offset 0.");
-    return 0;
-  }
-
-  // go through the characters and see if our x value is within any of them
-  let range = document.createRange();
-  let length = targetNode.textContent.length; // rendered, so must have a textcontent
-  for (let i = 0; i < length; i++) {
-    range.setStart(targetNode, i);
-    range.setEnd(targetNode, i + 1);
-    if (isClickInRects(range.getClientRects())) {
-      return i;
+  if (targetNode) {
+    // go through the characters and see if our x value is within any of them
+    let range = document.createRange();
+    let length = targetNode.textContent.length; // rendered, so must have a textcontent
+    for (let i = 0; i < length; i++) {
+      range.setStart(targetNode, i);
+      range.setEnd(targetNode, i + 1);
+      if (isClickInRects(range.getClientRects())) {
+        return i;
+      }
+    }
+  } else {
+    targetNode = getFnCallNode(target);
+    if (targetNode) {
+      return (x - tleft) / 8;
     }
   }
+
 
   console.error("We failed to set a correct offset!");
   return 0;
