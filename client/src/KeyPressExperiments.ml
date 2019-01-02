@@ -65,12 +65,16 @@ let arrowMoveHandler (event : Keyboard.keyEvent) (m : model) :
       None
   | true ->
     ( match m.cursorState with
-    | Selecting (tlid, Some mId) | Entering (Filling (tlid, mId)) ->
+    | Entering (Filling (tlid, mId)) ->
       ( match event.keyCode with
       | Key.Up ->
-          Some (arrowMoveUp m tlid (Some mId))
+          if m.complete.visible
+          then Some (AutocompleteMod ACSelectUp)
+          else Some (arrowMoveUp m tlid (Some mId))
       | Key.Down ->
-          Some (arrowMoveDown m tlid (Some mId))
+          if m.complete.visible
+          then Some (AutocompleteMod ACSelectDown)
+          else Some (arrowMoveDown m tlid (Some mId))
       | Key.Right ->
           Some (arrowMoveRight m tlid (Some mId))
       | Key.Left ->

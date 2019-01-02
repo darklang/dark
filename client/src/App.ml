@@ -754,7 +754,10 @@ let update_ (msg : msg) (m : model) : modification =
       if String.endsWith "." query && isFieldAccessDot m query
       then NoChange
       else
-        Many [AutocompleteMod (ACSetQuery query); MakeCmd (Entry.focusEntry m)]
+        Many
+          [ AutocompleteMod (ACSetQuery query)
+          ; AutocompleteMod (ACSetVisible true)
+          ; MakeCmd (Entry.focusEntry m) ]
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick value ->

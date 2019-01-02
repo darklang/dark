@@ -466,7 +466,8 @@ and autocomplete =
   ; prevValue : string
   ; target : target option
   ; matcher : autocompleteItem -> bool
-  ; isCommandMode : bool }
+  ; isCommandMode : bool
+  ; visible : bool }
 
 and autocompleteMod =
   | ACSetQuery of string
@@ -477,6 +478,7 @@ and autocompleteMod =
   | ACSetTarget of target option
   | ACRegenerate
   | ACEnableCommandMode
+  | ACSetVisible of bool
 
 (* | ACFilterByParamType of tipe nodeList *)
 

@@ -341,7 +341,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               if event.key = Some ":"
               then
                 Many
-                  [SelectCommand (tlid, id); AutocompleteMod (ACSetQuery ":")]
+                  [ SelectCommand (tlid, id)
+                  ; AutocompleteMod (ACSetVisible true)
+                  ; AutocompleteMod (ACSetQuery ":") ]
               else NoChange )
         | _ ->
             NoChange )
@@ -492,9 +494,12 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 else m.complete.value
               in
               Many
-                [AutocompleteMod (ACSetQuery v); MakeCmd (Entry.focusEntry m)]
+                [ AutocompleteMod (ACSetVisible true)
+                ; AutocompleteMod (ACSetQuery v)
+                ; AutocompleteMod (ACSetVisible true)
+                ; MakeCmd (Entry.focusEntry m) ]
           | _ ->
-              NoChange )
+              AutocompleteMod (ACSetVisible true) )
     | Deselected ->
       ( match m.currentPage with
       | Fn (_, _) ->
