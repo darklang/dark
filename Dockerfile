@@ -311,6 +311,14 @@ RUN opam install -y \
   uuseg.11.0.0 \
   uunf.11.0.0
 
+# required by Rust hyper-tls crate
+USER root
+RUN apt install \
+      -y \
+      --no-install-recommends \
+      libssl-dev=1.0.2g-1ubuntu13.6
+USER dark
+
 
 ############################
 # Finish
