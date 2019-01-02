@@ -81,10 +81,10 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       (fun i item ->
         let highlighted = index = i in
         let name = Autocomplete.asName item in
-        let view item classes =
+        let view item =
           match item with
           | ACFunction _ ->
-              viewFnName name classes
+              viewFnName false name
           | _ ->
               Html.text name
         in
@@ -97,7 +97,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick name ) ]
-          [ view item []
+          [ view item
           ; Html.span
               [Html.class' "types"]
               [Html.text <| Autocomplete.asTypeString item] ] )

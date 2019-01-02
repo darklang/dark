@@ -117,7 +117,7 @@ let pipe_within_let (m : model) : testResult =
           ( _
           , Thread
               [ F (_, Variable "value")
-              ; F (_, FnCall ("Int::add", [Blank _], _)) ] ) ) ->
+              ; F (_, FnCall (F (_, "Int::add"), [Blank _], _)) ] ) ) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -173,7 +173,7 @@ let editing_request_edits_request (m : model) : testResult =
 
 let autocomplete_highlights_on_partial_match (m : model) : testResult =
   match onlyExpr m with
-  | FnCall ("Int::add", _, _) ->
+  | FnCall (F (_, "Int::add"), _, _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -182,7 +182,7 @@ let autocomplete_highlights_on_partial_match (m : model) : testResult =
 let no_request_global_in_non_http_space (m : model) : testResult =
   (* this might change but this is the answer for now. *)
   match onlyExpr m with
-  | FnCall ("Http::badRequest", _, _) ->
+  | FnCall (F (_, "Http::badRequest"), _, _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -195,7 +195,7 @@ let hover_values_for_varnames (m : model) : testResult =
 
 let pressing_up_doesnt_return_to_start (m : model) : testResult =
   match onlyExpr m with
-  | FnCall ("Char::toASCIIChar", _, _) ->
+  | FnCall (F (_, "Char::toASCIIChar"), _, _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -207,7 +207,7 @@ let deleting_selects_the_blank (m : model) : testResult =
 
 let right_number_of_blanks (m : model) : testResult =
   match onlyExpr m with
-  | FnCall ("assoc", [Blank _; Blank _; Blank _], _) ->
+  | FnCall (F (_, "assoc"), [Blank _; Blank _; Blank _], _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -276,22 +276,23 @@ let case_sensitivity (m : model) : testResult =
                      ; F
                          ( _
                          , FnCall
-                             ( "assoc"
+                             ( F (_, "assoc")
                              , [ F (_, Value "\"cOlUmNnAmE\"")
                                ; F (_, Value "\"some value\"") ]
                              , _ ) )
                      ; F
                          ( _
                          , FnCall
-                             ("DB::insert", [F (_, Variable "TestUnicode")], _)
-                         ) ] ) ->
+                             ( F (_, "DB::insert")
+                             , [F (_, Variable "TestUnicode")]
+                             , _ ) ) ] ) ->
                  pass
              | F
                  ( id
                  , Thread
                      [ F (_, Variable "TestUnicode")
-                     ; F (_, FnCall ("DB::fetchAll", [], _))
-                     ; F (_, FnCall ("List::head", [], _))
+                     ; F (_, FnCall (F (_, "DB::fetchAll"), [], _))
+                     ; F (_, FnCall (F (_, "List::head"), [], _))
                      ; F
                          ( _
                          , Lambda
@@ -425,9 +426,9 @@ let paste_right_number_of_blanks (m : model) : testResult =
          match tl.data with
          | TLHandler {ast} ->
            ( match ast with
-           | F (_, Thread [_; F (_, FnCall ("-", [Blank _], _))]) ->
+           | F (_, Thread [_; F (_, FnCall (F (_, "-"), [Blank _], _))]) ->
                pass
-           | F (_, FnCall ("-", [Blank _; Blank _], _)) ->
+           | F (_, FnCall (F (_, "-"), [Blank _; Blank _], _)) ->
                pass (* ignore this TL *)
            | _ ->
                fail ~f:show_expr ast )
@@ -439,7 +440,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
 
 let paste_keeps_focus (m : model) : testResult =
   match onlyExpr m with
-  | FnCall ("+", [F (_, Value "3"); F (id, Value "3")], _) as fn ->
+  | FnCall (F (_, "+"), [F (_, Value "3"); F (id, Value "3")], _) as fn ->
     ( match m.cursorState with
     | Selecting (_, sid) ->
         if Some id = sid
@@ -479,7 +480,7 @@ let feature_flag_works (m : model) : testResult =
                   , F
                       ( _
                       , FnCall
-                          ( "Int::greaterThan"
+                          ( F (_, "Int::greaterThan")
                           , [F (_, Variable "a"); F (_, Value "10")]
                           , _ ) )
                   , F (_, Value "\"A\"")
@@ -502,7 +503,7 @@ let feature_flag_in_function (m : model) : testResult =
     | F
         ( _
         , FnCall
-            ( "+"
+            ( F (_, "+")
             , [ F
                   ( _
                   , FeatureFlag
@@ -559,7 +560,7 @@ let variable_extraction (m : model) : testResult =
                           , F
                               ( _
                               , FnCall
-                                  ( "+"
+                                  ( F (_, "+")
                                   , [ F (_, Variable "foo")
                                     ; F (_, Variable "bar") ]
                                   , _ ) )
@@ -640,7 +641,7 @@ let object_literals_work (m : model) : testResult =
 
 let rename_function (m : model) : testResult =
   match onlyExpr m with
-  | FnCall ("hello", _, _) ->
+  | FnCall (F (_, "hello"), _, _) ->
       pass
   | other ->
       fail ~f:show_nExpr other
@@ -664,7 +665,7 @@ let rename_pattern_variable (m : model) : testResult =
 let sending_to_rail_works (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
-  | F (_, FnCall ("List::head_v1", _, NoRail)) ->
+  | F (_, FnCall (F (_, "List::head_v1"), _, NoRail)) ->
       pass
   | _ ->
       fail ~f:show_expr ast

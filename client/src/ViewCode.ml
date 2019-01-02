@@ -126,7 +126,6 @@ and viewNExpr
     let vs2 = {vs with tooWide = true} in
     viewExpr d_ vs2 []
   in
-  let t = text vs in
   let n c = div vs (nested :: c) in
   let a c = text vs (atom :: c) in
   let kw = keyword vs in
@@ -184,26 +183,14 @@ and viewNExpr
         ; n [wc "ifbody"] [vExpr 0 ifbody]
         ; kw [] "else"
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
-  | FnCall (name, exprs, sendToRail) ->
+  | FnCall (Blank _, _, _) ->
+      Debug.crash "fn with blank"
+  | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
       let viewTooWideArg d_ e_ =
         Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
       in
       let ve = if width > 120 then viewTooWideArg else vExpr in
-      let fnname parens =
-        let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
-        match String.split "::" name with
-        | [mod_; justname] ->
-            let np = withP justname in
-            n
-              [wc "namegroup"; atom]
-              [ t [wc "module"] mod_
-              ; t [wc "moduleseparator"] "::"
-              ; ViewUtils.viewFnName np ["fnname"] ]
-        | _ ->
-            let np = withP name in
-            ViewUtils.viewFnName np ["atom fnname"]
-      in
       let fn =
         vs.ac.functions
         |> List.find (fun f -> f.fnName = name)
@@ -299,6 +286,14 @@ and viewNExpr
           [ Html.div
               [Html.class' "error-indicator"]
               [Html.div [Html.class' "error-icon"] []] ]
+      in
+      let fnname parens =
+        ViewBlankOr.viewBlankOr
+          (fun vs c text -> div vs c [ViewUtils.viewFnName parens text])
+          FnCallName
+          vs
+          []
+          nameBo
       in
       let fnDiv parens = n [wc "op"; wc name] (fnname parens :: button) in
       let configs = withROP sendToRail @ all in
