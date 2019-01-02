@@ -1,7 +1,6 @@
 extern crate futures;
 extern crate hyper;
-extern crate pusher;
-extern crate rustc_serialize;
+extern crate hyper_tls;
 
 mod config;
 mod push;

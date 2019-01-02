@@ -1,26 +1,35 @@
 use futures::future;
-use hyper::rt::{Future, Stream};
+use hyper::rt::{spawn, Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
 
 use push;
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
-pub trait Push {
-    fn push(canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) -> Result<(), String>;
+pub trait AsyncPush {
+    fn push(canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
 }
 
-impl Push for push::Client {
-    fn push(canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) -> Result<(), String> {
+impl AsyncPush for push::Client {
+    fn push(canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
         // TODO reuse push client!
         let client = push::Client::connect();
-        client.trigger(canvas_uuid.to_string(), event_name.to_string(), json_bytes)
+        let event_name_ = event_name.to_string();
+        let _ = spawn(
+            client
+                .trigger(canvas_uuid.to_string(), event_name.to_string(), json_bytes)
+                .map_err(move |e| {
+                    // TODO unify error handling
+                    eprintln!("failed to push event {}: {}", event_name_, e);
+                    ()
+                }),
+        );
     }
 }
 
 pub fn handle<PC>(req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error>
 where
-    PC: Push,
+    PC: AsyncPush,
 {
     let mut response = Response::new(Body::empty());
 
@@ -39,7 +48,8 @@ where
                     .map(|_| {
                         *response.status_mut() = StatusCode::ACCEPTED;
                         response
-                    }).or_else(|e| {
+                    })
+                    .or_else(|e| {
                         eprintln!("error trying to push trace: {}", e);
                         Ok(Response::builder()
                             .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -63,13 +73,13 @@ fn handle_push<PC>(
     payload_body: Body,
 ) -> BoxFut<(), String>
 where
-    PC: Push,
+    PC: AsyncPush,
 {
     Box::new(
         payload_body
             .map_err(|e| format!("error reading body: {}", e))
             .concat2()
-            .and_then(move |payload_bytes| {
+            .map(move |payload_bytes| {
                 println!(
                     "Got event \"{}\" for canvas \"{}\" ({} bytes)",
                     event_name,
@@ -77,8 +87,7 @@ where
                     payload_bytes.len(),
                 );
 
-                PC::push(&canvas_uuid, &event_name, &payload_bytes)
-                    .map_err(|e| format!("failed to push event {}: {}", event_name, e))
+                PC::push(&canvas_uuid, &event_name, &payload_bytes);
             }),
     )
 }
@@ -88,10 +97,8 @@ mod tests {
     use super::*;
 
     struct FakePushClient;
-    impl Push for FakePushClient {
-        fn push(_canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) -> Result<(), String> {
-            Ok(())
-        }
+    impl AsyncPush for FakePushClient {
+        fn push(_canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) {}
     }
 
     #[test]
