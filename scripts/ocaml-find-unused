@@ -4,12 +4,10 @@
 set -euo pipefail
 
 
-FILES=$(ls backend/*/*.ml{,i})
 # shellcheck disable=SC2010
 MLFILES=$(ls backend/*/*.ml | grep -v test.ml)
 
-# shellcheck disable=SC2086
-LETS=$(grep -P -h '^let ' ${FILES} \
+LETS=$(grep -P -h '^let ' backend/*/*.ml{,i} \
         | sed 's/\s*let\s*//' \
         | awk '{print $1;}' \
         | sort \
