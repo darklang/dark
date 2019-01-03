@@ -575,6 +575,7 @@ test('paste_keeps_focus', async t => {
     .pressKey("enter")
     .pressKey("ctrl+c")
     .pressKey("right")
+    .pressKey("right")
     .pressKey("ctrl+v")
 });
 
