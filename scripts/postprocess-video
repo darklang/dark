@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -exuo pipefail
+set -euo pipefail
 
 SOFTSUBS=0
 
@@ -65,6 +65,7 @@ if (( "$SOFTSUBS" )); then
   fi
 fi
 
+set -x
 if (( "$SOFTSUBS" )); then
   tmpfile=$(mktemp /tmp/postprocess-video.XXXXXX.mp4)
   rm "$tmpfile" # so ffmpeg doesn't ask if you want to overwrite it
