@@ -107,7 +107,7 @@ and expr = nExpr blankOr
 
 and nExpr =
   | If of expr * expr * expr
-  | FnCall of fnName * expr list * sendToRail
+  | FnCall of fnName blankOr * expr list * sendToRail
   | Variable of varName
   | Let of varBind * expr * expr
   | Lambda of lambdaParameter list * expr
@@ -135,6 +135,7 @@ and pointerData =
   | PDBColType of string blankOr
   | PFFMsg of string blankOr
   | PFnName of string blankOr
+  | PFnCallName of string blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
   | PPattern of pattern
@@ -152,6 +153,7 @@ and pointerType =
   | DBColType
   | FFMsg
   | FnName
+  | FnCallName
   | ParamName
   | ParamTipe
   | Pattern

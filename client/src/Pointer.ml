@@ -32,6 +32,8 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PFFMsg (Blank id)
   | FnName ->
       PFnName (Blank id)
+  | FnCallName ->
+      PFnCallName (Blank id)
   | ParamName ->
       PParamName (Blank id)
   | ParamTipe ->
@@ -66,6 +68,8 @@ let typeOf (pd : pointerData) : pointerType =
       FFMsg
   | PFnName _ ->
       FnName
+  | PFnCallName _ ->
+      FnCallName
   | PConstructorName _ ->
       ConstructorName
   | PParamName _ ->
@@ -102,6 +106,8 @@ let toID (pd : pointerData) : id =
       B.toID d
   | PFnName d ->
       B.toID d
+  | PFnCallName d ->
+      B.toID d
   | PParamName d ->
       B.toID d
   | PParamTipe d ->
@@ -136,6 +142,8 @@ let isBlank (pd : pointerData) : bool =
       B.isBlank d
   | PFnName d ->
       B.isBlank d
+  | PFnCallName d ->
+      B.isBlank d
   | PConstructorName d ->
       B.isBlank d
   | PParamName d ->
@@ -161,7 +169,7 @@ let toContent (pd : pointerData) : string option =
         Some s
     | F (_, Variable v) ->
         Some v
-    | F (_, FnCall (name, [], _)) ->
+    | F (_, FnCall (F (_, name), [], _)) ->
         Some name
     (* feature flags are ignored because you want to enter the *)
     (* feature flag and this is how this is used. *)
@@ -180,6 +188,8 @@ let toContent (pd : pointerData) : string option =
   | PFFMsg d ->
       bs2s d
   | PFnName d ->
+      bs2s d
+  | PFnCallName d ->
       bs2s d
   | PConstructorName d ->
       bs2s d

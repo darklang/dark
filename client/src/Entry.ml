@@ -24,8 +24,10 @@ let focusWithOffset id offset =
         | None ->
             Js.log ("Attempted to focus a non-existant element of: ", id)
         | Some elem ->
+            (* We have to focus after setting range, or the cursor will vanish when the offset is 0 *)
+            elem##setSelectionRange offset offset ;
             Web.Node.focus elem ;
-            elem##setSelectionRange offset offset
+            ()
       in
       (* One to get out of the current render frame*)
       let cb _ignored = ignore (Web.Window.requestAnimationFrame ecb) in
@@ -57,7 +59,13 @@ let newHandlerSpec (_ : unit) : handlerSpec =
 let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let r = if fn.fnReturnTipe = TOption then Rail else NoRail in
-  B.newF (FnCall (fn.fnName, blanks (List.length fn.fnParameters), r))
+  let (ID id) = gid () in
+  F
+    ( ID id
+    , FnCall
+        ( F (ID (id ^ "_name"), fn.fnName)
+        , blanks (List.length fn.fnParameters)
+        , r ) )
 
 
 let submitOmniAction (pos : pos) (action : omniAction) : modification =
@@ -284,6 +292,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PFFMsg _ ->
       None
   | PFnName _ ->
+      None
+  | PFnCallName _ ->
       None
   | PConstructorName _ ->
       v "Just|Nothing" "constructor name"
@@ -581,6 +591,6 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     | Some item ->
         submitACItem m cursor item move
     | _ ->
-        (* TODO: remove this. This is a transitional step to get to fully 
+        (* TODO: remove this. This is a transitional step to get to fully
                 typed. *)
         submitACItem m cursor (ACExtra m.complete.value) move )

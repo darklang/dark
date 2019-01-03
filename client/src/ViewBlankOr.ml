@@ -231,7 +231,7 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
   if idOf vs.cursorState = Some (B.toID v)
   then
     match v with
-    | F (_, FnCall (name, _, _)) ->
+    | F (_, FnCall (F (_, name), _, _)) ->
       ( match List.find (Functions.sameName name) vs.ufns with
       | Some fn ->
           [WithEditFn fn.ufTLID]
@@ -315,6 +315,8 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "pattern"
   | ConstructorName ->
       "constructor name"
+  | FnCallName ->
+      "function name"
 
 
 let viewBlankOr
