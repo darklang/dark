@@ -4,13 +4,12 @@ set -euo pipefail
 SOFTSUBS=0
 
 if [ $# -eq 0 ]; then
-  echo "This script takes two mandatory options - $1 is the input video, $2 is the
+  echo "This script takes two mandatory options - \$1 is the input video, \$2 is the
   input subtitles. Note: runs in docker, so files must be in the repo directory,
   and filenames may not contain spaces."
   echo
   echo "By default, we burn in hard subs; you may use --soft-subs to embed soft
-  subs."
-  echo "See: https://en.wikipedia.org/wiki/Subtitle_(captioning)#Types"
+  subs. See: https://en.wikipedia.org/wiki/Subtitle_(captioning)#Types"
 
   # Note: mkv would allow default subs on (`-disposition:s:s:0 forced`), but mkv
   # doesn't work out of box in Quicktime
