@@ -7,17 +7,20 @@ use push;
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 pub trait AsyncPush {
-    fn push(canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
+    fn connect() -> Self;
+
+    fn push(&self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
 }
 
-impl AsyncPush for push::Client {
-    fn push(canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
-        // TODO reuse push client!
-        let client = push::Client::connect();
+impl AsyncPush for push::PusherClient {
+    fn connect() -> Self {
+        Self::new()
+    }
+
+    fn push(&self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
         let event_name_ = event_name.to_string();
         let _ = spawn(
-            client
-                .trigger(canvas_uuid.to_string(), event_name.to_string(), json_bytes)
+            self.trigger(canvas_uuid.to_string(), event_name.to_string(), json_bytes)
                 .map_err(move |e| {
                     // TODO unify error handling
                     eprintln!("failed to push event {}: {}", event_name_, e);
@@ -87,7 +90,8 @@ where
                     payload_bytes.len(),
                 );
 
-                PC::push(&canvas_uuid, &event_name, &payload_bytes);
+                let client = PC::connect();
+                client.push(&canvas_uuid, &event_name, &payload_bytes);
             }),
     )
 }
@@ -98,7 +102,10 @@ mod tests {
 
     struct FakePushClient;
     impl AsyncPush for FakePushClient {
-        fn push(_canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) {}
+        fn connect() -> Self {
+            FakePushClient
+        }
+        fn push(&self, _canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) {}
     }
 
     #[test]

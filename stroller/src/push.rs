@@ -17,7 +17,7 @@ use config::*;
 
 pub type Error = String;
 
-pub struct Client {
+pub struct PusherClient {
     pub host: String,
     pub app_id: String,
     pub key: String,
@@ -28,15 +28,15 @@ pub struct Client {
 
 type BoxFut<T> = Box<Future<Item = T, Error = Error> + Send>;
 
-impl Client {
+impl PusherClient {
     const AUTH_VERSION: &'static str = "1.0";
 
-    pub fn connect() -> Self {
+    pub fn new() -> Self {
         let mut https = HttpsConnector::new(4).unwrap();
         https.https_only(true);
         let http = HClient::builder().build::<_, Body>(https);
 
-        Client {
+        Self {
             host: pusher_host(),
             app_id: pusher_app_id(),
             key: pusher_key(),

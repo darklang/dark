@@ -18,7 +18,7 @@ use hyper::Server;
 fn main() {
     let addr = ([0, 0, 0, 0], config::port()).into();
 
-    let make_service = || service_fn(service::handle::<push::Client>);
+    let make_service = || service_fn(service::handle::<push::PusherClient>);
 
     let server = Server::bind(&addr)
         .serve(make_service)
