@@ -1,8 +1,46 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -exuo pipefail
 
-INVIDEO=$1
-INSUBS=$2
+SOFTSUBS=0
+
+if [ $# -eq 0 ]; then
+  echo "This script takes two mandatory args - $1 is the input video, $2 is the
+  input subtitles."
+  echo
+  echo "By default, we burn in hard subs; you may use --soft-subs to embed soft
+  subs."
+  echo "See: https://en.wikipedia.org/wiki/Subtitle_(captioning)#Types"
+
+  # Note: mkv would allow default subs on (`-disposition:s:s:0 forced`), but mkv
+  # doesn't work out of box in Quicktime
+  exit 0
+fi
+
+INVIDEO=""
+while (( "$#" )); do
+  case "$1" in
+    --soft-subs )
+      SOFTSUBS=1
+      shift
+      ;;
+    --*|-*=) # unsupported flags
+      echo "Eror: Unsupported flag $!" >&2
+      exit 1
+      ;;
+    *) # preserve positional arguments
+      if [[ "$INVIDEO" == "" ]]; then
+        INVIDEO=$1
+      else
+        INSUBS=$1
+      fi
+      shift
+      ;;
+  esac
+done
+
+echo "INVIDEO: $INVIDEO"
+echo "INSUBS: $INSUBS"
+
 CCOVERLAY=$(dirname "$0")/cc.png
 
 if ( ! command -v ffmpeg ); then
@@ -20,28 +58,39 @@ if ! [[ "$INSUBS" =~ .srt$ ]]; then
   exit 1
 fi
 
-# if this file needs scaling at some point, use imagemagick:
-# convert cc.png -resize 120x120 cc.png
-if [[ ! -f $CCOVERLAY ]]; then
-  echo "No ccoverlay image found."
-  exit 1
+if (( "$SOFTSUBS" )); then
+  # if this file needs scaling at some point, use imagemagick:
+  # convert cc.png -resize 120x120 cc.png
+  if [[ ! -f $CCOVERLAY ]]; then
+    echo "No ccoverlay image found."
+    exit 1
+  fi
 fi
 
-tmpfile=$(mktemp /tmp/postprocess-video.XXXXXX.mp4)
-rm "$tmpfile" # so ffmpeg doesn't ask if you want to overwrite it
+if (( "$SOFTSUBS" )); then
+  tmpfile=$(mktemp /tmp/postprocess-video.XXXXXX.mp4)
+  rm "$tmpfile" # so ffmpeg doesn't ask if you want to overwrite it
 
-# Add CCOVERLAY watermark in bottom right corner
-ffmpeg -i "$INVIDEO" \
-  -vf "movie=${CCOVERLAY} [watermark]; [in][watermark] overlay=(main_w-overlay_w-10):(main_h-overlay_h-10) [out]" \
-  "$tmpfile"
+  # Add CCOVERLAY watermark in bottom right corner
+  ffmpeg -i "$INVIDEO" \
+    -vf "movie=${CCOVERLAY} [watermark]; [in][watermark] overlay=(main_w-overlay_w-10):(main_h-overlay_h-10) [out]" \
+    "$tmpfile"
 
-# Add soft subs (not hard; hard are burned-in images, soft can be turned on/off
-# and are also _text_ so screenreader/braille-display accessible)
-#
-# If you want hard subs, replace the whole `-c ...` with, I believe
-# `-vf subtitles=$INSUBS`
-ffmpeg -i "$tmpfile" -f srt -i "$INSUBS" -c:v copy -c:a copy -c:s mov_text out.mp4
+  ffmpeg -i "$tmpfile" -f srt -i "$INSUBS" \
+    -c:v copy -c:a copy -c:s mov_text \
+    -metadata:s:s:0 language=English \
+    out.mp4
 
-rm "$tmpfile"
+  # could put this in a signal handler if you wanted to be really sure it gets
+  # cleaned up
+  rm "$tmpfile"
+else
+  ffmpeg -i "$INVIDEO" -vf subtitles="$INSUBS" out.mp4
+fi
 
-echo "Done! See out.mp4"
+
+if (( "$SOFTSUBS" )); then
+  echo "Done, with soft subs! See out.mp4"
+else
+  echo "Done, with hard subs! See out.mp4"
+fi
