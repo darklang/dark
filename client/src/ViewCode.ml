@@ -196,20 +196,6 @@ and viewNExpr
       let ve p =
         if width > 120 then viewTooWideArg p else vExpr
       in
-      let fnname parens =
-        let withP name_ = if parens then "(" ^ name_ ^ ")" else name_ in
-        match String.split "::" name with
-        | [mod_; justname] ->
-            let np = withP justname in
-            n
-              [wc "namegroup"; atom]
-              [ t [wc "module"] mod_
-              ; t [wc "moduleseparator"] "::"
-              ; ViewUtils.viewFnName np ["fnname"] ]
-        | _ ->
-            let np = withP name in
-            ViewUtils.viewFnName np ["atom fnname"]
-      in
       let fn =
         vs.ac.functions
         |> List.find (fun f -> f.fnName = name)
