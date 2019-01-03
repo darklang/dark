@@ -1,10 +1,11 @@
 open Types
-open Selection
 open Prelude
 open Porting
 
 (* Dark *)
 module Key = Keyboard
+module TL = Toplevel
+module P = Pointer
 
 (* only needed for moving up/down, not left/right *)
 (* NB: assumes no id collisions in a given canvas *)
@@ -15,11 +16,12 @@ let offsetFromCurrent (newId : id) : int =
 
 (* TODO this whole arrowMove* section could be DRY'd up, post-experiment *)
 let arrowMoveUp (m : model) (tlid : tlid) (mId : id option) : modification =
-  let default = body m tlid in
+  let default = Selection.body m tlid in
   let newMId =
-    findTargetId tlid mId (moveUpDown Up) default |> deOption "mId"
+    Selection.findTargetId tlid mId (Selection.moveUpDown Up) default
+    |> deOption "mId"
   in
-  enterWithOffset m tlid newMId (Some (offsetFromCurrent newMId))
+  Selection.enterWithOffset m tlid newMId (Some (offsetFromCurrent newMId))
 
 
 let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
@@ -27,9 +29,10 @@ let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
     TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
   in
   let newMId =
-    findTargetId tlid mId (moveUpDown Down) default |> deOption "mId"
+    Selection.findTargetId tlid mId (Selection.moveUpDown Down) default
+    |> deOption "mId"
   in
-  enterWithOffset m tlid newMId (Some (offsetFromCurrent newMId))
+  Selection.enterWithOffset m tlid newMId (Some (offsetFromCurrent newMId))
 
 
 let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
@@ -38,11 +41,13 @@ let arrowMoveLeft (m : model) (tlid : tlid) (mId : id option) : modification =
   | true ->
       NoChange
   | false ->
-      let default = body m tlid in
-      let newMId = findTargetId tlid mId (moveLeftRight Right) default in
+      let default = Selection.body m tlid in
+      let newMId =
+        Selection.findTargetId tlid mId (Selection.moveLeftRight Left) default
+      in
       if newMId = mId
       then NoChange
-      else enterWithOffset m tlid (deOption "mId" newMId) (Some (-1))
+      else Selection.enterWithOffset m tlid (deOption "mId" newMId) (Some (-1))
 
 
 let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
@@ -51,11 +56,13 @@ let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
   | true ->
       NoChange
   | false ->
-      let default = body m tlid in
-      let newMId = findTargetId tlid mId (moveLeftRight Left) default in
+      let default = Selection.body m tlid in
+      let newMId =
+        Selection.findTargetId tlid mId (Selection.moveLeftRight Left) default
+      in
       if newMId = mId
       then NoChange
-      else enterWithOffset m tlid (deOption "mId" newMId) (Some 0)
+      else Selection.enterWithOffset m tlid (deOption "mId" newMId) (Some 0)
 
 
 let arrowMoveHandler (event : Keyboard.keyEvent) (m : model) :
