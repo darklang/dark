@@ -148,6 +148,8 @@ let clonePointerData (pd : pointerData) : pointerData =
       PFFMsg (B.clone identity msg)
   | PFnName name ->
       PFnName (B.clone identity name)
+  | PFnCallName name ->
+      PFnCallName (B.clone identity name)
   | PParamName name ->
       PParamName (B.clone identity name)
   | PParamTipe tipe ->
@@ -281,6 +283,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PFnName _ ->
       []
+  | PFnCallName _ ->
+      []
   | PParamName _ ->
       []
   | PParamTipe _ ->
@@ -376,7 +380,11 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       astReplace ()
   | PConstructorName _ ->
       astReplace ()
+  | PFnCallName _ ->
+      tl
 
+
+(* do nothing for now *)
 
 let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in

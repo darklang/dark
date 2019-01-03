@@ -221,7 +221,7 @@ and approxNWidth (ne : nExpr) : int =
         (* the space in between *)
         |> List.sum
       in
-      String.length name + sizes
+      strBlankOrLength name + sizes
   | Constructor (name, exprs) ->
       strBlankOrLength name
       + List.sum (List.map approxWidth exprs)
@@ -289,35 +289,41 @@ and approxNWidth (ne : nExpr) : int =
       |> Option.withDefault 0
 
 
-let viewFnName (fnName : fnName) (extraClasses : string list) : msg Html.html =
-  let pattern = Js.Re.fromString "(\\w+::)?(\\w+)_v(\\d+)" in
+let splitFnName (fnName : fnName) : string option * string * string =
+  let pattern = Js.Re.fromString "((\\w+)::)?(\\w+)_v(\\d+)" in
   let mResult = Js.Re.exec fnName pattern in
-  let name, version =
-    match mResult with
-    | Some result ->
-        let captures =
-          result
-          |> Js.Re.captures
-          |> Belt.List.fromArray
-          |> List.map Js.toOption
-        in
-        let name =
-          match captures with
-          | [_; None; Some fn; _] ->
-              fn
-          | [_; Some modName; Some fn; _] ->
-              modName ^ fn
-          | _ ->
-              fnName
-        in
-        let version =
-          match captures with [_; _; _; Some v] -> v | _ -> "0"
-        in
-        (name, version)
-    | None ->
-        (fnName, "0")
+  match mResult with
+  | Some result ->
+      let captures =
+        result |> Js.Re.captures |> Belt.List.fromArray |> List.map Js.toOption
+      in
+      ( match captures with
+      | [_; _; mod_; fn; v] ->
+          (mod_, Option.withDefault fnName fn, Option.withDefault "0" v)
+      | _ ->
+          (None, fnName, "") )
+  | None ->
+      (None, fnName, "0")
+
+
+let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
+  let mod_, name, version = splitFnName fnName in
+  let name = if parens then "(" ^ name ^ ")" else name in
+  let classes = if mod_ = None then ["atom"] else [] in
+  let modHtml =
+    match mod_ with
+    | Some name ->
+        [ Html.div [Html.class' "module"] [Html.text name]
+        ; Html.div [Html.class' "moduleseparator"] [Html.text "::"] ]
+    | _ ->
+        []
   in
   Html.div
-    [Html.class' (String.join " " ("versioned-function" :: extraClasses))]
-    [ Html.span [Html.class' "name"] [Html.text name]
-    ; Html.span [Html.class' "version"] [Html.text ("v" ^ version)] ]
+    [Html.class' "namegroup atom"]
+    ( modHtml
+    @ [ Html.div
+          [ Html.class'
+              (String.join " " (classes @ ["versioned-function"; "fnname"])) ]
+          [ Html.span [Html.class' "name"] [Html.text name]
+          ; Html.span [Html.class' "version"] [Html.text ("v" ^ version)] ] ]
+    )

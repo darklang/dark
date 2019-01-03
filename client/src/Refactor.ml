@@ -153,7 +153,9 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
           List.map (fun (_, name_) -> F (gid (), Variable name_)) freeVars
         in
         let replacement =
-          PExpr (F (gid (), FnCall (name, paramExprs, NoRail)))
+          let (ID id) = gid () in
+          let nameid = id ^ "_name" in
+          PExpr (F (ID id, FnCall (F (ID nameid, name), paramExprs, NoRail)))
         in
         let h =
           deOption
@@ -200,8 +202,8 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     let transformCall newName_ oldCall =
       let transformExpr name oldExpr =
         match oldExpr with
-        | F (id, FnCall (_, params, r)) ->
-            F (id, FnCall (name, params, r))
+        | F (ID id, FnCall (_, params, r)) ->
+            F (ID id, FnCall (F (ID (id ^ "_name"), name), params, r))
         | _ ->
             oldExpr
       in
@@ -260,8 +262,10 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
       false
   | Some nExpr ->
     ( match nExpr with
-    | FnCall (name, list, _) ->
+    | FnCall (F (_, name), list, _) ->
         if name = fnName then true else List.any (isFunctionInExpr fnName) list
+    | FnCall (Blank _, _, _) ->
+        Debug.crash "blank in fncall"
     | Constructor (_, args) ->
         List.any (isFunctionInExpr fnName) args
     | If (ifExpr, thenExpr, elseExpr) ->

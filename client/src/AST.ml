@@ -72,8 +72,8 @@ let rec allData (expr : expr) : pointerData list =
         [PVarBind lhs] @ rl [rhs; body]
     | If (cond, ifbody, elsebody) ->
         rl [cond; ifbody; elsebody]
-    | FnCall (_, exprs, _) ->
-        rl exprs
+    | FnCall (name, exprs, _) ->
+        [PFnCallName name] @ rl exprs
     | Constructor (name, exprs) ->
         PConstructorName name :: rl exprs
     | Lambda (vars, body) ->
@@ -754,7 +754,7 @@ let getParamIndex (expr : expr) (id : id) : (string * int) option =
   let parent = findParentOfWithin_ id expr in
   let inThread = grandparentIsThread expr parent in
   match parent with
-  | Some (F (_, FnCall (name, args, _))) ->
+  | Some (F (_, FnCall (F (_, name), args, _))) ->
       args
       |> List.findIndex (fun a -> B.toID a = id)
       |> Option.map (fun i -> if inThread then (name, i + 1) else (name, i))
@@ -779,8 +779,10 @@ let allCallsToFn (s : string) (e : expr) : expr list =
   |> allData
   |> List.filterMap (fun pd ->
          match pd with
-         | PExpr (F (id, FnCall (name, params, r))) ->
-             if name = s then Some (F (id, FnCall (name, params, r))) else None
+         | PExpr (F (id, FnCall (F (fnid, name), params, r))) ->
+             if name = s
+             then Some (F (id, FnCall (F (fnid, name), params, r)))
+             else None
          | _ ->
              None )
 

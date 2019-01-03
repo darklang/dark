@@ -128,6 +128,8 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
       ev "PPattern" [pattern p]
   | PConstructorName n ->
       ev "PConstructorName" [blankOr string n]
+  | PFnCallName n ->
+      ev "PFnCallName" [blankOr string n]
 
 
 and tlidOf (op : Types.op) : Types.tlid =
@@ -410,10 +412,12 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   let e = expr in
   let ev = variant in
   match nexpr with
-  | FnCall (n, exprs, r) ->
+  | FnCall (F (_, n), exprs, r) ->
       if r = Rail
       then ev "FnCallSendToRail" [string n; list e exprs]
       else ev "FnCall" [string n; list e exprs]
+  | FnCall (Blank _, _, _) ->
+      Debug.crash "fnCall hack used"
   | Let (lhs, rhs, body) ->
       ev "Let" [blankOr string lhs; e rhs; e body]
   | Lambda (vars, body) ->
