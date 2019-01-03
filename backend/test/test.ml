@@ -384,6 +384,18 @@ let t_stdlib_works () =
   ()
 
 
+let t_multiple_copies_of_same_name () =
+  check_dval
+    "object field names"
+    (exec_ast "(obj (col1 1) (col1 2))")
+    (DError "The same key occurs multiple times") ;
+  let ops =
+    [Op.CreateDB (dbid, pos, "TestDB"); Op.CreateDB (dbid, pos, "TestDB")]
+  in
+  check_exception (fun _ -> exec_handler ~ops "_") "db names" ;
+  ()
+
+
 let t_derror_roundtrip () =
   let x = DError "test" in
   let converted =
@@ -1750,6 +1762,9 @@ let suite =
     , `Quick
     , t_inserting_object_to_missing_col_gives_good_error )
   ; ("Stdlib fns work", `Quick, t_stdlib_works)
+  ; ( "Multiple copied of same name don't crash"
+    , `Quick
+    , t_multiple_copies_of_same_name )
   ; ("Feature flags work", `Quick, t_feature_flags_work)
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)

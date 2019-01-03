@@ -103,7 +103,7 @@ let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (op : Op.op) (c : canvas ref) : unit =
+let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
   c :=
     !c
     |>
@@ -111,11 +111,11 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | SetHandler (tlid, pos, handler) ->
         upsert_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
-        if name = "" then Exception.client "DB must have a name" else () ;
-        (* List.iter (TL.dbs !c.dbs) *)
-        (*   ~f:(fun db -> *)
-        (*       if db.name = name *)
-        (*       then Exception.client "Duplicate DB name"); *)
+        if is_new
+        then (
+          if name = "" then Exception.client "DB must have a name" ;
+          List.iter (TL.dbs !c.dbs) ~f:(fun db ->
+              if db.name = name then Exception.client "Duplicate DB name" ) ) ;
         let db = User_db.create name tlid in
         upsert_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
@@ -177,9 +177,12 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
     =
+  let oldops = List.map ~f:(fun op -> (false, op)) oldops in
+  let newops = List.map ~f:(fun op -> (true, op)) newops in
   let reduced_ops = Undo.preprocess (oldops @ newops) in
-  List.iter ~f:(fun op -> apply_op op c) reduced_ops ;
-  c := {!c with ops = Op.oplist2tlid_oplists (oldops @ newops)}
+  List.iter ~f:(fun (is_new, op) -> apply_op is_new op c) reduced_ops ;
+  let allops = oldops @ newops |> List.map ~f:Tuple.T2.get2 in
+  c := {!c with ops = Op.oplist2tlid_oplists allops}
 
 
 let init (host : string) (ops : Op.op list) : canvas ref =

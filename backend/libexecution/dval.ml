@@ -435,7 +435,8 @@ let to_string_pairs dv : (string * string) list =
 
 
 let to_dobj (pairs : (string * dval) list) : dval =
-  DObj (DvalMap.of_alist_exn pairs)
+  try DObj (DvalMap.of_alist_exn pairs) with e ->
+    DError "The same key occurs multiple times"
 
 
 let is_errorrail e = match e with DErrorRail _ -> true | _ -> false
