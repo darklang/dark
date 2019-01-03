@@ -4,8 +4,9 @@ set -exuo pipefail
 SOFTSUBS=0
 
 if [ $# -eq 0 ]; then
-  echo "This script takes two mandatory args - $1 is the input video, $2 is the
-  input subtitles."
+  echo "This script takes two mandatory options - $1 is the input video, $2 is the
+  input subtitles. Note: runs in docker, so files must be in the repo directory,
+  and filenames may not contain spaces."
   echo
   echo "By default, we burn in hard subs; you may use --soft-subs to embed soft
   subs."
@@ -16,31 +17,28 @@ if [ $# -eq 0 ]; then
   exit 0
 fi
 
-INVIDEO=""
-while (( "$#" )); do
+OPTS=$(getopt --options s --longoptions soft-subs "$@")
+eval set -- "$OPTS"
+
+while true ; do
   case "$1" in
-    --soft-subs )
+    --soft-subs|-s)
       SOFTSUBS=1
       shift
       ;;
-    --*|-*=) # unsupported flags
-      echo "Eror: Unsupported flag $!" >&2
-      exit 1
-      ;;
-    *) # preserve positional arguments
-      if [[ "$INVIDEO" == "" ]]; then
-        INVIDEO=$1
-      else
-        INSUBS=$1
-      fi
+    --)
       shift
+      break
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
       ;;
   esac
 done
 
-echo "INVIDEO: $INVIDEO"
-echo "INSUBS: $INSUBS"
-
+INVIDEO=$1
+INSUBS=$2
 CCOVERLAY=$(dirname "$0")/cc.png
 
 if ( ! command -v ffmpeg ); then
