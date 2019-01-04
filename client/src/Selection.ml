@@ -192,23 +192,19 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
   let isLocked = DB.isLocked m tl.id in
   let isMigrationCol = DB.isMigrationCol db id in
   let pd = TL.findExn tl id in
-  let enterField autocomplete =
-    if autocomplete
-    then
-      Many
-        [ Enter (Filling (tl.id, id))
-        ; AutocompleteMod
-            (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
-    else Enter (Filling (tl.id, id))
+  let enterField =
+    Many
+      [ Enter (Filling (tl.id, id))
+      ; AutocompleteMod (ACSetQuery (P.toContent pd |> Option.withDefault ""))
+      ]
   in
-  let _ = pd in
   match pd with
   | PDBColName _ ->
-      if isLocked && not isMigrationCol then NoChange else enterField false
+      if isLocked && not isMigrationCol then NoChange else enterField
   | PDBColType _ ->
-      if isLocked && not isMigrationCol then NoChange else enterField true
+      if isLocked && not isMigrationCol then NoChange else enterField
   | PExpr _ ->
-      enterField true
+      enterField
   (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
   | _ ->
       NoChange
