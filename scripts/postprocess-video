@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOFTSUBS=0
-
 if [ $# -eq 0 ]; then
   echo "This script takes two mandatory options - \$1 is the input video, \$2 is the
-  input subtitles. Note: runs in docker, so files must be in the repo directory,
-  and filenames may not contain spaces."
+  input subtitles."
   echo
   echo "By default, we burn in hard subs; you may use --soft-subs to embed soft
   subs. See: https://en.wikipedia.org/wiki/Subtitle_(captioning)#Types"
@@ -19,6 +16,7 @@ fi
 OPTS=$(getopt --options s --longoptions soft-subs "$@")
 eval set -- "$OPTS"
 
+SOFTSUBS=0
 while true ; do
   case "$1" in
     --soft-subs|-s)
