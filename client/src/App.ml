@@ -137,6 +137,17 @@ let processFocus (m : model) (focus : focus) : modification =
         | Fn (id, _) ->
             tl.id = id
       in
+      let setQuery =
+        let mTl = cs |> tlidOf |> Option.andThen (TL.get m) in
+        match (mTl, idOf cs) with
+        | Some tl, Some id when TL.isValidID tl id ->
+            let pd = TL.find tl id in
+            AutocompleteMod
+              (ACSetQuery
+                 (pd |> Option.andThen P.toContent |> Option.withDefault ""))
+        | _ ->
+            NoChange
+      in
       let nextCursor, acTarget =
         match cs with
         | Selecting (tlid, mId) ->
@@ -166,7 +177,7 @@ let processFocus (m : model) (focus : focus) : modification =
         | _ ->
             (Deselect, noTarget)
       in
-      Many [SetPage page; nextCursor; AutocompleteMod acTarget]
+      Many [SetPage page; nextCursor; AutocompleteMod acTarget; setQuery]
   | FocusNothing ->
       Deselect
   (* used instead of focussame when we've already done the focus *)
