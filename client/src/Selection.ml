@@ -82,11 +82,19 @@ type jSSide = Porting.Native.rect =
 and htmlSizing =
   { centerX : float
   ; centerY : float
+  ; top : int
+  ; left : int
+  ; right : int
+  ; bottom : int
   ; id : id }
 
 let jsToHtmlSizing (obj : jSSide) : htmlSizing =
   { centerX = float_of_int (obj.left + obj.right) /. 2.
   ; centerY = float_of_int (obj.top + obj.bottom) /. 2.
+  ; top = obj.top
+  ; left = obj.left
+  ; right = obj.right
+  ; bottom = obj.bottom
   ; id = ID obj.id }
 
 
