@@ -148,14 +148,20 @@ impl PusherClient {
 
         println!("sending request: {:?}", pusher_request);
 
+        let start = SystemTime::now();
+
         Box::new(
             self.http
                 .request(pusher_request)
                 .map_err(|e| err(&format!("Error pushing event: {}", e)))
-                .and_then(|resp| {
+                .and_then(move |resp| {
+                    let req_time = start.elapsed().expect("FFS TODO");
                     let result: BoxFut<()> = match resp.status() {
                         StatusCode::OK => {
-                            println!("Pushed event");
+                            println!(
+                                "Pushed event in {}ms",
+                                1000 * req_time.as_secs() + (req_time.subsec_millis() as u64)
+                            );
                             Box::new(future::ok(()))
                         }
                         code => Box::new(
