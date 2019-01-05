@@ -3,7 +3,7 @@
 
 use std::fmt;
 use std::str;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use futures::future;
 use hmac::{Hmac, Mac};
@@ -12,6 +12,7 @@ use hyper::header;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Client as HClient, Request as HRequest, StatusCode, Uri};
 use hyper_tls::HttpsConnector;
+use native_tls::TlsConnector;
 use r2d2::ManageConnection;
 use sha2::Sha256;
 
@@ -46,8 +47,10 @@ impl PusherClient {
     const AUTH_VERSION: &'static str = "1.0";
 
     pub fn new() -> Self {
-        let mut https = HttpsConnector::new(4).unwrap();
-        // TODO keepalive
+        let mut http = HttpConnector::new(4);
+        http.enforce_http(false);
+        http.set_keepalive(Some(Duration::from_secs(30)));
+        let mut https = HttpsConnector::from((http, TlsConnector::new().unwrap()));
         https.https_only(true);
         let http = HClient::builder().build::<_, Body>(https);
 
