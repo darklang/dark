@@ -1,6 +1,7 @@
 // Wrapper for the Pusher REST API (https://pusher.com/docs/rest_api). Not
 // intended to be comprehensive.
 
+use std::fmt;
 use std::str;
 use std::time::SystemTime;
 
@@ -11,11 +12,24 @@ use hyper::header;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Client as HClient, Request as HRequest, StatusCode, Uri};
 use hyper_tls::HttpsConnector;
+use r2d2::ManageConnection;
 use sha2::Sha256;
 
 use config::*;
 
-pub type Error = String;
+#[derive(Debug)]
+pub struct PusherError(String);
+impl fmt::Display for PusherError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        f.write_str("Pusher error: ")?;
+        self.0.fmt(f)
+    }
+}
+// TODO yuck, make it an error enum
+impl std::error::Error for PusherError {}
+fn err(msg: &str) -> PusherError {
+    PusherError(msg.into())
+}
 
 pub struct PusherClient {
     pub host: String,
@@ -26,13 +40,14 @@ pub struct PusherClient {
     http: HClient<HttpsConnector<HttpConnector>>,
 }
 
-type BoxFut<T> = Box<Future<Item = T, Error = Error> + Send>;
+type BoxFut<T> = Box<Future<Item = T, Error = PusherError> + Send>;
 
 impl PusherClient {
     const AUTH_VERSION: &'static str = "1.0";
 
     pub fn new() -> Self {
         let mut https = HttpsConnector::new(4).unwrap();
+        // TODO keepalive
         https.https_only(true);
         let http = HClient::builder().build::<_, Body>(https);
 
@@ -51,9 +66,13 @@ impl PusherClient {
         canvas_uuid: &str,
         event_name: &str,
         json_bytes: &[u8],
-    ) -> Result<HRequest<Body>, Error> {
-        let json_str = str::from_utf8(json_bytes)
-            .map_err(|e| format!("malformed payload (should be UTF-8-encoded JSON): {}", e))?;
+    ) -> Result<HRequest<Body>, PusherError> {
+        let json_str = str::from_utf8(json_bytes).map_err(|e| {
+            err(&format!(
+                "malformed payload (should be UTF-8-encoded JSON): {}",
+                e
+            ))
+        })?;
 
         let channel_name = format!("canvas_{}", canvas_uuid);
 
@@ -70,7 +89,7 @@ impl PusherClient {
         ); // TODO
 
         let pusher_msg_bytes =
-            serde_json::to_vec(&pusher_msg).map_err(|e| format!("uh oh TODO {}", e))?;
+            serde_json::to_vec(&pusher_msg).map_err(|e| err(&format!("uh oh TODO {}", e)))?;
 
         let checksum = md5::compute(pusher_msg_bytes);
 
@@ -78,7 +97,7 @@ impl PusherClient {
 
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|e| format!("SystemTime before UNIX epoch!: {}", e))?;
+            .map_err(|e| err(&format!("SystemTime before UNIX epoch!: {}", e)))?;
 
         let query_params = format!(
             // N.B. these params must be sorted alphabetically for the signature to match
@@ -91,7 +110,7 @@ impl PusherClient {
 
         let to_sign = format!("{}\n{}\n{}", "POST", request_path, query_params);
         let mut mac = Hmac::<Sha256>::new_varkey(self.secret.as_bytes())
-            .map_err(|e| format!("uh oh TODO {}", e))?;
+            .map_err(|e| err(&format!("uh oh TODO {}", e)))?;
         mac.input(to_sign.as_bytes());
         let signature = mac.result();
 
@@ -103,12 +122,12 @@ impl PusherClient {
             signature.code()
         )
         .parse()
-        .map_err(|e| format!("couldn't build request URI: {}", e))?;
+        .map_err(|e| err(&format!("couldn't build request URI: {}", e)))?;
 
         HRequest::post(uri)
             .header(header::CONTENT_TYPE, "application/json")
             .body(Body::from(pusher_msg.to_string() /* TODO no */))
-            .map_err(|e| format!("{}", e))
+            .map_err(|e| err(&format!("{}", e)))
     }
 
     pub fn trigger(
@@ -119,7 +138,12 @@ impl PusherClient {
     ) -> BoxFut<()> {
         let pusher_request = match self.build_request(&canvas_uuid, &event_name, json_bytes) {
             Ok(req) => req,
-            Err(e) => return Box::new(future::err(format!("couldn't build Pusher request: {}", e))),
+            Err(e) => {
+                return Box::new(future::err(err(&format!(
+                    "couldn't build Pusher request: {}",
+                    e
+                ))))
+            }
         };
 
         println!("sending request: {:?}", pusher_request);
@@ -127,7 +151,7 @@ impl PusherClient {
         Box::new(
             self.http
                 .request(pusher_request)
-                .map_err(|e| format!("Error pushing event: {:?}", e))
+                .map_err(|e| err(&format!("Error pushing event: {}", e)))
                 .and_then(|resp| {
                     let result: BoxFut<()> = match resp.status() {
                         StatusCode::OK => {
@@ -141,11 +165,33 @@ impl PusherClient {
                                     eprintln!("Failed to push event: {} ({:?})", code, bytes);
                                     ()
                                 })
-                                .map_err(|e| format!("Error reading push error: {:?}", e)),
+                                .map_err(|e| err(&format!("Error reading push error: {:?}", e))),
                         ),
                     };
                     result
                 }),
         )
+    }
+}
+
+pub struct PusherClientManager;
+
+impl ManageConnection for PusherClientManager {
+    type Connection = PusherClient;
+    type Error = PusherError;
+
+    fn connect(&self) -> Result<PusherClient, PusherError> {
+        println!("connect"); // TODO
+        Ok(PusherClient::new())
+    }
+
+    fn is_valid(&self, client: &mut PusherClient) -> Result<(), PusherError> {
+        println!("is_valid"); // TODO
+        Ok(()) // TODO
+    }
+
+    fn has_broken(&self, client: &mut PusherClient) -> bool {
+        println!("has_broken"); // TODO
+        false
     }
 }

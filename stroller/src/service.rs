@@ -6,17 +6,11 @@ use push;
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
-pub trait AsyncPush: Send {
-    fn connect() -> Self;
-
+pub trait AsyncPush: Send + Sync {
     fn push(&self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
 }
 
-impl AsyncPush for push::PusherClient {
-    fn connect() -> Self {
-        Self::new()
-    }
-
+impl AsyncPush for r2d2::PooledConnection<push::PusherClientManager> {
     fn push(&self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
         let event_name_ = event_name.to_string();
         let _ = spawn(
@@ -30,7 +24,7 @@ impl AsyncPush for push::PusherClient {
     }
 }
 
-pub fn handle<PC>(req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error>
+pub fn handle<PC>(client: PC, req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error>
 where
     PC: AsyncPush,
     PC: 'static,
@@ -47,8 +41,6 @@ where
             *response.body_mut() = Body::from("Try POSTing to /canvas/:uuid/events/:event");
         }
         (&Method::POST, ["", "canvas", canvas_uuid, "events", event]) => {
-            let client = PC::connect();
-
             let handled = handle_push(
                 client,
                 canvas_uuid.to_string(),
@@ -110,16 +102,14 @@ mod tests {
 
     struct FakePushClient;
     impl AsyncPush for FakePushClient {
-        fn connect() -> Self {
-            FakePushClient
-        }
         fn push(&self, _canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) {}
     }
+    const CLIENT: FakePushClient = FakePushClient;
 
     #[test]
     fn responds_ok() {
         let req = Request::get("/").body(Body::empty()).unwrap();
-        let resp = handle::<FakePushClient>(req).wait();
+        let resp = handle(CLIENT, req).wait();
 
         assert_eq!(resp.unwrap().status(), 200);
     }
@@ -127,7 +117,7 @@ mod tests {
     #[test]
     fn responds_404() {
         let req = Request::get("/nonexistent").body(Body::empty()).unwrap();
-        let resp = handle::<FakePushClient>(req).wait();
+        let resp = handle(CLIENT, req).wait();
 
         assert_eq!(resp.unwrap().status(), 404);
     }
@@ -137,7 +127,7 @@ mod tests {
         let req = Request::post("/canvas/8afcbf52-2954-4353-9397-b5f417c08ebb/events/traces")
             .body(Body::from("{\"foo\":\"bar\"}"))
             .unwrap();
-        let resp = handle::<FakePushClient>(req).wait();
+        let resp = handle(CLIENT, req).wait();
 
         assert_eq!(resp.unwrap().status(), 202);
     }

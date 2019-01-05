@@ -3,6 +3,7 @@ extern crate hmac;
 extern crate hyper;
 extern crate hyper_tls;
 extern crate md5;
+extern crate r2d2;
 #[macro_use]
 extern crate serde_json;
 extern crate sha2;
@@ -18,7 +19,21 @@ use hyper::Server;
 fn main() {
     let addr = ([0, 0, 0, 0], config::port()).into();
 
-    let make_service = || service_fn(service::handle::<push::PusherClient>);
+    let manager = push::PusherClientManager;
+    let pool = r2d2::Pool::builder()
+        .max_size(1)
+        .min_idle(Some(0))
+        .build(manager)
+        .expect("TODO");
+
+    let make_service = move || {
+        let pool = pool.clone();
+        service_fn(move |req| {
+            let client = pool.get().expect("TODO");
+
+            service::handle(client, req)
+        })
+    };
 
     let server = Server::bind(&addr)
         .serve(make_service)
