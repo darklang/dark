@@ -161,9 +161,6 @@ $FSWATCH | docker run \
              -v pgdata:/var/lib/postgresql \
              -v /var/run/docker.sock:/var/run/docker.sock \
              -p 8000:8000 \
-             -p 8001:8001 \
-             -p 8081:8081 \
-             -p 5000:5000 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
              dark \
