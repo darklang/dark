@@ -14,21 +14,23 @@ let offsetFromCurrent (newId : id) : int =
   Native.Ext.findLogicalOffset (showID newId) oldCaretX
 
 
+let charsize = 8
+
 let moveDown (xPos : int) (sizes : Selection.htmlSizing list) (id : id) :
     id option =
   match List.filter (fun (o : Selection.htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
       |> List.filter (fun (o : Selection.htmlSizing) ->
-             xPos >= o.left - 8
-             && xPos <= o.right + 8
+             xPos >= o.left - charsize
+             && xPos <= o.right + charsize
              (* within 1 char of *)
              && this.centerY < o.centerY
              (* below only, inverted y axis *) )
       |> List.minimumBy (fun (o : Selection.htmlSizing) ->
-             (* nearest line *)
+             (* nearest line (multiply to amplify effect) *)
              (int_of_float o.centerY * 10000)
-             (* if there are multiple options, pick the one nearest *)
+             (* if there are multiple options, add a small number to pick the one nearest *)
              + max (o.left - xPos) (xPos - o.right) )
       |> Option.withDefault this
       |> (fun x -> x.id)
@@ -43,15 +45,15 @@ let moveUp (xPos : int) (sizes : Selection.htmlSizing list) (id : id) :
   | [this] ->
       sizes
       |> List.filter (fun (o : Selection.htmlSizing) ->
-             xPos >= o.left - 8
-             && xPos <= o.right + 8
+             xPos >= o.left - charsize
+             && xPos <= o.right + charsize
              (* within 1 char of *)
              && this.centerY > o.centerY
              (* above only, inverted y axis *) )
       |> List.maximumBy (fun (o : Selection.htmlSizing) ->
-             (* nearest line *)
+             (* nearest line, multiply to amplify effect *)
              (int_of_float o.centerY * 10000)
-             (* if there are multiple options, pick the one nearest *)
+             (* if there are multiple options, add a small number to pick the one nearest *)
              - max (o.left - xPos) (xPos - o.right) )
       |> Option.withDefault this
       |> (fun x -> x.id)
@@ -104,7 +106,7 @@ let moveRight (sizes : Selection.htmlSizing list) (id : id) : id option =
   | [this] ->
       sizes
       |> List.filter (fun (s : Selection.htmlSizing) ->
-             s.centerY = this.centerY && this.right - 8 <= s.left )
+             s.centerY = this.centerY && this.right - charsize <= s.left )
       (* Somewhat counterintuitively, we don't want the expression that starts
       closest to this one, as some expressions wrap other ones. For example,
       with x.y we want to get x, but the "." expression wraps it. So we actually
