@@ -489,6 +489,11 @@ test('rename_db_fields', async t => {
   await t
     .doubleClick(Selector('.name').withText('field1'))
     .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
     .typeText("#entry-box", "field6")
     .pressKey("tab")
     .pressKey("esc")

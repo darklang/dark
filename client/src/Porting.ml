@@ -235,6 +235,20 @@ module List = struct
         None
 
 
+  let maximumBy (f : 'a -> 'comparable) (ls : 'a list) : 'a option =
+    let maxBy x (y, fy) =
+      let fx = f x in
+      if fx > fy then (x, fx) else (y, fy)
+    in
+    match ls with
+    | [l_] ->
+        Some l_
+    | l_ :: ls_ ->
+        Some (fst <| foldl maxBy (l_, f l_) ls_)
+    | _ ->
+        None
+
+
   let maximum (list : 'comparable list) : 'comparable option =
     match list with x :: xs -> Some (foldl max x xs) | _ -> None
 
