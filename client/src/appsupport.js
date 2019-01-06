@@ -195,7 +195,7 @@ function findLogicalOffset(targetBlankOrId, x) {
   } else {
     targetNode = getFnCallNode(target);
     if (targetNode) {
-      return (x - tleft) / 8;
+      return Math.round ((x - tleft) / 8);
     }
   }
 
