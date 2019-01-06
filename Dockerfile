@@ -306,6 +306,8 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+
 
 ############################
 # Finish
