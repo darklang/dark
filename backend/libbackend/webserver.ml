@@ -495,12 +495,20 @@ let to_assoc_list etags_json : (string * string) list =
       Exception.internal "etags.json must be a top-level object."
 
 
-let admin_ui_html
-    ~(csrf_token : string) ~(debug : bool) ~(local : bool) username =
+let admin_ui_html ~(csrf_token : string) ~(local : string option) username =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
-  let static_host = Config.static_host in
+  let static_host =
+    match local with
+    (* TODO: if you want access, we can make this more general *)
+    | Some _ ->
+        "darklang-paul.ngrok.io"
+    | _ ->
+        Config.static_host
+  in
   let rollbar_js = Config.rollbar_js in
-  let hash_static_filenames = Config.hash_static_filenames in
+  let hash_static_filenames =
+    if local = None then Config.hash_static_filenames else false
+  in
   (* TODO: allow APPSUPPORT in here *)
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
@@ -619,18 +627,34 @@ let admin_ui_handler
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
   let uri = req |> CRequest.uri in
-  let html_hdrs =
-    Header.of_list
-      [ ("Content-type", "text/html; charset=utf-8")
-        (* Don't allow any other websites to put this in an iframe;
-         this prevents "clickjacking" at tacks.
-         https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-         It would be nice to use CSP to limit where we can load scripts etc from,
-         but right now we load from CDNs, <script> tags, etc. So the only thing
-         we could do is script-src: 'unsafe-inline', which doesn't offer us
-         any additional security. *)
-      ; ("Content-security-policy", "frame-ancestors 'none';") ]
+  let query_param_set name =
+    match Uri.get_query_param uri name with
+    | Some v when v <> "0" && v <> "false" ->
+        true
+    | _ ->
+        false
   in
+  let integration_test =
+    query_param_set "integration-test" && Config.allow_test_routes
+  in
+  let local = Uri.get_query_param uri "localhost-assets" in
+  let html_hdrs =
+    [ ("Content-type", "text/html; charset=utf-8")
+      (* Don't allow any other websites to put this in an iframe;
+        this prevents "clickjacking" at tacks.
+        https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+        It would be nice to use CSP to limit where we can load scripts etc from,
+        but right now we load from CDNs, <script> tags, etc. So the only thing
+        we could do is script-src: 'unsafe-inline', which doesn't offer us
+        any additional security. *)
+    ; ("Content-security-policy", "frame-ancestors 'none';") ]
+  in
+  let html_hdrs =
+    if local = None
+    then html_hdrs
+    else ("Access-Control-Allow-Origin", "*") :: html_hdrs
+  in
+  let html_hdrs = Header.of_list html_hdrs in
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
   let when_can_edit ~canvas f =
@@ -640,34 +664,20 @@ let admin_ui_handler
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error ~(debug : bool) ~(local : bool) () =
+  let serve_or_error () =
     Lwt.try_bind
-      (fun _ -> admin_ui_html ~csrf_token ~debug ~local username)
+      (fun _ -> admin_ui_html ~csrf_token ~local username)
       (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
       (fun e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
         respond ~execution_id `Internal_server_error "Dark Internal Error" )
   in
-  let query_param_set name =
-    match Uri.get_query_param uri name with
-    | Some v when v <> "0" && v <> "false" ->
-        true
-    | None ->
-        true
-    | _ ->
-        false
-  in
-  let debug = query_param_set "debugger" in
-  let integration_test =
-    query_param_set "integration-test" && Config.allow_test_routes
-  in
-  let local = query_param_set "localhost-assets" in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
       when_can_edit ~canvas (fun _ ->
           if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-          serve_or_error ~debug ~local () )
+          serve_or_error () )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
@@ -803,7 +813,9 @@ let route_host req =
     |> Option.value ~default:""
     |> fun h -> String.split h '.'
   with
-  | ["static"; "darklang"; "localhost"] | ["static"; "darklang"; "com"] ->
+  | ["static"; "darklang"; "localhost"]
+  | ["static"; "darklang"; "com"]
+  | [_; "ngrok"; "io"] ->
       Some Static
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]
@@ -828,7 +840,7 @@ let route_host req =
 
 let admin_ui_html_readiness_check () : string option =
   try
-    ignore (admin_ui_html ~csrf_token:"" ~debug:false ~local:false "test") ;
+    ignore (admin_ui_html ~csrf_token:"" ~local:None "test") ;
     None
   with e -> Some "admin_ui_html failed for frontend"
 
