@@ -208,7 +208,10 @@ let user_fn name params ast : user_fn =
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
-let ops2c (host : string) (ops : Op.op list) : C.canvas ref = C.init host ops
+let ops2c (host : string) (ops : Op.op list) : C.canvas ref =
+  ops (* |> List.map ~f:(fun op -> (op, true)) *)
+  |> C.init host
+
 
 let test_execution_data ?(canvas_name = "test") ops :
     C.canvas ref * exec_state * input_vars =
@@ -285,7 +288,6 @@ let t_undo_fns () =
   let n3 = hop (handler (ast_for "(- 3 _)")) in
   let n4 = hop (handler (ast_for "(- 3 4)")) in
   let u = Op.UndoTL tlid in
-  let r = Op.RedoTL tlid in
   let ops (c : C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
   AT.check
     AT.int
@@ -293,33 +295,7 @@ let t_undo_fns () =
     3
     (Undo.undo_count
        (ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u] |> ops)
-       tlid) ;
-  AT.check
-    AT.bool
-    "redoable"
-    true
-    (Undo.is_redoable (ops2c "test" [n1; n2; n3; n4; u] |> ops) tlid) ;
-  AT.check
-    AT.bool
-    "undoable"
-    true
-    (Undo.is_undoable (ops2c "test" [n1; n2; n3; n4] |> ops) tlid) ;
-  AT.check
-    AT.bool
-    "not redoable"
-    false
-    (Undo.is_redoable (ops2c "test" [n1; n2; n3; n4; u; r] |> ops) tlid) ;
-  AT.check
-    AT.bool
-    "not undoable"
-    false
-    (Undo.is_undoable (ops2c "test" [n1; n2; n3; n4; u] |> ops) tlid) ;
-  let both = ops2c "test" [n1; n1; n2; n3; n4; u; r; u] |> ops in
-  AT.check AT.bool "both_undo" true (Undo.is_undoable both tlid) ;
-  AT.check AT.bool "both_redo" true (Undo.is_redoable both tlid) ;
-  let neither = ops2c "test" [n2; n3; n4] |> ops in
-  AT.check AT.bool "neither_undo" false (Undo.is_undoable neither tlid) ;
-  AT.check AT.bool "neither_redo" false (Undo.is_redoable neither tlid)
+       tlid)
 
 
 let t_undo () =
