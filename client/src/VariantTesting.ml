@@ -37,27 +37,6 @@ let uniqueTests (xs : variantTest list) : variantTest list =
   List.uniqueBy show_variantTest xs
 
 
-let splitOnEquals (s : string) : (string * bool) option =
-  if String.contains "=" s
-  then
-    match String.split "=" s with
-    | [] ->
-        None
-    | [_] ->
-        None
-    | x :: xs ->
-      ( match xs |> String.join "=" |> String.toLower with
-      | "true" ->
-          Some (x, true)
-      | "1" ->
-          Some (x, true)
-      | "false" ->
-          Some (x, false)
-      | _ ->
-          None )
-  else None
-
-
 let expandTest (vt : variantTest) : variantTest list =
   match vt
   with
@@ -66,19 +45,12 @@ let expandTest (vt : variantTest) : variantTest list =
   -> [x]
 
 
-let parseVariantTestsFromQueryString (s : string) : variantTest list option =
-  match String.uncons s with
-  | Some ('?', rest) ->
-      rest
-      |> String.split "&"
-      |> List.filterMap splitOnEquals
-      |> List.filterMap toVariantTest
-      |> List.map expandTest
-      |> List.flatten
-      |> uniqueTests
-      |> fun x -> Some x
-  | _ ->
-      None
+let enabledVariantTests : variantTest list =
+  Url.queryParams
+  |> List.filterMap toVariantTest
+  |> List.map expandTest
+  |> List.flatten
+  |> uniqueTests
 
 
 let defaultAutocompleteVisible m : bool =
