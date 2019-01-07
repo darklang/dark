@@ -25,25 +25,30 @@ Ensure that docker:
 
 #### Dnsmasq
 
-A local DNS server is needed (on OSX) to access the application via a `.localhost` TLD. The following is a quick start, more detailed instructions [here]( https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
+A local DNS server is needed (on OSX) to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide]( https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
 
-If you didn't follow brew's post install instructions, do so now:
+Install dnsmasq:
+
+```
+brew install dnsmasq
+```
+
+Follow brew's post-install instructions:
 ```
 brew info dnsmasq
 ```
 
-Add the following to `/usr/local/etc/dnsmasq.conf`
+Add the following to `(brew --prefix)/etc/dnsmasq.conf`
 ```
 address=/localhost/127.0.0.1
 ```
 
-Restart dnsmasq
+Restart dnsmasq:
 ```
-sudo launchctl stop homebrew.mxcl.dnsmasq
-sudo launchctl start homebrew.mxcl.dnsmasq
+sudo brew services restart dnsmasq
 ```
 
-Configure OSX to use dnsmasq
+Configure OSX to use dnsmasq:
 ```
 sudo mkdir -p /etc/resolver
 sudo tee /etc/resolver/localhost >/dev/null <<EOF
@@ -51,12 +56,12 @@ nameserver 127.0.0.1
 EOF
 ```
 
-Test it
+Test it:
 ```
 # Make sure you haven't broken your DNS.
 ping -c 1 www.google.com
 # Check that .localhost names work
-ping -c 1 builtwithdark.localhost
+dig testing.builtwithdark.localhost @127.0.0.1
 ```
 
 #### Create an account for yourself
