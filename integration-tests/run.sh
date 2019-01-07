@@ -33,8 +33,6 @@ if [[ -v IN_DEV_CONTAINER ]] || [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
 fi
 
-export TEST_HOST="darklang.localhost:8000"
-
 if [[ -v IN_DEV_CONTAINER ]]; then
   # Set up test reporters for CircleCI
   TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
