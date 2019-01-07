@@ -495,8 +495,13 @@ let to_assoc_list etags_json : (string * string) list =
       Exception.internal "etags.json must be a top-level object."
 
 
-let admin_ui_html ~(csrf_token : string) ~(debug : bool) username =
+let admin_ui_html
+    ~(csrf_token : string) ~(debug : bool) ~(local : bool) username =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
+  let static_host = Config.static_host in
+  let rollbar_js = Config.rollbar_js in
+  let hash_static_filenames = Config.hash_static_filenames in
+  (* TODO: allow APPSUPPORT in here *)
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
   >|= Util.string_replace
@@ -505,16 +510,16 @@ let admin_ui_html ~(csrf_token : string) ~(debug : bool) username =
         then
           "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
         else "" )
-  >|= Util.string_replace "{STATIC}" Config.static_host
-  >|= Util.string_replace "{ROLLBARCONFIG}" Config.rollbar_js
+  >|= Util.string_replace "{STATIC}" static_host
+  >|= Util.string_replace "{ROLLBARCONFIG}" rollbar_js
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
   >|= Util.string_replace
         "{APPSUPPORT}"
         (File.readfile ~root:Webroot "appsupport.js")
-  >|= Util.string_replace "{STATIC}" Config.static_host
+  >|= Util.string_replace "{STATIC}" static_host
   >|= (fun x ->
-        if not Config.hash_static_filenames
+        if not hash_static_filenames
         then x
         else
           x
@@ -613,6 +618,7 @@ let admin_ui_handler
     ~(csrf_token : string)
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
+  let uri = req |> CRequest.uri in
   let html_hdrs =
     Header.of_list
       [ ("Content-type", "text/html; charset=utf-8")
@@ -634,25 +640,34 @@ let admin_ui_handler
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error ~(debug : bool) () =
+  let serve_or_error ~(debug : bool) ~(local : bool) () =
     Lwt.try_bind
-      (fun _ -> admin_ui_html ~csrf_token ~debug username)
+      (fun _ -> admin_ui_html ~csrf_token ~debug ~local username)
       (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
       (fun e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
         respond ~execution_id `Internal_server_error "Dark Internal Error" )
   in
+  let query_param_set name =
+    match Uri.get_query_param uri name with
+    | Some v when v <> "0" && v <> "false" ->
+        true
+    | None ->
+        true
+    | _ ->
+        false
+  in
+  let debug = query_param_set "debugger" in
+  let integration_test =
+    query_param_set "integration-test" && Config.allow_test_routes
+  in
+  let local = query_param_set "localhost-assets" in
   match (verb, path) with
-  (* Canvas webpages... *)
-  | `GET, ["a"; canvas; "integration_test"] when Config.allow_test_routes ->
-      when_can_edit ~canvas (fun _ ->
-          Canvas.load_and_resave_from_test_file canvas ;
-          serve_or_error ~debug:false () )
-  | `GET, ["a"; canvas; "ui-debug"] ->
-      when_can_edit ~canvas (fun _ -> serve_or_error ~debug:true ())
   | `GET, ["a"; canvas] ->
-      when_can_edit ~canvas (fun _ -> serve_or_error ~debug:false ())
+      when_can_edit ~canvas (fun _ ->
+          if integration_test then Canvas.load_and_resave_from_test_file canvas ;
+          serve_or_error ~debug ~local () )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
@@ -813,7 +828,7 @@ let route_host req =
 
 let admin_ui_html_readiness_check () : string option =
   try
-    ignore (admin_ui_html ~csrf_token:"" ~debug:false "test") ;
+    ignore (admin_ui_html ~csrf_token:"" ~debug:false ~local:false "test") ;
     None
   with e -> Some "admin_ui_html failed for frontend"
 

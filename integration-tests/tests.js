@@ -19,7 +19,7 @@ fixture `Integration Tests`
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     startXvfb(testname);
-    const url = "http://darklang.localhost:8000/a/test-" + testname + "/integration_test";
+    const url = "http://darklang.localhost:8000/a/test-" + testname + "?integration-test=true";
     const pageLoaded = await Selector('#finishIntegrationTest').exists;
 
     await t

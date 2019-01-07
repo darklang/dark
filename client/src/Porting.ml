@@ -465,8 +465,8 @@ module String = struct
     if num < 1 then s else Js.String.slice ~from:0 ~to_:(-num) s
 
 
-  let split (delimiter : string) (s : string) : string list =
-    Js.String.split delimiter s |> Belt.List.fromArray
+  let split ~(on : string) (s : string) : string list =
+    Js.String.split on s |> Belt.List.fromArray
 
 
   let join (sep : string) (l : string list) : string = String.concat sep l

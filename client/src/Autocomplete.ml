@@ -162,7 +162,10 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
       String.contains char haystack
       && containsOrdered
            newneedle
-           (haystack |> String.split char |> List.drop 1 |> String.join char)
+           ( haystack
+           |> String.split ~on:char
+           |> List.drop 1
+           |> String.join char )
   | None ->
       true
 
