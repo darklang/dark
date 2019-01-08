@@ -208,10 +208,7 @@ let user_fn name params ast : user_fn =
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
-let ops2c (host : string) (ops : Op.op list) : C.canvas ref =
-  ops (* |> List.map ~f:(fun op -> (op, true)) *)
-  |> C.init host
-
+let ops2c (host : string) (ops : Op.op list) : C.canvas ref = C.init host ops
 
 let test_execution_data ?(canvas_name = "test") ops :
     C.canvas ref * exec_state * input_vars =
