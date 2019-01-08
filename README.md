@@ -263,6 +263,22 @@ You can also disable the polling (ans consequently the building):
 
 Click the "EnableDebugger" button on the bottom bar of the app.
 
+## Running the client in production
+
+Note: this only works for paul at the moment, but can be easily extended to more people by adding you to the ngrok account and making the code slightly more general.
+
+Expose your local assets using ngrok:
+
+- Join the company ngrok account by asking Paul
+- install ngrok: `brew cask install ngrok`
+- authorize your ngrok client: `ngrok auth YOURTOKEN`
+- run your tunnel: `ngrok http 8000 -hostname=darklang-paul.ngrok.io`
+
+Use the queryparam "localhost-assets" to load static assets from darklang-paul.ngrok.io instead of static.darklang.com.
+
+You can check if it's going through via the ngrok console, and by tailing the server logs: `tail -f rundir/logs/server.log`.
+
+
 ## Debugging ppx stuff
 
 PPX is an ocaml preprocessor we use. The ppx libraries are all pretty

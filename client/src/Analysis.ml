@@ -63,7 +63,7 @@ let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
 (* TODO: copied from Libexecution/http.ml *)
 let route_variable_pairs (route : string) : (int * string) list =
   let split_uri_path (path : string) : string list =
-    let subs = String.split "/" path in
+    let subs = String.split ~on:"/" path in
     List.filter (fun x -> String.length x > 0) subs
   in
   route

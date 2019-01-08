@@ -162,7 +162,7 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
       Some (B.newF (Variable varname))
   | _ ->
       (* TODO: remove all these cases, replacing them with autocomplete options *)
-      let firstWord = String.split " " str in
+      let firstWord = String.split ~on:" " str in
       ( match firstWord with
       | [""] ->
           Some b1

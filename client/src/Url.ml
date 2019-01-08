@@ -56,8 +56,8 @@ let parseLocation (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash
     |> String.dropLeft 1
-    |> String.split "&"
-    |> List.map (String.split "=")
+    |> String.split ~on:"&"
+    |> List.map (String.split ~on:"=")
     |> List.filterMap (fun arr ->
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
@@ -106,10 +106,47 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
 
 let parseCanvasName (loc : Web.Location.location) : string =
   match
-    loc.pathname |> String.dropLeft 1 (* remove lead "/" *)
-    |> String.split "/"
+    loc.pathname
+    |> String.dropLeft 1
+    (* remove lead "/" *)
+    |> String.split ~on:"/"
   with
   | "a" :: canvasName :: _ ->
       canvasName
   | _ ->
       "builtwithdark"
+
+
+let splitOnEquals (s : string) : (string * bool) option =
+  match String.split ~on:"=" s with
+  | [] ->
+      None
+  | [name] ->
+      Some (name, true)
+  | [name; value] ->
+      Some (name, value <> "0" && value <> "false")
+  | _ ->
+      None
+
+
+let queryParams : (string * bool) list =
+  let search = (Tea_navigation.getLocation ()).search in
+  match String.uncons search with
+  | Some ('?', rest) ->
+      rest
+      |> String.toLower
+      |> String.split ~on:"&"
+      |> List.filterMap splitOnEquals
+  | _ ->
+      []
+
+
+let queryParamSet (name : string) : bool =
+  List.find (fun (k, v) -> if k = name then v else false) queryParams
+  |> Option.withDefault (name, false)
+  |> Tuple.second
+
+
+let isDebugging = queryParamSet "debugger"
+
+let isIntegrationTest = queryParamSet "integration-test"
