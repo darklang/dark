@@ -689,14 +689,15 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s; DBlock fn] ->
               let result =
-                s |> String.to_list |> List.map ~f:(fun c -> fn [DChar c])
+                s |> String.to_list |> List.map ~f:(fun c -> fn [DChar
+                                                                   (String.of_char c)])
               in
               if List.exists ~f:(( = ) DIncomplete) result
               then DIncomplete
               else
                 result
-                |> list_coerce ~f:Dval.to_char
-                >>| String.of_char_list
+                |> list_coerce ~f:(fun x -> Some (Dval.to_repr x))
+                >>| String.concat
                 >>| (fun x -> DStr x)
                 |> Result.map_error ~f:(fun (result, example_value) ->
                        RT.error
@@ -719,7 +720,7 @@ let fns : Lib.shortfn list =
             | [DStr s; _] ->
                 let s : string = if s = "" then "example" else s in
                 let index : int = min cursor (String.length s - 1) in
-                let c : char = s.[index] in
+                let c : string = String.of_char (String.get s index) in
                 [DChar c]
             | args ->
                 [DIncomplete] )
@@ -734,7 +735,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DList (String.to_list s |> List.map ~f:(fun c -> DChar c))
+              DList (String.to_list s |> List.map ~f:(fun c -> DChar (String.of_char c)))
           | args ->
               fail args)
     ; pr = None
@@ -931,7 +932,7 @@ let fns : Lib.shortfn list =
                            c
                        | dv ->
                            RT.error ~actual:dv "expected a char" )
-                |> String.of_char_list )
+                |> String.concat )
           | args ->
               fail args)
     ; pr = None
@@ -944,8 +945,8 @@ let fns : Lib.shortfn list =
     ; d = "Converts a char to a string"
     ; f =
         InProcess
-          (function
-          | _, [DChar c] -> DStr (Char.to_string c) | args -> fail args)
+          (function 
+          | _, [DChar c] -> DStr c | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1564,7 +1565,11 @@ let fns : Lib.shortfn list =
     ; d = "Return `c`'s ASCII code"
     ; f =
         InProcess
-          (function _, [DChar c] -> DInt (Char.to_int c) | args -> fail args)
+          (function exec_state, [DChar c] ->
+             if (String.length c) = 1
+             then DInt (Char.to_int c.[0])
+             else fail (exec_state, [(DChar c)])
+                  | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1576,7 +1581,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt i] -> DChar (Char.of_int_exn i) | args -> fail args)
+          | _, [DInt i] -> DChar (String.of_char (Char.of_int_exn i)) | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1588,7 +1593,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DChar c] -> DChar (Char.lowercase c) | args -> fail args)
+          | _, [DChar c] -> DChar (String.lowercase c) | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1600,7 +1605,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DChar c] -> DChar (Char.uppercase c) | args -> fail args)
+          | _, [DChar c] -> DChar (String.uppercase c) | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }

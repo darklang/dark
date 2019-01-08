@@ -249,8 +249,7 @@ let as_string (dv : dval) : string =
       s
   | DFloat f ->
       string_of_float f
-  | DChar c ->
-      Char.to_string c
+  | DChar c -> c
   | DNull ->
       "null"
   | DID id ->
@@ -412,8 +411,6 @@ let rec to_url_string (dv : dval) : string =
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
-let to_char dv : char option = match dv with DChar c -> Some c | _ -> None
-
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
 let to_string_exn dv : string =
@@ -539,7 +536,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" ->
         DError v
     | "char" ->
-        DChar (Char.of_string v)
+        DChar v
     | "password" ->
         v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" ->
@@ -604,7 +601,7 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       wrap_user_type `Null
   (* user-ish types *)
   | DChar c ->
-      wrap_user_str (Char.to_string c)
+      wrap_user_str c
   | DError msg ->
       wrap_user_str msg
   | DResp (h, hdv) ->
@@ -684,7 +681,7 @@ let parse_literal (str : string) : dval option =
   (* TODO: Doesn't handle nested characters. Replace with a custom parser,
      using the one in RealWorldOcaml, or just ripped out of Yojson *)
   if len > 0 && str.[0] = '\''
-  then Some (DChar str.[1])
+  then Some (DChar (String.sub ~pos:1 ~len:1 str))
   else if len > 1 && str.[0] = '"' && str.[len - 1] = '"'
           (* It might have \n characters in it (as well as probably other
      * codes like \r or some shit that we haven't taken into account),
