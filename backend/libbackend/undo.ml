@@ -79,21 +79,3 @@ let preprocess (ops : op_with_newness list) : op_with_newness list =
 
 let undo_count (ops : Op.op list) (tlid : tlid) : int =
   ops |> List.rev |> List.take_while ~f:(( = ) (Op.UndoTL tlid)) |> List.length
-
-
-let is_undoable (ops : op_with_newness list) (tlid : tlid) : bool =
-  ops
-  |> preprocess
-  |> List.exists ~f:(fun op ->
-         match op with
-         | _, Op.TLSavepoint sptlid when tlid = sptlid ->
-             true
-         | _ ->
-             false )
-
-
-let is_redoable (ops : op_with_newness list) (tlid : tlid) : bool =
-  ops
-  |> List.last
-  |> Option.map ~f:Tuple.T2.get2
-  |> ( = ) (Some (Op.UndoTL tlid))
