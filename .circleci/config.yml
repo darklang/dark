@@ -189,7 +189,7 @@ jobs:
             - v6-backend-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       - copy-into-container
-      - run: scripts/builder --compile-backend
+      - run: scripts/builder --compile-backend --test
       - run:
           name: Copy out generated files and caches
           command: |
