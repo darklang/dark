@@ -188,8 +188,10 @@ jobs:
             - v6-backend-{{ checksum "minus2-timestamp" }}
             - v6-backend-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
+      # appsupport is needed for a unit test
+      - run: touch backend/static/appsupport.js
       - copy-into-container
-      - run: scripts/builder --compile-backend
+      - run: scripts/builder --compile-backend --test
       - run:
           name: Copy out generated files and caches
           command: |
