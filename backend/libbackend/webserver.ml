@@ -173,10 +173,11 @@ let options_handler
 
 let push
     ~(execution_id : Types.id)
-    ~(host : string)
+    ~(canvas_id : Uuidm.t)
     ~(event : string)
     (payload : string) =
-  let log_params = [("host", host); ("event", event)] in
+  let canvas_id_str = Uuidm.to_string canvas_id in
+  let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
   (* TODO how not to read env var every time? *)
   match Config.stroller_port with
   | None ->
@@ -184,7 +185,11 @@ let push
   | Some port ->
       Log.infO "pushing via stroller" ~params:log_params ;
       let uri =
-        sprintf "http://localhost:%d/canvas/%s/events/%s" port host event
+        sprintf
+          "http://localhost:%d/canvas/%s/events/%s"
+          port
+          canvas_id_str
+          event
       in
       Lwt.async (fun () ->
           try%lwt
@@ -212,11 +217,11 @@ let push
 
 let push_new_trace_id
     ~(execution_id : Types.id)
-    ~(host : string)
+    ~(canvas_id : Uuidm.t)
     (tlid : Types.tlid)
     (trace_id : Uuidm.t) =
   let payload = Analysis.to_new_traces_frontend [(tlid, [trace_id])] in
-  push ~execution_id ~host ~event:"traces" payload
+  push ~execution_id ~canvas_id ~event:"traces" payload
 
 
 let user_page_handler
@@ -299,7 +304,7 @@ let user_page_handler
             (Stored_function_arguments.store ~canvas_id ~trace_id)
           ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
       in
-      push_new_trace_id ~execution_id ~host:canvas page.tlid trace_id ;
+      push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
       let maybe_infer_headers resp_headers value =
         if List.Assoc.mem
              resp_headers
@@ -545,7 +550,11 @@ let to_assoc_list etags_json : (string * string) list =
       Exception.internal "etags.json must be a top-level object."
 
 
-let admin_ui_html ~(csrf_token : string) ~(local : string option) username =
+let admin_ui_html
+    ~(canvas_id : Uuidm.t)
+    ~(csrf_token : string)
+    ~(local : string option)
+    username =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   let static_host =
     match local with
@@ -573,6 +582,7 @@ let admin_ui_html ~(csrf_token : string) ~(local : string option) username =
   >|= Util.string_replace "{PUSHERCONFIG}" Config.pusher_js
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
+  >|= Util.string_replace "{CANVAS_ID}" (Uuidm.to_string canvas_id)
   >|= Util.string_replace
         "{APPSUPPORT}"
         (File.readfile ~root:Webroot "appsupport.js")
@@ -709,15 +719,22 @@ let admin_ui_handler
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
   let when_can_edit ~canvas f =
-    if Account.can_edit_canvas
-         ~auth_domain:(Account.auth_domain_for canvas)
-         ~username
-    then f ()
+    let auth_domain = Account.auth_domain_for canvas in
+    if Account.can_edit_canvas ~auth_domain ~username
+    then
+      match Account.owner ~auth_domain with
+      | Some owner ->
+          Serialize.fetch_canvas_id owner auth_domain |> f
+      | None ->
+          respond
+            ~execution_id
+            `Internal_server_error
+            "Dark Internal Error loading canvas"
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error () =
+  let serve_or_error ~(canvas_id : Uuidm.t) =
     Lwt.try_bind
-      (fun _ -> admin_ui_html ~csrf_token ~local username)
+      (fun _ -> admin_ui_html ~canvas_id ~csrf_token ~local username)
       (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
       (fun e ->
         let bt = Exception.get_backtrace () in
@@ -726,9 +743,9 @@ let admin_ui_handler
   in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
-      when_can_edit ~canvas (fun _ ->
+      when_can_edit ~canvas (fun canvas_id ->
           if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-          serve_or_error () )
+          serve_or_error ~canvas_id )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
@@ -891,7 +908,8 @@ let route_host req =
 
 let admin_ui_html_readiness_check () : string option =
   try
-    ignore (admin_ui_html ~csrf_token:"" ~local:None "test") ;
+    ignore
+      (admin_ui_html ~canvas_id:Uuidm.nil ~csrf_token:"" ~local:None "test") ;
     None
   with e -> Some "admin_ui_html failed for frontend"
 

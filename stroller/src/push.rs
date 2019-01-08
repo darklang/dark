@@ -37,7 +37,7 @@ impl Client {
     // Push an event. Consumes this Client (due to use of a background thread)
     pub fn trigger(
         mut self,
-        canvas: String,
+        canvas_uuid: String,
         event_name: String,
         json_bytes: &[u8],
     ) -> Result<(), Error> {
@@ -53,9 +53,12 @@ impl Client {
         // make actual Pusher call in the background without blocking the caller
         // (since that's the whole point of having this in a separate process)
         thread::spawn(move || {
-            let channel = format!("canvas_{}", canvas);
+            let channel = format!("canvas_{}", canvas_uuid);
             match self.0.trigger(&channel, &event_name, parsed) {
-                Ok(_) => println!("Pushed event \"{}\" for canvas \"{}\"", event_name, canvas),
+                Ok(_) => println!(
+                    "Pushed event \"{}\" for canvas \"{}\"",
+                    event_name, canvas_uuid
+                ),
                 Err(e) => eprintln!("Error pushing event: {:?}", e),
             }
         });

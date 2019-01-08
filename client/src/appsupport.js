@@ -498,7 +498,7 @@ setTimeout(function(){
   addWheelListener(document);
 
   if (pusherConfig.enabled) {
-    var pusherChannel = pusherConnection.subscribe(`canvas_${canvasName}`);
+    var pusherChannel = pusherConnection.subscribe(`canvas_${canvasId}`);
     pusherChannel.bind('traces', data => {
       var event = new CustomEvent('newTracesPush', {
         /*
