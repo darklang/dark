@@ -1,36 +1,15 @@
 open Types
 open! Porting
 
-let isDebugging () =
-  match String.uncons (Tea_navigation.getLocation ()).search with
-  | Some ('?', rest) ->
-      rest
-      |> String.toLower
-      |> String.split "&"
-      |> fun strs -> Belt.List.some strs (( = ) "debug")
-  | _ ->
-      false
-
-
 let debuggerLinkLoc () =
-  let debug = not (isDebugging ()) in
   let loc = Tea_navigation.getLocation () in
   let newSearch =
-    match (debug, String.uncons loc.search) with
-    | true, Some ('?', rest) ->
-        "?" ^ rest ^ "&debug"
-    | true, _ ->
-        "?debug"
-    | false, Some ('?', "debug") ->
-        ""
-    | false, Some ('?', rest) ->
-        rest
-        |> String.split "&"
-        |> List.filter (( != ) "debug")
-        |> String.join "&"
-        |> ( ++ ) "?"
-    | false, _ ->
-        ""
+    Url.queryParams
+    |> List.filter (fun (k, _) -> k <> "debugger")
+    |> (fun x -> if Url.isDebugging then x else ("debugger", true) :: x)
+    |> List.map (fun (k, v) -> k ^ "=" ^ if v then "1" else "0")
+    |> String.join "&"
+    |> fun x -> if x = "" then "" else "?" ^ x
   in
   Printf.sprintf
     "%s//%s%s%s%s"
@@ -146,7 +125,7 @@ let viewButtons (m : model) : msg Html.html =
     Html.a
       [Html.href (debuggerLinkLoc ()); Html.src ""; Html.class' "specialButton"]
       [ Html.text
-          (if isDebugging () then "DisableDebugger" else "EnableDebugger") ]
+          (if Url.isDebugging then "DisableDebugger" else "EnableDebugger") ]
   in
   Html.div
     [Html.id "buttons"]

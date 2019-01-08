@@ -311,7 +311,7 @@ let inputValueAsString (iv : inputValueDict) : string =
   |> fun i ->
   DObj i
   |> toRepr
-  |> String.split "\n"
+  |> String.split ~on:"\n"
   |> List.drop 1
   |> List.init
   |> Option.withDefault []

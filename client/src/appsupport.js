@@ -450,10 +450,11 @@ setTimeout(function(){
       csrfToken: csrfToken
     });
   var urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.has('debug')) {
-    app = app.debugging(document.body, params);
-  } else {
+  var enableDebugger = urlParams.get("debugger");
+  if (enableDebugger === "0" || enableDebugger === "false" || enableDebugger === null) {
     app = app.normal(document.body, params);
+  } else {
+    app = app.debugging(document.body, params);
   }
 
   window.onresize = function(evt){

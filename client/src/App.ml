@@ -27,13 +27,6 @@ let init (flagString : string) (location : Web.Location.location) =
       cursorState = Deselected
     ; currentPage = (Defaults.defaultModel |> fun x -> x.currentPage) }
   in
-  let tests =
-    match VariantTesting.parseVariantTestsFromQueryString location.search with
-    | Some t ->
-        t
-    | None ->
-        []
-  in
   let page = Url.parseLocation location |> Option.withDefault m.currentPage in
   let canvas = m.canvas in
   let newCanvas =
@@ -43,9 +36,6 @@ let init (flagString : string) (location : Web.Location.location) =
     | Fn (_, pos) ->
         {canvas with fnOffset = pos}
   in
-  let shouldRunIntegrationTest =
-    String.endsWith "/integration_test" location.pathname
-  in
   let isAdmin = false in
   let canvasName = Url.parseCanvasName location in
   let integrationTestName = canvasName in
@@ -53,7 +43,7 @@ let init (flagString : string) (location : Web.Location.location) =
     { m with
       builtInFunctions = complete
     ; complete = AC.init complete isAdmin
-    ; tests
+    ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
     ; currentPage = page
     ; canvas = newCanvas
@@ -62,7 +52,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; environment
     ; csrfToken }
   in
-  if shouldRunIntegrationTest
+  if Url.isIntegrationTest
   then
     ( m2
     , Cmd.batch [RPC.integrationRPC (contextFromModel m2) integrationTestName]

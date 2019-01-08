@@ -28,14 +28,14 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   let value = Util.transformToStringEntry ac.value in
   let longestLineLength =
     value
-    |> String.split "\n"
+    |> String.split ~on:"\n"
     |> List.map visualStringLength
     |> List.foldr max 1
     |> min maxWidthChars
   in
   let rowCount =
     value
-    |> String.split "\n"
+    |> String.split ~on:"\n"
     |> List.map (fun line ->
            line
            |> visualStringLength
