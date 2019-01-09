@@ -2,6 +2,27 @@ open Core_kernel
 open Types
 open Types.RuntimeT
 
+let dstr_of_string (s : string) : dval option =
+  (* the decoder has mutable state *)
+  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let rec validate_string () =
+    match Uutf.decode decoder with
+    | `Uchar _ ->
+        validate_string ()
+    | `End ->
+        `Ok
+    | `Await ->
+        validate_string ()
+    | `Malformed _ ->
+        `Err
+  in
+  match validate_string () with `Ok -> Some (DStr s) | `Err -> None
+
+
+let dstr_of_string_exn (s : string) : dval =
+  s |> dstr_of_string |> Option.value_exn ~message:("Invalid UTF-8 string:" ^ s)
+
+
 let repr_of_dhttp (d : dhttp) : string =
   match d with
   | Redirect url ->
