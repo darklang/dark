@@ -36,6 +36,41 @@ let ( >> ) (f1 : 'a -> 'b) (f2 : 'b -> 'c) : 'a -> 'c = fun x -> x |> f1 |> f2
 
 let ( << ) (f1 : 'b -> 'c) (f2 : 'a -> 'b) : 'a -> 'c = fun x -> x |> f2 |> f1
 
+module Decoder = struct
+  let pair decodeA decodeB =
+    let open Tea.Json.Decoder in
+    Decoder
+      (fun j ->
+        match Web.Json.classify j with
+        | JSONArray arr ->
+            if Js_array.length arr == 2
+            then
+              match
+                ( decodeValue decodeA (Array.unsafe_get arr 0)
+                , decodeValue decodeB (Array.unsafe_get arr 1) )
+              with
+              | Ok a, Ok b ->
+                  Ok (a, b)
+              | Error e1, _ ->
+                  Error ("pair[0] -> " ^ e1)
+              | _, Error e2 ->
+                  Error ("pair[1] -> " ^ e2)
+            else Error "pair expected array with 2 elements"
+        | _ ->
+            Error "pair expected array" )
+
+
+  let wireIdentifier =
+    let open Tea.Json.Decoder in
+    Decoder
+      (fun j ->
+        match decodeValue string j with
+        | Ok s ->
+            Ok s
+        | Error _ ->
+            Ok (Js.Json.stringify j) )
+end
+
 module Debug = struct
   let crash (str : string) : 'a = failwith str
 

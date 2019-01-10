@@ -220,8 +220,8 @@ let push_new_trace_id
     ~(canvas_id : Uuidm.t)
     (tlid : Types.tlid)
     (trace_id : Uuidm.t) =
-  let payload = Analysis.to_new_traces_frontend [(tlid, [trace_id])] in
-  push ~execution_id ~canvas_id ~event:"traces" payload
+  let payload = Analysis.to_new_trace_frontend (tlid, trace_id) in
+  push ~execution_id ~canvas_id ~event:"new_trace" payload
 
 
 let user_page_handler
