@@ -414,7 +414,7 @@ let t_http_oplist_roundtrip () =
 let t_case_insensitive_db_roundtrip () =
   clear_test_data () ;
   let colname = "cOlUmNnAmE" in
-  let value = DStr "some value" in
+  let value = Dval.dstr_of_string_exn "some value" in
   let ops =
     [ Op.CreateDB (dbid, pos, "TestUnicode")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
@@ -440,7 +440,7 @@ let t_case_insensitive_db_roundtrip () =
 let t_lambda_with_foreach () =
   check_dval
     "lambda_with_foreach"
-    (DStr "SOME STRING")
+    (Dval.dstr_of_string_exn "SOME STRING")
     (exec_ast
        "(String::foreach 'some string'
           (\\var -> (Char::toUppercase var)))")
@@ -465,11 +465,31 @@ let t_stored_event_roundtrip () =
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
-  SE.store_event ~canvas_id:id1 ~trace_id:t1 desc1 (DStr "1") ;
-  SE.store_event ~canvas_id:id1 ~trace_id:t2 desc1 (DStr "2") ;
-  SE.store_event ~canvas_id:id1 ~trace_id:t3 desc3 (DStr "3") ;
-  SE.store_event ~canvas_id:id1 ~trace_id:t4 desc2 (DStr "3") ;
-  SE.store_event ~canvas_id:id2 ~trace_id:t5 desc2 (DStr "3") ;
+  SE.store_event
+    ~canvas_id:id1
+    ~trace_id:t1
+    desc1
+    (Dval.dstr_of_string_exn "1") ;
+  SE.store_event
+    ~canvas_id:id1
+    ~trace_id:t2
+    desc1
+    (Dval.dstr_of_string_exn "2") ;
+  SE.store_event
+    ~canvas_id:id1
+    ~trace_id:t3
+    desc3
+    (Dval.dstr_of_string_exn "3") ;
+  SE.store_event
+    ~canvas_id:id1
+    ~trace_id:t4
+    desc2
+    (Dval.dstr_of_string_exn "3") ;
+  SE.store_event
+    ~canvas_id:id2
+    ~trace_id:t5
+    desc2
+    (Dval.dstr_of_string_exn "3") ;
   let at_desc = AT.of_pp SE.pp_event_desc in
   let rec2desc (t1, t2, t3, t4) = (t1, t2, t3) in
   let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
@@ -481,11 +501,14 @@ let t_stored_event_roundtrip () =
   let loaded1 =
     SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:Tuple.T2.get2
   in
-  check_dval_list "load GET events" [DStr "2"; DStr "1"] loaded1 ;
+  check_dval_list
+    "load GET events"
+    [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
+    loaded1 ;
   let loaded2 =
     SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:Tuple.T2.get2
   in
-  check_dval_list "load POST events" [DStr "3"] loaded2 ;
+  check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
   let loaded3 =
     SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:Tuple.T2.get2
   in
@@ -493,7 +516,7 @@ let t_stored_event_roundtrip () =
   let loaded4 =
     SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:Tuple.T2.get2
   in
-  check_dval_list "load host2 events" [DStr "3"] loaded4 ;
+  check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
   ()
 
 
@@ -561,7 +584,10 @@ let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   Mock.set_string "ts" ts ;
   Mock.set_string "nonce" nonce ;
-  let args = DvalMap.of_alist_exn [(k1, DStr v1); (k2, DStr v2)] in
+  let args =
+    DvalMap.of_alist_exn
+      [(k1, Dval.dstr_of_string_exn v1); (k2, Dval.dstr_of_string_exn v2)]
+  in
   let expected_header =
     "OAuth oauth_consumer_key=\"xvz1evFS4wEEPTGEFPHBog\", oauth_nonce=\"kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg\", oauth_signature=\"hCtSmYh%2BiHYCEqBWrE7C7hYmtUk%3D\", oauth_signature_method=\"HMAC-SHA1\", oauth_timestamp=\"1318622958\", oauth_token=\"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb\", oauth_version=\"1.0\""
   in
@@ -649,7 +675,10 @@ let t_nulls_added_to_missing_column () =
   check_dval
     "equal_after_fetchall"
     (DList
-       [DStr "i"; DObj (DvalMap.of_alist_exn [("x", DStr "v"); ("y", DNull)])])
+       [ Dval.dstr_of_string_exn "i"
+       ; DObj
+           (DvalMap.of_alist_exn
+              [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)]) ])
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 
@@ -692,7 +721,7 @@ let t_dval_yojson_roundtrips () =
   check "float" (DFloat 7.2) ;
   check "true" (DBool true) ;
   check "false" (DBool false) ;
-  check "string" (DStr "incredibly this was broken") ;
+  check "string" (Dval.dstr_of_string_exn "incredibly this was broken") ;
   check "null" DNull ;
   check "id" (DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6")) ;
   check
@@ -705,13 +734,20 @@ let t_dval_yojson_roundtrips () =
   check "db" (DDB "Visitors") ;
   check "list" (DList [DDB "Visitors"; DInt 4]) ;
   check "redirect" (DResp (Redirect "/home", DNull)) ;
-  check "httpresponse" (DResp (Response (200, []), DStr "success")) ;
+  check
+    "httpresponse"
+    (DResp (Response (200, []), Dval.dstr_of_string_exn "success")) ;
   check
     "weird assoc 1"
-    (DObj (DvalMap.of_alist_exn [("type", DStr "weird"); ("value", DNull)])) ;
+    (DObj
+       (DvalMap.of_alist_exn
+          [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)])) ;
   check
     "weird assoc 2"
-    (DObj (DvalMap.of_alist_exn [("type", DStr "weird"); ("value", DStr "x")])) ;
+    (DObj
+       (DvalMap.of_alist_exn
+          [ ("type", Dval.dstr_of_string_exn "weird")
+          ; ("value", Dval.dstr_of_string_exn "x") ])) ;
   ()
 
 
@@ -862,7 +898,7 @@ let t_html_escaping () =
     "html escaping works"
     (* TODO: add back in check that `'` is correctly escaped. It didn't
      * play nice with our hacky `'` removal in the DSL parser *)
-    (DStr "test&lt;&gt;&amp;&quot;")
+    (Dval.dstr_of_string_exn "test&lt;&gt;&amp;&quot;")
     (exec_ast "(String::htmlEscape 'test<>&\\\"')")
 
 
@@ -1009,7 +1045,7 @@ let t_errorrail_simple () =
 let t_errorrail_toplevel () =
   check_dval
     "Errorrail goes to 404"
-    (DResp (Response (404, []), DStr "Not found"))
+    (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"))
     (exec_handler
        "(| ()
                       (`List::head_v1)
@@ -1549,7 +1585,8 @@ let t_db_queryOne_works () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DOption (OptJust (DObj (DvalMap.singleton "x" (DStr "foo")))))
+    (DOption
+       (OptJust (DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")))))
     (exec_handler ~ops ast)
 
 
@@ -1606,7 +1643,9 @@ let t_db_queryOneWithKey_works () =
     "equal_after_roundtrip"
     (DOption
        (OptJust
-          (DList [DStr "first"; DObj (DvalMap.singleton "x" (DStr "foo"))])))
+          (DList
+             [ Dval.dstr_of_string_exn "first"
+             ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ])))
     (exec_handler ~ops ast)
 
 
@@ -1707,11 +1746,14 @@ let t_parsed_request_cookies () =
     [ Dval.to_dobj []
     ; Dval.to_dobj []
     ; Dval.to_dobj []
-    ; Dval.to_dobj [("a", DStr "")]
-    ; Dval.to_dobj [("a", DStr "b")]
-    ; Dval.to_dobj [("a", DStr "b")]
-    ; Dval.to_dobj [("a", DStr "b"); ("c", DStr "d")]
-    ; Dval.to_dobj [("a", DStr "b"); ("c", DStr "d")] ]
+    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "")]
+    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj
+        [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
+    ; Dval.to_dobj
+        [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
+    ]
 
 
 (* ------------------- *)

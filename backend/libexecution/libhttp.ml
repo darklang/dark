@@ -121,7 +121,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr msg] ->
-              DResp (Response (400, []), DStr msg)
+              DResp (Response (400, []), Dval.dstr_of_string_exn msg)
           | args ->
               fail args)
     ; pr = None

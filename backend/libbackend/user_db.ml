@@ -33,7 +33,11 @@ let coerce_key_value_pair_to_legacy_object pair =
   match pair with
   | [DStr s; DObj o] ->
       let id =
-        match Uuidm.of_string s with Some id -> DID id | None -> DStr s
+        match Uuidm.of_string s with
+        | Some id ->
+            DID id
+        | None ->
+            Dval.dstr_of_string_exn s
       in
       DObj (Map.set ~key:"id" ~data:id o)
   | err ->
@@ -138,7 +142,7 @@ let rec query ~state ~magic db (pairs : (string * dval) list) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [DStr key; to_obj ~state ~magic db [data]]
+             DList [Dval.dstr_of_string_exn key; to_obj ~state ~magic db [data]]
          | _ ->
              Exception.internal "bad format received in fetch_all" )
   |> DList
@@ -233,7 +237,7 @@ and type_check_and_map_dependents
             (* the belongs_to function needs to type check any_dval *)
             belongs_to table any_dval
         | TBelongsTo table, DID i when magic = false ->
-            DStr (Uuidm.to_string i)
+            Dval.dstr_of_string_exn (Uuidm.to_string i)
         | TBelongsTo table, DStr _ when magic = false ->
             data
         | THasMany table, DList any_list when magic = true ->
@@ -243,7 +247,7 @@ and type_check_and_map_dependents
             any_list
             |> List.map ~f:(function
                    | DID i ->
-                       DStr (Uuidm.to_string i)
+                       Dval.dstr_of_string_exn (Uuidm.to_string i)
                    | DStr _ as d ->
                        d
                    | err ->
@@ -482,7 +486,7 @@ and get_many ~state ~magic (db : db) (keys : string list) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [DStr key; to_obj ~state ~magic db [data]]
+             DList [Dval.dstr_of_string_exn key; to_obj ~state ~magic db [data]]
          | _ ->
              Exception.internal "bad format received in get_many" )
   |> DList
@@ -508,7 +512,7 @@ let get_all ~state ~magic (db : db) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [DStr key; to_obj ~state ~magic db [data]]
+             DList [Dval.dstr_of_string_exn key; to_obj ~state ~magic db [data]]
          | _ ->
              Exception.internal "bad format received in get_all" )
   |> DList

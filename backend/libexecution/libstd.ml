@@ -40,7 +40,7 @@ let fns : Lib.shortfn list =
           | _, [DObj o] ->
               o
               |> DvalMap.keys
-              |> List.map ~f:(fun k -> DStr k)
+              |> List.map ~f:(fun k -> Dval.dstr_of_string_exn k)
               |> fun l -> DList l
           | args ->
               fail args)
@@ -178,7 +178,7 @@ let fns : Lib.shortfn list =
                 |> List.map ~f:to_input
                 |> String.concat ~sep:"\n"
               in
-              DStr (Printf.sprintf fmt uri inputs)
+              Dval.dstr_of_string_exn (Printf.sprintf fmt uri inputs)
           | args ->
               fail args)
     ; pr = None
@@ -193,7 +193,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o] ->
-              DStr (Dval.unsafe_dval_to_json_string (DObj o))
+              Dval.dstr_of_string_exn
+                (Dval.unsafe_dval_to_json_string (DObj o))
           | args ->
               fail args)
     ; pr = None
@@ -554,7 +555,11 @@ let fns : Lib.shortfn list =
     ; d = "Returns a string representation of `v`"
     ; f =
         InProcess
-          (function _, [a] -> DStr (Dval.as_string a) | args -> fail args)
+          (function
+          | _, [a] ->
+              Dval.dstr_of_string_exn (Dval.as_string a)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -565,7 +570,11 @@ let fns : Lib.shortfn list =
     ; d = "Returns an adorned string representation of `v`"
     ; f =
         InProcess
-          (function _, [a] -> DStr (Dval.to_repr a) | args -> fail args)
+          (function
+          | _, [a] ->
+              Dval.dstr_of_string_exn (Dval.to_repr a)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -697,7 +706,7 @@ let fns : Lib.shortfn list =
                 result
                 |> list_coerce ~f:Dval.to_char
                 >>| String.of_char_list
-                >>| (fun x -> DStr x)
+                >>| (fun x -> Dval.dstr_of_string_exn x)
                 |> Result.map_error ~f:(fun (result, example_value) ->
                        RT.error
                          ~actual:(DList result)
@@ -749,7 +758,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s; DStr searchFor; DStr replaceWith] ->
-              DStr (Util.string_replace searchFor replaceWith s)
+              Dval.dstr_of_string_exn
+                (Util.string_replace searchFor replaceWith s)
           | args ->
               fail args)
     ; pr = None
@@ -800,7 +810,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DStr (String.uppercase s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (String.uppercase s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -812,7 +825,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DStr (String.lowercase s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (String.lowercase s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -836,7 +852,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s1; DStr s2] -> DStr (s1 ^ s2) | args -> fail args)
+          | _, [DStr s1; DStr s2] ->
+              Dval.dstr_of_string_exn (s1 ^ s2)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -858,7 +877,7 @@ let fns : Lib.shortfn list =
               |> replace ~pattern:trim ~replacement:""
               |> replace ~pattern:spaces ~replacement:"-"
               |> String.lowercase
-              |> fun x -> DStr x
+              |> fun x -> Dval.dstr_of_string_exn x
           | args ->
               fail args)
     ; pr = None
@@ -871,7 +890,11 @@ let fns : Lib.shortfn list =
     ; d = "Reverses `string`"
     ; f =
         InProcess
-          (function _, [DStr s] -> DStr (String.rev s) | args -> fail args)
+          (function
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (String.rev s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -887,7 +910,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s; DStr sep] ->
               s
               |> Libtarget.string_split ~sep
-              |> List.map ~f:(fun str -> DStr str)
+              |> List.map ~f:(fun str -> Dval.dstr_of_string_exn str)
               |> DList
           | args ->
               fail args)
@@ -909,7 +932,7 @@ let fns : Lib.shortfn list =
                     match s with DStr st -> st | _ -> Dval.to_repr s )
                   l
               in
-              DStr (String.concat ~sep s)
+              Dval.dstr_of_string_exn (String.concat ~sep s)
           | args ->
               fail args)
     ; pr = None
@@ -924,7 +947,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DList l] ->
-              DStr
+              Dval.dstr_of_string_exn
                 ( l
                 |> List.map ~f:(function
                        | DChar c ->
@@ -945,7 +968,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DChar c] -> DStr (Char.to_string c) | args -> fail args)
+          | _, [DChar c] ->
+              Dval.dstr_of_string_exn (Char.to_string c)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -958,7 +984,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DStr (B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false s)
+              Dval.dstr_of_string_exn
+                (B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false s)
           | args ->
               fail args)
     ; pr = None
@@ -973,11 +1000,19 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( try DStr (B64.decode ~alphabet:B64.uri_safe_alphabet s) with
+            ( try
+                Dval.dstr_of_string_exn
+                  (B64.decode ~alphabet:B64.uri_safe_alphabet s)
+              with
             | Not_found_s _ | Caml.Not_found ->
-              ( try DStr (B64.decode ~alphabet:B64.default_alphabet s) with
+              ( try
+                  Dval.dstr_of_string_exn
+                    (B64.decode ~alphabet:B64.default_alphabet s)
+                with
               | Not_found_s _ | Caml.Not_found ->
-                  RT.error ~actual:(DStr s) "Not a valid base64 string" ) )
+                  RT.error
+                    ~actual:(Dval.dstr_of_string_exn s)
+                    "Not a valid base64 string" ) )
           | args ->
               fail args)
     ; pr = None
@@ -993,7 +1028,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DStr (Libtarget.digest384 s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (Libtarget.digest384 s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1005,7 +1043,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DStr (Libtarget.digest384 s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (Libtarget.digest384 s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1017,7 +1058,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DStr (Libtarget.digest256 s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (Libtarget.digest256 s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1032,7 +1076,7 @@ let fns : Lib.shortfn list =
           | _, [DInt l] ->
               if l < 0
               then Exception.user "l should be a positive integer"
-              else DStr (Util.random_string l)
+              else Dval.dstr_of_string_exn (Util.random_string l)
           | args ->
               fail args)
     ; pr = None
@@ -1047,7 +1091,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DStr (Util.html_escape s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn (Util.html_escape s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = false
     ; dep = false }
@@ -1628,7 +1675,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [err] -> DStr (Dval.as_string err) | args -> fail args)
+          | _, [err] ->
+              Dval.dstr_of_string_exn (Dval.as_string err)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false } ]

@@ -64,13 +64,13 @@ let parsed_query_string (queryvals : (string * string list) list) =
 
 let parsed_headers (headers : (string * string) list) =
   headers
-  |> List.map ~f:(fun (k, v) -> (k, DStr v))
+  |> List.map ~f:(fun (k, v) -> (k, Dval.dstr_of_string_exn v))
   |> DvalMap.of_alist_reduce ~f:(fun l r -> r)
   |> fun dm -> DObj dm |> fun dv -> Dval.to_dobj [("headers", dv)]
 
 
 let unparsed_body rb =
-  let dval = DStr rb in
+  let dval = Dval.dstr_of_string_exn rb in
   Dval.to_dobj [("fullBody", dval)]
 
 
@@ -95,7 +95,8 @@ let parsed_cookies cookies =
   |> List.map ~f:String.strip
   |> List.map ~f:(String.lsplit2 ~on:'=')
   |> List.filter_opt
-  |> List.map ~f:(fun (k, v) -> (Uri.pct_decode k, DStr (Uri.pct_decode v)))
+  |> List.map ~f:(fun (k, v) ->
+         (Uri.pct_decode k, Dval.dstr_of_string_exn (Uri.pct_decode v)) )
   |> Dval.to_dobj
 
 

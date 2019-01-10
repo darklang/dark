@@ -104,9 +104,11 @@ let execute_handler
   let result = Ast.execute_ast vars state h.ast in
   match result with
   | DErrorRail (DOption OptNothing) ->
-      DResp (Response (404, []), DStr "Not found")
+      DResp (Response (404, []), Dval.dstr_of_string_exn "Not found")
   | DErrorRail _ ->
-      DResp (Response (500, []), DStr "Invalid conversion from errorrail")
+      DResp
+        ( Response (500, [])
+        , Dval.dstr_of_string_exn "Invalid conversion from errorrail" )
   | dv ->
       dv
 
