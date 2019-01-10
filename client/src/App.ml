@@ -1041,22 +1041,20 @@ let update_ (msg : msg) (m : model) : modification =
         ; Append404s (f404s, ts)
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
-  | NewTracesPush (Ok newTraceIDs) ->
+  | NewTracePush (TLID tlid, traceID) ->
       let module GM = GMap in
       let module GMS = GMap.String in
       (*
-       * This push tells the client "new traces exist with these ids", but not
-       * the content of those traces. The client doesn't yet have a way of
+       * This push tells the client "a new trace exists with this id", but not
+       * the content of that trace. The client doesn't yet have a way of
        * storing that information. So instead we're just fabricating empty
        * traces with the appropriate trace id, which typechecks but does weird
        * things to the UI.
        *
        * TODO handle this (e.g. mark traces as "incomplete" or "pending")
        *)
-      let emptyTrace traceID =
-        {traceID; input = GMS.empty; functionResults = []}
-      in
-      let newTraces = GMS.map newTraceIDs (List.map emptyTrace) in
+      let emptyTrace = {traceID; input = GMS.empty; functionResults = []} in
+      let newTraces = GMS.fromArray [|(tlid, [emptyTrace])|] in
       UpdateTraces newTraces
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
@@ -1079,8 +1077,6 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("InitialLoad", err)
   | GetAnalysisRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
-  | NewTracesPush (Error err) ->
-      DisplayError ("Error in NewTracesPush: " ^ err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (_, _) ->
@@ -1201,8 +1197,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
           ReceiveAnalysis s )
-    ; Analysis.NewTracesPush.listen ~key:"new_traces_push" (fun s ->
-          NewTracesPush s ) ]
+    ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
+          NewTracePush s ) ]
   in
   Tea.Sub.batch
     (List.concat

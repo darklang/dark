@@ -588,8 +588,7 @@ and msg =
   | GetAnalysisRPCCallback of
       (analysisParams * (getAnalysisResult, httpError) Tea.Result.t)
       [@printer opaque "GetAnalysisRPCCallback"]
-  | NewTracesPush of (traceIDs, string) Tea.Result.t
-      [@printer opaque "NewTracesPush"]
+  | NewTracePush of (tlid * traceID)
   | GetDelete404RPCCallback of
       (fourOhFour list * string, httpError) Tea.Result.t
       [@printer opaque "GetDelete404RPCCallback"]
