@@ -18,18 +18,22 @@ let replacements =
             in
             let encoding = "application/x-www-form-urlencoded" in
             let headers =
-              [ ("Authorization", DStr basic_auth_string)
-              ; ("Content-Type", DStr encoding) ]
+              [ ( "Authorization"
+                , Libexecution.Dval.dstr_of_string_exn basic_auth_string )
+              ; ("Content-Type", Libexecution.Dval.dstr_of_string_exn encoding)
+              ]
               |> DvalMap.of_alist_exn
               |> DObj
             in
             let host_url = Canvas.url_for s.canvas_id in
             let body =
-              [ ("From", DStr fromNumber)
-              ; ("To", DStr toNumber)
-              ; ("Body", DStr body)
-              ; ("ValidityPeriod", DStr "900")
-              ; ("StatusCallback", DStr (host_url ^ "/twilioCallback")) ]
+              [ ("From", Libexecution.Dval.dstr_of_string_exn fromNumber)
+              ; ("To", Libexecution.Dval.dstr_of_string_exn toNumber)
+              ; ("Body", Libexecution.Dval.dstr_of_string_exn body)
+              ; ("ValidityPeriod", Libexecution.Dval.dstr_of_string_exn "900")
+              ; ( "StatusCallback"
+                , Libexecution.Dval.dstr_of_string_exn
+                    (host_url ^ "/twilioCallback") ) ]
               |> DvalMap.of_alist_exn
               |> DObj
             in

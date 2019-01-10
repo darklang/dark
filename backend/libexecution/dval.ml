@@ -523,13 +523,13 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Null ->
       DNull
   | `String s ->
-      DStr s
+      dstr_of_string_exn s
   | `List l ->
       DList (List.map ~f:unsafe_dval_of_yojson_ l)
   | `Variant v ->
       Exception.internal "We dont use variants"
   | `Intlit v ->
-      DStr v
+      dstr_of_string_exn v
   | `Tuple v ->
       Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "response"); ("value", `List [a; b])] ->
@@ -715,7 +715,7 @@ let parse_literal (str : string) : dval option =
     str
     |> String.sub ~pos:1 ~len:(len - 2)
     |> Util.string_replace "\\\"" "\""
-    |> fun s -> Some (DStr s)
+    |> fun s -> Some (dstr_of_string_exn s)
   else if String.Caseless.equal "nothing" str
   then Some (DOption OptNothing)
   else parse_basic_json str
@@ -729,9 +729,9 @@ let query_to_dval (query : (string * string list) list) : dval =
            | [] ->
                DNull
            | [v] ->
-               if v = "" then DNull else DStr v
+               if v = "" then DNull else dstr_of_string_exn v
            | vals ->
-               DList (List.map ~f:(fun x -> DStr x) vals)
+               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
          in
          (key, dval) )
   |> DvalMap.of_alist_exn

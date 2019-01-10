@@ -84,7 +84,9 @@ let fns : Lib.shortfn list =
           | _, [] ->
               DObj
                 (DvalMap.of_alist_exn
-                   [("Content-Type", DStr "application/x-www-form-urlencoded")])
+                   [ ( "Content-Type"
+                     , Dval.dstr_of_string_exn
+                         "application/x-www-form-urlencoded" ) ])
           | args ->
               fail args)
     ; pr = None
@@ -101,7 +103,9 @@ let fns : Lib.shortfn list =
           | _, [] ->
               DObj
                 (DvalMap.of_alist_exn
-                   [("Content-Type", DStr "application/json; charset=utf-8")])
+                   [ ( "Content-Type"
+                     , Dval.dstr_of_string_exn
+                         "application/json; charset=utf-8" ) ])
           | args ->
               fail args)
     ; pr = None
@@ -118,7 +122,8 @@ let fns : Lib.shortfn list =
           | _, [] ->
               DObj
                 (DvalMap.of_alist_exn
-                   [("Content-Type", DStr "text/plain; charset=utf-8")])
+                   [ ( "Content-Type"
+                     , Dval.dstr_of_string_exn "text/plain; charset=utf-8" ) ])
           | args ->
               fail args)
     ; pr = None
@@ -135,7 +140,8 @@ let fns : Lib.shortfn list =
           | _, [] ->
               DObj
                 (DvalMap.of_alist_exn
-                   [("Content-Type", DStr "text/html; charset=utf-8")])
+                   [ ( "Content-Type"
+                     , Dval.dstr_of_string_exn "text/html; charset=utf-8" ) ])
           | args ->
               fail args)
     ; pr = None
@@ -160,7 +166,9 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr token] ->
               let auth_string = "Bearer " ^ token in
-              DObj (DvalMap.of_alist_exn [("Authorization", DStr auth_string)])
+              DObj
+                (DvalMap.of_alist_exn
+                   [("Authorization", Dval.dstr_of_string_exn auth_string)])
           | args ->
               fail args)
     ; pr = None

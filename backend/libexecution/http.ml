@@ -48,5 +48,6 @@ let bind_route_params_exn ~(path : string) ~(route : string) :
     let split_path = split_uri_path path in
     route
     |> route_variable_pairs
-    |> List.map ~f:(fun (i, r) -> (r, RT.DStr (List.nth_exn split_path i)))
+    |> List.map ~f:(fun (i, r) ->
+           (r, Dval.dstr_of_string_exn (List.nth_exn split_path i)) )
   else Exception.internal "path/route mismatch"
