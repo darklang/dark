@@ -58,6 +58,7 @@ type tipe_ =
   | TBool
   | TNull
   | TChar
+  | TCharacter
   | TStr
   | TList
   | TObj
@@ -351,6 +352,7 @@ module RuntimeT = struct
     | DBool of bool
     | DNull
     | DChar of char
+    | DCharacter of string
     | DStr of string
     (* compound types *)
     | DList of dval list
