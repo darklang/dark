@@ -1756,6 +1756,50 @@ let t_parsed_request_cookies () =
     ]
 
 
+let t_ascii_string_literal_validates_as_utf8 () =
+  AT.check
+    AT.int
+    "ASCII string validates as UTF-8"
+    0
+    (match Dval.dstr_of_string "foobar" with Some _ -> 0 | _ -> 1)
+
+
+let t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 () =
+  AT.check
+    AT.int
+    "Replacement character utf8 multi-byte sequence validates"
+    0
+    (match Dval.dstr_of_string "\xef\xbf\xbd" with Some _ -> 0 | _ -> 1)
+
+
+let t_family_emoji_utf8_byte_seq_validates_as_utf8 () =
+  AT.check
+    AT.int
+    "Emoji utf8 multi-byte sequence validates"
+    0
+    (match Dval.dstr_of_string "\xf0\x9f\x91\xaa" with Some _ -> 0 | _ -> 1)
+
+
+let t_family_emoji_utf16_byte_seq_fails_validation () =
+  AT.check
+    AT.int
+    "UTF16 representation of family emoji does not validate"
+    0
+    (match Dval.dstr_of_string "\xd8\x3d\xdc\6A" with Some _ -> 1 | _ -> 0)
+
+
+let t_mix_of_ascii_and_utf16_fails_validation () =
+  AT.check
+    AT.int
+    "Mix of valid ASCII followed by a UTF16 byte sequence fails validation"
+    0
+    ( match Dval.dstr_of_string "hello, \xd8\x3d\xdc\6A" with
+    | Some _ ->
+        1
+    | _ ->
+        0 )
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1873,9 +1917,21 @@ let suite =
   ; ( "DarkInternal:: functions are internal"
     , `Quick
     , t_dark_internal_fns_are_internal )
-  ; ( "Parsed_request.from_request parses cookies"
+  ; ( "Dval.dstr_of_string validates ASCII as UTF8"
     , `Quick
-    , t_parsed_request_cookies ) ]
+    , t_ascii_string_literal_validates_as_utf8 )
+  ; ( "Dval.dstr_of_string validates replacement character utf8 repr as UTF8"
+    , `Quick
+    , t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 )
+  ; ( "Dval.dstr_of_string validates utf8 emoji repr as UTF8"
+    , `Quick
+    , t_family_emoji_utf8_byte_seq_validates_as_utf8 )
+  ; ( "Dval.dstr_of_string rejects UTF16 repr of emoji"
+    , `Quick
+    , t_family_emoji_utf16_byte_seq_fails_validation )
+  ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
+    , `Quick
+    , t_mix_of_ascii_and_utf16_fails_validation ) ]
 
 
 let () =
