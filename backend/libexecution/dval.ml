@@ -56,6 +56,8 @@ let rec tipe_to_string t : string =
       "Nothing"
   | TChar ->
       "Char"
+  | TCharacter ->
+      "Char"
   | TStr ->
       "Str"
   | TList ->
@@ -215,6 +217,8 @@ let rec tipe_of (dv : dval) : tipe =
       TNull
   | DChar _ ->
       TChar
+  | DCharacter _ ->
+      TCharacter
   | DStr _ ->
       TStr
   | DList _ ->
@@ -274,6 +278,8 @@ let as_string (dv : dval) : string =
       string_of_float f
   | DChar c ->
       Char.to_string c
+  | DCharacter c ->
+      c
   | DNull ->
       "null"
   | DID id ->
@@ -300,13 +306,15 @@ let as_literal (dv : dval) : string =
       "\"" ^ s ^ "\""
   | DChar _ ->
       "'" ^ as_string dv ^ "'"
+  | DCharacter _ ->
+      "'" ^ as_string dv ^ "'"
   | _ ->
       as_string dv
 
 
 let is_primitive (dv : dval) : bool =
   match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DStr _ ->
+  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _| DStr _ ->
       true
   | _ ->
       false
@@ -435,7 +443,8 @@ let rec to_url_string (dv : dval) : string =
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
-let to_char dv : char option = match dv with DChar c -> Some c | _ -> None
+(* TODO: remove this, it's Wrong in the new grapheme world *)
+let to_char dv : char option = match dv with DCharacter c -> Some c.[0] | _ -> None
 
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
@@ -562,7 +571,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" ->
         DError v
     | "char" ->
-        DChar (Char.of_string v)
+        DCharacter v
     | "password" ->
         v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" ->
@@ -628,6 +637,8 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   (* user-ish types *)
   | DChar c ->
       wrap_user_str (Char.to_string c)
+  | DCharacter c ->
+      wrap_user_str c
   | DError msg ->
       wrap_user_str msg
   | DResp (h, hdv) ->
