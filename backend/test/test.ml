@@ -630,6 +630,23 @@ let t_nulls_allowed_in_db () =
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
+let t_db_add_roundtrip () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "MyDB")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "x")
+    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+  in
+  let ast =
+    "(let old (obj (x null))
+       (let key (DB::add_v0 old 'hello' MyDB)
+         (let new (`DB::get_v1 key MyDB)
+            (== old new)))"
+  in
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+
+
 let t_nulls_added_to_missing_column () =
   (* Test for the hack that columns get null in all rows to start *)
   clear_test_data () ;
