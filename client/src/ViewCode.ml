@@ -330,9 +330,7 @@ and viewNExpr
         ; a [wc "fieldaccessop operator"] "."
         ; viewFieldName vs [wc "fieldname"; atom] field ]
   | Constructor (name, exprs) ->
-      let exprs =
-        List.map (fun e -> n [wc "letbody"] [viewExpr d vs [] e]) exprs
-      in
+      let exprs = List.map (fun e -> n [] [viewExpr d vs [] e]) exprs in
       n
         (wc "constructor" :: all)
         (viewConstructorName vs [wc "constructorname"] name :: exprs)
