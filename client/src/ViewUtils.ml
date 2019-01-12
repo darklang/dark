@@ -290,7 +290,7 @@ and approxNWidth (ne : nExpr) : int =
 
 
 let splitFnName (fnName : fnName) : string option * string * string =
-  let pattern = Js.Re.fromString "((\\w+)::)?(\\w+)_v(\\d+)" in
+  let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
   let mResult = Js.Re.exec fnName pattern in
   match mResult with
   | Some result ->
@@ -298,10 +298,12 @@ let splitFnName (fnName : fnName) : string option * string * string =
         result |> Js.Re.captures |> Belt.List.fromArray |> List.map Js.toOption
       in
       ( match captures with
-      | [_; _; mod_; fn; v] ->
-          (mod_, Option.withDefault fnName fn, Option.withDefault "0" v)
+      | [_; _; mod_; Some fn; _; Some v] ->
+          (mod_, fn, v)
+      | [_; _; mod_; Some fn; _; None] ->
+          (mod_, fn, "0")
       | _ ->
-          (None, fnName, "") )
+          Debug.crash "invalid fn name" )
   | None ->
       (None, fnName, "0")
 
