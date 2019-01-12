@@ -13,6 +13,16 @@ let fns : Lib.shortfn list =
     ; pr = None
     ; ps = false
     ; dep = false }
+  ; { pns = ["DB::add_v0"]
+    ; ins = []
+    ; p = [par "val" TObj; par "table" TDB]
+    ; r = TStr
+    ; d =
+        "Add a new entry into `table`, with a newly generated key and the value `val`. Returns the new key."
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DB::get_v1"]
     ; ins = []
     ; p = [par "key" TStr; par "table" TDB]
