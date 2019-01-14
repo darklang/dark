@@ -58,7 +58,6 @@ type tipe_ =
   | TBool
   | TNull
   | TChar
-  | TCharacter
   | TStr
   | TList
   | TObj
@@ -79,6 +78,7 @@ type tipe_ =
   | TUuid
   | TOption
   | TErrorRail
+  | TCharacter
 [@@deriving eq, compare, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -352,7 +352,6 @@ module RuntimeT = struct
     | DBool of bool
     | DNull
     | DChar of char
-    | DCharacter of string
     | DStr of string
     (* compound types *)
     | DList of dval list
@@ -372,6 +371,7 @@ module RuntimeT = struct
     | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
+    | DCharacter of string
   [@@deriving eq, yojson, compare]
 
   type dval_list = dval list
