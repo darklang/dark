@@ -83,4 +83,6 @@ let defaultModel : model =
       Js.Date.now ()
       |> ( +. ) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
       |> Js.Date.fromFloat
-      |> Js.Date.toISOString }
+      |> Js.Date.toISOString
+  ; tempdbs = []
+  }

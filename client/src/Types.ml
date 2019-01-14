@@ -216,6 +216,10 @@ and dB =
   ; oldMigrations : dBMigration list
   ; activeMigration : dBMigration option }
 
+and shadowdb =
+  { name : dBName
+  ; pos : pos }
+
 (* userFunctions *)
 and userFunctionParameter =
   { ufpName : string blankOr
@@ -738,6 +742,7 @@ and model =
   ; environment : string
   ; csrfToken : string
   ; latest404 : string
+  ; tempdbs : shadowdb list
   (* string of timestamp *) }
 [@@deriving show {with_path = false}]
 

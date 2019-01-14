@@ -350,7 +350,7 @@ let viewDBs_ (tls : toplevel list) : msg Html.html =
     div "simple-route" [span "name" [tlLink pos "default-link" db.dbName]]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs None routes
+  section "DBs" dbs (Some ("cdb", CreateDBTable)) routes
 
 
 let viewDBs = Cache.cache1 (fun tls -> TL.dbs tls) viewDBs_
