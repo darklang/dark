@@ -65,6 +65,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   (* user-ish types *)
   | DChar c ->
       ev "DChar" [string (String.fromList [c])]
+  | DCharacter c ->
+      ev "DCharacter" [string c]
   | DError msg ->
       ev "DError" [string msg]
   | DResp (h, hdv) ->
@@ -351,6 +353,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TStr" []
   | TChar ->
       ev "TChar" []
+  | TCharacter ->
+      ev "TCharacter" []
   | TBool ->
       ev "TBool" []
   | TFloat ->
