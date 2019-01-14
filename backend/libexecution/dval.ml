@@ -7,8 +7,9 @@ let dstr_of_string (s : string) : dval option =
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
   let rec validate_string () =
     match Uutf.decode decoder with
+    | `Uchar ch when ch = Uchar.min ->
+        `Err (* U+0000 is rejected by postgres *)
     | `Uchar _ ->
-        (* potentially should do something with the null byte? we can probably pretend it doesn't exist for now, but Postgres doesn't allow it in text/varchar fields (presumably some C-string legacy) *)
         validate_string ()
     | `End ->
         `Ok
