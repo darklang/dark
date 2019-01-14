@@ -18,7 +18,7 @@ let fns : Lib.shortfn list =
     ; p = [par "val" TObj; par "table" TDB]
     ; r = TStr
     ; d =
-        "Add a new entry into `table`, with a newly generated key and the value `val`. Returns the new key."
+        "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
