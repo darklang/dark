@@ -1800,6 +1800,14 @@ let t_mix_of_ascii_and_utf16_fails_validation () =
         0 )
 
 
+let t_u0000_fails_validation () =
+  AT.check
+    AT.int
+    "String containing U+0000/0x00 fails to validate (due to Postgres quirks)"
+    0
+    (match Dval.dstr_of_string "hello, \x00" with Some _ -> 1 | _ -> 0)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1931,7 +1939,8 @@ let suite =
     , t_family_emoji_utf16_byte_seq_fails_validation )
   ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
     , `Quick
-    , t_mix_of_ascii_and_utf16_fails_validation ) ]
+    , t_mix_of_ascii_and_utf16_fails_validation )
+  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation) ]
 
 
 let () =
