@@ -8,7 +8,17 @@ module Dval = Libexecution.Dval
 let find_db = Libdb.find_db
 
 let replacements =
-  [ ( "DB::set_v1"
+  [ ( "DB::add_v0"
+    , InProcess
+        (function
+        | state, [DObj value; DDB dbname] ->
+            let key = Uuidm.v `V4 |> Uuidm.to_string in
+            let db = find_db state.dbs dbname in
+            ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
+            DStr key
+        | args ->
+            fail args) )
+  ; ( "DB::set_v1"
     , InProcess
         (function
         | state, [DObj value; DStr key; DDB dbname] ->
