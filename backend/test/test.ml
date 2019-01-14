@@ -640,11 +640,13 @@ let t_db_add_roundtrip () =
   in
   let ast =
     "(let old (obj (x null))
-       (let key (DB::add_v0 old 'hello' MyDB)
-         (let new (`DB::get_v1 key MyDB)
-            (== old new)))"
+       (let key (DB::add_v0 old MyDB)
+         (`DB::get_v1 key MyDB)))"
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval
+    "equal_after_roundtrip"
+    (DObj (DvalMap.of_alist_exn [("x", DNull)]))
+    (exec_handler ~ops ast)
 
 
 let t_nulls_added_to_missing_column () =
@@ -1845,6 +1847,7 @@ let suite =
     , t_db_queryOneWithKey_returns_nothing_multiple )
   ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
   ; ("DB::getAll_v2 works", `Quick, t_db_getAll_v2_works)
+  ; ("DB::add works", `Quick, t_db_add_roundtrip)
   ; ( "DarkInternal:: functions are internal"
     , `Quick
     , t_dark_internal_fns_are_internal )
