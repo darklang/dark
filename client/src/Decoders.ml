@@ -282,11 +282,12 @@ and trace j : trace =
 
 
 and rpc j : rpcResult =
-  ( field "toplevels" (list toplevel) j
-  , field "deleted_toplevels" (list toplevel) j
-  , field "new_traces" traces j
-  , field "user_functions" (list userFunction) j
-  , field "unlocked_dbs" (list tlid) j )
+  { toplevels = field "toplevels" (list toplevel) j
+  ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
+  ; newTraces = field "new_traces" traces j
+  ; userFunctions = field "user_functions" (list userFunction) j
+  ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
+  ; unlockedDBs = field "unlocked_dbs" (list tlid) j }
 
 
 and getAnalysisRPC j : getAnalysisResult =

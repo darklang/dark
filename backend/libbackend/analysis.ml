@@ -182,6 +182,9 @@ type rpc_response =
   ; toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
+  ; deleted_user_functions :
+      RTT.user_fn list
+      (* replace, see deleted_toplevels *)
   ; unlocked_dbs : tlid list
   (* replace *) }
 [@@deriving to_yojson]
@@ -192,6 +195,7 @@ let to_rpc_response_frontend
   ; toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted
   ; user_functions = c.user_functions
+  ; deleted_user_functions = c.deleted_user_functions
   ; unlocked_dbs = unlocked }
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
