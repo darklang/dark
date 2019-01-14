@@ -517,9 +517,9 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
     Html.div
       [Html.class' "spec-header"]
       [ viewEventName vs [wc "name"] h.spec.name
-      ; Html.div [] externalLink
       ; viewEventSpace vs [wc "module"] h.spec.module_
       ; modifier
+      ; Html.div [] externalLink
       ; lock ]
   in
   [header; ast]
