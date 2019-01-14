@@ -69,4 +69,32 @@ let replacements =
     ; ( "DarkInternal::canvasAsText"
       , function
         | _, [DStr host] -> DStr (Canvas.to_string host) | args -> fail args )
-    ]
+    ; ( "DarkInternal::handlers"
+      , function
+        | _, [DStr host] ->
+            let c = Canvas.load_all host [] in
+            !c.handlers
+            |> List.map ~f:Libexecution.Toplevel.as_handler
+            |> List.map ~f:(fun h -> Option.value_exn h)
+            |> List.map ~f:(fun h ->
+                   DStr (Libexecution.Types.string_of_id h.tlid) )
+            |> fun l -> DList l
+        | args ->
+            fail args )
+    ; ( "DarkInternal::canLoadTraces"
+      , function
+        | _, [DStr host; DStr tlid] ->
+            let c = Canvas.load_all host [] in
+            let handler =
+              !c.handlers
+              |> List.map ~f:Libexecution.Toplevel.as_handler
+              |> List.map ~f:(fun h -> Option.value_exn h)
+              |> List.find_exn ~f:(fun h ->
+                     h.tlid = Libexecution.Types.id_of_string tlid )
+            in
+            ( try
+                ignore (Analysis.traces_for_handler !c handler) ;
+                DBool true
+              with _ -> DBool false )
+        | args ->
+            fail args ) ]
