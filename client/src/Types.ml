@@ -532,7 +532,7 @@ and modification =
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
   | RequestAnalysis of toplevel list
-  | SetUserFunctions of userFunction list * bool
+  | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of tlid list
   | Set404s of fourOhFour list * string
   | Append404s of fourOhFour list * string
@@ -709,6 +709,7 @@ and model =
   ; tests : variantTest list
   ; complete : autocomplete
   ; userFunctions : userFunction list
+  ; deletedUserFunctions : userFunction list
   ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
