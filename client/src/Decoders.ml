@@ -365,7 +365,9 @@ and dval j : dval =
     ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
     ; ("DBool", dv1 (fun x -> DBool x) bool)
     ; ("DNull", dv0 DNull)
-      (* ; ("DChar", dv1 (fun x -> DChar) decodeChar) -- TODO *)
+      (* ; ("DChar", dv1 (fun x -> DChar) decodeChar) -- TODO: delete? DChar is
+         deprecated *)
+    ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (list dd))
     ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
