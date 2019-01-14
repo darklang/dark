@@ -924,11 +924,29 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TInt
-    ; d = "Returns the length of the string"
+    ; d = "DEPRECATED: Returns the length of the string"
     ; f =
         InProcess
           (function
           | _, [DStr s] -> DInt (String.length s) | args -> fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::length_v2"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TInt
+    ; d = "Returns the length of the string"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] -> 
+              DInt (Uuseg_string.fold_utf_8
+                  `Grapheme_cluster
+                  (fun acc _ -> acc + 1)
+                  0
+                  s)
+          | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
