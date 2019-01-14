@@ -729,7 +729,7 @@ body #grid * {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 
   color: @orange;
   font-size: 8pt;
@@ -737,18 +737,24 @@ body #grid * {
   border-bottom: 1px solid @orange;
   padding-bottom: 4px;
 
-  .name, .modifier, .module {
-    margin: 0 4px;
+  .name, .modifier-wrapper, .module {
+    margin: 0;
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
   a:focus {
     outline: none;
   }
+
+  .modifier-wrapper .modifier, .external {
+    display: inline-block;
+  }
+
+
   .external {
-    padding-right: 1ch;
+    margin-left: 2ch;
     color: @orange;
-    vertical-align: center;
+    vertical-align: top;
   }
 
   .handler-lock {
