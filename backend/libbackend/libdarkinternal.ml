@@ -84,13 +84,15 @@ let replacements =
     ; ( "DarkInternal::canLoadTraces"
       , function
         | _, [DStr host; DStr tlid] ->
-            let c = Canvas.load_all host [] in
+            let open Libexecution in
+            let c =
+              Canvas.load_only host ~tlids:[Types.id_of_string tlid] []
+            in
             let handler =
               !c.handlers
-              |> List.map ~f:Libexecution.Toplevel.as_handler
+              |> List.map ~f:Toplevel.as_handler
               |> List.map ~f:(fun h -> Option.value_exn h)
-              |> List.find_exn ~f:(fun h ->
-                     h.tlid = Libexecution.Types.id_of_string tlid )
+              |> List.find_exn ~f:(fun h -> h.tlid = Types.id_of_string tlid)
             in
             ( try
                 ignore (Analysis.traces_for_handler !c handler) ;
