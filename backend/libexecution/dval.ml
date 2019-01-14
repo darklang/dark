@@ -2,6 +2,29 @@ open Core_kernel
 open Types
 open Types.RuntimeT
 
+let dstr_of_string (s : string) : dval option =
+  (* the decoder has mutable state *)
+  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let rec validate_string () =
+    match Uutf.decode decoder with
+    | `Uchar ch when ch = Uchar.min ->
+        `Err (* U+0000 is rejected by postgres *)
+    | `Uchar _ ->
+        validate_string ()
+    | `End ->
+        `Ok
+    | `Await ->
+        validate_string ()
+    | `Malformed _ ->
+        `Err
+  in
+  match validate_string () with `Ok -> Some (DStr s) | `Err -> None
+
+
+let dstr_of_string_exn (s : string) : dval =
+  s |> dstr_of_string |> Option.value_exn ~message:("Invalid UTF-8 string:" ^ s)
+
+
 let repr_of_dhttp (d : dhttp) : string =
   match d with
   | Redirect url ->
@@ -502,13 +525,13 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Null ->
       DNull
   | `String s ->
-      DStr s
+      dstr_of_string_exn s
   | `List l ->
       DList (List.map ~f:unsafe_dval_of_yojson_ l)
   | `Variant v ->
       Exception.internal "We dont use variants"
   | `Intlit v ->
-      DStr v
+      dstr_of_string_exn v
   | `Tuple v ->
       Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "response"); ("value", `List [a; b])] ->
@@ -694,7 +717,7 @@ let parse_literal (str : string) : dval option =
     str
     |> String.sub ~pos:1 ~len:(len - 2)
     |> Util.string_replace "\\\"" "\""
-    |> fun s -> Some (DStr s)
+    |> fun s -> Some (dstr_of_string_exn s)
   else if String.Caseless.equal "nothing" str
   then Some (DOption OptNothing)
   else parse_basic_json str
@@ -708,9 +731,9 @@ let query_to_dval (query : (string * string list) list) : dval =
            | [] ->
                DNull
            | [v] ->
-               if v = "" then DNull else DStr v
+               if v = "" then DNull else dstr_of_string_exn v
            | vals ->
-               DList (List.map ~f:(fun x -> DStr x) vals)
+               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
          in
          (key, dval) )
   |> DvalMap.of_alist_exn

@@ -51,17 +51,22 @@ let send_request uri verb body query_ headers_ =
     then Dval.from_form_encoding result
     else if has_json_header headers
     then read_json result
-    else DStr result
+    else Dval.dstr_of_string_exn result
   in
   let parsed_headers =
     headers
-    |> List.map ~f:(fun (k, v) -> (String.strip k, DStr (String.strip v)))
+    |> List.map ~f:(fun (k, v) ->
+           (String.strip k, Dval.dstr_of_string_exn (String.strip v)) )
     |> List.filter ~f:(fun (k, _) -> String.length k > 0)
-    |> DvalMap.of_alist_fold ~init:(DStr "") ~f:(fun old neww -> neww)
+    |> DvalMap.of_alist_fold
+         ~init:(Dval.dstr_of_string_exn "")
+         ~f:(fun old neww -> neww )
     |> fun dm -> DObj dm
   in
   Dval.to_dobj
-    [("body", parsed_result); ("headers", parsed_headers); ("raw", DStr result)]
+    [ ("body", parsed_result)
+    ; ("headers", parsed_headers)
+    ; ("raw", Dval.dstr_of_string_exn result) ]
 
 
 let encode_basic_auth u p =
@@ -96,6 +101,8 @@ let replacements =
         (function
         | _, [DStr u; DStr p] ->
             DObj
-              (DvalMap.singleton "Authorization" (DStr (encode_basic_auth u p)))
+              (DvalMap.singleton
+                 "Authorization"
+                 (Dval.dstr_of_string_exn (encode_basic_auth u p)))
         | args ->
             fail args) ) ]
