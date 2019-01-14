@@ -608,8 +608,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             dval
         in
         processAutocompleteMods m2 [ACRegenerate]
-    | SetUserFunctions (userFuncs, updateCurrent) ->
-        let m2 = {m with userFunctions = userFuncs} in
+    | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
+        let m2 =
+          { m with
+            userFunctions = userFuncs; deletedUserFunctions = deletedUserFuncs
+          }
+        in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m3 =
@@ -974,7 +978,7 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; UpdateTraces r.newTraces
-          ; SetUserFunctions (r.userFunctions, false)
+          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
           ; SetUnlockedDBs r.unlockedDBs
           ; RequestAnalysis r.toplevels
           ; MakeCmd (Entry.focusEntry m) ]
@@ -986,7 +990,7 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; UpdateTraces r.newTraces
-          ; SetUserFunctions (r.userFunctions, true)
+          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
           ; SetUnlockedDBs r.unlockedDBs
           ; RequestAnalysis r.toplevels
           ; AutocompleteMod ACReset
@@ -1002,7 +1006,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; UpdateTraces r.newTraces
-        ; SetUserFunctions (r.userFunctions, true)
+        ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; RequestAnalysis r.toplevels
         ; AutocompleteMod ACReset
