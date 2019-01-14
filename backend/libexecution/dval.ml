@@ -115,7 +115,7 @@ let rec tipe_of_string str : tipe =
   | "nothing" ->
       TNull
   | "char" ->
-      TChar
+      TCharacter
   | "str" ->
       TStr
   | "string" ->
@@ -443,8 +443,16 @@ let rec to_url_string (dv : dval) : string =
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
-(* TODO: remove this, it's Wrong in the new grapheme world *)
-let to_char dv : char option = match dv with DCharacter c -> Some c.[0] | _ -> None
+let to_char dv : string option =
+  match dv with
+    DCharacter c ->
+    if (1 = (Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> acc + 1) 0 c))
+    then Some c
+    else None
+  | _ -> None
+
+let to_char_deprecated dv : char option
+ = match dv with DChar c -> Some c | _ -> None
 
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
