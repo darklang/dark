@@ -454,36 +454,19 @@ and viewNExpr
             [titleBar; blockCondition; expressions] ]
 
 
-let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
+let viewEventName (vs : viewState) (v : string blankOr) : msg Html.html =
+  let configs = (enterable :: idConfigs) @ [wc "name"] in
   viewText EventName vs configs v
 
 
-let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
-    : msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
+let viewEventSpace (vs : viewState) (v : string blankOr) : msg Html.html =
+  let configs = (enterable :: idConfigs) @ [wc "module"] in
   viewText EventSpace vs configs v
 
 
-let viewEventModifier
-    (vs : viewState) (c : htmlConfig list) (v : string blankOr) : msg Html.html
-    =
-  let configs = (enterable :: idConfigs) @ c in
-  viewText EventModifier vs configs v
-
-
-let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
-  let showRail = AST.usesRail h.ast in
-  let ast =
-    Html.div
-      [Html.class' "handler-body"]
-      [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
-      ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
-      ]
-  in
+let viewEventModifier (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let externalLink =
-    match (h.spec.modifier, h.spec.name) with
+    match (spec.modifier, spec.name) with
     | F (_, "GET"), F (_, name) ->
         [ Html.a
             [ Html.class' "external"
@@ -498,10 +481,23 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
     | _ ->
         []
   in
-  let modifier =
-    if SpecHeaders.visibleModifier h.spec
-    then viewEventModifier vs [wc "modifier"] h.spec.modifier
-    else Html.div [] []
+  let configs = (enterable :: idConfigs) @ [wc "modifier"] in
+  if SpecHeaders.visibleModifier spec
+  then
+    Html.div
+      [Html.class' "modifier-wrapper"]
+      ([viewText EventModifier vs configs spec.modifier] @ externalLink)
+  else Html.div [] []
+
+
+let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
+  let showRail = AST.usesRail h.ast in
+  let ast =
+    Html.div
+      [Html.class' "handler-body"]
+      [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
+      ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
+      ]
   in
   let lock =
     Html.div
@@ -516,10 +512,9 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let header =
     Html.div
       [Html.class' "spec-header"]
-      [ viewEventName vs [wc "name"] h.spec.name
-      ; viewEventSpace vs [wc "module"] h.spec.module_
-      ; modifier
-      ; Html.div [] externalLink
+      [ viewEventName vs h.spec.name
+      ; viewEventSpace vs h.spec.module_
+      ; viewEventModifier vs h.spec
       ; lock ]
   in
   [header; ast]
