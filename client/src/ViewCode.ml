@@ -187,10 +187,13 @@ and viewNExpr
       Debug.crash "fn with blank"
   | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
-      let viewTooWideArg d_ e_ =
-        Html.div [Html.class' "arg-on-new-line"] [vExprTw d_ e_]
+      let viewTooWideArg p d_ e_ =
+        Html.div
+          [ Html.class' "arg-on-new-line"
+          ; Vdom.attribute "" "param-name" p.paramName ]
+          [vExprTw d_ e_]
       in
-      let ve = if width > 120 then viewTooWideArg else vExpr in
+      let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn =
         vs.ac.functions
         |> List.find (fun f -> f.fnName = name)
@@ -298,15 +301,15 @@ and viewNExpr
       let fnDiv parens = n [wc "op"; wc name] (fnname parens :: button) in
       let configs = withROP sendToRail @ all in
       ( match (fn.fnInfix, exprs, fn.fnParameters) with
-      | true, [first; second], [_; _] ->
+      | true, [first; second], [p1; p2] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: configs)
-            [ n [wc "lhs"] [ve incD first]
+            [ n [wc "lhs"] [ve p1 incD first]
             ; fnDiv false
-            ; n [wc "rhs"] [ve incD second] ]
+            ; n [wc "rhs"] [ve p2 incD second] ]
       | _ ->
           let args =
-            List.map2 (fun _ e_ -> ve incD e_) fn.fnParameters exprs
+            List.map2 (fun p e_ -> ve p incD e_) fn.fnParameters exprs
           in
           n
             (wc "fncall prefix" :: wc (depthString d) :: configs)
