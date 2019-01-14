@@ -251,6 +251,10 @@ let rec replace_
         if B.toID field = sId
         then F (id, FieldAccess (obj, B.replace sId replacement_ field))
         else traverse r expr
+    | F (id, Constructor (name, exprs)), PConstructorName replacement_ ->
+        if B.toID name = sId
+        then F (id, Constructor (B.replace sId replacement_ name, exprs))
+        else traverse r expr
     | F (id, ObjectLiteral pairs), PKey replacement_ ->
         pairs
         |> List.map (fun (k, v) ->
