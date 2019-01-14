@@ -467,7 +467,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       let keywords =
         List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
       in
-      constructors @ keywords @ varnames @ functions
+      varnames @ constructors @ keywords @ functions
     else []
   in
   let regular = List.map (fun x -> ACExtra x) extras @ exprs @ fields in
