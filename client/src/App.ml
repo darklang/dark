@@ -967,51 +967,44 @@ let update_ (msg : msg) (m : model) : modification =
       RPC ([DeleteFunction tlid], FocusNothing)
   | RestoreToplevel tlid ->
       RPC ([UndoTL tlid], FocusNext (tlid, None))
-  | RPCCallback
-      ( focus
-      , _
-      , Ok
-          (newToplevels, newDeletedToplevels, newTraces, userFuncs, unlockedDBs)
-      ) ->
+  | RPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then
         Many
-          [ UpdateToplevels (newToplevels, false)
-          ; UpdateDeletedToplevels newDeletedToplevels
-          ; UpdateTraces newTraces
-          ; SetUserFunctions (userFuncs, false)
-          ; SetUnlockedDBs unlockedDBs
-          ; RequestAnalysis newToplevels
+          [ UpdateToplevels (r.toplevels, false)
+          ; UpdateDeletedToplevels r.deletedToplevels
+          ; UpdateTraces r.newTraces
+          ; SetUserFunctions (r.userFunctions, false)
+          ; SetUnlockedDBs r.unlockedDBs
+          ; RequestAnalysis r.toplevels
           ; MakeCmd (Entry.focusEntry m) ]
       else
-        let m2 = TL.upsertAll m newToplevels in
-        let m3 = {m2 with userFunctions = userFuncs} in
+        let m2 = TL.upsertAll m r.toplevels in
+        let m3 = {m2 with userFunctions = r.userFunctions} in
         let newState = processFocus m3 focus in
         Many
-          [ UpdateToplevels (newToplevels, true)
-          ; UpdateDeletedToplevels newDeletedToplevels
-          ; UpdateTraces newTraces
-          ; SetUserFunctions (userFuncs, true)
-          ; SetUnlockedDBs unlockedDBs
-          ; RequestAnalysis newToplevels
+          [ UpdateToplevels (r.toplevels, true)
+          ; UpdateDeletedToplevels r.deletedToplevels
+          ; UpdateTraces r.newTraces
+          ; SetUserFunctions (r.userFunctions, true)
+          ; SetUnlockedDBs r.unlockedDBs
+          ; RequestAnalysis r.toplevels
           ; AutocompleteMod ACReset
           ; ClearError
           ; newState ]
   | InitialLoadRPCCallback
-      ( focus
-      , extraMod
-      (* for integration tests, maybe more *)
-      , Ok (toplevels, deletedToplevels, newTraces, userFuncs, unlockedDBs) )
-    ->
-      let m2 = {m with toplevels; userFunctions = userFuncs} in
+      (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
+      let m2 =
+        {m with toplevels = r.toplevels; userFunctions = r.userFunctions}
+      in
       let newState = processFocus m2 focus in
       Many
-        [ SetToplevels (toplevels, true)
-        ; SetDeletedToplevels deletedToplevels
-        ; UpdateTraces newTraces
-        ; SetUserFunctions (userFuncs, true)
-        ; SetUnlockedDBs unlockedDBs
-        ; RequestAnalysis toplevels
+        [ SetToplevels (r.toplevels, true)
+        ; SetDeletedToplevels r.deletedToplevels
+        ; UpdateTraces r.newTraces
+        ; SetUserFunctions (r.userFunctions, true)
+        ; SetUnlockedDBs r.unlockedDBs
+        ; RequestAnalysis r.toplevels
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod

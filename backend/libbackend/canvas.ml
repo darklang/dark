@@ -14,7 +14,8 @@ type canvas =
   ; handlers : TL.toplevel_list
   ; dbs : TL.toplevel_list
   ; deleted : TL.toplevel_list
-  ; user_functions : RTT.user_fn list }
+  ; user_functions : RTT.user_fn list
+  ; deleted_user_functions : RTT.user_fn list }
 [@@deriving eq, show]
 
 (* ------------------------- *)
@@ -41,8 +42,15 @@ let upsert_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
 
 
 let remove_function (tlid : tlid) (c : canvas) : canvas =
+  let deletedFn =
+    c.user_functions
+    |> List.find ~f:(fun x -> x.tlid <> tlid)
+    |> Option.to_list
+  in
   let fns = List.filter ~f:(fun x -> x.tlid <> tlid) c.user_functions in
-  {c with user_functions = fns}
+  { c with
+    user_functions = fns
+  ; deleted_user_functions = c.deleted_user_functions @ deletedFn }
 
 
 let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
@@ -197,7 +205,8 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; handlers = []
       ; dbs = []
       ; deleted = []
-      ; user_functions = [] }
+      ; user_functions = []
+      ; deleted_user_functions = [] }
   in
   add_ops c [] ops ;
   c
@@ -237,7 +246,8 @@ let load_from
       ; handlers = []
       ; dbs = []
       ; user_functions = []
-      ; deleted = [] }
+      ; deleted = []
+      ; deleted_user_functions = [] }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops ;
   c

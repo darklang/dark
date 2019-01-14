@@ -391,7 +391,12 @@ and delete404Param = fourOhFour
 
 (* results *)
 and rpcResult =
-  toplevel list * toplevel list * traces * userFunction list * tlid list
+  { toplevels : toplevel list
+  ; deletedToplevels : toplevel list
+  ; newTraces : traces
+  ; userFunctions : userFunction list
+  ; deletedUserFunctions : userFunction list
+  ; unlockedDBs : tlid list }
 
 and dvalArgsHash = string
 
