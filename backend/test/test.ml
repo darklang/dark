@@ -1785,7 +1785,7 @@ let t_family_emoji_utf16_byte_seq_fails_validation () =
     AT.int
     "UTF16 representation of family emoji does not validate"
     0
-    (match Dval.dstr_of_string "\xd8\x3d\xdc\6A" with Some _ -> 1 | _ -> 0)
+    (match Dval.dstr_of_string "\xd8\x3d\xdc\x6A" with Some _ -> 1 | _ -> 0)
 
 
 let t_mix_of_ascii_and_utf16_fails_validation () =
@@ -1793,7 +1793,7 @@ let t_mix_of_ascii_and_utf16_fails_validation () =
     AT.int
     "Mix of valid ASCII followed by a UTF16 byte sequence fails validation"
     0
-    ( match Dval.dstr_of_string "hello, \xd8\x3d\xdc\6A" with
+    ( match Dval.dstr_of_string "hello, \xd8\x3d\xdc\x6A" with
     | Some _ ->
         1
     | _ ->
