@@ -737,7 +737,7 @@ body #grid * {
   border-bottom: 1px solid @orange;
   padding-bottom: 4px;
 
-  .name, .modifier-wrapper, .module {
+  .name, .modifier, .module {
     margin: 0;
   }
 
@@ -746,18 +746,21 @@ body #grid * {
     outline: none;
   }
 
-  .modifier-wrapper .modifier, .external {
-    display: inline-block;
+  .actions {
+    display: inline;
+
+    a, div {
+      display: inline;
+      margin-left: 2ch;
+    }
   }
 
-
   .external {
-    margin-left: 2ch;
     color: @orange;
-    vertical-align: top;
   }
 
   .handler-lock {
+    text-align: right;
     color: @white1;
 
     &.is-locked {
