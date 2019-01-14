@@ -150,7 +150,9 @@ let replacements =
         (function
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.cols_for db |> List.map ~f:(fun (k, v) -> DStr k) |> DList
+            User_db.cols_for db
+            |> List.map ~f:(fun (k, v) -> Dval.dstr_of_string_exn k)
+            |> DList
         | args ->
             fail args) )
   ; ( "DB::schema"
@@ -159,7 +161,8 @@ let replacements =
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
             User_db.cols_for db
-            |> List.map ~f:(fun (k, v) -> (k, DStr (Dval.tipe_to_string v)))
+            |> List.map ~f:(fun (k, v) ->
+                   (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)) )
             |> Dval.to_dobj
         | args ->
             fail args) ) ]
