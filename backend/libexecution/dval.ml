@@ -57,7 +57,7 @@ let rec tipe_to_string t : string =
   | TChar ->
       "Char"
   | TCharacter ->
-      "Char"
+      "Character"
   | TStr ->
       "Str"
   | TList ->
@@ -115,6 +115,8 @@ let rec tipe_of_string str : tipe =
   | "nothing" ->
       TNull
   | "char" ->
+      TChar
+  | "character" ->
       TCharacter
   | "str" ->
       TStr
