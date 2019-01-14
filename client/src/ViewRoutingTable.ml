@@ -263,10 +263,10 @@ let viewGroup
 
 let viewRoutes
     (m : model)
+    (tls : toplevel list)
     (collapse : collapseVerbs)
     (showLink : showLink)
     (showUndo : showUndo) : msg Html.html list =
-  let tls = m.toplevels in
   let withHTTP entries =
     if List.any (fun (space, _) -> space = "HTTP") entries
     then entries
@@ -300,7 +300,7 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
 
 let viewDeletedTLs_ (m : model) : msg Html.html =
   let tls = m.deletedToplevels in
-  let routes = viewRoutes m DontCollapseVerbs DontShowLink ShowUndo in
+  let routes = viewRoutes m tls DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let h = header "Deleted" tls None in
   Html.details [Html.class' "routing-section deleted"] ([h] @ routes @ [dbs])
@@ -393,7 +393,7 @@ let viewUserFunctions =
 
 let viewRoutingTable_ (m : model) : msg Html.html =
   let sections =
-    viewRoutes m CollapseVerbs ShowLink DontShowUndo
+    viewRoutes m m.toplevels CollapseVerbs ShowLink DontShowUndo
     @ [viewDBs m.toplevels]
     @ [view404s m.f404s]
     @ [viewUserFunctions m]
