@@ -50,6 +50,7 @@ and tipe =
   | TInt
   | TStr
   | TChar
+  | TCharacter
   | TBool
   | TFloat
   | TObj
@@ -261,6 +262,7 @@ and dval =
   | DBool of bool
   | DNull
   | DChar of char
+  | DCharacter of string
   | DStr of string
   | DList of dval list
   | DObj of dval GMap.String.t
