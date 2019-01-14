@@ -43,9 +43,7 @@ let upsert_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
 
 let remove_function (tlid : tlid) (c : canvas) : canvas =
   let deletedFn =
-    c.user_functions
-    |> List.find ~f:(fun x -> x.tlid <> tlid)
-    |> Option.to_list
+    c.user_functions |> List.find ~f:(fun x -> x.tlid = tlid) |> Option.to_list
   in
   let fns = List.filter ~f:(fun x -> x.tlid <> tlid) c.user_functions in
   { c with
