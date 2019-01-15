@@ -206,11 +206,9 @@ let push
                 Lwt.return ()
           with e ->
             let bt = Exception.get_backtrace () in
-            Rollbar.last_ditch
-              e
-              ~bt
-              "handle_error"
-              (Types.show_id execution_id) ;
+            let _ =
+              Rollbar.report_lwt e bt (Push event) (Types.show_id execution_id)
+            in
             Lwt.return () )
 
 

@@ -1041,21 +1041,15 @@ let update_ (msg : msg) (m : model) : modification =
         ; Append404s (f404s, ts)
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
-  | NewTracePush (TLID tlid, traceID) ->
-      let module GM = GMap in
-      let module GMS = GMap.String in
+  | NewTracePush _ ->
       (*
        * This push tells the client "a new trace exists with this id", but not
        * the content of that trace. The client doesn't yet have a way of
-       * storing that information. So instead we're just fabricating empty
-       * traces with the appropriate trace id, which typechecks but does weird
-       * things to the UI.
+       * storing that information, so for now we're just ignoring it.
        *
        * TODO handle this (e.g. mark traces as "incomplete" or "pending")
        *)
-      let emptyTrace = {traceID; input = GMS.empty; functionResults = []} in
-      let newTraces = GMS.fromArray [|(tlid, [emptyTrace])|] in
-      UpdateTraces newTraces
+      NoChange
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
   | ReceiveAnalysis json ->
