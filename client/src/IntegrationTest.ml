@@ -195,7 +195,7 @@ let hover_values_for_varnames (m : model) : testResult =
 
 let pressing_up_doesnt_return_to_start (m : model) : testResult =
   match onlyExpr m with
-  | FnCall (F (_, "Char::toASCIIChar"), _, _) ->
+  | FnCall (F (_, "Int::add"), _, _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
