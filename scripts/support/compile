@@ -181,6 +181,15 @@ def stroller_build():
   else:
     return run_backend(start, build)
 
+def reload_stroller():
+  start = time.time()
+  global profile
+  runstroller = "scripts/support/runstroller"
+  if profile:
+    return run_backend(start, landmarks + runstroller)
+  else:
+    return run_backend(start, runstroller)
+
 def stroller_test():
   start = time.time()
   result = run_test(start,
@@ -229,6 +238,7 @@ class Should:
     self.less_compile = False
     self.reload_browser = False
     self.reload_server = False
+    self.reload_stroller = False
     self.generate_etags = False
     self.shellcheck = []
 
@@ -293,6 +303,10 @@ def execute(should):
   if should.stroller_build:
     if not stroller_build(): success = False
     should.stroller_test |= success
+    should.reload_stroller |= success
+
+  if should.reload_stroller:
+    if not reload_stroller(): success = False
 
   if should.stroller_test:
     if not stroller_test(): success = False
@@ -328,6 +342,9 @@ def mark(should, f):
                   or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.stroller_build = True
+  # Touch this to rerun stroller
+  elif "scripts/support/runstroller" in f:
+    should.reload_stroller = True
 
   # JS
   elif "client/package.json" in f:
