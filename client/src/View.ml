@@ -154,6 +154,12 @@ let viewCanvas (m : model) : msg Html.html =
           List.map (viewTL m) m.toplevels )
     (* TODO(ian): change to crash *)
   in
+  let shadowdbs =
+    match m.currentPage with
+    | Toplevels _ ->
+      List.map ViewDB.viewShadowDB m.tempdbs
+    | _ -> []
+  in
   let canvasTransform =
     let offset =
       match m.currentPage with
@@ -166,7 +172,7 @@ let viewCanvas (m : model) : msg Html.html =
     let y = string_of_int (-offset.y) in
     "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
-  let allDivs = asts @ entry in
+  let allDivs = asts @ entry @ shadowdbs in
   Html.div [Html.id "canvas"; Html.style "transform" canvasTransform] allDivs
 
 

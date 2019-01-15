@@ -146,3 +146,36 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
         []
   in
   [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] @ migrationView
+
+let viewShadowDB (sdb: shadowdb) : msg Html.html =
+  let ac =
+  { functions = []
+  ; admin = false
+  ; completions = []
+  ; invalidCompletions = []
+  ; allCompletions = []
+  ; index = 0
+  ; value = sdb.name
+  ; prevValue = sdb.name
+  ; target = None
+  ; matcher = (fun _ -> false)
+  ; isCommandMode = false
+  ; visible = false }
+  in 
+  let dbdiv =
+    let dbname_view =
+      Html.div
+      [Html.class' "dbname"]
+      [ ViewEntry.normalEntryHtml "db name" ac
+      (* ViewBlankOr.viewText DBTableName vs [] (B.newF sdb.name) *)
+      ; Html.span
+          [Html.class' "version"]
+          [Html.text ".v0"] ]
+    in
+    Html.div
+      [Html.class' "db shadow"]
+      [ fontAwesome "unlock"
+      ; dbname_view
+      ]
+  in
+  ViewUtils.placeHtml sdb.pos dbdiv

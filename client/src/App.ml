@@ -1119,6 +1119,10 @@ let update_ (msg : msg) (m : model) : modification =
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
+  | CreateDBTable ->
+      let center = findCenter m in
+      let dbs = { name = "" ; pos = center } :: m.tempdbs in
+      TweakModel (fun m -> { m with tempdbs = dbs })
   | _ ->
       NoChange
 
