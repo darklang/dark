@@ -418,6 +418,7 @@ module Option = struct
 
 
   let isSome = Belt.Option.isSome
+  let isNone = Belt.Option.isNone
 end
 
 module Char = struct

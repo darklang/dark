@@ -157,7 +157,7 @@ let viewCanvas (m : model) : msg Html.html =
   let shadowdbs =
     match m.currentPage with
     | Toplevels _ ->
-      List.map ViewDB.viewShadowDB m.tempdbs
+      List.map ViewDB.viewShadowDB m.tempdbs.dbs
     | _ -> []
   in
   let canvasTransform =

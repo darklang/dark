@@ -217,8 +217,13 @@ and dB =
   ; activeMigration : dBMigration option }
 
 and shadowdb =
-  { name : dBName
+  { id : id
+  ; name : dBName
   ; pos : pos }
+
+and tempdbs =
+  { focused_db : id option 
+  ; dbs : shadowdb list }
 
 (* userFunctions *)
 and userFunctionParameter =
@@ -639,6 +644,7 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
+  | FocusOnTempDB of id
 
 and predecessor = pointerData option
 
@@ -742,7 +748,7 @@ and model =
   ; environment : string
   ; csrfToken : string
   ; latest404 : string
-  ; tempdbs : shadowdb list
+  ; tempdbs : tempdbs
   (* string of timestamp *) }
 [@@deriving show {with_path = false}]
 

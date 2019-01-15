@@ -2,6 +2,9 @@ open! Porting
 open Types
 open Prelude
 
+module Attributes = Tea.Html2.Attributes
+module Events = Tea.Html2.Events
+
 (* Dark *)
 module B = Blank
 
@@ -148,26 +151,21 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] @ migrationView
 
 let viewShadowDB (sdb: shadowdb) : msg Html.html =
-  let ac =
-  { functions = []
-  ; admin = false
-  ; completions = []
-  ; invalidCompletions = []
-  ; allCompletions = []
-  ; index = 0
-  ; value = sdb.name
-  ; prevValue = sdb.name
-  ; target = None
-  ; matcher = (fun _ -> false)
-  ; isCommandMode = false
-  ; visible = false }
-  in 
+  let name_entry =
+    Html.input'
+      [ Html.class' "name-input"
+      ; Events.onFocus (FocusOnTempDB sdb.id)
+      ; Attributes.placeholder "db name"
+      ; Attributes.value sdb.name
+      ; Attributes.spellcheck false
+      ; Attributes.autocomplete false ]
+      []
+  in
   let dbdiv =
     let dbname_view =
       Html.div
       [Html.class' "dbname"]
-      [ ViewEntry.normalEntryHtml "db name" ac
-      (* ViewBlankOr.viewText DBTableName vs [] (B.newF sdb.name) *)
+      [ name_entry
       ; Html.span
           [Html.class' "version"]
           [Html.text ".v0"] ]

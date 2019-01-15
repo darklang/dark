@@ -773,7 +773,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GlobalClick event ->
     ( match m.currentPage with
     | Toplevels _ ->
-        if event.button = Defaults.leftButton
+        if event.button = Defaults.leftButton && (Option.isNone m.tempdbs.focused_db)
         then
           match unwrapCursorState m.cursorState with
           | Deselected ->
@@ -1121,8 +1121,12 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | CreateDBTable ->
       let center = findCenter m in
-      let dbs = { name = "" ; pos = center } :: m.tempdbs in
-      TweakModel (fun m -> { m with tempdbs = dbs })
+      let tdb = m.tempdbs in
+      let dbs = { id = gid () ; name = "" ; pos = center } :: m.tempdbs.dbs in
+      TweakModel (fun m -> { m with tempdbs = { tdb with dbs = dbs } })
+  | FocusOnTempDB id ->
+    let tdb = m.tempdbs in 
+    TweakModel (fun m -> {m with tempdbs = { tdb with focused_db = Some id } })
   | _ ->
       NoChange
 
