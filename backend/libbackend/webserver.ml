@@ -181,7 +181,18 @@ let user_page_handler
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  let c = C.load_http canvas ~verb ~path:(Uri.path uri) in
+  (* sanitize both repeated '/' and final '/'.
+     "/foo//bar/" -> "/foo/bar"*)
+  let path :string =
+    uri
+    |> Uri.path
+    |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
+    |> (fun x ->
+        match String.chop_suffix x "/" with
+          Some s -> s
+        | _ -> x)
+  in
+  let c = C.load_http canvas ~verb ~path:path in
   let pages = !c.handlers |> TL.http_handlers in
   let pages =
     if List.length pages > 1
