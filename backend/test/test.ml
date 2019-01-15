@@ -1808,6 +1808,43 @@ let t_u0000_fails_validation () =
     (match Dval.dstr_of_string "hello, \x00" with Some _ -> 1 | _ -> 0)
 
 
+let t_string_length_v2_works_on_emoji () =
+  check_dval
+    "stringLength"
+    (exec_ast "(String::length_v2 '\xef\xbf\xbd')")
+    (DInt 1)
+
+
+let t_character_uppercase_works_for_ascii_range () =
+  check_dval
+    "stringUppercaseASCII"
+    (exec_ast
+       "(String::foreach_v2 'abcdef' (\\x -> (Character::toUppercase x)))")
+    (DStr "ABCDEF")
+
+
+let t_character_lowercase_works_for_ascii_range () =
+  check_dval
+    "stringLowercaseASCII"
+    (exec_ast
+       "(String::foreach_v2 'ABCDEF' (\\x -> (Character::toLowercase x)))")
+    (DStr "abcdef")
+
+
+let t_string_uppercase_v2_works_on_mixed_strings () =
+  check_dval
+    "stringUpppercaseMixed"
+    (exec_ast "(String::toUppercase_v2 'hello\xf0\x9f\x98\x84world')")
+    (DStr "HELLO\xf0\x9f\x98\x84WORLD")
+
+
+let t_string_split_works_for_emoji () =
+  check_dval
+    "stringSplit"
+    (exec_ast "(String::split 'hello\xf0\x9f\x98\x84world' '\xf0\x9f\x98\x84')")
+    (DList [DStr "hello"; DStr "world"])
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1940,7 +1977,22 @@ let suite =
   ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
-  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation) ]
+  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
+  ; ( "String::length_v2 returns the correct length for a string containing an emoji"
+    , `Quick
+    , t_string_length_v2_works_on_emoji )
+  ; ( "Character::toUppercase works for ASCII range"
+    , `Quick
+    , t_character_uppercase_works_for_ascii_range )
+  ; ( "Character::toLowercase works for ASCII range"
+    , `Quick
+    , t_character_lowercase_works_for_ascii_range )
+  ; ( "String::toUppercase_v2 works on mixed strings"
+    , `Quick
+    , t_string_uppercase_v2_works_on_mixed_strings )
+  ; ( "String split works on strings with emoji + ascii"
+    , `Quick
+    , t_string_split_works_for_emoji ) ]
 
 
 let () =
