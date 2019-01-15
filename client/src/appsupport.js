@@ -40,8 +40,9 @@ window.Rollbar.configure(rollbarConfig);
 // Pusher
 // ---------------------------
 
+var Pusher = require('pusher-js');
+
 if (pusherConfig.enabled) {
-  var Pusher = require('pusher-js');
   var pusherConnection = new Pusher(pusherConfig.key, {
     cluster: pusherConfig.cluster,
     forceTLS: true,
