@@ -215,7 +215,7 @@ let () =
                 |> Set.fromList
                 |> (==) (Set.fromList ["List::head"]) )
               |> toEqual true ) ;
-          
+
           test "Show allowed fields for objects" ( fun () ->
               expect
                 ( createEntering User
@@ -290,24 +290,33 @@ let () =
           test "Lambda works" (fun () ->
               expect (createEntering User |> setQuery "lambda" |> highlighted)
               |> toEqual (Some (ACKeyword KLambda)) ) ) ;
-      describe "queryWhenCreating" (fun () ->
+      describe "omnibox completion" (fun () ->
           let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
             List.member aci ac.completions
           in
-          let itemMissing (aci : autocompleteItem) (ac : autocomplete) : bool =
-            not (itemPresent aci ac)
-          in
-          test "entering a DB name works" (fun () ->
+          test "entering a DB name that used to be invalid works" (fun () ->
               expect
                 ( createCreating User
-                |> setQuery "Mydbname"
-                |> itemPresent (ACOmniAction (NewDB "Mydbname")) )
+                |> setQuery "HTTP"
+                |> itemPresent (ACOmniAction (NewDB "HTTP")) )
+              |> toEqual true ) ;
+          test "entering an invalid DB name works" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery ":[]'/31234myDB[]"
+                |> itemPresent (ACOmniAction (NewDB "MyDB")) )
               |> toEqual true ) ;
           test "entering a DB name works" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "Mydbname"
                 |> itemPresent (ACOmniAction (NewDB "Mydbname")) )
+              |> toEqual true ) ;
+          test "entering a short DB name works" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery "me"
+                |> itemPresent (ACOmniAction (NewDB "Me")) )
               |> toEqual true ) ;
           test "db names can be multicase" (fun () ->
               expect
@@ -319,25 +328,26 @@ let () =
               expect
                 ( createCreating User
                 |> setQuery "dbname1234::"
-                |> itemMissing (ACOmniAction (NewDB "dbname1234::")) )
+                |> itemPresent (ACOmniAction (NewDB "Dbname1234")) )
               |> toEqual true ) ;
           test "alphabetical only DB names #2" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "db_name::"
-                |> itemMissing (ACOmniAction (NewDB "db_name::")) )
+                |> itemPresent (ACOmniAction (NewDB "Db_name")) )
               |> toEqual true ) ;
-          test "require capital for DB names" (fun () ->
+          test "add capital for DB names" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "mydbname"
-                |> itemMissing (ACOmniAction (NewDB "mydbname")) )
+                |> itemPresent (ACOmniAction (NewDB "Mydbname")) )
               |> toEqual true ) ;
-          test "No HTTP handler in general" (fun () ->
+          test "General HTTP handler" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "asdkkasd"
-                |> itemMissing (ACOmniAction NewHTTPHandler) )
+                |> itemPresent
+                     (ACOmniAction (NewHTTPHandler (Some "/asdkkasd"))) )
               |> toEqual true ) ;
           test
             "can create handlers for spaces that are substrings of HTTP"
@@ -347,26 +357,68 @@ let () =
                 |> setQuery "HTT"
                 |> itemPresent (ACOmniAction (NewEventSpace "HTT")) )
               |> toEqual true ) ;
-          test "can create routes #1" (fun () ->
+          test "can create routes #1 (base case)" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "/"
-                |> itemPresent (ACOmniAction (NewHTTPRoute "/")) )
+                |> itemPresent (ACOmniAction (NewHTTPHandler (Some "/"))) )
               |> toEqual true ) ;
-          test "can create routes #2" (fun () ->
+          test "can create routes #2 (normal)" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "/asasdasd"
-                |> itemPresent (ACOmniAction (NewHTTPRoute "/asasdasd")) )
+                |> itemPresent
+                     (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
+              |> toEqual true ) ;
+          test "can create routes #3 (parameterized)" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery "/user/:userid/card/:cardid"
+                |> itemPresent
+                     (ACOmniAction
+                        (NewHTTPHandler (Some "/user/:userid/card/:cardid")))
+                )
+              |> toEqual true ) ;
+          test "entering an invalid route name works" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery "[]/31234myDB[]"
+                |> itemPresent
+                     (ACOmniAction (NewHTTPHandler (Some "/31234myDB"))) )
+              |> toEqual true ) ;
+          test "fix names for routes" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery "asasdasd"
+                |> itemPresent
+                     (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
+              |> toEqual true ) ;
+          test "create DB from route name" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery "/route"
+                |> itemPresent (ACOmniAction (NewDB "Route")) )
+              |> toEqual true ) ;
+          test "entering an invalid function name works" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery ":[]'/31234MyFn[]"
+                |> itemPresent (ACOmniAction (NewFunction (Some "myFn"))) )
               |> toEqual true ) ;
           test "new handler option available by default" (fun () ->
               expect
-                (createCreating User |> itemPresent (ACOmniAction NewHandler))
+                ( createCreating User
+                |> itemPresent (ACOmniAction (NewHandler None)) )
               |> toEqual true ) ;
           test "new function option available by default" (fun () ->
               expect
                 ( createCreating User
                 |> itemPresent (ACOmniAction (NewFunction None)) )
+              |> toEqual true ) ;
+          test "new HTTP option available by default" (fun () ->
+              expect
+                ( createCreating User
+                |> itemPresent (ACOmniAction (NewHTTPHandler None)) )
               |> toEqual true ) ;
           test "can create function with name from query" (fun () ->
               expect

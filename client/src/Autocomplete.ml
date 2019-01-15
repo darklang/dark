@@ -45,21 +45,27 @@ let asName (aci : autocompleteItem) : string =
   | ACOmniAction ac ->
     ( match ac with
     | NewDB name ->
-        "Create new database: " ^ name
-    | NewHandler ->
-        "Create new handler"
+        "New DB named " ^ name
+    | NewHandler maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New event handler named " ^ name
+      | None ->
+          "New event handler" )
     | NewFunction maybeName ->
       ( match maybeName with
       | Some name ->
-          "Create new function: " ^ name
+          "New function named " ^ name
       | None ->
-          "Create new function" )
-    | NewHTTPHandler ->
-        "Create new HTTP handler"
-    | NewHTTPRoute name ->
-        "Create new HTTP handler for " ^ name
+          "New function" )
+    | NewHTTPHandler maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New HTTP handler named " ^ name
+      | None ->
+          "New HTTP handler" )
     | NewEventSpace name ->
-        "Create new " ^ name ^ " handler" )
+        "New handler in the " ^ name ^ " space" )
   | ACConstructorName name ->
       if name = "Just" then "Just ______" else name
   | ACKeyword k ->
@@ -285,42 +291,136 @@ let qLiteral (s : string) : autocompleteItem option =
   else None
 
 
-let qNewDB (s : string) : autocompleteItem option =
-  if String.length s >= 3
-     && Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
-     (* annoying to offer a DB when looking for HTTP handler *)
-     && s <> "HTTP"
-     && s <> "HTT"
-  then Some (ACOmniAction (NewDB s))
-  else None
+(* ------------------------------------ *)
+(* Validators *)
+(* ------------------------------------ *)
+
+(*
+  urls
+  From https://www.w3.org/Addressing/URL/5_URI_BNF.html
+  path = void | xpalphas [ / path ]
+  xalpha = alpha | digit | safe | extra | escape
+  xalphas = xalpha [ xalphas ]
+  xpalpha = xalpha | +
+  xpalphas = xpalpha [ xpalpha ]
+  alpha = [a-zA-Z]
+  digit = [0-9]
+  safe = $ | - | _ | @ | . | &
+  extra = ! | * | <doublequote> | ' | ( | ) | ,
+  reserved = = | ; | / | # | ? | : | space
+  escape = % hex hex
+*)
+(* let urlPathSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/]" *)
+(* let nonUrlPathSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/]" *)
+(* let urlPathValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/]+" *)
+
+(* allow : for parameter names. TODO: do better job parsing here *)
+let eventNameSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]"
+
+let nonEventNameSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
+
+let httpNameValidator = "/[-a-zA-Z0-9$_@.&!*\"'(),%/:]*"
+
+let eventNameValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]+"
+
+let varnameValidator = "[a-z_][a-zA-Z0-9_]*"
+
+let varnamePatternValidator = varnameValidator
+
+let constructorPatternValidator = "[A-Z_][a-zA-Z0-9_]*"
+
+let constructorNameValidator = "Just|Nothing"
+
+let dbColTypeValidator = "\\[?[A-Z]\\w+\\]?"
+
+let dbColNameValidator = "\\w+"
+
+let dbNameValidator = "[A-Z][a-zA-Z0-9_]*"
+
+let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
+
+let httpVerbValidator = "[A-Z]+"
+
+let eventSpaceValidator = "[A-Z0-9_]+"
+
+let fieldNameValidator = ".+"
+
+let keynameValidator = ".+"
+
+let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
+
+let paramTypeValidator = "[A-Z][a-z]*"
+
+let assertValid pattern value : string =
+  if Util.reExactly pattern value
+  then value
+  else Debug.crash ("Failed validator: " ^ pattern ^ ", " ^ value)
 
 
-let qHTTPHandler (s : string) : autocompleteItem option =
-  if String.length s = 0 then Some (ACOmniAction NewHTTPHandler) else None
+(* ------------------------------------ *)
+(* Omniactions *)
+(* ------------------------------------ *)
+
+let rec stripCharsFromFront (disallowed : string) (s : string) : string =
+  match String.uncons s with
+  | None ->
+      s
+  | Some (c, rest) ->
+      let needle = String.fromChar c in
+      if Util.reContains ~re:disallowed needle
+      then stripCharsFromFront disallowed rest
+      else s
 
 
-let qHandler (s : string) : autocompleteItem option =
-  if String.length s = 0 then Some (ACOmniAction NewHandler) else None
+let stripChars (disallowed : string) (s : string) : string =
+  Regex.replace disallowed "" s
 
 
-let qFunction (s : string) : autocompleteItem option =
-  if String.length s = 0
-  then Some (ACOmniAction (NewFunction None))
-  else if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s
-  then Some (ACOmniAction (NewFunction (Some s)))
-  else None
+let qNewDB (s : string) : omniAction option =
+  let name =
+    s
+    |> stripChars "[^a-zA-Z0-9_]"
+    |> stripCharsFromFront "[^a-zA-Z]"
+    |> String.capitalize
+  in
+  if name = "" then None else Some (NewDB (assertValid dbNameValidator name))
 
 
-let qHTTPRoute (s : string) : autocompleteItem option =
-  if String.startsWith "/" s
-  then Some (ACOmniAction (NewHTTPRoute s))
-  else None
+let qFunction (s : string) : omniAction =
+  let name =
+    s
+    |> stripChars "[^a-zA-Z0-9_]"
+    |> stripCharsFromFront "[^a-zA-Z]"
+    |> String.uncapitalize
+  in
+  if name = ""
+  then NewFunction None
+  else NewFunction (Some (assertValid fnNameValidator name))
 
 
-let qEventSpace (s : string) : autocompleteItem option =
-  if Util.reExactly "[A-Z]+" s
-  then Some (ACOmniAction (NewEventSpace s))
-  else None
+let qHandler (s : string) : omniAction =
+  let name =
+    s |> stripChars nonEventNameSafeCharacters |> String.uncapitalize
+  in
+  if name = ""
+  then NewHandler None
+  else NewHandler (Some (assertValid eventNameValidator name))
+
+
+let qHTTPHandler (s : string) : omniAction =
+  let name = s |> stripChars nonEventNameSafeCharacters in
+  if name = ""
+  then NewHTTPHandler None
+  else if String.startsWith "/" name
+  then NewHTTPHandler (Some (assertValid httpNameValidator name))
+  else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
+
+
+let qEventSpace (s : string) : omniAction option =
+  let name = s |> String.toUpper |> stripChars "[^A-Z0-9_]" in
+  if name = ""
+  then None
+  else Some (NewEventSpace (assertValid eventSpaceValidator name))
 
 
 let isDynamicItem (item : autocompleteItem) : bool =
@@ -329,13 +429,18 @@ let isDynamicItem (item : autocompleteItem) : bool =
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let toDynamicItems (isOmni : bool) (query : string) : autocompleteItem list =
-  let items =
-    if isOmni
-    then [qNewDB; qHandler; qFunction; qHTTPHandler; qHTTPRoute; qEventSpace]
-    else [qLiteral]
-  in
-  items |> List.filterMap (fun aci -> aci query)
+let toDynamicItems (isOmni : bool) (q : string) : autocompleteItem list =
+  if isOmni
+  then
+    let omnis =
+      if q = "" (* TODO: allow empty DB names *)
+      then [qHTTPHandler q; qFunction q; qHandler q]
+      else
+        [qHTTPHandler q; qFunction q; qHandler q]
+        @ Option.values [qNewDB q; qEventSpace q]
+    in
+    List.map (fun o -> ACOmniAction o) omnis
+  else Option.values [qLiteral q]
 
 
 let withDynamicItems

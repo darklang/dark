@@ -77,10 +77,11 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       RPC
         ( [CreateDB (tlid, pos, dbname); AddDBCol (tlid, next, gid ())]
         , FocusExact (tlid, next) )
-  | NewHandler ->
+  | NewHandler name ->
       let next = gid () in
       let tlid = gtlid () in
       let spec = newHandlerSpec () in
+      let spec = {spec with name = B.ofOption name} in
       let handler = {ast = Blank next; spec; tlid} in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
   | NewFunction name ->
@@ -97,13 +98,15 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       Many
         [ RPC ([SetFunction newfn], FocusNothing)
         ; MakeCmd (Url.navigateTo (Fn (newfn.ufTLID, Defaults.centerPos))) ]
-  | NewHTTPHandler ->
+  | NewHTTPHandler route ->
       let next = gid () in
       let tlid = gtlid () in
-      let spec = newHandlerSpec () in
       let handler =
         { ast = B.new_ ()
-        ; spec = {spec with module_ = B.newF "HTTP"; name = Blank next}
+        ; spec =
+            { name = B.ofOption route
+            ; module_ = B.newF "HTTP"
+            ; modifier = Blank next }
         ; tlid }
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
@@ -114,18 +117,6 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       let handler =
         { ast = B.new_ ()
         ; spec = {spec with module_ = B.newF name; name = Blank next}
-        ; tlid }
-      in
-      RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
-  | NewHTTPRoute route ->
-      let next = gid () in
-      let tlid = gtlid () in
-      let handler =
-        { ast = B.new_ ()
-        ; spec =
-            { name = B.newF route
-            ; module_ = B.newF "HTTP"
-            ; modifier = Blank next }
         ; tlid }
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
@@ -257,55 +248,50 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
     then None
     else Some (name ^ " must match /" ^ pattern ^ "/")
   in
-  let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
-  let constructorPattern = "[A-Z_][a-zA-Z0-9_]*" in
   match pd with
   | PDBColType _ ->
-      v "\\[?[A-Z]\\w+\\]?" "DB type"
+      v AC.dbColTypeValidator "DB type"
   | PDBColName _ ->
       if value = "id"
       then
         Some
           "The field name 'id' was reserved when IDs were implicit. We are transitioning to allowing it, but we're not there just yet. Sorry!"
-      else v "\\w+" "DB column name"
+      else v AC.dbColNameValidator "DB column name"
   | PVarBind _ ->
-      v variablePattern "variable name"
+      v AC.varnameValidator "variable name"
   | PEventName _ ->
-      let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" in
-      let http = "/(" ^ urlSafeCharacters ^ "*)" in
-      (* preceeding slash *)
-      let event = urlSafeCharacters ^ "+" in
-      (* at least one *)
-      if TL.isHTTPHandler tl then v http "route name" else v event "event name"
+      if TL.isHTTPHandler tl
+      then v AC.httpNameValidator "route name"
+      else v AC.eventNameValidator "event name"
   | PEventModifier _ ->
       if TL.isHTTPHandler tl
-      then v "[A-Z]+" "verb"
-      else v "[a-zA-Z_][\\sa-zA-Z0-9_]*" "event modifier"
+      then v AC.httpVerbValidator "verb"
+      else v AC.eventModifierValidator "event modifier"
   | PEventSpace _ ->
-      v "[A-Z_]+" "event space"
+      v AC.eventSpaceValidator "event space"
   | PField _ ->
-      v ".+" "fieldname"
+      v AC.fieldNameValidator "fieldname"
   | PKey _ ->
-      v ".+" "key"
+      v AC.keynameValidator "key"
   | PExpr _ ->
       None (* Done elsewhere *)
   | PFFMsg _ ->
       None
   | PFnName _ ->
-      None
+      v AC.fnNameValidator "function name"
   | PFnCallName _ ->
       None
   | PConstructorName _ ->
-      v "Just|Nothing" "constructor name"
+      v AC.constructorNameValidator "constructor name"
   | PParamName _ ->
       None
   | PParamTipe _ ->
-      v "[A-Z][a-z]*" "param type"
+      v AC.paramTypeValidator "param type"
   | PPattern currentPattern ->
       let validPattern value =
         Decoders.isLiteralString value
-        || v variablePattern "variable pattern" = None
-        || v constructorPattern "constructor pattern" = None
+        || v AC.varnamePatternValidator "variable pattern" = None
+        || v AC.constructorPatternValidator "constructor pattern" = None
       in
       let body =
         let ast = getAstFromTopLevel tl in
@@ -580,8 +566,9 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction act) ->
         submitOmniAction pos act
+    (* If empty, create an empty handler *)
     | None when m.complete.value = "" ->
-        submitOmniAction pos NewHandler
+        submitOmniAction pos (NewHandler None)
     | _ ->
         NoChange )
   | _ ->
