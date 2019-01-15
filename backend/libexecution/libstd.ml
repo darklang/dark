@@ -737,17 +737,7 @@ let fns : Lib.shortfn list =
                 |> Result.ok_exn
           | args ->
               fail args)
-    ; pr =
-        Some
-          (fun dv cursor ->
-            match dv with
-            | [DStr s; _] ->
-                let s : string = if s = "" then "example" else s in
-                let index : int = min cursor (String.length s - 1) in
-                let c : char = s.[index] in
-                [DChar c]
-            | args ->
-                [DIncomplete] )
+    ; pr = None
     ; ps = true
     ; dep = true }
   ; { pns = ["String::foreach_v2"]
@@ -789,27 +779,7 @@ let fns : Lib.shortfn list =
                 |> Result.ok_exn
           | args ->
               fail args)
-    ; pr =
-        Some
-          (fun dv cursor ->
-            match dv with
-            | [DStr s; _] ->
-                let s : string = if s = "" then "example" else s in
-                let index : int = min cursor (String.length s - 1) in
-                let chars =
-                  Uuseg_string.fold_utf_8
-                    `Grapheme_cluster
-                    (fun acc x -> x :: acc)
-                    []
-                    s
-                in
-                ( match List.nth chars index with
-                | Some c ->
-                    [DCharacter c]
-                | _ ->
-                    [DIncomplete] )
-            | args ->
-                [DIncomplete] )
+    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["String::toList"]
