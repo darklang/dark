@@ -27,15 +27,19 @@ let ( >>| ) = Result.( >>| )
 
 (* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples, see
    also https://github.com/dbuenzli/uucp/issues/16 *)
-let cmap_utf_8 cmap s  =
+let cmap_utf_8 cmap s =
   let b = Buffer.create (String.length s * 2) in
   let rec add_map _ _ u =
     let u = match u with `Malformed _ -> Uutf.u_rep | `Uchar u -> u in
     match cmap u with
-    | `Self -> Uutf.Buffer.add_utf_8 b u
-    | `Uchars us -> List.iter us (Uutf.Buffer.add_utf_8 b)
+    | `Self ->
+        Uutf.Buffer.add_utf_8 b u
+    | `Uchars us ->
+        List.iter us (Uutf.Buffer.add_utf_8 b)
   in
-  Uutf.String.fold_utf_8 add_map () s; Buffer.contents b
+  Uutf.String.fold_utf_8 add_map () s ;
+  Buffer.contents b
+
 
 let fns : Lib.shortfn list =
   [ (* ====================================== *)
@@ -756,9 +760,10 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s; DBlock fn] ->
-              let result = Uuseg_string.fold_utf_8
+              let result =
+                Uuseg_string.fold_utf_8
                   `Grapheme_cluster
-                  (fun acc seg -> (fn [DCharacter seg]) :: acc)
+                  (fun acc seg -> fn [DCharacter seg] :: acc)
                   []
                   s
               in
@@ -790,15 +795,18 @@ let fns : Lib.shortfn list =
             | [DStr s; _] ->
                 let s : string = if s = "" then "example" else s in
                 let index : int = min cursor (String.length s - 1) in
-                let chars = Uuseg_string.fold_utf_8
+                let chars =
+                  Uuseg_string.fold_utf_8
                     `Grapheme_cluster
                     (fun acc x -> x :: acc)
                     []
                     s
                 in
-                (match List.nth chars index with
-                Some c -> [DCharacter c]
-                | _ -> [DIncomplete])
+                ( match List.nth chars index with
+                | Some c ->
+                    [DCharacter c]
+                | _ ->
+                    [DIncomplete] )
             | args ->
                 [DIncomplete] )
     ; ps = true
@@ -807,7 +815,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TList
-    ; d = "DEPRECATED: Returns the list of characters (byte, not grapheme) in the string"
+    ; d =
+        "DEPRECATED: Returns the list of characters (byte, not grapheme) in the string"
     ; f =
         InProcess
           (function
@@ -826,13 +835,14 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-            | _, [DStr s] ->
-              DList (Uuseg_string.fold_utf_8
-                       `Grapheme_cluster
-                       (fun acc seg -> DCharacter seg :: acc)
-                       []
-                       s)
-            | args ->
+          | _, [DStr s] ->
+              DList
+                (Uuseg_string.fold_utf_8
+                   `Grapheme_cluster
+                   (fun acc seg -> DCharacter seg :: acc)
+                   []
+                   s)
+          | args ->
               fail args)
     ; pr = None
     ; ps = true
@@ -940,13 +950,15 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> 
-              DInt (Uuseg_string.fold_utf_8
-                  `Grapheme_cluster
-                  (fun acc _ -> acc + 1)
-                  0
-                  s)
-          | args -> fail args)
+          | _, [DStr s] ->
+              DInt
+                (Uuseg_string.fold_utf_8
+                   `Grapheme_cluster
+                   (fun acc _ -> acc + 1)
+                   0
+                   s)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1079,7 +1091,7 @@ let fns : Lib.shortfn list =
                 ( l
                 |> List.map ~f:(function
                        | DCharacter c ->
-                         c
+                           c
                        | dv ->
                            RT.error ~actual:dv "expected a char" )
                 |> String.concat )
@@ -1111,10 +1123,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DCharacter c] ->
-              Dval.dstr_of_string_exn c
-          | args ->
-              fail args)
+          | _, [DCharacter c] -> Dval.dstr_of_string_exn c | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1790,7 +1799,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DCharacter c] -> DCharacter (cmap_utf_8 Uucp.Case.Map.to_lower c) | args -> fail args)
+          | _, [DCharacter c] ->
+              DCharacter (cmap_utf_8 Uucp.Case.Map.to_lower c)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -1814,7 +1826,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DCharacter c] -> DCharacter (cmap_utf_8 Uucp.Case.Map.to_upper c) | args -> fail args)
+          | _, [DCharacter c] ->
+              DCharacter (cmap_utf_8 Uucp.Case.Map.to_upper c)
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
