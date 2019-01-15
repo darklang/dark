@@ -1105,7 +1105,7 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
   | CreateRouteHandler ->
       let center = findCenter m in
-      Entry.submitOmniAction center NewHTTPHandler
+      Entry.submitOmniAction center (NewHTTPHandler None)
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
