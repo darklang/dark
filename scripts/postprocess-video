@@ -62,31 +62,31 @@ if (( "$SOFTSUBS" )); then
   fi
 fi
 
+tmpfile=$(mktemp /tmp/postprocess-video.XXXXXX.mp4)
+rm "$tmpfile" # so ffmpeg doesn't ask if you want to overwrite it
+
 set -x
 if (( "$SOFTSUBS" )); then
-  tmpfile=$(mktemp /tmp/postprocess-video.XXXXXX.mp4)
-  rm "$tmpfile" # so ffmpeg doesn't ask if you want to overwrite it
-
   # Add CCOVERLAY watermark in bottom right corner
   ffmpeg -i "$INVIDEO" \
     -vf "movie=${CCOVERLAY} [watermark]; [in][watermark] overlay=(main_w-overlay_w-10):(main_h-overlay_h-10) [out]" \
     "$tmpfile"
-
-  ffmpeg -i "$tmpfile" -f srt -i "$INSUBS" \
-    -c:v copy -c:a copy -c:s mov_text \
-    -metadata:s:s:0 language=English \
-    out.mp4
-
-  # could put this in a signal handler if you wanted to be really sure it gets
-  # cleaned up
-  rm "$tmpfile"
 else
-  ffmpeg -i "$INVIDEO" -vf subtitles="$INSUBS" out.mp4
+  ffmpeg -i "$INVIDEO" -vf subtitles="$INSUBS" "$tmpfile"
 fi
 
+
+ffmpeg -i "$tmpfile" -f srt -i "$INSUBS" \
+  -c:v copy -c:a copy -c:s mov_text \
+  -metadata:s:s:0 language=English \
+  out.mp4
+
+# could put this in a signal handler if you wanted to be really sure it gets
+# cleaned up
+rm "$tmpfile"
 
 if (( "$SOFTSUBS" )); then
   echo "Done, with soft subs! See out.mp4"
 else
-  echo "Done, with hard subs! See out.mp4"
+  echo "Done, with hard and soft subs! See out.mp4"
 fi
