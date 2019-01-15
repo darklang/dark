@@ -183,13 +183,12 @@ let user_page_handler
   let query = req |> CRequest.uri |> Uri.query in
   (* sanitize both repeated '/' and final '/'.
      "/foo//bar/" -> "/foo/bar"*)
-  let path : string =
-    uri
-    |> Uri.path
+  let sanitize_uri_path path :string =
+    path
     |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
-    |> fun x -> match String.chop_suffix x "/" with Some s -> s | _ -> x
+    |> Util.maybe_chop_suffix "/"
   in
-  let c = C.load_http canvas ~verb ~path in
+  let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
   let pages = !c.handlers |> TL.http_handlers in
   let pages =
     if List.length pages > 1
