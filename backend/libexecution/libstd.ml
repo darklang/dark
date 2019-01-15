@@ -875,7 +875,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "Returns the string, uppercased"
+    ; d = "DEPRECATED: Returns the string, uppercased"
     ; f =
         InProcess
           (function
@@ -905,7 +905,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "Returns the string, lowercased"
+    ; d = "DEPRECATED: Returns the string, lowercased"
     ; f =
         InProcess
           (function
