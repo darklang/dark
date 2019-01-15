@@ -178,7 +178,6 @@ let push
     (payload : string) =
   let canvas_id_str = Uuidm.to_string canvas_id in
   let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
-  (* TODO how not to read env var every time? *)
   match Config.stroller_port with
   | None ->
       Log.infO "stroller not configured, skipping push" ~params:log_params
