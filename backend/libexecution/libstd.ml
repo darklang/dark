@@ -766,6 +766,7 @@ let fns : Lib.shortfn list =
                   (fun acc seg -> fn [DCharacter seg] :: acc)
                   []
                   s
+                |> List.rev
               in
               if List.exists ~f:(( = ) DIncomplete) result
               then DIncomplete
