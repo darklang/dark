@@ -316,7 +316,7 @@ let as_literal (dv : dval) : string =
 
 let is_primitive (dv : dval) : bool =
   match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _| DStr _ ->
+  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _ | DStr _ ->
       true
   | _ ->
       false
@@ -447,14 +447,18 @@ let rec to_url_string (dv : dval) : string =
 (* ------------------------- *)
 let to_char dv : string option =
   match dv with
-    DCharacter c ->
-    if (1 = (Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> acc + 1) 0 c))
-    then Some c
-    else None
-  | _ -> None
+  | DCharacter c ->
+      if 1
+         = Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> acc + 1) 0 c
+      then Some c
+      else None
+  | _ ->
+      None
 
-let to_char_deprecated dv : char option
- = match dv with DChar c -> Some c | _ -> None
+
+let to_char_deprecated dv : char option =
+  match dv with DChar c -> Some c | _ -> None
+
 
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
