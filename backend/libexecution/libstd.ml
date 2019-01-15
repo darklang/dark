@@ -915,6 +915,21 @@ let fns : Lib.shortfn list =
               fail args)
     ; pr = None
     ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toUppercase_v2"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TStr
+    ; d = "Returns the string, uppercased"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              DStr (cmap_utf_8 Uucp.Case.Map.to_upper s)
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
     ; dep = false }
   ; { pns = ["String::toLowercase"]
     ; ins = []
@@ -926,6 +941,21 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn (String.lowercase s)
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toLowercase_v2"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TStr
+    ; d = "Returns the string, lowercased"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              DStr (cmap_utf_8 Uucp.Case.Map.to_lower s)
           | args ->
               fail args)
     ; pr = None
