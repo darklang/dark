@@ -1335,10 +1335,10 @@ browserslist@^3.2.6:
     caniuse-lite "^1.0.30000844"
     electron-to-chromium "^1.3.47"
 
-bs-platform@4.0.7:
-  version "4.0.7"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.7.tgz#1a0bbf0fef439fef5f1a88ba60d5ac8a6d73570c"
-  integrity sha512-39ZXSugB03PznE7eSVwxq5z4S8Cn44r22T2eFd7rgFQ94HaB/mCNHXG0epF3mJLYhhhyPT9w3e/t+FAIjSdAkg==
+bs-platform@4.0.18:
+  version "4.0.18"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.18.tgz#d17b8693ba1f714d9b27e0ddb365f2069ba4b8a0"
+  integrity sha512-BwzW0iYHvREqUZIgQxJmdJrxexppLvJxYQ4LLexbhCp7uZU5DIZ5ub4ZHpkCkc8fn8bsXWc+Rrejb3csi+BoAQ==
 
 bs-webapi@^0.13.0:
   version "0.13.1"
