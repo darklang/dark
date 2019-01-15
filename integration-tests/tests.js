@@ -308,12 +308,12 @@ test('pressing_up_doesnt_return_to_start', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "Char::")
-    .expect(acHighlightedText("Char::toASCIIChar")).ok()
+    .typeText("#entry-box", "Int::")
+    .expect(acHighlightedText("Int::add")).ok()
     .pressKey("down")
     .pressKey("up")
-    .expect(acHighlightedText("Char::toASCIIChar")).ok()
-    .typeText("#entry-box", "toASCII")
+    .expect(acHighlightedText("Int::add")).ok()
+    .typeText("#entry-box", "add")
     .pressKey("enter")
 });
 
