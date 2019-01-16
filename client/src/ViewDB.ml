@@ -178,7 +178,7 @@ let viewShadowDB (sdb: udb) : msg Html.html =
       ; dbname_view
       ; Html.div
         [ Html.classList [("error", true) ; ("show", Option.isSome sdb.udbError)] ]
-        [ Html.text (match sdb.udbError with | Some e -> e | None -> "")]
+        [ Html.text (match sdb.udbError with | Some e -> e | None -> "Give your DB a unique name")]
       ]
   in
   ViewUtils.placeHtml sdb.udbPos dbdiv

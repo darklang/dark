@@ -649,15 +649,35 @@ body #grid * {
 
 .db.shadow {
   width: max-content;
-  min-width: 245px;
+  width: 300px;
   padding: 14px;
   border: @top-border;
+  background-color: @black1;
 
-  .dbname .entry {
+  .dbname .name-input {
     display: inline-block;
+    background-color: transparent;;
+    border: 0;
+    border-bottom: @blank-underline;
+    color: @white3;
+    width: 160px;
 
-    #entry-box {
-      color: @white3 !important;
+    &::placeholder {
+      font-style: italic;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+  }
+
+  .error {
+    color: @grey3;
+    font-size: 12px;
+    line-height: 14px;
+    min-height: 28px;
+    margin: 8px auto;
+
+    &.show {
+      color: @red;
     }
   }
 }
