@@ -308,7 +308,7 @@ ENV TERM=xterm-256color
 
 RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
 RUN opam install -y \
-  uuseg
+  uuseg.11.0.0
 
 
 ############################
