@@ -577,18 +577,6 @@ body #grid * {
     &.fa-lock {
       color: @red;
 
-      &::after {
-        content: "To migrate schema, click on the lock";
-        color: @grey3;
-        font-family: 'Fira Code', monospace;
-        font-size: 8px;
-        font-weight: 300;
-        position: relative;
-        top: -12px;
-        left: 4px;
-        font-style: italic;
-      }
-
        &:hover {
         .db-lock-hover;
         color: @grey3;
