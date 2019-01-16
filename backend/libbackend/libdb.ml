@@ -9,21 +9,27 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
 
 
 let fetch_by_field ~state fieldname fieldvalue db =
-  if fieldname = "id"
+  if Dark_string.equal fieldname (Dark_string.of_utf8_exn "id")
   then
     let skey =
       match fieldvalue with
       | DID id ->
           Uuidm.to_string id
       | DStr s ->
-          s
+          Dark_string.to_utf8 s
       | x ->
           Exception.user
             ( "Expected an ID or a String at 'id' but got: "
             ^ (x |> Dval.tipe_of |> Dval.tipe_to_string) )
     in
     User_db.get_many ~state ~magic:true db [skey]
-  else User_db.query_by_one ~state ~magic:true db fieldname fieldvalue
+  else
+    User_db.query_by_one
+      ~state
+      ~magic:true
+      db
+      (Dark_string.to_utf8 fieldname)
+      fieldvalue
 
 
 let replacements =
