@@ -15,6 +15,7 @@
               base64
               uri
               uuseg.string
+              uunf.string
               uutf
               ppx_deriving_yojson.runtime)
 )
