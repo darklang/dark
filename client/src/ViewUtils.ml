@@ -1,6 +1,7 @@
 open Types
 open Porting
 open Prelude
+module Svg = Tea.Svg
 
 type viewState =
   { tl : toplevel
@@ -329,3 +330,22 @@ let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
           [ Html.span [Html.class' "name"] [Html.text name]
           ; Html.span [Html.class' "version"] [Html.text ("v" ^ version)] ] ]
     )
+
+
+let svgIconFn (color : string) : msg Html.html =
+  Svg.svg
+    [ Svg.Attributes.viewBox "0 0 16 16"
+    ; Svg.Attributes.width "16"
+    ; Svg.Attributes.height "16" ]
+    [ Svg.g
+        [Svg.Attributes.fill color]
+        [ Svg.path
+            [ Svg.Attributes.d
+                "M5,5.62A4.38,4.38,0,0,1,9.44,1.31h.35V3.63H9.44a2,2,0,0,0-2.1,2V6.78H9.79V9.12H7.34V11A4.38,4.38,0,0,1,2.9,15.31H2.55V13H2.9A2,2,0,0,0,5,11V9.12H3.84V6.78H5Z"
+            ]
+            []
+        ; Svg.path
+            [ Svg.Attributes.d
+                "M12.89,9.91l.76.75-1.48,1.48,1.48,1.48-.76.76L11.41,12.9,9.93,14.38l-.75-.76,1.48-1.48L9.18,10.66l.75-.75,1.48,1.48Z"
+            ]
+            [] ] ]
