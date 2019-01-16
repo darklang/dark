@@ -376,7 +376,7 @@ end
 module Regex = struct
   let regex s : Js.Re.t = Js.Re.fromStringWithFlags ~flags:"g" s
 
-  let contains (re : Js.Re.t) (s : string) : bool = Js.Re.test s re
+  let contains ~(re : Js.Re.t) (s : string) : bool = Js.Re.test s re
 
   let replace (re : string) (repl : string) (str : string) =
     Js.String.replaceByRe (regex re) repl str
@@ -482,6 +482,10 @@ module String = struct
   let toLower (s : string) : string = String.lowercase s
 
   let toUpper (s : string) : string = String.uppercase s
+
+  let uncapitalize (s : string) : string = String.uncapitalize s
+
+  let capitalize (s : string) : string = String.capitalize s
 
   let isCapitalized (s : string) : bool = s = String.capitalize s
 

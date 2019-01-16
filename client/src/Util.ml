@@ -7,11 +7,13 @@ let windowSize (a : unit) : int * int =
 
 let random (a : unit) : int = Native.Random.random a
 
-let reContains (re : string) (s : string) : bool =
-  Regex.contains (Regex.regex re) s
+let reContains ~(re : string) (s : string) : bool =
+  Regex.contains ~re:(Regex.regex re) s
 
 
-let reExactly (re : string) (s : string) : bool = reContains ("^" ^ re ^ "$") s
+let reExactly (re : string) (s : string) : bool =
+  reContains ~re:("^" ^ re ^ "$") s
+
 
 let findIndex (fn : 'a -> bool) (l : 'a list) : (int * 'a) option =
   List.find (fun (_, a) -> fn a) (List.indexedMap Tuple2.create l)
