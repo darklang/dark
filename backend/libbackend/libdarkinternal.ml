@@ -49,7 +49,7 @@ let replacements =
     ; ( "DarkInternal::cleanupOldTraces_v1"
       , function
         | state, [DStr host] ->
-            Canvas.cleanup_old_traces host ;
+            Canvas.cleanup_old_traces (Dark_string.to_utf8 host) ;
             DNull
         | args ->
             fail args )
@@ -57,27 +57,33 @@ let replacements =
       , function
         | state, [DStr host] ->
           ( try
-              Canvas.validate_host host ;
+              Canvas.validate_host (Dark_string.to_utf8 host) ;
               DBool true
             with _ -> DBool false )
         | args ->
             fail args )
     ; ( "DarkInternal::getAllCanvases"
       , fun _ ->
-          Serialize.current_hosts () |> List.map ~f:(fun s -> DStr s) |> DList
-      )
+          Serialize.current_hosts ()
+          |> List.map ~f:Dval.dstr_of_string_exn
+          |> DList )
     ; ( "DarkInternal::canvasAsText"
       , function
-        | _, [DStr host] -> DStr (Canvas.to_string host) | args -> fail args )
+        | _, [DStr host] ->
+            Dval.dstr_of_string_exn
+              (Canvas.to_string (Dark_string.to_utf8 host))
+        | args ->
+            fail args )
     ; ( "DarkInternal::handlers"
       , function
         | _, [DStr host] ->
-            let c = Canvas.load_all host [] in
+            let c = Canvas.load_all (Dark_string.to_utf8 host) [] in
             !c.handlers
             |> List.map ~f:Libexecution.Toplevel.as_handler
             |> List.map ~f:(fun h -> Option.value_exn h)
             |> List.map ~f:(fun h ->
-                   DStr (Libexecution.Types.string_of_id h.tlid) )
+                   Dval.dstr_of_string_exn
+                     (Libexecution.Types.string_of_id h.tlid) )
             |> fun l -> DList l
         | args ->
             fail args )
@@ -85,8 +91,12 @@ let replacements =
       , function
         | _, [DStr host; DStr tlid] ->
             let open Libexecution in
+            let tlid = Dark_string.to_utf8 tlid in
             let c =
-              Canvas.load_only host ~tlids:[Types.id_of_string tlid] []
+              Canvas.load_only
+                (Dark_string.to_utf8 host)
+                ~tlids:[Types.id_of_string tlid]
+                []
             in
             let handler =
               !c.handlers
@@ -103,7 +113,10 @@ let replacements =
     ; ( "DarkInternal::upsertUser"
       , function
         | _, [DStr username; DStr email; DStr name] ->
+            let username = Dark_string.to_utf8 username in
+            let email = Dark_string.to_utf8 email in
+            let name = Dark_string.to_utf8 name in
             let password = Account.upsert_user ~username ~email ~name () in
-            DStr password
+            Dval.dstr_of_string_exn password
         | args ->
             fail args ) ]

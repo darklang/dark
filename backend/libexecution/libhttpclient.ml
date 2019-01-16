@@ -165,10 +165,10 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr token] ->
-              let auth_string = "Bearer " ^ token in
-              DObj
-                (DvalMap.of_alist_exn
-                   [("Authorization", Dval.dstr_of_string_exn auth_string)])
+              let auth_string =
+                Dark_string.append (Dark_string.of_utf8_exn "Bearer ") token
+              in
+              DObj (DvalMap.of_alist_exn [("Authorization", DStr auth_string)])
           | args ->
               fail args)
     ; pr = None
