@@ -4,8 +4,7 @@ open Types
 (* Dark *)
 module B = Blank
 
-let validateName (s : string) =
-  Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
+let validateName (s : string) = Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
 
 let astsFor (db : dB) : expr list =
   match db.activeMigration with
@@ -73,75 +72,82 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
   let rf = B.new_ () in
   RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
 
+
 let createUnnamedDB (m : model) (tlid : tlid) (center : pos) : modification =
-  let tdb = m.unnamedDBs
+  let udb = m.unnamedDBs
   and dbs =
-    { udbId = tlid 
-    ; udbName = "" 
-    ; udbPos = center
-    ; udbError = None } :: m.unnamedDBs.dbs
+    {udbId = tlid; udbName = ""; udbPos = center; udbError = None}
+    :: m.unnamedDBs.dbs
   in
-  TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = dbs } })
+  TweakModel (fun m -> {m with unnamedDBs = {udb with dbs}})
+
 
 let focusOnUnnamedDB (m : model) (id : tlid) : modification =
-  let tdb = m.unnamedDBs in 
-  TweakModel (fun m -> {m with unnamedDBs = { tdb with focusedDB = Some id } })
+  let udb = m.unnamedDBs in
+  TweakModel (fun m -> {m with unnamedDBs = {udb with focusedDB = Some id}})
 
-let updateOnUnnamedDB (m: model) (name : string) : modification =
+
+let updateOnUnnamedDB (m : model) (name : string) : modification =
   match m.unnamedDBs.focusedDB with
   | Some id ->
-    let l =
-      List.replace
-      (fun d -> d.udbId = id)
-      (fun d -> {d with udbName = name})
-      m.unnamedDBs.dbs
-    in
-    let tdb = m.unnamedDBs in 
-    TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = l } })
-  | None -> NoChange
+      let l =
+        List.replace
+          (fun d -> d.udbId = id)
+          (fun d -> {d with udbName = name})
+          m.unnamedDBs.dbs
+      and tdb = m.unnamedDBs in
+      TweakModel (fun m -> {m with unnamedDBs = {tdb with dbs = l}})
+  | None ->
+      NoChange
 
-let errorOnUnnamedDB (m: model) (error : string) : model =
+
+let errorOnUnnamedDB (m : model) (error : string) : model =
   match m.unnamedDBs.focusedDB with
   | Some id ->
-    let l =
-      List.replace
-      (fun d -> d.udbId = id)
-      (fun d -> {d with udbError = Some error})
-      m.unnamedDBs.dbs
-    and tdb = m.unnamedDBs in
-    { m with unnamedDBs = { tdb with dbs = l } }
-  | None -> m
+      let l =
+        List.replace
+          (fun d -> d.udbId = id)
+          (fun d -> {d with udbError = Some error})
+          m.unnamedDBs.dbs
+      and tdb = m.unnamedDBs in
+      {m with unnamedDBs = {tdb with dbs = l}}
+  | None ->
+      m
+
 
 let allDBNames (toplevels : toplevel list) : string list =
   toplevels
   |> List.filterMap (fun tl ->
-      match tl.data with
-      | TLDB db -> Some db.dbName
-      | _ -> None
-    )
+         match tl.data with TLDB db -> Some db.dbName | _ -> None )
 
-let validateNewDBName (m : model) (db :udb) : modification =
+
+let validateNewDBName (m : model) (db : udb) : modification =
   let name = db.udbName in
   if not (validateName name)
-  then DBNameError "Database names must start with a capitial letter and be alphanumeric"
+  then
+    DBNameError
+      "Database names must start with a capitial letter and be alphanumeric"
   else if List.member name (allDBNames m.toplevels)
   then DBNameError ("There is already a database named " ^ name)
   else
     let next = Prelude.gid () in
     Many
       [ RemoveUnnamedDB db
-      ; RPC (
-        [ CreateDB (db.udbId, db.udbPos, db.udbName)
-        ; AddDBCol (db.udbId, next, Prelude.gid ()) ],
-        FocusExact (db.udbId, next) )
-      ]
+      ; RPC
+          ( [ CreateDB (db.udbId, db.udbPos, db.udbName)
+            ; AddDBCol (db.udbId, next, Prelude.gid ()) ]
+          , FocusExact (db.udbId, next) ) ]
+
 
 let blurOnUnnamedDB (m : model) : modification =
   match m.unnamedDBs.focusedDB with
   | Some id ->
-    let db = List.find (fun d -> d.udbId = id) m.unnamedDBs.dbs in
-    (match db with
-    | Some d -> validateNewDBName m d
-    | None -> NoChange
-    ) 
-  | None -> NoChange
+      let db = List.find (fun d -> d.udbId = id) m.unnamedDBs.dbs in
+      (match db with Some d -> validateNewDBName m d | None -> NoChange)
+  | None ->
+      NoChange
+
+
+let removeUnnamedDB (m : model) (db : udb) : model =
+  let udbs = List.filter (fun d -> d.udbId <> db.udbId) m.unnamedDBs.dbs in
+  {m with unnamedDBs = {dbs = udbs; focusedDB = None}}

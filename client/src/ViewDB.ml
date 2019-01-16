@@ -1,7 +1,6 @@
 open! Porting
 open Types
 open Prelude
-
 module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 
@@ -150,35 +149,37 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   in
   [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] @ migrationView
 
-let viewShadowDB (sdb: udb) : msg Html.html =
-  let name_entry =
-    Html.input'
-      [ Html.class' "name-input"
-      ; Events.onFocus (FocusOnUnnamedDB sdb.udbId)
-      ; Events.onInput (fun x -> let s = Regex.replace "\"" "" x in UpdateOnUnnamedDB s)
-      ; Events.onBlur BlurOnUnnamedDB
-      ; Attributes.placeholder "db name"
-      ; Attributes.value sdb.udbName
-      ; Attributes.spellcheck false
-      ; Attributes.autocomplete false ]
-      []
-  in
-  let dbdiv =
-    let dbname_view =
-      Html.div
-      [Html.class' "dbname"]
-      [ name_entry
-      ; Html.span
-          [Html.class' "version"]
-          [Html.text ".v0"] ]
+
+let viewShadowDB (sdb : udb) : msg Html.html =
+  let dbname_view =
+    let name_entry =
+      Html.input'
+        [ Html.class' "name-input"
+        ; Events.onFocus (FocusOnUnnamedDB sdb.udbId)
+        ; Events.onInput (fun x ->
+              let s = Regex.replace "\"" "" x in
+              UpdateOnUnnamedDB s )
+        ; Events.onBlur BlurOnUnnamedDB
+        ; Attributes.placeholder "db name"
+        ; Attributes.value sdb.udbName
+        ; Attributes.spellcheck false
+        ; Attributes.autocomplete false ]
+        []
     in
     Html.div
-      [Html.class' "db shadow"]
-      [ fontAwesome "unlock"
-      ; dbname_view
-      ; Html.div
-        [ Html.classList [("error", true) ; ("show", Option.isSome sdb.udbError)] ]
-        [ Html.text (match sdb.udbError with | Some e -> e | None -> "Give your DB a unique name")]
-      ]
+      [Html.class' "dbname"]
+      [name_entry; Html.span [Html.class' "version"] [Html.text ".v0"]]
+  and error_msg =
+    Html.div
+      [Html.classList [("error", true); ("show", Option.isSome sdb.udbError)]]
+      [ Html.text
+          ( match sdb.udbError with
+          | Some e ->
+              e
+          | None ->
+              "Give your DB a unique name (ie: Users)" ) ]
   in
-  ViewUtils.placeHtml sdb.udbPos dbdiv
+  Html.div
+    [Html.class' "db shadow"]
+    [fontAwesome "unlock"; dbname_view; error_msg]
+  |> ViewUtils.placeHtml sdb.udbPos
