@@ -218,6 +218,8 @@ let isLiteral (dv : dval) : bool =
       true
   | DChar _ ->
       true
+  | DCharacter _ ->
+      true
   | DStr _ ->
       true
   | _ ->
