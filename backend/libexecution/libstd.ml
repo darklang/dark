@@ -25,8 +25,8 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
 
 let ( >>| ) = Result.( >>| )
 
-(* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples, see
-   also https://github.com/dbuenzli/uucp/issues/16 *)
+(* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples
+   cmap is a character map - e.g. to_upper, to_lower *)
 let cmap_utf_8 cmap s =
   let b = Buffer.create (String.length s * 2) in
   let rec add_map _ _ u =
