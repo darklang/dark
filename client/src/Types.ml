@@ -438,12 +438,12 @@ and command =
 
 and omniAction =
   | NewDB of dBName
-  | NewHandler
+  | NewHandler of string option
   | NewFunction of string option
-  | NewHTTPHandler
-  | NewHTTPRoute of string
+  | NewHTTPHandler of string option
   | NewEventSpace of string
 
+(* | NewCronHandler of string option *)
 and autocompleteItem =
   | ACFunction of function_
   | ACConstructorName of string

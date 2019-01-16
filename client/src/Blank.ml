@@ -6,10 +6,6 @@ let toID (b : 'a blankOr) : id =
   match b with Blank id -> id | F (id, _) -> id
 
 
-let toMaybe (b : 'a blankOr) : 'a option =
-  match b with F (_, v) -> Some v | Blank _ -> None
-
-
 let new_ (() : unit) : 'a blankOr = Blank (gid ())
 
 let newF (a : 'a) : 'a blankOr = F (gid (), a)
@@ -26,6 +22,14 @@ let isF (b : 'a blankOr) : bool = not (isBlank b)
 
 let asF (b : 'a blankOr) : 'a option =
   match b with F (_, v) -> Some v | Blank _ -> None
+
+
+let toMaybe (b : 'a blankOr) : 'a option =
+  match b with F (_, v) -> Some v | Blank _ -> None
+
+
+let ofOption (o : 'a option) : 'a blankOr =
+  match o with Some v -> newF v | None -> new_ ()
 
 
 let replace (search : id) (replacement : 'a blankOr) (bo : 'a blankOr) :
