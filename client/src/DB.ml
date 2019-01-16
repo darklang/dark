@@ -75,16 +75,20 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
 
 let createUnnamedDB (m : model) (tlid : tlid) (center : pos) : modification =
   let tdb = m.unnamedDBs
-  and dbs = { udbId = tlid ; udbName = "" ; udbPos = center } :: m.unnamedDBs.dbs
+  and dbs =
+    { udbId = tlid 
+    ; udbName = "" 
+    ; udbPos = center
+    ; udbError = None } :: m.unnamedDBs.dbs
   in
   TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = dbs } })
 
 let focusOnUnnamedDB (m : model) (id : tlid) : modification =
   let tdb = m.unnamedDBs in 
-  TweakModel (fun m -> {m with unnamedDBs = { tdb with focused_db = Some id } })
+  TweakModel (fun m -> {m with unnamedDBs = { tdb with focusedDB = Some id } })
 
 let updateOnUnnamedDB (m: model) (name : string) : modification =
-  match m.unnamedDBs.focused_db with
+  match m.unnamedDBs.focusedDB with
   | Some id ->
     let l =
       List.replace
@@ -95,6 +99,18 @@ let updateOnUnnamedDB (m: model) (name : string) : modification =
     let tdb = m.unnamedDBs in 
     TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = l } })
   | None -> NoChange
+
+let errorOnUnnamedDB (m: model) (error : string) : model =
+  match m.unnamedDBs.focusedDB with
+  | Some id ->
+    let l =
+      List.replace
+      (fun d -> d.udbId = id)
+      (fun d -> {d with udbError = Some error})
+      m.unnamedDBs.dbs
+    and tdb = m.unnamedDBs in
+    { m with unnamedDBs = { tdb with dbs = l } }
+  | None -> m
 
 let allDBNames (toplevels : toplevel list) : string list =
   toplevels
@@ -121,7 +137,7 @@ let validateNewDBName (m : model) (db :udb) : modification =
       ]
 
 let blurOnUnnamedDB (m : model) : modification =
-  match m.unnamedDBs.focused_db with
+  match m.unnamedDBs.focusedDB with
   | Some id ->
     let db = List.find (fun d -> d.udbId = id) m.unnamedDBs.dbs in
     (match db with

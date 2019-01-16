@@ -219,12 +219,12 @@ and dB =
 and udb =
   { udbId : tlid
   ; udbName : dBName
-  ; udbPos : pos }
+  ; udbPos : pos
+  ; udbError : string option }
 
 and unnamedDBs =
-  { focused_db : tlid option
-  ; dbs : udb list
-  ; dbNameError: string option }
+  { focusedDB : tlid option
+  ; dbs : udb list }
 
 (* userFunctions *)
 and userFunctionParameter =

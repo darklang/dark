@@ -696,12 +696,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               {canvas with fnOffset = pos}
         in
         ({m with canvas = canvas2}, Cmd.none)
-    | DBNameError err -> Debug.loG "DBNameError" err;
-      let tdb = m.unnamedDBs in
-      ({ m with unnamedDBs = { tdb with dbNameError = Some err} }, Cmd.none)
+    | DBNameError err -> 
+      (DB.errorOnUnnamedDB m err, Cmd.none)
     | RemoveUnnamedDB db -> Debug.loG "Creating db" db.udbName;
       let udbs = List.filter (fun d -> d.udbId <> db.udbId) m.unnamedDBs.dbs in
-      let newM = { m with unnamedDBs = {dbs = udbs ; focused_db = None ; dbNameError = None}}
+      let newM = { m with unnamedDBs = {dbs = udbs ; focusedDB = None}}
       in
       (newM, Cmd.none)
     | TweakModel fn ->
@@ -781,7 +780,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GlobalClick event ->
     ( match m.currentPage with
     | Toplevels _ ->
-        if event.button = Defaults.leftButton && (Option.isNone m.unnamedDBs.focused_db)
+        if event.button = Defaults.leftButton && (Option.isNone m.unnamedDBs.focusedDB)
         then
           match unwrapCursorState m.cursorState with
           | Deselected ->
