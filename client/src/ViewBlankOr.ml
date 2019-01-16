@@ -67,7 +67,7 @@ let viewCreateFn : msg Html.html =
     [ Html.class' "exfun"
     ; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)
     ]
-    [ViewUtils.fontAwesome "share-square"]
+    [ViewUtils.svgIconFn "white"]
 
 
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
