@@ -168,14 +168,18 @@ module List = struct
     Belt.List.take l count |. Belt.Option.getWithDefault []
 
 
-  let updateAt (index : int) (fn : 'a -> 'a) (list : 'a list) : 'a list =
+  let updateAt (index : int) (fn : 'a -> 'a) (li : 'a list) : 'a list =
     if index < 0
-    then list
+    then li
     else
-      let head = take index list in
-      let tail = drop index list in
-      match tail with x :: xs -> head @ (fn x :: xs) | _ -> list
+      let head = take index li in
+      let tail = drop index li in
+      match tail with x :: xs -> head @ (fn x :: xs) | _ -> li
 
+  let replace (fn : 'a -> bool) (fr : 'a -> 'a) (l : 'a list) : 'a list =
+    match (findIndex fn l) with
+    | Some i -> updateAt i fr l
+    | None -> l
 
   let length (l : 'a list) : int = List.length l
 

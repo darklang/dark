@@ -154,9 +154,11 @@ let viewShadowDB (sdb: shadowdb) : msg Html.html =
   let name_entry =
     Html.input'
       [ Html.class' "name-input"
-      ; Events.onFocus (FocusOnTempDB sdb.id)
+      ; Events.onFocus (FocusOnTempDB sdb.shadowId)
+      ; Events.onInput (fun x -> let s = Regex.replace "\"" "" x in UpdateOnTempDB s)
+      ; Events.onBlur BlurOnTempDB
       ; Attributes.placeholder "db name"
-      ; Attributes.value sdb.name
+      ; Attributes.value sdb.shadowName
       ; Attributes.spellcheck false
       ; Attributes.autocomplete false ]
       []
@@ -176,4 +178,4 @@ let viewShadowDB (sdb: shadowdb) : msg Html.html =
       ; dbname_view
       ]
   in
-  ViewUtils.placeHtml sdb.pos dbdiv
+  ViewUtils.placeHtml sdb.shadowPos dbdiv

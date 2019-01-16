@@ -1122,11 +1122,33 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = findCenter m in
       let tdb = m.tempdbs in
-      let dbs = { id = gid () ; name = "" ; pos = center } :: m.tempdbs.dbs in
+      let dbs = { shadowId = gid () ; shadowName = "" ; shadowPos = center } :: m.tempdbs.dbs in
       TweakModel (fun m -> { m with tempdbs = { tdb with dbs = dbs } })
   | FocusOnTempDB id ->
     let tdb = m.tempdbs in 
     TweakModel (fun m -> {m with tempdbs = { tdb with focused_db = Some id } })
+  | UpdateOnTempDB v ->
+    (match m.tempdbs.focused_db with
+    | Some id ->
+      let l =
+        List.replace
+        (fun d -> d.shadowId = id)
+        (fun d -> {d with shadowName = v})
+        m.tempdbs.dbs
+      in
+      let tdb = m.tempdbs in 
+      TweakModel (fun m -> { m with tempdbs = { tdb with dbs = l } })
+    | None -> NoChange)
+  | BlurOnTempDB ->
+    (match m.tempdbs.focused_db with
+    | Some id ->
+      let db = List.find (fun d -> d.shadowId = id) m.tempdbs.dbs in
+      (match db with
+      | Some d -> Debug.loG "created db named " d.shadowName; NoChange
+      | None -> NoChange
+      )
+    | None -> NoChange
+    )
   | _ ->
       NoChange
 

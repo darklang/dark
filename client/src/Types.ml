@@ -217,12 +217,12 @@ and dB =
   ; activeMigration : dBMigration option }
 
 and shadowdb =
-  { id : id
-  ; name : dBName
-  ; pos : pos }
+  { shadowId : id
+  ; shadowName : dBName
+  ; shadowPos : pos }
 
 and tempdbs =
-  { focused_db : id option 
+  { focused_db : id option
   ; dbs : shadowdb list }
 
 (* userFunctions *)
@@ -645,6 +645,8 @@ and msg =
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
   | FocusOnTempDB of id
+  | UpdateOnTempDB of string
+  | BlurOnTempDB
 
 and predecessor = pointerData option
 
