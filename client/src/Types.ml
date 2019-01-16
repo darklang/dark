@@ -217,12 +217,12 @@ and dB =
   ; activeMigration : dBMigration option }
 
 and shadowdb =
-  { shadowId : id
+  { shadowId : tlid
   ; shadowName : dBName
   ; shadowPos : pos }
 
 and tempdbs =
-  { focused_db : id option
+  { focused_db : tlid option
   ; dbs : shadowdb list }
 
 (* userFunctions *)
@@ -644,7 +644,7 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
-  | FocusOnTempDB of id
+  | FocusOnTempDB of tlid
   | UpdateOnTempDB of string
   | BlurOnTempDB
 

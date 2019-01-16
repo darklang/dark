@@ -1122,7 +1122,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = findCenter m in
       let tdb = m.tempdbs in
-      let dbs = { shadowId = gid () ; shadowName = "" ; shadowPos = center } :: m.tempdbs.dbs in
+      let dbs = { shadowId = gtlid () ; shadowName = "" ; shadowPos = center } :: m.tempdbs.dbs in
       TweakModel (fun m -> { m with tempdbs = { tdb with dbs = dbs } })
   | FocusOnTempDB id ->
     let tdb = m.tempdbs in 
