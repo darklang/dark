@@ -352,7 +352,7 @@ module RuntimeT = struct
     | DBool of bool
     | DNull
     | DChar of char
-    | DStr of string
+    | DStr of Dark_string.t
     (* compound types *)
     | DList of dval list
     | DObj of dval_map
@@ -371,7 +371,7 @@ module RuntimeT = struct
     | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
-    | DCharacter of string
+    | DCharacter of Dark_string.Character.t
   [@@deriving eq, yojson, compare]
 
   type dval_list = dval list

@@ -3,22 +3,7 @@ open Types
 open Types.RuntimeT
 
 let dstr_of_string (s : string) : dval option =
-  (* the decoder has mutable state *)
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
-  let rec validate_string () =
-    match Uutf.decode decoder with
-    | `Uchar ch when ch = Uchar.min ->
-        `Err (* U+0000 is rejected by postgres *)
-    | `Uchar _ ->
-        validate_string ()
-    | `End ->
-        `Ok
-    | `Await ->
-        validate_string ()
-    | `Malformed _ ->
-        `Err
-  in
-  match validate_string () with `Ok -> Some (DStr s) | `Err -> None
+  s |> Dark_string.of_utf8 |> Option.map ~f:(fun s -> DStr s)
 
 
 let dstr_of_string_exn (s : string) : dval =
@@ -275,13 +260,13 @@ let as_string (dv : dval) : string =
   | DBool false ->
       "false"
   | DStr s ->
-      s
+      Dark_string.to_utf8 s
   | DFloat f ->
       string_of_float f
   | DChar c ->
       Char.to_string c
   | DCharacter c ->
-      c
+      Dark_string.Character.to_string c
   | DNull ->
       "null"
   | DID id ->
@@ -305,11 +290,11 @@ let as_string (dv : dval) : string =
 let as_literal (dv : dval) : string =
   match dv with
   | DStr s ->
-      "\"" ^ s ^ "\""
+      "\"" ^ Dark_string.to_utf8 s ^ "\""
   | DChar _ ->
       "'" ^ as_string dv ^ "'"
-  | DCharacter _ ->
-      "'" ^ as_string dv ^ "'"
+  | DCharacter c ->
+      "'" ^ Dark_string.Character.to_string c ^ "'"
   | _ ->
       as_string dv
 
@@ -448,10 +433,7 @@ let rec to_url_string (dv : dval) : string =
 let to_char dv : string option =
   match dv with
   | DCharacter c ->
-      if 1
-         = Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> acc + 1) 0 c
-      then Some c
-      else None
+      Some (Dark_string.Character.to_string c)
   | _ ->
       None
 
@@ -465,7 +447,7 @@ let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 let to_string_exn dv : string =
   match dv with
   | DStr s ->
-      s
+      Dark_string.to_utf8 s
   | _ ->
       Exception.user "expecting str" ~actual:(to_repr dv)
 
@@ -585,7 +567,7 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" ->
         DError v
     | "char" ->
-        DCharacter v
+        DChar (Char.of_string v)
     | "password" ->
         v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" ->
@@ -640,7 +622,7 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DNull ->
       `Null
   | DStr s ->
-      `String s
+      Dark_string.to_yojson s
   | DList l ->
       `List (List.map l (unsafe_dval_to_yojson ~redact))
   | DObj o ->
@@ -652,7 +634,7 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DChar c ->
       wrap_user_str (Char.to_string c)
   | DCharacter c ->
-      wrap_user_str c
+      wrap_user_str (Dark_string.Character.to_string c)
   | DError msg ->
       wrap_user_str msg
   | DResp (h, hdv) ->

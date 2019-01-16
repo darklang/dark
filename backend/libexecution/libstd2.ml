@@ -16,7 +16,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.find o s with
+            ( match DvalMap.find o (Dark_string.to_utf8 s) with
             | Some d ->
                 DOption (OptJust d)
             | None ->

@@ -1388,7 +1388,8 @@ let t_db_deprecated_belongs_to_works () =
     ( match result with
     | DObj o ->
       ( match (DvalMap.find o "x", DvalMap.find o "relation") with
-      | Some (DStr "foo"), Some (DObj inner) ->
+      | Some (DStr s), Some (DObj inner)
+        when Dark_string.equal s (Dark_string.of_utf8_exn "foo") ->
         (match DvalMap.find inner "y" with Some (DInt 4) -> 0 | _ -> 1)
       | _ ->
           1 )
@@ -1423,7 +1424,8 @@ let t_db_deprecated_has_many_works () =
     ( match result with
     | DObj o ->
       ( match (DvalMap.find o "x", DvalMap.find o "relations") with
-      | Some (DStr "foo"), Some (DList inners) ->
+      | Some (DStr s), Some (DList inners)
+        when Dark_string.equal s (Dark_string.of_utf8_exn "foo") ->
         ( match inners with
         | [DObj fst; DObj snd] ->
           ( try
@@ -1841,7 +1843,7 @@ let t_character_uppercase_works_for_ascii_range () =
     "stringUppercaseASCII"
     (exec_ast
        "(String::foreach_v1 'abcdef' (\\x -> (Character::toUppercase x)))")
-    (DStr "ABCDEF")
+    (Dval.dstr_of_string_exn "ABCDEF")
 
 
 let t_character_lowercase_works_for_ascii_range () =
@@ -1849,28 +1851,28 @@ let t_character_lowercase_works_for_ascii_range () =
     "stringLowercaseASCII"
     (exec_ast
        "(String::foreach_v1 'ABCDEF' (\\x -> (Character::toLowercase x)))")
-    (DStr "abcdef")
+    (Dval.dstr_of_string_exn "abcdef")
 
 
 let t_string_uppercase_v1_works_on_mixed_strings () =
   check_dval
     "stringUpppercaseMixed"
     (exec_ast "(String::toUppercase_v1 'hello\xf0\x9f\x98\x84world')")
-    (DStr "HELLO\xf0\x9f\x98\x84WORLD")
+    (Dval.dstr_of_string_exn "HELLO\xf0\x9f\x98\x84WORLD")
 
 
 let t_string_uppercase_v1_works_on_non_ascii_strings () =
   check_dval
     "stringUpppercaseMixed"
     (exec_ast "(String::toUppercase_v1 'żółw')")
-    (DStr "ŻÓŁW")
+    (Dval.dstr_of_string_exn "ŻÓŁW")
 
 
 let t_string_split_works_for_emoji () =
   check_dval
     "stringSplit"
     (exec_ast "(String::split 'hello\xf0\x9f\x98\x84world' '\xf0\x9f\x98\x84')")
-    (DList [DStr "hello"; DStr "world"])
+    (DList [Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world"])
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =
