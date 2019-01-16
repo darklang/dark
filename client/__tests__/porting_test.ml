@@ -28,21 +28,20 @@ let () =
         "it returns the empty string when told to drop a number > length"
         (fun () -> expect (String.dropRight 5555 "foo") |> toEqual "" ) ) ;
   describe "List.replace" (fun () ->
-      let initList = [0 ; 1 ; 1 ; 2 ; 3 ; 5 ; 8 ; 13] in
+      let initList = [0; 1; 1; 2; 3; 5; 8; 13] in
       test
         "it returns original list if seach conditions is not satisfied"
         (fun () ->
-          let finderFn = (fun x -> x = 7)
-          and replaceFn = (fun x -> x*2) in
-          expect(List.replace finderFn replaceFn initList) |> toEqual initList
-        );
+          let finderFn x = x = 7
+          and replaceFn x = x * 2 in
+          expect (List.replace finderFn replaceFn initList) |> toEqual initList
+      ) ;
       test
         "It returns modified list if search search conditions are satisfied"
         (fun () ->
-          let finderFn = (fun x -> x = 3)
-          and replaceFn = (fun x -> x*2)
-          and expectedResult = [0 ; 1 ; 1 ; 2 ; 6 ; 5 ; 8 ; 13] in
-          expect(List.replace finderFn replaceFn initList) |> toEqual expectedResult
-        );
-  );
+          let finderFn x = x = 3
+          and replaceFn x = x * 2
+          and expectedResult = [0; 1; 1; 2; 6; 5; 8; 13] in
+          expect (List.replace finderFn replaceFn initList)
+          |> toEqual expectedResult ) ) ;
   ()

@@ -157,8 +157,8 @@ let viewShadowDB (sdb : udb) : msg Html.html =
         [ Html.class' "name-input"
         ; Events.onFocus (FocusOnUnnamedDB sdb.udbId)
         ; Events.onChange
-          ~key:("udb-" ^ showTLID sdb.udbId)
-          (fun x -> UpdateOnUnnamedDB (Regex.replace "\"" "" x) )
+            ~key:("udb-" ^ showTLID sdb.udbId)
+            (fun x -> UpdateOnUnnamedDB (Regex.replace "\"" "" x))
         ; Events.onBlur BlurOnUnnamedDB
         ; Attributes.placeholder "db name"
         ; Attributes.value sdb.udbName
