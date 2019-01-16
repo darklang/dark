@@ -455,23 +455,48 @@ and viewNExpr
             [titleBar; blockCondition; expressions] ]
 
 
-let viewEventName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
-  viewText EventName vs configs v
-
-
-let viewEventSpace (vs : viewState) (c : htmlConfig list) (v : string blankOr)
-    : msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
-  viewText EventSpace vs configs v
-
-
-let viewEventModifier
-    (vs : viewState) (c : htmlConfig list) (v : string blankOr) : msg Html.html
-    =
-  let configs = (enterable :: idConfigs) @ c in
-  viewText EventModifier vs configs v
+let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
+  let viewEventName =
+    let configs = (enterable :: idConfigs) @ [wc "name"] in
+    viewText EventName vs configs spec.name
+  and viewEventSpace =
+    let configs = (enterable :: idConfigs) @ [wc "module"] in
+    viewText EventSpace vs configs spec.module_
+  and viewEventModifier =
+    let configs = (enterable :: idConfigs) @ [wc "modifier"] in
+    if SpecHeaders.visibleModifier spec
+    then viewText EventModifier vs configs spec.modifier
+    else Html.div [] []
+  and viewEventActions =
+    let lock =
+      Html.div
+        [ Html.classList
+            [("handler-lock", true); ("is-locked", vs.handlerLocked)]
+        ; ViewUtils.eventNoPropagation
+            ~key:
+              ("lh-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool vs.handlerLocked)
+            "click"
+            (fun _ -> LockHandler (vs.tlid, not vs.handlerLocked)) ]
+        [fontAwesome (if vs.handlerLocked then "lock" else "lock-open")]
+    and externalLink =
+      match (spec.modifier, spec.name) with
+      | F (_, "GET"), F (_, name) ->
+          [ Html.a
+              [ Html.class' "external"
+              ; Html.href
+                  ( "//"
+                  ^ Tea.Http.encodeUri vs.canvasName
+                  ^ "."
+                  ^ vs.userContentHost
+                  ^ name )
+              ; Html.target "_blank" ]
+              [fontAwesome "external-link-alt"] ]
+      | _ ->
+          []
+    in
+    Html.div [Html.class' "actions"] (externalLink @ [lock])
+  in
+  [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
 
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
@@ -483,44 +508,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]
   in
-  let externalLink =
-    match (h.spec.modifier, h.spec.name) with
-    | F (_, "GET"), F (_, name) ->
-        [ Html.a
-            [ Html.class' "external"
-            ; Html.href
-                ( "//"
-                ^ Tea.Http.encodeUri vs.canvasName
-                ^ "."
-                ^ vs.userContentHost
-                ^ name )
-            ; Html.target "_blank" ]
-            [fontAwesome "external-link-alt"] ]
-    | _ ->
-        []
-  in
-  let modifier =
-    if SpecHeaders.visibleModifier h.spec
-    then viewEventModifier vs [wc "modifier"] h.spec.modifier
-    else Html.div [] []
-  in
-  let lock =
-    Html.div
-      [ Html.classList [("handler-lock", true); ("is-locked", vs.handlerLocked)]
-      ; ViewUtils.eventNoPropagation
-          ~key:
-            ("lh-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool vs.handlerLocked)
-          "click"
-          (fun _ -> LockHandler (vs.tlid, not vs.handlerLocked)) ]
-      [fontAwesome (if vs.handlerLocked then "lock" else "lock-open")]
-  in
   let header =
-    Html.div
-      [Html.class' "spec-header"]
-      [ viewEventName vs [wc "name"] h.spec.name
-      ; Html.div [] externalLink
-      ; viewEventSpace vs [wc "module"] h.spec.module_
-      ; modifier
-      ; lock ]
+    Html.div [Html.class' "spec-header"] (viewEventSpec vs h.spec)
   in
   [header; ast]
