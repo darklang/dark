@@ -708,7 +708,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr; func ["char"]]
     ; r = TStr
     ; d =
-        "DEPRECATED: Iterate over each character (byte, not grapheme) in the string, performing the operation in the block on each one"
+        "DEPRECATED: Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
     ; f =
         InProcess
           (function
@@ -745,7 +745,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr; func ["character"]]
     ; r = TStr
     ; d =
-        "Iterate over each character (grapheme, not byte) in the string, performing the operation in the block on each one"
+        "Iterate over each character (EGC, not byte) in the string, performing the operation in the block on each one"
     ; f =
         InProcess
           (function
@@ -787,7 +787,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TList
     ; d =
-        "DEPRECATED: Returns the list of characters (byte, not grapheme) in the string"
+        "DEPRECATED: Returns the list of characters (byte, not EGC) in the string"
     ; f =
         InProcess
           (function
@@ -802,7 +802,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TList
-    ; d = "Returns the list of characters (grapheme, not byte) in the string"
+    ; d = "Returns the list of characters (EGC, not byte) in the string"
     ; f =
         InProcess
           (function
