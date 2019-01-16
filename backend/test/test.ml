@@ -1859,6 +1859,13 @@ let t_string_uppercase_v2_works_on_mixed_strings () =
     (DStr "HELLO\xf0\x9f\x98\x84WORLD")
 
 
+let t_string_uppercase_v2_works_on_non_ascii_strings () =
+  check_dval
+    "stringUpppercaseMixed"
+    (exec_ast "(String::toUppercase_v2 'żółw')")
+    (DStr "ŻÓŁW")
+
+
 let t_string_split_works_for_emoji () =
   check_dval
     "stringSplit"
@@ -2103,6 +2110,9 @@ let suite =
   ; ( "String::toUppercase_v2 works on mixed strings"
     , `Quick
     , t_string_uppercase_v2_works_on_mixed_strings )
+  ; ( "String::toUppercase_v2 works on non-ascii strings"
+    , `Quick
+    , t_string_uppercase_v2_works_on_non_ascii_strings )
   ; ( "String split works on strings with emoji + ascii"
     , `Quick
     , t_string_split_works_for_emoji ) ]
