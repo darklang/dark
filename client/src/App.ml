@@ -773,7 +773,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GlobalClick event ->
     ( match m.currentPage with
     | Toplevels _ ->
-        if event.button = Defaults.leftButton && (Option.isNone m.tempdbs.focused_db)
+        if event.button = Defaults.leftButton && (Option.isNone m.unnamedDBs.focused_db)
         then
           match unwrapCursorState m.cursorState with
           | Deselected ->
@@ -1120,35 +1120,13 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | CreateDBTable ->
-      let center = findCenter m in
-      let tdb = m.tempdbs in
-      let dbs = { shadowId = gtlid () ; shadowName = "" ; shadowPos = center } :: m.tempdbs.dbs in
-      TweakModel (fun m -> { m with tempdbs = { tdb with dbs = dbs } })
-  | FocusOnTempDB id ->
-    let tdb = m.tempdbs in 
-    TweakModel (fun m -> {m with tempdbs = { tdb with focused_db = Some id } })
-  | UpdateOnTempDB v ->
-    (match m.tempdbs.focused_db with
-    | Some id ->
-      let l =
-        List.replace
-        (fun d -> d.shadowId = id)
-        (fun d -> {d with shadowName = v})
-        m.tempdbs.dbs
-      in
-      let tdb = m.tempdbs in 
-      TweakModel (fun m -> { m with tempdbs = { tdb with dbs = l } })
-    | None -> NoChange)
-  | BlurOnTempDB ->
-    (match m.tempdbs.focused_db with
-    | Some id ->
-      let db = List.find (fun d -> d.shadowId = id) m.tempdbs.dbs in
-      (match db with
-      | Some d -> Debug.loG "created db named " d.shadowName; NoChange
-      | None -> NoChange
-      )
-    | None -> NoChange
-    )
+      DB.createUnnamedDB m (gtlid ()) (findCenter m)
+  | FocusOnUnnamedDB id ->
+    DB.focusOnUnnamedDB m id
+  | UpdateOnUnnamedDB v ->
+    DB.updateOnUnnamedDB m v
+  | BlurOnUnnamedDB ->
+    DB.blurOnUnnamedDB m
   | _ ->
       NoChange
 

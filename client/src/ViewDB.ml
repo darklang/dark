@@ -150,15 +150,15 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   in
   [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] @ migrationView
 
-let viewShadowDB (sdb: shadowdb) : msg Html.html =
+let viewShadowDB (sdb: udb) : msg Html.html =
   let name_entry =
     Html.input'
       [ Html.class' "name-input"
-      ; Events.onFocus (FocusOnTempDB sdb.shadowId)
-      ; Events.onInput (fun x -> let s = Regex.replace "\"" "" x in UpdateOnTempDB s)
-      ; Events.onBlur BlurOnTempDB
+      ; Events.onFocus (FocusOnUnnamedDB sdb.udbId)
+      ; Events.onInput (fun x -> let s = Regex.replace "\"" "" x in UpdateOnUnnamedDB s)
+      ; Events.onBlur BlurOnUnnamedDB
       ; Attributes.placeholder "db name"
-      ; Attributes.value sdb.shadowName
+      ; Attributes.value sdb.udbName
       ; Attributes.spellcheck false
       ; Attributes.autocomplete false ]
       []
@@ -178,4 +178,4 @@ let viewShadowDB (sdb: shadowdb) : msg Html.html =
       ; dbname_view
       ]
   in
-  ViewUtils.placeHtml sdb.shadowPos dbdiv
+  ViewUtils.placeHtml sdb.udbPos dbdiv

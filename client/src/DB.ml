@@ -69,3 +69,37 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
   let rb = B.new_ () in
   let rf = B.new_ () in
   RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
+
+let createUnnamedDB (m : model) (tlid : tlid) (center : pos) : modification =
+  let tdb = m.unnamedDBs
+  and dbs = { udbId = tlid ; udbName = "" ; udbPos = center } :: m.unnamedDBs.dbs
+  in
+  TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = dbs } })
+
+let focusOnUnnamedDB (m : model) (id : tlid) : modification =
+  let tdb = m.unnamedDBs in 
+  TweakModel (fun m -> {m with unnamedDBs = { tdb with focused_db = Some id } })
+
+let updateOnUnnamedDB (m: model) (name : string) : modification =
+  match m.unnamedDBs.focused_db with
+  | Some id ->
+    let l =
+      List.replace
+      (fun d -> d.udbId = id)
+      (fun d -> {d with udbName = name})
+      m.unnamedDBs.dbs
+    in
+    let tdb = m.unnamedDBs in 
+    TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = l } })
+  | None -> NoChange
+
+let blurOnUnnamedDB (m : model) : modification =
+  match m.unnamedDBs.focused_db with
+  | Some id ->
+    let db = List.find (fun d -> d.udbId = id) m.unnamedDBs.dbs in
+    (match db with
+    | Some d -> (* Validate: regex and unique name, make RPC call to createdb, unselect this db from focused_db, and remove it from list of unnamed db*)
+      Debug.loG "created db named " d.udbName; NoChange
+    | None -> NoChange
+    )
+  | None -> NoChange

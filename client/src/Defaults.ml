@@ -83,5 +83,5 @@ let defaultModel : model =
       |> ( +. ) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
       |> Js.Date.fromFloat
       |> Js.Date.toISOString
-  ; tempdbs = { focused_db = None ; dbs = [] }
+  ; unnamedDBs = { focused_db = None ; dbs = [] }
   }

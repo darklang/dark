@@ -216,14 +216,14 @@ and dB =
   ; oldMigrations : dBMigration list
   ; activeMigration : dBMigration option }
 
-and shadowdb =
-  { shadowId : tlid
-  ; shadowName : dBName
-  ; shadowPos : pos }
+and udb =
+  { udbId : tlid
+  ; udbName : dBName
+  ; udbPos : pos }
 
-and tempdbs =
+and unnamedDBs =
   { focused_db : tlid option
-  ; dbs : shadowdb list }
+  ; dbs : udb list }
 
 (* userFunctions *)
 and userFunctionParameter =
@@ -644,9 +644,9 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
-  | FocusOnTempDB of tlid
-  | UpdateOnTempDB of string
-  | BlurOnTempDB
+  | FocusOnUnnamedDB of tlid
+  | UpdateOnUnnamedDB of string
+  | BlurOnUnnamedDB
 
 and predecessor = pointerData option
 
@@ -750,7 +750,7 @@ and model =
   ; environment : string
   ; csrfToken : string
   ; latest404 : string
-  ; tempdbs : tempdbs
+  ; unnamedDBs : unnamedDBs
   (* string of timestamp *) }
 [@@deriving show {with_path = false}]
 
