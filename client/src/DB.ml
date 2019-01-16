@@ -4,6 +4,9 @@ open Types
 (* Dark *)
 module B = Blank
 
+let validateName (s : string) =
+  Util.reExactly "[A-Z][a-zA-Z0-9_-]+" s
+
 let astsFor (db : dB) : expr list =
   match db.activeMigration with
   | None ->
@@ -93,13 +96,36 @@ let updateOnUnnamedDB (m: model) (name : string) : modification =
     TweakModel (fun m -> { m with unnamedDBs = { tdb with dbs = l } })
   | None -> NoChange
 
+let allDBNames (toplevels : toplevel list) : string list =
+  toplevels
+  |> List.filterMap (fun tl ->
+      match tl.data with
+      | TLDB db -> Some db.dbName
+      | _ -> None
+    )
+
+let validateNewDBName (m : model) (db :udb) : modification =
+  let name = db.udbName in
+  if not (validateName name)
+  then DBNameError "Database names must start with a capitial letter and be alphanumeric"
+  else if List.member name (allDBNames m.toplevels)
+  then DBNameError ("There is already a database named " ^ name)
+  else
+    let next = Prelude.gid () in
+    Many
+      [ RemoveUnnamedDB db
+      ; RPC (
+        [ CreateDB (db.udbId, db.udbPos, db.udbName)
+        ; AddDBCol (db.udbId, next, Prelude.gid ()) ],
+        FocusExact (db.udbId, next) )
+      ]
+
 let blurOnUnnamedDB (m : model) : modification =
   match m.unnamedDBs.focused_db with
   | Some id ->
     let db = List.find (fun d -> d.udbId = id) m.unnamedDBs.dbs in
     (match db with
-    | Some d -> (* Validate: regex and unique name, make RPC call to createdb, unselect this db from focused_db, and remove it from list of unnamed db*)
-      Debug.loG "created db named " d.udbName; NoChange
+    | Some d -> validateNewDBName m d
     | None -> NoChange
-    )
+    ) 
   | None -> NoChange

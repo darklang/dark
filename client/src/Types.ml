@@ -223,7 +223,8 @@ and udb =
 
 and unnamedDBs =
   { focused_db : tlid option
-  ; dbs : udb list }
+  ; dbs : udb list
+  ; dbNameError: string option }
 
 (* userFunctions *)
 and userFunctionParameter =
@@ -565,6 +566,8 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
+  | DBNameError of string
+  | RemoveUnnamedDB of udb
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 

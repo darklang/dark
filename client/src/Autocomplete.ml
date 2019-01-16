@@ -306,7 +306,7 @@ let qHandler (s : string) : autocompleteItem option =
 let qFunction (s : string) : autocompleteItem option =
   if String.length s = 0
   then Some (ACOmniAction (NewFunction None))
-  else if Util.reExactly "[a-zA-Z_][a-zA-Z0-9_]*" s
+  else if DB.validateName s
   then Some (ACOmniAction (NewFunction (Some s)))
   else None
 
