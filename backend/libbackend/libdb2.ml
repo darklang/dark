@@ -16,7 +16,7 @@ let replacements =
             let key = Uuidm.v `V4 |> Uuidm.to_string in
             let db = find_db state.dbs dbname in
             ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
-            DStr key
+            Dval.dstr_of_string_exn key
         | args ->
             fail args) )
   ; ( "DB::set_v1"
