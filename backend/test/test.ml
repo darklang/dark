@@ -1838,19 +1838,17 @@ let t_string_length_v1_works_on_emoji () =
     (DInt 1)
 
 
-let t_character_uppercase_works_for_ascii_range () =
+let t_string_uppercase_works_for_ascii_range () =
   check_dval
     "stringUppercaseASCII"
-    (exec_ast
-       "(String::foreach_v1 'abcdef' (\\x -> (Character::toUppercase x)))")
+    (exec_ast "(String::toUppercase_v1 'abcdef')")
     (Dval.dstr_of_string_exn "ABCDEF")
 
 
-let t_character_lowercase_works_for_ascii_range () =
+let t_string_lowercase_works_for_ascii_range () =
   check_dval
     "stringLowercaseASCII"
-    (exec_ast
-       "(String::foreach_v1 'ABCDEF' (\\x -> (Character::toLowercase x)))")
+    (exec_ast "(String::toLowercase_v1 'ABCDEF')")
     (Dval.dstr_of_string_exn "abcdef")
 
 
@@ -2103,12 +2101,12 @@ let suite =
   ; ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
     , t_string_length_v1_works_on_emoji )
-  ; ( "Character::toUppercase works for ASCII range"
+  ; ( "String::toUppercase_v1 works for ASCII range"
     , `Quick
-    , t_character_uppercase_works_for_ascii_range )
-  ; ( "Character::toLowercase works for ASCII range"
+    , t_string_uppercase_works_for_ascii_range )
+  ; ( "String::toLowercase_v1 works for ASCII range"
     , `Quick
-    , t_character_lowercase_works_for_ascii_range )
+    , t_string_lowercase_works_for_ascii_range )
   ; ( "String::toUppercase_v1 works on mixed strings"
     , `Quick
     , t_string_uppercase_v1_works_on_mixed_strings )
