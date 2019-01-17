@@ -14,7 +14,6 @@ let replacements =
         (function
         | _, [DStr s] ->
             s
-            (* TODO: DO NOT MERGE WITHOUT CONFIRMING THIS IS OKAY WITH CHASE AND DANIEL *)
             |> Dark_string.to_utf8
             |> Bytes.of_string
             (* wipe_to_password is a confusing name
@@ -45,7 +44,6 @@ let replacements =
         (function
         | _, [DPassword existingpw; DStr rawpw] ->
             rawpw
-            (* TODO: DO NOT MERGE WITHOUT CONFIRMING THIS IS OKAY WITH CHASE AND DANIEL *)
             |> Dark_string.to_utf8
             |> Bytes.of_string
             |> Hash.wipe_to_password
