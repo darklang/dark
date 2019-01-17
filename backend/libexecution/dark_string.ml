@@ -20,10 +20,6 @@ let cmap_utf_8 cmap s =
 module Character = struct
   type t = string
 
-  let uppercase = cmap_utf_8 Uucp.Case.Map.to_upper
-
-  let lowercase = cmap_utf_8 Uucp.Case.Map.to_lower
-
   let equal a b = a = b
 
   let compare a b = Pervasives.compare a b

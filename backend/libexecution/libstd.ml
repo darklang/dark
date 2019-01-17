@@ -1797,21 +1797,6 @@ let fns : Lib.shortfn list =
     ; pr = None
     ; ps = true
     ; dep = true }
-  ; { pns = ["Character::toLowercase"]
-    ; ins = []
-    ; p = [par "c" TCharacter]
-    ; r = TCharacter
-    ; d = "Return the lowercase value of `c`"
-    ; f =
-        InProcess
-          (function
-          | _, [DCharacter c] ->
-              DCharacter (Dark_string.Character.lowercase c)
-          | args ->
-              fail args)
-    ; pr = None
-    ; ps = true
-    ; dep = false }
   ; { pns = ["Char::toUppercase"]
     ; ins = []
     ; p = [par "c" TChar]
@@ -1824,21 +1809,6 @@ let fns : Lib.shortfn list =
     ; pr = None
     ; ps = true
     ; dep = true }
-  ; { pns = ["Character::toUppercase"]
-    ; ins = []
-    ; p = [par "c" TCharacter]
-    ; r = TCharacter
-    ; d = "Return the uppercase value of `c`"
-    ; f =
-        InProcess
-          (function
-          | _, [DCharacter c] ->
-              DCharacter (Dark_string.Character.uppercase c)
-          | args ->
-              fail args)
-    ; pr = None
-    ; ps = true
-    ; dep = false }
   ; { pns = ["Uuid::generate"]
     ; ins = []
     ; p = []
