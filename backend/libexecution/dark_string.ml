@@ -93,22 +93,15 @@ let is_substring ~substring t = String.is_substring ~substring t
 
 (* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
 let replace ~search ~replace t =
-  of_utf8_exn
-    (Util.string_replace (to_utf8 search) (to_utf8 replace) (to_utf8 t))
+  of_utf8_exn (Util.string_replace search replace t)
 
 
 (* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
 let regexp_replace ~pattern ~replacement t =
-  Libtarget.regexp_replace
-    ~pattern
-    ~replacement:(to_utf8 replacement)
-    (to_utf8 t)
-  |> of_utf8_exn
+  Libtarget.regexp_replace ~pattern ~replacement t |> of_utf8_exn
 
 
-let split ~sep t =
-  t |> Libtarget.string_split ~sep:(to_utf8 sep) |> List.map ~f:of_utf8_exn
-
+let split ~sep t = t |> Libtarget.string_split ~sep |> List.map ~f:of_utf8_exn
 
 let rev t =
   t
