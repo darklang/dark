@@ -25,22 +25,6 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
 
 let ( >>| ) = Result.( >>| )
 
-(* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples
-   cmap is a character map - e.g. to_upper, to_lower *)
-let cmap_utf_8 cmap s =
-  let b = Buffer.create (String.length s * 2) in
-  let rec add_map _ _ u =
-    let u = match u with `Malformed _ -> Uutf.u_rep | `Uchar u -> u in
-    match cmap u with
-    | `Self ->
-        Uutf.Buffer.add_utf_8 b u
-    | `Uchars us ->
-        List.iter us (Uutf.Buffer.add_utf_8 b)
-  in
-  Uutf.String.fold_utf_8 add_map () s ;
-  Buffer.contents b
-
-
 let fns : Lib.shortfn list =
   [ (* ====================================== *)
     (* Dict  *)
