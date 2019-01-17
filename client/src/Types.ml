@@ -330,6 +330,8 @@ and trace =
   ; input : inputValueDict
   ; functionResults : functionResult list }
 
+and traceIDs = traceID list GMap.String.t
+
 and traces = trace list GMap.String.t
 
 and fourOhFour =
@@ -586,6 +588,7 @@ and msg =
   | GetAnalysisRPCCallback of
       (analysisParams * (getAnalysisResult, httpError) Tea.Result.t)
       [@printer opaque "GetAnalysisRPCCallback"]
+  | NewTracePush of (tlid * traceID)
   | GetDelete404RPCCallback of
       (fourOhFour list * string, httpError) Tea.Result.t
       [@printer opaque "GetDelete404RPCCallback"]

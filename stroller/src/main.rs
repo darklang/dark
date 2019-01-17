@@ -11,10 +11,8 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::Server;
 
-const PORT: u16 = 3000;
-
 fn main() {
-    let addr = ([0, 0, 0, 0], PORT).into();
+    let addr = ([0, 0, 0, 0], config::port()).into();
 
     let make_service = || service_fn(service::handle::<push::Client>);
 

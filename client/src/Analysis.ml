@@ -208,6 +208,19 @@ module ReceiveAnalysis = struct
     Porting.registerGlobal "receiveAnalysis" key tagger decode
 end
 
+module NewTracePush = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    let open Porting.Decoder in
+    let tlid = map (fun id -> TLID id) wireIdentifier in
+    let traceID = map (fun id -> (id : traceID)) string in
+    field "detail" (pair tlid traceID)
+
+
+  let listen ~key tagger =
+    Porting.registerGlobal "newTracePush" key tagger decode
+end
+
 (* Request analysis *)
 
 module RequestAnalysis = struct

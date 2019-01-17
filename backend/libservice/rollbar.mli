@@ -16,6 +16,7 @@ type err_ctx =
   | Remote of request_data
   | EventQueue
   | CronChecker
+  | Push of string
   | Other of string
 
 (* Reports an exn with a backtrace to Rollbar asynchronously *)

@@ -171,6 +171,12 @@ let to_getanalysis_frontend
   |> Yojson.Safe.to_string ~std:true
 
 
+type new_trace_push = tlid_traceid [@@deriving to_yojson]
+
+let to_new_trace_frontend (traceid : tlid_traceid) : string =
+  traceid |> new_trace_push_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 (* Toplevel deletion:
  * The server announces that a toplevel is deleted by it appearing in
  * deleted_toplevels. The server announces it is no longer deleted by it

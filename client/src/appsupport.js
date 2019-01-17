@@ -37,6 +37,19 @@ window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
 // ---------------------------
+// Pusher
+// ---------------------------
+
+var Pusher = require('pusher-js');
+
+if (pusherConfig.enabled) {
+  var pusherConnection = new Pusher(pusherConfig.key, {
+    cluster: pusherConfig.cluster,
+    forceTLS: true,
+  });
+}
+
+// ---------------------------
 // Entrybox Caret
 // ---------------------------
 
@@ -485,6 +498,13 @@ setTimeout(function(){
   setInterval(visibilityCheck, 2000);
   addWheelListener(document);
 
+  if (pusherConfig.enabled) {
+    var pusherChannel = pusherConnection.subscribe(`canvas_${canvasId}`);
+    pusherChannel.bind('new_trace', data => {
+      var event = new CustomEvent('newTracePush', {detail: data});
+      document.dispatchEvent(event);
+    });
+  }
 }, 1)
 // ---------------------------
 // Exports

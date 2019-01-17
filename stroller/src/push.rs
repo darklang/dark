@@ -1,6 +1,5 @@
 // Thin wrapper around pusher-http-rust to discourage lock-in
 
-use std::collections::HashMap;
 use std::thread;
 
 use pusher::Pusher;
@@ -36,7 +35,12 @@ impl Client {
     }
 
     // Push an event. Consumes this Client (due to use of a background thread)
-    pub fn trigger(mut self, json_bytes: &[u8]) -> Result<(), Error> {
+    pub fn trigger(
+        mut self,
+        canvas_uuid: String,
+        event_name: String,
+        json_bytes: &[u8],
+    ) -> Result<(), Error> {
         /*
          * This actually parses the JSON and then immediately re-serializes it
          * again...  which is ridiculous, but required because pusher-http-rust
@@ -46,15 +50,15 @@ impl Client {
         let parsed = json::Json::from_reader(&mut std::io::Cursor::new(json_bytes))
             .map_err(|e| format!("couldn't send invalid JSON ({}): {:?}", e, json_bytes))?;
 
-        let mut m = HashMap::new();
-        m.insert("message", parsed);
-
         // make actual Pusher call in the background without blocking the caller
         // (since that's the whole point of having this in a separate process)
         thread::spawn(move || {
-            // TODO use event.canvas_id to route event to the right user
-            match self.0.trigger("my-channel", "my-event", m) {
-                Ok(_) => println!("Pushed event"),
+            let channel = format!("canvas_{}", canvas_uuid);
+            match self.0.trigger(&channel, &event_name, parsed) {
+                Ok(_) => println!(
+                    "Pushed event \"{}\" for canvas \"{}\"",
+                    event_name, canvas_uuid
+                ),
                 Err(e) => eprintln!("Error pushing event: {:?}", e),
             }
         });
