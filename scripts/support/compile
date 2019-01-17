@@ -183,12 +183,7 @@ def stroller_build():
 
 def reload_stroller():
   start = time.time()
-  global profile
-  runstroller = "scripts/support/runstroller"
-  if profile:
-    return run_backend(start, landmarks + runstroller)
-  else:
-    return run_backend(start, runstroller)
+  return run_backend(start, "scripts/support/runstroller")
 
 def stroller_test():
   start = time.time()
