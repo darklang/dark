@@ -2,6 +2,8 @@ val absolute_dir : string -> string
 
 val int : string -> int
 
+val int_option : string -> int option
+
 val bool : string -> bool
 
 val string : string -> string

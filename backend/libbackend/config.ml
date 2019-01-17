@@ -199,6 +199,23 @@ let rollbar_js =
       "{enabled:false}"
 
 
+let stroller_port = int_option "DARK_CONFIG_STROLLER_PORT"
+
+let pusher_key = string_option "DARK_CONFIG_PUSHER_KEY"
+
+let pusher_cluster = string "DARK_CONFIG_PUSHER_CLUSTER"
+
+let pusher_js =
+  match pusher_key with
+  | Some key ->
+      Printf.sprintf
+        "{enabled: true, key: '%s', cluster: '%s'}"
+        key
+        pusher_cluster
+  | _ ->
+      "{enabled: false}"
+
+
 let public_domain = string "DARK_CONFIG_PUBLIC_DOMAIN"
 
 let browser_reload_enabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"

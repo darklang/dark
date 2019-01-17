@@ -17,6 +17,7 @@ type err_ctx =
   | Remote of request_data
   | EventQueue
   | CronChecker
+  | Push of string
   | Other of string
 
 let error_to_payload
@@ -43,6 +44,8 @@ let error_to_payload
         `String "event queue worker"
     | CronChecker ->
         `String "cron event emitter"
+    | Push _ ->
+        `String "server push"
     | Other str ->
         `String str
   in
@@ -77,6 +80,14 @@ let error_to_payload
         ; ("framework", framework)
         ; ("execution_id", `String execution_id)
         ; ("context", context) ]
+    | Push event ->
+        [ ("body", message)
+        ; ("environment", env)
+        ; ("language", language)
+        ; ("framework", framework)
+        ; ("execution_id", `String execution_id)
+        ; ("context", context)
+        ; ("push_event", `String event) ]
     | Other str ->
         [ ("body", message)
         ; ("environment", env)

@@ -1041,6 +1041,15 @@ let update_ (msg : msg) (m : model) : modification =
         ; Append404s (f404s, ts)
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
+  | NewTracePush _ ->
+      (*
+       * This push tells the client "a new trace exists with this id", but not
+       * the content of that trace. The client doesn't yet have a way of
+       * storing that information, so for now we're just ignoring it.
+       *
+       * TODO handle this (e.g. mark traces as "incomplete" or "pending")
+       *)
+      NoChange
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
   | ReceiveAnalysis json ->
@@ -1181,7 +1190,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
-          ReceiveAnalysis s ) ]
+          ReceiveAnalysis s )
+    ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
+          NewTracePush s ) ]
   in
   Tea.Sub.batch
     (List.concat
