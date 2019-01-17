@@ -5,10 +5,6 @@ type t
 module Character : sig
   type t
 
-  val uppercase : t -> t
-
-  val lowercase : t -> t
-
   val compare : t -> t -> int
 
   val equal : t -> t -> bool
