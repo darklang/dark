@@ -57,6 +57,16 @@ let fns : Lib.shortfn list =
     ; pr = None
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::upsertUser"]
+    ; ins = []
+    ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
+    ; r = TStr
+    ; d =
+        "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::getAllCanvases"]
     ; ins = []
     ; p = []
