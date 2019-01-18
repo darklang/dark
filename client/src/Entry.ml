@@ -262,6 +262,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
     else Some (name ^ " must match /" ^ pattern ^ "/")
   in
   match pd with
+  | PDBName _ ->
+      v AC.dbNameValidator "DB name"
   | PDBColType _ ->
       v AC.dbColTypeValidator "DB type"
   | PDBColName _ ->

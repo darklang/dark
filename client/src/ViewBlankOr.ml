@@ -303,6 +303,8 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "fieldname"
   | Key ->
       "keyname"
+  | DBName ->
+      "db name"
   | DBColName ->
       "db field name"
   | DBColType ->
