@@ -28,7 +28,7 @@ let allData (db : dB) : pointerData list =
     |> List.concat
   in
   let name = PDBName (F (db.dbNameId, db.dbName)) in
-  name :: colpointers @ rolls
+  (name :: colpointers) @ rolls
 
 
 let siblings (_ : pointerData) (db : dB) : pointerData list = allData db

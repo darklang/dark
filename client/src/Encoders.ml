@@ -320,7 +320,7 @@ and op (call : Types.op) : Js.Json.t =
   | SetExpr (t, i, e) ->
       ev "SetExpr" [tlid t; id i; expr e]
   | RenameDBname (t, name) ->
-    ev "RenameDBname" [tlid t; string name]
+      ev "RenameDBname" [tlid t; string name]
 
 
 and rpcParams (params : Types.rpcParams) : Js.Json.t =

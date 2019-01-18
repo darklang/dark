@@ -203,7 +203,7 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
   in
   match pd with
   | PDBName _ ->
-    if isLocked then NoChange else enterField
+      if isLocked then NoChange else enterField
   | PDBColName _ ->
       if isLocked && not isMigrationCol then NoChange else enterField
   | PDBColType _ ->
