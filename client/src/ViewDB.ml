@@ -18,11 +18,14 @@ let wc = ViewBlankOr.wc
 let enterable = ViewBlankOr.Enterable
 
 let viewDBName (vs : viewState) (db : dB) : msg Html.html =
-  let c = [wc "db-name"] in
-  let configs = if not vs.dbLocked then (enterable :: idConfigs) @ c else c in
-  let nameField = ViewBlankOr.viewText DBName vs configs (F (db.dbNameId, db.dbName)) in
+  let nameField =
+    if vs.dbLocked
+    then Html.span [Html.class' "name"] [Html.text db.dbName]
+    else
+      let c = (enterable :: idConfigs) @ [wc "dbname"] in
+      ViewBlankOr.viewText DBName vs c (F (db.dbNameId, db.dbName)) in
   Html.div
-    [Html.class' "dbname"]
+    [Html.class' "dbtitle"]
     [ nameField
     ; Html.span
         [Html.class' "version"]
