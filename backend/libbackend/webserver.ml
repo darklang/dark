@@ -142,13 +142,14 @@ let with_x_forwarded_proto req =
   | None ->
       CRequest.uri req
 
+
 (* sanitize both repeated '/' and final '/'.
    "/foo//bar/" -> "/foo/bar"
    but leave "/" [root] untouched *)
 let sanitize_uri_path path : string =
   path
   |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
-  |> (fun str -> if str = "/" then str else Util.maybe_chop_suffix "/" str)
+  |> fun str -> if str = "/" then str else Util.maybe_chop_suffix "/" str
 
 
 (* -------------------------------------------- *)

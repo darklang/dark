@@ -1828,21 +1828,19 @@ let t_u0000_fails_validation () =
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =
-  AT.check
-  AT.string (Webserver.sanitize_uri_path "/foo//bar") "/foo/bar"
+  AT.check AT.string (Webserver.sanitize_uri_path "/foo//bar") "/foo/bar"
+
 
 let t_sanitize_uri_path_with_trailing_slash () =
-  AT.check
-  AT.string (Webserver.sanitize_uri_path "/foo/") "/foo"
+  AT.check AT.string (Webserver.sanitize_uri_path "/foo/") "/foo"
+
 
 let t_sanitize_uri_path_with_root_noops () =
-  AT.check
-  AT.string (Webserver.sanitize_uri_path "/") "/"
+  AT.check AT.string (Webserver.sanitize_uri_path "/") "/"
+
 
 let t_sanitize_uri_path_with_repeated_root () =
-  AT.check
-  AT.string (Webserver.sanitize_uri_path "//") "/"
-
+  AT.check AT.string (Webserver.sanitize_uri_path "//") "/"
 
 
 (* ------------------- *)
