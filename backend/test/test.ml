@@ -499,22 +499,22 @@ let t_stored_event_roundtrip () =
     (List.sort ~compare [desc1; desc2; desc3])
     (List.sort ~compare (List.map ~f:rec2desc listed)) ;
   let loaded1 =
-    SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
     loaded1 ;
   let loaded2 =
-    SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
   let loaded3 =
-    SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list "load no host2 events" [] loaded3 ;
   let loaded4 =
-    SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
   ()
@@ -1865,6 +1865,36 @@ let t_route_variables_work () =
        ~route:"/user/:userid/card/:cardid")
 
 
+let t_route_variables_work2 () =
+  clear_test_data () ;
+  let owner : Uuidm.t =
+    Account.owner ~auth_domain:"test" |> fun x -> Option.value_exn x
+  in
+  let id1 = Serialize.fetch_canvas_id owner "host" in
+  SE.clear_all_events ~canvas_id:id1 () ;
+  let t1 = Util.create_uuid () in
+  let desc1 = ("HTTP", "/path/var1234", "GET") in
+  let route1 = ("HTTP", "/path/:somevar", "GET") in
+  SE.store_event
+    ~canvas_id:id1
+    ~trace_id:t1
+    desc1
+    (Dval.dstr_of_string_exn "1") ;
+  (* check we get back the path for a route with a variable in it *)
+  let loaded1 = SE.load_events ~canvas_id:id1 route1 in
+  check_dval_list
+    "load GET events"
+    [Dval.dstr_of_string_exn "1"]
+    (loaded1 |> List.map ~f:Tuple.T3.get3) ;
+  AT.check
+    (AT.list AT.string)
+    "path returned correctly"
+    (loaded1 |> List.map ~f:Tuple.T3.get1)
+    ["/path/var1234"] ;
+  (* TODO: check that the route is not in the 404s *)
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1999,7 +2029,8 @@ let suite =
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
   ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
-  ; ("Route variables work", `Quick, t_route_variables_work) ]
+  ; ("Route variables work", `Quick, t_route_variables_work)
+  ; ("Route variables work pt2", `Quick, t_route_variables_work2) ]
 
 
 let () =
