@@ -10,7 +10,7 @@ external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 (* identifiers are strings to the bucklescript client -- it knows nothing
  * about them being parseable as ints. if it doesn't look like a string
  * to bs-json we'll just json stringify it and use that *)
-let wireIdentifier j = try string j with _ -> stringify j
+let wireIdentifier j = try string j with _ -> int j |> string_of_int
 
 let id j = ID (wireIdentifier j)
 
