@@ -40,9 +40,9 @@ let get_404s ~(since : RTT.time) (cid : Uuidm.t) : SE.four_oh_four list =
                Exception.internal "Bad DB format for get404s" )
   in
   let match_event h e : bool =
-    let space, request, modifier, _ts = Log.inspect "event" e in
-    let h_space, h_name, h_modifier = Log.inspect "handler spec" h in
-    Http.request_matches_route ~route:h_name request |> Log.inspect "matches"
+    let space, request, modifier, _ts = e in
+    let h_space, h_name, h_modifier = h in
+    Http.request_matches_route ~route:h_name request
     && h_modifier = modifier
     && h_space = space
   in

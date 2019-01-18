@@ -34,7 +34,7 @@ let request_matches_route ~(route : string) (request : string) : bool =
   let same_length = List.length split_request = List.length split_route in
   same_length
   && List.for_all2_exn split_request split_route ~f:(fun a r ->
-         a = r || route_variable r <> None )
+         r = "%%" || a = r || route_variable r <> None )
 
 
 let route_variables (route : string) : string list =
