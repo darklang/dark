@@ -142,6 +142,14 @@ let with_x_forwarded_proto req =
   | None ->
       CRequest.uri req
 
+(* sanitize both repeated '/' and final '/'.
+   "/foo//bar/" -> "/foo/bar"
+   but leave "/" [root] untouched *)
+let sanitize_uri_path path : string =
+  path
+  |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
+  |> (fun str -> if str = "/" then str else Util.maybe_chop_suffix "/" str)
+
 
 (* -------------------------------------------- *)
 (* handlers for end users *)
@@ -232,14 +240,6 @@ let user_page_handler
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  (* sanitize both repeated '/' and final '/'.
-     "/foo//bar/" -> "/foo/bar"
-     but leave "/" [root] untouched *)
-  let sanitize_uri_path path : string =
-    path
-    |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
-    |> fun str -> if str = "/" then str else Util.maybe_chop_suffix "/" str
-  in
   let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
   let pages = !c.handlers |> TL.http_handlers in
   let pages =
