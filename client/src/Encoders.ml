@@ -122,6 +122,8 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
       ev "PField" [blankOr string field]
   | PKey key ->
       ev "PKey" [blankOr string key]
+  | PDBName name ->
+      ev "PDBName" [blankOr string name]
   | PDBColName colname ->
       ev "PDBColName" [blankOr string colname]
   | PDBColType coltype ->

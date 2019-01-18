@@ -135,6 +135,7 @@ and pointerData =
   | PExpr of expr
   | PField of field
   | PKey of string blankOr
+  | PDBName of string blankOr
   | PDBColName of string blankOr
   | PDBColType of string blankOr
   | PFFMsg of string blankOr
@@ -153,6 +154,7 @@ and pointerType =
   | Expr
   | Field
   | Key
+  | DBName
   | DBColName
   | DBColType
   | FFMsg

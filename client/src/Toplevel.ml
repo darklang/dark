@@ -167,10 +167,6 @@ let clonePointerData (pd : pointerData) : pointerData =
       PField (B.clone identity f)
   | PKey k ->
       PKey (B.clone identity k)
-  | PDBColName _ ->
-      pd
-  | PDBColType _ ->
-      pd
   | PFFMsg msg ->
       PFFMsg (B.clone identity msg)
   | PFnName name ->
@@ -185,6 +181,8 @@ let clonePointerData (pd : pointerData) : pointerData =
       PPattern (AST.clonePattern pattern)
   | PConstructorName name ->
       PConstructorName (B.clone identity name)
+  | _ ->
+      pd
 
 
 (* ------------------------- *)
@@ -308,6 +306,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PEventSpace _ ->
       []
+  | PDBName _ ->
+      []
   | PDBColName _ ->
       []
   | PDBColType _ ->
@@ -386,6 +386,8 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       specHeaderReplace em
   | PEventSpace es ->
       specHeaderReplace es
+  | PDBName _ ->
+      tl
   | PDBColType _ ->
       tl
   (* SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe") *)
