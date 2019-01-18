@@ -40,9 +40,9 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
                Exception.internal "Bad DB format for get404s" )
   in
   let match_event h e : bool =
-    let space, request, modifier, _ts = e in
-    let h_space, h_name, h_modifier = h in
-    Http.request_matches_route ~route:h_name request
+    let space, request, modifier, _ts = Log.inspect "event" e in
+    let h_space, h_name, h_modifier = Log.inspect "handler spec" h in
+    Http.request_matches_route ~route:h_name request |> Log.inspect "matches"
     && h_modifier = modifier
     && h_space = space
   in
@@ -71,13 +71,13 @@ let saved_input_vars (c : canvas) (h : RTT.HandlerT.handler) :
   match Handler.event_desc_for h with
   | None ->
       []
-  | Some ((space, path, modifier) as d) ->
-      List.map (SE.load_events c.id d) ~f:(fun (id, e) ->
+  | Some d ->
+      List.map (SE.load_events c.id d) ~f:(fun (request_path, id, e) ->
           match Handler.module_type h with
           | `Http ->
               let with_r = [("request", e)] in
               let bound =
-                Libexecution.Execution.http_route_input_vars h path
+                Libexecution.Execution.http_route_input_vars h request_path
               in
               (id, with_r @ bound)
           | `Event ->

@@ -57,22 +57,24 @@ let list_events
              Exception.internal "Bad DB format for stored_events" )
 
 
-let load_events ~(canvas_id : Uuidm.t) ((module_, path, modifier) : event_desc)
-    : (Uuidm.t * RTT.dval) list =
+let load_events
+    ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
+    (string * Uuidm.t * RTT.dval) list =
+  let route = Http.route_to_postgres_pattern route in
   Db.fetch
     ~name:"load_events"
-    "SELECT value, timestamp, trace_id FROM stored_events_v2
+    "SELECT path, value, timestamp, trace_id FROM stored_events_v2
     WHERE canvas_id = $1
       AND module = $2
-      AND path = $3
+      AND path LIKE $3
       AND modifier = $4
     ORDER BY timestamp DESC
     LIMIT 10"
-    ~params:[Uuid canvas_id; String module_; String path; String modifier]
+    ~params:[Uuid canvas_id; String module_; String route; String modifier]
   |> List.map ~f:(function
-         | [dval; _ts; trace_id] ->
+         | [request_path; dval; _ts; trace_id] ->
              let trace_id = Util.uuid_of_string trace_id in
-             (trace_id, Dval.unsafe_dval_of_json_string dval)
+             (request_path, trace_id, Dval.unsafe_dval_of_json_string dval)
          | _ ->
              Exception.internal "Bad DB format for stored_events" )
 
