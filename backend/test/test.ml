@@ -164,14 +164,16 @@ let http_handler ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let http_route = "/some/vars/and/such"
+let http_request_path = "/some/vars/and/such"
+
+let http_route = "/some/:vars/:and/such"
 
 let http_route_handler : HandlerT.handler =
   { tlid
   ; ast = f (Value "5")
   ; spec =
       { module_ = f "HTTP"
-      ; name = f "/some/:vars/:and/such"
+      ; name = f http_route
       ; modifier = f "GET"
       ; types = {input = b (); output = b ()} } }
 
@@ -407,7 +409,7 @@ let t_http_oplist_roundtrip () =
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler)] in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid] !c1 ;
-  let c2 = Canvas.load_http ~path:http_route ~verb:"GET" host in
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
@@ -1866,22 +1868,23 @@ let t_route_variables_work () =
 
 
 let t_route_variables_work2 () =
+  (* set up test *)
   clear_test_data () ;
-  let owner : Uuidm.t =
-    Account.owner ~auth_domain:"test" |> fun x -> Option.value_exn x
-  in
-  let id1 = Serialize.fetch_canvas_id owner "host" in
-  SE.clear_all_events ~canvas_id:id1 () ;
+  let host = "test-route_variables_works" in
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler)] in
+  let c = Canvas.init host oplist in
+  Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
-  let desc1 = ("HTTP", "/path/var1234", "GET") in
-  let route1 = ("HTTP", "/path/:somevar", "GET") in
+  let desc = ("HTTP", http_request_path, "GET") in
+  let route = ("HTTP", http_route, "GET") in
+  (* store an event and check it comes out *)
   SE.store_event
-    ~canvas_id:id1
+    ~canvas_id:!c.id
     ~trace_id:t1
-    desc1
+    desc
     (Dval.dstr_of_string_exn "1") ;
   (* check we get back the path for a route with a variable in it *)
-  let loaded1 = SE.load_events ~canvas_id:id1 route1 in
+  let loaded1 = SE.load_events ~canvas_id:!c.id route in
   check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "1"]
@@ -1890,8 +1893,10 @@ let t_route_variables_work2 () =
     (AT.list AT.string)
     "path returned correctly"
     (loaded1 |> List.map ~f:Tuple.T3.get1)
-    ["/path/var1234"] ;
-  (* TODO: check that the route is not in the 404s *)
+    [http_request_path] ;
+  (* check that the event is not in the 404s *)
+  let f404s = Analysis.get_404s ~since:Time.epoch !c.id in
+  AT.check (AT.list (AT.of_pp Stored_event.pp_four_oh_four)) "no 404s" [] f404s ;
   ()
 
 
