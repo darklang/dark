@@ -71,3 +71,5 @@ val set_col_type_in_migration : id -> tipe -> DbT.db -> DbT.db
 val abandon_migration : DbT.db -> DbT.db
 
 val delete_col_in_migration : id -> DbT.db -> DbT.db
+
+val rename_db : string -> DbT.db -> DbT.db

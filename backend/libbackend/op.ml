@@ -28,6 +28,7 @@ type op =
   | AbandonDBMigration of tlid
   | DeleteColInDBMigration of tlid * id
   | DeleteDBCol of tlid * id
+  | RenameDBname of tlid * string
 [@@deriving eq, yojson, show, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -91,6 +92,8 @@ let tlidOf (op : op) : tlid option =
   | DeleteColInDBMigration (tlid, _) ->
       Some tlid
   | DeleteDBCol (tlid, _) ->
+      Some tlid
+  | RenameDBname (tlid, _) ->
       Some tlid
 
 

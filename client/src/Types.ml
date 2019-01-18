@@ -384,6 +384,7 @@ and op =
   | DeleteColInDBMigration of tlid * id
   | AbandonDBMigration of tlid
   | DeleteDBCol of tlid * id
+  | RenameDBname of tlid * dBName
 
 (* ------------------- *)
 (* RPCs *)

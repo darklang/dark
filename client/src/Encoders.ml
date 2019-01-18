@@ -192,6 +192,8 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | DeleteDBCol (tlid, _) ->
       tlid
+  | RenameDBname (tlid, _) ->
+      tlid
 
 
 and ops (ops : Types.op list) : Js.Json.t =
@@ -317,6 +319,8 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
       ev "SetExpr" [tlid t; id i; expr e]
+  | RenameDBname (t, name) ->
+    ev "RenameDBname" [tlid t; string name]
 
 
 and rpcParams (params : Types.rpcParams) : Js.Json.t =
