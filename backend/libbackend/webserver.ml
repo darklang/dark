@@ -232,7 +232,14 @@ let user_page_handler
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  let c = C.load_http canvas ~verb ~path:(Uri.path uri) in
+  (* sanitize both repeated '/' and final '/'.
+     "/foo//bar/" -> "/foo/bar"*)
+  let sanitize_uri_path path : string =
+    path
+    |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
+    |> Util.maybe_chop_suffix "/"
+  in
+  let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
   let pages = !c.handlers |> TL.http_handlers in
   let pages =
     if List.length pages > 1
@@ -272,10 +279,10 @@ let user_page_handler
       ( match (Handler.module_for page, Handler.modifier_for page) with
       | Some m, Some mo ->
           (* Store the event with the input path not the event name, because we
-          * want to be able to
-          *    a) use this event if this particular handler changes
-          *    b) use the input url params in the analysis for this handler
-          *)
+         * want to be able to
+         *    a) use this event if this particular handler changes
+         *    b) use the input url params in the analysis for this handler
+        *)
           let desc = (m, Uri.path uri, mo) in
           Stored_event.store_event
             ~trace_id
@@ -390,7 +397,7 @@ let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
     let t7, _ =
       time "7-save-to-disk" (fun _ ->
           (* work out the result before we save it, incase it has a
-         stackoverflow or other crashing bug *)
+             stackoverflow or other crashing bug *)
           if Api.causes_any_changes params then C.save_tlids !c tlids else ()
       )
     in
@@ -699,12 +706,12 @@ let admin_ui_handler
   let html_hdrs =
     [ ("Content-type", "text/html; charset=utf-8")
       (* Don't allow any other websites to put this in an iframe;
-        this prevents "clickjacking" at tacks.
-        https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-        It would be nice to use CSP to limit where we can load scripts etc from,
-        but right now we load from CDNs, <script> tags, etc. So the only thing
-        we could do is script-src: 'unsafe-inline', which doesn't offer us
-        any additional security. *)
+       this prevents "clickjacking" at tacks.
+       https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+       It would be nice to use CSP to limit where we can load scripts etc from,
+       but right now we load from CDNs, <script> tags, etc. So the only thing
+       we could do is script-src: 'unsafe-inline', which doesn't offer us
+       any additional security. *)
     ; ("Content-security-policy", "frame-ancestors 'none';") ]
   in
   let html_hdrs =
