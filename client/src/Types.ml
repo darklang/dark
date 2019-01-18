@@ -220,7 +220,8 @@ and dB =
   ; cols : dBColumn list
   ; version : int
   ; oldMigrations : dBMigration list
-  ; activeMigration : dBMigration option }
+  ; activeMigration : dBMigration option
+  ; dbNameId : id }
 
 (* userFunctions *)
 and userFunctionParameter =
