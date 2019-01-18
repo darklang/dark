@@ -1827,6 +1827,22 @@ let t_u0000_fails_validation () =
     (match Dval.dstr_of_string "hello, \x00" with Some _ -> 1 | _ -> 0)
 
 
+let t_sanitize_uri_path_with_repeated_slashes () =
+  AT.check AT.string (Webserver.sanitize_uri_path "/foo//bar") "/foo/bar"
+
+
+let t_sanitize_uri_path_with_trailing_slash () =
+  AT.check AT.string (Webserver.sanitize_uri_path "/foo/") "/foo"
+
+
+let t_sanitize_uri_path_with_root_noops () =
+  AT.check AT.string (Webserver.sanitize_uri_path "/") "/"
+
+
+let t_sanitize_uri_path_with_repeated_root () =
+  AT.check AT.string (Webserver.sanitize_uri_path "//") "/"
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
