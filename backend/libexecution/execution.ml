@@ -20,9 +20,10 @@ let dbs_as_input_vars (dbs : DbT.db list) : (string * dval) list =
   List.map dbs ~f:(fun db -> (db.name, DDB db.name))
 
 
-let http_route_input_vars (h : HandlerT.handler) (path : string) : input_vars =
+let http_route_input_vars (h : HandlerT.handler) (request_path : string) :
+    input_vars =
   let route = Handler.event_name_for_exn h in
-  Http.bind_route_variables_exn ~route path
+  Http.bind_route_variables_exn ~route request_path
 
 
 (* -------------------- *)
