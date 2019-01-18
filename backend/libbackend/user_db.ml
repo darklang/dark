@@ -596,11 +596,10 @@ let create (name : string) (id : tlid) : db =
   ; cols = []
   ; version = 0
   ; old_migrations = []
-  ; active_migration = None
-  }
+  ; active_migration = None }
 
-let rename_db (n : string) (db : db) : db =
-  {db with name = n}
+
+let rename_db (n : string) (db : db) : db = {db with name = n}
 
 let add_col colid typeid (db : db) =
   {db with cols = db.cols @ [(Blank colid, Blank typeid)]}

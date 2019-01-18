@@ -180,8 +180,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
         Exception.internal
           ("This should have been preprocessed out! " ^ Op.show_op op)
     | RenameDBname (tlid, name) ->
-      apply_to_db ~f:(User_db.rename_db name) tlid
-
+        apply_to_db ~f:(User_db.rename_db name) tlid
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit

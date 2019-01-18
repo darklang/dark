@@ -411,10 +411,11 @@ let submitACItem
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
         in
         ( match (pd, item) with
-        | PDBName (F (_, name)), ACExtra value ->
-            Debug.loG "Renaming db " (name, value);
+        | PDBName _, ACExtra value ->
             if AC.assertValid AC.dbNameValidator value <> value
-            then DisplayError ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
+            then
+              DisplayError
+                ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
             else if List.member value (TL.allDBNames m.toplevels)
             then DisplayError ("There is already a DB named " ^ value)
             else RPC ([RenameDBname (tlid, value)], FocusSame)

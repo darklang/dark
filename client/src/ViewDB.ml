@@ -23,7 +23,8 @@ let viewDBName (vs : viewState) (db : dB) : msg Html.html =
     then Html.span [Html.class' "name"] [Html.text db.dbName]
     else
       let c = (enterable :: idConfigs) @ [wc "dbname"] in
-      ViewBlankOr.viewText DBName vs c (F (db.dbNameId, db.dbName)) in
+      ViewBlankOr.viewText DBName vs c (F (db.dbNameId, db.dbName))
+  in
   Html.div
     [Html.class' "dbtitle"]
     [ nameField
