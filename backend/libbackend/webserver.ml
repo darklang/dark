@@ -183,7 +183,7 @@ let user_page_handler
   let query = req |> CRequest.uri |> Uri.query in
   (* sanitize both repeated '/' and final '/'.
      "/foo//bar/" -> "/foo/bar"*)
-  let sanitize_uri_path path :string =
+  let sanitize_uri_path path : string =
     path
     |> (fun str -> Re2.replace_exn (Re2.create_exn "/+") str ~f:(fun _ -> "/"))
     |> Util.maybe_chop_suffix "/"
