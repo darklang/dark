@@ -22,7 +22,7 @@ let dbs_as_input_vars (dbs : DbT.db list) : (string * dval) list =
 
 let http_route_input_vars (h : HandlerT.handler) (path : string) : input_vars =
   let route = Handler.event_name_for_exn h in
-  Http.bind_route_params_exn ~path ~route
+  Http.bind_route_variables_exn ~route path
 
 
 (* -------------------- *)

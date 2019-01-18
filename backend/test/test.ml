@@ -1843,6 +1843,28 @@ let t_sanitize_uri_path_with_repeated_root () =
   AT.check AT.string (Webserver.sanitize_uri_path "//") "/"
 
 
+let t_route_variables_work () =
+  AT.check
+    (AT.list AT.string)
+    "Variables are as expected"
+    ["userid"; "cardid"]
+    (Http.route_variables "/user/:userid/card/:cardid") ;
+  AT.check
+    (AT.list (AT.pair AT.string at_dval))
+    "Variables are bound as expected"
+    [("userid", DStr "myid"); ("cardid", DStr "0")]
+    (Http.bind_route_variables_exn
+       "/user/myid/card/0"
+       ~route:"/user/:userid/card/:cardid") ;
+  AT.check
+    AT.bool
+    "Path matches the route"
+    true
+    (Http.request_matches_route
+       "/user/myid/card/0"
+       ~route:"/user/:userid/card/:cardid")
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1976,7 +1998,8 @@ let suite =
   ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
-  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation) ]
+  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
+  ; ("Route variables work", `Quick, t_route_variables_work) ]
 
 
 let () =
