@@ -17,13 +17,16 @@ let wc = ViewBlankOr.wc
 
 let enterable = ViewBlankOr.Enterable
 
-let viewDBName (name : string) (version : int) : msg Html.html =
+let viewDBName (vs : viewState) (db : dB) : msg Html.html =
+  let c = [wc "db-name"] in
+  let configs = if not vs.dbLocked then (enterable :: idConfigs) @ c else c in
+  let nameField = ViewBlankOr.viewText DBName vs configs (F (db.dbNameId, db.dbName)) in
   Html.div
     [Html.class' "dbname"]
-    [ Html.span [Html.class' "name"] [Html.text name]
+    [ nameField
     ; Html.span
         [Html.class' "version"]
-        [Html.text (".v" ^ string_of_int version)] ]
+        [Html.text (".v" ^ string_of_int db.version)] ]
 
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -78,8 +81,8 @@ let viewMigraFuncs
 
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     msg Html.html =
-  let name = viewDBName db.dbName migra.version in
-  let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in
+  let name = Html.text db.dbName in
+  let cols = List.map (viewDBCol vs true db.dbTLID) migra.cols in
   let funcs =
     [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
     ; viewMigraFuncs vs migra.rollback "Rollback" "newObj" ]
@@ -129,7 +132,7 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
         [fontAwesome "lock"]
     else fontAwesome "unlock"
   in
-  let namediv = viewDBName db.dbName db.version in
+  let namediv = viewDBName vs db in
   let cols =
     if vs.dbLocked
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols

@@ -411,6 +411,8 @@ let submitACItem
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
         in
         ( match (pd, item) with
+        | PDBName (F (_, name)), ACExtra value ->
+            Debug.loG "Renaming db " (name, value); NoChange
         | PDBColType ct, ACExtra value ->
             let db1 = deOption "db" db in
             if B.asF ct = Some value
