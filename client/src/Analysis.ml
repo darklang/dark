@@ -61,20 +61,15 @@ let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
 
 
 (* TODO: copied from Libexecution/http.ml *)
-let route_variable_pairs (route : string) : (int * string) list =
+let route_variables (route : string) : string list =
   let split_uri_path (path : string) : string list =
     let subs = String.split ~on:"/" path in
     List.filter (fun x -> String.length x > 0) subs
   in
   route
   |> split_uri_path
-  |> List.mapi (fun i x -> (i, x))
-  |> List.filter (fun (_, x) -> String.startsWith ":" x)
-  |> List.map (fun (i, x) -> (i, String.dropLeft 1 (* ":" *) x))
-
-
-let route_variables (route : string) : string list =
-  route |> route_variable_pairs |> List.map Tuple.second
+  |> List.filter (String.startsWith ":")
+  |> List.map (String.dropLeft 1 (* ":" *))
 
 
 let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
