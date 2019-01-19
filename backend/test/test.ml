@@ -423,8 +423,8 @@ let t_case_insensitive_db_roundtrip () =
   in
   let ast =
     "(let _
-            (DB::insert (obj (cOlUmNnAmE 'some value')) TestUnicode)
-            (DB::fetchAll TestUnicode))"
+(DB::insert (obj (cOlUmNnAmE 'some value')) TestUnicode)
+(DB::fetchAll TestUnicode))"
   in
   match exec_handler ~ops ast with
   | DList [DObj v] ->
@@ -443,7 +443,7 @@ let t_lambda_with_foreach () =
     (Dval.dstr_of_string_exn "SOME STRING")
     (exec_ast
        "(String::foreach 'some string'
-          (\\var -> (Char::toUppercase var)))")
+(\\var -> (Char::toUppercase var)))")
 
 
 module SE = Stored_event
@@ -626,9 +626,9 @@ let t_roundtrip_user_data_using_deprecated_functions () =
   in
   let ast =
     "(let v 'lasd;04mr'
-               (let old (DB::insert (obj (x v)) MyDB)
-               (let new (DB::fetchOneBy v 'x' MyDB)
-               (== old new))))"
+(let old (DB::insert (obj (x v)) MyDB)
+(let new (DB::fetchOneBy v 'x' MyDB)
+(== old new))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -650,8 +650,8 @@ let t_nulls_allowed_in_db () =
   in
   let ast =
     "(let old (DB::set_v1 (obj (x null)) 'hello' MyDB)
-               (let new (`DB::get_v1 'hello' MyDB)
-                 (== old new)))"
+(let new (`DB::get_v1 'hello' MyDB)
+(== old new)))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -666,8 +666,8 @@ let t_db_add_roundtrip () =
   in
   let ast =
     "(let old (obj (x null))
-       (let key (DB::add_v0 old MyDB)
-         (`DB::get_v1 key MyDB)))"
+(let key (DB::add_v0 old MyDB)
+(`DB::get_v1 key MyDB)))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -706,14 +706,14 @@ let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
     "dval_of_json_string doesn't care about key order"
     (Dval.unsafe_dval_of_json_string
        "{
-         \"type\": \"url\",
-         \"value\": \"https://example.com\"
-        }")
+\"type\": \"url\",
+\"value\": \"https://example.com\"
+}")
     (Dval.unsafe_dval_of_json_string
        "{
-         \"value\": \"https://example.com\",
-         \"type\": \"url\"
-        }")
+\"value\": \"https://example.com\",
+\"type\": \"url\"
+}")
 
 
 let t_dval_yojson_roundtrips () =
@@ -773,8 +773,8 @@ let t_dval_yojson_roundtrips () =
 let t_password_hashing_and_checking_works () =
   let ast =
     "(let password 'password'
-               (Password::check (Password::hash password)
-               password))"
+(Password::check (Password::hash password)
+password))"
   in
   check_dval
     "A `Password::hash'd string `Password::check's against itself."
@@ -792,9 +792,9 @@ let t_password_hash_db_roundtrip () =
   in
   let ast =
     "(let pw (Password::hash 'password')
-               (let _ (DB::insert (obj (password pw)) Passwords)
-                 (let fetched (. (List::head (DB::fetchAll Passwords)) password)
-                   (pw fetched))))"
+(let _ (DB::insert (obj (password pw)) Passwords)
+(let fetched (. (List::head (DB::fetchAll Passwords)) password)
+(pw fetched))))"
   in
   AT.check
     AT.int
@@ -968,9 +968,9 @@ let t_uuid_db_roundtrip () =
   in
   let ast =
     "(let i (Uuid::generate)
-               (let _ (DB::insert (obj (uu i)) Ids)
-                 (let fetched (. (List::head (DB::fetchAll Ids)) uu)
-                   (i fetched))))"
+(let _ (DB::insert (obj (uu i)) Ids)
+(let fetched (. (List::head (DB::fetchAll Ids)) uu)
+(i fetched))))"
   in
   AT.check
     AT.int
@@ -986,9 +986,9 @@ let t_uuid_db_roundtrip () =
 let t_uuid_string_roundtrip () =
   let ast =
     "(let i (Uuid::generate)
-               (let s (toString i)
-                 (let parsed (String::toUUID s)
-                   (i parsed))))"
+(let s (toString i)
+(let parsed (String::toUUID s)
+(i parsed))))"
   in
   AT.check
     AT.int
@@ -1045,19 +1045,19 @@ let t_errorrail_simple () =
     (DInt 8)
     (exec_ast
        "(| (5)
-                  (`List::head_v1)
-                  (+ 3)
-                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-               )") ;
+(`List::head_v1)
+(+ 3)
+(\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+)") ;
   check_dval
     "to rail deeply nested"
     (DErrorRail (DOption OptNothing))
     (exec_ast
        "(| ()
-                  (`List::head_v1)
-                  (+ 3)
-                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-               )") ;
+(`List::head_v1)
+(+ 3)
+(\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+)") ;
   ()
 
 
@@ -1067,10 +1067,10 @@ let t_errorrail_toplevel () =
     (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"))
     (exec_handler
        "(| ()
-                      (`List::head_v1)
-                      (+ 3)
-                      (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-                    )") ;
+(`List::head_v1)
+(+ 3)
+(\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+)") ;
   check_dval
     "No errorrail goes to option"
     (DOption OptNothing)
@@ -1084,10 +1084,10 @@ let t_errorrail_userfn () =
     (DOption OptNothing)
     (exec_userfn
        "(| ()
-                     (`List::head_v1)
-                     (+ 3)
-                     (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-                   )") ;
+(`List::head_v1)
+(+ 3)
+(\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+)") ;
   ()
 
 
@@ -1270,11 +1270,11 @@ let t_db_write_deprecated_read_new () =
    * the contract that the old DB functions return DID, so we have to stringify *)
   let ast =
     "(let old (DB::insert (obj (x 'foo')) MyDB)
-              (let stringified_id (toString (. old id))
-               (let new (`DB::get_v1 stringified_id MyDB)
-                (let mutated_new (assoc new 'id' stringified_id)
-                 (let mutated_old (assoc old 'id' stringified_id)
-                  (== mutated_new mutated_old))))))"
+(let stringified_id (toString (. old id))
+(let new (`DB::get_v1 stringified_id MyDB)
+(let mutated_new (assoc new 'id' stringified_id)
+(let mutated_old (assoc old 'id' stringified_id)
+(== mutated_new mutated_old))))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1289,9 +1289,9 @@ let t_db_read_deprecated_write_new_duuid () =
   in
   let ast =
     "(let new_write (DB::set_v1 (obj (x 'foo')) (toString (Uuid::generate)) MyDB)
-               (let old_read (DB::fetchOneBy 'foo' 'x' MyDB)
-                 (let mutated_old_read (dissoc old_read 'id')
-                   ((== new_write mutated_old_read) (. old_read id)))))"
+(let old_read (DB::fetchOneBy 'foo' 'x' MyDB)
+(let mutated_old_read (dissoc old_read 'id')
+((== new_write mutated_old_read) (. old_read id)))))"
   in
   let result = exec_handler ~ops ast in
   AT.check
@@ -1318,9 +1318,9 @@ let t_db_new_query_v2_works () =
   in
   let ast =
     "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
-               (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
-                (let results (DB::query_v2 (obj (x 'bar')) MyDB)
-                 (== (hopetofind) results))))"
+(let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
+(let results (DB::query_v2 (obj (x 'bar')) MyDB)
+(== (hopetofind) results))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1335,9 +1335,9 @@ let t_db_set_does_upsert () =
   in
   let ast =
     "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
-               (let new (DB::set_v1 (obj (x 'bar')) 'hello' MyDB)
-                (let results (DB::getAllWithKeys_v1 MyDB)
-                 (== (('hello' new)) results))))"
+(let new (DB::set_v1 (obj (x 'bar')) 'hello' MyDB)
+(let results (DB::getAllWithKeys_v1 MyDB)
+(== (('hello' new)) results))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1352,9 +1352,9 @@ let t_db_get_all_with_keys_works () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
-               (let results (DB::getAllWithKeys_v1 MyDB)
-                (== (('one' one) ('two' two)) results))))"
+(let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
+(let results (DB::getAllWithKeys_v1 MyDB)
+(== (('one' one) ('two' two)) results))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1376,7 +1376,7 @@ let t_db_deprecated_belongs_to_works () =
   in
   let ast =
     "(let oldin (DB::insert (obj (x 'foo') (relation (obj (y 4)))) MyDB)
-               (List::head (DB::fetchAll MyDB)))"
+(List::head (DB::fetchAll MyDB)))"
   in
   let result = exec_handler ~ops ast in
   AT.check
@@ -1411,7 +1411,7 @@ let t_db_deprecated_has_many_works () =
   in
   let ast =
     "(let oldin (DB::insert (obj (x 'foo') (relations ((obj (y 4)) (obj (y 6))))) MyDB)
-               (List::head (DB::fetchAll MyDB)))"
+(List::head (DB::fetchAll MyDB)))"
   in
   let result = exec_handler ~ops ast in
   AT.check
@@ -1454,10 +1454,10 @@ let t_db_deprecated_fetch_by_works () =
   (* sorting to ensure the test isn't flakey *)
   let ast =
     "(let one (DB::insert (obj (x 'foo') (sort_by 0)) MyDB)
-              (let two (DB::insert (obj (x 'bar') (sort_by 1)) MyDB)
-               (let three (DB::insert (obj (x 'bar') (sort_by 2)) MyDB)
-                (let fetched (List::sortBy (DB::fetchBy 'bar' 'x' MyDB) (\\x -> (. x sort_by)))
-                (== (two three) fetched)))))"
+(let two (DB::insert (obj (x 'bar') (sort_by 1)) MyDB)
+(let three (DB::insert (obj (x 'bar') (sort_by 2)) MyDB)
+(let fetched (List::sortBy (DB::fetchBy 'bar' 'x' MyDB) (\\x -> (. x sort_by)))
+(== (two three) fetched)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1472,8 +1472,8 @@ let t_db_deprecated_fetch_by_id_works () =
   in
   let ast =
     "(let one (DB::insert (obj (x 'foo')) MyDB)
-              (let fetched (DB::fetchOneBy (. one id) 'id' MyDB)
-                (== one fetched)))"
+(let fetched (DB::fetchOneBy (. one id) 'id' MyDB)
+(== one fetched)))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1488,9 +1488,9 @@ let t_db_get_many_works () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-               (let fetched (DB::getMany_v1 ('first' 'second') MyDB)
-                (== (('first' one) ('second' two)) fetched))))"
+(let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
+(let fetched (DB::getMany_v1 ('first' 'second') MyDB)
+(== (('first' one) ('second' two)) fetched))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1509,10 +1509,10 @@ let t_db_queryWithKey_works_with_many () =
   (* sorting to ensure the test isn't flakey *)
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-               (let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::queryWithKey_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
-                 (== (('two' two) ('three' three)) fetched)))))"
+(let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+(let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
+(let fetched (List::sortBy (DB::queryWithKey_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
+(== (('two' two) ('three' three)) fetched)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1527,8 +1527,8 @@ let t_db_deprecated_delete_works () =
   in
   let ast =
     "(let one (DB::insert (obj (x 'foo')) MyDB)
-              (let fetched (DB::delete one MyDB)
-               (== 0 (List::length (DB::fetchAll MyDB)))))"
+(let fetched (DB::delete one MyDB)
+(== 0 (List::length (DB::fetchAll MyDB)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1543,8 +1543,8 @@ let t_db_deprecated_update_works () =
   in
   let ast =
     "(let one (DB::insert (obj (x 'foo')) MyDB)
-              (let update (DB::update (assoc one 'x' 'bar') MyDB)
-               (== 1 (List::length (DB::fetchAll MyDB)))))"
+(let update (DB::update (assoc one 'x' 'bar') MyDB)
+(== 1 (List::length (DB::fetchAll MyDB)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1600,7 +1600,7 @@ let t_db_queryOne_works () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOne_v1 (obj (x 'foo')) MyDB))"
+(DB::queryOne_v1 (obj (x 'foo')) MyDB))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -1619,7 +1619,7 @@ let t_db_queryOne_returns_nothing_if_none () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOne_v1 (obj (x 'bar')) MyDB))"
+(DB::queryOne_v1 (obj (x 'bar')) MyDB))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -1637,8 +1637,8 @@ let t_db_queryOne_returns_nothing_multiple () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
-               (DB::queryOne_v1 (obj (x 'foo')) MyDB)))"
+(let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
+(DB::queryOne_v1 (obj (x 'foo')) MyDB)))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -1656,7 +1656,7 @@ let t_db_queryOneWithKey_works () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB))"
+(DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -1678,7 +1678,7 @@ let t_db_queryOneWithKey_returns_nothing_if_none () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOneWithKey_v1 (obj (x 'bar')) MyDB))"
+(DB::queryOneWithKey_v1 (obj (x 'bar')) MyDB))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -1696,8 +1696,8 @@ let t_db_queryOneWithKey_returns_nothing_multiple () =
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
-               (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB)))"
+(let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
+(DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB)))"
   in
   check_dval
     "equal_after_roundtrip"
@@ -1719,10 +1719,10 @@ let t_db_getAll_v2_works () =
   (* sorting to ensure the test isn't flakey *)
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-               (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. (List::last x) sort_by)))
-                 (== (one two three) fetched)))))"
+(let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+(let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
+(let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. (List::last x) sort_by)))
+(== (one two three) fetched)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1828,7 +1828,11 @@ let t_u0000_fails_validation () =
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =
-  AT.check AT.string "/foo//bar->/foo/bar" (Webserver.sanitize_uri_path "/foo//bar") "/foo/bar"
+  AT.check
+    AT.string
+    "/foo//bar->/foo/bar"
+    (Webserver.sanitize_uri_path "/foo//bar")
+    "/foo/bar"
 
 
 let t_sanitize_uri_path_with_trailing_slash () =
@@ -1977,12 +1981,18 @@ let suite =
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
   ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
-    ; ("t_sanitize_uri_path_with_repeated_slashes", `Quick, t_sanitize_uri_path_with_repeated_slashes)
-    ; ("t_sanitize_uri_path_with_trailing_slash", `Quick, t_sanitize_uri_path_with_trailing_slash)
-    ; ("t_sanitize_uri_path_with_root_noops", `Quick, t_sanitize_uri_path_with_root_noops)
-    ; ("t_sanitize_uri_path_with_repeated_root", `Quick, t_sanitize_uri_path_with_repeated_root)
-  ]
-
+  ; ( "t_sanitize_uri_path_with_repeated_slashes"
+    , `Quick
+    , t_sanitize_uri_path_with_repeated_slashes )
+  ; ( "t_sanitize_uri_path_with_trailing_slash"
+    , `Quick
+    , t_sanitize_uri_path_with_trailing_slash )
+  ; ( "t_sanitize_uri_path_with_root_noops"
+    , `Quick
+    , t_sanitize_uri_path_with_root_noops )
+  ; ( "t_sanitize_uri_path_with_repeated_root"
+    , `Quick
+    , t_sanitize_uri_path_with_repeated_root ) ]
 
 
 let () =
