@@ -76,12 +76,7 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
   let pos = {x = pos.x - 17; y = pos.y - 70} in
   match action with
   | NewDB dbname ->
-      let next = gid () in
-      let tlid = gtlid () in
-      RPC
-        ( [ CreateDBWithBlankOr (tlid, pos, gid (), dbname)
-          ; AddDBCol (tlid, next, gid ()) ]
-        , FocusExact (tlid, next) )
+      DB.createDB dbname pos
   | NewHandler name ->
       let next = gid () in
       let tlid = gtlid () in

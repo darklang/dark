@@ -117,7 +117,7 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
   { count = List.length dbs
   ; name = "DBs"
   ; classname = "dbs"
-  ; plusButton = None
+  ; plusButton = Some CreateDBTable
   ; entries }
 
 
@@ -283,7 +283,6 @@ let deletedCategory (m : model) : category =
   ; plusButton = None
   ; classname = "deleted"
   ; entries = List.map cats ~f:(fun c -> Category c) }
-
 
 let deletedUserFunctionsEntries (m : model) : category =
   let fns =
