@@ -30,6 +30,9 @@ let route_variable (route_segment : string) : string option =
 
 let request_path_matches_route ~(route : string) (request_path : string) : bool
     =
+  (* Routes are stored in two ways, either in postgres using %% for variables,
+   * or in handlers, which use :varname for variables. This needs to handle
+   * both. *)
   let split_request_path = split_uri_path request_path in
   let split_route = split_uri_path route in
   let same_length = List.length split_request_path = List.length split_route in
