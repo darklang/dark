@@ -21,8 +21,8 @@ let unlocked (c : canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 
-let get_404s ~(since : RTT.time) (cid : Uuidm.t) : SE.four_oh_four list =
-  let events = SE.list_events ~limit:(`Since since) ~canvas_id:cid () in
+let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
+  let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
     Db.fetch
       ~name:"get_404s"
@@ -32,7 +32,7 @@ let get_404s ~(since : RTT.time) (cid : Uuidm.t) : SE.four_oh_four list =
           AND name IS NOT NULL
           AND modifier IS NOT NULL
           AND tipe = 'handler'::toplevel_type"
-      ~params:[Db.Uuid cid]
+      ~params:[Db.Uuid c.id]
     |> List.map ~f:(function
            | [modu; n; modi] ->
                (modu, n, modi)

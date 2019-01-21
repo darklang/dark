@@ -468,8 +468,7 @@ let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
       time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host [])
     in
     let t3, f404s =
-      time "3-get-404s" (fun _ ->
-          Analysis.get_404s ~since:params.latest404 !c.id )
+      time "3-get-404s" (fun _ -> Analysis.get_404s ~since:params.latest404 !c)
     in
     let t4, hvals =
       time "4-handler-analyses" (fun _ ->
@@ -517,7 +516,7 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
           Analysis.delete_404s !c p.space p.path p.modifier )
     in
     let t4, f404s =
-      time "4-get-404s" (fun _ -> Analysis.get_404s ~since:last_week !c.id)
+      time "4-get-404s" (fun _ -> Analysis.get_404s ~since:last_week !c)
     in
     let t5, result =
       time "5-to-frontend" (fun _ ->
