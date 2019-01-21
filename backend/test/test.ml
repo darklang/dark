@@ -1867,7 +1867,7 @@ let t_route_variables_work () =
        ~route:"/user/:userid/card/:cardid")
 
 
-let t_route_variables_work2 () =
+let t_route_variables_work_with_stored_events () =
   (* set up test *)
   clear_test_data () ;
   let host = "test-route_variables_works" in
@@ -2035,7 +2035,9 @@ let suite =
     , t_mix_of_ascii_and_utf16_fails_validation )
   ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
   ; ("Route variables work", `Quick, t_route_variables_work)
-  ; ("Route variables work pt2", `Quick, t_route_variables_work2) ]
+  ; ( "Route variables work with stored events"
+    , `Quick
+    , t_route_variables_work_with_stored_events ) ]
 
 
 let () =
