@@ -1862,7 +1862,7 @@ let t_route_variables_work () =
     AT.bool
     "Path matches the route"
     true
-    (Http.request_matches_route
+    (Http.request_path_matches_route
        "/user/myid/card/0"
        ~route:"/user/:userid/card/:cardid")
 

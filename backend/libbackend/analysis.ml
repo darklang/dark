@@ -39,10 +39,10 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
            | _ ->
                Exception.internal "Bad DB format for get404s" )
   in
-  let match_event h e : bool =
-    let space, request, modifier, _ts = e in
+  let match_event h event : bool =
+    let space, request_path, modifier, _ts = event in
     let h_space, h_name, h_modifier = h in
-    Http.request_matches_route ~route:h_name request
+    Http.request_path_matches_route ~route:h_name request_path
     && h_modifier = modifier
     && h_space = space
   in
