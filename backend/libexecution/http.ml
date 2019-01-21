@@ -2,7 +2,7 @@ open Core_kernel
 module RT = Types.RuntimeT
 
 (* Names are confusing, so to be clear:
- - `route`: refers to the name of the handler. It may have variable names in it. Pnemonic: routing table.
+ - `route`: refers to the name of the handler. It may have variable names in it. Mnemonic: routing table.
  - `request_path`: the actual string from the request. It is matched against the route
  - `path`: refers to both of the above.
  *)
