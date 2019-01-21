@@ -22,7 +22,8 @@
   "bs-dependencies": [
     "bucklescript-tea",
     "@glennsl/bs-json",
-    "bs-webapi"
+    "bs-webapi",
+    "tablecloth-bucklescript"
   ],
   "bs-dev-dependencies": [
     "@glennsl/bs-jest"
