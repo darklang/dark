@@ -1902,7 +1902,8 @@ let t_route_variables_work () =
   AT.check
     (AT.list (AT.pair AT.string at_dval))
     "Variables are bound as expected"
-    [("userid", DStr "myid"); ("cardid", DStr "0")]
+    [ ("userid", Dval.dstr_of_string_exn "myid")
+    ; ("cardid", Dval.dstr_of_string_exn "0") ]
     (Http.bind_route_variables_exn
        "/user/myid/card/0"
        ~route:"/user/:userid/card/:cardid") ;
