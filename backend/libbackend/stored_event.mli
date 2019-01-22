@@ -20,7 +20,9 @@ val store_event :
   -> unit
 
 val load_events :
-  canvas_id:Uuidm.t -> event_desc -> (Uuidm.t * Types.RuntimeT.dval) list
+     canvas_id:Uuidm.t
+  -> event_desc
+  -> (string * Uuidm.t * Types.RuntimeT.dval) list
 
 val list_events :
      limit:[`All | `Since of Types.RuntimeT.time]
