@@ -181,7 +181,7 @@ let clonePointerData (pd : pointerData) : pointerData =
       PPattern (AST.clonePattern pattern)
   | PConstructorName name ->
       PConstructorName (B.clone identity name)
-  | _ ->
+  | PDBColName _ | PDBColType _ | PDBName _ ->
       pd
 
 
