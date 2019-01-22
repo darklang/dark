@@ -176,14 +176,13 @@ let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
 
 (* TODO: refactor `addHandler` from weird tuple to better API for passing msg
  * + the cache key for the vdom *)
-let header
-    (name : string) (list : 'a list) (addHandler : (string * msg) option) :
+let header (name : string) (count : int) (addHandler : (string * msg) option) :
     msg Html.html =
   Html.summary
     [Html.class' "header"]
     [ text "title" name
     ; text "parens" "("
-    ; text "count" (list |> List.length |> string_of_int)
+    ; text "count" (count |> string_of_int)
     ; text "parens" ")"
     ; ( match addHandler with
       | Some (key, msg) ->
@@ -201,11 +200,11 @@ let section
   then
     Html.div
       [Html.class' "routing-section empty"]
-      [header name entries addHandler; routes]
+      [header name 0 addHandler; routes]
   else
     Html.details
       [Html.class' "routing-section"]
-      [header name entries addHandler; routes]
+      [header name (List.length entries) addHandler; routes]
 
 
 let viewGroup
@@ -284,30 +283,6 @@ let viewRoutes
   |> List.map (viewGroup m showLink showUndo)
 
 
-let viewRestorableDBs (tls : toplevel list) : msg Html.html =
-  let dbs =
-    tls
-    |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, _, db) -> db.dbName)
-  in
-  let dbHtml (pos, tlid, db) =
-    div "simple-route" [text "name" db.dbName; undoButton tlid (Toplevels pos)]
-  in
-  let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs None routes
-
-
-let viewDeletedTLs_ (m : model) : msg Html.html =
-  let tls = m.deletedToplevels in
-  let routes = viewRoutes m tls DontCollapseVerbs DontShowLink ShowUndo in
-  let dbs = viewRestorableDBs tls in
-  let h = header "Deleted" tls None in
-  Html.details [Html.class' "routing-section deleted"] ([h] @ routes @ [dbs])
-
-
-let viewDeletedTLs = Cache.cache1 (fun m -> m.deletedToplevels) viewDeletedTLs_
-
 let view404s_ (f404s : fourOhFour list) : msg Html.html =
   let fofToKey fof = fof.space ^ "-" ^ fof.path ^ "-" ^ fof.modifier in
   let theCreateLink fof =
@@ -339,6 +314,20 @@ let view404s_ (f404s : fourOhFour list) : msg Html.html =
 
 let view404s = Cache.cache1 (fun f404s -> f404s) view404s_
 
+let viewRestorableDBs (tls : toplevel list) : msg Html.html =
+  let dbs =
+    tls
+    |> List.filter (fun tl -> TL.asDB tl <> None)
+    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy (fun (_, _, db) -> db.dbName)
+  in
+  let dbHtml (pos, tlid, db) =
+    div "simple-route" [text "name" db.dbName; undoButton tlid (Toplevels pos)]
+  in
+  let routes = div "dbs" (List.map dbHtml dbs) in
+  section "DBs" dbs None routes
+
+
 let viewDBs_ (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
@@ -354,6 +343,26 @@ let viewDBs_ (tls : toplevel list) : msg Html.html =
 
 
 let viewDBs = Cache.cache1 (fun tls -> TL.dbs tls) viewDBs_
+
+let viewDeletedUserFunctions (m : model) : msg Html.html =
+  let fns =
+    m.deletedUserFunctions
+    |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName)
+  in
+  let fnNamedLink fn name = [span "name" [fnLink fn false name]] in
+  let fnHtml fn =
+    div
+      "simple-route"
+      (let fnName = B.asF fn.ufMetadata.ufmName in
+       match fnName with
+       | Some name ->
+           fnNamedLink fn name
+       | None ->
+           [span "name" [fnLink fn true "should be filtered by here"]])
+  in
+  let routes = div "fns" (List.map fnHtml fns) in
+  section "Functions" fns (Some ("cf", CreateFunction)) routes
+
 
 let viewUserFunctions_ (m : model) : msg Html.html =
   let fns =
@@ -389,6 +398,24 @@ let viewUserFunctions_ (m : model) : msg Html.html =
 
 let viewUserFunctions =
   Cache.cache1 (fun m -> (m.userFunctions, m.toplevels)) viewUserFunctions_
+
+
+let viewDeletedTLs_ (m : model) : msg Html.html =
+  let tls = m.deletedToplevels in
+  let routes = viewRoutes m tls DontCollapseVerbs DontShowLink ShowUndo in
+  let dbs = viewRestorableDBs tls in
+  let fns = viewDeletedUserFunctions m in
+  let count = List.length m.deletedUserFunctions + List.length tls in
+  let h = header "Deleted" count None in
+  Html.details
+    [Html.class' "routing-section deleted"]
+    ([h] @ routes @ [fns; dbs])
+
+
+let viewDeletedTLs =
+  Cache.cache1
+    (fun m -> (m.deletedToplevels, m.deletedUserFunctions))
+    viewDeletedTLs_
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
