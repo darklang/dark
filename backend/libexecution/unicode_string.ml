@@ -28,7 +28,14 @@ module Character = struct
 
   let to_yojson t = `String t
 
-  let of_yojson j = failwith "TODO(ian)"
+  (* This is needed to make upstream derivers compile correctly, though
+   * we don't seem to actually _need_ this implementation because we
+   * have special json encoders/decoders for dvals. Implementing this
+   * is tricky, and it's best for now to allow no creation of
+   * Character.t values outside of iterating over a unicode string
+   * after applying a clustering algorithm. ie. these values are
+   * simply 'views' of parts of a Unicode_string.t *)
+  let of_yojson j = failwith "Not implemented: Character of yojson"
 end
 
 let of_utf8_encoded_string (s : string) : t option =
