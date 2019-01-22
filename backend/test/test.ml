@@ -1828,7 +1828,11 @@ let t_u0000_fails_validation () =
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =
-  AT.check AT.string "/foo//bar->/foo/bar" (Webserver.sanitize_uri_path "/foo//bar") "/foo/bar"
+  AT.check
+    AT.string
+    "/foo//bar->/foo/bar"
+    (Webserver.sanitize_uri_path "/foo//bar")
+    "/foo/bar"
 
 
 let t_sanitize_uri_path_with_trailing_slash () =
@@ -1977,12 +1981,18 @@ let suite =
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
   ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
-    ; ("t_sanitize_uri_path_with_repeated_slashes", `Quick, t_sanitize_uri_path_with_repeated_slashes)
-    ; ("t_sanitize_uri_path_with_trailing_slash", `Quick, t_sanitize_uri_path_with_trailing_slash)
-    ; ("t_sanitize_uri_path_with_root_noops", `Quick, t_sanitize_uri_path_with_root_noops)
-    ; ("t_sanitize_uri_path_with_repeated_root", `Quick, t_sanitize_uri_path_with_repeated_root)
-  ]
-
+  ; ( "t_sanitize_uri_path_with_repeated_slashes"
+    , `Quick
+    , t_sanitize_uri_path_with_repeated_slashes )
+  ; ( "t_sanitize_uri_path_with_trailing_slash"
+    , `Quick
+    , t_sanitize_uri_path_with_trailing_slash )
+  ; ( "t_sanitize_uri_path_with_root_noops"
+    , `Quick
+    , t_sanitize_uri_path_with_root_noops )
+  ; ( "t_sanitize_uri_path_with_repeated_root"
+    , `Quick
+    , t_sanitize_uri_path_with_repeated_root ) ]
 
 
 let () =
