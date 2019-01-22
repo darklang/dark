@@ -82,17 +82,17 @@ let append l r = l ^ r
 
 let concat ~sep xs = String.concat ~sep xs
 
-let map_graphemes ~f t =
+let map_characters ~f t =
   t
   |> Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc seg -> f seg :: acc) []
   |> List.rev
 
 
-let graphemes t = map_graphemes ~f:ident t
+let characters t = map_characters ~f:ident t
 
-let of_grapheme g = of_utf8_encoded_string_exn g
+let of_character g = of_utf8_encoded_string_exn g
 
-let of_graphemes gs = of_utf8_encoded_string_exn (String.concat ~sep:"" gs)
+let of_characters gs = of_utf8_encoded_string_exn (String.concat ~sep:"" gs)
 
 let length t =
   Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> 1 + acc) 0 t

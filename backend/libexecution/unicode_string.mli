@@ -57,13 +57,13 @@ val lowercase : t -> t
 val append : t -> t -> t
 (** `append a b` returns the concatenation of `a` and `b` **)
 
-val map_graphemes : f:(Character.t -> 'a) -> t -> 'a list
+val map_characters : f:(Character.t -> 'a) -> t -> 'a list
 
-val graphemes : t -> Character.t list
+val characters : t -> Character.t list
 
-val of_grapheme : Character.t -> t
+val of_character : Character.t -> t
 
-val of_graphemes : Character.t list -> t
+val of_characters : Character.t list -> t
 
 val is_substring : substring:t -> t -> bool
 
