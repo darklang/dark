@@ -86,11 +86,7 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
     |> Option.withDefault ~default:[]
   in
   let tl = TL.getTL m tlid in
-  let dbs =
-    m.toplevels
-    |> List.filterMap ~f:TL.asDB
-    |> List.map ~f:(fun db -> db.dbName)
-  in
+  let dbs = TL.allDBNames m.toplevels in
   match tl.data with
   | TLHandler h ->
       let extras =

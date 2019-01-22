@@ -5,6 +5,9 @@ open ViewUtils
 module B = Blank
 module TL = Toplevel
 
+let dbName2String (name : dBName blankOr) : dBName =
+  B.valueWithDefault "Untitled DB" name
+
 let missingEventSpaceDesc : string = "Undefined"
 
 let missingEventRouteDesc : string = "Undefined"
@@ -99,7 +102,9 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
   let dbs =
     tls
     |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
-    |> List.map ~f:(fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
+    |> List.map ~f:(fun tl ->
+        let db = TL.asDB tl |> deOption "asDB" in
+        (tl.pos, {db with dbName = dbName2String db.dbName}))
     |> List.sortBy ~f:(fun (_, db) -> db.dbName)
   in
   let entries =

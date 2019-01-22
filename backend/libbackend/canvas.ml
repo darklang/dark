@@ -121,7 +121,8 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
         then (
           if name = "" then Exception.client "DB must have a name" ;
           List.iter (TL.dbs !c.dbs) ~f:(fun db ->
-              if db.name = name then Exception.client "Duplicate DB name" ) ) ;
+              if Ast.blank_to_string db.name = name
+              then Exception.client "Duplicate DB name" ) ) ;
         let db = User_db.create name tlid in
         upsert_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
@@ -181,6 +182,12 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
           ("This should have been preprocessed out! " ^ Op.show_op op)
     | RenameDBname (tlid, name) ->
         apply_to_db ~f:(User_db.rename_db name) tlid
+    | CreateDB2 (tlid, pos, id, name) ->
+        List.iter (TL.dbs !c.dbs) ~f:(fun db ->
+            if Ast.blank_to_string db.name = name
+            then Exception.client "Duplicate DB name" ) ;
+        let db = User_db.create2 name tlid id in
+        upsert_db tlid pos (TL.DB db)
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit

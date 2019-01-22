@@ -5,7 +5,9 @@ open Runtime
 open Types.RuntimeT
 
 let find_db (dbs : DbT.db list) (name : string) : DbT.db =
-  dbs |> List.filter ~f:(fun db -> db.name = name) |> List.hd_exn
+  dbs
+  |> List.filter ~f:(fun db -> Ast.blank_to_string db.name = name)
+  |> List.hd_exn
 
 
 let fetch_by_field ~state fieldname fieldvalue db =

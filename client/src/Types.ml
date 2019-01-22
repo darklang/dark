@@ -216,12 +216,11 @@ and dBMigration =
 
 and dB =
   { dbTLID : tlid
-  ; dbName : dBName
+  ; dbName : dBName blankOr
   ; cols : dBColumn list
   ; version : int
   ; oldMigrations : dBMigration list
-  ; activeMigration : dBMigration option
-  ; dbNameId : id }
+  ; activeMigration : dBMigration option }
 
 (* userFunctions *)
 and userFunctionParameter =
@@ -385,6 +384,7 @@ and op =
   | AbandonDBMigration of tlid
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * dBName
+  | CreateDB2 of tlid * pos * id * dBName
 
 (* ------------------- *)
 (* RPCs *)
