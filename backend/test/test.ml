@@ -164,14 +164,16 @@ let http_handler ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let http_route = "/some/vars/and/such"
+let http_request_path = "/some/vars/and/such"
+
+let http_route = "/some/:vars/:and/such"
 
 let http_route_handler : HandlerT.handler =
   { tlid
   ; ast = f (Value "5")
   ; spec =
       { module_ = f "HTTP"
-      ; name = f "/some/:vars/:and/such"
+      ; name = f http_route
       ; modifier = f "GET"
       ; types = {input = b (); output = b ()} } }
 
@@ -407,7 +409,7 @@ let t_http_oplist_roundtrip () =
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler)] in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid] !c1 ;
-  let c2 = Canvas.load_http ~path:http_route ~verb:"GET" host in
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
@@ -499,22 +501,22 @@ let t_stored_event_roundtrip () =
     (List.sort ~compare [desc1; desc2; desc3])
     (List.sort ~compare (List.map ~f:rec2desc listed)) ;
   let loaded1 =
-    SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
     loaded1 ;
   let loaded2 =
-    SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
   let loaded3 =
-    SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list "load no host2 events" [] loaded3 ;
   let loaded4 =
-    SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:Tuple.T2.get2
+    SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:Tuple.T3.get3
   in
   check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
   ()
@@ -1843,6 +1845,61 @@ let t_sanitize_uri_path_with_repeated_root () =
   AT.check AT.string (Webserver.sanitize_uri_path "//") "/"
 
 
+let t_route_variables_work () =
+  AT.check
+    (AT.list AT.string)
+    "Variables are as expected"
+    ["userid"; "cardid"]
+    (Http.route_variables "/user/:userid/card/:cardid") ;
+  AT.check
+    (AT.list (AT.pair AT.string at_dval))
+    "Variables are bound as expected"
+    [("userid", DStr "myid"); ("cardid", DStr "0")]
+    (Http.bind_route_variables_exn
+       "/user/myid/card/0"
+       ~route:"/user/:userid/card/:cardid") ;
+  AT.check
+    AT.bool
+    "Path matches the route"
+    true
+    (Http.request_path_matches_route
+       "/user/myid/card/0"
+       ~route:"/user/:userid/card/:cardid")
+
+
+let t_route_variables_work_with_stored_events () =
+  (* set up test *)
+  clear_test_data () ;
+  let host = "test-route_variables_works" in
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler)] in
+  let c = Canvas.init host oplist in
+  Canvas.serialize_only [tlid] !c ;
+  let t1 = Util.create_uuid () in
+  let desc = ("HTTP", http_request_path, "GET") in
+  let route = ("HTTP", http_route, "GET") in
+  (* store an event and check it comes out *)
+  SE.store_event
+    ~canvas_id:!c.id
+    ~trace_id:t1
+    desc
+    (Dval.dstr_of_string_exn "1") ;
+  (* check we get back the path for a route with a variable in it *)
+  let loaded1 = SE.load_events ~canvas_id:!c.id route in
+  check_dval_list
+    "load GET events"
+    [Dval.dstr_of_string_exn "1"]
+    (loaded1 |> List.map ~f:Tuple.T3.get3) ;
+  AT.check
+    (AT.list AT.string)
+    "path returned correctly"
+    (loaded1 |> List.map ~f:Tuple.T3.get1)
+    [http_request_path] ;
+  (* check that the event is not in the 404s *)
+  let f404s = Analysis.get_404s ~since:Time.epoch !c in
+  AT.check (AT.list (AT.of_pp Stored_event.pp_four_oh_four)) "no 404s" [] f404s ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -1976,7 +2033,11 @@ let suite =
   ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
-  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation) ]
+  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
+  ; ("Route variables work", `Quick, t_route_variables_work)
+  ; ( "Route variables work with stored events"
+    , `Quick
+    , t_route_variables_work_with_stored_events ) ]
 
 
 let () =
