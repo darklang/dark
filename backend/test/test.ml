@@ -1830,19 +1830,23 @@ let t_u0000_fails_validation () =
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =
-  AT.check AT.string (Webserver.sanitize_uri_path "/foo//bar") "/foo/bar"
+  AT.check
+    AT.string
+    "/foo//bar->/foo/bar"
+    (Webserver.sanitize_uri_path "/foo//bar")
+    "/foo/bar"
 
 
 let t_sanitize_uri_path_with_trailing_slash () =
-  AT.check AT.string (Webserver.sanitize_uri_path "/foo/") "/foo"
+  AT.check AT.string "/foo/->/foo" (Webserver.sanitize_uri_path "/foo/") "/foo"
 
 
 let t_sanitize_uri_path_with_root_noops () =
-  AT.check AT.string (Webserver.sanitize_uri_path "/") "/"
+  AT.check AT.string "/->/" (Webserver.sanitize_uri_path "/") "/"
 
 
 let t_sanitize_uri_path_with_repeated_root () =
-  AT.check AT.string (Webserver.sanitize_uri_path "//") "/"
+  AT.check AT.string "//->/" (Webserver.sanitize_uri_path "//") "/"
 
 
 let t_route_variables_work () =
@@ -2034,6 +2038,18 @@ let suite =
     , `Quick
     , t_mix_of_ascii_and_utf16_fails_validation )
   ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
+  ; ( "t_sanitize_uri_path_with_repeated_slashes"
+    , `Quick
+    , t_sanitize_uri_path_with_repeated_slashes )
+  ; ( "t_sanitize_uri_path_with_trailing_slash"
+    , `Quick
+    , t_sanitize_uri_path_with_trailing_slash )
+  ; ( "t_sanitize_uri_path_with_root_noops"
+    , `Quick
+    , t_sanitize_uri_path_with_root_noops )
+  ; ( "t_sanitize_uri_path_with_repeated_root"
+    , `Quick
+    , t_sanitize_uri_path_with_repeated_root )
   ; ("Route variables work", `Quick, t_route_variables_work)
   ; ( "Route variables work with stored events"
     , `Quick
