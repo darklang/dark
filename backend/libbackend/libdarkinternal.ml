@@ -49,7 +49,7 @@ let replacements =
     ; ( "DarkInternal::cleanupOldTraces_v1"
       , function
         | state, [DStr host] ->
-            Canvas.cleanup_old_traces (Unicode_string.to_utf8 host) ;
+            Canvas.cleanup_old_traces (Unicode_string.to_string host) ;
             DNull
         | args ->
             fail args )
@@ -57,7 +57,7 @@ let replacements =
       , function
         | state, [DStr host] ->
           ( try
-              Canvas.validate_host (Unicode_string.to_utf8 host) ;
+              Canvas.validate_host (Unicode_string.to_string host) ;
               DBool true
             with _ -> DBool false )
         | args ->
@@ -71,13 +71,13 @@ let replacements =
       , function
         | _, [DStr host] ->
             Dval.dstr_of_string_exn
-              (Canvas.to_string (Unicode_string.to_utf8 host))
+              (Canvas.to_string (Unicode_string.to_string host))
         | args ->
             fail args )
     ; ( "DarkInternal::handlers"
       , function
         | _, [DStr host] ->
-            let c = Canvas.load_all (Unicode_string.to_utf8 host) [] in
+            let c = Canvas.load_all (Unicode_string.to_string host) [] in
             !c.handlers
             |> List.map ~f:Libexecution.Toplevel.as_handler
             |> List.map ~f:(fun h -> Option.value_exn h)
@@ -91,10 +91,10 @@ let replacements =
       , function
         | _, [DStr host; DStr tlid] ->
             let open Libexecution in
-            let tlid = Unicode_string.to_utf8 tlid in
+            let tlid = Unicode_string.to_string tlid in
             let c =
               Canvas.load_only
-                (Unicode_string.to_utf8 host)
+                (Unicode_string.to_string host)
                 ~tlids:[Types.id_of_string tlid]
                 []
             in
@@ -113,9 +113,9 @@ let replacements =
     ; ( "DarkInternal::upsertUser"
       , function
         | _, [DStr username; DStr email; DStr name] ->
-            let username = Unicode_string.to_utf8 username in
-            let email = Unicode_string.to_utf8 email in
-            let name = Unicode_string.to_utf8 name in
+            let username = Unicode_string.to_string username in
+            let email = Unicode_string.to_string email in
+            let name = Unicode_string.to_string name in
             let password = Account.upsert_user ~username ~email ~name () in
             Dval.dstr_of_string_exn password
         | args ->

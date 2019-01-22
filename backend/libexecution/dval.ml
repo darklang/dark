@@ -3,7 +3,7 @@ open Types
 open Types.RuntimeT
 
 let dstr_of_string (s : string) : dval option =
-  s |> Unicode_string.of_utf8 |> Option.map ~f:(fun s -> DStr s)
+  s |> Unicode_string.of_string |> Option.map ~f:(fun s -> DStr s)
 
 
 let dstr_of_string_exn (s : string) : dval =
@@ -260,7 +260,7 @@ let as_string (dv : dval) : string =
   | DBool false ->
       "false"
   | DStr s ->
-      Unicode_string.to_utf8 s
+      Unicode_string.to_string s
   | DFloat f ->
       string_of_float f
   | DChar c ->
@@ -290,7 +290,7 @@ let as_string (dv : dval) : string =
 let as_literal (dv : dval) : string =
   match dv with
   | DStr s ->
-      "\"" ^ Unicode_string.to_utf8 s ^ "\""
+      "\"" ^ Unicode_string.to_string s ^ "\""
   | DChar _ ->
       "'" ^ as_string dv ^ "'"
   | DCharacter c ->
@@ -447,7 +447,7 @@ let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 let to_string_exn dv : string =
   match dv with
   | DStr s ->
-      Unicode_string.to_utf8 s
+      Unicode_string.to_string s
   | _ ->
       Exception.user "expecting str" ~actual:(to_repr dv)
 
