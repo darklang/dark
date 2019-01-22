@@ -166,7 +166,9 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr token] ->
               let auth_string =
-                Dark_string.append (Dark_string.of_utf8_exn "Bearer ") token
+                Unicode_string.append
+                  (Unicode_string.of_utf8_exn "Bearer ")
+                  token
               in
               DObj (DvalMap.of_alist_exn [("Authorization", DStr auth_string)])
           | args ->

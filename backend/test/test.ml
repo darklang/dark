@@ -1389,7 +1389,7 @@ let t_db_deprecated_belongs_to_works () =
     | DObj o ->
       ( match (DvalMap.find o "x", DvalMap.find o "relation") with
       | Some (DStr s), Some (DObj inner)
-        when Dark_string.equal s (Dark_string.of_utf8_exn "foo") ->
+        when Unicode_string.equal s (Unicode_string.of_utf8_exn "foo") ->
         (match DvalMap.find inner "y" with Some (DInt 4) -> 0 | _ -> 1)
       | _ ->
           1 )
@@ -1425,7 +1425,7 @@ let t_db_deprecated_has_many_works () =
     | DObj o ->
       ( match (DvalMap.find o "x", DvalMap.find o "relations") with
       | Some (DStr s), Some (DList inners)
-        when Dark_string.equal s (Dark_string.of_utf8_exn "foo") ->
+        when Unicode_string.equal s (Unicode_string.of_utf8_exn "foo") ->
         ( match inners with
         | [DObj fst; DObj snd] ->
           ( try

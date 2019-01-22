@@ -50,7 +50,7 @@ let of_utf8 (s : string) : t option =
   match validate_string () with
   | `Ok ->
       (* Note, this changes the byte representation such that the input string and the
-       * Dark_string.t no longer match *)
+       * Unicode_string.t no longer match *)
       Some (Uunf_string.normalize_utf_8 `NFC s)
   | `Err ->
       None

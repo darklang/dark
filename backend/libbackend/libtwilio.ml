@@ -38,7 +38,7 @@ let replacements =
             in
             let twilio_uri =
               "https://api.twilio.com/2010-04-01/Accounts/"
-              ^ Libexecution.Dark_string.to_utf8 accountSID
+              ^ Libexecution.Unicode_string.to_utf8 accountSID
               ^ "/Messages.json"
             in
             Libhttpclient.send_request

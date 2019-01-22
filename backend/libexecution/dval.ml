@@ -3,7 +3,7 @@ open Types
 open Types.RuntimeT
 
 let dstr_of_string (s : string) : dval option =
-  s |> Dark_string.of_utf8 |> Option.map ~f:(fun s -> DStr s)
+  s |> Unicode_string.of_utf8 |> Option.map ~f:(fun s -> DStr s)
 
 
 let dstr_of_string_exn (s : string) : dval =
@@ -260,13 +260,13 @@ let as_string (dv : dval) : string =
   | DBool false ->
       "false"
   | DStr s ->
-      Dark_string.to_utf8 s
+      Unicode_string.to_utf8 s
   | DFloat f ->
       string_of_float f
   | DChar c ->
       Char.to_string c
   | DCharacter c ->
-      Dark_string.Character.to_string c
+      Unicode_string.Character.to_string c
   | DNull ->
       "null"
   | DID id ->
@@ -290,11 +290,11 @@ let as_string (dv : dval) : string =
 let as_literal (dv : dval) : string =
   match dv with
   | DStr s ->
-      "\"" ^ Dark_string.to_utf8 s ^ "\""
+      "\"" ^ Unicode_string.to_utf8 s ^ "\""
   | DChar _ ->
       "'" ^ as_string dv ^ "'"
   | DCharacter c ->
-      "'" ^ Dark_string.Character.to_string c ^ "'"
+      "'" ^ Unicode_string.Character.to_string c ^ "'"
   | _ ->
       as_string dv
 
@@ -433,7 +433,7 @@ let rec to_url_string (dv : dval) : string =
 let to_char dv : string option =
   match dv with
   | DCharacter c ->
-      Some (Dark_string.Character.to_string c)
+      Some (Unicode_string.Character.to_string c)
   | _ ->
       None
 
@@ -447,7 +447,7 @@ let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 let to_string_exn dv : string =
   match dv with
   | DStr s ->
-      Dark_string.to_utf8 s
+      Unicode_string.to_utf8 s
   | _ ->
       Exception.user "expecting str" ~actual:(to_repr dv)
 
@@ -622,7 +622,7 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DNull ->
       `Null
   | DStr s ->
-      Dark_string.to_yojson s
+      Unicode_string.to_yojson s
   | DList l ->
       `List (List.map l (unsafe_dval_to_yojson ~redact))
   | DObj o ->
@@ -634,7 +634,7 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DChar c ->
       wrap_user_str (Char.to_string c)
   | DCharacter c ->
-      wrap_user_str (Dark_string.Character.to_string c)
+      wrap_user_str (Unicode_string.Character.to_string c)
   | DError msg ->
       wrap_user_str msg
   | DResp (h, hdv) ->

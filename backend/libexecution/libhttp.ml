@@ -109,7 +109,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr url] ->
-              DResp (Redirect (Dark_string.to_utf8 url), DNull)
+              DResp (Redirect (Unicode_string.to_utf8 url), DNull)
           | args ->
               fail args)
     ; pr = None
@@ -201,8 +201,8 @@ let fns : Lib.shortfn list =
               |> String.concat ~sep:"; "
               |> Format.sprintf
                    "%s=%s; %s"
-                   (Uri.pct_encode (Dark_string.to_utf8 name))
-                   (Uri.pct_encode (Dark_string.to_utf8 value))
+                   (Uri.pct_encode (Unicode_string.to_utf8 name))
+                   (Uri.pct_encode (Unicode_string.to_utf8 value))
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj [("Set-Cookie", x)]
           | args ->

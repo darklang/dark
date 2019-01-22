@@ -4,7 +4,7 @@ open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 module Exception = Libexecution.Exception
 module Dval = Libexecution.Dval
-module Dark_string = Libexecution.Dark_string
+module Unicode_string = Libexecution.Unicode_string
 
 let find_db = Libdb.find_db
 
@@ -24,7 +24,7 @@ let replacements =
         (function
         | state, [DObj value; DStr key; DDB dbname] ->
             let db = find_db state.dbs dbname in
-            let key = Dark_string.to_utf8 key in
+            let key = Unicode_string.to_utf8 key in
             ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
             DObj value
         | args ->
@@ -34,7 +34,7 @@ let replacements =
         (function
         | state, [DStr key; DDB dbname] ->
           ( try
-              let key = Dark_string.to_utf8 key in
+              let key = Unicode_string.to_utf8 key in
               let db = find_db state.dbs dbname in
               DOption (OptJust (User_db.get ~state ~magic:false db key))
             with
@@ -53,7 +53,7 @@ let replacements =
               List.map
                 ~f:(function
                   | DStr s ->
-                      Dark_string.to_utf8 s
+                      Unicode_string.to_utf8 s
                   | t ->
                       Exception.user "Expected a string, got: "
                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
@@ -67,7 +67,7 @@ let replacements =
         (function
         | state, [DStr key; DDB dbname] ->
             let db = find_db state.dbs dbname in
-            let key = Dark_string.to_utf8 key in
+            let key = Unicode_string.to_utf8 key in
             User_db.delete ~state db key ;
             DNull
         | args ->
