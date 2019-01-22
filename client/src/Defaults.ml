@@ -53,6 +53,7 @@ let defaultModel : model =
       ; isCommandMode = false
       ; visible = true }
   ; userFunctions = []
+  ; deletedUserFunctions = []
   ; builtInFunctions = []
   ; currentPage = Toplevels {x = 0; y = 0}
   ; hovering = []
