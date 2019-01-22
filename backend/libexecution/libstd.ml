@@ -69,7 +69,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.find o (Unicode_string.to_utf8 s) with
+            ( match DvalMap.find o (Unicode_string.to_string s) with
             | Some d ->
                 d
             | None ->
@@ -133,7 +133,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr k; v] ->
-              DObj (Map.set o ~key:(Unicode_string.to_utf8 k) ~data:v)
+              DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
     ; pr = None
@@ -148,7 +148,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr k] ->
-              DObj (Map.remove o (Unicode_string.to_utf8 k))
+              DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
     ; pr = None
@@ -186,7 +186,7 @@ let fns : Lib.shortfn list =
                 |> String.concat ~sep:"\n"
               in
               Dval.dstr_of_string_exn
-                (Printf.sprintf fmt (Unicode_string.to_utf8 uri) inputs)
+                (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
               fail args)
     ; pr = None
@@ -595,7 +595,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr json] ->
-            ( match Dval.parse_basic_json (Unicode_string.to_utf8 json) with
+            ( match Dval.parse_basic_json (Unicode_string.to_string json) with
             | Some dv ->
                 dv
             | _ ->
@@ -711,7 +711,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s; DBlock fn] ->
               let result =
                 s
-                |> Unicode_string.to_utf8
+                |> Unicode_string.to_string
                 |> String.to_list
                 |> List.map ~f:(fun c -> fn [DChar c])
               in
@@ -788,7 +788,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               DList
-                ( String.to_list (Unicode_string.to_utf8 s)
+                ( String.to_list (Unicode_string.to_string s)
                 |> List.map ~f:(fun c -> DChar c) )
           | args ->
               fail args)
@@ -834,7 +834,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              let utf8 = Unicode_string.to_utf8 s in
+              let utf8 = Unicode_string.to_string s in
               ( try DInt (int_of_string utf8) with e ->
                   Exception.user
                     ~actual:utf8
@@ -854,7 +854,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              let utf8 = Unicode_string.to_utf8 s in
+              let utf8 = Unicode_string.to_string s in
               ( try DFloat (float_of_string utf8) with e ->
                   Exception.user
                     ~actual:utf8
@@ -874,7 +874,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (String.uppercase (Unicode_string.to_utf8 s))
+                (String.uppercase (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -905,7 +905,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (String.lowercase (Unicode_string.to_utf8 s))
+                (String.lowercase (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -935,7 +935,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DInt (String.length (Unicode_string.to_utf8 s))
+              DInt (String.length (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -984,13 +984,13 @@ let fns : Lib.shortfn list =
               s
               |> replace
                    ~pattern:to_remove
-                   ~replacement:(Unicode_string.of_utf8_exn "")
+                   ~replacement:(Unicode_string.of_string_exn "")
               |> replace
                    ~pattern:trim
-                   ~replacement:(Unicode_string.of_utf8_exn "")
+                   ~replacement:(Unicode_string.of_string_exn "")
               |> replace
                    ~pattern:spaces
-                   ~replacement:(Unicode_string.of_utf8_exn "-")
+                   ~replacement:(Unicode_string.of_string_exn "-")
               |> Unicode_string.lowercase
               |> fun s -> DStr s
           | args ->
@@ -1141,7 +1141,7 @@ let fns : Lib.shortfn list =
                 (B64.encode
                    ~alphabet:B64.uri_safe_alphabet
                    ~pad:false
-                   (Unicode_string.to_utf8 s))
+                   (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1160,19 +1160,19 @@ let fns : Lib.shortfn list =
                 Dval.dstr_of_string_exn
                   (B64.decode
                      ~alphabet:B64.uri_safe_alphabet
-                     (Unicode_string.to_utf8 s))
+                     (Unicode_string.to_string s))
               with
             | Not_found_s _ | Caml.Not_found ->
               ( try
                   Dval.dstr_of_string_exn
                     (B64.decode
                        ~alphabet:B64.default_alphabet
-                       (Unicode_string.to_utf8 s))
+                       (Unicode_string.to_string s))
                 with
               | Not_found_s _ | Caml.Not_found ->
                   RT.error
                     ~actual:
-                      (Dval.dstr_of_string_exn (Unicode_string.to_utf8 s))
+                      (Dval.dstr_of_string_exn (Unicode_string.to_string s))
                     "Not a valid base64 string" ) )
           | args ->
               fail args)
@@ -1191,7 +1191,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (Libtarget.digest384 (Unicode_string.to_utf8 s))
+                (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1207,7 +1207,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (Libtarget.digest384 (Unicode_string.to_utf8 s))
+                (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1223,7 +1223,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (Libtarget.digest256 (Unicode_string.to_utf8 s))
+                (Libtarget.digest256 (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1257,7 +1257,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (Util.html_escape (Unicode_string.to_utf8 s))
+                (Util.html_escape (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1273,7 +1273,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( match Uuidm.of_string (Unicode_string.to_utf8 s) with
+            ( match Uuidm.of_string (Unicode_string.to_string s) with
             | Some id ->
                 DUuid id
             | None ->
@@ -1668,7 +1668,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( try DDate (Util.date_of_isostring (Unicode_string.to_utf8 s))
+            ( try DDate (Util.date_of_isostring (Unicode_string.to_string s))
               with e -> RT.error "Invalid date format" )
           | args ->
               fail args)

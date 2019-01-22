@@ -16,11 +16,17 @@ module Character : sig
   val of_yojson : Yojson.Safe.json -> (t, string) Result.t
 end
 
-val of_utf8 : string -> t option
+val of_utf8_encoded_string : string -> t option
 
-val of_utf8_exn : ?message:string -> string -> t
+val of_string : string -> t option
 
-val to_utf8 : t -> string
+val of_utf8_encoded_string_exn : ?message:string -> string -> t
+
+val of_string_exn : ?message:string -> string -> t
+
+val to_utf8_encoded_string : t -> string
+
+val to_string : t -> string
 
 val uppercase : t -> t
 

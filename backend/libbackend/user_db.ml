@@ -33,7 +33,7 @@ let coerce_key_value_pair_to_legacy_object pair =
   match pair with
   | [DStr s; DObj o] ->
       let id =
-        match Uuidm.of_string (Unicode_string.to_utf8 s) with
+        match Uuidm.of_string (Unicode_string.to_string s) with
         | Some id ->
             DID id
         | None ->
@@ -93,7 +93,7 @@ let dv_to_id col (dv : dval) : Uuidm.t =
       (* This is what you get for accidentally
                      implementating a dynamic language *)
       let uuid =
-        match Uuidm.of_string (Unicode_string.to_utf8 str) with
+        match Uuidm.of_string (Unicode_string.to_string str) with
         | Some id ->
             id
         | None ->

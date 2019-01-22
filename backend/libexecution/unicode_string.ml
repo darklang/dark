@@ -31,7 +31,7 @@ module Character = struct
   let of_yojson j = failwith "TODO(ian)"
 end
 
-let of_utf8 (s : string) : t option =
+let of_utf8_encoded_string (s : string) : t option =
   (* the decoder has mutable state *)
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
   let rec validate_string () =
@@ -56,13 +56,19 @@ let of_utf8 (s : string) : t option =
       None
 
 
-let of_utf8_exn ?message s =
-  let possible_t = of_utf8 s in
+let of_string = of_utf8_encoded_string
+
+let of_utf8_encoded_string_exn ?message s =
+  let possible_t = of_utf8_encoded_string s in
   let msg = Option.value ~default:("Invalid UTF-8 String: " ^ s) message in
   Option.value_exn ~message:msg possible_t
 
 
-let to_utf8 t = t
+let of_string_exn = of_utf8_encoded_string_exn
+
+let to_utf8_encoded_string t = t
+
+let to_string = to_utf8_encoded_string
 
 (* validity/normalization is closed over appending *)
 let append l r = l ^ r
@@ -77,9 +83,9 @@ let map_graphemes ~f t =
 
 let graphemes t = map_graphemes ~f:ident t
 
-let of_grapheme g = of_utf8_exn g
+let of_grapheme g = of_utf8_encoded_string_exn g
 
-let of_graphemes gs = of_utf8_exn (String.concat ~sep:"" gs)
+let of_graphemes gs = of_utf8_encoded_string_exn (String.concat ~sep:"" gs)
 
 let length t =
   Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> 1 + acc) 0 t
@@ -89,15 +95,18 @@ let is_substring ~substring t = String.is_substring ~substring t
 
 (* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
 let replace ~search ~replace t =
-  of_utf8_exn (Util.string_replace search replace t)
+  of_utf8_encoded_string_exn (Util.string_replace search replace t)
 
 
 (* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
 let regexp_replace ~pattern ~replacement t =
-  Libtarget.regexp_replace ~pattern ~replacement t |> of_utf8_exn
+  Libtarget.regexp_replace ~pattern ~replacement t
+  |> of_utf8_encoded_string_exn
 
 
-let split ~sep t = t |> Libtarget.string_split ~sep |> List.map ~f:of_utf8_exn
+let split ~sep t =
+  t |> Libtarget.string_split ~sep |> List.map ~f:of_utf8_encoded_string_exn
+
 
 let rev t =
   t
@@ -122,7 +131,7 @@ let to_yojson t = `String t
 let of_yojson j =
   match j with
   | `String s ->
-    ( match of_utf8 s with
+    ( match of_utf8_encoded_string s with
     | Some ss ->
         Ok ss
     | None ->
