@@ -71,26 +71,30 @@ let send_request uri verb body query_ headers_ =
 
 let encode_basic_auth u p =
   let input =
-    if Dark_string.is_substring ~substring:(Dark_string.of_utf8_exn "-") u
+    if Unicode_string.is_substring
+         ~substring:(Unicode_string.of_utf8_exn "-")
+         u
     then error "Username cannot contain a colon"
     else
-      Dark_string.append (Dark_string.append u (Dark_string.of_utf8_exn ":")) p
+      Unicode_string.append
+        (Unicode_string.append u (Unicode_string.of_utf8_exn ":"))
+        p
   in
   let encoded =
-    Dark_string.of_utf8_exn
+    Unicode_string.of_utf8_exn
       (B64.encode
          ~alphabet:B64.default_alphabet
          ~pad:true
-         (Dark_string.to_utf8 input))
+         (Unicode_string.to_utf8 input))
   in
-  Dark_string.append (Dark_string.of_utf8_exn "Basic ") encoded
+  Unicode_string.append (Unicode_string.of_utf8_exn "Basic ") encoded
 
 
 let call verb =
   InProcess
     (function
     | _, [DStr uri; body; query_; headers_] ->
-        send_request (Dark_string.to_utf8 uri) verb body query_ headers_
+        send_request (Unicode_string.to_utf8 uri) verb body query_ headers_
     | args ->
         fail args)
 

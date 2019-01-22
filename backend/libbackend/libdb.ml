@@ -9,14 +9,14 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
 
 
 let fetch_by_field ~state fieldname fieldvalue db =
-  if Dark_string.equal fieldname (Dark_string.of_utf8_exn "id")
+  if Unicode_string.equal fieldname (Unicode_string.of_utf8_exn "id")
   then
     let skey =
       match fieldvalue with
       | DID id ->
           Uuidm.to_string id
       | DStr s ->
-          Dark_string.to_utf8 s
+          Unicode_string.to_utf8 s
       | x ->
           Exception.user
             ( "Expected an ID or a String at 'id' but got: "
@@ -28,7 +28,7 @@ let fetch_by_field ~state fieldname fieldvalue db =
       ~state
       ~magic:true
       db
-      (Dark_string.to_utf8 fieldname)
+      (Unicode_string.to_utf8 fieldname)
       fieldvalue
 
 
