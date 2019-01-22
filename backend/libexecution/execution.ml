@@ -17,7 +17,9 @@ let input_vars_for_user_fn (ufn : user_fn) : dval_map =
 
 
 let dbs_as_input_vars (dbs : DbT.db list) : (string * dval) list =
-  List.map dbs ~f:(fun db -> (db.name, DDB db.name))
+  List.map dbs ~f:(fun db ->
+      let name = Ast.blank_to_string db.name in
+      (name, DDB name) )
 
 
 let http_route_input_vars (h : HandlerT.handler) (request_path : string) :

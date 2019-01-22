@@ -14,7 +14,7 @@ let name (tl : toplevel) : string =
   | TLHandler h ->
       "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
-      "DB: " ^ db.dbName
+      "DB: " ^ (db.dbName |> B.toMaybe |> Option.withDefault "")
   | TLFunc f ->
       "Func: "
       ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
@@ -452,4 +452,8 @@ let findExn (tl : toplevel) (id : id) : pointerData =
 let allDBNames (toplevels : toplevel list) : string list =
   toplevels
   |> List.filterMap (fun tl ->
-         match tl.data with TLDB db -> Some db.dbName | _ -> None )
+         match tl.data with
+         | TLDB db ->
+           (match db.dbName with F (_, name) -> Some name | Blank _ -> None)
+         | _ ->
+             None )

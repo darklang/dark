@@ -79,7 +79,7 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       let next = gid () in
       let tlid = gtlid () in
       RPC
-        ( [CreateDB (tlid, pos, dbname); AddDBCol (tlid, next, gid ())]
+        ( [CreateDB2 (tlid, pos, gid (), dbname); AddDBCol (tlid, next, gid ())]
         , FocusExact (tlid, next) )
   | NewHandler name ->
       let next = gid () in

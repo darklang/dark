@@ -17,13 +17,15 @@ let wc = ViewBlankOr.wc
 
 let enterable = ViewBlankOr.Enterable
 
+let dbName2String (name : dBName blankOr) : dBName = B.valueWithDefault "" name
+
 let viewDBName (vs : viewState) (db : dB) : msg Html.html =
   let nameField =
     if vs.dbLocked
-    then Html.span [Html.class' "name"] [Html.text db.dbName]
+    then Html.span [Html.class' "name"] [Html.text (dbName2String db.dbName)]
     else
       let c = (enterable :: idConfigs) @ [wc "dbname"] in
-      ViewBlankOr.viewText DBName vs c (F (db.dbNameId, db.dbName))
+      ViewBlankOr.viewText DBName vs c db.dbName
   in
   Html.div
     [Html.class' "dbtitle"]

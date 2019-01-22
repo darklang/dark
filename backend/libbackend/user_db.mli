@@ -42,6 +42,8 @@ val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval
 (* DB schema modifications *)
 val create : string -> tlid -> DbT.db
 
+val create2 : string -> tlid -> id -> DbT.db
+
 val add_col : id -> id -> DbT.db -> DbT.db
 
 val set_col_name : id -> string -> DbT.db -> DbT.db

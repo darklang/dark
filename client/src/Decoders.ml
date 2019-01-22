@@ -187,12 +187,11 @@ and dbMigration j : dBMigration =
 
 and db j : dB =
   { dbTLID = field "tlid" tlid j
-  ; dbName = field "name" string j
+  ; dbName = field "name" (blankOr string) j
   ; cols = field "cols" dbColList j
   ; version = field "version" int j
   ; oldMigrations = field "old_migrations" (list dbMigration) j
-  ; activeMigration = field "active_migration" (optional dbMigration) j
-  ; dbNameId = Prelude.gid () }
+  ; activeMigration = field "active_migration" (optional dbMigration) j }
 
 
 and toplevel j : toplevel =
