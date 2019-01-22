@@ -18,8 +18,7 @@ let replacements =
             in
             let encoding = "application/x-www-form-urlencoded" in
             let headers =
-              [ ( "Authorization"
-                , Libexecution.Dval.dstr_of_string_exn basic_auth_string )
+              [ ("Authorization", DStr basic_auth_string)
               ; ("Content-Type", Libexecution.Dval.dstr_of_string_exn encoding)
               ]
               |> DvalMap.of_alist_exn
@@ -27,9 +26,9 @@ let replacements =
             in
             let host_url = Canvas.url_for s.canvas_id in
             let body =
-              [ ("From", Libexecution.Dval.dstr_of_string_exn fromNumber)
-              ; ("To", Libexecution.Dval.dstr_of_string_exn toNumber)
-              ; ("Body", Libexecution.Dval.dstr_of_string_exn body)
+              [ ("From", DStr fromNumber)
+              ; ("To", DStr toNumber)
+              ; ("Body", DStr body)
               ; ("ValidityPeriod", Libexecution.Dval.dstr_of_string_exn "900")
               ; ( "StatusCallback"
                 , Libexecution.Dval.dstr_of_string_exn
@@ -39,7 +38,7 @@ let replacements =
             in
             let twilio_uri =
               "https://api.twilio.com/2010-04-01/Accounts/"
-              ^ accountSID
+              ^ Libexecution.Unicode_string.to_string accountSID
               ^ "/Messages.json"
             in
             Libhttpclient.send_request
