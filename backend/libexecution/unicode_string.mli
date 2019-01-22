@@ -57,9 +57,10 @@ val lowercase : t -> t
 val append : t -> t -> t
 (** `append a b` returns the concatenation of `a` and `b` **)
 
-val map_characters : f:(Character.t -> 'a) -> t -> 'a list
-
 val characters : t -> Character.t list
+(** Returns a list of the user-perceived Characters in the Unicode_string.t **)
+
+val map_characters : f:(Character.t -> 'a) -> t -> 'a list
 
 val of_character : Character.t -> t
 
@@ -76,8 +77,10 @@ val split : sep:t -> t -> t list
 val concat : sep:t -> t list -> t
 
 val rev : t -> t
+(** Returns the `t`, with the characters reversed **)
 
 val length : t -> int
+(** Returns the number of user-perceived Characters in `t` **)
 
 val compare : t -> t -> int
 
