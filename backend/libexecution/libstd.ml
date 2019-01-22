@@ -750,8 +750,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s; DBlock fn] ->
               let result =
-                Unicode_string.map_graphemes ~f:(fun c -> DCharacter c) s
-                |> List.map ~f:(fun c -> fn [c])
+                Unicode_string.map_characters ~f:(fun c -> fn [DCharacter c]) s
               in
               if List.exists ~f:(( = ) DIncomplete) result
               then DIncomplete
@@ -804,7 +803,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DList (Unicode_string.map_graphemes ~f:(fun c -> DCharacter c) s)
+              DList
+                (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
           | args ->
               fail args)
     ; pr = None
@@ -1092,7 +1092,7 @@ let fns : Lib.shortfn list =
                            c
                        | dv ->
                            RT.error ~actual:dv "expected a char" )
-                |> Unicode_string.of_graphemes )
+                |> Unicode_string.of_characters )
           | args ->
               fail args)
     ; pr = None
@@ -1122,7 +1122,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DCharacter c] ->
-              DStr (Unicode_string.of_grapheme c)
+              DStr (Unicode_string.of_character c)
           | args ->
               fail args)
     ; pr = None
