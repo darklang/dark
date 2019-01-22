@@ -2,9 +2,14 @@ open! Porting
 open Types
 
 let fromString (json : string option) : serializableEditor =
-  json
-  |> Option.map (Json.parseOrRaise >> Decoders.serializableEditor)
-  |> Option.withDefault Defaults.defaultEditor
+  match json with
+  | None ->
+      Debug.loG "no serialized editor" None ;
+      Defaults.defaultEditor
+  | Some json ->
+    ( try json |> Json.parseOrRaise |> Decoders.serializableEditor with e ->
+        Debug.loG "error parsing serialized editor" e ;
+        Defaults.defaultEditor )
 
 
 let toString (se : serializableEditor) : string =
