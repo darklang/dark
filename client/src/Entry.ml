@@ -418,7 +418,7 @@ let submitACItem
                 ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
             else if List.member value (TL.allDBNames m.toplevels)
             then DisplayError ("There is already a DB named " ^ value)
-            else RPC ([RenameDBname (tlid, value)], FocusSame)
+            else RPC ([RenameDBname (tlid, value)], FocusNothing)
         | PDBColType ct, ACExtra value ->
             let db1 = deOption "db" db in
             if B.asF ct = Some value
