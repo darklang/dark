@@ -3,22 +3,7 @@ open Types
 open Types.RuntimeT
 
 let dstr_of_string (s : string) : dval option =
-  (* the decoder has mutable state *)
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
-  let rec validate_string () =
-    match Uutf.decode decoder with
-    | `Uchar ch when ch = Uchar.min ->
-        `Err (* U+0000 is rejected by postgres *)
-    | `Uchar _ ->
-        validate_string ()
-    | `End ->
-        `Ok
-    | `Await ->
-        validate_string ()
-    | `Malformed _ ->
-        `Err
-  in
-  match validate_string () with `Ok -> Some (DStr s) | `Err -> None
+  s |> Unicode_string.of_string |> Option.map ~f:(fun s -> DStr s)
 
 
 let dstr_of_string_exn (s : string) : dval =
@@ -56,6 +41,8 @@ let rec tipe_to_string t : string =
       "Nothing"
   | TChar ->
       "Char"
+  | TCharacter ->
+      "Character"
   | TStr ->
       "Str"
   | TList ->
@@ -114,6 +101,8 @@ let rec tipe_of_string str : tipe =
       TNull
   | "char" ->
       TChar
+  | "character" ->
+      TCharacter
   | "str" ->
       TStr
   | "string" ->
@@ -215,6 +204,8 @@ let rec tipe_of (dv : dval) : tipe =
       TNull
   | DChar _ ->
       TChar
+  | DCharacter _ ->
+      TCharacter
   | DStr _ ->
       TStr
   | DList _ ->
@@ -269,11 +260,13 @@ let as_string (dv : dval) : string =
   | DBool false ->
       "false"
   | DStr s ->
-      s
+      Unicode_string.to_string s
   | DFloat f ->
       string_of_float f
   | DChar c ->
       Char.to_string c
+  | DCharacter c ->
+      Unicode_string.Character.to_string c
   | DNull ->
       "null"
   | DID id ->
@@ -297,16 +290,18 @@ let as_string (dv : dval) : string =
 let as_literal (dv : dval) : string =
   match dv with
   | DStr s ->
-      "\"" ^ s ^ "\""
+      "\"" ^ Unicode_string.to_string s ^ "\""
   | DChar _ ->
       "'" ^ as_string dv ^ "'"
+  | DCharacter c ->
+      "'" ^ Unicode_string.Character.to_string c ^ "'"
   | _ ->
       as_string dv
 
 
 let is_primitive (dv : dval) : bool =
   match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DStr _ ->
+  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _ | DStr _ ->
       true
   | _ ->
       false
@@ -435,14 +430,24 @@ let rec to_url_string (dv : dval) : string =
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
-let to_char dv : char option = match dv with DChar c -> Some c | _ -> None
+let to_char dv : string option =
+  match dv with
+  | DCharacter c ->
+      Some (Unicode_string.Character.to_string c)
+  | _ ->
+      None
+
+
+let to_char_deprecated dv : char option =
+  match dv with DChar c -> Some c | _ -> None
+
 
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
 let to_string_exn dv : string =
   match dv with
   | DStr s ->
-      s
+      Unicode_string.to_string s
   | _ ->
       Exception.user "expecting str" ~actual:(to_repr dv)
 
@@ -617,7 +622,7 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DNull ->
       `Null
   | DStr s ->
-      `String s
+      Unicode_string.to_yojson s
   | DList l ->
       `List (List.map l (unsafe_dval_to_yojson ~redact))
   | DObj o ->
@@ -628,6 +633,8 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   (* user-ish types *)
   | DChar c ->
       wrap_user_str (Char.to_string c)
+  | DCharacter c ->
+      wrap_user_str (Unicode_string.Character.to_string c)
   | DError msg ->
       wrap_user_str msg
   | DResp (h, hdv) ->

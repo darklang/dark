@@ -71,19 +71,30 @@ let send_request uri verb body query_ headers_ =
 
 let encode_basic_auth u p =
   let input =
-    if String.is_substring ~substring:"-" u
+    if Unicode_string.is_substring
+         ~substring:(Unicode_string.of_string_exn "-")
+         u
     then error "Username cannot contain a colon"
-    else u ^ ":" ^ p
+    else
+      Unicode_string.append
+        (Unicode_string.append u (Unicode_string.of_string_exn ":"))
+        p
   in
-  let encoded = B64.encode ~alphabet:B64.default_alphabet ~pad:true input in
-  "Basic " ^ encoded
+  let encoded =
+    Unicode_string.of_string_exn
+      (B64.encode
+         ~alphabet:B64.default_alphabet
+         ~pad:true
+         (Unicode_string.to_string input))
+  in
+  Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
 
 let call verb =
   InProcess
     (function
     | _, [DStr uri; body; query_; headers_] ->
-        send_request uri verb body query_ headers_
+        send_request (Unicode_string.to_string uri) verb body query_ headers_
     | args ->
         fail args)
 
@@ -101,8 +112,6 @@ let replacements =
         (function
         | _, [DStr u; DStr p] ->
             DObj
-              (DvalMap.singleton
-                 "Authorization"
-                 (Dval.dstr_of_string_exn (encode_basic_auth u p)))
+              (DvalMap.singleton "Authorization" (DStr (encode_basic_auth u p)))
         | args ->
             fail args) ) ]

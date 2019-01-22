@@ -33,11 +33,11 @@ let coerce_key_value_pair_to_legacy_object pair =
   match pair with
   | [DStr s; DObj o] ->
       let id =
-        match Uuidm.of_string s with
+        match Uuidm.of_string (Unicode_string.to_string s) with
         | Some id ->
             DID id
         | None ->
-            Dval.dstr_of_string_exn s
+            DStr s
       in
       DObj (Map.set ~key:"id" ~data:id o)
   | err ->
@@ -93,7 +93,7 @@ let dv_to_id col (dv : dval) : Uuidm.t =
       (* This is what you get for accidentally
                      implementating a dynamic language *)
       let uuid =
-        match Uuidm.of_string str with
+        match Uuidm.of_string (Unicode_string.to_string str) with
         | Some id ->
             id
         | None ->

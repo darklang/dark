@@ -14,6 +14,7 @@ let replacements =
         (function
         | _, [DStr s] ->
             s
+            |> Unicode_string.to_string
             |> Bytes.of_string
             (* wipe_to_password is a confusing name
                                 but it's the only way to get a `password'
@@ -43,6 +44,7 @@ let replacements =
         (function
         | _, [DPassword existingpw; DStr rawpw] ->
             rawpw
+            |> Unicode_string.to_string
             |> Bytes.of_string
             |> Hash.wipe_to_password
             |> Hash.verify_password_hash existingpw

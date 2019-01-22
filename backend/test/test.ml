@@ -1388,7 +1388,8 @@ let t_db_deprecated_belongs_to_works () =
     ( match result with
     | DObj o ->
       ( match (DvalMap.find o "x", DvalMap.find o "relation") with
-      | Some (DStr "foo"), Some (DObj inner) ->
+      | Some (DStr s), Some (DObj inner)
+        when Unicode_string.equal s (Unicode_string.of_string_exn "foo") ->
         (match DvalMap.find inner "y" with Some (DInt 4) -> 0 | _ -> 1)
       | _ ->
           1 )
@@ -1423,7 +1424,8 @@ let t_db_deprecated_has_many_works () =
     ( match result with
     | DObj o ->
       ( match (DvalMap.find o "x", DvalMap.find o "relations") with
-      | Some (DStr "foo"), Some (DList inners) ->
+      | Some (DStr s), Some (DList inners)
+        when Unicode_string.equal s (Unicode_string.of_string_exn "foo") ->
         ( match inners with
         | [DObj fst; DObj snd] ->
           ( try
@@ -1829,6 +1831,48 @@ let t_u0000_fails_validation () =
     (match Dval.dstr_of_string "hello, \x00" with Some _ -> 1 | _ -> 0)
 
 
+let t_string_length_v1_works_on_emoji () =
+  check_dval
+    "stringLength"
+    (exec_ast "(String::length_v1 '\xef\xbf\xbd')")
+    (DInt 1)
+
+
+let t_string_uppercase_works_for_ascii_range () =
+  check_dval
+    "stringUppercaseASCII"
+    (exec_ast "(String::toUppercase_v1 'abcdef')")
+    (Dval.dstr_of_string_exn "ABCDEF")
+
+
+let t_string_lowercase_works_for_ascii_range () =
+  check_dval
+    "stringLowercaseASCII"
+    (exec_ast "(String::toLowercase_v1 'ABCDEF')")
+    (Dval.dstr_of_string_exn "abcdef")
+
+
+let t_string_uppercase_v1_works_on_mixed_strings () =
+  check_dval
+    "stringUpppercaseMixed"
+    (exec_ast "(String::toUppercase_v1 'hello\xf0\x9f\x98\x84world')")
+    (Dval.dstr_of_string_exn "HELLO\xf0\x9f\x98\x84WORLD")
+
+
+let t_string_uppercase_v1_works_on_non_ascii_strings () =
+  check_dval
+    "stringUpppercaseMixed"
+    (exec_ast "(String::toUppercase_v1 'żółw')")
+    (Dval.dstr_of_string_exn "ŻÓŁW")
+
+
+let t_string_split_works_for_emoji () =
+  check_dval
+    "stringSplit"
+    (exec_ast "(String::split 'hello\xf0\x9f\x98\x84world' '\xf0\x9f\x98\x84')")
+    (DList [Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world"])
+
+
 let t_sanitize_uri_path_with_repeated_slashes () =
   AT.check
     AT.string
@@ -1858,7 +1902,8 @@ let t_route_variables_work () =
   AT.check
     (AT.list (AT.pair AT.string at_dval))
     "Variables are bound as expected"
-    [("userid", DStr "myid"); ("cardid", DStr "0")]
+    [ ("userid", Dval.dstr_of_string_exn "myid")
+    ; ("cardid", Dval.dstr_of_string_exn "0") ]
     (Http.bind_route_variables_exn
        "/user/myid/card/0"
        ~route:"/user/:userid/card/:cardid") ;
@@ -2053,7 +2098,25 @@ let suite =
   ; ("Route variables work", `Quick, t_route_variables_work)
   ; ( "Route variables work with stored events"
     , `Quick
-    , t_route_variables_work_with_stored_events ) ]
+    , t_route_variables_work_with_stored_events )
+  ; ( "String::length_v2 returns the correct length for a string containing an emoji"
+    , `Quick
+    , t_string_length_v1_works_on_emoji )
+  ; ( "String::toUppercase_v1 works for ASCII range"
+    , `Quick
+    , t_string_uppercase_works_for_ascii_range )
+  ; ( "String::toLowercase_v1 works for ASCII range"
+    , `Quick
+    , t_string_lowercase_works_for_ascii_range )
+  ; ( "String::toUppercase_v1 works on mixed strings"
+    , `Quick
+    , t_string_uppercase_v1_works_on_mixed_strings )
+  ; ( "String::toUppercase_v1 works on non-ascii strings"
+    , `Quick
+    , t_string_uppercase_v1_works_on_non_ascii_strings )
+  ; ( "String split works on strings with emoji + ascii"
+    , `Quick
+    , t_string_split_works_for_emoji ) ]
 
 
 let () =

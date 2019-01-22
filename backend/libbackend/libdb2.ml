@@ -4,6 +4,7 @@ open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 module Exception = Libexecution.Exception
 module Dval = Libexecution.Dval
+module Unicode_string = Libexecution.Unicode_string
 
 let find_db = Libdb.find_db
 
@@ -15,7 +16,7 @@ let replacements =
             let key = Uuidm.v `V4 |> Uuidm.to_string in
             let db = find_db state.dbs dbname in
             ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
-            DStr key
+            Dval.dstr_of_string_exn key
         | args ->
             fail args) )
   ; ( "DB::set_v1"
@@ -23,6 +24,7 @@ let replacements =
         (function
         | state, [DObj value; DStr key; DDB dbname] ->
             let db = find_db state.dbs dbname in
+            let key = Unicode_string.to_string key in
             ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
             DObj value
         | args ->
@@ -32,6 +34,7 @@ let replacements =
         (function
         | state, [DStr key; DDB dbname] ->
           ( try
+              let key = Unicode_string.to_string key in
               let db = find_db state.dbs dbname in
               DOption (OptJust (User_db.get ~state ~magic:false db key))
             with
@@ -50,7 +53,7 @@ let replacements =
               List.map
                 ~f:(function
                   | DStr s ->
-                      s
+                      Unicode_string.to_string s
                   | t ->
                       Exception.user "Expected a string, got: "
                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
@@ -64,6 +67,7 @@ let replacements =
         (function
         | state, [DStr key; DDB dbname] ->
             let db = find_db state.dbs dbname in
+            let key = Unicode_string.to_string key in
             User_db.delete ~state db key ;
             DNull
         | args ->
@@ -192,7 +196,9 @@ let replacements =
         (function
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.cols_for db |> List.map ~f:(fun (k, v) -> DStr k) |> DList
+            User_db.cols_for db
+            |> List.map ~f:(fun (k, v) -> Dval.dstr_of_string_exn k)
+            |> DList
         | args ->
             fail args) )
   ; ( "DB::schema_v1"
@@ -201,7 +207,8 @@ let replacements =
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
             User_db.cols_for db
-            |> List.map ~f:(fun (k, v) -> (k, DStr (Dval.tipe_to_string v)))
+            |> List.map ~f:(fun (k, v) ->
+                   (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)) )
             |> Dval.to_dobj
         | args ->
             fail args) ) ]

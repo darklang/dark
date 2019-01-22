@@ -69,7 +69,11 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            (match DvalMap.find o s with Some d -> d | None -> DNull)
+            ( match DvalMap.find o (Unicode_string.to_string s) with
+            | Some d ->
+                d
+            | None ->
+                DNull )
           | args ->
               fail args)
     ; pr = None
@@ -129,7 +133,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr k; v] ->
-              DObj (Map.set o ~key:k ~data:v)
+              DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
     ; pr = None
@@ -143,7 +147,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DObj o; DStr k] -> DObj (Map.remove o k) | args -> fail args)
+          | _, [DObj o; DStr k] ->
+              DObj (Map.remove o (Unicode_string.to_string k))
+          | args ->
+              fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -178,7 +185,8 @@ let fns : Lib.shortfn list =
                 |> List.map ~f:to_input
                 |> String.concat ~sep:"\n"
               in
-              Dval.dstr_of_string_exn (Printf.sprintf fmt uri inputs)
+              Dval.dstr_of_string_exn
+                (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
               fail args)
     ; pr = None
@@ -587,7 +595,11 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr json] ->
-            (match Dval.parse_basic_json json with Some dv -> dv | _ -> DNull)
+            ( match Dval.parse_basic_json (Unicode_string.to_string json) with
+            | Some dv ->
+                dv
+            | _ ->
+                DNull )
           | args ->
               fail args)
     ; pr = None
@@ -692,19 +704,22 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr; func ["char"]]
     ; r = TStr
     ; d =
-        "Iterate over each character in the string, performing the operation in the block on each one"
+        "DEPRECATED: Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
     ; f =
         InProcess
           (function
           | _, [DStr s; DBlock fn] ->
               let result =
-                s |> String.to_list |> List.map ~f:(fun c -> fn [DChar c])
+                s
+                |> Unicode_string.to_string
+                |> String.to_list
+                |> List.map ~f:(fun c -> fn [DChar c])
               in
               if List.exists ~f:(( = ) DIncomplete) result
               then DIncomplete
               else
                 result
-                |> list_coerce ~f:Dval.to_char
+                |> list_coerce ~f:Dval.to_char_deprecated
                 >>| String.of_char_list
                 >>| (fun x -> Dval.dstr_of_string_exn x)
                 |> Result.map_error ~f:(fun (result, example_value) ->
@@ -721,29 +736,75 @@ let fns : Lib.shortfn list =
                 |> Result.ok_exn
           | args ->
               fail args)
-    ; pr =
-        Some
-          (fun dv cursor ->
-            match dv with
-            | [DStr s; _] ->
-                let s : string = if s = "" then "example" else s in
-                let index : int = min cursor (String.length s - 1) in
-                let c : char = s.[index] in
-                [DChar c]
-            | args ->
-                [DIncomplete] )
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::foreach_v1"]
+    ; ins = []
+    ; p = [par "s" TStr; func ["character"]]
+    ; r = TStr
+    ; d =
+        "Iterate over each character (EGC, not byte) in the string, performing the operation in the block on each one"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s; DBlock fn] ->
+              let result =
+                Unicode_string.map_characters ~f:(fun c -> fn [DCharacter c]) s
+              in
+              if List.exists ~f:(( = ) DIncomplete) result
+              then DIncomplete
+              else
+                result
+                |> list_coerce ~f:Dval.to_char
+                >>| String.concat
+                >>| (fun x -> Dval.dstr_of_string_exn x)
+                |> Result.map_error ~f:(fun (result, example_value) ->
+                       RT.error
+                         ~actual:(DList result)
+                         ~result:(DList result)
+                         ~long:
+                           ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
+                           ^ Dval.to_repr example_value
+                           ^ " is a "
+                           ^ Dval.tipename example_value )
+                         ~expected:"every value to be a char"
+                         "foreach expects you to return chars" )
+                |> Result.ok_exn
+          | args ->
+              fail args)
+    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["String::toList"]
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TList
-    ; d = "Returns the list of characters in the string"
+    ; d =
+        "DEPRECATED: Returns the list of characters (byte, not EGC) in the string"
     ; f =
         InProcess
           (function
           | _, [DStr s] ->
-              DList (String.to_list s |> List.map ~f:(fun c -> DChar c))
+              DList
+                ( String.to_list (Unicode_string.to_string s)
+                |> List.map ~f:(fun c -> DChar c) )
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toList_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TList
+    ; d = "Returns the list of characters (EGC, not byte) in the string"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              DList
+                (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
           | args ->
               fail args)
     ; pr = None
@@ -757,9 +818,8 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s; DStr searchFor; DStr replaceWith] ->
-              Dval.dstr_of_string_exn
-                (Util.string_replace searchFor replaceWith s)
+          | _, [DStr s; DStr search; DStr replace] ->
+              DStr (Unicode_string.replace ~search ~replace s)
           | args ->
               fail args)
     ; pr = None
@@ -774,11 +834,12 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( try DInt (int_of_string s) with e ->
-                Exception.user
-                  ~actual:s
-                  ~expected:"\\d+"
-                  "Expected a string with only numbers" )
+              let utf8 = Unicode_string.to_string s in
+              ( try DInt (int_of_string utf8) with e ->
+                  Exception.user
+                    ~actual:utf8
+                    ~expected:"\\d+"
+                    "Expected a string with only numbers" )
           | args ->
               fail args)
     ; pr = None
@@ -793,10 +854,11 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( try DFloat (float_of_string s) with e ->
-                Exception.user
-                  ~actual:s
-                  "Expected a string representation of an IEEE float" )
+              let utf8 = Unicode_string.to_string s in
+              ( try DFloat (float_of_string utf8) with e ->
+                  Exception.user
+                    ~actual:utf8
+                    "Expected a string representation of an IEEE float" )
           | args ->
               fail args)
     ; pr = None
@@ -806,12 +868,28 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
+    ; d = "DEPRECATED: Returns the string, uppercased"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn
+                (String.uppercase (Unicode_string.to_string s))
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toUppercase_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TStr
     ; d = "Returns the string, uppercased"
     ; f =
         InProcess
           (function
           | _, [DStr s] ->
-              Dval.dstr_of_string_exn (String.uppercase s)
+              DStr (Unicode_string.uppercase s)
           | args ->
               fail args)
     ; pr = None
@@ -821,12 +899,28 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
+    ; d = "DEPRECATED: Returns the string, lowercased"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              Dval.dstr_of_string_exn
+                (String.lowercase (Unicode_string.to_string s))
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toLowercase_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TStr
     ; d = "Returns the string, lowercased"
     ; f =
         InProcess
           (function
           | _, [DStr s] ->
-              Dval.dstr_of_string_exn (String.lowercase s)
+              DStr (Unicode_string.lowercase s)
           | args ->
               fail args)
     ; pr = None
@@ -836,11 +930,26 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TInt
+    ; d = "DEPRECATED: Returns the length of the string"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              DInt (String.length (Unicode_string.to_string s))
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::length_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TInt
     ; d = "Returns the length of the string"
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DInt (String.length s) | args -> fail args)
+          | _, [DStr s] -> DInt (Unicode_string.length s) | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -853,7 +962,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s1; DStr s2] ->
-              Dval.dstr_of_string_exn (s1 ^ s2)
+              DStr (Unicode_string.append s1 s2)
           | args ->
               fail args)
     ; pr = None
@@ -868,16 +977,22 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              let replace = Libtarget.regexp_replace in
+              let replace = Unicode_string.regexp_replace in
               let to_remove = "[^\\w\\s$*_+~.()'\"!\\-:@]" in
               let trim = "^\\s+|\\s+$" in
               let spaces = "[-\\s]+" in
               s
-              |> replace ~pattern:to_remove ~replacement:""
-              |> replace ~pattern:trim ~replacement:""
-              |> replace ~pattern:spaces ~replacement:"-"
-              |> String.lowercase
-              |> fun x -> Dval.dstr_of_string_exn x
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:trim
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:spaces
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
           | args ->
               fail args)
     ; pr = None
@@ -891,10 +1006,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] ->
-              Dval.dstr_of_string_exn (String.rev s)
-          | args ->
-              fail args)
+          | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
     ; pr = None
     ; ps = true
     ; dep = false }
@@ -909,8 +1021,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s; DStr sep] ->
               s
-              |> Libtarget.string_split ~sep
-              |> List.map ~f:(fun str -> Dval.dstr_of_string_exn str)
+              |> Unicode_string.split ~sep
+              |> List.map ~f:(fun str -> DStr str)
               |> DList
           | args ->
               fail args)
@@ -929,10 +1041,14 @@ let fns : Lib.shortfn list =
               let s =
                 List.map
                   ~f:(fun s ->
-                    match s with DStr st -> st | _ -> Dval.to_repr s )
+                    match s with
+                    | DStr st ->
+                        st
+                    | _ ->
+                        Exception.user "Expected string" )
                   l
               in
-              Dval.dstr_of_string_exn (String.concat ~sep s)
+              DStr (Unicode_string.concat ~sep s)
           | args ->
               fail args)
     ; pr = None
@@ -942,7 +1058,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "l" TList]
     ; r = TStr
-    ; d = "Returns the list of characters as a string"
+    ; d = "DEPRECATED: Returns the list of characters as a string"
     ; f =
         InProcess
           (function
@@ -959,17 +1075,54 @@ let fns : Lib.shortfn list =
               fail args)
     ; pr = None
     ; ps = true
+    ; dep = true }
+  ; { pns = ["String::fromList_v1"]
+    ; ins = []
+    ; p = [par "l" TList]
+    ; r = TStr
+    ; d = "Returns the list of characters as a string"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l] ->
+              DStr
+                ( l
+                |> List.map ~f:(function
+                       | DCharacter c ->
+                           c
+                       | dv ->
+                           RT.error ~actual:dv "expected a char" )
+                |> Unicode_string.of_characters )
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
     ; dep = false }
   ; { pns = ["String::fromChar"]
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "Converts a char to a string"
+    ; d = "DEPRECATED: Converts a char to a string"
     ; f =
         InProcess
           (function
           | _, [DChar c] ->
               Dval.dstr_of_string_exn (Char.to_string c)
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::fromChar_v1"]
+    ; ins = []
+    ; p = [par "c" TCharacter]
+    ; r = TStr
+    ; d = "Converts a char to a string"
+    ; f =
+        InProcess
+          (function
+          | _, [DCharacter c] ->
+              DStr (Unicode_string.of_character c)
           | args ->
               fail args)
     ; pr = None
@@ -985,7 +1138,10 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false s)
+                (B64.encode
+                   ~alphabet:B64.uri_safe_alphabet
+                   ~pad:false
+                   (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1002,16 +1158,21 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
             ( try
                 Dval.dstr_of_string_exn
-                  (B64.decode ~alphabet:B64.uri_safe_alphabet s)
+                  (B64.decode
+                     ~alphabet:B64.uri_safe_alphabet
+                     (Unicode_string.to_string s))
               with
             | Not_found_s _ | Caml.Not_found ->
               ( try
                   Dval.dstr_of_string_exn
-                    (B64.decode ~alphabet:B64.default_alphabet s)
+                    (B64.decode
+                       ~alphabet:B64.default_alphabet
+                       (Unicode_string.to_string s))
                 with
               | Not_found_s _ | Caml.Not_found ->
                   RT.error
-                    ~actual:(Dval.dstr_of_string_exn s)
+                    ~actual:
+                      (Dval.dstr_of_string_exn (Unicode_string.to_string s))
                     "Not a valid base64 string" ) )
           | args ->
               fail args)
@@ -1029,7 +1190,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              Dval.dstr_of_string_exn (Libtarget.digest384 s)
+              Dval.dstr_of_string_exn
+                (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1044,7 +1206,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              Dval.dstr_of_string_exn (Libtarget.digest384 s)
+              Dval.dstr_of_string_exn
+                (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1059,7 +1222,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              Dval.dstr_of_string_exn (Libtarget.digest256 s)
+              Dval.dstr_of_string_exn
+                (Libtarget.digest256 (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1092,7 +1256,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              Dval.dstr_of_string_exn (Util.html_escape s)
+              Dval.dstr_of_string_exn
+                (Util.html_escape (Unicode_string.to_string s))
           | args ->
               fail args)
     ; pr = None
@@ -1108,7 +1273,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( match Uuidm.of_string s with
+            ( match Uuidm.of_string (Unicode_string.to_string s) with
             | Some id ->
                 DUuid id
             | None ->
@@ -1129,7 +1294,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr needle; DStr haystack] ->
-              DBool (String.is_substring ~substring:needle haystack)
+              DBool (Unicode_string.is_substring ~substring:needle haystack)
           | args ->
               fail args)
     ; pr = None
@@ -1503,8 +1668,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( try DDate (Util.date_of_isostring s) with e ->
-                RT.error "Invalid date format" )
+            ( try DDate (Util.date_of_isostring (Unicode_string.to_string s))
+              with e -> RT.error "Invalid date format" )
           | args ->
               fail args)
     ; pr = None
@@ -1608,49 +1773,49 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TInt
-    ; d = "Return `c`'s ASCII code"
+    ; d = "DEPRECATED: Return `c`'s ASCII code"
     ; f =
         InProcess
           (function _, [DChar c] -> DInt (Char.to_int c) | args -> fail args)
     ; pr = None
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Char::toASCIIChar"]
     ; ins = []
     ; p = [par "i" TInt]
     ; r = TChar
-    ; d = ""
+    ; d = "DEPRECATED: convert an int to an ASCII character"
     ; f =
         InProcess
           (function
           | _, [DInt i] -> DChar (Char.of_int_exn i) | args -> fail args)
     ; pr = None
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Char::toLowercase"]
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "Return the lowercase value of `c`"
+    ; d = "DEPRECATED: Return the lowercase value of `c`"
     ; f =
         InProcess
           (function
           | _, [DChar c] -> DChar (Char.lowercase c) | args -> fail args)
     ; pr = None
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Char::toUppercase"]
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "Return the uppercase value of `c`"
+    ; d = "DEPRECATED: Return the uppercase value of `c`"
     ; f =
         InProcess
           (function
           | _, [DChar c] -> DChar (Char.uppercase c) | args -> fail args)
     ; pr = None
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Uuid::generate"]
     ; ins = []
     ; p = []

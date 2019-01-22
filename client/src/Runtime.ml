@@ -19,6 +19,8 @@ let rec tipe2str (t : tipe) : string =
       "Null"
   | TChar ->
       "Char"
+  | TCharacter ->
+      "Character"
   | TStr ->
       "String"
   | TList ->
@@ -168,6 +170,8 @@ let typeOf (dv : dval) : tipe =
       TNull
   | DChar _ ->
       TChar
+  | DCharacter _ ->
+      TCharacter
   | DStr _ ->
       TStr
   | DList _ ->
@@ -214,6 +218,8 @@ let isLiteral (dv : dval) : bool =
       true
   | DChar _ ->
       true
+  | DCharacter _ ->
+      true
   | DStr _ ->
       true
   | _ ->
@@ -252,6 +258,8 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "false"
   | DChar c ->
       "'" ^ String.fromList [c] ^ "'"
+  | DCharacter c ->
+      "'" ^ c ^ "'"
   | DNull ->
       "null"
   | DID s ->
