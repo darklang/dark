@@ -38,6 +38,10 @@ module Character = struct
   let of_yojson j = failwith "Not implemented: Character of yojson"
 end
 
+(* This validates that the passed string is UTF-8 encoded, and also normalizes
+ * it to a common normalization form (NFC). It does this in two passes. It's
+ * possible to do this in a single pass via a much less ergonic normalization
+ * entry-point in Uunf. Worthwhile optimisation, but not a priority rn *)
 let of_utf8_encoded_string (s : string) : t option =
   (* the decoder has mutable state *)
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
@@ -100,17 +104,23 @@ let length t =
 
 let is_substring ~substring t = String.is_substring ~substring t
 
-(* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
+(* I don't know whether or not UTF-8 validity/normalization are defined operations
+ * for the naive byte-sequence find+replace operations, hence the re-validation/normalization
+ * after the fact. I couldn't find anything on a cursory Google, but I'd probably have to
+ * read the RFCs to be sure. Re-validation will explode if we get any hits in prod, which
+ * would be a good confirmation. Don't remove the re-validation unless you're sure it's safe *)
 let replace ~search ~replace t =
   of_utf8_encoded_string_exn (Util.string_replace search replace t)
 
 
-(* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
+(* See the above comment for replace *)
 let regexp_replace ~pattern ~replacement t =
   Libtarget.regexp_replace ~pattern ~replacement t
   |> of_utf8_encoded_string_exn
 
 
+(* See the above comment for replace. Similar issue here, are all parts of the split string still
+ * valid? *)
 let split ~sep t =
   t |> Libtarget.string_split ~sep |> List.map ~f:of_utf8_encoded_string_exn
 
