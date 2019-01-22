@@ -1125,7 +1125,8 @@ let update_ (msg : msg) (m : model) : modification =
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
-  | _ ->
+  | msg ->
+      Debug.loG "unhandled msg" msg ;
       NoChange
 
 
