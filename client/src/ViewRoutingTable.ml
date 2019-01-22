@@ -53,9 +53,9 @@ type entry =
   ; verbs : (string * pos) list
   ; tlid : tlid }
 
-let missingEventSpaceDesc : string = "<missing event space>"
+let missingEventSpaceDesc : string = "Undefined"
 
-let missingEventRouteDesc : string = "<missing route>"
+let missingEventRouteDesc : string = "Undefined"
 
 let spaceName (tl : toplevel) : string option =
   match tl.data with TLHandler h -> h.spec.module_ |> B.toMaybe | _ -> None
