@@ -263,17 +263,21 @@ let viewGroup
 let viewRoutes
     (m : model)
     (tls : toplevel list)
+    (spaceName : string)
+    (filterFunc : (toplevel -> bool))
     (collapse : collapseVerbs)
     (showLink : showLink)
     (showUndo : showUndo) : msg Html.html list =
-  let withHTTP entries =
-    if List.any (fun (space, _) -> space = "HTTP") entries
-    then entries
-    else ("HTTP", []) :: entries
+  (* if the list is empty, ensure we display a routing table entry anyway *)
+  let handleEmpty entries =
+    if List.isEmpty entries
+    then [spaceName, []]
+    else entries
   in
   tls
+  |> List.filter filterFunc
   |> splitBySpace
-  |> withHTTP
+  |> handleEmpty
   |> List.sortWith (fun (a, _) (b, _) -> ordering a b)
   |> List.map (Tuple.mapSecond tl2entry)
   |> (fun entries ->
@@ -402,14 +406,17 @@ let viewUserFunctions =
 
 let viewDeletedTLs_ (m : model) : msg Html.html =
   let tls = m.deletedToplevels in
-  let routes = viewRoutes m tls DontCollapseVerbs DontShowLink ShowUndo in
+  let httpTLs = viewRoutes m tls "HTTP" TL.isHTTPHandler DontCollapseVerbs DontShowLink ShowUndo in
+  let cronTLs = viewRoutes m tls "CRON" TL.isCronHandler DontCollapseVerbs DontShowLink ShowUndo in
+  let customEventSpaceTLs = viewRoutes m tls "Custom Event Space" TL.isCustomEventSpaceHandler DontCollapseVerbs DontShowLink ShowUndo in
+  let undefinedEventSpaceTLs = viewRoutes m tls "Undefined" TL.isUndefinedEventSpaceHandler DontCollapseVerbs DontShowLink ShowUndo in
   let dbs = viewRestorableDBs tls in
   let fns = viewDeletedUserFunctions m in
   let count = List.length m.deletedUserFunctions + List.length tls in
   let h = header "Deleted" count None in
   Html.details
     [Html.class' "routing-section deleted"]
-    ([h] @ routes @ [fns; dbs])
+    ([h] @ httpTLs @ [dbs; fns] @ cronTLs @ customEventSpaceTLs @ undefinedEventSpaceTLs)
 
 
 let viewDeletedTLs =
@@ -420,10 +427,13 @@ let viewDeletedTLs =
 
 let viewRoutingTable_ (m : model) : msg Html.html =
   let sections =
-    viewRoutes m m.toplevels CollapseVerbs ShowLink DontShowUndo
+      viewRoutes m m.toplevels "HTTP" TL.isHTTPHandler CollapseVerbs ShowLink DontShowUndo
     @ [viewDBs m.toplevels]
-    @ [view404s m.f404s]
     @ [viewUserFunctions m]
+    @ viewRoutes m m.toplevels "CRON" TL.isCronHandler CollapseVerbs ShowLink DontShowUndo
+    @ viewRoutes m m.toplevels "Custom Event Space" TL.isCustomEventSpaceHandler CollapseVerbs ShowLink DontShowUndo
+    @ viewRoutes m m.toplevels "Undefined" TL.isUndefinedEventSpaceHandler CollapseVerbs ShowLink DontShowUndo
+    @ [view404s m.f404s]
     @ [viewDeletedTLs m]
   in
   let html =
