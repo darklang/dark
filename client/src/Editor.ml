@@ -12,8 +12,8 @@ let fromString (json : string option) : serializableEditor =
         Defaults.defaultEditor )
 
 
-let stripDragging (cs : cursorState) : cursorState =
-  match cs with Dragging (_, _, _, state) -> state | _ -> cs
+let rec stripDragging (cs : cursorState) : cursorState =
+  match cs with Dragging (_, _, _, state) -> stripDragging state | _ -> cs
 
 
 let toString (se : serializableEditor) : string =
