@@ -1,6 +1,11 @@
 open Core_kernel
 
-type t = string
+type t = string [@@deriving show]
+
+(* This just treats it like any old string, if we have lots of tests that use this
+ * we should consider only printing ASCII chars, and outputting hex syntax bytes
+ * like "hello, \xfd\xfd" *)
+let pp_t t = Format.pp_print_string t
 
 (* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples *)
 let cmap_utf_8 cmap s =
@@ -38,6 +43,10 @@ module Character = struct
   let of_yojson j = failwith "Not implemented: Character of yojson"
 end
 
+(* This validates that the passed string is UTF-8 encoded, and also normalizes
+ * it to a common normalization form (NFC). It does this in two passes. It's
+ * possible to do this in a single pass via a much less ergonic normalization
+ * entry-point in Uunf. Worthwhile optimisation, but not a priority rn *)
 let of_utf8_encoded_string (s : string) : t option =
   (* the decoder has mutable state *)
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
@@ -94,23 +103,37 @@ let of_character g = of_utf8_encoded_string_exn g
 
 let of_characters gs = of_utf8_encoded_string_exn (String.concat ~sep:"" gs)
 
+(* Note: this is an O(N) operation, as we don't stash the length anywhere.
+ * This should be turned into an O(1) operation, with the `t` in this module
+ * being changed to a record that holds the buffer + the length. To achieve that
+ * we'd have to rewrite the `of_utf8_encoded_string` function to do validation,
+ * normalization, and length counting in a single pass. We'd also have to recalculate
+ * the length in any function that hands back a new `t` but doesn't re-validate/normalize.
+ * There's nothing fundamental preventing us from doing that, but it's left as future work
+ * *)
 let length t =
   Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> 1 + acc) 0 t
 
 
 let is_substring ~substring t = String.is_substring ~substring t
 
-(* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
+(* I don't know whether or not UTF-8 validity/normalization are defined operations
+ * for the naive byte-sequence find+replace operations, hence the re-validation/normalization
+ * after the fact. I couldn't find anything on a cursory Google, but I'd probably have to
+ * read the RFCs to be sure. Re-validation will explode if we get any hits in prod, which
+ * would be a good confirmation. Don't remove the re-validation unless you're sure it's safe *)
 let replace ~search ~replace t =
   of_utf8_encoded_string_exn (Util.string_replace search replace t)
 
 
-(* TODO: Reconsider this -- is this dangerous? I'm unsure, going to revalidate *)
+(* See the above comment for replace *)
 let regexp_replace ~pattern ~replacement t =
   Libtarget.regexp_replace ~pattern ~replacement t
   |> of_utf8_encoded_string_exn
 
 
+(* See the above comment for replace. Similar issue here, are all parts of the split string still
+ * valid? *)
 let split ~sep t =
   t |> Libtarget.string_split ~sep |> List.map ~f:of_utf8_encoded_string_exn
 
