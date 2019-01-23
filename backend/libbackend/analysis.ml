@@ -154,10 +154,13 @@ let call_function
 (* --------------------- *)
 
 (* Response with miscellaneous stuff, and specific responses from tlids *)
+
+type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
+
 type get_analysis_response =
   { traces : tlid_trace list
   ; unlocked_dbs : tlid list
-  ; fofs : SE.four_oh_four list * RTT.time [@key "404s"] }
+  ; fofs : fofs [@key "404s"] }
 [@@deriving to_yojson]
 
 let to_getanalysis_frontend

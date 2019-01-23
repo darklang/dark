@@ -1073,6 +1073,8 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("InitialLoad", err)
   | GetAnalysisRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
+  | GetDelete404RPCCallback (Error err) ->
+      DisplayAndReportHttpError ("Delete404", err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (_, _) ->
@@ -1130,8 +1132,6 @@ let update_ (msg : msg) (m : model) : modification =
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
-  | _ ->
-      NoChange
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
