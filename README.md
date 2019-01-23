@@ -233,6 +233,13 @@ set rtp+=~/[path to dark]/dark/scripts/ocamlformat
 let g:ale_fixers = {'ocaml':['ocamlformat']}
 ```
 
+### Pre-commit hook
+
+You probably also want to install a pre-commit hook that runs ocamlformat for
+you.
+`cp scripts/pre-commit.hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+
+
 ## (Not) Rebuilding the dev container
 
 If you pull a commit with a Dockerfile update, and then restart your
