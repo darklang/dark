@@ -12,6 +12,10 @@ let fromString (json : string option) : serializableEditor =
         Defaults.defaultEditor )
 
 
+let stripDragging (cs : cursorState) : cursorState =
+  match cs with Dragging (_, _, _, state) -> state | _ -> cs
+
+
 let toString (se : serializableEditor) : string =
   se |> Encoders.serializableEditor |> Json.stringify
 
@@ -21,7 +25,7 @@ let editor2model (e : serializableEditor) : model =
   { m with
     timersEnabled = e.timersEnabled
   ; clipboard = e.clipboard
-  ; cursorState = e.cursorState
+  ; cursorState = e.cursorState |> stripDragging
   ; lockedHandlers = e.lockedHandlers }
 
 
