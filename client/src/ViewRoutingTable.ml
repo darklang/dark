@@ -156,6 +156,18 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
     |> Option.map ~f:(fun x -> x.spec.module_)
     |> Option.andThen ~f:B.toMaybe
     |> Option.withDefault ~default:missingEventSpaceDesc
+
+let viewRestorableDBs (tls : toplevel list) : msg Html.html =
+  let dbs =
+    tls
+    |> List.filter (fun tl -> TL.asDB tl <> None)
+    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy (fun (_, _, db) -> dbName2String db.dbName)
+  in
+  let dbHtml (pos, tlid, db) =
+    div
+      "simple-route"
+      [text "name" (dbName2String db.dbName); undoButton tlid (Toplevels pos)]
   in
   tls
   |> List.sortBy ~f:spaceName_
@@ -170,6 +182,13 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
 let eventCategories (_m : model) (tls : toplevel list) : category list =
   let groups =
     tls |> List.filter ~f:TL.isCustomEventSpaceHandler |> splitBySpace
+
+let viewDBs_ (tls : toplevel list) : msg Html.html =
+  let dbs =
+    tls
+    |> List.filter (fun tl -> TL.asDB tl <> None)
+    |> List.map (fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy (fun (_, db) -> dbName2String db.dbName)
   in
   List.map groups ~f:(fun (name, handlers) ->
       { count = List.length handlers

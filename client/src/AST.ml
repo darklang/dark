@@ -294,6 +294,23 @@ let rec replace_
                      (p, r e) )
         in
         F (id, Match (r matchExpr, newCases))
+    | F (idx, FnCall (n, args, rail)), PVarBind (F (_, newVarName)) ->
+      ( match search with
+      | PVarBind (F (_, oldVarName)) ->
+          let newArgs =
+            args
+            |> List.map (fun e ->
+                   match e with
+                   | F (id, Variable v) ->
+                       if v = oldVarName
+                       then F (id, Variable newVarName)
+                       else e
+                   | _ ->
+                       e )
+          in
+          F (idx, FnCall (n, newArgs, rail))
+      | _ ->
+          traverse r expr )
     | _ ->
         traverse r expr
 
