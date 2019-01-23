@@ -649,6 +649,7 @@ and msg =
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
+  | MarkRoutingTableOpen of bool * string
 
 and predecessor = pointerData option
 
@@ -696,7 +697,8 @@ and serializableEditor =
   { clipboard : pointerData option
   ; timersEnabled : bool
   ; cursorState : cursorState
-  ; lockedHandlers : tlid list }
+  ; lockedHandlers : tlid list
+  ; routingTableOpenDetails : Tc.StrSet.t }
 
 (* Error Handling *)
 and darkError =
@@ -752,8 +754,8 @@ and model =
   ; userContentHost : string
   ; environment : string
   ; csrfToken : string
-  ; latest404 : string
-  (* string of timestamp *) }
+  ; latest404 : string (* string of timestamp *)
+  ; routingTableOpenDetails : Tc.StrSet.t }
 [@@deriving show {with_path = false}]
 
 and rpcContext =
