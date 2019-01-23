@@ -21,7 +21,8 @@ let defaultEditor : serializableEditor =
   { clipboard = None
   ; timersEnabled = true
   ; cursorState = Deselected
-  ; lockedHandlers = [] }
+  ; lockedHandlers = []
+  ; routingTableOpenDetails = Tc.StrSet.empty }
 
 
 let defaultSyncState : syncState = {inFlight = false; ticks = 0}
@@ -84,4 +85,5 @@ let defaultModel : model =
       Js.Date.now ()
       |> ( +. ) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
       |> Js.Date.fromFloat
-      |> Js.Date.toISOString }
+      |> Js.Date.toISOString
+  ; routingTableOpenDetails = Tablecloth.StrSet.empty }

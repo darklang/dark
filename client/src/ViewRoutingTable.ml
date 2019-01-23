@@ -136,6 +136,21 @@ let ordering (a : string) (b : string) : int =
       else compare a b
 
 
+let openAttr (m : model) (name : string) =
+  if Tc.StrSet.has m.routingTableOpenDetails ~value:name
+  then
+    (* This was surprisingly fickle. To work, it needed to use the same key for
+     * both sides of the condition, and I needed to omit Vdom.noProp which
+     * would seem natural. *)
+    [ Vdom.attribute "" "open" "true"
+    ; ViewUtils.eventNoPropagation ~key:("rtod-" ^ name) "click" (fun _ ->
+          MarkRoutingTableOpen (false, name) ) ]
+  else
+    [ (* Vdom.noProp - see comment above *)
+      ViewUtils.eventNoPropagation ~key:("rtod-" ^ name) "click" (fun _ ->
+          MarkRoutingTableOpen (true, name) ) ]
+
+
 let buttonLink
     ~(key : string)
     (content : msg Html.html)
@@ -192,6 +207,7 @@ let header (name : string) (count : int) (addHandler : (string * msg) option) :
 
 
 let section
+    (m : model)
     (name : string)
     (entries : 'a list)
     (addHandler : (string * msg) option)
@@ -203,7 +219,7 @@ let section
       [header name 0 addHandler; routes]
   else
     Html.details
-      [Html.class' "routing-section"]
+      ([Html.class' "routing-section"] @ openAttr m name)
       [header name (List.length entries) addHandler; routes]
 
 
@@ -257,7 +273,7 @@ let viewGroup
     then Some ("crh", CreateRouteHandler)
     else None
   in
-  section spacename distinctEntries button routes
+  section m spacename distinctEntries button routes
 
 
 let viewRoutes
@@ -285,7 +301,7 @@ let viewRoutes
   |> List.map (viewGroup m showLink showUndo)
 
 
-let view404s_ (f404s : fourOhFour list) : msg Html.html =
+let view404s_ (m : model) (f404s : fourOhFour list) : msg Html.html =
   let fofToKey fof = fof.space ^ "-" ^ fof.path ^ "-" ^ fof.modifier in
   let theCreateLink fof =
     buttonLink
@@ -311,12 +327,14 @@ let view404s_ (f404s : fourOhFour list) : msg Html.html =
       ; theDeleteLink fof ]
   in
   let routes = div "404s" (List.map fofHtml f404s) in
-  section "404s" f404s None routes
+  section m "404s" f404s None routes
 
 
-let view404s = Cache.cache1 (fun f404s -> f404s) view404s_
+let view404s m =
+  Cache.cache1 (fun f404s -> (f404s, m.routingTableOpenDetails)) (view404s_ m)
 
-let viewRestorableDBs (tls : toplevel list) : msg Html.html =
+
+let viewRestorableDBs (m : model) (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
@@ -327,10 +345,10 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
     div "simple-route" [text "name" db.dbName; undoButton tlid (Toplevels pos)]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs None routes
+  section m "DBs" dbs None routes
 
 
-let viewDBs_ (tls : toplevel list) : msg Html.html =
+let viewDBs_ (m : model) (tls : toplevel list) : msg Html.html =
   let dbs =
     tls
     |> List.filter (fun tl -> TL.asDB tl <> None)
@@ -341,10 +359,14 @@ let viewDBs_ (tls : toplevel list) : msg Html.html =
     div "simple-route" [span "name" [tlLink pos "default-link" db.dbName]]
   in
   let routes = div "dbs" (List.map dbHtml dbs) in
-  section "DBs" dbs None routes
+  section m "DBs" dbs None routes
 
 
-let viewDBs = Cache.cache1 (fun tls -> TL.dbs tls) viewDBs_
+let viewDBs m =
+  Cache.cache1
+    (fun tls -> (TL.dbs tls, m.routingTableOpenDetails))
+    (viewDBs_ m)
+
 
 let viewDeletedUserFunctions (m : model) : msg Html.html =
   let fns =
@@ -363,7 +385,7 @@ let viewDeletedUserFunctions (m : model) : msg Html.html =
            [span "name" [fnLink fn true "should be filtered by here"]])
   in
   let routes = div "fns" (List.map fnHtml fns) in
-  section "Functions" fns (Some ("cf", CreateFunction)) routes
+  section m "Functions" fns (Some ("cf", CreateFunction)) routes
 
 
 let viewUserFunctions_ (m : model) : msg Html.html =
@@ -395,11 +417,13 @@ let viewUserFunctions_ (m : model) : msg Html.html =
            [span "name" [fnLink fn true "should be filtered by here"]])
   in
   let routes = div "fns" (List.map fnHtml fns) in
-  section "Functions" fns (Some ("cf", CreateFunction)) routes
+  section m "Functions" fns (Some ("cf", CreateFunction)) routes
 
 
 let viewUserFunctions =
-  Cache.cache1 (fun m -> (m.userFunctions, m.toplevels)) viewUserFunctions_
+  Cache.cache1
+    (fun m -> (m.userFunctions, m.toplevels, m.routingTableOpenDetails))
+    viewUserFunctions_
 
 
 let viewDeletedTLs_ (m : model) : msg Html.html =
@@ -444,12 +468,12 @@ let viewDeletedTLs_ (m : model) : msg Html.html =
       DontShowLink
       ShowUndo
   in
-  let dbs = viewRestorableDBs tls in
+  let dbs = viewRestorableDBs m tls in
   let fns = viewDeletedUserFunctions m in
   let count = List.length m.deletedUserFunctions + List.length tls in
   let h = header "Deleted" count None in
   Html.details
-    [Html.class' "routing-section deleted"]
+    ([Html.class' "routing-section deleted"] @ openAttr m "deleted")
     ( [h]
     @ httpTLs
     @ [dbs; fns]
@@ -460,7 +484,9 @@ let viewDeletedTLs_ (m : model) : msg Html.html =
 
 let viewDeletedTLs =
   Cache.cache1
-    (fun m -> (m.deletedToplevels, m.deletedUserFunctions))
+    (fun m ->
+      (m.deletedToplevels, m.deletedUserFunctions, m.routingTableOpenDetails)
+      )
     viewDeletedTLs_
 
 
@@ -474,7 +500,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
       CollapseVerbs
       ShowLink
       DontShowUndo
-    @ [viewDBs m.toplevels]
+    @ [viewDBs m m.toplevels]
     @ [viewUserFunctions m]
     @ viewRoutes
         m
@@ -500,7 +526,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
         CollapseVerbs
         ShowLink
         DontShowUndo
-    @ [view404s m.f404s]
+    @ [view404s m m.f404s]
     @ [viewDeletedTLs m]
   in
   let html =
@@ -516,6 +542,12 @@ let viewRoutingTable_ (m : model) : msg Html.html =
   Html.div [Html.id "sidebar-left"] [html]
 
 
-let rtCacheKey m = (m.toplevels, m.f404s, m.userFunctions, m.deletedToplevels)
+let rtCacheKey m =
+  ( m.toplevels
+  , m.f404s
+  , m.userFunctions
+  , m.deletedToplevels
+  , m.routingTableOpenDetails )
+
 
 let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m

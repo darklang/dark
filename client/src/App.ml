@@ -1116,6 +1116,14 @@ let update_ (msg : msg) (m : model) : modification =
       RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
   | Delete404 fof ->
       MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
+  | MarkRoutingTableOpen (shouldOpen, key) ->
+      TweakModel
+        (fun m ->
+          { m with
+            routingTableOpenDetails =
+              ( if shouldOpen
+              then Tc.StrSet.add ~value:key m.routingTableOpenDetails
+              else Tc.StrSet.remove ~value:key m.routingTableOpenDetails ) } )
   | CreateRouteHandler ->
       let center = findCenter m in
       Entry.submitOmniAction center (NewHTTPHandler None)

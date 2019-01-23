@@ -26,14 +26,16 @@ let editor2model (e : serializableEditor) : model =
     timersEnabled = e.timersEnabled
   ; clipboard = e.clipboard
   ; cursorState = e.cursorState |> stripDragging
-  ; lockedHandlers = e.lockedHandlers }
+  ; lockedHandlers = e.lockedHandlers
+  ; routingTableOpenDetails = e.routingTableOpenDetails }
 
 
 let model2editor (m : model) : serializableEditor =
   { clipboard = m.clipboard
   ; timersEnabled = m.timersEnabled
   ; cursorState = m.cursorState
-  ; lockedHandlers = m.lockedHandlers }
+  ; lockedHandlers = m.lockedHandlers
+  ; routingTableOpenDetails = m.routingTableOpenDetails }
 
 
 let updateLockedHandlers (tlid : tlid) (lockHandler : bool) (m : model) :
