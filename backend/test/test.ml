@@ -1949,6 +1949,38 @@ let t_route_variables_work_with_stored_events () =
   ()
 
 
+let unicode_string_tester =
+  AT.testable Unicode_string.pp_t Unicode_string.equal
+
+
+let t_unicode_string_reverse_works_with_emojis () =
+  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
+  let expected = Unicode_string.of_string_exn "dlrow\xf0\x9f\x98\x84olleh" in
+  AT.check
+    unicode_string_tester
+    "emoji_reverse"
+    expected
+    (Unicode_string.rev s1)
+
+
+let t_unicode_string_length_works_with_emojis () =
+  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
+  let expected = 11 in
+  AT.check AT.int "emoji_length" expected (Unicode_string.length s1)
+
+
+let t_unicode_string_regex_replace_works_with_emojis () =
+  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
+  let pattern = "\xf0\x9f\x98\x84" in
+  let replacement = Unicode_string.of_string_exn "FOO" in
+  let expected = Unicode_string.of_string_exn "helloFOOworld" in
+  AT.check
+    unicode_string_tester
+    "emoji_regex_replace"
+    expected
+    (Unicode_string.regexp_replace ~pattern ~replacement s1)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2116,7 +2148,16 @@ let suite =
     , t_string_uppercase_v1_works_on_non_ascii_strings )
   ; ( "String split works on strings with emoji + ascii"
     , `Quick
-    , t_string_split_works_for_emoji ) ]
+    , t_string_split_works_for_emoji )
+  ; ( "Unicode_string.reverse works on strings with emoji + ascii"
+    , `Quick
+    , t_unicode_string_reverse_works_with_emojis )
+  ; ( "Unicode_string.length works for strings with emoji + ascii"
+    , `Quick
+    , t_unicode_string_length_works_with_emojis )
+  ; ( "Unicode_string.regex_replace_works_with_emojis"
+    , `Quick
+    , t_unicode_string_regex_replace_works_with_emojis ) ]
 
 
 let () =
