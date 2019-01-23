@@ -520,7 +520,7 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
     in
     let t5, result =
       time "5-to-frontend" (fun _ ->
-          Analysis.to_getanalysis_frontend req_time [] [] f404s !c )
+          Analysis.fofs_to_yojson (f404s, req_time) |> Yojson.Safe.to_string )
     in
     respond
       ~execution_id
