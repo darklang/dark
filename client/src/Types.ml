@@ -610,7 +610,6 @@ and msg =
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
   | ExecuteFunctionButton of tlid * id * string
-  | ExecuteFunctionCancel of tlid * id
   | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
@@ -631,7 +630,6 @@ and msg =
   | DataMouseEnter of tlid * int * mouseEvent
   | DataMouseLeave of tlid * int * mouseEvent
   | CreateRouteHandler
-  | CreateDBTable
   | CreateFunction
   | ExtractFunction
   | DeleteUserFunction of tlid
