@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2068
+# shellcheck disable=SC2086
+
+# Right now this lives in-repo in scripts/; in the medium term, this should be a
+# thing we distribute to customers somehow, and probably not a shell script.
+
+set -euo pipefail
+
+progname=$(basename $0)
+
+sub_help(){
+  cat << EOF > /dev/stdout
+Usage: $progname <subcommand> [options]
+Subcommands:
+assets
+
+For help with a subcommand, run:
+$progname <subcommand> -h|--help
+
+NB: at least for now, filenames with spaces will break this script.
+EOF
+}
+
+sub_assets() {
+  set +u
+  subsubcommand=$1
+  set -u
+
+  CURLCMD=curl
+  if ! (command -v $CURLCMD > /dev/null ); then
+    echo "Error: $progname $subcommand depends on CURLCMD ($CURLCMD) being installed."
+    exit
+  fi
+
+  case $subsubcommand in
+    "" | "-h" | "--help")
+      sub_assets_help
+      exit 0
+      ;;
+    *)
+      shift
+      sub_assets_${subsubcommand} $@
+      if [ $? = 127 ]; then
+        echo "Error: '$subcommand' is not a known subcommand of $subcommand." >&2
+        echo "     Run '$progname $subcommand --help' for a list of known subcommands." >&2
+        exit 1
+      fi
+      ;;
+  esac
+}
+
+sub_assets_help(){
+  cat << EOF > /dev/stdout
+Usage: $progname assets <subsubcommand> [options]
+Subsubcommands:
+
+For help with a subsubcommand, run:
+$progname assets -h|--help
+
+NB: at least for now, filenames with spaces will break this script.
+EOF
+}
+
+sub_assets_upload() {
+  if (( $# == 0 )); then
+    sub_assets_upload_help
+    exit 0
+  fi
+
+  if ! options=$(getopt -o c:,n: --long canvas:,name: -- "$@"); then
+    echo "Error: incorrect options provided"
+    exit 1
+  fi
+  eval set -- "$options"
+
+  while true; do
+    case $1 in
+      "" | "-h" | "--help")
+        sub_assets_upload_help
+        exit 0
+        ;;
+      "-c" | "--canvas")
+        shift
+        canvas=$1
+        shift
+        ;;
+      "-n" | "--name")
+        shift
+        name=$1
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+    esac
+  done
+
+  if (( $# == 0 )); then
+    echo "Error: no path(s) provided."
+    exit 1
+  fi
+
+  if [[ -z ${canvas:-} ]]; then
+    echo "Error: canvas is a required flag."
+    exit 1
+  fi
+
+  name=${name:-main}
+
+# TODO ismith do-do with paths?
+  cat << EOF > /dev/stdout
+TODO ismith
+CANVAS: $canvas
+NAME: $name
+PATHS: $*
+EOF
+
+  for path in $@; do
+    echo "PATH: ${path}"
+  done
+
+  exit 1
+}
+
+sub_assets_upload_help(){
+  cat << EOF > /dev/stdout
+Usage: $progname assets upload --canvas=<canvas> [--name=<name>] <path(s)>
+
+Requires that a DARK_PASSWORD environment variable be present. (This is
+your user's password.)
+
+--canvas is the canvas to upload to
+
+--name is generally associated with a branch in your repo - if no
+specific version hash is specified in the dark canvas, we'll assume you
+want the latest instance of the specified name. Optional; we default to
+the value 'main'.
+
+NB: at least for now, filenames with spaces will break this script.
+EOF
+}
+
+
+set +u
+subcommand=$1
+set -u
+
+case $subcommand in
+  "" | "-h" | "--help")
+    sub_help
+    exit 0
+    ;;
+  *)
+    shift
+    sub_${subcommand} $@
+    if [ $? = 127 ]; then
+      echo "Error: '$subcommand' is not a known subcommand." >&2
+      echo "     Run '$progname --help' for a list of known subcommands." >&2
+      exit 1
+    fi
+    ;;
+esac
