@@ -393,8 +393,9 @@ let code (key : key) : int option =
   | Z ->
       Some 90
   | Ambiguous choices ->
-      if Porting.List.all
-           (fun a -> Porting.List.member a [Windows; Command; ChromeSearch])
+      if Tablecloth.List.all
+           ~f:(fun value ->
+             Tablecloth.List.member ~value [Windows; Command; ChromeSearch] )
            choices
       then Some 91
       else None
