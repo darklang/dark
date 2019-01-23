@@ -5,6 +5,8 @@ open Core_kernel
  ** is given regarding the representation or encoding. **)
 type t
 
+val pp_t : Format.formatter -> t -> unit
+
 module Character : sig
   (** Represents a single user-perceivable Unicode character, more specifically
    ** an 'extended grapheme cluster' in Unicoder terminology **)

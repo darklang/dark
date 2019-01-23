@@ -1,6 +1,11 @@
 open Core_kernel
 
-type t = string
+type t = string [@@deriving show]
+
+(* This just treats it like any old string, if we have lots of tests that use this
+ * we should consider only printing ASCII chars, and outputting hex syntax bytes
+ * like "hello, \xfd\xfd" *)
+let pp_t t = Format.pp_print_string t
 
 (* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples *)
 let cmap_utf_8 cmap s =
