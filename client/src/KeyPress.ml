@@ -403,9 +403,13 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         else (
           match event.keyCode with
           | Key.Spacebar ->
-              if m.complete.value = "=" || AC.isStringEntry m.complete
-              then NoChange
-              else Entry.submit m cursor Entry.GotoNext
+            ( match cursor with
+            | Creating _ ->
+                NoChange
+            | _ ->
+                if m.complete.value = "=" || AC.isStringEntry m.complete
+                then NoChange
+                else Entry.submit m cursor Entry.GotoNext )
           | Key.Enter ->
               if AC.isLargeStringEntry m.complete
               then AutocompleteMod (ACSetQuery m.complete.value)
