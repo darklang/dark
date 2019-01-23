@@ -10,10 +10,10 @@ set -euo pipefail
 files=$(git diff --cached --name-only --diff-filter=ACM "*.ml" | tr '\n' ' ')
 [ -z "$files" ] && exit 0
 
-# Prettify all staged .js files
+# ocamlformat all staged files
 echo "$files" | xargs scripts/ocamlformat --inplace
 
-# Add back the modified/prettified files to staging
+# Add back the modified/formatted files to staging
 echo "$files" | xargs git add
 
 exit 0
