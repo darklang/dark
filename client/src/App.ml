@@ -656,7 +656,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | CopyToClipboard clipboard ->
         ({m with clipboard}, Cmd.none)
     | Drag (tlid, offset, hasMoved, state) ->
-        ( {m with cursorState = Dragging (tlid, offset, hasMoved, state)}
+        (* Because mouseEvents are not perfectly reliable, we can end up in
+         * weird dragging states. If we start dragging, make sure the state
+         * we're in before isnt also dragging. *)
+        ( { m with
+            cursorState =
+              Dragging (tlid, offset, hasMoved, Editor.stripDragging state) }
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
