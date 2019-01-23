@@ -97,6 +97,16 @@ let spaceOf (tl : toplevel) : handlerSpace option =
 
 let isHTTPHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSHTTP)
 
+let isCronHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSCron)
+
+let isCustomEventSpaceHandler (tl : toplevel) : bool =
+  tl |> spaceOf |> ( = ) (Some HSOther)
+
+
+let isUndefinedEventSpaceHandler (tl : toplevel) : bool =
+  tl |> spaceOf |> ( = ) (Some HSEmpty)
+
+
 let toOp (tl : toplevel) : op list =
   match tl.data with
   | TLHandler h ->
