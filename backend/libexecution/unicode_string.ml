@@ -98,6 +98,14 @@ let of_character g = of_utf8_encoded_string_exn g
 
 let of_characters gs = of_utf8_encoded_string_exn (String.concat ~sep:"" gs)
 
+(* Note: this is an O(N) operation, as we don't stash the length anywhere.
+ * This should be turned into an O(1) operation, with the `t` in this module
+ * being changed to a record that holds the buffer + the length. To achieve that
+ * we'd have to rewrite the `of_utf8_encoded_string` function to do validation,
+ * normalization, and length counting in a single pass. We'd also have to recalculate
+ * the length in any function that hands back a new `t` but doesn't re-validate/normalize.
+ * There's nothing fundamental preventing us from doing that, but it's left as future work
+ * *)
 let length t =
   Uuseg_string.fold_utf_8 `Grapheme_cluster (fun acc _ -> 1 + acc) 0 t
 
