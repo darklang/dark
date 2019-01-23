@@ -420,3 +420,25 @@ let generateEmptyFunction (_ : unit) : userFunction =
     ; ufmInfix = false }
   in
   {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
+
+
+let renameDBVarRefs (m : model) (oldName : dBName) (newName : dBName) : op list
+    =
+  let renameFnParams ast =
+    AST.replace (PVarBind (B.newF oldName)) (PVarBind (B.newF newName)) ast
+  in
+  m.toplevels
+  |> List.filterMap (fun tl ->
+         match tl.data with
+         | TLHandler h ->
+             let newAST = renameFnParams h.ast in
+             if newAST <> h.ast
+             then Some (SetHandler (tl.id, tl.pos, {h with ast = newAST}))
+             else None
+         | TLFunc f ->
+             let newAST = renameFnParams f.ufAST in
+             if newAST <> f.ufAST
+             then Some (SetFunction {f with ufAST = newAST})
+             else None
+         | TLDB _ ->
+             None )
