@@ -385,7 +385,7 @@ let viewDeletedUserFunctions (m : model) : msg Html.html =
            [span "name" [fnLink fn true "should be filtered by here"]])
   in
   let routes = div "fns" (List.map fnHtml fns) in
-  section m "Functions" fns (Some ("cf", CreateFunction)) routes
+  section m "Functions" fns None routes
 
 
 let viewUserFunctions_ (m : model) : msg Html.html =
