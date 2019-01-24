@@ -5,6 +5,8 @@ let isCompatible (t1 : tipe) (t2 : tipe) : bool =
   t1 = TAny || t2 = TAny || t1 = t2
 
 
+let errorRailTypes : tipe list = [TOption; TResult]
+
 let rec tipe2str (t : tipe) : string =
   match t with
   | TAny ->

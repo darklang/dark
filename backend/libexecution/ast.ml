@@ -495,7 +495,9 @@ and call_fn
         match result with
         | DOption (OptJust v) ->
             v
-        (* There should only be DOptions here, but hypothetically we got
+        | DResult (ResOk v) ->
+            v
+        (* There should only be DOptions and DResults here, but hypothetically we got
         * something else, they would go on the error rail too.  *)
         | other ->
             DErrorRail other
