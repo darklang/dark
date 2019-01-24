@@ -81,6 +81,8 @@ let rec tipe_to_string t : string =
       "Option"
   | TErrorRail ->
       "ErrorRail"
+  | TResult ->
+      "Result"
 
 
 let rec tipe_of_string str : tipe =
@@ -137,6 +139,8 @@ let rec tipe_of_string str : tipe =
       TOption
   | "errorrail" ->
       TErrorRail
+  | "result" ->
+      TResult
   | _ ->
       (* otherwise *)
       if String.is_prefix str "[" && String.is_suffix str "]"
@@ -238,6 +242,8 @@ let rec tipe_of (dv : dval) : tipe =
       TOption
   | DErrorRail _ ->
       TErrorRail
+  | DResult _ ->
+      TResult
 
 
 (* Users should not be aware of this *)
@@ -542,6 +548,23 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Assoc [("type", `String "response"); ("value", `List [a; b])] ->
       DResp
         (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_ b)
+  | `Assoc
+      [ ("type", `String tipe)
+      ; ("constructor", `String constructor)
+      ; ("values", `List vs) ] ->
+      let expectOne ~f vs =
+        match vs with [v] -> f v | _ -> DObj (unsafe_dvalmap_of_yojson json)
+      in
+      ( match (tipe, constructor) with
+      | "result", "ok" ->
+          vs
+          |> expectOne ~f:(fun v -> DResult (ResOk (unsafe_dval_of_yojson_ v)))
+      | "result", "err" ->
+          vs
+          |> expectOne ~f:(fun v ->
+                 DResult (ResError (unsafe_dval_of_yojson_ v)) )
+      | _ ->
+          DObj (unsafe_dvalmap_of_yojson json) )
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
     ( match tipe with
     | "incomplete" ->
@@ -610,6 +633,9 @@ let rec unsafe_dvalmap_to_yojson ?(redact = true) (dvalmap : dval_map) :
 and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
+  let wrap_constructed_type cons values =
+    `Assoc [("type", tipe); ("constructor", cons); ("values", `List values)]
+  in
   let wrap_user_str value = wrap_user_type (`String value) in
   match dv with
   (* basic types *)
@@ -664,6 +690,16 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
         wrap_user_type (unsafe_dval_to_yojson ~redact dv) )
   | DErrorRail dv ->
       wrap_user_type (unsafe_dval_to_yojson ~redact dv)
+  | DResult res ->
+    ( match res with
+    | ResOk dv ->
+        wrap_constructed_type
+          (`String "Ok")
+          [wrap_user_type (unsafe_dval_to_yojson ~redact dv)]
+    | ResError dv ->
+        wrap_constructed_type
+          (`String "Error")
+          [wrap_user_type (unsafe_dval_to_yojson ~redact dv)] )
 
 
 let is_json_primitive (dv : dval) : bool =
