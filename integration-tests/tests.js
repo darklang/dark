@@ -847,6 +847,15 @@ test('delete_db_col', async t => {
   ;
 })
 
+test('result_ok_roundtrips', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "Ok")
+    .pressKey("enter")
+    ;
+})
+
 test('cant_delete_locked_col', async t => {
   await t
     .click(Selector('.fncall .namegroup')) // this click is required due to caching
