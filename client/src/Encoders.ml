@@ -95,6 +95,14 @@ let rec dval (dv : Types.dval) : Js.Json.t =
               ev "OptJust" [dval dv] ) ]
   | DErrorRail dv ->
       ev "DErrorRail" [dval dv]
+  | DResult res ->
+      ev
+        "DResult"
+        [ ( match res with
+          | ResOk dv ->
+              ev "ResOk" [dval dv]
+          | ResError dv ->
+              ev "ResError" [dval dv] ) ]
 
 
 let rec pointerData (pd : Types.pointerData) : Js.Json.t =
@@ -399,6 +407,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TOption" []
   | TErrorRail ->
       ev "TErrorRail" []
+  | TResult ->
+      ev "TResult" []
 
 
 and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =

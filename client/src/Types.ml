@@ -70,6 +70,7 @@ and tipe =
   | TUuid
   | TOption
   | TErrorRail
+  | TResult
   | TBelongsTo of string
   | THasMany of string
   | TDbList of tipe
@@ -256,6 +257,10 @@ and optionT =
   | OptJust of dval
   | OptNothing
 
+and resultT =
+  | ResOk of dval
+  | ResError of dval
+
 and dval =
   | DInt of int
   | DFloat of float
@@ -279,6 +284,7 @@ and dval =
   | DPassword of string
   | DUuid of string
   | DOption of optionT
+  | DResult of resultT
 
 and mouseEvent =
   { mePos : vPos
