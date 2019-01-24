@@ -194,7 +194,7 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | RenameDBname (tlid, _) ->
       tlid
-  | CreateDB2 (tlid, _, _, _) ->
+  | CreateDBWithBlankOr (tlid, _, _, _) ->
       tlid
 
 
@@ -323,8 +323,8 @@ and op (call : Types.op) : Js.Json.t =
       ev "SetExpr" [tlid t; id i; expr e]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
-  | CreateDB2 (t, p, i, name) ->
-      ev "CreateDB2" [tlid t; pos p; id i; string name]
+  | CreateDBWithBlankOr (t, p, i, name) ->
+      ev "CreateDBWithBlankOr" [tlid t; pos p; id i; string name]
 
 
 and rpcParams (params : Types.rpcParams) : Js.Json.t =

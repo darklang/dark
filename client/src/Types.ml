@@ -384,7 +384,7 @@ and op =
   | AbandonDBMigration of tlid
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * dBName
-  | CreateDB2 of tlid * pos * id * dBName
+  | CreateDBWithBlankOr of tlid * pos * id * dBName
 
 (* ------------------- *)
 (* RPCs *)

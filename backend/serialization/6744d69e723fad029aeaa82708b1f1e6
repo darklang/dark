@@ -720,7 +720,7 @@
       (DeleteColInDBMigration ((Exp (Base int63 ())) (Exp (Base int63 ()))))
       (DeleteDBCol ((Exp (Base int63 ())) (Exp (Base int63 ()))))
       (RenameDBname ((Exp (Base int63 ())) (Exp (Base string ()))))
-      (CreateDB2
+      (CreateDBWithBlankOr
        ((Exp (Base int63 ()))
         (Exp (Record ((x (Exp (Base int ()))) (y (Exp (Base int ()))))))
         (Exp (Base int63 ())) (Exp (Base string ()))))))))))

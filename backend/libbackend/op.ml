@@ -29,7 +29,7 @@ type op =
   | DeleteColInDBMigration of tlid * id
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDB2 of tlid * pos * id * string
+  | CreateDBWithBlankOr of tlid * pos * id * string
 [@@deriving eq, yojson, show, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -96,7 +96,7 @@ let tlidOf (op : op) : tlid option =
       Some tlid
   | RenameDBname (tlid, _) ->
       Some tlid
-  | CreateDB2 (tlid, _, _, _) ->
+  | CreateDBWithBlankOr (tlid, _, _, _) ->
       Some tlid
 
 
