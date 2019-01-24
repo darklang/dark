@@ -388,6 +388,18 @@ let rec exec
                   matches v (p, e)
               | _ ->
                   None )
+            | Filled (_, PConstructor ("Ok", [p])) ->
+              ( match dv with
+              | DResult (ResOk v) ->
+                  matches v (p, e)
+              | _ ->
+                  None )
+            | Filled (_, PConstructor ("Error", [p])) ->
+              ( match dv with
+              | DResult (ResError v) ->
+                  matches v (p, e)
+              | _ ->
+                  None )
             | Filled (_, PConstructor ("Nothing", [])) ->
                 if dv = DOption OptNothing then Some (e, []) else None
             | _ ->
