@@ -137,6 +137,10 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
       Some (F (eid, Constructor (B.newF "Just", [b1])))
   | ACConstructorName "Nothing" ->
       Some (F (eid, Constructor (B.newF "Nothing", [])))
+  | ACConstructorName "Ok" ->
+      Some (F (eid, Constructor (B.newF "Ok", [b1])))
+  | ACConstructorName "Error" ->
+      Some (F (eid, Constructor (B.newF "Error", [b1])))
   | ACKeyword KIf ->
       Some (F (eid, If (b1, b2, b3)))
   | ACKeyword KLet ->
@@ -222,6 +226,10 @@ let parsePattern (str : string) : pattern option =
       Some (B.newF (PConstructor ("Nothing", [])))
   | "Just" ->
       Some (B.newF (PConstructor ("Just", [B.new_ ()])))
+  | "Ok" ->
+      Some (B.newF (PConstructor ("Ok", [B.new_ ()])))
+  | "Error" ->
+      Some (B.newF (PConstructor ("Error", [B.new_ ()])))
   | _ ->
       let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
       if Decoders.isLiteralString str

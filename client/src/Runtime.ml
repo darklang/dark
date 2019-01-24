@@ -53,6 +53,8 @@ let rec tipe2str (t : tipe) : string =
       "UUID"
   | TErrorRail ->
       "ErrorRail"
+  | TResult ->
+      "Result"
   | TBelongsTo s ->
       s
   | THasMany s ->
@@ -146,6 +148,8 @@ let str2tipe (t : string) : tipe =
       TError
   | "option" ->
       TOption
+  | "result" ->
+      TResult
   | "password" ->
       TPassword
   | "id" ->
@@ -204,6 +208,8 @@ let typeOf (dv : dval) : tipe =
       TPassword
   | DUuid _ ->
       TUuid
+  | DResult _ ->
+      TResult
 
 
 let isLiteral (dv : dval) : bool =
@@ -293,6 +299,10 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "Nothing"
   | DOption (OptJust dv_) ->
       "Just " ^ toRepr dv_
+  | DResult (ResOk dv_) ->
+      "Ok " ^ toRepr dv_
+  | DResult (ResError dv_) ->
+      "Error " ^ toRepr dv_
   | DErrorRail dv_ ->
       wrap (toRepr dv_)
   (* TODO: newlines and indentation *)

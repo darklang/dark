@@ -430,6 +430,10 @@ let rec exec
           DOption OptNothing
       | Filled (_, "Just"), [arg] ->
           DOption (OptJust (exe st arg))
+      | Filled (_, "Ok"), [arg] ->
+          DResult (ResOk (exe st arg))
+      | Filled (_, "Error"), [arg] ->
+          DResult (ResError (exe st arg))
       | _ ->
           DError "Invalid construction option" )
   in
