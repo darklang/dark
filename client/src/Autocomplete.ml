@@ -67,7 +67,8 @@ let asName (aci : autocompleteItem) : string =
     | NewEventSpace name ->
         "New handler in the " ^ name ^ " space" )
   | ACConstructorName name ->
-      if name = "Just" then "Just ______" else name
+      let arityOneConstructors = ["Just"; "Ok"; "Error"] in
+      if List.member name arityOneConstructors then name ^ " ______" else name
   | ACKeyword k ->
     ( match k with
     | KLet ->
@@ -329,7 +330,7 @@ let varnamePatternValidator = varnameValidator
 
 let constructorPatternValidator = "[A-Z_][a-zA-Z0-9_]*"
 
-let constructorNameValidator = "Just|Nothing"
+let constructorNameValidator = "Just|Nothing|Ok|Error"
 
 let dbColTypeValidator = "\\[?[A-Z]\\w+\\]?"
 
@@ -566,7 +567,10 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     if isExpression
     then
       let constructors =
-        [ACConstructorName "Just"; ACConstructorName "Nothing"]
+        [ ACConstructorName "Just"
+        ; ACConstructorName "Nothing"
+        ; ACConstructorName "Ok"
+        ; ACConstructorName "Error" ]
       in
       let varnames = List.map (fun x -> ACVariable x) varnames in
       let keywords =

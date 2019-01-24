@@ -358,6 +358,11 @@ and dval j : dval =
     variants
       [("OptJust", dv1 (fun x -> OptJust x) dd); ("OptNothing", dv0 OptNothing)]
   in
+  let resultT =
+    variants
+      [ ("ResOk", dv1 (fun x -> ResOk x) dd)
+      ; ("ResError", dv1 (fun x -> ResError x) dd) ]
+  in
   let dhttp =
     variants
       [ ("Redirect", dv1 (fun x -> Redirect x) string)
@@ -391,7 +396,8 @@ and dval j : dval =
           >> fun x -> DPassword x )
           string )
     ; ("DUuid", dv1 (fun x -> DUuid x) string)
-    ; ("DOption", dv1 (fun x -> DOption x) optionT) ]
+    ; ("DOption", dv1 (fun x -> DOption x) optionT)
+    ; ("DResult", dv1 (fun x -> DResult x) resultT) ]
     j
 
 

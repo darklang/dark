@@ -79,6 +79,7 @@ type tipe_ =
   | TOption
   | TErrorRail
   | TCharacter
+  | TResult
 [@@deriving eq, compare, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -345,6 +346,10 @@ module RuntimeT = struct
     | OptJust of dval
     | OptNothing
 
+  and resultT =
+    | ResOk of dval
+    | ResError of dval
+
   and dval =
     (* basic types  *)
     | DInt of int
@@ -372,6 +377,7 @@ module RuntimeT = struct
     | DUuid of uuid
     | DOption of optionT
     | DCharacter of Unicode_string.Character.t
+    | DResult of resultT
   [@@deriving eq, yojson, compare]
 
   type dval_list = dval list

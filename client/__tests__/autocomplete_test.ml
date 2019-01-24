@@ -269,6 +269,12 @@ let () =
           test "null works" (fun () ->
               expect (createEntering User |> setQuery "nu" |> highlighted)
               |> toEqual (Some (ACLiteral "null")) ) ;
+          test "Ok works" (fun () ->
+              expect (createEntering User |> setQuery "Ok" |> highlighted)
+              |> toEqual (Some (ACConstructorName "Ok")) ) ;
+          test "Error works" (fun () ->
+              expect (createEntering User |> setQuery "Err" |> highlighted)
+              |> toEqual (Some (ACConstructorName "Error")) ) ;
           test "true works" (fun () ->
               expect (createEntering User |> setQuery "tr" |> highlighted)
               |> toEqual (Some (ACLiteral "true")) ) ;
