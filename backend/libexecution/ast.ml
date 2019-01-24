@@ -575,9 +575,12 @@ and exec_fn
       let args_with_dbs =
         let db_dvals =
           state.dbs
-          |> List.map ~f:(fun db ->
-                 let name = blank_to_string db.name in
-                 (name, DDB name) )
+          |> List.filter_map ~f:(fun db ->
+                 match db.name with
+                 | Filled (_, name) ->
+                     Some (name, DDB name)
+                 | Blank _ ->
+                     None )
           |> DvalMap.of_alist_exn
         in
         Util.merge_left db_dvals args
