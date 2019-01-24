@@ -58,7 +58,9 @@ let newHandlerSpec (_ : unit) : handlerSpec =
 
 let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
-  let r = if fn.fnReturnTipe = TOption then Rail else NoRail in
+  let r =
+    if List.member fn.fnReturnTipe Runtime.errorRailTypes then Rail else NoRail
+  in
   let (ID id) = gid () in
   F
     ( ID id
