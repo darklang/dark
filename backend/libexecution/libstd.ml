@@ -844,6 +844,28 @@ let fns : Lib.shortfn list =
               fail args)
     ; pr = None
     ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toInt_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TResult
+    ; d =
+        "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              let utf8 = Unicode_string.to_string s in
+              ( try DResult (ResOk (DInt (int_of_string utf8))) with e ->
+                  DResult
+                    (ResError
+                       (DStr
+                          (Unicode_string.of_string_exn
+                             "Expected a string with only numbers"))) )
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
     ; dep = false }
   ; { pns = ["String::toFloat"]
     ; ins = []

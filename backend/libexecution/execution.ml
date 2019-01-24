@@ -104,7 +104,7 @@ let execute_handler
   in
   let result = Ast.execute_ast vars state h.ast in
   match result with
-  | DErrorRail (DOption OptNothing) ->
+  | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
       DResp (Response (404, []), Dval.dstr_of_string_exn "Not found")
   | DErrorRail _ ->
       DResp
