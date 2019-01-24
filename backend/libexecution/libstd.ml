@@ -23,6 +23,8 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
   |> Result.all
 
 
+let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
+
 let ( >>| ) = Result.( >>| )
 
 let fns : Lib.shortfn list =
@@ -857,11 +859,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
               ( try DResult (ResOk (DInt (int_of_string utf8))) with e ->
-                  DResult
-                    (ResError
-                       (DStr
-                          (Unicode_string.of_string_exn
-                             "Expected a string with only numbers"))) )
+                  error_result "Expected a string with only numbers" )
           | args ->
               fail args)
     ; pr = None
@@ -880,6 +878,24 @@ let fns : Lib.shortfn list =
               ( try DFloat (float_of_string utf8) with e ->
                   Exception.user
                     ~actual:utf8
+                    "Expected a string representation of an IEEE float" )
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toFloat_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TResult
+    ; d = "Returns the float value of the string"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              let utf8 = Unicode_string.to_string s in
+              ( try DResult (ResOk (DFloat (float_of_string utf8))) with e ->
+                  error_result
                     "Expected a string representation of an IEEE float" )
           | args ->
               fail args)
@@ -1267,6 +1283,25 @@ let fns : Lib.shortfn list =
               fail args)
     ; pr = None
     ; ps = false
+    ; dep = true }
+  ; { pns = ["String::random_v1"]
+    ; ins = []
+    ; p = [par "length" TInt]
+    ; r = TResult
+    ; d = "Generate a string of length `length` from random characters."
+    ; f =
+        InProcess
+          (function
+          | _, [DInt l] ->
+              if l < 0
+              then error_result "l should be a positive integer"
+              else
+                DResult
+                  (ResOk (Dval.dstr_of_string_exn (Util.random_string l)))
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = false
     ; dep = false }
   ; { pns = ["String::htmlEscape"]
     ; ins = []
@@ -1300,6 +1335,28 @@ let fns : Lib.shortfn list =
                 DUuid id
             | None ->
                 Exception.user
+                  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+            )
+          | args ->
+              fail args)
+    ; pr = None
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["String::toUUID_v1"]
+    ; ins = []
+    ; p = [par "uuid" TStr]
+    ; r = TResult
+    ; d =
+        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+            ( match Uuidm.of_string (Unicode_string.to_string s) with
+            | Some id ->
+                DResult (ResOk (DUuid id))
+            | None ->
+                error_result
                   "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             )
           | args ->
