@@ -713,6 +713,15 @@ let cant_delete_locked_col (m : model) : testResult =
       fail ~f:(show_list show_dBColumn) cols
 
 
+let result_ok_roundtrips (m : model) : testResult =
+  let ast = onlyHandler m |> fun x -> x.ast in
+  match ast with
+  | F (_, Constructor (F (_, "Ok"), [Blank _])) ->
+      pass
+  | _ ->
+      fail ~f:show_expr ast
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft 5 test_name in
   IntegrationTestExpectation
@@ -813,5 +822,7 @@ let trigger (test_name : string) : integrationTestState =
         delete_db_col
     | "cant_delete_locked_col" ->
         cant_delete_locked_col
+    | "result_ok_roundtrips" ->
+        result_ok_roundtrips
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
