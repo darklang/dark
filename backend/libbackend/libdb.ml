@@ -6,7 +6,12 @@ open Types.RuntimeT
 
 let find_db (dbs : DbT.db list) (name : string) : DbT.db =
   dbs
-  |> List.filter ~f:(fun db -> Ast.blank_to_string db.name = name)
+  |> List.filter ~f:(fun db ->
+         match db.name with
+         | Blank _ ->
+             false
+         | Filled (_, dbname) ->
+             dbname = name )
   |> List.hd_exn
 
 
