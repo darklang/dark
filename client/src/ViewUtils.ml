@@ -313,6 +313,7 @@ let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
   let mod_, name, version = splitFnName fnName in
   let name = if parens then "(" ^ name ^ ")" else name in
   let classes = if mod_ = None then ["atom"] else [] in
+  let versionTxt = if version = "0" then "" else "v" ^ version in
   let modHtml =
     match mod_ with
     | Some name ->
@@ -328,8 +329,7 @@ let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
           [ Html.class'
               (String.join " " (classes @ ["versioned-function"; "fnname"])) ]
           [ Html.span [Html.class' "name"] [Html.text name]
-          ; Html.span [Html.class' "version"] [Html.text ("v" ^ version)] ] ]
-    )
+          ; Html.span [Html.class' "version"] [Html.text versionTxt] ] ] )
 
 
 let svgIconFn (color : string) : msg Html.html =

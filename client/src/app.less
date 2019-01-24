@@ -1030,15 +1030,15 @@ body #grid * {
     .execution-button {
       position: absolute;
       font-size: 60%;
+      margin-left: -10px;
+      transition: color linear 0.1s;
+
       &:hover {
         font-size: 100%;
         font-weight: strong;
-        margin-left: -16px;
         margin-top: -5px;
         cursor: pointer;
       }
-      margin-left: -16px;
-      transition: color linear 0.1s;
       &.execution-button-unavailable {
         color: grey;
       }
@@ -1214,14 +1214,6 @@ body #grid * {
 
   .version {
     font-size: 0.6rem;
-    color: @grey2;
-    margin-left: 2px;
-  }
-}
-
-.ast div .selected {
-  .versioned-function .version {
-    color: @green;
   }
 }
 
