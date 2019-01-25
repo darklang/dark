@@ -21,7 +21,10 @@
               cstruct
               curl
               curl.lwt
+              gcloud
               lwt
+              magic-mime
+              multipart-form-data
               nocrypto
               nocrypto.lwt
               postgresql

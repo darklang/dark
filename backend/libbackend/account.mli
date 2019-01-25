@@ -45,6 +45,9 @@ val get_users : unit -> string list
 (* Get a username from an ID *)
 val username_of_id : Uuidm.t -> string option
 
+(* Get an id from a username *)
+val id_of_username : string -> Uuidm.t option
+
 (* get the id of the domain, for accounting/storage. Note that we need
  * this even for unauthenticated access, as all data and compute need a
  * Dark user to own them (pay for them, etc). *)
