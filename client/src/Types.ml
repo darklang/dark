@@ -401,7 +401,14 @@ and executeFunctionRPCParams =
 
 and analysisParams =
   { tlids : tlid list
-  ; latest404 : string }
+  ; latest404 : string
+  ; ignoreTraces : bool
+  (*
+   * Whether we should ignore the traces in the analysis result. Temporary
+   * wart used when the PushAnalysis variant is true, since in that case we
+   * are getting new traces pushed directly via NewTracePush instead.
+   *)
+  }
 
 and delete404Param = fourOhFour
 
@@ -561,7 +568,7 @@ and modification =
   | EnterWithOffset of entryCursor * int
   | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)
-  | GetAnalysisRPC
+  | GetAnalysisRPC of bool
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -582,6 +589,7 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
+  | AddUnfetchedTrace of (tlid * traceID)
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 
@@ -682,6 +690,7 @@ and variantTest =
   | StubVariant
   (* just a stub *)
   | FluidInputModel
+  | PushAnalysis
 
 and class_ = string
 
@@ -743,6 +752,7 @@ and model =
       (* analysed are in analysis *)
   ; deletedToplevels : toplevel list
   ; traces : traces
+  ; unfetchedTraces : traceIDs
   ; analyses : analyses
   ; f404s : fourOhFour list
   ; unlockedDBs : tlid list

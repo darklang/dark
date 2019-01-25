@@ -63,6 +63,7 @@ let defaultModel : model =
   ; deletedToplevels = []
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
+  ; unfetchedTraces = StrDict.empty
   ; f404s = []
   ; unlockedDBs = []
   ; integrationTestState = NoIntegrationTest
