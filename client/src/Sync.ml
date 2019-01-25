@@ -36,11 +36,11 @@ let toAnalyse (m : model) : tlid list =
       |> Option.withDefault ~default:[]
 
 
-let fetch (m : model) : model * msg Tea.Cmd.t =
+let fetch ~(ignoreTraces : bool) (m : model) : model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState
   then
     ( markRequestInModel m
     , RPC.getAnalysisRPC
         (contextFromModel m)
-        {tlids = toAnalyse m; latest404 = m.latest404} )
+        {tlids = toAnalyse m; latest404 = m.latest404; ignoreTraces} )
   else (markTickInModel m, Tea.Cmd.none)

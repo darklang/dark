@@ -68,7 +68,7 @@ let init (flagString : string) (location : Web.Location.location) =
           (* load the analysis even if the timers are off *)
         ; RPC.getAnalysisRPC
             (contextFromModel m2)
-            {tlids = []; latest404 = m.latest404} ] )
+            {tlids = []; latest404 = m.latest404; ignoreTraces = false} ] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -396,8 +396,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         handleRPC (RPC.opsParams ops) focus
     | RPCFull (params, focus) ->
         handleRPC params focus
-    | GetAnalysisRPC ->
-        Sync.fetch m
+    | GetAnalysisRPC ignoreTraces ->
+        Sync.fetch ~ignoreTraces m
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -603,7 +603,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | Some _, Some n ->
                   Some n )
         in
-        let m2 = {m with traces = newTraces} in
+        let m2 =
+          {m with traces = newTraces; unfetchedTraces = GMap.String.empty}
+        in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
       ->
@@ -618,6 +620,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             dval
         in
         processAutocompleteMods m2 [ACRegenerate]
+    | AddUnfetchedTrace (tlid, traceID) ->
+        if Some tlid = tlidOf m.cursorState
+        then
+          let unfetchedTraces =
+            GMap.String.update m.unfetchedTraces (deTLID tlid) (fun maybeOld ->
+                match maybeOld with
+                | None ->
+                    Some [traceID]
+                | Some o ->
+                    Some (traceID :: o) )
+          in
+          Sync.fetch ~ignoreTraces:false {m with unfetchedTraces}
+        else (m, Cmd.none)
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
@@ -1059,21 +1074,19 @@ let update_ (msg : msg) (m : model) : modification =
           ~f:(fun tl -> List.member ~value:tl.id params.tlids)
           m.toplevels
       in
+      let maybeUpdateTraces =
+        if params.ignoreTraces then [] else [UpdateTraces newTraces]
+      in
       Many
-        [ TweakModel Sync.markResponseInModel
-        ; UpdateTraces newTraces
-        ; Append404s (f404s, ts)
-        ; SetUnlockedDBs unlockedDBs
-        ; RequestAnalysis analysisTLs ]
-  | NewTracePush _ ->
-      (*
-       * This push tells the client "a new trace exists with this id", but not
-       * the content of that trace. The client doesn't yet have a way of
-       * storing that information, so for now we're just ignoring it.
-       *
-       * TODO handle this (e.g. mark traces as "incomplete" or "pending")
-       *)
-      NoChange
+        ( [TweakModel Sync.markResponseInModel]
+        @ maybeUpdateTraces
+        @ [ Append404s (f404s, ts)
+          ; SetUnlockedDBs unlockedDBs
+          ; RequestAnalysis analysisTLs ] )
+  | NewTracePush newTraceID ->
+      if VariantTesting.variantIsActive m PushAnalysis
+      then AddUnfetchedTrace newTraceID
+      else NoChange
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
   | ReceiveAnalysis json ->
@@ -1114,7 +1127,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-        GetAnalysisRPC
+        GetAnalysisRPC (VariantTesting.variantIsActive m PushAnalysis)
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
   | Initialization ->
