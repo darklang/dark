@@ -13,7 +13,6 @@ type entry =
   { name : string
   ; tlid : tlid
   ; used : bool
-  ; class' : string
   ; destination : page option
   ; minusButton : (int option * msg) option
   ; plusButton : msg option
@@ -77,7 +76,6 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 |> Tc.Option.withDefault ~default:missingEventRouteDesc
             ; used = true
             ; tlid = h.tlid
-            ; class' = "default-link"
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = None
             ; plusButton = None
@@ -101,7 +99,6 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 |> Tc.Option.withDefault ~default:missingEventRouteDesc
             ; used = true
             ; tlid = h.tlid
-            ; class' = "default-link"
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = None
             ; plusButton = None
@@ -122,7 +119,6 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
           { name = db.dbName
           ; tlid = db.dbTLID
           ; used = false
-          ; class' = "default-link"
           ; destination = Some (Toplevels pos)
           ; minusButton = None
           ; externalLink = None
@@ -152,7 +148,6 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
                 |> Tc.Option.withDefault ~default:missingEventRouteDesc
             ; used = true
             ; tlid = h.tlid
-            ; class' = "default-link"
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = None
             ; plusButton = None
@@ -197,7 +192,6 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                     |> Tc.Option.withDefault ~default:missingEventRouteDesc
                 ; used = true
                 ; tlid = h.tlid
-                ; class' = "default-link"
                 ; destination = Some (Toplevels tl.pos)
                 ; minusButton = None
                 ; plusButton = None
@@ -217,7 +211,6 @@ let f404Category (m : model) : category =
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; used = true
             ; tlid = TLID "no-tlid-for-404"
-            ; class' = "default-link"
             ; destination = None
             ; minusButton = Some (None, Delete404 fof)
             ; plusButton = Some (CreateHandlerFrom404 fof)
@@ -242,7 +235,6 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
           { name
           ; tlid = fn.ufTLID
           ; used = useCount > 0
-          ; class' = "fn"
           ; minusButton
           ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
           ; plusButton = None
@@ -316,7 +308,6 @@ let deletedUserFunctionsEntries (m : model) : category =
               fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault ""
           ; tlid = fn.ufTLID
           ; used = false
-          ; class' = "fn"
           ; minusButton = None
           ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
           ; plusButton = None
@@ -357,7 +348,7 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     match e.minusButton with
     | Some (None, msg) | Some (Some 0, msg) ->
         [ buttonLink
-            ~key:(e.class' ^ showTLID e.tlid)
+            ~key:("entry-" ^ showTLID e.tlid)
             (fontAwesome "minus-circle")
             msg
             None ]
@@ -396,6 +387,21 @@ and category2html (m : model) (c : category) : msg Html.html =
     Html.summary
       [Html.class' "header"]
       [ text "title" c.name
+      ; text "parens" "("
+      ; text "count" (c.count |> string_of_int)
+      ; text "parens" ")"
+      ; ( match c.plusButton with
+        | Some (key, msg) ->
+            buttonLink ~key (fontAwesome "plus-circle") msg None
+        | None ->
+            text "" "" ) ]
+  in
+  let routes = Tc.List.map ~f:(item2html m) c.entries in
+  if List.length c.entries = 0
+  then
+    Html.div
+      [Html.class' ("routing-section empty " ^ c.classname)]
+      (header :: routes)
   else
     let openAttr =
       if Tc.StrSet.has m.routingTableOpenDetails ~value:c.name
@@ -416,22 +422,6 @@ and category2html (m : model) (c : category) : msg Html.html =
             (fun _ -> MarkRoutingTableOpen (true, c.name) ) ]
     in
     Html.details (Html.class' "routing-section" :: openAttr) (header :: routes)
-      ; text "parens" "("
-      ; text "count" (c.count |> string_of_int)
-      ; text "parens" ")"
-      ; ( match c.plusButton with
-        | Some (key, msg) ->
-            buttonLink ~key (fontAwesome "plus-circle") msg None
-        | None ->
-            text "" "" ) ]
-  in
-  let routes = Tc.List.map ~f:(item2html m) c.entries in
-  if List.length c.entries = 0
-  then Html.div [Html.class' "routing-section empty"] (header :: routes)
-  else
-    Html.details
-      (Html.class' "routing-section" :: openAttr m c.name)
-      (header :: routes)
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
