@@ -842,10 +842,12 @@ and category2html (m : model) (c : category) : msg Html.html =
             text "" "" ) ]
   in
   let routes = Tc.List.map ~f:(somename2html m) c.entries in
-  (* TODO: readd openAttr *)
   if List.length c.entries = 0
   then Html.div [Html.class' "routing-section empty"] (header :: routes)
-  else Html.details [Html.class' "routing-section"] (header :: routes)
+  else
+    Html.details
+      (Html.class' "routing-section" :: openAttr m c.name)
+      (header :: routes)
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
