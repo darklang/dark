@@ -323,42 +323,6 @@ let viewRoutes
   |> List.map (viewGroup m showLink showUndo)
 
 
-(* let customEventCategories *)
-(*     (m : model) *)
-(*     (tls : toplevel list) *)
-(*     (spaceName : string) *)
-(*     (showLink : showLink) *)
-(*     (showUndo : showUndo) : category list = *)
-(*   (* if the list is empty, ensure we display a routing table entry anyway *) *)
-(*   let handleEmpty entries = *)
-(*     if List.isEmpty entries then [(spaceName, [])] else entries *)
-(*   in *)
-(*   tls *)
-(*   |> splitBySpace *)
-(*   |> handleEmpty *)
-(*   |> List.sortWith (fun (a, _) (b, _) -> ordering a b) *)
-(*   |> List.map (Tuple.mapSecond tl2entry) *)
-(*   |> List.map (viewGroup m showLink showUndo) *)
-(*  *)
-(*  *)
-(* let handlerCategory *)
-(*     (m : model) *)
-(*     (tls : toplevel list) *)
-(*     (spaceName : string) *)
-(*     (showLink : showLink) *)
-(*     (showUndo : showUndo) : msg Html.html list = *)
-(*   (* if the list is empty, ensure we display a routing table entry anyway *) *)
-(*   let handleEmpty entries = *)
-(*     if List.isEmpty entries then [(spaceName, [])] else entries *)
-(*   in *)
-(*   tls *)
-(*   |> splitBySpace *)
-(*   |> handleEmpty *)
-(*   |> List.sortWith (fun (a, _) (b, _) -> ordering a b) *)
-(*   |> List.map (Tuple.mapSecond tl2entry) *)
-(*   |> List.map (viewGroup m showLink showUndo) *)
-(*  *)
-
 let httpCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> Tc.List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
@@ -538,22 +502,6 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   ; plusButton = None
   ; entries }
 
-
-(* let viewDeletedTLs_ (m : model) : msg Html.html = *)
-(*   let tls = m.deletedToplevels in *)
-(*   let dbs = viewRestorableDBs m tls in *)
-(*   let fns = viewDeletedUserFunctions m in *)
-(*   let count = List.length m.deletedUserFunctions + List.length tls in *)
-(*   let h = header "Deleted" count None in *)
-(*   Html.details *)
-(*     ([Html.class' "routing-section deleted"] @ openAttr m "deleted") *)
-(*     ( [h] *)
-(*     @ httpTLs *)
-(*     @ [dbs; fns] *)
-(*     @ cronTLs *)
-(*     @ customEventSpaceTLs *)
-(*     @ undefinedEventSpaceTLs ) *)
-(*  *)
 
 let rec count (s : somename) : int =
   match s with
