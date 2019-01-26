@@ -48,18 +48,6 @@ let buttonLink
   Html.a ([event; Html.class' "button-link"] @ href) [content]
 
 
-let tlLink (pos : pos) (class_ : string) (name : string) : msg Html.html =
-  Url.linkFor (Toplevels pos) class_ [Html.text name]
-
-
-let fnLink (fn : userFunction) (isUsed : bool) (text_ : string) : msg Html.html
-    =
-  Url.linkFor
-    (Fn (fn.ufTLID, Defaults.centerPos))
-    (if isUsed then "default-link" else "default-link unused")
-    [Html.text text_]
-
-
 let httpCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> Tc.List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
