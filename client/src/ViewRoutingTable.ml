@@ -31,21 +31,6 @@ and item =
   | Category of category
   | Entry of entry
 
-let openAttr (m : model) (name : string) =
-  if Tc.StrSet.has m.routingTableOpenDetails ~value:name
-  then
-    (* This was surprisingly fickle. To work, it needed to use the same key for
-     * both sides of the condition, and I needed to omit Vdom.noProp which
-     * would seem natural. *)
-    [ Vdom.attribute "" "open" "true"
-    ; ViewUtils.eventNoPropagation ~key:("rtod-" ^ name) "click" (fun _ ->
-          MarkRoutingTableOpen (false, name) ) ]
-  else
-    [ (* Vdom.noProp - see comment above *)
-      ViewUtils.eventNoPropagation ~key:("rtod-" ^ name) "click" (fun _ ->
-          MarkRoutingTableOpen (true, name) ) ]
-
-
 let buttonLink
     ~(key : string)
     (content : msg Html.html)
@@ -411,6 +396,26 @@ and category2html (m : model) (c : category) : msg Html.html =
     Html.summary
       [Html.class' "header"]
       [ text "title" c.name
+  else
+    let openAttr =
+      if Tc.StrSet.has m.routingTableOpenDetails ~value:c.name
+      then
+        (* This was surprisingly fickle. To work, it needed to use the same key
+         * for both sides of the condition, and I needed to omit Vdom.noProp
+         * which would seem natural. *)
+        [ Vdom.attribute "" "open" "true"
+        ; ViewUtils.eventNoPropagation
+            ~key:("rtod-" ^ c.name)
+            "click"
+            (fun _ -> MarkRoutingTableOpen (false, c.name) ) ]
+      else
+        [ (* Vdom.noProp - see comment above *)
+          ViewUtils.eventNoPropagation
+            ~key:("rtod-" ^ c.name)
+            "click"
+            (fun _ -> MarkRoutingTableOpen (true, c.name) ) ]
+    in
+    Html.details (Html.class' "routing-section" :: openAttr) (header :: routes)
       ; text "parens" "("
       ; text "count" (c.count |> string_of_int)
       ; text "parens" ")"
