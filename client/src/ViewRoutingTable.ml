@@ -488,7 +488,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                 ; verb = None } ) } )
 
 
-let f404category (m : model) : category =
+let f404Category (m : model) : category =
   let f404s = m.f404s in
   { count = List.length f404s
   ; name = "404s"
@@ -811,6 +811,8 @@ let entry2html (e : newentry) : msg Html.html =
     match (e.destination, e.verb) with
     | Some dest, Some v ->
         [Url.linkFor dest "verb-link" [Html.text v]]
+    | None, Some v ->
+        [Html.text v]
     | _ ->
         []
   in
@@ -827,9 +829,24 @@ let entry2html (e : newentry) : msg Html.html =
     | None ->
         []
   in
+  let pluslink =
+    match e.plusButton with
+    | Some msg ->
+        [ buttonLink
+            ~key:(e.name ^ "-plus")
+            (fontAwesome "plus-circle")
+            msg
+            None ]
+    | None ->
+        []
+  in
   Html.div
     [Html.class' "simple-route"]
-    ([Html.span [Html.class' "name"] mainlink] @ verb @ ext @ minuslink)
+    ( [Html.span [Html.class' "name"] mainlink]
+    @ verb
+    @ ext
+    @ pluslink
+    @ minuslink )
 
 
 let rec somename2html (s : somename) : msg Html.html =
@@ -902,7 +919,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     ; userFunctionCategory m m.userFunctions
     ; cronCategory m m.toplevels ]
     @ eventCategories m m.toplevels
-    @ [undefinedCategory m m.toplevels; f404category m; deletedCategory m]
+    @ [undefinedCategory m m.toplevels; f404Category m; deletedCategory m]
   in
   let html =
     Html.div
