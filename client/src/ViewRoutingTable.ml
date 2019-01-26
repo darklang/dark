@@ -750,10 +750,12 @@ let viewDeletedTLs =
     viewDeletedTLs_
 
 
-let entry2html (e : newentry) : msg Html.html =
+let entry2html (m : model) (e : newentry) : msg Html.html =
   (* TODO: restore button *)
   let ext =
-    Tc.Option.map ~f:(fun l -> ViewCode.externalLink l "" "") e.externalLink
+    Tc.Option.map
+      ~f:(fun l -> ViewCode.externalLink l m.canvasName m.userContentHost)
+      e.externalLink
     |> Tc.Option.withDefault ~default:[]
   in
   let mainlink =
@@ -805,11 +807,11 @@ let entry2html (e : newentry) : msg Html.html =
     @ minuslink )
 
 
-let rec somename2html (s : somename) : msg Html.html =
-  match s with Category c -> category2html c | Entry e -> entry2html e
+let rec somename2html (m : model) (s : somename) : msg Html.html =
+  match s with Category c -> category2html m c | Entry e -> entry2html m e
 
 
-and category2html (c : category) : msg Html.html =
+and category2html (m : model) (c : category) : msg Html.html =
   let header =
     Html.summary
       [Html.class' "header"]
@@ -823,7 +825,7 @@ and category2html (c : category) : msg Html.html =
         | None ->
             text "" "" ) ]
   in
-  let routes = Tc.List.map ~f:somename2html c.entries in
+  let routes = Tc.List.map ~f:(somename2html m) c.entries in
   (* TODO: readd openAttr *)
   if List.length c.entries = 0
   then Html.div [Html.class' "routing-section empty"] (header :: routes)
@@ -891,7 +893,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      (Tc.List.map ~f:category2html cats @ sections)
+      (Tc.List.map ~f:(category2html m) cats @ sections)
   in
   Html.div [Html.id "sidebar-left"] [html]
 
