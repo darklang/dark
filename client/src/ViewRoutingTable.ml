@@ -777,7 +777,7 @@ let entry2html (m : model) (e : newentry) : msg Html.html =
   let mainlink =
     match e.destination with
     | Some dest ->
-        [Url.linkFor dest "verb-link" [Html.text e.name]]
+        [Url.linkFor dest "default-link" [Html.text e.name]]
     | _ ->
         [Html.text e.name]
   in
@@ -815,7 +815,7 @@ let entry2html (m : model) (e : newentry) : msg Html.html =
         []
   in
   Html.div
-    [Html.class' "simple-route"]
+    [Html.class' "simple-route handler"]
     ( [Html.span [Html.class' "name"] mainlink]
     @ verb
     @ ext
