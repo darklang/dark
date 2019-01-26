@@ -564,15 +564,23 @@ let rec count (s : somename) : int =
 
 
 let deletedCategory (m : model) : category =
-  let cats =
-    [ httpCategory m m.deletedToplevels
-    ; dbCategory m m.deletedToplevels
-    ; userFunctionCategory m m.deletedUserFunctions
-    ; cronCategory m m.deletedToplevels ]
-    @ eventCategories m m.deletedToplevels
-    @ [undefinedCategory m m.deletedToplevels]
+  let tls =
+    m.deletedToplevels |> Tc.List.sortBy ~f:(fun tl -> TL.sortkey tl)
   in
-  { count = 0
+  let ufns =
+    m.deletedUserFunctions
+    |> Tc.List.sortBy ~f:(fun fn ->
+           fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault "" )
+  in
+  let cats =
+    [ httpCategory m tls
+    ; dbCategory m tls
+    ; userFunctionCategory m ufns
+    ; cronCategory m tls ]
+    @ eventCategories m tls
+    @ [undefinedCategory m tls]
+  in
+  { count = cats |> Tc.List.map ~f:(fun c -> count (Category c)) |> Tc.List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
@@ -913,13 +921,19 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ [view404s m m.f404s]
     @ [viewDeletedTLs m]
   in
+  let tls = m.toplevels |> Tc.List.sortBy ~f:(fun tl -> TL.sortkey tl) in
+  let ufns =
+    m.userFunctions
+    |> Tc.List.sortBy ~f:(fun fn ->
+           fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault "" )
+  in
   let cats =
-    [ httpCategory m m.toplevels
-    ; dbCategory m m.toplevels
-    ; userFunctionCategory m m.userFunctions
-    ; cronCategory m m.toplevels ]
-    @ eventCategories m m.toplevels
-    @ [undefinedCategory m m.toplevels; f404Category m; deletedCategory m]
+    [ httpCategory m tls
+    ; dbCategory m tls
+    ; userFunctionCategory m ufns
+    ; cronCategory m tls ]
+    @ eventCategories m tls
+    @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
   let html =
     Html.div
