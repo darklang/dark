@@ -499,7 +499,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   { count = List.length fns
   ; name = "Functions"
   ; classname = "fns"
-  ; plusButton = None
+  ; plusButton = Some ("cf", CreateFunction)
   ; entries }
 
 
