@@ -19,6 +19,18 @@ let name (tl : toplevel) : string =
       "Func: " ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "")
 
 
+let sortkey (tl : toplevel) : string =
+  match tl.data with
+  | TLHandler h ->
+      (h.spec.module_ |> B.toMaybe |> Option.withDefault "Undefined")
+      ^ (h.spec.name |> B.toMaybe |> Option.withDefault "Undefined")
+      ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault "")
+  | TLDB db ->
+      db.dbName
+  | TLFunc f ->
+      f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "Unnamed"
+
+
 let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
   List.find (fun tl -> tl.id = elem.id) tls <> None
 
