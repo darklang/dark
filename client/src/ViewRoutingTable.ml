@@ -528,11 +528,27 @@ let deletedCategory (m : model) : category =
     @ eventCategories m tls
     @ [undefinedCategory m tls]
   in
+  (* deleted categories shouldn't have plus buttons, and entries' plus buttons
+   * should restore *)
+  let cats =
+    Tc.List.map cats ~f:(fun c ->
+        { c with
+          plusButton = None
+        ; entries =
+            Tc.List.map c.entries ~f:(function
+                | Entry e ->
+                    Entry
+                      { e with
+                        plusButton = Some (RestoreToplevel e.tlid)
+                      ; externalLink = None }
+                | c ->
+                    c ) } )
+  in
   { count = cats |> Tc.List.map ~f:(fun c -> count (Category c)) |> Tc.List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
-  ; entries = Tc.List.map cats ~f:(fun x -> Category x) }
+  ; entries = Tc.List.map cats ~f:(fun c -> Category c) }
 
 
 let view404s_ (m : model) (f404s : fourOhFour list) : msg Html.html =
