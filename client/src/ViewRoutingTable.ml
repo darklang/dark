@@ -33,6 +33,32 @@ and showUndo =
   | ShowUndo
   | DontShowUndo
 
+let missingEventSpaceDesc : string = "Undefined"
+
+let missingEventRouteDesc : string = "Undefined"
+
+type newentry =
+  { name : string
+  ; tlid : tlid
+  ; used : bool
+  ; class' : string
+  ; destination : page option
+  ; minusButton : (int option * msg) option
+  ; plusButton : msg option
+  ; verb : string option
+  ; externalLink : handlerSpec option }
+
+and category =
+  { count : int
+  ; name : string
+  ; plusButton : (string * msg) option
+  ; classname : string
+  ; entries : somename list }
+
+and somename =
+  | Category of category
+  | Entry of newentry
+
 (* ---------------------------------- *)
 (* Html *)
 (* ---------------------------------- *)
@@ -52,10 +78,6 @@ type entry =
   { name : string option
   ; verbs : (string * pos) list
   ; tlid : tlid }
-
-let missingEventSpaceDesc : string = "Undefined"
-
-let missingEventRouteDesc : string = "Undefined"
 
 let spaceName (tl : toplevel) : string option =
   match tl.data with TLHandler h -> h.spec.module_ |> B.toMaybe | _ -> None
@@ -301,6 +323,262 @@ let viewRoutes
   |> List.map (viewGroup m showLink showUndo)
 
 
+(* let customEventCategories *)
+(*     (m : model) *)
+(*     (tls : toplevel list) *)
+(*     (spaceName : string) *)
+(*     (showLink : showLink) *)
+(*     (showUndo : showUndo) : category list = *)
+(*   (* if the list is empty, ensure we display a routing table entry anyway *) *)
+(*   let handleEmpty entries = *)
+(*     if List.isEmpty entries then [(spaceName, [])] else entries *)
+(*   in *)
+(*   tls *)
+(*   |> splitBySpace *)
+(*   |> handleEmpty *)
+(*   |> List.sortWith (fun (a, _) (b, _) -> ordering a b) *)
+(*   |> List.map (Tuple.mapSecond tl2entry) *)
+(*   |> List.map (viewGroup m showLink showUndo) *)
+(*  *)
+(*  *)
+(* let handlerCategory *)
+(*     (m : model) *)
+(*     (tls : toplevel list) *)
+(*     (spaceName : string) *)
+(*     (showLink : showLink) *)
+(*     (showUndo : showUndo) : msg Html.html list = *)
+(*   (* if the list is empty, ensure we display a routing table entry anyway *) *)
+(*   let handleEmpty entries = *)
+(*     if List.isEmpty entries then [(spaceName, [])] else entries *)
+(*   in *)
+(*   tls *)
+(*   |> splitBySpace *)
+(*   |> handleEmpty *)
+(*   |> List.sortWith (fun (a, _) (b, _) -> ordering a b) *)
+(*   |> List.map (Tuple.mapSecond tl2entry) *)
+(*   |> List.map (viewGroup m showLink showUndo) *)
+(*  *)
+
+let httpCategory (_m : model) (tls : toplevel list) : category =
+  let handlers = tls |> Tc.List.filter ~f:TL.isHTTPHandler in
+  { count = List.length handlers
+  ; name = "HTTP"
+  ; plusButton = Some ("crh", CreateRouteHandler)
+  ; classname = "http"
+  ; entries =
+      Tc.List.map handlers ~f:(fun tl ->
+          let h = tl |> TL.asHandler |> deOption "httpCategory/entry" in
+          Entry
+            { name =
+                h.spec.name
+                |> Blank.toMaybe
+                |> Tc.Option.withDefault ~default:missingEventRouteDesc
+            ; used = true
+            ; tlid = h.tlid
+            ; class' = "default-link"
+            ; destination = Some (Toplevels tl.pos)
+            ; minusButton = None
+            ; plusButton = None
+            ; externalLink = Some h.spec
+            ; verb = h.spec.modifier |> Blank.toMaybe } ) }
+
+
+let cronCategory (_m : model) (tls : toplevel list) : category =
+  let handlers = tls |> Tc.List.filter ~f:TL.isCronHandler in
+  { count = List.length handlers
+  ; name = "CRON"
+  ; plusButton = None
+  ; classname = "cron"
+  ; entries =
+      Tc.List.map handlers ~f:(fun tl ->
+          let h = tl |> TL.asHandler |> deOption "cronCategory/entry" in
+          Entry
+            { name =
+                h.spec.name
+                |> Blank.toMaybe
+                |> Tc.Option.withDefault ~default:missingEventRouteDesc
+            ; used = true
+            ; tlid = h.tlid
+            ; class' = "default-link"
+            ; destination = Some (Toplevels tl.pos)
+            ; minusButton = None
+            ; plusButton = None
+            ; externalLink = None
+            ; verb = None } ) }
+
+
+let dbCategory (_m : model) (tls : toplevel list) : category =
+  let dbs =
+    tls
+    |> List.filter (fun tl -> TL.asDB tl <> None)
+    |> List.map (fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy (fun (_, db) -> db.dbName)
+  in
+  let entries =
+    Tc.List.map dbs ~f:(fun (pos, db) ->
+        Entry
+          { name = db.dbName
+          ; tlid = db.dbTLID
+          ; used = false
+          ; class' = "default-link"
+          ; destination = Some (Toplevels pos)
+          ; minusButton = None
+          ; externalLink = None
+          ; verb = None
+          ; plusButton = None } )
+  in
+  { count = List.length dbs
+  ; name = "DBs"
+  ; classname = "dbs"
+  ; plusButton = None
+  ; entries }
+
+
+let undefinedCategory (_m : model) (tls : toplevel list) : category =
+  let handlers = tls |> Tc.List.filter ~f:TL.isUndefinedEventSpaceHandler in
+  { count = List.length handlers
+  ; name = missingEventSpaceDesc
+  ; plusButton = None
+  ; classname = missingEventSpaceDesc
+  ; entries =
+      Tc.List.map handlers ~f:(fun tl ->
+          let h = tl |> TL.asHandler |> deOption "undefinedCategory/entry" in
+          Entry
+            { name =
+                h.spec.name
+                |> Blank.toMaybe
+                |> Tc.Option.withDefault ~default:missingEventRouteDesc
+            ; used = true
+            ; tlid = h.tlid
+            ; class' = "default-link"
+            ; destination = Some (Toplevels tl.pos)
+            ; minusButton = None
+            ; plusButton = None
+            ; externalLink = None
+            ; verb = None } ) }
+
+
+let eventCategories (_m : model) (tls : toplevel list) : category list =
+  let groups =
+    tls
+    |> Tc.List.filter ~f:TL.isCustomEventSpaceHandler
+    |> splitBySpace
+    |> List.sortWith (fun (a, _) (b, _) -> ordering a b)
+  in
+  Tc.List.map groups ~f:(fun (name, handlers) ->
+      { count = List.length handlers
+      ; name
+      ; plusButton = None
+      ; classname = name
+      ; entries =
+          Tc.List.map handlers ~f:(fun tl ->
+              let h = tl |> TL.asHandler |> deOption "eventCategories/entry" in
+              Entry
+                { name =
+                    h.spec.name
+                    |> Blank.toMaybe
+                    |> Tc.Option.withDefault ~default:missingEventRouteDesc
+                ; used = true
+                ; tlid = h.tlid
+                ; class' = "default-link"
+                ; destination = Some (Toplevels tl.pos)
+                ; minusButton = None
+                ; plusButton = None
+                ; externalLink = None
+                ; verb = None } ) } )
+
+
+let f404category (m : model) : category =
+  let f404s = m.f404s in
+  { count = List.length f404s
+  ; name = "404s"
+  ; plusButton = None
+  ; classname = "fof"
+  ; entries =
+      Tc.List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
+          Entry
+            { name = (if space = "HTTP" then path else space ^ "::" ^ path)
+            ; used = true
+            ; tlid = TLID "no-tlid-for-404"
+            ; class' = "default-link"
+            ; destination = None
+            ; minusButton = Some (None, Delete404 fof)
+            ; plusButton = Some (CreateHandlerFrom404 fof)
+            ; externalLink = None
+            ; verb = Some modifier } ) }
+
+
+let userFunctionCategory (m : model) (ufs : userFunction list) : category =
+  let fns = ufs |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName) in
+  let entries =
+    Tc.List.map fns ~f:(fun fn ->
+        let name =
+          fn.ufMetadata.ufmName |> Blank.toMaybe |> deOption "userFunction"
+        in
+        let useCount = Refactor.countFnUsage m name in
+        let minusButton =
+          if useCount = 0
+          then Some (Some useCount, DeleteUserFunction fn.ufTLID)
+          else None
+        in
+        Entry
+          { name
+          ; tlid = fn.ufTLID
+          ; used = useCount > 0
+          ; class' = "fn"
+          ; minusButton
+          ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
+          ; plusButton = None
+          ; verb = None
+          ; externalLink = None } )
+  in
+  { count = List.length fns
+  ; name = "Functions"
+  ; classname = "fns"
+  ; plusButton = None
+  ; entries }
+
+
+(* let viewDeletedTLs_ (m : model) : msg Html.html = *)
+(*   let tls = m.deletedToplevels in *)
+(*   let dbs = viewRestorableDBs m tls in *)
+(*   let fns = viewDeletedUserFunctions m in *)
+(*   let count = List.length m.deletedUserFunctions + List.length tls in *)
+(*   let h = header "Deleted" count None in *)
+(*   Html.details *)
+(*     ([Html.class' "routing-section deleted"] @ openAttr m "deleted") *)
+(*     ( [h] *)
+(*     @ httpTLs *)
+(*     @ [dbs; fns] *)
+(*     @ cronTLs *)
+(*     @ customEventSpaceTLs *)
+(*     @ undefinedEventSpaceTLs ) *)
+(*  *)
+
+let rec count (s : somename) : int =
+  match s with
+  | Entry _ ->
+      1
+  | Category c ->
+      c.entries |> Tc.List.map ~f:count |> Tc.List.sum
+
+
+let deletedCategory (m : model) : category =
+  let cats =
+    [ httpCategory m m.deletedToplevels
+    ; dbCategory m m.deletedToplevels
+    ; userFunctionCategory m m.deletedUserFunctions
+    ; cronCategory m m.deletedToplevels ]
+    @ eventCategories m m.deletedToplevels
+    @ [undefinedCategory m m.deletedToplevels]
+  in
+  { count = 0
+  ; name = "Deleted"
+  ; plusButton = None
+  ; classname = "deleted"
+  ; entries = Tc.List.map cats ~f:(fun x -> Category x) }
+
+
 let view404s_ (m : model) (f404s : fourOhFour list) : msg Html.html =
   let fofToKey fof = fof.space ^ "-" ^ fof.path ^ "-" ^ fof.modifier in
   let theCreateLink fof =
@@ -366,6 +644,32 @@ let viewDBs m =
   Cache.cache1
     (fun tls -> (TL.dbs tls, m.routingTableOpenDetails))
     (viewDBs_ m)
+
+
+let deletedUserFunctionsEntries (m : model) : category =
+  let fns =
+    m.deletedUserFunctions
+    |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName)
+  in
+  let entries =
+    Tc.List.map fns ~f:(fun fn ->
+        Entry
+          { name =
+              fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault ""
+          ; tlid = fn.ufTLID
+          ; used = false
+          ; class' = "fn"
+          ; minusButton = None
+          ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
+          ; plusButton = None
+          ; verb = None
+          ; externalLink = None } )
+  in
+  { count = List.length fns
+  ; name = "Functions"
+  ; classname = "fns"
+  ; plusButton = None
+  ; entries }
 
 
 let viewDeletedUserFunctions (m : model) : msg Html.html =
@@ -490,6 +794,69 @@ let viewDeletedTLs =
     viewDeletedTLs_
 
 
+let entry2html (e : newentry) : msg Html.html =
+  (* TODO: restore button *)
+  let ext =
+    Tc.Option.map ~f:(fun l -> ViewCode.externalLink l "" "") e.externalLink
+    |> Tc.Option.withDefault ~default:[]
+  in
+  let mainlink =
+    match e.destination with
+    | Some dest ->
+        [Url.linkFor dest "verb-link" [Html.text e.name]]
+    | _ ->
+        [Html.text e.name]
+  in
+  let verb =
+    match (e.destination, e.verb) with
+    | Some dest, Some v ->
+        [Url.linkFor dest "verb-link" [Html.text v]]
+    | _ ->
+        []
+  in
+  let minuslink =
+    match e.minusButton with
+    | Some (None, msg) | Some (Some 0, msg) ->
+        [ buttonLink
+            ~key:(e.class' ^ showTLID e.tlid)
+            (fontAwesome "minus-circle")
+            msg
+            None ]
+    | Some (Some count, _) ->
+        [Html.text (" (" ^ string_of_int count ^ ")")]
+    | None ->
+        []
+  in
+  Html.div
+    [Html.class' "simple-route"]
+    ([Html.span [Html.class' "name"] mainlink] @ verb @ ext @ minuslink)
+
+
+let rec somename2html (s : somename) : msg Html.html =
+  match s with Category c -> category2html c | Entry e -> entry2html e
+
+
+and category2html (c : category) : msg Html.html =
+  let header =
+    Html.summary
+      [Html.class' "header"]
+      [ text "title" c.name
+      ; text "parens" "("
+      ; text "count" (c.count |> string_of_int)
+      ; text "parens" ")"
+      ; ( match c.plusButton with
+        | Some (key, msg) ->
+            buttonLink ~key (fontAwesome "plus-circle") msg None
+        | None ->
+            text "" "" ) ]
+  in
+  let routes = Tc.List.map ~f:somename2html c.entries in
+  (* TODO: readd openAttr *)
+  if List.length c.entries = 0
+  then Html.div [Html.class' "routing-section empty"] (header :: routes)
+  else Html.details [Html.class' "routing-section"] (header :: routes)
+
+
 let viewRoutingTable_ (m : model) : msg Html.html =
   let sections =
     viewRoutes
@@ -529,6 +896,14 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ [view404s m m.f404s]
     @ [viewDeletedTLs m]
   in
+  let cats =
+    [ httpCategory m m.toplevels
+    ; dbCategory m m.toplevels
+    ; userFunctionCategory m m.userFunctions
+    ; cronCategory m m.toplevels ]
+    @ eventCategories m m.toplevels
+    @ [undefinedCategory m m.toplevels; f404category m; deletedCategory m]
+  in
   let html =
     Html.div
       [ Html.class' "viewing-table"
@@ -537,7 +912,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      sections
+      (Tc.List.map ~f:category2html cats @ sections)
   in
   Html.div [Html.id "sidebar-left"] [html]
 
