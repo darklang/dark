@@ -9,7 +9,7 @@ let missingEventSpaceDesc : string = "Undefined"
 
 let missingEventRouteDesc : string = "Undefined"
 
-type newentry =
+type entry =
   { name : string
   ; tlid : tlid
   ; used : bool
@@ -25,11 +25,11 @@ and category =
   ; name : string
   ; plusButton : (string * msg) option
   ; classname : string
-  ; entries : somename list }
+  ; entries : item list }
 
-and somename =
+and item =
   | Category of category
-  | Entry of newentry
+  | Entry of entry
 
 let openAttr (m : model) (name : string) =
   if Tc.StrSet.has m.routingTableOpenDetails ~value:name
@@ -271,7 +271,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   ; entries }
 
 
-let rec count (s : somename) : int =
+let rec count (s : item) : int =
   match s with
   | Entry _ ->
       1
@@ -345,7 +345,7 @@ let deletedUserFunctionsEntries (m : model) : category =
   ; entries }
 
 
-let entry2html (m : model) (e : newentry) : msg Html.html =
+let entry2html (m : model) (e : entry) : msg Html.html =
   let ext =
     Tc.Option.map
       ~f:(fun l -> ViewCode.externalLink l m.canvasName m.userContentHost)
@@ -401,7 +401,7 @@ let entry2html (m : model) (e : newentry) : msg Html.html =
     @ minuslink )
 
 
-let rec somename2html (m : model) (s : somename) : msg Html.html =
+let rec item2html (m : model) (s : item) : msg Html.html =
   match s with Category c -> category2html m c | Entry e -> entry2html m e
 
 
@@ -420,7 +420,7 @@ and category2html (m : model) (c : category) : msg Html.html =
         | None ->
             text "" "" ) ]
   in
-  let routes = Tc.List.map ~f:(somename2html m) c.entries in
+  let routes = Tc.List.map ~f:(item2html m) c.entries in
   if List.length c.entries = 0
   then Html.div [Html.class' "routing-section empty"] (header :: routes)
   else
