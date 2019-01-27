@@ -513,7 +513,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               m2
         in
         let m4 =
-          {m3 with deletedToplevels = TL.removeByTLID m3.deletedToplevels tls}
+          { m3 with
+            deletedToplevels =
+              TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
         in
         processAutocompleteMods m4 [ACRegenerate]
     | UpdateToplevels (tls, updateCurrent) ->
@@ -538,21 +540,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               m2
         in
         let m4 =
-          {m3 with deletedToplevels = TL.removeByTLID m3.deletedToplevels tls}
+          { m3 with
+            deletedToplevels =
+              TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
         in
         processAutocompleteMods m4 [ACRegenerate]
     | UpdateDeletedToplevels dtls ->
         let m2 =
           { m with
-            deletedToplevels = TL.upsertAllByTLID m.deletedToplevels dtls
-          ; toplevels = TL.removeByTLID m.toplevels dtls }
+            deletedToplevels =
+              TL.upsertAllByTLID m.deletedToplevels ~newTLs:dtls
+          ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
         in
         processAutocompleteMods m2 [ACRegenerate]
     | SetDeletedToplevels dtls ->
         let m2 =
           { m with
             deletedToplevels = dtls
-          ; toplevels = TL.removeByTLID m.toplevels dtls }
+          ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
         in
         processAutocompleteMods m2 [ACRegenerate]
     | RequestAnalysis tls ->
