@@ -125,7 +125,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> Tc.List.filter ~f:TL.isUndefinedEventSpaceHandler in
   { count = List.length handlers
   ; name = missingEventSpaceDesc
-  ; plusButton = None
+  ; plusButton = Some (CreateRouteHandler None)
   ; classname = missingEventSpaceDesc
   ; entries =
       Tc.List.map handlers ~f:(fun tl ->
@@ -169,7 +169,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
   Tc.List.map groups ~f:(fun (name, handlers) ->
       { count = List.length handlers
       ; name
-      ; plusButton = None
+      ; plusButton = Some (CreateRouteHandler (Some name))
       ; classname = name
       ; entries =
           Tc.List.map handlers ~f:(fun tl ->
