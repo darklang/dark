@@ -200,7 +200,7 @@ module ReceiveAnalysis = struct
 
 
   let listen ~key tagger =
-    Porting.registerGlobal "receiveAnalysis" key tagger decode
+    Native.registerGlobal "receiveAnalysis" key tagger decode
 end
 
 module NewTracePush = struct
@@ -213,7 +213,7 @@ module NewTracePush = struct
 
 
   let listen ~key tagger =
-    Porting.registerGlobal "newTracePush" key tagger decode
+    Native.registerGlobal "newTracePush" key tagger decode
 end
 
 (* Request analysis *)
