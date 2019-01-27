@@ -12,12 +12,13 @@ let missingEventRouteDesc : string = "Undefined"
 type entry =
   { name : string
   ; tlid : tlid
-  ; destination : page option
+  ; destination : page option (* where to go when clicked *)
   ; uses : int option
   ; minusButton : msg option
   ; plusButton : msg option
   ; verb : string option
-  ; externalLink : handlerSpec option }
+  ; externalLink : handlerSpec option
+  (* for http handlers to link out *) }
 
 and category =
   { count : int
