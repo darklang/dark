@@ -273,6 +273,7 @@ let deletedCategory (m : model) : category =
                     Entry
                       { e with
                         plusButton = Some (RestoreToplevel e.tlid)
+                      ; minusButton = None
                       ; externalLink = None }
                 | c ->
                     c ) } )
