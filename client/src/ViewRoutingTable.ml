@@ -12,9 +12,9 @@ let missingEventRouteDesc : string = "Undefined"
 type entry =
   { name : string
   ; tlid : tlid
-  ; used : bool
   ; destination : page option
-  ; minusButton : (int option * msg) option
+  ; uses : int option
+  ; minusButton : msg option
   ; plusButton : msg option
   ; verb : string option
   ; externalLink : handlerSpec option }
@@ -62,7 +62,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 h.spec.name
                 |> Blank.toMaybe
                 |> Tc.Option.withDefault ~default:missingEventRouteDesc
-            ; used = true
+            ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = None
@@ -85,7 +85,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 h.spec.name
                 |> Blank.toMaybe
                 |> Tc.Option.withDefault ~default:missingEventRouteDesc
-            ; used = true
+            ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = None
@@ -106,7 +106,7 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
         Entry
           { name = db.dbName
           ; tlid = db.dbTLID
-          ; used = false
+          ; uses = None
           ; destination = Some (Toplevels pos)
           ; minusButton = None
           ; externalLink = None
@@ -134,7 +134,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
                 h.spec.name
                 |> Blank.toMaybe
                 |> Tc.Option.withDefault ~default:missingEventRouteDesc
-            ; used = true
+            ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = None
@@ -178,7 +178,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                     h.spec.name
                     |> Blank.toMaybe
                     |> Tc.Option.withDefault ~default:missingEventRouteDesc
-                ; used = true
+                ; uses = None
                 ; tlid = h.tlid
                 ; destination = Some (Toplevels tl.pos)
                 ; minusButton = None
@@ -197,10 +197,10 @@ let f404Category (m : model) : category =
       Tc.List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
           Entry
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
-            ; used = true
+            ; uses = None
             ; tlid = TLID "no-tlid-for-404"
             ; destination = None
-            ; minusButton = Some (None, Delete404 fof)
+            ; minusButton = Some (Delete404 fof)
             ; plusButton = Some (CreateHandlerFrom404 fof)
             ; externalLink = None
             ; verb = Some modifier } ) }
@@ -215,14 +215,12 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
         in
         let useCount = Refactor.countFnUsage m name in
         let minusButton =
-          if useCount = 0
-          then Some (Some useCount, DeleteUserFunction fn.ufTLID)
-          else None
+          if useCount = 0 then Some (DeleteUserFunction fn.ufTLID) else None
         in
         Entry
           { name
           ; tlid = fn.ufTLID
-          ; used = useCount > 0
+          ; uses = Some useCount
           ; minusButton
           ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
           ; plusButton = None
@@ -297,7 +295,7 @@ let deletedUserFunctionsEntries (m : model) : category =
           { name =
               fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault ""
           ; tlid = fn.ufTLID
-          ; used = false
+          ; uses = None
           ; minusButton = None
           ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
           ; plusButton = None
@@ -318,12 +316,19 @@ let entry2html (m : model) (e : entry) : msg Html.html =
       e.externalLink
     |> Tc.Option.withDefault ~default:[]
   in
+  let name =
+    match e.uses with
+    | Some count ->
+        e.name ^ " (" ^ string_of_int count ^ ")"
+    | _ ->
+        e.name
+  in
   let mainlink =
     match e.destination with
     | Some dest ->
-        [Url.linkFor dest "default-link" [Html.text e.name]]
+        [Url.linkFor dest "default-link" [Html.text name]]
     | _ ->
-        [Html.text e.name]
+        [Html.text name]
   in
   let verb =
     match (e.destination, e.verb) with
@@ -336,14 +341,12 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   in
   let minuslink =
     match e.minusButton with
-    | Some (None, msg) | Some (Some 0, msg) ->
+    | Some msg ->
         [ buttonLink
             ~key:("entry-" ^ showTLID e.tlid)
             (fontAwesome "minus-circle")
             msg
             None ]
-    | Some (Some count, _) ->
-        [Html.text (" (" ^ string_of_int count ^ ")")]
     | None ->
         []
   in
