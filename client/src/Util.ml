@@ -8,7 +8,7 @@ let windowSize (a : unit) : int * int =
 let random (a : unit) : int = Native.Random.random a
 
 let reContains ~(re : string) (s : string) : bool =
-  Regex.contains ~re:(Regex.regex re) s
+  Tc.Regex.contains ~re:(Tc.Regex.regex re) s
 
 
 let reExactly (re : string) (s : string) : bool =
@@ -48,9 +48,12 @@ let listNextWrap (a : 'a) (l : 'a list) : 'a option =
 let transformToStringEntry (s_ : string) : string =
   (* the first time we won't have a closing quote so add it *)
   let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in
-  s |> String.dropLeft 1 |> String.dropRight 1 |> Regex.replace "\\\\\"" "\""
+  s
+  |> String.dropLeft 1
+  |> String.dropRight 1
+  |> Tc.Regex.replace "\\\\\"" "\""
 
 
 let transformFromStringEntry (s : string) : string =
-  let s2 = s |> Regex.replace "\"" "\\\"" in
+  let s2 = s |> Tc.Regex.replace "\"" "\\\"" in
   "\"" ^ s2 ^ "\""

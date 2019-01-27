@@ -374,7 +374,7 @@ let rec stripCharsFromFront (disallowed : string) (s : string) : string =
 
 
 let stripChars (disallowed : string) (s : string) : string =
-  Regex.replace disallowed "" s
+  Tc.Regex.replace disallowed "" s
 
 
 let qNewDB (s : string) : omniAction option =
@@ -598,7 +598,7 @@ let filter
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
-    |> Regex.replace {js|⟶|js} "->"
+    |> Tc.Regex.replace {js|⟶|js} "->"
   in
   (* split into different lists *)
   let dynamic, candidates0 = List.partition isDynamicItem list in

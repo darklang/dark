@@ -20,7 +20,7 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
   (* We know from the fact that this function is called that there has
      been a '.' entered. However, it might not be in baseStr, so
      canonicalize it first. *)
-  let str = Regex.replace "\\.*$" "" baseStr in
+  let str = Tc.Regex.replace "\\.*$" "" baseStr in
   let intOrString =
     String.startsWith "\"" str || Decoders.typeOfLiteralString str = TInt
   in

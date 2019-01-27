@@ -1,5 +1,3 @@
-let ( ++ ) (a : string) (b : string) = a ^ b
-
 let ( <| ) a b = a b
 
 let ( >> ) (f1 : 'a -> 'b) (f2 : 'b -> 'c) : 'a -> 'c = fun x -> x |> f1 |> f2
@@ -39,18 +37,6 @@ module Decoder = struct
             Ok s
         | Error _ ->
             Ok (Js.Json.stringify j) )
-end
-
-module Debug = struct
-  let crash (str : string) : 'a = failwith str
-
-  let log ?(f : 'a -> 'b = fun x -> x) (msg : string) (data : 'a) : 'a =
-    Js.log2 msg (f data) ;
-    data
-
-
-  let loG ?(f : 'a -> 'b = fun x -> x) (msg : string) (data : 'a) : unit =
-    Js.log2 msg (f data)
 end
 
 let toOption ~(sentinel : 'a) (value : 'a) : 'a option =
@@ -374,19 +360,6 @@ module Base64 = struct
 
   let decode (b64 : string) : (string, string) result =
     try Ok (Webapi.Base64.atob b64) with e -> Error (Printexc.to_string e)
-end
-
-module Regex = struct
-  let regex s : Js.Re.t = Js.Re.fromStringWithFlags ~flags:"g" s
-
-  let contains ~(re : Js.Re.t) (s : string) : bool = Js.Re.test s re
-
-  let replace (re : string) (repl : string) (str : string) =
-    Js.String.replaceByRe (regex re) repl str
-
-
-  let matches (re : Js.Re.t) (s : string) : Js.Re.result option =
-    Js.Re.exec s re
 end
 
 module Option = struct
