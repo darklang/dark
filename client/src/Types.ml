@@ -624,7 +624,7 @@ and msg =
   | WindowResize of int * int
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
-  | PageVisibilityChange of Porting.PageVisibility.visibility
+  | PageVisibilityChange of Native.PageVisibility.visibility
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
@@ -735,7 +735,7 @@ and model =
   ; f404s : fourOhFour list
   ; unlockedDBs : tlid list
   ; integrationTestState : integrationTestState
-  ; visibility : Porting.PageVisibility.visibility
+  ; visibility : Native.PageVisibility.visibility
   ; clipboard : clipboard
   ; syncState : syncState
   ; urlState : urlState

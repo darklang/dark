@@ -72,7 +72,7 @@ let selectPrevToplevel (m : model) (cur : tlid option) : modification =
 (* the TL, draw it, get the sizes and positions of the elements and use *)
 (* them to figure out what's "above" and "below". *)
 
-type jSSide = Porting.Native.rect =
+type jSSide = Native.rect =
   { id : string
   ; top : int
   ; left : int
