@@ -1,5 +1,4 @@
-open Porting
-open! Tc
+open Tc
 open Prelude
 open Types
 
@@ -1176,7 +1175,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let newm, newc = updateMod mods (m, Cmd.none) in
   let state = m |> Editor.model2editor |> Editor.toString in
   Dom.Storage.setItem
-    ("editorState-" ++ m.canvasName)
+    ("editorState-" ^ m.canvasName)
     state
     Dom.Storage.localStorage ;
   ({newm with lastMsg = msg; lastMod = mods}, newc)
