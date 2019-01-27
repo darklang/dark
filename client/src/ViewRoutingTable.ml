@@ -456,6 +456,4 @@ let rtCacheKey m =
   , m.routingTableOpenDetails )
 
 
-let viewRoutingTable m =
-  (* Cache.cache1 rtCacheKey viewRoutingTable_ m *)
-  viewRoutingTable_ m
+let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
