@@ -7,7 +7,8 @@ include (
   Tablecloth :
     module type of Tablecloth
     with module StrSet := Tablecloth.StrSet
-     and module IntSet := Tablecloth.IntSet )
+     and module IntSet := Tablecloth.IntSet
+     and module StrDict := Tablecloth.StrDict )
 
 module StrSet = struct
   include Tablecloth.StrSet
@@ -51,4 +52,19 @@ module IntSet = struct
         Format.pp_print_string fmt ",  " ) ;
     Format.pp_print_string fmt "}" ;
     ()
+end
+
+module StrDict = struct
+  include Tablecloth.StrDict
+
+  (* Js.String.make gives us "[object Object]", so we actually want our own
+     toString. Not perfect, but slightly nicer (e.g., for App.ml's
+     DisplayAndReportHttpError, info's values are all strings, which this
+     handles) *)
+  let toString d =
+    d
+    |> toList
+    |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\": \"" ^ Js.String.make v ^ "\"")
+    |> String.join ~sep:", "
+    |> fun s -> "{" ^ s ^ "}"
 end

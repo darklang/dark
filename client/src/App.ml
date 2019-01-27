@@ -1,4 +1,5 @@
-open! Porting
+open Porting
+open! Tc
 open Prelude
 open Types
 
@@ -27,7 +28,9 @@ let init (flagString : string) (location : Web.Location.location) =
       cursorState = Deselected
     ; currentPage = (Defaults.defaultModel |> fun x -> x.currentPage) }
   in
-  let page = Url.parseLocation location |> Option.withDefault m.currentPage in
+  let page =
+    Url.parseLocation location |> Option.withDefault ~default:m.currentPage
+  in
   let canvas = m.canvas in
   let newCanvas =
     match page with
@@ -79,7 +82,7 @@ let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) ->
       let tl = TL.getTL m tlid in
-      let predPd = Option.andThen (TL.find tl) pred in
+      let predPd = Option.andThen ~f:(TL.find tl) pred in
       let next = TL.getNextBlank tl predPd in
       ( match next with
       | Some pd ->
@@ -128,13 +131,15 @@ let processFocus (m : model) (focus : focus) : modification =
             tl.id = id
       in
       let setQuery =
-        let mTl = cs |> tlidOf |> Option.andThen (TL.get m) in
+        let mTl = cs |> tlidOf |> Option.andThen ~f:(TL.get m) in
         match (mTl, idOf cs) with
         | Some tl, Some id when TL.isValidID tl id ->
             let pd = TL.find tl id in
             AutocompleteMod
               (ACSetQuery
-                 (pd |> Option.andThen P.toContent |> Option.withDefault ""))
+                 ( pd
+                 |> Option.andThen ~f:P.toContent
+                 |> Option.withDefault ~default:"" ))
         | _ ->
             NoChange
       in
@@ -181,8 +186,8 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   then Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods) ;
   let complete =
     List.foldl
-      (fun mod_ complete_ -> AC.update m mod_ complete_)
-      m.complete
+      ~f:(fun mod_ complete_ -> AC.update m mod_ complete_)
+      ~init:m.complete
       mods
   in
   let focus =
@@ -211,8 +216,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     (* close open threads in the previous TL *)
     m.cursorState
     |> tlidOf
-    |> Option.andThen (TL.get m)
-    |> Option.map (fun tl ->
+    |> Option.andThen ~f:(TL.get m)
+    |> Option.map ~f:(fun tl ->
            match tl.data with
            | TLHandler h ->
                let replacement = AST.closeBlanks h.ast in
@@ -236,7 +241,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  [RPC.rpc (contextFromModel newM) FocusSame params]
            | _ ->
                [] )
-    |> Option.withDefault []
+    |> Option.withDefault ~default:[]
     |> fun rpc ->
     if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
   in
@@ -246,7 +251,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          possible *)
       let hasNonHandlers =
         List.any
-          (fun c ->
+          ~f:(fun c ->
             match c with
             | SetHandler (_, _, _) ->
                 false
@@ -261,7 +266,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       else
         let localM =
           List.foldl
-            (fun call m ->
+            ~f:(fun call m ->
               match call with
               | SetHandler (tlid, pos, h) ->
                   TL.upsert m {id = tlid; pos; data = TLHandler h}
@@ -269,7 +274,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Functions.upsert m f
               | _ ->
                   m )
-            m
+            ~init:m
             params.ops
         in
         let withFocus, wfCmd =
@@ -316,17 +321,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           |> Json_decode_extended.decodeString Decoders.exception_
           |> Result.toOption
           |> Option.map
-               (fun { short
-                    ; long
-                    ; exceptionTipe
-                    ; actual
-                    ; actualType
-                    ; expected
-                    ; result
-                    ; resultType
-                    ; info
-                    ; workarounds }
-               ->
+               ~f:(fun { short
+                       ; long
+                       ; exceptionTipe
+                       ; actual
+                       ; actualType
+                       ; expected
+                       ; result
+                       ; resultType
+                       ; info
+                       ; workarounds }
+                  ->
                  " ("
                  ^ exceptionTipe
                  ^ "): "
@@ -344,7 +349,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if workarounds = []
                  then ""
                  else ", workarounds: [" ^ String.concat workarounds ^ "]" )
-          |> Option.withDefault str
+          |> Option.withDefault ~default:str
         in
         let msg =
           match e with
@@ -578,10 +583,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; ("user_fns", list Encoders.userFunction userFns) ]
           in
           trace
-          |> Option.map (fun t -> requestAnalysis (param t))
+          |> Option.map ~f:(fun t -> requestAnalysis (param t))
           |> Option.toList
         in
-        (m, Cmd.batch (handlers |> List.map req |> List.concat))
+        (m, Cmd.batch (handlers |> List.map ~f:req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
         let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
         processAutocompleteMods m2 [ACRegenerate]
@@ -652,14 +657,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Append404s (f404s, latest404) ->
         let new404s =
           f404s @ m.f404s
-          |> List.uniqueBy (fun f404 -> f404.space ^ f404.path ^ f404.modifier)
+          |> List.uniqueBy ~f:(fun f404 ->
+                 f404.space ^ f404.path ^ f404.modifier )
         in
         ({m with f404s = new404s; latest404}, Cmd.none)
     | SetHover p ->
         let nhovering = p :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
     | ClearHover p ->
-        let nhovering = List.filter (fun m -> m <> p) m.hovering in
+        let nhovering = List.filter ~f:(fun m -> m <> p) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
         let m2 = Analysis.setCursor m tlid cur in
@@ -700,9 +706,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           |> updateMod (DisplayError "Traces are not loaded for this handler")
           |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
     | ExecutingFunctionComplete targets ->
-        let isComplete target = not <| List.member target targets in
+        let isComplete target = not <| List.member ~value:target targets in
         let nexecutingFunctions =
-          List.filter isComplete m.executingFunctions
+          List.filter ~f:isComplete m.executingFunctions
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | SetLockedHandlers locked ->
@@ -722,7 +728,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m [mod_]
     (* applied from left to right *)
     | Many mods ->
-        List.foldl updateMod (m, Cmd.none) mods
+        List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
   (newm, Cmd.batch [cmd; newcmd])
 
@@ -735,7 +741,8 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
      canonicalize it first. *)
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
-    String.startsWith "\"" str || Decoders.typeOfLiteralString str = TInt
+    String.startsWith ~prefix:"\"" str
+    || Decoders.typeOfLiteralString str = TInt
   in
   match m.cursorState with
   | Entering (Creating _) ->
@@ -772,7 +779,7 @@ let update_ (msg : msg) (m : model) : modification =
       KeyPress.handler event m
   | EntryInputMsg target ->
       let query = if target = "\"" then "\"\"" else target in
-      if String.endsWith "." query && isFieldAccessDot m query
+      if String.endsWith ~suffix:"." query && isFieldAccessDot m query
       then NoChange
       else
         Many
@@ -1046,7 +1053,9 @@ let update_ (msg : msg) (m : model) : modification =
   | GetAnalysisRPCCallback (params, Ok (newTraces, (f404s, ts), unlockedDBs))
     ->
       let analysisTLs =
-        List.filter (fun tl -> List.member tl.id params.tlids) m.toplevels
+        List.filter
+          ~f:(fun tl -> List.member ~value:tl.id params.tlids)
+          m.toplevels
       in
       Many
         [ TweakModel Sync.markResponseInModel
