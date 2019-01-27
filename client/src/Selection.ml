@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -28,15 +28,17 @@ let moveCursorForwardInTime (m : model) (tlid : tlid) : modification =
 (* Toplevels *)
 (* ------------------------------- *)
 let selectNextToplevel (m : model) (cur : tlid option) : modification =
-  let tls = List.map (fun x -> x.id) m.toplevels in
-  let next = cur |> Option.andThen (fun cur_ -> Util.listNextWrap cur_ tls) in
+  let tls = List.map ~f:(fun x -> x.id) m.toplevels in
+  let next =
+    cur |> Option.andThen ~f:(fun cur_ -> Util.listNextWrap cur_ tls)
+  in
   match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
 
 let selectPrevToplevel (m : model) (cur : tlid option) : modification =
-  let tls = List.map (fun x -> x.id) m.toplevels in
+  let tls = List.map ~f:(fun x -> x.id) m.toplevels in
   let next =
-    cur |> Option.andThen (fun cur_ -> Util.listPreviousWrap cur_ tls)
+    cur |> Option.andThen ~f:(fun cur_ -> Util.listPreviousWrap cur_ tls)
   in
   match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
@@ -100,7 +102,8 @@ let jsToHtmlSizing (obj : jSSide) : htmlSizing =
 
 let tlToSizes (tlid : tlid) : htmlSizing list * htmlSizing list =
   let poses = Native.Size.positions (deTLID tlid) in
-  (List.map jsToHtmlSizing poses.nested, List.map jsToHtmlSizing poses.atoms)
+  ( List.map ~f:jsToHtmlSizing poses.nested
+  , List.map ~f:jsToHtmlSizing poses.atoms )
 
 
 type udDirection =
@@ -110,17 +113,17 @@ type udDirection =
 let moveUpDown (direction : udDirection) (sizes : htmlSizing list) (id : id) :
     id option =
   let dir = if direction = Up then -1.0 else 1.0 in
-  match List.filter (fun (o : htmlSizing) -> o.id = id) sizes with
+  match List.filter ~f:(fun (o : htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
-      |> List.filter (fun o ->
+      |> List.filter ~f:(fun o ->
              o.centerY <> this.centerY
              && dir *. this.centerY < dir *. o.centerY )
-      |> List.minimumBy (fun o ->
+      |> List.minimumBy ~f:(fun o ->
              let majorDist = dir *. (o.centerY -. this.centerY) in
              let minorDist = abs_float (o.centerX -. this.centerX) in
              (majorDist *. 100000.0) +. minorDist )
-      |> Option.withDefault this
+      |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ ->
@@ -136,14 +139,14 @@ let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
   (* I seem to recall some of these values seemed weird, and now I see *)
   (* that moveLeft passes Right and moveRight passes Left. Whoops. *)
   let dir = if direction = Left then -1.0 else 1.0 in
-  match List.filter (fun (o : htmlSizing) -> o.id = id) sizes with
+  match List.filter ~f:(fun (o : htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
-      |> List.filter (fun o ->
+      |> List.filter ~f:(fun o ->
              o.centerY = this.centerY && dir *. this.centerX > dir *. o.centerX
          )
-      |> List.minimumBy (fun o -> dir *. (this.centerX -. o.centerX))
-      |> Option.withDefault this
+      |> List.minimumBy ~f:(fun o -> dir *. (this.centerX -. o.centerX))
+      |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ ->
@@ -157,8 +160,8 @@ let findTargetId
     (default : id option) : id option =
   let nested, atoms = tlToSizes tlid in
   mId
-  |> Option.andThen (fn atoms)
-  |> Option.orElse (Option.andThen (fn nested) mId)
+  |> Option.andThen ~f:(fn atoms)
+  |> Option.orElse (Option.andThen ~f:(fn nested) mId)
   (* TODO: if neither, check nested+atoms. this would allow us to *)
   (* press Left on the expr of a let and go to the varbind. I think we *)
   (* would need to switch to use .left and .right instead of .centerX. *)
@@ -179,12 +182,12 @@ let move
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
     =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
+  let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> Option.orElse (TL.rootOf tl)
-  |> Option.andThen (TL.firstChild tl)
+  |> Option.andThen ~f:(TL.firstChild tl)
   |> Option.orElse pd
-  |> Option.map P.toID
+  |> Option.map ~f:P.toID
   |> fun id -> Select (tlid, id)
 
 
@@ -195,8 +198,8 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
   let enterField =
     Many
       [ Enter (Filling (tl.id, id))
-      ; AutocompleteMod (ACSetQuery (P.toContent pd |> Option.withDefault ""))
-      ]
+      ; AutocompleteMod
+          (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
   in
   match pd with
   | PDBColName _ ->
@@ -238,7 +241,8 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
         Many
           [ enterMod
           ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault "")) ]
+              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
+          ]
 
 
 let enter (m : model) (tlid : tlid) (id : id) : modification =
@@ -276,7 +280,7 @@ let moveUp ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 let moveDown ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
     modification =
   let default =
-    TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
+    TL.getTL m tlid |> TL.allData |> List.head |> Option.map ~f:P.toID
   in
   let moveFn = match andEnter with false -> move | true -> moveAndEnter in
   moveFn m tlid mId (moveUpDown Down) default
@@ -301,32 +305,32 @@ let moveLeft ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 (* ------------------------------- *)
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
+  let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
-  |> Option.andThen (TL.getParentOf tl)
-  |> Option.map P.toID
+  |> Option.andThen ~f:(TL.getParentOf tl)
+  |> Option.map ~f:P.toID
   |> fun id -> Select (tlid, id)
 
 
 let selectNextSibling (m : model) (tlid : tlid) (cur : id option) :
     modification =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
+  let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
-  |> Option.map (TL.getNextSibling tl)
+  |> Option.map ~f:(TL.getNextSibling tl)
   |> Option.orElse pd
-  |> Option.map P.toID
+  |> Option.map ~f:P.toID
   |> fun id -> Select (tlid, id)
 
 
 let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
     modification =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
+  let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
-  |> Option.map (TL.getPrevSibling tl)
+  |> Option.map ~f:(TL.getPrevSibling tl)
   |> Option.orElse pd
-  |> Option.map P.toID
+  |> Option.map ~f:P.toID
   |> fun id -> Select (tlid, id)
 
 
@@ -336,33 +340,39 @@ let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
-  pd |> TL.getNextBlank tl |> Option.map P.toID |> fun id -> Select (tlid, id)
+  let pd = Option.map ~f:(TL.findExn tl) cur in
+  pd
+  |> TL.getNextBlank tl
+  |> Option.map ~f:P.toID
+  |> fun id -> Select (tlid, id)
 
 
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
+  let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> TL.getNextBlank tl
-  |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-  |> Option.withDefault NoChange
+  |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+  |> Option.withDefault ~default:NoChange
 
 
 let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
-  pd |> TL.getPrevBlank tl |> Option.map P.toID |> fun id -> Select (tlid, id)
+  let pd = Option.map ~f:(TL.findExn tl) cur in
+  pd
+  |> TL.getPrevBlank tl
+  |> Option.map ~f:P.toID
+  |> fun id -> Select (tlid, id)
 
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getTL m tlid in
-  let pd = Option.map (TL.findExn tl) cur in
+  let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> TL.getPrevBlank tl
-  |> Option.map (fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-  |> Option.withDefault NoChange
+  |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+  |> Option.withDefault ~default:NoChange
 
 
 (* ------------------------------- *)
