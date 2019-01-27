@@ -513,7 +513,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               m2
         in
         let m4 =
-          {m3 with deletedToplevels = TL.removeByTLID m3.deletedToplevels tls}
+          { m3 with
+            deletedToplevels =
+              TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
         in
         processAutocompleteMods m4 [ACRegenerate]
     | UpdateToplevels (tls, updateCurrent) ->
@@ -538,21 +540,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               m2
         in
         let m4 =
-          {m3 with deletedToplevels = TL.removeByTLID m3.deletedToplevels tls}
+          { m3 with
+            deletedToplevels =
+              TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
         in
         processAutocompleteMods m4 [ACRegenerate]
     | UpdateDeletedToplevels dtls ->
         let m2 =
           { m with
-            deletedToplevels = TL.upsertAllByTLID m.deletedToplevels dtls
-          ; toplevels = TL.removeByTLID m.toplevels dtls }
+            deletedToplevels =
+              TL.upsertAllByTLID m.deletedToplevels ~newTLs:dtls
+          ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
         in
         processAutocompleteMods m2 [ACRegenerate]
     | SetDeletedToplevels dtls ->
         let m2 =
           { m with
             deletedToplevels = dtls
-          ; toplevels = TL.removeByTLID m.toplevels dtls }
+          ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
         in
         processAutocompleteMods m2 [ACRegenerate]
     | RequestAnalysis tls ->
@@ -611,8 +616,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
-            userFunctions = userFuncs; deletedUserFunctions = deletedUserFuncs
-          }
+            userFunctions =
+              Functions.upsertAllByTLID m.userFunctions ~newFns:userFuncs
+              |> Functions.removeByTLID ~toBeRemoved:deletedUserFuncs
+          ; deletedUserFunctions =
+              Functions.upsertAllByTLID
+                m.deletedUserFunctions
+                ~newFns:deletedUserFuncs
+              |> Functions.removeByTLID ~toBeRemoved:userFuncs }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -1116,9 +1127,26 @@ let update_ (msg : msg) (m : model) : modification =
       RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
   | Delete404 fof ->
       MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
-  | CreateRouteHandler ->
+  | MarkRoutingTableOpen (shouldOpen, key) ->
+      TweakModel
+        (fun m ->
+          { m with
+            routingTableOpenDetails =
+              ( if shouldOpen
+              then Tc.StrSet.add ~value:key m.routingTableOpenDetails
+              else Tc.StrSet.remove ~value:key m.routingTableOpenDetails ) } )
+  | CreateRouteHandler space ->
       let center = findCenter m in
-      Entry.submitOmniAction center (NewHTTPHandler None)
+      let action =
+        match space with
+        | Some "HTTP" ->
+            NewHTTPHandler None
+        | Some spacename ->
+            NewEventSpace spacename
+        | None ->
+            NewHandler None
+      in
+      Entry.submitOmniAction center action
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many

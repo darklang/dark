@@ -493,7 +493,8 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     [ ("clipboard", nullable pointerData se.clipboard)
     ; ("timersEnabled", bool se.timersEnabled)
     ; ("cursorState", cursorState se.cursorState)
-    ; ("lockedHandlers", list tlid se.lockedHandlers) ]
+    ; ("lockedHandlers", list tlid se.lockedHandlers)
+    ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =
