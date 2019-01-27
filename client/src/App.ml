@@ -287,7 +287,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with error = updateError m.error e}, Cmd.none)
     | DisplayAndReportError e ->
         ( {m with error = updateError m.error e}
-        , Tea.Cmd.call (fun _ -> Rollbar.send e None Js.Json.null) )
+        , Tea.Cmd.call (fun _ -> Native.Rollbar.send e None Js.Json.null) )
     | DisplayAndReportHttpError (context, e) ->
         let body (body : Tea.Http.responseBody) =
           let maybe name m =
@@ -381,7 +381,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let custom = Encoders.httpError e in
         let cmds =
           if shouldRollbar
-          then [Tea.Cmd.call (fun _ -> Rollbar.send msg url custom)]
+          then [Tea.Cmd.call (fun _ -> Native.Rollbar.send msg url custom)]
           else []
         in
         ({m with error = updateError m.error msg}, Cmd.batch cmds)
@@ -1176,7 +1176,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 let subscriptions (m : model) : msg Tea.Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let resizes =
-    [ Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
+    [ Native.Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
           WindowResize (w, h) ) ]
   in
   let dragSubs =
@@ -1185,7 +1185,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     (* before they're triggered *)
     | Dragging (id, _, _, _) ->
         let listenerKey = "mouse_moves_" ^ deTLID id in
-        [DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
+        [ Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x)
+          ) ]
     | _ ->
         []
   in
@@ -1207,16 +1208,18 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     else []
   in
   let onError =
-    [DisplayClientError.listen ~key:"display_client_error" (fun s -> JSError s)]
+    [ Native.DisplayClientError.listen ~key:"display_client_error" (fun s ->
+          JSError s ) ]
   in
   let visibility =
-    [ Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
+    [ Native.Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
           if v
           then PageVisibilityChange Visible
           else PageVisibilityChange Hidden ) ]
   in
   let mousewheelSubs =
-    [OnWheel.listen ~key:"on_wheel" (fun (dx, dy) -> MouseWheel (dx, dy))]
+    [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) -> MouseWheel (dx, dy)
+      ) ]
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
