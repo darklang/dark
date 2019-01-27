@@ -23,7 +23,7 @@ type entry =
 and category =
   { count : int
   ; name : string
-  ; plusButton : (string * msg) option
+  ; plusButton : msg option
   ; classname : string
   ; entries : item list }
 
@@ -53,7 +53,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> Tc.List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
   ; name = "HTTP"
-  ; plusButton = Some ("crh", CreateRouteHandler)
+  ; plusButton = Some CreateRouteHandler
   ; classname = "http"
   ; entries =
       Tc.List.map handlers ~f:(fun tl ->
@@ -231,7 +231,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   { count = List.length fns
   ; name = "Functions"
   ; classname = "fns"
-  ; plusButton = Some ("cf", CreateFunction)
+  ; plusButton = Some CreateFunction
   ; entries }
 
 
@@ -398,8 +398,12 @@ and category2html (m : model) (c : category) : msg Html.html =
       ; text "count" (c.count |> string_of_int)
       ; text "parens" ")"
       ; ( match c.plusButton with
-        | Some (key, msg) ->
-            buttonLink ~key (fontAwesome "plus-circle") msg None
+        | Some msg ->
+            buttonLink
+              ~key:("plus-" ^ c.classname)
+              (fontAwesome "plus-circle")
+              msg
+              None
         | None ->
             text "" "" ) ]
   in
