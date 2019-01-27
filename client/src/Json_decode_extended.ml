@@ -58,6 +58,8 @@ let dict decoder json =
   dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
 
 
+let tcStrSet json = json |> array string |> Belt.Set.String.fromArray
+
 let decodeString decoder str =
   try Belt.Result.Ok (decoder (Json.parseOrRaise str)) with
   | DecodeError e ->

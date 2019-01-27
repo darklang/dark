@@ -19,26 +19,38 @@ let name (tl : toplevel) : string =
       "Func: " ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "")
 
 
+let sortkey (tl : toplevel) : string =
+  match tl.data with
+  | TLHandler h ->
+      (h.spec.module_ |> B.toMaybe |> Option.withDefault "Undefined")
+      ^ (h.spec.name |> B.toMaybe |> Option.withDefault "Undefined")
+      ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault "")
+  | TLDB db ->
+      db.dbName
+  | TLFunc f ->
+      f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "Unnamed"
+
+
 let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
   List.find (fun tl -> tl.id = elem.id) tls <> None
 
 
-let removeByTLID (origTls : toplevel list) (toBeRemoved : toplevel list) :
+let removeByTLID ~(toBeRemoved : toplevel list) (origTls : toplevel list) :
     toplevel list =
   List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
 
 
 let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
-  removeByTLID tls [tl] @ [tl]
+  removeByTLID tls ~toBeRemoved:[tl] @ [tl]
 
 
 let upsert (m : model) (tl : toplevel) : model =
   {m with toplevels = upsertByTLID m.toplevels tl}
 
 
-let upsertAllByTLID (tls : toplevel list) (news : toplevel list) :
+let upsertAllByTLID (tls : toplevel list) ~(newTLs : toplevel list) :
     toplevel list =
-  List.foldl (fun tl new_ -> upsertByTLID new_ tl) tls news
+  Tc.List.foldl ~f:(fun tl tls -> upsertByTLID tls tl) ~init:tls newTLs
 
 
 let upsertAll (m : model) (tls : toplevel list) : model =
@@ -46,7 +58,7 @@ let upsertAll (m : model) (tls : toplevel list) : model =
 
 
 let remove (m : model) (tl : toplevel) : model =
-  {m with toplevels = removeByTLID m.toplevels [tl]}
+  {m with toplevels = removeByTLID m.toplevels ~toBeRemoved:[tl]}
 
 
 let updateByTLID (tls : toplevel list) (tlid : tlid) (f : toplevel -> toplevel)

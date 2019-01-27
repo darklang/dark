@@ -455,6 +455,20 @@ and viewNExpr
             [titleBar; blockCondition; expressions] ]
 
 
+let externalLink
+    (spec : handlerSpec) (canvasName : string) (contentHost : string) =
+  match (spec.modifier, spec.name) with
+  | F (_, "GET"), F (_, name) ->
+      [ Html.a
+          [ Html.class' "external"
+          ; Html.href
+              ("//" ^ Tea.Http.encodeUri canvasName ^ "." ^ contentHost ^ name)
+          ; Html.target "_blank" ]
+          [fontAwesome "external-link-alt"] ]
+  | _ ->
+      []
+
+
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -478,23 +492,10 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
             "click"
             (fun _ -> LockHandler (vs.tlid, not vs.handlerLocked)) ]
         [fontAwesome (if vs.handlerLocked then "lock" else "lock-open")]
-    and externalLink =
-      match (spec.modifier, spec.name) with
-      | F (_, "GET"), F (_, name) ->
-          [ Html.a
-              [ Html.class' "external"
-              ; Html.href
-                  ( "//"
-                  ^ Tea.Http.encodeUri vs.canvasName
-                  ^ "."
-                  ^ vs.userContentHost
-                  ^ name )
-              ; Html.target "_blank" ]
-              [fontAwesome "external-link-alt"] ]
-      | _ ->
-          []
     in
-    Html.div [Html.class' "actions"] (externalLink @ [lock])
+    Html.div
+      [Html.class' "actions"]
+      (externalLink spec vs.canvasName vs.userContentHost @ [lock])
   in
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
