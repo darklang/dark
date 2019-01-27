@@ -630,9 +630,3 @@ module IntDict = struct
     |> Belt.List.toArray
     |> Map.fromArray
 end
-
-module Html = struct
-  include Tea.Html
-
-  type 'a html = 'a Vdom.t
-end
