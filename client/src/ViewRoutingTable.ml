@@ -326,7 +326,10 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let mainlink =
     match e.destination with
     | Some dest ->
-        [Url.linkFor dest "default-link" [Html.text name]]
+        let cl =
+          if e.uses = Some 0 then "default-link unused" else "default-link"
+        in
+        [Url.linkFor dest cl [Html.text name]]
     | _ ->
         [Html.text name]
   in
@@ -406,7 +409,9 @@ and category2html (m : model) (c : category) : msg Html.html =
       [Html.class' ("routing-section empty " ^ c.classname)]
       (header :: routes)
   else
-    Html.details (Html.class' "routing-section" :: openAttr) (header :: routes)
+    Html.details
+      (Html.class' ("routing-section " ^ c.classname) :: openAttr)
+      (header :: routes)
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
