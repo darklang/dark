@@ -8,7 +8,8 @@ include (
     module type of Tablecloth
     with module StrSet := Tablecloth.StrSet
      and module IntSet := Tablecloth.IntSet
-     and module StrDict := Tablecloth.StrDict )
+     and module StrDict := Tablecloth.StrDict
+     and module Option := Tablecloth.Option )
 
 module StrSet = struct
   include Tablecloth.StrSet
@@ -80,4 +81,11 @@ module Regex = struct
 
   let matches (re : Js.Re.t) (s : string) : Js.Re.result option =
     Js.Re.exec s re
+end
+
+module Option = struct
+  include Tablecloth.Option
+
+  let toOption ~(sentinel : 'a) (value : 'a) : 'a option =
+    if value = sentinel then None else Some value
 end

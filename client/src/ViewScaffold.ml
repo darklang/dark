@@ -1,15 +1,15 @@
 open Types
+open Tc
 open Prelude
-open! Porting
 
 let debuggerLinkLoc () =
   let loc = Tea_navigation.getLocation () in
   let newSearch =
     Url.queryParams
-    |> List.filter (fun (k, _) -> k <> "debugger")
+    |> List.filter ~f:(fun (k, _) -> k <> "debugger")
     |> (fun x -> if Url.isDebugging then x else ("debugger", true) :: x)
-    |> List.map (fun (k, v) -> k ^ "=" ^ if v then "1" else "0")
-    |> String.join "&"
+    |> List.map ~f:(fun (k, v) -> k ^ "=" ^ if v then "1" else "0")
+    |> String.join ~sep:"&"
     |> fun x -> if x = "" then "" else "?" ^ x
   in
   Printf.sprintf
@@ -114,7 +114,7 @@ let viewButtons (m : model) : msg Html.html =
       [ Html.text
           ( "Tests: ["
           ^ Js.Array.toString
-              (Array.of_list (List.map show_variantTest m.tests))
+              (Array.of_list (List.map ~f:show_variantTest m.tests))
           ^ "]" ) ]
   in
   let environment =

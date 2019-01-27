@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 
 let entryID : string = "entry-box"
@@ -22,7 +22,7 @@ let defaultEditor : serializableEditor =
   ; timersEnabled = true
   ; cursorState = Deselected
   ; lockedHandlers = []
-  ; routingTableOpenDetails = Tc.StrSet.empty }
+  ; routingTableOpenDetails = StrSet.empty }
 
 
 let defaultSyncState : syncState = {inFlight = false; ticks = 0}
@@ -86,4 +86,4 @@ let defaultModel : model =
       |> ( +. ) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
       |> Js.Date.fromFloat
       |> Js.Date.toISOString
-  ; routingTableOpenDetails = Tablecloth.StrSet.empty }
+  ; routingTableOpenDetails = StrSet.empty }

@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 open Autocomplete
 open Prelude
@@ -22,7 +22,7 @@ let sampleFunctions : function_ list =
   ; ("HTTP::head", TAny)
   ; ("HTTP::get", TAny)
   ; ("HTTP::options", TAny) ]
-  |> List.map (fun (fnName, paramTipe) ->
+  |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
              [ { paramName = "x"
@@ -93,7 +93,7 @@ let () =
                 |> setQuery "Twit::someOtherFunc"
                 |> setQuery "T"
                 |> highlighted
-                |> Option.map asName )
+                |> Option.map ~f:asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
           test "Returning to empty unselects" (fun () ->
               expect
@@ -109,22 +109,22 @@ let () =
                 |> setQuery "Twit::some"
                 |> selectDown
                 |> highlighted
-                |> Option.map asName )
+                |> Option.map ~f:asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
           test "lowercase search still finds uppercase results" (fun () ->
               expect
                 ( createEntering User
                 |> setQuery "lis"
                 |> (fun x -> x.completions)
-                |> List.map asName )
+                |> List.map ~f:asName )
               |> toEqual ["List::head"] ) ;
           test "search finds multiple results for prefix" (fun () ->
               expect
                 ( createEntering User
                 |> setQuery "twit::"
                 |> (fun x -> x.completions)
-                |> List.filter isStaticItem
-                |> List.map asName )
+                |> List.filter ~f:isStaticItem
+                |> List.map ~f:asName )
               |> toEqual
                    ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]
           ) ;
@@ -133,24 +133,24 @@ let () =
                 ( createEntering User
                 |> setQuery "twit::y"
                 |> (fun x -> x.completions)
-                |> List.filter isStaticItem
-                |> List.map asName )
+                |> List.filter ~f:isStaticItem
+                |> List.map ~f:asName )
               |> toEqual ["Twit::yetAnother"] ) ;
           test "search works anywhere in term" (fun () ->
               expect
                 ( createEntering User
                 |> setQuery "Another"
                 |> (fun x -> x.completions)
-                |> List.filter isStaticItem
-                |> List.map asName )
+                |> List.filter ~f:isStaticItem
+                |> List.map ~f:asName )
               |> toEqual ["Twit::yetAnother"] ) ;
           test "show results when the only option is the setQuery" (fun () ->
               expect
                 ( createEntering User
                 |> setQuery "List::head"
                 |> (fun x -> x.completions)
-                |> List.filter isStaticItem
-                |> List.map asName
+                |> List.filter ~f:isStaticItem
+                |> List.map ~f:asName
                 |> List.length )
               |> toEqual 1 ) ;
           test "scrolling down a bit works" (fun () ->
@@ -211,7 +211,7 @@ let () =
                 |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
                 |> setQuery ""
                 |> (fun x -> x.completions)
-                |> List.map asName
+                |> List.map ~f:asName
                 |> Set.fromList
                 |> (==) (Set.fromList ["List::head"]) )
               |> toEqual true ) ;
@@ -222,7 +222,7 @@ let () =
                 |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
                 |> setQuery ""
                 |> (fun x -> x.completions)
-                |> List.map asName
+                |> List.map ~f:asName
                 |> Set.fromList
                 |> (==) (Set.fromList ["Int::add", "+"]))
               |> toEqual true ) ;
@@ -242,8 +242,8 @@ let () =
                 ( createEntering User
                 |> setQuery "withL"
                 |> (fun x -> x.completions)
-                |> List.filter isStaticItem
-                |> List.map asName )
+                |> List.filter ~f:isStaticItem
+                |> List.map ~f:asName )
               |> toEqual
                    [ "withLower"
                    ; "withlower"
@@ -255,7 +255,7 @@ let () =
                 |> setQuery "21434234"
                 |> selectDown
                 |> highlighted
-                |> Option.map asName )
+                |> Option.map ~f:asName )
               |> toEqual (Some "21434234") ) ;
           test
             "a specific bug where `+` is interpreted as an ACLiteral"
@@ -264,7 +264,7 @@ let () =
                 ( createEntering User
                 |> setQuery "+"
                 |> highlighted
-                |> Option.map asName )
+                |> Option.map ~f:asName )
               |> toEqual (Some "+") ) ;
           test "null works" (fun () ->
               expect (createEntering User |> setQuery "nu" |> highlighted)
@@ -298,7 +298,7 @@ let () =
               |> toEqual (Some (ACKeyword KLambda)) ) ) ;
       describe "omnibox completion" (fun () ->
           let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
-            List.member aci ac.completions
+            List.member ~value:aci ac.completions
           in
           test "entering a DB name that used to be invalid works" (fun () ->
               expect
