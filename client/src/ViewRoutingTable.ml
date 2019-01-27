@@ -53,7 +53,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> Tc.List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
   ; name = "HTTP"
-  ; plusButton = Some CreateRouteHandler
+  ; plusButton = Some (CreateRouteHandler (Some "HTTP"))
   ; classname = "http"
   ; entries =
       Tc.List.map handlers ~f:(fun tl ->
@@ -76,7 +76,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> Tc.List.filter ~f:TL.isCronHandler in
   { count = List.length handlers
   ; name = "CRON"
-  ; plusButton = None
+  ; plusButton = Some (CreateRouteHandler (Some "CRON"))
   ; classname = "cron"
   ; entries =
       Tc.List.map handlers ~f:(fun tl ->
