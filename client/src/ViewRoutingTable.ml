@@ -261,12 +261,13 @@ let deletedCategory (m : model) : category =
     @ eventCategories m tls
     @ [undefinedCategory m tls]
   in
-  (* deleted categories shouldn't have plus buttons, and entries' plus buttons
-   * should restore *)
   let cats =
     Tc.List.map cats ~f:(fun c ->
         { c with
-          plusButton = None
+          plusButton = None (* only allow new entries on the main category *)
+        ; classname =
+            (* dont open/close in lockstep with parent *)
+            "deleted-" ^ c.classname
         ; entries =
             Tc.List.map c.entries ~f:(function
                 | Entry e ->
@@ -372,14 +373,16 @@ let rec item2html (m : model) (s : item) : msg Html.html =
 
 and category2html (m : model) (c : category) : msg Html.html =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  let isOpen = Tc.StrSet.has m.routingTableOpenDetails ~value:c.name in
+  let isOpen = Tc.StrSet.has m.routingTableOpenDetails ~value:c.classname in
   let openEventHandler =
     ViewUtils.eventNoPropagation
-      ~key:(if isOpen then "rtod-true" else "rtod-false" ^ c.name)
+      ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ c.classname)
       "click"
-      (fun _ -> MarkRoutingTableOpen (not isOpen, c.name))
+      (fun _ -> MarkRoutingTableOpen (not isOpen, c.classname))
   in
-  let openAttr = [Vdom.attribute ("c2ha-" ^ c.name) "open" ""] in
+  let openAttr =
+    if isOpen then [Vdom.attribute "" "open" ""] else [Vdom.noProp]
+  in
   let header =
     Html.summary
       [Html.class' "header"; openEventHandler]
@@ -440,4 +443,6 @@ let rtCacheKey m =
   , m.routingTableOpenDetails )
 
 
-let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
+let viewRoutingTable m =
+  (* Cache.cache1 rtCacheKey viewRoutingTable_ m *)
+  viewRoutingTable_ m
