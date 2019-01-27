@@ -611,8 +611,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
-            userFunctions = userFuncs; deletedUserFunctions = deletedUserFuncs
-          }
+            userFunctions =
+              Functions.upsertAllByTLID m.userFunctions ~newFns:userFuncs
+              |> Functions.removeByTLID ~toBeRemoved:deletedUserFuncs
+          ; deletedUserFunctions =
+              Functions.upsertAllByTLID
+                m.deletedUserFunctions
+                ~newFns:deletedUserFuncs
+              |> Functions.removeByTLID ~toBeRemoved:userFuncs }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)

@@ -40,6 +40,10 @@ let find (m : model) (id : tlid) : userFunction option =
   List.find (fun f -> id = f.ufTLID) m.userFunctions
 
 
+let findExn (m : model) (id : tlid) : userFunction =
+  find m id |> deOption "Functions.findExn"
+
+
 let upsert (m : model) (f : userFunction) : model =
   match find m f.ufTLID with
   | Some old ->
@@ -52,8 +56,24 @@ let upsert (m : model) (f : userFunction) : model =
       {m with userFunctions = f :: m.userFunctions}
 
 
-let findExn (m : model) (id : tlid) : userFunction =
-  find m id |> deOption "Functions.findExn"
+let containsByTLID (fns : userFunction list) (elem : userFunction) : bool =
+  List.find (fun fn -> fn.ufTLID = elem.ufTLID) fns <> None
+
+
+let removeByTLID
+    ~(toBeRemoved : userFunction list) (origfns : userFunction list) :
+    userFunction list =
+  List.filter (fun origfn -> not (containsByTLID toBeRemoved origfn)) origfns
+
+
+let upsertByTLID (fns : userFunction list) (fn : userFunction) :
+    userFunction list =
+  removeByTLID fns ~toBeRemoved:[fn] @ [fn]
+
+
+let upsertAllByTLID (fns : userFunction list) ~(newFns : userFunction list) :
+    userFunction list =
+  Tc.List.foldl ~f:(fun fn fns -> upsertByTLID fns fn) ~init:fns newFns
 
 
 let sameName (name : string) (uf : userFunction) : bool =
