@@ -337,9 +337,9 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let verb =
     match (e.destination, e.verb) with
     | Some dest, Some v ->
-        [Url.linkFor dest "verb-link" [Html.text v]]
+        [Url.linkFor dest "verb verb-link" [Html.text v]]
     | None, Some v ->
-        [Html.text v]
+        [Html.span [Html.class' "verb"] [Html.text v]]
     | _ ->
         []
   in
