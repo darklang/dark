@@ -637,7 +637,7 @@ and msg =
   | DataClick of tlid * int * mouseEvent
   | DataMouseEnter of tlid * int * mouseEvent
   | DataMouseLeave of tlid * int * mouseEvent
-  | CreateRouteHandler
+  | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction
   | DeleteUserFunction of tlid

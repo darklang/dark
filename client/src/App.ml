@@ -1135,9 +1135,18 @@ let update_ (msg : msg) (m : model) : modification =
               ( if shouldOpen
               then Tc.StrSet.add ~value:key m.routingTableOpenDetails
               else Tc.StrSet.remove ~value:key m.routingTableOpenDetails ) } )
-  | CreateRouteHandler ->
+  | CreateRouteHandler space ->
       let center = findCenter m in
-      Entry.submitOmniAction center (NewHTTPHandler None)
+      let action =
+        match space with
+        | Some "HTTP" ->
+            NewHTTPHandler None
+        | Some spacename ->
+            NewEventSpace spacename
+        | None ->
+            NewHandler None
+      in
+      Entry.submitOmniAction center action
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
