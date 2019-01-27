@@ -442,9 +442,10 @@ let viewRoutingTable_ (m : model) : msg Html.html =
 
 let rtCacheKey m =
   ( m.toplevels
-  , m.f404s
   , m.userFunctions
+  , m.f404s
   , m.deletedToplevels
+  , m.deletedUserFunctions
   , m.routingTableOpenDetails )
 
 
