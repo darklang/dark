@@ -371,9 +371,17 @@ let rec item2html (m : model) (s : item) : msg Html.html =
 
 and category2html (m : model) (c : category) : msg Html.html =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
+  let isOpen = Tc.StrSet.has m.routingTableOpenDetails ~value:c.name in
+  let openEventHandler =
+    ViewUtils.eventNoPropagation
+      ~key:(if isOpen then "rtod-true" else "rtod-false" ^ c.name)
+      "click"
+      (fun _ -> MarkRoutingTableOpen (not isOpen, c.name))
+  in
+  let openAttr = [Vdom.attribute ("c2ha-" ^ c.name) "open" ""] in
   let header =
     Html.summary
-      [Html.class' "header"]
+      [Html.class' "header"; openEventHandler]
       [ text "title" c.name
       ; text "parens" "("
       ; text "count" (c.count |> string_of_int)
@@ -391,24 +399,6 @@ and category2html (m : model) (c : category) : msg Html.html =
       [Html.class' ("routing-section empty " ^ c.classname)]
       (header :: routes)
   else
-    let openAttr =
-      if Tc.StrSet.has m.routingTableOpenDetails ~value:c.name
-      then
-        (* This was surprisingly fickle. To work, it needed to use the same key
-         * for both sides of the condition, and I needed to omit Vdom.noProp
-         * which would seem natural. *)
-        [ Vdom.attribute "" "open" "true"
-        ; ViewUtils.eventNoPropagation
-            ~key:("rtod-" ^ c.name)
-            "click"
-            (fun _ -> MarkRoutingTableOpen (false, c.name) ) ]
-      else
-        [ (* Vdom.noProp - see comment above *)
-          ViewUtils.eventNoPropagation
-            ~key:("rtod-" ^ c.name)
-            "click"
-            (fun _ -> MarkRoutingTableOpen (true, c.name) ) ]
-    in
     Html.details (Html.class' "routing-section" :: openAttr) (header :: routes)
 
 
