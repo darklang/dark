@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -56,15 +56,15 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     let hoverID = tlCursorID vs.tl.id idx in
     let isHover = vs.hovering = Some hoverID in
     let astTipe =
-      StrDict.get trace.traceID vs.analyses
-      |> Option.map (fun x -> x.liveValues)
-      |> Option.andThen (StrDict.get astID)
-      |> Option.map Runtime.typeOf
-      |> Option.withDefault TIncomplete
+      StrDict.get ~key:trace.traceID vs.analyses
+      |> Option.map ~f:(fun x -> x.liveValues)
+      |> Option.andThen ~f:(StrDict.get ~key:astID)
+      |> Option.map ~f:Runtime.typeOf
+      |> Option.withDefault ~default:TIncomplete
     in
     viewInput vs.tl.id idx value isActive isHover astTipe
   in
-  List.indexedMap traceToHtml vs.traces
+  List.indexedMap ~f:traceToHtml vs.traces
 
 
 let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
@@ -73,7 +73,7 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let selectedValue =
     match vs.cursorState with
     | Selecting (_, Some (ID id)) ->
-        StrDict.get id vs.currentResults.liveValues
+        StrDict.get ~key:id vs.currentResults.liveValues
     | _ ->
         None
   in

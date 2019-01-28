@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 
 let windowSize (a : unit) : int * int =
   let size = Native.Window.size a in
@@ -8,37 +8,37 @@ let windowSize (a : unit) : int * int =
 let random (a : unit) : int = Native.Random.random a
 
 let reContains ~(re : string) (s : string) : bool =
-  Tc.Regex.contains ~re:(Tc.Regex.regex re) s
+  Regex.contains ~re:(Regex.regex re) s
 
 
 let reExactly (re : string) (s : string) : bool =
   reContains ~re:("^" ^ re ^ "$") s
 
 
-let findIndex (fn : 'a -> bool) (l : 'a list) : (int * 'a) option =
-  List.find (fun (_, a) -> fn a) (List.indexedMap Tuple2.create l)
+let findIndex ~(f : 'a -> bool) (l : 'a list) : (int * 'a) option =
+  List.find ~f:(fun (_, a) -> f a) (List.indexedMap ~f:Tuple2.create l)
 
 
-let listPrevious (a : 'a) (l : 'a list) : 'a option =
+let listPrevious ~(value : 'a) (l : 'a list) : 'a option =
   l
-  |> List.elemIndex a
-  |> Option.map (fun x -> x - 1)
-  |> Option.andThen (fun i -> List.getAt i l)
+  |> List.elemIndex ~value
+  |> Option.map ~f:(fun x -> x - 1)
+  |> Option.andThen ~f:(fun (index : int) -> List.getAt ~index l)
 
 
-let listNext (a : 'a) (l : 'a list) : 'a option =
+let listNext ~(value : 'a) (l : 'a list) : 'a option =
   l
-  |> List.elemIndex a
-  |> Option.map (fun x -> x + 1)
-  |> Option.andThen (fun i -> List.getAt i l)
+  |> List.elemIndex ~value
+  |> Option.map ~f:(fun x -> x + 1)
+  |> Option.andThen ~f:(fun (index : int) -> List.getAt ~index l)
 
 
-let listPreviousWrap (a : 'a) (l : 'a list) : 'a option =
-  l |> listPrevious a |> Option.orElse (List.last l)
+let listPreviousWrap ~(value : 'a) (l : 'a list) : 'a option =
+  l |> listPrevious ~value |> Option.orElse (List.last l)
 
 
-let listNextWrap (a : 'a) (l : 'a list) : 'a option =
-  l |> listNext a |> Option.orElse (List.head l)
+let listNextWrap ~(value : 'a) (l : 'a list) : 'a option =
+  l |> listNext ~value |> Option.orElse (List.head l)
 
 
 (* The view we see is different from the value representation in a few *)
@@ -47,13 +47,13 @@ let listNextWrap (a : 'a) (l : 'a list) : 'a option =
 (* - all other quotes are escaped *)
 let transformToStringEntry (s_ : string) : string =
   (* the first time we won't have a closing quote so add it *)
-  let s = if String.endsWith "\"" s_ then s_ else s_ ^ "\"" in
+  let s = if String.endsWith ~suffix:"\"" s_ then s_ else s_ ^ "\"" in
   s
-  |> String.dropLeft 1
-  |> String.dropRight 1
-  |> Tc.Regex.replace "\\\\\"" "\""
+  |> String.dropLeft ~count:1
+  |> String.dropRight ~count:1
+  |> Regex.replace "\\\\\"" "\""
 
 
 let transformFromStringEntry (s : string) : string =
-  let s2 = s |> Tc.Regex.replace "\"" "\\\"" in
+  let s2 = s |> Regex.replace "\"" "\\\"" in
   "\"" ^ s2 ^ "\""

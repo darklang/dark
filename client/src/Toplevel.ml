@@ -239,14 +239,14 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
 
 let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
   siblings tl p
-  |> Util.listNextWrap p
+  |> Util.listNextWrap ~value:p
   (* 'safe' to deOption as there's always at least one member in the array *)
   |> deOption "nextSibling"
 
 
 let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
   siblings tl p
-  |> Util.listPreviousWrap p
+  |> Util.listPreviousWrap ~value:p
   (* 'safe' to deOption as there's always at least one member in the array *)
   |> deOption "prevSibling"
 
