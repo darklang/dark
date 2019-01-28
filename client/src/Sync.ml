@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 
 let markRequestInModel (m : model) : model =
@@ -25,15 +25,15 @@ let toAnalyse (m : model) : tlid list =
   | Dragging (tlid, _, _, _) ->
       [tlid]
   | _ ->
-      let ids = List.map (fun x -> x.id) (Toplevel.all m) in
+      let ids = List.map ~f:(fun x -> x.id) (Toplevel.all m) in
       let index =
         let length = List.length ids in
         if length > 0 then Some (Util.random () mod length) else None
       in
       index
-      |> Option.andThen (fun i -> List.getAt i ids)
-      |> Option.map (fun e -> [e])
-      |> Option.withDefault []
+      |> Option.andThen ~f:(fun i -> List.getAt ~index:i ids)
+      |> Option.map ~f:(fun e -> [e])
+      |> Option.withDefault ~default:[]
 
 
 let fetch (m : model) : model * msg Tea.Cmd.t =
