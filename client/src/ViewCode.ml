@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -74,7 +74,7 @@ let rec viewNPattern
   | PVariable v ->
       text vs (enterable :: config) v
   | PConstructor (name, params) ->
-      let ps = List.map (viewPattern vs []) params in
+      let ps = List.map ~f:(viewPattern vs []) params in
       div
         vs
         []
@@ -88,7 +88,7 @@ and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
 
 
 let isExecuting (vs : viewState) (id : id) : bool =
-  List.member id vs.executingFunctions
+  List.member ~value:id vs.executingFunctions
 
 
 type ('a, 'b, 'c, 'd) x =
@@ -154,7 +154,7 @@ and viewNExpr
         ; Html.text value
         ; Html.div [Html.class' "quote quote-end"] [] ]
   | Variable name ->
-      if List.member id vs.relatedBlankOrs
+      if List.member ~value:id vs.relatedBlankOrs
       then a (ent :: wc "variable" :: wc "related-change" :: all) vs.ac.value
       else a (ent :: wc "variable" :: all) name
   | Let (lhs, rhs, body) ->
@@ -196,15 +196,16 @@ and viewNExpr
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn =
         vs.ac.functions
-        |> List.find (fun f -> f.fnName = name)
+        |> List.find ~f:(fun f -> f.fnName = name)
         |> Option.withDefault
-             { fnName = "fnLookupError"
-             ; fnParameters = []
-             ; fnDescription = "default, fn error"
-             ; fnReturnTipe = TError
-             ; fnPreviewExecutionSafe = true
-             ; fnInfix = false
-             ; fnDeprecated = false }
+             ~default:
+               { fnName = "fnLookupError"
+               ; fnParameters = []
+               ; fnDescription = "default, fn error"
+               ; fnReturnTipe = TError
+               ; fnPreviewExecutionSafe = true
+               ; fnInfix = false
+               ; fnDeprecated = false }
       in
       let previous =
         match vs.tl.data with
@@ -218,7 +219,7 @@ and viewNExpr
               []
           | Some am ->
               [am.rollforward; am.rollback]
-              |> List.filterMap (fun m -> AST.threadPrevious id m) )
+              |> List.filterMap ~f:(fun m -> AST.threadPrevious id m) )
       in
       (* buttons *)
       let allExprs = previous @ exprs in
@@ -236,7 +237,7 @@ and viewNExpr
         | Some _ ->
             true
       in
-      let paramsComplete = List.all (isComplete << B.toID) allExprs in
+      let paramsComplete = List.all ~f:(isComplete << B.toID) allExprs in
       let resultHasValue = isComplete id in
       let buttonUnavailable = not paramsComplete in
       let showButton = not fn.fnPreviewExecutionSafe in
@@ -309,7 +310,7 @@ and viewNExpr
             ; n [wc "rhs"] [ve p2 incD second] ]
       | _ ->
           let args =
-            List.map2 (fun p e_ -> ve p incD e_) fn.fnParameters exprs
+            List.map2 ~f:(fun p e_ -> ve p incD e_) fn.fnParameters exprs
           in
           n
             (wc "fncall prefix" :: wc (depthString d) :: configs)
@@ -317,7 +318,7 @@ and viewNExpr
   | Lambda (vars, expr) ->
       n
         (wc "lambdaexpr" :: all)
-        [ n [wc "lambdabinding"] (List.map (viewVarBind vs [atom]) vars)
+        [ n [wc "lambdabinding"] (List.map ~f:(viewVarBind vs [atom]) vars)
         ; a [wc "arrow"] "->"
         ; n [wc "lambdabody"] [vExpr 0 expr] ]
   | Thread exprs ->
@@ -325,7 +326,7 @@ and viewNExpr
       let texpr e_ =
         n [wc "threadmember"; ClickSelectAs (B.toID e_)] [pipe; vExpr 0 e_]
       in
-      n (wc "threadexpr" :: mo :: config) (List.map texpr exprs)
+      n (wc "threadexpr" :: mo :: config) (List.map ~f:texpr exprs)
   | FieldAccess (obj, field) ->
       n
         (wc "fieldaccessexpr" :: all)
@@ -333,7 +334,7 @@ and viewNExpr
         ; a [wc "fieldaccessop operator"] "."
         ; viewFieldName vs [wc "fieldname"; atom] field ]
   | Constructor (name, exprs) ->
-      let exprs = List.map (fun e -> n [] [viewExpr d vs [] e]) exprs in
+      let exprs = List.map ~f:(fun e -> n [] [viewExpr d vs [] e]) exprs in
       n
         (wc "constructor" :: all)
         (viewConstructorName vs [wc "constructorname"] name :: exprs)
@@ -344,7 +345,7 @@ and viewNExpr
       let lexpr e_ =
         n [wc "listelem"; ClickSelectAs (B.toID e_)] [vExpr 0 e_]
       in
-      let new_ = List.map lexpr exprs |> List.intersperse comma in
+      let new_ = List.map ~f:lexpr exprs |> List.intersperse comma in
       n (wc "list" :: mo :: config) ([open_] @ new_ @ [close])
   | ObjectLiteral pairs ->
       let colon = a [wc "colon"] ":" in
@@ -353,7 +354,9 @@ and viewNExpr
       let pexpr (k, v) =
         n [wc "objectpair"] [viewKey vs [wc "objectkey"] k; colon; vExpr 0 v]
       in
-      n (wc "object" :: mo :: config) ([open_] @ List.map pexpr pairs @ [close])
+      n
+        (wc "object" :: mo :: config)
+        ([open_] @ List.map ~f:pexpr pairs @ [close])
   | Match (matchExpr, cases) ->
       let separator = a [wc "separator"] "->" in
       let vCase (k, v) =
@@ -362,13 +365,13 @@ and viewNExpr
       n
         (wc "matchexpr" :: all)
         ( [kw [] "match"; n [wc "mexpr"] [vExpr d matchExpr]]
-        @ List.map vCase cases )
+        @ List.map ~f:vCase cases )
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
         Html.label [Html.class' "expr-label"] [Html.text msg_]
       in
       let isExpanded =
-        let mv = StrDict.get (deID id) vs.featureFlags in
+        let mv = StrDict.get ~key:(deID id) vs.featureFlags in
         match mv with Some b -> b | None -> true
       in
       let pickA =
@@ -423,7 +426,9 @@ and viewNExpr
         ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
       in
       let condResult =
-        condValue |> Option.map Runtime.isTrue |> Option.withDefault false
+        condValue
+        |> Option.map ~f:Runtime.isTrue
+        |> Option.withDefault ~default:false
       in
       let blockCondition =
         Html.div

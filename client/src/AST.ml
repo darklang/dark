@@ -780,7 +780,7 @@ let threadPrevious (id : id) (ast : expr) : expr option =
       exprs
       |> List.filter ~f:(fun e -> B.toID e = id)
       |> List.head
-      |> Option.andThen ~f:(fun this -> Util.listPrevious this exprs)
+      |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
   | _ ->
       None
 
@@ -905,7 +905,7 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   let parent = findParentOfWithin_ (P.toID p) expr in
   match (P.typeOf p, parent) with
   | Expr, Some (F (_, Thread exprs)) ->
-      exprs |> List.map ~f:(fun x -> PExpr x) |> Util.listPrevious p
+      exprs |> List.map ~f:(fun x -> PExpr x) |> Util.listPrevious ~value:p
   | Field, Some (F (_, FieldAccess (obj, _))) ->
       Some (PExpr obj)
   | _ ->

@@ -1,5 +1,5 @@
+open Tc
 open Types
-open Porting
 open Prelude
 module Svg = Tea.Svg
 
@@ -28,7 +28,7 @@ type viewState =
   ; userContentHost : string }
 
 let isLocked (tlid : tlid) (m : model) : bool =
-  List.member tlid m.lockedHandlers
+  List.member ~value:tlid m.lockedHandlers
 
 
 let createVS (m : model) (tl : toplevel) : viewState =
@@ -38,7 +38,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; hovering =
       m.hovering
       |> List.head
-      |> Option.andThen (fun i ->
+      |> Option.andThen ~f:(fun i ->
              match idOf m.cursorState with
              | Some cur ->
                ( match Toplevel.find tl i with
@@ -49,13 +49,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
                        exp
                        (* children, not including self *)
                        |> AST.children
-                       |> List.map Pointer.toID
-                       |> List.member cur
+                       |> List.map ~f:Pointer.toID
+                       |> List.member ~value:cur
                      else
                        exp
                        |> AST.allData
-                       |> List.map Pointer.toID
-                       |> List.member cur
+                       |> List.map ~f:Pointer.toID
+                       |> List.member ~value:cur
                    in
                    if cursorSubsumedByHover then None else Some i
                | _ ->
@@ -69,7 +69,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; ac = m.complete
   ; showEntry = true
   ; showLivevalue = true
-  ; handlerSpace = Toplevel.spaceOf tl |> Option.withDefault HSOther
+  ; handlerSpace = Toplevel.spaceOf tl |> Option.withDefault ~default:HSOther
   ; dbLocked = DB.isLocked m tl.id
   ; ufns = m.userFunctions
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
@@ -84,9 +84,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
           | Some (PExpr e) ->
             ( match e with
             | F (_, Let (_, _, body)) ->
-                AST.uses var body |> List.map Blank.toID
+                AST.uses var body |> List.map ~f:Blank.toID
             | F (_, Lambda (_, body)) ->
-                AST.uses var body |> List.map Blank.toID
+                AST.uses var body |> List.map ~f:Blank.toID
             | _ ->
                 [] )
           | _ ->
@@ -98,14 +98,15 @@ let createVS (m : model) (tl : toplevel) : viewState =
             in
             let relatedVariableIds (p, body) =
               Pattern.variableNames p
-              |> List.map (fun var -> AST.uses var body |> List.map Blank.toID)
+              |> List.map ~f:(fun var ->
+                     AST.uses var body |> List.map ~f:Blank.toID )
               |> List.concat
             in
             ( match parent with
             | Some (PExpr (F (_, Match (_, cases)))) ->
                 cases
-                |> List.filter caseContainingPattern
-                |> List.map relatedVariableIds
+                |> List.filter ~f:caseContainingPattern
+                |> List.map ~f:relatedVariableIds
                 |> List.concat
             | _ ->
                 [] )
@@ -115,8 +116,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
           [] )
   ; tooWide = false
   ; executingFunctions =
-      List.filter (fun (tlid, _) -> tlid = tl.id) m.executingFunctions
-      |> List.map (fun (_, id) -> id)
+      List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
+      |> List.map ~f:(fun (_, id) -> id)
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
@@ -184,7 +185,7 @@ let strBlankOrLength (b : string blankOr) : int =
 
 let visualStringLength (string : string) : int =
   string
-  |> Tc.Regex.replace "\t" "        "
+  |> Regex.replace "\t" "        "
   (* replace tabs with 8 ch for ch counting *)
   |> String.length
 
@@ -217,15 +218,15 @@ and approxNWidth (ne : nExpr) : int =
   | FnCall (name, exprs, _) ->
       let sizes =
         exprs
-        |> List.map approxWidth
-        |> List.map (( + ) 1)
+        |> List.map ~f:approxWidth
+        |> List.map ~f:(( + ) 1)
         (* the space in between *)
         |> List.sum
       in
       strBlankOrLength name + sizes
   | Constructor (name, exprs) ->
       strBlankOrLength name
-      + List.sum (List.map approxWidth exprs)
+      + List.sum (List.map ~f:approxWidth exprs)
       (* spaces *)
       + 1
       + List.length exprs
@@ -235,9 +236,9 @@ and approxNWidth (ne : nExpr) : int =
       (* TODO: deal with more vars *)
   | Thread exprs ->
       exprs
-      |> List.map approxWidth
+      |> List.map ~f:approxWidth
       |> List.maximum
-      |> Option.withDefault 2
+      |> Option.withDefault ~default:2
       |> ( + ) 1
       (* the pipe *)
   | FieldAccess (obj, field) ->
@@ -245,21 +246,21 @@ and approxNWidth (ne : nExpr) : int =
       + strBlankOrLength field
   | ListLiteral exprs ->
       exprs
-      |> List.map approxWidth
-      |> List.map (( + ) 2)
+      |> List.map ~f:approxWidth
+      |> List.map ~f:(( + ) 2)
       (* ", " *)
       |> List.sum
       |> ( + ) 4
       (* "[  ]" *)
   | ObjectLiteral pairs ->
       pairs
-      |> List.map (fun (k, v) -> strBlankOrLength k + approxWidth v)
-      |> List.map (( + ) 2)
+      |> List.map ~f:(fun (k, v) -> strBlankOrLength k + approxWidth v)
+      |> List.map ~f:(( + ) 2)
       (* ": " *)
-      |> List.map (( + ) 2)
+      |> List.map ~f:(( + ) 2)
       (* ", " *)
       |> List.maximum
-      |> Option.withDefault 0
+      |> Option.withDefault ~default:0
       |> ( + ) 4
       (* "{  }" *)
   | FeatureFlag (_, _, a, b) ->
@@ -275,7 +276,7 @@ and approxNWidth (ne : nExpr) : int =
             String.length v
         | PConstructor (name, args) ->
             String.length name
-            + List.sum (List.map (blankOrLength ~f:pWidth) args)
+            + List.sum (List.map ~f:(blankOrLength ~f:pWidth) args)
             + List.length args
       in
       let caseWidth (p, e) =
@@ -286,8 +287,8 @@ and approxNWidth (ne : nExpr) : int =
         (* arrow and spaces *)
         + approxWidth e
       in
-      List.maximum ((6 + approxWidth matchExpr) :: List.map caseWidth cases)
-      |> Option.withDefault 0
+      List.maximum ((6 + approxWidth matchExpr) :: List.map ~f:caseWidth cases)
+      |> Option.withDefault ~default:0
 
 
 let splitFnName (fnName : fnName) : string option * string * string =
@@ -296,7 +297,10 @@ let splitFnName (fnName : fnName) : string option * string * string =
   match mResult with
   | Some result ->
       let captures =
-        result |> Js.Re.captures |> Belt.List.fromArray |> List.map Js.toOption
+        result
+        |> Js.Re.captures
+        |> Belt.List.fromArray
+        |> List.map ~f:Js.toOption
       in
       ( match captures with
       | [_; _; mod_; Some fn; _; Some v] ->
@@ -327,7 +331,8 @@ let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
     ( modHtml
     @ [ Html.div
           [ Html.class'
-              (String.join " " (classes @ ["versioned-function"; "fnname"])) ]
+              (String.join ~sep:" " (classes @ ["versioned-function"; "fnname"]))
+          ]
           [ Html.span [Html.class' "name"] [Html.text name]
           ; Html.span [Html.class' "version"] [Html.text versionTxt] ] ] )
 

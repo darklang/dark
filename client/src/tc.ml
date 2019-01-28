@@ -9,7 +9,8 @@ include (
     with module StrSet := Tablecloth.StrSet
      and module IntSet := Tablecloth.IntSet
      and module StrDict := Tablecloth.StrDict
-     and module Option := Tablecloth.Option )
+     and module Option := Tablecloth.Option
+     and module List := Tablecloth.List )
 
 module StrSet = struct
   include Tablecloth.StrSet
@@ -65,7 +66,7 @@ module StrDict = struct
   let toString d =
     d
     |> toList
-    |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\": \"" ^ Js.String.make v ^ "\"")
+    |> List.map (fun (k, v) -> "\"" ^ k ^ "\": \"" ^ Js.String.make v ^ "\"")
     |> String.join ~sep:", "
     |> fun s -> "{" ^ s ^ "}"
 end
@@ -88,4 +89,16 @@ module Option = struct
 
   let toOption ~(sentinel : 'a) (value : 'a) : 'a option =
     if value = sentinel then None else Some value
+end
+
+module List = struct
+  include Tablecloth.List
+
+  let maximum (l : 'a list) : 'a option = Tablecloth.List.maximum ~list:l
+
+  let elemIndex ~(value : 'a) (l : 'a list) : int option =
+    l
+    |> Array.of_list
+    |> Js.Array.findIndex (( = ) value)
+    |> Option.toOption ~sentinel:(-1)
 end
