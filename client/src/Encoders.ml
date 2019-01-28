@@ -52,8 +52,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DList" [list dval l]
   | DObj o ->
       o
-      |. Belt.Map.String.map dval
-      |> Belt.Map.String.toList
+      |> StrDict.map ~f:dval
+      |> StrDict.toList
       |> Js.Dict.fromList
       |> dict
       |> fun x -> [x] |> ev "DObj"

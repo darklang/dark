@@ -1,3 +1,4 @@
+open Tc
 include Json.Decode
 
 external _stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
@@ -34,7 +35,7 @@ let variant4 constructor d1 d2 d3 d4 =
 
 let variants decoders =
   let constructors =
-    decoders |. Belt.List.map (fun (a, _) -> a) |> String.concat ", "
+    decoders |> List.map ~f:Tuple2.first |> String.join ~sep:", "
   in
   index 0 string
   |> andThen (fun str_constructor ->
@@ -63,12 +64,12 @@ let tcStrSet json = json |> array string |> Belt.Set.String.fromArray
 let decodeString decoder str =
   try Belt.Result.Ok (decoder (Json.parseOrRaise str)) with
   | DecodeError e ->
-      (* Porting.Debug.loG ("json decoding error: '" ^ e ^ "'") str; *)
+      (* Debug.loG ("json decoding error: '" ^ e ^ "'") str; *)
       Belt.Result.Error e
   | Json.ParseError e ->
-      (* Porting.Debug.loG ("json parse error: '" ^ e ^ "'") str; *)
-      Belt.Result.Error e
+      (* Debug.loG ("json parse error: '" ^ e ^ "'") str; *)
+      Error e
   | _ ->
       (* let errStr = Printexc.to_string e in *)
-      (* Porting.Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str; *)
-      Belt.Result.Error str
+      (* Debug.loG ("unknown json parsing error: '" ^ errStr ^ "'") str; *)
+      Error str
