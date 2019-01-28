@@ -5,9 +5,6 @@ open ViewUtils
 module B = Blank
 module TL = Toplevel
 
-let dbName2String (name : dBName blankOr) : dBName =
-  B.valueWithDefault "Untitled DB" name
-
 let missingEventSpaceDesc : string = "Undefined"
 
 let missingEventRouteDesc : string = "Undefined"
@@ -102,15 +99,13 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
   let dbs =
     tls
     |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
-    |> List.map ~f:(fun tl ->
-        let db = TL.asDB tl |> deOption "asDB" in
-        (tl.pos, {db with dbName = dbName2String db.dbName}))
-    |> List.sortBy ~f:(fun (_, db) -> db.dbName)
+    |> List.map ~f:(fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy ~f:(fun (_, db) -> B.valueWithDefault "" db.dbName)
   in
   let entries =
     List.map dbs ~f:(fun (pos, db) ->
         Entry
-          { name = db.dbName
+          { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = None
           ; destination = Some (Toplevels pos)
@@ -156,18 +151,6 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
     |> Option.map ~f:(fun x -> x.spec.module_)
     |> Option.andThen ~f:B.toMaybe
     |> Option.withDefault ~default:missingEventSpaceDesc
-
-let viewRestorableDBs (tls : toplevel list) : msg Html.html =
-  let dbs =
-    tls
-    |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, tl.id, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, _, db) -> dbName2String db.dbName)
-  in
-  let dbHtml (pos, tlid, db) =
-    div
-      "simple-route"
-      [text "name" (dbName2String db.dbName); undoButton tlid (Toplevels pos)]
   in
   tls
   |> List.sortBy ~f:spaceName_
@@ -182,13 +165,6 @@ let viewRestorableDBs (tls : toplevel list) : msg Html.html =
 let eventCategories (_m : model) (tls : toplevel list) : category list =
   let groups =
     tls |> List.filter ~f:TL.isCustomEventSpaceHandler |> splitBySpace
-
-let viewDBs_ (tls : toplevel list) : msg Html.html =
-  let dbs =
-    tls
-    |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, db) -> dbName2String db.dbName)
   in
   List.map groups ~f:(fun (name, handlers) ->
       { count = List.length handlers

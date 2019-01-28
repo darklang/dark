@@ -428,7 +428,7 @@ let renameDBVarRefs (m : model) (oldName : dBName) (newName : dBName) : op list
     AST.replace (PVarBind (B.newF oldName)) (PVarBind (B.newF newName)) ast
   in
   m.toplevels
-  |> List.filterMap (fun tl ->
+  |> List.filterMap ~f:(fun tl ->
          match tl.data with
          | TLHandler h ->
              let newAST = renameFnParams h.ast in
