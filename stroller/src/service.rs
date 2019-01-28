@@ -7,11 +7,11 @@ use push;
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 pub trait AsyncPush: Send + Sync {
-    fn push(&self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
+    fn push(&mut self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
 }
 
 impl AsyncPush for r2d2::PooledConnection<push::PusherClientManager> {
-    fn push(&self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
+    fn push(&mut self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
         let event_name_ = event_name.to_string();
         let _ = spawn(
             self.trigger(canvas_uuid.to_string(), event_name.to_string(), json_bytes)
@@ -70,7 +70,7 @@ where
 }
 
 fn handle_push<PC>(
-    client: PC,
+    mut client: PC,
     canvas_uuid: String,
     event_name: String,
     payload_body: Body,
@@ -102,7 +102,7 @@ mod tests {
 
     struct FakePushClient;
     impl AsyncPush for FakePushClient {
-        fn push(&self, _canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) {}
+        fn push(&mut self, _canvas_uuid: &str, _event_name: &str, _json_bytes: &[u8]) {}
     }
     const CLIENT: FakePushClient = FakePushClient;
 

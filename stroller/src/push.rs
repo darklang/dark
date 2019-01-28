@@ -36,9 +36,9 @@ pub struct PusherClient {
     pub host: String,
     pub app_id: String,
     pub key: String,
-    pub secret: String,
 
     http: HClient<HttpsConnector<HttpConnector>>,
+    mac: Hmac<Sha256>,
 }
 
 type BoxFut<T> = Box<Future<Item = T, Error = PusherError> + Send>;
@@ -58,14 +58,14 @@ impl PusherClient {
             host: pusher_host(),
             app_id: pusher_app_id(),
             key: pusher_key(),
-            secret: pusher_secret(),
 
             http,
+            mac: Hmac::<Sha256>::new_varkey(pusher_secret().as_bytes()).unwrap(),
         }
     }
 
     fn build_request(
-        &self,
+        &mut self,
         canvas_uuid: &str,
         event_name: &str,
         json_bytes: &[u8],
@@ -112,10 +112,8 @@ impl PusherClient {
         );
 
         let to_sign = format!("{}\n{}\n{}", "POST", request_path, query_params);
-        let mut mac = Hmac::<Sha256>::new_varkey(self.secret.as_bytes())
-            .map_err(|e| err(&format!("uh oh TODO {}", e)))?;
-        mac.input(to_sign.as_bytes());
-        let signature = mac.result();
+        self.mac.input(to_sign.as_bytes());
+        let signature = self.mac.result_reset();
 
         let uri: Uri = format!(
             "https://{}{}?{}&auth_signature={:x}",
@@ -134,7 +132,7 @@ impl PusherClient {
     }
 
     pub fn trigger(
-        &self,
+        &mut self,
         canvas_uuid: String,
         event_name: String,
         json_bytes: &[u8],
