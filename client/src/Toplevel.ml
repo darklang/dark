@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -12,32 +12,37 @@ module P = Pointer
 let name (tl : toplevel) : string =
   match tl.data with
   | TLHandler h ->
-      "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault "")
+      "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
       "DB: " ^ db.dbName
   | TLFunc f ->
-      "Func: " ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "")
+      "Func: "
+      ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
   match tl.data with
   | TLHandler h ->
-      (h.spec.module_ |> B.toMaybe |> Option.withDefault "Undefined")
-      ^ (h.spec.name |> B.toMaybe |> Option.withDefault "Undefined")
-      ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault "")
+      (h.spec.module_ |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
       db.dbName
   | TLFunc f ->
-      f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault "Unnamed"
+      f.ufMetadata.ufmName
+      |> B.toMaybe
+      |> Option.withDefault ~default:"Unnamed"
 
 
 let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
-  List.find (fun tl -> tl.id = elem.id) tls <> None
+  List.find ~f:(fun tl -> tl.id = elem.id) tls <> None
 
 
 let removeByTLID ~(toBeRemoved : toplevel list) (origTls : toplevel list) :
     toplevel list =
-  List.filter (fun origTl -> not (containsByTLID toBeRemoved origTl)) origTls
+  List.filter
+    ~f:(fun origTl -> not (containsByTLID toBeRemoved origTl))
+    origTls
 
 
 let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
@@ -50,11 +55,11 @@ let upsert (m : model) (tl : toplevel) : model =
 
 let upsertAllByTLID (tls : toplevel list) ~(newTLs : toplevel list) :
     toplevel list =
-  Tc.List.foldl ~f:(fun tl tls -> upsertByTLID tls tl) ~init:tls newTLs
+  List.foldl ~f:(fun tl tls -> upsertByTLID tls tl) ~init:tls newTLs
 
 
 let upsertAll (m : model) (tls : toplevel list) : model =
-  List.foldl (fun tl m -> upsert m tl) m tls
+  List.foldl ~f:(fun tl m -> upsert m tl) ~init:m tls
 
 
 let remove (m : model) (tl : toplevel) : model =
@@ -63,7 +68,7 @@ let remove (m : model) (tl : toplevel) : model =
 
 let updateByTLID (tls : toplevel list) (tlid : tlid) (f : toplevel -> toplevel)
     : toplevel list =
-  tls |> List.map (fun t -> if t.id <> tlid then t else f t)
+  tls |> List.map ~f:(fun t -> if t.id <> tlid then t else f t)
 
 
 let update (m : model) (tlid : tlid) (f : toplevel -> toplevel) : model =
@@ -96,15 +101,15 @@ let asDB (tl : toplevel) : dB option =
 
 
 let handlers (tls : toplevel list) : handler list =
-  List.filterMap asHandler tls
+  List.filterMap ~f:asHandler tls
 
 
-let dbs (tls : toplevel list) : dB list = List.filterMap asDB tls
+let dbs (tls : toplevel list) : dB list = List.filterMap ~f:asDB tls
 
 let spaceOfHandler (h : handler) : handlerSpace = SpecHeaders.spaceOf h.spec
 
 let spaceOf (tl : toplevel) : handlerSpace option =
-  tl |> asHandler |> Option.map spaceOfHandler
+  tl |> asHandler |> Option.map ~f:spaceOfHandler
 
 
 let isHTTPHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSHTTP)
@@ -143,7 +148,7 @@ let allData (tl : toplevel) : pointerData list =
 
 
 let isValidID (tl : toplevel) (id : id) : bool =
-  List.member id (tl |> allData |> List.map P.toID)
+  List.member ~value:id (tl |> allData |> List.map ~f:P.toID)
 
 
 let clonePointerData (pd : pointerData) : pointerData =
@@ -186,11 +191,11 @@ let clonePointerData (pd : pointerData) : pointerData =
 (* Blanks *)
 (* ------------------------- *)
 let allBlanks (tl : toplevel) : pointerData list =
-  tl |> allData |> List.filter P.isBlank
+  tl |> allData |> List.filter ~f:P.isBlank
 
 
 let blanksWhere (fn : pointerData -> bool) (tl : toplevel) : pointerData list =
-  tl |> allBlanks |> List.filter fn
+  tl |> allBlanks |> List.filter ~f:fn
 
 
 let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
@@ -201,9 +206,11 @@ let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
   match pred with
   | Some pred_ ->
       let ps = allData tl in
-      let index = List.elemIndex pred_ ps |> Option.withDefault (-1) in
-      let remaining = List.drop (index + 1) ps in
-      let blanks = List.filter P.isBlank remaining in
+      let index =
+        List.elemIndex ~value:pred_ ps |> Option.withDefault ~default:(-1)
+      in
+      let remaining = List.drop ~count:(index + 1) ps in
+      let blanks = List.filter ~f:P.isBlank remaining in
       blanks |> List.head |> Option.orElse (firstBlank tl)
   | None ->
       firstBlank tl
@@ -214,10 +221,11 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
   | Some next_ ->
       let ps = allData tl in
       let index =
-        List.elemIndex next_ ps |> Option.withDefault (List.length ps)
+        List.elemIndex ~value:next_ ps
+        |> Option.withDefault ~default:(List.length ps)
       in
-      let remaining = List.take index ps in
-      let blanks = List.filter P.isBlank remaining in
+      let remaining = List.take ~count:index ps in
+      let blanks = List.filter ~f:P.isBlank remaining in
       blanks |> List.last |> Option.orElse (lastBlank tl)
   | None ->
       lastBlank tl
@@ -230,7 +238,9 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
   match tl.data with
   | TLHandler h ->
       let toplevels = SpecHeaders.allData h.spec @ [PExpr h.ast] in
-      if List.member p toplevels then toplevels else AST.siblings p h.ast
+      if List.member ~value:p toplevels
+      then toplevels
+      else AST.siblings p h.ast
   | TLDB db ->
       DB.siblings p db
   | TLFunc f ->
@@ -258,17 +268,18 @@ let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   (* TODO SpecTypePointerDataRefactor *)
   match tl.data with
   | TLHandler h ->
-      AST.findParentOfWithin_ (P.toID p) h.ast |> Option.map (fun x -> PExpr x)
+      AST.findParentOfWithin_ (P.toID p) h.ast
+      |> Option.map ~f:(fun x -> PExpr x)
   | TLFunc f ->
       AST.findParentOfWithin_ (P.toID p) f.ufAST
-      |> Option.map (fun x -> PExpr x)
+      |> Option.map ~f:(fun x -> PExpr x)
   | TLDB db ->
       db
       |> DB.astsFor
-      |> List.map (AST.findParentOfWithin_ (P.toID p))
+      |> List.map ~f:(AST.findParentOfWithin_ (P.toID p))
       |> Option.values
       |> List.head
-      |> Option.map (fun x -> PExpr x)
+      |> Option.map ~f:(fun x -> PExpr x)
 
 
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
@@ -280,7 +291,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
     | TLFunc f ->
         AST.childrenOf pid f.ufAST
     | TLDB db ->
-        db |> DB.astsFor |> List.map (AST.childrenOf pid) |> List.concat
+        db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
   in
   match pd with
   | PVarBind _ ->
@@ -414,19 +425,19 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
 
 
 let all (m : model) : toplevel list =
-  m.toplevels @ List.map ufToTL m.userFunctions
+  m.toplevels @ List.map ~f:ufToTL m.userFunctions
 
 
 let get (m : model) (id : tlid) : toplevel option =
   let tls = all m in
-  List.find (fun tl -> tl.id = id) tls
+  List.find ~f:(fun tl -> tl.id = id) tls
 
 
 let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
-  |> List.filter (fun d -> id = P.toID d)
+  |> List.filter ~f:(fun d -> id = P.toID d)
   |> assert_ (fun r -> List.length r <= 1)
   (* guard against dups *)
   |> List.head
