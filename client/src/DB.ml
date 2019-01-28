@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 
 (* Dark *)
@@ -24,7 +24,7 @@ let allData (db : dB) : pointerData list =
   in
   let colpointers =
     cols
-    |> List.map (fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
+    |> List.map ~f:(fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
     |> List.concat
   in
   colpointers @ rolls
@@ -34,12 +34,12 @@ let siblings (_ : pointerData) (db : dB) : pointerData list = allData db
 
 let hasCol (db : dB) (name : string) : bool =
   db.cols
-  |> List.any (fun (colname, _) ->
+  |> List.any ~f:(fun (colname, _) ->
          match colname with Blank _ -> false | F (_, n) -> name = n )
 
 
 let isLocked (m : model) (tlid : tlid) : bool =
-  not (List.member tlid m.unlockedDBs)
+  not (List.member ~value:tlid m.unlockedDBs)
 
 
 let isMigrating (db : dB) : bool =
@@ -51,7 +51,7 @@ let isMigrationCol (db : dB) (id : id) : bool =
   | Some schema ->
       let inCols =
         schema.cols
-        |> List.filter (fun (n, t) -> B.toID n = id || B.toID t = id)
+        |> List.filter ~f:(fun (n, t) -> B.toID n = id || B.toID t = id)
       in
       not (List.isEmpty inCols)
   | None ->
@@ -64,7 +64,7 @@ let isMigrationLockReady (m : dBMigration) : bool =
 
 let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
   let newCols =
-    cols |> List.map (fun (n, t) -> (B.clone identity n, B.clone identity t))
+    cols |> List.map ~f:(fun (n, t) -> (B.clone identity n, B.clone identity t))
   in
   let rb = B.new_ () in
   let rf = B.new_ () in

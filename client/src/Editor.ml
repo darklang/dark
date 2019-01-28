@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 
 let fromString (json : string option) : serializableEditor =
@@ -46,7 +46,7 @@ let updateLockedHandlers (tlid : tlid) (lockHandler : bool) (m : model) :
       let lockedList =
         if lockHandler
         then tlid :: m.lockedHandlers
-        else List.filter (fun t -> t <> tlid) m.lockedHandlers
+        else List.filter ~f:(fun t -> t <> tlid) m.lockedHandlers
       in
       SetLockedHandlers lockedList
   | _ ->
