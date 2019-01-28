@@ -109,6 +109,8 @@ let allow_test_routes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
 let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 
+let create_accounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
+
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)

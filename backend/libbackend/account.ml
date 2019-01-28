@@ -189,12 +189,11 @@ let init_testing () : unit =
     { username = "test_admin"
     ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Test Admin" }
+    ; name = "Dark OCaml Test Admin" } ;
+  ()
 
 
-let init () : unit =
-  init_testing () ;
-  (* dark employees *)
+let upsert_admins () : unit =
   upsert_admin
     { username = "ian"
     ; password =
@@ -250,7 +249,11 @@ let init () : unit =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcVViUzB0USt0ZEE5WDBIUm1MME5BQSQydktjVHV2TG9FMFhNOHg3MHJZelNwQUpLT09YeFpKOVFYb2Y3NU9vMmQ0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "me@samstokes.co.uk"
     ; name = "Sam Stokes" } ;
-  (* accounts to create namespaces for dark canvases *)
+  ()
+
+
+(* accounts to create namespaces for dark canvases *)
+let upsert_useful_canvases () : unit =
   upsert_account
     { username = "builtwithdark"
     ; password =
@@ -279,5 +282,13 @@ let init () : unit =
     { username = "sample"
     ; password = ""
     ; email = "nouser@example.com"
-    ; name = "Sample Owner" } ;
-  ()
+    ; name = "Sample Owner" }
+
+
+let init () : unit =
+  if Config.create_accounts
+  then (
+    init_testing () ;
+    upsert_admins () ;
+    upsert_useful_canvases () ;
+    () )
