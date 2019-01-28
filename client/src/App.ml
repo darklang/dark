@@ -1083,9 +1083,9 @@ let update_ (msg : msg) (m : model) : modification =
         @ [ Append404s (f404s, ts)
           ; SetUnlockedDBs unlockedDBs
           ; RequestAnalysis analysisTLs ] )
-  | NewTracePush newTraceID ->
+  | NewTracePush (tlid, traceID) ->
       if VariantTesting.variantIsActive m PushAnalysis
-      then AddUnfetchedTrace newTraceID
+      then AddUnfetchedTrace (tlid, traceID)
       else NoChange
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
