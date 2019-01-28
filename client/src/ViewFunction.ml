@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 open Prelude
 
@@ -46,8 +46,12 @@ let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
 
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
     msg Html.html =
-  let freeVariables = AST.freeVariables uf.ufAST |> List.map Tuple.second in
-  let canDeleteParameter pname = List.member pname freeVariables |> not in
+  let freeVariables =
+    AST.freeVariables uf.ufAST |> List.map ~f:Tuple2.second
+  in
+  let canDeleteParameter pname =
+    List.member ~value:pname freeVariables |> not
+  in
   let buttonContent allowed =
     if allowed
     then
@@ -84,7 +88,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   in
   let coldivs =
     fn.ufMetadata.ufmParameters
-    |> List.map (fun p ->
+    |> List.map ~f:(fun p ->
            Html.div
              [Html.class' "col"]
              [ viewParamName vs [wc "name"] p.ufpName

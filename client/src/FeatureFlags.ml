@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -66,4 +66,5 @@ let toggle (id : id) (isExpanded : bool) : modification =
   TweakModel
     (fun m_ ->
       { m_ with
-        featureFlags = StrDict.insert (deID id) isExpanded m_.featureFlags } )
+        featureFlags =
+          StrDict.insert ~key:(deID id) ~value:isExpanded m_.featureFlags } )

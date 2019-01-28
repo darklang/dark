@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -26,7 +26,7 @@ let copy (tl : toplevel) (mp : pointerData option) : modification =
 
 let cut (tl : toplevel) (p : pointerData) : modification =
   let pid = P.toID p in
-  let pred = TL.getPrevBlank tl (Some p) |> Option.map P.toID in
+  let pred = TL.getPrevBlank tl (Some p) |> Option.map ~f:P.toID in
   match tl.data with
   | TLDB _ ->
       NoChange
@@ -73,7 +73,9 @@ let paste (m : model) (tl : toplevel) (id : id) : modification =
               , FocusExact (tl.id, P.toID cloned) ) )
 
 
-let peek (m : model) : clipboard = Option.map TL.clonePointerData m.clipboard
+let peek (m : model) : clipboard =
+  Option.map ~f:TL.clonePointerData m.clipboard
+
 
 let newFromClipboard (m : model) (pos : pos) : modification =
   let nid = gtlid () in

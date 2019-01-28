@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -22,7 +22,8 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
      canonicalize it first. *)
   let str = Regex.replace "\\.*$" "" baseStr in
   let intOrString =
-    String.startsWith "\"" str || Decoders.typeOfLiteralString str = TInt
+    String.startsWith ~prefix:"\"" str
+    || Decoders.typeOfLiteralString str = TInt
   in
   match m.cursorState with
   | Entering (Creating _) ->
@@ -240,7 +241,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                   Refactor.wrap WIfCond m tl pd
             else if event.ctrlKey
             then
-              let mPd = Option.map (TL.findExn tl) mId in
+              let mPd = Option.map ~f:(TL.findExn tl) mId in
               Clipboard.copy tl mPd
             else NoChange
         | Key.V ->
@@ -422,7 +423,10 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                   match event.targetSelectionStart with
                   | Some idx ->
                       let newQ =
-                        String.insertAt "\t" (idx + 1) m.complete.value
+                        String.insertAt
+                          ~insert:"\t"
+                          ~index:(idx + 1)
+                          m.complete.value
                       in
                       AutocompleteMod (ACSetQuery newQ)
                   | None ->
@@ -574,8 +578,8 @@ let optionDefaultHandler (event : Keyboard.keyEvent) (m : model) :
 let handler (event : Keyboard.keyEvent) (m : model) : modification =
   [KeyPressExperiments.arrowMoveHandler; optionDefaultHandler]
   |> List.foldl
-       (fun h (acc : modification option) ->
+       ~f:(fun h (acc : modification option) ->
          match acc with None -> h event m | Some _ -> acc )
-       None
+       ~init:None
   |> fun modification ->
   match modification with Some m -> m | None -> NoChange

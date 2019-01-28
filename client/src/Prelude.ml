@@ -1,5 +1,10 @@
-open! Porting
 open Types
+
+module Html = struct
+  include Tea.Html
+
+  type 'a html = 'a Vdom.t
+end
 
 (* -------------------------------------- *)
 (* IDs *)

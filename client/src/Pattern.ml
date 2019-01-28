@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -15,7 +15,7 @@ let rec allData (p : pattern) : pointerData list =
   | F (_, PVariable _) ->
       [PPattern p]
   | F (_, PConstructor (_, inner)) ->
-      PPattern p :: (inner |> List.map allData |> List.concat)
+      PPattern p :: (inner |> List.map ~f:allData |> List.concat)
 
 
 let rec replace
@@ -31,7 +31,7 @@ let rec replace
   else
     match p with
     | F (id, PConstructor (cons, args)) ->
-        let replacedArgs = List.map (replace search replacement) args in
+        let replacedArgs = List.map ~f:(replace search replacement) args in
         F (id, PConstructor (cons, replacedArgs))
     | _ ->
         p
@@ -40,7 +40,7 @@ let rec replace
 let rec hasVariableNamed (name : varName) (p : pattern) : bool =
   match p with
   | F (_, PConstructor (_, args)) ->
-      List.any (hasVariableNamed name) args
+      List.any ~f:(hasVariableNamed name) args
   | F (_, PVariable _) ->
       true
   | _ ->
@@ -54,7 +54,7 @@ let rec variableNames (p : pattern) : varName list =
   | F (_, PVariable name) ->
       [name]
   | F (_, PConstructor (_, args)) ->
-      args |> List.map variableNames |> List.concat
+      args |> List.map ~f:variableNames |> List.concat
 
 
 let rec extractById (p : pattern) (patternId : id) : pattern option =
@@ -64,6 +64,6 @@ let rec extractById (p : pattern) (patternId : id) : pattern option =
     match p with
     | F (_, PConstructor (_, args)) ->
         args
-        |> List.find (fun arg -> extractById arg patternId |> Option.isSome)
+        |> List.find ~f:(fun arg -> extractById arg patternId |> Option.isSome)
     | _ ->
         None

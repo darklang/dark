@@ -7,7 +7,11 @@ include (
   Tablecloth :
     module type of Tablecloth
     with module StrSet := Tablecloth.StrSet
-     and module IntSet := Tablecloth.IntSet )
+     and module IntSet := Tablecloth.IntSet
+     and module StrDict := Tablecloth.StrDict
+     and module Option := Tablecloth.Option
+     and module Result := Tablecloth.Result
+     and module List := Tablecloth.List )
 
 module StrSet = struct
   include Tablecloth.StrSet
@@ -51,4 +55,84 @@ module IntSet = struct
         Format.pp_print_string fmt ",  " ) ;
     Format.pp_print_string fmt "}" ;
     ()
+end
+
+module StrDict = struct
+  include Tablecloth.StrDict
+
+  (* Js.String.make gives us "[object Object]", so we actually want our own
+     toString. Not perfect, but slightly nicer (e.g., for App.ml's
+     DisplayAndReportHttpError, info's values are all strings, which this
+     handles) *)
+  let toString d =
+    d
+    |> toList
+    |> List.map (fun (k, v) -> "\"" ^ k ^ "\": \"" ^ Js.String.make v ^ "\"")
+    |> String.join ~sep:", "
+    |> fun s -> "{" ^ s ^ "}"
+
+
+  let pp
+      (valueFormatter : Format.formatter -> 'value -> unit)
+      (fmt : Format.formatter)
+      (map : 'value t) =
+    Format.pp_print_string fmt "{ " ;
+    Map.forEach map (fun k v ->
+        Format.pp_print_string fmt k ;
+        Format.pp_print_string fmt ": " ;
+        valueFormatter fmt v ;
+        Format.pp_print_string fmt ",  " ) ;
+    Format.pp_print_string fmt "}" ;
+    ()
+end
+
+module Regex = struct
+  let regex s : Js.Re.t = Js.Re.fromStringWithFlags ~flags:"g" s
+
+  let contains ~(re : Js.Re.t) (s : string) : bool = Js.Re.test s re
+
+  let replace (re : string) (repl : string) (str : string) =
+    Js.String.replaceByRe (regex re) repl str
+
+
+  let matches (re : Js.Re.t) (s : string) : Js.Re.result option =
+    Js.Re.exec s re
+end
+
+module Option = struct
+  include Tablecloth.Option
+
+  let toOption ~(sentinel : 'a) (value : 'a) : 'a option =
+    if value = sentinel then None else Some value
+end
+
+module Result = struct
+  include Tablecloth.Result
+
+  let pp
+      (errf : Format.formatter -> 'err -> unit)
+      (okf : Format.formatter -> 'ok -> unit)
+      (fmt : Format.formatter)
+      (r : ('err, 'ok) t) =
+    match r with
+    | Ok ok ->
+        Format.pp_print_string fmt "<ok: " ;
+        okf fmt ok ;
+        Format.pp_print_string fmt ">"
+    | Error err ->
+        Format.pp_print_string fmt "<ok: " ;
+        errf fmt err ;
+        Format.pp_print_string fmt ">"
+end
+
+module List = struct
+  include Tablecloth.List
+
+  let maximum (l : 'a list) : 'a option = Tablecloth.List.maximum ~list:l
+
+  let elemIndex ~(value : 'a) (l : 'a list) : int option =
+    l
+    |> Array.of_list
+    |> Js.Array.findIndex (( = ) value)
+    |> Option.toOption ~sentinel:(-1)
 end

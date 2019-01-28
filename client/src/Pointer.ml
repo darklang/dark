@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -155,7 +155,9 @@ let isBlank (pd : pointerData) : bool =
 
 
 let toContent (pd : pointerData) : string option =
-  let bs2s s = s |> B.toMaybe |> Option.withDefault "" |> fun x -> Some x in
+  let bs2s s =
+    s |> B.toMaybe |> Option.withDefault ~default:"" |> fun x -> Some x
+  in
   match pd with
   | PVarBind v ->
       bs2s v
@@ -198,8 +200,8 @@ let toContent (pd : pointerData) : string option =
   | PParamTipe d ->
       d
       |> B.toMaybe
-      |> Option.map Runtime.tipe2str
-      |> Option.withDefault ""
+      |> Option.map ~f:Runtime.tipe2str
+      |> Option.withDefault ~default:""
       |> fun x -> Some x
   | PPattern d ->
     ( match d with

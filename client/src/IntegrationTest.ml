@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -20,7 +20,8 @@ let onlyTL (m : model) : toplevel =
     then Debug.crash "no toplevels"
     else if len > 1
     then
-      Debug.crash ("too many toplevels: " ^ show_list show_toplevel m.toplevels)
+      Debug.crash
+        ("too many toplevels: " ^ show_list ~f:show_toplevel m.toplevels)
     else "nothing to see here"
   in
   m.toplevels |> List.head |> deOption "onlytl1"
@@ -58,9 +59,9 @@ let field_access_closes (m : model) : testResult =
       let ast =
         onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast
       in
-      if AST.allData ast |> List.filter P.isBlank = []
+      if AST.allData ast |> List.filter ~f:P.isBlank = []
       then pass
-      else fail ~f:(show_list show_pointerData) (TL.allBlanks (onlyTL m))
+      else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
   | _ ->
       fail ~f:show_cursorState m.cursorState
 
@@ -105,7 +106,7 @@ let pipeline_let_equals (m : model) : testResult =
     | _ ->
         fail ~f:show_cursorState m.cursorState
   in
-  Result.map2 (fun () () -> ()) astR stateR
+  Result.map2 ~f:(fun () () -> ()) astR stateR
 
 
 let pipe_within_let (m : model) : testResult =
@@ -166,7 +167,7 @@ let editing_request_edits_request (m : model) : testResult =
     | [ACVariable "request"; ACFunction {fnName = "Http::badRequest"}] ->
         pass
     | cs ->
-        fail ~f:(show_list show_autocompleteItem) cs )
+        fail ~f:(show_list ~f:show_autocompleteItem) cs )
   | e ->
       fail ~f:show_nExpr e
 
@@ -255,10 +256,10 @@ let tabbing_through_let (m : model) : testResult =
 
 let case_sensitivity (m : model) : testResult =
   if List.length m.toplevels <> 3
-  then fail ~f:(show_list show_toplevel) m.toplevels
+  then fail ~f:(show_list ~f:show_toplevel) m.toplevels
   else
     m.toplevels
-    |> List.map (fun tl ->
+    |> List.map ~f:(fun tl ->
            match tl.data with
            | TLDB {dbName; cols} ->
              ( match (dbName, cols) with
@@ -303,11 +304,11 @@ let case_sensitivity (m : model) : testResult =
                                      ( F (_, Variable "var")
                                      , F (_, "cOlUmNnAmE") ) ) ) ) ] ) ->
                  Analysis.getCurrentLiveValue m tl.id id
-                 |> Option.map (fun lv ->
+                 |> Option.map ~f:(fun lv ->
                         if lv = DStr "some value"
                         then pass
                         else fail ~f:show_dval lv )
-                 |> Option.withDefault (fail ~f:show_expr h.ast)
+                 |> Option.withDefault ~default:(fail ~f:show_expr h.ast)
              | _ ->
                  fail ~f:show_expr h.ast )
            | other ->
@@ -359,19 +360,19 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
       then pass
       else
         fail
-          ( show_list show_toplevel m.toplevels
+          ( show_list ~f:show_toplevel m.toplevels
           ^ ", "
           ^ show_cursorState m.cursorState )
   | _ ->
       fail
-        ( show_list show_toplevel m.toplevels
+        ( show_list ~f:show_toplevel m.toplevels
         ^ ", "
         ^ show_cursorState m.cursorState )
 
 
 let rename_db_fields (m : model) : testResult =
   m.toplevels
-  |> List.map (fun tl ->
+  |> List.map ~f:(fun tl ->
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
@@ -384,7 +385,7 @@ let rename_db_fields (m : model) : testResult =
              | _ ->
                  fail ~f:show_cursorState m.cursorState )
            | _ ->
-               fail ~f:(show_list show_dBColumn) cols )
+               fail ~f:(show_list ~f:show_dBColumn) cols )
          | _ ->
              pass )
   |> Result.combine
@@ -393,7 +394,7 @@ let rename_db_fields (m : model) : testResult =
 
 let rename_db_type (m : model) : testResult =
   m.toplevels
-  |> List.map (fun tl ->
+  |> List.map ~f:(fun tl ->
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
@@ -407,13 +408,13 @@ let rename_db_type (m : model) : testResult =
                  then pass
                  else
                    fail
-                     ( show_list show_dBColumn cols
+                     ( show_list ~f:show_dBColumn cols
                      ^ ", "
                      ^ show_cursorState m.cursorState )
              | _ ->
                  fail ~f:show_cursorState m.cursorState )
            | _ ->
-               fail ~f:(show_list show_dBColumn) cols )
+               fail ~f:(show_list ~f:show_dBColumn) cols )
          | _ ->
              pass )
   |> Result.combine
@@ -422,7 +423,7 @@ let rename_db_type (m : model) : testResult =
 
 let paste_right_number_of_blanks (m : model) : testResult =
   m.toplevels
-  |> List.map (fun tl ->
+  |> List.map ~f:(fun tl ->
          match tl.data with
          | TLHandler {ast} ->
            ( match ast with
@@ -692,13 +693,13 @@ let delete_db_col (m : model) : testResult =
   | [(Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list show_dBColumn) cols
+      fail ~f:(show_list ~f:show_dBColumn) cols
 
 
 let cant_delete_locked_col (m : model) : testResult =
   let db =
     m.toplevels
-    |> List.filterMap (fun a ->
+    |> List.filterMap ~f:(fun a ->
            match a.data with TLDB data -> Some data | _ -> None )
     |> fun dbs ->
     if List.length dbs > 1
@@ -710,7 +711,7 @@ let cant_delete_locked_col (m : model) : testResult =
   | [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list show_dBColumn) cols
+      fail ~f:(show_list ~f:show_dBColumn) cols
 
 
 let result_ok_roundtrips (m : model) : testResult =
@@ -723,7 +724,7 @@ let result_ok_roundtrips (m : model) : testResult =
 
 
 let trigger (test_name : string) : integrationTestState =
-  let name = String.dropLeft 5 test_name in
+  let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
     ( match name with
     | "enter_changes_state" ->

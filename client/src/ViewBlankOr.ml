@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -38,7 +38,7 @@ let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
   let cursorLiveValue =
     match id with
     | Some (ID id) ->
-        StrDict.get id vs.currentResults.liveValues
+        StrDict.get ~key:id vs.currentResults.liveValues
     | _ ->
         None
   in
@@ -76,7 +76,7 @@ let div
     (vs : ViewUtils.viewState)
     (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
-  let getFirst fn = configs |> List.filterMap fn |> List.head in
+  let getFirst fn = configs |> List.filterMap ~f:fn |> List.head in
   (* Extract config *)
   let thisID =
     getFirst (fun a -> match a with WithID id -> Some id | _ -> None)
@@ -103,11 +103,11 @@ let div
   in
   let classes =
     configs
-    |> List.filterMap (fun a ->
+    |> List.filterMap ~f:(fun a ->
            match a with WithClass c -> Some c | _ -> None )
   in
-  let showFeatureFlag = List.member WithFF configs in
-  let showROP = List.member WithROP configs in
+  let showFeatureFlag = List.member ~value:WithFF configs in
+  let showROP = List.member ~value:WithROP configs in
   let editFn =
     getFirst (fun a -> match a with WithEditFn id -> Some id | _ -> None)
   in
@@ -131,9 +131,9 @@ let div
     let targetted = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
     if targetted
     then
-      if List.any (( = ) FluidInputModel) vs.testVariants
+      if List.any ~f:(( = ) FluidInputModel) vs.testVariants
       then
-        if List.any (fun c -> c = Enterable) configs
+        if List.any ~f:(fun c -> c = Enterable) configs
         then ["mouseovered-enterable"]
         else if idOf vs.cursorState = thisID
         then []
@@ -152,7 +152,7 @@ let div
     @ (if isCommandTarget then ["commandTarget"] else [])
     @ mouseoverClass
   in
-  let classAttr = Html.class' (String.join " " allClasses) in
+  let classAttr = Html.class' (String.join ~sep:" " allClasses) in
   let events =
     match clickAs with
     | Some id ->
@@ -203,7 +203,7 @@ let div
   (* if the id of the blank_or changes, this whole node should be redrawn
      * without any further diffing. there's no good reason for the Vdom/Dom node
      * to be re-used for a different blank_or *)
-    ~unique:(thisID |> Option.map showID |> Option.withDefault "")
+    ~unique:(thisID |> Option.map ~f:showID |> Option.withDefault ~default:"")
     attrs
     (content @ rightSideHtml)
 
@@ -234,7 +234,7 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
   then
     match v with
     | F (_, FnCall (F (_, name), _, _)) ->
-      ( match List.find (Functions.sameName name) vs.ufns with
+      ( match List.find ~f:(Functions.sameName name) vs.ufns with
       | Some fn ->
           [WithEditFn fn.ufTLID]
       | _ ->
@@ -248,27 +248,29 @@ let withROP (rail : sendToRail) : htmlConfig list =
   if rail = Rail then [WithROP] else []
 
 
-let getLiveValue (lvs : lvDict) (ID id : id) : dval option = StrDict.get id lvs
+let getLiveValue (lvs : lvDict) (ID id : id) : dval option =
+  StrDict.get ~key:id lvs
+
 
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
     string =
   let paramPlaceholder =
     vs.tl
     |> TL.asHandler
-    |> Option.map (fun x -> x.ast)
-    |> Option.andThen (fun ast ->
+    |> Option.map ~f:(fun x -> x.ast)
+    |> Option.andThen ~f:(fun ast ->
            match AST.getParamIndex ast id with
            | Some (name, index) ->
              ( match Autocomplete.findFunction vs.ac name with
              | Some {fnParameters} ->
-                 List.getAt index fnParameters
+                 List.getAt ~index fnParameters
              | None ->
                  None )
            | _ ->
                None )
-    |> Option.map (fun p ->
+    |> Option.map ~f:(fun p ->
            p.paramName ^ ": " ^ Runtime.tipe2str p.paramTipe ^ "" )
-    |> Option.withDefault ""
+    |> Option.withDefault ~default:""
   in
   match pt with
   | VarBind ->

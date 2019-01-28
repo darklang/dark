@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 open ViewUtils
@@ -37,7 +37,7 @@ let buttonLink
     (handler : msg)
     (page : page option) : msg Html.html =
   let href =
-    page |> Option.map (fun p -> Html.href (Url.urlFor p)) |> Option.toList
+    page |> Option.map ~f:(fun p -> Html.href (Url.urlFor p)) |> Option.toList
   in
   let event =
     match page with
@@ -50,19 +50,19 @@ let buttonLink
 
 
 let httpCategory (_m : model) (tls : toplevel list) : category =
-  let handlers = tls |> Tc.List.filter ~f:TL.isHTTPHandler in
+  let handlers = tls |> List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
   ; name = "HTTP"
   ; plusButton = Some (CreateRouteHandler (Some "HTTP"))
   ; classname = "http"
   ; entries =
-      Tc.List.map handlers ~f:(fun tl ->
+      List.map handlers ~f:(fun tl ->
           let h = tl |> TL.asHandler |> deOption "httpCategory/entry" in
           Entry
             { name =
                 h.spec.name
                 |> Blank.toMaybe
-                |> Tc.Option.withDefault ~default:missingEventRouteDesc
+                |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
@@ -73,19 +73,19 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
 
 
 let cronCategory (_m : model) (tls : toplevel list) : category =
-  let handlers = tls |> Tc.List.filter ~f:TL.isCronHandler in
+  let handlers = tls |> List.filter ~f:TL.isCronHandler in
   { count = List.length handlers
   ; name = "CRON"
   ; plusButton = Some (CreateRouteHandler (Some "CRON"))
   ; classname = "cron"
   ; entries =
-      Tc.List.map handlers ~f:(fun tl ->
+      List.map handlers ~f:(fun tl ->
           let h = tl |> TL.asHandler |> deOption "cronCategory/entry" in
           Entry
             { name =
                 h.spec.name
                 |> Blank.toMaybe
-                |> Tc.Option.withDefault ~default:missingEventRouteDesc
+                |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
@@ -98,12 +98,12 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
 let dbCategory (_m : model) (tls : toplevel list) : category =
   let dbs =
     tls
-    |> List.filter (fun tl -> TL.asDB tl <> None)
-    |> List.map (fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy (fun (_, db) -> db.dbName)
+    |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
+    |> List.map ~f:(fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
+    |> List.sortBy ~f:(fun (_, db) -> db.dbName)
   in
   let entries =
-    Tc.List.map dbs ~f:(fun (pos, db) ->
+    List.map dbs ~f:(fun (pos, db) ->
         Entry
           { name = db.dbName
           ; tlid = db.dbTLID
@@ -122,19 +122,19 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
 
 
 let undefinedCategory (_m : model) (tls : toplevel list) : category =
-  let handlers = tls |> Tc.List.filter ~f:TL.isUndefinedEventSpaceHandler in
+  let handlers = tls |> List.filter ~f:TL.isUndefinedEventSpaceHandler in
   { count = List.length handlers
   ; name = missingEventSpaceDesc
   ; plusButton = Some (CreateRouteHandler None)
   ; classname = missingEventSpaceDesc
   ; entries =
-      Tc.List.map handlers ~f:(fun tl ->
+      List.map handlers ~f:(fun tl ->
           let h = tl |> TL.asHandler |> deOption "undefinedCategory/entry" in
           Entry
             { name =
                 h.spec.name
                 |> Blank.toMaybe
-                |> Tc.Option.withDefault ~default:missingEventRouteDesc
+                |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
@@ -148,14 +148,14 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
   let spaceName_ tl =
     tl
     |> TL.asHandler
-    |> Option.map (fun x -> x.spec.module_)
-    |> Option.andThen B.toMaybe
-    |> Option.withDefault missingEventSpaceDesc
+    |> Option.map ~f:(fun x -> x.spec.module_)
+    |> Option.andThen ~f:B.toMaybe
+    |> Option.withDefault ~default:missingEventSpaceDesc
   in
   tls
-  |> List.sortBy spaceName_
-  |> List.groupWhile (fun a b -> spaceName_ a = spaceName_ b)
-  |> List.map (fun hs ->
+  |> List.sortBy ~f:spaceName_
+  |> List.groupWhile ~f:(fun a b -> spaceName_ a = spaceName_ b)
+  |> List.map ~f:(fun hs ->
          let space =
            hs |> List.head |> deOption "splitBySpace" |> spaceName_
          in
@@ -164,21 +164,21 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
 
 let eventCategories (_m : model) (tls : toplevel list) : category list =
   let groups =
-    tls |> Tc.List.filter ~f:TL.isCustomEventSpaceHandler |> splitBySpace
+    tls |> List.filter ~f:TL.isCustomEventSpaceHandler |> splitBySpace
   in
-  Tc.List.map groups ~f:(fun (name, handlers) ->
+  List.map groups ~f:(fun (name, handlers) ->
       { count = List.length handlers
       ; name
       ; plusButton = Some (CreateRouteHandler (Some name))
       ; classname = name
       ; entries =
-          Tc.List.map handlers ~f:(fun tl ->
+          List.map handlers ~f:(fun tl ->
               let h = tl |> TL.asHandler |> deOption "eventCategories/entry" in
               Entry
                 { name =
                     h.spec.name
                     |> Blank.toMaybe
-                    |> Tc.Option.withDefault ~default:missingEventRouteDesc
+                    |> Option.withDefault ~default:missingEventRouteDesc
                 ; uses = None
                 ; tlid = h.tlid
                 ; destination = Some (Toplevels tl.pos)
@@ -195,7 +195,7 @@ let f404Category (m : model) : category =
   ; plusButton = None
   ; classname = "fof"
   ; entries =
-      Tc.List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
+      List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
           Entry
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; uses = None
@@ -208,9 +208,9 @@ let f404Category (m : model) : category =
 
 
 let userFunctionCategory (m : model) (ufs : userFunction list) : category =
-  let fns = ufs |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName) in
+  let fns = ufs |> List.filter ~f:(fun fn -> B.isF fn.ufMetadata.ufmName) in
   let entries =
-    Tc.List.map fns ~f:(fun fn ->
+    List.map fns ~f:(fun fn ->
         let name =
           fn.ufMetadata.ufmName |> Blank.toMaybe |> deOption "userFunction"
         in
@@ -240,17 +240,17 @@ let rec count (s : item) : int =
   | Entry _ ->
       1
   | Category c ->
-      c.entries |> Tc.List.map ~f:count |> Tc.List.sum
+      c.entries |> List.map ~f:count |> List.sum
 
 
 let deletedCategory (m : model) : category =
-  let tls =
-    m.deletedToplevels |> Tc.List.sortBy ~f:(fun tl -> TL.sortkey tl)
-  in
+  let tls = m.deletedToplevels |> List.sortBy ~f:(fun tl -> TL.sortkey tl) in
   let ufns =
     m.deletedUserFunctions
-    |> Tc.List.sortBy ~f:(fun fn ->
-           fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault "" )
+    |> List.sortBy ~f:(fun fn ->
+           fn.ufMetadata.ufmName
+           |> Blank.toMaybe
+           |> Option.withDefault ~default:"" )
   in
   let cats =
     [ httpCategory m tls
@@ -261,14 +261,14 @@ let deletedCategory (m : model) : category =
     @ [undefinedCategory m tls]
   in
   let cats =
-    Tc.List.map cats ~f:(fun c ->
+    List.map cats ~f:(fun c ->
         { c with
           plusButton = None (* only allow new entries on the main category *)
         ; classname =
             (* dont open/close in lockstep with parent *)
             "deleted-" ^ c.classname
         ; entries =
-            Tc.List.map c.entries ~f:(function
+            List.map c.entries ~f:(function
                 | Entry e ->
                     Entry
                       { e with
@@ -278,23 +278,25 @@ let deletedCategory (m : model) : category =
                 | c ->
                     c ) } )
   in
-  { count = cats |> Tc.List.map ~f:(fun c -> count (Category c)) |> Tc.List.sum
+  { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
-  ; entries = Tc.List.map cats ~f:(fun c -> Category c) }
+  ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
 let deletedUserFunctionsEntries (m : model) : category =
   let fns =
     m.deletedUserFunctions
-    |> List.filter (fun fn -> B.isF fn.ufMetadata.ufmName)
+    |> List.filter ~f:(fun fn -> B.isF fn.ufMetadata.ufmName)
   in
   let entries =
-    Tc.List.map fns ~f:(fun fn ->
+    List.map fns ~f:(fun fn ->
         Entry
           { name =
-              fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault ""
+              fn.ufMetadata.ufmName
+              |> Blank.toMaybe
+              |> Option.withDefault ~default:""
           ; tlid = fn.ufTLID
           ; uses = None
           ; minusButton = None
@@ -312,10 +314,10 @@ let deletedUserFunctionsEntries (m : model) : category =
 
 let entry2html (m : model) (e : entry) : msg Html.html =
   let ext =
-    Tc.Option.map
+    Option.map
       ~f:(fun l -> ViewCode.externalLink l m.canvasName m.userContentHost)
       e.externalLink
-    |> Tc.Option.withDefault ~default:[]
+    |> Option.withDefault ~default:[]
   in
   let name =
     match e.uses with
@@ -380,7 +382,7 @@ let rec item2html (m : model) (s : item) : msg Html.html =
 
 and category2html (m : model) (c : category) : msg Html.html =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  let isOpen = Tc.StrSet.has m.routingTableOpenDetails ~value:c.classname in
+  let isOpen = StrSet.has m.routingTableOpenDetails ~value:c.classname in
   let openEventHandler =
     ViewUtils.eventNoPropagation
       ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ c.classname)
@@ -407,7 +409,7 @@ and category2html (m : model) (c : category) : msg Html.html =
         | None ->
             text "" "" ) ]
   in
-  let routes = Tc.List.map ~f:(item2html m) c.entries in
+  let routes = List.map ~f:(item2html m) c.entries in
   if List.length c.entries = 0
   then
     Html.div
@@ -420,11 +422,13 @@ and category2html (m : model) (c : category) : msg Html.html =
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
-  let tls = m.toplevels |> Tc.List.sortBy ~f:(fun tl -> TL.sortkey tl) in
+  let tls = m.toplevels |> List.sortBy ~f:(fun tl -> TL.sortkey tl) in
   let ufns =
     m.userFunctions
-    |> Tc.List.sortBy ~f:(fun fn ->
-           fn.ufMetadata.ufmName |> Blank.toMaybe |> Option.withDefault "" )
+    |> List.sortBy ~f:(fun fn ->
+           fn.ufMetadata.ufmName
+           |> Blank.toMaybe
+           |> Option.withDefault ~default:"" )
   in
   let cats =
     [ httpCategory m tls
@@ -442,7 +446,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      (Tc.List.map ~f:(category2html m) cats)
+      (List.map ~f:(category2html m) cats)
   in
   Html.div [Html.id "sidebar-left"] [html]
 

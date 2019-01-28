@@ -1,3 +1,5 @@
+open Tc
+
 type key =
   | A
   | B
@@ -393,9 +395,8 @@ let code (key : key) : int option =
   | Z ->
       Some 90
   | Ambiguous choices ->
-      if Tablecloth.List.all
-           ~f:(fun value ->
-             Tablecloth.List.member ~value [Windows; Command; ChromeSearch] )
+      if List.all
+           ~f:(fun value -> List.member ~value [Windows; Command; ChromeSearch])
            choices
       then Some 91
       else None

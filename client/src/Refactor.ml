@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -85,12 +85,12 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
   let extractVarInAst e ast =
     let varname = "var" ^ string_of_int (Util.random ()) in
     let freeVariables =
-      AST.freeVariables e |> List.map Tuple.second |> StrSet.fromList
+      AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
     in
     let ancestors = AST.ancestors (B.toID e) ast in
     let lastPlaceWithSameVarsAndValues =
       ancestors
-      |> List.takeWhile (fun elem ->
+      |> List.takeWhile ~f:(fun elem ->
              let id = B.toID elem in
              let availableVars =
                Analysis.getCurrentAvailableVarnames m tl.id id
@@ -102,7 +102,7 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
              let noVariablesAreRedefined =
                freeVariables
                |> StrSet.toList
-               |> List.all (not << fun v -> AST.isDefinitionOf v elem)
+               |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
              in
              allRequiredVariablesAvailable && noVariablesAreRedefined )
       |> List.last
@@ -150,7 +150,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
         let name = generateFnName () in
         let freeVars = AST.freeVariables body in
         let paramExprs =
-          List.map (fun (_, name_) -> F (gid (), Variable name_)) freeVars
+          List.map ~f:(fun (_, name_) -> F (gid (), Variable name_)) freeVars
         in
         let replacement =
           let (ID id) = gid () in
@@ -166,10 +166,10 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
         let newH = {h with ast = newAst} in
         let params =
           List.map
-            (fun (id, name_) ->
+            ~f:(fun (id, name_) ->
               let tipe =
                 Analysis.getCurrentTipeOf m tl.id id
-                |> Option.withDefault TAny
+                |> Option.withDefault ~default:TAny
                 |> convertTipe
               in
               { ufpName = F (gid (), name_)
@@ -218,7 +218,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
       | Blank _ ->
           (None, [])
       | F (_, n) ->
-          (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
+          (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))
     in
     let newName =
       match new_.ufMetadata.ufmName with Blank _ -> None | F (_, n) -> Some n
@@ -226,15 +226,15 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     match (origName, newName) with
     | Some _, Some r ->
         List.foldr
-          (fun call acc -> AST.replace call (transformCall r call) acc)
-          ast
+          ~f:(fun call acc -> AST.replace call (transformCall r call) acc)
+          ~init:ast
           calls
     | _ ->
         ast
   in
   let newHandlers =
     m.toplevels
-    |> List.filterMap (fun tl ->
+    |> List.filterMap ~f:(fun tl ->
            match TL.asHandler tl with
            | None ->
                None
@@ -246,7 +246,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   in
   let newFunctions =
     m.userFunctions
-    |> List.filterMap (fun uf ->
+    |> List.filterMap ~f:(fun uf ->
            let newAst = renameFnCalls uf.ufAST old new_ in
            if newAst <> uf.ufAST
            then Some (SetFunction {uf with ufAST = newAst})
@@ -263,28 +263,30 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
   | Some nExpr ->
     ( match nExpr with
     | FnCall (F (_, name), list, _) ->
-        if name = fnName then true else List.any (isFunctionInExpr fnName) list
+        if name = fnName
+        then true
+        else List.any ~f:(isFunctionInExpr fnName) list
     | FnCall (Blank _, _, _) ->
         Debug.crash "blank in fncall"
     | Constructor (_, args) ->
-        List.any (isFunctionInExpr fnName) args
+        List.any ~f:(isFunctionInExpr fnName) args
     | If (ifExpr, thenExpr, elseExpr) ->
-        List.any (isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
+        List.any ~f:(isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
     | Variable _ ->
         false
     | Let (_, a, b) ->
-        List.any (isFunctionInExpr fnName) [a; b]
+        List.any ~f:(isFunctionInExpr fnName) [a; b]
     | Lambda (_, ex) ->
         isFunctionInExpr fnName ex
     | Value _ ->
         false
     | ObjectLiteral li ->
-        let valuesMap = List.map Tuple.second li in
-        List.any (isFunctionInExpr fnName) valuesMap
+        let valuesMap = List.map ~f:Tuple2.second li in
+        List.any ~f:(isFunctionInExpr fnName) valuesMap
     | ListLiteral li ->
-        List.any (isFunctionInExpr fnName) li
+        List.any ~f:(isFunctionInExpr fnName) li
     | Thread li ->
-        List.any (isFunctionInExpr fnName) li
+        List.any ~f:(isFunctionInExpr fnName) li
     | FieldAccess (ex, _) ->
         isFunctionInExpr fnName ex
     | FeatureFlag (_, cond, a, b) ->
@@ -293,13 +295,15 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
         || isFunctionInExpr fnName b
     | Match (matchExpr, cases) ->
         isFunctionInExpr fnName matchExpr
-        || List.any (isFunctionInExpr fnName) (List.map Tuple.second cases) )
+        || List.any
+             ~f:(isFunctionInExpr fnName)
+             (List.map ~f:Tuple2.second cases) )
 
 
 let countFnUsage (m : model) (name : string) : int =
   let usedIn =
     TL.all m
-    |> List.filter (fun tl ->
+    |> List.filter ~f:(fun tl ->
            match tl.data with
            | TLHandler h ->
                isFunctionInExpr name h.ast
@@ -313,9 +317,9 @@ let countFnUsage (m : model) (name : string) : int =
 
 let unusedDeprecatedFunctions (m : model) : StrSet.t =
   m.builtInFunctions
-  |> List.filter (fun x -> x.fnDeprecated)
-  |> List.map (fun x -> x.fnName)
-  |> List.filter (fun n -> countFnUsage m n = 0)
+  |> List.filter ~f:(fun x -> x.fnDeprecated)
+  |> List.map ~f:(fun x -> x.fnName)
+  |> List.filter ~f:(fun n -> countFnUsage m n = 0)
   |> StrSet.fromList
 
 
@@ -337,20 +341,20 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
       | Blank _ ->
           (None, [])
       | F (_, n) ->
-          (Some n, AST.allCallsToFn n ast |> List.map (fun x -> PExpr x))
+          (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))
     in
     match origName with
     | Some _ ->
         List.foldr
-          (fun call acc -> AST.replace call (transformCall call) acc)
-          ast
+          ~f:(fun call acc -> AST.replace call (transformCall call) acc)
+          ~init:ast
           calls
     | _ ->
         ast
   in
   let newHandlers =
     m.toplevels
-    |> List.filterMap (fun tl ->
+    |> List.filterMap ~f:(fun tl ->
            match TL.asHandler tl with
            | None ->
                None
@@ -362,7 +366,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   in
   let newFunctions =
     m.userFunctions
-    |> List.filterMap (fun uf_ ->
+    |> List.filterMap ~f:(fun uf_ ->
            let newAst = transformCallsInAst f uf_.ufAST uf_ in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
@@ -385,13 +389,13 @@ let addNewFunctionParameter (m : model) (old : userFunction) : op list =
 let removeFunctionParameter
     (m : model) (uf : userFunction) (ufp : userFunctionParameter) : op list =
   let indexInList =
-    List.findIndex (fun p -> p = ufp) uf.ufMetadata.ufmParameters
+    List.findIndex ~f:(fun p -> p = ufp) uf.ufMetadata.ufmParameters
     |> deOption "tried to remove parameter that does not exist in function"
   in
   let fn e =
     match e with
     | FnCall (name, params, r) ->
-        FnCall (name, List.removeAt indexInList params, r)
+        FnCall (name, List.removeAt ~index:indexInList params, r)
     | _ ->
         e
   in
