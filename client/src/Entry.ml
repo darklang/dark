@@ -417,7 +417,7 @@ let submitACItem
             then
               DisplayError
                 ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
-            else if List.member value (TL.allDBNames m.toplevels)
+            else if List.member ~value:value (TL.allDBNames m.toplevels)
             then DisplayError ("There is already a DB named " ^ value)
             else
               let varrefs = Refactor.renameDBVarRefs m oldName value in

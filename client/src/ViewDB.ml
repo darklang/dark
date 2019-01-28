@@ -87,8 +87,8 @@ let viewMigraFuncs
 
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     msg Html.html =
-  let name = Html.text db.dbName in
-  let cols = List.map (viewDBCol vs true db.dbTLID) migra.cols in
+  let name = Html.text (dbName2String db.dbName) in
+  let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in
   let funcs =
     [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
     ; viewMigraFuncs vs migra.rollback "Rollback" "newObj" ]
