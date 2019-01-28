@@ -10,6 +10,7 @@ include (
      and module IntSet := Tablecloth.IntSet
      and module StrDict := Tablecloth.StrDict
      and module Option := Tablecloth.Option
+     and module Result := Tablecloth.Result
      and module List := Tablecloth.List )
 
 module StrSet = struct
@@ -69,6 +70,20 @@ module StrDict = struct
     |> List.map (fun (k, v) -> "\"" ^ k ^ "\": \"" ^ Js.String.make v ^ "\"")
     |> String.join ~sep:", "
     |> fun s -> "{" ^ s ^ "}"
+
+
+  let pp
+      (valueFormatter : Format.formatter -> 'value -> unit)
+      (fmt : Format.formatter)
+      (map : 'value t) =
+    Format.pp_print_string fmt "{ " ;
+    Map.forEach map (fun k v ->
+        Format.pp_print_string fmt k ;
+        Format.pp_print_string fmt ": " ;
+        valueFormatter fmt v ;
+        Format.pp_print_string fmt ",  " ) ;
+    Format.pp_print_string fmt "}" ;
+    ()
 end
 
 module Regex = struct
@@ -89,6 +104,25 @@ module Option = struct
 
   let toOption ~(sentinel : 'a) (value : 'a) : 'a option =
     if value = sentinel then None else Some value
+end
+
+module Result = struct
+  include Tablecloth.Result
+
+  let pp
+      (errf : Format.formatter -> 'err -> unit)
+      (okf : Format.formatter -> 'ok -> unit)
+      (fmt : Format.formatter)
+      (r : ('err, 'ok) t) =
+    match r with
+    | Ok ok ->
+        Format.pp_print_string fmt "<ok: " ;
+        okf fmt ok ;
+        Format.pp_print_string fmt ">"
+    | Error err ->
+        Format.pp_print_string fmt "<ok: " ;
+        errf fmt err ;
+        Format.pp_print_string fmt ">"
 end
 
 module List = struct
