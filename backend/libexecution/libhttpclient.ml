@@ -77,7 +77,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TObj
-    ; d = ""
+    ; d = "Returns an object with 'Content-Type' for url-encoded HTML forms"
     ; f =
         InProcess
           (function
@@ -96,7 +96,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TObj
-    ; d = ""
+    ; d = "Returns an object with 'Content-Type' for JSON"
     ; f =
         InProcess
           (function
@@ -115,7 +115,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TObj
-    ; d = ""
+    ; d = "Returns an object with 'Content-Type' for plain text"
     ; f =
         InProcess
           (function
@@ -133,7 +133,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TObj
-    ; d = ""
+    ; d = "Returns an object with 'Content-Type' for html"
     ; f =
         InProcess
           (function
@@ -151,7 +151,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "username" TStr; par "password" TStr]
     ; r = TObj
-    ; d = ""
+    ; d =
+        "Returns an object with 'Authorization' created using HTTP basic auth"
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
@@ -160,7 +161,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "token" TStr]
     ; r = TObj
-    ; d = ""
+    ; d = "Returns an object with 'Authorization' set to the passed token"
     ; f =
         InProcess
           (function

@@ -35,7 +35,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "dict" TObj]
     ; r = TList
-    ; d = ""
+    ; d = "Return the dictionary's keys"
     ; f =
         InProcess
           (function
@@ -53,7 +53,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "dict" TObj]
     ; r = TList
-    ; d = ""
+    ; d = "Return the dictionary's values"
     ; f =
         InProcess
           (function
@@ -105,7 +105,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TObj
-    ; d = ""
+    ; d = "Return an empty object"
     ; f =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; pr = None
@@ -115,7 +115,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "left" TObj; par "right" TObj]
     ; r = TObj
-    ; d = ""
+    ; d =
+        "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
     ; f =
         InProcess
           (function
@@ -130,7 +131,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
     ; r = TObj
-    ; d = ""
+    ; d = "Return a copy of `obj` with the `key` set to `val`."
     ; f =
         InProcess
           (function
@@ -145,7 +146,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "obj" TObj; par "key" TStr]
     ; r = TObj
-    ; d = ""
+    ; d = "Return a copy of `obj` with `key` unset."
     ; f =
         InProcess
           (function
@@ -160,7 +161,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "obj" TObj; par "submit" TStr]
     ; r = TStr
-    ; d = ""
+    ; d =
+        "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
     ; f =
         InProcess
           (function
@@ -217,7 +219,8 @@ let fns : Lib.shortfn list =
     ; ins = ["%"]
     ; p = [par "a" TInt; par "b" TInt]
     ; r = TInt
-    ; d = ""
+    ; d =
+        "Return `a` % `b`, the modulus of a and b. This is the integer remainder left when `a` is divided by `b`. For example, `15 % 6 = 3`."
     ; f =
         InProcess
           (function
@@ -637,7 +640,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "b" TBool]
     ; r = TBool
-    ; d = ""
+    ; d =
+        "Returns the inverse of `b`: true is `b` is false and false if `b` is true"
     ; f =
         InProcess
           (function _, [DBool b] -> DBool (not b) | args -> fail args)
@@ -1386,7 +1390,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "list" TList]
     ; r = TAny
-    ; d = ""
+    ; d =
+        "Returns the head of a list. Returns null if the empty list is passed."
     ; f =
         InProcess
           (function
@@ -1401,7 +1406,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TList
-    ; d = ""
+    ; d = "Returns an empty list."
     ; f = InProcess (function _, [] -> DList [] | args -> fail args)
     ; pr = None
     ; ps = true
@@ -1432,7 +1437,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "list" TList]
     ; r = TAny
-    ; d = ""
+    ; d = "Returns the last item in a last. Returns null if the list is empty."
     ; f =
         InProcess
           (function
