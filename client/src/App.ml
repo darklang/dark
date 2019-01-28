@@ -1123,17 +1123,18 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 {space; path; modifier} ->
       let center = findCenter m in
-      let anId = gtlid () in
+      let tlid = gtlid () in
       let aPos = center in
+      let ast = B.new_ () in
       let aHandler =
-        { ast = B.new_ ()
+        { ast
         ; spec =
             { module_ = B.newF space
             ; name = B.newF path
             ; modifier = B.newF modifier }
-        ; tlid = anId }
+        ; tlid }
       in
-      RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
+      RPC ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
   | Delete404 fof ->
       MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
