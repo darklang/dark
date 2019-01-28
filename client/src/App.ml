@@ -182,7 +182,8 @@ let processFocus (m : model) (focus : focus) : modification =
 let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
-  then Debug.loG "autocompletemod update" (show_list show_autocompleteMod mods) ;
+  then
+    Debug.loG "autocompletemod update" (show_list ~f:show_autocompleteMod mods) ;
   let complete =
     List.foldl
       ~f:(fun mod_ complete_ -> AC.update m mod_ complete_)
@@ -591,7 +592,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          GMap.String.merge m.traces traces (fun _ maybeOld maybeNew ->
+          Belt.Map.String.merge m.traces traces (fun _ maybeOld maybeNew ->
               match (maybeOld, maybeNew) with
               | None, None ->
                   None

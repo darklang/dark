@@ -20,7 +20,8 @@ let onlyTL (m : model) : toplevel =
     then Debug.crash "no toplevels"
     else if len > 1
     then
-      Debug.crash ("too many toplevels: " ^ show_list show_toplevel m.toplevels)
+      Debug.crash
+        ("too many toplevels: " ^ show_list ~f:show_toplevel m.toplevels)
     else "nothing to see here"
   in
   m.toplevels |> List.head |> deOption "onlytl1"
@@ -60,7 +61,7 @@ let field_access_closes (m : model) : testResult =
       in
       if AST.allData ast |> List.filter P.isBlank = []
       then pass
-      else fail ~f:(show_list show_pointerData) (TL.allBlanks (onlyTL m))
+      else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
   | _ ->
       fail ~f:show_cursorState m.cursorState
 
@@ -166,7 +167,7 @@ let editing_request_edits_request (m : model) : testResult =
     | [ACVariable "request"; ACFunction {fnName = "Http::badRequest"}] ->
         pass
     | cs ->
-        fail ~f:(show_list show_autocompleteItem) cs )
+        fail ~f:(show_list ~f:show_autocompleteItem) cs )
   | e ->
       fail ~f:show_nExpr e
 
@@ -255,7 +256,7 @@ let tabbing_through_let (m : model) : testResult =
 
 let case_sensitivity (m : model) : testResult =
   if List.length m.toplevels <> 3
-  then fail ~f:(show_list show_toplevel) m.toplevels
+  then fail ~f:(show_list ~f:show_toplevel) m.toplevels
   else
     m.toplevels
     |> List.map (fun tl ->
@@ -359,12 +360,12 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
       then pass
       else
         fail
-          ( show_list show_toplevel m.toplevels
+          ( show_list ~f:show_toplevel m.toplevels
           ^ ", "
           ^ show_cursorState m.cursorState )
   | _ ->
       fail
-        ( show_list show_toplevel m.toplevels
+        ( show_list ~f:show_toplevel m.toplevels
         ^ ", "
         ^ show_cursorState m.cursorState )
 
@@ -384,7 +385,7 @@ let rename_db_fields (m : model) : testResult =
              | _ ->
                  fail ~f:show_cursorState m.cursorState )
            | _ ->
-               fail ~f:(show_list show_dBColumn) cols )
+               fail ~f:(show_list ~f:show_dBColumn) cols )
          | _ ->
              pass )
   |> Result.combine
@@ -407,13 +408,13 @@ let rename_db_type (m : model) : testResult =
                  then pass
                  else
                    fail
-                     ( show_list show_dBColumn cols
+                     ( show_list ~f:show_dBColumn cols
                      ^ ", "
                      ^ show_cursorState m.cursorState )
              | _ ->
                  fail ~f:show_cursorState m.cursorState )
            | _ ->
-               fail ~f:(show_list show_dBColumn) cols )
+               fail ~f:(show_list ~f:show_dBColumn) cols )
          | _ ->
              pass )
   |> Result.combine
@@ -692,7 +693,7 @@ let delete_db_col (m : model) : testResult =
   | [(Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list show_dBColumn) cols
+      fail ~f:(show_list ~f:show_dBColumn) cols
 
 
 let cant_delete_locked_col (m : model) : testResult =
@@ -710,7 +711,7 @@ let cant_delete_locked_col (m : model) : testResult =
   | [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list show_dBColumn) cols
+      fail ~f:(show_list ~f:show_dBColumn) cols
 
 
 let result_ok_roundtrips (m : model) : testResult =
