@@ -59,7 +59,9 @@ let newHandlerSpec (_ : unit) : handlerSpec =
 let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let r =
-    if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes then Rail else NoRail
+    if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+    then Rail
+    else NoRail
   in
   let (ID id) = gid () in
   F
@@ -203,7 +205,8 @@ let replaceExpr
     then
       ( old_
       , B.newF
-          (FieldAccess (B.newF (Variable (String.dropRight ~count:1 value)), B.new_ ()))
+          (FieldAccess
+             (B.newF (Variable (String.dropRight ~count:1 value)), B.new_ ()))
       )
     else (old_, parseAst item value |> Option.withDefault ~default:old_)
   in

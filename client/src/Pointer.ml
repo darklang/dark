@@ -155,7 +155,9 @@ let isBlank (pd : pointerData) : bool =
 
 
 let toContent (pd : pointerData) : string option =
-  let bs2s s = s |> B.toMaybe |> Option.withDefault ~default:"" |> fun x -> Some x in
+  let bs2s s =
+    s |> B.toMaybe |> Option.withDefault ~default:"" |> fun x -> Some x
+  in
   match pd with
   | PVarBind v ->
       bs2s v
