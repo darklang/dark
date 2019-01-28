@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -15,33 +15,36 @@ let defaultResults : analysisResults = {liveValues = StrDict.empty}
 let cursor_ (cursors : tLCursors) (tlid : tlid) : int =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
-  StrDict.get (deTLID tlid) cursors |> Option.withDefault 0
+  StrDict.get ~key:(deTLID tlid) cursors |> Option.withDefault ~default:0
 
 
 let cursor (m : model) (tlid : tlid) : int = cursor_ m.tlCursors tlid
 
 let setCursor (m : model) (tlid : tlid) (cursorNum : int) : model =
-  let newCursors = StrDict.insert (deTLID tlid) cursorNum m.tlCursors in
+  let newCursors =
+    StrDict.insert ~key:(deTLID tlid) ~value:cursorNum m.tlCursors
+  in
   {m with tlCursors = newCursors}
 
 
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   let traceIndex = cursor m tlid in
   let traceID =
-    StrDict.get (deTLID tlid) m.traces
-    |> Option.andThen (List.getAt traceIndex)
-    |> Option.map (fun x -> x.traceID)
-    |> Option.withDefault "invalid trace key"
+    StrDict.get ~key:(deTLID tlid) m.traces
+    |> Option.andThen ~f:(List.getAt ~index:traceIndex)
+    |> Option.map ~f:(fun x -> x.traceID)
+    |> Option.withDefault ~default:"invalid trace key"
   in
   (* only handlers have analysis results, but lots of stuff expect this *)
   (* data to exist. It may be better to not do that, but this is fine *)
   (* for now. *)
-  StrDict.get traceID m.analyses |> Option.withDefault defaultResults
+  StrDict.get ~key:traceID m.analyses
+  |> Option.withDefault ~default:defaultResults
 
 
 let record (old : analyses) (id : traceID) (result : analysisResults) :
     analyses =
-  StrDict.insert id result old
+  StrDict.insert ~key:id ~value:result old
 
 
 let getCurrentLiveValuesDict (m : model) (tlid : tlid) : lvDict =
@@ -49,7 +52,7 @@ let getCurrentLiveValuesDict (m : model) (tlid : tlid) : lvDict =
 
 
 let getCurrentLiveValue (m : model) (tlid : tlid) (ID id : id) : dval option =
-  tlid |> getCurrentLiveValuesDict m |> StrDict.get id
+  tlid |> getCurrentLiveValuesDict m |> StrDict.get ~key:id
 
 
 let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
@@ -64,12 +67,12 @@ let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
 let route_variables (route : string) : string list =
   let split_uri_path (path : string) : string list =
     let subs = String.split ~on:"/" path in
-    List.filter (fun x -> String.length x > 0) subs
+    List.filter ~f:(fun x -> String.length x > 0) subs
   in
   route
   |> split_uri_path
-  |> List.filter (String.startsWith ":")
-  |> List.map (String.dropLeft 1 (* ":" *))
+  |> List.filter ~f:(String.startsWith ~prefix:":")
+  |> List.map ~f:(String.dropLeft ~count:1 (* ":" *))
 
 
 let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
@@ -77,11 +80,16 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
   (* TODO: Calling out is so slow that calculating on the fly is faster. But we
    * can also cache this so that's it's not in the display hot-path. *)
   let varsFor ast =
-    ast |> AST.variablesIn |> StrDict.get id |> Option.withDefault []
+    ast
+    |> AST.variablesIn
+    |> StrDict.get ~key:id
+    |> Option.withDefault ~default:[]
   in
   let tl = TL.getTL m tlid in
   let dbs =
-    m.toplevels |> List.filterMap TL.asDB |> List.map (fun db -> db.dbName)
+    m.toplevels
+    |> List.filterMap ~f:TL.asDB
+    |> List.map ~f:(fun db -> db.dbName)
   in
   match tl.data with
   | TLHandler h ->
@@ -91,8 +99,8 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
             let fromRoute =
               h.spec.name
               |> Blank.toMaybe
-              |> Option.map route_variables
-              |> Option.withDefault []
+              |> Option.map ~f:route_variables
+              |> Option.withDefault ~default:[]
             in
             ["request"] @ fromRoute
         | F (_, m) when String.toLower m = "cron" ->
@@ -108,7 +116,7 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
   | TLFunc fn ->
       let params =
         fn.ufMetadata.ufmParameters
-        |> List.filterMap (fun p -> Blank.toMaybe p.ufpName)
+        |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
       in
       varsFor fn.ufAST @ params
 
@@ -123,12 +131,12 @@ let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
 
 
 let getTraces (m : model) (tlid : tlid) : trace list =
-  StrDict.get (deTLID tlid) m.traces |> Option.withDefault []
+  StrDict.get ~key:(deTLID tlid) m.traces |> Option.withDefault ~default:[]
 
 
 let getCurrentTrace (m : model) (tlid : tlid) : trace option =
-  StrDict.get (deTLID tlid) m.traces
-  |> Option.andThen (List.getAt (cursor m tlid))
+  StrDict.get ~key:(deTLID tlid) m.traces
+  |> Option.andThen ~f:(List.getAt ~index:(cursor m tlid))
 
 
 let replaceFunctionResult
@@ -142,13 +150,14 @@ let replaceFunctionResult
   let newResult = {fnName; callerID; argHash = hash; value = dval} in
   let traces =
     m.traces
-    |> StrDict.update (deTLID tlid) (fun ml ->
+    |> StrDict.update ~key:(deTLID tlid) ~f:(fun ml ->
            ml
            |> Option.withDefault
-                [ { traceID
-                  ; input = StrDict.empty
-                  ; functionResults = [newResult] } ]
-           |> List.map (fun t ->
+                ~default:
+                  [ { traceID
+                    ; input = StrDict.empty
+                    ; functionResults = [newResult] } ]
+           |> List.map ~f:(fun t ->
                   if t.traceID = traceID
                   then {t with functionResults = newResult :: t.functionResults}
                   else t )
@@ -179,13 +188,13 @@ let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
         | _ ->
             []
       in
-      let argIDs = List.map B.toID args in
-      let analyses = StrDict.get traceID m.analyses in
+      let argIDs = List.map ~f:B.toID args in
+      let analyses = StrDict.get ~key:traceID m.analyses in
       let dvals =
         match analyses with
         | Some analyses_ ->
             List.filterMap
-              (fun id -> StrDict.get (deID id) analyses_.liveValues)
+              ~f:(fun id -> StrDict.get ~key:(deID id) analyses_.liveValues)
               argIDs
         | None ->
             []
@@ -206,7 +215,7 @@ end
 module NewTracePush = struct
   let decode =
     let open Tea.Json.Decoder in
-    let open Porting.Decoder in
+    let open Native.Decoder in
     let tlid = map (fun id -> TLID id) wireIdentifier in
     let traceID = map (fun id -> (id : traceID)) string in
     field "detail" (pair tlid traceID)
