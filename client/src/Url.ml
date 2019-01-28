@@ -1,12 +1,12 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 
 let hashUrlParams (params : (string * string) list) : string =
-  let merged = List.map (fun (k, v) -> k ^ "=" ^ v) params in
-  "#" ^ String.join "&" merged
+  let merged = List.map ~f:(fun (k, v) -> k ^ "=" ^ v) params in
+  "#" ^ String.join ~sep:"&" merged
 
 
 let urlOf (page : page) (pos : pos) : string =
@@ -55,15 +55,17 @@ let maybeUpdateScrollUrl (m : model) : modification =
 let parseLocation (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash
-    |> String.dropLeft 1
+    |> String.dropLeft ~count:1
     |> String.split ~on:"&"
-    |> List.map (String.split ~on:"=")
-    |> List.filterMap (fun arr ->
+    |> List.map ~f:(String.split ~on:"=")
+    |> List.filterMap ~f:(fun arr ->
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
   let center =
-    match (StrDict.get "x" unstructured, StrDict.get "y" unstructured) with
+    match
+      (StrDict.get ~key:"x" unstructured, StrDict.get ~key:"y" unstructured)
+    with
     | Some x, Some y ->
       ( match (String.toInt x, String.toInt y) with
       | Ok x, Ok y ->
@@ -74,9 +76,10 @@ let parseLocation (loc : Web.Location.location) : page option =
         None
   in
   let editedFn =
-    match StrDict.get "fn" unstructured with
+    match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
-        Some (Fn (TLID sid, Option.withDefault Defaults.centerPos center))
+        Some
+          (Fn (TLID sid, Option.withDefault ~default:Defaults.centerPos center))
     | _ ->
         None
   in
@@ -107,7 +110,7 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
 let parseCanvasName (loc : Web.Location.location) : string =
   match
     loc.pathname
-    |> String.dropLeft 1
+    |> String.dropLeft ~count:1
     (* remove lead "/" *)
     |> String.split ~on:"/"
   with
@@ -136,15 +139,15 @@ let queryParams : (string * bool) list =
       rest
       |> String.toLower
       |> String.split ~on:"&"
-      |> List.filterMap splitOnEquals
+      |> List.filterMap ~f:splitOnEquals
   | _ ->
       []
 
 
 let queryParamSet (name : string) : bool =
-  List.find (fun (k, v) -> if k = name then v else false) queryParams
-  |> Option.withDefault (name, false)
-  |> Tuple.second
+  List.find ~f:(fun (k, v) -> if k = name then v else false) queryParams
+  |> Option.withDefault ~default:(name, false)
+  |> Tuple2.second
 
 
 let isDebugging = queryParamSet "debugger"

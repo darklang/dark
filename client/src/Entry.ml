@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -59,7 +59,9 @@ let newHandlerSpec (_ : unit) : handlerSpec =
 let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let r =
-    if List.member fn.fnReturnTipe Runtime.errorRailTypes then Rail else NoRail
+    if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+    then Rail
+    else NoRail
   in
   let (ID id) = gid () in
   F
@@ -192,20 +194,21 @@ let replaceExpr
       (* turn the current thread into a let-assignment to this *)
       (* name, and close the thread *)
       | (F (_, Thread _) as thread) :: _ ->
-          let bindName = value |> String.dropLeft 1 |> String.trim in
+          let bindName = value |> String.dropLeft ~count:1 |> String.trim in
           ( thread
           , B.newF (Let (B.newF bindName, AST.closeThreads thread, B.new_ ()))
           )
       | _ ->
           (old_, old_)
       (* field access *)
-    else if String.endsWith "." value
+    else if String.endsWith ~suffix:"." value
     then
       ( old_
       , B.newF
-          (FieldAccess (B.newF (Variable (String.dropRight 1 value)), B.new_ ()))
+          (FieldAccess
+             (B.newF (Variable (String.dropRight ~count:1 value)), B.new_ ()))
       )
-    else (old_, parseAst item value |> Option.withDefault old_)
+    else (old_, parseAst item value |> Option.withDefault ~default:old_)
   in
   let newAst =
     match move with
@@ -313,13 +316,13 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
         ( match parent with
         | F (_, Match (_, cases)) ->
             cases
-            |> List.find (fun (p, _) ->
+            |> List.find ~f:(fun (p, _) ->
                    Pattern.extractById p (B.toID currentPattern)
                    |> Option.isSome )
         | _ ->
             None )
         |> deOption "validate: impossible! pattern without parent match"
-        |> Tuple.second
+        |> Tuple2.second
       in
       ( match parsePattern value with
       | Some newPattern ->
@@ -333,8 +336,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
         | _ ->
             let noUses =
               Pattern.variableNames currentPattern
-              |> List.map (fun v -> AST.uses v body)
-              |> List.all List.isEmpty
+              |> List.map ~f:(fun v -> AST.uses v body)
+              |> List.all ~f:List.isEmpty
             in
             if not noUses
             then
@@ -458,19 +461,19 @@ let submitACItem
         (* allow arbitrary fieldnames *)
         | PField _, ACExtra fieldname ->
             let fieldname =
-              if String.startsWith "." fieldname
-              then String.dropLeft 1 fieldname
+              if String.startsWith ~prefix:"." fieldname
+              then String.dropLeft ~count:1 fieldname
               else fieldname
             in
             let fieldname =
-              if String.endsWith "." fieldname
-              then String.dropRight 1 fieldname
+              if String.endsWith ~suffix:"." fieldname
+              then String.dropRight ~count:1 fieldname
               else fieldname
             in
             let ast = getAstFromTopLevel tl in
             let parent = AST.findParentOfWithin id ast in
             (* Nested field? *)
-            if String.endsWith "." m.complete.value
+            if String.endsWith ~suffix:"." m.complete.value
             then
               (* wrap the field access with another field access *)
               (* get the parent ID from the old AST, cause it has the blank.
@@ -517,13 +520,13 @@ let submitACItem
             | None ->
                 NoChange
             | Some am ->
-                if List.member pd (AST.allData am.rollback)
+                if List.member ~value:pd (AST.allData am.rollback)
                 then
                   let newast, newexpr =
                     replaceExpr m am.rollback e move item
                   in
                   wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
-                else if List.member pd (AST.allData am.rollforward)
+                else if List.member ~value:pd (AST.allData am.rollforward)
                 then
                   let newast, newexpr =
                     replaceExpr m am.rollforward e move item

@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 open ViewUtils
@@ -29,14 +29,14 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   let longestLineLength =
     value
     |> String.split ~on:"\n"
-    |> List.map visualStringLength
-    |> List.foldr max 1
+    |> List.map ~f:visualStringLength
+    |> List.foldr ~f:max ~init:1
     |> min maxWidthChars
   in
   let rowCount =
     value
     |> String.split ~on:"\n"
-    |> List.map (fun line ->
+    |> List.map ~f:(fun line ->
            line
            |> visualStringLength
            |> float_of_int
@@ -78,7 +78,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
     =
   let toList acis class' index =
     List.indexedMap
-      (fun i item ->
+      ~f:(fun i item ->
         let highlighted = index = i in
         let name = Autocomplete.asName item in
         let view item =

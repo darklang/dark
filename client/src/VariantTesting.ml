@@ -1,8 +1,8 @@
-open! Porting
+open Tc
 open Types
 
 let variantIsActive (m : model) (vt : variantTest) : bool =
-  List.member vt m.tests
+  List.member ~value:vt m.tests
 
 
 let toVariantTest (s : string * bool) : variantTest option =
@@ -30,11 +30,11 @@ let toCSSClass (vt : variantTest) : string =
 
 
 let activeCSSClasses (m : model) : string =
-  m.tests |> List.map toCSSClass |> String.join " "
+  m.tests |> List.map ~f:toCSSClass |> String.join ~sep:" "
 
 
 let uniqueTests (xs : variantTest list) : variantTest list =
-  List.uniqueBy show_variantTest xs
+  List.uniqueBy ~f:show_variantTest xs
 
 
 let expandTest (vt : variantTest) : variantTest list =
@@ -47,8 +47,8 @@ let expandTest (vt : variantTest) : variantTest list =
 
 let enabledVariantTests : variantTest list =
   Url.queryParams
-  |> List.filterMap toVariantTest
-  |> List.map expandTest
+  |> List.filterMap ~f:toVariantTest
+  |> List.map ~f:expandTest
   |> List.flatten
   |> uniqueTests
 

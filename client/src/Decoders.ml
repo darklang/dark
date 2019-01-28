@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 open Json_decode_extended
 
@@ -56,8 +56,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; lockedHandlers =
       (try orNull (field "lockedHandlers" (list tlid)) [] j with _ -> [])
   ; routingTableOpenDetails =
-      ( try orNull (field "routingTableOpenDetails" tcStrSet) Tc.StrSet.empty j
-        with _ -> Tc.StrSet.empty ) }
+      ( try orNull (field "routingTableOpenDetails" tcStrSet) StrSet.empty j
+        with _ -> StrSet.empty ) }
 
 
 and cursorState j =
@@ -332,7 +332,7 @@ and parseDvalLiteral (str : string) : dval option =
         if List.last rest = Some '"'
         then
           List.init rest
-          |> Option.withDefault []
+          |> Option.withDefault ~default:[]
           |> String.fromList
           |> (fun x -> DStr x)
           |> fun x -> Some x
@@ -394,8 +394,8 @@ and dval j : dval =
     ; ("DUrl", dv1 (fun x -> DUrl x) string)
     ; ( "DPassword"
       , dv1
-          ( Base64.decode
-          >> Result.withDefault "<Internal error in base64 decoding>"
+          ( Native.Base64.decode
+          >> Result.withDefault ~default:"<Internal error in base64 decoding>"
           >> fun x -> DPassword x )
           string )
     ; ("DUuid", dv1 (fun x -> DUuid x) string)

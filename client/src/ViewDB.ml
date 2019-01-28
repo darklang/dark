@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 open Prelude
 
@@ -79,7 +79,7 @@ let viewMigraFuncs
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     msg Html.html =
   let name = viewDBName db.dbName migra.version in
-  let cols = List.map (viewDBCol vs true db.dbTLID) migra.cols in
+  let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in
   let funcs =
     [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
     ; viewMigraFuncs vs migra.rollback "Rollback" "newObj" ]
@@ -132,10 +132,10 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
   let namediv = viewDBName db.dbName db.version in
   let cols =
     if vs.dbLocked
-    then List.filter (fun (n, t) -> B.isF n && B.isF t) db.cols
+    then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
-  let coldivs = List.map (viewDBCol vs false db.dbTLID) cols in
+  let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
   let migrationView =
     match db.activeMigration with
     | Some migra ->

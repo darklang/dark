@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 
 let isCompatible (t1 : tipe) (t2 : tipe) : bool =
@@ -159,8 +159,13 @@ let str2tipe (t : string) : tipe =
   | "uuid" ->
       TUuid
   | other ->
-      if String.startsWith "[" other && String.endsWith "]" other
-      then other |> String.dropLeft 1 |> String.dropRight 1 |> parseListTipe
+      if String.startsWith ~prefix:"[" other
+         && String.endsWith ~suffix:"]" other
+      then
+        other
+        |> String.dropLeft ~count:1
+        |> String.dropRight ~count:1
+        |> parseListTipe
       else TBelongsTo other
 
 
@@ -244,13 +249,13 @@ let isTrue (dv : dval) : bool = dv = DBool true
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
   let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in
-  let nl = "\n" ^ String.repeat oldIndent " " in
-  let inl = "\n" ^ String.repeat (oldIndent + 2) " " in
+  let nl = "\n" ^ String.repeat ~count:oldIndent " " in
+  let inl = "\n" ^ String.repeat ~count:(oldIndent + 2) " " in
   let indent = oldIndent + 2 in
   let objToString l =
     l
-    |> List.map (fun (k, v) -> k ^ ": " ^ toRepr_ indent v)
-    |> String.join ("," ^ inl)
+    |> List.map ~f:(fun (k, v) -> k ^ ": " ^ toRepr_ indent v)
+    |> String.join ~sep:("," ^ inl)
     |> fun s -> "{" ^ inl ^ s ^ nl ^ "}"
   in
   match dv with
@@ -294,7 +299,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "302 " ^ url ^ nl ^ toRepr_ indent dv_
   | DResp (Response (code, hs), dv_) ->
       let headers =
-        objToString (List.map (Tuple.mapSecond (fun s -> DStr s)) hs)
+        objToString (List.map ~f:(Tuple2.mapSecond (fun s -> DStr s)) hs)
       in
       string_of_int code ^ " " ^ headers ^ nl ^ toRepr dv_
   | DOption OptNothing ->
@@ -315,11 +320,11 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
     | DObj _ :: _ ->
         "["
         ^ inl
-        ^ String.join (inl ^ ", ") (List.map (toRepr_ indent) l)
+        ^ String.join ~sep:(inl ^ ", ") (List.map ~f:(toRepr_ indent) l)
         ^ nl
         ^ "]"
     | l ->
-        "[ " ^ String.join ", " (List.map (toRepr_ indent) l) ^ " ]" )
+        "[ " ^ String.join ~sep:", " (List.map ~f:(toRepr_ indent) l) ^ " ]" )
   | DObj o ->
       objToString (StrDict.toList o)
 
@@ -332,8 +337,8 @@ let inputValueAsString (iv : inputValueDict) : string =
   DObj i
   |> toRepr
   |> String.split ~on:"\n"
-  |> List.drop 1
+  |> List.drop ~count:1
   |> List.init
-  |> Option.withDefault []
-  |> List.map (String.dropLeft 2)
-  |> String.join "\n"
+  |> Option.withDefault ~default:[]
+  |> List.map ~f:(String.dropLeft ~count:2)
+  |> String.join ~sep:"\n"

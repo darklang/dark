@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -20,7 +20,7 @@ let ufpToP (ufp : userFunctionParameter) : parameter option =
 
 
 let ufmToF (ufm : userFunctionMetadata) : function_ option =
-  let ps = List.filterMap ufpToP ufm.ufmParameters in
+  let ps = List.filterMap ~f:ufpToP ufm.ufmParameters in
   let sameLength = List.length ps = List.length ufm.ufmParameters in
   match (ufm.ufmName, ufm.ufmReturnTipe, sameLength) with
   | F (_, name), F (_, tipe), true ->
@@ -37,7 +37,7 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
 
 
 let find (m : model) (id : tlid) : userFunction option =
-  List.find (fun f -> id = f.ufTLID) m.userFunctions
+  List.find ~f:(fun f -> id = f.ufTLID) m.userFunctions
 
 
 let findExn (m : model) (id : tlid) : userFunction =
@@ -50,20 +50,22 @@ let upsert (m : model) (f : userFunction) : model =
       { m with
         userFunctions =
           m.userFunctions
-          |> List.filter (fun uf -> uf.ufTLID <> old.ufTLID)
+          |> List.filter ~f:(fun uf -> uf.ufTLID <> old.ufTLID)
           |> List.cons f }
   | None ->
       {m with userFunctions = f :: m.userFunctions}
 
 
 let containsByTLID (fns : userFunction list) (elem : userFunction) : bool =
-  List.find (fun fn -> fn.ufTLID = elem.ufTLID) fns <> None
+  List.find ~f:(fun fn -> fn.ufTLID = elem.ufTLID) fns <> None
 
 
 let removeByTLID
     ~(toBeRemoved : userFunction list) (origfns : userFunction list) :
     userFunction list =
-  List.filter (fun origfn -> not (containsByTLID toBeRemoved origfn)) origfns
+  List.filter
+    ~f:(fun origfn -> not (containsByTLID toBeRemoved origfn))
+    origfns
 
 
 let upsertByTLID (fns : userFunction list) (fn : userFunction) :
@@ -73,7 +75,7 @@ let upsertByTLID (fns : userFunction list) (fn : userFunction) :
 
 let upsertAllByTLID (fns : userFunction list) ~(newFns : userFunction list) :
     userFunction list =
-  Tc.List.foldl ~f:(fun fn fns -> upsertByTLID fns fn) ~init:fns newFns
+  List.foldl ~f:(fun fn fns -> upsertByTLID fns fn) ~init:fns newFns
 
 
 let sameName (name : string) (uf : userFunction) : bool =
@@ -81,7 +83,7 @@ let sameName (name : string) (uf : userFunction) : bool =
 
 
 let findByName (m : model) (s : string) : userFunction option =
-  List.find (sameName s) m.userFunctions
+  List.find ~f:(sameName s) m.userFunctions
 
 
 let findByNameExn (m : model) (s : string) : userFunction =
@@ -93,7 +95,7 @@ let paramData (ufp : userFunctionParameter) : pointerData list =
 
 
 let allParamData (uf : userFunction) : pointerData list =
-  List.concat (List.map paramData uf.ufMetadata.ufmParameters)
+  List.concat (List.map ~f:paramData uf.ufMetadata.ufmParameters)
 
 
 let allData (uf : userFunction) : pointerData list =
@@ -126,17 +128,17 @@ let replaceParamName
   let paramNames =
     uf
     |> allParamData
-    |> List.filterMap (fun p ->
+    |> List.filterMap ~f:(fun p ->
            match p with PParamName n -> Some n | _ -> None )
   in
-  if List.any (fun p -> B.toID p = sId) paramNames
+  if List.any ~f:(fun p -> B.toID p = sId) paramNames
   then
     let newMetadata =
       match replacement with
       | PParamName new_ ->
           let newP =
             metadata.ufmParameters
-            |> List.map (fun p ->
+            |> List.map ~f:(fun p ->
                    {p with ufpName = B.replace sId new_ p.ufpName} )
           in
           {metadata with ufmParameters = newP}
@@ -167,10 +169,10 @@ let replaceParamName
       in
       match (sContent, rContent) with
       | Some o, Some r ->
-          let uses = AST.uses o uf.ufAST |> List.map (fun x -> PExpr x) in
+          let uses = AST.uses o uf.ufAST |> List.map ~f:(fun x -> PExpr x) in
           List.foldr
-            (fun use acc -> AST.replace use (transformUse r use) acc)
-            uf.ufAST
+            ~f:(fun use acc -> AST.replace use (transformUse r use) acc)
+            ~init:uf.ufAST
             uses
       | _ ->
           uf.ufAST
@@ -187,17 +189,17 @@ let replaceParamTipe
   let paramTipes =
     uf
     |> allParamData
-    |> List.filterMap (fun p ->
+    |> List.filterMap ~f:(fun p ->
            match p with PParamTipe t -> Some t | _ -> None )
   in
-  if List.any (fun p -> B.toID p = sId) paramTipes
+  if List.any ~f:(fun p -> B.toID p = sId) paramTipes
   then
     let newMetadata =
       match replacement with
       | PParamTipe new_ ->
           let newP =
             metadata.ufmParameters
-            |> List.map (fun p ->
+            |> List.map ~f:(fun p ->
                    {p with ufpTipe = B.replace sId new_ p.ufpTipe} )
           in
           {metadata with ufmParameters = newP}
@@ -235,6 +237,6 @@ let extend (uf : userFunction) : userFunction =
 let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
     userFunction =
   let metadata = uf.ufMetadata in
-  let params = List.filter (fun p -> p <> ufp) metadata.ufmParameters in
+  let params = List.filter ~f:(fun p -> p <> ufp) metadata.ufmParameters in
   let newM = {metadata with ufmParameters = params} in
   {uf with ufMetadata = newM}

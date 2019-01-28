@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -67,7 +67,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; "tl-" ^ deTLID tl.id
     ; "toplevel"
     ; "cursor-" ^ string_of_int (Analysis.cursor m tl.id) ]
-    |> String.join " "
+    |> String.join ~sep:" "
   in
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with
@@ -75,8 +75,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let fnDocString =
           m.complete
           |> Autocomplete.highlighted
-          |> Option.andThen Autocomplete.documentationForItem
-          |> Option.map (fun desc ->
+          |> Option.andThen ~f:Autocomplete.documentationForItem
+          |> Option.map ~f:(fun desc ->
                  [ Html.div
                      [Html.class' "documentation-box"]
                      [Html.p [] [Html.text desc]] ] )
@@ -110,7 +110,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let html =
     Html.div
       (* -- see comment in css *)
-      [Html.class' <| String.join " " (boxClasses @ ["sidebar-box"; selected])]
+      [ Html.class'
+        <| String.join ~sep:" " (boxClasses @ ["sidebar-box"; selected]) ]
       [Html.div (Html.class' class_ :: events) (body @ top)]
   in
   ViewUtils.placeHtml pos html
@@ -144,14 +145,14 @@ let viewCanvas (m : model) : msg Html.html =
        * if not (though only when using our Util cache). This leads to the
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
-        |> List.sortBy (fun tl -> deTLID tl.id)
-        |> List.map (viewTL m)
+        |> List.sortBy ~f:(fun tl -> deTLID tl.id)
+        |> List.map ~f:(viewTL m)
     | Fn (tlid, _) ->
-      ( match List.find (fun f -> f.ufTLID = tlid) m.userFunctions with
+      ( match List.find ~f:(fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
       | None ->
-          List.map (viewTL m) m.toplevels )
+          List.map ~f:(viewTL m) m.toplevels )
     (* TODO(ian): change to crash *)
   in
   let canvasTransform =

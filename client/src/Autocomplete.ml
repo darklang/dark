@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Types
 
 (* Dark *)
@@ -68,7 +68,9 @@ let asName (aci : autocompleteItem) : string =
         "New handler in the " ^ name ^ " space" )
   | ACConstructorName name ->
       let arityOneConstructors = ["Just"; "Ok"; "Error"] in
-      if List.member name arityOneConstructors then name ^ " ______" else name
+      if List.member ~value:name arityOneConstructors
+      then name ^ " ______"
+      else name
   | ACKeyword k ->
     ( match k with
     | KLet ->
@@ -85,9 +87,9 @@ let asTypeString (item : autocompleteItem) : string =
   match item with
   | ACFunction f ->
       f.fnParameters
-      |> List.map (fun x -> x.paramTipe)
-      |> List.map RT.tipe2str
-      |> String.join ", "
+      |> List.map ~f:(fun x -> x.paramTipe)
+      |> List.map ~f:RT.tipe2str
+      |> String.join ~sep:", "
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | ACField _ ->
       "field"
@@ -103,7 +105,7 @@ let asTypeString (item : autocompleteItem) : string =
       let tipe =
         lit
         |> Decoders.parseDvalLiteral
-        |> Option.withDefault DIncomplete
+        |> Option.withDefault ~default:DIncomplete
         |> RT.typeOf
         |> RT.tipe2str
       in
@@ -120,13 +122,15 @@ let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 (* External: utils *)
 (* ---------------------------- *)
 let findFunction (a : autocomplete) (name : string) : function_ option =
-  List.find (fun f -> f.fnName = name) a.functions
+  List.find ~f:(fun f -> f.fnName = name) a.functions
 
 
-let isStringEntry (a : autocomplete) : bool = String.startsWith "\"" a.value
+let isStringEntry (a : autocomplete) : bool =
+  String.startsWith ~prefix:"\"" a.value
+
 
 let isLargeStringEntry (a : autocomplete) : bool =
-  isStringEntry a && String.contains "\n" a.value
+  isStringEntry a && String.contains ~substring:"\n" a.value
 
 
 let isSmallStringEntry (a : autocomplete) : bool =
@@ -134,7 +138,7 @@ let isSmallStringEntry (a : autocomplete) : bool =
 
 
 let highlighted (a : autocomplete) : autocompleteItem option =
-  List.getAt a.index (a.completions @ a.invalidCompletions)
+  List.getAt ~index:a.index (a.completions @ a.invalidCompletions)
 
 
 let getValue (a : autocomplete) : string =
@@ -154,25 +158,25 @@ let sharedPrefixList (strs : string list) : string =
   | None ->
       ""
   | Some s ->
-      List.foldl sharedPrefix2 s strs
+      List.foldl ~f:sharedPrefix2 ~init:s strs
 
 
 (* Find the shared prefix of all the possible suggestions (eg "List::") *)
 let sharedPrefix (a : autocomplete) : string =
-  a.completions |> List.map asName |> sharedPrefixList
+  a.completions |> List.map ~f:asName |> sharedPrefixList
 
 
 let rec containsOrdered (needle : string) (haystack : string) : bool =
   match String.uncons needle with
   | Some (c, newneedle) ->
       let char = String.fromChar c in
-      String.contains char haystack
+      String.contains ~substring:char haystack
       && containsOrdered
            newneedle
            ( haystack
            |> String.split ~on:char
-           |> List.drop 1
-           |> String.join char )
+           |> List.drop ~count:1
+           |> String.join ~sep:char )
   | None ->
       true
 
@@ -195,11 +199,11 @@ let compareSuggestionWithActual (a : autocomplete) (actual : string) :
       | -1 ->
           ("", suggestion, actual)
       | index ->
-          let prefix = String.slice 0 index suggestion in
+          let prefix = String.slice ~from:0 ~to_:index suggestion in
           let suffix =
             String.slice
-              (index + String.length actual)
-              (String.length suggestion)
+              ~from:(index + String.length actual)
+              ~to_:(String.length suggestion)
               suggestion
           in
           (prefix, prefix ^ actual ^ suffix, actual) )
@@ -215,46 +219,47 @@ let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters
   |> List.head
-  |> Option.andThen (fun fst ->
+  |> Option.andThen ~f:(fun fst ->
          if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
 
 let findParamByType ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
-  fnParameters |> List.find (fun p -> RT.isCompatible p.paramTipe tipe)
+  fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
 
 let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
   TL.get m tlid
-  |> Option.andThen TL.asHandler
-  |> Option.map (fun x -> x.ast)
-  |> Option.andThen (AST.getValueParent pd)
-  |> Option.map P.toID
-  |> Option.andThen (Analysis.getCurrentLiveValue m tlid)
+  |> Option.andThen ~f:TL.asHandler
+  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:(AST.getValueParent pd)
+  |> Option.map ~f:P.toID
+  |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tlid)
   (* don't filter on incomplete values *)
-  |> Option.andThen (fun dv_ -> if dv_ = DIncomplete then None else Some dv_)
+  |> Option.andThen ~f:(fun dv_ -> if dv_ = DIncomplete then None else Some dv_)
 
 
 let isThreadMember (m : model) ((tlid, pd) : target) =
   TL.get m tlid
-  |> Option.andThen TL.asHandler
-  |> Option.map (fun x -> x.ast)
-  |> Option.andThen (AST.findParentOfWithin_ (P.toID pd))
-  |> Option.map (fun e -> match e with F (_, Thread _) -> true | _ -> false)
-  |> Option.withDefault false
+  |> Option.andThen ~f:TL.asHandler
+  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:(AST.findParentOfWithin_ (P.toID pd))
+  |> Option.map ~f:(fun e ->
+         match e with F (_, Thread _) -> true | _ -> false )
+  |> Option.withDefault ~default:false
 
 
 let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
   TL.get m tlid
-  |> Option.andThen TL.asHandler
-  |> Option.map (fun x -> x.ast)
-  |> Option.andThen (fun ast -> AST.getParamIndex ast (P.toID pd))
-  |> Option.andThen (fun (name, index) ->
+  |> Option.andThen ~f:TL.asHandler
+  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast (P.toID pd))
+  |> Option.andThen ~f:(fun (name, index) ->
          m.complete.functions
-         |> List.find (fun f -> name = f.fnName)
-         |> Option.map (fun x -> x.fnParameters)
-         |> Option.andThen (List.getAt index)
-         |> Option.map (fun x -> x.paramTipe) )
+         |> List.find ~f:(fun f -> name = f.fnName)
+         |> Option.map ~f:(fun x -> x.fnParameters)
+         |> Option.andThen ~f:(List.getAt ~index)
+         |> Option.map ~f:(fun x -> x.paramTipe) )
 
 
 let matchesTypes (isThreadMember : bool) (paramTipe : tipe) (dv : dval option)
@@ -282,11 +287,11 @@ let qLiteral (s : string) : autocompleteItem option =
   then Some (ACLiteral s)
   else if String.length s > 0
   then
-    if String.startsWith (String.toLower s) "false"
+    if String.startsWith ~prefix:(String.toLower s) "false"
     then Some (ACLiteral "false")
-    else if String.startsWith (String.toLower s) "true"
+    else if String.startsWith ~prefix:(String.toLower s) "true"
     then Some (ACLiteral "true")
-    else if String.startsWith (String.toLower s) "null"
+    else if String.startsWith ~prefix:(String.toLower s) "null"
     then Some (ACLiteral "null")
     else None
   else None
@@ -412,7 +417,7 @@ let qHTTPHandler (s : string) : omniAction =
   let name = s |> stripChars nonEventNameSafeCharacters in
   if name = ""
   then NewHTTPHandler None
-  else if String.startsWith "/" name
+  else if String.startsWith ~prefix:"/" name
   then NewHTTPHandler (Some (assertValid httpNameValidator name))
   else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
 
@@ -440,7 +445,7 @@ let toDynamicItems (isOmni : bool) (q : string) : autocompleteItem list =
         [qHTTPHandler q; qFunction q; qHandler q]
         @ Option.values [qNewDB q; qEventSpace q]
     in
-    List.map (fun o -> ACOmniAction o) omnis
+    List.map ~f:(fun o -> ACOmniAction o) omnis
   else Option.values [qLiteral q]
 
 
@@ -448,20 +453,20 @@ let withDynamicItems
     (target : target option) (query : string) (acis : autocompleteItem list) :
     autocompleteItem list =
   let new_ = toDynamicItems (target = None) query in
-  let withoutDynamic = List.filter isStaticItem acis in
+  let withoutDynamic = List.filter ~f:isStaticItem acis in
   new_ @ withoutDynamic
 
 
 let paramFor (m : model) (tlid : tlid) (id : id) : parameter option =
   TL.get m tlid
-  |> Option.andThen TL.asHandler
-  |> Option.map (fun x -> x.ast)
-  |> Option.andThen (fun ast -> AST.getParamIndex ast id)
-  |> Option.andThen (fun (name, index) ->
+  |> Option.andThen ~f:TL.asHandler
+  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
+  |> Option.andThen ~f:(fun (name, index) ->
          m.complete.functions
-         |> List.find (fun f -> name = f.fnName)
-         |> Option.map (fun x -> x.fnParameters)
-         |> Option.andThen (List.getAt index) )
+         |> List.find ~f:(fun f -> name = f.fnName)
+         |> Option.map ~f:(fun x -> x.fnParameters)
+         |> Option.andThen ~f:(List.getAt ~index) )
 
 
 let paramForTarget (m : model) (a : autocomplete) : parameter option =
@@ -478,26 +483,27 @@ let paramForTarget (m : model) (a : autocomplete) : parameter option =
 let generate (m : model) (a : autocomplete) : autocomplete =
   let space =
     a.target
-    |> Option.map Tuple.first
-    |> Option.map (TL.getTL m)
-    |> Option.andThen TL.spaceOf
+    |> Option.map ~f:Tuple2.first
+    |> Option.map ~f:(TL.getTL m)
+    |> Option.andThen ~f:TL.spaceOf
   in
-  let dval = Option.andThen (dvalForTarget m) a.target in
+  let dval = Option.andThen ~f:(dvalForTarget m) a.target in
   let varnames = Analysis.currentVarnamesFor m a.target in
   let paramTipe =
     a.target
-    |> Option.andThen (paramTipeForTarget m)
-    |> Option.withDefault TAny
+    |> Option.andThen ~f:(paramTipeForTarget m)
+    |> Option.withDefault ~default:TAny
   in
   let isThreadMember =
-    Option.map (isThreadMember m) a.target |> Option.withDefault false
+    Option.map ~f:(isThreadMember m) a.target
+    |> Option.withDefault ~default:false
   in
   let fields =
     match dval with
     | Some dv when RT.typeOf dv = TObj ->
       ( match a.target with
       | Some (_, pd) when P.typeOf pd = Field ->
-          List.map (fun x -> ACField x) (dvalFields dv)
+          List.map ~f:(fun x -> ACField x) (dvalFields dv)
       | _ ->
           [] )
     | _ ->
@@ -508,7 +514,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   in
   (* functions *)
   let funcList = if isExpression then a.functions else [] in
-  let functions = List.map (fun x -> ACFunction x) funcList in
+  let functions = List.map ~f:(fun x -> ACFunction x) funcList in
   let extras =
     match a.target with
     | Some (_, p) ->
@@ -545,7 +551,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; "Password"
             ; "UUID" ]
           in
-          let compound = List.map (fun s -> "[" ^ s ^ "]") builtins in
+          let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           builtins @ compound
       | ParamTipe ->
           [ "Any"
@@ -572,15 +578,15 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         ; ACConstructorName "Ok"
         ; ACConstructorName "Error" ]
       in
-      let varnames = List.map (fun x -> ACVariable x) varnames in
+      let varnames = List.map ~f:(fun x -> ACVariable x) varnames in
       let keywords =
-        List.map (fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
+        List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
       in
       varnames @ constructors @ keywords @ functions
     else []
   in
-  let regular = List.map (fun x -> ACExtra x) extras @ exprs @ fields in
-  let commands = List.map (fun x -> ACCommand x) Commands.commands in
+  let regular = List.map ~f:(fun x -> ACExtra x) extras @ exprs @ fields in
+  let commands = List.map ~f:(fun x -> ACCommand x) Commands.commands in
   let items = if a.isCommandMode then commands else regular in
   let matcher = function
     | ACFunction fn ->
@@ -601,32 +607,38 @@ let filter
     |> Regex.replace {js|⟶|js} "->"
   in
   (* split into different lists *)
-  let dynamic, candidates0 = List.partition isDynamicItem list in
+  let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
   let candidates1, notSubstring =
     List.partition
-      (stringify >> String.toLower >> String.contains lcq)
+      ~f:(stringify >> String.toLower >> String.contains ~substring:lcq)
       candidates0
   in
   let startsWith, candidates2 =
-    List.partition (stringify >> String.startsWith query) candidates1
+    List.partition
+      ~f:(stringify >> String.startsWith ~prefix:query)
+      candidates1
   in
   let startsWithCI, candidates3 =
     List.partition
-      (stringify >> String.toLower >> String.startsWith lcq)
+      ~f:(stringify >> String.toLower >> String.startsWith ~prefix:lcq)
       candidates2
   in
   let substring, substringCI =
-    List.partition (stringify >> String.contains query) candidates3
+    List.partition
+      ~f:(stringify >> String.contains ~substring:query)
+      candidates3
   in
   let stringMatch =
-    List.filter (asName >> String.toLower >> containsOrdered lcq) notSubstring
+    List.filter
+      ~f:(asName >> String.toLower >> containsOrdered lcq)
+      notSubstring
   in
   let allMatches =
     [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.partition matcher allMatches
+  List.partition ~f:matcher allMatches
 
 
 let init (fns : function_ list) (isAdmin : bool) : autocomplete =
@@ -647,7 +659,8 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
   let allCompletions = newCompletions @ invalidCompletions in
   let newCount = List.length allCompletions in
   let oldHighlightNewPos =
-    oldHighlight |> Option.andThen (fun oh -> List.elemIndex oh allCompletions)
+    oldHighlight
+    |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
   in
   let index =
     (* Clear the highlight conditions *)
@@ -691,18 +704,19 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 let reset (m : model) (a : autocomplete) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
-    |> List.map (fun x -> x.ufMetadata)
-    |> List.filterMap Functions.ufmToF
+    |> List.map ~f:(fun x -> x.ufMetadata)
+    |> List.filterMap ~f:Functions.ufmToF
   in
   let unusedDeprecatedFns = Refactor.unusedDeprecatedFunctions m in
   let functions =
     m.builtInFunctions
-    |> List.filter (fun f ->
+    |> List.filter ~f:(fun f ->
            not
              (List.member
-                f.fnName
-                (List.map (fun x -> x.fnName) userFunctionMetadata)) )
-    |> List.filter (fun f -> not (StrSet.member f.fnName unusedDeprecatedFns))
+                ~value:f.fnName
+                (List.map ~f:(fun x -> x.fnName) userFunctionMetadata)) )
+    |> List.filter ~f:(fun f ->
+           not (StrSet.member ~value:f.fnName unusedDeprecatedFns) )
     |> List.append userFunctionMetadata
   in
   let result = init functions a.admin |> regenerate m in
@@ -743,7 +757,7 @@ let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
 let appendQuery (str : string) (a : autocomplete) : autocomplete =
   let q =
     if isStringEntry a
-    then String.dropRight 1 a.value ^ str ^ "\""
+    then String.dropRight ~count:1 a.value ^ str ^ "\""
     else a.value ^ str
   in
   setQuery q a

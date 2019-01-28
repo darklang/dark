@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Json_encode_extended
 
 (* Tea *)
@@ -52,8 +52,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DList" [list dval l]
   | DObj o ->
       o
-      |. Belt.Map.String.map dval
-      |> Belt.Map.String.toList
+      |> StrDict.map ~f:dval
+      |> StrDict.toList
       |> Js.Dict.fromList
       |> dict
       |> fun x -> [x] |> ev "DObj"
@@ -82,7 +82,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DDate date ->
       ev "DDate" [string date]
   | DPassword hashed ->
-      ev "DPassword" [string (Base64.encode hashed)]
+      ev "DPassword" [string (Native.Base64.encode hashed)]
   | DUuid uuid ->
       ev "DUuid" [string uuid]
   | DOption opt ->
@@ -204,7 +204,7 @@ and ops (ops : Types.op list) : Js.Json.t =
         ops
     | _ ->
         let savepoints =
-          List.map (fun op -> Types.TLSavepoint (tlidOf op)) ops
+          List.map ~f:(fun op -> Types.TLSavepoint (tlidOf op)) ops
         in
         savepoints @ ops )
 
@@ -260,8 +260,8 @@ and db (db : Types.dB) : Js.Json.t =
     ; ("version", int db.version)
     ; ("old_migrations", list dbMigration db.oldMigrations)
     ; ( "active_migration"
-      , Option.map dbMigration db.activeMigration |> Option.withDefault null )
-    ]
+      , Option.map ~f:dbMigration db.activeMigration
+        |> Option.withDefault ~default:null ) ]
 
 
 and op (call : Types.op) : Js.Json.t =

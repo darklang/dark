@@ -1,6 +1,6 @@
 open Types
 open Prelude
-open Porting
+open Tc
 
 (* Dark *)
 module Key = Keyboard
@@ -18,21 +18,21 @@ let charsize = 8
 
 let moveDown (xPos : int) (sizes : Selection.htmlSizing list) (id : id) :
     id option =
-  match List.filter (fun (o : Selection.htmlSizing) -> o.id = id) sizes with
+  match List.filter ~f:(fun (o : Selection.htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
-      |> List.filter (fun (o : Selection.htmlSizing) ->
+      |> List.filter ~f:(fun (o : Selection.htmlSizing) ->
              xPos >= o.left - charsize
              && xPos <= o.right + charsize
              (* within 1 char of *)
              && this.centerY < o.centerY
              (* below only, inverted y axis *) )
-      |> List.minimumBy (fun (o : Selection.htmlSizing) ->
+      |> List.minimumBy ~f:(fun (o : Selection.htmlSizing) ->
              (* nearest line (multiply to amplify effect) *)
              (int_of_float o.centerY * 10000)
              (* if there are multiple options, add a small number to pick the one nearest *)
              + max (o.left - xPos) (xPos - o.right) )
-      |> Option.withDefault this
+      |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ ->
@@ -41,21 +41,21 @@ let moveDown (xPos : int) (sizes : Selection.htmlSizing list) (id : id) :
 
 let moveUp (xPos : int) (sizes : Selection.htmlSizing list) (id : id) :
     id option =
-  match List.filter (fun (o : Selection.htmlSizing) -> o.id = id) sizes with
+  match List.filter ~f:(fun (o : Selection.htmlSizing) -> o.id = id) sizes with
   | [this] ->
       sizes
-      |> List.filter (fun (o : Selection.htmlSizing) ->
+      |> List.filter ~f:(fun (o : Selection.htmlSizing) ->
              xPos >= o.left - charsize
              && xPos <= o.right + charsize
              (* within 1 char of *)
              && this.centerY > o.centerY
              (* above only, inverted y axis *) )
-      |> List.maximumBy (fun (o : Selection.htmlSizing) ->
+      |> List.maximumBy ~f:(fun (o : Selection.htmlSizing) ->
              (* nearest line, multiply to amplify effect *)
              (int_of_float o.centerY * 10000)
              (* if there are multiple options, add a small number to pick the one nearest *)
              - max (o.left - xPos) (xPos - o.right) )
-      |> Option.withDefault this
+      |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ ->
@@ -74,7 +74,7 @@ let arrowMoveUp (m : model) (tlid : tlid) (mId : id option) : modification =
 
 let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
   let default =
-    TL.getTL m tlid |> TL.allData |> List.head |> Option.map P.toID
+    TL.getTL m tlid |> TL.allData |> List.head |> Option.map ~f:P.toID
   in
   let xPos = Native.Ext.findCaretXPos () in
   let newMId =
@@ -84,17 +84,18 @@ let arrowMoveDown (m : model) (tlid : tlid) (mId : id option) : modification =
 
 
 let moveLeft (sizes : Selection.htmlSizing list) (id : id) : id option =
-  match List.filter (fun (s : Selection.htmlSizing) -> s.id = id) sizes with
+  match List.filter ~f:(fun (s : Selection.htmlSizing) -> s.id = id) sizes with
   | [this] ->
       sizes
-      |> List.filter (fun (s : Selection.htmlSizing) ->
+      |> List.filter ~f:(fun (s : Selection.htmlSizing) ->
              s.centerY = this.centerY && s.right <= this.left )
       (* Somewhat counterintuitively, we don't want the expression that ends
       closest to this one, as some expressions wrap other ones. For example,
       with x.y we want to get y, but the "." expression wraps it. So we actually
       want the blank that begins nearest to us. *)
-      |> List.minimumBy (fun (s : Selection.htmlSizing) -> this.left - s.left)
-      |> Option.withDefault this
+      |> List.minimumBy ~f:(fun (s : Selection.htmlSizing) ->
+             this.left - s.left )
+      |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ ->
@@ -102,17 +103,18 @@ let moveLeft (sizes : Selection.htmlSizing list) (id : id) : id option =
 
 
 let moveRight (sizes : Selection.htmlSizing list) (id : id) : id option =
-  match List.filter (fun (s : Selection.htmlSizing) -> s.id = id) sizes with
+  match List.filter ~f:(fun (s : Selection.htmlSizing) -> s.id = id) sizes with
   | [this] ->
       sizes
-      |> List.filter (fun (s : Selection.htmlSizing) ->
+      |> List.filter ~f:(fun (s : Selection.htmlSizing) ->
              s.centerY = this.centerY && this.right - charsize <= s.left )
       (* Somewhat counterintuitively, we don't want the expression that starts
       closest to this one, as some expressions wrap other ones. For example,
       with x.y we want to get x, but the "." expression wraps it. So we actually
       want the blank that ends nearest to us. *)
-      |> List.minimumBy (fun (s : Selection.htmlSizing) -> s.left - this.left)
-      |> Option.withDefault this
+      |> List.minimumBy ~f:(fun (s : Selection.htmlSizing) ->
+             s.left - this.left )
+      |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
   | _ ->

@@ -1,5 +1,7 @@
-let show_list (f : 'a -> string) (x : 'a list) : string =
-  "[" ^ String.concat "," (List.map f x) ^ "]"
+open Tc
+
+let show_list ~(f : 'a -> string) (x : 'a list) : string =
+  "[" ^ String.join ~sep:"," (List.map ~f x) ^ "]"
 
 
 let opaque msg fmt _ =
@@ -16,7 +18,7 @@ type exception_ =
   ; result : string option
   ; resultType : string option
   ; expected : string option
-  ; info : string GMap.String.t
+  ; info : string StrDict.t
   ; workarounds : string list }
 
 (* ---------------------- *)
@@ -270,7 +272,7 @@ and dval =
   | DCharacter of string
   | DStr of string
   | DList of dval list
-  | DObj of dval GMap.String.t
+  | DObj of dval StrDict.t
   | DIncomplete
   | DError of string
   | DBlock
@@ -317,15 +319,15 @@ and timerAction =
 (* ------------------- *)
 and traceID = string
 
-and lvDict = dval GMap.String.t
+and lvDict = dval StrDict.t
 
-and avDict = varName list GMap.String.t
+and avDict = varName list StrDict.t
 
-and inputValueDict = dval GMap.String.t
+and inputValueDict = dval StrDict.t
 
 and analysisResults = {liveValues : lvDict}
 
-and analyses = analysisResults GMap.String.t
+and analyses = analysisResults StrDict.t
 
 and functionResult =
   { fnName : string
@@ -338,9 +340,9 @@ and trace =
   ; input : inputValueDict
   ; functionResults : functionResult list }
 
-and traceIDs = traceID list GMap.String.t
+and traceIDs = traceID list StrDict.t
 
-and traces = trace list GMap.String.t
+and traces = trace list StrDict.t
 
 and fourOhFour =
   { space : string
@@ -682,7 +684,7 @@ and pick =
   | PickA
   | PickB
 
-and flagsVS = ffIsExpanded GMap.String.t
+and flagsVS = ffIsExpanded StrDict.t
 
 and syncState =
   { inFlight : bool
@@ -690,7 +692,7 @@ and syncState =
 
 and urlState = {lastPos : pos}
 
-and tLCursors = int GMap.String.t
+and tLCursors = int StrDict.t
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -698,7 +700,7 @@ and serializableEditor =
   ; timersEnabled : bool
   ; cursorState : cursorState
   ; lockedHandlers : tlid list
-  ; routingTableOpenDetails : Tc.StrSet.t }
+  ; routingTableOpenDetails : StrSet.t }
 
 (* Error Handling *)
 and darkError =
@@ -706,7 +708,7 @@ and darkError =
   ; showDetails : bool }
 
 (* Testing *)
-and testResult = (string, unit) Porting.Result.t
+and testResult = (string, unit) Result.t
 
 and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
@@ -755,7 +757,7 @@ and model =
   ; environment : string
   ; csrfToken : string
   ; latest404 : string (* string of timestamp *)
-  ; routingTableOpenDetails : Tc.StrSet.t }
+  ; routingTableOpenDetails : StrSet.t }
 [@@deriving show {with_path = false}]
 
 and rpcContext =

@@ -1,10 +1,12 @@
+open Tc
+
 let enabled = true
 
 let cache1m
     (keyFn : 'a -> 'b option) (expensiveFn : 'a -> 'msg Vdom.t) (arg1 : 'a) :
     'msg Vdom.t =
   let eFn () = expensiveFn arg1 in
-  let keyFn k = keyFn k |> Porting.Option.andThen Js.Json.stringifyAny in
+  let keyFn k = keyFn k |> Option.andThen ~f:Js.Json.stringifyAny in
   if not enabled
   then eFn ()
   else match keyFn arg1 with Some k -> Tea_html.lazy1 k eFn | _ -> eFn ()
@@ -20,9 +22,7 @@ let cache2m
     (expensiveFn : 'a -> 'b -> 'msg Vdom.t)
     (arg1 : 'a)
     (arg2 : 'b) : 'msg Vdom.t =
-  let keyFn k1 k2 =
-    keyFn k1 k2 |> Porting.Option.andThen Js.Json.stringifyAny
-  in
+  let keyFn k1 k2 = keyFn k1 k2 |> Option.andThen ~f:Js.Json.stringifyAny in
   let eFn () = expensiveFn arg1 arg2 in
   if not enabled
   then eFn ()
