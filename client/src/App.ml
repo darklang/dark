@@ -604,7 +604,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Some n )
         in
         let m2 =
-          {m with traces = newTraces; unfetchedTraces = GMap.String.empty}
+          {m with traces = newTraces; unfetchedTraces = Belt.Map.String.empty}
         in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
@@ -624,7 +624,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         if Some tlid = tlidOf m.cursorState
         then
           let unfetchedTraces =
-            GMap.String.update m.unfetchedTraces (deTLID tlid) (fun maybeOld ->
+            Belt.Map.String.update m.unfetchedTraces (deTLID tlid) (fun maybeOld ->
                 match maybeOld with
                 | None ->
                     Some [traceID]
