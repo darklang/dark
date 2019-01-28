@@ -138,6 +138,13 @@ module Window = struct
   end
 end
 
+module Base64 = struct
+  let encode (str : string) : string = Webapi.Base64.btoa str
+
+  let decode (b64 : string) : (string, string) Result.t =
+    try Ok (Webapi.Base64.atob b64) with e -> Error (Printexc.to_string e)
+end
+
 module Rollbar = struct
   external rollbarError :
     string -> string Js.nullable -> 'a -> 'a -> Js.Json.t -> unit

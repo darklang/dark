@@ -1,4 +1,4 @@
-open! Porting
+open Tc
 open Prelude
 open Types
 
@@ -59,7 +59,7 @@ let field_access_closes (m : model) : testResult =
       let ast =
         onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast
       in
-      if AST.allData ast |> List.filter P.isBlank = []
+      if AST.allData ast |> List.filter ~f:P.isBlank = []
       then pass
       else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
   | _ ->
@@ -106,7 +106,7 @@ let pipeline_let_equals (m : model) : testResult =
     | _ ->
         fail ~f:show_cursorState m.cursorState
   in
-  Result.map2 (fun () () -> ()) astR stateR
+  Result.map2 ~f:(fun () () -> ()) astR stateR
 
 
 let pipe_within_let (m : model) : testResult =
@@ -259,7 +259,7 @@ let case_sensitivity (m : model) : testResult =
   then fail ~f:(show_list ~f:show_toplevel) m.toplevels
   else
     m.toplevels
-    |> List.map (fun tl ->
+    |> List.map ~f:(fun tl ->
            match tl.data with
            | TLDB {dbName; cols} ->
              ( match (dbName, cols) with
@@ -304,11 +304,11 @@ let case_sensitivity (m : model) : testResult =
                                      ( F (_, Variable "var")
                                      , F (_, "cOlUmNnAmE") ) ) ) ) ] ) ->
                  Analysis.getCurrentLiveValue m tl.id id
-                 |> Option.map (fun lv ->
+                 |> Option.map ~f:(fun lv ->
                         if lv = DStr "some value"
                         then pass
                         else fail ~f:show_dval lv )
-                 |> Option.withDefault (fail ~f:show_expr h.ast)
+                 |> Option.withDefault ~default:(fail ~f:show_expr h.ast)
              | _ ->
                  fail ~f:show_expr h.ast )
            | other ->
@@ -372,7 +372,7 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
 
 let rename_db_fields (m : model) : testResult =
   m.toplevels
-  |> List.map (fun tl ->
+  |> List.map ~f:(fun tl ->
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
@@ -394,7 +394,7 @@ let rename_db_fields (m : model) : testResult =
 
 let rename_db_type (m : model) : testResult =
   m.toplevels
-  |> List.map (fun tl ->
+  |> List.map ~f:(fun tl ->
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
@@ -423,7 +423,7 @@ let rename_db_type (m : model) : testResult =
 
 let paste_right_number_of_blanks (m : model) : testResult =
   m.toplevels
-  |> List.map (fun tl ->
+  |> List.map ~f:(fun tl ->
          match tl.data with
          | TLHandler {ast} ->
            ( match ast with
@@ -699,7 +699,7 @@ let delete_db_col (m : model) : testResult =
 let cant_delete_locked_col (m : model) : testResult =
   let db =
     m.toplevels
-    |> List.filterMap (fun a ->
+    |> List.filterMap ~f:(fun a ->
            match a.data with TLDB data -> Some data | _ -> None )
     |> fun dbs ->
     if List.length dbs > 1
@@ -724,7 +724,7 @@ let result_ok_roundtrips (m : model) : testResult =
 
 
 let trigger (test_name : string) : integrationTestState =
-  let name = String.dropLeft 5 test_name in
+  let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
     ( match name with
     | "enter_changes_state" ->
