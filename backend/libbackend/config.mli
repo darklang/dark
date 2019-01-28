@@ -27,6 +27,8 @@ val allow_server_shutdown : bool
 
 val allow_test_routes : bool
 
+val create_accounts : bool
+
 (* DO NOT DISPATCH OFF THIS VALUE UNDER ANY CIRCUMSTANCES *)
 val env_display_name : string
 
