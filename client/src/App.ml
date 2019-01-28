@@ -1142,8 +1142,8 @@ let update_ (msg : msg) (m : model) : modification =
           { m with
             routingTableOpenDetails =
               ( if shouldOpen
-              then Tc.StrSet.add ~value:key m.routingTableOpenDetails
-              else Tc.StrSet.remove ~value:key m.routingTableOpenDetails ) } )
+              then StrSet.add ~value:key m.routingTableOpenDetails
+              else StrSet.remove ~value:key m.routingTableOpenDetails ) } )
   | CreateRouteHandler space ->
       let center = findCenter m in
       let action =

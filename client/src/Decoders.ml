@@ -56,8 +56,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; lockedHandlers =
       (try orNull (field "lockedHandlers" (list tlid)) [] j with _ -> [])
   ; routingTableOpenDetails =
-      ( try orNull (field "routingTableOpenDetails" tcStrSet) Tc.StrSet.empty j
-        with _ -> Tc.StrSet.empty ) }
+      ( try orNull (field "routingTableOpenDetails" tcStrSet) StrSet.empty j
+        with _ -> StrSet.empty ) }
 
 
 and cursorState j =
