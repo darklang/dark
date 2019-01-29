@@ -36,8 +36,6 @@ let asName (aci : autocompleteItem) : string =
       name
   | ACVariable name ->
       name
-  | ACExtra name ->
-      name
   | ACCommand command ->
       ":" ^ command.commandName
   | ACLiteral lit ->
@@ -81,6 +79,18 @@ let asName (aci : autocompleteItem) : string =
         "lambda"
     | KMatch ->
         "match" )
+  | ACHTTPModifier name ->
+      name
+  | ACCronTiming timing ->
+      timing
+  | ACEventSpace space ->
+      space
+  | ACDBColType tipe ->
+      tipe
+  | ACParamTipe tipe ->
+      tipe
+  | ACExtra _ ->
+      ""
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -95,8 +105,6 @@ let asTypeString (item : autocompleteItem) : string =
       "field"
   | ACVariable _ ->
       "variable"
-  | ACExtra _ ->
-      ""
   | ACCommand _ ->
       ""
   | ACConstructorName _ ->
@@ -114,6 +122,18 @@ let asTypeString (item : autocompleteItem) : string =
       ""
   | ACKeyword _ ->
       "keyword"
+  | ACHTTPModifier _ ->
+      "verb"
+  | ACCronTiming _ ->
+      ""
+  | ACEventSpace _ ->
+      "event space"
+  | ACDBColType _ ->
+      "field type"
+  | ACParamTipe _ ->
+      "param type"
+  | ACExtra _ ->
+      ""
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -523,14 +543,18 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       | EventModifier ->
         ( match space with
         | Some HSHTTP ->
-            ["GET"; "POST"; "PUT"; "DELETE"; "PATCH"]
+            [ ACHTTPModifier "GET"
+            ; ACHTTPModifier "POST"
+            ; ACHTTPModifier "PUT"
+            ; ACHTTPModifier "DELETE"
+            ; ACHTTPModifier "PATCH" ]
         | Some HSCron ->
-            [ "Daily"
-            ; "Weekly"
-            ; "Fortnightly"
-            ; "Every 1hr"
-            ; "Every 12hrs"
-            ; "Every 1min" ]
+            [ ACCronTiming "Daily"
+            ; ACCronTiming "Weekly"
+            ; ACCronTiming "Fortnightly"
+            ; ACCronTiming "Every 1hr"
+            ; ACCronTiming "Every 12hrs"
+            ; ACCronTiming "Every 1min" ]
         | Some HSOther ->
             []
         | Some HSEmpty ->
@@ -538,7 +562,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         | None ->
             [] )
       | EventSpace ->
-          ["HTTP"; "CRON"]
+          [ACEventSpace "HTTP"; ACEventSpace "CRON"]
       | DBColType ->
           let builtins =
             [ "String"
@@ -552,18 +576,18 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; "UUID" ]
           in
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
-          builtins @ compound
+          List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
       | ParamTipe ->
-          [ "Any"
-          ; "String"
-          ; "Int"
-          ; "Boolean"
-          ; "Float"
-          ; "Date"
-          ; "Obj"
-          ; "Block"
-          ; "Char"
-          ; "List" ]
+          [ ACParamTipe "Any"
+          ; ACParamTipe "String"
+          ; ACParamTipe "Int"
+          ; ACParamTipe "Boolean"
+          ; ACParamTipe "Float"
+          ; ACParamTipe "Date"
+          ; ACParamTipe "Obj"
+          ; ACParamTipe "Block"
+          ; ACParamTipe "Char"
+          ; ACParamTipe "List" ]
       | _ ->
           [] )
     | _ ->
@@ -585,7 +609,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       varnames @ constructors @ keywords @ functions
     else []
   in
-  let regular = List.map ~f:(fun x -> ACExtra x) extras @ exprs @ fields in
+  let regular = extras @ exprs @ fields in
   let commands = List.map ~f:(fun x -> ACCommand x) Commands.commands in
   let items = if a.isCommandMode then commands else regular in
   let matcher = function
@@ -801,6 +825,26 @@ let documentationForItem (aci : autocompleteItem) : string option =
         "a `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
   | ACOmniAction _ ->
       None
+  | ACHTTPModifier verb ->
+      Some ("make this handler match the " ^ verb ^ " HTTP verb")
+  | ACCronTiming timing ->
+      Some ("request this handler to trigger " ^ timing)
+  | ACEventSpace "HTTP" ->
+      Some "this handler will respond to HTTP requests"
+  | ACEventSpace "CRON" ->
+      Some "this handler will periodically trigger"
+  | ACEventSpace name ->
+      Some ("this handler will respond when events are emitted to " ^ name)
+  | ACDBColType tipe ->
+      Some ("this field will be a " ^ tipe)
+  | ACParamTipe tipe ->
+      if String.startsWith ~prefix:"[" tipe
+      then
+        let name =
+          tipe |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+        in
+        Some ("this parameter will be a " ^ name ^ " list")
+      else Some ("this parameter will be a " ^ tipe)
   | ACExtra _ ->
       None
 

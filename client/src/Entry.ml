@@ -417,7 +417,7 @@ let submitACItem
             else
               let varrefs = Refactor.renameDBReferences m oldName value in
               RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
-        | PDBColType ct, ACExtra value ->
+        | PDBColType ct, ACDBColType value ->
             let db1 = deOption "db" db in
             if B.asF ct = Some value
             then Select (tlid, Some id)
@@ -449,9 +449,13 @@ let submitACItem
             replace (PVarBind (B.newF varName))
         | PEventName _, ACExtra value ->
             replace (PEventName (B.newF value))
+        (* allow arbitrary HTTP modifiers *)
+        | PEventModifier _, ACHTTPModifier value
+        | PEventModifier _, ACCronTiming value
         | PEventModifier _, ACExtra value ->
             replace (PEventModifier (B.newF value))
-        | PEventSpace _, ACExtra value ->
+        (* allow arbitrary eventspaces *)
+        | PEventSpace _, ACEventSpace value | PEventSpace _, ACExtra value ->
             let h = deOption "maybeH - eventspace" maybeH in
             let new_ = B.newF value in
             let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
@@ -556,11 +560,11 @@ let submitACItem
                   (TL.asUserFunction newTL |> deOption "must be function")
               :: changedNames )
               newPD
-        | PConstructorName _, ACExtra value ->
+        | PConstructorName _, ACConstructorName value ->
             replace (PConstructorName (B.newF value))
         | PParamName _, ACExtra value ->
             replace (PParamName (B.newF value))
-        | PParamTipe _, ACExtra value ->
+        | PParamTipe _, ACParamTipe value ->
             replace (PParamTipe (B.newF (RT.str2tipe value)))
         | PPattern _, ACExtra value ->
           ( match parsePattern value with
