@@ -123,6 +123,8 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
         ; tlid }
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+  | Goto (page, _) ->
+      SetPage page
 
 
 type nextMove =
