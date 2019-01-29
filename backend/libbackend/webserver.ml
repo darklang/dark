@@ -312,25 +312,17 @@ let user_page_handler
       in
       push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
       let maybe_infer_headers resp_headers value =
-        if List.Assoc.mem
-             resp_headers
-             ~equal:String.Caseless.equal
-             "Content-Type"
-        then resp_headers
-        else
+        let inferred_ct =
           match value with
           | RTT.DObj _ | RTT.DList _ ->
-              List.Assoc.add
-                resp_headers
-                ~equal:( = )
-                "Content-Type"
-                "application/json; charset=utf-8"
+              "application/json; charset=utf-8"
           | _ ->
-              List.Assoc.add
-                resp_headers
-                ~equal:( = )
-                "Content-Type"
-                "text/plain; charset=utf-8"
+              "text/plain; charset=utf-8"
+        in
+        Header.add_unless_exists
+          (Header.add_unless_exists resp_headers "Content-Type" inferred_ct)
+          "Access-Control-Allow-Origin"
+          "*"
       in
       ( match result with
       | DIncomplete ->
@@ -341,26 +333,28 @@ let user_page_handler
       | RTT.DResp (Redirect url, value) ->
           S.respond_redirect (Uri.of_string url) ()
       | RTT.DResp (Response (code, resp_headers), value) ->
+          let resp_headers =
+            maybe_infer_headers (Header.of_list resp_headers) result
+          in
           let body =
-            if List.exists resp_headers ~f:(fun (name, value) ->
-                   String.lowercase name = "content-type"
-                   && ( String.is_prefix value ~prefix:"text/html"
-                      || String.is_prefix value ~prefix:"text/plain" ) )
+            if Header.get resp_headers "Content-Type"
+               |> Option.value_map
+                    ~f:(fun v ->
+                      String.is_prefix v ~prefix:"text/html"
+                      || String.is_prefix v ~prefix:"text/plain" )
+                    ~default:false
             then
-              Dval.to_human_repr value
               (* TODO: only pretty print for a webbrowser *)
+              Dval.to_human_repr value
             else Dval.unsafe_dval_to_pretty_json_string value
           in
-          let resp_headers = maybe_infer_headers resp_headers value in
           let status = Cohttp.Code.status_of_code code in
-          let resp_headers = Cohttp.Header.of_list ([cors] @ resp_headers) in
           respond ~resp_headers ~execution_id status body
       | _ ->
           let body = Dval.unsafe_dval_to_pretty_json_string result in
-          let ct_headers = maybe_infer_headers [] result in
-          let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
           (* for demonstrations sake, let's return 200 Okay when
-         * no HTTP response object is returned *)
+           * no HTTP response object is returned *)
+          let resp_headers = maybe_infer_headers (Header.init ()) result in
           respond ~resp_headers ~execution_id `OK body )
 
 
