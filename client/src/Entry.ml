@@ -417,11 +417,10 @@ let submitACItem
             then
               DisplayError
                 ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
-            else if List.member ~value:value (TL.allDBNames m.toplevels)
+            else if List.member ~value (TL.allDBNames m.toplevels)
             then DisplayError ("There is already a DB named " ^ value)
             else
-              let varrefs = Refactor.renameDBVarRefs m oldName value in
-              Debug.loG "renaming db" varrefs ;
+              let varrefs = Refactor.renameDBReferences m oldName value in
               RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
         | PDBColType ct, ACExtra value ->
             let db1 = deOption "db" db in

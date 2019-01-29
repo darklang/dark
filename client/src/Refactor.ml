@@ -422,21 +422,36 @@ let generateEmptyFunction (_ : unit) : userFunction =
   {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
 
 
-let renameDBVarRefs (m : model) (oldName : dBName) (newName : dBName) : op list
+let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) : op list
     =
-  let renameFnParams ast =
-    AST.replace (PVarBind (B.newF oldName)) (PVarBind (B.newF newName)) ast
+  let oldPd id = PExpr (F (id, Variable oldName))
+  and newPd () = PExpr (B.newF (Variable newName)) in
+  let transform ast =
+    let usedInExprs = AST.uses oldName ast in
+    if List.isEmpty usedInExprs
+    then ast
+    else
+      let pds =
+        List.filterMap
+          ~f:(fun e ->
+            match e with F (id, Variable _) -> Some (oldPd id) | _ -> None )
+          usedInExprs
+      in
+      List.foldr
+        ~f:(fun pd newAST -> AST.replace pd (newPd ()) newAST)
+        ~init:ast
+        pds
   in
   m.toplevels
   |> List.filterMap ~f:(fun tl ->
          match tl.data with
          | TLHandler h ->
-             let newAST = renameFnParams h.ast in
+             let newAST = transform h.ast in
              if newAST <> h.ast
              then Some (SetHandler (tl.id, tl.pos, {h with ast = newAST}))
              else None
          | TLFunc f ->
-             let newAST = renameFnParams f.ufAST in
+             let newAST = transform f.ufAST in
              if newAST <> f.ufAST
              then Some (SetFunction {f with ufAST = newAST})
              else None
