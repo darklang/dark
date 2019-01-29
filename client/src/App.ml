@@ -654,6 +654,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with unlockedDBs}, Cmd.none)
     | Set404s (f404s, latest404) ->
         ({m with f404s; latest404}, Cmd.none)
+    | Delete404 f404 ->
+        ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
     | Append404s (f404s, latest404) ->
         let new404s =
           f404s @ m.f404s
@@ -1121,19 +1123,23 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
-  | CreateHandlerFrom404 {space; path; modifier} ->
+  | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
       let center = findCenter m in
-      let anId = gtlid () in
+      let tlid = gtlid () in
       let aPos = center in
+      let ast = B.new_ () in
       let aHandler =
-        { ast = B.new_ ()
+        { ast
         ; spec =
             { module_ = B.newF space
             ; name = B.newF path
             ; modifier = B.newF modifier }
-        ; tlid = anId }
+        ; tlid }
       in
-      RPC ([SetHandler (anId, aPos, aHandler)], FocusNothing)
+      Many
+        [ RPC
+            ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
+        ; Delete404 fof ]
   | Delete404 fof ->
       MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
