@@ -422,8 +422,8 @@ let generateEmptyFunction (_ : unit) : userFunction =
   {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
 
 
-let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) : op list
-    =
+let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
+    op list =
   let oldPd id = PExpr (F (id, Variable oldName))
   and newPd () = PExpr (B.newF (Variable newName)) in
   let transform ast =
