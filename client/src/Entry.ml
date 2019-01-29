@@ -469,7 +469,7 @@ let submitACItem
                   replacement
             in
             saveH {h with spec = replacement2} (PEventSpace new_)
-        | PField _, ACField fieldname ->
+        | PField _, ACExtra fieldname | PField _, ACField fieldname ->
             let fieldname =
               if String.startsWith ~prefix:"." fieldname
               then String.dropLeft ~count:1 fieldname
