@@ -624,7 +624,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         if Some tlid = tlidOf m.cursorState
         then
           let unfetchedTraces =
-            Belt.Map.String.update m.unfetchedTraces (deTLID tlid) (fun maybeOld ->
+            Belt.Map.String.update
+              m.unfetchedTraces
+              (deTLID tlid)
+              (fun maybeOld ->
                 match maybeOld with
                 | None ->
                     Some [traceID]
@@ -1075,14 +1078,14 @@ let update_ (msg : msg) (m : model) : modification =
           m.toplevels
       in
       let maybeUpdateTraces =
-        if params.ignoreTraces then [] else [UpdateTraces newTraces]
+        if params.ignoreTraces then NoChange else UpdateTraces newTraces
       in
       Many
-        ( [TweakModel Sync.markResponseInModel]
-        @ maybeUpdateTraces
-        @ [ Append404s (f404s, ts)
-          ; SetUnlockedDBs unlockedDBs
-          ; RequestAnalysis analysisTLs ] )
+        [ TweakModel Sync.markResponseInModel
+        ; maybeUpdateTraces
+        ; Append404s (f404s, ts)
+        ; SetUnlockedDBs unlockedDBs
+        ; RequestAnalysis analysisTLs ]
   | NewTracePush (tlid, traceID) ->
       if VariantTesting.variantIsActive m PushAnalysis
       then AddUnfetchedTrace (tlid, traceID)
@@ -1127,7 +1130,8 @@ let update_ (msg : msg) (m : model) : modification =
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-        GetAnalysisRPC (VariantTesting.variantIsActive m PushAnalysis)
+        let ignorePushed = VariantTesting.variantIsActive m PushAnalysis in
+        GetAnalysisRPC ignorePushed
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
   | Initialization ->
