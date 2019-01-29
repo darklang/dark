@@ -129,7 +129,7 @@ let asTypeString (item : autocompleteItem) : string =
   | ACEventSpace _ ->
       "event space"
   | ACDBColType _ ->
-      "field type"
+      "type"
   | ACParamTipe _ ->
       "param type"
   | ACExtra _ ->
