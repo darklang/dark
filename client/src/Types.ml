@@ -464,7 +464,6 @@ and omniAction =
   | NewHTTPHandler of string option
   | NewEventSpace of string
 
-(* | NewCronHandler of string option *)
 and autocompleteItem =
   | ACFunction of function_
   | ACConstructorName of string
