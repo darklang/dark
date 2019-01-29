@@ -522,6 +522,10 @@ setTimeout(function(){
       var event = new CustomEvent('newTracePush', {detail: data});
       document.dispatchEvent(event);
     });
+    pusherChannel.bind('new_404', data => {
+      var event = new CustomEvent('new404Push', {detail: data});
+      document.dispatchEvent(event);
+    });
   }
 }, 1)
 // ---------------------------

@@ -402,11 +402,13 @@ and executeFunctionRPCParams =
 and getAnalysisParams =
   { tlids : tlid list
   ; latest404 : string
+  ; ignore404s : bool
   ; ignoreTraces : bool
   (*
-   * Whether we should ignore the traces in the analysis result. Temporary
-   * wart used when the PushAnalysis variant is true, since in that case we
-   * are getting new traces pushed directly via NewTracePush instead.
+   * Whether we should ignore the 404s and traces in the analysis result.
+   * Temporary warts used when the PushAnalysis variant is true, since in that
+   * case we are getting new 404s and traces pushed directly via New404Push and
+   * NewTracePush instead.
    *)
   }
 
@@ -585,7 +587,7 @@ and modification =
   | EnterWithOffset of entryCursor * int
   | RPCFull of (rpcParams * focus)
   | RPC of (op list * focus)
-  | GetAnalysisRPC of bool
+  | GetAnalysisRPC of (bool * bool)
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -639,6 +641,7 @@ and msg =
       (getAnalysisParams * (getAnalysisResult, httpError) Tea.Result.t)
       [@printer opaque "GetAnalysisRPCCallback"]
   | NewTracePush of (tlid * traceID)
+  | New404Push of fourOhFour
   | GetDelete404RPCCallback of
       (fourOhFour list * string, httpError) Tea.Result.t
       [@printer opaque "GetDelete404RPCCallback"]
