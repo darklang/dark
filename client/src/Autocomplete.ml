@@ -817,8 +817,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("the '" ^ fieldname ^ "' field of the object")
   | ACVariable var ->
       if String.isCapitalized var
-      then Some ("the variable '" ^ var ^ "'")
-      else Some ("the database '" ^ var ^ "'")
+      then Some ("the database '" ^ var ^ "'")
+      else Some ("the variable '" ^ var ^ "'")
   | ACLiteral lit ->
       Some ("the literal value '" ^ lit ^ "'")
   | ACKeyword KLet ->
