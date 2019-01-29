@@ -455,7 +455,7 @@ let submitACItem
         | PEventModifier _, ACExtra value ->
             replace (PEventModifier (B.newF value))
         (* allow arbitrary eventspaces *)
-        | PEventSpace _, ACEventSpace value | PEventSpace _, ACExtra value ->
+        | PEventSpace _, ACEventSpace value ->
             let h = deOption "maybeH - eventspace" maybeH in
             let new_ = B.newF value in
             let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
@@ -469,9 +469,7 @@ let submitACItem
                   replacement
             in
             saveH {h with spec = replacement2} (PEventSpace new_)
-        | PField _, ACField fieldname
-        (* allow arbitrary fieldnames *)
-        | PField _, ACExtra fieldname ->
+        | PField _, ACField fieldname ->
             let fieldname =
               if String.startsWith ~prefix:"." fieldname
               then String.dropLeft ~count:1 fieldname

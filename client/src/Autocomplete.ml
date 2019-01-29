@@ -470,7 +470,9 @@ let toDynamicItems target (q : string) : autocompleteItem list =
   | Some (_, PExpr _) ->
       Option.values [qLiteral q]
   | Some (_, PField _) ->
-      ACField q
+      [ACField q]
+  | Some (_, PEventSpace _) ->
+      [ACEventSpace (String.toUpper q)]
   | _ ->
       []
 
