@@ -472,7 +472,7 @@ let toDynamicItems target (q : string) : autocompleteItem list =
   | Some (_, PField _) ->
       [ACField q]
   | Some (_, PEventSpace _) ->
-      [ACEventSpace (String.toUpper q)]
+      if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | _ ->
       []
 
