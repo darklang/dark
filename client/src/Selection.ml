@@ -374,26 +374,13 @@ let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
   |> Option.withDefault ~default:NoChange
 
-
 (* ------------------------------- *)
 (* misc *)
 (* ------------------------------- *)
 let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   match mId with
   | None ->
-      let tl = TL.getTL m tlid in
-      ( match tl.data with
-      | TLHandler _ ->
-          if ViewUtils.isLocked tlid m
-          then NoChange
-          else
-            Many
-              [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
-      | TLDB _ ->
-          Many
-            [RemoveToplevel tl; RPC ([DeleteTL tlid], FocusNothing); Deselect]
-      | TLFunc _ ->
-          DisplayError "Cannot delete functions!" )
+    NoChange
   | Some id ->
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in
