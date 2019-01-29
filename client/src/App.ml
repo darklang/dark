@@ -871,6 +871,9 @@ let update_ (msg : msg) (m : model) : modification =
         | _ ->
             NoChange
       else NoChange
+  | ToplevelDelete tlid ->
+    let tl = TL.getTL m tlid in
+    Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusNothing); Deselect]
   | BlankOrClick (targetTLID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
      * rather than approximating *)

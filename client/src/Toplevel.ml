@@ -417,9 +417,6 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       tl
   (* do nothing for now *)
 
-let deleteTL (tl : toplevel) : modification = 
-  Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusNothing); Deselect]
-
 let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in
   replace p replacement tl
