@@ -340,6 +340,14 @@ let result_to_response
       respond ~resp_headers ~execution_id `OK body
 
 
+let push_new_404
+    ~(execution_id : Types.id)
+    ~(canvas_id : Uuidm.t)
+    (event : Stored_event.event_desc) =
+  let payload = Analysis.to_new_404_frontend event in
+  push ~execution_id ~canvas_id ~event:"new_404" payload
+
+
 let user_page_handler
     ~(execution_id : Types.id)
     ~(canvas : string)
@@ -366,12 +374,11 @@ let user_page_handler
   | [] when String.Caseless.equal verb "OPTIONS" ->
       options_handler ~execution_id !c req
   | [] ->
+      let event = ("HTTP", Uri.path uri, verb) in
       PReq.from_request headers query body
       |> PReq.to_dval
-      |> Stored_event.store_event
-           ~trace_id
-           ~canvas_id
-           ("HTTP", Uri.path uri, verb) ;
+      |> Stored_event.store_event ~trace_id ~canvas_id event ;
+      push_new_404 ~execution_id ~canvas_id event ;
       let resp_headers = Cohttp.Header.of_list [cors] in
       respond
         ~resp_headers
