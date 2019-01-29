@@ -482,7 +482,7 @@ let withDynamicItems
     autocompleteItem list =
   let new_ = toDynamicItems target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
-  new_ @ withoutDynamic
+  withoutDynamic @ new_
 
 
 let paramFor (m : model) (tlid : tlid) (id : id) : parameter option =
