@@ -1066,8 +1066,7 @@ let update_ (msg : msg) (m : model) : modification =
       if VariantTesting.variantIsActive m PushAnalysis
       then AddUnfetchedTrace (tlid, traceID)
       else NoChange
-  | New404Push f404 ->
-      let ts = "2019-01-29T01:49:25Z" (* TODO *) in
+  | New404Push (f404, ts) ->
       Append404s ([f404], ts)
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)

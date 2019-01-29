@@ -27,7 +27,9 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
               let desc = Event_queue.to_event_desc event in
               let trace_id = Util.create_uuid () in
               let canvas_id = !c.id in
-              Stored_event.store_event ~trace_id ~canvas_id desc event.value ;
+              let _ =
+                Stored_event.store_event ~trace_id ~canvas_id desc event.value
+              in
               let h =
                 !c.handlers
                 |> List.filter_map ~f:TL.as_handler
