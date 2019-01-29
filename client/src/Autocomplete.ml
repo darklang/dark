@@ -766,10 +766,42 @@ let appendQuery (str : string) (a : autocomplete) : autocomplete =
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | ACFunction f ->
-      if String.length f.fnDescription <> 0 then Some f.fnDescription else None
+      if String.length f.fnDescription <> 0
+      then Some f.fnDescription
+      else Some "function call with no description"
   | ACCommand c ->
       Some (c.doc ^ " (" ^ c.shortcut ^ ")")
-  | _ ->
+  | ACConstructorName "Just" ->
+      Some "An Option containing a value"
+  | ACConstructorName "Nothing" ->
+      Some "An Option representing Nothing"
+  | ACConstructorName "Ok" ->
+      Some "A successful Result containing a value"
+  | ACConstructorName "Error" ->
+      Some "A Result representing a failure"
+  | ACConstructorName name ->
+      Some ("TODO: this should never occur: the constructor " ^ name)
+  | ACField fieldname ->
+      Some ("the '" ^ fieldname ^ "' field of the object")
+  | ACVariable var ->
+      if String.isCapitalized var
+      then Some ("the variable '" ^ var ^ "'")
+      else Some ("the database '" ^ var ^ "'")
+  | ACLiteral lit ->
+      Some ("the literal value '" ^ lit ^ "'")
+  | ACKeyword KLet ->
+      Some "a `let` expression allows you assign a variable to an expression"
+  | ACKeyword KIf ->
+      Some "an `if` expression allows you to branch on a boolean condition"
+  | ACKeyword KLambda ->
+      Some
+        "a `lambda` creates an anonymous function. This is most often used for iterating through lists"
+  | ACKeyword KMatch ->
+      Some
+        "a `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+  | ACOmniAction _ ->
+      None
+  | ACExtra _ ->
       None
 
 
