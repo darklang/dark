@@ -587,6 +587,7 @@ and msg =
   (* but by the time we use it the proper node will be changed *)
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
+  | ToplevelDelete of tlid
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
   | EntrySubmitMsg
