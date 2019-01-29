@@ -548,6 +548,7 @@ and modification =
   | SetUnlockedDBs of tlid list
   | Set404s of fourOhFour list * string
   | Append404s of fourOhFour list * string
+  | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
   | RPCFull of (rpcParams * focus)
