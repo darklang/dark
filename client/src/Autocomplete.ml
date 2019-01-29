@@ -455,24 +455,30 @@ let isDynamicItem (item : autocompleteItem) : bool =
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let toDynamicItems (isOmni : bool) (q : string) : autocompleteItem list =
-  if isOmni
-  then
-    let omnis =
-      if q = "" (* TODO: allow empty DB names *)
-      then [qHTTPHandler q; qFunction q; qHandler q]
-      else
-        [qHTTPHandler q; qFunction q; qHandler q]
-        @ Option.values [qNewDB q; qEventSpace q]
-    in
-    List.map ~f:(fun o -> ACOmniAction o) omnis
-  else Option.values [qLiteral q]
+let toDynamicItems target (q : string) : autocompleteItem list =
+  match target with
+  | None ->
+      (* omnicompletion *)
+      let omnis =
+        if q = "" (* TODO: allow empty DB names *)
+        then [qHTTPHandler q; qFunction q; qHandler q]
+        else
+          [qHTTPHandler q; qFunction q; qHandler q]
+          @ Option.values [qNewDB q; qEventSpace q]
+      in
+      List.map ~f:(fun o -> ACOmniAction o) omnis
+  | Some (_, PExpr _) ->
+      Option.values [qLiteral q]
+  | Some (_, PField _) ->
+      ACField q
+  | _ ->
+      []
 
 
 let withDynamicItems
     (target : target option) (query : string) (acis : autocompleteItem list) :
     autocompleteItem list =
-  let new_ = toDynamicItems (target = None) query in
+  let new_ = toDynamicItems target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   new_ @ withoutDynamic
 
