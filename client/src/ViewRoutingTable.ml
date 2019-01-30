@@ -117,7 +117,7 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
   { count = List.length dbs
   ; name = "DBs"
   ; classname = "dbs"
-  ; plusButton = None
+  ; plusButton = Some CreateDBTable
   ; entries }
 
 
