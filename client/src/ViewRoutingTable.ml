@@ -100,12 +100,12 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
     tls
     |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
     |> List.map ~f:(fun tl -> (tl.pos, TL.asDB tl |> deOption "asDB"))
-    |> List.sortBy ~f:(fun (_, db) -> db.dbName)
+    |> List.sortBy ~f:(fun (_, db) -> B.valueWithDefault "" db.dbName)
   in
   let entries =
     List.map dbs ~f:(fun (pos, db) ->
         Entry
-          { name = db.dbName
+          { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = None
           ; destination = Some (Toplevels pos)

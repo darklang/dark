@@ -138,6 +138,8 @@ let colnameid3 = Int63.of_int 15
 
 let coltypeid3 = Int63.of_int 16
 
+let nameid = Int63.of_int 17
+
 let pos = {x = 0; y = 0}
 
 let execution_id = Int63.of_int 6542
@@ -1731,6 +1733,34 @@ let t_db_getAll_v2_works () =
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
+let t_db_create_with_orblank_name () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid) ]
+  in
+  let _, state, _ = test_execution_data ops in
+  AT.check AT.bool "database is created" true (state.dbs <> [])
+
+
+let t_db_rename () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "ElmCode")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.RenameDBname (dbid, "BsCode") ]
+  in
+  let _, state, _ = test_execution_data ops in
+  match List.hd state.dbs with
+  | Some db ->
+      let newname =
+        match db.name with Filled (_, name) -> name | Blank _ -> ""
+      in
+      AT.check AT.string "database rename success" "BsCode" newname
+  | None ->
+      AT.check AT.bool "fail to rename database" true false
+
+
 let t_dark_internal_fns_are_internal () =
   let ast = "(DarkInternal::checkAccess)" in
   let check_access canvas_name =
@@ -2157,7 +2187,11 @@ let suite =
     , t_unicode_string_length_works_with_emojis )
   ; ( "Unicode_string.regex_replace_works_with_emojis"
     , `Quick
-    , t_unicode_string_regex_replace_works_with_emojis ) ]
+    , t_unicode_string_regex_replace_works_with_emojis )
+  ; ( "Can create new DB with Op CreateDBWithBlankOr"
+    , `Quick
+    , t_db_create_with_orblank_name )
+  ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename) ]
 
 
 let () =

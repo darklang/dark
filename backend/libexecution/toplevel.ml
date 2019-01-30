@@ -219,6 +219,6 @@ let to_string (tl : toplevel) : string =
       ^ expr_to_string ~indent:0 h.ast
   | DB db ->
       "DB: "
-      ^ db.name
+      ^ bs db.name
       ^ "\n  "
       ^ (db.cols |> List.map ~f:col_to_string |> String.concat ~sep:"\n  ")

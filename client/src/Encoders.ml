@@ -122,6 +122,8 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
       ev "PField" [blankOr string field]
   | PKey key ->
       ev "PKey" [blankOr string key]
+  | PDBName name ->
+      ev "PDBName" [blankOr string name]
   | PDBColName colname ->
       ev "PDBColName" [blankOr string colname]
   | PDBColType coltype ->
@@ -190,6 +192,10 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | DeleteDBCol (tlid, _) ->
       tlid
+  | RenameDBname (tlid, _) ->
+      tlid
+  | CreateDBWithBlankOr (tlid, _, _, _) ->
+      tlid
 
 
 and ops (ops : Types.op list) : Js.Json.t =
@@ -255,7 +261,7 @@ and dbMigration (dbm : Types.dBMigration) : Js.Json.t =
 and db (db : Types.dB) : Js.Json.t =
   object_
     [ ("tlid", tlid db.dbTLID)
-    ; ("name", string db.dbName)
+    ; ("name", blankOr string db.dbName)
     ; ("cols", colList db.cols)
     ; ("version", int db.version)
     ; ("old_migrations", list dbMigration db.oldMigrations)
@@ -315,6 +321,10 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
       ev "SetExpr" [tlid t; id i; expr e]
+  | RenameDBname (t, name) ->
+      ev "RenameDBname" [tlid t; string name]
+  | CreateDBWithBlankOr (t, p, i, name) ->
+      ev "CreateDBWithBlankOr" [tlid t; pos p; id i; string name]
 
 
 and rpcParams (params : Types.rpcParams) : Js.Json.t =

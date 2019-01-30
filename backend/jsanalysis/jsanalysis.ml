@@ -36,7 +36,7 @@ type our_db_migration =
 
 type our_db =
   { tlid : tlid
-  ; name : string
+  ; name : string or_blank
   ; cols : our_col list
   ; version : int
   ; old_migrations : our_db_migration list

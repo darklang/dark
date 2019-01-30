@@ -16,7 +16,8 @@ open Db
 let current_dark_version = 0
 
 let find_db (tables : db list) (table_name : string) : db option =
-  List.find tables ~f:(fun (d : db) -> d.name = String.capitalize table_name)
+  List.find tables ~f:(fun (d : db) ->
+      Ast.blank_to_string d.name = String.capitalize table_name )
 
 
 let find_db_exn (tables : db list) (table_name : string) : db =
@@ -417,7 +418,9 @@ and set ~state ~magic ~upsert (db : db) (key : string) (vals : dval_map) :
 
 and update ~state db (vals : dval_map) =
   (* deprecated: unneccessary in new world *)
-  let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
+  let id =
+    DvalMap.find_exn vals "id" |> dv_to_id (Ast.blank_to_string db.name)
+  in
   let removed = Map.remove vals "id" in
   let merged =
     type_check_and_upsert_dependents ~state ~magic:true db removed
@@ -592,11 +595,25 @@ let unlocked canvas_id account_id (dbs : db list) : db list =
 
 let create (name : string) (id : tlid) : db =
   { tlid = id
-  ; name
+  ; name = Filled (id, name)
   ; cols = []
   ; version = 0
   ; old_migrations = []
   ; active_migration = None }
+
+
+let create2 (name : string) (tlid : tlid) (name_id : id) : db =
+  { tlid
+  ; name = Filled (name_id, name)
+  ; cols = []
+  ; version = 0
+  ; old_migrations = []
+  ; active_migration = None }
+
+
+let rename_db (n : string) (db : db) : db =
+  let id = match db.name with Blank i -> i | Filled (i, _) -> i in
+  {db with name = Filled (id, n)}
 
 
 let add_col colid typeid (db : db) =
