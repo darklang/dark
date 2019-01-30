@@ -284,6 +284,7 @@ let deletedCategory (m : model) : category =
   ; classname = "deleted"
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
+
 let deletedUserFunctionsEntries (m : model) : category =
   let fns =
     m.deletedUserFunctions
