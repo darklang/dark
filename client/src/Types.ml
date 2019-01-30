@@ -464,17 +464,21 @@ and omniAction =
   | NewHTTPHandler of string option
   | NewEventSpace of string
 
-(* | NewCronHandler of string option *)
 and autocompleteItem =
   | ACFunction of function_
   | ACConstructorName of string
   | ACField of string
   | ACVariable of varName
-  | ACExtra of string
   | ACLiteral of literal
   | ACOmniAction of omniAction
   | ACKeyword of keyword
   | ACCommand of command
+  | ACHTTPModifier of string
+  | ACCronTiming of string
+  | ACEventSpace of string
+  | ACDBColType of string
+  | ACParamTipe of string
+  | ACExtra of string
 
 and target = tlid * pointerData
 

@@ -36,8 +36,6 @@ let asName (aci : autocompleteItem) : string =
       name
   | ACVariable name ->
       name
-  | ACExtra name ->
-      name
   | ACCommand command ->
       ":" ^ command.commandName
   | ACLiteral lit ->
@@ -81,6 +79,18 @@ let asName (aci : autocompleteItem) : string =
         "lambda"
     | KMatch ->
         "match" )
+  | ACHTTPModifier name ->
+      name
+  | ACCronTiming timing ->
+      timing
+  | ACEventSpace space ->
+      space
+  | ACDBColType tipe ->
+      tipe
+  | ACParamTipe tipe ->
+      tipe
+  | ACExtra _ ->
+      ""
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -95,8 +105,6 @@ let asTypeString (item : autocompleteItem) : string =
       "field"
   | ACVariable _ ->
       "variable"
-  | ACExtra _ ->
-      ""
   | ACCommand _ ->
       ""
   | ACConstructorName _ ->
@@ -114,6 +122,18 @@ let asTypeString (item : autocompleteItem) : string =
       ""
   | ACKeyword _ ->
       "keyword"
+  | ACHTTPModifier _ ->
+      "method"
+  | ACCronTiming _ ->
+      "interval"
+  | ACEventSpace _ ->
+      "event space"
+  | ACDBColType _ ->
+      "type"
+  | ACParamTipe _ ->
+      "param type"
+  | ACExtra _ ->
+      ""
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -435,26 +455,34 @@ let isDynamicItem (item : autocompleteItem) : bool =
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let toDynamicItems (isOmni : bool) (q : string) : autocompleteItem list =
-  if isOmni
-  then
-    let omnis =
-      if q = "" (* TODO: allow empty DB names *)
-      then [qHTTPHandler q; qFunction q; qHandler q]
-      else
-        [qHTTPHandler q; qFunction q; qHandler q]
-        @ Option.values [qNewDB q; qEventSpace q]
-    in
-    List.map ~f:(fun o -> ACOmniAction o) omnis
-  else Option.values [qLiteral q]
+let toDynamicItems target (q : string) : autocompleteItem list =
+  match target with
+  | None ->
+      (* omnicompletion *)
+      let omnis =
+        if q = "" (* TODO: allow empty DB names *)
+        then [qHTTPHandler q; qFunction q; qHandler q]
+        else
+          [qHTTPHandler q; qFunction q; qHandler q]
+          @ Option.values [qNewDB q; qEventSpace q]
+      in
+      List.map ~f:(fun o -> ACOmniAction o) omnis
+  | Some (_, PExpr _) ->
+      Option.values [qLiteral q]
+  | Some (_, PField _) ->
+      [ACField q]
+  | Some (_, PEventSpace _) ->
+      if q == "" then [] else [ACEventSpace (String.toUpper q)]
+  | _ ->
+      []
 
 
 let withDynamicItems
     (target : target option) (query : string) (acis : autocompleteItem list) :
     autocompleteItem list =
-  let new_ = toDynamicItems (target = None) query in
+  let new_ = toDynamicItems target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
-  new_ @ withoutDynamic
+  withoutDynamic @ new_
 
 
 let paramFor (m : model) (tlid : tlid) (id : id) : parameter option =
@@ -523,14 +551,18 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       | EventModifier ->
         ( match space with
         | Some HSHTTP ->
-            ["GET"; "POST"; "PUT"; "DELETE"; "PATCH"]
+            [ ACHTTPModifier "GET"
+            ; ACHTTPModifier "POST"
+            ; ACHTTPModifier "PUT"
+            ; ACHTTPModifier "DELETE"
+            ; ACHTTPModifier "PATCH" ]
         | Some HSCron ->
-            [ "Daily"
-            ; "Weekly"
-            ; "Fortnightly"
-            ; "Every 1hr"
-            ; "Every 12hrs"
-            ; "Every 1min" ]
+            [ ACCronTiming "Daily"
+            ; ACCronTiming "Weekly"
+            ; ACCronTiming "Fortnightly"
+            ; ACCronTiming "Every 1hr"
+            ; ACCronTiming "Every 12hrs"
+            ; ACCronTiming "Every 1min" ]
         | Some HSOther ->
             []
         | Some HSEmpty ->
@@ -538,7 +570,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         | None ->
             [] )
       | EventSpace ->
-          ["HTTP"; "CRON"]
+          [ACEventSpace "HTTP"; ACEventSpace "CRON"]
       | DBColType ->
           let builtins =
             [ "String"
@@ -552,18 +584,18 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; "UUID" ]
           in
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
-          builtins @ compound
+          List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
       | ParamTipe ->
-          [ "Any"
-          ; "String"
-          ; "Int"
-          ; "Boolean"
-          ; "Float"
-          ; "Date"
-          ; "Obj"
-          ; "Block"
-          ; "Char"
-          ; "List" ]
+          [ ACParamTipe "Any"
+          ; ACParamTipe "String"
+          ; ACParamTipe "Int"
+          ; ACParamTipe "Boolean"
+          ; ACParamTipe "Float"
+          ; ACParamTipe "Date"
+          ; ACParamTipe "Obj"
+          ; ACParamTipe "Block"
+          ; ACParamTipe "Char"
+          ; ACParamTipe "List" ]
       | _ ->
           [] )
     | _ ->
@@ -585,7 +617,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       varnames @ constructors @ keywords @ functions
     else []
   in
-  let regular = List.map ~f:(fun x -> ACExtra x) extras @ exprs @ fields in
+  let regular = extras @ exprs @ fields in
   let commands = List.map ~f:(fun x -> ACCommand x) Commands.commands in
   let items = if a.isCommandMode then commands else regular in
   let matcher = function
@@ -766,10 +798,62 @@ let appendQuery (str : string) (a : autocomplete) : autocomplete =
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | ACFunction f ->
-      if String.length f.fnDescription <> 0 then Some f.fnDescription else None
+      if String.length f.fnDescription <> 0
+      then Some f.fnDescription
+      else Some "function call with no description"
   | ACCommand c ->
       Some (c.doc ^ " (" ^ c.shortcut ^ ")")
-  | _ ->
+  | ACConstructorName "Just" ->
+      Some "An Option containing a value"
+  | ACConstructorName "Nothing" ->
+      Some "An Option representing Nothing"
+  | ACConstructorName "Ok" ->
+      Some "A successful Result containing a value"
+  | ACConstructorName "Error" ->
+      Some "A Result representing a failure"
+  | ACConstructorName name ->
+      Some ("TODO: this should never occur: the constructor " ^ name)
+  | ACField fieldname ->
+      Some ("The '" ^ fieldname ^ "' field of the object")
+  | ACVariable var ->
+      if String.isCapitalized var
+      then Some ("The database '" ^ var ^ "'")
+      else Some ("The variable '" ^ var ^ "'")
+  | ACLiteral lit ->
+      Some ("the literal value '" ^ lit ^ "'")
+  | ACKeyword KLet ->
+      Some "A `let` expression allows you assign a variable to an expression"
+  | ACKeyword KIf ->
+      Some "An `if` expression allows you to branch on a boolean condition"
+  | ACKeyword KLambda ->
+      Some
+        "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
+  | ACKeyword KMatch ->
+      Some
+        "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+  | ACOmniAction _ ->
+      None
+  | ACHTTPModifier verb ->
+      Some ("Make this handler match the " ^ verb ^ " HTTP verb")
+  | ACCronTiming timing ->
+      Some ("Request this handler to trigger " ^ timing)
+  | ACEventSpace "HTTP" ->
+      Some "This handler will respond to HTTP requests"
+  | ACEventSpace "CRON" ->
+      Some "This handler will periodically trigger"
+  | ACEventSpace name ->
+      Some ("This handler will respond when events are emitted to " ^ name)
+  | ACDBColType tipe ->
+      Some ("This field will be a " ^ tipe)
+  | ACParamTipe tipe ->
+      if String.startsWith ~prefix:"[" tipe
+      then
+        let name =
+          tipe |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+        in
+        Some ("This parameter will be a " ^ name ^ " list")
+      else Some ("This parameter will be a " ^ tipe)
+  | ACExtra _ ->
       None
 
 

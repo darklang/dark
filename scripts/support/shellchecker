@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC1091
 . ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
 
 if [[ "$#" -eq 1 ]]; then
   echo "shellcheck $1"
-  shellcheck -e SC2044 -e SC2086 "$1"
+  shellcheck -x -e SC2044 -e SC2086 "$1"
 else
   echo "shellcheck bash files ..."
   # In the scripts/ directory,

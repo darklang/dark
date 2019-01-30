@@ -351,12 +351,10 @@ test('ellen_hello_world_demo', async t => {
 
     // space
     .typeText("#entry-box", "H")
-    .pressKey("down")
     .pressKey("enter")
 
     // verb
     .typeText("#entry-box", "g")
-    .pressKey("down")
     .pressKey("enter")
 
     // string
