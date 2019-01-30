@@ -15,13 +15,21 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some FluidInputModel
     | "stub" ->
         Some StubVariant
+    | "push" ->
+        Some PushAnalysis
     | _ ->
         None )
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with StubVariant -> "stub" | FluidInputModel -> "fluid"
+    match vt with
+    | StubVariant ->
+        "stub"
+    | FluidInputModel ->
+        "fluid"
+    | PushAnalysis ->
+        "push"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
                             you missed a variant *)
