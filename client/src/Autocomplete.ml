@@ -69,7 +69,7 @@ let asName (aci : autocompleteItem) : string =
           "New HTTP handler" )
     | NewEventSpace name ->
         "New handler in the " ^ name ^ " space"
-    | Goto (_, desc) ->
+    | Goto (_, _, desc) ->
         desc )
   | ACConstructorName name ->
       let arityOneConstructors = ["Just"; "Ok"; "Error"] in
@@ -499,7 +499,8 @@ let tlDestinations (m : model) : autocompleteItem list =
     m.toplevels
     |> List.sortBy ~f:gotoName
     |> List.map ~f:(fun tl ->
-           Goto (Toplevels (Viewport.toCenteredOn tl.pos), gotoName tl) )
+           Goto (Toplevels (Viewport.toCenteredOn tl.pos), tl.id, gotoName tl)
+       )
   in
   let ufs =
     List.filterMap
@@ -508,7 +509,8 @@ let tlDestinations (m : model) : autocompleteItem list =
         | Blank _ ->
             None
         | F (_, name) ->
-            Some (Goto (Fn (fn.ufTLID, Defaults.centerPos), name)) )
+            Some (Goto (Fn (fn.ufTLID, Defaults.centerPos), fn.ufTLID, name))
+        )
       m.userFunctions
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
