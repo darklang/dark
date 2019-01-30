@@ -304,49 +304,49 @@ let () =
               expect
                 ( createCreating User
                 |> setQuery "HTTP"
-                |> itemPresent (ACOmniAction (NewDB "HTTP")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "HTTP"))) )
               |> toEqual true ) ;
           test "entering an invalid DB name works" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery ":[]'/31234myDB[]"
-                |> itemPresent (ACOmniAction (NewDB "MyDB")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "MyDB"))) )
               |> toEqual true ) ;
           test "entering a DB name works" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "Mydbname"
-                |> itemPresent (ACOmniAction (NewDB "Mydbname")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "Mydbname"))) )
               |> toEqual true ) ;
           test "entering a short DB name works" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "me"
-                |> itemPresent (ACOmniAction (NewDB "Me")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "Me"))) )
               |> toEqual true ) ;
           test "db names can be multicase" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "MyDBnaMe"
-                |> itemPresent (ACOmniAction (NewDB "MyDBnaMe")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "MyDBnaMe"))) )
               |> toEqual true ) ;
           test "alphabetical only DB names #1" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "dbname1234::"
-                |> itemPresent (ACOmniAction (NewDB "Dbname1234")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "Dbname1234"))) )
               |> toEqual true ) ;
           test "alphabetical only DB names #2" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "db_name::"
-                |> itemPresent (ACOmniAction (NewDB "Db_name")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "Db_name"))) )
               |> toEqual true ) ;
           test "add capital for DB names" (fun () ->
               expect
                 ( createCreating User
                 |> setQuery "mydbname"
-                |> itemPresent (ACOmniAction (NewDB "Mydbname")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "Mydbname"))) )
               |> toEqual true ) ;
           test "General HTTP handler" (fun () ->
               expect
@@ -403,7 +403,7 @@ let () =
               expect
                 ( createCreating User
                 |> setQuery "/route"
-                |> itemPresent (ACOmniAction (NewDB "Route")) )
+                |> itemPresent (ACOmniAction (NewDB (Some "Route"))) )
               |> toEqual true ) ;
           test "entering an invalid function name works" (fun () ->
               expect
