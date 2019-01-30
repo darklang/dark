@@ -161,7 +161,7 @@ impl PusherClient {
                         StatusCode::OK => {
                             println!(
                                 "Pushed event in {}ms",
-                                1000 * req_time.as_secs() + (req_time.subsec_millis() as u64)
+                                1000 * req_time.as_secs() + u64::from(req_time.subsec_millis())
                             );
                             Box::new(future::ok(()))
                         }
