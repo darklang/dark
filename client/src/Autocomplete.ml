@@ -42,8 +42,12 @@ let asName (aci : autocompleteItem) : string =
       lit
   | ACOmniAction ac ->
     ( match ac with
-    | NewDB name ->
-        "New DB named " ^ name
+    | NewDB maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New DB named " ^ name
+      | None ->
+          "New DB" )
     | NewHandler maybeName ->
       ( match maybeName with
       | Some name ->
@@ -409,7 +413,11 @@ let qNewDB (s : string) : omniAction option =
     |> stripCharsFromFront "[^a-zA-Z]"
     |> String.capitalize
   in
-  if name = "" then None else Some (NewDB (assertValid dbNameValidator name))
+  if name = ""
+  then Some (NewDB None)
+  else
+    let validName = assertValid dbNameValidator name in
+    Some (NewDB (Some validName))
 
 
 let qFunction (s : string) : omniAction =
@@ -460,8 +468,10 @@ let toDynamicItems target (q : string) : autocompleteItem list =
   | None ->
       (* omnicompletion *)
       let omnis =
-        if q = "" (* TODO: allow empty DB names *)
-        then [qHTTPHandler q; qFunction q; qHandler q]
+        if q = ""
+        then
+          (qHTTPHandler q :: Option.values [qNewDB q])
+        @ [qFunction q; qHandler q]
         else
           [qHTTPHandler q; qFunction q; qHandler q]
           @ Option.values [qNewDB q; qEventSpace q]
@@ -475,7 +485,6 @@ let toDynamicItems target (q : string) : autocompleteItem list =
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | _ ->
       []
-
 
 let withDynamicItems
     (target : target option) (query : string) (acis : autocompleteItem list) :
