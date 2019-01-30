@@ -181,6 +181,15 @@ impl PusherClient {
     }
 }
 
+/*
+ * Minimal implementation of r2d2::ManageConnection.
+ *
+ * Our PusherClient is just a wrapper for a hyper HTTP client, which does its
+ * own handling of persistent connections, reconnecting if necessary, etc, so we
+ * don't need to implement is_valid or has_broken. (Individual requests may
+ * fail, but any PusherClient checked out from the pool should always be
+ * usable.)
+ */
 pub struct PusherClientManager;
 
 impl ManageConnection for PusherClientManager {
@@ -192,12 +201,12 @@ impl ManageConnection for PusherClientManager {
         Ok(PusherClient::new())
     }
 
-    fn is_valid(&self, client: &mut PusherClient) -> Result<(), PusherError> {
+    fn is_valid(&self, _client: &mut PusherClient) -> Result<(), PusherError> {
         println!("is_valid"); // TODO
-        Ok(()) // TODO
+        Ok(())
     }
 
-    fn has_broken(&self, client: &mut PusherClient) -> bool {
+    fn has_broken(&self, _client: &mut PusherClient) -> bool {
         println!("has_broken"); // TODO
         false
     }
