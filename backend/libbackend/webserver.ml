@@ -334,7 +334,7 @@ let user_page_handler
           S.respond_redirect (Uri.of_string url) ()
       | RTT.DResp (Response (code, resp_headers), value) ->
           let resp_headers =
-            maybe_infer_headers (Header.of_list resp_headers) result
+            maybe_infer_headers (Header.of_list resp_headers) value
           in
           let body =
             if Header.get resp_headers "Content-Type"
