@@ -111,9 +111,11 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let autocomplete =
     Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
   in
-  (* two overlapping input boxes, one to provide suggestions, one *)
-  (* to provide the search *)
-  let _, _, search = Autocomplete.compareSuggestionWithActual ac ac.value in
+  (* two overlapping input boxes, one to provide suggestions, one * to provide
+   * the search. (Note: we used to use this, but took it out. Leaving in the
+   * technical means to show "preview" values, even though it's currently
+   * unused.) *)
+  let search = ac.value in
   let searchWidth =
     search
     |> String.length
