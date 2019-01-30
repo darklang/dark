@@ -471,7 +471,7 @@ let toDynamicItems target (q : string) : autocompleteItem list =
         if q = ""
         then
           (qHTTPHandler q :: Option.values [qNewDB q])
-        @ [qFunction q; qHandler q]
+          @ [qFunction q; qHandler q]
         else
           [qHTTPHandler q; qFunction q; qHandler q]
           @ Option.values [qNewDB q; qEventSpace q]
@@ -485,6 +485,7 @@ let toDynamicItems target (q : string) : autocompleteItem list =
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | _ ->
       []
+
 
 let withDynamicItems
     (target : target option) (query : string) (acis : autocompleteItem list) :
