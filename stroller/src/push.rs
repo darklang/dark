@@ -133,8 +133,8 @@ impl PusherClient {
 
     pub fn trigger(
         &mut self,
-        canvas_uuid: String,
-        event_name: String,
+        canvas_uuid: &str,
+        event_name: &str,
         json_bytes: &[u8],
     ) -> BoxFut<()> {
         let pusher_request = match self.build_request(&canvas_uuid, &event_name, json_bytes) {
