@@ -169,27 +169,6 @@ let getValue (a : autocomplete) : string =
   match highlighted a with Some item -> asName item | None -> a.value
 
 
-let rec sharedPrefix2 (l : string) (r : string) : string =
-  match (String.uncons l, String.uncons r) with
-  | Some (l1, lrest), Some (r1, rrest) ->
-      if l1 = r1 then String.fromChar l1 ^ sharedPrefix2 lrest rrest else ""
-  | _ ->
-      ""
-
-
-let sharedPrefixList (strs : string list) : string =
-  match List.head strs with
-  | None ->
-      ""
-  | Some s ->
-      List.foldl ~f:sharedPrefix2 ~init:s strs
-
-
-(* Find the shared prefix of all the possible suggestions (eg "List::") *)
-let sharedPrefix (a : autocomplete) : string =
-  a.completions |> List.map ~f:asName |> sharedPrefixList
-
-
 let rec containsOrdered (needle : string) (haystack : string) : bool =
   match String.uncons needle with
   | Some (c, newneedle) ->
@@ -203,34 +182,6 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
            |> String.join ~sep:char )
   | None ->
       true
-
-
-(* returns (indent, suggestion, search), where: *)
-(* - indent is the string that occurs before the match *)
-(* - suggestion is the match rewritten with the search *)
-(* - search is the search rewritten to match the suggestion *)
-(* Returns no suggestion or indent for an OmniAction *)
-let compareSuggestionWithActual (a : autocomplete) (actual : string) :
-    string * string * string =
-  match highlighted a with
-  | Some (ACOmniAction _) ->
-      ("", "", actual)
-  | _ ->
-      let suggestion = sharedPrefix a in
-      ( match
-          Js.String.indexOf (String.toLower actual) (String.toLower suggestion)
-        with
-      | -1 ->
-          ("", suggestion, actual)
-      | index ->
-          let prefix = String.slice ~from:0 ~to_:index suggestion in
-          let suffix =
-            String.slice
-              ~from:(index + String.length actual)
-              ~to_:(String.length suggestion)
-              suggestion
-          in
-          (prefix, prefix ^ actual ^ suffix, actual) )
 
 
 let nonAdminFunctions (fns : function_ list) : function_ list = fns
@@ -904,11 +855,3 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       enableCommandMode a
   | ACSetVisible visible ->
       setVisible visible a
-
-
-(* --------------------------- *)
-(* Modifications *)
-(* --------------------------- *)
-let selectSharedPrefix (ac : autocomplete) : modification =
-  let sp = sharedPrefix ac in
-  if sp = "" then NoChange else AutocompleteMod (ACSetQuery sp)

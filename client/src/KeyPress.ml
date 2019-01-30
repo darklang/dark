@@ -477,8 +477,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->
               AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
-          | Key.Right ->
-              AC.selectSharedPrefix m.complete
           | Key.Backspace ->
               (* This was the case in Elm, unclear about bucklescript  *)
               
@@ -557,8 +555,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
       | Key.Down ->
           AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
-      | Key.Right ->
-          AC.selectSharedPrefix m.complete
       | _ ->
           NoChange )
     | Dragging (_, _, _, _) ->
