@@ -458,7 +458,7 @@ and command =
   ; shortcut : string }
 
 and omniAction =
-  | NewDB of dBName
+  | NewDB of dBName option
   | NewHandler of string option
   | NewFunction of string option
   | NewHTTPHandler of string option
