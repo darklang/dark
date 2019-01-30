@@ -76,7 +76,8 @@ let createDB (name : string) (pos : pos) : modification =
   let next = Prelude.gid ()
   and tlid = Prelude.gtlid () in
   RPC
-    ( [CreateDBWithBlankOr (tlid, pos, gid (), dbname); AddDBCol (tlid, next, Prelude.gid ())]
+    ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
+      ; AddDBCol (tlid, next, Prelude.gid ()) ]
     , FocusExact (tlid, next) )
 
 
