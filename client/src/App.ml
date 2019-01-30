@@ -1162,6 +1162,10 @@ let update_ (msg : msg) (m : model) : modification =
             NewHandler None
       in
       Entry.submitOmniAction center action
+  | CreateDBTable ->
+      let center = findCenter m
+      and genName = DB.generateDBName () in
+      DB.createDB genName center
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many

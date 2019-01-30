@@ -70,3 +70,16 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
   let rb = B.new_ () in
   let rf = B.new_ () in
   RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
+
+
+let createDB (name : string) (pos : pos) : modification =
+  let next = Prelude.gid ()
+  and tlid = Prelude.gtlid () in
+  RPC
+    ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
+      ; AddDBCol (tlid, next, Prelude.gid ()) ]
+    , FocusExact (tlid, next) )
+
+
+let generateDBName (_ : unit) : string =
+  "Db" ^ (() |> Util.random |> string_of_int)

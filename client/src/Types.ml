@@ -657,6 +657,7 @@ and msg =
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
+  | CreateDBTable
 
 and predecessor = pointerData option
 
