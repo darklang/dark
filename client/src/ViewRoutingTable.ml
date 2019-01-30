@@ -57,9 +57,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
   ; classname = "http"
   ; entries =
       List.map handlers ~f:(fun tl ->
-          let h = tl |> TL.asHandler |> deOption "httpCategory/entry"
-          and minusButton = Some (ToplevelDelete tl.id)
-          in
+          let h = tl |> TL.asHandler |> deOption "httpCategory/entry" in
           Entry
             { name =
                 h.spec.name
@@ -68,7 +66,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
-            ; minusButton = minusButton
+            ; minusButton = Some (ToplevelDelete tl.id)
             ; plusButton = None
             ; externalLink = Some h.spec
             ; verb = h.spec.modifier |> Blank.toMaybe } ) }
@@ -82,9 +80,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
   ; classname = "cron"
   ; entries =
       List.map handlers ~f:(fun tl ->
-          let h = tl |> TL.asHandler |> deOption "cronCategory/entry"
-          and minusButton = Some (ToplevelDelete tl.id)
-          in
+          let h = tl |> TL.asHandler |> deOption "cronCategory/entry" in
           Entry
             { name =
                 h.spec.name
@@ -93,7 +89,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
-            ; minusButton = minusButton
+            ; minusButton = Some (ToplevelDelete tl.id)
             ; plusButton = None
             ; externalLink = None
             ; verb = None } ) }
@@ -118,7 +114,7 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
           ; tlid = db.dbTLID
           ; uses = None
           ; destination = Some (Toplevels pos)
-          ; minusButton = minusButton
+          ; minusButton
           ; externalLink = None
           ; verb = None
           ; plusButton = None } )
@@ -138,9 +134,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
   ; classname = missingEventSpaceDesc
   ; entries =
       List.map handlers ~f:(fun tl ->
-          let h = tl |> TL.asHandler |> deOption "undefinedCategory/entry"
-          and minusButton = Some (ToplevelDelete tl.id)
-          in
+          let h = tl |> TL.asHandler |> deOption "undefinedCategory/entry" in
           Entry
             { name =
                 h.spec.name
@@ -149,7 +143,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
-            ; minusButton = minusButton
+            ; minusButton = Some (ToplevelDelete tl.id)
             ; plusButton = None
             ; externalLink = None
             ; verb = None } ) }
@@ -184,9 +178,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
       ; classname = name
       ; entries =
           List.map handlers ~f:(fun tl ->
-              let h = tl |> TL.asHandler |> deOption "eventCategories/entry"
-              and minusButton = Some (ToplevelDelete tl.id)
-              in
+              let h = tl |> TL.asHandler |> deOption "eventCategories/entry" in
               Entry
                 { name =
                     h.spec.name
@@ -195,7 +187,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                 ; uses = None
                 ; tlid = h.tlid
                 ; destination = Some (Toplevels tl.pos)
-                ; minusButton = minusButton
+                ; minusButton = Some (ToplevelDelete tl.id)
                 ; plusButton = None
                 ; externalLink = None
                 ; verb = None } ) } )
