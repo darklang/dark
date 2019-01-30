@@ -374,13 +374,14 @@ let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
   |> Option.withDefault ~default:NoChange
 
+
 (* ------------------------------- *)
 (* misc *)
 (* ------------------------------- *)
 let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   match mId with
   | None ->
-    NoChange
+      NoChange
   | Some id ->
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in
