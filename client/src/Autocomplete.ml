@@ -498,7 +498,8 @@ let tlDestinations (m : model) : autocompleteItem list =
   let tls =
     m.toplevels
     |> List.sortBy ~f:gotoName
-    |> List.map ~f:(fun tl -> Goto (Toplevels tl.pos, gotoName tl))
+    |> List.map ~f:(fun tl ->
+           Goto (Toplevels (Viewport.toCenteredOn tl.pos), gotoName tl) )
   in
   let ufs =
     List.filterMap
