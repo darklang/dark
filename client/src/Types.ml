@@ -135,6 +135,7 @@ and pointerData =
   | PExpr of expr
   | PField of field
   | PKey of string blankOr
+  | PDBName of string blankOr
   | PDBColName of string blankOr
   | PDBColType of string blankOr
   | PFFMsg of string blankOr
@@ -153,6 +154,7 @@ and pointerType =
   | Expr
   | Field
   | Key
+  | DBName
   | DBColName
   | DBColType
   | FFMsg
@@ -214,7 +216,7 @@ and dBMigration =
 
 and dB =
   { dbTLID : tlid
-  ; dbName : dBName
+  ; dbName : dBName blankOr
   ; cols : dBColumn list
   ; version : int
   ; oldMigrations : dBMigration list
@@ -381,6 +383,8 @@ and op =
   | DeleteColInDBMigration of tlid * id
   | AbandonDBMigration of tlid
   | DeleteDBCol of tlid * id
+  | RenameDBname of tlid * dBName
+  | CreateDBWithBlankOr of tlid * pos * id * dBName
 
 (* ------------------- *)
 (* RPCs *)

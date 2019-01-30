@@ -24,6 +24,8 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PKey (Blank id)
   | Field ->
       PField (Blank id)
+  | DBName ->
+      PDBName (Blank id)
   | DBColName ->
       PDBColName (Blank id)
   | DBColType ->
@@ -60,6 +62,8 @@ let typeOf (pd : pointerData) : pointerType =
       Field
   | PKey _ ->
       Key
+  | PDBName _ ->
+      DBName
   | PDBColName _ ->
       DBColName
   | PDBColType _ ->
@@ -98,6 +102,8 @@ let toID (pd : pointerData) : id =
       B.toID d
   | PEventSpace d ->
       B.toID d
+  | PDBName d ->
+      B.toID d
   | PDBColName d ->
       B.toID d
   | PDBColType d ->
@@ -133,6 +139,8 @@ let isBlank (pd : pointerData) : bool =
   | PEventName d ->
       B.isBlank d
   | PEventSpace d ->
+      B.isBlank d
+  | PDBName d ->
       B.isBlank d
   | PDBColName d ->
       B.isBlank d
@@ -182,6 +190,8 @@ let toContent (pd : pointerData) : string option =
   | PEventName d ->
       bs2s d
   | PEventSpace d ->
+      bs2s d
+  | PDBName d ->
       bs2s d
   | PDBColName d ->
       bs2s d

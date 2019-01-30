@@ -27,7 +27,8 @@ let allData (db : dB) : pointerData list =
     |> List.map ~f:(fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
     |> List.concat
   in
-  colpointers @ rolls
+  let name = PDBName db.dbName in
+  (name :: colpointers) @ rolls
 
 
 let siblings (_ : pointerData) (db : dB) : pointerData list = allData db

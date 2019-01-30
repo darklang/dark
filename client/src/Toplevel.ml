@@ -14,7 +14,7 @@ let name (tl : toplevel) : string =
   | TLHandler h ->
       "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
-      "DB: " ^ db.dbName
+      "DB: " ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"")
   | TLFunc f ->
       "Func: "
       ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
@@ -27,7 +27,7 @@ let sortkey (tl : toplevel) : string =
       ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
       ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
-      db.dbName
+      db.dbName |> B.toMaybe |> Option.withDefault ~default:"Undefined"
   | TLFunc f ->
       f.ufMetadata.ufmName
       |> B.toMaybe
@@ -167,10 +167,6 @@ let clonePointerData (pd : pointerData) : pointerData =
       PField (B.clone identity f)
   | PKey k ->
       PKey (B.clone identity k)
-  | PDBColName _ ->
-      pd
-  | PDBColType _ ->
-      pd
   | PFFMsg msg ->
       PFFMsg (B.clone identity msg)
   | PFnName name ->
@@ -185,6 +181,8 @@ let clonePointerData (pd : pointerData) : pointerData =
       PPattern (AST.clonePattern pattern)
   | PConstructorName name ->
       PConstructorName (B.clone identity name)
+  | PDBColName _ | PDBColType _ | PDBName _ ->
+      pd
 
 
 (* ------------------------- *)
@@ -308,6 +306,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PEventSpace _ ->
       []
+  | PDBName _ ->
+      []
   | PDBColName _ ->
       []
   | PDBColType _ ->
@@ -386,6 +386,8 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       specHeaderReplace em
   | PEventSpace es ->
       specHeaderReplace es
+  | PDBName _ ->
+      tl
   | PDBColType _ ->
       tl
   (* SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe") *)
@@ -445,3 +447,13 @@ let find (tl : toplevel) (id : id) : pointerData option =
 
 let findExn (tl : toplevel) (id : id) : pointerData =
   find tl id |> deOption "findExn"
+
+
+let allDBNames (toplevels : toplevel list) : string list =
+  toplevels
+  |> List.filterMap ~f:(fun tl ->
+         match tl.data with
+         | TLDB db ->
+           (match db.dbName with F (_, name) -> Some name | Blank _ -> None)
+         | _ ->
+             None )

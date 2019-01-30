@@ -42,6 +42,8 @@ val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval
 (* DB schema modifications *)
 val create : string -> tlid -> DbT.db
 
+val create2 : string -> tlid -> id -> DbT.db
+
 val add_col : id -> id -> DbT.db -> DbT.db
 
 val set_col_name : id -> string -> DbT.db -> DbT.db
@@ -71,3 +73,5 @@ val set_col_type_in_migration : id -> tipe -> DbT.db -> DbT.db
 val abandon_migration : DbT.db -> DbT.db
 
 val delete_col_in_migration : id -> DbT.db -> DbT.db
+
+val rename_db : string -> DbT.db -> DbT.db

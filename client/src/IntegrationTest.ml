@@ -263,7 +263,7 @@ let case_sensitivity (m : model) : testResult =
            match tl.data with
            | TLDB {dbName; cols} ->
              ( match (dbName, cols) with
-             | ( "TestUnicode"
+             | ( F (_, "TestUnicode")
                , [(F (_, "cOlUmNnAmE"), F (_, "Str")); (Blank _, Blank _)] ) ->
                  pass
              | other ->

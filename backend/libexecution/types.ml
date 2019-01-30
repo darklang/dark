@@ -159,7 +159,7 @@ module RuntimeT = struct
 
     type db =
       { tlid : tlid
-      ; name : string
+      ; name : string or_blank
       ; cols : col list
       ; version : int
       ; old_migrations : db_migration list

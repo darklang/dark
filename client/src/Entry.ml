@@ -79,7 +79,8 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       let next = gid () in
       let tlid = gtlid () in
       RPC
-        ( [CreateDB (tlid, pos, dbname); AddDBCol (tlid, next, gid ())]
+        ( [ CreateDBWithBlankOr (tlid, pos, gid (), dbname)
+          ; AddDBCol (tlid, next, gid ()) ]
         , FocusExact (tlid, next) )
   | NewHandler name ->
       let next = gid () in
@@ -262,6 +263,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
     else Some (name ^ " must match /" ^ pattern ^ "/")
   in
   match pd with
+  | PDBName _ ->
+      v AC.dbNameValidator "DB name"
   | PDBColType _ ->
       v AC.dbColTypeValidator "DB type"
   | PDBColName _ ->
@@ -409,6 +412,16 @@ let submitACItem
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
         in
         ( match (pd, item) with
+        | PDBName (F (_, oldName)), ACExtra value ->
+            if AC.assertValid AC.dbNameValidator value <> value
+            then
+              DisplayError
+                ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
+            else if List.member ~value (TL.allDBNames m.toplevels)
+            then DisplayError ("There is already a DB named " ^ value)
+            else
+              let varrefs = Refactor.renameDBReferences m oldName value in
+              RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
         | PDBColType ct, ACExtra value ->
             let db1 = deOption "db" db in
             if B.asF ct = Some value
