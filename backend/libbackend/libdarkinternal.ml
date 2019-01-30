@@ -4,6 +4,7 @@ open Libexecution
 open Libexecution.Lib
 open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
+module Unicode = Libexecution.Unicode_string
 
 (* Apply this to a name, function tuple to wrap that function
    in an InProcess that checks permissions for the dark internal
@@ -118,5 +119,64 @@ let replacements =
             let name = Unicode_string.to_string name in
             let password = Account.upsert_user ~username ~email ~name () in
             Dval.dstr_of_string_exn password
+        | args ->
+            fail args )
+    ; ( "DarkInternal::getCORSSetting"
+      , let cors_setting_to_dval (setting : Canvas.cors_setting option) : dval
+            =
+          match setting with
+          | None ->
+              DOption OptNothing
+          | Some AllOrigins ->
+              "*" |> Dval.dstr_of_string_exn |> OptJust |> DOption
+          | Some (Origins os) ->
+              os
+              |> List.map ~f:Dval.dstr_of_string_exn
+              |> DList
+              |> OptJust
+              |> DOption
+        in
+        function
+        | _, [DStr host] ->
+            let canvas =
+              Canvas.load_only ~tlids:[] (Unicode.to_string host) []
+            in
+            !canvas.cors_setting |> cors_setting_to_dval
+        | args ->
+            fail args )
+    ; ( "DarkInternal::setCORSSetting"
+      , let cors_setting_of_dval (dval : dval) :
+            (Canvas.cors_setting option, string) result =
+          (* Error: error converting the dval to a cors setting
+             Ok None: the dval is "unset the cors value"
+             Ok (Some cs): the dval is "set the cors setting to cs" *)
+          try
+            match dval with
+            | DOption OptNothing ->
+                Ok None
+            | DOption (OptJust (DStr s)) when Unicode.to_string s = "*" ->
+                Ok (Some Canvas.AllOrigins)
+            | DOption (OptJust (DList os)) ->
+                os
+                |> List.map ~f:Dval.to_string_exn
+                |> Canvas.Origins
+                |> Some
+                |> Ok
+            | _ ->
+                Error
+                  "Received something other than an Nothing, Just [...], or Just \"*\""
+          with e -> Error (Exception.exn_to_string e)
+        in
+        function
+        | _, [DStr host; s] ->
+          ( match cors_setting_of_dval s with
+          | Error e ->
+              e |> Dval.dstr_of_string_exn |> ResError |> DResult
+          | Ok settings ->
+              let canvas =
+                Canvas.load_only ~tlids:[] (Unicode.to_string host) []
+              in
+              Canvas.update_cors_setting canvas settings ;
+              s |> ResOk |> DResult )
         | args ->
             fail args ) ]

@@ -157,6 +157,31 @@ let sanitize_uri_path path : string =
 (* -------------------------------------------- *)
 let cors = ("Access-Control-Allow-Origin", "*")
 
+let infer_cors_header
+    (origin : string option) (setting : Canvas.cors_setting option) :
+    string option =
+  match (origin, setting) with
+  (* if there's no explicit canvas setting, * is the default. *)
+  | _, None ->
+      Some "*"
+  (* If there's a "*" in the setting, always use it.
+     This is help as a debugging aid since users will always see
+     Access-Control-Allow-Origin: * in their browsers, even if the
+     request has no Origin. *)
+  | _, Some AllOrigins ->
+      Some "*"
+  (* if there's no supplied origin, don't set the header at all. *)
+  | None, _ ->
+      None
+  (* Return the origin if and only if it's in the setting  *)
+  | Some origin, Some (Origins os) when List.mem ~equal:( = ) os origin ->
+      Some origin
+  (* Otherwise: there was a supplied origin and it's not in the setting.
+     return "null" explicitly *)
+  | Some _, Some _ ->
+      Some "null"
+
+
 let options_handler
     ~(execution_id : Types.id) (c : C.canvas) (req : CRequest.t) =
   (*       allow (from the route matching) *)
@@ -169,9 +194,18 @@ let options_handler
   in
   let allow_headers = match req_headers with Some h -> h | None -> "*" in
   let resp_headers =
-    [ ("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS")
-    ; ("Access-Control-Allow-Origin", "*")
-    ; ("Access-Control-Allow-Headers", allow_headers) ]
+    match
+      infer_cors_header
+        (Header.get (CRequest.headers req) "Origin")
+        c.cors_setting
+    with
+    | None ->
+        []
+    | Some origin ->
+        [ ( "Access-Control-Allow-Methods"
+          , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" )
+        ; ("Access-Control-Allow-Origin", origin)
+        ; ("Access-Control-Allow-Headers", allow_headers) ]
   in
   respond
     ~resp_headers:(Cohttp.Header.of_list resp_headers)
@@ -319,10 +353,21 @@ let user_page_handler
           | _ ->
               "text/plain; charset=utf-8"
         in
-        Header.add_unless_exists
-          (Header.add_unless_exists resp_headers "Content-Type" inferred_ct)
-          "Access-Control-Allow-Origin"
-          "*"
+        (* Add the content-type, if it doesn't exist *)
+        let headers =
+          Header.add_unless_exists resp_headers "Content-Type" inferred_ct
+        in
+        (* Add the Access-Control-ALlow-Origin, if it doens't exist and if infer_cors_header
+           tells us to. *)
+        match
+          infer_cors_header
+            (Header.get (CRequest.headers req) "Origin")
+            !c.cors_setting
+        with
+        | None ->
+            headers
+        | Some h ->
+            Header.add_unless_exists headers "Access-Control-Allow-Origin" h
       in
       ( match result with
       | DIncomplete ->
