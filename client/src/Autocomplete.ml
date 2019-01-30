@@ -123,9 +123,9 @@ let asTypeString (item : autocompleteItem) : string =
   | ACKeyword _ ->
       "keyword"
   | ACHTTPModifier _ ->
-      "verb"
+      "method"
   | ACCronTiming _ ->
-      ""
+      "interval"
   | ACEventSpace _ ->
       "event space"
   | ACDBColType _ ->
@@ -814,45 +814,45 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACConstructorName name ->
       Some ("TODO: this should never occur: the constructor " ^ name)
   | ACField fieldname ->
-      Some ("the '" ^ fieldname ^ "' field of the object")
+      Some ("The '" ^ fieldname ^ "' field of the object")
   | ACVariable var ->
       if String.isCapitalized var
-      then Some ("the database '" ^ var ^ "'")
-      else Some ("the variable '" ^ var ^ "'")
+      then Some ("The database '" ^ var ^ "'")
+      else Some ("The variable '" ^ var ^ "'")
   | ACLiteral lit ->
       Some ("the literal value '" ^ lit ^ "'")
   | ACKeyword KLet ->
-      Some "a `let` expression allows you assign a variable to an expression"
+      Some "A `let` expression allows you assign a variable to an expression"
   | ACKeyword KIf ->
-      Some "an `if` expression allows you to branch on a boolean condition"
+      Some "An `if` expression allows you to branch on a boolean condition"
   | ACKeyword KLambda ->
       Some
-        "a `lambda` creates an anonymous function. This is most often used for iterating through lists"
+        "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
   | ACKeyword KMatch ->
       Some
-        "a `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+        "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
   | ACOmniAction _ ->
       None
   | ACHTTPModifier verb ->
-      Some ("make this handler match the " ^ verb ^ " HTTP verb")
+      Some ("Make this handler match the " ^ verb ^ " HTTP verb")
   | ACCronTiming timing ->
-      Some ("request this handler to trigger " ^ timing)
+      Some ("Request this handler to trigger " ^ timing)
   | ACEventSpace "HTTP" ->
-      Some "this handler will respond to HTTP requests"
+      Some "This handler will respond to HTTP requests"
   | ACEventSpace "CRON" ->
-      Some "this handler will periodically trigger"
+      Some "This handler will periodically trigger"
   | ACEventSpace name ->
-      Some ("this handler will respond when events are emitted to " ^ name)
+      Some ("This handler will respond when events are emitted to " ^ name)
   | ACDBColType tipe ->
-      Some ("this field will be a " ^ tipe)
+      Some ("This field will be a " ^ tipe)
   | ACParamTipe tipe ->
       if String.startsWith ~prefix:"[" tipe
       then
         let name =
           tipe |> String.dropLeft ~count:1 |> String.dropRight ~count:1
         in
-        Some ("this parameter will be a " ^ name ^ " list")
-      else Some ("this parameter will be a " ^ tipe)
+        Some ("This parameter will be a " ^ name ^ " list")
+      else Some ("This parameter will be a " ^ tipe)
   | ACExtra _ ->
       None
 
