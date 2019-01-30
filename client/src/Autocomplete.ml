@@ -509,8 +509,7 @@ let tlDestinations (m : model) : autocompleteItem list =
         | Blank _ ->
             None
         | F (_, name) ->
-            Some (Goto (Fn (fn.ufTLID, Defaults.centerPos), fn.ufTLID, name))
-        )
+            Some (Goto (Fn (fn.ufTLID, {x = 0; y = 0}), fn.ufTLID, name)) )
       m.userFunctions
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
