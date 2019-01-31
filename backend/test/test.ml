@@ -2011,6 +2011,116 @@ let t_unicode_string_regex_replace_works_with_emojis () =
     (Unicode_string.regexp_replace ~pattern ~replacement s1)
 
 
+let t_result_to_response_works () =
+  let req =
+    Req.make
+      ~headers:(Header.init ())
+      (Uri.of_string "http://test.builtwithdark.com/")
+  in
+  let req_example_com =
+    Req.make
+      ~headers:(Header.of_list [("Origin", "https://example.com")])
+      (Uri.of_string "http://test.builtwithdark.com/")
+  in
+  let req_google_com =
+    Req.make
+      ~headers:(Header.of_list [("Origin", "https://google.com")])
+      (Uri.of_string "http://test.builtwithdark.com/")
+  in
+  let c = Canvas.load_all "test" [] in
+  ignore
+    (List.map
+       ~f:(fun (dval, req, cors_setting, check) ->
+         Canvas.update_cors_setting c cors_setting ;
+         dval
+         |> Webserver.result_to_response ~c ~execution_id ~req
+         |> Lwt_main.run
+         |> fst
+         |> check )
+       [ ( exec_ast "(obj)"
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "objects get application/json content-type"
+               (Some "application/json; charset=utf-8")
+               (Header.get (Resp.headers r) "Content-Type") )
+       ; ( exec_ast "(1 2)"
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "lists get application/json content-type"
+               (Some "application/json; charset=utf-8")
+               (Header.get (Resp.headers r) "Content-Type") )
+       ; ( exec_ast "2"
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "other things get text/plain content-type"
+               (Some "text/plain; charset=utf-8")
+               (Header.get (Resp.headers r) "Content-Type") )
+       ; ( exec_ast "(Http::success (obj))"
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "Http::success gets application/json"
+               (Some "application/json; charset=utf-8")
+               (Header.get (Resp.headers r) "Content-Type") )
+       ; ( exec_ast "1"
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "without any other settings, we get Access-Control-Allow-Origin: *."
+               (Some "*")
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ; ( exec_ast "1"
+         , req
+         , Some Canvas.AllOrigins
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "with explicit wildcard setting, we get Access-Control-Allow-Origin: *."
+               (Some "*")
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ; ( exec_ast "1"
+         , req
+         , Some (Canvas.Origins ["https://example.com"])
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "with whitelist setting and no Origin, we get no Access-Control-Allow-Origin"
+               None
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ; ( exec_ast "1"
+         , req_example_com
+         , Some (Canvas.Origins ["https://example.com"])
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "with whitelist setting and matching Origin, we get good Access-Control-Allow-Origin"
+               (Some "https://example.com")
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ; ( exec_ast "1"
+         , req_google_com
+         , Some (Canvas.Origins ["https://example.com"])
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "with whitelist setting and mismatched Origin, we get null Access-Control-Allow-Origin"
+               (Some "null")
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") ) ]) ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2191,7 +2301,10 @@ let suite =
   ; ( "Can create new DB with Op CreateDBWithBlankOr"
     , `Quick
     , t_db_create_with_orblank_name )
-  ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename) ]
+  ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
+  ; ( "Dvals get converted to web responses correctly"
+    , `Quick
+    , t_result_to_response_works ) ]
 
 
 let () =
