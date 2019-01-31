@@ -16,8 +16,6 @@ use native_tls::TlsConnector;
 use r2d2::ManageConnection;
 use sha2::Sha256;
 
-use config::*;
-
 #[derive(Debug)]
 pub struct PusherError(String);
 impl fmt::Display for PusherError {
@@ -43,10 +41,14 @@ pub struct PusherClient {
 
 type BoxFut<T> = Box<Future<Item = T, Error = PusherError> + Send>;
 
+fn pusher_host(cluster: &str) -> String {
+    format!("api-{}.pusher.com", cluster)
+}
+
 impl PusherClient {
     const AUTH_VERSION: &'static str = "1.0";
 
-    pub fn new() -> Self {
+    pub fn new(cluster: &str, app_id: &str, key: &str, secret: &str) -> Self {
         let mut http = HttpConnector::new(4);
         http.enforce_http(false);
         http.set_keepalive(Some(Duration::from_secs(30)));
@@ -55,12 +57,12 @@ impl PusherClient {
         let http = HClient::builder().build::<_, Body>(https);
 
         Self {
-            host: pusher_host(),
-            app_id: pusher_app_id(),
-            key: pusher_key(),
+            host: pusher_host(cluster),
+            app_id: app_id.to_string(),
+            key: key.to_string(),
 
             http,
-            mac: Hmac::<Sha256>::new_varkey(pusher_secret().as_bytes()).unwrap(),
+            mac: Hmac::<Sha256>::new_varkey(secret.as_bytes()).unwrap(),
         }
     }
 
@@ -190,7 +192,23 @@ impl PusherClient {
  * fail, but any PusherClient checked out from the pool should always be
  * usable.)
  */
-pub struct PusherClientManager;
+pub struct PusherClientManager {
+    pub cluster: String,
+    pub app_id: String,
+    pub key: String,
+    secret: String,
+}
+
+impl PusherClientManager {
+    pub fn new(cluster: &str, app_id: &str, key: &str, secret: &str) -> Self {
+        Self {
+            cluster: cluster.to_string(),
+            app_id: app_id.to_string(),
+            key: key.to_string(),
+            secret: secret.to_string(),
+        }
+    }
+}
 
 impl ManageConnection for PusherClientManager {
     type Connection = PusherClient;
@@ -198,7 +216,12 @@ impl ManageConnection for PusherClientManager {
 
     fn connect(&self) -> Result<PusherClient, PusherError> {
         println!("connect"); // TODO
-        Ok(PusherClient::new())
+        Ok(PusherClient::new(
+            &self.cluster,
+            &self.app_id,
+            &self.key,
+            &self.secret,
+        ))
     }
 
     fn is_valid(&self, _client: &mut PusherClient) -> Result<(), PusherError> {
