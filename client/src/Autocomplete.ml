@@ -712,7 +712,9 @@ let init (fns : function_ list) (isAdmin : bool) : autocomplete =
 let refilter (query : string) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
-    withDynamicItems old.target query old.allCompletions
+    if old.isCommandMode
+    then List.filter ~f:isStaticItem old.allCompletions
+    else withDynamicItems old.target query old.allCompletions
   in
   let newCompletions, invalidCompletions =
     filter old.matcher fudgedCompletions query
