@@ -258,6 +258,20 @@ const entryboxCaret = {
 
 window.Dark = {
   caret: entryboxCaret,
+  traceFetcher: {
+    fetch : function(params) {
+      if (!window.fetcherWorker) {
+        return
+      }
+
+      window.fetcherWorker.postMessage(params);
+
+      window.fetcherWorker.onmessage = function (e) {
+        var event = new CustomEvent('receiveTraces', { "detail" : e.data });
+        document.dispatchEvent(event);
+      }
+    }
+  },
   analysis: {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {
@@ -492,6 +506,15 @@ setTimeout(function(){
         ]));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();
+  let fetcherjs = fetch("//" + staticUrl + "/tracefetcher.js").then(r => r.text());
+  (async function () {
+    var fetcherWorkerUrl = window.URL.createObjectURL(
+      new Blob(
+        [ await fetcherjs
+        ]));
+    window.fetcherWorker = new Worker(fetcherWorkerUrl);
+  })();
+
 
   window.onfocus = function(evt){ windowFocusChange(true) };
   window.onblur = function(evt){ windowFocusChange(false) };

@@ -52,7 +52,9 @@ type jsRectArr = jsRect array Js.Dict.t
 exception NativeCodeError of string
 
 module Ext = struct
-  let window : Dom.window = [%bs.raw "window"]
+  let window : Dom.window =
+    [%bs.raw "(typeof window === undefined) ? window : {}"]
+
 
   external getWidth : Dom.window -> int = "innerWidth" [@@bs.get]
 

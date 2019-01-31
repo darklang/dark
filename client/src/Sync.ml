@@ -40,7 +40,16 @@ let fetch ~(ignoreTraces : bool) (m : model) : model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState
   then
     ( markRequestInModel m
-    , RPC.getAnalysisRPC
-        (contextFromModel m)
-        {tlids = toAnalyse m; latest404 = m.latest404; ignoreTraces} )
+    , Tea_cmd.call (fun _ ->
+          Analysis.RequestTraces.send
+            ( contextFromModel m
+            , {tlids = toAnalyse m; latest404 = m.latest404; ignoreTraces} ) )
+    )
   else (markTickInModel m, Tea.Cmd.none)
+
+
+let fetchAll m : msg Tea.Cmd.t =
+  Tea_cmd.call (fun _ ->
+      Analysis.RequestTraces.send
+        ( contextFromModel m
+        , {tlids = []; latest404 = m.latest404; ignoreTraces = false} ) )

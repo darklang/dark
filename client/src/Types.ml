@@ -667,6 +667,7 @@ and msg =
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of string
+  | ReceiveTraces of traceFetchResult
   | EnablePanning of bool
   | ShowErrorDetails of bool
   | StartMigration of tlid
@@ -674,6 +675,10 @@ and msg =
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
+
+and traceFetchResult =
+  { params : analysisParams
+  ; result : getAnalysisResult }
 
 and predecessor = pointerData option
 
@@ -788,7 +793,12 @@ and model =
 
 and rpcContext =
   { canvasName : string
-  ; csrfToken : string }
+  ; csrfToken : string
+  ; origin : string }
+
+external origin : string = "origin"
+  [@@bs.val] [@@bs.scope "window", "location"]
 
 let contextFromModel (m : model) : rpcContext =
-  {canvasName = m.canvasName; csrfToken = m.csrfToken}
+  let origin = origin in
+  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin}

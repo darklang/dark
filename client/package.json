@@ -21,7 +21,8 @@
     "pusher-js": "^4.3.1",
     "rollbar": "^2.4.2",
     "sha2": "^1.0.2",
-    "tablecloth-bucklescript": "0.0.2"
+    "tablecloth-bucklescript": "0.0.2",
+    "bs-fetch": "^0.3.1"
   },
   "scripts": {
     "clean": "bsb -clean-world",
@@ -29,7 +30,8 @@
     "build:js": "browserify lib/js/src/App.bs.js --standalone app -o ../backend/static/app.js",
     "build:appsupport": "browserify src/appsupport.js --standalone appsupport -o ../backend/static/appsupport.js",
     "build:analysissupport": "browserify src/analysissupport.js --standalone analysissupport -o ../backend/static/analysissupport.js",
-    "build": "run-s build:bsb build:js build:appsupport build:analysissupport",
+    "build:tracefetcher": "browserify lib/js/workers/TraceFetcher.bs.js --standalone tracefetcher -o ../backend/static/tracefetcher.js",
+    "build": "run-s build:bsb build:js build:appsupport build:analysissupport build:fetcher",
     "test": "jest"
   }
 }
