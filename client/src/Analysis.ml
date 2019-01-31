@@ -208,6 +208,22 @@ module ReceiveAnalysis = struct
     Native.registerGlobal "receiveAnalysis" key tagger decode
 end
 
+module ReceiveTraces = struct
+  let decode : (Js.Json.t, traceFetchResult) Tea.Json.Decoder.t =
+    let open Tea.Json.Decoder in
+    map
+      (fun msg -> msg)
+      (field
+         "detail"
+         (Decoder
+            (fun json ->
+              Tea_result.Ok (Obj.magic json) )))
+
+
+  let listen ~key tagger =
+    Native.registerGlobal "receiveTraces" key tagger decode
+end
+
 module NewTracePush = struct
   let decode =
     let open Tea.Json.Decoder in
@@ -226,4 +242,9 @@ end
 module RequestAnalysis = struct
   external send : Js.Json.t -> unit = "requestAnalysis"
     [@@bs.val] [@@bs.scope "window", "Dark", "analysis"]
+end
+
+module RequestTraces = struct
+  external send : rpcContext * analysisParams -> unit = "fetch"
+    [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end

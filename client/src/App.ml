@@ -64,10 +64,7 @@ let init (flagString : string) (location : Web.Location.location) =
         [ RPC.initialLoadRPC
             (contextFromModel m2)
             (FocusPageAndCursor (page, savedCursorState))
-          (* load the analysis even if the timers are off *)
-        ; RPC.getAnalysisRPC
-            (contextFromModel m2)
-            {tlids = []; latest404 = m.latest404; ignoreTraces = false} ] )
+        ; Sync.fetchAll m2 ] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -1081,6 +1078,19 @@ let update_ (msg : msg) (m : model) : modification =
           UpdateAnalysis (id, analysisResults)
       | Error str ->
           DisplayError str )
+  | ReceiveTraces res ->
+      let newTraces, (f404s, ts), unlockedDBs = res.result in
+      let analysisTLs =
+        List.filter
+          ~f:(fun tl -> List.member ~value:tl.id res.params.tlids)
+          m.toplevels
+      in
+      Many
+        [ TweakModel Sync.markResponseInModel
+        ; UpdateTraces newTraces
+        ; Append404s (f404s, ts)
+        ; SetUnlockedDBs unlockedDBs
+        ; RequestAnalysis analysisTLs ]
   | RPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
@@ -1241,7 +1251,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
           ReceiveAnalysis s )
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
-          NewTracePush s ) ]
+          NewTracePush s )
+    ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
+          ReceiveTraces s ) ]
   in
   Tea.Sub.batch
     (List.concat
