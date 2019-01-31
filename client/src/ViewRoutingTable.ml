@@ -66,7 +66,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
-            ; minusButton = None
+            ; minusButton = Some (ToplevelDelete tl.id)
             ; plusButton = None
             ; externalLink = Some h.spec
             ; verb = h.spec.modifier |> Blank.toMaybe } ) }
@@ -89,7 +89,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
-            ; minusButton = None
+            ; minusButton = Some (ToplevelDelete tl.id)
             ; plusButton = None
             ; externalLink = None
             ; verb = None } ) }
@@ -104,12 +104,17 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
   in
   let entries =
     List.map dbs ~f:(fun (pos, db) ->
+        let minusButton =
+          if DB.isLocked _m db.dbTLID
+          then None
+          else Some (ToplevelDelete db.dbTLID)
+        in
         Entry
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = None
           ; destination = Some (Toplevels pos)
-          ; minusButton = None
+          ; minusButton
           ; externalLink = None
           ; verb = None
           ; plusButton = None } )
@@ -138,7 +143,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
             ; uses = None
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
-            ; minusButton = None
+            ; minusButton = Some (ToplevelDelete tl.id)
             ; plusButton = None
             ; externalLink = None
             ; verb = None } ) }
@@ -182,7 +187,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                 ; uses = None
                 ; tlid = h.tlid
                 ; destination = Some (Toplevels tl.pos)
-                ; minusButton = None
+                ; minusButton = Some (ToplevelDelete tl.id)
                 ; plusButton = None
                 ; externalLink = None
                 ; verb = None } ) } )
