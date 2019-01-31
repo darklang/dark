@@ -17,17 +17,36 @@ use r2d2::ManageConnection;
 use sha2::Sha256;
 
 #[derive(Debug)]
-pub struct PusherError(String);
+pub enum PusherError {
+    MalformedPayload(String),
+    InvalidTimestamp,
+    HttpError(String),
+    HttpRequestUnsuccessful(hyper::StatusCode, String),
+    Other(String),
+}
 impl fmt::Display for PusherError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        f.write_str("Pusher error: ")?;
-        self.0.fmt(f)
+        write!(f, "Pusher error: ")?;
+        match self {
+            PusherError::MalformedPayload(msg) => write!(
+                f,
+                "malformed payload (should be UTF-8-encoded JSON): {}",
+                msg
+            ),
+            PusherError::InvalidTimestamp => write!(f, "invalid timestamp (before epoch)"),
+            PusherError::HttpError(msg) => write!(f, "HTTP error: {}", msg),
+            PusherError::HttpRequestUnsuccessful(code, response) => {
+                write!(f, "HTTP request unsuccessful ({}): {}", code, response)
+            }
+            PusherError::Other(msg) => msg.fmt(f),
+        }
     }
 }
-// TODO yuck, make it an error enum
 impl std::error::Error for PusherError {}
-fn err(msg: &str) -> PusherError {
-    PusherError(msg.into())
+impl From<String> for PusherError {
+    fn from(s: String) -> Self {
+        PusherError::Other(s)
+    }
 }
 
 pub struct PusherClient {
@@ -85,12 +104,8 @@ impl PusherClient {
         event_name: &str,
         json_bytes: &[u8],
     ) -> Result<HRequest<Body>, PusherError> {
-        let json_str = str::from_utf8(json_bytes).map_err(|e| {
-            err(&format!(
-                "malformed payload (should be UTF-8-encoded JSON): {}",
-                e
-            ))
-        })?;
+        let json_str = str::from_utf8(json_bytes)
+            .map_err(|e| PusherError::MalformedPayload(format!("{}", e)))?;
 
         let pusher_msg = PusherEvent {
             name: event_name.to_string(),
@@ -103,16 +118,15 @@ impl PusherClient {
             serde_json::to_string_pretty(&pusher_msg).expect("GAH")
         ); // TODO
 
-        let pusher_msg_bytes =
-            serde_json::to_vec(&pusher_msg).map_err(|e| err(&format!("uh oh TODO {}", e)))?;
+        let pusher_msg_bytes = serde_json::to_vec(&pusher_msg).unwrap();
 
-        let checksum = md5::compute(pusher_msg_bytes);
+        let checksum = md5::compute(&pusher_msg_bytes);
 
         let request_path = format!("/apps/{}/events", self.app_id);
 
         let timestamp = timestamp
             .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|e| err(&format!("SystemTime before UNIX epoch!: {}", e)))?
+            .map_err(|_| PusherError::InvalidTimestamp)?
             .as_secs();
 
         let query_params = format!(
@@ -136,14 +150,12 @@ impl PusherClient {
             signature.code()
         )
         .parse()
-        .map_err(|e| err(&format!("couldn't build request URI: {}", e)))?;
+        .unwrap();
 
-        HRequest::post(uri)
+        Ok(HRequest::post(uri)
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(
-                serde_json::to_string(&pusher_msg).expect("GAH"), /* TODO no */
-            ))
-            .map_err(|e| err(&format!("{}", e)))
+            .body(Body::from(pusher_msg_bytes))
+            .unwrap())
     }
 
     pub fn push_canvas_event(
@@ -159,10 +171,9 @@ impl PusherClient {
             match self.build_push_request(timestamp, &channel_name, &event_name, json_bytes) {
                 Ok(req) => req,
                 Err(e) => {
-                    return Box::new(future::err(err(&format!(
-                        "couldn't build Pusher request: {}",
-                        e
-                    ))))
+                    return Box::new(future::err(
+                        format!("couldn't build Pusher request: {}", e).into(),
+                    ))
                 }
             };
 
@@ -173,9 +184,9 @@ impl PusherClient {
         Box::new(
             self.http
                 .request(pusher_request)
-                .map_err(|e| err(&format!("Error pushing event: {}", e)))
+                .map_err(|e| PusherError::HttpError(format!("{}", e)))
                 .and_then(move |resp| {
-                    let req_time = start.elapsed().expect("FFS TODO");
+                    let req_time = start.elapsed().unwrap();
                     let result: BoxFut<()> = match resp.status() {
                         StatusCode::OK => {
                             println!(
@@ -187,11 +198,14 @@ impl PusherClient {
                         code => Box::new(
                             resp.into_body()
                                 .concat2()
-                                .map(move |bytes| {
-                                    eprintln!("Failed to push event: {} ({:?})", code, bytes);
-                                    ()
-                                })
-                                .map_err(|e| err(&format!("Error reading push error: {:?}", e))),
+                                .map_err(|e| format!("Error reading push error: {:?}", e).into())
+                                .and_then(move |bytes| {
+                                    Box::new(future::err(PusherError::HttpRequestUnsuccessful(
+                                        code,
+                                        String::from_utf8(bytes.to_vec())
+                                            .unwrap_or_else(|_| "<could not read response>".into()),
+                                    )))
+                                }),
                         ),
                     };
                     result
@@ -299,12 +313,23 @@ mod tests {
 
         let req = client
             .build_push_request(timestamp, channel, event_name, json_data)
-            .expect("yay"); // TODO
+            .expect("should successfully build the request");
         let uri = req.uri();
 
         assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
         assert_eq!(uri.host(), Some("api-testcluster.pusher.com"));
         assert_eq!(uri.path(), "/apps/3/events");
         assert_eq!(uri.query(), Some("auth_key=278d425bdf160c739803&auth_timestamp=1353088179&auth_version=1.0&body_md5=ec365a775a4cd0599faeb73354201b6f&auth_signature=da454824c97ba181a32ccc17a72625ba02771f50b50e1e7430e47a1f3f457e6c"));
+    }
+
+    #[test]
+    fn rejects_invalid_payload() {
+        let mut client = PusherClient::new("dummy", "dummy", "dummy", "dummy");
+        let invalid_utf8 = [0x80, 0x0a];
+
+        let err = client
+            .build_push_request(SystemTime::now(), "dummy", "dummy", &invalid_utf8)
+            .expect_err("should reject the payload");
+        assert!(format!("{}", err).contains("UTF-8"));
     }
 }
