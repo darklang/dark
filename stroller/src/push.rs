@@ -113,11 +113,6 @@ impl PusherClient {
             data: json_str.to_string(),
         };
 
-        println!(
-            "json: {}",
-            serde_json::to_string_pretty(&pusher_msg).expect("GAH")
-        ); // TODO
-
         let pusher_msg_bytes = serde_json::to_vec(&pusher_msg).unwrap();
 
         let checksum = md5::compute(&pusher_msg_bytes);
@@ -245,7 +240,6 @@ impl ManageConnection for PusherClientManager {
     type Error = PusherError;
 
     fn connect(&self) -> Result<PusherClient, PusherError> {
-        println!("connect"); // TODO
         Ok(PusherClient::new(
             &self.cluster,
             &self.app_id,
@@ -255,12 +249,10 @@ impl ManageConnection for PusherClientManager {
     }
 
     fn is_valid(&self, _client: &mut PusherClient) -> Result<(), PusherError> {
-        println!("is_valid"); // TODO
         Ok(())
     }
 
     fn has_broken(&self, _client: &mut PusherClient) -> bool {
-        println!("has_broken"); // TODO
         false
     }
 }
