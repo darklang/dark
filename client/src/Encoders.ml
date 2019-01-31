@@ -341,7 +341,7 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and analysisParams (params : Types.analysisParams) : Js.Json.t =
+and getAnalysisParams (params : Types.getAnalysisParams) : Js.Json.t =
   object_
     [("tlids", list tlid params.tlids); ("latest404", string params.latest404)]
 
