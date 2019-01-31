@@ -378,10 +378,6 @@ body #grid * {
   position: fixed;
   top: 0;
   left: 0;
-
-  &:hover {
-    border: 2px solid @blue;
-  }
 }
 
 .viewing-table {
@@ -390,10 +386,22 @@ body #grid * {
   position: relative;
   width: max-content;
   overflow: visible;
+  min-width: 320px;
 
   .routing-section {
+    &.empty .header {
+      &::before {
+        content: "- ";
+        font-weight: bold;
+      }
+    }
+
+    &.deleted > .routing-section {
+      margin-left: 10px;
+    }
+
     .header {
-      width: 300px;
+      width: 100%;
       color: @orange;
 
       .title {
@@ -408,29 +416,17 @@ body #grid * {
         float: right;
       }
     }
-    &.empty .header {
-      &::before {
-        content: "- ";
-        font-weight: bold;
-      }
-    }
-    &.deleted > .routing-section {
-      margin-left: 10px;
-    }
 
     .button-link {
-      cursor: pointer;
-    }
-
-    .verb-link, .button-link {
-
       .default-link;
-      color: @grey2;
+
+      cursor: pointer;
+      color: @white3;
       &:link, &:visited {
-        color: @grey2;
+        color: @white3;
       }
       &:hover {
-        color: @yellow;
+        color: @orange;
       }
     }
 
@@ -440,51 +436,72 @@ body #grid * {
       border-bottom: 1px @white1 solid;
     }
 
-    .fof {
-      display: flex;
-      flex-direction: row;
-      justify-content: space-between;
+    .simple-route.handler {
+      display: block;
+      width: calc(~"100% - 2px");
+      padding: 2px 0;
 
-      .name {
+      &:hover {
+        background-color: @black1;
+      }
+
+      .name, .verb, .external {
         color: @white3;
       }
 
       .verb {
-        color: @grey2;
+        width: 0;
+      }
+
+      .button-link {
+        float: right;
+        margin-left: 4px;
       }
     }
 
-    .handler, .simple-route {
-      display: flex;
-      flex-direction: row;
-      justify-content: space-between;
-
-      .name {
-        color: @white3;
-      }
-
-      .external {
-        color: @orange;
-        &:hover {
-          color: @yellow;
-        }
-      }
-
-      .verb {
-        color: @grey2;
-      }
-    }
   }
 
-  .fns {
-    .default-link.unused {
+  .routing-section.http .simple-route.handler,
+  .routing-section.fof .simple-route.handler {
+
+    .verb {
+      width: 60px;
       color: @grey2;
+      display: inline-block;
+      text-align: right;
+      margin-right: 4px;
+      
+      &.verb-link {
+        text-decoration: none;
+      }
+
+      &.ext {
+        width: 40px;
+      }
+
+      &:hover {
+        color: @orange;
+      }
     }
 
-    i.fa {
-      color: @grey2;
-      margin-left: 4px;
+    .external {
+      color: @grey3;
+      font-size: 12px;
+      width: 20px;
+      display: inline-block;
+
+      &:link, &:visited {
+        color: @grey3;
+      }
+      &:hover {
+        color: @orange;
+      }
     }
+
+  }
+
+  .fns .default-link.unused {
+    color: @grey2;
   }
 }
 

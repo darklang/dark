@@ -342,20 +342,21 @@ let entry2html (m : model) (e : entry) : msg Html.html =
         [Html.text name]
   in
   let verb =
+    let hasExt = if not (List.isEmpty ext) then " ext" else "" in
     match (e.destination, e.verb) with
     | Some dest, Some v ->
-        [Url.linkFor dest "verb verb-link" [Html.text v]]
+        [Url.linkFor dest ("verb verb-link" ^ hasExt) [Html.text v]]
     | None, Some v ->
-        [Html.span [Html.class' "verb"] [Html.text v]]
+        [Html.span [Html.class' ("verb" ^ hasExt)] [Html.text v]]
     | _ ->
-        []
+        [Html.span [Html.class' "verb"] []]
   in
   let minuslink =
     match e.minusButton with
     | Some msg ->
         [ buttonLink
             ~key:("entry-" ^ showTLID e.tlid)
-            (fontAwesome "minus-circle")
+            (fontAwesome "times")
             msg
             None ]
     | None ->
@@ -364,19 +365,15 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let pluslink =
     match e.plusButton with
     | Some msg ->
-        [ buttonLink
-            ~key:(e.name ^ "-plus")
-            (fontAwesome "plus-circle")
-            msg
-            None ]
+        [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg None]
     | None ->
         []
   in
   Html.div
     [Html.class' "simple-route handler"]
-    ( [Html.span [Html.class' "name"] mainlink]
+    ( ext
     @ verb
-    @ ext
+    @ [Html.span [Html.class' "name"] mainlink]
     @ pluslink
     @ minuslink )
 
