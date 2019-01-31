@@ -103,4 +103,24 @@ let fns : Lib.shortfn list =
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::getCORSSetting"]
+    ; ins = []
+    ; p = [par "canvas" TStr]
+    ; r = TOption
+    ; d =
+        "Given the full canvas name (including the username), get that canvas' global CORS setting."
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::setCORSSetting"]
+    ; ins = []
+    ; p = [par "canvas" TStr; par "origins" TOption]
+    ; r = TResult
+    ; d =
+        "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = false
     ; dep = false } ]

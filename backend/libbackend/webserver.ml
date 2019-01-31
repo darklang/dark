@@ -157,21 +157,68 @@ let sanitize_uri_path path : string =
 (* -------------------------------------------- *)
 let cors = ("Access-Control-Allow-Origin", "*")
 
+let infer_cors_header
+    (origin : string option) (setting : Canvas.cors_setting option) :
+    string option =
+  match (origin, setting) with
+  (* if there's no explicit canvas setting, * is the default. *)
+  | _, None ->
+      Some "*"
+  (* If there's a "*" in the setting, always use it.
+     This is help as a debugging aid since users will always see
+     Access-Control-Allow-Origin: * in their browsers, even if the
+     request has no Origin. *)
+  | _, Some AllOrigins ->
+      Some "*"
+  (* if there's no supplied origin, don't set the header at all. *)
+  | None, _ ->
+      None
+  (* Return the origin if and only if it's in the setting  *)
+  | Some origin, Some (Origins os) when List.mem ~equal:( = ) os origin ->
+      Some origin
+  (* Otherwise: there was a supplied origin and it's not in the setting.
+     return "null" explicitly *)
+  | Some _, Some _ ->
+      Some "null"
+
+
 let options_handler
     ~(execution_id : Types.id) (c : C.canvas) (req : CRequest.t) =
-  (*       allow (from the route matching) *)
-  (*       Access-Control-Request-Method: POST  *)
-  (* Access-Control-Request-Headers: X-PINGOTHER, Content-Type *)
-  (* This is just enough to fix conduit. Here's what we should do:
-   * https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS *)
+  (* When javascript in a browser tries to make an unusual cross-origin
+     request (for example, a POST with a weird content-type or something with
+     weird headers), the browser first makes an OPTIONS request to the
+     server in order to get its permission to make that request. It includes
+     "origin", the originating origin, and "access-control-request-headers",
+     which is the list of headers the javascript would like to use.
+
+     (Ordinary GETs and some POSTs get handled in result_to_response, above,
+     without an OPTIONS).
+
+     Our strategy here is: if it's from an allowed origin (i.e., in the canvas
+     cors_setting) to return an Access-Control-Allow-Origin header for that
+     origin, to return Access-Control-Allow-Headers with the requested headers,
+     and Access-Control-Allow-Methods for all of the methods we think might
+     be useful.
+
+     This makes e.g. conduit from localhost work.
+   *)
   let req_headers =
     Cohttp.Header.get (CRequest.headers req) "access-control-request-headers"
   in
   let allow_headers = match req_headers with Some h -> h | None -> "*" in
   let resp_headers =
-    [ ("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS")
-    ; ("Access-Control-Allow-Origin", "*")
-    ; ("Access-Control-Allow-Headers", allow_headers) ]
+    match
+      infer_cors_header
+        (Header.get (CRequest.headers req) "Origin")
+        c.cors_setting
+    with
+    | None ->
+        []
+    | Some origin ->
+        [ ( "Access-Control-Allow-Methods"
+          , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" )
+        ; ("Access-Control-Allow-Origin", origin)
+        ; ("Access-Control-Allow-Headers", allow_headers) ]
   in
   respond
     ~resp_headers:(Cohttp.Header.of_list resp_headers)
@@ -228,6 +275,69 @@ let push_new_trace_id
     (trace_id : Uuidm.t) =
   let payload = Analysis.to_new_trace_frontend (tlid, trace_id) in
   push ~execution_id ~canvas_id ~event:"new_trace" payload
+
+
+let result_to_response
+    ~(c : Canvas.canvas ref)
+    ~(execution_id : Types.id)
+    ~(req : CRequest.t)
+    (result : RTT.dval) =
+  let maybe_infer_headers resp_headers value =
+    let inferred_ct =
+      match value with
+      | RTT.DObj _ | RTT.DList _ ->
+          "application/json; charset=utf-8"
+      | _ ->
+          "text/plain; charset=utf-8"
+    in
+    (* Add the content-type, if it doesn't exist *)
+    let headers =
+      Header.add_unless_exists resp_headers "Content-Type" inferred_ct
+    in
+    (* Add the Access-Control-ALlow-Origin, if it doens't exist and if infer_cors_header
+           tells us to. *)
+    match
+      infer_cors_header
+        (Header.get (CRequest.headers req) "Origin")
+        !c.cors_setting
+    with
+    | None ->
+        headers
+    | Some h ->
+        Header.add_unless_exists headers "Access-Control-Allow-Origin" h
+  in
+  match result with
+  | RTT.DIncomplete ->
+      respond
+        ~execution_id
+        `Internal_server_error
+        "Program error: program was incomplete"
+  | RTT.DResp (Redirect url, value) ->
+      S.respond_redirect (Uri.of_string url) ()
+  | RTT.DResp (Response (code, resp_headers), value) ->
+      let resp_headers =
+        maybe_infer_headers (Header.of_list resp_headers) value
+      in
+      let body =
+        if Header.get resp_headers "Content-Type"
+           |> Option.value_map
+                ~f:(fun v ->
+                  String.is_prefix v ~prefix:"text/html"
+                  || String.is_prefix v ~prefix:"text/plain" )
+                ~default:false
+        then
+          (* TODO: only pretty print for a webbrowser *)
+          Dval.to_human_repr value
+        else Dval.unsafe_dval_to_pretty_json_string value
+      in
+      let status = Cohttp.Code.status_of_code code in
+      respond ~resp_headers ~execution_id status body
+  | _ ->
+      let body = Dval.unsafe_dval_to_pretty_json_string result in
+      (* for demonstrations sake, let's return 200 Okay when
+        * no HTTP response object is returned *)
+      let resp_headers = maybe_infer_headers (Header.init ()) result in
+      respond ~resp_headers ~execution_id `OK body
 
 
 let user_page_handler
@@ -311,51 +421,7 @@ let user_page_handler
           ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
       in
       push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
-      let maybe_infer_headers resp_headers value =
-        let inferred_ct =
-          match value with
-          | RTT.DObj _ | RTT.DList _ ->
-              "application/json; charset=utf-8"
-          | _ ->
-              "text/plain; charset=utf-8"
-        in
-        Header.add_unless_exists
-          (Header.add_unless_exists resp_headers "Content-Type" inferred_ct)
-          "Access-Control-Allow-Origin"
-          "*"
-      in
-      ( match result with
-      | DIncomplete ->
-          respond
-            ~execution_id
-            `Internal_server_error
-            "Program error: program was incomplete"
-      | RTT.DResp (Redirect url, value) ->
-          S.respond_redirect (Uri.of_string url) ()
-      | RTT.DResp (Response (code, resp_headers), value) ->
-          let resp_headers =
-            maybe_infer_headers (Header.of_list resp_headers) value
-          in
-          let body =
-            if Header.get resp_headers "Content-Type"
-               |> Option.value_map
-                    ~f:(fun v ->
-                      String.is_prefix v ~prefix:"text/html"
-                      || String.is_prefix v ~prefix:"text/plain" )
-                    ~default:false
-            then
-              (* TODO: only pretty print for a webbrowser *)
-              Dval.to_human_repr value
-            else Dval.unsafe_dval_to_pretty_json_string value
-          in
-          let status = Cohttp.Code.status_of_code code in
-          respond ~resp_headers ~execution_id status body
-      | _ ->
-          let body = Dval.unsafe_dval_to_pretty_json_string result in
-          (* for demonstrations sake, let's return 200 Okay when
-           * no HTTP response object is returned *)
-          let resp_headers = maybe_infer_headers (Header.init ()) result in
-          respond ~resp_headers ~execution_id `OK body )
+      result_to_response ~c ~execution_id ~req result
 
 
 (* -------------------------------------------- *)
