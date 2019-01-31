@@ -213,11 +213,7 @@ module ReceiveTraces = struct
     let open Tea.Json.Decoder in
     map
       (fun msg -> msg)
-      (field
-         "detail"
-         (Decoder
-            (fun json ->
-              Tea_result.Ok (Obj.magic json) )))
+      (field "detail" (Decoder (fun json -> Tea_result.Ok (Obj.magic json))))
 
 
   let listen ~key tagger =
@@ -245,6 +241,6 @@ module RequestAnalysis = struct
 end
 
 module RequestTraces = struct
-  external send : rpcContext * analysisParams -> unit = "fetch"
+  external send : rpcContext * getAnalysisParams -> unit = "fetch"
     [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end

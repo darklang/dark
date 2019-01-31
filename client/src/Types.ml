@@ -399,7 +399,7 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and analysisParams =
+and getAnalysisParams =
   { tlids : tlid list
   ; latest404 : string
   ; ignoreTraces : bool
@@ -622,7 +622,7 @@ and msg =
   | SaveTestRPCCallback of (string, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
   | GetAnalysisRPCCallback of
-      (analysisParams * (getAnalysisResult, httpError) Tea.Result.t)
+      (getAnalysisParams * (getAnalysisResult, httpError) Tea.Result.t)
       [@printer opaque "GetAnalysisRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | GetDelete404RPCCallback of
@@ -677,7 +677,7 @@ and msg =
   | CreateDBTable
 
 and traceFetchResult =
-  { params : analysisParams
+  { params : getAnalysisParams
   ; result : getAnalysisResult }
 
 and predecessor = pointerData option
