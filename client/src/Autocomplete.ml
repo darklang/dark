@@ -491,7 +491,8 @@ let tlGotoName (tl : toplevel) : string =
         |> B.toMaybe
         |> Option.withDefault ~default:"Undefined" )
   | TLDB db ->
-      "Jump to DB: " ^ db.dbName
+      "Jump to DB: "
+      ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
   | TLFunc _ ->
       Debug.crash "cannot happen"
 
