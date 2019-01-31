@@ -4,6 +4,7 @@ open Types
 
 (* Dark *)
 module TL = Toplevel
+module P = Pointer
 
 type viewState = ViewUtils.viewState
 
@@ -72,7 +73,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with
     | Some tlid, Some id when tlid = tl.id ->
-        let fnDocString =
+        let acFnDocString =
           m.complete
           |> Autocomplete.highlighted
           |> Option.andThen ~f:Autocomplete.documentationForItem
@@ -81,8 +82,45 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                      [Html.class' "documentation-box"]
                      [Html.p [] [Html.text desc]] ] )
         in
-        let paramDocString =
-          match Autocomplete.paramFor m tlid id with
+        let selectedFnDocString =
+          let fn =
+            TL.get m tlid
+            |> Option.andThen ~f:TL.asHandler
+            |> Option.map ~f:(fun x -> x.ast)
+            |> Option.andThen ~f:(fun ast -> AST.find id ast)
+            |> Option.andThen ~f:(function
+                   | PExpr (F (_, FnCall (F (_, name), _, _))) ->
+                       Some name
+                   | PFnCallName (F (_, name)) ->
+                       Some name
+                   | _ ->
+                       None )
+            |> Option.andThen ~f:(fun name ->
+                   m.complete.functions
+                   |> List.find ~f:(fun f -> name = f.fnName) )
+          in
+          match fn with
+          | Some fn ->
+              Some
+                [ Html.div
+                    [Html.class' "documentation-box"]
+                    [Html.p [] [Html.text fn.fnDescription]] ]
+          | None ->
+              None
+        in
+        let selectedParamDocString =
+          let param =
+            TL.get m tlid
+            |> Option.andThen ~f:TL.asHandler
+            |> Option.map ~f:(fun x -> x.ast)
+            |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
+            |> Option.andThen ~f:(fun (name, index) ->
+                   m.complete.functions
+                   |> List.find ~f:(fun f -> name = f.fnName)
+                   |> Option.map ~f:(fun x -> x.fnParameters)
+                   |> Option.andThen ~f:(List.getAt ~index) )
+          in
+          match param with
           | Some p ->
               let header =
                 p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe
@@ -95,7 +133,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           | _ ->
               None
         in
-        Option.orElse paramDocString fnDocString
+        acFnDocString
+        |> Option.orElse selectedParamDocString
+        |> Option.orElse selectedFnDocString
     | _ ->
         None
   in
