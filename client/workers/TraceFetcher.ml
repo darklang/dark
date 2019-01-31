@@ -1,4 +1,4 @@
-type event = < data : Types.rpcContext * Types.analysisParams [@bs.get] > Js.t
+type event = < data : Types.rpcContext * Types.getAnalysisParams [@bs.get] > Js.t
 
 type self
 
@@ -7,7 +7,7 @@ external self : self = "self" [@@bs.val]
 external onmessage : self -> (event -> unit) -> unit = "" [@@bs.set]
 
 type pushResult =
-  { params : Types.analysisParams
+  { params : Types.getAnalysisParams
   ; result : Types.getAnalysisResult }
 
 external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
@@ -21,7 +21,7 @@ let fetch (context : Types.rpcContext) params =
        ~method_:Post
        ~body:
          (Fetch.BodyInit.make
-            (Js.Json.stringify (Encoders.analysisParams params)))
+            (Js.Json.stringify (Encoders.getAnalysisParams params)))
        ~headers:
          (Fetch.HeadersInit.makeWithDict
             (Js.Dict.fromList

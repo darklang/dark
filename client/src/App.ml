@@ -547,14 +547,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let req h =
           let trace = Analysis.getCurrentTrace m h.tlid in
-          let param t =
-            let open Json_encode_extended in
-            object_
-              [ ("handler", Encoders.handler h)
-              ; ("trace", Encoders.trace t)
-              ; ("dbs", list Encoders.db dbs)
-              ; ("user_fns", list Encoders.userFunction userFns) ]
-          in
+          let param t = {handler = h; trace = t; dbs; userFns} in
           trace
           |> Option.map ~f:(fun t -> requestAnalysis (param t))
           |> Option.toList
@@ -1069,15 +1062,14 @@ let update_ (msg : msg) (m : model) : modification =
       else NoChange
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
-  | ReceiveAnalysis json ->
-      let envelope =
-        Json_decode_extended.decodeString Decoders.analysisEnvelope json
-      in
-      ( match envelope with
-      | Ok (id, analysisResults) ->
-          UpdateAnalysis (id, analysisResults)
-      | Error str ->
-          DisplayError str )
+  | ReceiveAnalysis result ->
+    ( match result with
+    | Ok (id, analysisResults) ->
+        UpdateAnalysis (id, analysisResults)
+    | Error (AnalysisExecutionError (_, str)) ->
+        DisplayError str
+    | Error (AnalysisParseError str) ->
+        DisplayError str )
   | ReceiveTraces res ->
       let newTraces, (f404s, ts), unlockedDBs = res.result in
       let analysisTLs =

@@ -279,47 +279,43 @@ window.Dark = {
         return;
       }
 
-      const handler = params.handler;
-      const bToString = (blankOr) => blankOr[2] || null;
-      const spec = params.handler.spec;
-      const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-      const tlid = handler.tlid;
-      const trace = params.trace.id;
+      // const handler = params.handler;
+      // const bToString = (blankOr) => blankOr[2] || null;
+      // const spec = params.handler.spec;
+      // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
+      // const tlid = handler.tlid;
+      // const trace = params.trace.id;
 
-      window.analysisWorker.postMessage(
-        { proto: window.location.protocol,
-          params: JSON.stringify (params)
-        }
-      );
+      window.analysisWorker.postMessage(params);
 
       window.analysisWorker.onmessage = function (e) {
-        var result = e.data.analysis;
-        var error = e.data.error;
+        var result = e.data;
+        // var error = e.data.error;
 
-        if (!error) {
-          var event = new CustomEvent('receiveAnalysis', {detail: result});
-          document.dispatchEvent(event);
-        } else {
-          var errorName = null;
-          var errorMsg = null;
-          try { errorName = error[1][1].c; } catch (_) {}
-          try { errorMsg = error[2][1].c; } catch (_) {}
-          try { if (!errorMsg) { errorMsg = error[2].c; } } catch (_) {}
-          const errorStr = `${errorName} - ${errorMsg}`;
+        // if (!error) {
+        var event = new CustomEvent('receiveAnalysis', {detail: result});
+        document.dispatchEvent(event);
+        // } else {
+        //   var errorName = null;
+        //   var errorMsg = null;
+        //   try { errorName = error[1][1].c; } catch (_) {}
+        //   try { errorMsg = error[2][1].c; } catch (_) {}
+        //   try { if (!errorMsg) { errorMsg = error[2].c; } } catch (_) {}
+        //   const errorStr = `${errorName} - ${errorMsg}`;
 
-          // send to rollbar
-          Rollbar.error( errorStr
-                       , error
-                       , { route: route
-                         , tlid: tlid
-                         , trace: trace });
+        //   // send to rollbar
+        //   Rollbar.error( errorStr
+        //                , error
+        //                , { route: route
+        //                  , tlid: tlid
+        //                  , trace: trace });
 
-          // log to console
-          console.log(`Error processing analysis in (${route}, ${tlid}, ${trace})`, errorStr, error);
+        //   // log to console
+        //   console.log(`Error processing analysis in (${route}, ${tlid}, ${trace})`, errorStr, error);
 
-          // send to client
-          displayError(`Error while executing (${route}, ${tlid}, ${trace}): ${errorStr}`);
-        }
+        //   // send to client
+        //   displayError(`Error while executing (${route}, ${tlid}, ${trace}): ${errorStr}`);
+        // }
       }
     }
   },
@@ -495,14 +491,14 @@ setTimeout(function(){
   };
 
   let analysisjs = fetch("//" + staticUrl + "/analysis.js").then(r => r.text());
-  let analysissupportjs = fetch("//" + staticUrl + "/analysissupport.js").then(r => r.text());
+  let analysiswrapperjs = fetch("//" + staticUrl + "/analysiswrapper.js").then(r => r.text());
   var analysisWorkerUrl;
   (async function () {
     analysisWorkerUrl = window.URL.createObjectURL(
       new Blob(
         [ await analysisjs
         , "\n\n"
-        , await analysissupportjs
+        , await analysiswrapperjs
         ]));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();

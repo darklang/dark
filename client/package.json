@@ -31,7 +31,8 @@
     "build:appsupport": "browserify src/appsupport.js --standalone appsupport -o ../backend/static/appsupport.js",
     "build:analysissupport": "browserify src/analysissupport.js --standalone analysissupport -o ../backend/static/analysissupport.js",
     "build:tracefetcher": "browserify lib/js/workers/TraceFetcher.bs.js --standalone tracefetcher -o ../backend/static/tracefetcher.js",
-    "build": "run-s build:bsb build:js build:appsupport build:analysissupport build:fetcher",
+    "build:analysiswrapper": "browserify lib/js/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o ../backend/static/analysiswrapper.js",
+    "build": "run-s build:bsb build:js build:appsupport build:analysissupport build:tracefetcher build:analysiswrapper",
     "test": "jest"
   }
 }

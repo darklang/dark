@@ -109,6 +109,11 @@ end
 module Result = struct
   include Tablecloth.Result
 
+  let andThen (f : 'ok -> ('err, 'value) t) (r : ('err, 'ok) t) :
+      ('err, 'value) t =
+    Belt.Result.flatMap r f
+
+
   let pp
       (errf : Format.formatter -> 'err -> unit)
       (okf : Format.formatter -> 'ok -> unit)
