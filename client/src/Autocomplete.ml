@@ -5,6 +5,7 @@ open Types
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
+module B = Blank
 
 (* ---------------------------- *)
 (* Focus *)
@@ -67,7 +68,9 @@ let asName (aci : autocompleteItem) : string =
       | None ->
           "New HTTP handler" )
     | NewEventSpace name ->
-        "New handler in the " ^ name ^ " space" )
+        "New handler in the " ^ name ^ " space"
+    | Goto (_, _, desc) ->
+        desc )
   | ACConstructorName name ->
       let arityOneConstructors = ["Just"; "Ok"; "Error"] in
       if List.member ~value:name arityOneConstructors
@@ -409,7 +412,15 @@ let qEventSpace (s : string) : omniAction option =
 
 
 let isDynamicItem (item : autocompleteItem) : bool =
-  match item with ACLiteral _ -> true | ACOmniAction _ -> true | _ -> false
+  match item with
+  | ACLiteral _ ->
+      true
+  | ACOmniAction (Goto _) ->
+      false
+  | ACOmniAction _ ->
+      true
+  | _ ->
+      false
 
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
@@ -464,6 +475,49 @@ let paramForTarget (m : model) (a : autocomplete) : parameter option =
       None
   | Some (tlid, p) ->
       paramFor m tlid (P.toID p)
+
+
+let fnGotoName (name : string) : string = "Just to function: " ^ name
+
+let tlGotoName (tl : toplevel) : string =
+  match tl.data with
+  | TLHandler h ->
+      "Jump to handler: "
+      ^ (h.spec.module_ |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ "::"
+      ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ " - "
+      ^ ( h.spec.modifier
+        |> B.toMaybe
+        |> Option.withDefault ~default:"Undefined" )
+  | TLDB db ->
+      "Jump to DB: "
+      ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
+  | TLFunc _ ->
+      Debug.crash "cannot happen"
+
+
+let tlDestinations (m : model) : autocompleteItem list =
+  let tls =
+    m.toplevels
+    |> List.sortBy ~f:tlGotoName
+    |> List.map ~f:(fun tl ->
+           Goto (Toplevels (Viewport.toCenteredOn tl.pos), tl.id, tlGotoName tl)
+       )
+  in
+  let ufs =
+    List.filterMap
+      ~f:(fun fn ->
+        match fn.ufMetadata.ufmName with
+        | Blank _ ->
+            None
+        | F (_, name) ->
+            Some
+              (Goto (Fn (fn.ufTLID, {x = 0; y = 0}), fn.ufTLID, fnGotoName name))
+        )
+      m.userFunctions
+  in
+  List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
 
 (* ------------------------------------ *)
@@ -578,9 +632,16 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       varnames @ constructors @ keywords @ functions
     else []
   in
+  let destinations = if a.target = None then tlDestinations m else [] in
   let regular = extras @ exprs @ fields in
   let commands = List.map ~f:(fun x -> ACCommand x) Commands.commands in
-  let items = if a.isCommandMode then commands else regular in
+  let items =
+    if a.isCommandMode
+    then commands
+    else if a.target = None
+    then destinations
+    else regular
+  in
   let matcher = function
     | ACFunction fn ->
         matchesTypes isThreadMember paramTipe dval fn
@@ -598,6 +659,14 @@ let filter
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace {js|⟶|js} "->"
+  in
+  (* HACK: dont show Gotos when the query is "" *)
+  let list =
+    List.filter list ~f:(function
+        | ACOmniAction (Goto _) ->
+            query <> ""
+        | _ ->
+            true )
   in
   (* split into different lists *)
   let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
@@ -621,8 +690,8 @@ let filter
       ~f:(stringify >> String.contains ~substring:query)
       candidates3
   in
-  let stringMatch =
-    List.filter
+  let stringMatch, _notMatched =
+    List.partition
       ~f:(asName >> String.toLower >> containsOrdered lcq)
       notSubstring
   in
