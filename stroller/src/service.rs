@@ -16,7 +16,6 @@ impl AsyncPush for r2d2::PooledConnection<push::PusherClientManager> {
         let _ = spawn(
             self.push_canvas_event(canvas_uuid, event_name, json_bytes)
                 .map_err(move |e| {
-                    // TODO unify error handling
                     eprintln!("failed to push event {}: {}", event_name_, e);
                     ()
                 }),
