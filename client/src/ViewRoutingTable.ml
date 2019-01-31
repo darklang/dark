@@ -462,7 +462,9 @@ let rtCacheKey m =
   , m.f404s
   , m.deletedToplevels
   , m.deletedUserFunctions
-  , m.routingTableOpenDetails )
+  , m.routingTableOpenDetails
+  , m.lockedHandlers
+  , m.unlockedDBs )
 
 
 let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
