@@ -6,6 +6,11 @@ open Types
 module RTT = Types.RuntimeT
 module TL = Toplevel
 
+type cors_setting =
+  | AllOrigins
+  | Origins of string list
+[@@deriving eq, show]
+
 type canvas =
   { host : string
   ; owner : Uuidm.t
@@ -15,7 +20,8 @@ type canvas =
   ; dbs : TL.toplevel_list
   ; deleted : TL.toplevel_list
   ; user_functions : RTT.user_fn list
-  ; deleted_user_functions : RTT.user_fn list }
+  ; deleted_user_functions : RTT.user_fn list
+  ; cors_setting : cors_setting option }
 [@@deriving eq, show]
 
 (* ------------------------- *)
@@ -200,9 +206,46 @@ let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
   c := {!c with ops = Op.oplist2tlid_oplists allops}
 
 
+let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
+  let cors_setting_of_db_string (string_from_db : string) : cors_setting option
+      =
+    (* none if null from database *)
+    (if string_from_db = "" then None else Some string_from_db)
+    (* parse json, handle if it's not valid... *)
+    |> Option.map ~f:Yojson.Safe.from_string
+    (* json -> string list *)
+    |> Option.bind ~f:(fun j ->
+           match j with
+           | `String "*" ->
+               Some AllOrigins
+           | `List js ->
+               js
+               |> List.map ~f:(fun s ->
+                      match s with
+                      | `String s ->
+                          s
+                      | _ ->
+                          Exception.internal
+                            "CORS setting from DB is a list containing a non-string"
+                  )
+               |> Origins
+               |> Some
+           | _ ->
+               Exception.internal
+                 "CORS setting from DB is neither a string or a list." )
+  in
+  Db.fetch_one
+    ~name:"fetch_cors_setting"
+    "SELECT cors_setting FROM canvases WHERE id = $1"
+    ~params:[Uuid id]
+  |> List.hd_exn
+  |> cors_setting_of_db_string
+
+
 let init (host : string) (ops : Op.op list) : canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
+  let cors = fetch_cors_setting canvas_id in
   let c =
     ref
       { host
@@ -213,7 +256,8 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; dbs = []
       ; deleted = []
       ; user_functions = []
-      ; deleted_user_functions = [] }
+      ; deleted_user_functions = []
+      ; cors_setting = cors }
   in
   add_ops c [] ops ;
   c
@@ -225,6 +269,31 @@ let name_for_id (id : Uuidm.t) : string =
     "SELECT name FROM canvases WHERE id = $1"
     ~params:[Uuid id]
   |> List.hd_exn
+
+
+let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
+    =
+  let cors_setting_to_db (setting : cors_setting option) : Db.param =
+    match setting with
+    | None ->
+        Db.Null
+    | Some AllOrigins ->
+        `String "*" |> Yojson.Safe.to_string |> Db.String
+    | Some (Origins ss) ->
+        ss
+        |> List.map ~f:(fun s -> `String s)
+        |> (fun l -> `List l)
+        |> Yojson.Safe.to_string
+        |> Db.String
+  in
+  Db.run
+    ~name:"update_cors_setting"
+    "UPDATE canvases
+     SET cors_setting = $1
+     WHERE id = $2"
+    ~params:[cors_setting_to_db setting; Uuid !c.id] ;
+  c := {!c with cors_setting = setting} ;
+  ()
 
 
 let url_for (id : Uuidm.t) : string =
@@ -243,6 +312,7 @@ let load_from
     canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
+  let cors = fetch_cors_setting canvas_id in
   let oldops = f ~host ~canvas_id () in
   let c =
     ref
@@ -254,7 +324,8 @@ let load_from
       ; dbs = []
       ; user_functions = []
       ; deleted = []
-      ; deleted_user_functions = [] }
+      ; deleted_user_functions = []
+      ; cors_setting = cors }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops ;
   c
