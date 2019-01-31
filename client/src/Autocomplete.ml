@@ -479,26 +479,6 @@ let withDynamicItems
   withoutDynamic @ new_
 
 
-let paramFor (m : model) (tlid : tlid) (id : id) : parameter option =
-  TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
-  |> Option.map ~f:(fun x -> x.ast)
-  |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
-  |> Option.andThen ~f:(fun (name, index) ->
-         m.complete.functions
-         |> List.find ~f:(fun f -> name = f.fnName)
-         |> Option.map ~f:(fun x -> x.fnParameters)
-         |> Option.andThen ~f:(List.getAt ~index) )
-
-
-let paramForTarget (m : model) (a : autocomplete) : parameter option =
-  match a.target with
-  | None ->
-      None
-  | Some (tlid, p) ->
-      paramFor m tlid (P.toID p)
-
-
 let fnGotoName (name : string) : string = "Just to function: " ^ name
 
 let tlGotoName (tl : toplevel) : string =
