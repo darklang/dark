@@ -27,16 +27,23 @@ fn main() {
         &config::pusher_key(),
         &config::pusher_secret(),
     );
+    /*
+     * This is a "connection pool" with only one connection, mostly as an easy
+     * way to get a lazily-initialized connection that multiple threads can
+     * safely share. As a bonus though, if we need to handle high volume, we
+     * can have multiple Pusher connections per stroller instance by just
+     * bumping up max_size below.
+     */
     let pool = r2d2::Pool::builder()
         .max_size(1)
         .min_idle(Some(0))
         .build(manager)
-        .expect("TODO");
+        .unwrap();
 
     let make_service = move || {
         let pool = pool.clone();
         service_fn(move |req| {
-            let client = pool.get().expect("TODO");
+            let client = pool.get().expect("Couldn't obtain Pusher client from pool");
 
             service::handle(client, req)
         })
