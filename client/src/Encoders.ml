@@ -346,6 +346,14 @@ and getAnalysisParams (params : Types.getAnalysisParams) : Js.Json.t =
     [("tlids", list tlid params.tlids); ("latest404", string params.latest404)]
 
 
+and performAnalysisParams (params : Types.performAnalysisParams) : Js.Json.t =
+  object_
+    [ ("handler", handler params.handler)
+    ; ("trace", trace params.trace)
+    ; ("dbs", list db params.dbs)
+    ; ("user_fns", list userFunction params.userFns) ]
+
+
 and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
@@ -498,6 +506,19 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
       ev "Deselected" []
 
 
+and functionResult (fr : Types.functionResult) : Js.Json.t =
+  list
+    identity
+    [string fr.fnName; id fr.callerID; string fr.argHash; dval fr.value]
+
+
+and trace (t : Types.trace) : Js.Json.t =
+  object_
+    [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
+    ; ("function_results", list functionResult t.functionResults)
+    ; ("id", string t.traceID) ]
+
+
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
   object_
     [ ("clipboard", nullable pointerData se.clipboard)
@@ -512,22 +533,6 @@ let fof (fof : Types.fourOhFour) : Js.Json.t =
     [ ("space", string fof.space)
     ; ("path", string fof.path)
     ; ("modifier", string fof.modifier) ]
-
-
-(* let inputValueDict (dict : inputValueDict) : Js.Json.t = *)
-(*   dict |> Dict.toList |> encodeList (encodePair string encodeDval) *)
-(*  *)
-let functionResult (fr : Types.functionResult) : Js.Json.t =
-  list
-    identity
-    [string fr.fnName; id fr.callerID; string fr.argHash; dval fr.value]
-
-
-let trace (t : Types.trace) : Js.Json.t =
-  object_
-    [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
-    ; ("function_results", list functionResult t.functionResults)
-    ; ("id", string t.traceID) ]
 
 
 let httpError (e : string Http.error) : Js.Json.t =

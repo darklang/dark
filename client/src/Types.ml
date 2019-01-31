@@ -410,6 +410,20 @@ and getAnalysisParams =
    *)
   }
 
+and performAnalysisParams =
+  { handler : handler
+  ; trace : trace
+  ; dbs : dB list
+  ; userFns : userFunction list }
+
+and analysisEnvelope = traceID * analysisResults
+
+and analysisError =
+  | AnalysisExecutionError of performAnalysisParams * string
+  | AnalysisParseError of string
+
+and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
+
 and delete404Param = fourOhFour
 
 (* results *)
@@ -666,7 +680,7 @@ and msg =
   | DeleteUserFunction of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
-  | ReceiveAnalysis of string
+  | ReceiveAnalysis of performAnalysisResult
   | ReceiveTraces of traceFetchResult
   | EnablePanning of bool
   | ShowErrorDetails of bool
