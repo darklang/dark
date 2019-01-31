@@ -1,4 +1,5 @@
-type event = < data : Types.rpcContext * Types.getAnalysisParams [@bs.get] > Js.t
+type event =
+  < data : Types.rpcContext * Types.getAnalysisParams [@bs.get] > Js.t
 
 type self
 
