@@ -77,12 +77,6 @@ def client_build():
   return result
 
 
-def analysissupport_build():
-  start = time.time()
-  build = "cd client && unbuffer yarn run build:analysissupport"
-  result = run_frontend(start, build)
-  return result
-
 def appsupport_build():
   start = time.time()
   build = "cd client && unbuffer yarn run build:appsupport"
@@ -228,7 +222,6 @@ class Should:
     self.npm_install = False
     self.client_build = False
     self.appsupport_build = False
-    self.analysissupport_build = False
     self.client_test = False
     self.less_compile = False
     self.reload_browser = False
@@ -250,7 +243,6 @@ def execute(should):
   if should.npm_install:
     if not npm_install(): success = False
     should.client_build |= success
-    should.analysissupport_build |= success
     should.appsupport_build |= success
 
   if should.client_build:
@@ -261,11 +253,6 @@ def execute(should):
 
   if should.appsupport_build:
     if not appsupport_build(): success = False
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.analysissupport_build:
-    if not analysissupport_build(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -351,9 +338,6 @@ def mark(should, f):
 
   elif "client/src/appsupport.js" in f:
     should.appsupport_build = True
-
-  elif "client/src/analysissupport.js" in f:
-    should.analysissupport_build = True
 
   # Other
   elif ".less" in f:
