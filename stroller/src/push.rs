@@ -148,8 +148,7 @@ impl PusherClient {
             request_path,
             query_params,
             signature.code()
-        )
-        .parse()
+        ).parse()
         .unwrap();
 
         Ok(HRequest::post(uri)
