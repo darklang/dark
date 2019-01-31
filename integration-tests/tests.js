@@ -101,7 +101,7 @@ function available(css) {
 
 // Return the highlighted autocomplete entry
 function acHighlightedText() {
-  return Selector('.autocomplete-item.highlighted').innerText;
+  return Selector('.autocomplete-item.highlighted').textContent;
 }
 
 

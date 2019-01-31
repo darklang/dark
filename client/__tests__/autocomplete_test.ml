@@ -72,15 +72,6 @@ let createCreating (role : role) : autocomplete =
 
 let () =
   describe "autocomplete" (fun () ->
-      describe "sharedPrefix" (fun () ->
-          test "same character prefix" (fun () ->
-              expect (sharedPrefixList ["aaaab"; "aab"; "aaxb"])
-              |> toEqual "aa" ) ;
-          test "different character prefix" (fun () ->
-              expect (sharedPrefixList ["abcdd"; "abcdde"]) |> toEqual "abcdd"
-          ) ;
-          test "no common prefix" (fun () ->
-              expect (sharedPrefixList ["abcdd"; "bdcdee"]) |> toEqual "" ) ) ;
       describe "queryWhenEntering" (fun () ->
           test "empty autocomplete doesn't highlight" (fun () ->
               expect (createEntering User |> fun x -> x.index) |> toEqual (-1)
