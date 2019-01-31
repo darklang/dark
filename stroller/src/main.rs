@@ -6,6 +6,7 @@ extern crate md5;
 extern crate native_tls;
 extern crate r2d2;
 #[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 extern crate sha2;
 
