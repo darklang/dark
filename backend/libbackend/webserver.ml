@@ -184,11 +184,24 @@ let infer_cors_header
 
 let options_handler
     ~(execution_id : Types.id) (c : C.canvas) (req : CRequest.t) =
-  (*       allow (from the route matching) *)
-  (*       Access-Control-Request-Method: POST  *)
-  (* Access-Control-Request-Headers: X-PINGOTHER, Content-Type *)
-  (* This is just enough to fix conduit. Here's what we should do:
-   * https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS *)
+  (* When javascript in a browser tries to make an unusual cross-origin
+     request (for example, a POST with a weird content-type or something with
+     weird headers), the browser first makes an OPTIONS request to the
+     server in order to get its permission to make that request. It includes
+     "origin", the originating origin, and "access-control-request-headers",
+     which is the list of headers the javascript would like to use.
+
+     (Ordinary GETs and some POSTs get handled in result_to_response, above,
+     without an OPTIONS).
+
+     Our strategy here is: if it's from an allowed origin (i.e., in the canvas
+     cors_setting) to return an Access-Control-Allow-Origin header for that
+     origin, to return Access-Control-Allow-Headers with the requested headers,
+     and Access-Control-Allow-Methods for all of the methods we think might
+     be useful.
+
+     This makes e.g. conduit from localhost work.
+   *)
   let req_headers =
     Cohttp.Header.get (CRequest.headers req) "access-control-request-headers"
   in
