@@ -470,6 +470,7 @@ and omniAction =
   | NewFunction of string option
   | NewHTTPHandler of string option
   | NewEventSpace of string
+  | Goto of page * tlid * string
 
 and autocompleteItem =
   | ACFunction of function_
