@@ -20,7 +20,12 @@ use hyper::Server;
 fn main() {
     let addr = ([0, 0, 0, 0], config::port()).into();
 
-    let manager = push::PusherClientManager;
+    let manager = push::PusherClientManager::new(
+        &config::pusher_cluster(),
+        &config::pusher_app_id(),
+        &config::pusher_key(),
+        &config::pusher_secret(),
+    );
     let pool = r2d2::Pool::builder()
         .max_size(1)
         .min_idle(Some(0))
