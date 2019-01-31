@@ -477,7 +477,9 @@ let paramForTarget (m : model) (a : autocomplete) : parameter option =
       paramFor m tlid (P.toID p)
 
 
-let gotoName (tl : toplevel) : string =
+let fnGotoName (name : string) : string = "Just to function: " ^ name
+
+let tlGotoName (tl : toplevel) : string =
   match tl.data with
   | TLHandler h ->
       "Jump to handler: "
@@ -497,9 +499,9 @@ let gotoName (tl : toplevel) : string =
 let tlDestinations (m : model) : autocompleteItem list =
   let tls =
     m.toplevels
-    |> List.sortBy ~f:gotoName
+    |> List.sortBy ~f:tlGotoName
     |> List.map ~f:(fun tl ->
-           Goto (Toplevels (Viewport.toCenteredOn tl.pos), tl.id, gotoName tl)
+           Goto (Toplevels (Viewport.toCenteredOn tl.pos), tl.id, tlGotoName tl)
        )
   in
   let ufs =
@@ -509,7 +511,9 @@ let tlDestinations (m : model) : autocompleteItem list =
         | Blank _ ->
             None
         | F (_, name) ->
-            Some (Goto (Fn (fn.ufTLID, {x = 0; y = 0}), fn.ufTLID, name)) )
+            Some
+              (Goto (Fn (fn.ufTLID, {x = 0; y = 0}), fn.ufTLID, fnGotoName name))
+        )
       m.userFunctions
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
