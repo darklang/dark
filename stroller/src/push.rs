@@ -39,6 +39,18 @@ pub struct PusherClient {
     mac: Hmac<Sha256>,
 }
 
+/*
+ * N.B. the test builds_signed_request_per_spec below depends on the derived
+ * Serialize implementation outputting keys in the same order as they're
+ * declared in the struct, so don't reorder the struct fields :)
+ */
+#[derive(Serialize)]
+struct PusherEvent {
+    name: String,
+    channels: Vec<String>,
+    data: String,
+}
+
 type BoxFut<T> = Box<Future<Item = T, Error = PusherError> + Send>;
 
 fn pusher_host(cluster: &str) -> String {
@@ -66,9 +78,10 @@ impl PusherClient {
         }
     }
 
-    fn build_request(
+    fn build_push_request(
         &mut self,
-        canvas_uuid: &str,
+        timestamp: SystemTime,
+        channel_name: &str,
         event_name: &str,
         json_bytes: &[u8],
     ) -> Result<HRequest<Body>, PusherError> {
@@ -79,14 +92,11 @@ impl PusherClient {
             ))
         })?;
 
-        let channel_name = format!("canvas_{}", canvas_uuid);
-
-        // TODO use a struct for type safety?
-        let pusher_msg = json!({
-            "name": event_name,
-            "channels": [channel_name],
-            "data": json_str
-        });
+        let pusher_msg = PusherEvent {
+            name: event_name.to_string(),
+            channels: vec![channel_name.to_string()],
+            data: json_str.to_string(),
+        };
 
         println!(
             "json: {}",
@@ -100,15 +110,16 @@ impl PusherClient {
 
         let request_path = format!("/apps/{}/events", self.app_id);
 
-        let timestamp = SystemTime::now()
+        let timestamp = timestamp
             .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|e| err(&format!("SystemTime before UNIX epoch!: {}", e)))?;
+            .map_err(|e| err(&format!("SystemTime before UNIX epoch!: {}", e)))?
+            .as_secs();
 
         let query_params = format!(
             // N.B. these params must be sorted alphabetically for the signature to match
             "auth_key={}&auth_timestamp={}&auth_version={}&body_md5={:x}",
             self.key,
-            timestamp.as_secs(),
+            timestamp,
             Self::AUTH_VERSION,
             checksum
         );
@@ -129,25 +140,31 @@ impl PusherClient {
 
         HRequest::post(uri)
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(pusher_msg.to_string() /* TODO no */))
+            .body(Body::from(
+                serde_json::to_string(&pusher_msg).expect("GAH"), /* TODO no */
+            ))
             .map_err(|e| err(&format!("{}", e)))
     }
 
-    pub fn trigger(
+    pub fn push_canvas_event(
         &mut self,
         canvas_uuid: &str,
         event_name: &str,
         json_bytes: &[u8],
     ) -> BoxFut<()> {
-        let pusher_request = match self.build_request(&canvas_uuid, &event_name, json_bytes) {
-            Ok(req) => req,
-            Err(e) => {
-                return Box::new(future::err(err(&format!(
-                    "couldn't build Pusher request: {}",
-                    e
-                ))))
-            }
-        };
+        let channel_name = format!("canvas_{}", canvas_uuid);
+        let timestamp = SystemTime::now();
+
+        let pusher_request =
+            match self.build_push_request(timestamp, &channel_name, &event_name, json_bytes) {
+                Ok(req) => req,
+                Err(e) => {
+                    return Box::new(future::err(err(&format!(
+                        "couldn't build Pusher request: {}",
+                        e
+                    ))))
+                }
+            };
 
         println!("sending request: {:?}", pusher_request);
 
@@ -232,5 +249,62 @@ impl ManageConnection for PusherClientManager {
     fn has_broken(&self, _client: &mut PusherClient) -> bool {
         println!("has_broken"); // TODO
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_signed_request_per_spec() {
+        /*
+         * The Pusher HTTP API docs specify how to construct a Pusher request
+         * and sign it for authentication.
+         *
+         * https://pusher.com/docs/rest_api#authentication
+         *
+         * The signing protocol is fairly fiddly and the implementation is easy
+         * to break, so this test follows the "worked example" from the docs,
+         * and verifies we get exactly the auth_signature they do.
+         *
+         * Note that there are a couple of subtle ordering guarantees we depend
+         * on here:
+         *
+         *  - the URI querystring we generate must alphabetically order its
+         *    params, with the exception of the auth_signature param which comes
+         *    last. This is actually specified in the docs, so that the HMAC we
+         *    compute matches the one they compute on their server.
+         *
+         *  - the keys in the JSON request body we generate must be ordered
+         *    specifically "name", "channels", "data". This is not specified in
+         *    the docs, and is not required for correctness (i.e. their server
+         *    will accept the keys in any order), but _is_ required for this
+         *    test to pass (i.e. to obtain the exact same auth_signature as the
+         *    worked example).
+         *    If some change to serde breaks this in the future, it's not the
+         *    end of the world (and shouldn't break the actual sending to
+         *    Pusher), we'll just need to find another way to test this.
+         */
+        let mut client = PusherClient::new(
+            "testcluster",
+            "3",
+            "278d425bdf160c739803",
+            "7ad3773142a6692b25b8",
+        );
+        let timestamp = SystemTime::UNIX_EPOCH + Duration::from_secs(1_353_088_179);
+        let channel = "project-3";
+        let event_name = "foo";
+        let json_data = b"{\"some\":\"data\"}";
+
+        let req = client
+            .build_push_request(timestamp, channel, event_name, json_data)
+            .expect("yay"); // TODO
+        let uri = req.uri();
+
+        assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
+        assert_eq!(uri.host(), Some("api-testcluster.pusher.com"));
+        assert_eq!(uri.path(), "/apps/3/events");
+        assert_eq!(uri.query(), Some("auth_key=278d425bdf160c739803&auth_timestamp=1353088179&auth_version=1.0&body_md5=ec365a775a4cd0599faeb73354201b6f&auth_signature=da454824c97ba181a32ccc17a72625ba02771f50b50e1e7430e47a1f3f457e6c"));
     }
 }
