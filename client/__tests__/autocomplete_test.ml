@@ -390,6 +390,14 @@ let () =
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
               |> toEqual true ) ;
+          test "fix slashes for routes" (fun () ->
+              expect
+                ( createCreating User
+                |> setQuery "//12//////345/6789//12/"
+                |> itemPresent
+                     (ACOmniAction (NewHTTPHandler (Some "/12/345/6789/12")))
+                )
+              |> toEqual true ) ;
           test "create DB from route name" (fun () ->
               expect
                 ( createCreating User
