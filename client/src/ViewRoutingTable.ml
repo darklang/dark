@@ -342,15 +342,16 @@ let entry2html (m : model) (e : entry) : msg Html.html =
         [Html.text name]
   in
   let verb =
-    let hasExt = if not (List.isEmpty ext) then " ext" else "" in
+    let noExt = if List.isEmpty ext then " no-ext" else "" in
     match (e.destination, e.verb) with
     | Some dest, Some v ->
-        [Url.linkFor dest ("verb verb-link" ^ hasExt) [Html.text v]]
+        [Url.linkFor dest ("verb verb-link" ^ noExt) [Html.text v]]
     | None, Some v ->
-        [Html.span [Html.class' ("verb" ^ hasExt)] [Html.text v]]
+        [Html.span [Html.class' ("verb" ^ noExt)] [Html.text v]]
     | _ ->
-        [Html.span [Html.class' "verb"] []]
+        []
   in
+  let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
     match e.minusButton with
     | Some msg ->
@@ -360,22 +361,21 @@ let entry2html (m : model) (e : entry) : msg Html.html =
             msg
             None ]
     | None ->
-        []
+        iconspacer
   in
   let pluslink =
     match e.plusButton with
     | Some msg ->
         [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg None]
     | None ->
-        []
+        iconspacer
+  in
+  let auxViews =
+    Html.div [Html.class' "aux"] (verb @ ext @ minuslink @ pluslink)
   in
   Html.div
     [Html.class' "simple-route handler"]
-    ( ext
-    @ verb
-    @ [Html.span [Html.class' "name"] mainlink]
-    @ pluslink
-    @ minuslink )
+    [Html.span [Html.class' "name"] mainlink; auxViews]
 
 
 let rec item2html (m : model) (s : item) : msg Html.html =
