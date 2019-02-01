@@ -360,6 +360,16 @@ let stripChars (disallowed : string) (s : string) : string =
   Regex.replace ~re:disallowed ~repl:"" s
 
 
+let removeExtraSlashes (s : string) : string =
+  let s = Regex.replace ~re:"/+" ~repl:"/" s in
+  let s =
+    if s <> "/" && String.endsWith ~suffix:"/" s
+    then String.dropRight ~count:1 s
+    else s
+  in
+  s
+
+
 let qNewDB (s : string) : omniAction option =
   let name =
     s
@@ -388,7 +398,10 @@ let qFunction (s : string) : omniAction =
 
 let qHandler (s : string) : omniAction =
   let name =
-    s |> stripChars nonEventNameSafeCharacters |> String.uncapitalize
+    s
+    |> stripChars nonEventNameSafeCharacters
+    |> removeExtraSlashes
+    |> String.uncapitalize
   in
   if name = ""
   then NewHandler None
@@ -396,7 +409,9 @@ let qHandler (s : string) : omniAction =
 
 
 let qHTTPHandler (s : string) : omniAction =
-  let name = s |> stripChars nonEventNameSafeCharacters in
+  let name =
+    s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
+  in
   if name = ""
   then NewHTTPHandler None
   else if String.startsWith ~prefix:"/" name
