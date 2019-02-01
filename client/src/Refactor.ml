@@ -324,7 +324,7 @@ let updateUsageCounts (m : model) : model =
             | Some count ->
                 Some (count + 1)
             | None ->
-                Some 0 ) )
+                Some 1 ) )
   in
   let usedFns =
     all
