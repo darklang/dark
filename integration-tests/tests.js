@@ -21,11 +21,26 @@ fixture `Integration Tests`
     startXvfb(testname);
     const url = "http://darklang.localhost:8000/a/test-" + testname + "?integration-test=true";
     const pageLoaded = await Selector('#finishIntegrationTest').exists;
+    await t.navigateTo(url);
 
-    await t
-      .navigateTo(url)
-      .takeScreenshot()
-      ;
+    /* Testcafe runs everything through a proxy, wrapping all values and
+     * objects such that it seems like nothing happened. However, they forgot
+     * to wrap objects in Webworker contexts, so calls to Fetch in the worker
+     * thinks it's on a different domain. This breaks cookies, auth, CORS,
+     * basically everything. So we thread the right url through to do the
+     * proxying ourselves. Hopefully they'll fix this and we can remove this
+     * code someday */
+    await t.eval(
+      (() => {
+        window.testcafeInjectedPrefix = prefix;
+      }), {
+        dependencies: {
+          prefix: `${new URL(t.testRun.browserConnection.url).origin}/${t.testRun.session.id}/`
+        }
+      });
+
+    await t.takeScreenshot() ;
+
   })
   .afterEach( async t => {
     const testname = t.testRun.test.name;

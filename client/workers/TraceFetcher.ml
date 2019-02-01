@@ -15,7 +15,13 @@ external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 
 let fetch (context : Types.rpcContext) params =
   let open Js.Promise in
-  let url = context.origin ^ "/api/" ^ context.canvasName ^ "/get_analysis" in
+  let url =
+    context.prefix
+    ^ context.origin
+    ^ "/api/"
+    ^ context.canvasName
+    ^ "/get_analysis"
+  in
   Fetch.fetchWithInit
     url
     (Fetch.RequestInit.make

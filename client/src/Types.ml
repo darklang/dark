@@ -808,11 +808,14 @@ and model =
 and rpcContext =
   { canvasName : string
   ; csrfToken : string
-  ; origin : string }
+  ; origin : string
+  ; prefix : string }
 
 external origin : string = "origin"
   [@@bs.val] [@@bs.scope "window", "location"]
 
+external prefix : string = "testcafeInjectedPrefix"
+  [@@bs.val] [@@bs.scope "window"]
+
 let contextFromModel (m : model) : rpcContext =
-  let origin = origin in
-  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin}
+  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
