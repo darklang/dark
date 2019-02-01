@@ -737,7 +737,7 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
   (* We know from the fact that this function is called that there has
      been a '.' entered. However, it might not be in baseStr, so
      canonicalize it first. *)
-  let str = Regex.replace "\\.*$" "" baseStr in
+  let str = Regex.replace ~re:"\\.*$" ~repl:"" baseStr in
   let intOrString =
     String.startsWith ~prefix:"\"" str
     || Decoders.typeOfLiteralString str = TInt
