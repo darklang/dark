@@ -42,7 +42,13 @@ let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
     | _ ->
         None
   in
-  match cursorLiveValue with Some dv -> Runtime.toRepr dv | _ -> ""
+  match cursorLiveValue with
+  | Some dv ->
+      Runtime.toRepr dv
+  | _ ->
+      (* I made this say "loading" because the CSS structure makes it hard to
+       * put a spinner in here *)
+      "<loading>"
 
 
 let viewFeatureFlag : msg Html.html =
