@@ -88,6 +88,8 @@ let asName (aci : autocompleteItem) : string =
         "match" )
   | ACHTTPModifier name ->
       name
+  | ACEventName name ->
+      name
   | ACCronTiming timing ->
       timing
   | ACEventSpace space ->
@@ -131,6 +133,8 @@ let asTypeString (item : autocompleteItem) : string =
       "keyword"
   | ACHTTPModifier _ ->
       "method"
+  | ACEventName _ ->
+      "event name"
   | ACCronTiming _ ->
       "interval"
   | ACEventSpace _ ->
@@ -396,22 +400,19 @@ let qFunction (s : string) : omniAction =
   else NewFunction (Some (assertValid fnNameValidator name))
 
 
+let cleanEventName (s : string) : string =
+  s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
+
+
 let qHandler (s : string) : omniAction =
-  let name =
-    s
-    |> stripChars nonEventNameSafeCharacters
-    |> removeExtraSlashes
-    |> String.uncapitalize
-  in
+  let name = s |> cleanEventName |> String.uncapitalize in
   if name = ""
   then NewHandler None
   else NewHandler (Some (assertValid eventNameValidator name))
 
 
 let qHTTPHandler (s : string) : omniAction =
-  let name =
-    s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
-  in
+  let name = cleanEventName s in
   if name = ""
   then NewHTTPHandler None
   else if String.startsWith ~prefix:"/" name
@@ -433,6 +434,10 @@ let isDynamicItem (item : autocompleteItem) : bool =
   | ACOmniAction (Goto _) ->
       false
   | ACOmniAction _ ->
+      true
+  | ACEventSpace _ ->
+      false (* false because we want the static items to be first *)
+  | ACEventName _ ->
       true
   | _ ->
       false
@@ -460,6 +465,8 @@ let toDynamicItems target (q : string) : autocompleteItem list =
       [ACField q]
   | Some (_, PEventSpace _) ->
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
+  | Some (_, PEventName _) ->
+      if q == "" then [ACEventName "/"] else [ACEventName (cleanEventName q)]
   | _ ->
       []
 
@@ -888,6 +895,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some "This handler will periodically trigger"
   | ACEventSpace name ->
       Some ("This handler will respond when events are emitted to " ^ name)
+  | ACEventName name ->
+      Some ("Respond to events or HTTP requests named " ^ name)
   | ACDBColType tipe ->
       Some ("This field will be a " ^ tipe)
   | ACParamTipe tipe ->
