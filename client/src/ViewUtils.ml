@@ -185,7 +185,7 @@ let strBlankOrLength (b : string blankOr) : int =
 
 let visualStringLength (string : string) : int =
   string
-  |> Regex.replace "\t" "        "
+  |> Regex.replace ~re:"\t" ~repl:"        "
   (* replace tabs with 8 ch for ch counting *)
   |> String.length
 

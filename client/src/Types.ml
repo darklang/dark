@@ -482,6 +482,7 @@ and autocompleteItem =
   | ACKeyword of keyword
   | ACCommand of command
   | ACHTTPModifier of string
+  | ACEventName of string
   | ACCronTiming of string
   | ACEventSpace of string
   | ACDBColType of string
