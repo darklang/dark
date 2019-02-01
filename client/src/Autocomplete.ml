@@ -98,6 +98,8 @@ let asName (aci : autocompleteItem) : string =
       tipe
   | ACParamTipe tipe ->
       tipe
+  | ACDBName name ->
+      name
   | ACExtra _ ->
       ""
 
@@ -143,6 +145,8 @@ let asTypeString (item : autocompleteItem) : string =
       "type"
   | ACParamTipe _ ->
       "param type"
+  | ACDBName _ ->
+      "name"
   | ACExtra _ ->
       ""
 
@@ -374,13 +378,19 @@ let removeExtraSlashes (s : string) : string =
   s
 
 
+let cleanEventName (s : string) : string =
+  s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
+
+
+let cleanDBName (s : string) : string =
+  s
+  |> stripChars "[^a-zA-Z0-9_]"
+  |> stripCharsFromFront "[^a-zA-Z]"
+  |> String.capitalize
+
+
 let qNewDB (s : string) : omniAction option =
-  let name =
-    s
-    |> stripChars "[^a-zA-Z0-9_]"
-    |> stripCharsFromFront "[^a-zA-Z]"
-    |> String.capitalize
-  in
+  let name = cleanDBName s in
   if name = ""
   then Some (NewDB None)
   else
@@ -398,10 +408,6 @@ let qFunction (s : string) : omniAction =
   if name = ""
   then NewFunction None
   else NewFunction (Some (assertValid fnNameValidator name))
-
-
-let cleanEventName (s : string) : string =
-  s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
 
 
 let qHandler (s : string) : omniAction =
@@ -439,6 +445,8 @@ let isDynamicItem (item : autocompleteItem) : bool =
       false (* false because we want the static items to be first *)
   | ACEventName _ ->
       true
+  | ACDBName _ ->
+      true
   | _ ->
       false
 
@@ -467,6 +475,8 @@ let toDynamicItems target (q : string) : autocompleteItem list =
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
       if q == "" then [ACEventName "/"] else [ACEventName (cleanEventName q)]
+  | Some (_, PDBName _) ->
+      if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
       []
 
@@ -878,6 +888,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("This handler will respond when events are emitted to " ^ name)
   | ACEventName name ->
       Some ("Respond to events or HTTP requests named " ^ name)
+  | ACDBName name ->
+      Some ("Set the DB's name to " ^ name)
   | ACDBColType tipe ->
       Some ("This field will be a " ^ tipe)
   | ACParamTipe tipe ->

@@ -412,7 +412,7 @@ let submitACItem
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
         in
         ( match (pd, item) with
-        | PDBName (F (_, oldName)), ACExtra value ->
+        | PDBName (F (_, oldName)), ACDBName value ->
             if AC.assertValid AC.dbNameValidator value <> value
             then
               DisplayError
