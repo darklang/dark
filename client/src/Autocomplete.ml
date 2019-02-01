@@ -357,7 +357,7 @@ let rec stripCharsFromFront (disallowed : string) (s : string) : string =
 
 
 let stripChars (disallowed : string) (s : string) : string =
-  Regex.replace disallowed "" s
+  Regex.replace ~re:disallowed ~repl:"" s
 
 
 let qNewDB (s : string) : omniAction option =
@@ -658,7 +658,7 @@ let filter
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
-    |> Regex.replace {js|⟶|js} "->"
+    |> Regex.replace ~re:{js|⟶|js} ~repl:"->"
   in
   (* HACK: dont show Gotos when the query is "" *)
   let list =
