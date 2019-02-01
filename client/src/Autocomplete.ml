@@ -771,7 +771,6 @@ let reset (m : model) (a : autocomplete) : autocomplete =
     |> List.map ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:Functions.ufmToF
   in
-  let unusedDeprecatedFns = Refactor.unusedDeprecatedFunctions m in
   let functions =
     m.builtInFunctions
     |> List.filter ~f:(fun f ->
@@ -780,7 +779,7 @@ let reset (m : model) (a : autocomplete) : autocomplete =
                 ~value:f.fnName
                 (List.map ~f:(fun x -> x.fnName) userFunctionMetadata)) )
     |> List.filter ~f:(fun f ->
-           not (StrSet.member ~value:f.fnName unusedDeprecatedFns) )
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
     |> List.append userFunctionMetadata
   in
   let result = init functions a.admin |> regenerate m in
