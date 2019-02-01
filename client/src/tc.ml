@@ -91,7 +91,7 @@ module Regex = struct
 
   let contains ~(re : Js.Re.t) (s : string) : bool = Js.Re.test s re
 
-  let replace (re : string) (repl : string) (str : string) =
+  let replace ~(re : string) ~(repl : string) (str : string) =
     Js.String.replaceByRe (regex re) repl str
 
 
