@@ -466,14 +466,16 @@ let viewRoutingTable_ (m : model) : msg Html.html =
 
 
 let rtCacheKey m =
-  ( m.toplevels
-  , m.userFunctions
+  ( m.toplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
+  , m.userFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
   , m.f404s
-  , m.deletedToplevels
-  , m.deletedUserFunctions
+  , m.deletedToplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
+  , m.deletedUserFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
   , m.routingTableOpenDetails
   , m.lockedHandlers
-  , m.unlockedDBs )
+  , m.unlockedDBs
+  , m.usedDBs
+  , m.usedFns )
 
 
 let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
