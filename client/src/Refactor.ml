@@ -338,7 +338,7 @@ let updateUsageCounts (m : model) : model =
   let usedDBs =
     all
     |> List.filterMap ~f:(function
-           | PExpr (F (_, Variable name)) ->
+           | PExpr (F (_, Variable name)) when String.isCapitalized name ->
                Some name
            | _ ->
                None )
