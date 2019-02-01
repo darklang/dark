@@ -779,7 +779,9 @@ and model =
   ; environment : string
   ; csrfToken : string
   ; latest404 : string (* string of timestamp *)
-  ; routingTableOpenDetails : StrSet.t }
+  ; routingTableOpenDetails : StrSet.t
+  ; usedDBs : int StrDict.t
+  ; usedFns : int StrDict.t }
 [@@deriving show {with_path = false}]
 
 and rpcContext =

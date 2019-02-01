@@ -522,34 +522,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             deletedToplevels =
               TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
         in
-        processAutocompleteMods m4 [ACRegenerate]
+        let m5 = Refactor.updateUsageCounts m4 in
+        processAutocompleteMods m5 [ACRegenerate]
     | UpdateToplevels (tls, updateCurrent) ->
         let m2 = TL.upsertAll m tls in
-        (* Bring back the TL being edited, so we don't lose work done since the
-           API call *)
-        let m3 =
-          match tlidOf m.cursorState with
-          | Some tlid ->
-              if updateCurrent
-              then m2
-              else
-                let tl = TL.getTL m tlid in
-                ( match tl.data with
-                | TLDB _ ->
-                    TL.upsert m2 tl
-                | TLHandler _ ->
-                    TL.upsert m2 tl
-                | TLFunc _ ->
-                    m2 )
-          | None ->
-              m2
-        in
-        let m4 =
-          { m3 with
-            deletedToplevels =
-              TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
-        in
-        processAutocompleteMods m4 [ACRegenerate]
+        updateMod (SetToplevels (m2.toplevels, updateCurrent)) (m, cmd)
     | UpdateDeletedToplevels dtls ->
         let m2 =
           { m with
@@ -667,7 +644,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | None ->
               m2
         in
-        processAutocompleteMods m3 [ACRegenerate]
+        let m4 = Refactor.updateUsageCounts m3 in
+        processAutocompleteMods m4 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
     | Set404s (f404s, latest404) ->

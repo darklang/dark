@@ -300,27 +300,51 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
              (List.map ~f:Tuple2.second cases) )
 
 
-let countFnUsage (m : model) (name : string) : int =
-  let usedIn =
-    TL.all m
-    |> List.filter ~f:(fun tl ->
-           match tl.data with
-           | TLHandler h ->
-               isFunctionInExpr name h.ast
-           | TLDB _ ->
-               false
-           | TLFunc f ->
-               isFunctionInExpr name f.ufAST )
+let fnUseCount (m : model) (name : string) : int =
+  StrDict.get m.usedFns ~key:name |> Option.withDefault ~default:0
+
+
+let usedFn (m : model) (name : string) : bool = fnUseCount m name = 0
+
+let dbUseCount (m : model) (name : string) : int =
+  StrDict.get m.usedDBs ~key:name |> Option.withDefault ~default:0
+
+
+let usedDb (m : model) (name : string) : bool = dbUseCount m name = 0
+
+let updateUsageCounts (m : model) : model =
+  let tldata = m.toplevels |> List.map ~f:TL.allData in
+  let fndata =
+    m.userFunctions |> List.map ~f:(fun fn -> AST.allData fn.ufAST)
   in
-  List.length usedIn
-
-
-let unusedDeprecatedFunctions (m : model) : StrSet.t =
-  m.builtInFunctions
-  |> List.filter ~f:(fun x -> x.fnDeprecated)
-  |> List.map ~f:(fun x -> x.fnName)
-  |> List.filter ~f:(fun n -> countFnUsage m n = 0)
-  |> StrSet.fromList
+  let all = List.concat (fndata @ tldata) in
+  let countFromList names =
+    List.foldl names ~init:StrDict.empty ~f:(fun name dict ->
+        StrDict.update dict ~key:name ~f:(function
+            | Some count ->
+                Some (count + 1)
+            | None ->
+                Some 1 ) )
+  in
+  let usedFns =
+    all
+    |> List.filterMap ~f:(function
+           | PFnCallName (F (_, name)) ->
+               Some name
+           | _ ->
+               None )
+    |> countFromList
+  in
+  let usedDBs =
+    all
+    |> List.filterMap ~f:(function
+           | PExpr (F (_, Variable name)) when String.isCapitalized name ->
+               Some name
+           | _ ->
+               None )
+    |> countFromList
+  in
+  {m with usedDBs; usedFns}
 
 
 let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
