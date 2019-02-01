@@ -95,7 +95,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
             ; verb = None } ) }
 
 
-let dbCategory (_m : model) (tls : toplevel list) : category =
+let dbCategory (m : model) (tls : toplevel list) : category =
   let dbs =
     tls
     |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
@@ -104,15 +104,22 @@ let dbCategory (_m : model) (tls : toplevel list) : category =
   in
   let entries =
     List.map dbs ~f:(fun (pos, db) ->
+        let uses =
+          match db.dbName with
+          | Blank _ ->
+              0
+          | F (_, name) ->
+              Refactor.dbUseCount m name
+        in
         let minusButton =
-          if DB.isLocked _m db.dbTLID
-          then None
-          else Some (ToplevelDelete db.dbTLID)
+          if (not (DB.isLocked m db.dbTLID)) && uses = 0
+          then Some (ToplevelDelete db.dbTLID)
+          else None
         in
         Entry
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
-          ; uses = None
+          ; uses = Some uses
           ; destination = Some (Toplevels pos)
           ; minusButton
           ; externalLink = None
@@ -219,14 +226,15 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
         let name =
           fn.ufMetadata.ufmName |> Blank.toMaybe |> deOption "userFunction"
         in
-        let useCount = Refactor.countFnUsage m name in
         let minusButton =
-          if useCount = 0 then Some (DeleteUserFunction fn.ufTLID) else None
+          if Refactor.usedFn m name
+          then Some (DeleteUserFunction fn.ufTLID)
+          else None
         in
         Entry
           { name
           ; tlid = fn.ufTLID
-          ; uses = Some useCount
+          ; uses = Some (Refactor.fnUseCount m name)
           ; minusButton
           ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
           ; plusButton = None
@@ -278,6 +286,7 @@ let deletedCategory (m : model) : category =
                     Entry
                       { e with
                         plusButton = Some (RestoreToplevel e.tlid)
+                      ; uses = None
                       ; minusButton = None
                       ; externalLink = None }
                 | c ->
