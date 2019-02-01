@@ -387,6 +387,7 @@ body #grid * {
   width: max-content;
   overflow: visible;
   min-width: 320px;
+  box-sizing: border-box;
 
   .routing-section {
     &.empty .header {
@@ -402,7 +403,7 @@ body #grid * {
 
     .header {
       width: 100%;
-      color: @orange;
+      color: @yellow;
 
       .title {
         margin-right: 5px;
@@ -417,23 +418,20 @@ body #grid * {
       }
     }
 
-    .button-link {
+    .button-link, .external {
       .default-link;
-
+      
+      display: inline-block;
+      width: 16px;
+      margin: 0 2px;
       cursor: pointer;
-      color: @white3;
+      color: @grey3;
       &:link, &:visited {
-        color: @white3;
+        color: @grey3;
       }
       &:hover {
-        color: @orange;
+        color: @yellow;
       }
-    }
-
-    .routes, .404s, .dbs {
-      padding-bottom: 8px;
-      margin-bottom: 8px;
-      border-bottom: 1px @white1 solid;
     }
 
     .simple-route.handler {
@@ -445,28 +443,30 @@ body #grid * {
         background-color: @black1;
       }
 
-      .name, .verb, .external {
+      .name {
         color: @white3;
       }
 
-      .verb {
-        width: 0;
+      .aux {
+        float: right;
       }
 
-      .button-link {
-        float: right;
-        margin-left: 4px;
+      .icon-spacer {
+        display: inline-block;
+        width: 16px;
+        margin: 0 2px;
       }
     }
 
   }
 
   .routing-section.http .simple-route.handler,
-  .routing-section.fof .simple-route.handler {
+  .routing-section.fof .simple-route.handler,
+  .routing-section.deleted-http .simple-route.handler {
 
     .verb {
       width: 60px;
-      color: @grey2;
+      color: @grey3;
       display: inline-block;
       text-align: right;
       margin-right: 4px;
@@ -475,27 +475,19 @@ body #grid * {
         text-decoration: none;
       }
 
-      &.ext {
-        width: 40px;
+      &:hover {
+        color: @yellow;
       }
 
-      &:hover {
-        color: @orange;
+      &.no-ext {
+        margin-right: 20px;
       }
     }
 
     .external {
-      color: @grey3;
       font-size: 12px;
-      width: 20px;
-      display: inline-block;
-
-      &:link, &:visited {
-        color: @grey3;
-      }
-      &:hover {
-        color: @orange;
-      }
+      position: relative;
+      top: -2px;
     }
 
   }
