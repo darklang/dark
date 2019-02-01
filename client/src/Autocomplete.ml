@@ -712,7 +712,9 @@ let init (fns : function_ list) (isAdmin : bool) : autocomplete =
 let refilter (query : string) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
-    withDynamicItems old.target query old.allCompletions
+    if old.isCommandMode
+    then List.filter ~f:isStaticItem old.allCompletions
+    else withDynamicItems old.target query old.allCompletions
   in
   let newCompletions, invalidCompletions =
     filter old.matcher fudgedCompletions query
@@ -830,7 +832,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACFunction f ->
       if String.length f.fnDescription <> 0
       then Some f.fnDescription
-      else Some "function call with no description"
+      else Some "Function call with no description"
   | ACCommand c ->
       Some (c.doc ^ " (" ^ c.shortcut ^ ")")
   | ACConstructorName "Just" ->
@@ -850,7 +852,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
       then Some ("The database '" ^ var ^ "'")
       else Some ("The variable '" ^ var ^ "'")
   | ACLiteral lit ->
-      Some ("the literal value '" ^ lit ^ "'")
+      Some ("The literal value '" ^ lit ^ "'")
   | ACKeyword KLet ->
       Some "A `let` expression allows you assign a variable to an expression"
   | ACKeyword KIf ->
