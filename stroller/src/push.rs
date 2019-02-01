@@ -64,10 +64,10 @@ pub struct PusherClient {
  * declared in the struct, so don't reorder the struct fields :)
  */
 #[derive(Serialize)]
-struct PusherEvent {
-    name: String,
-    channels: Vec<String>,
-    data: String,
+struct PusherEvent<'a> {
+    name: &'a str,
+    channels: Vec<&'a str>,
+    data: &'a str,
 }
 
 type BoxFut<T> = Box<Future<Item = T, Error = PusherError> + Send>;
@@ -104,13 +104,13 @@ impl PusherClient {
         event_name: &str,
         json_bytes: &[u8],
     ) -> Result<HRequest<Body>, PusherError> {
-        let json_str = str::from_utf8(json_bytes)
-            .map_err(|e| PusherError::MalformedPayload(format!("{}", e)))?;
+        let json_str =
+            str::from_utf8(json_bytes).map_err(|e| PusherError::MalformedPayload(e.to_string()))?;
 
         let pusher_msg = PusherEvent {
-            name: event_name.to_string(),
-            channels: vec![channel_name.to_string()],
-            data: json_str.to_string(),
+            name: event_name,
+            channels: vec![channel_name],
+            data: json_str,
         };
 
         let pusher_msg_bytes = serde_json::to_vec(&pusher_msg).unwrap();
@@ -178,7 +178,7 @@ impl PusherClient {
         Box::new(
             self.http
                 .request(pusher_request)
-                .map_err(|e| PusherError::HttpError(format!("{}", e)))
+                .map_err(|e| PusherError::HttpError(e.to_string()))
                 .and_then(move |resp| {
                     let req_time = start.elapsed().unwrap();
                     let result: BoxFut<()> = match resp.status() {
@@ -321,6 +321,6 @@ mod tests {
         let err = client
             .build_push_request(SystemTime::now(), "dummy", "dummy", &invalid_utf8)
             .expect_err("should reject the payload");
-        assert!(format!("{}", err).contains("UTF-8"));
+        assert!(err.to_string().contains("UTF-8"));
     }
 }
