@@ -485,6 +485,7 @@ and autocompleteItem =
   | ACEventName of string
   | ACCronTiming of string
   | ACEventSpace of string
+  | ACDBName of string
   | ACDBColType of string
   | ACParamTipe of string
   | ACExtra of string
