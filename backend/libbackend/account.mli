@@ -2,6 +2,11 @@ open Core
 
 type username = string
 
+type user_info =
+  { username : username
+  ; email : string
+  ; name : string }
+
 type permissions =
   | CanEdit
   | CanAccessOperations
@@ -30,6 +35,12 @@ val for_host : string -> Uuidm.t
 (* Add (or update) a user *)
 val upsert_user :
   username:string -> email:string -> name:string -> unit -> string
+
+(* Get a user's info *)
+val get_user : string -> user_info option
+
+(* Get a list of all users *)
+val get_users : unit -> string list
 
 (* Get a username from an ID *)
 val username_of_id : Uuidm.t -> string option

@@ -11,6 +11,11 @@ type account =
   ; email : string
   ; name : string }
 
+type user_info =
+  { username : username
+  ; email : string
+  ; name : string }
+
 (************************)
 (* Adding *)
 (************************)
@@ -67,6 +72,25 @@ let username_of_id id =
      WHERE accounts.id = $1"
     ~params:[Uuid id]
   |> Option.map ~f:List.hd_exn
+
+
+let get_user username =
+  Db.fetch_one_option
+    ~name:"get_user"
+    ~subject:username
+    "SELECT name, email from accounts
+     WHERE accounts.username = $1"
+    ~params:[String username]
+  |> Option.bind ~f:(function
+         | [name; email] ->
+             Some {username; name; email}
+         | _ ->
+             None )
+
+
+let get_users () =
+  Db.fetch ~name:"get_users" "SELECT username from accounts" ~params:[]
+  |> List.map ~f:List.hd_exn
 
 
 (************************)

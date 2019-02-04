@@ -121,6 +121,30 @@ let replacements =
             Dval.dstr_of_string_exn password
         | args ->
             fail args )
+    ; ( "DarkInternal::getUser"
+      , function
+        | _, [DStr username] ->
+            let info = Account.get_user (Unicode_string.to_string username) in
+            ( match info with
+            | None ->
+                DOption OptNothing
+            | Some {username; name; email} ->
+                DOption
+                  (OptJust
+                     (Dval.to_dobj
+                        [ ("username", Dval.dstr_of_string_exn username)
+                        ; ("name", Dval.dstr_of_string_exn name)
+                        ; ("email", Dval.dstr_of_string_exn email) ])) )
+        | args ->
+            fail args )
+    ; ( "DarkInternal::getUsers"
+      , function
+        | _, [] ->
+            Account.get_users ()
+            |> List.map ~f:Dval.dstr_of_string_exn
+            |> DList
+        | args ->
+            fail args )
     ; ( "DarkInternal::getCORSSetting"
       , let cors_setting_to_dval (setting : Canvas.cors_setting option) : dval
             =
