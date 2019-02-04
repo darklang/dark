@@ -587,8 +587,9 @@ and clipboardCutEvent = jsEvent
 (* Modifications *)
 (* ------------------- *)
 and page =
-  | Toplevels of pos
-  | Fn of tlid * pos
+  | Architecture of pos
+  | FocusedFn of tlid
+  | FocusedHandler of tlid
 
 and focus =
   | FocusNothing
@@ -601,7 +602,6 @@ and focus =
 
 and canvasProps =
   { offset : pos
-  ; fnOffset : pos
   ; enablePan : bool }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -757,7 +757,7 @@ and flagsVS = ffIsExpanded StrDict.t
 (* ----------------------------- *)
 and syncState = StrSet.t
 
-and urlState = {lastPos : pos}
+and urlState = {lastPos : pos option}
 
 and tlCursors = traceID StrDict.t
 

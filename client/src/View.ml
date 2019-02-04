@@ -138,9 +138,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let top = match documentation with Some doc -> doc | _ -> data in
   let pos =
     match m.currentPage with
-    | Toplevels _ ->
+    | Architecture _ ->
         tl.pos
-    | Fn (_, _) ->
+    | _ ->
         Defaults.centerPos
   in
   let html =
@@ -189,7 +189,7 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Toplevels _ ->
+    | Architecture _ ->
         m.toplevels
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
@@ -197,21 +197,28 @@ let viewCanvas (m : model) : msg Html.html =
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> deTLID tl.id)
         |> List.map ~f:(viewTL m)
-    | Fn (tlid, _) ->
+    | FocusedFn tlid ->
       ( match List.find ~f:(fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
       | None ->
+          (* TODO: change to crash *)
           List.map ~f:(viewTL m) m.toplevels )
-    (* TODO(ian): change to crash *)
+    | FocusedHandler tlid ->
+      ( match TL.get m tlid with
+      | Some h ->
+          [viewTL m h]
+      | None ->
+          (* TODO: change to crash *)
+          List.map ~f:(viewTL m) m.toplevels )
   in
   let canvasTransform =
     let offset =
       match m.currentPage with
-      | Toplevels _ ->
+      | Architecture _ ->
           m.canvas.offset
-      | Fn (_, _) ->
-          m.canvas.fnOffset
+      | _ ->
+          {x = 0; y = 0}
     in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in

@@ -5,16 +5,16 @@ let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
 let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
 
 let pagePos (page : page) : pos =
-  match page with Toplevels pos -> pos | Fn (_, pos) -> pos
+  match page with Architecture pos -> pos | _ -> Defaults.centerPos
 
 
 let toAbsolute (m : model) (pos : vPos) : pos =
   let topleft =
     match m.currentPage with
-    | Toplevels _ ->
+    | Architecture _ ->
         m.canvas.offset
-    | Fn (_, _) ->
-        m.canvas.fnOffset
+    | _ ->
+        {x = 0; y = 0}
   in
   addPos {x = pos.vx; y = pos.vy} topleft
 
@@ -26,11 +26,7 @@ let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 let moveCanvasBy (m : model) (x : int) (y : int) : modification =
   let c = m.canvas in
   let offset =
-    match m.currentPage with
-    | Toplevels _ ->
-        c.offset
-    | Fn (_, _) ->
-        c.fnOffset
+    match m.currentPage with Architecture _ -> c.offset | _ -> {x = 0; y = 0}
   in
   let pos = addPos offset {x; y} in
   MoveCanvasTo (c, m.currentPage, pos)
