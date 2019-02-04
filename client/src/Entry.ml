@@ -100,7 +100,7 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       in
       Many
         [ RPC ([SetFunction newfn], FocusNothing)
-        ; MakeCmd (Url.navigateTo (Fn (newfn.ufTLID, Defaults.centerPos))) ]
+        ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID)) ]
   | NewHTTPHandler route ->
       let next = gid () in
       let tlid = gtlid () in

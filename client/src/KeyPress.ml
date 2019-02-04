@@ -474,9 +474,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod (ACSetVisible true) )
     | Deselected ->
       ( match m.currentPage with
-      | Fn (_, _) ->
-          NoChange
-      | Toplevels _ ->
+      | Architecture _ ->
         ( match event.keyCode with
         | Key.Enter ->
             Entry.createFindSpace m
@@ -506,7 +504,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Selection.selectNextToplevel m None
             (* NB: see `stopKeys` in ui.html *)
         | _ ->
-            NoChange ) )
+            NoChange )
+      | _ ->
+          NoChange )
     | SelectingCommand (tlid, id) ->
       ( match event.keyCode with
       | Key.Escape ->

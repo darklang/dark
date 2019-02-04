@@ -68,7 +68,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Toplevels tl.pos)
+            ; destination = Some (FocusedHandler tl.id)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -92,7 +92,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Toplevels tl.pos)
+            ; destination = Some (Architecture tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -125,7 +125,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = Some uses
-          ; destination = Some (Toplevels pos)
+          ; destination = Some (Architecture pos)
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
@@ -155,7 +155,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Toplevels tl.pos)
+            ; destination = Some (Architecture tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -200,7 +200,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                     |> Option.withDefault ~default:missingEventRouteDesc
                 ; uses = None
                 ; tlid = h.tlid
-                ; destination = Some (Toplevels tl.pos)
+                ; destination = Some (Architecture tl.pos)
                 ; minusButton = Some (ToplevelDelete tl.id)
                 ; killAction = Some (ToplevelDeleteForever tl.id)
                 ; plusButton = None
@@ -246,7 +246,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
           ; uses = Some (Refactor.fnUseCount m name)
           ; minusButton
           ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
-          ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
+          ; destination = Some (FocusedFn fn.ufTLID)
           ; plusButton = None
           ; verb = None
           ; externalLink = None } )

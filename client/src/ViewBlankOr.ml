@@ -64,7 +64,7 @@ let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
   Html.a
     [ Html.class' "edit-fn"
     ; Vdom.styles [("right", rightOffset)]
-    ; Html.href (Url.urlFor (Fn (tlid, Defaults.centerPos))) ]
+    ; Html.href (Url.urlFor (FocusedFn tlid)) ]
     [ViewUtils.fontAwesome "edit"]
 
 

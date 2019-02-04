@@ -513,7 +513,8 @@ let tlDestinations (m : model) : autocompleteItem list =
     m.toplevels
     |> List.sortBy ~f:tlGotoName
     |> List.map ~f:(fun tl ->
-           Goto (Toplevels (Viewport.toCenteredOn tl.pos), tl.id, tlGotoName tl)
+           Goto
+             (Architecture (Viewport.toCenteredOn tl.pos), tl.id, tlGotoName tl)
        )
   in
   let ufs =
@@ -523,9 +524,7 @@ let tlDestinations (m : model) : autocompleteItem list =
         | Blank _ ->
             None
         | F (_, name) ->
-            Some
-              (Goto (Fn (fn.ufTLID, {x = 0; y = 0}), fn.ufTLID, fnGotoName name))
-        )
+            Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name)) )
       m.userFunctions
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
