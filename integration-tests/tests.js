@@ -76,7 +76,9 @@ fixture `Integration Tests`
       if (await t.testRun.errs != [] || !signal.hasClass("success")) {
         await t.takeScreenshot();
         flushedLogs = flushLogs();
-        await t.expect("test state").eql(await signal.textContent);
+        if (await signal.textContent != "success") {
+          await t.expect("test state").eql(await signal.textContent);
+        }
       }
 
       await t.expect(signal.hasClass("success")).eql(true)
