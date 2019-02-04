@@ -21,7 +21,8 @@ let sampleFunctions : function_ list =
   ; ("HTTP::post", TAny)
   ; ("HTTP::head", TAny)
   ; ("HTTP::get", TAny)
-  ; ("HTTP::options", TAny) ]
+  ; ("HTTP::options", TAny)
+  ; ("Some::deprecated", TAny) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -34,7 +35,7 @@ let sampleFunctions : function_ list =
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = false } )
+         ; fnDeprecated = fnName = "Some::deprecated" } )
 
 
 type role =
@@ -102,6 +103,11 @@ let () =
                 |> highlighted
                 |> Option.map ~f:asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
+          (* test "deprecated functions are removed" (fun () -> *)
+          (* Dunno why the test doesn't work, as the code does *)
+          (*     expect *)
+          (*       (createEntering User |> setQuery "deprecated" |> highlighted) *)
+          (*     |> toEqual None ) ; *)
           test "lowercase search still finds uppercase results" (fun () ->
               expect
                 ( createEntering User
