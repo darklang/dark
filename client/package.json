@@ -5,7 +5,7 @@
   "private": true,
   "author": "",
   "devDependencies": {
-    "@glennsl/bs-jest": "^0.4.5",
+    "@glennsl/bs-jest": "^0.4.7",
     "browserify": "^16.1.1",
     "bs-platform": "4.0.18",
     "less": "2.7.3",
