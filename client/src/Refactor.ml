@@ -448,23 +448,13 @@ let generateEmptyFunction (_ : unit) : userFunction =
 
 let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
     op list =
-  let oldPd id = PExpr (F (id, Variable oldName))
-  and newPd () = PExpr (B.newF (Variable newName)) in
+  let newPd () = PExpr (B.newF (Variable newName)) in
   let transform ast =
     let usedInExprs = AST.uses oldName ast in
-    if List.isEmpty usedInExprs
-    then ast
-    else
-      let pds =
-        List.filterMap
-          ~f:(fun e ->
-            match e with F (id, Variable _) -> Some (oldPd id) | _ -> None )
-          usedInExprs
-      in
-      List.foldr
-        ~f:(fun pd newAST -> AST.replace pd (newPd ()) newAST)
-        ~init:ast
-        pds
+    List.foldr
+      ~f:(fun pd newAST -> AST.replace (PExpr pd) (newPd ()) newAST)
+      ~init:ast
+      usedInExprs
   in
   m.toplevels
   |> List.filterMap ~f:(fun tl ->
