@@ -270,6 +270,7 @@ let name_for_id (id : Uuidm.t) : string =
     ~params:[Uuid id]
   |> List.hd_exn
 
+
 let id_for_name (name : string) : Uuidm.t =
   Db.fetch_one
     ~name:"fetch_canvas_id"
@@ -532,9 +533,10 @@ let to_string (host : string) : string =
     @ [" ------------- Deleted ------------- "]
     @ deleted )
 
+
 let to_bucket (c : canvas) : string option =
   Db.fetch_one_option
-    ~name: "bucket_of_canvas"
+    ~name:"bucket_of_canvas"
     ~subject:(Uuidm.to_string c.id)
     "SELECT gcloud_bucket_name FROM canvases WHERE id = $1"
     ~params:[Uuid c.id]
