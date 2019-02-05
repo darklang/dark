@@ -73,17 +73,16 @@ let username_of_id id =
     ~params:[Uuid id]
   |> Option.map ~f:List.hd_exn
 
+
 let id_of_username username : Uuidm.t option =
   Db.fetch_one_option
     ~name:"account_of_username"
-    ~subject:(username)
+    ~subject:username
     "SELECT id from accounts
      WHERE accounts.username = $1"
     ~params:[String username]
   |> Option.map ~f:List.hd_exn
-  |> (fun x ->  match x with
-        Some sid -> Uuidm.of_string sid
-      | None -> None)
+  |> fun x -> match x with Some sid -> Uuidm.of_string sid | None -> None
 
 
 let get_user username =
