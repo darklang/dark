@@ -109,7 +109,7 @@ let processFocus (m : model) (focus : focus) : modification =
               true
           | TLFunc _ ->
               false )
-        | FocusedFn id | FocusedHandler id ->
+        | FocusedFn id | FocusedHandler id | FocusedDB id ->
             tl.id = id
       in
       let setQuery =

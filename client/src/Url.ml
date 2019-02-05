@@ -19,6 +19,8 @@ let urlOf (page : page) (mpos : pos option) : string =
         [("fn", deTLID tlid)]
     | FocusedHandler tlid ->
         [("handler", deTLID tlid)]
+    | FocusedDB tlid ->
+        [("db", deTLID tlid)]
   in
   let tail =
     match mpos with
@@ -116,16 +118,22 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
     | None ->
         DisplayError "No function with this id"
     | _ ->
-        SetPage (FocusedFn id) )
+        Many [SetPage (FocusedFn id); Select (id, None)] )
   | Some (FocusedHandler id) ->
     ( match TL.get m id with
     | None ->
         DisplayError "No toplevel with this id"
     | _ ->
-        SetPage (FocusedHandler id) )
+        Many [SetPage (FocusedHandler id); Select (id, None)] )
+  | Some (FocusedDB id) ->
+    ( match TL.get m id with
+    | None ->
+        DisplayError "No DB with this id"
+    | _ ->
+        Many [SetPage (FocusedDB id); Select (id, None)] )
   | Some (Architecture pos) ->
       SetPage (Architecture pos)
-  | _ ->
+  | None ->
       NoChange
 
 

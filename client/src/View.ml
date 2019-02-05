@@ -202,15 +202,9 @@ let viewCanvas (m : model) : msg Html.html =
       | Some func ->
           [viewTL m (TL.ufToTL func)]
       | None ->
-          (* TODO: change to crash *)
-          List.map ~f:(viewTL m) m.toplevels )
-    | FocusedHandler tlid ->
-      ( match TL.get m tlid with
-      | Some h ->
-          [viewTL m h]
-      | None ->
-          (* TODO: change to crash *)
-          List.map ~f:(viewTL m) m.toplevels )
+          [] )
+    | FocusedHandler tlid | FocusedDB tlid ->
+      (match TL.get m tlid with Some h -> [viewTL m h] | None -> [])
   in
   let canvasTransform =
     let offset =
