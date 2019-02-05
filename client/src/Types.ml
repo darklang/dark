@@ -590,6 +590,7 @@ and page =
   | Architecture of pos
   | FocusedFn of tlid
   | FocusedHandler of tlid
+  | FocusedDB of tlid
 
 and focus =
   | FocusNothing

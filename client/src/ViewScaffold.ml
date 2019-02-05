@@ -83,9 +83,11 @@ let viewButtons (m : model) : msg Html.html =
     | Architecture pos ->
         "Architecture " ^ posToString pos
     | FocusedFn tlid ->
-        Printf.sprintf "Fn (TLID %s)" (Prelude.deTLID tlid)
+        Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
     | FocusedHandler tlid ->
-        Printf.sprintf "Handler (TLID %s)" (Prelude.deTLID tlid)
+        Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
+    | FocusedDB tlid ->
+        Printf.sprintf "DB (TLID %s)" (deTLID tlid)
   in
   let saveTestButton =
     Html.a
