@@ -11,6 +11,15 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
 
 
 let oauth2_token () : (string, [> Gcloud.Auth.error]) Lwt_result.t =
+  let _ =
+    match Config.gcloud_application_credentials with
+    | Some s ->
+        Unix.putenv
+          Gcloud.Auth.Environment_vars.google_application_credentials
+          s
+    | None ->
+        ()
+  in
   let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
   let r = Gcloud.Auth.get_access_token ~scopes () in
   match%lwt r with
