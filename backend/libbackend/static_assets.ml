@@ -33,7 +33,7 @@ let oauth2_token () : (string, [> Gcloud.Auth.error]) Lwt_result.t =
 let create_gcloud_bucket (canvas_id : Uuidm.t) :
     (string, [> Gcloud.Auth.error]) Lwt_result.t =
   let name =
-    "darksa-"
+    ("darksa-" ^ Config.env_display_name ^ "-")
     ^ ( Nocrypto.Hash.SHA1.digest
           (Cstruct.of_string (Canvas.name_for_id canvas_id ^ "SOME SALT HERE"))
       |> Cstruct.to_string
