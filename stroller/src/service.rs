@@ -13,7 +13,7 @@ pub trait AsyncPush: Send + Sync {
 impl AsyncPush for r2d2::PooledConnection<push::PusherClientManager> {
     fn push(&mut self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]) {
         let event_name_ = event_name.to_string();
-        let _ = spawn(
+        spawn(
             self.push_canvas_event(canvas_uuid, event_name, json_bytes)
                 .map_err(move |e| {
                     eprintln!("failed to push event {}: {}", event_name_, e);
