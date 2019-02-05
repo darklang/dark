@@ -1,0 +1,13 @@
+{
+  "dark_notes": "currently used in both dev and prod",
+  "type": "service_account",
+  "project_id": "balmy-ground-195100",
+  "private_key_id": "c507a8d23eb46a473c40b5161b2e420a29e85636",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDDtvkpiWBNOu8I\ngNYY1F8qjzlhghM/lCbx8lZBA/BFH3IStzN+8QLSz9w+fGF6W6gRpZRJIBnkh37o\noz1U0zBTXlQoErqSuO0SjfEq3jWFOehDOEk0LuiA4ZkVz/HLkRqzOmz3cUb9w+1p\nusQJkQCx9wy0Tio5ZfeG01ctZ8FSzUD6tbPByaXXh0himSHrqdyhSKKVBgCCpfh+\n+2bLoO/hQUtymhx45WFkTe6jH938GBmY7vGQ2FC6YuYuMXAH2bjDlG+U+0O063Yk\nvbIGV+yNyK23lITshzXnEQuhHXfSMxkFTdSMZC2VY1uhnXSYy2OQ7jzVA/Qt2+9K\nUetMHUsZAgMBAAECggEAEQfXqfWEOag4k2/5oW6+isKskrd50xEia/CjcJQmCO/N\n8oK6YpAYp61SjCXw6g+2gfWbgBsA4c3oHViSHlLjzEdjsZqCnYCl0ZTkMO+l7t5N\nf6by2M2BqjBnbLpb/zO04/aAM66J58xwOQB5bV8utS3LL1fzbOv6dIMovYDfNeQT\nKdE9d4Y6k3aAfJ2FpCIB88lENC4K02b07nLwwrwTdmEUr0JE5+1zmg/D5llg1ila\npWOOEsWBftMp55vnghIhiJnUIv4KEo26PvMns5cnbm77Oi/ee9LhOMCGzkXSlYwU\neD1pkVN1vkSItWG8nTEY0uxAGdB/NO65a9D6t5SbIQKBgQD0UbmiCJr4ia0Gjyol\nOeZjEEdOrjxJIpqcrMRNpR6wZwjzCCvzYCqibhnlTE9qJy/rIQtnI1sGA9YLBpgH\n2W1W5liQUxl+xsmkUaZIWBd+eY5tOtunWk/KEIe+A0SyWj+d2U9XafK3ULhDkqa+\n0GJR2abbIO/9LCGs8RwpJHJaIQKBgQDNEl4OYOGY0fniVyOsVzEqHBu9eR9r7e2G\nmA+TIVH0ZslbxdgzBQSiCn5l3N1ccq97urQiI9grj8lXFS49KU4pSBgfqNnQtaXA\n8CgFUxCazr93Rebl1VrmGxr3rFRCCZxQ4IdX8DowQhvATwBREJ9uCrPwyUdBhWc4\nTAczZFmB+QKBgFpMck2e3JgLWnXYJ/2GPs5ST+iWoRVuwrIxcIQ6CPOtwTMBzCyx\nWFCcXNnQsHFNdnpyxiIigRviAxQkJcCQ7cZ2cDk3XW7rzc77lneah2RpTOi2HkTm\nLiNCpMjnsFYy4NxYWui18c0q+k+PPi28GvqhdPf8Xna1/uRKYNwb6l/BAoGAFGBu\n2B7oS7cRjVv7P3SqffStDPasGJ1brLQPWB9HdXGBMI1IHkmxXCiOxrBbjoQWy8SR\ngZLuN+Xhq7V/ErS3/4IaY4rzmbly7ujuERlf3QIOJFvdxZidn5+x3kpRVP5/ecnV\nqPdF0OXAvCsdbPCp5tVJa/OUEP6gcwea75BZFIECgYEAnHbu6Hv4SqPfDS7zpbMN\nrIdpsHwBumuq17REUkR2Rh7bp3bpp45zNFO56kYLdmO6RnQAYa//LOT8U5CN7IYT\n73IxoTDAj8Gs2sqcvBHEce+QsJPL++0eFS4kzJCQubUV+fVZBSiqxq9pNHfkxNq4\nTdwZE5J/T5RMlA4ooCBJSXk=\n-----END PRIVATE KEY-----\n",
+  "client_email": "dark-static-assets@balmy-ground-195100.iam.gserviceaccount.com",
+  "client_id": "115205773554387788228",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/dark-static-assets%40balmy-ground-195100.iam.gserviceaccount.com"
+}
