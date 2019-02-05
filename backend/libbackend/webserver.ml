@@ -448,7 +448,6 @@ let static_assets_upload_handler
     let deploy_hash =
       Static_assets.start_static_asset_deploy canvas branch username
     in
-    let _ = (bucket, deploy_hash) in
     let%lwt stream = Multipart.parse_stream (Lwt_stream.of_list [body]) ct in
     let%lwt upload_results =
       let%lwt parts = Multipart.get_parts stream in

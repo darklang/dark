@@ -74,7 +74,7 @@ let create_gcloud_bucket (canvas_id : Uuidm.t) :
       match resp.status with
       | `OK | `Conflict ->
           Lwt_result.return name
-      | _ as s ->
+      | s ->
           Lwt_result.return
             (Exception.internal
                ("Failure creating bucket: " ^ Cohttp.Code.string_of_status s))
