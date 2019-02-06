@@ -8,6 +8,7 @@
 set -euo pipefail
 
 progname=$(basename $0)
+dry_run=0
 
 sub_help(){
   cat << EOF > /dev/stdout
@@ -68,7 +69,7 @@ sub_assets_upload() {
     exit 0
   fi
 
-  if ! options=$(getopt -o c:,n: --long canvas:,name: -- "$@"); then
+  if ! options=$(getopt -o c:,n: --long host:,canvas:,name:,dry,dry-run -- "$@"); then
     echo "Error: incorrect options provided"
     exit 1
   fi
@@ -90,6 +91,15 @@ sub_assets_upload() {
         name=$1
         shift
         ;;
+      "--host")
+        shift
+        host=$1
+        shift
+        ;;
+    "--dry" | "--dry-run")
+        dry_run=1
+        shift
+        ;;
       --)
         shift
         break
@@ -108,18 +118,25 @@ sub_assets_upload() {
   fi
 
   name=${name:-main}
+  host=${host:-https://darklang.com}
 
-# TODO ismith do-do with paths?
-  cat << EOF > /dev/stdout
-TODO ismith
-CANVAS: $canvas
-NAME: $name
-PATHS: $*
-EOF
+  if ((dry_run == 1)); then
+      CURLCMD="echo $CURLCMD"
+  fi
 
-  for path in $@; do
-    echo "PATH: ${path}"
-  done
+
+  if ((dry_run == 1)); then
+      cookie="[redacted]"
+      csrf="[redacted]"
+  else
+      cookie="'Cookie: __session=lZEtJgdjvAhIbMoh3ew+X51twwZSK8ccq4SXM1ta'"
+      csrf="'X-CSRF-Token: hyVeWTqp0F/onuJzdNSHFlwsDlt1lFjYtyDheMCN'"
+      cookie="__session=lZEtJgdjvAhIbMoh3ew+X51twwZSK8ccq4SXM1ta"
+      csrf="hyVeWTqp0F/onuJzdNSHFlwsDlt1lFjYtyDheMCN"
+  fi
+
+  find $* -type f -printf '-F %P=@%p\n' \
+      | xargs $CURLCMD -i -X POST -H 'Cookie: '"$cookie"'' -H 'X-CSRF-Token: '"$csrf"'' ${host}/api/${canvas}/static_assets
 
   exit 1
 }
