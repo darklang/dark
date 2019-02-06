@@ -43,6 +43,7 @@ fn main() {
     let make_service = move || {
         let pool = pool.clone();
         service_fn(move |req| {
+            // TODO pass in pool instead, so we don't use a client for every request
             let client = pool.get().expect("Couldn't obtain Pusher client from pool");
 
             service::handle(client, req)
