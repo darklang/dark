@@ -69,7 +69,7 @@ sub_assets_upload() {
     exit 0
   fi
 
-  if ! options=$(getopt -o c:,n: --long host:,canvas:,name:,dry,dry-run -- "$@"); then
+  if ! options=$(getopt -o c:,n: --long csrf:,cookie:,host:,canvas:,name:,dry,dry-run -- "$@"); then
     echo "Error: incorrect options provided"
     exit 1
   fi
@@ -94,6 +94,16 @@ sub_assets_upload() {
       "--host")
         shift
         host=$1
+        shift
+        ;;
+      "--csrf")
+        shift
+        csrf=$1
+        shift
+        ;;
+      "--cookie")
+        shift
+        cookie=$1
         shift
         ;;
     "--dry" | "--dry-run")
@@ -128,11 +138,6 @@ sub_assets_upload() {
   if ((dry_run == 1)); then
       cookie="[redacted]"
       csrf="[redacted]"
-  else
-      cookie="'Cookie: __session=lZEtJgdjvAhIbMoh3ew+X51twwZSK8ccq4SXM1ta'"
-      csrf="'X-CSRF-Token: hyVeWTqp0F/onuJzdNSHFlwsDlt1lFjYtyDheMCN'"
-      cookie="__session=lZEtJgdjvAhIbMoh3ew+X51twwZSK8ccq4SXM1ta"
-      csrf="hyVeWTqp0F/onuJzdNSHFlwsDlt1lFjYtyDheMCN"
   fi
 
   find $* -type f -printf '-F %P=@%p\n' \

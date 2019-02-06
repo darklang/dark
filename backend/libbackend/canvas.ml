@@ -532,12 +532,3 @@ let to_string (host : string) : string =
     @ dbs
     @ [" ------------- Deleted ------------- "]
     @ deleted )
-
-
-let to_bucket (c : canvas) : string option =
-  Db.fetch_one_option
-    ~name:"bucket_of_canvas"
-    ~subject:(Uuidm.to_string c.id)
-    "SELECT gcloud_bucket_name FROM canvases WHERE id = $1"
-    ~params:[Uuid c.id]
-  |> Option.map ~f:List.hd_exn

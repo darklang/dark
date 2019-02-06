@@ -10,6 +10,8 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Format.flush_str_formatter ()
 
 
+let bucket = "dark-static-assets"
+
 let oauth2_token () : (string, [> Gcloud.Auth.error]) Lwt_result.t =
   let _ =
     match Config.gcloud_application_credentials with
@@ -30,60 +32,40 @@ let oauth2_token () : (string, [> Gcloud.Auth.error]) Lwt_result.t =
       Lwt_result.lift e
 
 
-let create_gcloud_bucket (canvas_id : Uuidm.t) :
-    (string, [> Gcloud.Auth.error]) Lwt_result.t =
-  let name =
-    ("darksa-" ^ Config.env_display_name ^ "-")
-    ^ ( Nocrypto.Hash.SHA1.digest
-          (Cstruct.of_string (Canvas.name_for_id canvas_id ^ "SOME SALT HERE"))
-      |> Cstruct.to_string
-      |> B64.encode ~alphabet:B64.uri_safe_alphabet
-      |> Util.maybe_chop_suffix ~suffix:"="
-      |> String.lowercase )
-    |> fun s -> String.prefix s 63
-    (* max bucket name length *)
+let app_hash (canvas_id : Uuidm.t) =
+  Nocrypto.Hash.SHA1.digest
+    (Cstruct.of_string
+       ( Canvas.name_for_id canvas_id
+       ^ "SOME SALT HERE"
+       ^ Config.env_display_name ))
+  |> Cstruct.to_string
+  |> B64.encode ~alphabet:B64.uri_safe_alphabet
+  |> Util.maybe_chop_suffix ~suffix:"="
+  |> String.lowercase
+  |> fun s -> String.prefix s 63
+
+
+let url (canvas_id : Uuidm.t) (deploy_hash : string) variant : string =
+  let domain =
+    match variant with
+    | `Short ->
+        ".darksa.com"
+    | `Long ->
+        ".darkstaticassets.com"
   in
-  let body_pairs =
-    `Assoc
-      [ ("name", `String name)
-      ; ("location", `String "us")
-      ; ("storageClass", `String "multi_regional") ]
-  in
-  let uri =
-    Uri.make
-      ()
-      ~scheme:"https"
-      ~host:"www.googleapis.com"
-      ~path:"storage/v1/b" (* TODO config this *)
-      ~query:[("project", ["balmy-ground-195100"])]
-  in
-  let body =
-    body_pairs |> Yojson.Safe.to_string |> Cohttp_lwt.Body.of_string
-  in
-  let headers =
-    oauth2_token ()
-    >|= fun token ->
-    Cohttp.Header.of_list
-      [ ("Authorization", "Bearer " ^ token)
-      ; ("Content-type", "application/json") ]
-  in
-  headers
-  >|= (fun headers -> Cohttp_lwt_unix.Client.post uri ~headers ~body)
-  >>= fun x ->
-  Lwt.bind x (fun (resp, _) ->
-      match resp.status with
-      | `OK | `Conflict ->
-          Lwt_result.return name
-      | s ->
-          Lwt_result.return
-            (Exception.internal
-               ("Failure creating bucket: " ^ Cohttp.Code.string_of_status s))
-  )
+  String.concat
+    ~sep:"/"
+    [ "https:/"
+    ; Canvas.name_for_id canvas_id ^ domain
+    ; app_hash canvas_id
+    ; deploy_hash ]
 
 
 let upload_to_bucket
-    (filename : string) (obj : string) (bucket : string) (deploy_hash : string)
-    : (unit, [> Gcloud.Auth.error]) Lwt_result.t =
+    (filename : string)
+    (obj : string)
+    (canvas_id : Uuidm.t)
+    (deploy_hash : string) : (unit, [> Gcloud.Auth.error]) Lwt_result.t =
   let uri =
     Uri.make
       ()
@@ -91,7 +73,9 @@ let upload_to_bucket
       ~host:"www.googleapis.com"
       ~path:("upload/storage/v1/b/" ^ bucket ^ "/o")
       ~query:
-        [("uploadType", ["media"]); ("name", [deploy_hash ^ "/" ^ filename])]
+        [ ("uploadType", ["media"])
+        ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename])
+        ]
   in
   let ct = Magic_mime.lookup filename in
   let body = Cohttp_lwt.Body.of_string obj in
@@ -143,40 +127,6 @@ let delete_from_bucket
             (Exception.internal
                ( "Failure uploading static asset: "
                ^ Cohttp.Code.string_of_status s )) )
-
-
-let bucket_for_canvas_option (canvas_id : Uuidm.t) : string option =
-  let retval =
-    Db.fetch_one_option
-      ~name:"get_bucket_for_canvas"
-      ~subject:(Uuidm.to_string canvas_id)
-      "SELECT gcloud_bucket_name
-    FROM canvases
-    WHERE id = $1"
-      ~params:[Uuid canvas_id]
-  in
-  retval |> Option.map ~f:List.hd_exn
-
-
-let bucket_for_canvas (canvas_id : Uuidm.t) : string =
-  bucket_for_canvas_option canvas_id
-  |> fun x -> match x with None | Some "" -> "unknown" | Some name -> name
-
-
-(* will no-op if this canvas already has a bucket *)
-let add_bucket_to_canvas (canvas_id : Uuidm.t) :
-    (string, [> Gcloud.Auth.error]) Lwt_result.t =
-  create_gcloud_bucket canvas_id
-  >|= fun gcloud_bucket_name ->
-  Db.run
-    ~name:"add_bucket_to_canvas"
-    ~subject:(Uuidm.to_string canvas_id)
-    "UPDATE canvases
-    SET gcloud_bucket_name = $1
-    WHERE id = $2
-    AND gcloud_bucket_name IS NULL"
-    ~params:[String gcloud_bucket_name; Uuid canvas_id] ;
-  gcloud_bucket_name
 
 
 let start_static_asset_deploy

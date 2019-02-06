@@ -1,9 +1,4 @@
 -- ideally we could make this NOT NULL and create it at canvas creation time?
-ALTER TABLE canvases
-ADD COLUMN gcloud_bucket_name VARCHAR(63) DEFAULT NULL;
-
-CREATE UNIQUE INDEX idx_canvases_gcloud_bucket_name ON canvases (gcloud_bucket_name);
-
 CREATE TABLE IF NOT EXISTS static_asset_deploys
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid()
