@@ -39,6 +39,9 @@ where
         (&Method::GET, ["", ""]) => {
             *response.body_mut() = Body::from("Try POSTing to /canvas/:uuid/events/:event");
         }
+        (&Method::GET, ["", "x", "alive"]) => {
+            *response.body_mut() = Body::from("OK");
+        }
         (&Method::POST, ["", "canvas", canvas_uuid, "events", event]) => {
             let handled = handle_push(
                 client,
@@ -105,7 +108,7 @@ mod tests {
 
     #[test]
     fn responds_ok() {
-        let req = Request::get("/").body(Body::empty()).unwrap();
+        let req = Request::get("/x/alive").body(Body::empty()).unwrap();
         let resp = handle(CLIENT, req).wait();
 
         assert_eq!(resp.unwrap().status(), 200);
