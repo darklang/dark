@@ -367,7 +367,7 @@ body #grid * {
   }
 }
 
-.page-handler .toplevel .view-data {
+.page-handler .toplevel .view-data, .page-function .toplevel .view-data {
   position: absolute;
   width: max-content;
   top: 0;
@@ -390,7 +390,8 @@ body #grid * {
         top: 0;
 
         height: max-content;
-        max-width: 300px;
+        min-width: 300px;
+        width: 300px;
 
         padding: 4px;
 
@@ -1452,16 +1453,9 @@ body #grid * {
   width: calc(~"100% - 20px");
 }
 
-.page-handler {
+.page-handler, .page-function {
   .toplevel.selected {
     outline: none;
-    background: transparent;
-    border: none;
-    border-left: @grey1 1px solid;
-  }
-
-  .sidebar-box {
-    background: transparent;
   }
 }
 
@@ -1789,7 +1783,7 @@ body #grid * {
   z-index: 55;
 }
 
-#canvas.page-handler {
+#canvas.page-handler, #canvas.page-function {
   z-index: 56;
 }
 
@@ -1824,10 +1818,6 @@ body #grid * {
   &.selected {
     z-index: 40;
   }
-  &.page-handler {
-    z-index: 56;
-  }
-
 }
 
 #debug {

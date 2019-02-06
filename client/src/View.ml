@@ -222,7 +222,13 @@ let viewCanvas (m : model) : msg Html.html =
     "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
   let pageType =
-    match m.currentPage with FocusedHandler _ -> "page-handler" | _ -> ""
+    match m.currentPage with
+    | FocusedHandler _ ->
+        "page-handler"
+    | FocusedFn _ ->
+        "page-function"
+    | _ ->
+        ""
   in
   let allDivs = asts @ entry in
   Html.div
