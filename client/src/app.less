@@ -367,6 +367,39 @@ body #grid * {
   }
 }
 
+.page-handler .toplevel .view-data {
+  position: absolute;
+  width: max-content;
+  top: 0;
+  left: -20px;
+
+  ul.request-cursor {
+    float: none;
+    max-height: unset;
+    bottom: unset;
+
+    li {
+      float: none;
+      display: block;
+      line-height: 0.8rem;
+
+      &.mouseovered:before {
+        display: block;
+        position: absolute;
+        left: -315px;
+        top: 0;
+
+        height: max-content;
+        max-width: 300px;
+
+        padding: 4px;
+
+        z-index: 600;
+      }
+    }
+  }
+}
+
 //*************
 // Routing table
 //*************
@@ -1402,6 +1435,7 @@ body #grid * {
 
 // This creates an ancestor for the absolutely positioned elements around a handler to be positioned agains
 //
+
 .sidebar-box {
   background: @black1;
   position: relative;
@@ -1409,13 +1443,26 @@ body #grid * {
 
 .documentation-box {
   position: absolute;
-  bottom: calc(~"100% + 5px");
+  bottom: calc(~"100% + 2px");
   left: 0;
   font-size: 11px;
   padding: 5px 10px;
-  background: @grey1;
+  background: darken(@black2, 2%);
   color: @white3;
-  border-radius: 13px;
+  width: calc(~"100% - 20px");
+}
+
+.page-handler {
+  .toplevel.selected {
+    outline: none;
+    background: transparent;
+    border: none;
+    border-left: @grey1 1px solid;
+  }
+
+  .sidebar-box {
+    background: transparent;
+  }
 }
 
 .right-button {
@@ -1742,6 +1789,10 @@ body #grid * {
   z-index: 55;
 }
 
+#canvas.page-handler {
+  z-index: 56;
+}
+
 .entry {
   form {
     #search-container {
@@ -1773,6 +1824,10 @@ body #grid * {
   &.selected {
     z-index: 40;
   }
+  &.page-handler {
+    z-index: 56;
+  }
+
 }
 
 #debug {

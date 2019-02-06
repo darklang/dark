@@ -53,18 +53,20 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         "click"
         (fun x -> ToplevelClick (tl.id, x)) ]
   in
-  let selected =
-    if Some tl.id = tlidOf m.cursorState then "selected" else ""
-  in
+  let selected = Some tl.id = tlidOf m.cursorState in
   let boxClasses =
-    match m.cursorState with
-    | Dragging (tlid_, _, _, _) ->
-        if tlid_ = tl.id then ["dragging"] else []
-    | _ ->
-        []
+    let dragging =
+      match m.cursorState with
+      | Dragging (tlid_, _, _, _) ->
+          tlid_ = tl.id
+      | _ ->
+          false
+    in
+    [("sidebar-box", true); ("selected", selected); ("dragging", dragging)]
   in
   let class_ =
-    [selected; "tl-" ^ deTLID tl.id; "toplevel"] |> String.join ~sep:" "
+    ["toplevel"; "tl-" ^ deTLID tl.id; (if selected then "selected" else "")]
+    |> String.join ~sep:" "
   in
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with
@@ -140,14 +142,15 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     match m.currentPage with
     | Architecture _ ->
         tl.pos
+    | FocusedHandler _ | FocusedFn _ ->
+        Defaults.focusCodePos
     | _ ->
         Defaults.centerPos
   in
   let html =
     Html.div
       (* -- see comment in css *)
-      [ Html.class'
-        <| String.join ~sep:" " (boxClasses @ ["sidebar-box"; selected]) ]
+      [Html.classList boxClasses]
       [Html.div (Html.class' class_ :: events) (body @ top)]
   in
   ViewUtils.placeHtml pos html
@@ -218,8 +221,15 @@ let viewCanvas (m : model) : msg Html.html =
     let y = string_of_int (-offset.y) in
     "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
+  let pageType =
+    match m.currentPage with FocusedHandler _ -> "page-handler" | _ -> ""
+  in
   let allDivs = asts @ entry in
-  Html.div [Html.id "canvas"; Html.style "transform" canvasTransform] allDivs
+  Html.div
+    [ Html.id "canvas"
+    ; Html.style "transform" canvasTransform
+    ; Html.class' pageType ]
+    allDivs
 
 
 let view (m : model) : msg Html.html =
