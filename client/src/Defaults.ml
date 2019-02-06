@@ -11,7 +11,7 @@ let centerPos : pos = {x = 475; y = 200}
 
 let origin : pos = {x = 0; y = 0}
 
-let focusCodePos : pos = {x = 600; y = 100}
+let focusCodePos : pos = {x = 475; y = 100}
 
 let moveSize : int = 50
 
