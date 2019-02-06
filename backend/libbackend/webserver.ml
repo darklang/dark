@@ -438,11 +438,6 @@ let static_assets_upload_handler
       | None ->
           "error"
     in
-    let%lwt bucket =
-      Static_assets.add_bucket_to_canvas canvas
-      |> Lwt_result.map_err (fun x -> Exception.internal (Log.dump x))
-      |> Lwt_result.get_exn
-    in
     (* TODO ismith make configurable in request *)
     let branch = "main" in
     let deploy_hash =
@@ -479,7 +474,7 @@ let static_assets_upload_handler
             (Multipart.file_stream file)
             ""
         in
-        Static_assets.upload_to_bucket filename body bucket deploy_hash
+        Static_assets.upload_to_bucket filename body canvas deploy_hash
       in
       Lwt.return (files |> List.map ~f:processfile)
     in
@@ -499,14 +494,13 @@ let static_assets_upload_handler
           ~resp_headers:(server_timing []) (* t1; t2; etc *)
           ~execution_id
           `OK
-          (Yojson.Basic.to_string
-             (`Assoc
-               [ ( "bucket"
-                 , `String
-                     ( "gs://"
-                     ^ Static_assets.bucket_for_canvas canvas
-                     ^ "/"
-                     ^ deploy_hash ) ) ]))
+          ( Yojson.Basic.to_string
+              (`Assoc
+                [ ("deploy_hash", `String deploy_hash)
+                ; ("url", `String (Static_assets.url canvas deploy_hash `Short))
+                ; ( "long-url"
+                  , `String (Static_assets.url canvas deploy_hash `Long) ) ])
+          |> Yojson.Basic.prettify )
     | _ ->
         (* TODO: cleanup failed deploy (bucket objects & DB record *)
         respond
