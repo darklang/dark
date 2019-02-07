@@ -255,10 +255,11 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/static/appsupport.js
-            - backend/static/analysissupport.js
             - backend/static/app.css
             - backend/static/app.js
+            - backend/static/appsupport.js
+            - backend/static/tracefetcher.js
+            - backend/static/analysiswrapper.js
       - run:
           name: Copy out artifacts
           when: always
