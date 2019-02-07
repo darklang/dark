@@ -137,7 +137,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | _ ->
         None
   in
-  let top = match documentation with Some doc -> doc | _ -> data in
+  let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
     | Architecture _ ->
@@ -151,7 +151,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     Html.div
       (* -- see comment in css *)
       [Html.classList boxClasses]
-      [Html.div (Html.class' class_ :: events) (body @ top)]
+      [Html.div (Html.class' class_ :: events) (body @ data @ top)]
   in
   ViewUtils.placeHtml pos html
 
