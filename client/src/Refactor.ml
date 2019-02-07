@@ -304,13 +304,13 @@ let fnUseCount (m : model) (name : string) : int =
   StrDict.get m.usedFns ~key:name |> Option.withDefault ~default:0
 
 
-let usedFn (m : model) (name : string) : bool = fnUseCount m name = 0
+let usedFn (m : model) (name : string) : bool = fnUseCount m name <> 0
 
 let dbUseCount (m : model) (name : string) : int =
   StrDict.get m.usedDBs ~key:name |> Option.withDefault ~default:0
 
 
-let usedDb (m : model) (name : string) : bool = dbUseCount m name = 0
+let usedDb (m : model) (name : string) : bool = dbUseCount m name <> 0
 
 let updateUsageCounts (m : model) : model =
   let tldata = m.toplevels |> List.map ~f:TL.allData in

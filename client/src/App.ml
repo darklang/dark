@@ -25,7 +25,8 @@ let init (flagString : string) (location : Web.Location.location) =
   let m =
     { m0 with
       cursorState = Deselected
-    ; currentPage = (Defaults.defaultModel |> fun x -> x.currentPage) }
+    ; currentPage = (Defaults.defaultModel |> fun x -> x.currentPage)
+    ; builtInFunctions = complete }
   in
   let page =
     Url.parseLocation location |> Option.withDefault ~default:m.currentPage
@@ -38,13 +39,11 @@ let init (flagString : string) (location : Web.Location.location) =
     | Fn (_, pos) ->
         {canvas with fnOffset = pos}
   in
-  let isAdmin = false in
   let canvasName = Url.parseCanvasName location in
   let integrationTestName = canvasName in
   let m2 =
     { m with
-      builtInFunctions = complete
-    ; complete = AC.init complete isAdmin
+      complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
     ; currentPage = page
