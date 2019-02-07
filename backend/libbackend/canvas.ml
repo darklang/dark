@@ -21,7 +21,8 @@ type canvas =
   ; deleted_toplevels : TL.toplevel_list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
-  ; cors_setting : cors_setting option }
+  ; cors_setting : cors_setting option
+  ; user_types : RTT.user_tipe list }
 [@@deriving eq, show]
 
 (* ------------------------- *)
@@ -276,7 +277,8 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; deleted_toplevels = []
       ; user_functions = []
       ; deleted_user_functions = []
-      ; cors_setting = cors }
+      ; cors_setting = cors
+      ; user_types = [] }
   in
   add_ops c [] ops ;
   c
@@ -354,7 +356,8 @@ let load_from
       ; user_functions = []
       ; deleted_toplevels = []
       ; deleted_user_functions = []
-      ; cors_setting = cors }
+      ; cors_setting = cors
+      ; user_types = [] }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops ;
   c

@@ -438,6 +438,20 @@ module RuntimeT = struct
     ; ast : expr }
   [@@deriving eq, show, yojson, bin_io]
 
+  type record_field =
+    { name : string or_blank
+    ; tipe : tipe_ or_blank }
+  [@@deriving eq, show, yojson, bin_io]
+
+  type user_record =
+    { name : string or_blank
+    ; version : int
+    ; fields : record_field list }
+  [@@deriving eq, show, yojson, bin_io]
+
+  type user_tipe = UTRecord of user_record
+  [@@deriving eq, show, yojson, bin_io]
+
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   type function_desc = tlid * string * id [@@deriving yojson]
