@@ -195,8 +195,6 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
       true
 
 
-let nonAdminFunctions (fns : function_ list) : function_ list = fns
-
 let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
@@ -715,12 +713,6 @@ let filter
   List.partition ~f:matcher allMatches
 
 
-let init (fns : function_ list) (isAdmin : bool) : autocomplete =
-  let default = Defaults.defaultModel.complete in
-  let functions = if isAdmin then fns else nonAdminFunctions fns in
-  {default with functions; admin = isAdmin}
-
-
 let refilter (query : string) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
@@ -777,7 +769,7 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 (* ---------------------------- *)
 (* Autocomplete state *)
 (* ---------------------------- *)
-let reset (m : model) (a : autocomplete) : autocomplete =
+let reset (m : model) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
     |> List.map ~f:(fun x -> x.ufMetadata)
@@ -786,17 +778,15 @@ let reset (m : model) (a : autocomplete) : autocomplete =
   let functions =
     m.builtInFunctions
     |> List.filter ~f:(fun f ->
-           not
-             (List.member
-                ~value:f.fnName
-                (List.map ~f:(fun x -> x.fnName) userFunctionMetadata)) )
-    |> List.filter ~f:(fun f ->
            (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
-    |> List.append userFunctionMetadata
   in
-  let result = init functions a.admin |> regenerate m in
-  {result with visible = VariantTesting.defaultAutocompleteVisible m}
+  let functions = functions @ userFunctionMetadata in
+  { Defaults.defaultModel.complete with
+    functions; visible = VariantTesting.defaultAutocompleteVisible m }
+  |> regenerate m
 
+
+let init m = reset m
 
 let numCompletions (a : autocomplete) : int =
   List.length a.completions + List.length a.invalidCompletions
@@ -928,7 +918,7 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
   | ACAppendQuery str ->
       appendQuery str a
   | ACReset ->
-      reset m a
+      reset m
   | ACSelectDown ->
       selectDown a
   | ACSelectUp ->
