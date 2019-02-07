@@ -1,3 +1,6 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 use futures::future;
 use hyper::rt::{spawn, Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
@@ -23,7 +26,11 @@ impl AsyncPush for r2d2::PooledConnection<push::PusherClientManager> {
     }
 }
 
-pub fn handle<PC>(client: PC, req: Request<Body>) -> BoxFut<Response<Body>, hyper::Error>
+pub fn handle<PC>(
+    shutting_down: &Arc<AtomicBool>,
+    client: PC,
+    req: Request<Body>,
+) -> BoxFut<Response<Body>, hyper::Error>
 where
     PC: AsyncPush,
     PC: 'static,
@@ -31,6 +38,11 @@ where
     let mut response = Response::new(Body::empty());
 
     println!("{:?}", req);
+
+    if shutting_down.load(Ordering::Acquire) {
+        *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
+        return Box::new(future::ok(response));
+    }
 
     let uri = req.uri().clone();
     let path_segments: Vec<&str> = uri.path().split('/').collect();
@@ -40,6 +52,14 @@ where
             *response.body_mut() = Body::from("Try POSTing to /canvas/:uuid/events/:event");
         }
         (&Method::GET, ["", "x", "alive"]) => {
+            *response.body_mut() = Body::from("OK");
+        }
+        (&Method::POST, ["", "x", "pre_stop"]) => {
+            println!("Entering shutdown mode, no more requests will be processed.");
+
+            shutting_down.store(true, Ordering::Release);
+
+            *response.status_mut() = StatusCode::ACCEPTED;
             *response.body_mut() = Body::from("OK");
         }
         (&Method::POST, ["", "canvas", canvas_uuid, "events", event]) => {
@@ -106,18 +126,24 @@ mod tests {
     }
     const CLIENT: FakePushClient = FakePushClient;
 
+    fn not_shutting_down() -> Arc<AtomicBool> {
+        Arc::new(AtomicBool::new(false))
+    }
+
+    fn get(path: &str) -> Request<Body> {
+        Request::get(path).body(Body::empty()).unwrap()
+    }
+
     #[test]
     fn responds_ok() {
-        let req = Request::get("/x/alive").body(Body::empty()).unwrap();
-        let resp = handle(CLIENT, req).wait();
+        let resp = handle(&not_shutting_down(), CLIENT, get("/x/alive")).wait();
 
         assert_eq!(resp.unwrap().status(), 200);
     }
 
     #[test]
     fn responds_404() {
-        let req = Request::get("/nonexistent").body(Body::empty()).unwrap();
-        let resp = handle(CLIENT, req).wait();
+        let resp = handle(&not_shutting_down(), CLIENT, get("/nonexistent")).wait();
 
         assert_eq!(resp.unwrap().status(), 404);
     }
@@ -127,8 +153,22 @@ mod tests {
         let req = Request::post("/canvas/8afcbf52-2954-4353-9397-b5f417c08ebb/events/traces")
             .body(Body::from("{\"foo\":\"bar\"}"))
             .unwrap();
-        let resp = handle(CLIENT, req).wait();
+        let resp = handle(&not_shutting_down(), CLIENT, req).wait();
 
         assert_eq!(resp.unwrap().status(), 202);
+    }
+
+    #[test]
+    fn stops_accepting_after_pre_stop() {
+        let shutting_down = Arc::new(AtomicBool::new(false));
+
+        let req = Request::post("/x/pre_stop").body(Body::empty()).unwrap();
+        let resp = handle(&shutting_down, CLIENT, req).wait();
+
+        assert_eq!(resp.unwrap().status(), 202);
+        assert!(shutting_down.load(Ordering::Acquire));
+
+        let resp = handle(&shutting_down, CLIENT, get("/x/alive")).wait();
+        assert_eq!(resp.unwrap().status(), 503);
     }
 }
