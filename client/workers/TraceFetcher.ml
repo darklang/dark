@@ -38,10 +38,12 @@ let fetch (context : Types.rpcContext) params =
   |> then_ Fetch.Response.json
   |> then_ (fun resp -> resolve (Decoders.getAnalysisRPC resp))
   |> then_ (fun res -> resolve (postMessage self {params; result = res}))
+  |> catch (fun err ->
+         Js.log2 "traceFetch error" err ;
+         resolve () )
 
 
 let () =
   onmessage self (fun e ->
       let context, params = e##data in
-      let _ = fetch context params in
-      () )
+      ignore (fetch context params) )
