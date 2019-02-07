@@ -262,9 +262,12 @@ let push
                 Lwt.return ()
           with e ->
             let bt = Exception.get_backtrace () in
-            let _ =
-              Rollbar.report_lwt e bt (Push event) (Types.show_id execution_id)
-            in
+            ignore
+              (Rollbar.report_lwt
+                 e
+                 bt
+                 (Push event)
+                 (Types.show_id execution_id)) ;
             Lwt.return () )
 
 
@@ -410,14 +413,12 @@ let user_page_handler
          *    b) use the input url params in the analysis for this handler
         *)
           let desc = (m, Uri.path uri, mo) in
-          let _ =
-            Stored_event.store_event
-              ~trace_id
-              ~canvas_id
-              desc
-              (PReq.to_dval input)
-          in
-          ()
+          ignore
+            (Stored_event.store_event
+               ~trace_id
+               ~canvas_id
+               desc
+               (PReq.to_dval input))
       | _ ->
           () ) ;
       let bound =
