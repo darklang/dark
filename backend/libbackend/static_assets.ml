@@ -9,10 +9,17 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Gcloud.Auth.pp_error Format.str_formatter err ;
   Format.flush_str_formatter ()
 
+type static_asset_error =
+  [
+  | `GcloudAuthError of string
+  | `FailureUploadingStaticAsset of string
+]
+
+
 
 let bucket = "dark-static-assets"
 
-let oauth2_token () : (string, [> Gcloud.Auth.error]) Lwt_result.t =
+let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   let _ =
     match Config.gcloud_application_credentials with
     | Some s ->
@@ -27,9 +34,9 @@ let oauth2_token () : (string, [> Gcloud.Auth.error]) Lwt_result.t =
   match%lwt r with
   | Ok token_info ->
       Lwt_result.return token_info.token.access_token
-  | Error x as e ->
+  | Error x ->
       Caml.print_endline ("Gcloud oauth error: " ^ pp_gcloud_err x) ;
-      Lwt_result.lift e
+      Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
 
 
 let app_hash (canvas_id : Uuidm.t) =
@@ -65,7 +72,7 @@ let upload_to_bucket
     (filename : string)
     (obj : string)
     (canvas_id : Uuidm.t)
-    (deploy_hash : string) : (unit, [> Gcloud.Auth.error]) Lwt_result.t =
+    (deploy_hash : string) : (unit, [> static_asset_error]) Lwt_result.t =
   let uri =
     Uri.make
       ()
@@ -93,8 +100,8 @@ let upload_to_bucket
       | `OK | `Created ->
           Lwt_result.return ()
       | _ as s ->
-          Lwt_result.return
-            (Exception.internal
+          Lwt_result.fail
+            (`FailureUploadingStaticAsset
                ( "Failure uploading static asset: "
                ^ Cohttp.Code.string_of_status s )) )
 
@@ -123,8 +130,8 @@ let delete_from_bucket
       | `OK ->
           Lwt_result.return ()
       | _ as s ->
-          Lwt_result.return
-            (Exception.internal
+          Lwt_result.fail
+            (`FailureUploadingStaticAsset
                ( "Failure uploading static asset: "
                ^ Cohttp.Code.string_of_status s )) )
 
