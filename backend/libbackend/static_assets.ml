@@ -149,7 +149,6 @@ let start_static_asset_deploy
     |> String.lowercase
     |> fun s -> String.prefix s 10
   in
-  (* should this be a Uuid account_id? *)
   Db.run
     ~name:"add static_asset_deploy record"
     ~subject:deploy_hash
