@@ -438,7 +438,9 @@ let static_assets_upload_handler
       | None ->
           "error"
     in
-    (* TODO ismith make configurable in request *)
+    (* making branch a request-configurable option requires product work:
+     * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
+     *)
     let branch = "main" in
     let deploy_hash =
       Static_assets.start_static_asset_deploy canvas branch username
