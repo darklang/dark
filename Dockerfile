@@ -319,6 +319,16 @@ RUN sudo apt install -y zlib1g-dev libssl-dev \
   && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
   && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
 
+
+# required by Rust hyper-tls crate
+USER root
+RUN apt install \
+      -y \
+      --no-install-recommends \
+      libssl-dev=1.0.2g-1ubuntu13.6
+USER dark
+
+
 ############################
 # Finish
 ############################

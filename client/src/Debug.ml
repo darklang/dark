@@ -1,9 +1,11 @@
 let crash (str : string) : 'a = failwith str
 
-let log ?(f : 'a -> 'b = fun x -> x) (msg : string) (data : 'a) : 'a =
+let log ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) : 'a
+    =
   Js.log2 msg (f data) ;
   data
 
 
-let loG ?(f : 'a -> 'b = fun x -> x) (msg : string) (data : 'a) : unit =
+let loG ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) :
+    unit =
   Js.log2 msg (f data)

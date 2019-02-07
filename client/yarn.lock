@@ -18,10 +18,10 @@
     esutils "^2.0.2"
     js-tokens "^4.0.0"
 
-"@glennsl/bs-jest@^0.4.5":
-  version "0.4.5"
-  resolved "https://registry.yarnpkg.com/@glennsl/bs-jest/-/bs-jest-0.4.5.tgz#f6259f8457cc9f09b3c07f97073c6b00c81a048d"
-  integrity sha512-iDhVxPdZf5yMBJlMY+b9BR4G8/DQICbWvxYwI71VpEOKxhZW9h8Sx+pm4Y6xpVZOenT7sVJ5O62Q+UW6Rmducw==
+"@glennsl/bs-jest@^0.4.7":
+  version "0.4.7"
+  resolved "https://registry.yarnpkg.com/@glennsl/bs-jest/-/bs-jest-0.4.7.tgz#9719dc8c8ceed11d2de92adf9e02dd364c3f9398"
+  integrity sha512-Rjys7/fspjpfmvQxkP1u5ortxYfBVXXlJARXbixer4Q1RDPZp0BLlqvdOLmlbaq/z6bhLbEq4PSBg0oC8p7bKw==
   dependencies:
     jest "^23.5.0"
 
