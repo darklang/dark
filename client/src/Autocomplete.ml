@@ -769,7 +769,7 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 (* ---------------------------- *)
 (* Autocomplete state *)
 (* ---------------------------- *)
-let reset (m : model) (a : autocomplete) : autocomplete =
+let reset (m : model) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
     |> List.map ~f:(fun x -> x.ufMetadata)
@@ -781,11 +781,12 @@ let reset (m : model) (a : autocomplete) : autocomplete =
            (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
   in
   let functions = functions @ userFunctionMetadata in
-  {a with functions; visible = VariantTesting.defaultAutocompleteVisible m}
+  { Defaults.defaultModel.complete with
+    functions; visible = VariantTesting.defaultAutocompleteVisible m }
   |> regenerate m
 
 
-let init m = reset m Defaults.defaultModel.complete
+let init m = reset m
 
 let numCompletions (a : autocomplete) : int =
   List.length a.completions + List.length a.invalidCompletions
@@ -917,7 +918,7 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
   | ACAppendQuery str ->
       appendQuery str a
   | ACReset ->
-      reset m a
+      reset m
   | ACSelectDown ->
       selectDown a
   | ACSelectUp ->
