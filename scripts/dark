@@ -140,6 +140,7 @@ sub_assets_upload() {
       csrf="[redacted]"
   fi
 
+  # shellcheck disable=SC2048
   find $* -type f -printf '-F %P=@%p\n' \
       | xargs $CURLCMD -i -X POST -H 'Cookie: '"$cookie"'' -H 'X-CSRF-Token: '"$csrf"'' ${host}/api/${canvas}/static_assets
 
