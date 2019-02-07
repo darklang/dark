@@ -9,13 +9,11 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Gcloud.Auth.pp_error Format.str_formatter err ;
   Format.flush_str_formatter ()
 
+
 type static_asset_error =
-  [
-  | `GcloudAuthError of string
+  [ `GcloudAuthError of string
   | `FailureUploadingStaticAsset of string
-]
-
-
+  | `FailureDeletingStaticAsset of string ]
 
 let bucket = "dark-static-assets"
 
@@ -102,20 +100,29 @@ let upload_to_bucket
       | _ as s ->
           Lwt_result.fail
             (`FailureUploadingStaticAsset
-               ( "Failure uploading static asset: "
-               ^ Cohttp.Code.string_of_status s )) )
+              ( "Failure uploading static asset: "
+              ^ Cohttp.Code.string_of_status s )) )
 
 
 let delete_from_bucket
-    (filename : string) (bucket : string) (deploy_hash : string) :
-    (unit, [> Gcloud.Auth.error]) Lwt_result.t =
+    (filename : string)
+    (bucket : string)
+    (canvas : Uuidm.t)
+    (deploy_hash : string) : (unit, [> Gcloud.Auth.error]) Lwt_result.t =
   let uri =
     Uri.make
       ()
       ~scheme:"https"
       ~host:"www.googleapis.com"
       ~path:
-        ("upload/storage/v1/b/" ^ bucket ^ "/o/" ^ deploy_hash ^ "/" ^ filename)
+        ( "upload/storage/v1/b/"
+        ^ bucket
+        ^ "/o/"
+        ^ app_hash canvas
+        ^ "/"
+        ^ deploy_hash
+        ^ "/"
+        ^ filename )
   in
   let headers =
     oauth2_token ()
@@ -131,9 +138,9 @@ let delete_from_bucket
           Lwt_result.return ()
       | _ as s ->
           Lwt_result.fail
-            (`FailureUploadingStaticAsset
-               ( "Failure uploading static asset: "
-               ^ Cohttp.Code.string_of_status s )) )
+            (`FailureDeletingStaticAsset
+              ( "Failure deleting static asset: "
+              ^ Cohttp.Code.string_of_status s )) )
 
 
 let start_static_asset_deploy
