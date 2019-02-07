@@ -69,7 +69,7 @@ sub_assets_upload() {
     exit 0
   fi
 
-  if ! options=$(getopt -o c:,n: --long csrf:,cookie:,host:,canvas:,name:,dry,dry-run -- "$@"); then
+  if ! options=$(getopt -o c:,n: --long user:,password:,host:,canvas:,dry,dry-run -- "$@"); then
     echo "Error: incorrect options provided"
     exit 1
   fi
@@ -96,14 +96,14 @@ sub_assets_upload() {
         host=$1
         shift
         ;;
-      "--csrf")
+      "--user")
         shift
-        csrf=$1
+        user=$1
         shift
         ;;
-      "--cookie")
+      "--password")
         shift
-        cookie=$1
+        password=$1
         shift
         ;;
     "--dry" | "--dry-run")
@@ -120,6 +120,20 @@ sub_assets_upload() {
   if (( $# == 0 )); then
     echo "Error: no path(s) provided."
     exit 1
+  fi
+
+  if [[ -z ${user:-} ]]; then
+    echo "Error: user is a required flag."
+    exit 1
+  fi
+
+  if [[ -z ${password:-} ]]; then
+    if [[ -z ${DARK_PASSWORD:-} ]]; then
+      echo "Error: password is a required flag or environment variable (DARK_PASSWORD)."
+      exit 1
+    else
+      password=$DARK_PASSWORD
+    fi
   fi
 
   if [[ -z ${canvas:-} ]]; then
@@ -140,6 +154,24 @@ sub_assets_upload() {
       csrf="[redacted]"
   fi
 
+  set +e
+  if ! authcurl=$(curl -i -u $user:$password ${host}/a/${canvas} 2>/dev/null |
+    grep -o -e '^set-cookie:.*' -e 'csrfToken = ".*"'); then
+    echo "Failed to auth (curl)."
+    exit 1
+  fi
+  set -e
+
+  # shellcheck disable=SC2001
+  cookie=$(echo $authcurl | sed 's/.*set-cookie: \([^;]*\).*/\1/')
+  # shellcheck disable=SC2001
+  csrf=$(echo $authcurl | sed 's/.*csrfToken = "\(.*\)".*/\1/')
+
+  if [[ "$cookie" == "" || "$csrf" == "" ]]; then
+    echo "Failed to auth (response)."
+    exit 1
+  fi
+
   # shellcheck disable=SC2048
   find $* -type f -printf '-F %P=@%p\n' \
       | xargs $CURLCMD -i -X POST -H 'Cookie: '"$cookie"'' -H 'X-CSRF-Token: '"$csrf"'' ${host}/api/${canvas}/static_assets
@@ -149,17 +181,13 @@ sub_assets_upload() {
 
 sub_assets_upload_help(){
   cat << EOF > /dev/stdout
-Usage: $progname assets upload --canvas=<canvas> [--name=<name>] <path(s)>
+Usage: $progname assets upload --canvas=<canvas> [--host=<host>] --user=<user> --password=<password> <path(s)>
 
-Requires that a DARK_PASSWORD environment variable be present. (This is
-your user's password.)
+You may replace --password with a DARK_PASSWORD environment variable.  (This is your user's password.)
 
 --canvas is the canvas to upload to
 
---name is generally associated with a branch in your repo - if no
-specific version hash is specified in the dark canvas, we'll assume you
-want the latest instance of the specified name. Optional; we default to
-the value 'main'.
+--host is optional, intended for dark-internal use only.
 
 NB: at least for now, filenames with spaces will break this script.
 EOF
