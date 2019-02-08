@@ -283,7 +283,7 @@ window.Dark = {
   traceFetcher: {
     fetch : function(params) {
       if (!window.fetcherWorker) {
-        console.error("FetchWorker not available");
+        console.log("FetchWorker not loaded yet");
         return
       }
 
@@ -298,7 +298,7 @@ window.Dark = {
   analysis: {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {
-        console.log("analysisworker not loaded yet");
+        console.log("AnalysisWorker not loaded yet");
         return;
       }
 
