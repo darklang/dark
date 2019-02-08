@@ -302,43 +302,13 @@ window.Dark = {
         return;
       }
 
-      // const handler = params.handler;
-      // const bToString = (blankOr) => blankOr[2] || null;
-      // const spec = params.handler.spec;
-      // const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-      // const tlid = handler.tlid;
-      // const trace = params.trace.id;
-
       window.analysisWorker.postMessage(params);
 
       window.analysisWorker.onmessage = function (e) {
         var result = e.data;
-        // var error = e.data.error;
 
-        // if (!error) {
         var event = new CustomEvent('receiveAnalysis', {detail: result});
         document.dispatchEvent(event);
-        // } else {
-        //   var errorName = null;
-        //   var errorMsg = null;
-        //   try { errorName = error[1][1].c; } catch (_) {}
-        //   try { errorMsg = error[2][1].c; } catch (_) {}
-        //   try { if (!errorMsg) { errorMsg = error[2].c; } } catch (_) {}
-        //   const errorStr = `${errorName} - ${errorMsg}`;
-
-        //   // send to rollbar
-        //   Rollbar.error( errorStr
-        //                , error
-        //                , { route: route
-        //                  , tlid: tlid
-        //                  , trace: trace });
-
-        //   // log to console
-        //   console.log(`Error processing analysis in (${route}, ${tlid}, ${trace})`, errorStr, error);
-
-        //   // send to client
-        //   displayError(`Error while executing (${route}, ${tlid}, ${trace}): ${errorStr}`);
-        // }
       }
     }
   },
