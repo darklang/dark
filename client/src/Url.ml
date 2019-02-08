@@ -107,7 +107,14 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  fn |> Option.orElse handler |> Option.orElse architecture
+  let db =
+    match StrDict.get ~key:"db" unstructured with
+    | Some sid ->
+        Some (FocusedDB (TLID sid))
+    | _ ->
+        None
+  in
+  fn |> Option.orElse handler |> Option.orElse db |> Option.orElse architecture
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
@@ -118,19 +125,19 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
     | None ->
         DisplayError "No function with this id"
     | _ ->
-        Many [SetPage (FocusedFn id); Select (id, None)] )
+        SetPage (FocusedFn id) )
   | Some (FocusedHandler id) ->
     ( match TL.get m id with
     | None ->
         DisplayError "No toplevel with this id"
     | _ ->
-        Many [SetPage (FocusedHandler id); Select (id, None)] )
+        SetPage (FocusedHandler id) )
   | Some (FocusedDB id) ->
     ( match TL.get m id with
     | None ->
         DisplayError "No DB with this id"
     | _ ->
-        Many [SetPage (FocusedDB id); Select (id, None)] )
+        SetPage (FocusedDB id) )
   | Some (Architecture pos) ->
       SetPage (Architecture pos)
   | None ->
