@@ -57,3 +57,5 @@ val browser_reload_enabled : bool
 val hash_static_filenames : bool
 
 val curl_tunnel_url : string option
+
+val gcloud_application_credentials : string option

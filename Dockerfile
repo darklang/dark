@@ -309,7 +309,16 @@ ENV TERM=xterm-256color
 RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
 RUN opam install -y \
   uuseg.11.0.0 \
-  uunf.11.0.0
+  uunf.11.0.0 \
+  multipart-form-data.0.1.0 \
+  magic-mime.1.1.1
+
+# for ocaml-gcloud
+RUN sudo apt install -y zlib1g-dev libssl-dev \
+  && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
+  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
+  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
+
 
 # required by Rust hyper-tls crate
 USER root
