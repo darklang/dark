@@ -201,7 +201,7 @@ let options_handler
      be useful.
 
      This makes e.g. conduit from localhost work.
-   *)
+  *)
   let req_headers =
     Cohttp.Header.get (CRequest.headers req) "access-control-request-headers"
   in
@@ -335,7 +335,7 @@ let result_to_response
   | _ ->
       let body = Dval.unsafe_dval_to_pretty_json_string result in
       (* for demonstrations sake, let's return 200 Okay when
-        * no HTTP response object is returned *)
+      * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in
       respond ~resp_headers ~execution_id `OK body
 
@@ -427,6 +427,98 @@ let user_page_handler
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
+let static_assets_upload_handler
+    ~(execution_id : Types.id) (canvas : Uuidm.t) (username : string) req body
+    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let ct =
+      match Cohttp.Header.get (CRequest.headers req) "content-type" with
+      | Some s ->
+          s
+      | None ->
+          "error"
+    in
+    (* making branch a request-configurable option requires product work:
+     * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
+    *)
+    let branch = "main" in
+    let deploy_hash =
+      Static_assets.start_static_asset_deploy canvas branch username
+    in
+    let%lwt stream = Multipart.parse_stream (Lwt_stream.of_list [body]) ct in
+    let%lwt upload_results =
+      let%lwt parts = Multipart.get_parts stream in
+      let files =
+        (Multipart.StringMap.filter (fun _ v ->
+             match v with `File _ -> true | `String _ -> false ))
+          parts
+      in
+      let files =
+        Multipart.StringMap.fold
+          (fun _ v acc ->
+            List.cons
+              ( match v with
+              | `File f ->
+                  f
+              | _ ->
+                  Exception.internal "didn't expect a non-`File here" )
+              acc )
+          files
+          ([] : Multipart.file List.t)
+      in
+      let processfile file =
+        let filename = Multipart.file_name file in
+        (* file_stream gives us a stream of strings; get a single string out
+           of it *)
+        let%lwt body =
+          Lwt_stream.fold_s
+            (fun elt acc -> Lwt.return (acc ^ elt))
+            (Multipart.file_stream file)
+            ""
+        in
+        Static_assets.upload_to_bucket filename body canvas deploy_hash
+      in
+      Lwt.return (files |> List.map ~f:processfile)
+    in
+    let%lwt _, errors =
+      upload_results
+      |> Lwt_list.partition_p (fun r ->
+             match%lwt r with
+             | Ok _ ->
+                 Lwt.return true
+             | Error _ ->
+                 Lwt.return false )
+    in
+    Static_assets.finish_static_asset_deploy canvas deploy_hash ;
+    match errors with
+    | [] ->
+        respond
+          ~resp_headers:(server_timing []) (* t1; t2; etc *)
+          ~execution_id
+          `OK
+          ( Yojson.Basic.to_string
+              (`Assoc
+                [ ("deploy_hash", `String deploy_hash)
+                ; ("url", `String (Static_assets.url canvas deploy_hash `Short))
+                ; ( "long-url"
+                  , `String (Static_assets.url canvas deploy_hash `Long) ) ])
+          |> Yojson.Basic.prettify )
+    | _ ->
+        Static_assets.delete_static_asset_deploy
+          canvas
+          branch
+          username
+          deploy_hash ;
+        respond
+          ~resp_headers:(server_timing []) (* t1; t2; etc *)
+          ~execution_id
+          `Internal_server_error
+          (Yojson.Basic.to_string
+             (`Assoc
+               [("errors", `String "We couldn't put this upload in gcloud.")]))
+  with e -> raise e
+
+
 let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
@@ -860,6 +952,15 @@ let admin_api_handler
   | `POST, ["api"; canvas; "delete_404"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (delete_404 ~execution_id canvas body) )
+  | `POST, ["api"; canvas; "static_assets"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers
+            (static_assets_upload_handler
+               ~execution_id
+               (Canvas.id_for_name canvas)
+               username
+               req
+               body) )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 

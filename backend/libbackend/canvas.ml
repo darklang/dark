@@ -271,6 +271,16 @@ let name_for_id (id : Uuidm.t) : string =
   |> List.hd_exn
 
 
+let id_for_name (name : string) : Uuidm.t =
+  Db.fetch_one
+    ~name:"fetch_canvas_id"
+    "SELECT id FROM canvases WHERE name = $1"
+    ~params:[String name]
+  |> List.hd_exn
+  |> Uuidm.of_string
+  |> Option.value_exn
+
+
 let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
     =
   let cors_setting_to_db (setting : cors_setting option) : Db.param =
