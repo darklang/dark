@@ -122,7 +122,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = Some uses
-          ; destination = Some (FocusedHandler db.dbTLID)
+          ; destination = Some (FocusedDB db.dbTLID)
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
