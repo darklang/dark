@@ -490,24 +490,34 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
-  let analysisjs = fetch("//" + staticUrl + "/analysis.js").then(r => r.text());
-  let analysiswrapperjs = fetch("//" + staticUrl + "/analysiswrapper.js").then(r => r.text());
-  var analysisWorkerUrl;
+  async function fetcher(url) {
+    url = "//" + staticUrl + url;
+    return fetch(url)
+      .then(resp => {
+        if (resp.ok) {
+          return resp.text();
+        } else {
+          console.log("Response error fetching", url, resp.text());
+          throw resp.text();
+        }
+      })
+      .catch(err => {
+        console.log("Network error fetching", url);
+        throw err;
+      });
+  }
+
+  let analysisjs = fetcher("/analysis.js");
+  let analysiswrapperjs = fetcher("/analysiswrapper.js");
+  let fetcherjs = fetcher("/tracefetcher.js");
   (async function () {
-    analysisWorkerUrl = window.URL.createObjectURL(
-      new Blob(
-        [ await analysisjs
-        , "\n\n"
-        , await analysiswrapperjs
-        ]));
+    var strings = [ await analysisjs, "\n\n", await analysiswrapperjs ];
+    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();
-  let fetcherjs = fetch("//" + staticUrl + "/tracefetcher.js").then(r => r.text());
   (async function () {
-    var fetcherWorkerUrl = window.URL.createObjectURL(
-      new Blob(
-        [ await fetcherjs
-        ]));
+    var strings = [ await fetcherjs ];
+    var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();
 
