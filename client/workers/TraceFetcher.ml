@@ -7,9 +7,7 @@ external self : self = "self" [@@bs.val]
 
 external onmessage : self -> (event -> unit) -> unit = "" [@@bs.set]
 
-type pushResult =
-  { params : Types.getAnalysisParams
-  ; result : Types.getAnalysisResult }
+type pushResult = Types.traceFetchResult
 
 external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 
@@ -36,11 +34,14 @@ let fetch (context : Types.rpcContext) params =
                ; ("X-CSRF-TOKEN", context.csrfToken) ]))
        ())
   |> then_ Fetch.Response.json
-  |> then_ (fun resp -> resolve (Decoders.getAnalysisRPC resp))
-  |> then_ (fun res -> resolve (postMessage self {params; result = res}))
+  |> then_ (fun resp ->
+         let result = Decoders.getAnalysisRPC resp in
+         resolve (postMessage self (TraceFetchSuccess {params; result})) )
   |> catch (fun err ->
          Js.log2 "traceFetch error" err ;
-         resolve () )
+         resolve
+           (postMessage self (TraceFetchFailure ("Failure fetching: " ^ url)))
+     )
 
 
 let () =

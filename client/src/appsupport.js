@@ -283,6 +283,7 @@ window.Dark = {
   traceFetcher: {
     fetch : function(params) {
       if (!window.fetcherWorker) {
+        console.error("FetchWorker not available");
         return
       }
 

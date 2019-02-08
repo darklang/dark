@@ -1070,7 +1070,9 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
-  | ReceiveTraces res ->
+  | ReceiveTraces (TraceFetchFailure str) ->
+      DisplayAndReportError str
+  | ReceiveTraces (TraceFetchSuccess res) ->
       let newTraces, (f404s, ts), unlockedDBs = res.result in
       let analysisTLs =
         List.filter

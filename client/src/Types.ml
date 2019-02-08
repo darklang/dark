@@ -690,9 +690,13 @@ and msg =
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
 
-and traceFetchResult =
+and traceFetchResultData =
   { params : getAnalysisParams
   ; result : getAnalysisResult }
+
+and traceFetchResult =
+  | TraceFetchSuccess of traceFetchResultData
+  | TraceFetchFailure of string
 
 and predecessor = pointerData option
 
