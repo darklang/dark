@@ -36,6 +36,28 @@ var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
+function displayError (msg){
+  var event = new CustomEvent('displayError', {detail: msg});
+  document.dispatchEvent(event);
+}
+
+window.onerror = function (msg, url, line, col, error) {
+  window.Rollbar.error(msg, error);
+  window.lastError = error;
+  console.error("Uncaught exception", message, source, lineno, colno, error);
+  displayError(msg);
+};
+
+window.onunhandledrejection = function (e) {
+  window.lastRejection = e;
+  window.Rollbar.error("Unhandled promise rejection", e.type, e.reason);
+  console.error("Unhandled promise rejecton", e.type, e.reason, e);
+  displayError("Unhandled promise rejecton: " + e.type + ", " + e.reason);
+};
+
+
+
+
 // ---------------------------
 // Pusher
 // ---------------------------
@@ -363,20 +385,12 @@ window.Dark = {
   }
 }
 
-function displayError (msg){
-  var event = new CustomEvent('displayError', {detail: msg});
-  document.dispatchEvent(event);
-}
+
 
 function windowFocusChange (visible){
   var event = new CustomEvent('windowFocusChange', {detail: visible});
   document.dispatchEvent(event);
 }
-
-window.onerror = function (msg, url, line, col, error) {
-  window.Rollbar.error(msg, error);
-  displayError(msg);
-};
 
 
 var pageHidden = false;
@@ -514,11 +528,15 @@ setTimeout(function(){
     var strings = [ await analysisjs, "\n\n", await analysiswrapperjs ];
     var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.analysisWorker = new Worker(analysisWorkerUrl);
+    window.analysisWorker.onerror = window.onerror;
+    window.analysisWorker.onunhandledrejection = window.onunhandledrejection;
   })();
   (async function () {
     var strings = [ await fetcherjs ];
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
+    window.fetcherWorker.onerror = window.onerror;
+    window.fetcherWorker.onunhandledrejection = window.onunhandledrejection;
   })();
 
 
