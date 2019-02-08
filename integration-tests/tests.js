@@ -72,7 +72,7 @@ fixture `Integration Tests`
       const { error } = await t.getBrowserConsoleMessages();
       await t.expect(error).eql([])
 
-      if ((await t.testRun.errs) != [] || !(await signal.hasClass("success"))) {
+      if ((await t.testRun.errs).length > 0 || !(await signal.hasClass("success"))) {
         await t.takeScreenshot();
         flushedLogs = flushLogs();
         if (await signal.textContent != "success") {
