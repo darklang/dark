@@ -144,7 +144,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         tl.pos
     | FocusedHandler _ | FocusedFn _ ->
         Defaults.focusCodePos
-    | _ ->
+    | FocusedDB _ ->
         Defaults.centerPos
   in
   let html =
@@ -227,7 +227,7 @@ let viewCanvas (m : model) : msg Html.html =
         "page-handler"
     | FocusedFn _ ->
         "page-function"
-    | _ ->
+    | FocusedDB _ | Architecture _ ->
         ""
   in
   let allDivs = asts @ entry in
