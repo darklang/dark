@@ -469,31 +469,36 @@ let t_stored_event_roundtrip () =
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
-  SE.store_event
-    ~canvas_id:id1
-    ~trace_id:t1
-    desc1
-    (Dval.dstr_of_string_exn "1") ;
-  SE.store_event
-    ~canvas_id:id1
-    ~trace_id:t2
-    desc1
-    (Dval.dstr_of_string_exn "2") ;
-  SE.store_event
-    ~canvas_id:id1
-    ~trace_id:t3
-    desc3
-    (Dval.dstr_of_string_exn "3") ;
-  SE.store_event
-    ~canvas_id:id1
-    ~trace_id:t4
-    desc2
-    (Dval.dstr_of_string_exn "3") ;
-  SE.store_event
-    ~canvas_id:id2
-    ~trace_id:t5
-    desc2
-    (Dval.dstr_of_string_exn "3") ;
+  ignore
+    (SE.store_event
+       ~canvas_id:id1
+       ~trace_id:t1
+       desc1
+       (Dval.dstr_of_string_exn "1")) ;
+  ignore
+    (SE.store_event
+       ~canvas_id:id1
+       ~trace_id:t2
+       desc1
+       (Dval.dstr_of_string_exn "2")) ;
+  ignore
+    (SE.store_event
+       ~canvas_id:id1
+       ~trace_id:t3
+       desc3
+       (Dval.dstr_of_string_exn "3")) ;
+  ignore
+    (SE.store_event
+       ~canvas_id:id1
+       ~trace_id:t4
+       desc2
+       (Dval.dstr_of_string_exn "3")) ;
+  ignore
+    (SE.store_event
+       ~canvas_id:id2
+       ~trace_id:t5
+       desc2
+       (Dval.dstr_of_string_exn "3")) ;
   let at_desc = AT.of_pp SE.pp_event_desc in
   let rec2desc (t1, t2, t3, t4) = (t1, t2, t3) in
   let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
@@ -1957,11 +1962,12 @@ let t_route_variables_work_with_stored_events () =
   let desc = ("HTTP", http_request_path, "GET") in
   let route = ("HTTP", http_route, "GET") in
   (* store an event and check it comes out *)
-  SE.store_event
-    ~canvas_id:!c.id
-    ~trace_id:t1
-    desc
-    (Dval.dstr_of_string_exn "1") ;
+  ignore
+    (SE.store_event
+       ~canvas_id:!c.id
+       ~trace_id:t1
+       desc
+       (Dval.dstr_of_string_exn "1")) ;
   (* check we get back the path for a route with a variable in it *)
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
   check_dval_list
