@@ -317,6 +317,12 @@ RUN apt install \
       -y \
       --no-install-recommends \
       libssl-dev=1.0.2g-1ubuntu13.6
+
+# testcafe needs node 11
+USER root
+RUN echo "deb https://deb.nodesource.com/node_11.x bionic main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_11.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
+RUN sudo apt update && sudo apt install --reinstall -y nodejs
 USER dark
 
 

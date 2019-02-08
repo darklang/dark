@@ -9,6 +9,10 @@
     {
       "dir": "__tests__",
       "type": "dev"
+    },
+    {
+      "dir": "workers",
+      "subdirs": false
     }
   ],
   "package-specs": {
@@ -23,7 +27,8 @@
     "bucklescript-tea",
     "@glennsl/bs-json",
     "bs-webapi",
-    "tablecloth-bucklescript"
+    "tablecloth-bucklescript",
+    "bs-fetch"
   ],
   "bs-dev-dependencies": [
     "@glennsl/bs-jest"

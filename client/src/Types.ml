@@ -399,7 +399,7 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and analysisParams =
+and getAnalysisParams =
   { tlids : tlid list
   ; latest404 : string
   ; ignoreTraces : bool
@@ -409,6 +409,20 @@ and analysisParams =
    * are getting new traces pushed directly via NewTracePush instead.
    *)
   }
+
+and performAnalysisParams =
+  { handler : handler
+  ; trace : trace
+  ; dbs : dB list
+  ; userFns : userFunction list }
+
+and analysisEnvelope = traceID * analysisResults
+
+and analysisError =
+  | AnalysisExecutionError of performAnalysisParams * string
+  | AnalysisParseError of string
+
+and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
 and delete404Param = fourOhFour
 
@@ -622,7 +636,7 @@ and msg =
   | SaveTestRPCCallback of (string, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
   | GetAnalysisRPCCallback of
-      (analysisParams * (getAnalysisResult, httpError) Tea.Result.t)
+      (getAnalysisParams * (getAnalysisResult, httpError) Tea.Result.t)
       [@printer opaque "GetAnalysisRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | GetDelete404RPCCallback of
@@ -666,7 +680,8 @@ and msg =
   | DeleteUserFunction of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
-  | ReceiveAnalysis of string
+  | ReceiveAnalysis of performAnalysisResult
+  | ReceiveTraces of traceFetchResult
   | EnablePanning of bool
   | ShowErrorDetails of bool
   | StartMigration of tlid
@@ -674,6 +689,14 @@ and msg =
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
+
+and traceFetchResultData =
+  { params : getAnalysisParams
+  ; result : getAnalysisResult }
+
+and traceFetchResult =
+  | TraceFetchSuccess of traceFetchResultData
+  | TraceFetchFailure of string
 
 and predecessor = pointerData option
 
@@ -788,7 +811,15 @@ and model =
 
 and rpcContext =
   { canvasName : string
-  ; csrfToken : string }
+  ; csrfToken : string
+  ; origin : string
+  ; prefix : string }
+
+external origin : string = "origin"
+  [@@bs.val] [@@bs.scope "window", "location"]
+
+external prefix : string = "testcafeInjectedPrefix"
+  [@@bs.val] [@@bs.scope "window"]
 
 let contextFromModel (m : model) : rpcContext =
-  {canvasName = m.canvasName; csrfToken = m.csrfToken}
+  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}

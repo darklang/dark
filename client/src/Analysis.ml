@@ -199,13 +199,27 @@ let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
 
 
 module ReceiveAnalysis = struct
-  let decode =
+  let decode : (Js.Json.t, performAnalysisResult) Tea.Json.Decoder.t =
     let open Tea.Json.Decoder in
-    map (fun msg -> msg) (field "detail" string)
+    map
+      (fun msg -> msg)
+      (field "detail" (Decoder (fun json -> Tea_result.Ok (Obj.magic json))))
 
 
   let listen ~key tagger =
     Native.registerGlobal "receiveAnalysis" key tagger decode
+end
+
+module ReceiveTraces = struct
+  let decode : (Js.Json.t, traceFetchResult) Tea.Json.Decoder.t =
+    let open Tea.Json.Decoder in
+    map
+      (fun msg -> msg)
+      (field "detail" (Decoder (fun json -> Tea_result.Ok (Obj.magic json))))
+
+
+  let listen ~key tagger =
+    Native.registerGlobal "receiveTraces" key tagger decode
 end
 
 module NewTracePush = struct
@@ -224,6 +238,11 @@ end
 (* Request analysis *)
 
 module RequestAnalysis = struct
-  external send : Js.Json.t -> unit = "requestAnalysis"
+  external send : performAnalysisParams -> unit = "requestAnalysis"
     [@@bs.val] [@@bs.scope "window", "Dark", "analysis"]
+end
+
+module RequestTraces = struct
+  external send : rpcContext * getAnalysisParams -> unit = "fetch"
+    [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end
