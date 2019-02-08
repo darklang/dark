@@ -34,12 +34,12 @@ let ready = ref false
 let server_timing (times : timing_header list) =
   times
   |> List.map ~f:(fun (name, time, desc) ->
-      name
-      ^ ";desc=\""
-      ^ desc
-      ^ "\""
-      ^ ";dur="
-      ^ (time |> Float.to_string_hum ~decimals:3) )
+         name
+         ^ ";desc=\""
+         ^ desc
+         ^ "\""
+         ^ ";dur="
+         ^ (time |> Float.to_string_hum ~decimals:3) )
   |> String.concat ~sep:","
   |> fun x -> [("Server-timing", x)] |> Header.of_list
 
@@ -54,13 +54,13 @@ let time (name : string) (fn : _ -> 'a) : timing_header * 'a =
 let get_ip_address ch : string =
   match Conduit_lwt_unix.endp_of_flow ch with
   | `TCP (ip, port) ->
-    Ipaddr.to_string ip
+      Ipaddr.to_string ip
   | _ ->
-    assert false
+      assert false
 
 
 let request_to_rollbar (body : string) (req : CRequest.t) :
-  Libservice.Rollbar.request_data =
+    Libservice.Rollbar.request_data =
   { body
   ; headers = req |> CRequest.headers |> Cohttp.Header.to_list
   ; url = req |> CRequest.uri |> Uri.to_string
@@ -92,9 +92,9 @@ let should_use_https uri =
   match parts with
   | ["darklang"; "com"] | ["builtwithdark"; "com"] | [_; "builtwithdark"; "com"]
     ->
-    true
+      true
   | _ ->
-    false
+      false
 
 
 let redirect_to uri =
@@ -121,7 +121,7 @@ let over_headers (r : CResponse.t) ~(f : Header.t -> Header.t) : CResponse.t =
 let over_headers_promise
     (resp_promise : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t)
     ~(f : Header.t -> Header.t) :
-  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let%lwt resp, body = resp_promise in
   return (over_headers ~f resp, body)
 
@@ -138,9 +138,9 @@ let wrap_json_headers =
 let with_x_forwarded_proto req =
   match Header.get (CRequest.headers req) "X-Forwarded-Proto" with
   | Some proto ->
-    Uri.with_scheme (CRequest.uri req) (Some proto)
+      Uri.with_scheme (CRequest.uri req) (Some proto)
   | None ->
-    CRequest.uri req
+      CRequest.uri req
 
 
 (* sanitize both repeated '/' and final '/'.
@@ -159,27 +159,27 @@ let cors = ("Access-Control-Allow-Origin", "*")
 
 let infer_cors_header
     (origin : string option) (setting : Canvas.cors_setting option) :
-  string option =
+    string option =
   match (origin, setting) with
   (* if there's no explicit canvas setting, * is the default. *)
   | _, None ->
-    Some "*"
+      Some "*"
   (* If there's a "*" in the setting, always use it.
      This is help as a debugging aid since users will always see
      Access-Control-Allow-Origin: * in their browsers, even if the
      request has no Origin. *)
   | _, Some AllOrigins ->
-    Some "*"
+      Some "*"
   (* if there's no supplied origin, don't set the header at all. *)
   | None, _ ->
-    None
+      None
   (* Return the origin if and only if it's in the setting  *)
   | Some origin, Some (Origins os) when List.mem ~equal:( = ) os origin ->
-    Some origin
+      Some origin
   (* Otherwise: there was a supplied origin and it's not in the setting.
      return "null" explicitly *)
   | Some _, Some _ ->
-    Some "null"
+      Some "null"
 
 
 let options_handler
@@ -213,12 +213,12 @@ let options_handler
         c.cors_setting
     with
     | None ->
-      []
+        []
     | Some origin ->
-      [ ( "Access-Control-Allow-Methods"
-        , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" )
-      ; ("Access-Control-Allow-Origin", origin)
-      ; ("Access-Control-Allow-Headers", allow_headers) ]
+        [ ( "Access-Control-Allow-Methods"
+          , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" )
+        ; ("Access-Control-Allow-Origin", origin)
+        ; ("Access-Control-Allow-Headers", allow_headers) ]
   in
   respond
     ~resp_headers:(Cohttp.Header.of_list resp_headers)
@@ -236,36 +236,36 @@ let push
   let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
   match Config.stroller_port with
   | None ->
-    Log.infO "stroller not configured, skipping push" ~params:log_params
+      Log.infO "stroller not configured, skipping push" ~params:log_params
   | Some port ->
-    Log.infO "pushing via stroller" ~params:log_params ;
-    let uri =
-      sprintf
-        "http://localhost:%d/canvas/%s/events/%s"
-        port
-        canvas_id_str
-        event
-    in
-    Lwt.async (fun () ->
-        try%lwt
-          let%lwt resp, _ =
-            Clu.Client.post
-              (Uri.of_string uri)
-              ~body:(Cl.Body.of_string payload)
-          in
-          let code =
-            resp |> CResponse.status |> Cohttp.Code.code_of_status
-          in
-          Log.infO
-            "pushed via stroller"
-            ~params:(("status", string_of_int code) :: log_params) ;
-          Lwt.return ()
-        with e ->
-          let bt = Exception.get_backtrace () in
-          let _ =
-            Rollbar.report_lwt e bt (Push event) (Types.show_id execution_id)
-          in
-          Lwt.return () )
+      Log.infO "pushing via stroller" ~params:log_params ;
+      let uri =
+        sprintf
+          "http://localhost:%d/canvas/%s/events/%s"
+          port
+          canvas_id_str
+          event
+      in
+      Lwt.async (fun () ->
+          try%lwt
+                let%lwt resp, _ =
+                  Clu.Client.post
+                    (Uri.of_string uri)
+                    ~body:(Cl.Body.of_string payload)
+                in
+                let code =
+                  resp |> CResponse.status |> Cohttp.Code.code_of_status
+                in
+                Log.infO
+                  "pushed via stroller"
+                  ~params:(("status", string_of_int code) :: log_params) ;
+                Lwt.return ()
+          with e ->
+            let bt = Exception.get_backtrace () in
+            let _ =
+              Rollbar.report_lwt e bt (Push event) (Types.show_id execution_id)
+            in
+            Lwt.return () )
 
 
 let push_new_trace_id
@@ -286,9 +286,9 @@ let result_to_response
     let inferred_ct =
       match value with
       | RTT.DObj _ | RTT.DList _ ->
-        "application/json; charset=utf-8"
+          "application/json; charset=utf-8"
       | _ ->
-        "text/plain; charset=utf-8"
+          "text/plain; charset=utf-8"
     in
     (* Add the content-type, if it doesn't exist *)
     let headers =
@@ -302,42 +302,42 @@ let result_to_response
         !c.cors_setting
     with
     | None ->
-      headers
+        headers
     | Some h ->
-      Header.add_unless_exists headers "Access-Control-Allow-Origin" h
+        Header.add_unless_exists headers "Access-Control-Allow-Origin" h
   in
   match result with
   | RTT.DIncomplete ->
-    respond
-      ~execution_id
-      `Internal_server_error
-      "Program error: program was incomplete"
+      respond
+        ~execution_id
+        `Internal_server_error
+        "Program error: program was incomplete"
   | RTT.DResp (Redirect url, value) ->
-    S.respond_redirect (Uri.of_string url) ()
+      S.respond_redirect (Uri.of_string url) ()
   | RTT.DResp (Response (code, resp_headers), value) ->
-    let resp_headers =
-      maybe_infer_headers (Header.of_list resp_headers) value
-    in
-    let body =
-      if Header.get resp_headers "Content-Type"
-         |> Option.value_map
-           ~f:(fun v ->
-               String.is_prefix v ~prefix:"text/html"
-               || String.is_prefix v ~prefix:"text/plain" )
-           ~default:false
-      then
-        (* TODO: only pretty print for a webbrowser *)
-        Dval.to_human_repr value
-      else Dval.unsafe_dval_to_pretty_json_string value
-    in
-    let status = Cohttp.Code.status_of_code code in
-    respond ~resp_headers ~execution_id status body
+      let resp_headers =
+        maybe_infer_headers (Header.of_list resp_headers) value
+      in
+      let body =
+        if Header.get resp_headers "Content-Type"
+           |> Option.value_map
+                ~f:(fun v ->
+                  String.is_prefix v ~prefix:"text/html"
+                  || String.is_prefix v ~prefix:"text/plain" )
+                ~default:false
+        then
+          (* TODO: only pretty print for a webbrowser *)
+          Dval.to_human_repr value
+        else Dval.unsafe_dval_to_pretty_json_string value
+      in
+      let status = Cohttp.Code.status_of_code code in
+      respond ~resp_headers ~execution_id status body
   | _ ->
-    let body = Dval.unsafe_dval_to_pretty_json_string result in
-    (* for demonstrations sake, let's return 200 Okay when
+      let body = Dval.unsafe_dval_to_pretty_json_string result in
+      (* for demonstrations sake, let's return 200 Okay when
       * no HTTP response object is returned *)
-    let resp_headers = maybe_infer_headers (Header.init ()) result in
-    respond ~resp_headers ~execution_id `OK body
+      let resp_headers = maybe_infer_headers (Header.init ()) result in
+      respond ~resp_headers ~execution_id `OK body
 
 
 let user_page_handler
@@ -364,64 +364,64 @@ let user_page_handler
   let canvas_id = !c.id in
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
-    options_handler ~execution_id !c req
+      options_handler ~execution_id !c req
   | [] ->
-    PReq.from_request headers query body
-    |> PReq.to_dval
-    |> Stored_event.store_event
-      ~trace_id
-      ~canvas_id
-      ("HTTP", Uri.path uri, verb) ;
-    let resp_headers = Cohttp.Header.of_list [cors] in
-    respond
-      ~resp_headers
-      ~execution_id
-      `Not_found
-      "404 Not Found: No route matches"
+      PReq.from_request headers query body
+      |> PReq.to_dval
+      |> Stored_event.store_event
+           ~trace_id
+           ~canvas_id
+           ("HTTP", Uri.path uri, verb) ;
+      let resp_headers = Cohttp.Header.of_list [cors] in
+      respond
+        ~resp_headers
+        ~execution_id
+        `Not_found
+        "404 Not Found: No route matches"
   | a :: b :: _ ->
-    let resp_headers = Cohttp.Header.of_list [cors] in
-    respond
-      `Internal_server_error
-      ~resp_headers
-      ~execution_id
-      ( "500 Internal Server Error: More than one handler for route: "
+      let resp_headers = Cohttp.Header.of_list [cors] in
+      respond
+        `Internal_server_error
+        ~resp_headers
+        ~execution_id
+        ( "500 Internal Server Error: More than one handler for route: "
         ^ Uri.path uri )
   | [page] ->
-    let input = PReq.from_request headers query body in
-    ( match (Handler.module_for page, Handler.modifier_for page) with
+      let input = PReq.from_request headers query body in
+      ( match (Handler.module_for page, Handler.modifier_for page) with
       | Some m, Some mo ->
-        (* Store the event with the input path not the event name, because we
+          (* Store the event with the input path not the event name, because we
          * want to be able to
          *    a) use this event if this particular handler changes
          *    b) use the input url params in the analysis for this handler
         *)
-        let desc = (m, Uri.path uri, mo) in
-        Stored_event.store_event
-          ~trace_id
-          ~canvas_id
-          desc
-          (PReq.to_dval input)
+          let desc = (m, Uri.path uri, mo) in
+          Stored_event.store_event
+            ~trace_id
+            ~canvas_id
+            desc
+            (PReq.to_dval input)
       | _ ->
-        () ) ;
-    let bound =
-      Libexecution.Execution.http_route_input_vars page (Uri.path uri)
-    in
-    let result =
-      Libexecution.Execution.execute_handler
-        page
-        ~execution_id
-        ~account_id:!c.owner
-        ~canvas_id
-        ~user_fns:!c.user_functions
-        ~tlid:page.tlid
-        ~dbs:(TL.dbs !c.dbs)
-        ~input_vars:([("request", PReq.to_dval input)] @ bound)
-        ~store_fn_arguments:
-          (Stored_function_arguments.store ~canvas_id ~trace_id)
-        ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
-    in
-    push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
-    result_to_response ~c ~execution_id ~req result
+          () ) ;
+      let bound =
+        Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+      in
+      let result =
+        Libexecution.Execution.execute_handler
+          page
+          ~execution_id
+          ~account_id:!c.owner
+          ~canvas_id
+          ~user_fns:!c.user_functions
+          ~tlid:page.tlid
+          ~dbs:(TL.dbs !c.dbs)
+          ~input_vars:([("request", PReq.to_dval input)] @ bound)
+          ~store_fn_arguments:
+            (Stored_function_arguments.store ~canvas_id ~trace_id)
+          ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
+      in
+      push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
+      result_to_response ~c ~execution_id ~req result
 
 
 (* -------------------------------------------- *)
@@ -429,14 +429,14 @@ let user_page_handler
 (* -------------------------------------------- *)
 let static_assets_upload_handler
     ~(execution_id : Types.id) (canvas : Uuidm.t) (username : string) req body
-  : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let ct =
       match Cohttp.Header.get (CRequest.headers req) "content-type" with
       | Some s ->
-        s
+          s
       | None ->
-        "error"
+          "error"
     in
     (* making branch a request-configurable option requires product work:
      * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
@@ -456,13 +456,13 @@ let static_assets_upload_handler
       let files =
         Multipart.StringMap.fold
           (fun _ v acc ->
-             List.cons
-               ( match v with
-                 | `File f ->
-                   f
-                 | _ ->
-                   Exception.internal "didn't expect a non-`File here" )
-               acc )
+            List.cons
+              ( match v with
+              | `File f ->
+                  f
+              | _ ->
+                  Exception.internal "didn't expect a non-`File here" )
+              acc )
           files
           ([] : Multipart.file List.t)
       in
@@ -483,41 +483,44 @@ let static_assets_upload_handler
     let%lwt _, errors =
       upload_results
       |> Lwt_list.partition_p (fun r ->
-          match%lwt r with
-          | Ok _ ->
-            Lwt.return true
-          | Error _ ->
-            Lwt.return false )
+             match%lwt r with
+             | Ok _ ->
+                 Lwt.return true
+             | Error _ ->
+                 Lwt.return false )
     in
     Static_assets.finish_static_asset_deploy canvas deploy_hash ;
     match errors with
     | [] ->
-      respond
-        ~resp_headers:(server_timing []) (* t1; t2; etc *)
-        ~execution_id
-        `OK
-        ( Yojson.Basic.to_string
-            (`Assoc
-               [ ("deploy_hash", `String deploy_hash)
-               ; ("url", `String (Static_assets.url canvas deploy_hash `Short))
-               ; ( "long-url"
-                 , `String (Static_assets.url canvas deploy_hash `Long) ) ])
+        respond
+          ~resp_headers:(server_timing []) (* t1; t2; etc *)
+          ~execution_id
+          `OK
+          ( Yojson.Basic.to_string
+              (`Assoc
+                [ ("deploy_hash", `String deploy_hash)
+                ; ("url", `String (Static_assets.url canvas deploy_hash `Short))
+                ; ( "long-url"
+                  , `String (Static_assets.url canvas deploy_hash `Long) ) ])
           |> Yojson.Basic.prettify )
     | _ ->
-      (Static_assets.delete_static_asset_deploy canvas branch username
-         deploy_hash);
-      respond
-        ~resp_headers:(server_timing []) (* t1; t2; etc *)
-        ~execution_id
-        `Internal_server_error
-        (Yojson.Basic.to_string
-           (`Assoc
-              [("errors", `String "We couldn't put this upload in gcloud.")]))
+        Static_assets.delete_static_asset_deploy
+          canvas
+          branch
+          username
+          deploy_hash ;
+        respond
+          ~resp_headers:(server_timing []) (* t1; t2; etc *)
+          ~execution_id
+          `Internal_server_error
+          (Yojson.Basic.to_string
+             (`Assoc
+               [("errors", `String "We couldn't put this upload in gcloud.")]))
   with e -> raise e
 
 
 let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
-  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let t1, params = time "1-read-api-ops" (fun _ -> Api.to_rpc_params body) in
     let tlids = List.filter_map ~f:Op.tlidOf params.ops in
@@ -529,14 +532,14 @@ let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
           !c.handlers
           |> List.filter_map ~f:TL.as_handler
           |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
-        )
+      )
     in
     let t4, fvals =
       time "4-user-fn-analyses" (fun _ ->
           !c.user_functions
           |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
           |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
-        )
+      )
     in
     let t5, unlocked =
       time "5-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -550,7 +553,7 @@ let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
           (* work out the result before we save it, incase it has a
              stackoverflow or other crashing bug *)
           if Api.causes_any_changes params then C.save_tlids !c tlids else ()
-        )
+      )
     in
     respond
       ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
@@ -561,7 +564,7 @@ let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
 
 
 let initial_load ~(execution_id : Types.id) (host : string) body :
-  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, c = time "1-load-saved-ops" (fun _ -> C.load_all host []) in
   let t2, unlocked =
     time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -574,7 +577,7 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
 
 
 let execute_function ~(execution_id : Types.id) (host : string) body :
-  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
     time "1-read-api-ops" (fun _ -> Api.to_execute_function_params body)
   in
@@ -606,7 +609,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
 
 
 let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
-  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let req_time = Time.now () in
     let t1, params =
@@ -624,14 +627,14 @@ let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
           !c.handlers
           |> List.filter_map ~f:TL.as_handler
           |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
-        )
+      )
     in
     let t5, fvals =
       time "5-user-fn-analyses" (fun _ ->
           !c.user_functions
           |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
           |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
-        )
+      )
     in
     let t6, unlocked =
       time "6-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -654,7 +657,7 @@ let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
 
 
 let delete_404 ~(execution_id : Types.id) (host : string) body :
-  (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let req_time = Time.now () in
     let last_week = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
@@ -682,27 +685,27 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
 let hashed_filename (file : string) (hash : string) : string =
   match List.rev (String.split ~on:'.' file) with
   | [] ->
-    Exception.internal "Tried splitting an empty filename key"
+      Exception.internal "Tried splitting an empty filename key"
   | [_] ->
-    Exception.internal "Tried splitting a filename key with no extension"
+      Exception.internal "Tried splitting a filename key with no extension"
   | ext :: rest ->
-    sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
+      sprintf "%s-%s.%s" (String.concat ~sep:"." (List.rev rest)) hash ext
 
 
 let to_assoc_list etags_json : (string * string) list =
   match etags_json with
   | `Assoc alist ->
-    let mutated =
-      List.filter_map
-        ~f:(fun (fst, snd) ->
+      let mutated =
+        List.filter_map
+          ~f:(fun (fst, snd) ->
             match snd with `String inner -> Some (fst, inner) | _ -> None )
-        alist
-    in
-    if List.length mutated <> List.length alist
-    then Exception.internal "Some asset in etags.json lacked a hash value."
-    else mutated
+          alist
+      in
+      if List.length mutated <> List.length alist
+      then Exception.internal "Some asset in etags.json lacked a hash value."
+      else mutated
   | _ ->
-    Exception.internal "etags.json must be a top-level object."
+      Exception.internal "etags.json must be a top-level object."
 
 
 let admin_ui_html
@@ -715,9 +718,9 @@ let admin_ui_html
     match local with
     (* TODO: if you want access, we can make this more general *)
     | Some _ ->
-      "darklang-paul.ngrok.io"
+        "darklang-paul.ngrok.io"
     | _ ->
-      Config.static_host
+        Config.static_host
   in
   let rollbar_js = Config.rollbar_js in
   let hash_static_filenames =
@@ -727,11 +730,11 @@ let admin_ui_html
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
   >|= Util.string_replace
-    "{LIVERELOADJS}"
-    ( if Config.browser_reload_enabled
-      then
-        "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-      else "" )
+        "{LIVERELOADJS}"
+        ( if Config.browser_reload_enabled
+        then
+          "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+        else "" )
   >|= Util.string_replace "{STATIC}" static_host
   >|= Util.string_replace "{ROLLBARCONFIG}" rollbar_js
   >|= Util.string_replace "{PUSHERCONFIG}" Config.pusher_js
@@ -739,26 +742,26 @@ let admin_ui_html
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
   >|= Util.string_replace "{CANVAS_ID}" (Uuidm.to_string canvas_id)
   >|= Util.string_replace
-    "{APPSUPPORT}"
-    (File.readfile ~root:Webroot "appsupport.js")
+        "{APPSUPPORT}"
+        (File.readfile ~root:Webroot "appsupport.js")
   >|= Util.string_replace "{STATIC}" static_host
   >|= (fun x ->
-      if not hash_static_filenames
-      then x
-      else
-        x
-        |> fun instr ->
-        let etags_str = File.readfile ~root:Webroot "etags.json" in
-        let etags_json = Yojson.Safe.from_string etags_str in
-        let etag_assoc_list = to_assoc_list etags_json in
-        etag_assoc_list
-        |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
-        |> List.filter (* Only hash our assets, not vendored assets *)
-          ~f:(fun (file, _) ->
-              not (String.is_substring ~substring:"vendor/" file) )
-        |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
-            (Util.string_replace file (hashed_filename file hash)) acc )
-    )
+        if not hash_static_filenames
+        then x
+        else
+          x
+          |> fun instr ->
+          let etags_str = File.readfile ~root:Webroot "etags.json" in
+          let etags_json = Yojson.Safe.from_string etags_str in
+          let etag_assoc_list = to_assoc_list etags_json in
+          etag_assoc_list
+          |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
+          |> List.filter (* Only hash our assets, not vendored assets *)
+               ~f:(fun (file, _) ->
+                 not (String.is_substring ~substring:"vendor/" file) )
+          |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
+                 (Util.string_replace file (hashed_filename file hash)) acc )
+        )
   >|= Util.string_replace "{CSRF_TOKEN}" csrf_token
 
 
@@ -796,20 +799,20 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
   let headers = req |> CRequest.headers in
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) ->
-    let username = Auth.Session.username_for session in
-    let csrf_token = Auth.Session.csrf_token_for session in
-    if path = "/logout"
-    then (
-      Auth.Session.clear Auth.Session.backend session ;%lwt
-      let headers =
-        Header.of_list (Auth.Session.clear_hdrs Auth.Session.cookie_key)
-      in
-      let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
-      S.respond_redirect ~headers ~uri () )
-    else handler ~session ~csrf_token req
+      let username = Auth.Session.username_for session in
+      let csrf_token = Auth.Session.csrf_token_for session in
+      if path = "/logout"
+      then (
+        Auth.Session.clear Auth.Session.backend session ;%lwt
+        let headers =
+          Header.of_list (Auth.Session.clear_hdrs Auth.Session.cookie_key)
+        in
+        let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
+        S.respond_redirect ~headers ~uri () )
+      else handler ~session ~csrf_token req
   | _ ->
     ( match Header.get_authorization headers with
-      | Some (`Basic (username, password)) ->
+    | Some (`Basic (username, password)) ->
         if Account.authenticate ~username ~password
         then
           let%lwt session = Auth.Session.new_for_username username in
@@ -827,9 +830,9 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
             ~f:(fun h -> Header.add_list h headers)
             (handler ~session ~csrf_token req)
         else respond ~execution_id `Unauthorized "Bad credentials"
-      | None ->
+    | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
-      | _ ->
+    | _ ->
         respond ~execution_id `Unauthorized "Invalid session" )
 
 
@@ -846,9 +849,9 @@ let admin_ui_handler
   let query_param_set name =
     match Uri.get_query_param uri name with
     | Some v when v <> "0" && v <> "false" ->
-      true
+        true
     | _ ->
-      false
+        false
   in
   let integration_test =
     query_param_set "integration-test" && Config.allow_test_routes
@@ -856,7 +859,7 @@ let admin_ui_handler
   let local = Uri.get_query_param uri "localhost-assets" in
   let html_hdrs =
     [ ("Content-type", "text/html; charset=utf-8")
-    (* Don't allow any other websites to put this in an iframe;
+      (* Don't allow any other websites to put this in an iframe;
        this prevents "clickjacking" at tacks.
        https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
        It would be nice to use CSP to limit where we can load scripts etc from,
@@ -879,12 +882,12 @@ let admin_ui_handler
     then
       match Account.owner ~auth_domain with
       | Some owner ->
-        Serialize.fetch_canvas_id owner auth_domain |> f
+          Serialize.fetch_canvas_id owner auth_domain |> f
       | None ->
-        respond
-          ~execution_id
-          `Internal_server_error
-          "Dark Internal Error loading canvas"
+          respond
+            ~execution_id
+            `Internal_server_error
+            "Dark Internal Error loading canvas"
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let serve_or_error ~(canvas_id : Uuidm.t) =
@@ -892,17 +895,17 @@ let admin_ui_handler
       (fun _ -> admin_ui_html ~canvas_id ~csrf_token ~local username)
       (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
       (fun e ->
-         let bt = Exception.get_backtrace () in
-         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-         respond ~execution_id `Internal_server_error "Dark Internal Error" )
+        let bt = Exception.get_backtrace () in
+        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
+        respond ~execution_id `Internal_server_error "Dark Internal Error" )
   in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
-    when_can_edit ~canvas (fun canvas_id ->
-        if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-        serve_or_error ~canvas_id )
+      when_can_edit ~canvas (fun canvas_id ->
+          if integration_test then Canvas.load_and_resave_from_test_file canvas ;
+          serve_or_error ~canvas_id )
   | _ ->
-    respond ~execution_id `Not_found "Not found"
+      respond ~execution_id `Not_found "Not found"
 
 
 let admin_api_handler
@@ -917,8 +920,8 @@ let admin_api_handler
      only make changes in promises .*)
   let when_can_edit ~canvas f =
     if Account.can_edit_canvas
-        ~auth_domain:(Account.auth_domain_for canvas)
-        ~username
+         ~auth_domain:(Account.auth_domain_for canvas)
+         ~username
     then f ()
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
@@ -926,40 +929,40 @@ let admin_api_handler
   (* Operational APIs.... maybe these shouldn't be here, but
      they start with /api so they need to be. *)
   | `POST, ["api"; "shutdown"] when Config.allow_server_shutdown ->
-    Lwt.wakeup stopper () ;
-    respond ~execution_id `OK "Disembowelment"
+      Lwt.wakeup stopper () ;
+      respond ~execution_id `OK "Disembowelment"
   | `POST, ["api"; "clear-benchmarking-data"] ->
-    Db.delete_benchmarking_data () ;
-    respond ~execution_id `OK "Cleared"
+      Db.delete_benchmarking_data () ;
+      respond ~execution_id `OK "Cleared"
   | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
-    save_test_handler ~execution_id canvas
+      save_test_handler ~execution_id canvas
   (* Canvas API *)
   | `POST, ["api"; canvas; "rpc"] ->
-    when_can_edit ~canvas (fun _ ->
-        wrap_json_headers (admin_rpc_handler ~execution_id canvas body) )
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (admin_rpc_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "initial_load"] ->
-    when_can_edit ~canvas (fun _ ->
-        wrap_json_headers (initial_load ~execution_id canvas body) )
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (initial_load ~execution_id canvas body) )
   | `POST, ["api"; canvas; "execute_function"] ->
-    when_can_edit ~canvas (fun _ ->
-        wrap_json_headers (execute_function ~execution_id canvas body) )
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (execute_function ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_analysis"] ->
-    when_can_edit ~canvas (fun _ ->
-        wrap_json_headers (get_analysis ~execution_id canvas body) )
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (get_analysis ~execution_id canvas body) )
   | `POST, ["api"; canvas; "delete_404"] ->
-    when_can_edit ~canvas (fun _ ->
-        wrap_json_headers (delete_404 ~execution_id canvas body) )
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (delete_404 ~execution_id canvas body) )
   | `POST, ["api"; canvas; "static_assets"] ->
-    when_can_edit ~canvas (fun _ ->
-        wrap_json_headers
-          (static_assets_upload_handler
-             ~execution_id
-             (Canvas.id_for_name canvas)
-             username
-             req
-             body) )
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers
+            (static_assets_upload_handler
+               ~execution_id
+               (Canvas.id_for_name canvas)
+               username
+               req
+               body) )
   | _ ->
-    respond ~execution_id `Not_found "Not found"
+      respond ~execution_id `Not_found "Not found"
 
 
 let admin_handler
@@ -981,22 +984,22 @@ let admin_handler
   (* routing *)
   match path with
   | "api" :: _ ->
-    check_csrf_then_handle
-      ~execution_id
-      ~session
-      (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
-      req
+      check_csrf_then_handle
+        ~execution_id
+        ~session
+        (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
+        req
   | "a" :: _ ->
-    admin_ui_handler
-      ~execution_id
-      ~path
-      ~stopper
-      ~body
-      ~username
-      ~csrf_token
-      req
+      admin_ui_handler
+        ~execution_id
+        ~path
+        ~stopper
+        ~body
+        ~username
+        ~csrf_token
+        req
   | _ ->
-    respond ~execution_id `Not_found "Not found"
+      respond ~execution_id `Not_found "Not found"
 
 
 (* -------------------------------------------- *)
@@ -1018,7 +1021,7 @@ let static_etag_for =
       (* Get the JSON field that corresponds to the filename,
          stripped of the leftmost /. *)
       |> Yojson.Basic.Util.member
-        (uri |> Uri.path |> String.lstrip ~drop:(( = ) '/'))
+           (uri |> Uri.path |> String.lstrip ~drop:(( = ) '/'))
       |> Yojson.Basic.Util.to_string
       |> fun x -> [("etag", x)]
     with e -> []
@@ -1048,26 +1051,26 @@ let route_host req =
   | ["static"; "darklang"; "localhost"]
   | ["static"; "darklang"; "com"]
   | [_; "ngrok"; "io"] ->
-    Some Static
+      Some Static
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]
   | [a; "builtwithdark"; "localhost"]
   | [a; "darksingleinstance"; "com"] ->
-    Some (Canvas a)
+      Some (Canvas a)
   (* Specific Dark canvas: builtwithdark *)
   | ["builtwithdark"; "localhost"] | ["builtwithdark"; "com"] ->
-    Some (Canvas "builtwithdark")
+      Some (Canvas "builtwithdark")
   (* Specific Dark canvas: darksingleinstance *)
   | ["darksingleinstance"; "com"] ->
-    Some (Canvas "darksingleinstance")
+      Some (Canvas "darksingleinstance")
   | [a; "dabblefox"; "com"] ->
-    Some (Canvas ("dabblefox-" ^ a))
+      Some (Canvas ("dabblefox-" ^ a))
   (* admin interface + outer site, conditionally *)
   | ["darklang"; "com"] | ["darklang"; "localhost"] | ["dark_dev"; "com"] ->
-    Some Admin
+      Some Admin
   (* Not a match... *)
   | _ ->
-    None
+      None
 
 
 let admin_ui_html_readiness_check () : string option =
@@ -1081,9 +1084,9 @@ let admin_ui_html_readiness_check () : string option =
 let db_conn_readiness_check () : string option =
   match Dbconnection.status () with
   | `Healthy ->
-    None
+      None
   | `Disconnected ->
-    Some "Dbconnection.status = `Disconnected"
+      Some "Dbconnection.status = `Disconnected"
 
 
 let k8s_handler req ~execution_id ~stopper =
@@ -1091,58 +1094,58 @@ let k8s_handler req ~execution_id ~stopper =
   (* For GKE health check *)
   | "/" ->
     ( match Dbconnection.status () with
-      | `Healthy ->
+    | `Healthy ->
         if not !ready
-        (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
+           (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
         then (
           Log.infO
             "Liveness check found unready service, returning unavailable" ;
           respond ~execution_id `Service_unavailable "Service not ready" )
         else respond ~execution_id `OK "Hello internal overlord"
-      | `Disconnected ->
+    | `Disconnected ->
         respond ~execution_id `Service_unavailable "Sorry internal overlord" )
   | "/ready" ->
-    let checks =
-      [db_conn_readiness_check (); admin_ui_html_readiness_check ()]
-      |> List.filter_map ~f:(fun x -> x)
-    in
-    ( match checks with
+      let checks =
+        [db_conn_readiness_check (); admin_ui_html_readiness_check ()]
+        |> List.filter_map ~f:(fun x -> x)
+      in
+      ( match checks with
       | [] ->
-        if !ready
-        then respond ~execution_id `OK "Hello internal overlord"
-        else (
-          (* exception here caught by handle_error *)
-          Canvas.check_tier_one_hosts () ;
-          Log.infO "All canvases loaded correctly - Service ready" ;
-          ready := true ;
-          respond ~execution_id `OK "Hello internal overlord" )
+          if !ready
+          then respond ~execution_id `OK "Hello internal overlord"
+          else (
+            (* exception here caught by handle_error *)
+            Canvas.check_tier_one_hosts () ;
+            Log.infO "All canvases loaded correctly - Service ready" ;
+            ready := true ;
+            respond ~execution_id `OK "Hello internal overlord" )
       | _ ->
-        Log.erroR
-          ("Failed readiness check(s): " ^ String.concat checks ~sep:": ") ;
-        respond ~execution_id `Service_unavailable "Sorry internal overlord"
-    )
+          Log.erroR
+            ("Failed readiness check(s): " ^ String.concat checks ~sep:": ") ;
+          respond ~execution_id `Service_unavailable "Sorry internal overlord"
+      )
   (* For GKE graceful termination *)
   | "/pkill" ->
-    if !shutdown (* note: this is a ref, not a boolean `not` *)
-    then (
-      shutdown := true ;
-      Log.infO
-        "shutdown"
-        ~data:"Received shutdown request - shutting down"
-        ~params:[("execution_id", Types.string_of_id execution_id)] ;
-      (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
-      Lwt_unix.sleep 28.0
-      >>= fun _ ->
-      Lwt.wakeup stopper () ;
-      respond ~execution_id `OK "Terminated" )
-    else (
-      Log.infO
-        "shutdown"
-        ~data:"Received redundant shutdown request - already shutting down"
-        ~params:[("execution_id", Types.string_of_id execution_id)] ;
-      respond ~execution_id `OK "Terminated" )
+      if !shutdown (* note: this is a ref, not a boolean `not` *)
+      then (
+        shutdown := true ;
+        Log.infO
+          "shutdown"
+          ~data:"Received shutdown request - shutting down"
+          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+        (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
+        Lwt_unix.sleep 28.0
+        >>= fun _ ->
+        Lwt.wakeup stopper () ;
+        respond ~execution_id `OK "Terminated" )
+      else (
+        Log.infO
+          "shutdown"
+          ~data:"Received redundant shutdown request - already shutting down"
+          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+        respond ~execution_id `OK "Terminated" )
   | _ ->
-    respond ~execution_id `Not_found ""
+      respond ~execution_id `Not_found ""
 
 
 let server () =
@@ -1165,13 +1168,13 @@ let server () =
           try
             match e with
             | Exception.DarkException e ->
-              e
-              |> Exception.exception_data_to_yojson
-              |> Yojson.Safe.pretty_to_string
+                e
+                |> Exception.exception_data_to_yojson
+                |> Yojson.Safe.pretty_to_string
             | Yojson.Json_error msg ->
-              "Not a valid JSON value: '" ^ msg ^ "'"
+                "Not a valid JSON value: '" ^ msg ^ "'"
             | _ ->
-              "Dark Internal Error: " ^ Exn.to_string e
+                "Dark Internal Error: " ^ Exn.to_string e
           with _ -> "UNHANDLED ERROR: real_err"
         in
         let real_err =
@@ -1183,14 +1186,14 @@ let server () =
         Log.erroR real_err ~bt ~params:[("execution_id", Log.dump execution_id)] ;
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
-          respond ~execution_id `Bad_request e.short
+            respond ~execution_id `Bad_request e.short
         | _ ->
-          let body =
-            if include_internals || Config.show_stacktrace
-            then real_err
-            else "Dark Internal Error"
-          in
-          respond ~execution_id `Internal_server_error body
+            let body =
+              if include_internals || Config.show_stacktrace
+              then real_err
+              else "Dark Internal Error"
+            in
+            respond ~execution_id `Internal_server_error body
       with e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
@@ -1207,37 +1210,37 @@ let server () =
       (* first: if this isn't https and should be, redirect *)
       match redirect_to (with_x_forwarded_proto req) with
       | Some x ->
-        S.respond_redirect ~uri:x ()
+          S.respond_redirect ~uri:x ()
       | None ->
         ( match Uri.to_string uri with
-          | "/sitemap.xml" | "/favicon.ico" ->
+        | "/sitemap.xml" | "/favicon.ico" ->
             respond ~execution_id `OK ""
-          | _ ->
-            (* figure out what handler to dispatch to... *)
-            ( match route_host req with
-              | Some (Canvas canvas) ->
-                user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
-              | Some Static ->
-                static_handler uri
-              | Some Admin ->
-                ( try
-                    authenticate_then_handle
-                      ~execution_id
-                      (fun ~session ~csrf_token r ->
-                         try
-                           admin_handler
-                             ~execution_id
-                             ~uri
-                             ~body
-                             ~stopper
-                             ~session
-                             ~csrf_token
-                             r
-                         with e -> handle_error ~include_internals:true e )
-                      req
-                  with e -> handle_error ~include_internals:false e )
-              | None ->
-                k8s_handler req ~execution_id ~stopper ) )
+        | _ ->
+          (* figure out what handler to dispatch to... *)
+          ( match route_host req with
+          | Some (Canvas canvas) ->
+              user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+          | Some Static ->
+              static_handler uri
+          | Some Admin ->
+            ( try
+                authenticate_then_handle
+                  ~execution_id
+                  (fun ~session ~csrf_token r ->
+                    try
+                      admin_handler
+                        ~execution_id
+                        ~uri
+                        ~body
+                        ~stopper
+                        ~session
+                        ~csrf_token
+                        r
+                    with e -> handle_error ~include_internals:true e )
+                  req
+              with e -> handle_error ~include_internals:false e )
+          | None ->
+              k8s_handler req ~execution_id ~stopper ) )
     with e -> handle_error ~include_internals:false e
   in
   let cbwb conn req req_body =
