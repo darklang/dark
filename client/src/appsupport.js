@@ -482,12 +482,12 @@ setTimeout(function(){
         if (resp.ok) {
           return resp.text();
         } else {
-          console.log("Response error fetching", url, resp.text());
+          console.error("Response error fetching", url, resp.text());
           throw resp.text();
         }
       })
       .catch(err => {
-        console.log("Network error fetching", url);
+        console.error("Network error fetching", url);
         throw err;
       });
   }
