@@ -392,8 +392,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         handleRPC (RPC.opsParams ops) focus
     | RPCFull (params, focus) ->
         handleRPC params focus
-    | GetAnalysisRPC ignoreTraces ->
-        Sync.fetch ~ignoreTraces m
+    | GetAnalysisRPC (ignore404s, ignoreTraces) ->
+        Sync.fetch ~ignore404s ~ignoreTraces m
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -600,7 +600,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 | Some o ->
                     Some (traceID :: o) )
           in
-          Sync.fetch ~ignoreTraces:false {m with unfetchedTraces}
+          Sync.fetch
+            ~ignoreTraces:false
+            ~ignore404s:true
+            {m with unfetchedTraces}
         else (m, Cmd.none)
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
@@ -1050,16 +1053,21 @@ let update_ (msg : msg) (m : model) : modification =
       let maybeUpdateTraces =
         if params.ignoreTraces then NoChange else UpdateTraces newTraces
       in
+      let maybeAppend404s =
+        if params.ignore404s then NoChange else Append404s (f404s, ts)
+      in
       Many
         [ TweakModel Sync.markResponseInModel
         ; maybeUpdateTraces
-        ; Append404s (f404s, ts)
+        ; maybeAppend404s
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
   | NewTracePush (tlid, traceID) ->
       if VariantTesting.variantIsActive m PushAnalysis
       then AddUnfetchedTrace (tlid, traceID)
       else NoChange
+  | New404Push (f404, ts) ->
+      Append404s ([f404], ts)
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
   | ReceiveAnalysis result ->
@@ -1115,7 +1123,7 @@ let update_ (msg : msg) (m : model) : modification =
     ( match action with
     | RefreshAnalysis ->
         let ignorePushed = VariantTesting.variantIsActive m PushAnalysis in
-        GetAnalysisRPC ignorePushed
+        GetAnalysisRPC (ignorePushed, ignorePushed)
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
   | Initialization ->
@@ -1246,6 +1254,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           ReceiveAnalysis s )
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
           NewTracePush s )
+    ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in

@@ -180,6 +180,12 @@ let to_new_trace_frontend (traceid : tlid_traceid) : string =
   traceid |> new_trace_push_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+type new_404_push = SE.four_oh_four [@@deriving to_yojson]
+
+let to_new_404_frontend (fof : SE.four_oh_four) : string =
+  fof |> new_404_push_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 (* Toplevel deletion:
  * The server announces that a toplevel is deleted by it appearing in
  * deleted_toplevels. The server announces it is no longer deleted by it

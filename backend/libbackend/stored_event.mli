@@ -11,13 +11,13 @@ type four_oh_four = event_record [@@deriving show, yojson]
 
 (* We store a set of events for each host. The events may or may not
  * belong to a toplevel. We provide a list in advance so that they can
- * be partitioned effectively *)
+ * be partitioned effectively. Returns the DB-assigned event timestamp. *)
 val store_event :
      trace_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> event_desc
   -> Types.RuntimeT.dval
-  -> unit
+  -> Types.RuntimeT.time
 
 val load_events :
      canvas_id:Uuidm.t

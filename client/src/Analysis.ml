@@ -235,6 +235,19 @@ module NewTracePush = struct
     Native.registerGlobal "newTracePush" key tagger decode
 end
 
+module New404Push = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    let open Native.Decoder in
+    let mk404WithTs (space, path, modifier, ts) =
+      ({space; path; modifier}, ts)
+    in
+    map mk404WithTs (field "detail" (tuple4 string string string string))
+
+
+  let listen ~key tagger = Native.registerGlobal "new404Push" key tagger decode
+end
+
 (* Request analysis *)
 
 module RequestAnalysis = struct
