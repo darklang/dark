@@ -36,6 +36,28 @@ var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
 window.Rollbar.configure(rollbarConfig);
 
+function displayError (msg){
+  var event = new CustomEvent('displayError', {detail: msg});
+  document.dispatchEvent(event);
+}
+
+window.onerror = function (msg, url, line, col, error) {
+  window.Rollbar.error(msg, error);
+  window.lastError = error;
+  console.error("Uncaught exception", message, source, lineno, colno, error);
+  displayError(msg);
+};
+
+window.onunhandledrejection = function (e) {
+  window.lastRejection = e;
+  window.Rollbar.error("Unhandled promise rejection", e.type, e.reason);
+  console.error("Unhandled promise rejecton", e.type, e.reason, e);
+  displayError("Unhandled promise rejecton: " + e.type + ", " + e.reason);
+};
+
+
+
+
 // ---------------------------
 // Pusher
 // ---------------------------
@@ -258,54 +280,35 @@ const entryboxCaret = {
 
 window.Dark = {
   caret: entryboxCaret,
+  traceFetcher: {
+    fetch : function(params) {
+      if (!window.fetcherWorker) {
+        console.log("FetchWorker not loaded yet");
+        return
+      }
+
+      window.fetcherWorker.postMessage(params);
+
+      window.fetcherWorker.onmessage = function (e) {
+        var event = new CustomEvent('receiveTraces', { "detail" : e.data });
+        document.dispatchEvent(event);
+      }
+    }
+  },
   analysis: {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {
-        console.log("analysisworker not loaded yet");
+        console.log("AnalysisWorker not loaded yet");
         return;
       }
 
-      const handler = params.handler;
-      const bToString = (blankOr) => blankOr[2] || null;
-      const spec = params.handler.spec;
-      const route = `${bToString(spec.module)}, ${bToString(spec.name)}, ${bToString(spec.modifier)}`;
-      const tlid = handler.tlid;
-      const trace = params.trace.id;
-
-      window.analysisWorker.postMessage(
-        { proto: window.location.protocol,
-          params: JSON.stringify (params)
-        }
-      );
+      window.analysisWorker.postMessage(params);
 
       window.analysisWorker.onmessage = function (e) {
-        var result = e.data.analysis;
-        var error = e.data.error;
+        var result = e.data;
 
-        if (!error) {
-          var event = new CustomEvent('receiveAnalysis', {detail: result});
-          document.dispatchEvent(event);
-        } else {
-          var errorName = null;
-          var errorMsg = null;
-          try { errorName = error[1][1].c; } catch (_) {}
-          try { errorMsg = error[2][1].c; } catch (_) {}
-          try { if (!errorMsg) { errorMsg = error[2].c; } } catch (_) {}
-          const errorStr = `${errorName} - ${errorMsg}`;
-
-          // send to rollbar
-          Rollbar.error( errorStr
-                       , error
-                       , { route: route
-                         , tlid: tlid
-                         , trace: trace });
-
-          // log to console
-          console.log(`Error processing analysis in (${route}, ${tlid}, ${trace})`, errorStr, error);
-
-          // send to client
-          displayError(`Error while executing (${route}, ${tlid}, ${trace}): ${errorStr}`);
-        }
+        var event = new CustomEvent('receiveAnalysis', {detail: result});
+        document.dispatchEvent(event);
       }
     }
   },
@@ -353,20 +356,12 @@ window.Dark = {
   }
 }
 
-function displayError (msg){
-  var event = new CustomEvent('displayError', {detail: msg});
-  document.dispatchEvent(event);
-}
+
 
 function windowFocusChange (visible){
   var event = new CustomEvent('windowFocusChange', {detail: visible});
   document.dispatchEvent(event);
 }
-
-window.onerror = function (msg, url, line, col, error) {
-  window.Rollbar.error(msg, error);
-  displayError(msg);
-};
 
 
 var pageHidden = false;
@@ -480,18 +475,41 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
-  let analysisjs = fetch("//" + staticUrl + "/analysis.js").then(r => r.text());
-  let analysissupportjs = fetch("//" + staticUrl + "/analysissupport.js").then(r => r.text());
-  var analysisWorkerUrl;
+  async function fetcher(url) {
+    url = "//" + staticUrl + url;
+    return fetch(url)
+      .then(resp => {
+        if (resp.ok) {
+          return resp.text();
+        } else {
+          console.error("Response error fetching", url, resp.text());
+          throw resp.text();
+        }
+      })
+      .catch(err => {
+        console.error("Network error fetching", url);
+        throw err;
+      });
+  }
+
+  let analysisjs = fetcher("/analysis.js");
+  let analysiswrapperjs = fetcher("/analysiswrapper.js");
+  let fetcherjs = fetcher("/tracefetcher.js");
   (async function () {
-    analysisWorkerUrl = window.URL.createObjectURL(
-      new Blob(
-        [ await analysisjs
-        , "\n\n"
-        , await analysissupportjs
-        ]));
+    var strings = [ await analysisjs, "\n\n", await analysiswrapperjs ];
+    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.analysisWorker = new Worker(analysisWorkerUrl);
+    window.analysisWorker.onerror = window.onerror;
+    window.analysisWorker.onunhandledrejection = window.onunhandledrejection;
   })();
+  (async function () {
+    var strings = [ await fetcherjs ];
+    var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
+    window.fetcherWorker = new Worker(fetcherWorkerUrl);
+    window.fetcherWorker.onerror = window.onerror;
+    window.fetcherWorker.onunhandledrejection = window.onunhandledrejection;
+  })();
+
 
   window.onfocus = function(evt){ windowFocusChange(true) };
   window.onblur = function(evt){ windowFocusChange(false) };

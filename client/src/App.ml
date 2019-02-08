@@ -64,10 +64,7 @@ let init (flagString : string) (location : Web.Location.location) =
         [ RPC.initialLoadRPC
             (contextFromModel m2)
             (FocusPageAndCursor (page, savedCursorState))
-          (* load the analysis even if the timers are off *)
-        ; RPC.getAnalysisRPC
-            (contextFromModel m2)
-            {tlids = []; latest404 = m.latest404; ignoreTraces = false} ] )
+        ; Sync.fetchAll m2 ] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -550,14 +547,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let req h =
           let trace = Analysis.getCurrentTrace m h.tlid in
-          let param t =
-            let open Json_encode_extended in
-            object_
-              [ ("handler", Encoders.handler h)
-              ; ("trace", Encoders.trace t)
-              ; ("dbs", list Encoders.db dbs)
-              ; ("user_fns", list Encoders.userFunction userFns) ]
-          in
+          let param t = {handler = h; trace = t; dbs; userFns} in
           trace
           |> Option.map ~f:(fun t -> requestAnalysis (param t))
           |> Option.toList
@@ -1072,15 +1062,29 @@ let update_ (msg : msg) (m : model) : modification =
       else NoChange
   | GetDelete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
-  | ReceiveAnalysis json ->
-      let envelope =
-        Json_decode_extended.decodeString Decoders.analysisEnvelope json
+  | ReceiveAnalysis result ->
+    ( match result with
+    | Ok (id, analysisResults) ->
+        UpdateAnalysis (id, analysisResults)
+    | Error (AnalysisExecutionError (_, str)) ->
+        DisplayError str
+    | Error (AnalysisParseError str) ->
+        DisplayError str )
+  | ReceiveTraces (TraceFetchFailure str) ->
+      DisplayAndReportError str
+  | ReceiveTraces (TraceFetchSuccess res) ->
+      let newTraces, (f404s, ts), unlockedDBs = res.result in
+      let analysisTLs =
+        List.filter
+          ~f:(fun tl -> List.member ~value:tl.id res.params.tlids)
+          m.toplevels
       in
-      ( match envelope with
-      | Ok (id, analysisResults) ->
-          UpdateAnalysis (id, analysisResults)
-      | Error str ->
-          DisplayError str )
+      Many
+        [ TweakModel Sync.markResponseInModel
+        ; UpdateTraces newTraces
+        ; Append404s (f404s, ts)
+        ; SetUnlockedDBs unlockedDBs
+        ; RequestAnalysis analysisTLs ]
   | RPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
@@ -1241,7 +1245,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
           ReceiveAnalysis s )
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
-          NewTracePush s ) ]
+          NewTracePush s )
+    ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
+          ReceiveTraces s ) ]
   in
   Tea.Sub.batch
     (List.concat

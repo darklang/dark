@@ -142,7 +142,7 @@ let viewButtons (m : model) : msg Html.html =
 
 
 let viewError (err : darkError) : msg Html.html =
-  let viewException exc =
+  let viewException (exc : exception_) =
     match exc.result with
     | None ->
         [Html.text exc.short]

@@ -62,14 +62,15 @@ let executeFunctionRPC (c : rpcContext) (params : executeFunctionRPCParams) :
   Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
 
 
-let getAnalysisRPC (c : rpcContext) (params : analysisParams) : msg Tea.Cmd.t =
+let getAnalysisRPC (c : rpcContext) (params : getAnalysisParams) :
+    msg Tea.Cmd.t =
   let url = "/api/" ^ Tea.Http.encodeUri c.canvasName ^ "/get_analysis" in
   let request =
     postJson
       Decoders.getAnalysisRPC
       c.csrfToken
       url
-      (Encoders.analysisParams params)
+      (Encoders.getAnalysisParams params)
   in
   Tea.Http.send (fun x -> GetAnalysisRPCCallback (params, x)) request
 
