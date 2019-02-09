@@ -21,6 +21,7 @@
               cstruct
               curl
               curl.lwt
+              ezgzip
               gcloud
               lwt
               magic-mime

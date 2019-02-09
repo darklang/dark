@@ -68,7 +68,7 @@ let url (canvas_id : Uuidm.t) (deploy_hash : string) variant : string =
 
 let upload_to_bucket
     (filename : string)
-    (obj : string)
+    (body : string)
     (canvas_id : Uuidm.t)
     (deploy_hash : string) : (unit, [> static_asset_error]) Lwt_result.t =
   let uri =
@@ -79,11 +79,12 @@ let upload_to_bucket
       ~path:("upload/storage/v1/b/" ^ bucket ^ "/o")
       ~query:
         [ ("uploadType", ["media"])
+        ; ("contentEncoding", ["gzip"])
         ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename])
         ]
   in
   let ct = Magic_mime.lookup filename in
-  let body = Cohttp_lwt.Body.of_string obj in
+  let body = body |> Ezgzip.compress |> Cohttp_lwt.Body.of_string in
   let headers =
     oauth2_token ()
     >|= fun token ->
