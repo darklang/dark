@@ -246,14 +246,15 @@ let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
          |> Option.map ~f:(fun x -> x.paramTipe) )
 
 
-let matchesTypes (isThreadMember : bool) (paramTipe : tipe) (dv : dval option)
-    : function_ -> bool =
+let matchesTypes
+    (isThreadMemberVal : bool) (paramTipe : tipe) (dv : dval option) :
+    function_ -> bool =
  fun fn ->
   let matchesReturnType = RT.isCompatible fn.fnReturnTipe paramTipe in
   let matchesParamType =
     match dv with
     | Some dval ->
-        if isThreadMember
+        if isThreadMemberVal
         then None <> findCompatibleThreadParam fn (RT.typeOf dval)
         else None <> findParamByType fn (RT.typeOf dval)
     | None ->
@@ -530,6 +531,23 @@ let tlDestinations (m : model) : autocompleteItem list =
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
 
+let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
+  let isThreadMemberVal =
+    Option.map ~f:(isThreadMember m) a.target
+    |> Option.withDefault ~default:false
+  in
+  let paramTipe =
+    a.target
+    |> Option.andThen ~f:(paramTipeForTarget m)
+    |> Option.withDefault ~default:TAny
+  in
+  match item with
+  | ACFunction fn ->
+      matchesTypes isThreadMemberVal paramTipe a.targetDval fn
+  | _ ->
+      true
+
+
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
@@ -540,17 +558,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     |> Option.map ~f:(TL.getTL m)
     |> Option.andThen ~f:TL.spaceOf
   in
-  let dval = Option.andThen ~f:(dvalForTarget m) a.target in
   let varnames = Analysis.currentVarnamesFor m a.target in
-  let paramTipe =
-    a.target
-    |> Option.andThen ~f:(paramTipeForTarget m)
-    |> Option.withDefault ~default:TAny
-  in
-  let isThreadMember =
-    Option.map ~f:(isThreadMember m) a.target
-    |> Option.withDefault ~default:false
-  in
+  let dval = Option.andThen ~f:(dvalForTarget m) a.target in
   let fields =
     match dval with
     | Some dv when RT.typeOf dv = TObj ->
@@ -642,27 +651,19 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       varnames @ constructors @ keywords @ functions
     else []
   in
-  let destinations = if a.target = None then tlDestinations m else [] in
-  let regular = extras @ exprs @ fields in
-  let commands = List.map ~f:(fun x -> ACCommand x) Commands.commands in
   let items =
     if a.isCommandMode
-    then commands
+    then List.map ~f:(fun x -> ACCommand x) Commands.commands
     else if a.target = None
-    then destinations
-    else regular
+    then tlDestinations m
+    else extras @ exprs @ fields
   in
-  let matcher = function
-    | ACFunction fn ->
-        matchesTypes isThreadMember paramTipe dval fn
-    | _ ->
-        true
-  in
-  {a with allCompletions = items; matcher}
+  {a with allCompletions = items; targetDval = dval}
 
 
 let filter
-    (matcher : autocompleteItem -> bool)
+    (m : model)
+    (a : autocomplete)
     (list : autocompleteItem list)
     (query : string) : autocompleteItem list * autocompleteItem list =
   let lcq = query |> String.toLower in
@@ -710,10 +711,10 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.partition ~f:matcher allMatches
+  List.partition ~f:(matcher m a) allMatches
 
 
-let refilter (query : string) (old : autocomplete) : autocomplete =
+let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
     if old.isCommandMode
@@ -721,7 +722,7 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
     else withDynamicItems old.target query old.allCompletions
   in
   let newCompletions, invalidCompletions =
-    filter old.matcher fudgedCompletions query
+    filter m old fudgedCompletions query
   in
   let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
@@ -763,7 +764,7 @@ let refilter (query : string) (old : autocomplete) : autocomplete =
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
-  generate m a |> refilter a.value
+  generate m a |> refilter m a.value
 
 
 (* ---------------------------- *)
@@ -817,15 +818,17 @@ let selectUp (a : autocomplete) : autocomplete =
 (* y Press enter to select *)
 (* y Press right to fill as much as is definitive *)
 (*  *)
-let setQuery (q : string) (a : autocomplete) : autocomplete = refilter q a
+let setQuery (m : model) (q : string) (a : autocomplete) : autocomplete =
+  refilter m q a
 
-let appendQuery (str : string) (a : autocomplete) : autocomplete =
+
+let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
   let q =
     if isStringEntry a
     then String.dropRight ~count:1 a.value ^ str ^ "\""
     else a.value ^ str
   in
-  setQuery q a
+  setQuery m q a
 
 
 let documentationForItem (aci : autocompleteItem) : string option =
@@ -914,9 +917,9 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
     autocomplete =
   match mod_ with
   | ACSetQuery str ->
-      setQuery str a
+      setQuery m str a
   | ACAppendQuery str ->
-      appendQuery str a
+      appendQuery m str a
   | ACReset ->
       reset m
   | ACSelectDown ->
