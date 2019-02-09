@@ -518,7 +518,7 @@ and autocomplete =
   ; value : string
   ; prevValue : string
   ; target : target option
-  ; matcher : autocompleteItem -> bool
+  ; targetDval : dval option
   ; isCommandMode : bool
   ; visible : bool }
 
