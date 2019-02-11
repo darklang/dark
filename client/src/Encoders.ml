@@ -196,6 +196,10 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | CreateDBWithBlankOr (tlid, _, _, _) ->
       tlid
+  | DeleteFunctionForever tlid ->
+      tlid
+  | DeleteTLForever tlid ->
+      tlid
 
 
 and ops (ops : Types.op list) : Js.Json.t =
@@ -325,6 +329,10 @@ and op (call : Types.op) : Js.Json.t =
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
       ev "CreateDBWithBlankOr" [tlid t; pos p; id i; string name]
+  | DeleteFunctionForever t ->
+      ev "DeleteFunctionForever" [tlid t]
+  | DeleteTLForever t ->
+      ev "DeleteTLForever" [tlid t]
 
 
 and rpcParams (params : Types.rpcParams) : Js.Json.t =

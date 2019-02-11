@@ -861,9 +861,6 @@ let update_ (msg : msg) (m : model) : modification =
         | _ ->
             NoChange
       else NoChange
-  | ToplevelDelete tlid ->
-      let tl = TL.getTL m tlid in
-      Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusNothing); Deselect]
   | BlankOrClick (targetTLID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
      * rather than approximating *)
@@ -983,10 +980,32 @@ let update_ (msg : msg) (m : model) : modification =
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
       RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
+  | ToplevelDelete tlid ->
+      let tl = TL.getTL m tlid in
+      Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusSame)]
+  | ToplevelDeleteForever tlid ->
+      Many
+        [ RPC ([DeleteTLForever tlid], FocusSame)
+        ; TweakModel
+            (fun m ->
+              { m with
+                deletedToplevels =
+                  List.filter ~f:(fun tl -> tl.id <> tlid) m.deletedToplevels
+              } ) ]
   | DeleteUserFunction tlid ->
-      RPC ([DeleteFunction tlid], FocusNothing)
+      RPC ([DeleteFunction tlid], FocusSame)
   | RestoreToplevel tlid ->
       RPC ([UndoTL tlid], FocusNext (tlid, None))
+  | DeleteUserFunctionForever tlid ->
+      Many
+        [ RPC ([DeleteFunctionForever tlid], FocusSame)
+        ; TweakModel
+            (fun m ->
+              { m with
+                deletedUserFunctions =
+                  List.filter
+                    ~f:(fun uf -> uf.ufTLID <> tlid)
+                    m.deletedUserFunctions } ) ]
   | RPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then

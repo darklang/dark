@@ -18,7 +18,7 @@ type canvas =
   ; ops : (tlid * Op.oplist) list
   ; handlers : TL.toplevel_list
   ; dbs : TL.toplevel_list
-  ; deleted : TL.toplevel_list
+  ; deleted_toplevels : TL.toplevel_list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
   ; cors_setting : cors_setting option }
@@ -57,13 +57,28 @@ let remove_function (tlid : tlid) (c : canvas) : canvas =
   ; deleted_user_functions = c.deleted_user_functions @ deletedFn }
 
 
+let remove_function_forever (tlid : tlid) (c : canvas) : canvas =
+  let f (uf : RTT.user_fn) = uf.tlid <> tlid in
+  { c with
+    user_functions = List.filter ~f c.user_functions
+  ; deleted_user_functions = List.filter ~f c.deleted_user_functions }
+
+
+let remove_tl_forever (tlid : tlid) (c : canvas) : canvas =
+  let f (tl : Toplevel.toplevel) = tl.tlid <> tlid in
+  { c with
+    dbs = List.filter ~f c.dbs
+  ; handlers = List.filter ~f c.handlers
+  ; deleted_toplevels = List.filter ~f c.deleted_toplevels }
+
+
 let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
   let oldh, handlers =
     List.partition_tf ~f:(fun x -> x.tlid = tlid) c.handlers
   in
   let olddb, dbs = List.partition_tf ~f:(fun x -> x.tlid = tlid) c.dbs in
   let olddel, deleted =
-    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted_toplevels
   in
   (* It's possible to delete something twice. Or more I guess. In that
    * case, only keep the latest deleted toplevel. *)
@@ -72,7 +87,7 @@ let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
     |> List.hd
     |> Option.value_map ~f:(fun x -> [x]) ~default:[]
   in
-  {c with handlers; dbs; deleted = deleted @ removed}
+  {c with handlers; dbs; deleted_toplevels = deleted @ removed}
 
 
 let apply_to_toplevel
@@ -194,6 +209,10 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
             then Exception.client "Duplicate DB name" ) ;
         let db = User_db.create2 name tlid id in
         upsert_db tlid pos (TL.DB db)
+    | DeleteTLForever tlid ->
+        remove_tl_forever tlid
+    | DeleteFunctionForever tlid ->
+        remove_function_forever tlid
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
@@ -254,7 +273,7 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; ops = []
       ; handlers = []
       ; dbs = []
-      ; deleted = []
+      ; deleted_toplevels = []
       ; user_functions = []
       ; deleted_user_functions = []
       ; cors_setting = cors }
@@ -333,7 +352,7 @@ let load_from
       ; handlers = []
       ; dbs = []
       ; user_functions = []
-      ; deleted = []
+      ; deleted_toplevels = []
       ; deleted_user_functions = []
       ; cors_setting = cors }
   in
@@ -381,7 +400,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
     List.map c.handlers ~f:(fun h -> (h.tlid, `Handler))
     @ List.map c.user_functions ~f:(fun f -> (f.tlid, `User_function))
     @ List.map c.dbs ~f:(fun d -> (d.tlid, `DB))
-    @ List.map c.deleted ~f:(fun t ->
+    @ List.map c.deleted_toplevels ~f:(fun t ->
           match t.data with
           | Handler _ ->
               (t.tlid, `Handler)
@@ -521,7 +540,7 @@ let to_string (host : string) : string =
   let handlers = List.map ~f:TL.to_string !c.handlers in
   let user_fns = List.map ~f:TL.user_fn_to_string !c.user_functions in
   let dbs = List.map ~f:TL.to_string !c.dbs in
-  let deleted = List.map ~f:TL.to_string !c.deleted in
+  let deleted = List.map ~f:TL.to_string !c.deleted_toplevels in
   String.concat
     ~sep:"\n\n\n"
     ( [" ------------- Handlers ------------- "]
