@@ -213,7 +213,7 @@ let viewCanvas (m : model) : msg Html.html =
     let offset =
       match m.currentPage with
       | Architecture _ ->
-          m.canvas.offset
+          m.canvasProps.offset
       | _ ->
           {x = 0; y = 0}
     in

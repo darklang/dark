@@ -35,12 +35,12 @@ let init (flagString : string) (location : Web.Location.location) =
     ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
-    ; canvas =
+    ; canvasProps =
         ( match page with
         | Architecture pos ->
-            {canvas with offset = pos}
+            {m.canvasProps with offset = pos}
         | _ ->
-            canvas )
+            m.canvasProps )
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
@@ -406,15 +406,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetPage page ->
         if m.currentPage = page
         then (m, Cmd.none)
-        else
-          let canvas = m.canvas in
-          ( match (page, m.currentPage) with
+        else (
+          match (page, m.currentPage) with
           | Architecture pos2, Architecture _ ->
               (* scrolling *)
               ( { m with
                   currentPage = page
                 ; urlState = {lastPos = Some pos2}
-                ; canvas = {canvas with offset = pos2} }
+                ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
           | FocusedFn _, _ | FocusedHandler _, _ ->
               ( { m with
@@ -676,15 +675,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | SetLockedHandlers locked ->
         ({m with lockedHandlers = locked}, Cmd.none)
-    | MoveCanvasTo (canvas, page, pos) ->
-        let canvas2 =
+    | MoveCanvasTo (canvasProps, page, pos) ->
+        let newCanvasProps =
           match page with
           | Architecture _ ->
-              {canvas with offset = pos}
+              {canvasProps with offset = pos}
           | _ ->
-              canvas
+              canvasProps
         in
-        ({m with canvas = canvas2}, Cmd.none)
+        ({m with canvasProps = newCanvasProps}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -780,7 +779,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
+      if m.canvasProps.enablePan then Viewport.moveCanvasBy m x y else NoChange
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
@@ -1163,8 +1162,8 @@ let update_ (msg : msg) (m : model) : modification =
   | LockHandler (tlid, isLocked) ->
       Editor.updateLockedHandlers tlid isLocked m
   | EnablePanning pan ->
-      let c = m.canvas in
-      TweakModel (fun m_ -> {m_ with canvas = {c with enablePan = pan}})
+      TweakModel
+        (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})

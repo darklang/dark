@@ -57,7 +57,7 @@ let maybeUpdateScrollUrl (m : model) : modification =
   let pos =
     match m.currentPage with
     | Architecture _ ->
-        Some m.canvas.offset
+        Some m.canvasProps.offset
     | _ ->
         None
   in
