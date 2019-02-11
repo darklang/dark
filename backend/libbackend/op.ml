@@ -30,6 +30,8 @@ type op =
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * pos * id * string
+  | DeleteTLForever of tlid
+  | DeleteFunctionForever of tlid
 [@@deriving eq, yojson, show, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -97,6 +99,10 @@ let tlidOf (op : op) : tlid option =
   | RenameDBname (tlid, _) ->
       Some tlid
   | CreateDBWithBlankOr (tlid, _, _, _) ->
+      Some tlid
+  | DeleteTLForever tlid ->
+      Some tlid
+  | DeleteFunctionForever tlid ->
       Some tlid
 
 

@@ -57,6 +57,21 @@ let remove_function (tlid : tlid) (c : canvas) : canvas =
   ; deleted_user_functions = c.deleted_user_functions @ deletedFn }
 
 
+let remove_function_forever (tlid : tlid) (c : canvas) : canvas =
+  let f (uf : RTT.user_fn) = uf.tlid <> tlid in
+  { c with
+    user_functions = List.filter ~f c.user_functions
+  ; deleted_user_functions = List.filter ~f c.deleted_user_functions }
+
+
+let remove_tl_forever (tlid : tlid) (c : canvas) : canvas =
+  let f (tl : Toplevel.toplevel) = tl.tlid <> tlid in
+  { c with
+    dbs = List.filter ~f c.dbs
+  ; handlers = List.filter ~f c.handlers
+  ; deleted_toplevels = List.filter ~f c.deleted_toplevels }
+
+
 let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
   let oldh, handlers =
     List.partition_tf ~f:(fun x -> x.tlid = tlid) c.handlers
@@ -194,6 +209,10 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
             then Exception.client "Duplicate DB name" ) ;
         let db = User_db.create2 name tlid id in
         upsert_db tlid pos (TL.DB db)
+    | DeleteTLForever tlid ->
+        remove_tl_forever tlid
+    | DeleteFunctionForever tlid ->
+        remove_function_forever tlid
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
