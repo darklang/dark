@@ -298,33 +298,6 @@ let deletedCategory (m : model) : category =
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
-let deletedUserFunctionsEntries (m : model) : category =
-  let fns =
-    m.deletedUserFunctions
-    |> List.filter ~f:(fun fn -> B.isF fn.ufMetadata.ufmName)
-  in
-  let entries =
-    List.map fns ~f:(fun fn ->
-        Entry
-          { name =
-              fn.ufMetadata.ufmName
-              |> Blank.toMaybe
-              |> Option.withDefault ~default:""
-          ; tlid = fn.ufTLID
-          ; uses = None
-          ; minusButton = None
-          ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
-          ; plusButton = None
-          ; verb = None
-          ; externalLink = None } )
-  in
-  { count = List.length fns
-  ; name = "Functions"
-  ; classname = "fns"
-  ; plusButton = None
-  ; entries }
-
-
 let entry2html (m : model) (e : entry) : msg Html.html =
   let ext =
     Option.map
