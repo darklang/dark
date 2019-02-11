@@ -415,7 +415,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ; urlState = {lastPos = Some pos2}
                 ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
-          | FocusedFn _, _ | FocusedHandler _, _ ->
+          | FocusedFn _, _ | FocusedHandler _, _ | FocusedDB _, _ ->
               ( { m with
                   currentPage = page
                 ; cursorState =
