@@ -228,8 +228,8 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
         in
         let minusButton =
           if Refactor.usedFn m name
-          then Some (DeleteUserFunction fn.ufTLID)
-          else None
+          then None
+          else Some (DeleteUserFunction fn.ufTLID)
         in
         Entry
           { name
@@ -287,7 +287,6 @@ let deletedCategory (m : model) : category =
                       { e with
                         plusButton = Some (RestoreToplevel e.tlid)
                       ; uses = None
-                      ; minusButton = None
                       ; externalLink = None }
                 | c ->
                     c ) } )
