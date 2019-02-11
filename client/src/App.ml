@@ -406,29 +406,32 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetPage page ->
         if m.currentPage = page
         then (m, Cmd.none)
-        else (
-          match (page, m.currentPage) with
-          | Architecture pos2, Architecture _ ->
+        else
+          let savedUrlState =
+            match m.currentPage with
+            | Architecture _ ->
+                Some m.canvasProps.offset
+            | _ ->
+                m.urlState.lastPos
+          in
+          ( match page with
+          | Architecture pos2 ->
               (* scrolling *)
               ( { m with
                   currentPage = page
                 ; urlState = {lastPos = Some pos2}
                 ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
-          | FocusedFn _, _ | FocusedHandler _, _ | FocusedDB _, _ ->
+          | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
               ( { m with
                   currentPage = page
-                ; cursorState =
-                    Deselected
-                    (* don't change the URL state so that returning to canvas goes
-                 * to the previous place *)
-                }
-              , Cmd.none )
-          | _ ->
-              let newM =
-                {m with currentPage = page; cursorState = Deselected}
-              in
-              (newM, Cmd.batch (closeBlanks newM)) )
+                ; canvasProps =
+                    {m.canvasProps with offset = Defaults.origin}
+                    (* Stash the offset so that returning to canvas goes to the
+                 * previous place *)
+                ; urlState = {lastPos = savedUrlState}
+                ; cursorState = Deselected }
+              , Cmd.none ) )
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -672,14 +675,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | SetLockedHandlers locked ->
         ({m with lockedHandlers = locked}, Cmd.none)
-    | MoveCanvasTo (canvasProps, page, pos) ->
-        let newCanvasProps =
-          match page with
-          | Architecture _ ->
-              {canvasProps with offset = pos}
-          | _ ->
-              canvasProps
-        in
+    | MoveCanvasTo pos ->
+        let newCanvasProps = {m.canvasProps with offset = pos} in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)

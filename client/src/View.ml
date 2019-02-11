@@ -212,9 +212,9 @@ let viewCanvas (m : model) : msg Html.html =
   let canvasTransform =
     let offset =
       match m.currentPage with
-      | Architecture _ ->
+      | Architecture _ | FocusedFn _ | FocusedHandler _ ->
           m.canvasProps.offset
-      | _ ->
+      | FocusedDB _ ->
           {x = 0; y = 0}
     in
     let x = string_of_int (-offset.x) in
