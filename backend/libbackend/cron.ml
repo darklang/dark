@@ -121,7 +121,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              |> List.filter ~f:Handler.is_complete
              |> List.filter ~f:Handler.is_cron
            in
-           Log.infO
+           Log.debuG
              "cron_checker"
              ~data:"checking canvas"
              ~params:
