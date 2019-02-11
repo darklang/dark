@@ -18,7 +18,7 @@ type canvas =
   ; ops : (tlid * Op.oplist) list
   ; handlers : TL.toplevel_list
   ; dbs : TL.toplevel_list
-  ; deleted : TL.toplevel_list
+  ; deleted_toplevels : TL.toplevel_list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
   ; cors_setting : cors_setting option }
@@ -63,7 +63,7 @@ let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
   in
   let olddb, dbs = List.partition_tf ~f:(fun x -> x.tlid = tlid) c.dbs in
   let olddel, deleted =
-    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted_toplevels
   in
   (* It's possible to delete something twice. Or more I guess. In that
    * case, only keep the latest deleted toplevel. *)
@@ -72,7 +72,7 @@ let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
     |> List.hd
     |> Option.value_map ~f:(fun x -> [x]) ~default:[]
   in
-  {c with handlers; dbs; deleted = deleted @ removed}
+  {c with handlers; dbs; deleted_toplevels = deleted @ removed}
 
 
 let apply_to_toplevel
@@ -254,7 +254,7 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; ops = []
       ; handlers = []
       ; dbs = []
-      ; deleted = []
+      ; deleted_toplevels = []
       ; user_functions = []
       ; deleted_user_functions = []
       ; cors_setting = cors }
@@ -333,7 +333,7 @@ let load_from
       ; handlers = []
       ; dbs = []
       ; user_functions = []
-      ; deleted = []
+      ; deleted_toplevels = []
       ; deleted_user_functions = []
       ; cors_setting = cors }
   in
@@ -381,7 +381,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
     List.map c.handlers ~f:(fun h -> (h.tlid, `Handler))
     @ List.map c.user_functions ~f:(fun f -> (f.tlid, `User_function))
     @ List.map c.dbs ~f:(fun d -> (d.tlid, `DB))
-    @ List.map c.deleted ~f:(fun t ->
+    @ List.map c.deleted_toplevels ~f:(fun t ->
           match t.data with
           | Handler _ ->
               (t.tlid, `Handler)
@@ -521,7 +521,7 @@ let to_string (host : string) : string =
   let handlers = List.map ~f:TL.to_string !c.handlers in
   let user_fns = List.map ~f:TL.user_fn_to_string !c.user_functions in
   let dbs = List.map ~f:TL.to_string !c.dbs in
-  let deleted = List.map ~f:TL.to_string !c.deleted in
+  let deleted = List.map ~f:TL.to_string !c.deleted_toplevels in
   String.concat
     ~sep:"\n\n\n"
     ( [" ------------- Handlers ------------- "]
