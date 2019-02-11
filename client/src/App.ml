@@ -426,12 +426,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 {m with currentPage = page; cursorState = Deselected}
               in
               (newM, Cmd.batch (closeBlanks newM)) )
-    | SetCenter center ->
-      ( match m.currentPage with
-      | Architecture _ ->
-          ({m with currentPage = Architecture center}, Cmd.none)
-      | _ ->
-          ({m with currentPage = m.currentPage}, Cmd.none) )
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in

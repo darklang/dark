@@ -641,8 +641,8 @@ and modification =
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
-  | SetCenter of pos
   | SetCursor of tlid * traceID
+  | CopyToClipboard of clipboard
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
