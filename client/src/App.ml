@@ -418,8 +418,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | FocusedFn _, _ | FocusedHandler _, _ ->
               ( { m with
                   currentPage = page
-                ; cursorState = Deselected
-                ; urlState = {lastPos = Some Defaults.centerPos} }
+                ; cursorState =
+                    Deselected
+                    (* don't change the URL state so that returning to canvas goes
+                 * to the previous place *)
+                }
               , Cmd.none )
           | _ ->
               let newM =
