@@ -539,9 +539,11 @@ let static_assets_upload_handler
         err_strs
         >>= (function
         | err_strs ->
-            Log.erroR ("Failed to deploy static assets to "^ (Canvas.name_for_id
-                        canvas) ^ ": " ^
-                      (String.concat ~sep:";" err_strs)) ;
+            Log.erroR
+              ( "Failed to deploy static assets to "
+              ^ Canvas.name_for_id canvas
+              ^ ": "
+              ^ String.concat ~sep:";" err_strs ) ;
             Static_assets.delete_static_asset_deploy
               canvas
               branch
@@ -556,7 +558,8 @@ let static_assets_upload_handler
                     [ ("msg", `String "We couldn't put this upload in gcloud.")
                     ; ( "execution_id"
                       , `String (Types.string_of_id execution_id) )
-                    ; ("errors", `List (List.map ~f:(fun s -> `String s) err_strs)) ])
+                    ; ( "errors"
+                      , `List (List.map ~f:(fun s -> `String s) err_strs) ) ])
               |> Yojson.Basic.prettify ))
   with e -> raise e
 
