@@ -41,6 +41,7 @@ let app_hash (canvas_id : Uuidm.t) =
   Nocrypto.Hash.SHA1.digest
     (Cstruct.of_string
        ( Canvas.name_for_id canvas_id
+         (* enough to make this hash not easily discoverable *)
        ^ "SOME SALT HERE"
        ^ Config.env_display_name ))
   |> Cstruct.to_string
@@ -128,7 +129,12 @@ let start_static_asset_deploy
   deploy_hash
 
 
-(* since postgres doesn't have named transactions *)
+(* since postgres doesn't have named transactions, we just delete the db
+ * record in question. For now, we're leaving files where they are; the right
+ * thing to do here would be to shell out to `gsutil -m rm -r`, but shelling out
+ * from ocaml causes ECHILD errors, so leaving this for a later round of
+ * 'garbage collection' work, in which we can query for files/dirs not known to
+ * the db and delete them *)
 let delete_static_asset_deploy
     (canvas_id : Uuidm.t)
     (branch : string)
