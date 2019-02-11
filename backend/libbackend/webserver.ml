@@ -514,7 +514,7 @@ let static_assets_upload_handler
           ~resp_headers:(server_timing []) (* t1; t2; etc *)
           ~execution_id
           `OK
-          ( Yojson.Basic.to_string
+          ( Yojson.Safe.to_string
               (`Assoc
                 [ ("deploy_hash", `String deploy_hash)
                 ; ("url", `String (Static_assets.url canvas deploy_hash `Short))
@@ -539,7 +539,7 @@ let static_assets_upload_handler
         err_strs
         >>= (function
         | err_strs ->
-            Log.infO ("Failed to deploy static assets to "^ (Canvas.name_for_id
+            Log.erroR ("Failed to deploy static assets to "^ (Canvas.name_for_id
                         canvas) ^ ": " ^
                       (String.concat ~sep:";" err_strs)) ;
             Static_assets.delete_static_asset_deploy
@@ -551,7 +551,7 @@ let static_assets_upload_handler
               ~resp_headers:(server_timing []) (* t1; t2; etc *)
               ~execution_id
               `Internal_server_error
-              ( Yojson.Basic.to_string
+              ( Yojson.Safe.to_string
                   (`Assoc
                     [ ("msg", `String "We couldn't put this upload in gcloud.")
                     ; ( "execution_id"
