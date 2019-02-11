@@ -30,7 +30,7 @@ let defaultEditor : serializableEditor =
 
 let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
 
-let defaultCanvas : canvasProps = {offset = origin; enablePan = true}
+let defaultCanvasProps : canvasProps = {offset = origin; enablePan = true}
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
@@ -71,7 +71,7 @@ let defaultModel : model =
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; lockedHandlers = []
-  ; canvas = defaultCanvas
+  ; canvasProps = defaultCanvasProps
   ; canvasName = "builtwithdark"
   ; userContentHost = "builtwithdark.com"
   ; environment = "none"

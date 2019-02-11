@@ -810,7 +810,7 @@ and model =
       (* that is currently selected.) *)
   ; featureFlags : flagsVS
   ; lockedHandlers : tlid list
-  ; canvas : canvasProps
+  ; canvasProps : canvasProps
   ; canvasName : string
   ; userContentHost : string
   ; environment : string

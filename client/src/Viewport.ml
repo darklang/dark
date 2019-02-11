@@ -12,7 +12,7 @@ let toAbsolute (m : model) (pos : vPos) : pos =
   let topleft =
     match m.currentPage with
     | Architecture _ ->
-        m.canvas.offset
+        m.canvasProps.offset
     | _ ->
         {x = 0; y = 0}
   in
@@ -24,7 +24,7 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
 let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let c = m.canvas in
+  let c = m.canvasProps in
   let offset =
     match m.currentPage with Architecture _ -> c.offset | _ -> {x = 0; y = 0}
   in
@@ -57,4 +57,4 @@ let moveLeft (m : model) : modification =
 let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
 let moveToOrigin (m : model) : modification =
-  MoveCanvasTo (m.canvas, m.currentPage, Defaults.origin)
+  MoveCanvasTo (m.canvasProps, m.currentPage, Defaults.origin)

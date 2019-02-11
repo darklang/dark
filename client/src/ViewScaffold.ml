@@ -51,7 +51,7 @@ let viewButtons (m : model) : msg Html.html =
         []
     | _ ->
         [ Url.linkFor
-            (Architecture m.canvas.offset)
+            (Architecture m.canvasProps.offset)
             "specialButton default-link return-to-canvas"
             [Html.text "Return to Canvas"] ]
   in
