@@ -385,6 +385,8 @@ and op =
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * dBName
   | CreateDBWithBlankOr of tlid * pos * id * dBName
+  | DeleteTLForever of tlid
+  | DeleteFunctionForever of tlid
 
 (* ------------------- *)
 (* RPCs *)
@@ -624,6 +626,7 @@ and msg =
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
   | ToplevelDelete of tlid
+  | ToplevelDeleteForever of tlid
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
   | EntrySubmitMsg
@@ -681,6 +684,7 @@ and msg =
   | CreateFunction
   | ExtractFunction
   | DeleteUserFunction of tlid
+  | DeleteUserFunctionForever of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult

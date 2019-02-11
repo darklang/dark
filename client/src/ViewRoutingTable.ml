@@ -16,6 +16,9 @@ type entry =
   ; uses : int option
   ; minusButton : msg option
   ; plusButton : msg option
+  ; killAction :
+      msg option
+      (* if this is in the deleted section, what does minus do? *)
   ; verb : string option
   ; externalLink : handlerSpec option
   (* for http handlers to link out *) }
@@ -67,6 +70,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
+            ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
             ; externalLink = Some h.spec
             ; verb = h.spec.modifier |> Blank.toMaybe } ) }
@@ -90,6 +94,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
+            ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
             ; externalLink = None
             ; verb = None } ) }
@@ -122,6 +127,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           ; uses = Some uses
           ; destination = Some (Toplevels pos)
           ; minusButton
+          ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
           ; verb = None
           ; plusButton = None } )
@@ -151,6 +157,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
             ; tlid = h.tlid
             ; destination = Some (Toplevels tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
+            ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
             ; externalLink = None
             ; verb = None } ) }
@@ -195,6 +202,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                 ; tlid = h.tlid
                 ; destination = Some (Toplevels tl.pos)
                 ; minusButton = Some (ToplevelDelete tl.id)
+                ; killAction = Some (ToplevelDeleteForever tl.id)
                 ; plusButton = None
                 ; externalLink = None
                 ; verb = None } ) } )
@@ -214,6 +222,7 @@ let f404Category (m : model) : category =
             ; tlid = TLID "no-tlid-for-404"
             ; destination = None
             ; minusButton = Some (Delete404 fof)
+            ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
             ; externalLink = None
             ; verb = Some modifier } ) }
@@ -228,14 +237,15 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
         in
         let minusButton =
           if Refactor.usedFn m name
-          then Some (DeleteUserFunction fn.ufTLID)
-          else None
+          then None
+          else Some (DeleteUserFunction fn.ufTLID)
         in
         Entry
           { name
           ; tlid = fn.ufTLID
           ; uses = Some (Refactor.fnUseCount m name)
           ; minusButton
+          ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
           ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
           ; plusButton = None
           ; verb = None
@@ -287,7 +297,7 @@ let deletedCategory (m : model) : category =
                       { e with
                         plusButton = Some (RestoreToplevel e.tlid)
                       ; uses = None
-                      ; minusButton = None
+                      ; minusButton = e.killAction
                       ; externalLink = None }
                 | c ->
                     c ) } )
@@ -297,33 +307,6 @@ let deletedCategory (m : model) : category =
   ; plusButton = None
   ; classname = "deleted"
   ; entries = List.map cats ~f:(fun c -> Category c) }
-
-
-let deletedUserFunctionsEntries (m : model) : category =
-  let fns =
-    m.deletedUserFunctions
-    |> List.filter ~f:(fun fn -> B.isF fn.ufMetadata.ufmName)
-  in
-  let entries =
-    List.map fns ~f:(fun fn ->
-        Entry
-          { name =
-              fn.ufMetadata.ufmName
-              |> Blank.toMaybe
-              |> Option.withDefault ~default:""
-          ; tlid = fn.ufTLID
-          ; uses = None
-          ; minusButton = None
-          ; destination = Some (Fn (fn.ufTLID, Defaults.centerPos))
-          ; plusButton = None
-          ; verb = None
-          ; externalLink = None } )
-  in
-  { count = List.length fns
-  ; name = "Functions"
-  ; classname = "fns"
-  ; plusButton = None
-  ; entries }
 
 
 let entry2html (m : model) (e : entry) : msg Html.html =

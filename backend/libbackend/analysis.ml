@@ -208,7 +208,7 @@ let to_rpc_response_frontend
     (c : canvas) (traces : tlid_trace list) (unlocked : tlid list) : string =
   { new_traces = traces
   ; toplevels = c.dbs @ c.handlers
-  ; deleted_toplevels = c.deleted
+  ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
   ; deleted_user_functions = c.deleted_user_functions
   ; unlocked_dbs = unlocked }
