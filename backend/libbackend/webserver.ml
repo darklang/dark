@@ -533,7 +533,8 @@ let static_assets_upload_handler
           `Internal_server_error
           (Yojson.Basic.to_string
              (`Assoc
-               [("errors", `String "We couldn't put this upload in gcloud.")]))
+               [ ("errors", `String "We couldn't put this upload in gcloud.")
+               ; ("execution_id", `String (Types.string_of_id execution_id)) ]))
   with e -> raise e
 
 
