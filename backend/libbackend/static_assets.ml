@@ -41,7 +41,7 @@ let app_hash (canvas_id : Uuidm.t) =
   Nocrypto.Hash.SHA1.digest
     (Cstruct.of_string
        ( Canvas.name_for_id canvas_id
-         (* enough to make this hash not easily discoverable *)
+       (* enough to make this hash not easily discoverable *)
        ^ "SOME SALT HERE"
        ^ Config.env_display_name ))
   |> Cstruct.to_string
