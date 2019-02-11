@@ -647,7 +647,7 @@ and modification =
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
   | SetLockedHandlers of tlid list
-  | MoveCanvasTo of canvasProps * page * pos
+  | MoveCanvasTo of pos
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval

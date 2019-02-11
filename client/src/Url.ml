@@ -33,13 +33,7 @@ let urlOf (page : page) (mpos : pos option) : string =
 
 
 let urlFor (page : page) : string =
-  let pos =
-    match page with
-    | Architecture pos ->
-        pos |> Viewport.toCenteredOn |> fun x -> Some x
-    | _ ->
-        None
-  in
+  let pos = match page with Architecture pos -> Some pos | _ -> None in
   urlOf page pos
 
 
@@ -54,20 +48,19 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
 (* the History/location handlers. So instead we process them directly, *)
 (* and update the browser url periodically. *)
 let maybeUpdateScrollUrl (m : model) : modification =
-  let pos =
-    match m.currentPage with
-    | Architecture _ ->
-        Some m.canvasProps.offset
-    | _ ->
-        None
-  in
-  let state = m.urlState in
-  if pos <> state.lastPos
-  then
-    Many
-      [ TweakModel (fun m_ -> {m_ with urlState = {lastPos = pos}})
-      ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
-  else NoChange
+  match m.currentPage with
+  | Architecture _ ->
+      let pos = Some m.canvasProps.offset in
+      if pos <> m.urlState.lastPos
+      then
+        Many
+          [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
+          ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
+      else NoChange
+  | _ ->
+      (* Dont update the scroll in the as we don't record the scroll in the
+       * URL, and the url has already been changed *)
+      NoChange
 
 
 let parseLocation (loc : Web.Location.location) : page option =
