@@ -16,9 +16,7 @@ let registerGlobal name key tagger decoder =
     let handler = EventHandlerCallback (key, fn) in
     let elem = Web_node.document_node in
     let cache = eventHandler_Register callbacks elem name handler in
-    fun () ->
-      let _ = eventHandler_Unregister elem name cache in
-      ()
+    fun () -> ignore (eventHandler_Unregister elem name cache)
   in
   Tea_sub.registration key enableCall
 

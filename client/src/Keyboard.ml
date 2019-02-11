@@ -501,9 +501,7 @@ let registerGlobal name key tagger =
     (* TODO: put on window, not document *)
     let elem = Web_node.document_node in
     let cache = Vdom.eventHandler_Register callbacks elem name handler in
-    fun () ->
-      let _ = Vdom.eventHandler_Unregister elem name cache in
-      ()
+    fun () -> ignore (Vdom.eventHandler_Unregister elem name cache)
   in
   Tea_sub.registration key enableCall
 

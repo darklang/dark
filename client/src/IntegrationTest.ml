@@ -15,15 +15,14 @@ let fail ?(f : 'a -> string = Js.String.make) (v : 'a) : testResult =
 
 let onlyTL (m : model) : toplevel =
   let len = List.length m.toplevels in
-  let _ =
-    if len = 0
+  ignore
+    ( if len = 0
     then Debug.crash "no toplevels"
     else if len > 1
     then
       Debug.crash
         ("too many toplevels: " ^ show_list ~f:show_toplevel m.toplevels)
-    else "nothing to see here"
-  in
+    else "nothing to see here" ) ;
   m.toplevels |> List.head |> deOption "onlytl1"
 
 
