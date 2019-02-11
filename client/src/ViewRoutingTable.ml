@@ -295,6 +295,7 @@ let deletedCategory (m : model) : category =
                         plusButton = Some (RestoreToplevel e.tlid)
                       ; uses = None
                       ; minusButton = e.killAction
+                      ; destination = None
                       ; externalLink = None }
                 | c ->
                     c ) } )
