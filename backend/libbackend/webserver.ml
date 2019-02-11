@@ -522,19 +522,42 @@ let static_assets_upload_handler
                   , `String (Static_assets.url canvas deploy_hash `Long) ) ])
           |> Yojson.Basic.prettify )
     | _ ->
-        Static_assets.delete_static_asset_deploy
-          canvas
-          branch
-          username
-          deploy_hash ;
-        respond
-          ~resp_headers:(server_timing []) (* t1; t2; etc *)
-          ~execution_id
-          `Internal_server_error
-          (Yojson.Basic.to_string
-             (`Assoc
-               [ ("errors", `String "We couldn't put this upload in gcloud.")
-               ; ("execution_id", `String (Types.string_of_id execution_id)) ]))
+        let err_strs =
+          errors
+          |> Lwt_list.map_p (fun e ->
+                 match%lwt e with
+                 | Error (`GcloudAuthError s) ->
+                     Lwt.return s
+                 | Error (`FailureUploadingStaticAsset s) ->
+                     Lwt.return s
+                 | Error (`FailureDeletingStaticAsset s) ->
+                     Lwt.return s
+                 | Ok _ ->
+                     Exception.internal
+                       "Can't happen, we partition error/ok above." )
+        in
+        err_strs
+        >>= (function
+        | err_strs ->
+            Log.infO ("Failed to deploy static assets to "^ (Canvas.name_for_id
+                        canvas) ^ ": " ^
+                      (String.concat ~sep:";" err_strs)) ;
+            Static_assets.delete_static_asset_deploy
+              canvas
+              branch
+              username
+              deploy_hash ;
+            respond
+              ~resp_headers:(server_timing []) (* t1; t2; etc *)
+              ~execution_id
+              `Internal_server_error
+              ( Yojson.Basic.to_string
+                  (`Assoc
+                    [ ("msg", `String "We couldn't put this upload in gcloud.")
+                    ; ( "execution_id"
+                      , `String (Types.string_of_id execution_id) )
+                    ; ("errors", `List (List.map ~f:(fun s -> `String s) err_strs)) ])
+              |> Yojson.Basic.prettify ))
   with e -> raise e
 
 
