@@ -334,6 +334,9 @@ RUN echo "deb-src https://deb.nodesource.com/node_11.x bionic main" >> /etc/apt/
 RUN sudo apt update && sudo apt install --reinstall -y nodejs
 USER dark
 
+RUN opam install -y \
+    ezgzip.0.2.1
+
 
 ############################
 # Finish
