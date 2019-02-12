@@ -110,7 +110,7 @@ let recoverable (msg : 'a) (val_ : 'b) : 'b =
     ^ Js.String.make val_
   in
   (* TODO: surface the error to the user and in rollbar and continue *)
-  let _ = Debug.crash error in
+  ignore (Debug.crash error) ;
   val_
 
 
