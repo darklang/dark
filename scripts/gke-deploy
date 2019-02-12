@@ -141,6 +141,9 @@ fi
 if [[ "$CRON_IMAGE_ID" == "" ]]; then
   CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
 fi
+if [[ "$STROLLER_IMAGE_ID" == "" ]]; then
+  STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-stroller -q | head -n 1)"
+fi
 if [[ "$TUNNEL_IMAGE_ID" == "" ]]; then
   TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 fi
@@ -158,8 +161,8 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 
 CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/builtwithdark.yaml.template > builtwithdark.yaml
-sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/queueworker.yaml.template > queueworker.yaml
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/builtwithdark.yaml.template > builtwithdark.yaml
+sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/queueworker.yaml.template > queueworker.yaml
 sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/cronchecker.yaml.template > cronchecker.yaml
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/tunnel.yaml.template > tunnel.yaml
 
