@@ -288,7 +288,7 @@ and trace j : trace =
   ; functionResults = field "function_results" (list functionResult) j }
 
 
-and rpc j : rpcResult =
+and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
   ; newTraces = field "new_traces" traces j
@@ -297,17 +297,21 @@ and rpc j : rpcResult =
   ; unlockedDBs = field "unlocked_dbs" (list tlid) j }
 
 
-and getAnalysisRPC j : getAnalysisResult =
+and getAnalysisRPCResult j : getAnalysisRPCResult =
   ( field "traces" traces j (* (404s, timestamp) *)
   , field "404s" (pair (list fof) string) j
   , field "unlocked_dbs" (list tlid) j )
 
 
-and initialLoadRPC j : initialLoadResult = rpc j
+and initialLoadRPCResult j : initialLoadRPCResult = addOpRPCResult j
 
-and executeFunctionRPC j : executeFunctionRPCResult =
+and executeFunctionRPCResult j : executeFunctionRPCResult =
   (field "result" dval j, field "hash" string j)
 
+
+and saveTestRPCResult j : saveTestRPCResult = string j
+
+and delete404RPCResult j : delete404RPCResult = pair (list fof) string j
 
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)
