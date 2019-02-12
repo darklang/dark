@@ -661,7 +661,6 @@ and msg =
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
   | ExecuteFunctionButton of tlid * id * string
-  | Initialization
   | CreateHandlerFrom404 of fourOhFour
   | Delete404 of fourOhFour
   | WindowResize of int * int

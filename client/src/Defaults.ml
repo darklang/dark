@@ -38,7 +38,7 @@ let defaultCanvas : canvasProps =
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
-  ; lastMsg = Initialization
+  ; lastMsg = IgnoreMsg
   ; lastMod = NoChange (* this is awkward, but avoids circular deps *)
   ; complete =
       { functions = []
