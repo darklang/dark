@@ -241,7 +241,7 @@ let push
       Log.infO "pushing via stroller" ~params:log_params ;
       let uri =
         sprintf
-          "http://localhost:%d/canvas/%s/events/%s"
+          "http://127.0.0.1:%d/canvas/%s/events/%s"
           port
           canvas_id_str
           event
