@@ -1145,8 +1145,6 @@ let update_ (msg : msg) (m : model) : modification =
         GetAnalysisRPC (ignorePushed, ignorePushed)
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
-  | Initialization ->
-      NoChange
   | IgnoreMsg ->
       (* Many times we have to receive a Msg and we don't actually do anything.
        * To lower to conceptual load, we send an IgnoreMsg, rather than a
