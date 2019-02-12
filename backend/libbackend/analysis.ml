@@ -72,7 +72,7 @@ let saved_input_vars (c : canvas) (h : RTT.HandlerT.handler) :
   | None ->
       []
   | Some d ->
-      List.map (SE.load_events c.id d) ~f:(fun (request_path, id, e) ->
+      List.map (SE.load_events c.id d) ~f:(fun (request_path, id, _ts, e) ->
           match Handler.module_type h with
           | `Http ->
               let with_r = [("request", e)] in
