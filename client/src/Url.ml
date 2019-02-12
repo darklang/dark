@@ -57,7 +57,7 @@ let maybeUpdateScrollUrl (m : model) : modification =
           [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
           ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
       else NoChange
-  | _ ->
+  | FocusedDB _ | FocusedHandler _ | FocusedFn _ ->
       (* Dont update the scroll in the as we don't record the scroll in the
        * URL, and the url has already been changed *)
       NoChange
@@ -73,7 +73,7 @@ let parseLocation (loc : Web.Location.location) : page option =
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
-  let architecture =
+  let architecture () =
     match
       (StrDict.get ~key:"x" unstructured, StrDict.get ~key:"y" unstructured)
     with
@@ -86,28 +86,31 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  let fn =
+  let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
         Some (FocusedFn (TLID sid))
     | _ ->
         None
   in
-  let handler =
+  let handler () =
     match StrDict.get ~key:"handler" unstructured with
     | Some sid ->
         Some (FocusedHandler (TLID sid))
     | _ ->
         None
   in
-  let db =
+  let db () =
     match StrDict.get ~key:"db" unstructured with
     | Some sid ->
         Some (FocusedDB (TLID sid))
     | _ ->
         None
   in
-  fn |> Option.orElse handler |> Option.orElse db |> Option.orElse architecture
+  architecture ()
+  |> Option.orElse (handler ())
+  |> Option.orElse (fn ())
+  |> Option.orElse (db ())
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =

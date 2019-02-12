@@ -411,7 +411,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             match m.currentPage with
             | Architecture _ ->
                 Some m.canvasProps.offset
-            | _ ->
+            | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
                 m.urlState.lastPos
           in
           ( match page with
