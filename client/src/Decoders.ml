@@ -303,7 +303,13 @@ and getAnalysisRPCResult j : getAnalysisRPCResult =
   , field "unlocked_dbs" (list tlid) j )
 
 
-and initialLoadRPCResult j : initialLoadRPCResult = addOpRPCResult j
+and initialLoadRPCResult j : initialLoadRPCResult =
+  { toplevels = field "toplevels" (list toplevel) j
+  ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
+  ; userFunctions = field "user_functions" (list userFunction) j
+  ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
+  ; unlockedDBs = field "unlocked_dbs" (list tlid) j }
+
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
   (field "result" dval j, field "hash" string j)
