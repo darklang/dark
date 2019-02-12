@@ -216,6 +216,27 @@ let to_rpc_response_frontend
   |> Yojson.Safe.to_string ~std:true
 
 
+(* Initial load *)
+type initial_load_response =
+  { toplevels : TL.toplevel_list
+  ; deleted_toplevels : TL.toplevel_list
+  ; user_functions : RTT.user_fn list
+  ; deleted_user_functions : RTT.user_fn list
+  ; unlocked_dbs : tlid list }
+[@@deriving to_yojson]
+
+let to_initial_load_response_frontend (c : canvas) (unlocked : tlid list) :
+    string =
+  { toplevels = c.dbs @ c.handlers
+  ; deleted_toplevels = c.deleted_toplevels
+  ; user_functions = c.user_functions
+  ; deleted_user_functions = c.deleted_user_functions
+  ; unlocked_dbs = unlocked }
+  |> initial_load_response_to_yojson
+  |> Yojson.Safe.to_string ~std:true
+
+
+(* Execute function *)
 type execute_function_response =
   { result : RTT.dval
   ; hash : string }

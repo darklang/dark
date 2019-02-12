@@ -1032,7 +1032,6 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
-        ; UpdateTraces r.newTraces
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; RequestAnalysis r.toplevels

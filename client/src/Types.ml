@@ -470,7 +470,12 @@ and unlockedDBs = tlid list
 
 and getAnalysisRPCResult = traces * delete404RPCResult * unlockedDBs
 
-and initialLoadRPCResult = addOpRPCResult
+and initialLoadRPCResult =
+  { toplevels : toplevel list
+  ; deletedToplevels : toplevel list
+  ; userFunctions : userFunction list
+  ; deletedUserFunctions : userFunction list
+  ; unlockedDBs : tlid list }
 
 and saveTestRPCResult = string
 

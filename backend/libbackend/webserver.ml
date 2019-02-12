@@ -560,7 +560,7 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
   in
   let t3, result =
     time "3-to-frontend" (fun _ ->
-        Analysis.to_rpc_response_frontend !c [] unlocked )
+        Analysis.to_initial_load_response_frontend !c unlocked )
   in
   respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
 
