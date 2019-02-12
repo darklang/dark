@@ -59,7 +59,7 @@ let list_events
 
 let load_events
     ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
-    (string * Uuidm.t * RTT.dval) list =
+    (string * Uuidm.t * RTT.time * RTT.dval) list =
   let route = Http.route_to_postgres_pattern route in
   Db.fetch
     ~name:"load_events"
@@ -72,9 +72,12 @@ let load_events
     LIMIT 10"
     ~params:[Uuid canvas_id; String module_; String route; String modifier]
   |> List.map ~f:(function
-         | [request_path; dval; _ts; trace_id] ->
+         | [request_path; dval; ts; trace_id] ->
              let trace_id = Util.uuid_of_string trace_id in
-             (request_path, trace_id, Dval.unsafe_dval_of_json_string dval)
+             ( request_path
+             , trace_id
+             , Util.date_of_isostring ts
+             , Dval.unsafe_dval_of_json_string dval )
          | _ ->
              Exception.internal "Bad DB format for stored_events" )
 
