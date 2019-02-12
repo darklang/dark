@@ -36,6 +36,16 @@ let toAnalyse (m : model) : tlid list =
       |> Option.withDefault ~default:[]
 
 
+external origin : string = "origin"
+  [@@bs.val] [@@bs.scope "window", "location"]
+
+external prefix : string = "testcafeInjectedPrefix"
+  [@@bs.val] [@@bs.scope "window"]
+
+let contextFromModel (m : model) : traceFetchContext =
+  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
+
+
 let fetch ~(ignoreTraces : bool) ~(ignore404s : bool) (m : model) :
     model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState

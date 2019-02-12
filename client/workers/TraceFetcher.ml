@@ -1,5 +1,5 @@
 type event =
-  < data : Types.rpcContext * Types.getAnalysisParams [@bs.get] > Js.t
+  < data : Types.traceFetchContext * Types.getAnalysisParams [@bs.get] > Js.t
 
 type self
 
@@ -11,7 +11,7 @@ type pushResult = Types.traceFetchResult
 
 external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 
-let fetch (context : Types.rpcContext) params =
+let fetch (context : Types.traceFetchContext) params =
   let open Js.Promise in
   let url =
     context.prefix

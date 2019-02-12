@@ -325,8 +325,6 @@ and timerAction =
   | RefreshAnalysis
   | CheckUrlHashPosition
 
-and traceID = string
-
 and lvDict = dval StrDict.t
 
 and avDict = varName list StrDict.t
@@ -342,6 +340,23 @@ and functionResult =
   ; callerID : id
   ; argHash : string
   ; value : dval }
+
+(* traces / traceFetcher *)
+and traceFetchResultData =
+  { params : getAnalysisParams
+  ; result : getAnalysisResult }
+
+and traceFetchResult =
+  | TraceFetchSuccess of traceFetchResultData
+  | TraceFetchFailure of string
+
+and traceFetchContext =
+  { canvasName : string
+  ; csrfToken : string
+  ; origin : string
+  ; prefix : string }
+
+and traceID = string
 
 and trace =
   { traceID : traceID
@@ -705,14 +720,6 @@ and msg =
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
 
-and traceFetchResultData =
-  { params : getAnalysisParams
-  ; result : getAnalysisResult }
-
-and traceFetchResult =
-  | TraceFetchSuccess of traceFetchResultData
-  | TraceFetchFailure of string
-
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
@@ -812,18 +819,3 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t }
 [@@deriving show {with_path = false}]
-
-and rpcContext =
-  { canvasName : string
-  ; csrfToken : string
-  ; origin : string
-  ; prefix : string }
-
-external origin : string = "origin"
-  [@@bs.val] [@@bs.scope "window", "location"]
-
-external prefix : string = "testcafeInjectedPrefix"
-  [@@bs.val] [@@bs.scope "window"]
-
-let contextFromModel (m : model) : rpcContext =
-  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}

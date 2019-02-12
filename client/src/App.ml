@@ -54,16 +54,11 @@ let init (flagString : string) (location : Web.Location.location) =
     ; csrfToken }
   in
   if Url.isIntegrationTest
-  then
-    ( m2
-    , Cmd.batch [RPC.integrationRPC (contextFromModel m2) integrationTestName]
-    )
+  then (m2, Cmd.batch [RPC.integrationRPC m2 integrationTestName])
   else
     ( m2
     , Cmd.batch
-        [ RPC.initialLoadRPC
-            (contextFromModel m2)
-            (FocusPageAndCursor (page, savedCursorState))
+        [ RPC.initialLoadRPC m2 (FocusPageAndCursor (page, savedCursorState))
         ; Sync.fetchAll m2 ] )
 
 
@@ -224,7 +219,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc (contextFromModel newM) FocusSame params]
+                 [RPC.rpc newM FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ufAST in
                if replacement = f.ufAST
@@ -234,7 +229,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc (contextFromModel newM) FocusSame params]
+                 [RPC.rpc newM FocusSame params]
            | _ ->
                [] )
     |> Option.withDefault ~default:[]
@@ -258,7 +253,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           params.ops
       in
       if hasNonHandlers
-      then (m, RPC.rpc (contextFromModel m) focus params)
+      then (m, RPC.rpc m focus params)
       else
         let localM =
           List.foldl
@@ -278,10 +273,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (Many [AutocompleteMod ACReset; processFocus localM focus])
             (localM, Cmd.none)
         in
-        ( withFocus
-        , Cmd.batch
-            [wfCmd; RPC.rpc (contextFromModel withFocus) FocusNoChange params]
-        )
+        (withFocus, Cmd.batch [wfCmd; RPC.rpc withFocus FocusNoChange params])
     in
     match mod_ with
     | DisplayError e ->
@@ -685,7 +677,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; efpFnName = name
               ; efpArgs = args }
             in
-            (m, RPC.executeFunctionRPC (contextFromModel m) params)
+            (m, RPC.executeFunctionRPC m params)
         | None ->
             (m, Cmd.none)
             |> updateMod
@@ -955,7 +947,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleTimers ->
       TweakModel toggleTimers
   | SaveTestButton ->
-      MakeCmd (RPC.saveTestRPC (contextFromModel m))
+      MakeCmd (RPC.saveTestRPC m)
   | FinishIntegrationTest ->
       EndIntegrationTest
   | StartFeatureFlag ->
@@ -1164,7 +1156,7 @@ let update_ (msg : msg) (m : model) : modification =
             ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
         ; Delete404 fof ]
   | Delete404 fof ->
-      MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
+      MakeCmd (RPC.delete404RPC m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
         (fun m ->
