@@ -653,7 +653,6 @@ and msg =
       focus * modification * (initialLoadResult, httpError) Tea.Result.t
       [@printer opaque "InitialLoadRPCCallback"]
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
-  | AddRandom
   | FinishIntegrationTest
   | SaveTestButton
   | ToggleTimers
