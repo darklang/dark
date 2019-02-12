@@ -1,3 +1,5 @@
+// HTTP service - all HTTP endpoints and handler functions are defined here.
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -9,6 +11,7 @@ use push;
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
+// Wrapper to generify ::handle so we can mock out PusherClient for testing
 pub trait AsyncPush: Send + Sync {
     fn push(&mut self, canvas_uuid: &str, event_name: &str, json_bytes: &[u8]);
 }
