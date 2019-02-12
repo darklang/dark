@@ -2010,7 +2010,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
        (Dval.dstr_of_string_exn "1")) ;
   (* check we get back the path for a route with a variable in it *)
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
-  check_dval_list "load GET events" [] (loaded1 |> List.map ~f:Tuple.T3.get3) ;
+  check_dval_list "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;
   ()
 
 
