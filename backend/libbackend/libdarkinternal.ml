@@ -203,4 +203,102 @@ let replacements =
               Canvas.update_cors_setting canvas settings ;
               s |> ResOk |> DResult )
         | args ->
+            fail args )
+    ; ( "DarkInternal::dbs"
+      , function
+        | _, [DStr host] ->
+            let c = Canvas.load_all (Unicode_string.to_string host) [] in
+            !c.dbs
+            |> List.filter_map ~f:Libexecution.Toplevel.as_db
+            |> List.map ~f:(fun d ->
+                   Dval.dstr_of_string_exn
+                     (Libexecution.Types.string_of_id d.tlid) )
+            |> fun l -> DList l
+        | args ->
+            fail args )
+    ; ( "DarkInternal::oplistInfo"
+      , function
+        | _, [DStr host; DStr tlid_str] ->
+            let account = Account.for_host (Unicode_string.to_string host) in
+            let canvas_id =
+              Serialize.fetch_canvas_id account (Unicode_string.to_string host)
+            in
+            let tlid =
+              Types.id_of_string (Unicode_string.to_string tlid_str)
+            in
+            let strings =
+              Db.fetch
+                ~name:"toplevel_metadata"
+                "SELECT canvas_id, account_id, tlid, tipe, name, module, modifier, created_at, updated_at
+              FROM toplevel_oplists
+              WHERE canvas_id = $1 AND tlid = $2"
+                ~params:[Uuid canvas_id; ID tlid]
+            in
+            let zipped =
+              strings
+              |> List.hd_exn
+              |> List.map ~f:Dval.dstr_of_string_exn
+              |> List.zip_exn
+                   [ "canvas_id"
+                   ; "account_id"
+                   ; "tlid"
+                   ; "tipe"
+                   ; "name"
+                   ; "module"
+                   ; "modifier"
+                   ; "created_at"
+                   ; "updated_at" ]
+              |> DvalMap.of_alist_exn
+            in
+            let convert_to_date k obj =
+              DvalMap.change obj k ~f:(fun v ->
+                  match v with
+                  | Some (DStr s) ->
+                      s
+                      |> Unicode_string.to_string
+                      |> Db.date_of_sqlstring
+                      |> fun d -> Some (DDate d)
+                  | _ ->
+                      None )
+            in
+            zipped
+            |> convert_to_date "created_at"
+            |> convert_to_date "updated_at"
+            |> fun o -> DObj o
+        | args ->
+            fail args )
+    ; ( "DarkInternal::storedEvents"
+      , function
+        | _, [DStr host; DStr tlid_str] ->
+            let tlid =
+              Types.id_of_string (Unicode_string.to_string tlid_str)
+            in
+            let canvas : Canvas.canvas ref =
+              Canvas.load_only ~tlids:[tlid] (Unicode_string.to_string host) []
+            in
+            let desc =
+              !canvas.handlers
+              |> List.filter_map ~f:Toplevel.as_handler
+              |> List.filter ~f:(fun h -> h.tlid = tlid)
+              |> List.hd
+              |> Option.bind ~f:Handler.event_desc_for
+            in
+            ( match desc with
+            | None ->
+                DOption OptNothing
+            | Some d ->
+                let events = Stored_event.load_events !canvas.id d in
+                let event_list =
+                  events
+                  |> List.map ~f:(fun (path, traceid, time, data) ->
+                         [ ("path", Dval.dstr_of_string_exn path)
+                         ; ("traceid", DUuid traceid)
+                         ; ("time", DDate time)
+                         ; ("event", data) ]
+                         |> DvalMap.of_alist_exn
+                         |> fun o -> DObj o )
+                  |> fun l -> DList l
+                in
+                DOption (OptJust event_list) )
+        | args ->
             fail args ) ]

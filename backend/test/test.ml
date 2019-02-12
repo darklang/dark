@@ -209,6 +209,10 @@ let user_fn name params ast : user_fn =
       ; infix = false } }
 
 
+let t4_get1st (x, _, _, _) = x
+
+let t4_get4th (_, _, _, x) = x
+
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
@@ -507,24 +511,16 @@ let t_stored_event_roundtrip () =
     "list host events"
     (List.sort ~compare [desc1; desc2; desc3])
     (List.sort ~compare (List.map ~f:rec2desc listed)) ;
-  let loaded1 =
-    SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:Tuple.T3.get3
-  in
+  let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
   check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
     loaded1 ;
-  let loaded2 =
-    SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:Tuple.T3.get3
-  in
+  let loaded2 = SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:t4_get4th in
   check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
-  let loaded3 =
-    SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:Tuple.T3.get3
-  in
+  let loaded3 = SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:t4_get4th in
   check_dval_list "load no host2 events" [] loaded3 ;
-  let loaded4 =
-    SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:Tuple.T3.get3
-  in
+  let loaded4 = SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:t4_get4th in
   check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
   ()
 
@@ -1973,11 +1969,11 @@ let t_route_variables_work_with_stored_events () =
   check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "1"]
-    (loaded1 |> List.map ~f:Tuple.T3.get3) ;
+    (loaded1 |> List.map ~f:t4_get4th) ;
   AT.check
     (AT.list AT.string)
     "path returned correctly"
-    (loaded1 |> List.map ~f:Tuple.T3.get1)
+    (loaded1 |> List.map ~f:t4_get1st)
     [http_request_path] ;
   (* check that the event is not in the 404s *)
   let f404s = Analysis.get_404s ~since:Time.epoch !c in
