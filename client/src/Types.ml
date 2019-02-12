@@ -343,8 +343,8 @@ and functionResult =
 
 (* traces / traceFetcher *)
 and traceFetchResultData =
-  { params : getAnalysisParams
-  ; result : getAnalysisResult }
+  { params : getAnalysisRPCParams
+  ; result : getAnalysisRPCResult }
 
 and traceFetchResult =
   | TraceFetchSuccess of traceFetchResultData
@@ -413,7 +413,7 @@ and op =
 (* RPCs *)
 (* ------------------- *)
 (* params *)
-and rpcParams = {ops : op list}
+and addOpRPCParams = {ops : op list}
 
 and executeFunctionRPCParams =
   { efpTLID : tlid
@@ -422,7 +422,7 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and getAnalysisParams =
+and getAnalysisRPCParams =
   { tlids : tlid list
   ; latest404 : string
   ; ignore404s : bool
@@ -449,10 +449,10 @@ and analysisError =
 
 and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
-and delete404Param = fourOhFour
+and delete404RPCParams = fourOhFour
 
 (* results *)
-and rpcResult =
+and addOpRPCResult =
   { toplevels : toplevel list
   ; deletedToplevels : toplevel list
   ; newTraces : traces
@@ -464,9 +464,15 @@ and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
-and getAnalysisResult = traces * (fourOhFour list * string) * tlid list
+and delete404RPCResult = fourOhFour list * string
 
-and initialLoadResult = rpcResult
+and unlockedDBs = tlid list
+
+and getAnalysisRPCResult = traces * delete404RPCResult * unlockedDBs
+
+and initialLoadRPCResult = addOpRPCResult
+
+and saveTestRPCResult = string
 
 (* ------------------- *)
 (* Autocomplete / entry *)
@@ -616,7 +622,7 @@ and modification =
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | RPCFull of (rpcParams * focus)
+  | RPCFull of (addOpRPCParams * focus)
   | RPC of (op list * focus)
   | GetAnalysisRPC of (bool * bool)
   | NoChange
@@ -661,32 +667,32 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
-  | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t
-      [@printer opaque "RPCCallback"]
-  | SaveTestRPCCallback of (string, httpError) Tea.Result.t
+  | AddOpRPCCallback of
+      focus * addOpRPCParams * (addOpRPCResult, httpError) Tea.Result.t
+      [@printer opaque "AddOpRPCCallback"]
+  | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
   | GetAnalysisRPCCallback of
-      (getAnalysisParams * (getAnalysisResult, httpError) Tea.Result.t)
+      (getAnalysisRPCParams * (getAnalysisRPCResult, httpError) Tea.Result.t)
       [@printer opaque "GetAnalysisRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | New404Push of (fourOhFour * string)
-  | GetDelete404RPCCallback of
-      (fourOhFour list * string, httpError) Tea.Result.t
+  | Delete404RPCCallback of (delete404RPCResult, httpError) Tea.Result.t
       [@printer opaque "GetDelete404RPCCallback"]
   | InitialLoadRPCCallback of
-      focus * modification * (initialLoadResult, httpError) Tea.Result.t
+      focus * modification * (initialLoadRPCResult, httpError) Tea.Result.t
       [@printer opaque "InitialLoadRPCCallback"]
-  | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
-  | FinishIntegrationTest
-  | SaveTestButton
-  | ToggleTimers
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
+  | Delete404 of fourOhFour
+  | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
+  | FinishIntegrationTest
+  | SaveTestButton
+  | ToggleTimers
   | ExecuteFunctionButton of tlid * id * string
   | CreateHandlerFrom404 of fourOhFour
-  | Delete404 of fourOhFour
   | WindowResize of int * int
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string

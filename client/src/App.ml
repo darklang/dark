@@ -54,11 +54,11 @@ let init (flagString : string) (location : Web.Location.location) =
     ; csrfToken }
   in
   if Url.isIntegrationTest
-  then (m2, Cmd.batch [RPC.integrationRPC m2 integrationTestName])
+  then (m2, Cmd.batch [RPC.integration m2 integrationTestName])
   else
     ( m2
     , Cmd.batch
-        [ RPC.initialLoadRPC m2 (FocusPageAndCursor (page, savedCursorState))
+        [ RPC.initialLoad m2 (FocusPageAndCursor (page, savedCursorState))
         ; Sync.fetchAll m2 ] )
 
 
@@ -219,7 +219,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc newM FocusSame params]
+                 [RPC.addOp newM FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ufAST in
                if replacement = f.ufAST
@@ -229,7 +229,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc newM FocusSame params]
+                 [RPC.addOp newM FocusSame params]
            | _ ->
                [] )
     |> Option.withDefault ~default:[]
@@ -253,7 +253,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           params.ops
       in
       if hasNonHandlers
-      then (m, RPC.rpc m focus params)
+      then (m, RPC.addOp m focus params)
       else
         let localM =
           List.foldl
@@ -273,7 +273,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (Many [AutocompleteMod ACReset; processFocus localM focus])
             (localM, Cmd.none)
         in
-        (withFocus, Cmd.batch [wfCmd; RPC.rpc withFocus FocusNoChange params])
+        (withFocus, Cmd.batch [wfCmd; RPC.addOp withFocus FocusNoChange params])
     in
     match mod_ with
     | DisplayError e ->
@@ -677,7 +677,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; efpFnName = name
               ; efpArgs = args }
             in
-            (m, RPC.executeFunctionRPC m params)
+            (m, RPC.executeFunction m params)
         | None ->
             (m, Cmd.none)
             |> updateMod
@@ -947,7 +947,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleTimers ->
       TweakModel toggleTimers
   | SaveTestButton ->
-      MakeCmd (RPC.saveTestRPC m)
+      MakeCmd (RPC.saveTest m)
   | FinishIntegrationTest ->
       EndIntegrationTest
   | StartFeatureFlag ->
@@ -998,7 +998,7 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun uf -> uf.ufTLID <> tlid)
                     m.deletedUserFunctions } ) ]
-  | RPCCallback (focus, _, Ok r) ->
+  | AddOpRPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then
         Many
@@ -1079,7 +1079,7 @@ let update_ (msg : msg) (m : model) : modification =
       else NoChange
   | New404Push (f404, ts) ->
       Append404s ([f404], ts)
-  | GetDelete404RPCCallback (Ok (f404s, ts)) ->
+  | Delete404RPCCallback (Ok (f404s, ts)) ->
       Set404s (f404s, ts)
   | ReceiveAnalysis result ->
     ( match result with
@@ -1104,7 +1104,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; Append404s (f404s, ts)
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
-  | RPCCallback (_, _, Error err) ->
+  | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
@@ -1114,7 +1114,7 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("InitialLoad", err)
   | GetAnalysisRPCCallback (_, Error err) ->
       DisplayAndReportHttpError ("GetAnalysis", err)
-  | GetDelete404RPCCallback (Error err) ->
+  | Delete404RPCCallback (Error err) ->
       DisplayAndReportHttpError ("Delete404", err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
@@ -1156,7 +1156,7 @@ let update_ (msg : msg) (m : model) : modification =
             ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
         ; Delete404 fof ]
   | Delete404 fof ->
-      MakeCmd (RPC.delete404RPC m fof)
+      MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
         (fun m ->

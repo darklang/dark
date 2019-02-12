@@ -38,15 +38,22 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; withCredentials = false }
 
 
-let rpc (m : model) (focus : focus) (params : rpcParams) : msg Tea.Cmd.t =
+let opsParams (ops : op list) : addOpRPCParams = {ops}
+
+let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
+    =
   let url = String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/rpc"] in
   let request =
-    postJson Decoders.rpc m.csrfToken url (Encoders.rpcParams params)
+    postJson
+      Decoders.addOpRPCResult
+      m.csrfToken
+      url
+      (Encoders.addOpRPCParams params)
   in
-  Tea.Http.send (fun x -> RPCCallback (focus, params, x)) request
+  Tea.Http.send (fun x -> AddOpRPCCallback (focus, params, x)) request
 
 
-let executeFunctionRPC (m : model) (params : executeFunctionRPCParams) :
+let executeFunction (m : model) (params : executeFunctionRPCParams) :
     msg Tea.Cmd.t =
   let url =
     String.concat
@@ -54,7 +61,7 @@ let executeFunctionRPC (m : model) (params : executeFunctionRPCParams) :
   in
   let request =
     postJson
-      Decoders.executeFunctionRPC
+      Decoders.executeFunctionRPCResult
       m.csrfToken
       url
       (Encoders.executeFunctionRPCParams params)
@@ -62,57 +69,49 @@ let executeFunctionRPC (m : model) (params : executeFunctionRPCParams) :
   Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
 
 
-let getAnalysisRPC (m : model) (params : getAnalysisParams) : msg Tea.Cmd.t =
+let getAnalysis (m : model) (params : getAnalysisRPCParams) : msg Tea.Cmd.t =
   let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/get_analysis" in
   let request =
     postJson
-      Decoders.getAnalysisRPC
+      Decoders.getAnalysisRPCResult
       m.csrfToken
       url
-      (Encoders.getAnalysisParams params)
+      (Encoders.getAnalysisRPCParams params)
   in
   Tea.Http.send (fun x -> GetAnalysisRPCCallback (params, x)) request
 
 
-let delete404RPC (m : model) (param : delete404Param) : msg Tea.Cmd.t =
+let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/delete_404"]
   in
   let request =
-    postJson
-      (Json_decode_extended.pair
-         (Json_decode_extended.list Decoders.fof)
-         Json_decode_extended.string)
-      m.csrfToken
-      url
-      (Encoders.fof param)
+    postJson Decoders.delete404RPCResult m.csrfToken url (Encoders.fof param)
   in
-  Tea.Http.send (fun x -> GetDelete404RPCCallback x) request
+  Tea.Http.send (fun x -> Delete404RPCCallback x) request
 
 
-let initialLoadRPC (m : model) (focus : focus) : msg Tea.Cmd.t =
+let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load"]
   in
-  let request = postEmptyJson Decoders.initialLoadRPC m.csrfToken url in
+  let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
   Tea.Http.send (fun x -> InitialLoadRPCCallback (focus, NoChange, x)) request
 
 
-let saveTestRPC (m : model) : msg Tea.Cmd.t =
+let saveTest (m : model) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/save_test"]
   in
-  let request = postEmptyString Json_decode_extended.string m.csrfToken url in
+  let request = postEmptyString Decoders.saveTestRPCResult m.csrfToken url in
   Tea.Http.send (fun x -> SaveTestRPCCallback x) request
 
 
-let opsParams (ops : op list) : rpcParams = {ops}
-
-let integrationRPC (m : model) (name : string) : msg Tea.Cmd.t =
+let integration (m : model) (name : string) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load"]
   in
-  let request = postEmptyJson Decoders.initialLoadRPC m.csrfToken url in
+  let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
   Tea.Http.send
     (fun x ->
       InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x) )

@@ -335,7 +335,7 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteTLForever" [tlid t]
 
 
-and rpcParams (params : Types.rpcParams) : Js.Json.t =
+and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
   object_ [("ops", ops params.ops)]
 
 
@@ -349,7 +349,7 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and getAnalysisParams (params : Types.getAnalysisParams) : Js.Json.t =
+and getAnalysisRPCParams (params : Types.getAnalysisRPCParams) : Js.Json.t =
   object_
     [("tlids", list tlid params.tlids); ("latest404", string params.latest404)]
 

@@ -256,6 +256,6 @@ module RequestAnalysis = struct
 end
 
 module RequestTraces = struct
-  external send : traceFetchContext * getAnalysisParams -> unit = "fetch"
+  external send : traceFetchContext * getAnalysisRPCParams -> unit = "fetch"
     [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end
