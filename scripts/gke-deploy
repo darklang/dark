@@ -53,6 +53,9 @@ do
     --cron-image-id=*)
       CRON_IMAGE_ID="${i/--cron-image-id=/''}"
       ;;
+    --stroller-image-id=*)
+      STROLLER_IMAGE_ID="${i/--stroller-image-id=/''}"
+      ;;
     --tunnel-image-id=*)
       TUNNEL_IMAGE_ID="${i/--tunnel-image-id=/''}"
       ;;
