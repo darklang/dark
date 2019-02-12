@@ -1149,6 +1149,11 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | AddRandom ->
       NoChange
+  | IgnoreMsg ->
+      (* Many times we have to receive a Msg and we don't actually do anything.
+       * To lower to conceptual load, we send an IgnoreMsg, rather than a
+       * different msg each time that we have to understand. *)
+      NoChange
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
