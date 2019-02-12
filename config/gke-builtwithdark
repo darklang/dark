@@ -39,7 +39,6 @@ DARK_CONFIG_DB_DBNAME=postgres
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
 
 # Stroller (sidecar for pushing data to the editor)
-# not configured yet
 DARK_CONFIG_STROLLER_PORT=3001
 DARK_CONFIG_PUSHER_APP_ID=710063
 DARK_CONFIG_PUSHER_KEY=18cea57da923fba23b06
