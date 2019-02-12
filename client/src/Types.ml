@@ -253,6 +253,9 @@ and toplevel =
   ; pos : pos
   ; data : tLData }
 
+(* ---------------------- *)
+(* dvals *)
+(* ---------------------- *)
 and dhttp =
   | Redirect of string
   | Response of int * (string * string) list
@@ -290,6 +293,9 @@ and dval =
   | DOption of optionT
   | DResult of resultT
 
+(* ----------------------------- *)
+(* Mouse *)
+(* ----------------------------- *)
 and mouseEvent =
   { mePos : vPos
   ; button : int }
@@ -312,13 +318,13 @@ and cursorState =
   | SelectingCommand of tlid * id
   | Deselected
 
+(* ------------------- *)
+(* Analysis *)
+(* ------------------- *)
 and timerAction =
   | RefreshAnalysis
   | CheckUrlHashPosition
 
-(* ------------------- *)
-(* Analysis *)
-(* ------------------- *)
 and traceID = string
 
 and lvDict = dval StrDict.t
@@ -448,7 +454,7 @@ and getAnalysisResult = traces * (fourOhFour list * string) * tlid list
 and initialLoadResult = rpcResult
 
 (* ------------------- *)
-(* Autocomplete *)
+(* Autocomplete / entry *)
 (* ------------------- *)
 (* functions *)
 and parameter =
@@ -537,6 +543,15 @@ and autocompleteMod =
 
 (* | ACFilterByParamType of tipe nodeList *)
 
+(* string entry *)
+and stringEntryPermission =
+  | StringEntryAllowed
+  | StringEntryNotAllowed
+
+and stringEntryWidth =
+  | StringEntryNormalWidth
+  | StringEntryShortWidth
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -553,7 +568,6 @@ and focus =
   (* unchanged *)
   | FocusNoChange
 
-(* unchanged *)
 and clipboard = pointerData option
 
 and canvasProps =
@@ -699,18 +713,6 @@ and traceFetchResult =
   | TraceFetchSuccess of traceFetchResultData
   | TraceFetchFailure of string
 
-and predecessor = pointerData option
-
-and successor = pointerData option
-
-and stringEntryPermission =
-  | StringEntryAllowed
-  | StringEntryNotAllowed
-
-and stringEntryWidth =
-  | StringEntryNormalWidth
-  | StringEntryShortWidth
-
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
@@ -720,19 +722,20 @@ and variantTest =
   | FluidInputModel
   | PushAnalysis
 
-and class_ = string
-
-and ffIsExpanded = bool
-
 (* ----------------------------- *)
 (* FeatureFlags *)
 (* ----------------------------- *)
+and ffIsExpanded = bool
+
 and pick =
   | PickA
   | PickB
 
 and flagsVS = ffIsExpanded StrDict.t
 
+(* ----------------------------- *)
+(* Model *)
+(* ----------------------------- *)
 and syncState =
   { inFlight : bool
   ; ticks : int }
