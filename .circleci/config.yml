@@ -338,6 +338,7 @@ jobs:
           docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
           docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
           docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+          docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
           docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
       - persist_to_workspace:
           root: "."
@@ -359,6 +360,7 @@ jobs:
             --server-image-id=`cat gcr-image-ids/server` \
             --qw-image-id=`    cat gcr-image-ids/qw`     \
             --cron-image-id=`  cat gcr-image-ids/cron`   \
+            --stroller-image-id=`cat gcr-image-ids/stroller` \
             --tunnel-image-id=`cat gcr-image-ids/tunnel`
 
 
