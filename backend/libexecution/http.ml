@@ -13,10 +13,13 @@ let split_uri_path (path : string) : string list =
 
 
 let route_to_postgres_pattern (route : string) : string =
+  (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
   route
+  |> Util.string_replace "%" "\\%"
+  |> Util.string_replace "_" "\\_"
   |> split_uri_path
   |> List.map ~f:(fun segment ->
-         if String.is_prefix ~prefix:":" segment then "%%" else segment )
+         if String.is_prefix ~prefix:":" segment then "%" else segment )
   |> String.concat ~sep:"/"
   |> ( ^ ) "/"
 
@@ -38,7 +41,7 @@ let request_path_matches_route ~(route : string) (request_path : string) : bool
   let same_length = List.length split_request_path = List.length split_route in
   same_length
   && List.for_all2_exn split_request_path split_route ~f:(fun a r ->
-         r = "%%" || a = r || route_variable r <> None )
+         r = "%" || a = r || route_variable r <> None )
 
 
 let route_variables (route : string) : string list =
