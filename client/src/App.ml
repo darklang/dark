@@ -1130,8 +1130,6 @@ let update_ (msg : msg) (m : model) : modification =
       (* just receiving the subscription will cause a redraw, which uses *)
       (* the native sizing function. *)
       NoChange
-  | NothingClick _ ->
-      NoChange
   | LocationChange loc ->
       Url.changeLocation m loc
   | TimerFire (action, _) ->
