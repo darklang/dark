@@ -53,12 +53,11 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                   Event_queue.put_back transaction event `Incomplete ;
                   Ok ()
               | Some h ->
-                  ignore
-                    (Stroller.push_new_trace_id
-                       ~execution_id
-                       ~canvas_id
-                       h.tlid
-                       trace_id) ;
+                  Stroller.push_new_trace_id
+                    ~execution_id
+                    ~canvas_id
+                    h.tlid
+                    trace_id ;
                   Log.infO
                     "queue_worker"
                     ~data:"Executing handler for event"
