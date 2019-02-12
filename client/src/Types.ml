@@ -620,6 +620,7 @@ and modification =
 and msg =
   | GlobalClick of mouseEvent
   | NothingClick of mouseEvent
+  | IgnoreMsg
   | ToplevelMouseDown of tlid * mouseEvent
   (* we have the actual node when ToplevelMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
