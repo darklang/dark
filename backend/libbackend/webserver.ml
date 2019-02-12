@@ -238,19 +238,21 @@ let push
   | None ->
       Log.infO "stroller not configured, skipping push" ~params:log_params
   | Some port ->
-      Log.infO "pushing via stroller" ~params:log_params ;
       let uri =
-        sprintf
-          "http://127.0.0.1:%d/canvas/%s/events/%s"
-          port
-          canvas_id_str
-          event
+        Uri.make
+          ()
+          ~scheme:"http"
+          ~host:"localhost"
+          ~port:port
+          ~path:(sprintf "canvas/%s/events/%s" canvas_id_str event)
       in
+      (* TODO stop logging uri once we are confident this works in prod *)
+      Log.infO "pushing via stroller with uri" ~params:(("uri", Uri.to_string uri) :: log_params) ;
       Lwt.async (fun () ->
           try%lwt
                 let%lwt resp, _ =
                   Clu.Client.post
-                    (Uri.of_string uri)
+                    uri
                     ~body:(Cl.Body.of_string payload)
                 in
                 let code =
