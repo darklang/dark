@@ -49,12 +49,9 @@ where
 
     match (req.method(), path_segments.as_slice()) {
         (&Method::GET, ["", ""]) => {
-            *response.body_mut() = Body::from("Try POSTing to /canvas/:uuid/events/:event");
-        }
-        (&Method::GET, ["", "x", "alive"]) => {
             *response.body_mut() = Body::from("OK");
         }
-        (&Method::POST, ["", "x", "pre_stop"]) => {
+        (&Method::POST, ["", "pkill"]) => {
             println!("Entering shutdown mode, no more requests will be processed.");
 
             shutting_down.store(true, Ordering::Release);
@@ -136,7 +133,7 @@ mod tests {
 
     #[test]
     fn responds_ok() {
-        let resp = handle(&not_shutting_down(), CLIENT, get("/x/alive")).wait();
+        let resp = handle(&not_shutting_down(), CLIENT, get("/")).wait();
 
         assert_eq!(resp.unwrap().status(), 200);
     }
@@ -162,13 +159,13 @@ mod tests {
     fn stops_accepting_after_pre_stop() {
         let shutting_down = Arc::new(AtomicBool::new(false));
 
-        let req = Request::post("/x/pre_stop").body(Body::empty()).unwrap();
+        let req = Request::post("/pkill").body(Body::empty()).unwrap();
         let resp = handle(&shutting_down, CLIENT, req).wait();
 
         assert_eq!(resp.unwrap().status(), 202);
         assert!(shutting_down.load(Ordering::Acquire));
 
-        let resp = handle(&shutting_down, CLIENT, get("/x/alive")).wait();
+        let resp = handle(&shutting_down, CLIENT, get("/")).wait();
         assert_eq!(resp.unwrap().status(), 503);
     }
 }
