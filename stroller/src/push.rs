@@ -240,7 +240,6 @@ impl ManageConnection for PusherClientManager {
     type Error = PusherError;
 
     fn connect(&self) -> Result<PusherClient, PusherError> {
-        println!("PusherClientManager.connect");
         Ok(PusherClient::new(
             &self.cluster,
             &self.app_id,
