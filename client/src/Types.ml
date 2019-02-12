@@ -429,8 +429,8 @@ and getAnalysisRPCParams =
   ; ignoreTraces : bool
   (*
    * Whether we should ignore the 404s and traces in the analysis result.
-   * Temporary warts used when the PushAnalysis variant is true, since in that
-   * case we are getting new 404s and traces pushed directly via New404Push and
+   * Temporary warts used during the PushAnalysis project, since 
+   * we are getting new 404s and traces pushed directly via New404Push and
    * NewTracePush instead.
    *)
   }
@@ -733,7 +733,6 @@ and variantTest =
   | StubVariant
   (* just a stub *)
   | FluidInputModel
-  | PushAnalysis
 
 (* ----------------------------- *)
 (* FeatureFlags *)

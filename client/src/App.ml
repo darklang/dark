@@ -1074,9 +1074,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
   | NewTracePush (tlid, traceID) ->
-      if VariantTesting.variantIsActive m PushAnalysis
-      then AddUnfetchedTrace (tlid, traceID)
-      else NoChange
+      AddUnfetchedTrace (tlid, traceID)
   | New404Push (f404, ts) ->
       Append404s ([f404], ts)
   | Delete404RPCCallback (Ok (f404s, ts)) ->
@@ -1127,8 +1125,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-        let ignorePushed = VariantTesting.variantIsActive m PushAnalysis in
-        GetAnalysisRPC (ignorePushed, ignorePushed)
+        GetAnalysisRPC (true, true)
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
   | IgnoreMsg ->
