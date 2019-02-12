@@ -159,7 +159,7 @@ let eventNoDefault
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
-  eventNoPropagation ~key:"" name (fun e -> NothingClick e)
+  eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
 
 let placeHtml (pos : pos) (html : msg Html.html) : msg Html.html =
