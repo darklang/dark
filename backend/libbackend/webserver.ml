@@ -243,17 +243,17 @@ let push
           ()
           ~scheme:"http"
           ~host:"localhost"
-          ~port:port
+          ~port
           ~path:(sprintf "canvas/%s/events/%s" canvas_id_str event)
       in
       (* TODO stop logging uri once we are confident this works in prod *)
-      Log.infO "pushing via stroller with uri" ~params:(("uri", Uri.to_string uri) :: log_params) ;
+      Log.infO
+        "pushing via stroller with uri"
+        ~params:(("uri", Uri.to_string uri) :: log_params) ;
       Lwt.async (fun () ->
           try%lwt
                 let%lwt resp, _ =
-                  Clu.Client.post
-                    uri
-                    ~body:(Cl.Body.of_string payload)
+                  Clu.Client.post uri ~body:(Cl.Body.of_string payload)
                 in
                 let code =
                   resp |> CResponse.status |> Cohttp.Code.code_of_status
