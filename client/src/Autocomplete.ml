@@ -16,7 +16,7 @@ let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
 
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
-    (fun x -> FocusAutocompleteItem x)
+    (fun _ -> IgnoreMsg)
     (Tea_task.nativeBinding (fun _ ->
          let open Webapi.Dom in
          match Document.getElementById "autocomplete-holder" document with

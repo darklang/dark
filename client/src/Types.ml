@@ -633,10 +633,6 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
-  | FocusEntry of (unit, Dom.errorEvent) Tea.Result.t
-      [@printer opaque "FocusEntry"]
-  | FocusAutocompleteItem of (unit, Dom.errorEvent) Tea.Result.t
-      [@printer opaque "FocusAutocompleteItem"]
   | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t
       [@printer opaque "RPCCallback"]
   | SaveTestRPCCallback of (string, httpError) Tea.Result.t

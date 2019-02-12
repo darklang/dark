@@ -1130,11 +1130,7 @@ let update_ (msg : msg) (m : model) : modification =
       (* just receiving the subscription will cause a redraw, which uses *)
       (* the native sizing function. *)
       NoChange
-  | FocusEntry _ ->
-      NoChange
   | NothingClick _ ->
-      NoChange
-  | FocusAutocompleteItem _ ->
       NoChange
   | LocationChange loc ->
       Url.changeLocation m loc
