@@ -182,7 +182,7 @@ sub_assets_upload() {
 
 sub_assets_upload_help(){
   cat << EOF > /dev/stdout
-Usage: $progname assets upload --canvas=<canvas> [--host=<host>] --user=<user> --password=<password> <path(s)>
+Usage: $progname assets upload --canvas=<?> --user=<?> --password=<?> [--host=<?>] <path(s)>
 
 You may replace --password with a DARK_PASSWORD environment variable.  (This is your user's password.)
 
