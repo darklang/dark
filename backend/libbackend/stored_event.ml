@@ -85,6 +85,27 @@ let load_events
              Exception.internal "Bad DB format for stored_events" )
 
 
+let load_event_ids
+    ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
+    Uuidm.t list =
+  let route = Http.route_to_postgres_pattern route in
+  Db.fetch
+    ~name:"load_events"
+    "SELECT trace_id FROM stored_events_v2
+    WHERE canvas_id = $1
+      AND module = $2
+      AND path LIKE $3
+      AND modifier = $4
+    ORDER BY timestamp DESC
+    LIMIT 10"
+    ~params:[Uuid canvas_id; String module_; String route; String modifier]
+  |> List.map ~f:(function
+         | [trace_id] ->
+             Util.uuid_of_string trace_id
+         | _ ->
+             Exception.internal "Bad DB format for stored_events" )
+
+
 let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
   Db.run
     ~name:"stored_event.clear_events"

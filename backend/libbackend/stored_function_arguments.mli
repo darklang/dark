@@ -10,3 +10,5 @@ val store :
 
 val load_for_analysis :
   canvas_id:Uuidm.t -> Types.tlid -> (Uuidm.t * Analysis_types.input_vars) list
+
+val load_traceids : canvas_id:Uuidm.t -> Types.tlid -> Uuidm.t list
