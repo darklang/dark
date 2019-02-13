@@ -242,7 +242,7 @@ let push
         Uri.make
           ()
           ~scheme:"http"
-          ~host:"localhost"
+          ~host:"127.0.0.1"
           ~port
           ~path:(sprintf "canvas/%s/events/%s" canvas_id_str event)
       in
