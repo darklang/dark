@@ -42,7 +42,9 @@ let opsParams (ops : op list) : addOpRPCParams = {ops}
 
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
     =
-  let url = String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/rpc"] in
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/add_op"]
+  in
   let request =
     postJson
       Decoders.addOpRPCResult

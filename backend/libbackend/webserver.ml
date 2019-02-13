@@ -508,10 +508,12 @@ let static_assets_upload_handler
   with _ -> respond ~execution_id `Not_found "Not found"
 
 
-let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
+let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, params = time "1-read-api-ops" (fun _ -> Api.to_rpc_params body) in
+    let t1, params =
+      time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
+    in
     let tlids = List.filter_map ~f:Op.tlidOf params.ops in
     let t2, c =
       time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host params.ops)
@@ -535,7 +537,7 @@ let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
     in
     let t6, result =
       time "6-to-frontend" (fun _ ->
-          Analysis.to_rpc_response_frontend !c (hvals @ fvals) unlocked )
+          Analysis.to_add_op_rpc_result !c (hvals @ fvals) unlocked )
     in
     let t7, _ =
       time "7-save-to-disk" (fun _ ->
@@ -560,7 +562,7 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
   in
   let t3, result =
     time "3-to-frontend" (fun _ ->
-        Analysis.to_initial_load_response_frontend !c unlocked )
+        Analysis.to_initial_load_rpc_result !c unlocked )
   in
   respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
 
@@ -568,7 +570,7 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
 let execute_function ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
-    time "1-read-api-ops" (fun _ -> Api.to_execute_function_params body)
+    time "1-read-api-ops" (fun _ -> Api.to_execute_function_rpc_params body)
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
@@ -586,9 +588,8 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t4, response =
     time "4-to-frontend" (fun _ ->
-        Analysis.to_execute_function_response_frontend
-          (Dval.hash params.args)
-          result )
+        Analysis.to_execute_function_rpc_result (Dval.hash params.args) result
+    )
   in
   respond
     ~execution_id
@@ -602,7 +603,7 @@ let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
   try
     let req_time = Time.now () in
     let t1, params =
-      time "1-read-api-tlids" (fun _ -> Api.to_analysis_params body)
+      time "1-read-api-tlids" (fun _ -> Api.to_get_analysis_rpc_params body)
     in
     let tlids = params.tlids in
     let t2, c =
@@ -630,7 +631,7 @@ let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
     in
     let t7, result =
       time "7-to-frontend" (fun _ ->
-          Analysis.to_getanalysis_frontend
+          Analysis.to_get_analysis_rpc_result
             req_time
             (hvals @ fvals)
             unlocked
@@ -926,9 +927,10 @@ let admin_api_handler
   | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
       save_test_handler ~execution_id canvas
   (* Canvas API *)
-  | `POST, ["api"; canvas; "rpc"] ->
+  | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
+  | `POST, ["api"; canvas; "add_op"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (admin_rpc_handler ~execution_id canvas body) )
+          wrap_json_headers (admin_add_op_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "initial_load"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (initial_load ~execution_id canvas body) )

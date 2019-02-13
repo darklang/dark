@@ -157,20 +157,20 @@ let call_function
 
 type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
 
-type get_analysis_response =
+type get_analysis_rpc_result =
   { traces : tlid_trace list
   ; unlocked_dbs : tlid list
   ; fofs : fofs [@key "404s"] }
 [@@deriving to_yojson]
 
-let to_getanalysis_frontend
+let to_get_analysis_rpc_result
     (req_time : RTT.time)
     (traces : tlid_trace list)
     (unlocked : tlid list)
     (f404s : SE.four_oh_four list)
     (c : canvas) : string =
   {traces; unlocked_dbs = unlocked; fofs = (f404s, req_time)}
-  |> get_analysis_response_to_yojson
+  |> get_analysis_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
@@ -192,7 +192,7 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
  * appearing in toplevels again. *)
 
 (* A subset of responses to be merged in *)
-type rpc_response =
+type add_op_rpc_result =
   { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
   ; toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
@@ -204,7 +204,7 @@ type rpc_response =
   (* replace *) }
 [@@deriving to_yojson]
 
-let to_rpc_response_frontend
+let to_add_op_rpc_result
     (c : canvas) (traces : tlid_trace list) (unlocked : tlid list) : string =
   { new_traces = traces
   ; toplevels = c.dbs @ c.handlers
@@ -212,12 +212,12 @@ let to_rpc_response_frontend
   ; user_functions = c.user_functions
   ; deleted_user_functions = c.deleted_user_functions
   ; unlocked_dbs = unlocked }
-  |> rpc_response_to_yojson
+  |> add_op_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
 (* Initial load *)
-type initial_load_response =
+type initial_load_rpc_result =
   { toplevels : TL.toplevel_list
   ; deleted_toplevels : TL.toplevel_list
   ; user_functions : RTT.user_fn list
@@ -225,24 +225,23 @@ type initial_load_response =
   ; unlocked_dbs : tlid list }
 [@@deriving to_yojson]
 
-let to_initial_load_response_frontend (c : canvas) (unlocked : tlid list) :
-    string =
+let to_initial_load_rpc_result (c : canvas) (unlocked : tlid list) : string =
   { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
   ; deleted_user_functions = c.deleted_user_functions
   ; unlocked_dbs = unlocked }
-  |> initial_load_response_to_yojson
+  |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
 (* Execute function *)
-type execute_function_response =
+type execute_function_rpc_result =
   { result : RTT.dval
   ; hash : string }
 [@@deriving to_yojson]
 
-let to_execute_function_response_frontend hash dv : string =
+let to_execute_function_rpc_result hash dv : string =
   {result = dv; hash}
-  |> execute_function_response_to_yojson
+  |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
