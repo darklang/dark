@@ -403,7 +403,7 @@ body #grid * {
 
     .header {
       width: 100%;
-      color: lighten(@yellow, 15%);
+      color: @yellow;
 
       .title {
         margin-right: 5px;
@@ -420,7 +420,7 @@ body #grid * {
 
     .button-link, .external {
       .default-link;
-
+      
       display: inline-block;
       width: 16px;
       margin: 0 2px;
@@ -441,10 +441,6 @@ body #grid * {
 
       &:hover {
         background-color: @black1;
-      }
-
-      &.selected a {
-        color: saturate(@yellow, 10%) !important;
       }
 
       .name {
@@ -474,7 +470,7 @@ body #grid * {
       display: inline-block;
       text-align: right;
       margin-right: 4px;
-
+      
       &.verb-link {
         text-decoration: none;
       }
