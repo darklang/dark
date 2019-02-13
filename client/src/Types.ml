@@ -358,10 +358,11 @@ and traceFetchContext =
 
 and traceID = string
 
-and trace =
-  { traceID : traceID
-  ; input : inputValueDict
+and traceData =
+  { input : inputValueDict
   ; functionResults : functionResult list }
+
+and trace = traceID * traceData option
 
 and traceIDs = traceID list StrDict.t
 
@@ -437,7 +438,8 @@ and getAnalysisRPCParams =
 
 and performAnalysisParams =
   { handler : handler
-  ; trace : trace
+  ; traceID : traceID
+  ; traceData : traceData
   ; dbs : dB list
   ; userFns : userFunction list }
 
@@ -477,7 +479,7 @@ and initialLoadRPCResult =
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : tlid list
   ; fofs : fourOhFour list
-  ; traces : (tlid * string) list }
+  ; traces : (tlid * traceID) list }
 
 and saveTestRPCResult = string
 
@@ -802,7 +804,6 @@ and model =
       (* analysed are in analysis *)
   ; deletedToplevels : toplevel list
   ; traces : traces
-  ; unfetchedTraces : traceIDs
   ; analyses : analyses
   ; f404s : fourOhFour list
   ; unlockedDBs : tlid list

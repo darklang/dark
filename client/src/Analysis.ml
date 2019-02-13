@@ -32,7 +32,7 @@ let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   let traceID =
     StrDict.get ~key:(deTLID tlid) m.traces
     |> Option.andThen ~f:(List.getAt ~index:traceIndex)
-    |> Option.map ~f:(fun x -> x.traceID)
+    |> Option.map ~f:Tuple2.first
     |> Option.withDefault ~default:"invalid trace key"
   in
   (* only handlers have analysis results, but lots of stuff expect this *)
@@ -150,12 +150,18 @@ let replaceFunctionResult
            ml
            |> Option.withDefault
                 ~default:
-                  [ { traceID
-                    ; input = StrDict.empty
-                    ; functionResults = [newResult] } ]
-           |> List.map ~f:(fun t ->
-                  if t.traceID = traceID
-                  then {t with functionResults = newResult :: t.functionResults}
+                  [ ( traceID
+                    , Some
+                        {input = StrDict.empty; functionResults = [newResult]}
+                    ) ]
+           |> List.map ~f:(fun ((tid, tdata) as t) ->
+                  if tid = traceID
+                  then
+                    ( tid
+                    , Option.map tdata ~f:(fun tdata ->
+                          { tdata with
+                            functionResults =
+                              newResult :: tdata.functionResults } ) )
                   else t )
            |> fun x -> Some x )
   in

@@ -84,6 +84,13 @@ module StrDict = struct
         Format.pp_print_string fmt ",  " ) ;
     Format.pp_print_string fmt "}" ;
     ()
+
+
+  let merge
+      (dict1 : 'v1 t)
+      (dict2 : 'v2 t)
+      ~(f : key -> 'v1 option -> 'v2 option -> 'v3 option) : 'v3 t =
+    Map.merge dict1 dict2 f
 end
 
 module Regex = struct

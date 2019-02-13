@@ -357,7 +357,8 @@ and getAnalysisRPCParams (params : Types.getAnalysisRPCParams) : Js.Json.t =
 and performAnalysisParams (params : Types.performAnalysisParams) : Js.Json.t =
   object_
     [ ("handler", handler params.handler)
-    ; ("trace", trace params.trace)
+    ; ("traceid", traceID params.traceID)
+    ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns) ]
 
@@ -520,11 +521,17 @@ and functionResult (fr : Types.functionResult) : Js.Json.t =
     [string fr.fnName; id fr.callerID; string fr.argHash; dval fr.value]
 
 
-and trace (t : Types.trace) : Js.Json.t =
+and traceID = string
+
+and traceData (t : Types.traceData) : Js.Json.t =
   object_
     [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
-    ; ("function_results", list functionResult t.functionResults)
-    ; ("id", string t.traceID) ]
+    ; ("function_results", list functionResult t.functionResults) ]
+
+
+and trace (t : Types.trace) : Js.Json.t =
+  let data v = Option.map ~f:traceData v |> Option.withDefault ~default:null in
+  pair traceID data t
 
 
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =

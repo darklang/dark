@@ -49,14 +49,17 @@ let asValue (inputValue : inputValueDict) : string =
 
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     =
-  let traceToHtml idx trace =
-    let value = asValue trace.input in
+  let traceToHtml idx ((traceid, traceData) : trace) =
+    let value =
+      Option.map ~f:(fun td -> asValue td.input) traceData
+      |> Option.withDefault ~default:"<loading>"
+    in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive = Analysis.cursor_ vs.tlCursors vs.tl.id = idx in
     let hoverID = tlCursorID vs.tl.id idx in
     let isHover = vs.hovering = Some hoverID in
     let astTipe =
-      StrDict.get ~key:trace.traceID vs.analyses
+      StrDict.get ~key:traceid vs.analyses
       |> Option.map ~f:(fun x -> x.liveValues)
       |> Option.andThen ~f:(StrDict.get ~key:astID)
       |> Option.map ~f:Runtime.typeOf
