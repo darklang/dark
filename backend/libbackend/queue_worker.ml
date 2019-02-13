@@ -27,8 +27,9 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
               let desc = Event_queue.to_event_desc event in
               let trace_id = Util.create_uuid () in
               let canvas_id = !c.id in
-              ignore
-                (Stored_event.store_event ~trace_id ~canvas_id desc event.value) ;
+              let event_timestamp =
+                Stored_event.store_event ~trace_id ~canvas_id desc event.value
+              in
               let h =
                 !c.handlers
                 |> List.filter_map ~f:TL.as_handler
@@ -44,9 +45,19 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                       [ ("execution_id", Log.dump execution_id)
                       ; ("host", host)
                       ; ("event", Log.dump desc) ] ;
+                  let space, name, modifier = desc in
+                  Stroller.push_new_404
+                    ~execution_id
+                    ~canvas_id
+                    (space, name, modifier, event_timestamp) ;
                   Event_queue.put_back transaction event `Incomplete ;
                   Ok ()
               | Some h ->
+                  Stroller.push_new_trace_id
+                    ~execution_id
+                    ~canvas_id
+                    h.tlid
+                    trace_id ;
                   Log.infO
                     "queue_worker"
                     ~data:"Executing handler for event"
