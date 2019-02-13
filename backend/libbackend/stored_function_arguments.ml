@@ -51,3 +51,21 @@ let load_for_analysis ~canvas_id tlid :
          | _ ->
              Exception.internal
                "Bad DB format for stored_functions.load_for_analysis" )
+
+
+let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
+  Db.fetch
+    ~name:"stored_function_arguments.load_traceids"
+    "SELECT trace_id
+     FROM function_arguments
+     WHERE canvas_id = $1
+       AND tlid = $2
+     ORDER BY timestamp DESC
+       LIMIT 10"
+    ~params:[Db.Uuid canvas_id; Db.ID tlid]
+  |> List.map ~f:(function
+         | [trace_id] ->
+             Util.uuid_of_string trace_id
+         | _ ->
+             Exception.internal
+               "Bad DB format for stored_functions.load_for_analysis" )

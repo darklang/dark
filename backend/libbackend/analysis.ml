@@ -121,6 +121,18 @@ let traces_for_handler (c : canvas) (h : RTT.HandlerT.handler) : trace list =
       {input = input_vars; function_results; id = trace_id} )
 
 
+let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
+    =
+  h
+  |> Handler.event_desc_for
+  |> Option.map ~f:(SE.load_event_ids ~canvas_id:c.id)
+  |> Option.value ~default:[]
+
+
+let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
+  Stored_function_arguments.load_traceids c.id fn.tlid
+
+
 (* ------------------------- *)
 (* function execution *)
 (* ------------------------- *)
@@ -222,15 +234,23 @@ type initial_load_rpc_result =
   ; deleted_toplevels : TL.toplevel_list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
-  ; unlocked_dbs : tlid list }
+  ; unlocked_dbs : tlid list
+  ; fofs : SE.four_oh_four list
+  ; traces : tlid_traceid list }
 [@@deriving to_yojson]
 
-let to_initial_load_rpc_result (c : canvas) (unlocked : tlid list) : string =
+let to_initial_load_rpc_result
+    (c : canvas)
+    (fofs : SE.four_oh_four list)
+    (traces : tlid_traceid list)
+    (unlocked_dbs : tlid list) : string =
   { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
   ; deleted_user_functions = c.deleted_user_functions
-  ; unlocked_dbs = unlocked }
+  ; unlocked_dbs
+  ; fofs
+  ; traces }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

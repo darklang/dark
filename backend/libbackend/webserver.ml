@@ -560,11 +560,38 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
   let t2, unlocked =
     time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
   in
-  let t3, result =
-    time "3-to-frontend" (fun _ ->
-        Analysis.to_initial_load_rpc_result !c unlocked )
+  let t3, f404s =
+    let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+    time "3-get-404s" (fun _ -> Analysis.get_404s ~since:latest !c)
   in
-  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  let t4, traces =
+    time "4-traces" (fun _ ->
+        let htraces =
+          !c.handlers
+          |> TL.handlers
+          |> List.map ~f:(fun h ->
+                 Analysis.traceids_for_handler !c h
+                 |> List.map ~f:(fun traceid -> (h.tlid, traceid)) )
+          |> List.concat
+        in
+        let uftraces =
+          !c.user_functions
+          |> List.map ~f:(fun uf ->
+                 Analysis.traceids_for_user_fn !c uf
+                 |> List.map ~f:(fun traceid -> (uf.tlid, traceid)) )
+          |> List.concat
+        in
+        htraces @ uftraces )
+  in
+  let t5, result =
+    time "5-to-frontend" (fun _ ->
+        Analysis.to_initial_load_rpc_result !c f404s traces unlocked )
+  in
+  respond
+    ~execution_id
+    ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+    `OK
+    result
 
 
 let execute_function ~(execution_id : Types.id) (host : string) body :
