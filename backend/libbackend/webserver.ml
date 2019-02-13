@@ -227,58 +227,6 @@ let options_handler
     ""
 
 
-let push
-    ~(execution_id : Types.id)
-    ~(canvas_id : Uuidm.t)
-    ~(event : string)
-    (payload : string) =
-  let canvas_id_str = Uuidm.to_string canvas_id in
-  let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
-  match Config.stroller_port with
-  | None ->
-      Log.infO "stroller not configured, skipping push" ~params:log_params
-  | Some port ->
-      let uri =
-        Uri.make
-          ()
-          ~scheme:"http"
-          ~host:"127.0.0.1"
-          ~port
-          ~path:(sprintf "canvas/%s/events/%s" canvas_id_str event)
-      in
-      (* TODO stop logging uri once we are confident this works in prod *)
-      Log.infO
-        "pushing via stroller with uri"
-        ~params:(("uri", Uri.to_string uri) :: log_params) ;
-      Lwt.async (fun () ->
-          try%lwt
-                let%lwt resp, _ =
-                  Clu.Client.post uri ~body:(Cl.Body.of_string payload)
-                in
-                let code =
-                  resp |> CResponse.status |> Cohttp.Code.code_of_status
-                in
-                Log.infO
-                  "pushed via stroller"
-                  ~params:(("status", string_of_int code) :: log_params) ;
-                Lwt.return ()
-          with e ->
-            let bt = Exception.get_backtrace () in
-            let%lwt _ =
-              Rollbar.report_lwt e bt (Push event) (Types.show_id execution_id)
-            in
-            Lwt.return () )
-
-
-let push_new_trace_id
-    ~(execution_id : Types.id)
-    ~(canvas_id : Uuidm.t)
-    (tlid : Types.tlid)
-    (trace_id : Uuidm.t) =
-  let payload = Analysis.to_new_trace_frontend (tlid, trace_id) in
-  push ~execution_id ~canvas_id ~event:"new_trace" payload
-
-
 let result_to_response
     ~(c : Canvas.canvas ref)
     ~(execution_id : Types.id)
@@ -342,14 +290,6 @@ let result_to_response
       respond ~resp_headers ~execution_id `OK body
 
 
-let push_new_404
-    ~(execution_id : Types.id)
-    ~(canvas_id : Uuidm.t)
-    (fof : Stored_event.four_oh_four) =
-  let payload = Analysis.to_new_404_frontend fof in
-  push ~execution_id ~canvas_id ~event:"new_404" payload
-
-
 let user_page_handler
     ~(execution_id : Types.id)
     ~(canvas : string)
@@ -384,7 +324,7 @@ let user_page_handler
              ~canvas_id
              ("HTTP", Uri.path uri, verb)
       in
-      push_new_404
+      Stroller.push_new_404
         ~execution_id
         ~canvas_id
         ("HTTP", Uri.path uri, verb, fof_timestamp) ;
@@ -437,7 +377,7 @@ let user_page_handler
             (Stored_function_arguments.store ~canvas_id ~trace_id)
           ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
       in
-      push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
+      Stroller.push_new_trace_id ~execution_id ~canvas_id page.tlid trace_id ;
       result_to_response ~c ~execution_id ~req result
 
 
