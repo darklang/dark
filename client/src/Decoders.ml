@@ -274,6 +274,8 @@ and functionResult j : functionResult =
   {fnName; callerID; argHash; value}
 
 
+and traceID j : traceID = wireIdentifier j
+
 and traceIDs j : traceIDs =
   j |> list (tuple2 wireIdentifier (list string)) |> StrDict.fromList
 
@@ -282,11 +284,12 @@ and traces j : traces =
   j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
 
 
-and trace j : trace =
-  { traceID = field "id" string j
-  ; input = field "input" inputValueDict j
+and traceData j : traceData =
+  { input = field "input" inputValueDict j
   ; functionResults = field "function_results" (list functionResult) j }
 
+
+and trace j : trace = pair traceID (optional traceData) j
 
 and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
@@ -310,7 +313,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; unlockedDBs = field "unlocked_dbs" (list tlid) j
   ; fofs = field "fofs" (list fof) j
-  ; traces = field "traces" (list (pair tlid string)) j }
+  ; traces = field "traces" (list (pair tlid traceID)) j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =

@@ -537,11 +537,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           Tea_cmd.call (fun _ -> Analysis.RequestAnalysis.send s)
         in
         let req h =
-          let trace = Analysis.getCurrentTrace m h.tlid in
-          let param t = {handler = h; trace = t; dbs; userFns} in
-          trace
-          |> Option.map ~f:(fun t -> requestAnalysis (param t))
-          |> Option.toList
+          match Analysis.getCurrentTrace m h.tlid with
+          | Some (traceID, Some traceData) ->
+              [requestAnalysis {handler = h; traceID; traceData; dbs; userFns}]
+          | _ ->
+              []
         in
         (m, Cmd.batch (handlers |> List.map ~f:req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
@@ -549,7 +549,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          Belt.Map.String.merge m.traces traces (fun _ maybeOld maybeNew ->
+          StrDict.merge m.traces traces ~f:(fun _ maybeOld maybeNew ->
               match (maybeOld, maybeNew) with
               | None, None ->
                   None
@@ -560,9 +560,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | Some _, Some n ->
                   Some n )
         in
-        let m2 =
-          {m with traces = newTraces; unfetchedTraces = Belt.Map.String.empty}
-        in
+        let m2 = {m with traces = newTraces} in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
       ->
@@ -578,23 +576,20 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         processAutocompleteMods m2 [ACRegenerate]
     | AddUnfetchedTrace (tlid, traceID) ->
+        let newTraces =
+          StrDict.update m.traces ~key:(deTLID tlid) ~f:(fun maybeOld ->
+              (* Just add the new trace to the front, since we (probably?)
+               * don't know about it. We might actually know it already though,
+               * so we should fix this later to handle that case. *)
+              match maybeOld with
+              | None ->
+                  Some [(traceID, None)]
+              | Some list ->
+                  Some ((traceID, None) :: list) )
+        in
+        let m = {m with traces = newTraces} in
         if Some tlid = tlidOf m.cursorState
-        then
-          let unfetchedTraces =
-            Belt.Map.String.update
-              m.unfetchedTraces
-              (deTLID tlid)
-              (fun maybeOld ->
-                match maybeOld with
-                | None ->
-                    Some [traceID]
-                | Some o ->
-                    Some (traceID :: o) )
-          in
-          Sync.fetch
-            ~ignoreTraces:false
-            ~ignore404s:true
-            {m with unfetchedTraces}
+        then Sync.fetch ~ignoreTraces:false ~ignore404s:true m
         else (m, Cmd.none)
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
@@ -666,13 +661,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionRPC (tlid, id, name) ->
       ( match Analysis.getCurrentTrace m tlid with
-      | Some trace ->
-        ( match Analysis.getArguments m tlid trace.traceID id with
+      | Some (traceID, _) ->
+        ( match Analysis.getArguments m tlid traceID id with
         | Some args ->
             let params =
               { efpTLID = tlid
               ; efpCallerID = id
-              ; efpTraceID = trace.traceID
+              ; efpTraceID = traceID
               ; efpFnName = name
               ; efpArgs = args }
             in

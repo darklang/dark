@@ -101,7 +101,7 @@ let traces_for_user_fn (c : canvas) (fn : RTT.user_fn) : trace list =
       let function_results =
         Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
       in
-      {input = input_vars; function_results; id = trace_id} )
+      (trace_id, Some {input = input_vars; function_results}) )
 
 
 let traces_for_handler (c : canvas) (h : RTT.HandlerT.handler) : trace list =
@@ -118,7 +118,7 @@ let traces_for_handler (c : canvas) (h : RTT.HandlerT.handler) : trace list =
       let function_results =
         Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
       in
-      {input = input_vars; function_results; id = trace_id} )
+      (trace_id, Some {input = input_vars; function_results}) )
 
 
 let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
@@ -170,14 +170,14 @@ let call_function
 type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
 
 type get_analysis_rpc_result =
-  { traces : tlid_trace list
+  { traces : tlid_traces list
   ; unlocked_dbs : tlid list
   ; fofs : fofs [@key "404s"] }
 [@@deriving to_yojson]
 
 let to_get_analysis_rpc_result
     (req_time : RTT.time)
-    (traces : tlid_trace list)
+    (traces : tlid_traces list)
     (unlocked : tlid list)
     (f404s : SE.four_oh_four list)
     (c : canvas) : string =
@@ -205,7 +205,7 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
 
 (* A subset of responses to be merged in *)
 type add_op_rpc_result =
-  { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
+  { new_traces : tlid_traces list (* merge: overwrite existing analyses *)
   ; toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
@@ -217,7 +217,7 @@ type add_op_rpc_result =
 [@@deriving to_yojson]
 
 let to_add_op_rpc_result
-    (c : canvas) (traces : tlid_trace list) (unlocked : tlid list) : string =
+    (c : canvas) (traces : tlid_traces list) (unlocked : tlid list) : string =
   { new_traces = traces
   ; toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
