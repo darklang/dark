@@ -475,7 +475,9 @@ and initialLoadRPCResult =
   ; deletedToplevels : toplevel list
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
-  ; unlockedDBs : tlid list }
+  ; unlockedDBs : tlid list
+  ; fofs : fourOhFour list
+  ; traces : (tlid * string) list }
 
 and saveTestRPCResult = string
 
