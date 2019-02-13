@@ -11,3 +11,5 @@ val push_new_404 :
   -> canvas_id:Uuidm.t
   -> Stored_event.four_oh_four
   -> unit
+
+val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string] Lwt.t

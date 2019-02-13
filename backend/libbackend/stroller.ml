@@ -5,6 +5,34 @@ module Cl = Cohttp_lwt
 module Clu = Cohttp_lwt_unix
 module CResponse = Clu.Response
 
+let status () =
+  match Config.stroller_port with
+  | None ->
+      Lwt.return `Unconfigured
+  | Some port ->
+      let uri = Uri.make () ~scheme:"http" ~host:"127.0.0.1" ~port ~path:"/" in
+      ( try%lwt
+              let%lwt resp, _ = Clu.Client.get uri in
+              let code =
+                resp |> CResponse.status |> Cohttp.Code.code_of_status
+              in
+              match code with
+              | 200 ->
+                  Lwt.return `Healthy
+              | _ ->
+                  Lwt.return (`Unhealthy (string_of_int code))
+        with e ->
+          let bt = Exception.get_backtrace () in
+          let%lwt _ =
+            Rollbar.report_lwt
+              e
+              bt
+              (Other "Stroller healthcheck")
+              "Stroller healthcheck"
+          in
+          Lwt.return (`Unhealthy "Exception in stroller healthcheck") )
+
+
 let push
     ~(execution_id : Types.id)
     ~(canvas_id : Uuidm.t)
