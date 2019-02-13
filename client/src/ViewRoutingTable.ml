@@ -365,8 +365,9 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let auxViews =
     Html.div [Html.class' "aux"] (verb @ ext @ minuslink @ pluslink)
   in
+  let selected = Some e.tlid = tlidOf m.cursorState in
   Html.div
-    [Html.class' "simple-route handler"]
+    [Html.classList [("simple-route handler", true); ("selected", selected)]]
     [Html.span [Html.class' "name"] mainlink; auxViews]
 
 
@@ -455,7 +456,8 @@ let rtCacheKey m =
   , m.lockedHandlers
   , m.unlockedDBs
   , m.usedDBs
-  , m.usedFns )
+  , m.usedFns
+  , tlidOf m.cursorState )
 
 
 let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
