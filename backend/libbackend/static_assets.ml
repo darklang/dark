@@ -15,7 +15,7 @@ type static_asset_error =
   | `FailureUploadingStaticAsset of string
   | `FailureDeletingStaticAsset of string ]
 
-let bucket = "dark-static-assets"
+let bucket = Config.static_assets_bucket |> Option.value ~default:""
 
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
