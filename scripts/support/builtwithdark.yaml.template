@@ -73,7 +73,11 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
-
+            - name: GOOGLE_APPLICATION_CREDENTIALS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: dark-static-assets
+                  key: balmy-ground-195100-d9b0f3de3013.json
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
           # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/128
