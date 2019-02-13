@@ -170,7 +170,7 @@ let http_request_path = "/some/vars/and/such"
 
 let http_route = "/some/:vars/:and/such"
 
-let http_route_handler : HandlerT.handler =
+let http_route_handler ?(route = http_route) () : HandlerT.handler =
   { tlid
   ; ast = f (Value "5")
   ; spec =
@@ -412,7 +412,7 @@ let t_db_oplist_roundtrip () =
 let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
-  let oplist = [Op.SetHandler (tlid, pos, http_route_handler)] in
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
@@ -1944,14 +1944,21 @@ let t_route_variables_work () =
     true
     (Http.request_path_matches_route
        "/user/myid/card/0"
-       ~route:"/user/:userid/card/:cardid")
+       ~route:"/user/:userid/card/:cardid") ;
+  AT.check
+    AT.bool
+    "Path doesnt match erroneously"
+    false
+    (Http.request_path_matches_route
+       "/api/create-token"
+       ~route:"/api/create_token")
 
 
 let t_route_variables_work_with_stored_events () =
   (* set up test *)
   clear_test_data () ;
   let host = "test-route_variables_works" in
-  let oplist = [Op.SetHandler (tlid, pos, http_route_handler)] in
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
   let c = Canvas.init host oplist in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
@@ -1978,6 +1985,32 @@ let t_route_variables_work_with_stored_events () =
   (* check that the event is not in the 404s *)
   let f404s = Analysis.get_404s ~since:Time.epoch !c in
   AT.check (AT.list (AT.of_pp Stored_event.pp_four_oh_four)) "no 404s" [] f404s ;
+  ()
+
+
+let t_route_variables_work_with_stored_events_and_wildcards () =
+  (* set up test *)
+  clear_test_data () ;
+  let host = "test-route_variables_works_with_wildcards" in
+  let route = "/api/create_token" in
+  let request_path = "/api/create-token" in
+  (* note hyphen vs undeerscore *)
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
+  let c = Canvas.init host oplist in
+  Canvas.serialize_only [tlid] !c ;
+  let t1 = Util.create_uuid () in
+  let desc = ("HTTP", request_path, "GET") in
+  let route = ("HTTP", route, "GET") in
+  (* store an event and check it comes out *)
+  ignore
+    (SE.store_event
+       ~canvas_id:!c.id
+       ~trace_id:t1
+       desc
+       (Dval.dstr_of_string_exn "1")) ;
+  (* check we get back the path for a route with a variable in it *)
+  let loaded1 = SE.load_events ~canvas_id:!c.id route in
+  check_dval_list "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;
   ()
 
 
@@ -2273,6 +2306,9 @@ let suite =
   ; ( "Route variables work with stored events"
     , `Quick
     , t_route_variables_work_with_stored_events )
+  ; ( "Route variables work with stored events and wildcards"
+    , `Quick
+    , t_route_variables_work_with_stored_events_and_wildcards )
   ; ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
     , t_string_length_v1_works_on_emoji )
