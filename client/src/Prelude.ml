@@ -49,8 +49,8 @@ let tlidOf (s : cursorState) : tlid option =
         Some tlid )
   | Deselected ->
       None
-  | Dragging (_, _, _, _) ->
-      None
+  | Dragging (tlid, _, _, _) ->
+      Some tlid
   | SelectingCommand (tlid, _) ->
       Some tlid
 
