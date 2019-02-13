@@ -308,7 +308,9 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  ; unlockedDBs = field "unlocked_dbs" (list tlid) j }
+  ; unlockedDBs = field "unlocked_dbs" (list tlid) j
+  ; fofs = field "fofs" (list fof) j
+  ; traces = field "traces" (list (pair tlid string)) j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
