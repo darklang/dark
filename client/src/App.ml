@@ -58,8 +58,7 @@ let init (flagString : string) (location : Web.Location.location) =
   else
     ( m2
     , Cmd.batch
-        [ RPC.initialLoad m2 (FocusPageAndCursor (page, savedCursorState))
-        ; Sync.fetchAll m2 ] )
+        [RPC.initialLoad m2 (FocusPageAndCursor (page, savedCursorState))] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =

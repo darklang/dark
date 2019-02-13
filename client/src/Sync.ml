@@ -59,13 +59,3 @@ let fetch ~(ignoreTraces : bool) ~(ignore404s : bool) (m : model) :
               ; ignoreTraces
               ; ignore404s } ) ) )
   else (markTickInModel m, Tea.Cmd.none)
-
-
-let fetchAll m : msg Tea.Cmd.t =
-  Tea_cmd.call (fun _ ->
-      Analysis.RequestTraces.send
-        ( contextFromModel m
-        , { tlids = []
-          ; latest404 = m.latest404
-          ; ignoreTraces = false
-          ; ignore404s = false } ) )
