@@ -432,7 +432,11 @@ let exception_ j : exception_ =
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
 let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
  fun j ->
-  try Ok (fn (Json.parseOrRaise j)) with e -> Error (Printexc.to_string e)
+  try Ok (fn (Json.parseOrRaise j)) with
+  | DecodeError e ->
+      Error e
+  | e ->
+      Error (Printexc.to_string e)
 
 
 (* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
