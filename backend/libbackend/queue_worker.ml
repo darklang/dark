@@ -77,40 +77,16 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                       ~account_id:!c.owner
                       ~canvas_id
                   in
-                  ( match result with
-                  | RTT.DIncomplete ->
-                      Log.infO
-                        "queue_worker"
-                        ~data:"Got DIncomplete when executing handler"
-                        ~params:
-                          [ ("execution_id", Log.dump execution_id)
-                          ; ("event", Log.dump desc)
-                          ; ("host", host)
-                          ; ("handler_id", Log.dump h.tlid) ] ;
-                      Event_queue.put_back
-                        transaction
-                        event
-                        ~status:`Incomplete
-                  | RTT.DError _ ->
-                      Log.infO
-                        "queue_worker"
-                        ~data:"Got DError when executing handler"
-                        ~params:
-                          [ ("execution_id", Log.dump execution_id)
-                          ; ("event", Log.dump desc)
-                          ; ("host", host)
-                          ; ("handler_id", Log.dump h.tlid) ] ;
-                      Event_queue.put_back transaction event ~status:`Err
-                  | v ->
-                      Log.infO
-                        "queue_worker"
-                        ~data:"Successful execution"
-                        ~params:
-                          [ ("execution_id", Log.dump execution_id)
-                          ; ("host", host)
-                          ; ("event", Log.dump desc)
-                          ; ("handler_id", Log.dump h.tlid) ] ;
-                      Event_queue.finish transaction event ) ;
+                  Log.infO
+                    "queue_worker"
+                    ~data:"Successful execution"
+                    ~params:
+                      [ ("execution_id", Log.dump execution_id)
+                      ; ("host", host)
+                      ; ("event", Log.dump desc)
+                      ; ("handler_id", Log.dump h.tlid)
+                      ; ("result", Log.dump result) ] ;
+                  Event_queue.finish transaction event ;
                   Ok ()
             with e ->
               (* exception occurred when processing an item,
