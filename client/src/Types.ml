@@ -343,8 +343,8 @@ and functionResult =
 
 (* traces / traceFetcher *)
 and traceFetchResultData =
-  { params : getAnalysisRPCParams
-  ; result : getAnalysisRPCResult }
+  { params : getTraceDataRPCParams
+  ; result : getTraceDataRPCResult }
 
 and traceFetchResult =
   | TraceFetchSuccess of traceFetchResultData
@@ -423,18 +423,7 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and getAnalysisRPCParams =
-  { tlids : tlid list
-  ; latest404 : string
-  ; ignore404s : bool
-  ; ignoreTraces : bool
-  (*
-   * Whether we should ignore the 404s and traces in the analysis result.
-   * Temporary warts used during the PushAnalysis project, since 
-   * we are getting new 404s and traces pushed directly via New404Push and
-   * NewTracePush instead.
-   *)
-  }
+and getTraceDataRPCParams = {tlids : tlid list}
 
 and performAnalysisParams =
   { handler : handler
@@ -470,7 +459,9 @@ and delete404RPCResult = fourOhFour list * string
 
 and unlockedDBs = tlid list
 
-and getAnalysisRPCResult = traces * delete404RPCResult * unlockedDBs
+and getUnlockedDBsRPCResult = unlockedDBs
+
+and getTraceDataRPCResult = traces
 
 and initialLoadRPCResult =
   { toplevels : toplevel list
@@ -633,7 +624,7 @@ and modification =
   | EnterWithOffset of entryCursor * int
   | RPCFull of (addOpRPCParams * focus)
   | RPC of (op list * focus)
-  | GetAnalysisRPC of (bool * bool)
+  | GetUnlockedDBsRPC
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -681,9 +672,9 @@ and msg =
       [@printer opaque "AddOpRPCCallback"]
   | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
-  | GetAnalysisRPCCallback of
-      (getAnalysisRPCParams * (getAnalysisRPCResult, httpError) Tea.Result.t)
-      [@printer opaque "GetAnalysisRPCCallback"]
+  | GetUnlockedDBsRPCCallback of
+      (getUnlockedDBsRPCResult, httpError) Tea.Result.t
+      [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | New404Push of (fourOhFour * string)
   | Delete404RPCCallback of (delete404RPCResult, httpError) Tea.Result.t

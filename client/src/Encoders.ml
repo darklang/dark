@@ -349,15 +349,14 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and getAnalysisRPCParams (params : Types.getAnalysisRPCParams) : Js.Json.t =
-  object_
-    [("tlids", list tlid params.tlids); ("latest404", string params.latest404)]
+and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
+  object_ [("tlids", list tlid params.tlids)]
 
 
 and performAnalysisParams (params : Types.performAnalysisParams) : Js.Json.t =
   object_
     [ ("handler", handler params.handler)
-    ; ("traceid", traceID params.traceID)
+    ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns) ]

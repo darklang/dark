@@ -1,5 +1,5 @@
 type event =
-  < data : Types.traceFetchContext * Types.getAnalysisRPCParams [@bs.get] >
+  < data : Types.traceFetchContext * Types.getTraceDataRPCParams [@bs.get] >
   Js.t
 
 type self
@@ -19,7 +19,7 @@ let fetch (context : Types.traceFetchContext) params =
     ^ context.origin
     ^ "/api/"
     ^ context.canvasName
-    ^ "/get_analysis"
+    ^ "/get_trace_data"
   in
   Fetch.fetchWithInit
     url
@@ -27,7 +27,7 @@ let fetch (context : Types.traceFetchContext) params =
        ~method_:Post
        ~body:
          (Fetch.BodyInit.make
-            (Js.Json.stringify (Encoders.getAnalysisRPCParams params)))
+            (Js.Json.stringify (Encoders.getTraceDataRPCParams params)))
        ~headers:
          (Fetch.HeadersInit.makeWithDict
             (Js.Dict.fromList
@@ -36,7 +36,7 @@ let fetch (context : Types.traceFetchContext) params =
        ())
   |> then_ Fetch.Response.json
   |> then_ (fun resp ->
-         let result = Decoders.getAnalysisRPCResult resp in
+         let result = Decoders.getTraceDataRPCResult resp in
          resolve (postMessage self (TraceFetchSuccess {params; result})) )
   |> catch (fun err ->
          Js.log2 "traceFetch error" err ;

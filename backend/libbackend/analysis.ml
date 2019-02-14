@@ -169,20 +169,23 @@ let call_function
 
 type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
 
-type get_analysis_rpc_result =
-  { traces : tlid_traces list
-  ; unlocked_dbs : tlid list
-  ; fofs : fofs [@key "404s"] }
+type get_trace_data_rpc_result = {traces : tlid_traces list}
 [@@deriving to_yojson]
 
-let to_get_analysis_rpc_result
-    (req_time : RTT.time)
-    (traces : tlid_traces list)
-    (unlocked : tlid list)
-    (f404s : SE.four_oh_four list)
-    (c : canvas) : string =
-  {traces; unlocked_dbs = unlocked; fofs = (f404s, req_time)}
-  |> get_analysis_rpc_result_to_yojson
+let to_get_trace_data_rpc_result (traces : tlid_traces list) (c : canvas) :
+    string =
+  {traces}
+  |> get_trace_data_rpc_result_to_yojson
+  |> Yojson.Safe.to_string ~std:true
+
+
+type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
+[@@deriving to_yojson]
+
+let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
+    string =
+  {unlocked_dbs}
+  |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 

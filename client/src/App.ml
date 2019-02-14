@@ -383,8 +383,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         handleRPC (RPC.opsParams ops) focus
     | RPCFull (params, focus) ->
         handleRPC params focus
-    | GetAnalysisRPC (ignore404s, ignoreTraces) ->
-        Sync.fetch ~ignore404s ~ignoreTraces m
+    | GetUnlockedDBsRPC ->
+        (m, RPC.getUnlockedDBs m)
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -588,9 +588,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Some ((traceID, None) :: list) )
         in
         let m = {m with traces = newTraces} in
-        if Some tlid = tlidOf m.cursorState
-        then Sync.fetch ~ignoreTraces:false ~ignore404s:true m
-        else (m, Cmd.none)
+        if Some tlid = tlidOf m.cursorState then Sync.fetch m else (m, Cmd.none)
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
@@ -1047,25 +1045,8 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; RequestAnalysis [tl] ]
-  | GetAnalysisRPCCallback (params, Ok (newTraces, (f404s, ts), unlockedDBs))
-    ->
-      let analysisTLs =
-        List.filter
-          ~f:(fun tl -> List.member ~value:tl.id params.tlids)
-          m.toplevels
-      in
-      let maybeUpdateTraces =
-        if params.ignoreTraces then NoChange else UpdateTraces newTraces
-      in
-      let maybeAppend404s =
-        if params.ignore404s then NoChange else Append404s (f404s, ts)
-      in
-      Many
-        [ TweakModel Sync.markResponseInModel
-        ; maybeUpdateTraces
-        ; maybeAppend404s
-        ; SetUnlockedDBs unlockedDBs
-        ; RequestAnalysis analysisTLs ]
+  | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
+      Many [TweakModel Sync.markResponseInModel; SetUnlockedDBs unlockedDBs]
   | NewTracePush (tlid, traceID) ->
       AddUnfetchedTrace (tlid, traceID)
   | New404Push (f404, ts) ->
@@ -1083,7 +1064,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveTraces (TraceFetchFailure str) ->
       DisplayAndReportError str
   | ReceiveTraces (TraceFetchSuccess res) ->
-      let newTraces, (f404s, ts), unlockedDBs = res.result in
+      let newTraces = res.result in
       let analysisTLs =
         List.filter
           ~f:(fun tl -> List.member ~value:tl.id res.params.tlids)
@@ -1092,8 +1073,6 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel Sync.markResponseInModel
         ; UpdateTraces newTraces
-        ; Append404s (f404s, ts)
-        ; SetUnlockedDBs unlockedDBs
         ; RequestAnalysis analysisTLs ]
   | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
@@ -1103,8 +1082,8 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("InitialLoad", err)
-  | GetAnalysisRPCCallback (_, Error err) ->
-      DisplayAndReportHttpError ("GetAnalysis", err)
+  | GetUnlockedDBsRPCCallback (Error err) ->
+      DisplayAndReportHttpError ("GetUnlockedDBs", err)
   | Delete404RPCCallback (Error err) ->
       DisplayAndReportHttpError ("Delete404", err)
   | JSError msg_ ->
@@ -1118,7 +1097,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-        GetAnalysisRPC (true, true)
+        GetUnlockedDBsRPC
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
   | IgnoreMsg ->
