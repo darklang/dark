@@ -214,7 +214,11 @@ let format_string ~level (str : string) =
   str
 
 
-let dump = Vendor.dump
+let dump v : string =
+  if Obj.tag (Obj.repr v) = Obj.string_tag
+  then "'" ^ Obj.magic v ^ "'"
+  else Vendor.dump v
+
 
 let print_console_log
     ?(bt : Caml.Printexc.raw_backtrace option = None) ~decorate ~level params :
