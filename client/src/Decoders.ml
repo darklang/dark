@@ -321,7 +321,7 @@ and executeFunctionRPCResult j : executeFunctionRPCResult =
 
 and saveTestRPCResult j : saveTestRPCResult = string j
 
-and delete404RPCResult j : delete404RPCResult = pair (list fof) string j
+and delete404RPCResult j : delete404RPCResult = list fof j
 
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)

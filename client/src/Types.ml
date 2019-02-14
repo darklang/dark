@@ -453,7 +453,7 @@ and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
-and delete404RPCResult = fourOhFour list * string
+and delete404RPCResult = fourOhFour list
 
 and unlockedDBs = tlid list
 
@@ -615,8 +615,7 @@ and modification =
   | RequestAnalysis of toplevel list
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of tlid list
-  | Set404s of fourOhFour list * string
-  | Append404s of fourOhFour list * string
+  | Append404s of fourOhFour list
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
@@ -674,7 +673,7 @@ and msg =
       (getUnlockedDBsRPCResult, httpError) Tea.Result.t
       [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
-  | New404Push of (fourOhFour * string)
+  | New404Push of fourOhFour
   | Delete404RPCCallback of (delete404RPCResult, httpError) Tea.Result.t
       [@printer opaque "GetDelete404RPCCallback"]
   | InitialLoadRPCCallback of
@@ -816,7 +815,6 @@ and model =
   ; userContentHost : string
   ; environment : string
   ; csrfToken : string
-  ; latest404 : string (* string of timestamp *)
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t }

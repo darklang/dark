@@ -46,11 +46,15 @@ let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
-let fetch (m : model) : model * msg Tea.Cmd.t =
+let fetch_tlids (m : model) (tlids : tlid list) : model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState
   then
     ( markRequestInModel m
     , Tea_cmd.call (fun _ ->
-          Analysis.RequestTraces.send
-            (contextFromModel m, {tlids = toAnalyse m}) ) )
+          Analysis.RequestTraces.send (contextFromModel m, {tlids}) ) )
   else (markTickInModel m, Tea.Cmd.none)
+
+
+let fetch (m : model) : model * msg Tea.Cmd.t =
+  let tlids = toAnalyse m in
+  fetch_tlids m tlids

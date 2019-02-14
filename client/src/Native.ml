@@ -205,6 +205,34 @@ module Decoder = struct
 
   let pair = tuple2
 
+  let tuple3 decodeA decodeB decodeC =
+    let open Tea.Json.Decoder in
+    Decoder
+      (fun j ->
+        match Web.Json.classify j with
+        | JSONArray arr ->
+            if Js_array.length arr == 3
+            then
+              match
+                ( decodeValue decodeA (Array.unsafe_get arr 0)
+                , decodeValue decodeB (Array.unsafe_get arr 1)
+                , decodeValue decodeC (Array.unsafe_get arr 2) )
+              with
+              | Ok a, Ok b, Ok c ->
+                  Ok (a, b, c)
+              | Error e1, _, _ ->
+                  Error ("tuple3[0] -> " ^ e1)
+              | _, Error e2, _ ->
+                  Error ("tuple3[1] -> " ^ e2)
+              | _, _, Error e3 ->
+                  Error ("tuple3[2] -> " ^ e3)
+            else Error "tuple3 expected array with 3 elements"
+        | _ ->
+            Error "tuple3 expected array" )
+
+
+  let triple = tuple3
+
   let tuple4 decodeA decodeB decodeC decodeD =
     let open Tea.Json.Decoder in
     Decoder
