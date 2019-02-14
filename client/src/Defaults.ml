@@ -81,11 +81,6 @@ let defaultModel : model =
   ; userContentHost = "builtwithdark.com"
   ; environment = "none"
   ; csrfToken = "UNSET_CSRF"
-  ; latest404 =
-      Js.Date.now ()
-      |> ( +. ) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
-      |> Js.Date.fromFloat
-      |> Js.Date.toISOString
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty }

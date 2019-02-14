@@ -624,17 +624,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m4 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
-    | Set404s (f404s, latest404) ->
-        ({m with f404s; latest404}, Cmd.none)
     | Delete404 f404 ->
         ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
-    | Append404s (f404s, latest404) ->
+    | Append404s f404s ->
         let new404s =
           f404s @ m.f404s
           |> List.uniqueBy ~f:(fun f404 ->
                  f404.space ^ f404.path ^ f404.modifier )
         in
-        ({m with f404s = new404s; latest404}, Cmd.none)
+        ({m with f404s = new404s}, Cmd.none)
     | SetHover p ->
         let nhovering = p :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
@@ -997,7 +995,6 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; RequestAnalysis r.toplevels
           ; MakeCmd (Entry.focusEntry m) ]
       else
         let m2 = TL.upsertAll m r.toplevels in
@@ -1007,7 +1004,6 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; RequestAnalysis r.toplevels
           ; AutocompleteMod ACReset
           ; ClearError
           ; newState ]
@@ -1017,11 +1013,23 @@ let update_ (msg : msg) (m : model) : modification =
         {m with toplevels = r.toplevels; userFunctions = r.userFunctions}
       in
       let newState = processFocus m2 focus in
+      let traces : traces =
+        List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
+            let trace = (traceid, None) in
+            StrDict.update dict ~key:(deTLID tlid) ~f:(fun old ->
+                match old with
+                | Some existing ->
+                    Some (existing @ [trace])
+                | None ->
+                    Some [trace] ) )
+      in
       Many
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
+        ; Append404s r.fofs
+        ; UpdateTraces traces
         ; RequestAnalysis r.toplevels
         ; AutocompleteMod ACReset
         ; ClearError
@@ -1045,10 +1053,10 @@ let update_ (msg : msg) (m : model) : modification =
       Many [TweakModel Sync.markResponseInModel; SetUnlockedDBs unlockedDBs]
   | NewTracePush (tlid, traceID) ->
       AddUnfetchedTrace (tlid, traceID)
-  | New404Push (f404, ts) ->
-      Append404s ([f404], ts)
-  | Delete404RPCCallback (Ok (f404s, ts)) ->
-      Set404s (f404s, ts)
+  | New404Push f404 ->
+      Append404s [f404]
+  | Delete404RPCCallback (Ok f404s) ->
+      Append404s f404s
   | ReceiveAnalysis result ->
     ( match result with
     | Ok (id, analysisResults) ->
