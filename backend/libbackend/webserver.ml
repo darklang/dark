@@ -518,36 +518,18 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     let t2, c =
       time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host params.ops)
     in
-    let t3, hvals =
-      time "3-handler-analyses" (fun _ ->
-          !c.handlers
-          |> List.filter_map ~f:TL.as_handler
-          |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
-      )
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
     in
-    let t4, fvals =
-      time "4-user-fn-analyses" (fun _ ->
-          !c.user_functions
-          |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
-          |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
-      )
-    in
-    let t5, unlocked =
-      time "5-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
-    in
-    let t6, result =
-      time "6-to-frontend" (fun _ ->
-          Analysis.to_add_op_rpc_result !c (hvals @ fvals) unlocked )
-    in
-    let t7, _ =
-      time "7-save-to-disk" (fun _ ->
+    let t4, _ =
+      time "4-save-to-disk" (fun _ ->
           (* work out the result before we save it, incase it has a
              stackoverflow or other crashing bug *)
           if Api.causes_any_changes params then C.save_tlids !c tlids else ()
       )
     in
     respond
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
+      ~resp_headers:(server_timing [t1; t2; t3; t4])
       ~execution_id
       `OK
       result

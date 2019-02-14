@@ -208,25 +208,18 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
 
 (* A subset of responses to be merged in *)
 type add_op_rpc_result =
-  { new_traces : tlid_traces list (* merge: overwrite existing analyses *)
-  ; toplevels : TL.toplevel_list (* replace *)
+  { toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
-  ; deleted_user_functions :
-      RTT.user_fn list
-      (* replace, see deleted_toplevels *)
-  ; unlocked_dbs : tlid list
-  (* replace *) }
+  ; deleted_user_functions : RTT.user_fn list
+  (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
-let to_add_op_rpc_result
-    (c : canvas) (traces : tlid_traces list) (unlocked : tlid list) : string =
-  { new_traces = traces
-  ; toplevels = c.dbs @ c.handlers
+let to_add_op_rpc_result (c : canvas) : string =
+  { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
-  ; deleted_user_functions = c.deleted_user_functions
-  ; unlocked_dbs = unlocked }
+  ; deleted_user_functions = c.deleted_user_functions }
   |> add_op_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
