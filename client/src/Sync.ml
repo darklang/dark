@@ -1,4 +1,3 @@
-open Tc
 open Types
 
 let markRequestInModel (m : model) : model =
@@ -16,26 +15,6 @@ let markResponseInModel (m : model) : model =
 
 let timedOut (s : syncState) : bool = s.ticks mod 10 = 0 && s.ticks <> 0
 
-let toAnalyse (m : model) : tlid list =
-  match m.cursorState with
-  | Selecting (tlid, _) ->
-      [tlid]
-  | Entering (Filling (tlid, _)) ->
-      [tlid]
-  | Dragging (tlid, _, _, _) ->
-      [tlid]
-  | _ ->
-      let ids = List.map ~f:(fun x -> x.id) (Toplevel.all m) in
-      let index =
-        let length = List.length ids in
-        if length > 0 then Some (Util.random () mod length) else None
-      in
-      index
-      |> Option.andThen ~f:(fun i -> List.getAt ~index:i ids)
-      |> Option.map ~f:(fun e -> [e])
-      |> Option.withDefault ~default:[]
-
-
 external origin : string = "origin"
   [@@bs.val] [@@bs.scope "window", "location"]
 
@@ -44,17 +23,3 @@ external prefix : string = "testcafeInjectedPrefix"
 
 let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
-
-
-let fetch_tlids (m : model) (tlids : tlid list) : model * msg Tea.Cmd.t =
-  if (not m.syncState.inFlight) || timedOut m.syncState
-  then
-    ( markRequestInModel m
-    , Tea_cmd.call (fun _ ->
-          Analysis.RequestTraces.send (contextFromModel m, {tlids}) ) )
-  else (markTickInModel m, Tea.Cmd.none)
-
-
-let fetch (m : model) : model * msg Tea.Cmd.t =
-  let tlids = toAnalyse m in
-  fetch_tlids m tlids
