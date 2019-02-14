@@ -28,8 +28,8 @@ let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
 (* wtf -- this concatenates the tlid+id to a string, and then
  * uses that as a cursor id to do the hovering over the dots?
  * this almost certainly doesn't work *)
-let tlCursorID (tlid : tlid) (idx : int) : id =
-  let stringID = showTLID tlid ^ string_of_int idx in
+let tlCursorID (tlid : tlid) (traceID : traceID) : id =
+  let stringID = showTLID tlid ^ traceID in
   ID stringID
 
 

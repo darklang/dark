@@ -7,7 +7,7 @@ module B = Blank
 
 let viewInput
     (tlid : tlid)
-    (idx : int)
+    (traceID : traceID)
     (value : string)
     (isActive : bool)
     (isHover : bool)
@@ -21,22 +21,16 @@ let viewInput
   let tipeClassName = "tipe-" ^ Runtime.tipe2str tipe in
   let tipeClass = [Html.class' tipeClassName] in
   let classes = activeClass @ hoverClass @ tipeClass in
-  let eventKey constructor tlid id =
-    constructor ^ "-" ^ showTLID tlid ^ "-" ^ string_of_int id
+  let eventKey constructor =
+    constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
   let events =
-    [ ViewUtils.eventNoPropagation
-        ~key:(eventKey "dc" tlid idx)
-        "click"
-        (fun x -> DataClick (tlid, idx, x) )
-    ; ViewUtils.eventNoPropagation
-        ~key:(eventKey "dme" tlid idx)
-        "mouseenter"
-        (fun x -> DataMouseEnter (tlid, idx, x) )
-    ; ViewUtils.eventNoPropagation
-        ~key:(eventKey "dml" tlid idx)
-        "mouseleave"
-        (fun x -> DataMouseLeave (tlid, idx, x) ) ]
+    [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
+          TraceClick (tlid, traceID, x) )
+    ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
+          TraceMouseEnter (tlid, traceID, x) )
+    ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
+          TraceMouseLeave (tlid, traceID, x) ) ]
   in
   Html.li
     ([Vdom.attribute "" "data-content" value] @ classes @ events)
@@ -49,25 +43,25 @@ let asValue (inputValue : inputValueDict) : string =
 
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     =
-  let traceToHtml idx ((traceid, traceData) : trace) =
+  let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> asValue td.input) traceData
       |> Option.withDefault ~default:"<loading>"
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
-    let isActive = Analysis.cursor_ vs.tlCursors vs.tl.id = idx in
-    let hoverID = tlCursorID vs.tl.id idx in
+    let isActive = Analysis.cursor' vs.tlCursors vs.tl.id = Some traceID in
+    let hoverID = tlCursorID vs.tl.id traceID in
     let isHover = vs.hovering = Some hoverID in
     let astTipe =
-      StrDict.get ~key:traceid vs.analyses
+      StrDict.get ~key:traceID vs.analyses
       |> Option.map ~f:(fun x -> x.liveValues)
       |> Option.andThen ~f:(StrDict.get ~key:astID)
       |> Option.map ~f:Runtime.typeOf
       |> Option.withDefault ~default:TIncomplete
     in
-    viewInput vs.tl.id idx value isActive isHover astTipe
+    viewInput vs.tl.id traceID value isActive isHover astTipe
   in
-  List.indexedMap ~f:traceToHtml vs.traces
+  List.map ~f:traceToHtml vs.traces
 
 
 let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =

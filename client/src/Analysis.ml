@@ -15,39 +15,30 @@ module TL = Toplevel
 
 let defaultResults : analysisResults = {liveValues = StrDict.empty}
 
-let cursor_ (cursors : tLCursors) (tlid : tlid) : int =
+let cursor' (tlCursors : tlCursors) (tlid : tlid) : traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
-  StrDict.get ~key:(deTLID tlid) cursors |> Option.withDefault ~default:0
+  StrDict.get ~key:(deTLID tlid) tlCursors
 
 
-let cursor (m : model) (tlid : tlid) : int = cursor_ m.tlCursors tlid
+let cursor (m : model) (tlid : tlid) : traceID option =
+  cursor' m.tlCursors tlid
 
-let setCursor (m : model) (tlid : tlid) (cursorNum : int) : model =
+
+let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
   let newCursors =
-    StrDict.insert ~key:(deTLID tlid) ~value:cursorNum m.tlCursors
+    StrDict.insert ~key:(deTLID tlid) ~value:traceID m.tlCursors
   in
   {m with tlCursors = newCursors}
 
 
-let analyzeFocused (_m : model) : 'msg Cmd.t =
-  Debug.loG "calling analyzefocused" "" ;
-  (* if Some tlid = tlidOf m.cursorState then Sync.fetch else (m, Cmd.none) *)
-  Cmd.none
-
-
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
-  let traceIndex = cursor m tlid in
-  let traceID =
-    StrDict.get ~key:(deTLID tlid) m.traces
-    |> Option.andThen ~f:(List.getAt ~index:traceIndex)
-    |> Option.map ~f:Tuple2.first
-    |> Option.withDefault ~default:"invalid trace key"
-  in
+  let traceID = cursor m tlid in
   (* only handlers have analysis results, but lots of stuff expect this *)
   (* data to exist. It may be better to not do that, but this is fine *)
   (* for now. *)
-  StrDict.get ~key:traceID m.analyses
+  traceID
+  |> Option.andThen ~f:(fun key -> StrDict.get ~key m.analyses)
   |> Option.withDefault ~default:defaultResults
 
 
@@ -140,8 +131,8 @@ let getTraces (m : model) (tlid : tlid) : trace list =
 
 
 let getCurrentTrace (m : model) (tlid : tlid) : trace option =
-  StrDict.get ~key:(deTLID tlid) m.traces
-  |> Option.andThen ~f:(List.getAt ~index:(cursor m tlid))
+  getTraces m tlid
+  |> List.find ~f:(fun (traceID, _) -> cursor m tlid = Some traceID)
 
 
 let replaceFunctionResult
@@ -272,3 +263,13 @@ module RequestTraces = struct
   external send : traceFetchContext * getTraceDataRPCParams -> unit = "fetch"
     [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end
+
+let analyzeFocused (_m : model) : 'msg Cmd.t =
+  (* let tlid = m.cursorState in *)
+  (* if Some tlid = tlidOf m.cursorState *)
+  (* then *)
+  (*   Tea_cmd.call (fun _ -> *)
+  (*       RequestTraces.send *)
+  (*         (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) ) *)
+  (* else (m, Cmd.none) Debug.loG "calling analyzefocused" "" ; *)
+  Cmd.none

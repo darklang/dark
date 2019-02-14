@@ -788,10 +788,10 @@ let update_ (msg : msg) (m : model) : modification =
       ClearHover id
   | MouseWheel (x, y) ->
       if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
-  | DataMouseEnter (tlid, idx, _) ->
-      SetHover (tlCursorID tlid idx)
-  | DataMouseLeave (tlid, idx, _) ->
-      ClearHover (tlCursorID tlid idx)
+  | TraceMouseEnter (tlid, traceID, _) ->
+      SetHover (tlCursorID tlid traceID)
+  | TraceMouseLeave (tlid, traceID, _) ->
+      ClearHover (tlCursorID tlid traceID)
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -906,14 +906,14 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionRPC (tlid, id, name) ]
-  | DataClick (tlid, idx, _) ->
+  | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
-        Many [Select (tlid, None); SetCursor (tlid, idx)]
+        Many [Select (tlid, None); SetCursor (tlid, traceID)]
     | _ ->
-        SetCursor (tlid, idx) )
+        SetCursor (tlid, traceID) )
   | StartMigration tlid ->
       let mdb = tlid |> TL.getTL m |> TL.asDB in
       ( match mdb with

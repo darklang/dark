@@ -11,17 +11,31 @@ module TL = Toplevel
 (* Cursors *)
 (* ------------------------------- *)
 let moveCursorBackInTime (m : model) (tlid : tlid) : modification =
-  let maxCursor = List.length (Analysis.getTraces m tlid) - 1 in
-  let current = Analysis.cursor m tlid in
-  let newCursor = max 0 (min (current + 1) maxCursor) in
-  SetCursor (tlid, newCursor)
+  let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
+  let traceID =
+    match Analysis.cursor m tlid with
+    | None ->
+        List.head traceIDs
+    | Some current ->
+        Util.listNext ~value:current traceIDs
+  in
+  traceID
+  |> Option.map ~f:(fun t -> SetCursor (tlid, t))
+  |> Option.withDefault ~default:NoChange
 
 
 let moveCursorForwardInTime (m : model) (tlid : tlid) : modification =
-  let maxCursor = List.length (Analysis.getTraces m tlid) - 1 in
-  let current = Analysis.cursor m tlid in
-  let newCursor = max 0 (min (current - 1) maxCursor) in
-  SetCursor (tlid, newCursor)
+  let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
+  let traceID =
+    match Analysis.cursor m tlid with
+    | None ->
+        List.head traceIDs
+    | Some current ->
+        Util.listPrevious ~value:current traceIDs
+  in
+  traceID
+  |> Option.map ~f:(fun t -> SetCursor (tlid, t))
+  |> Option.withDefault ~default:NoChange
 
 
 (* ------------------------------- *)
