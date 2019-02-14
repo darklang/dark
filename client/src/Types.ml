@@ -364,8 +364,6 @@ and traceData =
 
 and trace = traceID * traceData option
 
-and traceIDs = traceID list StrDict.t
-
 and traces = trace list StrDict.t
 
 and fourOhFour =
