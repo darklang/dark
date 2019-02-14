@@ -64,11 +64,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         []
   in
   let class_ =
-    [ selected
-    ; "tl-" ^ deTLID tl.id
-    ; "toplevel"
-    ; "cursor-" ^ string_of_int (Analysis.cursor m tl.id) ]
-    |> String.join ~sep:" "
+    [selected; "tl-" ^ deTLID tl.id; "toplevel"] |> String.join ~sep:" "
   in
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with

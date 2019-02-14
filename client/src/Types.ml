@@ -631,7 +631,7 @@ and modification =
   | SetPage of page
   | SetCenter of pos
   | CopyToClipboard of clipboard
-  | SetCursor of tlid * int
+  | SetCursor of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
@@ -700,9 +700,9 @@ and msg =
   | BlankOrMouseEnter of tlid * id * mouseEvent
   | BlankOrMouseLeave of tlid * id * mouseEvent
   | MouseWheel of int * int
-  | DataClick of tlid * int * mouseEvent
-  | DataMouseEnter of tlid * int * mouseEvent
-  | DataMouseLeave of tlid * int * mouseEvent
+  | TraceClick of tlid * traceID * mouseEvent
+  | TraceMouseEnter of tlid * traceID * mouseEvent
+  | TraceMouseLeave of tlid * traceID * mouseEvent
   | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction
@@ -748,7 +748,7 @@ and syncState =
 
 and urlState = {lastPos : pos}
 
-and tLCursors = int StrDict.t
+and tlCursors = traceID StrDict.t
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -804,7 +804,7 @@ and model =
       (* the input to the toplevel currently used, not to *)
       (* be confused with cursorState, which is the code *)
       (* that is currently selected.) *)
-  ; tlCursors : tLCursors
+  ; tlCursors : tlCursors
   ; featureFlags : flagsVS
   ; lockedHandlers : tlid list
   ; canvas : canvasProps
