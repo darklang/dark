@@ -13,3 +13,4 @@ builtwithdark.yaml
 queueworker.yaml
 cronchecker.yaml
 tunnel.yaml
+dark-cli/target

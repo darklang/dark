@@ -383,6 +383,7 @@ def ignore(filename):
             , ".sourcedirs.json"
             , ".md"
             , ".sw"
+            , "dark-cli/target"
   ]
   for i in ignores:
     if i in filename:
