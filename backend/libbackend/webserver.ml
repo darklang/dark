@@ -1073,7 +1073,18 @@ let db_conn_readiness_check () : string option =
       Some "Dbconnection.status = `Disconnected"
 
 
+let stroller_readiness_check () : string option Lwt.t =
+  match%lwt Stroller.status () with
+  | `Healthy ->
+      Lwt.return None
+  | `Unconfigured ->
+      Lwt.return (Some "Stroller.status = `Unconfigured")
+  | `Unhealthy s ->
+      Lwt.return (Some ("Stroller.status = `Unhealthy: " ^ s))
+
+
 let k8s_handler req ~execution_id ~stopper =
+  let%lwt stroller_readiness_check = stroller_readiness_check () in
   match req |> CRequest.uri |> Uri.path with
   (* For GKE health check *)
   | "/" ->
@@ -1090,7 +1101,9 @@ let k8s_handler req ~execution_id ~stopper =
         respond ~execution_id `Service_unavailable "Sorry internal overlord" )
   | "/ready" ->
       let checks =
-        [db_conn_readiness_check (); admin_ui_html_readiness_check ()]
+        [ db_conn_readiness_check ()
+        ; admin_ui_html_readiness_check ()
+        ; stroller_readiness_check ]
         |> List.filter_map ~f:(fun x -> x)
       in
       ( match checks with
