@@ -342,12 +342,8 @@ and functionResult =
   ; value : dval }
 
 (* traces / traceFetcher *)
-and traceFetchResultData =
-  { params : getTraceDataRPCParams
-  ; result : getTraceDataRPCResult }
-
 and traceFetchResult =
-  | TraceFetchSuccess of traceFetchResultData
+  | TraceFetchSuccess of getTraceDataRPCResult
   | TraceFetchFailure of string
 
 and traceFetchContext =
@@ -421,7 +417,9 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and getTraceDataRPCParams = {tlids : tlid list}
+and getTraceDataRPCParams =
+  { gtdrpTlid : tlid
+  ; gtdrpTraceID : traceID }
 
 and performAnalysisParams =
   { handler : handler

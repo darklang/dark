@@ -1064,17 +1064,8 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str )
   | ReceiveTraces (TraceFetchFailure str) ->
       DisplayAndReportError str
-  | ReceiveTraces (TraceFetchSuccess res) ->
-      let newTraces = res.result in
-      let analysisTLs =
-        List.filter
-          ~f:(fun tl -> List.member ~value:tl.id res.params.tlids)
-          m.toplevels
-      in
-      Many
-        [ TweakModel Sync.markResponseInModel
-        ; UpdateTraces newTraces
-        ; RequestAnalysis analysisTLs ]
+  | ReceiveTraces (TraceFetchSuccess newTraces) ->
+      UpdateTraces newTraces
   | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
