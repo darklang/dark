@@ -204,14 +204,13 @@ let format_string ~level (str : string) =
   in
   (* escape newlines *)
   let str = string_replace ~search:"\n" ~replace:"\\n" str in
-  (* escape quotes *)
+  (* wrap in quotes *)
   let str =
-    if String.contains str '"'
-    then string_replace ~search:"\"" ~replace:"\\\"" str
+    if String.contains str ' '
+    then
+      if String.contains str '\'' then "\"" ^ str ^ "\"" else "'" ^ str ^ "'"
     else str
   in
-  (* wrap in quotes *)
-  let str = if String.contains str ' ' then "\"" ^ str ^ "\"" else str in
   str
 
 
