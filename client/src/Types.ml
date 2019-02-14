@@ -640,7 +640,6 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
-  | AddUnfetchedTrace of (tlid * traceID)
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 

@@ -442,8 +442,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | Fn (id, _) ->
           ({m with currentPage = Fn (id, center)}, Cmd.none) )
     | Select (tlid, p) ->
-        let newM = {m with cursorState = Selecting (tlid, p)} in
-        (newM, Cmd.batch (closeBlanks newM))
+        let m = {m with cursorState = Selecting (tlid, p)} in
+        let afCmd = Analysis.analyzeFocused m in
+        (m, Cmd.batch (closeBlanks m @ [afCmd]))
     | Deselect ->
         let newM = {m with cursorState = Deselected} in
         (newM, Cmd.batch (closeBlanks newM))
@@ -457,9 +458,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let pd = TL.findExn tl id in
               Some (tlid, pd)
         in
-        let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m3 = {m2 with cursorState = Entering entry} in
-        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
+        let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
+        let m = {m with cursorState = Entering entry} in
+        let afCmd = Analysis.analyzeFocused m in
+        (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
     | EnterWithOffset (entry, offset) ->
         let target =
           match entry with
@@ -470,17 +472,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let pd = TL.findExn tl id in
               Some (tlid, pd)
         in
-        let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m3 = {m2 with cursorState = Entering entry} in
-        ( m3
+        let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
+        let m = {m with cursorState = Entering entry} in
+        let afCmd = Analysis.analyzeFocused m in
+        ( m
         , Cmd.batch
-            (closeBlanks m3 @ [acCmd; Entry.focusEntryWithOffset m3 offset]) )
+            ( closeBlanks m
+            @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset] ) )
     | SelectCommand (tlid, id) ->
-        let m2 = {m with cursorState = SelectingCommand (tlid, id)} in
-        let m3, acCmd =
-          processAutocompleteMods m2 [ACEnableCommandMode; ACRegenerate]
+        let m = {m with cursorState = SelectingCommand (tlid, id)} in
+        let m, acCmd =
+          processAutocompleteMods m [ACEnableCommandMode; ACRegenerate]
         in
-        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
+        (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (tls, updateCurrent) ->
@@ -549,19 +553,26 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          StrDict.merge m.traces traces ~f:(fun _ maybeOld maybeNew ->
-              match (maybeOld, maybeNew) with
+          StrDict.merge m.traces traces ~f:(fun _tlid oldList newList ->
+              match (oldList, newList) with
               | None, None ->
                   None
               | Some o, None ->
                   Some o
               | None, Some n ->
                   Some n
-              | Some _, Some n ->
-                  Some n )
+              | Some o, Some n ->
+                  Some
+                    (List.foldl n ~init:o ~f:(fun (newID, newData) list ->
+                         List.map list ~f:(fun (oldID, oldData) ->
+                             if oldID = newID && newData <> None
+                             then (newID, newData)
+                             else (oldID, oldData) ) )) )
         in
-        let m2 = {m with traces = newTraces} in
-        processAutocompleteMods m2 [ACRegenerate]
+        let m = {m with traces = newTraces} in
+        let afCmd = Analysis.analyzeFocused m in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd])
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
       ->
         let m2 =
@@ -575,20 +586,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             dval
         in
         processAutocompleteMods m2 [ACRegenerate]
-    | AddUnfetchedTrace (tlid, traceID) ->
-        let newTraces =
-          StrDict.update m.traces ~key:(deTLID tlid) ~f:(fun maybeOld ->
-              (* Just add the new trace to the front, since we (probably?)
-               * don't know about it. We might actually know it already though,
-               * so we should fix this later to handle that case. *)
-              match maybeOld with
-              | None ->
-                  Some [(traceID, None)]
-              | Some list ->
-                  Some ((traceID, None) :: list) )
-        in
-        let m = {m with traces = newTraces} in
-        if Some tlid = tlidOf m.cursorState then Sync.fetch m else (m, Cmd.none)
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
@@ -640,8 +637,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let nhovering = List.filter ~f:(fun m -> m <> p) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
-        let m2 = Analysis.setCursor m tlid cur in
-        (m2, Cmd.none)
+        let m = Analysis.setCursor m tlid cur in
+        let afCmd = Analysis.analyzeFocused m in
+        (m, afCmd)
     | CopyToClipboard clipboard ->
         ({m with clipboard}, Cmd.none)
     | Drag (tlid, offset, hasMoved, state) ->
@@ -1030,7 +1028,6 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
         ; UpdateTraces traces
-        ; RequestAnalysis r.toplevels
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod
@@ -1052,7 +1049,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many [TweakModel Sync.markResponseInModel; SetUnlockedDBs unlockedDBs]
   | NewTracePush (tlid, traceID) ->
-      AddUnfetchedTrace (tlid, traceID)
+      UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
   | New404Push f404 ->
       Append404s [f404]
   | Delete404RPCCallback (Ok f404s) ->

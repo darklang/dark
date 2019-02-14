@@ -2,6 +2,9 @@ open Tc
 open Prelude
 open Types
 
+(* Tea *)
+module Cmd = Tea.Cmd
+
 (* Dark *)
 module B = Blank
 module P = Pointer
@@ -25,6 +28,12 @@ let setCursor (m : model) (tlid : tlid) (cursorNum : int) : model =
     StrDict.insert ~key:(deTLID tlid) ~value:cursorNum m.tlCursors
   in
   {m with tlCursors = newCursors}
+
+
+let analyzeFocused (_m : model) : 'msg Cmd.t =
+  Debug.loG "calling analyzefocused" "" ;
+  (* if Some tlid = tlidOf m.cursorState then Sync.fetch else (m, Cmd.none) *)
+  Cmd.none
 
 
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
