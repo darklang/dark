@@ -71,16 +71,12 @@ let executeFunction (m : model) (params : executeFunctionRPCParams) :
   Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
 
 
-let getAnalysis (m : model) (params : getAnalysisRPCParams) : msg Tea.Cmd.t =
-  let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/get_analysis" in
+let getUnlockedDBs (m : model) : msg Tea.Cmd.t =
+  let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/get_unlocked_dbs" in
   let request =
-    postJson
-      Decoders.getAnalysisRPCResult
-      m.csrfToken
-      url
-      (Encoders.getAnalysisRPCParams params)
+    postEmptyJson Decoders.getUnlockedDBsRPCResult m.csrfToken url
   in
-  Tea.Http.send (fun x -> GetAnalysisRPCCallback (params, x)) request
+  Tea.Http.send (fun x -> GetUnlockedDBsRPCCallback x) request
 
 
 let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =

@@ -7,10 +7,7 @@ type oplist = Op.op list [@@deriving yojson]
 
 type add_op_rpc_params = {ops : oplist} [@@deriving yojson]
 
-type get_analysis_rpc_params =
-  { tlids : tlid list
-  ; latest404 : RuntimeT.time }
-[@@deriving eq, show, yojson]
+type get_trace_data_rpc_params = {tlids : tlid list} [@@deriving yojson]
 
 type execute_function_rpc_params =
   { tlid : tlid
@@ -33,10 +30,11 @@ let to_add_op_rpc_params (payload : string) : add_op_rpc_params =
   |> Result.ok_or_failwith
 
 
-let to_get_analysis_rpc_params (payload : string) : get_analysis_rpc_params =
+let to_get_trace_data_rpc_params (payload : string) : get_trace_data_rpc_params
+    =
   payload
   |> Yojson.Safe.from_string
-  |> get_analysis_rpc_params_of_yojson
+  |> get_trace_data_rpc_params_of_yojson
   |> Result.ok_or_failwith
 
 

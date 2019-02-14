@@ -87,7 +87,7 @@ let load_from_trace results (tlid, fnname, caller_id) args :
 
 
 let perform_analysis (str : string) : string =
-  let {handler; dbs; user_fns; traceid; trace_data} =
+  let {handler; dbs; user_fns; trace_id; trace_data} =
     str
     |> Yojson.Safe.from_string
     |> analysis_param_of_yojson
@@ -95,7 +95,7 @@ let perform_analysis (str : string) : string =
   in
   let dbs : DbT.db list = List.map ~f:convert_db dbs in
   let input_vars = trace_data.input in
-  ( traceid
+  ( trace_id
   , Execution.analyse_ast
       handler.ast
       ~tlid:handler.tlid

@@ -46,16 +46,11 @@ let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
-let fetch ~(ignoreTraces : bool) ~(ignore404s : bool) (m : model) :
-    model * msg Tea.Cmd.t =
+let fetch (m : model) : model * msg Tea.Cmd.t =
   if (not m.syncState.inFlight) || timedOut m.syncState
   then
     ( markRequestInModel m
     , Tea_cmd.call (fun _ ->
           Analysis.RequestTraces.send
-            ( contextFromModel m
-            , { tlids = toAnalyse m
-              ; latest404 = m.latest404
-              ; ignoreTraces
-              ; ignore404s } ) ) )
+            (contextFromModel m, {tlids = toAnalyse m}) ) )
   else (markTickInModel m, Tea.Cmd.none)
