@@ -294,10 +294,9 @@ and trace j : trace = pair traceID (optional traceData) j
 and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
-  ; newTraces = field "new_traces" traces j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  ; unlockedDBs = field "unlocked_dbs" (list tlid) j }
+  }
 
 
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =

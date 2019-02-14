@@ -446,10 +446,8 @@ and delete404RPCParams = fourOhFour
 and addOpRPCResult =
   { toplevels : toplevel list
   ; deletedToplevels : toplevel list
-  ; newTraces : traces
   ; userFunctions : userFunction list
-  ; deletedUserFunctions : userFunction list
-  ; unlockedDBs : tlid list }
+  ; deletedUserFunctions : userFunction list }
 
 and dvalArgsHash = string
 

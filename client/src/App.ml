@@ -996,9 +996,7 @@ let update_ (msg : msg) (m : model) : modification =
         Many
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
-          ; UpdateTraces r.newTraces
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; SetUnlockedDBs r.unlockedDBs
           ; RequestAnalysis r.toplevels
           ; MakeCmd (Entry.focusEntry m) ]
       else
@@ -1008,9 +1006,7 @@ let update_ (msg : msg) (m : model) : modification =
         Many
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
-          ; UpdateTraces r.newTraces
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; SetUnlockedDBs r.unlockedDBs
           ; RequestAnalysis r.toplevels
           ; AutocompleteMod ACReset
           ; ClearError
