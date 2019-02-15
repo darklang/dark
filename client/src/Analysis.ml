@@ -23,6 +23,10 @@ let getTraces (m : model) (tlid : tlid) : trace list =
   StrDict.get ~key:(deTLID tlid) m.traces |> Option.withDefault ~default:[]
 
 
+let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =
+  getTraces m tlid |> List.find ~f:(fun (id, _) -> id = traceID)
+
+
 let getAnalysisResults (m : model) (traceID : traceID) : analysisResults option
     =
   (* only handlers have analysis results, but lots of stuff expect this *)
@@ -299,6 +303,12 @@ let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
+let requestTrace m tlid traceID =
+  Tea_cmd.call (fun _ ->
+      RequestTraces.send
+        (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) )
+
+
 let analyzeFocused (m : model) : 'msg Cmd.t =
   match tlidOf m.cursorState with
   | Some tlid ->
@@ -307,10 +317,7 @@ let analyzeFocused (m : model) : 'msg Cmd.t =
         Cmd.none
     | Some (traceID, None) ->
         (* Fetch the trace data, if missing *)
-        Tea_cmd.call (fun _ ->
-            RequestTraces.send
-              (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID})
-        )
+        requestTrace m tlid traceID
     | Some (traceID, Some traceData) ->
         if getAnalysisResults m traceID = None
         then

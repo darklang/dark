@@ -776,7 +776,14 @@ let update_ (msg : msg) (m : model) : modification =
   | MouseWheel (x, y) ->
       if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
   | TraceMouseEnter (tlid, traceID, _) ->
-      SetHover (tlid, ID traceID)
+      let traceCmd =
+        match Analysis.getTrace m tlid traceID with
+        | Some (_, None) ->
+            [MakeCmd (Analysis.requestTrace m tlid traceID)]
+        | _ ->
+            []
+      in
+      Many (traceCmd @ [SetHover (tlid, ID traceID)])
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
   | DragToplevel (_, mousePos) ->
