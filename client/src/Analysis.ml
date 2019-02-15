@@ -15,21 +15,12 @@ module TL = Toplevel
 
 let defaultResults : analysisResults = {liveValues = StrDict.empty}
 
-let cursor' (tlCursors : tlCursors) (tlid : tlid) : traceID option =
-  (* We briefly do analysis on a toplevel which does not have an *)
-  (* analysis available, so be careful here. *)
-  StrDict.get ~key:(deTLID tlid) tlCursors
+(* ---------------------- *)
+(* Analyses *)
+(* ---------------------- *)
 
-
-let cursor (m : model) (tlid : tlid) : traceID option =
-  cursor' m.tlCursors tlid
-
-
-let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
-  let newCursors =
-    StrDict.insert ~key:(deTLID tlid) ~value:traceID m.tlCursors
-  in
-  {m with tlCursors = newCursors}
+let getTraces (m : model) (tlid : tlid) : trace list =
+  StrDict.get ~key:(deTLID tlid) m.traces |> Option.withDefault ~default:[]
 
 
 let getAnalysisResults (m : model) (traceID : traceID) : analysisResults option
@@ -40,15 +31,120 @@ let getAnalysisResults (m : model) (traceID : traceID) : analysisResults option
   StrDict.get ~key:traceID m.analyses
 
 
+let record (old : analyses) (id : traceID) (result : analysisResults) :
+    analyses =
+  StrDict.insert ~key:id ~value:result old
+
+
+let replaceFunctionResult
+    (m : model)
+    (tlid : tlid)
+    (traceID : traceID)
+    (callerID : id)
+    (fnName : string)
+    (hash : dvalArgsHash)
+    (dval : dval) : model =
+  let newResult = {fnName; callerID; argHash = hash; value = dval} in
+  let traces =
+    m.traces
+    |> StrDict.update ~key:(deTLID tlid) ~f:(fun ml ->
+           ml
+           |> Option.withDefault
+                ~default:
+                  [ ( traceID
+                    , Some
+                        {input = StrDict.empty; functionResults = [newResult]}
+                    ) ]
+           |> List.map ~f:(fun ((tid, tdata) as t) ->
+                  if tid = traceID
+                  then
+                    ( tid
+                    , Option.map tdata ~f:(fun tdata ->
+                          { tdata with
+                            functionResults =
+                              newResult :: tdata.functionResults } ) )
+                  else t )
+           |> fun x -> Some x )
+  in
+  {m with traces}
+
+
+let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
+    : dval list option =
+  let tl = TL.get m tlid in
+  match tl with
+  | None ->
+      None
+  | Some tl ->
+      let caller = TL.find tl callerID in
+      let threadPrevious =
+        match TL.rootOf tl with
+        | Some (PExpr expr) ->
+            Option.toList (AST.threadPrevious callerID expr)
+        | _ ->
+            []
+      in
+      let args =
+        match caller with
+        | Some (PExpr (F (_, FnCall (_, args, _)))) ->
+            threadPrevious @ args
+        | _ ->
+            []
+      in
+      let argIDs = List.map ~f:B.toID args in
+      let analyses = StrDict.get ~key:traceID m.analyses in
+      let dvals =
+        match analyses with
+        | Some analyses_ ->
+            List.filterMap
+              ~f:(fun id -> StrDict.get ~key:(deID id) analyses_.liveValues)
+              argIDs
+        | None ->
+            []
+      in
+      if List.length dvals = List.length argIDs then Some dvals else None
+
+
+(* ---------------------- *)
+(* Cursors *)
+(* ---------------------- *)
+
+let cursor' (tlCursors : tlCursors) (traces : trace list) (tlid : tlid) :
+    traceID option =
+  (* We briefly do analysis on a toplevel which does not have an *)
+  (* analysis available, so be careful here. *)
+  match StrDict.get ~key:(deTLID tlid) tlCursors with
+  | Some c ->
+      Some c
+  | None ->
+      (* if we don't have it, pick the first trace *)
+      List.head traces |> Option.map ~f:Tuple2.first
+
+
+let cursor (m : model) (tlid : tlid) : traceID option =
+  let traces = getTraces m tlid in
+  cursor' m.tlCursors traces tlid
+
+
+let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
+  let newCursors =
+    StrDict.insert ~key:(deTLID tlid) ~value:traceID m.tlCursors
+  in
+  {m with tlCursors = newCursors}
+
+
+(* ---------------------- *)
+(* Analyses on current *)
+(* ---------------------- *)
+let getCurrentTrace (m : model) (tlid : tlid) : trace option =
+  getTraces m tlid
+  |> List.find ~f:(fun (traceID, _) -> cursor m tlid = Some traceID)
+
+
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   cursor m tlid
   |> Option.andThen ~f:(getAnalysisResults m)
   |> Option.withDefault ~default:defaultResults
-
-
-let record (old : analyses) (id : traceID) (result : analysisResults) :
-    analyses =
-  StrDict.insert ~key:id ~value:result old
 
 
 let getCurrentLiveValuesDict (m : model) (tlid : tlid) : lvDict =
@@ -130,84 +226,9 @@ let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
       []
 
 
-let getTraces (m : model) (tlid : tlid) : trace list =
-  StrDict.get ~key:(deTLID tlid) m.traces |> Option.withDefault ~default:[]
-
-
-let getCurrentTrace (m : model) (tlid : tlid) : trace option =
-  getTraces m tlid
-  |> List.find ~f:(fun (traceID, _) -> cursor m tlid = Some traceID)
-
-
-let replaceFunctionResult
-    (m : model)
-    (tlid : tlid)
-    (traceID : traceID)
-    (callerID : id)
-    (fnName : string)
-    (hash : dvalArgsHash)
-    (dval : dval) : model =
-  let newResult = {fnName; callerID; argHash = hash; value = dval} in
-  let traces =
-    m.traces
-    |> StrDict.update ~key:(deTLID tlid) ~f:(fun ml ->
-           ml
-           |> Option.withDefault
-                ~default:
-                  [ ( traceID
-                    , Some
-                        {input = StrDict.empty; functionResults = [newResult]}
-                    ) ]
-           |> List.map ~f:(fun ((tid, tdata) as t) ->
-                  if tid = traceID
-                  then
-                    ( tid
-                    , Option.map tdata ~f:(fun tdata ->
-                          { tdata with
-                            functionResults =
-                              newResult :: tdata.functionResults } ) )
-                  else t )
-           |> fun x -> Some x )
-  in
-  {m with traces}
-
-
-let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
-    : dval list option =
-  let tl = TL.get m tlid in
-  match tl with
-  | None ->
-      None
-  | Some tl ->
-      let caller = TL.find tl callerID in
-      let threadPrevious =
-        match TL.rootOf tl with
-        | Some (PExpr expr) ->
-            Option.toList (AST.threadPrevious callerID expr)
-        | _ ->
-            []
-      in
-      let args =
-        match caller with
-        | Some (PExpr (F (_, FnCall (_, args, _)))) ->
-            threadPrevious @ args
-        | _ ->
-            []
-      in
-      let argIDs = List.map ~f:B.toID args in
-      let analyses = StrDict.get ~key:traceID m.analyses in
-      let dvals =
-        match analyses with
-        | Some analyses_ ->
-            List.filterMap
-              ~f:(fun id -> StrDict.get ~key:(deID id) analyses_.liveValues)
-              argIDs
-        | None ->
-            []
-      in
-      if List.length dvals = List.length argIDs then Some dvals else None
-
-
+(* ---------------------- *)
+(* Communication with server *)
+(* ---------------------- *)
 module ReceiveAnalysis = struct
   let decode : (Js.Json.t, performAnalysisResult) Tea.Json.Decoder.t =
     let open Tea.Json.Decoder in
