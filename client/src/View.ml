@@ -154,7 +154,17 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
 
 
 let tlCacheKey m tl =
-  if Some tl.id = tlidOf m.cursorState then None else Some tl
+  if Some tl.id = tlidOf m.cursorState
+  then None
+  else
+    let hovered =
+      match List.head m.hovering with
+      | Some (tlid, id) when tlid = tl.id ->
+          Some id
+      | _ ->
+          None
+    in
+    Some (tl, Analysis.cursor m tl.id, hovered)
 
 
 let tlCacheKeyDB m tl =

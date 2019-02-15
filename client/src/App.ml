@@ -617,11 +617,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  f404.space ^ f404.path ^ f404.modifier )
         in
         ({m with f404s = new404s}, Cmd.none)
-    | SetHover p ->
-        let nhovering = p :: m.hovering in
+    | SetHover (tlid, id) ->
+        let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
-    | ClearHover p ->
-        let nhovering = List.filter ~f:(fun m -> m <> p) m.hovering in
+    | ClearHover (tlid, id) ->
+        let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
@@ -769,16 +769,16 @@ let update_ (msg : msg) (m : model) : modification =
         else NoChange
     | _ ->
         NoChange )
-  | BlankOrMouseEnter (_, id, _) ->
-      SetHover id
-  | BlankOrMouseLeave (_, id, _) ->
-      ClearHover id
+  | BlankOrMouseEnter (tlid, id, _) ->
+      SetHover (tlid, id)
+  | BlankOrMouseLeave (tlid, id, _) ->
+      ClearHover (tlid, id)
   | MouseWheel (x, y) ->
       if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
   | TraceMouseEnter (tlid, traceID, _) ->
-      SetHover (tlCursorID tlid traceID)
+      SetHover (tlid, ID traceID)
   | TraceMouseLeave (tlid, traceID, _) ->
-      ClearHover (tlCursorID tlid traceID)
+      ClearHover (tlid, ID traceID)
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
