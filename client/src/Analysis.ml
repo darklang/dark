@@ -32,13 +32,17 @@ let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
   {m with tlCursors = newCursors}
 
 
-let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
-  let traceID = cursor m tlid in
+let getAnalysisResults (m : model) (traceID : traceID) : analysisResults option
+    =
   (* only handlers have analysis results, but lots of stuff expect this *)
   (* data to exist. It may be better to not do that, but this is fine *)
   (* for now. *)
-  traceID
-  |> Option.andThen ~f:(fun key -> StrDict.get ~key m.analyses)
+  StrDict.get ~key:traceID m.analyses
+
+
+let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
+  cursor m tlid
+  |> Option.andThen ~f:(getAnalysisResults m)
   |> Option.withDefault ~default:defaultResults
 
 
@@ -287,17 +291,19 @@ let analyzeFocused (m : model) : 'msg Cmd.t =
               (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID})
         )
     | Some (traceID, Some traceData) ->
-        (* Run the analysis, if missing *)
-        (*        TODO: missing *)
-        let h = TL.getTL m tlid |> TL.asHandler in
-        ( match h with
-        | None ->
-            Cmd.none
-        | Some h ->
-            let dbs = TL.dbs m.toplevels in
-            let userFns = m.userFunctions in
-            Tea_cmd.call (fun _ ->
-                RequestAnalysis.send
-                  {handler = h; traceID; traceData; dbs; userFns} ) ) )
+        if getAnalysisResults m traceID = None
+        then
+          (* Run the analysis, if missing *)
+          let h = TL.getTL m tlid |> TL.asHandler in
+          match h with
+          | None ->
+              Cmd.none
+          | Some h ->
+              let dbs = TL.dbs m.toplevels in
+              let userFns = m.userFunctions in
+              Tea_cmd.call (fun _ ->
+                  RequestAnalysis.send
+                    {handler = h; traceID; traceData; dbs; userFns} )
+        else Cmd.none )
   | None ->
       Cmd.none
