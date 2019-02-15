@@ -47,7 +47,9 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
       |> Option.withDefault ~default:"<loading>"
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
-    let isActive = Analysis.cursor' vs.tlCursors vs.tl.id = Some traceID in
+    let isActive =
+      Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
+    in
     let hoverID = tlCursorID vs.tl.id traceID in
     let isHover = vs.hovering = Some hoverID in
     let astTipe =
