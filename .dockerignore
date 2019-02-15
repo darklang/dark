@@ -4,3 +4,4 @@ stroller/target
 server/_build
 rundir
 sqldump*.gz
+dark-cli/target

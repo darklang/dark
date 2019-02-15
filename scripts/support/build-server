@@ -54,6 +54,11 @@ def initial_stroller_compile():
   files = [ "stroller/src/main.rs" ]
   return compile(files)
 
+def initial_cli_compile():
+    files = [ "dark-cli/src/main.rs" ]
+    return compile(files)
+
+
 def run_server():
   exit = compile([ "scripts/support/runserver" ])
   print("--------------------------")
@@ -129,6 +134,7 @@ def main():
   compile_client = False
   compile_backend = False
   compile_stroller = False
+  compile_cli = False
 
   # Run the Dark webserver and keep the container open to serve it.
   # Useful for demoing without draining your battery. Will not recompile
@@ -141,6 +147,7 @@ def main():
       compile_backend = True
       compile_client = True
       compile_stroller = True
+      compile_cli = True
     elif f == "--compile-backend":
       compile = True
       compile_backend = True
@@ -150,6 +157,9 @@ def main():
     elif f == "--compile-stroller":
       compile = True
       compile_stroller = True
+    elif f == "--compile-cli":
+      compile = True
+      compile_cli = True
     elif f == "--watch":
       watch = True
     elif f == "--ci-serve":
@@ -172,6 +182,9 @@ def main():
     if compile_stroller and not initial_stroller_compile():
       print("Failed stroller build")
       success = False
+    if compile_cli and not initial_cli_compile():
+      print("Failed cli build")
+      success = False
 
 
     print("--------------------------")
@@ -187,6 +200,7 @@ def main():
   run("sudo chown dark:dark client/node_modules")
   run("sudo chown dark:dark client/lib")
   run("sudo chown dark:dark stroller/target")
+  run("sudo chown dark:dark dark-cli/target")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   run_or_fail("scripts/support/create-app-directories")
