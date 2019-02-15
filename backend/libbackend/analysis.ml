@@ -118,6 +118,8 @@ let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
   h
   |> Handler.event_desc_for
   |> Option.map ~f:(SE.load_event_ids ~canvas_id:c.id)
+  (* if it has no events, add a default *)
+  |> (function Some [] -> None | x -> x)
   |> Option.value ~default:[Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
 
 
