@@ -599,8 +599,8 @@ and modification =
   | ClearError
   | Select of tlid * id option
   | SelectCommand of tlid * id
-  | SetHover of id
-  | ClearHover of id
+  | SetHover of tlid * id
+  | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
   | SetToplevels of toplevel list * bool
@@ -779,7 +779,7 @@ and model =
   ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
-  ; hovering : id list
+  ; hovering : (tlid * id) list
   ; toplevels :
       toplevel list
       (* These are read direct from the server. The ones that are *)

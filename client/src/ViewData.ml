@@ -50,8 +50,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     let isActive =
       Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
     in
-    let hoverID = tlCursorID vs.tl.id traceID in
-    let isHover = vs.hovering = Some hoverID in
+    let isHover = vs.hovering = Some (vs.tl.id, ID traceID) in
     let astTipe =
       StrDict.get ~key:traceID vs.analyses
       |> Option.map ~f:(fun x -> x.liveValues)
