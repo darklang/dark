@@ -11,12 +11,7 @@ use walkdir::WalkDir;
 
 // TODO handle response errors
 
-fn cookie_and_csrf(
-    user: String,
-    password: String,
-    host: String,
-    canvas: String,
-) -> (String, String) {
+fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> (String, String) {
     let requri = format!("{}/a/{}", host, canvas);
     let mut authresp = match reqwest::Client::new()
         .get(&requri)
@@ -63,10 +58,10 @@ fn cookie_and_csrf(
     (cookie, csrf)
 }
 
-fn form_body(paths: String) -> reqwest::multipart::Form {
+fn form_body(paths: &str) -> reqwest::multipart::Form {
     let mut files = paths
-        .split(" ")
-        .map(|path| WalkDir::new(path))
+        .split(' ')
+        .map(WalkDir::new)
         .flat_map(|entry| entry.follow_links(true).into_iter())
         .filter_map(|e| e.ok())
         .filter(|entry| entry.file_type().is_file())
@@ -142,20 +137,20 @@ fn main() {
     let canvas = matches.value_of("canvas").unwrap();
     let user = matches.value_of("user").unwrap();
     let password = matches.value_of("password").unwrap();
-
-    let host = match matches.is_present("dev") {
-        true => "http://darklang.localhost:8000",
-        false => "https://darklang.com",
+    let host = if matches.is_present("dev") {
+        "http://darklang.localhost:8000"
+    } else {
+        "https://darklang.com"
     };
 
     let (cookie, csrf) = cookie_and_csrf(
         user.to_string(),
         password.to_string(),
-        host.to_string(),
-        canvas.to_string(),
+        &host.to_string(),
+        &canvas.to_string(),
     );
 
-    let form = form_body(paths.to_string());
+    let form = form_body(&paths.to_string());
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
     let mut resp = match reqwest::Client::new()
