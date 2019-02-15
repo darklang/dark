@@ -15,11 +15,4 @@ let markResponseInModel (m : model) : model =
 
 let timedOut (s : syncState) : bool = s.ticks mod 10 = 0 && s.ticks <> 0
 
-external origin : string = "origin"
-  [@@bs.val] [@@bs.scope "window", "location"]
 
-external prefix : string = "testcafeInjectedPrefix"
-  [@@bs.val] [@@bs.scope "window"]
-
-let contextFromModel (m : model) : traceFetchContext =
-  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}

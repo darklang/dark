@@ -37,7 +37,7 @@ let fetch (context : Types.traceFetchContext) params =
   |> then_ Fetch.Response.json
   |> then_ (fun resp ->
          let result = Decoders.getTraceDataRPCResult resp in
-         resolve (postMessage self (TraceFetchSuccess result)) )
+         resolve (postMessage self (TraceFetchSuccess (params, result))) )
   |> catch (fun err ->
          Js.log2 "traceFetch error" err ;
          resolve

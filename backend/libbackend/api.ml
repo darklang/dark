@@ -7,7 +7,10 @@ type oplist = Op.op list [@@deriving yojson]
 
 type add_op_rpc_params = {ops : oplist} [@@deriving yojson]
 
-type get_trace_data_rpc_params = {tlids : tlid list} [@@deriving yojson]
+type get_trace_data_rpc_params =
+  { tlid : tlid
+  ; trace_id : traceid }
+[@@deriving yojson]
 
 type execute_function_rpc_params =
   { tlid : tlid

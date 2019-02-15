@@ -299,7 +299,9 @@ and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
   field "unlocked_dbs" (list tlid) j
 
 
-and getTraceDataRPCResult j : getTraceDataRPCResult = field "traces" traces j
+and getTraceDataRPCResult j : getTraceDataRPCResult =
+  {trace = field "trace" trace j}
+
 
 and initialLoadRPCResult j : initialLoadRPCResult =
   { toplevels = field "toplevels" (list toplevel) j

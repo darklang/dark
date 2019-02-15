@@ -66,59 +66,51 @@ let delete_404s
 (* ------------------------- *)
 (* Input vars *)
 (* ------------------------- *)
-let saved_input_vars (c : canvas) (h : RTT.HandlerT.handler) :
-    (Uuidm.t * input_vars) list =
-  match Handler.event_desc_for h with
-  | None ->
-      []
-  | Some d ->
-      List.map (SE.load_events c.id d) ~f:(fun (request_path, id, _ts, e) ->
-          match Handler.module_type h with
-          | `Http ->
-              let with_r = [("request", e)] in
-              let bound =
-                Libexecution.Execution.http_route_input_vars h request_path
-              in
-              (id, with_r @ bound)
-          | `Event ->
-              (id, [("event", e)])
-          | `Cron ->
-              (id, [])
-          | `Unknown ->
-              (id, [])
-          (* can't happen *) )
+let saved_input_vars
+    (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid) :
+    input_vars option =
+  SE.load_event_for_trace ~canvas_id:c.id trace_id
+  |> Option.map ~f:(fun (request_path, event) ->
+         match Handler.module_type h with
+         | `Http ->
+             let with_r = [("request", event)] in
+             let bound =
+               Libexecution.Execution.http_route_input_vars h request_path
+             in
+             with_r @ bound
+         | `Event ->
+             [("event", event)]
+         | `Cron ->
+             []
+         | `Unknown ->
+             [] )
 
 
-let traces_for_user_fn (c : canvas) (fn : RTT.user_fn) : trace list =
+let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
+    : trace =
   let ivs =
-    match Stored_function_arguments.load_for_analysis c.id fn.tlid with
-    | [] ->
-        [(Uuidm.v5 Uuidm.nil (string_of_id fn.tlid), [])]
-    | ivs ->
-        ivs
+    saved_input_vars c h trace_id
+    |> Option.value ~default:(Execution.sample_input_vars h)
   in
-  List.map ivs ~f:(fun (trace_id, input_vars) ->
-      let function_results =
-        Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
-      in
-      (trace_id, Some {input = input_vars; function_results}) )
+  let function_results =
+    Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
+  in
+  (trace_id, Some {input = ivs; function_results})
 
 
-let traces_for_handler (c : canvas) (h : RTT.HandlerT.handler) : trace list =
-  (* It's really awkward to do this on the client, so just do it here for now *)
+let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
+    =
   let ivs =
-    match saved_input_vars c h with
-    | [] ->
-        [ ( Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
-          , Execution.sample_input_vars h ) ]
-    | ivs ->
-        ivs
+    (* todo: make example values *)
+    Stored_function_arguments.load_for_analysis
+      ~canvas_id:c.id
+      fn.tlid
+      trace_id
   in
-  List.map ivs ~f:(fun (trace_id, input_vars) ->
-      let function_results =
-        Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
-      in
-      (trace_id, Some {input = input_vars; function_results}) )
+  let function_results =
+    Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
+  in
+  (trace_id, Some {input = ivs; function_results})
 
 
 let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
@@ -169,12 +161,10 @@ let call_function
 
 type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
 
-type get_trace_data_rpc_result = {traces : tlid_traces list}
-[@@deriving to_yojson]
+type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
 
-let to_get_trace_data_rpc_result (traces : tlid_traces list) (c : canvas) :
-    string =
-  {traces}
+let to_get_trace_data_rpc_result (c : canvas) (trace : trace) : string =
+  {trace}
   |> get_trace_data_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

@@ -613,27 +613,31 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     let t1, params =
       time "1-read-api-tlids" (fun _ -> Api.to_get_trace_data_rpc_params body)
     in
-    let tlids = params.tlids in
+    let tlid = params.tlid in
+    let trace_id = params.trace_id in
     let t2, c =
-      time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host [])
+      time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[tlid] host [])
     in
-    let t3, hvals =
+    let t3, mht =
       time "3-handler-analyses" (fun _ ->
           !c.handlers
-          |> List.filter_map ~f:TL.as_handler
-          |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
-      )
+          |> List.hd
+          |> Option.bind ~f:TL.as_handler
+          |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id) )
     in
-    let t4, fvals =
+    let t4, mft =
       time "4-user-fn-analyses" (fun _ ->
           !c.user_functions
-          |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
-          |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
-      )
+          |> List.find ~f:(fun f -> tlid = f.tlid)
+          |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id) )
     in
     let t5, result =
       time "5-to-frontend" (fun _ ->
-          Analysis.to_get_trace_data_rpc_result (hvals @ fvals) !c )
+          let trace =
+            Option.first_some mft mht
+            |> Option.value_exn ~message:"No value for tlid"
+          in
+          Analysis.to_get_trace_data_rpc_result !c trace )
     in
     respond
       ~execution_id

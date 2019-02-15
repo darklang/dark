@@ -533,21 +533,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
         in
         processAutocompleteMods m2 [ACRegenerate]
-    | RequestAnalysis tls ->
-        let handlers = TL.handlers tls in
-        let dbs = TL.dbs m.toplevels in
-        let userFns = m.userFunctions in
-        let requestAnalysis s =
-          Tea_cmd.call (fun _ -> Analysis.RequestAnalysis.send s)
-        in
-        let req h =
-          match Analysis.getCurrentTrace m h.tlid with
-          | Some (traceID, Some traceData) ->
-              [requestAnalysis {handler = h; traceID; traceData; dbs; userFns}]
-          | _ ->
-              []
-        in
-        (m, Cmd.batch (handlers |> List.map ~f:req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
         let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
         processAutocompleteMods m2 [ACRegenerate]
@@ -575,7 +560,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch [afCmd; acCmd])
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
       ->
-        let m2 =
+        let m =
           Analysis.replaceFunctionResult
             m
             tlid
@@ -585,7 +570,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             hash
             dval
         in
-        processAutocompleteMods m2 [ACRegenerate]
+        let afCmd = Analysis.analyzeFocused m in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
@@ -1035,7 +1022,6 @@ let update_ (msg : msg) (m : model) : modification =
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
-      let tl = TL.getTL m params.efpTLID in
       Many
         [ UpdateTraceFunctionResult
             ( params.efpTLID
@@ -1044,8 +1030,7 @@ let update_ (msg : msg) (m : model) : modification =
             , params.efpFnName
             , hash
             , dval )
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; RequestAnalysis [tl] ]
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many [TweakModel Sync.markResponseInModel; SetUnlockedDBs unlockedDBs]
   | NewTracePush (tlid, traceID) ->
@@ -1064,8 +1049,11 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str )
   | ReceiveTraces (TraceFetchFailure str) ->
       DisplayAndReportError str
-  | ReceiveTraces (TraceFetchSuccess newTraces) ->
-      UpdateTraces newTraces
+  | ReceiveTraces (TraceFetchSuccess (params, result)) ->
+      let traces =
+        StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
+      in
+      UpdateTraces traces
   | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
