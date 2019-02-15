@@ -12,14 +12,10 @@ let viewInput
     (isActive : bool)
     (isHover : bool)
     (tipe : tipe) : msg Html.html =
-  let activeClass =
-    if isActive then [Html.class' "active"] else [Vdom.noProp]
-  in
-  let hoverClass =
-    if isHover then [Html.class' "mouseovered"] else [Vdom.noProp]
-  in
+  let activeClass = if isActive then ["active"] else [] in
+  let hoverClass = if isHover then ["mouseovered"] else [] in
   let tipeClassName = "tipe-" ^ Runtime.tipe2str tipe in
-  let tipeClass = [Html.class' tipeClassName] in
+  let tipeClass = [tipeClassName] in
   let classes = activeClass @ hoverClass @ tipeClass in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
@@ -33,7 +29,9 @@ let viewInput
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
   Html.li
-    ([Vdom.attribute "" "data-content" value] @ classes @ events)
+    ( [Vdom.attribute "" "data-content" value]
+    @ [classes |> String.join ~sep:" " |> Html.class']
+    @ events )
     [Html.text {js|•|js}]
 
 
