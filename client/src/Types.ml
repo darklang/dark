@@ -343,7 +343,7 @@ and functionResult =
 
 (* traces / traceFetcher *)
 and traceFetchResult =
-  | TraceFetchSuccess of getTraceDataRPCResult
+  | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
   | TraceFetchFailure of string
 
 and traceFetchContext =
@@ -455,7 +455,7 @@ and unlockedDBs = tlid list
 
 and getUnlockedDBsRPCResult = unlockedDBs
 
-and getTraceDataRPCResult = traces
+and getTraceDataRPCResult = {trace : trace}
 
 and initialLoadRPCResult =
   { toplevels : toplevel list
@@ -608,7 +608,6 @@ and modification =
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
-  | RequestAnalysis of toplevel list
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of tlid list
   | Append404s of fourOhFour list

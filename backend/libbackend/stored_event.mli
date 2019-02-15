@@ -19,6 +19,9 @@ val store_event :
   -> Types.RuntimeT.dval
   -> Types.RuntimeT.time
 
+val load_event_for_trace :
+  canvas_id:Uuidm.t -> Uuidm.t -> (string * Types.RuntimeT.dval) option
+
 val load_events :
      canvas_id:Uuidm.t
   -> event_desc

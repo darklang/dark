@@ -264,12 +264,40 @@ module RequestTraces = struct
     [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end
 
-let analyzeFocused (_m : model) : 'msg Cmd.t =
-  (* let tlid = m.cursorState in *)
-  (* if Some tlid = tlidOf m.cursorState *)
-  (* then *)
-  (*   Tea_cmd.call (fun _ -> *)
-  (*       RequestTraces.send *)
-  (*         (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) ) *)
-  (* else (m, Cmd.none) Debug.loG "calling analyzefocused" "" ; *)
-  Cmd.none
+external origin : string = "origin"
+  [@@bs.val] [@@bs.scope "window", "location"]
+
+external prefix : string = "testcafeInjectedPrefix"
+  [@@bs.val] [@@bs.scope "window"]
+
+let contextFromModel (m : model) : traceFetchContext =
+  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
+
+
+let analyzeFocused (m : model) : 'msg Cmd.t =
+  match tlidOf m.cursorState with
+  | Some tlid ->
+    ( match getCurrentTrace m tlid with
+    | None ->
+        Cmd.none
+    | Some (traceID, None) ->
+        (* Fetch the trace data, if missing *)
+        Tea_cmd.call (fun _ ->
+            RequestTraces.send
+              (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID})
+        )
+    | Some (traceID, Some traceData) ->
+        (* Run the analysis, if missing *)
+        (*        TODO: missing *)
+        let h = TL.getTL m tlid |> TL.asHandler in
+        ( match h with
+        | None ->
+            Cmd.none
+        | Some h ->
+            let dbs = TL.dbs m.toplevels in
+            let userFns = m.userFunctions in
+            Tea_cmd.call (fun _ ->
+                RequestAnalysis.send
+                  {handler = h; traceID; traceData; dbs; userFns} ) ) )
+  | None ->
+      Cmd.none

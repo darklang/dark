@@ -91,24 +91,26 @@ let replacements =
     ; ( "DarkInternal::canLoadTraces"
       , function
         | _, [DStr host; DStr tlid] ->
-            let open Libexecution in
-            let tlid = Unicode_string.to_string tlid in
-            let c =
-              Canvas.load_only
-                (Unicode_string.to_string host)
-                ~tlids:[Types.id_of_string tlid]
-                []
-            in
-            let handler =
-              !c.handlers
-              |> List.map ~f:Toplevel.as_handler
-              |> List.map ~f:(fun h -> Option.value_exn h)
-              |> List.find_exn ~f:(fun h -> h.tlid = Types.id_of_string tlid)
-            in
-            ( try
-                ignore (Analysis.traces_for_handler !c handler) ;
-                DBool true
-              with _ -> DBool false )
+          ( try
+              let open Libexecution in
+              let tlid = Unicode_string.to_string tlid in
+              let c =
+                Canvas.load_only
+                  (Unicode_string.to_string host)
+                  ~tlids:[Types.id_of_string tlid]
+                  []
+              in
+              let handler =
+                !c.handlers
+                |> List.map ~f:Toplevel.as_handler
+                |> List.map ~f:(fun h -> Option.value_exn h)
+                |> List.find_exn ~f:(fun h -> h.tlid = Types.id_of_string tlid)
+              in
+              Analysis.traceids_for_handler !c handler
+              |> List.map ~f:(Analysis.handler_trace !c handler)
+              |> ignore ;
+              DBool true
+            with _ -> DBool false )
         | args ->
             fail args )
     ; ( "DarkInternal::upsertUser"

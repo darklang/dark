@@ -351,7 +351,7 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
 
 and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
   object_
-    [("tlid", tlid params.gtdrpTlid); ("traceID", traceID params.gtdrpTraceID)]
+    [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
 
 
 and performAnalysisParams (params : Types.performAnalysisParams) : Js.Json.t =
