@@ -164,7 +164,11 @@ let tlCacheKey m tl =
       | _ ->
           None
     in
-    Some (tl, Analysis.cursor m tl.id, hovered)
+    let tracesLoaded =
+      Analysis.getTraces m tl.id
+      |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
+    in
+    Some (tl, Analysis.cursor m tl.id, hovered, tracesLoaded)
 
 
 let tlCacheKeyDB m tl =
