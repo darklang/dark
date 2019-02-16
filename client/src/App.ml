@@ -1035,11 +1035,11 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
-        ; UpdateTraces traces
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod
-        ; newState ]
+        ; newState
+        ; UpdateTraces traces ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
