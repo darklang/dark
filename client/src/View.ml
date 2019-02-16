@@ -153,7 +153,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   ViewUtils.placeHtml pos html
 
 
-let tlCacheKey m tl =
+let tlCacheKey (m : model) tl =
   if Some tl.id = tlidOf m.cursorState
   then None
   else
@@ -171,7 +171,7 @@ let tlCacheKey m tl =
     Some (tl, Analysis.cursor m tl.id, hovered, tracesLoaded)
 
 
-let tlCacheKeyDB m tl =
+let tlCacheKeyDB (m : model) tl =
   if Some tl.id = tlidOf m.cursorState
   then None
   else Some (tl, DB.isLocked m tl.id)

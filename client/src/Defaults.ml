@@ -22,7 +22,9 @@ let defaultEditor : serializableEditor =
   ; timersEnabled = true
   ; cursorState = Deselected
   ; lockedHandlers = []
-  ; routingTableOpenDetails = StrSet.empty }
+  ; routingTableOpenDetails = StrSet.empty
+  ; tlCursors = StrDict.empty
+  ; featureFlags = StrDict.empty }
 
 
 let defaultUrlState : urlState = {lastPos = {x = 0; y = 0}}

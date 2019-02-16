@@ -10,3 +10,10 @@ let tcStrSet set =
   |> Tc.List.map ~f:Js.Json.string
   |> Belt.List.toArray
   |> jsonArray
+
+
+let tcStrDict f dict =
+  dict
+  |> Tc.StrDict.toList
+  |> Tc.List.map ~f:(fun (k, v) -> (k, f v))
+  |> object_
