@@ -847,6 +847,7 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
 let admin_ui_handler
     ~(execution_id : Types.id)
     ~(path : string list)
+    ~(canvasname : string)
     ~stopper
     ~(body : string)
     ~(username : string)
@@ -890,7 +891,7 @@ let admin_ui_handler
     then
       match Account.owner ~auth_domain with
       | Some owner ->
-          Serialize.fetch_canvas_id owner auth_domain |> f
+          f (Serialize.fetch_canvas_id owner canvasname)
       | None ->
           respond
             ~execution_id
@@ -1001,13 +1002,14 @@ let admin_handler
         ~session
         (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
         req
-  | "a" :: _ ->
+  | "a" :: canvasname :: _ ->
       admin_ui_handler
         ~execution_id
         ~path
         ~stopper
         ~body
         ~username
+        ~canvasname
         ~csrf_token
         req
   | _ ->
