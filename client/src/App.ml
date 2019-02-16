@@ -384,7 +384,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RPCFull (params, focus) ->
         handleRPC params focus
     | GetUnlockedDBsRPC ->
-        (m, RPC.getUnlockedDBs m)
+        Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -443,7 +443,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ({m with currentPage = Fn (id, center)}, Cmd.none) )
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
-        let afCmd = Analysis.analyzeFocused m in
+        let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd]))
     | Deselect ->
         let newM = {m with cursorState = Deselected} in
@@ -460,7 +460,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState = Entering entry} in
-        let afCmd = Analysis.analyzeFocused m in
+        let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
     | EnterWithOffset (entry, offset) ->
         let target =
@@ -474,7 +474,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState = Entering entry} in
-        let afCmd = Analysis.analyzeFocused m in
+        let m, afCmd = Analysis.analyzeFocused m in
         ( m
         , Cmd.batch
             ( closeBlanks m
@@ -555,7 +555,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                              else (oldID, oldData) ) )) )
         in
         let m = {m with traces = newTraces} in
-        let afCmd = Analysis.analyzeFocused m in
+        let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
@@ -570,7 +570,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             hash
             dval
         in
-        let afCmd = Analysis.analyzeFocused m in
+        let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
@@ -625,7 +625,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with hovering = nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
-        let afCmd = Analysis.analyzeFocused m in
+        let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
     | CopyToClipboard clipboard ->
         ({m with clipboard}, Cmd.none)
@@ -1039,7 +1039,9 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
-      Many [TweakModel Sync.markResponseInModel; SetUnlockedDBs unlockedDBs]
+      Many
+        [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
+        ; SetUnlockedDBs unlockedDBs ]
   | NewTracePush (tlid, traceID) ->
       UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
   | New404Push f404 ->
@@ -1054,13 +1056,19 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
-  | ReceiveTraces (TraceFetchFailure str) ->
-      DisplayAndReportError str
+  | ReceiveTraces (TraceFetchFailure (params, str)) ->
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        ; DisplayAndReportError str ]
   | ReceiveTraces (TraceFetchSuccess (params, result)) ->
       let traces =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
       in
-      UpdateTraces traces
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        ; UpdateTraces traces ]
   | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
@@ -1070,7 +1078,9 @@ let update_ (msg : msg) (m : model) : modification =
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("InitialLoad", err)
   | GetUnlockedDBsRPCCallback (Error err) ->
-      DisplayAndReportHttpError ("GetUnlockedDBs", err)
+      Many
+        [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
+        ; DisplayAndReportHttpError ("GetUnlockedDBs", err) ]
   | Delete404RPCCallback (Error err) ->
       DisplayAndReportHttpError ("Delete404", err)
   | JSError msg_ ->

@@ -309,15 +309,18 @@ let requestTrace m tlid traceID =
         (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) )
 
 
-let analyzeFocused (m : model) : 'msg Cmd.t =
+let analyzeFocused (m : model) : model * 'msg Cmd.t =
   match tlidOf m.cursorState with
   | Some tlid ->
     ( match getCurrentTrace m tlid with
     | None ->
-        Cmd.none
+        (m, Cmd.none)
     | Some (traceID, None) ->
         (* Fetch the trace data, if missing *)
-        requestTrace m tlid traceID
+        Sync.attempt
+          ~key:("tracefetch-" ^ traceID)
+          m
+          (requestTrace m tlid traceID)
     | Some (traceID, Some traceData) ->
         if getAnalysisResults m traceID = None
         then
@@ -325,13 +328,14 @@ let analyzeFocused (m : model) : 'msg Cmd.t =
           let h = TL.getTL m tlid |> TL.asHandler in
           match h with
           | None ->
-              Cmd.none
+              (m, Cmd.none)
           | Some h ->
               let dbs = TL.dbs m.toplevels in
               let userFns = m.userFunctions in
-              Tea_cmd.call (fun _ ->
-                  RequestAnalysis.send
-                    {handler = h; traceID; traceData; dbs; userFns} )
-        else Cmd.none )
+              ( m
+              , Tea_cmd.call (fun _ ->
+                    RequestAnalysis.send
+                      {handler = h; traceID; traceData; dbs; userFns} ) )
+        else (m, Cmd.none) )
   | None ->
-      Cmd.none
+      (m, Cmd.none)

@@ -344,7 +344,7 @@ and functionResult =
 (* traces / traceFetcher *)
 and traceFetchResult =
   | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
-  | TraceFetchFailure of string
+  | TraceFetchFailure of getTraceDataRPCParams * string
 
 and traceFetchContext =
   { canvasName : string
@@ -739,9 +739,7 @@ and flagsVS = ffIsExpanded StrDict.t
 (* ----------------------------- *)
 (* Model *)
 (* ----------------------------- *)
-and syncState =
-  { inFlight : bool
-  ; ticks : int }
+and syncState = StrSet.t
 
 and urlState = {lastPos : pos}
 
