@@ -745,14 +745,6 @@ and urlState = {lastPos : pos}
 
 and tlCursors = traceID StrDict.t
 
-(* Values that we serialize *)
-and serializableEditor =
-  { clipboard : pointerData option
-  ; timersEnabled : bool
-  ; cursorState : cursorState
-  ; lockedHandlers : tlid list
-  ; routingTableOpenDetails : StrSet.t }
-
 (* Error Handling *)
 and darkError =
   { message : string option
@@ -793,13 +785,13 @@ and model =
   ; syncState : syncState
   ; urlState : urlState
   ; timersEnabled : bool
-  ; executingFunctions :
-      (tlid * id) list
+  ; executingFunctions : (tlid * id) list
+  ; tlCursors :
+      tlCursors
       (* This is TLID id to cursor index (the cursor being *)
       (* the input to the toplevel currently used, not to *)
       (* be confused with cursorState, which is the code *)
       (* that is currently selected.) *)
-  ; tlCursors : tlCursors
   ; featureFlags : flagsVS
   ; lockedHandlers : tlid list
   ; canvas : canvasProps
@@ -810,4 +802,14 @@ and model =
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t }
+
+(* Values that we serialize *)
+and serializableEditor =
+  { clipboard : pointerData option
+  ; timersEnabled : bool
+  ; cursorState : cursorState
+  ; lockedHandlers : tlid list
+  ; routingTableOpenDetails : StrSet.t
+  ; tlCursors : tlCursors
+  ; featureFlags : flagsVS }
 [@@deriving show {with_path = false}]
