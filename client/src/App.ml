@@ -779,7 +779,9 @@ let update_ (msg : msg) (m : model) : modification =
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
         | Some (_, None) ->
-            [MakeCmd (Analysis.requestTrace m tlid traceID)]
+            let m, cmd = Analysis.requestTrace m tlid traceID in
+            [ TweakModel (fun old -> {old with syncState = m.syncState})
+            ; MakeCmd cmd ]
         | _ ->
             []
       in
