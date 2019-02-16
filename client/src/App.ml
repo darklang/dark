@@ -547,12 +547,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | None, Some n ->
                   Some n
               | Some o, Some n ->
+                  (* merge the lists, updating the trace in the same position
+                   * if present, and adding it to the front otherwise. *)
                   Some
                     (List.foldl n ~init:o ~f:(fun (newID, newData) list ->
-                         List.map list ~f:(fun (oldID, oldData) ->
-                             if oldID = newID && newData <> None
-                             then (newID, newData)
-                             else (oldID, oldData) ) )) )
+                         let found = ref false in
+                         let updated =
+                           List.map list ~f:(fun (oldID, oldData) ->
+                               if oldID = newID
+                               then (
+                                 found := true ;
+                                 if newData <> None
+                                 then (newID, newData)
+                                 else (oldID, oldData) )
+                               else (oldID, oldData) )
+                         in
+                         if !found (* deref, not "not" *)
+                         then updated
+                         else (newID, newData) :: list )) )
         in
         let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
