@@ -18,47 +18,40 @@ let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
   in
-  let savedEditor = Editor.fromString editorState in
-  let m0 = Editor.editor2model savedEditor in
-  (* these saved values may not be valid yet *)
-  let savedCursorState = m0.cursorState in
-  let m =
-    { m0 with
-      cursorState = Deselected
-    ; currentPage = (Defaults.defaultModel |> fun x -> x.currentPage)
-    ; builtInFunctions = complete }
-  in
+  let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
-    Url.parseLocation location |> Option.withDefault ~default:m.currentPage
+    Url.parseLocation location
+    |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
-  let canvas = m.canvas in
-  let newCanvas =
-    match page with
-    | Toplevels pos ->
-        {canvas with offset = pos}
-    | Fn (_, pos) ->
-        {canvas with fnOffset = pos}
-  in
-  let canvasName = Url.parseCanvasName location in
-  let integrationTestName = canvasName in
-  let m2 =
+  (* these saved values may not be valid yet *)
+  let savedCursorState = m.cursorState in
+  let m =
     { m with
-      complete = AC.init m
+      cursorState =
+        Deselected
+        (* deselect for now as the selected blank isn't available yet *)
+    ; currentPage = page
+    ; builtInFunctions = complete
+    ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
-    ; currentPage = page
-    ; canvas = newCanvas
-    ; canvasName
+    ; canvas =
+        ( match page with
+        | Toplevels pos ->
+            {m.canvas with offset = pos}
+        | Fn (_, pos) ->
+            {m.canvas with fnOffset = pos} )
+    ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
     ; csrfToken }
   in
   if Url.isIntegrationTest
-  then (m2, Cmd.batch [RPC.integration m2 integrationTestName])
+  then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
-    ( m2
+    ( m
     , Cmd.batch
-        [RPC.initialLoad m2 (FocusPageAndCursor (page, savedCursorState))] )
+        [RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -1015,10 +1008,10 @@ let update_ (msg : msg) (m : model) : modification =
           ; newState ]
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
-      let m2 =
+      let pfM =
         {m with toplevels = r.toplevels; userFunctions = r.userFunctions}
       in
-      let newState = processFocus m2 focus in
+      let newState = processFocus pfM focus in
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, None) in
