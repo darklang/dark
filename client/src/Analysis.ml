@@ -303,10 +303,13 @@ let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
-let requestTrace m tlid traceID =
-  Tea_cmd.call (fun _ ->
-      RequestTraces.send
-        (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) )
+let requestTrace m tlid traceID : model * msg Cmd.t =
+  Sync.attempt
+    ~key:("tracefetch-" ^ traceID)
+    m
+    (Tea_cmd.call (fun _ ->
+         RequestTraces.send
+           (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) ))
 
 
 let analyzeFocused (m : model) : model * 'msg Cmd.t =
@@ -317,10 +320,7 @@ let analyzeFocused (m : model) : model * 'msg Cmd.t =
         (m, Cmd.none)
     | Some (traceID, None) ->
         (* Fetch the trace data, if missing *)
-        Sync.attempt
-          ~key:("tracefetch-" ^ traceID)
-          m
-          (requestTrace m tlid traceID)
+        requestTrace m tlid traceID
     | Some (traceID, Some traceData) ->
         if getAnalysisResults m traceID = None
         then
