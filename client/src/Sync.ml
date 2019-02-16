@@ -1,18 +1,22 @@
 open Types
+open Tc
 
-let markRequestInModel (m : model) : model =
-  {m with syncState = {inFlight = true; ticks = 0}}
-
-
-let markTickInModel (m : model) : model =
-  let oldSyncState = m.syncState in
-  {m with syncState = {oldSyncState with ticks = oldSyncState.ticks + 1}}
+let markRequestInModel ~(key : string) (m : model) : model =
+  let syncState = StrSet.add m.syncState ~value:key in
+  {m with syncState}
 
 
-let markResponseInModel (m : model) : model =
-  {m with syncState = {inFlight = false; ticks = 0}}
+let markResponseInModel ~(key : string) (m : model) : model =
+  let syncState = StrSet.remove m.syncState ~value:key in
+  {m with syncState}
 
 
-let timedOut (s : syncState) : bool = s.ticks mod 10 = 0 && s.ticks <> 0
+let inFlight ~(key : string) (m : model) : bool =
+  StrSet.has m.syncState ~value:key
 
 
+let attempt ~(key : string) (m : model) (cmd : msg Tea.Cmd.t) :
+    model * msg Tea.Cmd.t =
+  if inFlight m ~key
+  then (m, Tea.Cmd.none)
+  else (markRequestInModel m ~key, cmd)

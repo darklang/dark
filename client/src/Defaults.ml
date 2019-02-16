@@ -25,8 +25,6 @@ let defaultEditor : serializableEditor =
   ; routingTableOpenDetails = StrSet.empty }
 
 
-let defaultSyncState : syncState = {inFlight = false; ticks = 0}
-
 let defaultUrlState : urlState = {lastPos = {x = 0; y = 0}}
 
 let defaultCanvas : canvasProps =
@@ -67,7 +65,7 @@ let defaultModel : model =
   ; unlockedDBs = []
   ; integrationTestState = NoIntegrationTest
   ; visibility = Native.PageVisibility.Visible (* partially saved in editor *)
-  ; syncState = defaultSyncState
+  ; syncState = StrSet.empty
   ; urlState = defaultUrlState
   ; timersEnabled = true (* saved in editor *)
   ; clipboard = None

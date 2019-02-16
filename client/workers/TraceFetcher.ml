@@ -41,8 +41,9 @@ let fetch (context : Types.traceFetchContext) params =
   |> catch (fun err ->
          Js.log2 "traceFetch error" err ;
          resolve
-           (postMessage self (TraceFetchFailure ("Failure fetching: " ^ url)))
-     )
+           (postMessage
+              self
+              (TraceFetchFailure (params, "Failure fetching: " ^ url))) )
 
 
 let () =
