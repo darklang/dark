@@ -52,7 +52,8 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
 
 
 let delete_404s
-    (c : canvas) (space : string) (path : string) (modifier : string) : unit =
+    (cid : Uuidm.t) (space : string) (path : string) (modifier : string) : unit
+    =
   Db.run
     ~name:"delete_404s"
     "DELETE FROM stored_events_v2
@@ -60,7 +61,7 @@ let delete_404s
       AND module = $2
       AND path = $3
       AND modifier = $4"
-    ~params:[Db.Uuid c.id; Db.String space; Db.String path; Db.String modifier]
+    ~params:[Db.Uuid cid; Db.String space; Db.String path; Db.String modifier]
 
 
 (* ------------------------- *)
@@ -161,7 +162,7 @@ let call_function
 
 (* Response with miscellaneous stuff, and specific responses from tlids *)
 
-type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
+type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
 type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
 
