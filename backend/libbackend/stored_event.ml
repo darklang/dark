@@ -65,8 +65,8 @@ let load_events
     (string * Uuidm.t * RTT.time * RTT.dval) list =
   let route = Http.route_to_postgres_pattern route in
   Db.fetch
-    ~name:"load_events_for_trace"
-    "SELECT path, value FROM stored_events_v2
+    ~name:"load_events"
+    "SELECT path, value, timestamp, trace_id FROM stored_events_v2
     WHERE canvas_id = $1
       AND module = $2
       AND path LIKE $3
@@ -82,7 +82,7 @@ let load_events
              , Util.date_of_isostring ts
              , Dval.unsafe_dval_of_json_string dval )
          | _ ->
-             Exception.internal "Bad DB format for load_events_for_trace" )
+             Exception.internal "Bad DB format for load_events" )
 
 
 let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
