@@ -449,8 +449,6 @@ and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
-and delete404RPCResult = fourOhFour list
-
 and unlockedDBs = tlid list
 
 and getUnlockedDBsRPCResult = unlockedDBs
@@ -668,8 +666,8 @@ and msg =
       [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | New404Push of fourOhFour
-  | Delete404RPCCallback of (delete404RPCResult, httpError) Tea.Result.t
-      [@printer opaque "GetDelete404RPCCallback"]
+  | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
+      [@printer opaque "Delete404RPCCallback"]
   | InitialLoadRPCCallback of
       focus * modification * (initialLoadRPCResult, httpError) Tea.Result.t
       [@printer opaque "InitialLoadRPCCallback"]
@@ -677,7 +675,7 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
-  | Delete404 of fourOhFour
+  | Delete404RPC of fourOhFour
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
   | SaveTestButton

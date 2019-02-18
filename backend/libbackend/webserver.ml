@@ -667,26 +667,21 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
 let delete_404 ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let req_time = Time.now () in
-    let last_week = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-    let t1, c = time "1-get-canvas" (fun _ -> C.load_all host []) in
+    let t1, cid =
+      time "1-get-canvas-id" (fun _ ->
+          let owner = Account.for_host host in
+          Serialize.fetch_canvas_id owner host )
+    in
     let t2, p = time "2-to-route-params" (fun _ -> Api.to_route_params body) in
     let t3, _ =
       time "3-delete-404s" (fun _ ->
-          Analysis.delete_404s !c p.space p.path p.modifier )
-    in
-    let t4, f404s =
-      time "4-get-404s" (fun _ -> Analysis.get_404s ~since:last_week !c)
-    in
-    let t5, result =
-      time "5-to-frontend" (fun _ ->
-          Analysis.fofs_to_yojson (f404s, req_time) |> Yojson.Safe.to_string )
+          Analysis.delete_404s cid p.space p.path p.modifier )
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+      ~resp_headers:(server_timing [t1; t2; t3])
       `OK
-      result
+      "deleted"
   with e -> raise e
 
 

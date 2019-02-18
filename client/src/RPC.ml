@@ -83,10 +83,8 @@ let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/delete_404"]
   in
-  let request =
-    postJson Decoders.delete404RPCResult m.csrfToken url (Encoders.fof param)
-  in
-  Tea.Http.send (fun x -> Delete404RPCCallback x) request
+  let request = postJson (fun _ -> ()) m.csrfToken url (Encoders.fof param) in
+  Tea.Http.send (fun x -> Delete404RPCCallback (param, x)) request
 
 
 let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =

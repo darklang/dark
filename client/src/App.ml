@@ -1057,8 +1057,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
   | New404Push f404 ->
       Append404s [f404]
-  | Delete404RPCCallback (Ok f404s) ->
-      Append404s f404s
+  | Delete404RPCCallback (f404, Ok ()) ->
+      Delete404 f404
   | ReceiveAnalysis result ->
     ( match result with
     | Ok (id, analysisResults) ->
@@ -1092,7 +1092,7 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
         ; DisplayAndReportHttpError ("GetUnlockedDBs", err) ]
-  | Delete404RPCCallback (Error err) ->
+  | Delete404RPCCallback (_param, Error err) ->
       DisplayAndReportHttpError ("Delete404", err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
@@ -1132,7 +1132,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ RPC
             ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
         ; Delete404 fof ]
-  | Delete404 fof ->
+  | Delete404RPC fof ->
       MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
