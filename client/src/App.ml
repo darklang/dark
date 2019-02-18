@@ -575,9 +575,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             hash
             dval
         in
+        (* traces could be missing *)
         let m, afCmd = Analysis.analyzeFocused m in
+        (* make sure we run the analysis even if the analyzeFocused conditions
+         * don't hold, as we have a new result to be analyzed *)
+        let reExeCmd = Analysis.requestAnalysis m tlid traceID in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
-        (m, Cmd.batch [afCmd; acCmd])
+        (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with

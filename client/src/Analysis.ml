@@ -312,30 +312,31 @@ let requestTrace m tlid traceID : model * msg Cmd.t =
            (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID}) ))
 
 
-let analyzeFocused (m : model) : model * 'msg Cmd.t =
+let requestAnalysis m tlid traceID : msg Cmd.t =
+  let dbs = TL.dbs m.toplevels in
+  let userFns = m.userFunctions in
+  let trace = getTrace m tlid traceID in
+  let h = TL.getTL m tlid |> TL.asHandler in
+  match (h, trace) with
+  | Some h, Some (_, Some traceData) ->
+      Tea_cmd.call (fun _ ->
+          RequestAnalysis.send {handler = h; traceID; traceData; dbs; userFns}
+      )
+  | _ ->
+      Cmd.none
+
+
+let analyzeFocused (m : model) : model * msg Cmd.t =
   match tlidOf m.cursorState with
   | Some tlid ->
     ( match getCurrentTrace m tlid with
-    | None ->
-        (m, Cmd.none)
     | Some (traceID, None) ->
         (* Fetch the trace data, if missing *)
         requestTrace m tlid traceID
-    | Some (traceID, Some traceData) ->
-        if getAnalysisResults m traceID = None
-        then
-          (* Run the analysis, if missing *)
-          let h = TL.getTL m tlid |> TL.asHandler in
-          match h with
-          | None ->
-              (m, Cmd.none)
-          | Some h ->
-              let dbs = TL.dbs m.toplevels in
-              let userFns = m.userFunctions in
-              ( m
-              , Tea_cmd.call (fun _ ->
-                    RequestAnalysis.send
-                      {handler = h; traceID; traceData; dbs; userFns} ) )
-        else (m, Cmd.none) )
+    | Some (traceID, Some _) ->
+        (* Run the analysis, if missing *)
+        (m, requestAnalysis m tlid traceID)
+    | None ->
+        (m, Cmd.none) )
   | None ->
       (m, Cmd.none)
