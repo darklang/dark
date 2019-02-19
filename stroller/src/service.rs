@@ -86,7 +86,7 @@ where
                 Err(err) => {
                     eprintln!("Could not pull pusher client from pool, reason: {}", err);
                     *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
-                    return Box::new(future::ok(response));;
+                    return Box::new(future::ok(response));
                 }
             }
         }
