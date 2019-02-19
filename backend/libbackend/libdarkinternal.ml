@@ -169,31 +169,32 @@ let replacements =
         | args ->
             fail args )
     ; ( "DarkInternal::setCORSSetting"
-      , let cors_setting_of_dval (dval : dval) :
+      , let cors_setting (opt : optionT) :
             (Canvas.cors_setting option, string) result =
           (* Error: error converting the dval to a cors setting
              Ok None: the dval is "unset the cors value"
              Ok (Some cs): the dval is "set the cors setting to cs" *)
           try
-            match dval with
-            | DOption OptNothing ->
+            match opt with
+            | OptNothing ->
                 Ok None
-            | DOption (OptJust (DStr s)) when Unicode.to_string s = "*" ->
+            | OptJust (DStr s) when Unicode.to_string s = "*" ->
                 Ok (Some Canvas.AllOrigins)
-            | DOption (OptJust (DList os)) ->
+            | OptJust (DList os) ->
                 os
                 |> List.map ~f:Dval.to_string_exn
                 |> Canvas.Origins
                 |> Some
                 |> Ok
-            | _ ->
+            | OptJust dv ->
                 Error
-                  "Received something other than an Nothing, Just [...], or Just \"*\""
+                  ( "Received something other than an Nothing, Just [...], or Just \"*\": "
+                  ^ Dval.as_string dv )
           with e -> Error (Exception.exn_to_string e)
         in
         function
-        | _, [DStr host; s] ->
-          ( match cors_setting_of_dval s with
+        | _, [DStr host; DOption s] ->
+          ( match cors_setting s with
           | Error e ->
               e |> Dval.dstr_of_string_exn |> ResError |> DResult
           | Ok settings ->
@@ -201,7 +202,7 @@ let replacements =
                 Canvas.load_only ~tlids:[] (Unicode.to_string host) []
               in
               Canvas.update_cors_setting canvas settings ;
-              s |> ResOk |> DResult )
+              s |> DOption |> ResOk |> DResult )
         | args ->
             fail args )
     ; ( "DarkInternal::dbs"
