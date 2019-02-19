@@ -49,17 +49,7 @@ fn main() {
         let pool = pool.clone();
         let shutting_down = shutting_down.clone();
 
-        service_fn(move |req| {
-            // TODO pass in pool instead, so we don't use a client for every request
-            let client = pool.get();
-            match client {
-                Ok(c) => service::handle(&shutting_down, c, req),
-                Err(err) => {
-                    eprintln!("Could not pull pusher client from pool, reason: {}", err);
-                    service::unavailable()
-                }
-            }
-        })
+        service_fn(move |req| service::handle(&shutting_down, &pool, req))
     };
 
     let server = Server::bind(&addr)
