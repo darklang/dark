@@ -51,9 +51,14 @@ fn main() {
 
         service_fn(move |req| {
             // TODO pass in pool instead, so we don't use a client for every request
-            let client = pool.get().expect("Couldn't obtain Pusher client from pool");
-
-            service::handle(&shutting_down, client, req)
+            let client = pool.get();
+            match client {
+                Ok(c) => service::handle(&shutting_down, c, req),
+                Err(err) => {
+                    eprintln!("Could not pull pusher client from pool, reason: {}", err);
+                    service::unavailable()
+                }
+            }
         })
     };
 
