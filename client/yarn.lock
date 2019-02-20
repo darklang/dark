@@ -1382,6 +1382,13 @@ bs-platform@4.0.18:
   resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-4.0.18.tgz#d17b8693ba1f714d9b27e0ddb365f2069ba4b8a0"
   integrity sha512-BwzW0iYHvREqUZIgQxJmdJrxexppLvJxYQ4LLexbhCp7uZU5DIZ5ub4ZHpkCkc8fn8bsXWc+Rrejb3csi+BoAQ==
 
+bs-uuid@^0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/bs-uuid/-/bs-uuid-0.3.1.tgz#4686b3b956d3bb7d51eaa32c2a562ef6aad4abe8"
+  integrity sha512-hAIx2LmOLNhHx6LipR/6l3I20SXBOKIhQT7Zi/FXg0xqIkACne6w2+y2GTGfWmt2tmRGdc+i8i43qTTTaSmGGw==
+  dependencies:
+    uuid "^3.2.1"
+
 bs-webapi@^0.13.0:
   version "0.13.1"
   resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.13.1.tgz#71c560229f74b8db6d7c9dc75b620de71b1c388f"
@@ -6272,7 +6279,7 @@ uuid@3.0.x:
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.0.1.tgz#6544bba2dfda8c1cf17e629a3a305e2bb1fee6c1"
   integrity sha1-ZUS7ot/ajBzxfmKaOjBeK7H+5sE=
 
-uuid@^3.0.0, uuid@^3.3.2:
+uuid@^3.0.0, uuid@^3.2.1, uuid@^3.3.2:
   version "3.3.2"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.3.2.tgz#1b4af4955eb3077c501c23872fc6513811587131"
   integrity sha512-yXJmeNaw3DnnKAOKJE51sL/ZaYfWJRl1pK9dr19YFCu0ObS231AB1/LbqTKRAQ5kw8A90rA6fr4riOUpTZvQZA==
