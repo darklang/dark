@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euox pipefail
+
+cargo build
+
+PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin
+cargo build --target x86_64-pc-windows-gnu
+
+# We probs want musl, b/c some joker will want to run on alpine or with a diff
+# glibc or sth. But that means having libssl-dev and maybe some other musl
+# stuff; punting for later
+# cargo build --target x86_64-unknown-linux-musl

@@ -337,6 +337,14 @@ USER dark
 RUN opam install -y \
     ezgzip.0.2.1
 
+RUN rustup target add x86_64-apple-darwin \
+  && rustup target add x86_64-pc-windows-gnu
+
+# Not sure we need this
+# [ ] clang check osxcross docs
+# [ ] mingw-w64 might be replacable with the smaller mingw-w64-i686-dev
+RUN sudo apt install -y clang mingw-w64
+
 
 ############################
 # Finish
