@@ -23,7 +23,8 @@
     "rollbar": "^2.4.2",
     "sha2": "^1.0.2",
     "tablecloth-bucklescript": "0.0.2",
-    "bs-fetch": "^0.3.1"
+    "bs-fetch": "^0.3.1",
+    "bs-uuid": "^0.3.1"
   },
   "scripts": {
     "clean": "bsb -clean-world",

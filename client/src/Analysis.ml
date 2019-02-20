@@ -20,7 +20,14 @@ let defaultResults : analysisResults = {liveValues = StrDict.empty}
 (* ---------------------- *)
 
 let getTraces (m : model) (tlid : tlid) : trace list =
-  StrDict.get ~key:(deTLID tlid) m.traces |> Option.withDefault ~default:[]
+  StrDict.get ~key:(deTLID tlid) m.traces
+  |> Option.withDefault
+       ~default:
+         [ ( BsUuid.Uuid.V5.create
+               ~name:(deTLID tlid)
+               ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
+             |> BsUuid.Uuid.V5.toString
+           , None ) ]
 
 
 let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =

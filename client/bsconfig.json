@@ -28,7 +28,8 @@
     "@glennsl/bs-json",
     "bs-webapi",
     "tablecloth-bucklescript",
-    "bs-fetch"
+    "bs-fetch",
+    "bs-uuid"
   ],
   "bs-dev-dependencies": [
     "@glennsl/bs-jest"
