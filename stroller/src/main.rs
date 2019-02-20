@@ -16,6 +16,7 @@ mod service;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 
 use hyper::rt::Future;
 use hyper::service::service_fn;
@@ -42,6 +43,7 @@ fn main() {
     let pool = r2d2::Pool::builder()
         .max_size(1)
         .min_idle(Some(0))
+        .connection_timeout(Duration::new(1, 0))
         .build(manager)
         .unwrap();
 
