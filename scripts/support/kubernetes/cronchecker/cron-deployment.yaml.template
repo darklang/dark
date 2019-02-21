@@ -1,4 +1,3 @@
-#apiVersion: apps/v1 - dunno why this doesnt work
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -90,28 +89,3 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
-
-#########################
-# End postgres proxy config
-#########################
----
-apiVersion: extensions/v1beta1
-kind: NetworkPolicy
-metadata:
-  name: cc-network-policy
-spec:
-  podSelector:
-    matchLabels:
-      app: cron-checker
-  policyTypes:
-  - Egress
-  - Ingress
-  egress:
-  - to:
-    - ipBlock:
-        cidr: 0.0.0.0/0
-        except:
-        # make sure to block link-local addresses,
-        # since there's sensitive data in http://metadata
-        - 169.254.0.0/16
-  ingress:
