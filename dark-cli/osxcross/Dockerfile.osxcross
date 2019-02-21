@@ -1,0 +1,149 @@
+# This is an image used to compile and test Dark. Later, we will use this to
+# create another dockerfile to deploy.
+
+FROM ubuntu:17.10
+
+ENV FORCE_BUILD 1
+
+############################
+## apt
+############################
+USER root
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt update --allow-releaseinfo-change && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt install \
+      -y \
+      --no-install-recommends \
+      curl \
+      apt-transport-https \
+      ca-certificates \
+      lsb-core
+
+# Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
+RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+
+# RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+RUN echo "deb https://deb.nodesource.com/node_9.x zesty main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_9.x zesty main" >> /etc/apt/sources.list.d/nodesource.list
+RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
+    echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
+RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+
+# We pin the exact package version so that we don't have any surprises.
+# However, sometimes the versions upgrade from under us and break the
+# build. To fix that, you need the actual package version, which you can
+# find by installing it directly:
+# $ docker run <HASH> apt install mypackage
+# Notes
+# - replace <HASH> with a recent hash from the docker build output.
+# - just use the package name, not the version.
+
+# Deps:
+# - apt-transport-https for npm
+# - expect for unbuffer
+# - most libs re for ocaml
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt update --allow-releaseinfo-change && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt install \
+      --no-install-recommends \
+      -y \
+      software-properties-common=0.96.24.17 \
+      python3.6=3.6.3-1ubuntu1 \
+      make=4.1-9.1 \
+      m4=1.4.18-1 \
+      rsync=3.1.2-2ubuntu0.2 \
+      git=1:2.14.1-1ubuntu4 \
+      wget=1.19.1-3ubuntu1.2 \
+      sudo=1.8.20p2-1ubuntu1 \
+      locales=2.26-0ubuntu2.1 \
+      expect=5.45-8 \
+      tcl8.6 \
+      libev-dev=1:4.22-1 \
+      libgmp-dev=2:6.1.2+dfsg-1 \
+      pkg-config=0.29.1-0ubuntu2 \
+      libcurl4-gnutls-dev \
+      python-software-properties=0.96.24.17 \
+      libpq-dev=9.6.9-0ubuntu0.17.10 \
+      postgresql-9.6=9.6.9-0ubuntu0.17.10 \
+      postgresql-client-9.6=9.6.9-0ubuntu0.17.10 \
+      postgresql-contrib-9.6=9.6.9-0ubuntu0.17.10 \
+      chromium-browser \
+      firefox \
+      gnupg \
+      nodejs \
+      google-chrome-stable \
+      dnsmasq \
+      cron \
+      google-cloud-sdk \
+      jq \
+      vim \
+      dnsutils \
+      docker-ce \
+      unzip \
+      build-essential \
+      ruby \
+      kubectl \
+      python3-pip \
+      libsodium-dev \
+      gcc \
+      python-dev \
+      python-setuptools \
+      pgcli \
+      xvfb \
+      ffmpeg \
+      tmux \
+      && apt clean \
+      && rm -rf /var/lib/apt/lists/*
+
+# otherwise this gets created by the mount, and it'll be owned by root if your docker host os is linux
+RUN mkdir .config
+
+############################
+# Locales
+############################
+RUN sudo locale-gen "en_US.UTF-8"
+ENV LANGUAGE en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+############################
+# Incredibly -- and reproducibly -- if we move this to the top the
+# execute_function_works integration test fails
+############################
+RUN DEBIAN_FRONTEND=noninteractive \
+    sudo apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    sudo apt-get install \
+      --no-install-recommends \
+      -y \
+      less
+
+
+############################
+# Environment
+############################
+ENV TERM=xterm-256color
+
+RUN sudo apt install -y clang cmake kmod fuse libxml2-dev libssl-dev libbz2-dev libfuse-dev
+
+COPY Xcode_7.3.1.dmg .
+RUN  git clone https://github.com/tpoechtrager/osxcross \
+  && cd osxcross \
+  && mv ../Xcode_7.3.1.dmg .
+
+  #RUN echo "1" && cd osxcross && ./tools/gen_sdk_package_darling_dmg.sh Xcode_7.3.1.dmg
+  #&& rm Xcode_7.3.1.dmg
+
+#RUN cd osxcross \
+#  && UNATTENDED=1 OSX_VERSION_MIN=10.7 ./build.sh
+#
+#RUN && tar -cvf osxcross-with-clang.tar.gz target
+#
+#CMD cat osxcross-with-clang.tar.gz

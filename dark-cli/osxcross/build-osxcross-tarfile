@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -eou pipefail
+
+rm -rf target
+mkdir target
+docker build -t osxcross -f Dockerfile.osxcross .
+docker run -v $(pwd)/target:/target -it --device /dev/fuse --privileged osxcross \
+  bash -c 'cd osxcross && ./tools/gen_sdk_package_darling_dmg.sh Xcode_7.3.1.dmg && mv MacOSX10.11.sdk.tar.xz tarballs && pwd && ls && ls tarballs && UNATTENDED=1 OSX_VERSION_MIN=10.7 ./build.sh && tar -czf /target/osxcross-with-clang.tar.gz target'
