@@ -65,7 +65,9 @@ let convert_db (db : our_db) : DbT.db =
 
 type analysis_param =
   { handler : HandlerT.handler
-  ; trace : Analysis_types.trace
+  ; trace_id : Analysis_types.traceid
+  ; trace_data :
+      Analysis_types.trace_data (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list }
 [@@deriving of_yojson]
@@ -85,15 +87,15 @@ let load_from_trace results (tlid, fnname, caller_id) args :
 
 
 let perform_analysis (str : string) : string =
-  let {handler; dbs; user_fns; trace} =
+  let {handler; dbs; user_fns; trace_id; trace_data} =
     str
     |> Yojson.Safe.from_string
     |> analysis_param_of_yojson
     |> Result.ok_or_failwith
   in
   let dbs : DbT.db list = List.map ~f:convert_db dbs in
-  let input_vars = trace.input in
-  ( trace.id
+  let input_vars = trace_data.input in
+  ( trace_id
   , Execution.analyse_ast
       handler.ast
       ~tlid:handler.tlid
@@ -103,7 +105,7 @@ let perform_analysis (str : string) : string =
       ~input_vars
       ~dbs
       ~user_fns
-      ~load_fn_result:(load_from_trace trace.function_results)
+      ~load_fn_result:(load_from_trace trace_data.function_results)
       ~load_fn_arguments:Execution.load_no_arguments )
   |> analysis_envelope_to_yojson
   |> Yojson.Safe.to_string

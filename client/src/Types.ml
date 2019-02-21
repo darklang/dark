@@ -253,6 +253,9 @@ and toplevel =
   ; pos : pos
   ; data : tLData }
 
+(* ---------------------- *)
+(* dvals *)
+(* ---------------------- *)
 and dhttp =
   | Redirect of string
   | Response of int * (string * string) list
@@ -290,6 +293,9 @@ and dval =
   | DOption of optionT
   | DResult of resultT
 
+(* ----------------------------- *)
+(* Mouse *)
+(* ----------------------------- *)
 and mouseEvent =
   { mePos : vPos
   ; button : int }
@@ -312,14 +318,12 @@ and cursorState =
   | SelectingCommand of tlid * id
   | Deselected
 
-and timerAction =
-  | RefreshAnalysis
-  | CheckUrlHashPosition
-
 (* ------------------- *)
 (* Analysis *)
 (* ------------------- *)
-and traceID = string
+and timerAction =
+  | RefreshAnalysis
+  | CheckUrlHashPosition
 
 and lvDict = dval StrDict.t
 
@@ -337,12 +341,24 @@ and functionResult =
   ; argHash : string
   ; value : dval }
 
-and trace =
-  { traceID : traceID
-  ; input : inputValueDict
+(* traces / traceFetcher *)
+and traceFetchResult =
+  | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
+  | TraceFetchFailure of getTraceDataRPCParams * string
+
+and traceFetchContext =
+  { canvasName : string
+  ; csrfToken : string
+  ; origin : string
+  ; prefix : string }
+
+and traceID = string
+
+and traceData =
+  { input : inputValueDict
   ; functionResults : functionResult list }
 
-and traceIDs = traceID list StrDict.t
+and trace = traceID * traceData option
 
 and traces = trace list StrDict.t
 
@@ -392,7 +408,7 @@ and op =
 (* RPCs *)
 (* ------------------- *)
 (* params *)
-and rpcParams = {ops : op list}
+and addOpRPCParams = {ops : op list}
 
 and executeFunctionRPCParams =
   { efpTLID : tlid
@@ -401,22 +417,14 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and getAnalysisParams =
-  { tlids : tlid list
-  ; latest404 : string
-  ; ignore404s : bool
-  ; ignoreTraces : bool
-  (*
-   * Whether we should ignore the 404s and traces in the analysis result.
-   * Temporary warts used when the PushAnalysis variant is true, since in that
-   * case we are getting new 404s and traces pushed directly via New404Push and
-   * NewTracePush instead.
-   *)
-  }
+and getTraceDataRPCParams =
+  { gtdrpTlid : tlid
+  ; gtdrpTraceID : traceID }
 
 and performAnalysisParams =
   { handler : handler
-  ; trace : trace
+  ; traceID : traceID
+  ; traceData : traceData
   ; dbs : dB list
   ; userFns : userFunction list }
 
@@ -428,27 +436,38 @@ and analysisError =
 
 and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
-and delete404Param = fourOhFour
+and delete404RPCParams = fourOhFour
 
 (* results *)
-and rpcResult =
+and addOpRPCResult =
   { toplevels : toplevel list
   ; deletedToplevels : toplevel list
-  ; newTraces : traces
   ; userFunctions : userFunction list
-  ; deletedUserFunctions : userFunction list
-  ; unlockedDBs : tlid list }
+  ; deletedUserFunctions : userFunction list }
 
 and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
-and getAnalysisResult = traces * (fourOhFour list * string) * tlid list
+and unlockedDBs = tlid list
 
-and initialLoadResult = rpcResult
+and getUnlockedDBsRPCResult = unlockedDBs
+
+and getTraceDataRPCResult = {trace : trace}
+
+and initialLoadRPCResult =
+  { toplevels : toplevel list
+  ; deletedToplevels : toplevel list
+  ; userFunctions : userFunction list
+  ; deletedUserFunctions : userFunction list
+  ; unlockedDBs : tlid list
+  ; fofs : fourOhFour list
+  ; traces : (tlid * traceID) list }
+
+and saveTestRPCResult = string
 
 (* ------------------- *)
-(* Autocomplete *)
+(* Autocomplete / entry *)
 (* ------------------- *)
 (* functions *)
 and parameter =
@@ -537,6 +556,15 @@ and autocompleteMod =
 
 (* | ACFilterByParamType of tipe nodeList *)
 
+(* string entry *)
+and stringEntryPermission =
+  | StringEntryAllowed
+  | StringEntryNotAllowed
+
+and stringEntryWidth =
+  | StringEntryNormalWidth
+  | StringEntryShortWidth
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -553,7 +581,6 @@ and focus =
   (* unchanged *)
   | FocusNoChange
 
-(* unchanged *)
 and clipboard = pointerData option
 
 and canvasProps =
@@ -570,8 +597,8 @@ and modification =
   | ClearError
   | Select of tlid * id option
   | SelectCommand of tlid * id
-  | SetHover of id
-  | ClearHover of id
+  | SetHover of tlid * id
+  | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
   | SetToplevels of toplevel list * bool
@@ -579,17 +606,15 @@ and modification =
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
-  | RequestAnalysis of toplevel list
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of tlid list
-  | Set404s of fourOhFour list * string
-  | Append404s of fourOhFour list * string
+  | Append404s of fourOhFour list
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | RPCFull of (rpcParams * focus)
+  | RPCFull of (addOpRPCParams * focus)
   | RPC of (op list * focus)
-  | GetAnalysisRPC of (bool * bool)
+  | GetUnlockedDBsRPC
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -601,7 +626,7 @@ and modification =
   | SetPage of page
   | SetCenter of pos
   | CopyToClipboard of clipboard
-  | SetCursor of tlid * int
+  | SetCursor of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
@@ -610,7 +635,6 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
-  | AddUnfetchedTrace of (tlid * traceID)
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 
@@ -619,7 +643,7 @@ and modification =
 (* ------------------- *)
 and msg =
   | GlobalClick of mouseEvent
-  | NothingClick of mouseEvent
+  | IgnoreMsg
   | ToplevelMouseDown of tlid * mouseEvent
   (* we have the actual node when ToplevelMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
@@ -632,38 +656,32 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of string
-  | FocusEntry of (unit, Dom.errorEvent) Tea.Result.t
-      [@printer opaque "FocusEntry"]
-  | FocusAutocompleteItem of (unit, Dom.errorEvent) Tea.Result.t
-      [@printer opaque "FocusAutocompleteItem"]
-  | RPCCallback of focus * rpcParams * (rpcResult, httpError) Tea.Result.t
-      [@printer opaque "RPCCallback"]
-  | SaveTestRPCCallback of (string, httpError) Tea.Result.t
+  | AddOpRPCCallback of
+      focus * addOpRPCParams * (addOpRPCResult, httpError) Tea.Result.t
+      [@printer opaque "AddOpRPCCallback"]
+  | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
-  | GetAnalysisRPCCallback of
-      (getAnalysisParams * (getAnalysisResult, httpError) Tea.Result.t)
-      [@printer opaque "GetAnalysisRPCCallback"]
+  | GetUnlockedDBsRPCCallback of
+      (getUnlockedDBsRPCResult, httpError) Tea.Result.t
+      [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
-  | New404Push of (fourOhFour * string)
-  | GetDelete404RPCCallback of
-      (fourOhFour list * string, httpError) Tea.Result.t
-      [@printer opaque "GetDelete404RPCCallback"]
+  | New404Push of fourOhFour
+  | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
+      [@printer opaque "Delete404RPCCallback"]
   | InitialLoadRPCCallback of
-      focus * modification * (initialLoadResult, httpError) Tea.Result.t
+      focus * modification * (initialLoadRPCResult, httpError) Tea.Result.t
       [@printer opaque "InitialLoadRPCCallback"]
-  | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
-  | AddRandom
-  | FinishIntegrationTest
-  | SaveTestButton
-  | ToggleTimers
   | ExecuteFunctionRPCCallback of
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
+  | Delete404RPC of fourOhFour
+  | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
+  | FinishIntegrationTest
+  | SaveTestButton
+  | ToggleTimers
   | ExecuteFunctionButton of tlid * id * string
-  | Initialization
   | CreateHandlerFrom404 of fourOhFour
-  | Delete404 of fourOhFour
   | WindowResize of int * int
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
@@ -677,9 +695,9 @@ and msg =
   | BlankOrMouseEnter of tlid * id * mouseEvent
   | BlankOrMouseLeave of tlid * id * mouseEvent
   | MouseWheel of int * int
-  | DataClick of tlid * int * mouseEvent
-  | DataMouseEnter of tlid * int * mouseEvent
-  | DataMouseLeave of tlid * int * mouseEvent
+  | TraceClick of tlid * traceID * mouseEvent
+  | TraceMouseEnter of tlid * traceID * mouseEvent
+  | TraceMouseLeave of tlid * traceID * mouseEvent
   | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction
@@ -697,26 +715,6 @@ and msg =
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
 
-and traceFetchResultData =
-  { params : getAnalysisParams
-  ; result : getAnalysisResult }
-
-and traceFetchResult =
-  | TraceFetchSuccess of traceFetchResultData
-  | TraceFetchFailure of string
-
-and predecessor = pointerData option
-
-and successor = pointerData option
-
-and stringEntryPermission =
-  | StringEntryAllowed
-  | StringEntryNotAllowed
-
-and stringEntryWidth =
-  | StringEntryNormalWidth
-  | StringEntryShortWidth
-
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
@@ -724,36 +722,26 @@ and variantTest =
   | StubVariant
   (* just a stub *)
   | FluidInputModel
-  | PushAnalysis
-
-and class_ = string
-
-and ffIsExpanded = bool
 
 (* ----------------------------- *)
 (* FeatureFlags *)
 (* ----------------------------- *)
+and ffIsExpanded = bool
+
 and pick =
   | PickA
   | PickB
 
 and flagsVS = ffIsExpanded StrDict.t
 
-and syncState =
-  { inFlight : bool
-  ; ticks : int }
+(* ----------------------------- *)
+(* Model *)
+(* ----------------------------- *)
+and syncState = StrSet.t
 
 and urlState = {lastPos : pos}
 
-and tLCursors = int StrDict.t
-
-(* Values that we serialize *)
-and serializableEditor =
-  { clipboard : pointerData option
-  ; timersEnabled : bool
-  ; cursorState : cursorState
-  ; lockedHandlers : tlid list
-  ; routingTableOpenDetails : StrSet.t }
+and tlCursors = traceID StrDict.t
 
 (* Error Handling *)
 and darkError =
@@ -779,14 +767,13 @@ and model =
   ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
-  ; hovering : id list
+  ; hovering : (tlid * id) list
   ; toplevels :
       toplevel list
       (* These are read direct from the server. The ones that are *)
       (* analysed are in analysis *)
   ; deletedToplevels : toplevel list
   ; traces : traces
-  ; unfetchedTraces : traceIDs
   ; analyses : analyses
   ; f404s : fourOhFour list
   ; unlockedDBs : tlid list
@@ -796,13 +783,13 @@ and model =
   ; syncState : syncState
   ; urlState : urlState
   ; timersEnabled : bool
-  ; executingFunctions :
-      (tlid * id) list
+  ; executingFunctions : (tlid * id) list
+  ; tlCursors :
+      tlCursors
       (* This is TLID id to cursor index (the cursor being *)
       (* the input to the toplevel currently used, not to *)
       (* be confused with cursorState, which is the code *)
       (* that is currently selected.) *)
-  ; tlCursors : tLCursors
   ; featureFlags : flagsVS
   ; lockedHandlers : tlid list
   ; canvas : canvasProps
@@ -810,23 +797,17 @@ and model =
   ; userContentHost : string
   ; environment : string
   ; csrfToken : string
-  ; latest404 : string (* string of timestamp *)
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t }
+
+(* Values that we serialize *)
+and serializableEditor =
+  { clipboard : pointerData option
+  ; timersEnabled : bool
+  ; cursorState : cursorState
+  ; lockedHandlers : tlid list
+  ; routingTableOpenDetails : StrSet.t
+  ; tlCursors : tlCursors
+  ; featureFlags : flagsVS }
 [@@deriving show {with_path = false}]
-
-and rpcContext =
-  { canvasName : string
-  ; csrfToken : string
-  ; origin : string
-  ; prefix : string }
-
-external origin : string = "origin"
-  [@@bs.val] [@@bs.scope "window", "location"]
-
-external prefix : string = "testcafeInjectedPrefix"
-  [@@bs.val] [@@bs.scope "window"]
-
-let contextFromModel (m : model) : rpcContext =
-  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}

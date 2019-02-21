@@ -134,7 +134,10 @@ let div
     && vs.showLivevalue
   in
   let mouseoverClass =
-    let targetted = mouseoverAs = vs.hovering && Option.isSome mouseoverAs in
+    let targetted =
+      mouseoverAs = Option.map ~f:Tuple2.second vs.hovering
+      && Option.isSome mouseoverAs
+    in
     if targetted
     then
       if List.any ~f:(( = ) FluidInputModel) vs.testVariants

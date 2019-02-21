@@ -52,7 +52,8 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
 
 
 let delete_404s
-    (c : canvas) (space : string) (path : string) (modifier : string) : unit =
+    (cid : Uuidm.t) (space : string) (path : string) (modifier : string) : unit
+    =
   Db.run
     ~name:"delete_404s"
     "DELETE FROM stored_events_v2
@@ -60,65 +61,71 @@ let delete_404s
       AND module = $2
       AND path = $3
       AND modifier = $4"
-    ~params:[Db.Uuid c.id; Db.String space; Db.String path; Db.String modifier]
+    ~params:[Db.Uuid cid; Db.String space; Db.String path; Db.String modifier]
 
 
 (* ------------------------- *)
 (* Input vars *)
 (* ------------------------- *)
-let saved_input_vars (c : canvas) (h : RTT.HandlerT.handler) :
-    (Uuidm.t * input_vars) list =
-  match Handler.event_desc_for h with
-  | None ->
-      []
-  | Some d ->
-      List.map (SE.load_events c.id d) ~f:(fun (request_path, id, _ts, e) ->
-          match Handler.module_type h with
-          | `Http ->
-              let with_r = [("request", e)] in
-              let bound =
-                Libexecution.Execution.http_route_input_vars h request_path
-              in
-              (id, with_r @ bound)
-          | `Event ->
-              (id, [("event", e)])
-          | `Cron ->
-              (id, [])
-          | `Unknown ->
-              (id, [])
-          (* can't happen *) )
+let saved_input_vars
+    (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid) :
+    input_vars option =
+  SE.load_event_for_trace ~canvas_id:c.id trace_id
+  |> Option.map ~f:(fun (request_path, event) ->
+         match Handler.module_type h with
+         | `Http ->
+             let with_r = [("request", event)] in
+             let bound =
+               Libexecution.Execution.http_route_input_vars h request_path
+             in
+             with_r @ bound
+         | `Event ->
+             [("event", event)]
+         | `Cron ->
+             []
+         | `Unknown ->
+             [] )
 
 
-let traces_for_user_fn (c : canvas) (fn : RTT.user_fn) : trace list =
+let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
+    : trace =
   let ivs =
-    match Stored_function_arguments.load_for_analysis c.id fn.tlid with
-    | [] ->
-        [(Uuidm.v5 Uuidm.nil (string_of_id fn.tlid), [])]
-    | ivs ->
-        ivs
+    saved_input_vars c h trace_id
+    |> Option.value ~default:(Execution.sample_input_vars h)
   in
-  List.map ivs ~f:(fun (trace_id, input_vars) ->
-      let function_results =
-        Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
-      in
-      {input = input_vars; function_results; id = trace_id} )
+  let function_results =
+    Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
+  in
+  (trace_id, Some {input = ivs; function_results})
 
 
-let traces_for_handler (c : canvas) (h : RTT.HandlerT.handler) : trace list =
-  (* It's really awkward to do this on the client, so just do it here for now *)
+let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
+    =
   let ivs =
-    match saved_input_vars c h with
-    | [] ->
-        [ ( Uuidm.v5 Uuidm.nil (string_of_id h.tlid)
-          , Execution.sample_input_vars h ) ]
-    | ivs ->
-        ivs
+    (* todo: make example values *)
+    Stored_function_arguments.load_for_analysis
+      ~canvas_id:c.id
+      fn.tlid
+      trace_id
   in
-  List.map ivs ~f:(fun (trace_id, input_vars) ->
-      let function_results =
-        Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
-      in
-      {input = input_vars; function_results; id = trace_id} )
+  let function_results =
+    Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
+  in
+  (trace_id, Some {input = ivs; function_results})
+
+
+let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
+    =
+  h
+  |> Handler.event_desc_for
+  |> Option.map ~f:(SE.load_event_ids ~canvas_id:c.id)
+  (* if it has no events, add a default *)
+  |> (function Some [] -> None | x -> x)
+  |> Option.value ~default:[Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
+
+
+let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
+  Stored_function_arguments.load_traceids c.id fn.tlid
 
 
 (* ------------------------- *)
@@ -155,22 +162,23 @@ let call_function
 
 (* Response with miscellaneous stuff, and specific responses from tlids *)
 
-type fofs = SE.four_oh_four list * RTT.time [@@deriving to_yojson]
+type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
-type get_analysis_response =
-  { traces : tlid_trace list
-  ; unlocked_dbs : tlid list
-  ; fofs : fofs [@key "404s"] }
+type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
+
+let to_get_trace_data_rpc_result (c : canvas) (trace : trace) : string =
+  {trace}
+  |> get_trace_data_rpc_result_to_yojson
+  |> Yojson.Safe.to_string ~std:true
+
+
+type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
 [@@deriving to_yojson]
 
-let to_getanalysis_frontend
-    (req_time : RTT.time)
-    (traces : tlid_trace list)
-    (unlocked : tlid list)
-    (f404s : SE.four_oh_four list)
-    (c : canvas) : string =
-  {traces; unlocked_dbs = unlocked; fofs = (f404s, req_time)}
-  |> get_analysis_response_to_yojson
+let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
+    string =
+  {unlocked_dbs}
+  |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
@@ -192,36 +200,57 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
  * appearing in toplevels again. *)
 
 (* A subset of responses to be merged in *)
-type rpc_response =
-  { new_traces : tlid_trace list (* merge: overwrite existing analyses *)
-  ; toplevels : TL.toplevel_list (* replace *)
+type add_op_rpc_result =
+  { toplevels : TL.toplevel_list (* replace *)
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
-  ; deleted_user_functions :
-      RTT.user_fn list
-      (* replace, see deleted_toplevels *)
-  ; unlocked_dbs : tlid list
-  (* replace *) }
+  ; deleted_user_functions : RTT.user_fn list
+  (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
-let to_rpc_response_frontend
-    (c : canvas) (traces : tlid_trace list) (unlocked : tlid list) : string =
-  { new_traces = traces
-  ; toplevels = c.dbs @ c.handlers
+let to_add_op_rpc_result (c : canvas) : string =
+  { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
-  ; deleted_user_functions = c.deleted_user_functions
-  ; unlocked_dbs = unlocked }
-  |> rpc_response_to_yojson
+  ; deleted_user_functions = c.deleted_user_functions }
+  |> add_op_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
-type execute_function_response =
+(* Initial load *)
+type initial_load_rpc_result =
+  { toplevels : TL.toplevel_list
+  ; deleted_toplevels : TL.toplevel_list
+  ; user_functions : RTT.user_fn list
+  ; deleted_user_functions : RTT.user_fn list
+  ; unlocked_dbs : tlid list
+  ; fofs : SE.four_oh_four list
+  ; traces : tlid_traceid list }
+[@@deriving to_yojson]
+
+let to_initial_load_rpc_result
+    (c : canvas)
+    (fofs : SE.four_oh_four list)
+    (traces : tlid_traceid list)
+    (unlocked_dbs : tlid list) : string =
+  { toplevels = c.dbs @ c.handlers
+  ; deleted_toplevels = c.deleted_toplevels
+  ; user_functions = c.user_functions
+  ; deleted_user_functions = c.deleted_user_functions
+  ; unlocked_dbs
+  ; fofs
+  ; traces }
+  |> initial_load_rpc_result_to_yojson
+  |> Yojson.Safe.to_string ~std:true
+
+
+(* Execute function *)
+type execute_function_rpc_result =
   { result : RTT.dval
   ; hash : string }
 [@@deriving to_yojson]
 
-let to_execute_function_response_frontend hash dv : string =
+let to_execute_function_rpc_result hash dv : string =
   {result = dv; hash}
-  |> execute_function_response_to_yojson
+  |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true

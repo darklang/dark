@@ -6,6 +6,10 @@ open Types
 module B = Blank
 module P = Pointer
 
+type predecessor = pointerData option
+
+type successor = pointerData option
+
 (* ------------------------- *)
 (* Toplevel manipulation *)
 (* ------------------------- *)

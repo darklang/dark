@@ -22,10 +22,10 @@ let defaultEditor : serializableEditor =
   ; timersEnabled = true
   ; cursorState = Deselected
   ; lockedHandlers = []
-  ; routingTableOpenDetails = StrSet.empty }
+  ; routingTableOpenDetails = StrSet.empty
+  ; tlCursors = StrDict.empty
+  ; featureFlags = StrDict.empty }
 
-
-let defaultSyncState : syncState = {inFlight = false; ticks = 0}
 
 let defaultUrlState : urlState = {lastPos = {x = 0; y = 0}}
 
@@ -38,7 +38,7 @@ let defaultCanvas : canvasProps =
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
-  ; lastMsg = Initialization
+  ; lastMsg = IgnoreMsg
   ; lastMod = NoChange (* this is awkward, but avoids circular deps *)
   ; complete =
       { functions = []
@@ -63,12 +63,11 @@ let defaultModel : model =
   ; deletedToplevels = []
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
-  ; unfetchedTraces = StrDict.empty
   ; f404s = []
   ; unlockedDBs = []
   ; integrationTestState = NoIntegrationTest
   ; visibility = Native.PageVisibility.Visible (* partially saved in editor *)
-  ; syncState = defaultSyncState
+  ; syncState = StrSet.empty
   ; urlState = defaultUrlState
   ; timersEnabled = true (* saved in editor *)
   ; clipboard = None
@@ -82,11 +81,6 @@ let defaultModel : model =
   ; userContentHost = "builtwithdark.com"
   ; environment = "none"
   ; csrfToken = "UNSET_CSRF"
-  ; latest404 =
-      Js.Date.now ()
-      |> ( +. ) (1000.0 (* ms *) *. 60.0 *. 60.0 *. 24.0 *. -7.0)
-      |> Js.Date.fromFloat
-      |> Js.Date.toISOString
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty }

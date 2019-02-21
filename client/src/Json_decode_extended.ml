@@ -10,7 +10,7 @@ let index i decode json =
   then
     let source : Js.Json.t array = Obj.magic (json : Js.Json.t) in
     decode (Array.unsafe_get source i)
-  else raise @@ DecodeError ("Expected array, got " ^ _stringify json)
+  else raise (DecodeError ("Expected array, got " ^ _stringify json))
 
 
 let map2 f d1 d2 json = f (d1 json) (d2 json)

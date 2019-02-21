@@ -7,7 +7,7 @@ type viewState =
   { tl : toplevel
   ; cursorState : cursorState
   ; tlid : tlid
-  ; hovering : id option
+  ; hovering : (tlid * id) option
   ; ac : autocomplete
   ; handlerSpace : handlerSpace
   ; showEntry : bool
@@ -20,7 +20,7 @@ type viewState =
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
-  ; tlCursors : tLCursors
+  ; tlCursors : tlCursors
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
   ; handlerLocked : bool
@@ -37,8 +37,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlid = tl.id
   ; hovering =
       m.hovering
+      |> List.filter ~f:(fun (tlid, _) -> tlid = tl.id)
       |> List.head
-      |> Option.andThen ~f:(fun i ->
+      |> Option.andThen ~f:(fun ((_, i) as res) ->
              match idOf m.cursorState with
              | Some cur ->
                ( match Toplevel.find tl i with
@@ -57,15 +58,15 @@ let createVS (m : model) (tl : toplevel) : viewState =
                        |> List.map ~f:Pointer.toID
                        |> List.member ~value:cur
                    in
-                   if cursorSubsumedByHover then None else Some i
+                   if cursorSubsumedByHover then None else Some res
                | _ ->
                    if VariantTesting.variantIsActive m FluidInputModel
-                   then Some i
+                   then Some res
                    else if cur = i
                    then None
-                   else Some i )
+                   else Some res )
              | _ ->
-                 Some i )
+                 Some res )
   ; ac = m.complete
   ; showEntry = true
   ; showLivevalue = true
@@ -159,7 +160,7 @@ let eventNoDefault
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
-  eventNoPropagation ~key:"" name (fun e -> NothingClick e)
+  eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
 
 let placeHtml (pos : pos) (html : msg Html.html) : msg Html.html =

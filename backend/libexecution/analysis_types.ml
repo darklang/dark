@@ -46,12 +46,13 @@ type function_result = fnname * id * function_arg_hash * dval
 
 type traceid = uuid [@@deriving yojson]
 
-type trace =
+type trace_data =
   { input : input_vars
-  ; function_results : function_result list
-  ; id : traceid }
+  ; function_results : function_result list }
 [@@deriving yojson]
 
-type tlid_trace = tlid * trace list [@@deriving to_yojson]
+type trace = traceid * trace_data option [@@deriving yojson]
+
+type tlid_traces = tlid * trace list [@@deriving to_yojson]
 
 type tlid_traceid = tlid * traceid [@@deriving to_yojson]

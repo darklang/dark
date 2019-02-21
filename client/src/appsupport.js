@@ -284,6 +284,10 @@ window.Dark = {
     fetch : function(params) {
       if (!window.fetcherWorker) {
         console.log("FetchWorker not loaded yet");
+        setTimeout(function () {
+          console.log("Trying FetchWorker again");
+          window.Dark.traceFetcher.fetch(params);
+        }, 100);
         return
       }
 
@@ -299,6 +303,10 @@ window.Dark = {
     requestAnalysis : function (params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
+        setTimeout(function () {
+          console.log("Trying AnalysisWorker again");
+          window.Dark.analysis.requestAnalysis(params);
+        }, 100);
         return;
       }
 
