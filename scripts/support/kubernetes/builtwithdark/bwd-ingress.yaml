@@ -1,0 +1,10 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: bwd-tls-ingress
+spec:
+  backend:
+    serviceName: bwd-nodeport
+    servicePort: 80
+  tls:
+    - secretName: bwd-tls

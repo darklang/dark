@@ -164,16 +164,25 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 
 CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/builtwithdark.yaml.template > builtwithdark.yaml
-sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/queueworker.yaml.template > queueworker.yaml
-sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/cronchecker.yaml.template > cronchecker.yaml
-sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/tunnel.yaml.template > tunnel.yaml
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/kubernetes/queueworker/qw-deployment.yaml.template > scripts/support/kubernetes/queueworker/qw-deployment.yaml
+sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/cronchecker/cron-deployment.yaml.template > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 
 # make sure deployment matches current understanding
-kubectl apply -f builtwithdark.yaml
-kubectl apply -f queueworker.yaml
-kubectl apply -f cronchecker.yaml
-kubectl apply -f tunnel.yaml
+kubectl apply -f cronchecker/cron-deployment.yaml
+kubectl apply -f cronchecker/cc-network-policy.yaml
+kubectl apply -f builtwithdark/bwd-deployment.yaml
+kubectl apply -f builtwithdark/bwd-ingress.yaml
+kubectl apply -f builtwithdark/bwd-nodeport.yaml
+kubectl apply -f builtwithdark/bwd-network-policy.yaml
+kubectl apply -f builtwithdark/darklang-nodeport.yaml
+kubectl apply -f builtwithdark/darklang-ingress.yaml
+kubectl apply -f queueworker/qw-deployment.yaml
+kubectl apply -f queueworker/qw-network-policy.yaml
+kubectl apply -f tunnel/tunnel-deployment.yaml
+kubectl apply -f tunnel/isolate-tunnel.yaml
+kubectl apply -f tunnel/tunnel-service.yaml
 
 #########################
 # Tell everyone else what's going on
