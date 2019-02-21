@@ -1,5 +1,6 @@
 type event =
-  < data : Types.rpcContext * Types.getAnalysisParams [@bs.get] > Js.t
+  < data : Types.traceFetchContext * Types.getTraceDataRPCParams [@bs.get] >
+  Js.t
 
 type self
 
@@ -11,14 +12,14 @@ type pushResult = Types.traceFetchResult
 
 external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 
-let fetch (context : Types.rpcContext) params =
+let fetch (context : Types.traceFetchContext) params =
   let open Js.Promise in
   let url =
     context.prefix
     ^ context.origin
     ^ "/api/"
     ^ context.canvasName
-    ^ "/get_analysis"
+    ^ "/get_trace_data"
   in
   Fetch.fetchWithInit
     url
@@ -26,7 +27,7 @@ let fetch (context : Types.rpcContext) params =
        ~method_:Post
        ~body:
          (Fetch.BodyInit.make
-            (Js.Json.stringify (Encoders.getAnalysisParams params)))
+            (Js.Json.stringify (Encoders.getTraceDataRPCParams params)))
        ~headers:
          (Fetch.HeadersInit.makeWithDict
             (Js.Dict.fromList
@@ -35,13 +36,14 @@ let fetch (context : Types.rpcContext) params =
        ())
   |> then_ Fetch.Response.json
   |> then_ (fun resp ->
-         let result = Decoders.getAnalysisRPC resp in
-         resolve (postMessage self (TraceFetchSuccess {params; result})) )
+         let result = Decoders.getTraceDataRPCResult resp in
+         resolve (postMessage self (TraceFetchSuccess (params, result))) )
   |> catch (fun err ->
          Js.log2 "traceFetch error" err ;
          resolve
-           (postMessage self (TraceFetchFailure ("Failure fetching: " ^ url)))
-     )
+           (postMessage
+              self
+              (TraceFetchFailure (params, "Failure fetching: " ^ url))) )
 
 
 let () =

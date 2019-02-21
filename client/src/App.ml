@@ -18,53 +18,40 @@ let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
   in
-  let savedEditor = Editor.fromString editorState in
-  let m0 = Editor.editor2model savedEditor in
-  (* these saved values may not be valid yet *)
-  let savedCursorState = m0.cursorState in
-  let m =
-    { m0 with
-      cursorState = Deselected
-    ; currentPage = (Defaults.defaultModel |> fun x -> x.currentPage)
-    ; builtInFunctions = complete }
-  in
+  let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
-    Url.parseLocation location |> Option.withDefault ~default:m.currentPage
+    Url.parseLocation location
+    |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
-  let canvas = m.canvas in
-  let newCanvas =
-    match page with
-    | Toplevels pos ->
-        {canvas with offset = pos}
-    | Fn (_, pos) ->
-        {canvas with fnOffset = pos}
-  in
-  let canvasName = Url.parseCanvasName location in
-  let integrationTestName = canvasName in
-  let m2 =
+  (* these saved values may not be valid yet *)
+  let savedCursorState = m.cursorState in
+  let m =
     { m with
-      complete = AC.init m
+      cursorState =
+        Deselected
+        (* deselect for now as the selected blank isn't available yet *)
+    ; currentPage = page
+    ; builtInFunctions = complete
+    ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
-    ; currentPage = page
-    ; canvas = newCanvas
-    ; canvasName
+    ; canvas =
+        ( match page with
+        | Toplevels pos ->
+            {m.canvas with offset = pos}
+        | Fn (_, pos) ->
+            {m.canvas with fnOffset = pos} )
+    ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
     ; csrfToken }
   in
   if Url.isIntegrationTest
-  then
-    ( m2
-    , Cmd.batch [RPC.integrationRPC (contextFromModel m2) integrationTestName]
-    )
+  then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
-    ( m2
+    ( m
     , Cmd.batch
-        [ RPC.initialLoadRPC
-            (contextFromModel m2)
-            (FocusPageAndCursor (page, savedCursorState))
-        ; Sync.fetchAll m2 ] )
+        [RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -224,7 +211,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetHandler (tl.id, tl.pos, newH)] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc (contextFromModel newM) FocusSame params]
+                 [RPC.addOp newM FocusSame params]
            | TLFunc f ->
                let replacement = AST.closeBlanks f.ufAST in
                if replacement = f.ufAST
@@ -234,7 +221,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let ops = [SetFunction newF] in
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
-                 [RPC.rpc (contextFromModel newM) FocusSame params]
+                 [RPC.addOp newM FocusSame params]
            | _ ->
                [] )
     |> Option.withDefault ~default:[]
@@ -258,7 +245,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           params.ops
       in
       if hasNonHandlers
-      then (m, RPC.rpc (contextFromModel m) focus params)
+      then (m, RPC.addOp m focus params)
       else
         let localM =
           List.foldl
@@ -278,10 +265,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (Many [AutocompleteMod ACReset; processFocus localM focus])
             (localM, Cmd.none)
         in
-        ( withFocus
-        , Cmd.batch
-            [wfCmd; RPC.rpc (contextFromModel withFocus) FocusNoChange params]
-        )
+        (withFocus, Cmd.batch [wfCmd; RPC.addOp withFocus FocusNoChange params])
     in
     match mod_ with
     | DisplayError e ->
@@ -392,8 +376,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         handleRPC (RPC.opsParams ops) focus
     | RPCFull (params, focus) ->
         handleRPC params focus
-    | GetAnalysisRPC (ignore404s, ignoreTraces) ->
-        Sync.fetch ~ignore404s ~ignoreTraces m
+    | GetUnlockedDBsRPC ->
+        Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -451,8 +435,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | Fn (id, _) ->
           ({m with currentPage = Fn (id, center)}, Cmd.none) )
     | Select (tlid, p) ->
-        let newM = {m with cursorState = Selecting (tlid, p)} in
-        (newM, Cmd.batch (closeBlanks newM))
+        let m = {m with cursorState = Selecting (tlid, p)} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        (m, Cmd.batch (closeBlanks m @ [afCmd]))
     | Deselect ->
         let newM = {m with cursorState = Deselected} in
         (newM, Cmd.batch (closeBlanks newM))
@@ -466,9 +451,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let pd = TL.findExn tl id in
               Some (tlid, pd)
         in
-        let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m3 = {m2 with cursorState = Entering entry} in
-        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
+        let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
+        let m = {m with cursorState = Entering entry} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
     | EnterWithOffset (entry, offset) ->
         let target =
           match entry with
@@ -479,17 +465,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let pd = TL.findExn tl id in
               Some (tlid, pd)
         in
-        let m2, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m3 = {m2 with cursorState = Entering entry} in
-        ( m3
+        let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
+        let m = {m with cursorState = Entering entry} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        ( m
         , Cmd.batch
-            (closeBlanks m3 @ [acCmd; Entry.focusEntryWithOffset m3 offset]) )
+            ( closeBlanks m
+            @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset] ) )
     | SelectCommand (tlid, id) ->
-        let m2 = {m with cursorState = SelectingCommand (tlid, id)} in
-        let m3, acCmd =
-          processAutocompleteMods m2 [ACEnableCommandMode; ACRegenerate]
+        let m = {m with cursorState = SelectingCommand (tlid, id)} in
+        let m, acCmd =
+          processAutocompleteMods m [ACEnableCommandMode; ACRegenerate]
         in
-        (m3, Cmd.batch (closeBlanks m3 @ [acCmd; Entry.focusEntry m3]))
+        (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (tls, updateCurrent) ->
@@ -538,44 +526,46 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
         in
         processAutocompleteMods m2 [ACRegenerate]
-    | RequestAnalysis tls ->
-        let handlers = TL.handlers tls in
-        let dbs = TL.dbs m.toplevels in
-        let userFns = m.userFunctions in
-        let requestAnalysis s =
-          Tea_cmd.call (fun _ -> Analysis.RequestAnalysis.send s)
-        in
-        let req h =
-          let trace = Analysis.getCurrentTrace m h.tlid in
-          let param t = {handler = h; trace = t; dbs; userFns} in
-          trace
-          |> Option.map ~f:(fun t -> requestAnalysis (param t))
-          |> Option.toList
-        in
-        (m, Cmd.batch (handlers |> List.map ~f:req |> List.concat))
     | UpdateAnalysis (id, analysis) ->
         let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          Belt.Map.String.merge m.traces traces (fun _ maybeOld maybeNew ->
-              match (maybeOld, maybeNew) with
+          StrDict.merge m.traces traces ~f:(fun _tlid oldList newList ->
+              match (oldList, newList) with
               | None, None ->
                   None
               | Some o, None ->
                   Some o
               | None, Some n ->
                   Some n
-              | Some _, Some n ->
-                  Some n )
+              | Some o, Some n ->
+                  (* merge the lists, updating the trace in the same position
+                   * if present, and adding it to the front otherwise. *)
+                  Some
+                    (List.foldl n ~init:o ~f:(fun (newID, newData) list ->
+                         let found = ref false in
+                         let updated =
+                           List.map list ~f:(fun (oldID, oldData) ->
+                               if oldID = newID
+                               then (
+                                 found := true ;
+                                 if newData <> None
+                                 then (newID, newData)
+                                 else (oldID, oldData) )
+                               else (oldID, oldData) )
+                         in
+                         if !found (* deref, not "not" *)
+                         then updated
+                         else (newID, newData) :: list )) )
         in
-        let m2 =
-          {m with traces = newTraces; unfetchedTraces = Belt.Map.String.empty}
-        in
-        processAutocompleteMods m2 [ACRegenerate]
+        let m = {m with traces = newTraces} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd])
     | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
       ->
-        let m2 =
+        let m =
           Analysis.replaceFunctionResult
             m
             tlid
@@ -585,26 +575,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             hash
             dval
         in
-        processAutocompleteMods m2 [ACRegenerate]
-    | AddUnfetchedTrace (tlid, traceID) ->
-        if Some tlid = tlidOf m.cursorState
-        then
-          let unfetchedTraces =
-            Belt.Map.String.update
-              m.unfetchedTraces
-              (deTLID tlid)
-              (fun maybeOld ->
-                match maybeOld with
-                | None ->
-                    Some [traceID]
-                | Some o ->
-                    Some (traceID :: o) )
-          in
-          Sync.fetch
-            ~ignoreTraces:false
-            ~ignore404s:true
-            {m with unfetchedTraces}
-        else (m, Cmd.none)
+        (* traces could be missing *)
+        let m, afCmd = Analysis.analyzeFocused m in
+        (* make sure we run the analysis even if the analyzeFocused conditions
+         * don't hold, as we have a new result to be analyzed *)
+        let reExeCmd = Analysis.requestAnalysis m tlid traceID in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         let m2 =
           { m with
@@ -640,26 +617,25 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m4 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
-    | Set404s (f404s, latest404) ->
-        ({m with f404s; latest404}, Cmd.none)
     | Delete404 f404 ->
         ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
-    | Append404s (f404s, latest404) ->
+    | Append404s f404s ->
         let new404s =
           f404s @ m.f404s
           |> List.uniqueBy ~f:(fun f404 ->
                  f404.space ^ f404.path ^ f404.modifier )
         in
-        ({m with f404s = new404s; latest404}, Cmd.none)
-    | SetHover p ->
-        let nhovering = p :: m.hovering in
+        ({m with f404s = new404s}, Cmd.none)
+    | SetHover (tlid, id) ->
+        let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
-    | ClearHover p ->
-        let nhovering = List.filter ~f:(fun m -> m <> p) m.hovering in
+    | ClearHover (tlid, id) ->
+        let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
-        let m2 = Analysis.setCursor m tlid cur in
-        (m2, Cmd.none)
+        let m = Analysis.setCursor m tlid cur in
+        let m, afCmd = Analysis.analyzeFocused m in
+        (m, afCmd)
     | CopyToClipboard clipboard ->
         ({m with clipboard}, Cmd.none)
     | Drag (tlid, offset, hasMoved, state) ->
@@ -675,17 +651,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionRPC (tlid, id, name) ->
       ( match Analysis.getCurrentTrace m tlid with
-      | Some trace ->
-        ( match Analysis.getArguments m tlid trace.traceID id with
+      | Some (traceID, _) ->
+        ( match Analysis.getArguments m tlid traceID id with
         | Some args ->
             let params =
               { efpTLID = tlid
               ; efpCallerID = id
-              ; efpTraceID = trace.traceID
+              ; efpTraceID = traceID
               ; efpFnName = name
               ; efpArgs = args }
             in
-            (m, RPC.executeFunctionRPC (contextFromModel m) params)
+            (m, RPC.executeFunction m params)
         | None ->
             (m, Cmd.none)
             |> updateMod
@@ -802,16 +778,25 @@ let update_ (msg : msg) (m : model) : modification =
         else NoChange
     | _ ->
         NoChange )
-  | BlankOrMouseEnter (_, id, _) ->
-      SetHover id
-  | BlankOrMouseLeave (_, id, _) ->
-      ClearHover id
+  | BlankOrMouseEnter (tlid, id, _) ->
+      SetHover (tlid, id)
+  | BlankOrMouseLeave (tlid, id, _) ->
+      ClearHover (tlid, id)
   | MouseWheel (x, y) ->
       if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
-  | DataMouseEnter (tlid, idx, _) ->
-      SetHover (tlCursorID tlid idx)
-  | DataMouseLeave (tlid, idx, _) ->
-      ClearHover (tlCursorID tlid idx)
+  | TraceMouseEnter (tlid, traceID, _) ->
+      let traceCmd =
+        match Analysis.getTrace m tlid traceID with
+        | Some (_, None) ->
+            let m, cmd = Analysis.requestTrace m tlid traceID in
+            [ TweakModel (fun old -> {old with syncState = m.syncState})
+            ; MakeCmd cmd ]
+        | _ ->
+            []
+      in
+      Many (traceCmd @ [SetHover (tlid, ID traceID)])
+  | TraceMouseLeave (tlid, traceID, _) ->
+      ClearHover (tlid, ID traceID)
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -926,14 +911,14 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionRPC (tlid, id, name) ]
-  | DataClick (tlid, idx, _) ->
+  | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
-        Many [Select (tlid, None); SetCursor (tlid, idx)]
+        Many [Select (tlid, None); SetCursor (tlid, traceID)]
     | _ ->
-        SetCursor (tlid, idx) )
+        SetCursor (tlid, traceID) )
   | StartMigration tlid ->
       let mdb = tlid |> TL.getTL m |> TL.asDB in
       ( match mdb with
@@ -955,7 +940,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleTimers ->
       TweakModel toggleTimers
   | SaveTestButton ->
-      MakeCmd (RPC.saveTestRPC (contextFromModel m))
+      MakeCmd (RPC.saveTest m)
   | FinishIntegrationTest ->
       EndIntegrationTest
   | StartFeatureFlag ->
@@ -1006,16 +991,13 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun uf -> uf.ufTLID <> tlid)
                     m.deletedUserFunctions } ) ]
-  | RPCCallback (focus, _, Ok r) ->
+  | AddOpRPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then
         Many
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
-          ; UpdateTraces r.newTraces
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; SetUnlockedDBs r.unlockedDBs
-          ; RequestAnalysis r.toplevels
           ; MakeCmd (Entry.focusEntry m) ]
       else
         let m2 = TL.upsertAll m r.toplevels in
@@ -1024,34 +1006,40 @@ let update_ (msg : msg) (m : model) : modification =
         Many
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
-          ; UpdateTraces r.newTraces
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; SetUnlockedDBs r.unlockedDBs
-          ; RequestAnalysis r.toplevels
           ; AutocompleteMod ACReset
           ; ClearError
           ; newState ]
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
-      let m2 =
+      let pfM =
         {m with toplevels = r.toplevels; userFunctions = r.userFunctions}
       in
-      let newState = processFocus m2 focus in
+      let newState = processFocus pfM focus in
+      let traces : traces =
+        List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
+            let trace = (traceid, None) in
+            StrDict.update dict ~key:(deTLID tlid) ~f:(fun old ->
+                match old with
+                | Some existing ->
+                    Some (existing @ [trace])
+                | None ->
+                    Some [trace] ) )
+      in
       Many
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
-        ; UpdateTraces r.newTraces
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
-        ; RequestAnalysis r.toplevels
+        ; Append404s r.fofs
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod
-        ; newState ]
+        ; newState
+        ; UpdateTraces traces ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
-      let tl = TL.getTL m params.efpTLID in
       Many
         [ UpdateTraceFunctionResult
             ( params.efpTLID
@@ -1060,35 +1048,17 @@ let update_ (msg : msg) (m : model) : modification =
             , params.efpFnName
             , hash
             , dval )
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; RequestAnalysis [tl] ]
-  | GetAnalysisRPCCallback (params, Ok (newTraces, (f404s, ts), unlockedDBs))
-    ->
-      let analysisTLs =
-        List.filter
-          ~f:(fun tl -> List.member ~value:tl.id params.tlids)
-          m.toplevels
-      in
-      let maybeUpdateTraces =
-        if params.ignoreTraces then NoChange else UpdateTraces newTraces
-      in
-      let maybeAppend404s =
-        if params.ignore404s then NoChange else Append404s (f404s, ts)
-      in
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
+  | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
-        [ TweakModel Sync.markResponseInModel
-        ; maybeUpdateTraces
-        ; maybeAppend404s
-        ; SetUnlockedDBs unlockedDBs
-        ; RequestAnalysis analysisTLs ]
+        [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
+        ; SetUnlockedDBs unlockedDBs ]
   | NewTracePush (tlid, traceID) ->
-      if VariantTesting.variantIsActive m PushAnalysis
-      then AddUnfetchedTrace (tlid, traceID)
-      else NoChange
-  | New404Push (f404, ts) ->
-      Append404s ([f404], ts)
-  | GetDelete404RPCCallback (Ok (f404s, ts)) ->
-      Set404s (f404s, ts)
+      UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
+  | New404Push f404 ->
+      Append404s [f404]
+  | Delete404RPCCallback (f404, Ok ()) ->
+      Delete404 f404
   | ReceiveAnalysis result ->
     ( match result with
     | Ok (id, analysisResults) ->
@@ -1097,22 +1067,20 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
-  | ReceiveTraces (TraceFetchFailure str) ->
-      DisplayAndReportError str
-  | ReceiveTraces (TraceFetchSuccess res) ->
-      let newTraces, (f404s, ts), unlockedDBs = res.result in
-      let analysisTLs =
-        List.filter
-          ~f:(fun tl -> List.member ~value:tl.id res.params.tlids)
-          m.toplevels
+  | ReceiveTraces (TraceFetchFailure (params, str)) ->
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        ; DisplayAndReportError str ]
+  | ReceiveTraces (TraceFetchSuccess (params, result)) ->
+      let traces =
+        StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
       in
       Many
-        [ TweakModel Sync.markResponseInModel
-        ; UpdateTraces newTraces
-        ; Append404s (f404s, ts)
-        ; SetUnlockedDBs unlockedDBs
-        ; RequestAnalysis analysisTLs ]
-  | RPCCallback (_, _, Error err) ->
+        [ TweakModel
+            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        ; UpdateTraces traces ]
+  | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", err)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
@@ -1120,9 +1088,11 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("ExecuteFunction", err)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("InitialLoad", err)
-  | GetAnalysisRPCCallback (_, Error err) ->
-      DisplayAndReportHttpError ("GetAnalysis", err)
-  | GetDelete404RPCCallback (Error err) ->
+  | GetUnlockedDBsRPCCallback (Error err) ->
+      Many
+        [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
+        ; DisplayAndReportHttpError ("GetUnlockedDBs", err) ]
+  | Delete404RPCCallback (_param, Error err) ->
       DisplayAndReportHttpError ("Delete404", err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
@@ -1130,24 +1100,18 @@ let update_ (msg : msg) (m : model) : modification =
       (* just receiving the subscription will cause a redraw, which uses *)
       (* the native sizing function. *)
       NoChange
-  | FocusEntry _ ->
-      NoChange
-  | NothingClick _ ->
-      NoChange
-  | FocusAutocompleteItem _ ->
-      NoChange
   | LocationChange loc ->
       Url.changeLocation m loc
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-        let ignorePushed = VariantTesting.variantIsActive m PushAnalysis in
-        GetAnalysisRPC (ignorePushed, ignorePushed)
+        GetUnlockedDBsRPC
     | CheckUrlHashPosition ->
         Url.maybeUpdateScrollUrl m )
-  | Initialization ->
-      NoChange
-  | AddRandom ->
+  | IgnoreMsg ->
+      (* Many times we have to receive a Msg and we don't actually do anything.
+       * To lower to conceptual load, we send an IgnoreMsg, rather than a
+       * different msg each time that we have to understand. *)
       NoChange
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
@@ -1168,8 +1132,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ RPC
             ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
         ; Delete404 fof ]
-  | Delete404 fof ->
-      MakeCmd (RPC.delete404RPC (contextFromModel m) fof)
+  | Delete404RPC fof ->
+      MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
         (fun m ->

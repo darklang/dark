@@ -57,7 +57,13 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       (try orNull (field "lockedHandlers" (list tlid)) [] j with _ -> [])
   ; routingTableOpenDetails =
       ( try orNull (field "routingTableOpenDetails" tcStrSet) StrSet.empty j
-        with _ -> StrSet.empty ) }
+        with _ -> StrSet.empty )
+  ; tlCursors =
+      ( try orNull (field "tlCursors" (dict traceID)) StrDict.empty j
+        with _ -> StrDict.empty )
+  ; featureFlags =
+      ( try orNull (field "featureFlags" (dict bool)) StrDict.empty j
+        with _ -> StrDict.empty ) }
 
 
 and cursorState j =
@@ -274,40 +280,50 @@ and functionResult j : functionResult =
   {fnName; callerID; argHash; value}
 
 
-and traceIDs j : traceIDs =
-  j |> list (tuple2 wireIdentifier (list string)) |> StrDict.fromList
-
+and traceID j : traceID = wireIdentifier j
 
 and traces j : traces =
   j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
 
 
-and trace j : trace =
-  { traceID = field "id" string j
-  ; input = field "input" inputValueDict j
+and traceData j : traceData =
+  { input = field "input" inputValueDict j
   ; functionResults = field "function_results" (list functionResult) j }
 
 
-and rpc j : rpcResult =
+and trace j : trace = pair traceID (optional traceData) j
+
+and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
-  ; newTraces = field "new_traces" traces j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  ; unlockedDBs = field "unlocked_dbs" (list tlid) j }
+  }
 
 
-and getAnalysisRPC j : getAnalysisResult =
-  ( field "traces" traces j (* (404s, timestamp) *)
-  , field "404s" (pair (list fof) string) j
-  , field "unlocked_dbs" (list tlid) j )
+and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
+  field "unlocked_dbs" (list tlid) j
 
 
-and initialLoadRPC j : initialLoadResult = rpc j
+and getTraceDataRPCResult j : getTraceDataRPCResult =
+  {trace = field "trace" trace j}
 
-and executeFunctionRPC j : executeFunctionRPCResult =
+
+and initialLoadRPCResult j : initialLoadRPCResult =
+  { toplevels = field "toplevels" (list toplevel) j
+  ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
+  ; userFunctions = field "user_functions" (list userFunction) j
+  ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
+  ; unlockedDBs = field "unlocked_dbs" (list tlid) j
+  ; fofs = field "fofs" (list fof) j
+  ; traces = field "traces" (list (pair tlid traceID)) j }
+
+
+and executeFunctionRPCResult j : executeFunctionRPCResult =
   (field "result" dval j, field "hash" string j)
 
+
+and saveTestRPCResult j : saveTestRPCResult = string j
 
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)
@@ -420,7 +436,11 @@ let exception_ j : exception_ =
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
 let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
  fun j ->
-  try Ok (fn (Json.parseOrRaise j)) with e -> Error (Printexc.to_string e)
+  try Ok (fn (Json.parseOrRaise j)) with
+  | DecodeError e ->
+      Error e
+  | e ->
+      Error (Printexc.to_string e)
 
 
 (* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)

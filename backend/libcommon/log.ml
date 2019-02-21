@@ -204,18 +204,21 @@ let format_string ~level (str : string) =
   in
   (* escape newlines *)
   let str = string_replace ~search:"\n" ~replace:"\\n" str in
-  (* escape quotes *)
+  (* wrap in quotes *)
   let str =
-    if String.contains str '"'
-    then string_replace ~search:"\"" ~replace:"\\\"" str
+    if String.contains str ' '
+    then
+      if String.contains str '\'' then "\"" ^ str ^ "\"" else "'" ^ str ^ "'"
     else str
   in
-  (* wrap in quotes *)
-  let str = if String.contains str ' ' then "\"" ^ str ^ "\"" else str in
   str
 
 
-let dump = Vendor.dump
+let dump v : string =
+  if Obj.tag (Obj.repr v) = Obj.string_tag
+  then "'" ^ Obj.magic v ^ "'"
+  else Vendor.dump v
+
 
 let print_console_log
     ?(bt : Caml.Printexc.raw_backtrace option = None) ~decorate ~level params :

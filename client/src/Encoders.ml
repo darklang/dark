@@ -335,7 +335,7 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteTLForever" [tlid t]
 
 
-and rpcParams (params : Types.rpcParams) : Js.Json.t =
+and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
   object_ [("ops", ops params.ops)]
 
 
@@ -349,15 +349,16 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and getAnalysisParams (params : Types.getAnalysisParams) : Js.Json.t =
+and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
   object_
-    [("tlids", list tlid params.tlids); ("latest404", string params.latest404)]
+    [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
 
 
 and performAnalysisParams (params : Types.performAnalysisParams) : Js.Json.t =
   object_
     [ ("handler", handler params.handler)
-    ; ("trace", trace params.trace)
+    ; ("trace_id", traceID params.traceID)
+    ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns) ]
 
@@ -520,11 +521,17 @@ and functionResult (fr : Types.functionResult) : Js.Json.t =
     [string fr.fnName; id fr.callerID; string fr.argHash; dval fr.value]
 
 
-and trace (t : Types.trace) : Js.Json.t =
+and traceID = string
+
+and traceData (t : Types.traceData) : Js.Json.t =
   object_
     [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
-    ; ("function_results", list functionResult t.functionResults)
-    ; ("id", string t.traceID) ]
+    ; ("function_results", list functionResult t.functionResults) ]
+
+
+and trace (t : Types.trace) : Js.Json.t =
+  let data v = Option.map ~f:traceData v |> Option.withDefault ~default:null in
+  pair traceID data t
 
 
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
@@ -533,7 +540,9 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("timersEnabled", bool se.timersEnabled)
     ; ("cursorState", cursorState se.cursorState)
     ; ("lockedHandlers", list tlid se.lockedHandlers)
-    ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails) ]
+    ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
+    ; ("tlCursors", tcStrDict traceID se.tlCursors)
+    ; ("featureFlags", tcStrDict bool se.featureFlags) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

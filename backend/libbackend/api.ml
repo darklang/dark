@@ -5,14 +5,14 @@ open Analysis_types
 
 type oplist = Op.op list [@@deriving yojson]
 
-type rpc_params = {ops : oplist} [@@deriving yojson]
+type add_op_rpc_params = {ops : oplist} [@@deriving yojson]
 
-type analysis_params =
-  { tlids : tlid list
-  ; latest404 : RuntimeT.time }
-[@@deriving eq, show, yojson]
+type get_trace_data_rpc_params =
+  { tlid : tlid
+  ; trace_id : traceid }
+[@@deriving yojson]
 
-type execute_function_params =
+type execute_function_rpc_params =
   { tlid : tlid
   ; trace_id : RuntimeT.uuid
   ; caller_id : id
@@ -26,24 +26,26 @@ type route_params =
   ; modifier : string }
 [@@deriving yojson]
 
-let to_rpc_params (payload : string) : rpc_params =
+let to_add_op_rpc_params (payload : string) : add_op_rpc_params =
   payload
   |> Yojson.Safe.from_string
-  |> rpc_params_of_yojson
+  |> add_op_rpc_params_of_yojson
   |> Result.ok_or_failwith
 
 
-let to_analysis_params (payload : string) : analysis_params =
+let to_get_trace_data_rpc_params (payload : string) : get_trace_data_rpc_params
+    =
   payload
   |> Yojson.Safe.from_string
-  |> analysis_params_of_yojson
+  |> get_trace_data_rpc_params_of_yojson
   |> Result.ok_or_failwith
 
 
-let to_execute_function_params (payload : string) : execute_function_params =
+let to_execute_function_rpc_params (payload : string) :
+    execute_function_rpc_params =
   payload
   |> Yojson.Safe.from_string
-  |> execute_function_params_of_yojson
+  |> execute_function_rpc_params_of_yojson
   |> Result.ok_or_failwith
 
 
@@ -54,7 +56,7 @@ let to_route_params (payload : string) : route_params =
   |> Result.ok_or_failwith
 
 
-let causes_any_changes (ps : rpc_params) : bool =
+let causes_any_changes (ps : add_op_rpc_params) : bool =
   List.exists ~f:Op.has_effect ps.ops
 
 

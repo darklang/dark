@@ -64,11 +64,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         []
   in
   let class_ =
-    [ selected
-    ; "tl-" ^ deTLID tl.id
-    ; "toplevel"
-    ; "cursor-" ^ string_of_int (Analysis.cursor m tl.id) ]
-    |> String.join ~sep:" "
+    [selected; "tl-" ^ deTLID tl.id; "toplevel"] |> String.join ~sep:" "
   in
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with
@@ -157,11 +153,25 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   ViewUtils.placeHtml pos html
 
 
-let tlCacheKey m tl =
-  if Some tl.id = tlidOf m.cursorState then None else Some tl
+let tlCacheKey (m : model) tl =
+  if Some tl.id = tlidOf m.cursorState
+  then None
+  else
+    let hovered =
+      match List.head m.hovering with
+      | Some (tlid, id) when tlid = tl.id ->
+          Some id
+      | _ ->
+          None
+    in
+    let tracesLoaded =
+      Analysis.getTraces m tl.id
+      |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
+    in
+    Some (tl, Analysis.cursor m tl.id, hovered, tracesLoaded)
 
 
-let tlCacheKeyDB m tl =
+let tlCacheKeyDB (m : model) tl =
   if Some tl.id = tlidOf m.cursorState
   then None
   else Some (tl, DB.isLocked m tl.id)

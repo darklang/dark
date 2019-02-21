@@ -27,15 +27,22 @@ let editor2model (e : serializableEditor) : model =
   ; clipboard = e.clipboard
   ; cursorState = e.cursorState |> stripDragging
   ; lockedHandlers = e.lockedHandlers
-  ; routingTableOpenDetails = e.routingTableOpenDetails }
+  ; routingTableOpenDetails = e.routingTableOpenDetails
+  ; tlCursors = e.tlCursors
+  ; featureFlags = e.featureFlags }
 
 
 let model2editor (m : model) : serializableEditor =
   { clipboard = m.clipboard
-  ; timersEnabled = m.timersEnabled
+  ; timersEnabled = m.timersEnabled (* are timers enabled *)
   ; cursorState = m.cursorState
-  ; lockedHandlers = m.lockedHandlers
-  ; routingTableOpenDetails = m.routingTableOpenDetails }
+  ; lockedHandlers =
+      m.lockedHandlers
+      (* whether handlers are locked, saved as client-side only *)
+  ; routingTableOpenDetails =
+      m.routingTableOpenDetails (* state of the routing table *)
+  ; tlCursors = m.tlCursors (* what trace cursor is selected *)
+  ; featureFlags = m.featureFlags (* which flags are expanded *) }
 
 
 let updateLockedHandlers (tlid : tlid) (lockHandler : bool) (m : model) :

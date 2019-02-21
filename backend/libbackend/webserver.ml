@@ -508,44 +508,28 @@ let static_assets_upload_handler
   with _ -> respond ~execution_id `Not_found "Not found"
 
 
-let admin_rpc_handler ~(execution_id : Types.id) (host : string) body :
+let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, params = time "1-read-api-ops" (fun _ -> Api.to_rpc_params body) in
+    let t1, params =
+      time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
+    in
     let tlids = List.filter_map ~f:Op.tlidOf params.ops in
     let t2, c =
       time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host params.ops)
     in
-    let t3, hvals =
-      time "3-handler-analyses" (fun _ ->
-          !c.handlers
-          |> List.filter_map ~f:TL.as_handler
-          |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
-      )
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
     in
-    let t4, fvals =
-      time "4-user-fn-analyses" (fun _ ->
-          !c.user_functions
-          |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
-          |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
-      )
-    in
-    let t5, unlocked =
-      time "5-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
-    in
-    let t6, result =
-      time "6-to-frontend" (fun _ ->
-          Analysis.to_rpc_response_frontend !c (hvals @ fvals) unlocked )
-    in
-    let t7, _ =
-      time "7-save-to-disk" (fun _ ->
+    let t4, _ =
+      time "4-save-to-disk" (fun _ ->
           (* work out the result before we save it, incase it has a
              stackoverflow or other crashing bug *)
           if Api.causes_any_changes params then C.save_tlids !c tlids else ()
       )
     in
     respond
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
+      ~resp_headers:(server_timing [t1; t2; t3; t4])
       ~execution_id
       `OK
       result
@@ -558,17 +542,44 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
   let t2, unlocked =
     time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
   in
-  let t3, result =
-    time "3-to-frontend" (fun _ ->
-        Analysis.to_rpc_response_frontend !c [] unlocked )
+  let t3, f404s =
+    let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+    time "3-get-404s" (fun _ -> Analysis.get_404s ~since:latest !c)
   in
-  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  let t4, traces =
+    time "4-traces" (fun _ ->
+        let htraces =
+          !c.handlers
+          |> TL.handlers
+          |> List.map ~f:(fun h ->
+                 Analysis.traceids_for_handler !c h
+                 |> List.map ~f:(fun traceid -> (h.tlid, traceid)) )
+          |> List.concat
+        in
+        let uftraces =
+          !c.user_functions
+          |> List.map ~f:(fun uf ->
+                 Analysis.traceids_for_user_fn !c uf
+                 |> List.map ~f:(fun traceid -> (uf.tlid, traceid)) )
+          |> List.concat
+        in
+        htraces @ uftraces )
+  in
+  let t5, result =
+    time "5-to-frontend" (fun _ ->
+        Analysis.to_initial_load_rpc_result !c f404s traces unlocked )
+  in
+  respond
+    ~execution_id
+    ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+    `OK
+    result
 
 
 let execute_function ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
-    time "1-read-api-ops" (fun _ -> Api.to_execute_function_params body)
+    time "1-read-api-ops" (fun _ -> Api.to_execute_function_rpc_params body)
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
@@ -586,9 +597,8 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t4, response =
     time "4-to-frontend" (fun _ ->
-        Analysis.to_execute_function_response_frontend
-          (Dval.hash params.args)
-          result )
+        Analysis.to_execute_function_rpc_result (Dval.hash params.args) result
+    )
   in
   respond
     ~execution_id
@@ -597,77 +607,81 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
     response
 
 
-let get_analysis ~(execution_id : Types.id) (host : string) (body : string) :
+let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let req_time = Time.now () in
     let t1, params =
-      time "1-read-api-tlids" (fun _ -> Api.to_analysis_params body)
+      time "1-read-api-tlids" (fun _ -> Api.to_get_trace_data_rpc_params body)
     in
-    let tlids = params.tlids in
+    let tlid = params.tlid in
+    let trace_id = params.trace_id in
     let t2, c =
-      time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host [])
+      time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[tlid] host [])
     in
-    let t3, f404s =
-      time "3-get-404s" (fun _ -> Analysis.get_404s ~since:params.latest404 !c)
-    in
-    let t4, hvals =
-      time "4-handler-analyses" (fun _ ->
+    let t3, mht =
+      time "3-handler-analyses" (fun _ ->
           !c.handlers
-          |> List.filter_map ~f:TL.as_handler
-          |> List.map ~f:(fun h -> (h.tlid, Analysis.traces_for_handler !c h))
-      )
+          |> List.hd
+          |> Option.bind ~f:TL.as_handler
+          |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id) )
     in
-    let t5, fvals =
-      time "5-user-fn-analyses" (fun _ ->
+    let t4, mft =
+      time "4-user-fn-analyses" (fun _ ->
           !c.user_functions
-          |> List.filter ~f:(fun f -> List.mem ~equal:( = ) tlids f.tlid)
-          |> List.map ~f:(fun f -> (f.tlid, Analysis.traces_for_user_fn !c f))
-      )
-    in
-    let t6, unlocked =
-      time "6-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
-    in
-    let t7, result =
-      time "7-to-frontend" (fun _ ->
-          Analysis.to_getanalysis_frontend
-            req_time
-            (hvals @ fvals)
-            unlocked
-            f404s
-            !c )
-    in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
-      `OK
-      result
-  with e -> raise e
-
-
-let delete_404 ~(execution_id : Types.id) (host : string) body :
-    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let req_time = Time.now () in
-    let last_week = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-    let t1, c = time "1-get-canvas" (fun _ -> C.load_all host []) in
-    let t2, p = time "2-to-route-params" (fun _ -> Api.to_route_params body) in
-    let t3, _ =
-      time "3-delete-404s" (fun _ ->
-          Analysis.delete_404s !c p.space p.path p.modifier )
-    in
-    let t4, f404s =
-      time "4-get-404s" (fun _ -> Analysis.get_404s ~since:last_week !c)
+          |> List.find ~f:(fun f -> tlid = f.tlid)
+          |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id) )
     in
     let t5, result =
       time "5-to-frontend" (fun _ ->
-          Analysis.fofs_to_yojson (f404s, req_time) |> Yojson.Safe.to_string )
+          let trace =
+            Option.first_some mft mht
+            |> Option.value_exn ~message:"No value for tlid"
+          in
+          Analysis.to_get_trace_data_rpc_result !c trace )
     in
     respond
       ~execution_id
       ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
       `OK
       result
+  with e -> raise e
+
+
+let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
+    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, c =
+      time "1-load-saved-ops" (fun _ -> C.load_only ~tlids:[] host [])
+    in
+    let t2, unlocked =
+      time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+    in
+    let t3, result =
+      time "3-to-frontend" (fun _ ->
+          Analysis.to_get_unlocked_dbs_rpc_result unlocked !c )
+    in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> raise e
+
+
+let delete_404 ~(execution_id : Types.id) (host : string) body :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, cid =
+      time "1-get-canvas-id" (fun _ ->
+          let owner = Account.for_host host in
+          Serialize.fetch_canvas_id owner host )
+    in
+    let t2, p = time "2-to-route-params" (fun _ -> Api.to_route_params body) in
+    let t3, _ =
+      time "3-delete-404s" (fun _ ->
+          Analysis.delete_404s cid p.space p.path p.modifier )
+    in
+    respond
+      ~execution_id
+      ~resp_headers:(server_timing [t1; t2; t3])
+      `OK
+      "deleted"
   with e -> raise e
 
 
@@ -828,6 +842,7 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
 let admin_ui_handler
     ~(execution_id : Types.id)
     ~(path : string list)
+    ~(canvasname : string)
     ~stopper
     ~(body : string)
     ~(username : string)
@@ -871,7 +886,7 @@ let admin_ui_handler
     then
       match Account.owner ~auth_domain with
       | Some owner ->
-          Serialize.fetch_canvas_id owner auth_domain |> f
+          f (Serialize.fetch_canvas_id owner canvasname)
       | None ->
           respond
             ~execution_id
@@ -926,18 +941,22 @@ let admin_api_handler
   | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
       save_test_handler ~execution_id canvas
   (* Canvas API *)
-  | `POST, ["api"; canvas; "rpc"] ->
+  | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
+  | `POST, ["api"; canvas; "add_op"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (admin_rpc_handler ~execution_id canvas body) )
+          wrap_json_headers (admin_add_op_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "initial_load"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (initial_load ~execution_id canvas body) )
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (execute_function ~execution_id canvas body) )
-  | `POST, ["api"; canvas; "get_analysis"] ->
+  | `POST, ["api"; canvas; "get_trace_data"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (get_analysis ~execution_id canvas body) )
+          wrap_json_headers (get_trace_data ~execution_id canvas body) )
+  | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (get_unlocked_dbs ~execution_id canvas body) )
   | `POST, ["api"; canvas; "delete_404"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (delete_404 ~execution_id canvas body) )
@@ -978,13 +997,14 @@ let admin_handler
         ~session
         (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
         req
-  | "a" :: _ ->
+  | "a" :: canvasname :: _ ->
       admin_ui_handler
         ~execution_id
         ~path
         ~stopper
         ~body
         ~username
+        ~canvasname
         ~csrf_token
         req
   | _ ->
