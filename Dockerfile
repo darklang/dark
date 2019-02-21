@@ -340,10 +340,12 @@ RUN opam install -y \
 RUN rustup target add x86_64-apple-darwin \
   && rustup target add x86_64-pc-windows-gnu
 
-# Not sure we need this
-# [ ] clang check osxcross docs
-# [ ] mingw-w64 might be replacable with the smaller mingw-w64-i686-dev
-RUN sudo apt install -y clang mingw-w64
+RUN sudo apt install -y clang gcc-mingw-w64-x86-64
+
+COPY dark-cli/osxcross-with-clang.tar.gz dark-cli/osxcross-with-clang.tar.gz
+RUN tar -xvf dark-cli/osxcross-with-clang.tar.gz
+ENV PATH "$PATH:/home/dark/target/bin"
+
 
 
 ############################
