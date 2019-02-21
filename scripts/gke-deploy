@@ -170,19 +170,19 @@ sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!"
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 
 # make sure deployment matches current understanding
-kubectl apply -f cronchecker/cron-deployment.yaml
-kubectl apply -f cronchecker/cc-network-policy.yaml
-kubectl apply -f builtwithdark/bwd-deployment.yaml
-kubectl apply -f builtwithdark/bwd-ingress.yaml
-kubectl apply -f builtwithdark/bwd-nodeport.yaml
-kubectl apply -f builtwithdark/bwd-network-policy.yaml
-kubectl apply -f builtwithdark/darklang-nodeport.yaml
-kubectl apply -f builtwithdark/darklang-ingress.yaml
-kubectl apply -f queueworker/qw-deployment.yaml
-kubectl apply -f queueworker/qw-network-policy.yaml
-kubectl apply -f tunnel/tunnel-deployment.yaml
-kubectl apply -f tunnel/isolate-tunnel.yaml
-kubectl apply -f tunnel/tunnel-service.yaml
+kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/cronchecker/cc-network-policy.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-nodeport.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-network-policy.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-nodeport.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-ingress.yaml
+kubectl apply -f scripts/support/kubernetes/queueworker/qw-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/queueworker/qw-network-policy.yaml
+kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/tunnel/isolate-tunnel.yaml
+kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-service.yaml
 
 #########################
 # Tell everyone else what's going on
