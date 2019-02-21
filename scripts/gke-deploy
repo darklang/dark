@@ -167,7 +167,7 @@ CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
 sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/kubernetes/queueworker/qw-deployment.yaml.template > scripts/support/kubernetes/queueworker/qw-deployment.yaml
 sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/cronchecker/cron-deployment.yaml.template > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
-sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 
 # make sure deployment matches current understanding
 kubectl apply -f cronchecker/cron-deployment.yaml
