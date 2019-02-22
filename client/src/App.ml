@@ -1171,6 +1171,17 @@ let update_ (msg : msg) (m : model) : modification =
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
+  | ClipboardCopyEvent e ->
+      (* let _ = Clipboard.systemCopy m in *)
+      e##clipboardData##setData "text/plain" "x123" ;
+      e##preventDefault () ;
+      NoChange
+  | ClipboardPasteEvent _e ->
+      Js.log ("Paste", _e) ;
+      NoChange
+  | ClipboardCutEvent _e ->
+      Js.log ("Cut", _e) ;
+      NoChange
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
@@ -1241,9 +1252,18 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in
+  let clipboardSubs =
+    [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
+          ClipboardCopyEvent e )
+    ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
+          ClipboardCutEvent e )
+    ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+          ClipboardPasteEvent e ) ]
+  in
   Tea.Sub.batch
     (List.concat
        [ keySubs
+       ; clipboardSubs
        ; dragSubs
        ; resizes
        ; timers
