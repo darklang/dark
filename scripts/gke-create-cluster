@@ -23,6 +23,9 @@ with this script, try it out a few times outside of production first. Moving the
 static IPs the obvious way is flaky and seems nondeterministic. You may have better
 luck swapping DNS if you need it and can live with the long propagation times.
 
+Required:
+  --with-new-database=(true|false)  Also create new CloudSQL Postgres instance and wire it up
+
 Secrets:
 
 NOTE: All secrets default to copying the credentials from the current cluster as per
@@ -81,7 +84,6 @@ Other Options:
                          amount (default $DARK_CLUSTER_NUM_NODES).
   --configmap-file=...   The path of the env-file the cluster config map will be created from/updated
                          to (default $DARK_CLUSTER_CONFIGMAP_FILE)
-  --with-new-database    Also create new CloudSQL Postgres instance and wire it up
   --version=...          The Kubernetes version to run on the master and nodes. New versions are
                          released and old versions are obsoleted on GKE quickly, so you will
                          probably need to find the newest version (default $DARK_CLUSTER_VERSION).
@@ -136,8 +138,8 @@ do
     --assets-creds=*)
       DARK_CLUSTER_STATIC_ASSETS_CREDS="${i/--assets-creds=/''}"
       ;;
-    --with-new-database)
-      WITH_NEW_DATABASE="true"
+    --with-new-database=*)
+      WITH_NEW_DATABASE="${i/--with-new-database=/''}"
       ;;
     --help)
       echo "$HELP"
@@ -155,7 +157,11 @@ function print_step () {
   tput setab 6 && echo "=>" "$@" && tput sgr0
 }
 
-if [ -v WITH_NEW_DATABASE ] && [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
+if [ ! -v WITH_NEW_DATABASE ]; then
+  echo "--with-new-database is required"
+  echo "$HELP"
+  exit 1
+elif [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
   # currently we use the default user
   DARK_CLUSTER_CLOUDSQL_USER=$(printf "%s" "postgres" | base64)
   CLOUDSQL_INSTANCE_NAME="$DARK_CLUSTER"
@@ -169,6 +175,12 @@ if [ -v WITH_NEW_DATABASE ] && [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
     --cloudsql-pass=$DARK_CLUSTER_CLOUDSQL_PASS
 
   DARK_CLUSTER_CLOUDSQL_PASS=$(printf "%s" "$DARK_CLUSTER_CLOUDSQL_PASS" | base64)
+elif [[ "${WITH_NEW_DATABASE}" == "false" ]]; then
+  true
+else
+  echo "--with-new-database must be either true or false"
+  echo "$HELP"
+  exit 1
 fi
 
 if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
