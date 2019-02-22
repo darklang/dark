@@ -10,8 +10,7 @@ DARK_CLUSTER_CLOUDSQL_INSTANCE_NAME="cloudsql-postgres-$(date +"%s")"
 HELP="$(cat <<EOF
 Usage: $0 REQUIRED_ARGS [OPTIONS]
 
-TODO
-A script that deploys a Dark-production-like cluster to Google Kubernetes Engine.
+A script that creates a new CloudSQL Postgres Instance.
 
 Other Options:
 
