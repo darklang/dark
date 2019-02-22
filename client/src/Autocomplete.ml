@@ -629,6 +629,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACParamTipe "Obj"
           ; ACParamTipe "Block"
           ; ACParamTipe "Char"
+          ; ACParamTipe "Password"
           ; ACParamTipe "UUID"
           ; ACParamTipe "List" ]
       | _ ->
