@@ -213,6 +213,8 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
     ( match d with
     | F (id, PVariable v) ->
         PPattern (F (id, PVariable (f v)))
+    | F (id, PLiteral v) ->
+        PPattern (F (id, PLiteral (f v)))
     | _ ->
         PPattern d )
 
