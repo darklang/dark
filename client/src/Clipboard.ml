@@ -46,17 +46,13 @@ let paste (m : model) (data : copyData) : modification =
   | Some (tl, currentPd) ->
     ( match data with
     | `Json j ->
-        Debug.loG "pasting json" j ;
         let newPd = Decoders.pointerData j |> TL.clonePointerData in
         TL.replaceMod currentPd newPd tl
     | `Text t ->
-        Debug.loG "pasting text" t ;
         let newPd =
-          Pointer.strMap currentPd ~f:(fun _ -> t)
-          |> TL.clonePointerData
-          |> Debug.log "newpd"
+          Pointer.strMap currentPd ~f:(fun _ -> t) |> TL.clonePointerData
         in
-        TL.replaceMod currentPd newPd tl |> Debug.log "newmod"
+        TL.replaceMod currentPd newPd tl
     | `None ->
         NoChange )
   | None ->
