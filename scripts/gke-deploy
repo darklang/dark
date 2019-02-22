@@ -69,6 +69,9 @@ do
     --configmap-file=*)
       DARK_CLUSTER_CONFIGMAP_FILE="${i/--configmap-file=/''}"
       ;;
+    --cloudsql-instance-name=*)
+      CLOUDSQL_INSTANCE_NAME="${i/--cloudsql-instance-name=/''}"
+      ;;
     --help)
       echo "$HELP"
       exit 0
