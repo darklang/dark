@@ -11,6 +11,7 @@ DARK_CLUSTER="darkcluster$(date +"%s")"
 DARK_CLUSTER_NUM_NODES="4"
 DARK_CLUSTER_VERSION="1.11.7-gke.6"
 DARK_CLUSTER_CONFIGMAP_FILE="config/gke-builtwithdark"
+CLOUDSQL_INSTANCE_NAME="dark-west"
 
 HELP="$(cat <<EOF
 Usage: $0 REQUIRED_ARGS [OPTIONS]
@@ -154,13 +155,14 @@ function print_step () {
 if [ -v WITH_NEW_DATABASE ] && [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
   # currently we use the default user
   DARK_CLUSTER_CLOUDSQL_USER="postgres"
+  CLOUDSQL_INSTANCE_NAME="$DARK_CLUSTER"
   if [ ! -v DARK_CLUSTER_CLOUDSQL_PASS ]; then
     echo "When creating a new database with a cluster, --cloudsql-pass is required"
     exit 1
   fi
   ./scripts/gcp-create-db \
     --region=$DARK_CLUSTER_REGION \
-    --cloudsql-instance-name=$DARK_CLUSTER \
+    --cloudsql-instance-name=$CLOUDSQL_INSTANCE_NAME \
     --cloudsql-pass=$DARK_CLUSTER_CLOUDSQL_PASS
 fi
 
@@ -308,7 +310,8 @@ print_step "deploying code and containers"
   "--region=${DARK_CLUSTER_REGION}" \
   "--project=${DARK_CLUSTER_PROJECT}" \
   "--cluster=${DARK_CLUSTER}" \
-  "--configmap-file=${DARK_CLUSTER_CONFIGMAP_FILE}"
+  "--configmap-file=${DARK_CLUSTER_CONFIGMAP_FILE}" \
+  "--cloudsql-instance-name=${CLOUDSQL_INSTANCE_NAME}"
 
 print_step "waiting for a new ip..."
 

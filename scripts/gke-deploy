@@ -7,6 +7,7 @@ DARK_REGION="us-west1"
 DARK_PROJECT="balmy-ground-195100"
 DARK_CLUSTER="$(< current-cluster)"
 DARK_CLUSTER_CONFIGMAP_FILE="config/gke-builtwithdark"
+CLOUDSQL_INSTANCE_NAME="dark-west"
 
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 
@@ -26,11 +27,12 @@ A script that deploys the Dark Kubernetes config to a particular cluster.
 
 Options:
 
-  --region=...           The Google cloud region to deploy into (default $DARK_REGION).
-  --project=...          The Google cloud project to deploy into (default $DARK_PROJECT).
-  --cluster=...          The name of the cluster to deploy to (default $DARK_CLUSTER).
-  --configmap-file=...   The path of the env-file the cluster config map will be created from/updated to (default $DARK_CLUSTER_CONFIGMAP_FILE)
-  --help	     	 Display this menu.
+  --region=...                  The Google cloud region to deploy into (default $DARK_REGION).
+  --project=...                 The Google cloud project to deploy into (default $DARK_PROJECT).
+  --cluster=...                 The name of the cluster to deploy to (default $DARK_CLUSTER).
+  --configmap-file=...          The path of the env-file the cluster config map will be created from/updated to (default $DARK_CLUSTER_CONFIGMAP_FILE)
+  --cloudsql-instance-name=...  The instance name of the CloudSQL DB backing this cluster (default $CLOUDSQL_INSTANCE_NAME)
+  --help                        Display this menu.
 EOF
 )"
 
@@ -169,10 +171,26 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 
 CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
 
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
-sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" scripts/support/kubernetes/queueworker/qw-deployment.yaml.template > scripts/support/kubernetes/queueworker/qw-deployment.yaml
-sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/cronchecker/cron-deployment.yaml.template > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
-sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+
+sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  scripts/support/kubernetes/queueworker/qw-deployment.yaml.template > scripts/support/kubernetes/queueworker/qw-deployment.yaml
+
+sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  scripts/support/kubernetes/cronchecker/cron-deployment.yaml.template > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+
+sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
