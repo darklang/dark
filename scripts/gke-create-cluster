@@ -56,6 +56,9 @@ their suggestion.
                          from the current cluster with the following:
                           kubectl get secrets cloudsql-db-credentials -o json \
                             | jq -r '.data["password"]'
+
+                         NOTE: If --with-new-database is passed this should NOT be base64 encoded.
+                         We're sorry.
   --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
                          instance. You can swipe creds from the current cluster with something
                          like the following:
@@ -154,7 +157,7 @@ function print_step () {
 
 if [ -v WITH_NEW_DATABASE ] && [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
   # currently we use the default user
-  DARK_CLUSTER_CLOUDSQL_USER="postgres"
+  DARK_CLUSTER_CLOUDSQL_USER=$(printf "%s" "postgres" | base64)
   CLOUDSQL_INSTANCE_NAME="$DARK_CLUSTER"
   if [ ! -v DARK_CLUSTER_CLOUDSQL_PASS ]; then
     echo "When creating a new database with a cluster, --cloudsql-pass is required"
@@ -164,6 +167,8 @@ if [ -v WITH_NEW_DATABASE ] && [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
     --region=$DARK_CLUSTER_REGION \
     --cloudsql-instance-name=$CLOUDSQL_INSTANCE_NAME \
     --cloudsql-pass=$DARK_CLUSTER_CLOUDSQL_PASS
+
+  DARK_CLUSTER_CLOUDSQL_PASS=$(printf "%s" "$DARK_CLUSTER_CLOUDSQL_PASS" | base64)
 fi
 
 if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
