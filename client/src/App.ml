@@ -1179,13 +1179,20 @@ let update_ (msg : msg) (m : model) : modification =
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
+          (* this is probably gonna be useful for debugging, but customers
+           * shouldn't get used to it *)
+          e##clipboardData##setData "text/plain" data ;
           e##preventDefault ()
       | `None ->
           () ) ;
       NoChange
-  | ClipboardPasteEvent _e ->
-      Js.log ("Paste", _e) ;
-      NoChange
+  | ClipboardPasteEvent e ->
+      let json = e##clipboardData##getData "application/json" in
+      if json <> ""
+      then Clipboard.systemPaste m (`Json (Json.parseOrRaise json))
+      else
+        let text = e##clipboardData##getData "text/plain" in
+        if text <> "" then Clipboard.systemPaste m (`Text text) else NoChange
   | ClipboardCutEvent _e ->
       Js.log ("Cut", _e) ;
       NoChange

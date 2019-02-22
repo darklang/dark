@@ -423,6 +423,23 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       tl
 
 
+let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+    modification =
+  let newTL = replace pd replacement tl in
+  if newTL = tl
+  then NoChange
+  else
+    match newTL.data with
+    | TLHandler h ->
+        let ops = [SetHandler (tl.id, tl.pos, h)] in
+        RPC (ops, FocusNoChange)
+    | TLFunc f ->
+        let ops = [SetFunction f] in
+        RPC (ops, FocusNoChange)
+    | TLDB _ ->
+        impossible ("no vars in DBs", tl.data)
+
+
 (* do nothing for now *)
 
 let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
@@ -451,6 +468,16 @@ let find (tl : toplevel) (id : id) : pointerData option =
 
 let findExn (tl : toplevel) (id : id) : pointerData =
   find tl id |> deOption "findExn"
+
+
+let getCurrent (m : model) : (toplevel * pointerData) option =
+  match (tlidOf m.cursorState, idOf m.cursorState) with
+  | Some tlid, Some id ->
+      get m tlid
+      |> Option.andThen ~f:(fun tl ->
+             Option.map (find tl id) ~f:(fun pd -> (tl, pd)) )
+  | _ ->
+      None
 
 
 let allDBNames (toplevels : toplevel list) : string list =
