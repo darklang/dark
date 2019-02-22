@@ -9,7 +9,7 @@ DARK_CLUSTER_REGION="us-west1"
 DARK_CLUSTER_PROJECT="balmy-ground-195100"
 DARK_CLUSTER="darkcluster$(date +"%s")"
 DARK_CLUSTER_NUM_NODES="4"
-DARK_CLUSTER_VERSION="1.10.7-gke.6"
+DARK_CLUSTER_VERSION="1.11.7-gke.6"
 DARK_CLUSTER_CLOUDSQL_USER="postgres"
 DARK_CLUSTER_CLOUDSQL_PASS="6gCtEAKElJFpNCdw"
 
@@ -63,8 +63,8 @@ Options:
   --version=...          The Kubernetes version to run on the master and nodes. New versions are
                          released and old versions are obsoleted on GKE quickly, so you will
                          probably need to find the newest version (default $DARK_CLUSTER_VERSION).
-  --cloudsql-user=...    The username for the  cloudsql DB (default $DARK_CLUSTER_CLOUDSQL_USER).
-  --cloudsql-pass=...    The password for the cloudql DB (default $DARK_CLUSTER_CLOUDSQL_PASS)
+  --cloudsql-user=...    The username for the cloudsql DB (default $DARK_CLUSTER_CLOUDSQL_USER).
+  --cloudsql-pass=...    The password for the cloudsql DB (default $DARK_CLUSTER_CLOUDSQL_PASS)
   --help                 Display this menu.
 
 EOF
@@ -244,7 +244,7 @@ and check it out one of the following ways:
     to that IP
 
     $NEW_BWD_IP		builtwithdark.com
-    $NEW_BWD_IP	        some-subdomain.builtwithdark.com
+    $NEW_BWD_IP	  some-subdomain.builtwithdark.com
     $NEW_DL_IP		darklang.com
     $NEW_DL_IP		static.darklang.com
 

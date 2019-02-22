@@ -135,19 +135,19 @@ done
 #########################
 # Tell Kubernetes what to do
 #########################
-if [[ "$SERVER_IMAGE_ID" == "" ]]; then
+if [[ ! -v SERVER_IMAGE_ID ]]; then
   SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp -q | head -n 1)"
 fi
-if [[ "$QW_IMAGE_ID" == "" ]]; then
+if [[ ! -v QW_IMAGE_ID ]]; then
   QW_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-qw -q | head -n 1)"
 fi
-if [[ "$CRON_IMAGE_ID" == "" ]]; then
+if [[ ! -v CRON_IMAGE_ID ]]; then
   CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
 fi
-if [[ "$STROLLER_IMAGE_ID" == "" ]]; then
+if [[ ! -v STROLLER_IMAGE_ID ]]; then
   STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-stroller -q | head -n 1)"
 fi
-if [[ "$TUNNEL_IMAGE_ID" == "" ]]; then
+if [[ ! -v TUNNEL_IMAGE_ID ]]; then
   TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 fi
 
