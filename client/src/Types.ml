@@ -569,7 +569,9 @@ and stringEntryWidth =
 (* Clipboard *)
 (* ------------------- *)
 and clipboardData =
-  (< setData : string -> string -> unit [@bs.meth] > Js.t[@opaque])
+  (< setData : string -> string -> unit [@bs.meth]
+   ; getData : string -> string [@bs.meth] >
+   Js.t[@opaque])
 
 and jsEvent =
   (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >

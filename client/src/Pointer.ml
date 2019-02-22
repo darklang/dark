@@ -162,6 +162,55 @@ let isBlank (pd : pointerData) : bool =
       B.isBlank d
 
 
+let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
+  let bf s = match s with Blank _ -> s | F (id, str) -> F (id, f str) in
+  match pd with
+  | PVarBind v ->
+      PVarBind (bf v)
+  | PField f ->
+      PField (bf f)
+  | PKey f ->
+      PKey (bf f)
+  | PExpr e ->
+    ( match e with
+    | F (id, Value v) ->
+        PExpr (F (id, Value (f v)))
+    | F (id, Variable v) ->
+        PExpr (F (id, Variable (f v)))
+    | _ ->
+        PExpr e )
+  | PEventModifier d ->
+      PEventModifier (bf d)
+  | PEventName d ->
+      PEventName (bf d)
+  | PEventSpace d ->
+      PEventSpace (bf d)
+  | PDBName d ->
+      PDBName (bf d)
+  | PDBColName d ->
+      PDBColName (bf d)
+  | PDBColType d ->
+      PDBColType (bf d)
+  | PFFMsg d ->
+      PFFMsg (bf d)
+  | PFnName d ->
+      PFnName (bf d)
+  | PFnCallName d ->
+      PFnCallName (bf d)
+  | PConstructorName d ->
+      PConstructorName (bf d)
+  | PParamName d ->
+      PParamName (bf d)
+  | PParamTipe d ->
+      PParamTipe d
+  | PPattern d ->
+    ( match d with
+    | F (id, PVariable v) ->
+        PPattern (F (id, PVariable (f v)))
+    | _ ->
+        PPattern d )
+
+
 let toContent (pd : pointerData) : string option =
   let bs2s s =
     s |> B.toMaybe |> Option.withDefault ~default:"" |> fun x -> Some x
