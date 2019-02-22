@@ -48,6 +48,14 @@ their suggestion.
                          You can swipe creds from the current cluster with something like
                          the following:
                            kubectl get secrets darklang-tls -o json | jq -r '.data["tls.key"]'
+  --cloudsql-user=...    The base64 encoded username for the cloudsql DB. You can swipe creds
+                         from the current cluster with the following:
+                          kubectl get secrets cloudsql-db-credentials -o json \
+                            | jq -r '.data["username"]'
+  --cloudsql-pass=...    The base64 encoded password for the cloudsql DB. You can swipe creds
+                         from the current cluster with the following:
+                          kubectl get secrets cloudsql-db-credentials -o json \
+                            | jq -r '.data["password"]'
   --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
                          instance. You can swipe creds from the current cluster with something
                          like the following:
@@ -71,8 +79,6 @@ Other Options:
   --version=...          The Kubernetes version to run on the master and nodes. New versions are
                          released and old versions are obsoleted on GKE quickly, so you will
                          probably need to find the newest version (default $DARK_CLUSTER_VERSION).
-  --cloudsql-user=...    The username for the cloudsql DB (default $DARK_CLUSTER_CLOUDSQL_USER).
-  --cloudsql-pass=...    The password for the cloudsql DB (default $DARK_CLUSTER_CLOUDSQL_PASS)
   --help                 Display this menu.
 
 EOF
@@ -163,6 +169,16 @@ if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
     DARK_CLUSTER_DL_TLS_CRT=$(kubectl get secrets darklang-tls -o json | jq -r '.data["tls.crt"]')
   fi
 
+  if [ ! -v DARK_CLUSTER_CLOUDSQL_USER ]; then
+    print_step "Fetching DARK_CLUSTER_CLOUDSQL_USER"
+    DARK_CLUSTER_CLOUDSQL_USER=$(kubectl get secret cloudsql-db-credentials -o json | jq -r '.data["username"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_CLOUDSQL_PASS ]; then
+    print_step "Fetching DARK_CLUSTER_CLOUDSQL_PASS"
+    DARK_CLUSTER_CLOUDSQL_PASS=$(kubectl get secret cloudsql-db-credentials -o json | jq -r '.data["password"]')
+  fi
+
   if [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
     print_step "Fetching DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS"
     DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS=$(kubectl get secret cloudsql-instance-credentials -o json | jq -r '.data["credentials.json"]')
@@ -221,17 +237,14 @@ kubectl create -f - <<EOF
 }
 EOF
 
-# add secrets for the cloudsql proxy service account
-# printf | base64 here because, unlike the rest of the secrets,
-# this username and password are sensitive to trailing whitespace.
 kubectl create -f - <<EOF
 {
   "apiVersion": "v1",
   "kind": "Secret",
   "type": "Opaque",
   "data": {
-    "username": "$(printf "%s" "$DARK_CLUSTER_CLOUDSQL_USER" | base64)",
-    "password": "$(printf "%s" "$DARK_CLUSTER_CLOUDSQL_PASS" | base64)"
+    "username": "$DARK_CLUSTER_CLOUDSQL_USER"
+    "password": "$DARK_CLUSTER_CLOUDSQL_PASS"
   },
   "metadata": {
     "name": "cloudsql-db-credentials"
