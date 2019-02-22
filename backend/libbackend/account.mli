@@ -5,7 +5,8 @@ type username = string
 type user_info =
   { username : username
   ; email : string
-  ; name : string }
+  ; name : string
+  ; admin : bool }
 
 type permissions =
   | CanEdit
