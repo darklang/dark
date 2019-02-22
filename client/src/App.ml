@@ -1172,9 +1172,16 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
-      (* let _ = Clipboard.systemCopy m in *)
-      e##clipboardData##setData "text/plain" "x123" ;
-      e##preventDefault () ;
+      ( match Clipboard.systemCopy m with
+      | `Text text ->
+          e##clipboardData##setData "text/plain" text ;
+          e##preventDefault ()
+      | `Json json ->
+          let data = Json.stringify json in
+          e##clipboardData##setData "application/json" data ;
+          e##preventDefault ()
+      | `None ->
+          () ) ;
       NoChange
   | ClipboardPasteEvent _e ->
       Js.log ("Paste", _e) ;

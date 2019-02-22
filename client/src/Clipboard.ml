@@ -89,3 +89,21 @@ let newFromClipboard (m : model) (pos : pos) : modification =
   let spec = Entry.newHandlerSpec () in
   let handler = {ast; spec; tlid = nid} in
   RPC ([SetHandler (nid, pos, handler)], FocusNext (nid, None))
+
+
+let systemCopy (m : model) =
+  match m.cursorState with
+  | Selecting (tlid, mId) ->
+      let tl = TL.getTL m tlid in
+      let mPd = Option.map ~f:(TL.findExn tl) mId in
+      ( match mPd with
+      | Some (PExpr _ as pe) ->
+          `Json (Encoders.pointerData pe)
+      | Some other ->
+          Pointer.toContent other
+          |> Option.map ~f:(fun text -> `Text text)
+          |> Option.withDefault ~default:`None
+      | None ->
+          `None )
+  | _ ->
+      `None
