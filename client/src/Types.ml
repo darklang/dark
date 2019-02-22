@@ -583,9 +583,6 @@ and clipboardPasteEvent = jsEvent
 
 and clipboardCutEvent = jsEvent
 
-(* TODO: remove *)
-and clipboard = pointerData option
-
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -644,7 +641,6 @@ and modification =
   | SetCursorState of cursorState
   | SetPage of page
   | SetCenter of pos
-  | CopyToClipboard of clipboard
   | SetCursor of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
@@ -801,7 +797,6 @@ and model =
   ; unlockedDBs : tlid list
   ; integrationTestState : integrationTestState
   ; visibility : Native.PageVisibility.visibility
-  ; clipboard : clipboard
   ; syncState : syncState
   ; urlState : urlState
   ; timersEnabled : bool
@@ -825,8 +820,7 @@ and model =
 
 (* Values that we serialize *)
 and serializableEditor =
-  { clipboard : pointerData option
-  ; timersEnabled : bool
+  { timersEnabled : bool
   ; cursorState : cursorState
   ; lockedHandlers : tlid list
   ; routingTableOpenDetails : StrSet.t

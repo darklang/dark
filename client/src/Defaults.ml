@@ -18,8 +18,7 @@ let pageHeight : int = 400
 let pageWidth : int = 500
 
 let defaultEditor : serializableEditor =
-  { clipboard = None
-  ; timersEnabled = true
+  { timersEnabled = true
   ; cursorState = Deselected
   ; lockedHandlers = []
   ; routingTableOpenDetails = StrSet.empty
@@ -70,7 +69,6 @@ let defaultModel : model =
   ; syncState = StrSet.empty
   ; urlState = defaultUrlState
   ; timersEnabled = true (* saved in editor *)
-  ; clipboard = None
   ; cursorState = Deselected
   ; executingFunctions = []
   ; tlCursors = StrDict.empty
