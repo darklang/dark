@@ -139,6 +139,23 @@ let replacements =
                         ; ("email", Dval.dstr_of_string_exn email) ])) )
         | args ->
             fail args )
+    ; ( "DarkInternal::getUser_v1"
+      , function
+        | _, [DStr username] ->
+            let info = Account.get_user (Unicode_string.to_string username) in
+            ( match info with
+            | None ->
+                DOption OptNothing
+            | Some {username; name; admin; email} ->
+                DOption
+                  (OptJust
+                     (Dval.to_dobj
+                        [ ("username", Dval.dstr_of_string_exn username)
+                        ; ("name", Dval.dstr_of_string_exn name)
+                        ; ("email", Dval.dstr_of_string_exn email)
+                        ; ("admin", DBool admin) ])) )
+        | args ->
+            fail args )
     ; ( "DarkInternal::getUsers"
       , function
         | _, [] ->
