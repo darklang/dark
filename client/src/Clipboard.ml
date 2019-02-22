@@ -10,7 +10,7 @@ type copyData =
   | `Json of Js.Json.t
   | `None ]
 
-let systemCopy (m : model) : copyData =
+let copy (m : model) : copyData =
   match m.cursorState with
   | Selecting _ ->
     ( match TL.getCurrent m with
@@ -28,16 +28,35 @@ let systemCopy (m : model) : copyData =
       `None
 
 
-let systemPaste (m : model) (data : copyData) : modification =
+let cut (m : model) : copyData * modification =
+  match m.cursorState with
+  | Selecting _ ->
+    ( match TL.getCurrent m with
+    | None ->
+        (`None, NoChange)
+    | Some (tl, pd) ->
+        let new_ = Pointer.emptyD (Pointer.typeOf pd) in
+        (copy m, TL.replaceMod pd new_ tl) )
+  | _ ->
+      (`None, NoChange)
+
+
+let paste (m : model) (data : copyData) : modification =
   match TL.getCurrent m with
   | Some (tl, currentPd) ->
     ( match data with
     | `Json j ->
+        Debug.loG "pasting json" j ;
         let newPd = Decoders.pointerData j |> TL.clonePointerData in
         TL.replaceMod currentPd newPd tl
     | `Text t ->
-        let newPd = Pointer.strMap currentPd ~f:(fun _ -> t) in
-        TL.replaceMod currentPd newPd tl
+        Debug.loG "pasting text" t ;
+        let newPd =
+          Pointer.strMap currentPd ~f:(fun _ -> t)
+          |> TL.clonePointerData
+          |> Debug.log "newpd"
+        in
+        TL.replaceMod currentPd newPd tl |> Debug.log "newmod"
     | `None ->
         NoChange )
   | None ->
