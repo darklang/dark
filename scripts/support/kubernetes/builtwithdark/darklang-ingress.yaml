@@ -1,0 +1,10 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: darklang-tls-ingress
+spec:
+  backend:
+    serviceName: darklang-nodeport
+    servicePort: 80
+  tls:
+    - secretName: darklang-tls

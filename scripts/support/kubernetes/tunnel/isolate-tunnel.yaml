@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-tunnel
+spec:
+  podSelector:
+    matchLabels:
+      app:
+        tunnel-app
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values: [bwd-app, qw-worker, cron-checker]
