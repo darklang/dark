@@ -14,7 +14,8 @@ type account =
 type user_info =
   { username : username
   ; email : string
-  ; name : string }
+  ; name : string
+  ; admin : bool }
 
 (************************)
 (* Adding *)
@@ -89,12 +90,12 @@ let get_user username =
   Db.fetch_one_option
     ~name:"get_user"
     ~subject:username
-    "SELECT name, email from accounts
+    "SELECT name, email, admin from accounts
      WHERE accounts.username = $1"
     ~params:[String username]
   |> Option.bind ~f:(function
-         | [name; email] ->
-             Some {username; name; email}
+         | [name; email; admin] ->
+             Some {username; name; admin = admin = "t"; email}
          | _ ->
              None )
 
@@ -265,25 +266,13 @@ let upsert_admins () : unit =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbHlXamc0MHA3MWRBZ1kyTmFTTVhIZyRnaWZ1UGpsSnoxMFNUVDlZYWR5Tis1SVovRFVxSXdZeXVtL0Z2TkFOa1ZnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ismith@darklang.com"
     ; name = "Ian Smith" } ;
-  upsert_admin
-    { username = "shamus"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcE9ZT1AwYUpML25xbXBPbWFoRHdBQSR4Q2RlaFZFMEQzeTNOWnRiVEtRUlFwSDUwR1Eydm5MbnZOQ1M0dmJ6VDJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "jeremy@darklang.com"
-    ; name = "Jeremy Morony" } ;
   (* dark contractors *)
-  upsert_account
-    { username = "lizzie"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTNueDFWQUFYRWpLMjJGclcwMjU2ZyRYVDQxUGtGNnYyM1E4L0MrSUZITlNXNi8wUGN4TFdEbkRMZ0xVdHN2bHJZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "_@lizzie.io"
-    ; name = "Lizzie Dixon" } ;
-  upsert_account
-    { username = "samstokes"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcVViUzB0USt0ZEE5WDBIUm1MME5BQSQydktjVHV2TG9FMFhNOHg3MHJZelNwQUpLT09YeFpKOVFYb2Y3NU9vMmQ0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "me@samstokes.co.uk"
-    ; name = "Sam Stokes" } ;
+  (* upsert_account *)
+  (*   { username = "lizzie" *)
+  (*   ; password = *)
+  (*       "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTNueDFWQUFYRWpLMjJGclcwMjU2ZyRYVDQxUGtGNnYyM1E4L0MrSUZITlNXNi8wUGN4TFdEbkRMZ0xVdHN2bHJZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" *)
+  (*   ; email = "_@lizzie.io" *)
+  (*   ; name = "Lizzie Dixon" } ; *)
   ()
 
 
