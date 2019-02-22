@@ -44,7 +44,7 @@ function displayError (msg){
 window.onerror = function (msg, url, line, col, error) {
   window.Rollbar.error(msg, error);
   window.lastError = error;
-  console.error("Uncaught exception", message, source, lineno, colno, error);
+  console.error("Uncaught exception", msg, source, lineno, colno, error);
   displayError(msg);
 };
 
