@@ -10,6 +10,7 @@ DARK_CLUSTER_PROJECT="balmy-ground-195100"
 DARK_CLUSTER="darkcluster$(date +"%s")"
 DARK_CLUSTER_NUM_NODES="4"
 DARK_CLUSTER_VERSION="1.11.7-gke.6"
+DARK_CLUSTER_CONFIGMAP_FILE="config/gke-builtwithdark"
 
 HELP="$(cat <<EOF
 Usage: $0 REQUIRED_ARGS [OPTIONS]
@@ -74,6 +75,8 @@ Other Options:
   --num-nodes=...        The number of nodes *per zone* in the cluster. GKE default is to deploy
                          to three zones, so the actual number of deployed nodes will be 3x this
                          amount (default $DARK_CLUSTER_NUM_NODES).
+  --configmap-file=...   The path of the env-file the cluster config map will be created from/updated
+                         to (default $DARK_CLUSTER_CONFIGMAP_FILE)
   --version=...          The Kubernetes version to run on the master and nodes. New versions are
                          released and old versions are obsoleted on GKE quickly, so you will
                          probably need to find the newest version (default $DARK_CLUSTER_VERSION).
@@ -97,6 +100,9 @@ do
       ;;
     --num-nodes=*)
       DARK_CLUSTER_NUM_NODES="${i/--num-nodes=/''}"
+      ;;
+    --configmap-file=*)
+      DARK_CLUSTER_CONFIGMAP_FILE="${i/--configmap-file=/''}"
       ;;
     --version=*)
       DARK_CLUSTER_VERSION="${i/--version=/''}"
@@ -284,7 +290,8 @@ print_step "deploying code and containers"
 ./scripts/gke-deploy \
   "--region=${DARK_CLUSTER_REGION}" \
   "--project=${DARK_CLUSTER_PROJECT}" \
-  "--cluster=${DARK_CLUSTER}"
+  "--cluster=${DARK_CLUSTER}" \
+  "--configmap-file=${DARK_CLUSTER_CONFIGMAP_FILE}"
 
 print_step "waiting for a new ip..."
 
