@@ -1177,9 +1177,6 @@ let update_ (msg : msg) (m : model) : modification =
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
-          (* this is probably gonna be useful for debugging, but customers
-           * shouldn't get used to it *)
-          e##clipboardData##setData "text/plain" data ;
           e##preventDefault ()
       | `None ->
           () ) ;
