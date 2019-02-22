@@ -6,6 +6,7 @@ set -euo pipefail
 DARK_REGION="us-west1"
 DARK_PROJECT="balmy-ground-195100"
 DARK_CLUSTER="$(< current-cluster)"
+DARK_CLUSTER_CONFIGMAP_FILE="config/gke-builtwithdark"
 
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 
@@ -28,6 +29,7 @@ Options:
   --region=...           The Google cloud region to deploy into (default $DARK_REGION).
   --project=...          The Google cloud project to deploy into (default $DARK_PROJECT).
   --cluster=...          The name of the cluster to deploy to (default $DARK_CLUSTER).
+  --configmap-file=...   The path of the env-file the cluster config map will be created from/updated to (default $DARK_CLUSTER_CONFIGMAP_FILE)
   --help	     	 Display this menu.
 EOF
 )"
@@ -61,6 +63,9 @@ do
       ;;
     --prefix=*)
       PREFIX="${i/--prefix=/''}-"
+      ;;
+    --configmap-file=*)
+      DARK_CLUSTER_CONFIGMAP_FILE="${i/--configmap-file=/''}"
       ;;
     --help)
       echo "$HELP"
@@ -156,8 +161,8 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
   "projects/${DARK_PROJECT}/zones/${DARK_REGION}/clusters/${DARK_CLUSTER}"
 
 # env vars (replace existing configmap or make a new one)
-(kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) \
-  ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
+(kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run | kubectl replace -f -) \
+  ||  kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}
 
 (kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
