@@ -10,8 +10,14 @@
 
 /client/yarn-error.log
 
-# Templates for these are in scripts/support/*.yaml.template
+# Templates for these are in scripts/support/kubernetes/*/*.yaml.template
+/scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+/scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+/scripts/support/kubernetes/queueworker/qw-deployment.yaml
+/scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+
+# Old rendered templates
 builtwithdark.yaml
-queueworker.yaml
 cronchecker.yaml
+queueworker.yaml
 tunnel.yaml
