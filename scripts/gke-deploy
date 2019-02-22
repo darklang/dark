@@ -64,7 +64,7 @@ do
     --prefix=*)
       PREFIX="${i/--prefix=/''}-"
       ;;
-    --config-file=*)
+    --configmap-file=*)
       DARK_CLUSTER_CONFIGMAP_FILE="${i/--configmap-file=/''}"
       ;;
     --help)
