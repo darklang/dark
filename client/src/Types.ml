@@ -566,6 +566,25 @@ and stringEntryWidth =
   | StringEntryShortWidth
 
 (* ------------------- *)
+(* Clipboard *)
+(* ------------------- *)
+and clipboardData =
+  (< setData : string -> string -> unit [@bs.meth] > Js.t[@opaque])
+
+and jsEvent =
+  (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >
+   Js.t[@opaque])
+
+and clipboardCopyEvent = jsEvent
+
+and clipboardPasteEvent = jsEvent
+
+and clipboardCutEvent = jsEvent
+
+(* TODO: remove *)
+and clipboard = pointerData option
+
+(* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
 and page =
@@ -580,8 +599,6 @@ and focus =
   | FocusSame
   (* unchanged *)
   | FocusNoChange
-
-and clipboard = pointerData option
 
 and canvasProps =
   { offset : pos
@@ -714,6 +731,9 @@ and msg =
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
+  | ClipboardCopyEvent of clipboardCopyEvent
+  | ClipboardCutEvent of clipboardCutEvent
+  | ClipboardPasteEvent of clipboardPasteEvent
 
 (* ----------------------------- *)
 (* AB tests *)
