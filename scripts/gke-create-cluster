@@ -23,7 +23,10 @@ with this script, try it out a few times outside of production first. Moving the
 static IPs the obvious way is flaky and seems nondeterministic. You may have better
 luck swapping DNS if you need it and can live with the long propagation times.
 
-Required arguments:
+Secrets:
+
+NOTE: All secrets default to copying the credentials from the current cluster as per
+their suggestion.
 
   --bwd-tls-crt=...      A base64-encoded TLS .crt file to use for the TLS-enabled ingress
                          serving darklang.com.
@@ -50,8 +53,13 @@ Required arguments:
                          like the following:
                            kubectl get secret cloudsql-instance-credentials -o json \
                              | jq -r '.data["credentials.json"]'
+  --assets-creds=...     A base64-encoded JSON document including credentials for uploading
+                         to the dark-static-assets bucket. You can swipe creds from the
+                         current cluster with something like the following:
+                           kubectl get secret dark-static-assets -o json \
+                             | jq -r '.data["balmy-ground-195100-d9b0f3de3013.json"]'
 
-Options:
+Other Options:
 
   --region=...           The Google cloud region to deploy into (default $DARK_CLUSTER_REGION).
   --project=...          The Google cloud project to deploy into (default $DARK_CLUSTER_PROJECT).
@@ -110,6 +118,9 @@ do
     --cloudsql-creds=*)
       DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS="${i/--cloudsql-creds=/''}"
       ;;
+    --assets-creds=*)
+      DARK_CLUSTER_STATIC_ASSETS_CREDS="${i/--assets-creds=/''}"
+      ;;
     --help)
       echo "$HELP"
       exit 0
@@ -122,16 +133,47 @@ do
   esac
 done
 
-if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
-     || [ ! -v DARK_CLUSTER_DL_TLS_KEY ] || [ ! -v DARK_CLUSTER_DL_TLS_CRT ] \
-     || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
-  echo "$HELP"
-  exit 1
-fi
-
 function print_step () {
   tput setab 6 && echo "=>" "$@" && tput sgr0
 }
+
+if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
+     || [ ! -v DARK_CLUSTER_DL_TLS_KEY ] || [ ! -v DARK_CLUSTER_DL_TLS_CRT ] \
+     || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
+  print_step "authorizing with the current cluster"
+  gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/$(< current-cluster)" --region=${DARK_CLUSTER_REGION}
+
+  if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ]; then
+    print_step "Fetching DARK_CLUSTER_BWD_TLS_KEY"
+    DARK_CLUSTER_BWD_TLS_KEY=$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.key"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_BWD_TLS_CRT ]; then
+    print_step "Fetching DARK_CLUSTER_BWD_TLS_CRT"
+    DARK_CLUSTER_BWD_TLS_CRT=$(kubectl get secrets bwd-tls -o json | jq -r '.data["tls.crt"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_DL_TLS_KEY ]; then
+    print_step "Fetching DARK_CLUSTER_DL_TLS_KEY"
+    DARK_CLUSTER_DL_TLS_KEY=$(kubectl get secrets darklang-tls -o json | jq -r '.data["tls.key"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_DL_TLS_CRT ]; then
+    print_step "Fetching DARK_CLUSTER_DL_TLS_CRT"
+    DARK_CLUSTER_DL_TLS_CRT=$(kubectl get secrets darklang-tls -o json | jq -r '.data["tls.crt"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ]; then
+    print_step "Fetching DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS"
+    DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS=$(kubectl get secret cloudsql-instance-credentials -o json | jq -r '.data["credentials.json"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_STATIC_ASSETS_CREDS ]; then
+    print_step "Fetching DARK_CLUSTER_STATIC_ASSETS_CREDS"
+    DARK_CLUSTER_STATIC_ASSETS_CREDS=$(kubectl get secret dark-static-assets -o json | jq -r '.data["balmy-ground-195100-d9b0f3de3013.json"]')
+  fi
+fi
+
 
 print_step "starting a new cluster named $DARK_CLUSTER"
 
@@ -145,7 +187,8 @@ gcloud beta container clusters create "$DARK_CLUSTER" \
   --enable-network-policy
 
 print_step "getting creds for the new cluster"
-gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}"
+# It's very important you don't forget to switch the kube context here!!!
+gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}" --region=${DARK_CLUSTER_REGION}
 
 print_step "installing secrets"
 # add tls secrets
@@ -207,6 +250,20 @@ kubectl create -f - <<EOF
   },
   "metadata": {
     "name": "cloudsql-instance-credentials"
+  }
+}
+EOF
+
+kubectl create -f - <<EOF
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "Opaque",
+  "data": {
+    "balmy-ground-195100-d9b0f3de3013.json": "$DARK_CLUSTER_STATIC_ASSETS_CREDS"
+  },
+  "metadata": {
+    "name": "dark-static-assets"
   }
 }
 EOF
