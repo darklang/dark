@@ -48,8 +48,7 @@ let rec pointerData j : pointerData =
 and serializableEditor (j : Js.Json.t) : serializableEditor =
   (* always make these optional so that we don't crash the page when we *)
   (* change the structure *)
-  { clipboard = orNull (field "clipboard" (optional pointerData)) None j
-  ; timersEnabled = orNull (field "timersEnabled" bool) true j
+  { timersEnabled = orNull (field "timersEnabled" bool) true j
   ; cursorState =
       ( try orNull (field "cursorState" cursorState) Deselected j with _ ->
           Deselected )

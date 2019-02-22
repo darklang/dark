@@ -24,7 +24,6 @@ let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
   { m with
     timersEnabled = e.timersEnabled
-  ; clipboard = e.clipboard
   ; cursorState = e.cursorState |> stripDragging
   ; lockedHandlers = e.lockedHandlers
   ; routingTableOpenDetails = e.routingTableOpenDetails
@@ -33,8 +32,7 @@ let editor2model (e : serializableEditor) : model =
 
 
 let model2editor (m : model) : serializableEditor =
-  { clipboard = m.clipboard
-  ; timersEnabled = m.timersEnabled (* are timers enabled *)
+  { timersEnabled = m.timersEnabled (* are timers enabled *)
   ; cursorState = m.cursorState
   ; lockedHandlers =
       m.lockedHandlers
