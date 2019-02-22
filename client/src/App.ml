@@ -1170,7 +1170,7 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
-      ( match Clipboard.systemCopy m with
+      ( match Clipboard.copy m with
       | `Text text ->
           e##clipboardData##setData "text/plain" text ;
           e##preventDefault ()
@@ -1187,13 +1187,26 @@ let update_ (msg : msg) (m : model) : modification =
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
       if json <> ""
-      then Clipboard.systemPaste m (`Json (Json.parseOrRaise json))
+      then Clipboard.paste m (`Json (Json.parseOrRaise json))
       else
         let text = e##clipboardData##getData "text/plain" in
-        if text <> "" then Clipboard.systemPaste m (`Text text) else NoChange
-  | ClipboardCutEvent _e ->
-      Js.log ("Cut", _e) ;
-      NoChange
+        if text <> "" then Clipboard.paste m (`Text text) else NoChange
+  | ClipboardCutEvent e ->
+      let copyData, mod_ = Clipboard.cut m in
+      ( match copyData with
+      | `Text text ->
+          e##clipboardData##setData "text/plain" text ;
+          e##preventDefault ()
+      | `Json json ->
+          let data = Json.stringify json in
+          e##clipboardData##setData "application/json" data ;
+          (* this is probably gonna be useful for debugging, but customers
+           * shouldn't get used to it *)
+          e##clipboardData##setData "text/plain" data ;
+          e##preventDefault ()
+      | `None ->
+          () ) ;
+      mod_
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
