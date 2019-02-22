@@ -247,7 +247,7 @@ kubectl create -f - <<EOF
   "kind": "Secret",
   "type": "Opaque",
   "data": {
-    "username": "$DARK_CLUSTER_CLOUDSQL_USER"
+    "username": "$DARK_CLUSTER_CLOUDSQL_USER",
     "password": "$DARK_CLUSTER_CLOUDSQL_PASS"
   },
   "metadata": {
