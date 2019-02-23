@@ -156,6 +156,13 @@ let replacements =
                         ; ("admin", DBool admin) ])) )
         | args ->
             fail args )
+    ; ( "DarkInternal::setAdmin"
+      , function
+        | _, [DStr username; DBool admin] ->
+            Account.set_admin (Unicode_string.to_string username) admin ;
+            DNull
+        | args ->
+            fail args )
     ; ( "DarkInternal::getUsers"
       , function
         | _, [] ->

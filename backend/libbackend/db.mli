@@ -16,6 +16,7 @@ type param =
   | Time of Types.RuntimeT.time
   | Null
   | List of param list
+  | Bool of bool
 
 (* only works for in-script params *)
 
