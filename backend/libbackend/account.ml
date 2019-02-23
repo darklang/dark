@@ -119,6 +119,14 @@ let is_admin ~username : bool =
     ~params:[String username]
 
 
+let set_admin ~username (admin : bool) : unit =
+  Db.run
+    ~name:"set_admin"
+    ~subject:username
+    "UPDATE accounts SET admin = $1 where username = $2"
+    ~params:[Bool admin; String username]
+
+
 let valid_user ~(username : username) ~(password : string) : bool =
   match
     Db.fetch_one_option
