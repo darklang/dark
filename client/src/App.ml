@@ -273,7 +273,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | DisplayAndReportError e ->
         ( {m with error = updateError m.error e}
         , Tea.Cmd.call (fun _ -> Native.Rollbar.send e None Js.Json.null) )
-    | DisplayAndReportHttpError (context, e) ->
+    | DisplayAndReportHttpError (context, ignoreCommon, e) ->
         let body (body : Tea.Http.responseBody) =
           let maybe name m =
             match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
@@ -340,7 +340,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.NetworkError ->
               "Network error - is the server running?"
           | Http.BadStatus response ->
-              "Bad status: " ^ response.status.message ^ body response.body
+              if response.status.code = 502
+              then "502"
+              else
+                "Bad status: " ^ response.status.message ^ body response.body
           | Http.BadPayload (msg, _) ->
               "Bad payload (" ^ context ^ "): " ^ msg
           | Http.Aborted ->
@@ -361,6 +364,21 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.Aborted ->
               None
         in
+        let displayError =
+          match e with
+          | Http.BadUrl _ ->
+              true
+          | Http.Timeout ->
+              true
+          | Http.NetworkError ->
+              not ignoreCommon
+          | Http.BadStatus response ->
+              if response.status.code = 502 then not ignoreCommon else true
+          | Http.BadPayload _ ->
+              true
+          | Http.Aborted ->
+              true
+        in
         let shouldRollbar = e <> Http.NetworkError in
         let msg = msg ^ " (" ^ context ^ ")" in
         let custom = Encoders.httpError e in
@@ -369,7 +387,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           then [Tea.Cmd.call (fun _ -> Native.Rollbar.send msg url custom)]
           else []
         in
-        ({m with error = updateError m.error msg}, Cmd.batch cmds)
+        ( (if displayError then {m with error = updateError m.error msg} else m)
+        , Cmd.batch cmds )
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
@@ -1081,19 +1100,19 @@ let update_ (msg : msg) (m : model) : modification =
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; UpdateTraces traces ]
   | AddOpRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpError ("RPC", err)
+      DisplayAndReportHttpError ("RPC", false, err)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (_, Error err) ->
-      DisplayAndReportHttpError ("ExecuteFunction", err)
+      DisplayAndReportHttpError ("ExecuteFunction", false, err)
   | InitialLoadRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpError ("InitialLoad", err)
+      DisplayAndReportHttpError ("InitialLoad", false, err)
   | GetUnlockedDBsRPCCallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
-        ; DisplayAndReportHttpError ("GetUnlockedDBs", err) ]
+        ; DisplayAndReportHttpError ("GetUnlockedDBs", true, err) ]
   | Delete404RPCCallback (_param, Error err) ->
-      DisplayAndReportHttpError ("Delete404", err)
+      DisplayAndReportHttpError ("Delete404", false, err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (_, _) ->
