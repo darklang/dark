@@ -37,6 +37,9 @@ val for_host : string -> Uuidm.t
 val upsert_user :
   username:string -> email:string -> name:string -> unit -> string
 
+(* Set whether user is an admin *)
+val set_admin : username:string -> bool -> unit
+
 (* Get a user's info *)
 val get_user : string -> user_info option
 

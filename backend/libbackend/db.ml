@@ -38,6 +38,7 @@ type param =
   | Time of Types.RuntimeT.time
   | Null
   | List of param list
+  | Bool of bool
 
 (* only works for in-script params *)
 
@@ -81,6 +82,10 @@ let rec escape (param : param) : string =
       "NULL"
   | List params ->
       params |> List.map ~f:escape |> String.concat ~sep:", "
+  | Bool true ->
+      "true"
+  | Bool false ->
+      "false"
 
 
 let cast_expression_for (dv : Types.RuntimeT.dval) : string option =
@@ -111,6 +116,10 @@ let rec to_sql param : string =
       date_to_sqlstring t
   | List xs ->
       xs |> List.map ~f:to_sql |> String.concat ~sep:array_separator
+  | Bool true ->
+      "true"
+  | Bool false ->
+      "false"
 
 
 let rec to_log param : string =
@@ -146,6 +155,10 @@ let rec to_log param : string =
       |> List.map ~f:to_log
       |> String.concat ~sep:array_separator
       |> fun s -> "[" ^ s ^ "]"
+  | Bool true ->
+      "true"
+  | Bool false ->
+      "false"
 
 
 (* ------------------------- *)
