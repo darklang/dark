@@ -587,8 +587,10 @@ and clipboardCutEvent = jsEvent
 (* Modifications *)
 (* ------------------- *)
 and page =
-  | Toplevels of pos
-  | Fn of tlid * pos
+  | Architecture of pos
+  | FocusedFn of tlid
+  | FocusedHandler of tlid
+  | FocusedDB of tlid
 
 and focus =
   | FocusNothing
@@ -601,7 +603,6 @@ and focus =
 
 and canvasProps =
   { offset : pos
-  ; fnOffset : pos
   ; enablePan : bool }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -640,13 +641,12 @@ and modification =
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
-  | SetCenter of pos
   | SetCursor of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
   | SetLockedHandlers of tlid list
-  | MoveCanvasTo of canvasProps * page * pos
+  | MoveCanvasTo of pos
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
@@ -757,7 +757,7 @@ and flagsVS = ffIsExpanded StrDict.t
 (* ----------------------------- *)
 and syncState = StrSet.t
 
-and urlState = {lastPos : pos}
+and urlState = {lastPos : pos option}
 
 and tlCursors = traceID StrDict.t
 
@@ -809,7 +809,7 @@ and model =
       (* that is currently selected.) *)
   ; featureFlags : flagsVS
   ; lockedHandlers : tlid list
-  ; canvas : canvasProps
+  ; canvasProps : canvasProps
   ; canvasName : string
   ; userContentHost : string
   ; environment : string

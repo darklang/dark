@@ -11,6 +11,8 @@ let centerPos : pos = {x = 475; y = 200}
 
 let origin : pos = {x = 0; y = 0}
 
+let focusCodePos : pos = {x = 475; y = 100}
+
 let moveSize : int = 50
 
 let pageHeight : int = 400
@@ -26,14 +28,9 @@ let defaultEditor : serializableEditor =
   ; featureFlags = StrDict.empty }
 
 
-let defaultUrlState : urlState = {lastPos = {x = 0; y = 0}}
+let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
 
-let defaultCanvas : canvasProps =
-  { offset =
-      origin (* These is intended to be (Viewport.toCentedOn centerPos) *)
-  ; fnOffset = origin
-  ; enablePan = true }
-
+let defaultCanvasProps : canvasProps = {offset = origin; enablePan = true}
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
@@ -55,7 +52,7 @@ let defaultModel : model =
   ; userFunctions = []
   ; deletedUserFunctions = []
   ; builtInFunctions = []
-  ; currentPage = Toplevels {x = 0; y = 0}
+  ; currentPage = Architecture {x = 0; y = 0}
   ; hovering = []
   ; tests = []
   ; toplevels = []
@@ -74,7 +71,7 @@ let defaultModel : model =
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; lockedHandlers = []
-  ; canvas = defaultCanvas
+  ; canvasProps = defaultCanvasProps
   ; canvasName = "builtwithdark"
   ; userContentHost = "builtwithdark.com"
   ; environment = "none"

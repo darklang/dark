@@ -53,18 +53,20 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         "click"
         (fun x -> ToplevelClick (tl.id, x)) ]
   in
-  let selected =
-    if Some tl.id = tlidOf m.cursorState then "selected" else ""
-  in
+  let selected = Some tl.id = tlidOf m.cursorState in
   let boxClasses =
-    match m.cursorState with
-    | Dragging (tlid_, _, _, _) ->
-        if tlid_ = tl.id then ["dragging"] else []
-    | _ ->
-        []
+    let dragging =
+      match m.cursorState with
+      | Dragging (tlid_, _, _, _) ->
+          tlid_ = tl.id
+      | _ ->
+          false
+    in
+    [("sidebar-box", true); ("selected", selected); ("dragging", dragging)]
   in
   let class_ =
-    [selected; "tl-" ^ deTLID tl.id; "toplevel"] |> String.join ~sep:" "
+    ["toplevel"; "tl-" ^ deTLID tl.id; (if selected then "selected" else "")]
+    |> String.join ~sep:" "
   in
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with
@@ -135,20 +137,21 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | _ ->
         None
   in
-  let top = match documentation with Some doc -> doc | _ -> data in
+  let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
-    | Toplevels _ ->
+    | Architecture _ ->
         tl.pos
-    | Fn (_, _) ->
+    | FocusedHandler _ | FocusedFn _ ->
+        Defaults.focusCodePos
+    | FocusedDB _ ->
         Defaults.centerPos
   in
   let html =
     Html.div
       (* -- see comment in css *)
-      [ Html.class'
-        <| String.join ~sep:" " (boxClasses @ ["sidebar-box"; selected]) ]
-      [Html.div (Html.class' class_ :: events) (body @ top)]
+      [Html.classList boxClasses]
+      [Html.div (Html.class' class_ :: events) (body @ data @ top)]
   in
   ViewUtils.placeHtml pos html
 
@@ -189,7 +192,7 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Toplevels _ ->
+    | Architecture _ ->
         m.toplevels
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
@@ -197,28 +200,42 @@ let viewCanvas (m : model) : msg Html.html =
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> deTLID tl.id)
         |> List.map ~f:(viewTL m)
-    | Fn (tlid, _) ->
+    | FocusedFn tlid ->
       ( match List.find ~f:(fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
       | None ->
-          List.map ~f:(viewTL m) m.toplevels )
-    (* TODO(ian): change to crash *)
+          [] )
+    | FocusedHandler tlid | FocusedDB tlid ->
+      (match TL.get m tlid with Some h -> [viewTL m h] | None -> [])
   in
   let canvasTransform =
     let offset =
       match m.currentPage with
-      | Toplevels _ ->
-          m.canvas.offset
-      | Fn (_, _) ->
-          m.canvas.fnOffset
+      | Architecture _ | FocusedFn _ | FocusedHandler _ ->
+          m.canvasProps.offset
+      | FocusedDB _ ->
+          {x = 0; y = 0}
     in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in
     "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
+  let pageType =
+    match m.currentPage with
+    | FocusedHandler _ ->
+        "page-handler"
+    | FocusedFn _ ->
+        "page-function"
+    | FocusedDB _ | Architecture _ ->
+        ""
+  in
   let allDivs = asts @ entry in
-  Html.div [Html.id "canvas"; Html.style "transform" canvasTransform] allDivs
+  Html.div
+    [ Html.id "canvas"
+    ; Html.style "transform" canvasTransform
+    ; Html.class' pageType ]
+    allDivs
 
 
 let view (m : model) : msg Html.html =
