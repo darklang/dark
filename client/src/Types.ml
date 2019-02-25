@@ -732,6 +732,7 @@ and msg =
   | ClipboardCopyEvent of clipboardCopyEvent
   | ClipboardCutEvent of clipboardCutEvent
   | ClipboardPasteEvent of clipboardPasteEvent
+  | ClipboardCopyLivevalue of string
 
 (* ----------------------------- *)
 (* AB tests *)

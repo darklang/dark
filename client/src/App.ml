@@ -1192,6 +1192,9 @@ let update_ (msg : msg) (m : model) : modification =
       | `None ->
           () ) ;
       mod_
+  | ClipboardCopyLivevalue lv ->
+      Clipboard.copyToClipboard lv ;
+      NoChange
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

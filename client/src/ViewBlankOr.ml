@@ -182,14 +182,25 @@ let div
             ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
             (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
     | _ ->
-        (* Rather than relying on property lengths changing, we should use noProp to indicate
-       * that the property at idx N has changed. *)
+        (* Rather than relying on property lengths changing, we should use
+         * noProp to indicate that the property at idx N has changed. *)
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let liveValueAttr =
     if displayLivevalue
     then Vdom.attribute "" "data-live-value" (renderLiveValue vs thisID)
     else Vdom.noProp
+  in
+  let copyButton =
+    if displayLivevalue
+    then
+      [ Html.div
+          [ ViewUtils.eventNoPropagation
+              "click"
+              ~key:("copylivevalue-" ^ showTLID vs.tl.id ^ "-")
+              (fun _ -> ClipboardCopyLivevalue (renderLiveValue vs thisID)) ]
+          [ViewUtils.fontAwesome "copy"] ]
+    else []
   in
   let featureFlagHtml = if showFeatureFlag then [viewFeatureFlag] else [] in
   let editFnHtml =
@@ -201,7 +212,10 @@ let div
   in
   let rightSideHtml =
     if selected
-    then [Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)]
+    then
+      [ Html.div
+          [Html.class' "expr-actions"]
+          (featureFlagHtml @ editFnHtml @ copyButton) ]
     else []
   in
   let idAttr =
