@@ -7,11 +7,6 @@ const mousewheel = function(callback){
 };
 
 // ---------------------------
-// Clipboard
-// ---------------------------
-var clipboardCopy = require('clipboard-copy');
-
-// ---------------------------
 // Allows us capture certain keys and stop them from affecting the browser.
 // ---------------------------
 function stopKeys(event) {
@@ -284,7 +279,6 @@ const entryboxCaret = {
 
 window.Dark = {
   caret: entryboxCaret,
-  clipboardCopy: clipboardCopy,
   traceFetcher: {
     fetch : function(params) {
       if (!window.fetcherWorker) {
