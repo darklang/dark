@@ -33,7 +33,14 @@ let urlOf (page : page) (mpos : pos option) : string =
 
 
 let urlFor (page : page) : string =
-  let pos = match page with Architecture pos -> Some pos | _ -> None in
+  let pos =
+    match page with
+    | Architecture pos ->
+        Some
+          {x = pos.x - Defaults.centerPos.x; y = pos.y - Defaults.centerPos.y}
+    | _ ->
+        None
+  in
   urlOf page pos
 
 
