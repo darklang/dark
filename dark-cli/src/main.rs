@@ -3,17 +3,27 @@ extern crate regex;
 extern crate reqwest;
 extern crate walkdir; // could probs replace this with std::fs
 extern crate humansize;
-use humansize::{FileSize, file_size_opts as options};
+extern crate serde;
+
+#[macro_use] extern crate failure;
 
 use clap::{App, Arg};
 use regex::Regex;
 use reqwest::{multipart, StatusCode};
-use std::process::exit;
 use walkdir::WalkDir;
+use humansize::{FileSize, file_size_opts as options};
 
-// TODO handle response errors
+#[derive (Debug, Fail)]
+enum DarkError {
+    #[fail(display = "Failure to auth: {}", status_code)]
+    AuthError {status_code: u16},
+    #[fail(display = "Failure to build multipart request")]
+    NoFilesFoundError {paths: String},
+    #[fail(display = "Upload failure")]
+    UploadError(#[cause] reqwest::Error),
+}
 
-fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> (String, String) {
+fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> Result<(String, String), DarkError> {
     let requri = format!("{}/a/{}", host, canvas);
     let mut authresp = match reqwest::Client::new()
         .get(&requri)
@@ -26,19 +36,8 @@ fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> 
 
     match authresp.status() {
         StatusCode::OK => (),
-        StatusCode::UNAUTHORIZED => {
-            println!("Failed to auth: bad username/password");
-            exit(1)
-        }
-        StatusCode::INTERNAL_SERVER_ERROR => {
-            println!("Internal server error - maybe a bad canvas?")
-        }
-        e => {
-            println!(
-                "Failed to auth: {}",
-                e.canonical_reason().expect("Could not parse status.")
-            );
-            exit(1)
+        _ => {
+            return Err(DarkError::AuthError{status_code: authresp.status().as_u16()})
         }
     }
 
@@ -57,10 +56,10 @@ fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> 
         .unwrap()[1]
         .to_string();
 
-    (cookie, csrf)
+    Ok((cookie, csrf))
 }
 
-fn form_body(paths: &str) -> (reqwest::multipart::Form, u64) {
+fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
     let mut files = paths
         .split(' ')
         .map(WalkDir::new)
@@ -71,8 +70,7 @@ fn form_body(paths: &str) -> (reqwest::multipart::Form, u64) {
 
     // "is_empty()"
     if files.peek().is_none() {
-        println!("No files found in {}!", paths);
-        exit(1);
+        return Err(DarkError::NoFilesFoundError{ paths: paths.to_string() })
     };
 
     let mut len = 0;
@@ -90,10 +88,10 @@ fn form_body(paths: &str) -> (reqwest::multipart::Form, u64) {
         form = form.file(filename, file.path()).unwrap();
     }
 
-    (form, len)
+    Ok((form, len))
 }
 
-fn main() {
+fn main() -> Result<(), DarkError> {
     let matches = App::new("dark")
         .version("0.1.0")
         .author("Ian Smith <ismith@darklang.com")
@@ -154,25 +152,24 @@ fn main() {
         password.to_string(),
         &host.to_string(),
         &canvas.to_string(),
-    );
+    )?;
 
-    let (form, size) = form_body(&paths.to_string());
+    let (form, size) = form_body(&paths.to_string())?;
 
     // TODO: what is that size?
     println!("Going to attempt to upload files totalling {}; note that this may error if your request is over a certain size; ask Dark for help with that.", size.file_size(options::DECIMAL).unwrap());
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
-    let mut resp = match reqwest::Client::new()
+    let mut resp = reqwest::Client::new()
         .post(&requri)
         .header("cookie", cookie)
         .header("x-csrf-token", csrf)
         .multipart(form)
         .send()
-    {
-        Ok(r) => r,
-        Err(error) => panic!("Error uploading assets: {:?}", error),
-    };
+        .or_else(|error| return Err(DarkError::UploadError(error)))?;
     let _ = resp;
 
     println!("{}", resp.text().unwrap());
+
+    Ok(())
 }
