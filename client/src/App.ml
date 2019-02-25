@@ -35,12 +35,12 @@ let init (flagString : string) (location : Web.Location.location) =
     ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
-    ; canvas =
+    ; canvasProps =
         ( match page with
-        | Toplevels pos ->
-            {m.canvas with offset = pos}
-        | Fn (_, pos) ->
-            {m.canvas with fnOffset = pos} )
+        | Architecture pos ->
+            {m.canvasProps with offset = pos}
+        | _ ->
+            m.canvasProps )
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
@@ -101,7 +101,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let target tuple = ACSetTarget (Some tuple) in
       let tlOnPage tl =
         match page with
-        | Toplevels _ ->
+        | Architecture _ ->
           ( match tl.data with
           | TLHandler _ ->
               true
@@ -109,7 +109,7 @@ let processFocus (m : model) (focus : focus) : modification =
               true
           | TLFunc _ ->
               false )
-        | Fn (id, _) ->
+        | FocusedFn id | FocusedHandler id | FocusedDB id ->
             tl.id = id
       in
       let setQuery =
@@ -407,33 +407,31 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         if m.currentPage = page
         then (m, Cmd.none)
         else
-          let canvas = m.canvas in
-          ( match (page, m.currentPage) with
-          | Toplevels pos2, Toplevels _ ->
+          let savedUrlState =
+            match m.currentPage with
+            | Architecture _ ->
+                Some m.canvasProps.offset
+            | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
+                m.urlState.lastPos
+          in
+          ( match page with
+          | Architecture pos2 ->
               (* scrolling *)
               ( { m with
                   currentPage = page
-                ; urlState = {lastPos = pos2}
-                ; canvas = {canvas with offset = pos2} }
+                ; urlState = {lastPos = Some pos2}
+                ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
-          | Fn (_, pos2), _ ->
+          | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
               ( { m with
                   currentPage = page
-                ; cursorState = Deselected
-                ; urlState = {lastPos = pos2}
-                ; canvas = {canvas with fnOffset = pos2} }
-              , Cmd.none )
-          | _ ->
-              let newM =
-                {m with currentPage = page; cursorState = Deselected}
-              in
-              (newM, Cmd.batch (closeBlanks newM)) )
-    | SetCenter center ->
-      ( match m.currentPage with
-      | Toplevels _ ->
-          ({m with currentPage = Toplevels center}, Cmd.none)
-      | Fn (id, _) ->
-          ({m with currentPage = Fn (id, center)}, Cmd.none) )
+                ; canvasProps =
+                    {m.canvasProps with offset = Defaults.origin}
+                    (* Stash the offset so that returning to canvas goes to the
+                 * previous place *)
+                ; urlState = {lastPos = savedUrlState}
+                ; cursorState = Deselected }
+              , Cmd.none ) )
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -677,15 +675,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | SetLockedHandlers locked ->
         ({m with lockedHandlers = locked}, Cmd.none)
-    | MoveCanvasTo (canvas, page, pos) ->
-        let canvas2 =
-          match page with
-          | Toplevels _ ->
-              {canvas with offset = pos}
-          | Fn (_, _) ->
-              {canvas with fnOffset = pos}
-        in
-        ({m with canvas = canvas2}, Cmd.none)
+    | MoveCanvasTo pos ->
+        let newCanvasProps = {m.canvasProps with offset = pos} in
+        ({m with canvasProps = newCanvasProps}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -729,7 +721,7 @@ let toggleTimers (m : model) : model =
 
 let findCenter (m : model) : pos =
   match m.currentPage with
-  | Toplevels center ->
+  | Architecture center ->
       Viewport.toCenter center
   | _ ->
       Defaults.centerPos
@@ -763,7 +755,7 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | Toplevels _ ->
+    | Architecture _ ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
@@ -781,7 +773,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      if m.canvas.enablePan then Viewport.moveCanvasBy m x y else NoChange
+      if m.canvasProps.enablePan then Viewport.moveCanvasBy m x y else NoChange
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
@@ -1160,12 +1152,12 @@ let update_ (msg : msg) (m : model) : modification =
       let ufun = Refactor.generateEmptyFunction () in
       Many
         [ RPC ([SetFunction ufun], FocusNothing)
-        ; MakeCmd (Url.navigateTo (Fn (ufun.ufTLID, Defaults.centerPos))) ]
+        ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
   | LockHandler (tlid, isLocked) ->
       Editor.updateLockedHandlers tlid isLocked m
   | EnablePanning pan ->
-      let c = m.canvas in
-      TweakModel (fun m_ -> {m_ with canvas = {c with enablePan = pan}})
+      TweakModel
+        (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})

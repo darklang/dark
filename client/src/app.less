@@ -367,6 +367,40 @@ body #grid * {
   }
 }
 
+.page-handler .toplevel .view-data, .page-function .toplevel .view-data {
+  position: absolute;
+  width: max-content;
+  top: 0;
+  left: -20px;
+
+  ul.request-cursor {
+    float: none;
+    max-height: unset;
+    bottom: unset;
+
+    li {
+      float: none;
+      display: block;
+      line-height: 0.8rem;
+
+      &.mouseovered:before {
+        display: block;
+        position: absolute;
+        left: -260px;
+        top: 0;
+
+        height: max-content;
+        min-width: 250px;
+        width: 250px;
+
+        padding: 4px;
+
+        z-index: 600;
+      }
+    }
+  }
+}
+
 //*************
 // Routing table
 //*************
@@ -1402,6 +1436,7 @@ body #grid * {
 
 // This creates an ancestor for the absolutely positioned elements around a handler to be positioned agains
 //
+
 .sidebar-box {
   background: @black1;
   position: relative;
@@ -1409,13 +1444,19 @@ body #grid * {
 
 .documentation-box {
   position: absolute;
-  bottom: calc(~"100% + 5px");
+  bottom: calc(~"100% + 2px");
   left: 0;
   font-size: 11px;
   padding: 5px 10px;
-  background: @grey1;
+  background: darken(@black2, 2%);
   color: @white3;
-  border-radius: 13px;
+  width: calc(~"100% - 20px");
+}
+
+.page-handler, .page-function {
+  .toplevel.selected {
+    outline: none;
+  }
 }
 
 .right-button {
@@ -1740,6 +1781,10 @@ body #grid * {
 
 #sidebar-left {
   z-index: 55;
+}
+
+#canvas.page-handler, #canvas.page-function {
+  left: 320px;
 }
 
 .entry {

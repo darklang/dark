@@ -47,13 +47,16 @@ let viewButtons (m : model) : msg Html.html =
   in
   let returnButton =
     match m.currentPage with
-    | Fn (_, _) ->
+    | Architecture _ ->
+        []
+    | _ ->
+        let offset =
+          m.urlState.lastPos |> Option.withDefault ~default:Defaults.origin
+        in
         [ Url.linkFor
-            (Toplevels m.canvas.offset)
+            (Architecture offset)
             "specialButton default-link return-to-canvas"
             [Html.text "Return to Canvas"] ]
-    | _ ->
-        []
   in
   let status =
     match m.error.message with
@@ -80,13 +83,14 @@ let viewButtons (m : model) : msg Html.html =
   in
   let pageToString pg =
     match pg with
-    | Toplevels pos ->
-        "Toplevels " ^ posToString pos
-    | Fn (tlid, pos) ->
-        Printf.sprintf
-          "Fn (TLID %s %s)"
-          (Prelude.deTLID tlid)
-          (posToString pos)
+    | Architecture pos ->
+        "Architecture " ^ posToString pos
+    | FocusedFn tlid ->
+        Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
+    | FocusedHandler tlid ->
+        Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
+    | FocusedDB tlid ->
+        Printf.sprintf "DB (TLID %s)" (deTLID tlid)
   in
   let saveTestButton =
     Html.a

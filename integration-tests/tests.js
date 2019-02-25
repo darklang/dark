@@ -13,15 +13,25 @@ function stopXvfb(testname) {
   child_process.execFileSync(script, [testname]);
 }
 
+async function fixBrowserSize(t) {
+  // We need the browser window to be 1600x1200 to see everything. In the
+  // container, the browser starts at the right size, but when run outside the
+  // container we need to set it. The resizeWindow doesn't work inside the
+  // container though.
+  if (process.env.IN_DEV_CONTAINER == "true" ) return;
+  await t.resizeWindow( 1600, 1200 );
+}
+
 fixture `Integration Tests`
   // To add this user, run the backend tests
   .httpAuth({ username: 'test', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
+    await fixBrowserSize(t);
     startXvfb(testname);
     const url = "http://darklang.localhost:8000/a/test-" + testname + "?integration-test=true";
-    const pageLoaded = await Selector('#finishIntegrationTest').exists;
     await t.navigateTo(url);
+    await Selector('#finishIntegrationTest').exists;
 
     /* Testcafe runs everything through a proxy, wrapping all values and
      * objects such that it seems like nothing happened. However, they forgot
@@ -688,6 +698,7 @@ test('feature_flag_in_function', async t => {
 
     // Return to main canvas to finish tests
     .click(".return-to-canvas")
+    .expect(available(".tl-180770093")).ok()
 });
 
 test('simple_tab_ordering', async t => {
