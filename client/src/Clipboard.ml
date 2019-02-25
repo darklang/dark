@@ -57,6 +57,3 @@ let paste (m : model) (data : copyData) : modification =
         NoChange )
   | None ->
       NoChange
-
-
-external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]

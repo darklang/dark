@@ -1193,7 +1193,7 @@ let update_ (msg : msg) (m : model) : modification =
           () ) ;
       mod_
   | ClipboardCopyLivevalue lv ->
-      Clipboard.copyToClipboard lv ;
+      Native.Clipboard.copyToClipboard lv ;
       NoChange
 
 
