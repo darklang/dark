@@ -10,6 +10,7 @@ reqwest = "^0.9.7"
 base64 = "^0.10.1"
 hyper = "^0.12.14"
 regex = "1"
+humansize = "1.1.0"
 
 [target.x86_64-unknown-linux-gnu]
 [target.x86_64-unknown-linux-musl]

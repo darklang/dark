@@ -2,6 +2,8 @@ extern crate clap;
 extern crate regex;
 extern crate reqwest;
 extern crate walkdir; // could probs replace this with std::fs
+extern crate humansize;
+use humansize::{FileSize, file_size_opts as options};
 
 use clap::{App, Arg};
 use regex::Regex;
@@ -19,7 +21,7 @@ fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> 
         .send()
     {
         Ok(r) => r,
-        Err(error) => panic!("Do tha thing: {:?}", error),
+        Err(error) => panic!("Error authing: {:?}", error),
     };
 
     match authresp.status() {
@@ -58,7 +60,7 @@ fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> 
     (cookie, csrf)
 }
 
-fn form_body(paths: &str) -> reqwest::multipart::Form {
+fn form_body(paths: &str) -> (reqwest::multipart::Form, u64) {
     let mut files = paths
         .split(' ')
         .map(WalkDir::new)
@@ -73,8 +75,12 @@ fn form_body(paths: &str) -> reqwest::multipart::Form {
         exit(1);
     };
 
+    let mut len = 0;
+
     let mut form = multipart::Form::new();
     for file in files {
+        len += file.metadata().unwrap().len();
+        println!("File: {}", file.path().file_name().unwrap().to_string_lossy());
         let filename = file
             .path()
             .file_name()
@@ -84,7 +90,7 @@ fn form_body(paths: &str) -> reqwest::multipart::Form {
         form = form.file(filename, file.path()).unwrap();
     }
 
-    form
+    (form, len)
 }
 
 fn main() {
@@ -150,7 +156,10 @@ fn main() {
         &canvas.to_string(),
     );
 
-    let form = form_body(&paths.to_string());
+    let (form, size) = form_body(&paths.to_string());
+
+    // TODO: what is that size?
+    println!("Going to attempt to upload files totalling {}; note that this may error if your request is over a certain size; ask Dark for help with that.", size.file_size(options::DECIMAL).unwrap());
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
     let mut resp = match reqwest::Client::new()
@@ -161,7 +170,7 @@ fn main() {
         .send()
     {
         Ok(r) => r,
-        Err(error) => panic!("Do tha thing: {:?}", error),
+        Err(error) => panic!("Error uploading assets: {:?}", error),
     };
     let _ = resp;
 
