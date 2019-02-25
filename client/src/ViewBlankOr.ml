@@ -54,15 +54,27 @@ let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
 let viewFeatureFlag : msg Html.html =
   Html.div
     [ Html.class' "flag"
+    ; Html.title "Clone and feature flag this expression"
     ; ViewUtils.eventNoPropagation ~key:"sff" "click" (fun _ ->
           StartFeatureFlag ) ]
     [ViewUtils.fontAwesome "flag"]
+
+
+let viewCopyButton tlid value : msg Html.html =
+  Html.div
+    [ Html.title "Copy this expression's value to the clipboard"
+    ; ViewUtils.eventNoPropagation
+        "click"
+        ~key:("copylivevalue-" ^ showTLID tlid)
+        (fun _ -> ClipboardCopyLivevalue value) ]
+    [ViewUtils.fontAwesome "copy"]
 
 
 let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
   let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
   Html.a
     [ Html.class' "edit-fn"
+    ; Html.title "Extract this expression into a function"
     ; Vdom.styles [("right", rightOffset)]
     ; Html.href (Url.urlFor (FocusedFn tlid)) ]
     [ViewUtils.fontAwesome "edit"]
@@ -186,27 +198,20 @@ let div
          * noProp to indicate that the property at idx N has changed. *)
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
+  let liveValueString = renderLiveValue vs thisID in
   let liveValueAttr =
     if displayLivevalue
-    then Vdom.attribute "" "data-live-value" (renderLiveValue vs thisID)
+    then Vdom.attribute "" "data-live-value" liveValueString
     else Vdom.noProp
   in
   let copyButton =
-    if displayLivevalue
-    then
-      [ Html.div
-          [ ViewUtils.eventNoPropagation
-              "click"
-              ~key:("copylivevalue-" ^ showTLID vs.tl.id ^ "-")
-              (fun _ -> ClipboardCopyLivevalue (renderLiveValue vs thisID)) ]
-          [ViewUtils.fontAwesome "copy"] ]
-    else []
+    if displayLivevalue then [viewCopyButton vs.tl.id liveValueString] else []
   in
   let featureFlagHtml = if showFeatureFlag then [viewFeatureFlag] else [] in
   let editFnHtml =
     match editFn with
-    | Some editFn_ ->
-        [viewEditFn editFn_ showFeatureFlag]
+    | Some editFn ->
+        [viewEditFn editFn showFeatureFlag]
     | None ->
         if showFeatureFlag then [viewCreateFn] else [Vdom.noNode]
   in
