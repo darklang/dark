@@ -68,7 +68,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (FocusedHandler tl.id)
+            ; destination = Some (Architecture tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -92,7 +92,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (FocusedHandler tl.id)
+            ; destination = Some (Architecture tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -102,10 +102,13 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
 
 let dbCategory (m : model) (tls : toplevel list) : category =
   let dbs =
-    tls |> TL.dbs |> List.sortBy ~f:(fun db -> B.valueWithDefault "" db.dbName)
+    tls
+    |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
+    |> List.map ~f:(fun tl -> (TL.asDB tl |> deOption "dbCategory", tl.pos))
+    |> List.sortBy ~f:(fun (db, _) -> B.valueWithDefault "" db.dbName)
   in
   let entries =
-    List.map dbs ~f:(fun db ->
+    List.map dbs ~f:(fun (db, pos) ->
         let uses =
           match db.dbName with
           | Blank _ ->
@@ -122,7 +125,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = Some uses
-          ; destination = Some (FocusedDB db.dbTLID)
+          ; destination = Some (Architecture pos)
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
@@ -152,7 +155,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (FocusedHandler tl.id)
+            ; destination = Some (Architecture tl.pos)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
