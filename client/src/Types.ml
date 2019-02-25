@@ -608,7 +608,7 @@ and canvasProps =
 and httpError = (string Tea.Http.error[@opaque])
 
 and modification =
-  | DisplayAndReportHttpError of string * httpError
+  | DisplayAndReportHttpError of string * bool * httpError
   | DisplayAndReportError of string
   | DisplayError of string
   | ClearError
