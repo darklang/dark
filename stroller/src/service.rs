@@ -8,13 +8,13 @@ use futures::future;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
 
-pub type CanvasEvent = (String, String, Vec<u8>);
+use crate::worker::Message;
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 pub fn handle(
     shutting_down: &Arc<AtomicBool>,
-    sender: Sender<CanvasEvent>,
+    sender: Sender<Message>,
     req: Request<Body>,
 ) -> BoxFut<Response<Body>, hyper::Error> {
     let mut response = Response::new(Body::empty());
@@ -37,6 +37,9 @@ pub fn handle(
             println!("Entering shutdown mode, no more requests will be processed.");
 
             shutting_down.store(true, Ordering::Release);
+            if sender.send(Message::Die).is_err() {
+                eprintln!("Tried to send `Die` to worker, but it was dropped!");
+            };
 
             *response.status_mut() = StatusCode::ACCEPTED;
             *response.body_mut() = Body::from("OK");
@@ -53,14 +56,20 @@ pub fn handle(
                     future::ok::<_, hyper::Error>(acc)
                 })
                 .map(move |req_body| {
-                    let canvas_event = (canvas_uuid, event, req_body);
+                    let canvas_event = Message::CanvasEvent(canvas_uuid, event, req_body);
                     match sender.send(canvas_event) {
-                        Ok(()) => (),
-                        Err(_) => eprintln!("Receiver thread deallocated??"),
+                        Ok(()) => {
+                            *response.status_mut() = StatusCode::ACCEPTED;
+                            *response.body_mut() = Body::from("OK");
+                            response
+                        }
+                        Err(_) => {
+                            eprintln!("Tried to send CanvasEvent to worker, but it was dropped!");
+                            *response.status_mut() = StatusCode::ACCEPTED;
+                            *response.body_mut() = Body::empty();
+                            response
+                        }
                     }
-                    *response.status_mut() = StatusCode::ACCEPTED;
-                    *response.body_mut() = Body::from("OK");
-                    response
                 })
                 .or_else(|_| {
                     eprintln!("Couldn't read request body from client!");
@@ -84,7 +93,7 @@ mod tests {
     use super::*;
 
     use std::sync::mpsc;
-    fn test_channel() -> Sender<CanvasEvent> {
+    fn test_channel() -> Sender<Message> {
         let (sender, _) = mpsc::channel();
         sender
     }

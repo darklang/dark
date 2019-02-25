@@ -13,20 +13,19 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::Server;
 
+use crate::worker::{Message, WorkerTerminationReason};
+
 fn main() {
     let addr = ([0, 0, 0, 0], config::port()).into();
 
     let shutting_down = Arc::new(AtomicBool::new(false));
 
     // create 'infinite', non-blocking, multi-producer, single-consumer channel
-    let (sender, receiver) = mpsc::channel::<service::CanvasEvent>();
-    // lifetime needed to appease the borrow checker
-    {
-        let shutting_down = shutting_down.clone();
-        thread::spawn(move || {
-            worker::run(receiver, &shutting_down);
-        });
-    }
+    let (sender, receiver) = mpsc::channel::<Message>();
+    thread::spawn(move || match worker::run(receiver) {
+        WorkerTerminationReason::ViaDie => std::process::exit(0),
+        WorkerTerminationReason::SendersDropped => std::process::exit(1),
+    });
 
     let make_service = move || {
         let shutting_down = shutting_down.clone();
