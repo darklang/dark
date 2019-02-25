@@ -711,10 +711,6 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
       false
 
 
-let enableTimers (m : model) : model = {m with timersEnabled = true}
-
-let disableTimers (m : model) : model = {m with timersEnabled = false}
-
 let toggleTimers (m : model) : model =
   {m with timersEnabled = not m.timersEnabled}
 
@@ -1196,6 +1192,9 @@ let update_ (msg : msg) (m : model) : modification =
       | `None ->
           () ) ;
       mod_
+  | ClipboardCopyLivevalue lv ->
+      Native.Clipboard.copyToClipboard lv ;
+      NoChange
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

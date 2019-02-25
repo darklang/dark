@@ -199,6 +199,8 @@ module Clipboard = struct
   let pasteListener ~key tagger = registerGlobalDirect "paste" key tagger
 
   let cutListener ~key tagger = registerGlobalDirect "cut" key tagger
+
+  external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]
 end
 
 module Decoder = struct
