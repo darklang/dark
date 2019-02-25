@@ -1,15 +1,3 @@
-extern crate futures;
-extern crate hmac;
-extern crate hyper;
-extern crate hyper_tls;
-extern crate md5;
-extern crate native_tls;
-#[macro_use]
-extern crate serde_derive;
-extern crate reqwest;
-extern crate serde_json;
-extern crate sha2;
-
 mod config;
 mod push;
 mod service;

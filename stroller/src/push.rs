@@ -10,6 +10,7 @@ use reqwest::header::CONTENT_TYPE;
 use sha2::Sha256;
 
 use reqwest::StatusCode;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub enum PusherError {

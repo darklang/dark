@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use std::sync::mpsc::Receiver;
 
-use config;
-use push::PusherClient;
-use service;
+use crate::config;
+use crate::push::PusherClient;
+use crate::service;
 
 pub fn run(channel: Receiver<service::CanvasEvent>, shutting_down: &Arc<AtomicBool>) -> () {
     let mut client = PusherClient::new(
