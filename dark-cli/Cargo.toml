@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["Ian Smith <ismith@darklang.com>"]
 
 [dependencies]
-clap = "^2.31.2"
+clap = "2.31.2"
 walkdir = "2"
-reqwest = "^0.9.7"
-base64 = "^0.10.1"
-hyper = "^0.12.14"
+reqwest = "0.9.7"
+base64 = "0.10.1"
+hyper = "0.12.14"
 regex = "1"
 humansize = "1.1.0"
 
