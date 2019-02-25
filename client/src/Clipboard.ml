@@ -1,91 +1,59 @@
 open Tc
-open Prelude
 open Types
 
 (* Dark *)
 module P = Pointer
 module TL = Toplevel
 
-let copy (tl : toplevel) (mp : pointerData option) : modification =
-  match tl.data with
-  | TLDB _ ->
-      NoChange
-  | TLHandler h ->
-    ( match mp with
+type copyData =
+  [ `Text of string
+  | `Json of Js.Json.t
+  | `None ]
+
+let copy (m : model) : copyData =
+  match m.cursorState with
+  | Selecting _ ->
+    ( match TL.getCurrent m with
+    | Some (_, (PExpr _ as pd))
+    | Some (_, (PPattern _ as pd))
+    | Some (_, (PParamTipe _ as pd)) ->
+        `Json (Encoders.pointerData pd)
+    | Some (_, other) ->
+        Pointer.toContent other
+        |> Option.map ~f:(fun text -> `Text text)
+        |> Option.withDefault ~default:`None
     | None ->
-        CopyToClipboard (Some (PExpr h.ast))
-    | Some p ->
-        CopyToClipboard (TL.find tl (P.toID p)) )
-  | TLFunc f ->
-    ( match mp with
+        `None )
+  | _ ->
+      `None
+
+
+let cut (m : model) : copyData * modification =
+  match m.cursorState with
+  | Selecting _ ->
+    ( match TL.getCurrent m with
     | None ->
-        CopyToClipboard (Some (PExpr f.ufAST))
-    | Some p ->
-        CopyToClipboard (TL.find tl (P.toID p)) )
+        (`None, NoChange)
+    | Some (tl, pd) ->
+        let new_ = Pointer.emptyD (Pointer.typeOf pd) in
+        (copy m, TL.replaceMod pd new_ tl) )
+  | _ ->
+      (`None, NoChange)
 
 
-let cut (tl : toplevel) (p : pointerData) : modification =
-  let pid = P.toID p in
-  let pred = TL.getPrevBlank tl (Some p) |> Option.map ~f:P.toID in
-  match tl.data with
-  | TLDB _ ->
-      NoChange
-  | TLHandler _ ->
-      let newClipboard = TL.find tl pid in
-      let newH = TL.delete tl p (gid ()) |> TL.asHandler |> deOption "cut" in
-      Many
-        [ CopyToClipboard newClipboard
-        ; RPC ([SetHandler (tl.id, tl.pos, newH)], FocusNext (tl.id, pred)) ]
-  | TLFunc _ ->
-      let newClipboard = TL.find tl pid in
-      let newF =
-        TL.delete tl p (gid ()) |> TL.asUserFunction |> deOption "cut"
-      in
-      Many
-        [ CopyToClipboard newClipboard
-        ; RPC ([SetFunction newF], FocusNext (tl.id, pred)) ]
-
-
-let paste (m : model) (tl : toplevel) (id : id) : modification =
-  match m.clipboard with
+let paste (m : model) (data : copyData) : modification =
+  match TL.getCurrent m with
+  | Some (tl, currentPd) ->
+    ( match data with
+    | `Json j ->
+        let newPd = Decoders.pointerData j |> TL.clonePointerData in
+        TL.replaceMod currentPd newPd tl
+    | `Text t ->
+        let newPd =
+          Pointer.strMap currentPd ~f:(fun _ -> t) |> TL.clonePointerData
+        in
+        TL.replaceMod currentPd newPd tl
+    | `None ->
+        NoChange )
   | None ->
       NoChange
-  | Some pd ->
-      let cloned = TL.clonePointerData pd in
-      ( match tl.data with
-      | TLDB _ ->
-          NoChange
-      | TLHandler h ->
-          let newAst = AST.replace (TL.findExn tl id) cloned h.ast in
-          if newAst = h.ast
-          then NoChange (* paste doesn't always make sense *)
-          else
-            RPC
-              ( [SetHandler (tl.id, tl.pos, {h with ast = newAst})]
-              , FocusExact (tl.id, P.toID cloned) )
-      | TLFunc f ->
-          let newAst = AST.replace (TL.findExn tl id) cloned f.ufAST in
-          if newAst = f.ufAST
-          then NoChange (* -- paste doesn't always make sense *)
-          else
-            RPC
-              ( [SetFunction {f with ufAST = newAst}]
-              , FocusExact (tl.id, P.toID cloned) ) )
-
-
-let peek (m : model) : clipboard =
-  Option.map ~f:TL.clonePointerData m.clipboard
-
-
-let newFromClipboard (m : model) (pos : pos) : modification =
-  let nid = gtlid () in
-  let ast =
-    match peek m with
-    | None ->
-        Blank.new_ ()
-    | Some a ->
-      (match a with PExpr exp -> exp | _ -> Blank.new_ ())
-  in
-  let spec = Entry.newHandlerSpec () in
-  let handler = {ast; spec; tlid = nid} in
-  RPC ([SetHandler (nid, pos, handler)], FocusNext (nid, None))

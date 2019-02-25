@@ -636,8 +636,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
-    | CopyToClipboard clipboard ->
-        ({m with clipboard}, Cmd.none)
     | Drag (tlid, offset, hasMoved, state) ->
         (* Because mouseEvents are not perfectly reliable, we can end up in
          * weird dragging states. If we start dragging, make sure the state
@@ -1171,6 +1169,41 @@ let update_ (msg : msg) (m : model) : modification =
   | ShowErrorDetails show ->
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
+  | ClipboardCopyEvent e ->
+      ( match Clipboard.copy m with
+      | `Text text ->
+          e##clipboardData##setData "text/plain" text ;
+          e##preventDefault ()
+      | `Json json ->
+          let data = Json.stringify json in
+          e##clipboardData##setData "application/json" data ;
+          e##preventDefault ()
+      | `None ->
+          () ) ;
+      NoChange
+  | ClipboardPasteEvent e ->
+      let json = e##clipboardData##getData "application/json" in
+      if json <> ""
+      then Clipboard.paste m (`Json (Json.parseOrRaise json))
+      else
+        let text = e##clipboardData##getData "text/plain" in
+        if text <> "" then Clipboard.paste m (`Text text) else NoChange
+  | ClipboardCutEvent e ->
+      let copyData, mod_ = Clipboard.cut m in
+      ( match copyData with
+      | `Text text ->
+          e##clipboardData##setData "text/plain" text ;
+          e##preventDefault ()
+      | `Json json ->
+          let data = Json.stringify json in
+          e##clipboardData##setData "application/json" data ;
+          (* this is probably gonna be useful for debugging, but customers
+           * shouldn't get used to it *)
+          e##clipboardData##setData "text/plain" data ;
+          e##preventDefault ()
+      | `None ->
+          () ) ;
+      mod_
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
@@ -1241,9 +1274,18 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in
+  let clipboardSubs =
+    [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
+          ClipboardCopyEvent e )
+    ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
+          ClipboardCutEvent e )
+    ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+          ClipboardPasteEvent e ) ]
+  in
   Tea.Sub.batch
     (List.concat
        [ keySubs
+       ; clipboardSubs
        ; dragSubs
        ; resizes
        ; timers

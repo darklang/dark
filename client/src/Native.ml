@@ -21,6 +21,20 @@ let registerGlobal name key tagger decoder =
   Tea_sub.registration key enableCall
 
 
+(* Same, but no JSON decoding *)
+let registerGlobalDirect name key tagger =
+  let open Vdom in
+  let enableCall callbacks_base =
+    let callbacks = ref callbacks_base in
+    let fn ev = Some (tagger (Obj.magic ev)) in
+    let handler = EventHandlerCallback (key, fn) in
+    let elem = Web_node.document_node in
+    let cache = eventHandler_Register callbacks elem name handler in
+    fun () -> ignore (eventHandler_Unregister elem name cache)
+  in
+  Tea_sub.registration key enableCall
+
+
 module PageVisibility = struct
   type visibility =
     | Hidden
@@ -177,6 +191,14 @@ end
 module DarkMouse = struct
   let moves ~key tagger =
     registerGlobal "mousemove" key tagger Tea.Mouse.position
+end
+
+module Clipboard = struct
+  let copyListener ~key tagger = registerGlobalDirect "copy" key tagger
+
+  let pasteListener ~key tagger = registerGlobalDirect "paste" key tagger
+
+  let cutListener ~key tagger = registerGlobalDirect "cut" key tagger
 end
 
 module Decoder = struct

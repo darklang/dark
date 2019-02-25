@@ -239,33 +239,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               | Some id ->
                   let pd = TL.findExn tl id in
                   Refactor.wrap WIfCond m tl pd
-            else if event.ctrlKey
-            then
-              let mPd = Option.map ~f:(TL.findExn tl) mId in
-              Clipboard.copy tl mPd
-            else NoChange
-        | Key.V ->
-            if event.ctrlKey
-            then
-              match mId with
-              | None ->
-                ( match TL.rootOf tl with
-                | Some pd ->
-                    Clipboard.paste m tl (P.toID pd)
-                | None ->
-                    NoChange )
-              | Some id ->
-                  Clipboard.paste m tl id
-            else NoChange
-        | Key.X ->
-            if event.ctrlKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Clipboard.cut tl pd
             else NoChange
         | Key.F ->
             if event.ctrlKey
@@ -365,13 +338,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               else if AC.isLargeStringEntry m.complete
               then Entry.submit m cursor Entry.StayHere
               else NoChange
-          | Key.V ->
-            ( match cursor with
-            | Creating pos ->
-                Clipboard.newFromClipboard m pos
-            | Filling (tlid, p) ->
-                let tl = TL.getTL m tlid in
-                Clipboard.paste m tl p )
           | _ ->
               NoChange
         else if event.shiftKey && event.keyCode = Key.Enter

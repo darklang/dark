@@ -536,8 +536,7 @@ and trace (t : Types.trace) : Js.Json.t =
 
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
   object_
-    [ ("clipboard", nullable pointerData se.clipboard)
-    ; ("timersEnabled", bool se.timersEnabled)
+    [ ("timersEnabled", bool se.timersEnabled)
     ; ("cursorState", cursorState se.cursorState)
     ; ("lockedHandlers", list tlid se.lockedHandlers)
     ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
