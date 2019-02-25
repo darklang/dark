@@ -59,6 +59,4 @@ let paste (m : model) (data : copyData) : modification =
       NoChange
 
 
-(* For direct copying from a button *)
-external copyToClipboard : string -> unit = "clipboardCopy"
-  [@@bs.val] [@@bs.scope "window", "Dark"]
+external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]
