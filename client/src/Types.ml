@@ -566,6 +566,24 @@ and stringEntryWidth =
   | StringEntryShortWidth
 
 (* ------------------- *)
+(* Clipboard *)
+(* ------------------- *)
+and clipboardData =
+  (< setData : string -> string -> unit [@bs.meth]
+   ; getData : string -> string [@bs.meth] >
+   Js.t[@opaque])
+
+and jsEvent =
+  (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >
+   Js.t[@opaque])
+
+and clipboardCopyEvent = jsEvent
+
+and clipboardPasteEvent = jsEvent
+
+and clipboardCutEvent = jsEvent
+
+(* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
 and page =
@@ -580,8 +598,6 @@ and focus =
   | FocusSame
   (* unchanged *)
   | FocusNoChange
-
-and clipboard = pointerData option
 
 and canvasProps =
   { offset : pos
@@ -625,7 +641,6 @@ and modification =
   | SetCursorState of cursorState
   | SetPage of page
   | SetCenter of pos
-  | CopyToClipboard of clipboard
   | SetCursor of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
@@ -714,6 +729,9 @@ and msg =
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
+  | ClipboardCopyEvent of clipboardCopyEvent
+  | ClipboardCutEvent of clipboardCutEvent
+  | ClipboardPasteEvent of clipboardPasteEvent
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -779,7 +797,6 @@ and model =
   ; unlockedDBs : tlid list
   ; integrationTestState : integrationTestState
   ; visibility : Native.PageVisibility.visibility
-  ; clipboard : clipboard
   ; syncState : syncState
   ; urlState : urlState
   ; timersEnabled : bool
@@ -803,8 +820,7 @@ and model =
 
 (* Values that we serialize *)
 and serializableEditor =
-  { clipboard : pointerData option
-  ; timersEnabled : bool
+  { timersEnabled : bool
   ; cursorState : cursorState
   ; lockedHandlers : tlid list
   ; routingTableOpenDetails : StrSet.t
