@@ -633,17 +633,15 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     in
     let t5, result =
       time "5-to-frontend" (fun _ ->
-          let trace =
-            Option.first_some mft mht
-            |> Option.value_exn ~message:"No value for tlid"
-          in
-          Analysis.to_get_trace_data_rpc_result !c trace )
+          Option.first_some mft mht
+          |> Option.map ~f:(Analysis.to_get_trace_data_rpc_result !c) )
     in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
-      `OK
-      result
+    let resp_headers = server_timing [t1; t2; t3; t4; t5] in
+    match result with
+    | Some str ->
+        respond ~execution_id ~resp_headers `OK str
+    | None ->
+        respond ~execution_id ~resp_headers `Not_found ""
   with e -> raise e
 
 
