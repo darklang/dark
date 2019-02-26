@@ -160,7 +160,7 @@ jobs:
       - run:
           name: Copy out generated files and caches
           command: |
-            docker cp vols:/home/dark/app/dark-cli/target stroller/
+            docker cp vols:/home/dark/app/dark-cli/target dark-cli
             docker cp dark_rust_cargo:/usr/local/cargo cargo
       - save_cache:
           name: "Save cargolock-specific dark-cli cache"
