@@ -2,8 +2,16 @@
 
 set -eou pipefail
 
+echo "Need to re-build rust cross-compilation dependency osxcross-with-clang.tar.gz from Xcode? This is the script!"
+
+if [[ ! -f Xcode_7.3.1.dmg ]]; then
+  echo "You need Xcode_7.3.1.dmg; we have it in gcloud storage:"
+  echo "gsutil cp gs://dark-osxcross-files/Xcode_7.3.1.dmg ."
+  exit 1
+fi
+
 rm -rf target
 mkdir target
 docker build -t osxcross -f Dockerfile.osxcross .
-docker run -v $(pwd)/target:/target -it --device /dev/fuse --privileged osxcross \
+docker run -v "$(pwd)/target:/target" -it --device /dev/fuse --privileged osxcross \
   bash -c 'cd osxcross && ./tools/gen_sdk_package_darling_dmg.sh Xcode_7.3.1.dmg && mv MacOSX10.11.sdk.tar.xz tarballs && pwd && ls && ls tarballs && UNATTENDED=1 OSX_VERSION_MIN=10.7 ./build.sh && tar -czf /target/osxcross-with-clang.tar.gz target'

@@ -14,3 +14,5 @@ queueworker.yaml
 cronchecker.yaml
 tunnel.yaml
 dark-cli/target
+dark-cli/osxcross-with-clang.tar.gz
+dark-cli/osxcross/*.dmg
