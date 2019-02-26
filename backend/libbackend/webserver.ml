@@ -681,7 +681,7 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
       ~execution_id
       ~resp_headers:(server_timing [t1; t2; t3])
       `OK
-      "deleted"
+      "{ \"result\" : \"deleted\" } "
   with e -> raise e
 
 
