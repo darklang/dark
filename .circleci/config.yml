@@ -134,6 +134,53 @@ commands:
 # Actual workflow
 ##########################
 jobs:
+  build-dark-cli:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - restore_cache:
+          keys:
+            - v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
+            - v10-dark-cli-{{ checksum "today-timestamp" }}
+            - v10-dark-cli-{{ checksum "minus1-timestamp" }}
+            - v10-dark-cli-{{ checksum "minus2-timestamp" }}
+            - v10-dark-cli-{{ checksum "minus3-timestamp" }}
+      - clean-caches: { path: "dark-cli/target" }
+      - clean-caches: { path: "cargo" }
+      - run:
+          name: Set up volume for cargo
+          command: |
+            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
+            docker cp cargo dark_rust_cargo:/usr/local/cargo
+            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
+            rm -Rf cargo
+      - copy-into-container
+      - run: scripts/builder --compile-dark-cli --test
+      - run:
+          name: Copy out generated files and caches
+          command: |
+            docker cp vols:/home/dark/app/dark-cli/target stroller/
+            docker cp dark_rust_cargo:/usr/local/cargo cargo
+      - save_cache:
+          name: "Save cargolock-specific dark-cli cache"
+          paths:
+            - dark-cli/target
+            - cargo
+          key: v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
+      - save_cache:
+          name: "Save daily dark-cli cache"
+          paths:
+            - dark-cli/target
+            - cargo
+          key: v10-dark-cli-{{ checksum "today-timestamp" }}
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - dark-cli/target/release/dark-cli # linux, glibc
+            - dark-cli/target/x86_64-apple-darwin/release/dark-cli
+            - dark-cli/target/x86_64-pc-windows-gnu/release/dark-cli
+
   build-stroller:
     executor: my-executor
     steps:
