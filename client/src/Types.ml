@@ -243,7 +243,7 @@ and userFunction =
   ; ufAST : expr }
 
 (* toplevels *)
-and tLData =
+and tlData =
   | TLHandler of handler
   | TLDB of dB
   | TLFunc of userFunction
@@ -251,7 +251,7 @@ and tLData =
 and toplevel =
   { id : tlid
   ; pos : pos
-  ; data : tLData }
+  ; data : tlData }
 
 (* ---------------------- *)
 (* dvals *)
@@ -345,6 +345,7 @@ and functionResult =
 and traceFetchResult =
   | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
   | TraceFetchFailure of getTraceDataRPCParams * string
+  | TraceFetchMissing of getTraceDataRPCParams
 
 and traceFetchContext =
   { canvasName : string
