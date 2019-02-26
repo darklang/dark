@@ -178,6 +178,20 @@ def stroller_build():
 def cli_build():
   global profile
 
+  # This _could_ go in test_cli or something, but right now we don't have tests
+  # other than clippy and fmt
+  if os.environ.get("CI"):
+      clippy_flags = "-D warnings"
+  else:
+      start = time.time()
+      clippy_flags = ""
+  result = run_test(start,
+      "cd dark-cli"
+      + " && unbuffer cargo clippy --all-targets --bin=dark-cli --tests -- " + clippy_flags)
+
+  if not result:
+      return result
+
   if os.environ.get("CI"):
     start = time.time()
     result = run_backend(start, "cd dark-cli && cargo fmt -- --check")
