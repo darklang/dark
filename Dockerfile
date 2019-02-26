@@ -342,8 +342,9 @@ RUN rustup target add x86_64-apple-darwin \
 
 RUN sudo apt install -y clang gcc-mingw-w64-x86-64
 
-COPY dark-cli/osxcross-with-clang.tar.gz dark-cli/osxcross-with-clang.tar.gz
-RUN tar -xvf dark-cli/osxcross-with-clang.tar.gz
+ADD https://dark-osxcross-files.storage.googleapis.com/osxcross-with-clang.tar.gz /
+RUN sudo chmod a+r /osxcross-with-clang.tar.gz \
+  && tar -xvf /osxcross-with-clang.tar.gz
 ENV PATH "$PATH:/home/dark/target/bin"
 
 
