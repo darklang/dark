@@ -2,10 +2,20 @@
 
 set -euox pipefail
 
-cargo build
+RELEASE=""
+for i in "#@"; do
+    case "${i}" in
+        --release)
+        RELEASE="${i}"
+        shift
+        ;;
+    esac
+done
 
-PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin
-cargo build --target x86_64-pc-windows-gnu
+
+cargo build --target x86_64-unknown-linux-gnu ${RELEASE}
+PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE}
+cargo build --target x86_64-pc-windows-gnu ${RELEASE}
 
 # TODO: We probs want musl, b/c some joker will want to run on alpine or with a
 # diff glibc or sth. But that means having libssl-dev and maybe some other musl
