@@ -35,7 +35,7 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
                 break WorkerTerminationReason::ViaDie;
             }
             Err(_) => {
-                eprintln!("All senders dropped and queue did receive `Die`!");
+                eprintln!("All senders dropped and queue didn't receive `Die`!");
                 break WorkerTerminationReason::SendersDropped;
             }
         }
