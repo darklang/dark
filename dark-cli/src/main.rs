@@ -84,9 +84,9 @@ fn cookie_and_csrf(
     password: String,
     host: &str,
     canvas: &str,
-) -> Result<(String, String), DarkError> {
+    ) -> Result<(String, String), DarkError> {
     let requri = format!("{}/a/{}", host, canvas);
-    let _authresp = reqwest::Client::new()
+    reqwest::Client::new()
         .get(&requri)
         .basic_auth(user, Some(password))
         .send()
@@ -111,10 +111,7 @@ fn cookie_and_csrf(
             _ => Err(DarkError::AuthError {
                 status_code: resp.status().as_u16(),
             }),
-        });
-
-    // shouldn't be reachable
-    Err(DarkError::Unknown {})
+        })
 }
 
 fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
@@ -156,41 +153,41 @@ fn main() -> Result<(), DarkError> {
         .about("dark cli")
         .arg(
             Arg::with_name("user")
-                .long("user")
-                .required(true)
-                .takes_value(true)
-                .help("Your dark username"),
-        ).arg(
-            Arg::with_name("password")
+            .long("user")
+            .required(true)
+            .takes_value(true)
+            .help("Your dark username"),
+            ).arg(
+                Arg::with_name("password")
                 .long("password")
                 .required(true)
                 .takes_value(true)
                 .requires("user")
                 .help("Your dark password"),
-        ).arg(
-            Arg::with_name("canvas")
-                .long("canvas")
-                .required(true)
-                .takes_value(true)
-                .help("Your canvas"),
-        ).arg(
-            Arg::with_name("paths")
-                .required(true)
-                .takes_value(true)
-                .help("files to upload"),
-        ).arg(
-            Arg::with_name("dry-run")
-                .long("dry-run")
-                .required(false)
-                .takes_value(false)
-                .help("Don't upload to canvas"),
-        ).arg(
-            Arg::with_name("dev")
-                .long("dev")
-                .required(false)
-                .takes_value(false)
-                .help("Run against localhost - debug only."),
-        ).get_matches();
+                ).arg(
+                    Arg::with_name("canvas")
+                    .long("canvas")
+                    .required(true)
+                    .takes_value(true)
+                    .help("Your canvas"),
+                    ).arg(
+                        Arg::with_name("paths")
+                        .required(true)
+                        .takes_value(true)
+                        .help("files to upload"),
+                        ).arg(
+                            Arg::with_name("dry-run")
+                            .long("dry-run")
+                            .required(false)
+                            .takes_value(false)
+                            .help("Don't upload to canvas"),
+                            ).arg(
+                                Arg::with_name("dev")
+                                .long("dev")
+                                .required(false)
+                                .takes_value(false)
+                                .help("Run against localhost - debug only."),
+                                ).get_matches();
 
     // TODO: impl --dry-run
 
