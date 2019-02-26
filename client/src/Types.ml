@@ -243,7 +243,7 @@ and userFunction =
   ; ufAST : expr }
 
 (* toplevels *)
-and tLData =
+and tlData =
   | TLHandler of handler
   | TLDB of dB
   | TLFunc of userFunction
@@ -251,7 +251,7 @@ and tLData =
 and toplevel =
   { id : tlid
   ; pos : pos
-  ; data : tLData }
+  ; data : tlData }
 
 (* ---------------------- *)
 (* dvals *)
