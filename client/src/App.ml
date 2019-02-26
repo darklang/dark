@@ -526,8 +526,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
     | UpdateToplevels (tls, updateCurrent) ->
-        let m2 = TL.upsertAll m tls in
-        updateMod (SetToplevels (m2.toplevels, updateCurrent)) (m, cmd)
+        let m = TL.upsertAll m tls in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        updateMod
+          (SetToplevels (m.toplevels, updateCurrent))
+          (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels dtls ->
         let m2 =
           { m with
