@@ -19,28 +19,28 @@ enum DarkError {
     #[fail(display = "Failure to auth: {}", status_code)]
     AuthError { status_code: u16 },
     #[fail(display = "Failure to build multipart request")]
-    NoFilesFoundError { paths: String },
+    NoFilesFound { paths: String },
     #[fail(display = "Upload failure")]
-    UploadError(#[cause] reqwest::Error),
+    Upload(#[cause] reqwest::Error),
     #[fail(display = "Unknown failure")]
-    UnknownError {},
+    Unknown {},
 }
 
 impl From<regex::Error> for DarkError {
     fn from(_err: regex::Error) -> Self {
-        DarkError::UnknownError {}
+        DarkError::Unknown {}
     }
 }
 
 impl From<reqwest::Error> for DarkError {
     fn from(_err: reqwest::Error) -> Self {
-        DarkError::UnknownError {}
+        DarkError::Unknown {}
     }
 }
 
 impl From<reqwest::header::ToStrError> for DarkError {
     fn from(_err: reqwest::header::ToStrError) -> Self {
-        DarkError::UnknownError {}
+        DarkError::Unknown {}
     }
 }
 
@@ -48,26 +48,26 @@ impl From<reqwest::header::ToStrError> for DarkError {
 /*
 impl From<std::option::NoneError> for DarkError {
     fn from(_err: std::option::NoneError) -> Self {
-        DarkError::UnknownError{}
+        DarkError::Unknown{}
     }
 }
 */
 
 impl From<std::io::Error> for DarkError {
     fn from(_err: std::io::Error) -> Self {
-        DarkError::UnknownError {}
+        DarkError::Unknown {}
     }
 }
 
 impl From<std::string::String> for DarkError {
     fn from(_err: std::string::String) -> Self {
-        DarkError::UnknownError {}
+        DarkError::Unknown {}
     }
 }
 
 impl From<walkdir::Error> for DarkError {
     fn from(_err: walkdir::Error) -> Self {
-        DarkError::UnknownError {}
+        DarkError::Unknown {}
     }
 }
 
@@ -120,7 +120,7 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     // "is_empty()"
     if files.peek().is_none() {
-        return Err(DarkError::NoFilesFoundError {
+        return Err(DarkError::NoFilesFound {
             paths: paths.to_string(),
         });
     };
@@ -221,7 +221,7 @@ fn main() -> Result<(), DarkError> {
         .header("x-csrf-token", csrf)
         .multipart(form)
         .send()
-        .or_else(|error| return Err(DarkError::UploadError(error)))?;
+        .or_else(|error| Err(DarkError::Upload(error)))?;
     let _ = resp;
 
     println!("{}", resp.text()?);
