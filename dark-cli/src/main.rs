@@ -16,66 +16,57 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Fail)]
 enum DarkError {
-    #[fail(display = "Failure to auth: {}", status_code)]
-    AuthError { status_code: u16 },
+    #[fail(display = "Failure to auth: {}", _0)]
+    AuthError(u16),
     #[fail(display = "Failure to build multipart request")]
-    NoFilesFound { paths: String },
+    NoFilesFound(String),
     #[fail(display = "Upload failure")]
     Upload(#[cause] reqwest::Error),
-    #[fail(display = "Missing argument: {}", missing_arg)]
-    MissingArgument { missing_arg: String },
+    #[fail(display = "Missing argument: {}", _0)]
+    MissingArgument(String),
     #[fail(display = "Missing filename (can't happen).")]
-    MissingFilename {},
+    MissingFilename(),
     #[fail(display = "Regex error.")]
-    Regex {},
+    Regex(),
     #[fail(display = "No SET-COOKIE header received.")]
-    MissingSetCookie {},
+    MissingSetCookie(),
     #[fail(display = "Unknown failure")]
-    Unknown {},
+    Unknown(),
 }
 
 impl From<regex::Error> for DarkError {
     fn from(_err: regex::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown()
     }
 }
 
 impl From<reqwest::Error> for DarkError {
     fn from(_err: reqwest::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown()
     }
 }
 
 impl From<reqwest::header::ToStrError> for DarkError {
     fn from(_err: reqwest::header::ToStrError) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown()
     }
 }
 
-// use of unstable library feature 'try_trait' (see issue #42327)
-/*
-   impl From<std::option::NoneError> for DarkError {
-   fn from(_err: std::option::NoneError) -> Self {
-   DarkError::Unknown{}
-   }
-   }
-   */
-
 impl From<std::io::Error> for DarkError {
     fn from(_err: std::io::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown()
     }
 }
 
 impl From<std::string::String> for DarkError {
     fn from(_err: std::string::String) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown()
     }
 }
 
 impl From<walkdir::Error> for DarkError {
     fn from(_err: walkdir::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown()
     }
 }
 
@@ -84,33 +75,31 @@ fn cookie_and_csrf(
     password: String,
     host: &str,
     canvas: &str,
-    ) -> Result<(String, String), DarkError> {
+) -> Result<(String, String), DarkError> {
     let requri = format!("{}/a/{}", host, canvas);
     reqwest::Client::new()
         .get(&requri)
         .basic_auth(user, Some(password))
         .send()
-        .map_err(|_| DarkError::AuthError { status_code: 0 })
+        .map_err(|_| DarkError::AuthError(0))
         .and_then(move |mut resp| match resp.status() {
             StatusCode::OK => {
                 let cookie: String = resp
                     .headers()
                     .get(reqwest::header::SET_COOKIE)
-                    .ok_or(DarkError::MissingSetCookie {})?
+                    .ok_or(DarkError::MissingSetCookie())?
                     .to_str()?
                     .to_string();
                 let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
                 let csrf: String = csrf_re
                     .captures_iter(&resp.text()?)
                     .next()
-                    .ok_or(DarkError::Regex {})?[1]
+                    .ok_or(DarkError::Regex())?[1]
                     .to_string();
 
                 Ok((cookie, csrf))
             }
-            _ => Err(DarkError::AuthError {
-                status_code: resp.status().as_u16(),
-            }),
+            _ => Err(DarkError::AuthError(resp.status().as_u16())),
         })
 }
 
@@ -125,9 +114,7 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     // "is_empty()"
     if files.peek().is_none() {
-        return Err(DarkError::NoFilesFound {
-            paths: paths.to_string(),
-        });
+        return Err(DarkError::NoFilesFound(paths.to_string()));
     };
 
     let mut len = 0;
@@ -138,7 +125,7 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
         form = file
             .path()
             .file_name()
-            .ok_or_else(|| DarkError::MissingFilename {})
+            .ok_or_else(DarkError::MissingFilename)
             .and_then(|e| Ok(e.to_string_lossy().to_string()))
             .and_then(move |f| form.file(f, file.path()).map_err(DarkError::from))?;
     }
@@ -153,62 +140,56 @@ fn main() -> Result<(), DarkError> {
         .about("dark cli")
         .arg(
             Arg::with_name("user")
-            .long("user")
-            .required(true)
-            .takes_value(true)
-            .help("Your dark username"),
-            ).arg(
-                Arg::with_name("password")
+                .long("user")
+                .required(true)
+                .takes_value(true)
+                .help("Your dark username"),
+        ).arg(
+            Arg::with_name("password")
                 .long("password")
                 .required(true)
                 .takes_value(true)
                 .requires("user")
                 .help("Your dark password"),
-                ).arg(
-                    Arg::with_name("canvas")
-                    .long("canvas")
-                    .required(true)
-                    .takes_value(true)
-                    .help("Your canvas"),
-                    ).arg(
-                        Arg::with_name("paths")
-                        .required(true)
-                        .takes_value(true)
-                        .help("files to upload"),
-                        ).arg(
-                            Arg::with_name("dry-run")
-                            .long("dry-run")
-                            .required(false)
-                            .takes_value(false)
-                            .help("Don't upload to canvas"),
-                            ).arg(
-                                Arg::with_name("dev")
-                                .long("dev")
-                                .required(false)
-                                .takes_value(false)
-                                .help("Run against localhost - debug only."),
-                                ).get_matches();
+        ).arg(
+            Arg::with_name("canvas")
+                .long("canvas")
+                .required(true)
+                .takes_value(true)
+                .help("Your canvas"),
+        ).arg(
+            Arg::with_name("paths")
+                .required(true)
+                .takes_value(true)
+                .help("files to upload"),
+        ).arg(
+            Arg::with_name("dry-run")
+                .long("dry-run")
+                .required(false)
+                .takes_value(false)
+                .help("Don't upload to canvas"),
+        ).arg(
+            Arg::with_name("dev")
+                .long("dev")
+                .required(false)
+                .takes_value(false)
+                .help("Run against localhost - debug only."),
+        ).get_matches();
 
     // TODO: impl --dry-run
 
     let paths = matches
         .value_of("paths")
-        .ok_or(DarkError::MissingArgument {
-            missing_arg: "paths".to_string(),
-        })?;
+        .ok_or_else(|| DarkError::MissingArgument("paths".to_string()))?;
     let canvas = matches
         .value_of("canvas")
-        .ok_or(DarkError::MissingArgument {
-            missing_arg: "canvas".to_string(),
-        })?;
-    let user = matches.value_of("user").ok_or(DarkError::MissingArgument {
-        missing_arg: "user".to_string(),
-    })?;
+        .ok_or_else(|| DarkError::MissingArgument("canvas".to_string()))?;
+    let user = matches
+        .value_of("user")
+        .ok_or_else(|| DarkError::MissingArgument("user".to_string()))?;
     let password = matches
         .value_of("password")
-        .ok_or(DarkError::MissingArgument {
-            missing_arg: "password".to_string(),
-        })?;
+        .ok_or_else(|| DarkError::MissingArgument("password".to_string()))?;
     let host = if matches.is_present("dev") {
         "http://darklang.localhost:8000"
     } else {
