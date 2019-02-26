@@ -177,9 +177,10 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths:
-            - dark-cli/target/release/dark-cli # linux, glibc
             - dark-cli/target/x86_64-apple-darwin/release/dark-cli
             - dark-cli/target/x86_64-pc-windows-gnu/release/dark-cli
+            - dark-cli/target/x86_64-unknown-linux-gnu/release/dark-cli
+            - dark-cli/target/x86_64-unknown-linux-musl/release/dark-cli
 
   build-stroller:
     executor: my-executor
@@ -418,6 +419,7 @@ workflows:
       # initial builds & tests
       - build-backend
       - build-client
+      - build-dark-cli
       - build-stroller
 
       # expensive tests
@@ -444,3 +446,4 @@ workflows:
           requires:
             - integration-tests
             - push-to-gcp
+            - build-dark-cli
