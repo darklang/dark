@@ -63,7 +63,9 @@ their suggestion.
                          NOTE: If --with-new-database is passed this should NOT be base64 encoded.
                          We're sorry.
   --cloudsql-creds=...   A base64-encoded JSON document including credentials for the cloudsql
-                         instance. You can swipe creds from the current cluster with something
+                         instance. Specifically, this is the token for the service account that the
+                         sidecar CloudSQL proxy uses to to communicate with CloudSQL.
+                         You can swipe creds from the current cluster with something
                          like the following:
                            kubectl get secret cloudsql-instance-credentials -o json \
                              | jq -r '.data["credentials.json"]'
