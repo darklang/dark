@@ -157,7 +157,7 @@ def main():
     elif f == "--compile-stroller":
       compile = True
       compile_stroller = True
-    elif f == "--compile-cli":
+    elif f == "--compile-dark-cli":
       compile = True
       compile_cli = True
     elif f == "--watch":
