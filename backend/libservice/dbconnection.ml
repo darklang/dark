@@ -26,7 +26,7 @@ let rec rec_con depth =
       ~params:[("attempt", string_of_int depth)] ;
     if depth < 10
     then (
-      Unix.sleep 1 ;
+      Unix.sleep 5 ;
       rec_con (depth + 1) )
     else raise e
 
