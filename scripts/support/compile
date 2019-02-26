@@ -175,6 +175,28 @@ def stroller_build():
   else:
     return run_backend(start, build)
 
+def cli_test():
+  start = time.time()
+  result = run_backend(start, "cd dark-cli && cargo fmt -- --check")
+  if not result:
+    return result
+
+  start = time.time()
+  result = run_test(start,
+      "cd dark-cli && unbuffer cargo test")
+  if not result:
+      return result
+
+  start = time.time()
+  if os.environ.get("CI"):
+      clippy_flags = "-D warnings"
+  else:
+      clippy_flags = ""
+  return run_test(start,
+      "cd dark-cli"
+      + " && unbuffer cargo clippy --all-targets --bin=dark-cli --tests -- " + clippy_flags)
+
+
 def cli_build():
   global profile
 
@@ -194,11 +216,6 @@ def cli_build():
       return result
 
   if os.environ.get("CI"):
-    start = time.time()
-    result = run_backend(start, "cd dark-cli && cargo fmt -- --check")
-    if not result:
-      return result
-
     build_flags = " --release"
   else:
     build_flags = ""
@@ -254,6 +271,7 @@ class Should:
     self.backend_test = False
     self.stroller_build = False
     self.cli_build = False
+    self.cli_test = False
     self.stroller_test = False
     self.npm_install = False
     self.client_build = False
@@ -325,12 +343,16 @@ def execute(should):
 
   if should.cli_build:
     if not cli_build(): success = False
+    should.cli_test |= success
 
   if should.reload_stroller:
     if not reload_stroller(): success = False
 
   if should.stroller_test:
     if not stroller_test(): success = False
+
+  if should.cli_test:
+    if not cli_test(): success = False
 
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
