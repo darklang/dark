@@ -8,6 +8,8 @@
 /backend/static/
 /tags
 
+/client/yarn-error.log
+
 # Templates for these are in scripts/support/*.yaml.template
 builtwithdark.yaml
 queueworker.yaml
