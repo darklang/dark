@@ -104,6 +104,14 @@ let asDB (tl : toplevel) : dB option =
   match tl.data with TLDB h -> Some h | _ -> None
 
 
+let isDB (tl : toplevel) : bool =
+  match tl.data with TLDB _ -> true | _ -> false
+
+
+let isHandler (tl : toplevel) : bool =
+  match tl.data with TLHandler _ -> true | _ -> false
+
+
 let handlers (tls : toplevel list) : handler list =
   List.filterMap ~f:asHandler tls
 
