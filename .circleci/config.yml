@@ -158,8 +158,8 @@ jobs:
       - run:
           name: Set up volume for target
           command: |
-            docker create -v /home/dark/app/dark-cli-target --name dark_dark_cli_target alpine:3.4 /bin/true
-            docker cp cargo dark-cli/target:/home/dark/dark-cli/target
+            docker create -v /home/dark/app/dark-cli-target --name dark_cli_target alpine:3.4 /bin/true
+            docker cp dark-cli/target dark_cli_target:/home/dark/dark-cli/target
             docker run -i --volumes-from dark_cli_target alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app/dark-cli/target"
             rm -Rf dark-cli
       - copy-into-container
