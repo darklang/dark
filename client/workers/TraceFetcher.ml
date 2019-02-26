@@ -12,6 +12,8 @@ type pushResult = Types.traceFetchResult
 
 external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 
+exception NoneFound
+
 let fetch (context : Types.traceFetchContext) params =
   let open Js.Promise in
   let url =
@@ -34,16 +36,28 @@ let fetch (context : Types.traceFetchContext) params =
                [ ("Content-Type", "application/json")
                ; ("X-CSRF-TOKEN", context.csrfToken) ]))
        ())
+  |> then_ (fun (resp : Fetch.response) ->
+         (* The result not be there because we haven't saved the handler yet.
+          * In that case, return TraceFetchMissing so we can try again. *)
+         if Fetch.Response.status resp = 404
+         then reject NoneFound
+         else resolve resp )
   |> then_ Fetch.Response.json
   |> then_ (fun resp ->
          let result = Decoders.getTraceDataRPCResult resp in
          resolve (postMessage self (TraceFetchSuccess (params, result))) )
   |> catch (fun err ->
-         Js.log2 "traceFetch error" err ;
-         resolve
-           (postMessage
-              self
-              (TraceFetchFailure (params, "Failure fetching: " ^ url))) )
+         (* Js.Promise.error is opaque, and we just put this in here *)
+         match Obj.magic err with
+         | NoneFound ->
+             Js.log "Received no trace" ;
+             resolve (postMessage self (TraceFetchMissing params))
+         | _ ->
+             Js.log2 "traceFetch error" err ;
+             resolve
+               (postMessage
+                  self
+                  (TraceFetchFailure (params, "Failure fetching: " ^ url))) )
 
 
 let () =

@@ -1085,6 +1085,16 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; UpdateTraces traces ]
+  | ReceiveTraces (TraceFetchMissing params) ->
+      (* We'll force it so no need to update syncState *)
+      let _, cmd =
+        Analysis.requestTrace
+          ~force:true
+          m
+          params.gtdrpTlid
+          params.gtdrpTraceID
+      in
+      MakeCmd cmd
   | AddOpRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("RPC", false, err)
   | SaveTestRPCCallback (Error err) ->

@@ -310,7 +310,7 @@ let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
-let requestTrace m tlid traceID : model * msg Cmd.t =
+let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
   let should =
     (* DBs dont have traces *)
     TL.get m tlid
@@ -320,6 +320,7 @@ let requestTrace m tlid traceID : model * msg Cmd.t =
   if should
   then
     Sync.attempt
+      ~force
       ~key:("tracefetch-" ^ traceID)
       m
       (Tea_cmd.call (fun _ ->

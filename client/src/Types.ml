@@ -345,6 +345,7 @@ and functionResult =
 and traceFetchResult =
   | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
   | TraceFetchFailure of getTraceDataRPCParams * string
+  | TraceFetchMissing of getTraceDataRPCParams
 
 and traceFetchContext =
   { canvasName : string
