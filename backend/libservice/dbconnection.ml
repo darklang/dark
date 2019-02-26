@@ -26,6 +26,10 @@ let rec rec_con depth =
       ~params:[("attempt", string_of_int depth)] ;
     if depth < 10
     then (
+      (* It takes the CloudSQL proxy ~30 seconds to go from 'started' to 'ready'
+       * (what could it possibly be doing??). Let's wait max 50 seconds so we're
+       * not crashing twice every time a pod is scheduled. The 20 seconds is
+       * a buffer. Hurry up and wait, private! *)
       Unix.sleep 5 ;
       rec_con (depth + 1) )
     else raise e
