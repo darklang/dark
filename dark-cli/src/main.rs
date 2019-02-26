@@ -78,35 +78,35 @@ fn cookie_and_csrf(
     canvas: &str,
 ) -> Result<(String, String), DarkError> {
     let requri = format!("{}/a/{}", host, canvas);
-    let mut authresp = match reqwest::Client::new()
+    let _authresp = reqwest::Client::new()
         .get(&requri)
         .basic_auth(user, Some(password))
         .send()
-    {
-        Ok(r) => r,
-        Err(error) => panic!("Error authing: {:?}", error),
-    };
+        .map_err (|_| DarkError::AuthError{status_code: 0})
+        .and_then(move |mut resp| {
+            match resp.status() {
+                StatusCode::OK => {
+                    let cookie: String = resp
+                        .headers()
+                        .get(reqwest::header::SET_COOKIE)
+                        .unwrap()
+                        .to_str()?
+                        .to_string();
+                    let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
+                    let csrf: String = csrf_re.captures_iter(&resp.text()?).next().unwrap()[1].to_string();
 
-    match authresp.status() {
-        StatusCode::OK => (),
-        _ => {
-            return Err(DarkError::AuthError {
-                status_code: authresp.status().as_u16(),
-            })
-        }
-    }
+                    Ok((cookie, csrf))
+                },
+                _ => {
+                    Err(DarkError::AuthError {
+                        status_code: resp.status().as_u16(),
+                    })
+                }
+            }
+        });
 
-    let cookie: String = authresp
-        .headers()
-        .get(reqwest::header::SET_COOKIE)
-        .unwrap()
-        .to_str()?
-        .to_string();
-
-    let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
-    let csrf: String = csrf_re.captures_iter(&authresp.text()?).next().unwrap()[1].to_string();
-
-    Ok((cookie, csrf))
+    // shouldn't be reachable
+    Err(DarkError::Unknown {})
 }
 
 fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
