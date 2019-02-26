@@ -1,46 +1,46 @@
 extern crate clap;
+extern crate humansize;
 extern crate regex;
 extern crate reqwest;
-extern crate walkdir; // could probs replace this with std::fs
-extern crate humansize;
 extern crate serde;
+extern crate walkdir; // could probs replace this with std::fs
 
-#[macro_use] extern crate failure;
+#[macro_use]
+extern crate failure;
 
 use clap::{App, Arg};
+use humansize::{file_size_opts as options, FileSize};
 use regex::Regex;
 use reqwest::{multipart, StatusCode};
 use walkdir::WalkDir;
-use humansize::{FileSize, file_size_opts as options};
 
-
-#[derive (Debug, Fail)]
+#[derive(Debug, Fail)]
 enum DarkError {
     #[fail(display = "Failure to auth: {}", status_code)]
-    AuthError {status_code: u16},
+    AuthError { status_code: u16 },
     #[fail(display = "Failure to build multipart request")]
-    NoFilesFoundError {paths: String},
+    NoFilesFoundError { paths: String },
     #[fail(display = "Upload failure")]
     UploadError(#[cause] reqwest::Error),
     #[fail(display = "Unknown failure")]
-    UnknownError{},
+    UnknownError {},
 }
 
 impl From<regex::Error> for DarkError {
     fn from(_err: regex::Error) -> Self {
-        DarkError::UnknownError{}
+        DarkError::UnknownError {}
     }
 }
 
 impl From<reqwest::Error> for DarkError {
     fn from(_err: reqwest::Error) -> Self {
-        DarkError::UnknownError{}
+        DarkError::UnknownError {}
     }
 }
 
 impl From<reqwest::header::ToStrError> for DarkError {
     fn from(_err: reqwest::header::ToStrError) -> Self {
-        DarkError::UnknownError{}
+        DarkError::UnknownError {}
     }
 }
 
@@ -55,23 +55,28 @@ impl From<std::option::NoneError> for DarkError {
 
 impl From<std::io::Error> for DarkError {
     fn from(_err: std::io::Error) -> Self {
-        DarkError::UnknownError{}
+        DarkError::UnknownError {}
     }
 }
 
 impl From<std::string::String> for DarkError {
     fn from(_err: std::string::String) -> Self {
-        DarkError::UnknownError{}
+        DarkError::UnknownError {}
     }
 }
 
 impl From<walkdir::Error> for DarkError {
     fn from(_err: walkdir::Error) -> Self {
-        DarkError::UnknownError{}
+        DarkError::UnknownError {}
     }
 }
 
-fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> Result<(String, String), DarkError> {
+fn cookie_and_csrf(
+    user: String,
+    password: String,
+    host: &str,
+    canvas: &str,
+) -> Result<(String, String), DarkError> {
     let requri = format!("{}/a/{}", host, canvas);
     let mut authresp = match reqwest::Client::new()
         .get(&requri)
@@ -85,21 +90,21 @@ fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> 
     match authresp.status() {
         StatusCode::OK => (),
         _ => {
-            return Err(DarkError::AuthError{status_code: authresp.status().as_u16()})
+            return Err(DarkError::AuthError {
+                status_code: authresp.status().as_u16(),
+            })
         }
     }
 
     let cookie: String = authresp
         .headers()
-        .get(reqwest::header::SET_COOKIE).unwrap()
+        .get(reqwest::header::SET_COOKIE)
+        .unwrap()
         .to_str()?
         .to_string();
 
     let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
-    let csrf: String = csrf_re
-        .captures_iter(&authresp.text()?)
-        .next().unwrap()[1]
-        .to_string();
+    let csrf: String = csrf_re.captures_iter(&authresp.text()?).next().unwrap()[1].to_string();
 
     Ok((cookie, csrf))
 }
@@ -115,7 +120,9 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     // "is_empty()"
     if files.peek().is_none() {
-        return Err(DarkError::NoFilesFoundError{ paths: paths.to_string() })
+        return Err(DarkError::NoFilesFoundError {
+            paths: paths.to_string(),
+        });
     };
 
     let mut len = 0;
@@ -123,10 +130,14 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
     let mut form = multipart::Form::new();
     for file in files {
         len += file.metadata()?.len();
-        println!("File: {}", file.path().file_name().unwrap().to_string_lossy());
+        println!(
+            "File: {}",
+            file.path().file_name().unwrap().to_string_lossy()
+        );
         let filename = file
             .path()
-            .file_name().unwrap()
+            .file_name()
+            .unwrap()
             .to_string_lossy()
             .to_string();
         form = form.file(filename, file.path())?;
