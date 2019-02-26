@@ -311,7 +311,7 @@ let case_sensitivity (m : model) : testResult =
              | _ ->
                  fail ~f:show_expr h.ast )
            | other ->
-               fail ~f:show_tLData other )
+               fail ~f:show_tlData other )
     |> Result.combine
     |> Result.map (fun _ -> ())
 
@@ -433,7 +433,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
            | _ ->
                fail ~f:show_expr ast )
          | _ ->
-             fail ("Shouldn't be other handlers here" ^ show_tLData tl.data) )
+             fail ("Shouldn't be other handlers here" ^ show_tlData tl.data) )
   |> Result.combine
   |> Result.map (fun _ -> ())
 
