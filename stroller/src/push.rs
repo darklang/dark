@@ -5,16 +5,12 @@ use std::fmt;
 use std::str;
 use std::time::{Duration, SystemTime};
 
-use futures::future;
 use hmac::{Hmac, Mac};
-use hyper::client::HttpConnector;
-use hyper::header;
-use hyper::rt::{Future, Stream};
-use hyper::{Body, Client as HClient, Request as HRequest, StatusCode, Uri};
-use hyper_tls::HttpsConnector;
-use native_tls::TlsConnector;
-use r2d2::ManageConnection;
+use reqwest::header::CONTENT_TYPE;
 use sha2::Sha256;
+
+use reqwest::StatusCode;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub enum PusherError {
@@ -54,7 +50,7 @@ pub struct PusherClient {
     pub app_id: String,
     pub key: String,
 
-    http: HClient<HttpsConnector<HttpConnector>>,
+    http: reqwest::Client,
     mac: Hmac<Sha256>,
 }
 
@@ -70,8 +66,6 @@ struct PusherEvent<'a> {
     data: &'a str,
 }
 
-type BoxFut<T> = Box<Future<Item = T, Error = PusherError> + Send>;
-
 fn pusher_host(cluster: &str) -> String {
     format!("api-{}.pusher.com", cluster)
 }
@@ -80,12 +74,10 @@ impl PusherClient {
     const AUTH_VERSION: &'static str = "1.0";
 
     pub fn new(cluster: &str, app_id: &str, key: &str, secret: &str) -> Self {
-        let mut http = HttpConnector::new(4);
-        http.enforce_http(false);
-        http.set_keepalive(Some(Duration::from_secs(30)));
-        let mut https = HttpsConnector::from((http, TlsConnector::new().unwrap()));
-        https.https_only(true);
-        let http = HClient::builder().build::<_, Body>(https);
+        let http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .unwrap();
 
         Self {
             host: pusher_host(cluster),
@@ -103,7 +95,7 @@ impl PusherClient {
         channel_name: &str,
         event_name: &str,
         json_bytes: &[u8],
-    ) -> Result<HRequest<Body>, PusherError> {
+    ) -> Result<reqwest::Request, PusherError> {
         let json_str =
             str::from_utf8(json_bytes).map_err(|e| PusherError::MalformedPayload(e.to_string()))?;
 
@@ -137,19 +129,22 @@ impl PusherClient {
         self.mac.input(to_sign.as_bytes());
         let signature = self.mac.result_reset();
 
-        let uri: Uri = format!(
+        let uri: reqwest::Url = format!(
             "https://{}{}?{}&auth_signature={:x}",
             self.host,
             request_path,
             query_params,
             signature.code()
-        ).parse()
+        )
+        .parse()
         .unwrap();
 
-        Ok(HRequest::post(uri)
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(pusher_msg_bytes))
-            .unwrap())
+        self.http
+            .post(uri)
+            .header(CONTENT_TYPE, "application/json")
+            .body(pusher_msg_bytes)
+            .build()
+            .map_err(|e| PusherError::MalformedPayload(format!("{}", e)))
     }
 
     pub fn push_canvas_event(
@@ -157,103 +152,35 @@ impl PusherClient {
         canvas_uuid: &str,
         event_name: &str,
         json_bytes: &[u8],
-    ) -> BoxFut<()> {
+    ) -> Result<(), PusherError> {
         let channel_name = format!("canvas_{}", canvas_uuid);
         let timestamp = SystemTime::now();
 
         let pusher_request =
-            match self.build_push_request(timestamp, &channel_name, &event_name, json_bytes) {
-                Ok(req) => req,
-                Err(e) => {
-                    return Box::new(future::err(
-                        format!("couldn't build Pusher request: {}", e).into(),
-                    ))
-                }
-            };
-
+            self.build_push_request(timestamp, &channel_name, &event_name, json_bytes)?;
         println!("sending request: {:?}", pusher_request);
 
         let start = SystemTime::now();
 
-        Box::new(
-            self.http
-                .request(pusher_request)
-                .map_err(|e| PusherError::HttpError(e.to_string()))
-                .and_then(move |resp| {
-                    let req_time = start.elapsed().unwrap();
-                    let result: BoxFut<()> = match resp.status() {
-                        StatusCode::OK => {
-                            println!(
-                                "Pushed event in {}ms",
-                                1000 * req_time.as_secs() + u64::from(req_time.subsec_millis())
-                            );
-                            Box::new(future::ok(()))
-                        }
-                        code => Box::new(
-                            resp.into_body()
-                                .concat2()
-                                .map_err(|e| format!("Error reading push error: {:?}", e).into())
-                                .and_then(move |bytes| {
-                                    Box::new(future::err(PusherError::HttpRequestUnsuccessful(
-                                        code,
-                                        String::from_utf8(bytes.to_vec())
-                                            .unwrap_or_else(|_| "<could not read response>".into()),
-                                    )))
-                                }),
-                        ),
-                    };
-                    result
-                }),
-        )
-    }
-}
-
-/*
- * Minimal implementation of r2d2::ManageConnection.
- *
- * Our PusherClient is just a wrapper for a hyper HTTP client, which does its
- * own handling of persistent connections, reconnecting if necessary, etc, so we
- * don't need to implement is_valid or has_broken. (Individual requests may
- * fail, but any PusherClient checked out from the pool should always be
- * usable.)
- */
-pub struct PusherClientManager {
-    pub cluster: String,
-    pub app_id: String,
-    pub key: String,
-    secret: String,
-}
-
-impl PusherClientManager {
-    pub fn new(cluster: &str, app_id: &str, key: &str, secret: &str) -> Self {
-        Self {
-            cluster: cluster.to_string(),
-            app_id: app_id.to_string(),
-            key: key.to_string(),
-            secret: secret.to_string(),
-        }
-    }
-}
-
-impl ManageConnection for PusherClientManager {
-    type Connection = PusherClient;
-    type Error = PusherError;
-
-    fn connect(&self) -> Result<PusherClient, PusherError> {
-        Ok(PusherClient::new(
-            &self.cluster,
-            &self.app_id,
-            &self.key,
-            &self.secret,
-        ))
-    }
-
-    fn is_valid(&self, _client: &mut PusherClient) -> Result<(), PusherError> {
-        Ok(())
-    }
-
-    fn has_broken(&self, _client: &mut PusherClient) -> bool {
-        false
+        self.http
+            .execute(pusher_request)
+            .map_err(|e| PusherError::HttpError(e.to_string()))
+            .and_then(move |mut resp| {
+                let req_time = start.elapsed().unwrap();
+                match resp.status() {
+                    StatusCode::OK => {
+                        println!(
+                            "Pushed event in {}ms",
+                            1000 * req_time.as_secs() + u64::from(req_time.subsec_millis())
+                        );
+                        Ok(())
+                    }
+                    code => resp
+                        .text()
+                        .map_err(|e| format!("Error reading push error: {:?}", e).into())
+                        .and_then(move |msg| Err(PusherError::HttpRequestUnsuccessful(code, msg))),
+                }
+            })
     }
 }
 
@@ -305,10 +232,10 @@ mod tests {
         let req = client
             .build_push_request(timestamp, channel, event_name, json_data)
             .expect("should successfully build the request");
-        let uri = req.uri();
+        let uri = req.url();
 
-        assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
-        assert_eq!(uri.host(), Some("api-testcluster.pusher.com"));
+        assert_eq!(uri.scheme(), "https");
+        assert_eq!(uri.host_str(), Some("api-testcluster.pusher.com"));
         assert_eq!(uri.path(), "/apps/3/events");
         assert_eq!(uri.query(), Some("auth_key=278d425bdf160c739803&auth_timestamp=1353088179&auth_version=1.0&body_md5=ec365a775a4cd0599faeb73354201b6f&auth_signature=da454824c97ba181a32ccc17a72625ba02771f50b50e1e7430e47a1f3f457e6c"));
     }
