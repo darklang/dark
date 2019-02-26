@@ -222,7 +222,6 @@ fn main() -> Result<(), DarkError> {
         .multipart(form)
         .send()
         .or_else(|error| Err(DarkError::Upload(error)))?;
-    let _ = resp;
 
     println!("{}", resp.text()?);
 
