@@ -347,6 +347,9 @@ RUN curl -O https://dark-osxcross-files.storage.googleapis.com/osxcross-with-cla
   && rm osxcross-with-clang.tar.gz
 ENV PATH "$PATH:/home/dark/target/bin"
 
+# musl binary
+RUN rustup target add x86_64-unknown-linux-musl \
+  && sudo apt install -y musl-tools=1.1.16-3
 
 
 ############################

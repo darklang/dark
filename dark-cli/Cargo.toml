@@ -13,8 +13,13 @@ regex = "1"
 humansize = "1.1.0"
 failure = "0.1.5"
 serde = "1.0.88"
+openssl-sys = { version = "*", optional = true }
 
 [target.x86_64-unknown-linux-gnu]
 [target.x86_64-unknown-linux-musl]
 [target.x86_64-apple-darwin]
 [target.i686-pc-windows-gnu]
+
+# required for musl
+[features]
+  vendored = ["openssl-sys/vendored"]
