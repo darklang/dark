@@ -13,6 +13,7 @@ use reqwest::{multipart, StatusCode};
 use walkdir::WalkDir;
 use humansize::{FileSize, file_size_opts as options};
 
+
 #[derive (Debug, Fail)]
 enum DarkError {
     #[fail(display = "Failure to auth: {}", status_code)]
@@ -21,6 +22,53 @@ enum DarkError {
     NoFilesFoundError {paths: String},
     #[fail(display = "Upload failure")]
     UploadError(#[cause] reqwest::Error),
+    #[fail(display = "Unknown failure")]
+    UnknownError{},
+}
+
+impl From<regex::Error> for DarkError {
+    fn from(_err: regex::Error) -> Self {
+        DarkError::UnknownError{}
+    }
+}
+
+impl From<reqwest::Error> for DarkError {
+    fn from(_err: reqwest::Error) -> Self {
+        DarkError::UnknownError{}
+    }
+}
+
+impl From<reqwest::header::ToStrError> for DarkError {
+    fn from(_err: reqwest::header::ToStrError) -> Self {
+        DarkError::UnknownError{}
+    }
+}
+
+// use of unstable library feature 'try_trait' (see issue #42327)
+/*
+impl From<std::option::NoneError> for DarkError {
+    fn from(_err: std::option::NoneError) -> Self {
+        DarkError::UnknownError{}
+    }
+}
+*/
+
+impl From<std::io::Error> for DarkError {
+    fn from(_err: std::io::Error) -> Self {
+        DarkError::UnknownError{}
+    }
+}
+
+impl From<std::string::String> for DarkError {
+    fn from(_err: std::string::String) -> Self {
+        DarkError::UnknownError{}
+    }
+}
+
+impl From<walkdir::Error> for DarkError {
+    fn from(_err: walkdir::Error) -> Self {
+        DarkError::UnknownError{}
+    }
 }
 
 fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> Result<(String, String), DarkError> {
@@ -43,17 +91,14 @@ fn cookie_and_csrf(user: String, password: String, host: &str, canvas: &str) -> 
 
     let cookie: String = authresp
         .headers()
-        .get(reqwest::header::SET_COOKIE)
-        .unwrap()
-        .to_str()
-        .unwrap()
+        .get(reqwest::header::SET_COOKIE).unwrap()
+        .to_str()?
         .to_string();
 
-    let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";").unwrap();
+    let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
     let csrf: String = csrf_re
-        .captures_iter(&authresp.text().unwrap())
-        .next()
-        .unwrap()[1]
+        .captures_iter(&authresp.text()?)
+        .next().unwrap()[1]
         .to_string();
 
     Ok((cookie, csrf))
@@ -77,15 +122,14 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     let mut form = multipart::Form::new();
     for file in files {
-        len += file.metadata().unwrap().len();
+        len += file.metadata()?.len();
         println!("File: {}", file.path().file_name().unwrap().to_string_lossy());
         let filename = file
             .path()
-            .file_name()
-            .unwrap()
+            .file_name().unwrap()
             .to_string_lossy()
             .to_string();
-        form = form.file(filename, file.path()).unwrap();
+        form = form.file(filename, file.path())?;
     }
 
     Ok((form, len))
@@ -157,7 +201,7 @@ fn main() -> Result<(), DarkError> {
     let (form, size) = form_body(&paths.to_string())?;
 
     // TODO: what is that size?
-    println!("Going to attempt to upload files totalling {}; note that this may error if your request is over a certain size; ask Dark for help with that.", size.file_size(options::DECIMAL).unwrap());
+    println!("Going to attempt to upload files totalling {}; note that this may error if your request is over a certain size; ask Dark for help with that.", size.file_size(options::DECIMAL)?);
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
     let mut resp = reqwest::Client::new()
@@ -169,7 +213,7 @@ fn main() -> Result<(), DarkError> {
         .or_else(|error| return Err(DarkError::UploadError(error)))?;
     let _ = resp;
 
-    println!("{}", resp.text().unwrap());
+    println!("{}", resp.text()?);
 
     Ok(())
 }
