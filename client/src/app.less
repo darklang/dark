@@ -1054,31 +1054,21 @@ body #grid * {
   }
 
   .fncall {
+
     &.prefix > .arg-on-new-line {
-      position: relative;
+      .layout-block;
+      box-sizing: border-box;
+    }
 
-      &::before {
-        content: attr(param-name);
-        width: auto;
-        position: absolute;
-        right: calc(~"100% + 1ch");
-        color: @grey2;
-        font-size: 85%;
-      }
-
-      .display-livevalue.selected::before {
-        color: magenta; /* flag magenta to fix live value alignment */
-      }
+    .arg-on-new-line > .param-name {
+      width: auto;
+      position: absolute;
+      color: @grey2;
+      font-size: 0.85rem;
     }
 
     .tstr {
       margin-left: 2px;
-    }
-
-    .arg-on-new-line {
-      .layout-block;
-      margin-left: 2ch;
-      box-sizing: border-box;
     }
 
     .execution-button {

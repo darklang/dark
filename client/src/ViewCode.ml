@@ -122,9 +122,10 @@ and viewNExpr
     (d : int) (id : id) (vs : viewState) (config : htmlConfig list) (e : nExpr)
     : msg Html.html =
   let vExpr d_ = viewExpr d_ vs [] in
-  let vExprTw d_ =
+  let vExprTw d_ paramName =
     let vs2 = {vs with tooWide = true} in
-    viewExpr d_ vs2 []
+    let c = [wc "arg-on-new-line"; ViewBlankOr.WithParamName paramName] in
+    viewExpr d_ vs2 c
   in
   let n c = div vs (nested :: c) in
   let a c = text vs (atom :: c) in
@@ -187,12 +188,7 @@ and viewNExpr
       Debug.crash "fn with blank"
   | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
-      let viewTooWideArg p d_ e_ =
-        Html.div
-          [ Html.class' "arg-on-new-line"
-          ; Vdom.attribute "" "param-name" p.paramName ]
-          [vExprTw d_ e_]
-      in
+      let viewTooWideArg p d_ e_ = vExprTw d_ p.paramName e_ in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn =
         vs.ac.functions
