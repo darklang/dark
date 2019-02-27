@@ -10,20 +10,6 @@ let dstr_of_string_exn (s : string) : dval =
   s |> dstr_of_string |> Option.value_exn ~message:("Invalid UTF-8 string:" ^ s)
 
 
-let repr_of_dhttp (d : dhttp) : string =
-  match d with
-  | Redirect url ->
-      "302 " ^ url
-  | Response (c, hs) ->
-      let string_of_headers hs =
-        hs
-        |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v)
-        |> String.concat ~sep:","
-        |> fun s -> "{ " ^ s ^ " }"
-      in
-      string_of_int c ^ " " ^ string_of_headers hs
-
-
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
@@ -255,6 +241,20 @@ let tipename (dv : dval) : string =
 (* ------------------------- *)
 (* Representation *)
 (* ------------------------- *)
+
+let repr_of_dhttp (d : dhttp) : string =
+  match d with
+  | Redirect url ->
+      "302 " ^ url
+  | Response (c, hs) ->
+      let string_of_headers hs =
+        hs
+        |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v)
+        |> String.concat ~sep:","
+        |> fun s -> "{ " ^ s ^ " }"
+      in
+      string_of_int c ^ " " ^ string_of_headers hs
+
 
 (* Returns the string within string-ish values, without adornment. *)
 let as_string (dv : dval) : string =
