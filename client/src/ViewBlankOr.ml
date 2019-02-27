@@ -25,6 +25,8 @@ type htmlConfig =
   | WithROP
   (* editable *)
   | Enterable
+  (* Adds param name to the left *)
+  | WithParamName of string
 
 let wc (s : string) : htmlConfig = WithClass s
 
@@ -89,6 +91,12 @@ let viewCreateFn : msg Html.html =
     [ViewUtils.svgIconFn "white"]
 
 
+let viewParamName (name : string) : msg Html.html =
+  let leftOffset = String.length name + 1 in
+  let styles = [("margin-left", "-" ^ string_of_int leftOffset ^ "ch")] in
+  Html.div [Html.class' "param-name"; Vdom.styles styles] [Html.text name]
+
+
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
 let div
@@ -145,6 +153,12 @@ let div
     (thisID = idOf vs.cursorState || showROP)
     && Option.isSome thisID
     && vs.showLivevalue
+  in
+  let showParamName =
+    configs
+    |> List.filterMap ~f:(fun a ->
+           match a with WithParamName v -> Some (viewParamName v) | _ -> None
+       )
   in
   let mouseoverClass =
     let targetted =
@@ -204,9 +218,8 @@ let div
     if displayLivevalue
     then
       [ Html.div
-        [Html.class' "live-value"]
-        [ Html.text liveValueString
-        ; viewCopyButton vs.tl.id liveValueString ]
+          [Html.class' "live-value"]
+          [Html.text liveValueString; viewCopyButton vs.tl.id liveValueString]
       ]
     else []
   in
@@ -220,12 +233,10 @@ let div
   in
   let rightSideHtml =
     if selected
-    then
-      [ Html.div
-          [Html.class' "expr-actions"]
-          (featureFlagHtml @ editFnHtml) ]
+    then [Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)]
     else []
   in
+  let leftSideHtml = liveValueHtml @ showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
   in
@@ -236,7 +247,7 @@ let div
      * to be re-used for a different blank_or *)
     ~unique:(thisID |> Option.map ~f:showID |> Option.withDefault ~default:"")
     attrs
-    (liveValueHtml @ content @ rightSideHtml)
+    (leftSideHtml @ content @ rightSideHtml)
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
