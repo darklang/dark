@@ -238,14 +238,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
   | _ ->
       let pd = TL.findExn tl id in
       if TL.getChildrenOf tl pd <> []
-      then
-        if VariantTesting.variantIsActive m FluidInputModel
-        then
-          (* AST-wise cursor movements don't make sense in a Fluid world! *)
-          if tlidOf m.cursorState = Some tlid
-          then NoChange
-          else Select (tlid, None)
-        else selectDownLevel m tlid (Some id)
+      then selectDownLevel m tlid (Some id)
       else
         let enterMod =
           match offset with
