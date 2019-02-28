@@ -259,9 +259,7 @@ let enter (m : model) (tlid : tlid) (id : id) : modification =
 
 
 let dblclick (m : model) (tlid : tlid) (id : id) : modification =
-  if VariantTesting.variantIsActive m FluidInputModel
-  then Select (tlid, Some id)
-  else enter m tlid id
+  enter m tlid id
 
 
 let moveAndEnter
