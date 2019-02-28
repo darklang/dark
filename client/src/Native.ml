@@ -74,20 +74,6 @@ module Ext = struct
 
   external astPositions : string -> jsRectArr = "positions"
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
-
-  type blankOrId = string
-
-  external findCaretXPos : unit -> int = "findCaretXPos"
-    [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
-
-  external findLogicalOffset : blankOrId -> int -> int = "findLogicalOffset"
-    [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
-
-  external moveCaretLeft : unit -> bool = "moveCaretLeft"
-    [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
-
-  external moveCaretRight : unit -> bool = "moveCaretRight"
-    [@@bs.val] [@@bs.scope "window", "Dark", "caret"]
 end
 
 module Random = struct
