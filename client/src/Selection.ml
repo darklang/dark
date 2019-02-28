@@ -258,8 +258,9 @@ let enter (m : model) (tlid : tlid) (id : id) : modification =
   enterWithOffset m tlid id None
 
 
-let dblclick (m : model) (tlid : tlid) (id : id) : modification =
-  enter m tlid id
+let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
+    modification =
+  enterWithOffset m tlid id offset
 
 
 let moveAndEnter
