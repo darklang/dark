@@ -396,7 +396,7 @@ test('editing_headers', async t => {
 
     // add headers
     .click(".spec-header > .name")
-    .pressKey("enter)"
+    .pressKey("enter")
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
