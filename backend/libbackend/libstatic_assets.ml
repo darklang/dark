@@ -57,4 +57,58 @@ let replacements =
             in
             Httpclient.call url Httpclient.GET [] "" |> Dval.dstr_of_string_exn
         | args ->
+            Libexecution.Lib.fail args) )
+  ; ( "StaticAssets::serve"
+    , InProcess
+        (function
+        | state, [DStr deploy_hash; DStr file] ->
+            let url =
+              url_for
+                state.canvas_id
+                (Unicode_string.to_string deploy_hash)
+                `Short
+                (Unicode_string.to_string file)
+            in
+            let body, code, headers =
+              Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+            in
+            let headers =
+              headers
+              |> List.map (fun (k, v) -> (k, String.trim v))
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) -> not (String.trim k = ""))
+            in
+            DResp (Response (code, headers), Dval.dstr_of_string_exn body)
+        | args ->
+            Libexecution.Lib.fail args) )
+  ; ( "StaticAssets::serveLatest"
+    , InProcess
+        (function
+        | state, [DStr file] ->
+            let url =
+              url_for
+                state.canvas_id
+                (latest_deploy_hash state.canvas_id)
+                `Short
+                (Unicode_string.to_string file)
+            in
+            let body, code, headers =
+              Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+            in
+            let headers =
+              headers
+              |> List.map (fun (k, v) -> (k, String.trim v))
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) -> not (String.trim k = ""))
+            in
+            DResp (Response (code, headers), Dval.dstr_of_string_exn body)
+        | args ->
             Libexecution.Lib.fail args) ) ]
