@@ -147,36 +147,6 @@ let arrowMoveRight (m : model) (tlid : tlid) (mId : id option) : modification =
       else Selection.enterWithOffset m tlid (deOption "mId" newMId) (Some 0)
 
 
-let arrowMoveHandler (event : Keyboard.keyEvent) (m : model) :
+let arrowMoveHandler (_event : Keyboard.keyEvent) (_m : model) :
     modification option =
-  match m.cursorState with
-  | Entering (Filling (tlid, id)) ->
-    ( match event.keyCode with
-    | Key.Up ->
-        if m.complete.visible
-        then Some (AutocompleteMod ACSelectUp)
-        else Some (arrowMoveUp m tlid (Some id))
-    | Key.Down ->
-        if m.complete.visible
-        then Some (AutocompleteMod ACSelectDown)
-        else Some (arrowMoveDown m tlid (Some id))
-    | Key.Right ->
-        if event.metaKey && event.shiftKey
-        then Some (Select (tlid, Some id))
-        else Some (arrowMoveRight m tlid (Some id))
-    | Key.Left ->
-        if event.metaKey && event.shiftKey
-        then Some (Select (tlid, Some id))
-        else Some (arrowMoveLeft m tlid (Some id))
-    | Key.Escape ->
-        Some NoChange
-    | _ ->
-        None )
-  | Selecting (tlid, Some id) ->
-    ( match event.keyCode with
-    | Key.Escape ->
-        Some (Enter (Filling (tlid, id)))
-    | _ ->
-        None )
-  | _ ->
-      None
+  None
