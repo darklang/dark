@@ -42,17 +42,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> Option.andThen ~f:(fun ((_, i) as res) ->
              match idOf m.cursorState with
              | Some cur ->
-               ( match Toplevel.find tl i with
-               | Some (PExpr exp) ->
-                   let cursorSubsumedByHover =
-                     exp
-                     |> AST.allData
-                     |> List.map ~f:Pointer.toID
-                     |> List.member ~value:cur
-                   in
-                   if cursorSubsumedByHover then None else Some res
-               | _ ->
-                   if cur = i then None else Some res )
+                 if cur = i then None else Some res
              | _ ->
                  Some res )
   ; ac = m.complete
