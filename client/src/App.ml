@@ -456,8 +456,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd]))
     | Deselect ->
-        let newM = {m with cursorState = Deselected} in
-        (newM, Cmd.batch (closeBlanks newM))
+        let m, acCmd = processAutocompleteMods m [ACReset] in
+        let m = {m with cursorState = Deselected} in
+        (m, Cmd.batch (closeBlanks m @ [acCmd]))
     | Enter entry ->
         let target =
           match entry with
