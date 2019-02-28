@@ -12,6 +12,7 @@ DARK_CLUSTER_NUM_NODES="4"
 DARK_CLUSTER_VERSION="1.11.7-gke.6"
 DARK_CLUSTER_CONFIGMAP_FILE="config/gke-builtwithdark"
 CLOUDSQL_INSTANCE_NAME="dark-west"
+DARK_CLUSTER_NODE_MACHINE_TYPE="n1-standard-1"
 
 HELP="$(cat <<EOF
 Usage: $0 REQUIRED_ARGS [OPTIONS]
@@ -84,6 +85,7 @@ Other Options:
   --num-nodes=...        The number of nodes *per zone* in the cluster. GKE default is to deploy
                          to three zones, so the actual number of deployed nodes will be 3x this
                          amount (default $DARK_CLUSTER_NUM_NODES).
+  --machine-type=...     The machine type of the nodes created. (default $DARK_CLUSTER_NODE_MACHINE_TYPE).
   --configmap-file=...   The path of the env-file the cluster config map will be created from/updated
                          to (default $DARK_CLUSTER_CONFIGMAP_FILE)
   --version=...          The Kubernetes version to run on the master and nodes. New versions are
@@ -142,6 +144,9 @@ do
       ;;
     --with-new-database=*)
       WITH_NEW_DATABASE="${i/--with-new-database=/''}"
+      ;;
+    --machine-type=*)
+      DARK_CLUSTER_NODE_MACHINE_TYPE="${i/--machine-type=/''}"
       ;;
     --help)
       echo "$HELP"
@@ -238,6 +243,7 @@ print_step "starting a new cluster named $DARK_CLUSTER"
 
 gcloud beta container clusters create "$DARK_CLUSTER" \
   "--num-nodes=${DARK_CLUSTER_NUM_NODES}" \
+  "--machine-type=${DARK_CLUSTER_NODE_MACHINE_TYPE}" \
   "--zone=${DARK_CLUSTER_REGION}" \
   "--project=${DARK_CLUSTER_PROJECT}" \
   "--cluster-version=${DARK_CLUSTER_VERSION}" \
