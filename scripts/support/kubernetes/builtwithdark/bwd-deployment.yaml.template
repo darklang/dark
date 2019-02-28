@@ -18,6 +18,16 @@ spec:
       containers:
         - name: bwd-ctr
           image: "gcr.io/balmy-ground-195100/dark-gcp:{IMAGE}"
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "1000m"
+            limits:
+              memory: "1000Mi"
+              cpu: "1000m"
           ports:
             - name: bwd-ctr-port
               containerPort: 80
@@ -79,6 +89,13 @@ spec:
                   key: balmy-ground-195100-d9b0f3de3013.json
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "250m"
+            limits:
+              memory: "500Mi"
+              cpu: "250m"
           # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/128
           command: ["/bin/sh",
                     "-c",
@@ -93,6 +110,13 @@ spec:
 #########################
         - name: stroller
           image: "gcr.io/balmy-ground-195100/dark-gcp-stroller:{STROLLER_IMAGE}"
+          resources:
+            requests:
+              memory: "250Mi"
+              cpu: "150m"
+            limits:
+              memory: "250Mi"
+              cpu: "150m"
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
@@ -122,6 +146,13 @@ spec:
 
         - name: http-proxy
           image: nginx:1.15.3
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: "100m"
+            limits:
+              memory: "50Mi"
+              cpu: "100m"
           ports:
             - name: http-proxy-port
               containerPort: 8000

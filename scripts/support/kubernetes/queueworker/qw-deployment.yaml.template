@@ -18,6 +18,16 @@ spec:
       containers:
         - name: qw-ctr
           image: "gcr.io/balmy-ground-195100/dark-gcp-qw:{QW_IMAGE}"
+          # Resource request intentionally less than resource limit, to ensure
+          # this pod is a 'Burstable' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "100m"
+            limits:
+              memory: "800Mi"
+              cpu: "200m"
           lifecycle:
             preStop:
               httpGet:
@@ -75,6 +85,13 @@ spec:
 
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "500Mi"
+              cpu: "150m"
           command: ["/bin/sh",
                     "-c",
                     "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
@@ -88,6 +105,13 @@ spec:
 #########################
         - name: stroller
           image: "gcr.io/balmy-ground-195100/dark-gcp-stroller:{STROLLER_IMAGE}"
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: "50m"
+            limits:
+              memory: "250Mi"
+              cpu: "75m"
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
