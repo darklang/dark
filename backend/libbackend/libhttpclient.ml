@@ -35,13 +35,13 @@ let read_json (json : string) : dval =
 (* TODO: integrate with dark_request *)
 let send_request uri verb body query_ headers_ =
   let query = Dval.dval_to_query query_ in
-  let headers = Dval.to_string_pairs headers_ in
+  let headers = Dval.to_string_pairs_exn headers_ in
   let body =
     match body with
     | DObj obj ->
         if has_form_header headers
         then Dval.to_form_encoding body
-        else Dval.unsafe_dval_to_json_string body
+        else body |> Dval.unsafe_dval_to_yojson |> Yojson.Safe.to_string
     | _ ->
         Dval.to_repr body
   in
@@ -63,7 +63,7 @@ let send_request uri verb body query_ headers_ =
          ~f:(fun old neww -> neww )
     |> fun dm -> DObj dm
   in
-  Dval.to_dobj
+  Dval.to_dobj_exn
     [ ("body", parsed_result)
     ; ("headers", parsed_headers)
     ; ("raw", Dval.dstr_of_string_exn result) ]

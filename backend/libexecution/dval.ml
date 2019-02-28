@@ -2,6 +2,9 @@ open Core_kernel
 open Types
 open Types.RuntimeT
 
+(* ------------------------- *)
+(* Strings *)
+(* ------------------------- *)
 let dstr_of_string (s : string) : dval option =
   s |> Unicode_string.of_string |> Option.map ~f:(fun s -> DStr s)
 
@@ -331,7 +334,7 @@ let is_stringable (dv : dval) : bool =
 
 
 (* A simple representation, showing primitives as their expected literal
- * syntax, and odd types get type info in a readable format. Compund
+ * syntax, and odd types get type info in a readable format. Compound
  * types are listed as their type only *)
 let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
   let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
@@ -415,18 +418,18 @@ let rec to_human_repr (dv : dval) : string =
 
 
 (* For putting into URLs as query params *)
-let rec to_url_string (dv : dval) : string =
+let rec to_url_string_exn (dv : dval) : string =
   match dv with
   | dv when is_stringable dv ->
       as_string dv
   | DResp (_, hdv) ->
-      to_url_string hdv
+      to_url_string_exn hdv
   | DList l ->
-      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string l) ^ " ]"
+      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
   | DObj o ->
       let strs =
         DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-            (key ^ ": " ^ to_url_string data) :: l )
+            (key ^ ": " ^ to_url_string_exn data) :: l )
       in
       "{ " ^ String.concat ~sep:", " strs ^ " }"
   | _ ->
@@ -458,7 +461,7 @@ let to_string_exn dv : string =
       Exception.user "expecting str" ~actual:(to_repr dv)
 
 
-let to_string_pairs dv : (string * string) list =
+let to_string_pairs_exn dv : (string * string) list =
   match dv with
   | DObj obj ->
       obj
@@ -468,10 +471,14 @@ let to_string_pairs dv : (string * string) list =
       Exception.user "expecting str" ~actual:(to_repr dv)
 
 
-let to_dobj (pairs : (string * dval) list) : dval =
+let to_dobj_exn (pairs : (string * dval) list) : dval =
   try DObj (DvalMap.of_alist_exn pairs) with e ->
     DError "The same key occurs multiple times"
 
+
+(* ------------------------- *)
+(* ErrorRail Functions *)
+(* ------------------------- *)
 
 let is_errorrail e = match e with DErrorRail _ -> true | _ -> false
 
@@ -793,16 +800,16 @@ let dval_to_query (dv : dval) : (string * string list) list =
              | DNull ->
                  (k, [])
              | DList l ->
-                 (k, List.map ~f:to_url_string l)
+                 (k, List.map ~f:to_url_string_exn l)
              | _ ->
-                 (k, [to_url_string value]) )
+                 (k, [to_url_string_exn value]) )
   | _ ->
       Exception.user "attempting to use non-object as query param"
 
 
 let to_form_encoding (dv : dval) : string =
   dv
-  |> to_string_pairs
+  |> to_string_pairs_exn
   (* TODO: forms are allowed take string lists as the value, not just strings *)
   |> List.map ~f:(fun (k, v) -> (k, [v]))
   |> Uri.encoded_of_query

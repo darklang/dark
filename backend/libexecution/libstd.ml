@@ -188,8 +188,10 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o] ->
-              Dval.dstr_of_string_exn
-                (Dval.unsafe_dval_to_json_string (DObj o))
+              DObj o
+              |> Dval.unsafe_dval_to_yojson
+              |> Yojson.Safe.to_string
+              |> Dval.dstr_of_string_exn
           | args ->
               fail args)
     ; ps = true

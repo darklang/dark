@@ -225,7 +225,7 @@ let rec exec
         ps
         |> List.map ~f:Tuple.T2.get2
         |> find_derrorrail
-        |> Option.value ~default:(Dval.to_dobj ps)
+        |> Option.value ~default:(Dval.to_dobj_exn ps)
     | Filled (_, Variable name) ->
       ( match Symtable.find st name with
       | None ->

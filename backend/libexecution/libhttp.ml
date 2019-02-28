@@ -31,7 +31,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [dv; (DObj _ as obj); DInt code] ->
-              let pairs = Dval.to_string_pairs obj in
+              let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (code, pairs), dv)
           | args ->
               fail args)
@@ -193,7 +193,7 @@ let fns : Lib.shortfn list =
                    (Uri.pct_encode (Unicode_string.to_string name))
                    (Uri.pct_encode (Unicode_string.to_string value))
               |> Dval.dstr_of_string_exn
-              |> fun x -> Dval.to_dobj [("Set-Cookie", x)]
+              |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               fail args)
     ; ps = true
