@@ -828,13 +828,13 @@ test('execute_function_works', async t => {
     .click(Selector('.fncall'))
     ;
 
-  let v1 = await Selector('.selected[data-live-value]').getAttribute('data-live-value');
+  let v1 = await Selector('.selected .live-value').innerText;
 
   await t
     .click(Selector('.fa-redo'))
     ;
 
-  let v2 = await Selector('.selected[data-live-value]').getAttribute('data-live-value');
+  let v2 = await Selector('.selected .live-value').innerText;
 
   let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
   await t.expect(v1).match(re);
@@ -903,4 +903,3 @@ test('cant_delete_locked_col', async t => {
     .expect(Selector('.delete-col').exists).notOk()
   ;
 })
-

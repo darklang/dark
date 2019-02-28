@@ -25,6 +25,8 @@ type htmlConfig =
   | WithROP
   (* editable *)
   | Enterable
+  (* Adds param name to the left *)
+  | WithParamName of string
 
 let wc (s : string) : htmlConfig = WithClass s
 
@@ -62,7 +64,8 @@ let viewFeatureFlag : msg Html.html =
 
 let viewCopyButton tlid value : msg Html.html =
   Html.div
-    [ Html.title "Copy this expression's value to the clipboard"
+    [ Html.class' "copy-value"
+    ; Html.title "Copy this expression's value to the clipboard"
     ; ViewUtils.eventNoPropagation
         "click"
         ~key:("copylivevalue-" ^ showTLID tlid)
@@ -86,6 +89,12 @@ let viewCreateFn : msg Html.html =
     ; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)
     ]
     [ViewUtils.svgIconFn "white"]
+
+
+let viewParamName (name : string) : msg Html.html =
+  let leftOffset = String.length name + 1 in
+  let styles = [("margin-left", "-" ^ string_of_int leftOffset ^ "ch")] in
+  Html.div [Html.class' "param-name"; Vdom.styles styles] [Html.text name]
 
 
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
@@ -145,6 +154,12 @@ let div
     && Option.isSome thisID
     && vs.showLivevalue
   in
+  let showParamName =
+    configs
+    |> List.filterMap ~f:(fun a ->
+           match a with WithParamName v -> Some (viewParamName v) | _ -> None
+       )
+  in
   let mouseoverClass =
     let targetted =
       mouseoverAs = Option.map ~f:Tuple2.second vs.hovering
@@ -199,13 +214,14 @@ let div
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let liveValueString = renderLiveValue vs thisID in
-  let liveValueAttr =
+  let liveValueHtml =
     if displayLivevalue
-    then Vdom.attribute "" "data-live-value" liveValueString
-    else Vdom.noProp
-  in
-  let copyButton =
-    if displayLivevalue then [viewCopyButton vs.tl.id liveValueString] else []
+    then
+      [ Html.div
+          [Html.class' "live-value"]
+          [Html.text liveValueString; viewCopyButton vs.tl.id liveValueString]
+      ]
+    else []
   in
   let featureFlagHtml = if showFeatureFlag then [viewFeatureFlag] else [] in
   let editFnHtml =
@@ -217,23 +233,21 @@ let div
   in
   let rightSideHtml =
     if selected
-    then
-      [ Html.div
-          [Html.class' "expr-actions"]
-          (featureFlagHtml @ editFnHtml @ copyButton) ]
+    then [Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)]
     else []
   in
+  let leftSideHtml = liveValueHtml @ showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
   in
-  let attrs = idAttr :: liveValueAttr :: classAttr :: events in
+  let attrs = idAttr :: classAttr :: events in
   Html.div
   (* if the id of the blank_or changes, this whole node should be redrawn
      * without any further diffing. there's no good reason for the Vdom/Dom node
      * to be re-used for a different blank_or *)
     ~unique:(thisID |> Option.map ~f:showID |> Option.withDefault ~default:"")
     attrs
-    (content @ rightSideHtml)
+    (leftSideHtml @ content @ rightSideHtml)
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
