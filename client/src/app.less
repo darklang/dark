@@ -265,15 +265,12 @@ body #grid * {
   }
 
   .mouseovered-selectable {
-    background-color: @hovercolor;
-    &.blank, .blank {
-      color: @white3;
-    }
-  }
-
-  .mouseovered-selectable-fluid:not(.fncall) {
     outline: 0.5px dotted lighten(@darkblue, 35%);
     transition-delay: 0.4s;
+    &.blank {
+      color: @white2;
+      transition-delay: 0.4s;
+    }
   }
 
   .mouseovered-enterable {
