@@ -1054,31 +1054,21 @@ body #grid * {
   }
 
   .fncall {
+
     &.prefix > .arg-on-new-line {
-      position: relative;
+      .layout-block;
+      box-sizing: border-box;
+    }
 
-      &::before {
-        content: attr(param-name);
-        width: auto;
-        position: absolute;
-        right: calc(~"100% + 1ch");
-        color: @grey2;
-        font-size: 85%;
-      }
-
-      .display-livevalue.selected::before {
-        color: magenta; /* flag magenta to fix live value alignment */
-      }
+    .arg-on-new-line > .param-name {
+      width: auto;
+      position: absolute;
+      color: @grey2;
+      font-size: 0.85rem;
     }
 
     .tstr {
       margin-left: 2px;
-    }
-
-    .arg-on-new-line {
-      .layout-block;
-      margin-left: 2ch;
-      box-sizing: border-box;
     }
 
     .execution-button {
@@ -1541,11 +1531,18 @@ body #grid * {
   }
 }
 
-.ast div {
-  &.display-livevalue.selected {
+.live-value {
+  display: none;
+}
 
-    &:before {
-      content: attr(data-live-value);
+.ast div {
+
+  .live-value {
+    display: none;
+  }
+
+  &.display-livevalue.selected .live-value {
+      display: block;
       position: absolute;
       right: calc(~"100% + 30px");
       font-style: normal;
@@ -1563,7 +1560,18 @@ body #grid * {
 
       background-color: @black2;
       outline: 0.4px @grey2 dotted;
-    }
+
+      .copy-value {
+        position: absolute;
+        top: -4px;
+        right: -8px;
+
+        opacity: 0.7;
+
+        &:hover {
+          opacity: 0.85;
+        }
+      }
   }
 }
 
