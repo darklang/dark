@@ -84,12 +84,12 @@ let recode_latin1 (src : string) =
   Buffer.contents recodebuf
 
 
-let http_call
+let http_call_with_code
     (url : string)
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * (string * string) list =
+    (body : string) : string * int * (string * string) list =
   let query_params =
     url |> Uri.of_string |> Uri.query |> List.append query_params
   in
@@ -122,7 +122,7 @@ let http_call
   (* headers *)
   let result_headers = ref [] in
   let headerfn (h : string) : int =
-    (* See comment bout responsebody below before changing this. *)
+    (* See comment about responsebody below before changing this. *)
     let split = String.lsplit2 ~on:':' h in
     match split with
     | Some (l, r) ->
@@ -213,7 +213,19 @@ let http_call
     Exception.user
       ~info
       ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
-  else (body, !result_headers)
+  else (body, code, !result_headers)
+
+
+let http_call
+    (url : string)
+    (query_params : (string * string list) list)
+    (verb : verb)
+    (headers : (string * string) list)
+    (body : string) : string * (string * string) list =
+  let resp_body, code, resp_headers =
+    http_call_with_code url query_params verb headers body
+  in
+  (resp_body, resp_headers)
 
 
 let call
