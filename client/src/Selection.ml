@@ -238,7 +238,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
   | _ ->
       let pd = TL.findExn tl id in
       if TL.getChildrenOf tl pd <> []
-      then selectDownLevel m tlid (Some id)
+      then NoChange
       else
         let enterMod =
           match offset with
