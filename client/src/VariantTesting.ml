@@ -10,20 +10,13 @@ let toVariantTest (s : string * bool) : variantTest option =
   | _, false ->
       None
   | test, _ ->
-    ( match String.toLower test with
-    | "fluid" ->
-        Some FluidInputModel
-    | "stub" ->
-        Some StubVariant
-    | _ ->
-        None )
+    (match String.toLower test with "stub" -> Some StubVariant | _ -> None)
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with StubVariant -> "stub" | FluidInputModel -> "fluid"
+    match vt with StubVariant -> "stub"
     (* _ -> "default" *)
-    
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)
   in
@@ -38,13 +31,7 @@ let uniqueTests (xs : variantTest list) : variantTest list =
   List.uniqueBy ~f:show_variantTest xs
 
 
-let expandTest (vt : variantTest) : variantTest list =
-  match vt
-  with
-  (* eg. | Foo -> Foo :: FluidInputModel, means Foo will turn on fluid also *)
-  | x
-  -> [x]
-
+let expandTest (vt : variantTest) : variantTest list = match vt with x -> [x]
 
 let enabledVariantTests : variantTest list =
   Url.queryParams
@@ -54,5 +41,4 @@ let enabledVariantTests : variantTest list =
   |> uniqueTests
 
 
-let defaultAutocompleteVisible m : bool =
-  not (variantIsActive m FluidInputModel)
+let defaultAutocompleteVisible _m : bool = true
