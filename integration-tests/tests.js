@@ -268,8 +268,7 @@ test('left_right_works', async t => {
 
 test('varbinds_are_editable', async t => {
   await t
-    .click(".letbind")
-    .pressKey("enter")
+    .click(".letvarname")
     .pressKey("enter")
     ;
 });
