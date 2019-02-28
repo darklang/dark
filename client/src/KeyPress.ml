@@ -538,7 +538,7 @@ let optionDefaultHandler (event : Keyboard.keyEvent) (m : model) :
    (So if you wanted to _disable_ defaultHandler behavior for a given input,
    you could.) *)
 let handler (event : Keyboard.keyEvent) (m : model) : modification =
-  [KeyPressExperiments.arrowMoveHandler; optionDefaultHandler]
+  [optionDefaultHandler]
   |> List.foldl
        ~f:(fun h (acc : modification option) ->
          match acc with None -> h event m | Some _ -> acc )
