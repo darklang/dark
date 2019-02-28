@@ -15,8 +15,6 @@ type static_asset_error =
   | `FailureUploadingStaticAsset of string
   | `FailureDeletingStaticAsset of string ]
 
-let bucket = Config.static_assets_bucket |> Option.value ~default:""
-
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
     ( match Config.gcloud_application_credentials with
@@ -76,7 +74,7 @@ let upload_to_bucket
       ()
       ~scheme:"https"
       ~host:"www.googleapis.com"
-      ~path:("upload/storage/v1/b/" ^ bucket ^ "/o")
+      ~path:("upload/storage/v1/b/" ^ (Config.static_assets_bucket |> Option.value_exn) ^ "/o")
       ~query:
         [ ("uploadType", ["media"])
         ; ("contentEncoding", ["gzip"])
