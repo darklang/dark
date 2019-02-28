@@ -1930,4 +1930,43 @@ let fns : Lib.shortfn list =
               fail args)
     ; pr = None
     ; ps = true
+    ; dep = false }
+  ; (* ====================================== *)
+    (* StaticAssets *)
+    (* ====================================== *)
+    { pns = ["StaticAssets::urlFor"]
+    ; ins = []
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
+    ; r = TStr
+    ; d = "Return a url for the specified file and deploy hash"
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["StaticAssets::urlForLatest"]
+    ; ins = []
+    ; p = [par "file" TStr]
+    ; r = TStr
+    ; d = "Return a url for the specified file and latest deploy"
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["StaticAssets::fetch"]
+    ; ins = []
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
+    ; r = TStr
+    ; d = "Return the specified file from the deploy_hash"
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["StaticAssets::fetchLatest"]
+    ; ins = []
+    ; p = [par "file" TStr]
+    ; r = TStr
+    ; d = "Return the specified file from the latest deploy"
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = true
     ; dep = false } ]
