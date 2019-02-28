@@ -655,8 +655,7 @@ test('feature_flag_works', async t => {
     .click('.expr-actions .flag')
 
     // Name it
-    .click(Selector('.flag-name'))
-    .pressKey("enter")
+    .expect(available(".feature-flag")).ok()
     .typeText("#entry-box", "myflag")
     .pressKey("enter")
 
