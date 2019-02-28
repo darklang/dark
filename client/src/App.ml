@@ -871,8 +871,9 @@ let update_ (msg : msg) (m : model) : modification =
           Select (targetTLID, Some targetID) )
     | Selecting (_, _) ->
         Select (targetTLID, Some targetID)
-    | SelectingCommand (_, _) ->
-        Select (targetTLID, Some targetID) )
+    | SelectingCommand (_, scID) ->
+        if scID = targetID then NoChange else Select (targetTLID, Some targetID)
+    )
   | BlankOrDoubleClick (targetTLID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
