@@ -70,7 +70,7 @@ let oauth_params (secret : Secret.twitter_secret) url verb (args : dval_map) :
   let argparams =
     args
     |> DvalMap.filter_map ~f:(fun v ->
-           match v with DNull -> None | v -> Some (Dval.to_url_string v) )
+           match v with DNull -> None | v -> Some (Dval.to_url_string_exn v) )
     |> DvalMap.to_alist
   in
   let signature =
@@ -104,7 +104,7 @@ let rec dvalmap2query (args : dval_map) : string =
          then RT.error "Incorrect type" ~actual:data
          else if data = RTT.DNull
          then l
-         else (key ^ "=" ^ Dval.to_url_string data) :: l )
+         else (key ^ "=" ^ Dval.to_url_string_exn data) :: l )
   |> String.concat ~sep:"&"
 
 
@@ -125,7 +125,10 @@ let call (endpoint : string) (verb : Httpclient.verb) (args : dval_map) : dval
     | _ ->
         Exception.internal "not implemented yet"
   in
-  result |> Yojson.Safe.from_string |> Dval.unsafe_dval_of_yojson_
+  result
+  |> Yojson.Safe.from_string
+  |> Dval.unsafe_dval_of_yojson
+  |> Result.ok_or_failwith
 
 
 let get (url : string) (args : dval_map) : dval = call url GET args

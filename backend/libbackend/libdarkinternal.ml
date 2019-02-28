@@ -133,7 +133,7 @@ let replacements =
             | Some {username; name; email} ->
                 DOption
                   (OptJust
-                     (Dval.to_dobj
+                     (Dval.to_dobj_exn
                         [ ("username", Dval.dstr_of_string_exn username)
                         ; ("name", Dval.dstr_of_string_exn name)
                         ; ("email", Dval.dstr_of_string_exn email) ])) )
@@ -149,7 +149,7 @@ let replacements =
             | Some {username; name; admin; email} ->
                 DOption
                   (OptJust
-                     (Dval.to_dobj
+                     (Dval.to_dobj_exn
                         [ ("username", Dval.dstr_of_string_exn username)
                         ; ("name", Dval.dstr_of_string_exn name)
                         ; ("email", Dval.dstr_of_string_exn email)

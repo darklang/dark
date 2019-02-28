@@ -69,10 +69,15 @@ let rec escape (param : param) : string =
   | Secret str ->
       str |> escape_single |> single_quote
   | DvalJson dv ->
-      dv |> Dval.unsafe_dval_to_json_string |> escape_single |> single_quote
+      dv
+      |> Dval.unsafe_dval_to_yojson
+      |> Yojson.Safe.to_string
+      |> escape_single
+      |> single_quote
   | DvalmapJsonb dvm ->
       dvm
-      |> Dval.unsafe_dvalmap_to_string
+      |> Dval.unsafe_dvalmap_to_yojson
+      |> Yojson.Safe.to_string
       |> escape_single
       |> single_quote
       |> cast_to ~tipe:"jsonb"
@@ -107,9 +112,9 @@ let rec to_sql param : string =
   | Secret str ->
       str
   | DvalJson dv ->
-      Dval.unsafe_dval_to_json_string ~redact:false dv
+      Dval.unsafe_dval_to_yojson ~redact:false dv |> Yojson.Safe.to_string
   | DvalmapJsonb dvm ->
-      Dval.unsafe_dvalmap_to_string ~redact:false dvm
+      Dval.unsafe_dvalmap_to_yojson ~redact:false dvm |> Yojson.Safe.to_string
   | Null ->
       Postgresql.null
   | Time t ->
@@ -143,9 +148,9 @@ let rec to_log param : string =
   | Secret str ->
       "<secret>"
   | DvalJson dv ->
-      abbrev (Dval.unsafe_dval_to_json_string dv)
+      abbrev (Dval.unsafe_dval_to_yojson dv |> Yojson.Safe.to_string)
   | DvalmapJsonb dvm ->
-      abbrev (Dval.unsafe_dvalmap_to_string dvm)
+      abbrev (Dval.unsafe_dvalmap_to_yojson dvm |> Yojson.Safe.to_string)
   | Null ->
       "NULL"
   | Time t ->
