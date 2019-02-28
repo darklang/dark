@@ -20,6 +20,16 @@ spec:
       containers:
         - name: cron-ctr
           image: "gcr.io/balmy-ground-195100/dark-gcp-cron:{CRON_IMAGE}"
+          # Resource request intentionally less than resource limit, to ensure
+          # this pod is a 'Burstable' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "75m"
+            limits:
+              memory: "200Mi"
+              cpu: "125m"
           lifecycle:
             preStop:
               httpGet:
@@ -77,6 +87,13 @@ spec:
 
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
+          resources:
+            requests:
+              memory: "70Mi"
+              cpu: "100m"
+            limits:
+              memory: "150Mi"
+              cpu: "125m"
           command: ["/bin/sh",
                     "-c",
                     "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
