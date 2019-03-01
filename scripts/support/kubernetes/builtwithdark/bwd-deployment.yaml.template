@@ -9,7 +9,7 @@ spec:
   selector:
     matchLabels:
       app: bwd-app
-  replicas: 24
+  replicas: 36
   template:
     metadata:
       labels:
@@ -24,10 +24,10 @@ spec:
           resources:
             requests:
               memory: "1000Mi"
-              cpu: "1000m"
+              cpu: "500m"
             limits:
               memory: "1000Mi"
-              cpu: "1000m"
+              cpu: "500m"
           ports:
             - name: bwd-ctr-port
               containerPort: 80
