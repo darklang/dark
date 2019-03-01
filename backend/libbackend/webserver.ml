@@ -1134,7 +1134,7 @@ let k8s_handler req ~execution_id ~stopper =
       )
   (* For GKE graceful termination *)
   | "/pkill" ->
-      if !shutdown (* note: this is a ref, not a boolean `not` *)
+      if not !shutdown (* note: this is a ref, not a boolean `not` *)
       then (
         shutdown := true ;
         Log.infO
