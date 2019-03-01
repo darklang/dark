@@ -1124,8 +1124,6 @@ let k8s_handler req ~execution_id ~stopper =
           if !ready
           then respond ~execution_id `OK "Hello internal overlord"
           else (
-            (* exception here caught by handle_error *)
-            if Config.check_tier_one_hosts then Canvas.check_tier_one_hosts () ;
             Log.infO "Service ready" ;
             ready := true ;
             respond ~execution_id `OK "Hello internal overlord" )
