@@ -456,8 +456,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd]))
     | Deselect ->
-        let newM = {m with cursorState = Deselected} in
-        (newM, Cmd.batch (closeBlanks newM))
+        let m, acCmd = processAutocompleteMods m [ACReset] in
+        let m = {m with cursorState = Deselected} in
+        (m, Cmd.batch (closeBlanks m @ [acCmd]))
     | Enter entry ->
         let target =
           match entry with
@@ -854,10 +855,29 @@ let update_ (msg : msg) (m : model) : modification =
         | _ ->
             NoChange
       else NoChange
-  | BlankOrClick (targetTLID, targetID, event) ->
+  | BlankOrClick (targetTLID, targetID, _) ->
+    ( match m.cursorState with
+    | Deselected ->
+        Select (targetTLID, Some targetID)
+    | Dragging (_, _, _, origCursorState) ->
+        SetCursorState origCursorState
+    | Entering cursor ->
+      ( match cursor with
+      | Filling (_, fillingID) ->
+          if fillingID = targetID
+          then NoChange
+          else Select (targetTLID, Some targetID)
+      | _ ->
+          Select (targetTLID, Some targetID) )
+    | Selecting (_, _) ->
+        Select (targetTLID, Some targetID)
+    | SelectingCommand (_, scID) ->
+        if scID = targetID then NoChange else Select (targetTLID, Some targetID)
+    )
+  | BlankOrDoubleClick (targetTLID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
-     * rather than approximating *)
-      let offset () =
+       * rather than approximating *)
+      let offset =
         match
           Js.Nullable.toOption (Web_document.getElementById (showID targetID))
         with
@@ -872,37 +892,7 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             None
       in
-      let fluidEnterOrSelect m tlid id =
-        if VariantTesting.variantIsActive m FluidInputModel
-        then
-          match offset () with
-          | Some offset ->
-              Selection.enterWithOffset m tlid id (Some offset)
-          | None ->
-              Selection.enter m tlid id
-        else Select (tlid, Some id)
-      in
-      ( match m.cursorState with
-      | Deselected ->
-          fluidEnterOrSelect m targetTLID targetID
-      | Dragging (_, _, _, origCursorState) ->
-          SetCursorState origCursorState
-      | Entering cursor ->
-        ( match cursor with
-        | Filling (_, fillingID) ->
-            if fillingID = targetID
-            then NoChange
-            else fluidEnterOrSelect m targetTLID targetID
-        | _ ->
-            fluidEnterOrSelect m targetTLID targetID )
-      | Selecting (_, _) ->
-          fluidEnterOrSelect m targetTLID targetID
-      | SelectingCommand (_, selectingID) ->
-          if selectingID = targetID
-          then NoChange
-          else fluidEnterOrSelect m targetTLID targetID )
-  | BlankOrDoubleClick (targetTLID, targetID, _) ->
-      Selection.dblclick m targetTLID targetID
+      Selection.dblclick m targetTLID targetID offset
   | ToplevelClick (targetTLID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
