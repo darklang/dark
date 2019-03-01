@@ -11,8 +11,10 @@ type param =
   | Binary of string
   (* only works for passed params *)
   | Secret of string
-  | DvalJson of Types.RuntimeT.dval
-  | DvalmapJsonb of Types.RuntimeT.dval_map
+  | RoundtrippableDval of Types.RuntimeT.dval
+  | RoundtrippableDvalmap of Types.RuntimeT.dval_map
+  | QueryableDval of Types.RuntimeT.dval
+  | QueryableDvalmap of Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
   | Null
   | List of param list

@@ -34,9 +34,28 @@ val is_json_primitive : Types.RuntimeT.dval -> bool
 (* Representations *)
 (* ------------------------- *)
 
+(* This is a format used for roundtripping dvals internally. v0 has bugs due to
+ * a legacy of trying to make one function useful for everything. *)
+val to_internal_roundtrippable_v0 : Types.RuntimeT.dval -> string
+
+(* This is a format used for roundtripping dvals internally. There are some
+ * rare cases where it will parse incorrectly without error. Throws on Json
+ * bugs. *)
+
+val of_internal_roundtrippable_v0 : string -> Types.RuntimeT.dval
+
+(* This is a format used for roundtripping dvals internally, while still being
+ * queryable. v0 has bugs due to a legacy of trying to make one function useful
+ * for everything. *)
+
+val to_internal_queryable_v0 : Types.RuntimeT.dval -> string
+
+(* This is a format used for roundtripping dvals internally, while still being
+ * queryable. There are some rare cases where it will parse incorrectly without
+ * error. Throws on Json bugs. *)
+val of_internal_queryable_v0 : string -> Types.RuntimeT.dval
+
 (* all uses:
-  * roundtrippable for stored_events
-  * roundtrippable but also queryable for user table
   * for 3rd-party machine consumption, with schema
   * pretty print for humans
   * pretty print for live values
@@ -98,20 +117,20 @@ val unsafe_dval_of_yojson :
   Yojson.Safe.json -> (Types.RuntimeT.dval, string) Core_kernel.result
 
 (* Uses:
-   * user_db
-   * runtime errors
-   * libhttpclient
-   *)
-val unsafe_dval_to_yojson :
-  ?redact:bool -> Types.RuntimeT.dval -> Yojson.Safe.json
-
-(* Uses:
    * stored_function_result
    * stored_event
    * event queue
    * user_db
    *)
 val unsafe_dval_of_json_string : string -> Types.RuntimeT.dval
+
+(* Uses:
+   * user_db
+   * runtime errors
+   * libhttpclient
+   *)
+val unsafe_dval_to_yojson :
+  ?redact:bool -> Types.RuntimeT.dval -> Yojson.Safe.json
 
 (* Uses:
    * user_page response 
@@ -141,9 +160,7 @@ val unsafe_dvalmap_of_yojson : Yojson.Safe.json -> Types.RuntimeT.dval_map
   *)
 val parse_basic_json : string -> Types.RuntimeT.dval option
 
-(* Uses:
-  * ast
-  *)
+(* Parse our internal literal strings (eg AST Values) *)
 val parse_literal : string -> Types.RuntimeT.dval option
 
 (* queries *)
@@ -190,6 +207,9 @@ val to_string_exn : Types.RuntimeT.dval -> string
 
 (* Converts an object to string pairs. Raises an exception if not an object. *)
 val to_string_pairs_exn : Types.RuntimeT.dval -> (string * string) list
+
+val to_dval_pairs_exn :
+  Types.RuntimeT.dval -> (string * Types.RuntimeT.dval) list
 
 (* Errors if the values in the list are not strings, or if any key is duplicated. *)
 val to_dobj_exn : (string * Types.RuntimeT.dval) list -> Types.RuntimeT.dval

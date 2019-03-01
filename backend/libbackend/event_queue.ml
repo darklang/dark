@@ -40,7 +40,7 @@ let enqueue
       ; String space
       ; String name
       ; String modifier
-      ; DvalJson data ]
+      ; RoundtrippableDval data ]
 
 
 let dequeue transaction : t option =
@@ -63,7 +63,7 @@ let dequeue transaction : t option =
   | Some [id; value; retries; canvas_id; host; space; name; modifier] ->
       Some
         { id = int_of_string id
-        ; value = Dval.unsafe_dval_of_json_string value
+        ; value = Dval.of_internal_roundtrippable_v0 value
         ; retries = int_of_string retries
         ; canvas_id = Util.uuid_of_string canvas_id
         ; host
