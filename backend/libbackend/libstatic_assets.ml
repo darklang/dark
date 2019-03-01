@@ -138,6 +138,7 @@ UTF-8 safe"))
                           k
                           ~substring:"Transfer-Encoding") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
+              |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
             let body = Dval.dstr_of_string body in
             ( match body with
