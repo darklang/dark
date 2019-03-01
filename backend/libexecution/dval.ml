@@ -461,14 +461,16 @@ let to_string_exn dv : string =
       Exception.user "expecting str" ~actual:(to_repr dv)
 
 
-let to_string_pairs_exn dv : (string * string) list =
+let to_dval_pairs_exn dv : (string * dval) list =
   match dv with
   | DObj obj ->
-      obj
-      |> DvalMap.to_alist
-      |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
+      obj |> DvalMap.to_alist
   | _ ->
       Exception.user "expecting str" ~actual:(to_repr dv)
+
+
+let to_string_pairs_exn dv : (string * string) list =
+  dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
 
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
@@ -735,6 +737,28 @@ let unsafe_dval_to_pretty_json_string ?(redact = true) (v : dval) : string =
 
 let unsafe_dvalmap_to_string ?(redact = true) (m : dval_map) : string =
   DObj m |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
+
+
+let to_internal_roundtrippable_v0 dval : string =
+  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
+
+
+let of_internal_roundtrippable_v0 str : dval =
+  str
+  |> Yojson.Safe.from_string
+  |> unsafe_dval_of_yojson
+  |> Result.ok_or_failwith
+
+
+let to_internal_queryable_v0 dval : string =
+  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
+
+
+let of_internal_queryable_v0 str : dval =
+  str
+  |> Yojson.Safe.from_string
+  |> unsafe_dval_of_yojson
+  |> Result.ok_or_failwith
 
 
 (* ------------------------- *)

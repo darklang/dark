@@ -29,7 +29,7 @@ let store_event
       ; String module_
       ; String path
       ; String modifier
-      ; DvalJson event ]
+      ; RoundtrippableDval event ]
   |> List.hd_exn
   |> Util.date_of_isostring
 
@@ -80,7 +80,7 @@ let load_events
              ( request_path
              , trace_id
              , Util.date_of_isostring ts
-             , Dval.unsafe_dval_of_json_string dval )
+             , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
              Exception.internal "Bad DB format for load_events" )
 
@@ -97,7 +97,7 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
   |> List.hd
   |> Option.map ~f:(function
          | [request_path; dval] ->
-             (request_path, Dval.unsafe_dval_of_json_string dval)
+             (request_path, Dval.of_internal_roundtrippable_v0 dval)
          | _ ->
              Exception.internal "Bad DB format for load_events_for_trace" )
 

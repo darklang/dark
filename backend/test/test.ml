@@ -724,9 +724,8 @@ let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
 let t_dval_yojson_roundtrips () =
   let unsafe_rt v =
     v
-    |> Dval.unsafe_dval_to_yojson
-    |> Dval.unsafe_dval_of_yojson
-    |> Result.ok_or_failwith
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
   in
   (* Don't really need to check this but what harm *)
   let safe_rt v =
@@ -853,23 +852,23 @@ let t_password_json_round_trip_forwards () =
     "Passwords serialize and deserialize if there's no redaction."
     password
     ( password
-    |> Dval.unsafe_dval_to_json_string ~redact:false
-    |> Dval.unsafe_dval_of_json_string )
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0 )
 
 
 let t_password_json_round_trip_backwards () =
   let json =
     "x"
     |> Bytes.of_string
-    |> fun p -> DPassword p |> Dval.unsafe_dval_to_json_string ~redact:false
+    |> fun p -> DPassword p |> Dval.to_internal_roundtrippable_v0
   in
   AT.check
     AT.string
     "Passwords deserialize and serialize if there's no redaction."
     json
     ( json
-    |> Dval.unsafe_dval_of_json_string
-    |> Dval.unsafe_dval_to_json_string ~redact:false )
+    |> Dval.of_internal_roundtrippable_v0
+    |> Dval.to_internal_roundtrippable_v0 )
 
 
 let t_incomplete_propagation () =
@@ -1797,15 +1796,15 @@ let t_parsed_request_cookies () =
     ; with_cookies "a=b;"
     ; with_cookies "a=b; c=d"
     ; with_cookies "a=b; c=d;" ]
-    [ Dval.to_dobj []
-    ; Dval.to_dobj []
-    ; Dval.to_dobj []
-    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "")]
-    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "b")]
-    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "b")]
-    ; Dval.to_dobj
+    [ Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn
         [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
-    ; Dval.to_dobj
+    ; Dval.to_dobj_exn
         [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
     ]
 
