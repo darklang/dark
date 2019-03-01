@@ -1080,14 +1080,6 @@ let route_host req =
       None
 
 
-let admin_ui_html_readiness_check () : string option =
-  try
-    ignore
-      (admin_ui_html ~canvas_id:Uuidm.nil ~csrf_token:"" ~local:None "test") ;
-    None
-  with e -> Some "admin_ui_html failed for frontend"
-
-
 let db_conn_readiness_check () : string option =
   match Dbconnection.status () with
   | `Healthy ->
@@ -1124,9 +1116,7 @@ let k8s_handler req ~execution_id ~stopper =
         respond ~execution_id `Service_unavailable "Sorry internal overlord" )
   | "/ready" ->
       let checks =
-        [ db_conn_readiness_check ()
-        ; admin_ui_html_readiness_check ()
-        ; stroller_readiness_check ]
+        [db_conn_readiness_check (); stroller_readiness_check]
         |> List.filter_map ~f:(fun x -> x)
       in
       ( match checks with
