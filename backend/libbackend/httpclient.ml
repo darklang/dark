@@ -222,7 +222,7 @@ let http_call
     (verb : verb)
     (headers : (string * string) list)
     (body : string) : string * (string * string) list =
-  let resp_body, code, resp_headers =
+  let resp_body, _code, resp_headers =
     http_call_with_code url query_params verb headers body
   in
   (resp_body, resp_headers)
