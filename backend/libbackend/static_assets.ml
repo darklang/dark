@@ -64,6 +64,27 @@ let url (canvas_id : Uuidm.t) (deploy_hash : string) variant : string =
     ; deploy_hash ]
 
 
+(* TODO [polish] could instrument this to error on bad deploy hash, maybe also
+ * unknown file *)
+let url_for
+    (canvas_id : Uuidm.t) (deploy_hash : string) variant (file : string) :
+    string =
+  url canvas_id deploy_hash variant ^ "/" ^ file
+
+
+let latest_deploy_hash (canvas_id : Uuidm.t) : string =
+  let branch = "main" in
+  Db.fetch_one
+    ~name:"select latest deploy hash"
+    ~subject:(Uuidm.to_string canvas_id)
+    "SELECT deploy_hash FROM static_asset_deploys
+    WHERE canvas_id=$1 AND branch=$2 AND live_at IS NOT NULL
+    ORDER BY created_at desc
+    LIMIT 1"
+    ~params:[Uuid canvas_id; String branch]
+  |> List.hd_exn
+
+
 let upload_to_bucket
     (filename : string)
     (body : string)
