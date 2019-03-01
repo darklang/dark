@@ -165,17 +165,7 @@ let div
       mouseoverAs = Option.map ~f:Tuple2.second vs.hovering
       && Option.isSome mouseoverAs
     in
-    if targetted
-    then
-      if List.any ~f:(( = ) FluidInputModel) vs.testVariants
-      then
-        if List.any ~f:(fun c -> c = Enterable) configs
-        then ["mouseovered-enterable"]
-        else if idOf vs.cursorState = thisID
-        then []
-        else ["mouseovered-selectable-fluid"]
-      else ["mouseovered-selectable"]
-    else []
+    if targetted then ["mouseovered-selectable"] else []
   in
   let idClasses =
     match thisID with Some id -> ["blankOr"; "id-" ^ deID id] | _ -> []

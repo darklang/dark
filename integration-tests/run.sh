@@ -28,7 +28,7 @@ done
 # Prep (in the container)
 ./integration-tests/prep.sh
 
-CONCURRENCY=4
+CONCURRENCY=1
 if [[ -v IN_DEV_CONTAINER ]] || [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
 fi
@@ -85,6 +85,6 @@ else
     --reporter=spec \
     $debugcmd \
     --test-grep "$PATTERN" \
-    "chrome" \
+    "chromium" \
     integration-tests/tests.js
 fi

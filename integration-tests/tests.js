@@ -268,15 +268,15 @@ test('left_right_works', async t => {
 
 test('varbinds_are_editable', async t => {
   await t
-    .click(".letbind")
-    .pressKey("enter")
+    .click(".letvarname")
     .pressKey("enter")
     ;
 });
 
 test('editing_does_not_deselect', async t => {
   await t
-    .doubleClick(".ast .blankOr > .letrhs > .blankOr")
+    .click(".ast .blankOr > .letrhs > .blankOr")
+    .pressKey("enter")
     .click("#entry-box")
 });
 
@@ -394,21 +394,25 @@ test('editing_headers', async t => {
     .pressKey("enter")
 
     // add headers
-    .doubleClick(".spec-header > .name")
+    .click(".spec-header > .name")
+    .pressKey("enter")
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
-    .doubleClick(".spec-header > .module")
+    .click(".spec-header > .module")
+    .pressKey("enter")
     .typeText("#entry-box", "HTTP")
     .pressKey("enter")
 
-    .doubleClick(".spec-header > .modifier")
+    .click(".spec-header > .modifier")
+    .pressKey("enter")
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST")).ok()
     .pressKey("enter")
 
     // edit them
-    .doubleClick(".spec-header > .name")
+    .click(".spec-header > .name")
+    .pressKey("enter")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
@@ -511,7 +515,8 @@ test('rename_db_fields', async t => {
 
   // rename
   await t
-    .doubleClick(Selector('.name').withText('field1'))
+    .click(Selector('.name').withText('field1'))
+    .pressKey("enter")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
@@ -537,7 +542,8 @@ test('rename_db_fields', async t => {
   await t.expect(Selector('.fa-lock').exists).ok();
 
   await t
-    .doubleClick(Selector('.name').withText('field6'))
+    .click(Selector('.name').withText('field6'))
+    .pressKey("enter")
     .pressKey("enter")
     ;
 });
@@ -554,7 +560,8 @@ test('rename_db_type', async t => {
 
   // rename
   await t
-    .doubleClick(Selector('.type').withText('Int'))
+    .click(Selector('.type').withText('Int'))
+    .pressKey("enter")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
@@ -576,7 +583,8 @@ test('rename_db_type', async t => {
   await t.expect(Selector('.fa-lock').exists).ok();
 
   await t
-    .doubleClick(Selector('.type').withText('String'))
+    .click(Selector('.type').withText('String'))
+    .pressKey("enter")
     .pressKey("enter")
     ;
 });
@@ -647,7 +655,7 @@ test('feature_flag_works', async t => {
     .click('.expr-actions .flag')
 
     // Name it
-    .doubleClick(Selector('.flag-name'))
+    .expect(available(".feature-flag")).ok()
     .typeText("#entry-box", "myflag")
     .pressKey("enter")
 
@@ -733,7 +741,8 @@ test('invalid_syntax', async t => {
 // When you edit, stay in the same place after pressing Enter
 test('editing_stays_in_same_place_with_enter', async t => {
   await t
-    .doubleClick(Selector('.letvarname'))
+    .click(Selector('.letvarname'))
+    .pressKey("enter")
     .pressKey("2")
     .pressKey("enter")
 })
@@ -741,7 +750,8 @@ test('editing_stays_in_same_place_with_enter', async t => {
 // When you edit, go to the next blank after pressing Tab
 test('editing_goes_to_next_with_tab', async t => {
   await t
-    .doubleClick(Selector('.letvarname'))
+    .click(Selector('.letvarname'))
+    .pressKey("enter")
     .pressKey("2")
     .pressKey("tab")
 })
@@ -750,7 +760,8 @@ test('editing_goes_to_next_with_tab', async t => {
 // When you press shift+enter, start a thread
 test('editing_starts_a_thread_with_shift_enter', async t => {
   await t
-    .doubleClick(Selector('.letrhs'))
+    .click(Selector('.letrhs'))
+    .pressKey("enter")
     .pressKey("2")
     .pressKey("shift+enter")
 })
@@ -798,7 +809,8 @@ test('rename_pattern_variable', async t => {
     .pressKey('backspace')
     .typeText('#entry-box', 'foo')
     .pressKey('enter')
-    .doubleClick(Selector('.matchexpr .matchcase').nth(1).child(0))
+    .click(Selector('.matchexpr .matchcase').nth(1).child(0))
+    .pressKey('enter')
     .pressKey('backspace')
     .pressKey('backspace')
     .pressKey('backspace')

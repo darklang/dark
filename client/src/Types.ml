@@ -738,10 +738,8 @@ and msg =
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
-and variantTest =
-  | StubVariant
-  (* just a stub *)
-  | FluidInputModel
+(* just a stub *)
+and variantTest = StubVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
