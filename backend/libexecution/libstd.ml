@@ -1956,7 +1956,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
-    ; d = "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
+    ; d =
+        "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
@@ -1965,7 +1966,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "file" TStr]
     ; r = TResult
-    ; d = "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
+    ; d =
+        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
@@ -1974,7 +1976,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
-    ; d = "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
+    ; d =
+        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
@@ -1983,7 +1986,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "file" TStr]
     ; r = TResult
-    ; d = "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
+    ; d =
+        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f = NotClientAvailable
     ; pr = None
     ; ps = false
