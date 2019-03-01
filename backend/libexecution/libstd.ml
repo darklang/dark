@@ -595,7 +595,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "json" TStr]
     ; r = TAny
-    ; d = "Parses a json string and returns its value"
+    ; d =
+        "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
     ; f =
         InProcess
           (function
