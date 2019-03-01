@@ -229,3 +229,5 @@ let gcloud_application_credentials =
 
 
 let check_tier_one_hosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
+
+let static_assets_bucket = string_option "DARK_STATIC_ASSETS_BUCKET"
