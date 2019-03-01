@@ -159,6 +159,12 @@ spec:
           volumeMounts:
             - mountPath: /etc/nginx/conf.d
               name: nginx-conf
+          lifecycle:
+            preStop:
+              exec:
+                # https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/
+                command: ["/bin/sh","-c","nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+
       volumes:
         - name: cloudsql-instance-credentials
           secret:
