@@ -74,7 +74,10 @@ let upload_to_bucket
       ()
       ~scheme:"https"
       ~host:"www.googleapis.com"
-      ~path:("upload/storage/v1/b/" ^ (Config.static_assets_bucket |> Option.value_exn) ^ "/o")
+      ~path:
+        ( "upload/storage/v1/b/"
+        ^ (Config.static_assets_bucket |> Option.value_exn)
+        ^ "/o" )
       ~query:
         [ ("uploadType", ["media"])
         ; ("contentEncoding", ["gzip"])
