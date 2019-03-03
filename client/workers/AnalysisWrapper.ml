@@ -1,5 +1,13 @@
+(* window isn't available and rollbar isn't expecting that somehow:
+ * https://github.com/rollbar/rollbar.js/pull/703. This works around it.
+ * *)
+
 [%%raw
-"var sha2 = require('sha2')"]
+"if (typeof window === 'undefined') { self.window = self; }"]
+
+external rollbarConfig : string = "rollbarConfig" [@@bs.val]
+
+let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
 
 type event = < data : Types.performAnalysisParams [@bs.get] > Js.t
 
@@ -51,6 +59,9 @@ let () =
       in
       postMessage self decoded )
 
+
+[%%raw
+"var sha2 = require('sha2')"]
 
 [%%raw
 "module.exports = { sha2: sha2 }"]
