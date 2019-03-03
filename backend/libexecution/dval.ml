@@ -241,10 +241,50 @@ let tipename (dv : dval) : string =
   dv |> tipe_of |> tipe_to_string |> String.lowercase
 
 
+let tipe_to_yojson (t : tipe) : Yojson.Safe.json =
+  `String (t |> tipe_to_string |> String.lowercase)
+
+
+let tipe_of_yojson (json : Yojson.Safe.json) =
+  match json with
+  | `String s ->
+      Ok (s |> String.lowercase |> tipe_of_string)
+  | _ ->
+      Exception.user "Invalid tipe"
+
+
 (* ------------------------- *)
-(* Representation *)
+(* ErrorRail Functions *)
 (* ------------------------- *)
 
+let is_errorrail e = match e with DErrorRail _ -> true | _ -> false
+
+let unwrap_from_errorrail (dv : dval) =
+  match dv with DErrorRail dv -> dv | other -> other
+
+
+let exception_to_dval exc = DError (Exception.to_string exc)
+
+(* ------------------------- *)
+(* Obj Functions *)
+(* ------------------------- *)
+let obj_merge (l : dval) (r : dval) : dval =
+  match (l, r) with
+  | DObj l, DObj r ->
+      DObj (Util.merge_left l r)
+  | DNull, DObj r ->
+      DObj r
+  | DObj l, DNull ->
+      DObj l
+  | _ ->
+      Exception.user "was expecting objs"
+
+
+let empty_dobj : dval = DObj DvalMap.empty
+
+(* ------------------------- *)
+(* Old Representations *)
+(* ------------------------- *)
 let repr_of_dhttp (d : dhttp) : string =
   match d with
   | Redirect url ->
@@ -434,91 +474,6 @@ let rec to_url_string_exn (dv : dval) : string =
       "{ " ^ String.concat ~sep:", " strs ^ " }"
   | _ ->
       failwith "to_url_string of unurlable value"
-
-
-(* ------------------------- *)
-(* Conversion Functions *)
-(* ------------------------- *)
-let to_char dv : string option =
-  match dv with
-  | DCharacter c ->
-      Some (Unicode_string.Character.to_string c)
-  | _ ->
-      None
-
-
-let to_char_deprecated dv : char option =
-  match dv with DChar c -> Some c | _ -> None
-
-
-let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
-
-let to_string_exn dv : string =
-  match dv with
-  | DStr s ->
-      Unicode_string.to_string s
-  | _ ->
-      Exception.user "expecting str" ~actual:(to_repr dv)
-
-
-let to_dval_pairs_exn dv : (string * dval) list =
-  match dv with
-  | DObj obj ->
-      obj |> DvalMap.to_alist
-  | _ ->
-      Exception.user "expecting str" ~actual:(to_repr dv)
-
-
-let to_string_pairs_exn dv : (string * string) list =
-  dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
-
-
-let to_dobj_exn (pairs : (string * dval) list) : dval =
-  try DObj (DvalMap.of_alist_exn pairs) with e ->
-    DError "The same key occurs multiple times"
-
-
-(* ------------------------- *)
-(* ErrorRail Functions *)
-(* ------------------------- *)
-
-let is_errorrail e = match e with DErrorRail _ -> true | _ -> false
-
-let unwrap_from_errorrail (dv : dval) =
-  match dv with DErrorRail dv -> dv | other -> other
-
-
-(* ------------------------- *)
-(* Obj Functions *)
-(* ------------------------- *)
-let obj_merge (l : dval) (r : dval) : dval =
-  match (l, r) with
-  | DObj l, DObj r ->
-      DObj (Util.merge_left l r)
-  | DNull, DObj r ->
-      DObj r
-  | DObj l, DNull ->
-      DObj l
-  | _ ->
-      Exception.user "was expecting objs"
-
-
-let empty_dobj : dval = DObj DvalMap.empty
-
-(* ------------------------- *)
-(* JSON *)
-(* ------------------------- *)
-
-let tipe_to_yojson (t : tipe) : Yojson.Safe.json =
-  `String (t |> tipe_to_string |> String.lowercase)
-
-
-let tipe_of_yojson (json : Yojson.Safe.json) =
-  match json with
-  | `String s ->
-      Ok (s |> String.lowercase |> tipe_of_string)
-  | _ ->
-      Exception.user "Invalid tipe"
 
 
 (* The "unsafe" variations here are bad. They encode data ambiguously, and
@@ -739,31 +694,6 @@ let unsafe_dvalmap_to_string ?(redact = true) (m : dval_map) : string =
   DObj m |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
 
 
-let to_internal_roundtrippable_v0 dval : string =
-  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
-
-
-let of_internal_roundtrippable_v0 str : dval =
-  str
-  |> Yojson.Safe.from_string
-  |> unsafe_dval_of_yojson
-  |> Result.ok_or_failwith
-
-
-let to_internal_queryable_v0 dval : string =
-  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
-
-
-let of_internal_queryable_v0 str : dval =
-  str
-  |> Yojson.Safe.from_string
-  |> unsafe_dval_of_yojson
-  |> Result.ok_or_failwith
-
-
-(* ------------------------- *)
-(* Parsing *)
-(* ------------------------- *)
 let parse_basic_json (str : string) : dval option =
   try
     str
@@ -831,6 +761,43 @@ let dval_to_query (dv : dval) : (string * string list) list =
       Exception.user "attempting to use non-object as query param"
 
 
+(* ------------------------- *)
+(* Conversion Functions *)
+(* ------------------------- *)
+let to_char dv : string option =
+  match dv with
+  | DCharacter c ->
+      Some (Unicode_string.Character.to_string c)
+  | _ ->
+      None
+
+
+let to_char_deprecated dv : char option =
+  match dv with DChar c -> Some c | _ -> None
+
+
+let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
+
+let to_string_exn dv : string =
+  match dv with
+  | DStr s ->
+      Unicode_string.to_string s
+  | _ ->
+      Exception.user "expecting str" ~actual:(to_repr dv)
+
+
+let to_dval_pairs_exn dv : (string * dval) list =
+  match dv with
+  | DObj obj ->
+      obj |> DvalMap.to_alist
+  | _ ->
+      Exception.user "expecting str" ~actual:(to_repr dv)
+
+
+let to_string_pairs_exn dv : (string * string) list =
+  dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
+
+
 let to_form_encoding (dv : dval) : string =
   dv
   |> to_string_pairs_exn
@@ -843,8 +810,54 @@ let from_form_encoding (f : string) : dval =
   f |> Uri.query_of_encoded |> query_to_dval
 
 
-let exception_to_dval exc = DError (Exception.to_string exc)
+(* ------------------------- *)
+(* New Representations *)
+(* ------------------------- *)
+(* All the new representations. *)
+let to_internal_roundtrippable_v0 dval : string =
+  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
 
-(* Originally to prevent storing sensitive data to disk, this also reduces the size of the data stored by only storing a hash *)
+
+let of_internal_roundtrippable_v0 str : dval =
+  str
+  |> Yojson.Safe.from_string
+  |> unsafe_dval_of_yojson
+  |> Result.ok_or_failwith
+
+
+let to_internal_queryable_v0 dval : string =
+  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
+
+
+let of_internal_queryable_v0 str : dval =
+  str
+  |> Yojson.Safe.from_string
+  |> unsafe_dval_of_yojson
+  |> Result.ok_or_failwith
+
+
+let to_text_plain_http_response _dval = "TODO"
+
+let to_text_html_http_response _dval = "TODO"
+
+let to_developer_repr _dval = "TODO"
+
+let to_pretty_machine_json _dval =
+  `Null |> Yojson.Basic.pretty_to_string ~std:true
+
+
+let of_unknown_json _json = DNull
+
+(* ------------------------- *)
+(* Conversions *)
+(* ------------------------- *)
+
+let to_dobj_exn (pairs : (string * dval) list) : dval =
+  try DObj (DvalMap.of_alist_exn pairs) with e ->
+    DError "The same key occurs multiple times"
+
+
+(* Originally to prevent storing sensitive data to disk, this also reduces the
+ * size of the data stored by only storing a hash *)
 let hash (arglist : dval list) : string =
   arglist |> List.map ~f:to_internal_repr |> String.concat |> Util.hash
