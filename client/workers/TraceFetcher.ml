@@ -1,3 +1,14 @@
+(* window isn't available and rollbar isn't expecting that somehow:
+ * https://github.com/rollbar/rollbar.js/pull/703. This works around it.
+ * *)
+
+[%%raw
+"if (typeof window === 'undefined') { self.window = self; }"]
+
+external rollbarConfig : string = "rollbarConfig" [@@bs.val]
+
+let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
+
 type event =
   < data : Types.traceFetchContext * Types.getTraceDataRPCParams [@bs.get] >
   Js.t
