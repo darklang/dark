@@ -1785,10 +1785,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [err] ->
-              Dval.dstr_of_string_exn (Dval.as_string err)
-          | args ->
-              fail args)
+          | _, [DError err] -> Dval.dstr_of_string_exn err | args -> fail args)
     ; ps = true
     ; dep = false }
   ; (* ====================================== *)
