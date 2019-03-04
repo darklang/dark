@@ -69,6 +69,14 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
   (* blanks: (let _ _ _) *)
   | Sexp.Atom "_" ->
       b ()
+  | Sexp.Atom "[]" ->
+      f (ListLiteral [])
+  | Sexp.Atom "{}" ->
+      f (ObjectLiteral [])
+  | Sexp.Atom "nothing" ->
+      f (Constructor (f "Nothing", []))
+  | Sexp.Atom "ok" ->
+      f (Constructor (f "Ok", []))
   (* literals / variables *)
   | Sexp.Atom value ->
     ( match Dval.parse_literal value with

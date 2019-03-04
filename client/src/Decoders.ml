@@ -337,23 +337,19 @@ and typeOfLiteralString (s : string) : tipe =
 
 (* Ported directly from Dval.parse in the backend *)
 and parseDvalLiteral (str : string) : dval option =
-  if String.toLower str = "nothing"
-  then Some (DOption OptNothing)
-  else
-    match String.toList str with
-    | ['\''; c; '\''] ->
-        Some (DChar c)
-    | '"' :: rest ->
-        if List.last rest = Some '"'
-        then
-          List.init rest
-          |> Option.withDefault ~default:[]
-          |> String.fromList
-          |> (fun x -> DStr x)
-          |> fun x -> Some x
-        else None
-    | _ ->
-      (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
+  match String.toList str with
+  | ['\''; c; '\''] ->
+      Some (DChar c)
+  | '"' :: rest ->
+      if List.last rest = Some '"'
+      then
+        List.init rest
+        |> Option.withDefault ~default:[]
+        |> String.fromList
+        |> fun x -> Some (DStr x)
+      else None
+  | _ ->
+    (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
 
 
 and parseBasicDval str : dval =
@@ -362,8 +358,7 @@ and parseBasicDval str : dval =
     ; map (fun x -> DFloat x) Json_decode_extended.float
     ; map (fun x -> DBool x) bool
     ; nullAs DNull
-    ; map (fun x -> DStr x) string
-    ; map (fun x -> DList x) (list dval) ]
+    ; map (fun x -> DStr x) string ]
     str
 
 

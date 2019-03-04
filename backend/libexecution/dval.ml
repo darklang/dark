@@ -642,36 +642,40 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
 
 
 let parse_literal (str : string) : dval option =
-  (* str is a raw string that the user entered. It is not valid json,
-   * or anything like it. We use the json parser to get values from int
-   * and float literals, etc, but this is a total hack *)
   let len = String.length str in
-  (* TODO: Doesn't handle nested characters. Replace with a custom parser,
-     using the one in RealWorldOcaml, or just ripped out of Yojson *)
-  if len > 0 && str.[0] = '\''
-  then Some (DChar str.[1])
-  else if len > 1 && str.[0] = '"' && str.[len - 1] = '"'
-          (* It might have \n characters in it (as well as probably other
-     * codes like \r or some shit that we haven't taken into account),
-     * which are not valid json. So we convert them manually to
-     * appropriate char sequences. *)
+  (* Character *)
+  if len > 2 && str.[0] = '\'' && str.[len - 1] = '\''
   then
+    Some
+      (DCharacter
+         (Unicode_string.Character.unsafe_of_string
+            (String.sub ~pos:1 ~len:(len - 2) str)))
+    (* String *)
+  else if len > 1 && str.[0] = '"' && str.[len - 1] = '"'
+  then
+    (* It might have \n characters in it (as well as probably other codes like
+     * \r or some shit that we haven't taken into account), which need to be
+     * converted manually to appropriate string chars. *)
     str
     |> String.sub ~pos:1 ~len:(len - 2)
     |> Util.string_replace "\\\"" "\""
     |> fun s -> Some (dstr_of_string_exn s)
-  else if String.Caseless.equal "nothing" str
-  then Some (DOption OptNothing)
+  else if str = "null"
+  then Some DNull
+  else if str = "true"
+  then Some (DBool true)
+  else if str = "false"
+  then Some (DBool false)
   else
-    (* We're doing this for ints and floats, but also possibly some other
-     * stuff. Originally we thought we were going to be parsing lots of things
-     * here like actual json objects, but that hasn't materialized. *)
-    try
-      str
-      |> Yojson.Safe.from_string
-      |> unsafe_dval_of_yojson
-      |> fun dv -> Some dv
-    with Yojson.Json_error e -> None
+    match int_of_string_opt str with
+    | Some v ->
+        Some (DInt v)
+    | _ ->
+      ( match float_of_string_opt str with
+      | Some v ->
+          Some (DFloat v)
+      | None ->
+          None )
 
 
 (* ------------------------- *)
