@@ -585,15 +585,7 @@ let unsafe_dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
   Result.Ok (unsafe_dval_of_yojson_ json)
 
 
-let rec unsafe_dvalmap_to_yojson ?(redact = true) (dvalmap : dval_map) :
-    Yojson.Safe.json =
-  dvalmap
-  |> DvalMap.to_alist
-  |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
-  |> fun a -> `Assoc a
-
-
-and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
+let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
   let wrap_constructed_type cons values =
@@ -615,7 +607,10 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DList l ->
       `List (List.map l (unsafe_dval_to_yojson ~redact))
   | DObj o ->
-      unsafe_dvalmap_to_yojson ~redact o
+      o
+      |> DvalMap.to_alist
+      |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
+      |> fun x -> `Assoc x
   (* opaque types *)
   | DBlock _ | DIncomplete ->
       wrap_user_type `Null
@@ -661,21 +656,6 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
         wrap_constructed_type
           (`String "Error")
           [unsafe_dval_to_yojson ~redact dv] )
-
-
-let unsafe_dval_to_json_string ?(redact = true) (v : dval) : string =
-  v |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
-
-
-let unsafe_dval_of_json_string (s : string) : dval =
-  s
-  |> Yojson.Safe.from_string
-  |> unsafe_dval_of_yojson
-  |> Result.ok_or_failwith
-
-
-let unsafe_dvalmap_to_string ?(redact = true) (m : dval_map) : string =
-  DObj m |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
 
 
 let parse_basic_json (str : string) : dval option =
