@@ -514,17 +514,17 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
       DResp
         (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_ b)
   | `Assoc
-      [ ("type", `String tipe)
-      ; ("constructor", `String constructor)
+      [ ("constructor", `String constructor)
+      ; ("type", `String tipe)
       ; ("values", `List vs) ] ->
       let expectOne ~f vs =
         match vs with [v] -> f v | _ -> DObj (unsafe_dvalmap_of_yojson json)
       in
       ( match (tipe, constructor) with
-      | "result", "ok" ->
+      | "result", "Ok" ->
           vs
           |> expectOne ~f:(fun v -> DResult (ResOk (unsafe_dval_of_yojson_ v)))
-      | "result", "err" ->
+      | "result", "Error" ->
           vs
           |> expectOne ~f:(fun v ->
                  DResult (ResError (unsafe_dval_of_yojson_ v)) )
@@ -658,13 +658,11 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
   | DResult res ->
     ( match res with
     | ResOk dv ->
-        wrap_constructed_type
-          (`String "Ok")
-          [wrap_user_type (unsafe_dval_to_yojson ~redact dv)]
+        wrap_constructed_type (`String "Ok") [unsafe_dval_to_yojson ~redact dv]
     | ResError dv ->
         wrap_constructed_type
           (`String "Error")
-          [wrap_user_type (unsafe_dval_to_yojson ~redact dv)] )
+          [unsafe_dval_to_yojson ~redact dv] )
 
 
 let unsafe_dval_to_json_string ?(redact = true) (v : dval) : string =
