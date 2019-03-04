@@ -452,29 +452,6 @@ let rec to_repr
   to_repr_ 0 pp dv
 
 
-(* Not for external consumption *)
-let rec to_internal_repr (dv : dval) : string =
-  match dv with
-  | DDB dbname ->
-      "<db: " ^ dbname ^ ">"
-  | dv when is_stringable dv ->
-      to_simple_repr dv
-  | _ ->
-      to_repr ~reprfn:to_internal_repr dv
-
-
-(* If someone returns a string or int, that's probably a web page. If
- * someone returns something else, show the structure so they can figure
- * out how to get it into a string. *)
-let rec to_human_repr (dv : dval) : string =
-  match dv with
-  | dv when is_stringable dv ->
-      as_string dv
-  (* contents of lists and objs should still be quoted *)
-  | _ ->
-      to_repr dv
-
-
 (* ------------------------- *)
 (* Json *)
 (* ------------------------- *)
@@ -742,6 +719,11 @@ let to_char_deprecated dv : char option =
 
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
+let to_dobj_exn (pairs : (string * dval) list) : dval =
+  try DObj (DvalMap.of_alist_exn pairs) with e ->
+    DError "The same key occurs multiple times"
+
+
 let to_string_exn dv : string =
   match dv with
   | DStr s ->
@@ -982,15 +964,31 @@ let of_unknown_json_v0 str =
 
 
 (* ------------------------- *)
-(* Conversions *)
+(* Hashes *)
 (* ------------------------- *)
-
-let to_dobj_exn (pairs : (string * dval) list) : dval =
-  try DObj (DvalMap.of_alist_exn pairs) with e ->
-    DError "The same key occurs multiple times"
+let rec to_hashable_repr (dv : dval) : string =
+  match dv with
+  | DDB dbname ->
+      "<db: " ^ dbname ^ ">"
+  | dv when is_stringable dv ->
+      to_simple_repr dv
+  | _ ->
+      to_repr ~reprfn:to_hashable_repr dv
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
  * size of the data stored by only storing a hash *)
 let hash (arglist : dval list) : string =
-  arglist |> List.map ~f:to_internal_repr |> String.concat |> Util.hash
+  arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash
+
+
+(* ------------------------- *)
+(* Old representations, here for testing *)
+(* ------------------------- *)
+let rec old_to_human_repr (dv : dval) : string =
+  match dv with
+  | dv when is_stringable dv ->
+      as_string dv
+  (* contents of lists and objs should still be quoted *)
+  | _ ->
+      to_repr dv
