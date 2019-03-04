@@ -737,8 +737,8 @@ let rec to_enduser_readable_text_v0 dval =
           to_nested_string ~reprfn:nestedreprfn dv
       | DErrorRail d ->
           (* We don't print error here, because the errorrail value will know
-         * whether it's an error or not. *)
-          "ErrorRail: " ^ reprfn d
+           * whether it's an error or not. *)
+          reprfn d
       | DResp (dh, dv) ->
           dhttp_to_formatted_string dh ^ "\n" ^ nestedreprfn dv ^ ""
       | DResult (ResOk d) ->
