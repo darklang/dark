@@ -462,7 +462,7 @@ let fns : Lib.shortfn list =
                        ~result:(DList result)
                        ~long:
                          ( "Int::sum requires all values to be integers, but "
-                         ^ Dval.to_repr example_value
+                         ^ Dval.to_developer_repr_v0 example_value
                          ^ " is a "
                          ^ Dval.tipename example_value )
                        ~expected:"every list item to be an int "
@@ -684,7 +684,7 @@ let fns : Lib.shortfn list =
                          ~result:(DList result)
                          ~long:
                            ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-                           ^ Dval.to_repr example_value
+                           ^ Dval.to_developer_repr_v0 example_value
                            ^ " is a "
                            ^ Dval.tipename example_value )
                          ~expected:"every value to be a char"
@@ -720,7 +720,7 @@ let fns : Lib.shortfn list =
                          ~result:(DList result)
                          ~long:
                            ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-                           ^ Dval.to_repr example_value
+                           ^ Dval.to_developer_repr_v0 example_value
                            ^ " is a "
                            ^ Dval.tipename example_value )
                          ~expected:"every value to be a char"

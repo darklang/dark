@@ -63,7 +63,7 @@ let clear_test_data () : unit =
 
 let at_dval =
   AT.testable
-    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_developer_repr_v0 dv))
     (fun a b -> compare_dval a b = 0)
 
 
@@ -79,7 +79,7 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
   let e =
     try
       let r = f () in
-      Log.erroR "result" ~data:(Dval.to_repr r) ;
+      Log.erroR "result" ~data:(Dval.to_developer_repr_v0 r) ;
       Some "no exception"
     with
     | Exception.DarkException ed ->
@@ -441,7 +441,7 @@ let t_case_insensitive_db_roundtrip () =
         true
         (List.mem ~equal:( = ) (DvalMap.data v) value)
   | other ->
-      Log.erroR "error" ~data:(Dval.to_repr other) ;
+      Log.erroR "error" ~data:(Dval.to_developer_repr_v0 other) ;
       AT.(check bool) "failed" true false
 
 

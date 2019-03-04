@@ -66,7 +66,7 @@ val to_enduser_readable_html_v0 : Types.RuntimeT.dval -> string
 
 (* For printing something for the developer to read, as a live-value, error
  * message, etc. This will faithfully represent the code, textually. Redacts
- * passwords. *)
+ * passwords. Customers should not come to rely on this format. *)
 val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
 (* When sending json back to the user, or via a HTTP API, attempt to convert
@@ -88,22 +88,6 @@ val of_unknown_json_v0 : string -> Types.RuntimeT.dval
   * url query string
   * form encoding
   *)
-
-(* uses:
-  * creating DErrors in AST.ml
-  * error message in String::foreach, Int::sum
-  * httpclient body encoding if not an obj
-  * Libstd::toRepr
-  *
-  * Uses indentation
-  * *)
-val to_repr :
-     ?pp:bool
-  -> ?open_:string
-  -> ?close_:string
-  -> ?reprfn:(Types.RuntimeT.dval -> string)
-  -> Types.RuntimeT.dval
-  -> string
 
 (* If someone returns a string or int, that's probably a web page. If
  * someone returns something else, show the structure so they can figure
