@@ -2177,12 +2177,12 @@ let t_result_to_response_works () =
 
 let t_old_new_dval_reprs () =
   List.iter sample_dvals ~f:(fun (name, dv) ->
-      ()
       (* AT.check *)
       (*   AT.string *)
       (*   ("old_new_dval check: " ^ name) *)
-      (*   (Dval.old_to_human_repr dv) *)
-      (*   (Dval.to_enduser_readable_text_v0 dv)  *) ) ;
+      (*   (Dval.old_to_internal_repr dv) *)
+      (*   (Dval.to_hashable_repr dv) ; *)
+      () ) ;
   ()
 
 

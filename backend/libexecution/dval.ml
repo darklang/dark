@@ -956,55 +956,98 @@ let of_form_encoding (f : string) : dval =
 (* Hashes *)
 (* ------------------------- *)
 
-(* A full representation, building on to_simple_repr, but including
- * lists and objects. *)
-let rec to_hashable_repr (dv : dval) : string =
-  let rec to_repr_ (indent : int) (dv : dval) : string =
-    let nl = "\n" ^ String.make indent ' ' in
-    let inl = "\n" ^ String.make (indent + 2) ' ' in
-    let indent = indent + 2 in
-    match dv with
-    | DDB dbname ->
-        "<db: " ^ dbname ^ ">"
-    | dv when is_stringable dv ->
-        to_simple_repr dv
-    | DResp (h, hdv) ->
-        dhttp_to_formatted_string h ^ nl ^ to_repr_ indent hdv
-    | DList l ->
-        if List.is_empty l
-        then "[]"
-        else
-          "[ "
-          ^ inl
-          ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l)
-          ^ nl
-          ^ "]"
-    | DObj o ->
-        if DvalMap.is_empty o
-        then "{}"
-        else
-          let strs =
-            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                (key ^ ": " ^ to_repr_ indent data) :: l )
-          in
-          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
-    | DOption OptNothing ->
-        "Nothing"
-    | DOption (OptJust dv) ->
-        "Just " ^ to_repr_ indent dv
-    | DErrorRail dv ->
-        "ErrorRail: " ^ to_repr_ indent dv
-    | _ ->
-        failwith ("printing an unprintable value:" ^ to_simple_repr dv)
-  in
-  to_repr_ 0 dv
+(* This has been used to save millions of values in our DB, so the format isn't
+ * amenable to change without a migration. Don't change ANYTHING for existing
+ * values, but continue to add representations for new values. Also, inline
+ * everything! *)
+let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
+  let nl = "\n" ^ String.make indent ' ' in
+  let inl = "\n" ^ String.make (indent + 2) ' ' in
+  let indent = indent + 2 in
+  match dv with
+  | DDB dbname ->
+      "<db: " ^ dbname ^ ">"
+  | DInt i ->
+      string_of_int i
+  | DBool true ->
+      "true"
+  | DBool false ->
+      "false"
+  | DFloat f ->
+      string_of_float f
+  | DNull ->
+      "null"
+  | DStr s ->
+      "\"" ^ Unicode_string.to_string s ^ "\""
+  | DChar c ->
+      "'" ^ Char.to_string c ^ "'"
+  | DCharacter c ->
+      "'" ^ Unicode_string.Character.to_string c ^ "'"
+  | DIncomplete ->
+      "<incomplete: <incomplete>>" (* Can't be used anyway *)
+  | DBlock _ ->
+      "<block: <block>>"
+  | DError msg ->
+      "<error: " ^ msg ^ ">"
+  | DID id ->
+      "<id: " ^ Uuidm.to_string id ^ ">"
+  | DDate d ->
+      "<date: " ^ Util.isostring_of_date d ^ ">"
+  | DTitle t ->
+      "<title: " ^ t ^ ">"
+  | DUrl url ->
+      "<url: " ^ url ^ ">"
+  | DPassword _ ->
+      "<password: <password>>"
+  | DUuid id ->
+      "<uuid: " ^ Uuidm.to_string id ^ ">"
+  | DResp (h, hdv) ->
+      (* deliberately inlined *)
+      let dhttp_to_formatted_string (d : dhttp) : string =
+        match d with
+        | Redirect url ->
+            "302 " ^ url
+        | Response (c, hs) ->
+            let string_of_headers hs =
+              hs
+              |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v)
+              |> String.concat ~sep:","
+              |> fun s -> "{ " ^ s ^ " }"
+            in
+            string_of_int c ^ " " ^ string_of_headers hs
+      in
+      dhttp_to_formatted_string h ^ nl ^ to_hashable_repr ~indent hdv
+  | DList l ->
+      if List.is_empty l
+      then "[]"
+      else
+        "[ "
+        ^ inl
+        ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr ~indent) l)
+        ^ nl
+        ^ "]"
+  | DObj o ->
+      if DvalMap.is_empty o
+      then "{}"
+      else
+        let strs =
+          DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+              (key ^ ": " ^ to_hashable_repr ~indent data) :: l )
+        in
+        "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
+  | DOption OptNothing ->
+      "Nothing"
+  | DOption (OptJust dv) ->
+      "Just " ^ to_hashable_repr ~indent dv
+  | DErrorRail dv ->
+      "ErrorRail: " ^ to_hashable_repr ~indent dv
+  | DResult (ResOk dv) ->
+      "ResultOk " ^ to_hashable_repr ~indent dv
+  | DResult (ResError dv) ->
+      "ResultError " ^ to_hashable_repr ~indent dv
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
  * size of the data stored by only storing a hash *)
 let hash (arglist : dval list) : string =
   arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash
-
-(* ------------------------- *)
-(* Old representations, here for testing *)
-(* ------------------------- *)
