@@ -31,7 +31,7 @@ let parser_fn p (str : string) : dval =
   | Json ->
       Dval.of_unknown_json_v0 str
   | Form ->
-      Dval.from_form_encoding str
+      Dval.of_form_encoding str
   | Unknown ->
     ( try Dval.of_unknown_json_v0 str with e ->
         Exception.enduser

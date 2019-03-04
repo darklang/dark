@@ -787,14 +787,10 @@ let dval_to_query (dv : dval) : (string * string list) list =
 
 
 let to_form_encoding (dv : dval) : string =
-  dv
-  |> to_string_pairs_exn
-  (* TODO: forms are allowed take string lists as the value, not just strings *)
-  |> List.map ~f:(fun (k, v) -> (k, [v]))
-  |> Uri.encoded_of_query
+  dv |> dval_to_query |> Uri.encoded_of_query
 
 
-let from_form_encoding (f : string) : dval =
+let of_form_encoding (f : string) : dval =
   f |> Uri.query_of_encoded |> query_to_dval
 
 
