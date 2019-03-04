@@ -810,39 +810,57 @@ let t_password_hash_db_roundtrip () =
         1 )
 
 
-let t_passwords_dont_serialize () =
-  let password = DPassword (Bytes.of_string "x") in
-  AT.check
-    AT.bool
-    "Passwords don't serialize by default"
+let t_password_serialization () =
+  let does_serialize name expected f =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DPassword bytes in
+    AT.check
+      AT.bool
+      ("Passwords serialize in non-redaction function: " ^ name)
+      expected
+      (String.is_substring
+         ~substring:(B64.encode "encryptedbytes")
+         (f password))
+  in
+  let roundtrips name serialize deserialize =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DPassword bytes in
+    AT.check
+      at_dval
+      ("Passwords serialize in non-redaction function: " ^ name)
+      password
+      (password |> serialize |> deserialize |> serialize |> deserialize)
+  in
+  (* doesn't redact *)
+  does_serialize
+    "to_internal_roundtrippable_v0"
     true
-    (let serialized =
-       password
-       |> Dval.unsafe_dval_to_yojson
-       (* ~redact:true by default *)
-       |> Yojson.Safe.sort
-     in
-     match serialized with
-     | `Assoc [("type", `String "password"); ("value", `Null)] ->
-         true
-     | _ ->
-         false)
-
-
-let t_passwords_serialize () =
-  let password = DPassword (Bytes.of_string "x") in
-  AT.check
-    (AT.option AT.string)
-    "Passwords serialize if you turn off redaction "
-    (Some "x")
-    (let serialized =
-       password |> Dval.unsafe_dval_to_yojson ~redact:false |> Yojson.Safe.sort
-     in
-     match serialized with
-     | `Assoc [("type", `String "password"); ("value", `String x)] ->
-         Some (B64.decode x)
-     | _ ->
-         None)
+    Dval.to_internal_roundtrippable_v0 ;
+  does_serialize "to_internal_queryable_v0" true Dval.to_internal_queryable_v0 ;
+  (* roundtrips *)
+  roundtrips
+    "to_internal_roundtrippable_v0"
+    Dval.to_internal_roundtrippable_v0
+    Dval.of_internal_roundtrippable_v0 ;
+  roundtrips
+    "to_internal_queryable_v0"
+    Dval.to_internal_queryable_v0
+    Dval.of_internal_roundtrippable_v0 ;
+  (* redacting *)
+  does_serialize
+    "to_enduser_readable_text_v0"
+    false
+    Dval.to_enduser_readable_text_v0 ;
+  does_serialize
+    "to_enduser_readable_html_v0"
+    false
+    Dval.to_enduser_readable_html_v0 ;
+  does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
+  does_serialize
+    "to_pretty_machine_json_v0"
+    false
+    Dval.to_pretty_machine_json_v0 ;
+  ()
 
 
 let t_password_json_round_trip_forwards () =
@@ -852,22 +870,9 @@ let t_password_json_round_trip_forwards () =
     password
     ( password
     |> Dval.to_internal_roundtrippable_v0
-    |> Dval.of_internal_roundtrippable_v0 )
-
-
-let t_password_json_round_trip_backwards () =
-  let json =
-    "x"
-    |> Bytes.of_string
-    |> fun p -> DPassword p |> Dval.to_internal_roundtrippable_v0
-  in
-  AT.check
-    AT.string
-    "Passwords deserialize and serialize if there's no redaction."
-    json
-    ( json
     |> Dval.of_internal_roundtrippable_v0
-    |> Dval.to_internal_roundtrippable_v0 )
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0 )
 
 
 let t_incomplete_propagation () =
@@ -2196,16 +2201,9 @@ let suite =
   ; ( "Password hashes can be stored in and retrieved from the DB"
     , `Quick
     , t_password_hash_db_roundtrip )
-  ; ("Passwords don't serialize by default", `Quick, t_passwords_dont_serialize)
-  ; ( "Passwords serialize if you turn off redaction"
+  ; ( "Passwords serialize correctly and redact (or not) correctly"
     , `Quick
-    , t_passwords_serialize )
-  ; ( "Passwords serialize and deserialize if there's no redaction."
-    , `Quick
-    , t_password_json_round_trip_forwards )
-  ; ( "Passwords deserialize and serialize if there's no redaction."
-    , `Quick
-    , t_password_json_round_trip_backwards )
+    , t_password_serialization )
   ; ("Incompletes propagate correctly", `Quick, t_incomplete_propagation)
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
   ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
