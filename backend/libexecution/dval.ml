@@ -494,6 +494,18 @@ let rec to_url_string_exn (dv : dval) : string =
       failwith "to_url_string of unurlable value"
 
 
+(* ------------------------- *)
+(* Json *)
+(* ------------------------- *)
+let is_json_primitive (dv : dval) : bool =
+  match dv with
+  | DInt _ | DFloat _ | DBool _ | DNull | DStr _ ->
+      true
+  (* everything else is a list, an actual object, or a wrapped object *)
+  | _ ->
+      false
+
+
 (* The "unsafe" variations here are bad. They encode data ambiguously, and
  * though we mostly have the decoding right, it's brittle and unsafe.
  *
@@ -684,15 +696,6 @@ and unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
           [wrap_user_type (unsafe_dval_to_yojson ~redact dv)] )
 
 
-let is_json_primitive (dv : dval) : bool =
-  match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DStr _ ->
-      true
-  (* everything else is a list, an actual object, or a wrapped object *)
-  | _ ->
-      false
-
-
 let unsafe_dval_to_json_string ?(redact = true) (v : dval) : string =
   v |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
 
@@ -741,40 +744,6 @@ let parse_literal (str : string) : dval option =
   else parse_basic_json str
 
 
-let query_to_dval (query : (string * string list) list) : dval =
-  query
-  |> List.map ~f:(fun (key, vals) ->
-         let dval =
-           match vals with
-           | [] ->
-               DNull
-           | [v] ->
-               if v = "" then DNull else dstr_of_string_exn v
-           | vals ->
-               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
-         in
-         (key, dval) )
-  |> DvalMap.of_alist_exn
-  |> fun x -> DObj x
-
-
-let dval_to_query (dv : dval) : (string * string list) list =
-  match dv with
-  | DObj kvs ->
-      kvs
-      |> DvalMap.to_alist
-      |> List.map ~f:(fun (k, value) ->
-             match value with
-             | DNull ->
-                 (k, [])
-             | DList l ->
-                 (k, List.map ~f:to_url_string_exn l)
-             | _ ->
-                 (k, [to_url_string_exn value]) )
-  | _ ->
-      Exception.user "attempting to use non-object as query param"
-
-
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
@@ -810,6 +779,40 @@ let to_dval_pairs_exn dv : (string * dval) list =
 
 let to_string_pairs_exn dv : (string * string) list =
   dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
+
+
+let query_to_dval (query : (string * string list) list) : dval =
+  query
+  |> List.map ~f:(fun (key, vals) ->
+         let dval =
+           match vals with
+           | [] ->
+               DNull
+           | [v] ->
+               if v = "" then DNull else dstr_of_string_exn v
+           | vals ->
+               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
+         in
+         (key, dval) )
+  |> DvalMap.of_alist_exn
+  |> fun x -> DObj x
+
+
+let dval_to_query (dv : dval) : (string * string list) list =
+  match dv with
+  | DObj kvs ->
+      kvs
+      |> DvalMap.to_alist
+      |> List.map ~f:(fun (k, value) ->
+             match value with
+             | DNull ->
+                 (k, [])
+             | DList l ->
+                 (k, List.map ~f:to_url_string_exn l)
+             | _ ->
+                 (k, [to_url_string_exn value]) )
+  | _ ->
+      Exception.user "attempting to use non-object as query param"
 
 
 let to_form_encoding (dv : dval) : string =
