@@ -432,7 +432,8 @@ let rec exec
           | DErrorRail _ ->
               obj
           | x ->
-              DError ("Can't access field of non-object: " ^ Dval.to_repr x)
+              DError
+                "Attempting to access of a field of something that isn't an object"
         in
         trace_blank field result st ;
         result

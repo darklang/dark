@@ -1725,10 +1725,10 @@ let t_db_getAll_v2_works () =
   (* sorting to ensure the test isn't flakey *)
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-               (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. (List::last x) sort_by)))
-                 (== (one two three) fetched)))))"
+       (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+         (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
+            (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. x sort_by)))
+              (== (one two three) fetched)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
