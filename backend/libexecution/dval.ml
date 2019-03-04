@@ -374,6 +374,41 @@ let is_stringable (dv : dval) : bool =
       is_primitive dv
 
 
+(* Utility function to handle the straightforward value-as-string conversions
+ * that don't change based on formatting. Returns None if it's not a simple
+ * stringable. *)
+let as_simple_stringable dv : string option =
+  match dv with
+  | DInt i ->
+      Some (string_of_int i)
+  | DBool true ->
+      Some "true"
+  | DBool false ->
+      Some "false"
+  | DStr s ->
+      Some (Unicode_string.to_string s)
+  | DFloat f ->
+      Some (string_of_float f)
+  | DChar c ->
+      Some (Char.to_string c)
+  | DCharacter c ->
+      Some (Unicode_string.Character.to_string c)
+  | DNull ->
+      Some "null"
+  | DID id ->
+      Some (Uuidm.to_string id)
+  | DDate d ->
+      Some (Util.isostring_of_date d)
+  | DTitle t ->
+      Some t
+  | DUrl url ->
+      Some url
+  | DUuid uuid ->
+      Some (Uuidm.to_string uuid)
+  | _ ->
+      None
+
+
 (* A simple representation, showing primitives as their expected literal
  * syntax, and odd types get type info in a readable format. Compound
  * types are listed as their type only *)
@@ -733,10 +768,6 @@ let to_string_pairs_exn dv : (string * string) list =
   dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
 
 
-(* ------------------------- *)
-(* Forms and queries Functions *)
-(* ------------------------- *)
-
 (* For putting into URLs as query params *)
 let rec to_url_string_exn (dv : dval) : string =
   match dv with
@@ -755,6 +786,10 @@ let rec to_url_string_exn (dv : dval) : string =
   | _ ->
       failwith "to_url_string of unurlable value"
 
+
+(* ------------------------- *)
+(* Forms and queries Functions *)
+(* ------------------------- *)
 
 let query_to_dval (query : (string * string list) list) : dval =
   query
@@ -801,7 +836,6 @@ let of_form_encoding (f : string) : dval =
 (* ------------------------- *)
 (* New Representations *)
 (* ------------------------- *)
-(* All the new representations. *)
 let to_internal_roundtrippable_v0 dval : string =
   unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
 
@@ -824,41 +858,6 @@ let of_internal_queryable_v0 str : dval =
   |> Yojson.Safe.from_string
   |> unsafe_dval_of_yojson
   |> Result.ok_or_failwith
-
-
-(* Utility function to handle the straightforward value-as-string conversions
- * that don't change based on formatting. Returns None if it's not a simple
- * stringable. *)
-let as_simple_stringable dv : string option =
-  match dv with
-  | DInt i ->
-      Some (string_of_int i)
-  | DBool true ->
-      Some "true"
-  | DBool false ->
-      Some "false"
-  | DStr s ->
-      Some (Unicode_string.to_string s)
-  | DFloat f ->
-      Some (string_of_float f)
-  | DChar c ->
-      Some (Char.to_string c)
-  | DCharacter c ->
-      Some (Unicode_string.Character.to_string c)
-  | DNull ->
-      Some "null"
-  | DID id ->
-      Some (Uuidm.to_string id)
-  | DDate d ->
-      Some (Util.isostring_of_date d)
-  | DTitle t ->
-      Some t
-  | DUrl url ->
-      Some url
-  | DUuid uuid ->
-      Some (Uuidm.to_string uuid)
-  | _ ->
-      None
 
 
 let rec to_enduser_readable_text_v0 dval =
