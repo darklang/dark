@@ -381,9 +381,8 @@ let t_derror_roundtrip () =
   let x = DError "test" in
   let converted =
     x
-    |> Dval.unsafe_dval_to_yojson
-    |> Dval.unsafe_dval_of_yojson
-    |> Result.ok_or_failwith
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
   in
   check_dval "roundtrip" converted x
 
@@ -706,15 +705,15 @@ let t_nulls_added_to_missing_column () =
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 
-let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
+let t_internal_roundtrippable_doesnt_care_about_order () =
   check_dval
-    "dval_of_json_string doesn't care about key order"
-    (Dval.unsafe_dval_of_json_string
+    "internal_roundtrippable doesn't care about key order"
+    (Dval.of_internal_roundtrippable_v0
        "{
          \"type\": \"url\",
          \"value\": \"https://example.com\"
         }")
-    (Dval.unsafe_dval_of_json_string
+    (Dval.of_internal_roundtrippable_v0
        "{
          \"value\": \"https://example.com\",
          \"type\": \"url\"
@@ -2190,7 +2189,7 @@ let suite =
   ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column)
   ; ( "Parsing JSON to DVals doesn't care about key order"
     , `Quick
-    , t_unsafe_dval_of_yojson_doesnt_care_about_order )
+    , t_internal_roundtrippable_doesnt_care_about_order )
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works )

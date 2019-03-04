@@ -11,7 +11,7 @@ let init () =
 
 type handler_list = HandlerT.handler list [@@deriving yojson]
 
-let dval_of_yojson = Dval.unsafe_dval_of_yojson
+let dval_of_yojson = Dval.of_internal_roundtrippable_json_v0
 
 type input_vars = (string * dval) list (* list of vars *)
 [@@deriving of_yojson]
