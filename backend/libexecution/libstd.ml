@@ -538,12 +538,13 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "v" TAny]
     ; r = TStr
-    ; d = "Returns an adorned string representation of `v`"
+    ; d =
+        "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
     ; f =
         InProcess
           (function
           | _, [a] ->
-              Dval.dstr_of_string_exn (Dval.to_repr a)
+              Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
               fail args)
     ; ps = true

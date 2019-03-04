@@ -215,7 +215,7 @@ let replacements =
             | OptJust dv ->
                 Error
                   ( "Received something other than an Nothing, Just [...], or Just \"*\": "
-                  ^ Dval.as_string dv )
+                  ^ Dval.to_developer_repr_v0 dv )
           with e -> Error (Exception.exn_to_string e)
         in
         function

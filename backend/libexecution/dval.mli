@@ -90,11 +90,6 @@ val of_unknown_json_v0 : string -> Types.RuntimeT.dval
   *)
 
 (* uses:
-  * headers in httpclient
-  * *)
-val as_string : Types.RuntimeT.dval -> string
-
-(* uses:
   * creating DErrors in AST.ml
   * error message in String::foreach, Int::sum
   * httpclient body encoding if not an obj

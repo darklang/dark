@@ -931,10 +931,48 @@ let rec to_enduser_readable_text_v0 dv =
 
 let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
 
-let to_developer_repr_v0 dv = "TODO"
+let rec to_developer_repr_v0 (dv : dval) : string =
+  let rec to_repr_ (indent : int) (dv : dval) : string =
+    let nl = "\n" ^ String.make indent ' ' in
+    let inl = "\n" ^ String.make (indent + 2) ' ' in
+    let indent = indent + 2 in
+    match dv with
+    | dv when is_stringable dv ->
+        to_simple_repr dv ~open_:"<" ~close_:">"
+    | DResp (h, hdv) ->
+        dhttp_to_formatted_string h ^ nl ^ to_repr_ indent hdv
+    | DList l ->
+        if List.is_empty l
+        then "[]"
+        else
+          "[ "
+          ^ inl
+          ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l)
+          ^ nl
+          ^ "]"
+    | DObj o ->
+        if DvalMap.is_empty o
+        then "{}"
+        else
+          let strs =
+            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+                (key ^ ": " ^ to_repr_ indent data) :: l )
+          in
+          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
+    | DOption OptNothing ->
+        "Nothing"
+    | DOption (OptJust dv) ->
+        "Just " ^ to_repr_ indent dv
+    | DErrorRail dv ->
+        "ErrorRail: " ^ to_repr_ indent dv
+    | _ ->
+        failwith ("printing an unprintable value:" ^ to_simple_repr dv)
+  in
+  to_repr_ 0 dv
+
 
 let to_pretty_machine_json_v0 _dval =
-  `Null |> Yojson.Basic.pretty_to_string ~std:true
+  `Null |> Yojson.Basic.pretty_to_string ~std:false
 
 
 let of_unknown_json_v0 _json = DNull
