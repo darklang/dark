@@ -234,7 +234,8 @@ let sample_dvals =
         (DvalMap.of_alist_exn
            [ ("type", Dval.dstr_of_string_exn "weird")
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
-  ; ("incomplete", DIncomplete) (* ; ("error", DError "some error string") *)
+  ; ("incomplete", DIncomplete)
+  ; ("error", DError "some error string")
   ; ("block", DBlock (fun _args -> DNull))
   ; ("errorrail", DErrorRail (DInt 5))
   ; ("redirect", DResp (Redirect "/home", DNull))
@@ -255,10 +256,10 @@ let sample_dvals =
     (*     |> Unicode_string.characters *)
     (*     |> List.hd_exn *)
     (*     |> fun x -> DCharacter x ) *)
-  (* ; ("result", DResult (ResOk (DInt 15))) *)
-  (* ; ( "result2" *)
-  (*   , DResult *)
-  (*       (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"])) *)
+  ; ("result", DResult (ResOk (DInt 15)))
+  ; ( "result2"
+    , DResult
+        (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
     ) ]
 
 
@@ -783,9 +784,9 @@ let t_dval_yojson_roundtrips () =
     v |> dval_to_yojson |> dval_of_yojson |> Result.ok_or_failwith
   in
   let check name (v : dval) =
-    check_dval name v (safe_rt v) ;
-    check_dval ("roundtrippable" ^ name) v (roundtrippable_rt v) ;
-    check_dval ("queryable" ^ name) v (queryable_rt v) ;
+    check_dval ("safe: " ^ name) v (safe_rt v) ;
+    check_dval ("roundtrippable: " ^ name) v (roundtrippable_rt v) ;
+    check_dval ("queryable: " ^ name) v (queryable_rt v) ;
     ()
   in
   sample_dvals
