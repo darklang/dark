@@ -69,8 +69,8 @@ let oauth_params (secret : Secret.twitter_secret) url verb (args : dval_map) :
   in
   let argparams =
     args
-    |> DvalMap.filter_map ~f:(fun v ->
-           match v with DNull -> None | v -> Some (Dval.to_url_string_exn v) )
+    |> DvalMap.filter ~f:(( <> ) Types.RuntimeT.DNull)
+    |> DvalMap.map ~f:(fun v -> Dval.to_url_string_exn v)
     |> DvalMap.to_alist
   in
   let signature =
@@ -97,17 +97,6 @@ let authorization_header url verb (args : dval_map) : string * string =
   ("Authorization", oauth_header Secret.twitter url verb args)
 
 
-let rec dvalmap2query (args : dval_map) : string =
-  args
-  |> DvalMap.fold ~init:[] ~f:(fun ~key ~data l ->
-         if data = RTT.DIncomplete
-         then RT.error "Incorrect type" ~actual:data
-         else if data = RTT.DNull
-         then l
-         else (key ^ "=" ^ Dval.to_url_string_exn data) :: l )
-  |> String.concat ~sep:"&"
-
-
 let call (endpoint : string) (verb : Httpclient.verb) (args : dval_map) : dval
     =
   let prefix = "https://api.twitter.com" in
@@ -115,7 +104,7 @@ let call (endpoint : string) (verb : Httpclient.verb) (args : dval_map) : dval
   let result =
     match verb with
     | GET ->
-        let query = dvalmap2query args in
+        let query = Dval.to_form_encoding (DObj args) in
         let header = authorization_header url "GET" args in
         Httpclient.call (url ^ "?" ^ query) verb [header] ""
     | POST ->
