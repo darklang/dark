@@ -479,16 +479,11 @@ let is_json_primitive (dv : dval) : bool =
 
 
 (* The "unsafe" variations here are bad. They encode data ambiguously, and
- * though we mostly have the decoding right, it's brittle and unsafe.
- *
- * The first fix is to use derived encoders, and use those anywhere we want to
- * roundtrip data. We can't use them for user_db because of queries, but
- * anywhere else should be fine.
- *
- * The only fit-for-purpose use of the unsafe json encoders/decoders is for
- * showing to users. However, even then our random types and their weird
- * encoding are a bad fit. We need to fix our type-system. *)
-
+ * though we mostly have the decoding right, it's brittle and unsafe.  This
+ * should be considered append only. There's a ton of dangerous things in this,
+ * and we really need to move off it, but for now we're here. Do not change
+ * existing encodings - this will break everything.
+ *)
 let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
@@ -563,6 +558,8 @@ let rec unsafe_dval_of_yojson_ (json : Yojson.Safe.json) : dval =
         DDB v
     | "uuid" ->
         DUuid (Uuidm.of_string v |> Option.value_exn)
+    | "character" ->
+        DCharacter (Unicode_string.Character.unsafe_of_string v)
     | _ ->
         DObj (unsafe_dvalmap_of_yojson json) )
   | `Assoc [("type", `String "option"); ("value", dv)] ->

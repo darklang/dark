@@ -31,16 +31,18 @@ module Character = struct
 
   let to_string t = t
 
+  (* Characters are simply 'views' of parts of a Unicode_string.t, and it would
+   * be best to allow no creation of Character.t values outside of iterating
+   * over a unicode string after applying a clustering algorithm. But sometimes
+   * we need to, and there isn't a good way to validate it. Here be dragons.
+   * When creating, you need to make sure this is a valid EGC (such as ASCII -
+   * all ASCII is valid here). *)
+  let unsafe_of_string t = t
+
   let to_yojson t = `String t
 
-  (* This is needed to make upstream derivers compile correctly, though
-   * we don't seem to actually _need_ this implementation because we
-   * have special json encoders/decoders for dvals. Implementing this
-   * is tricky, and it's best for now to allow no creation of
-   * Character.t values outside of iterating over a unicode string
-   * after applying a clustering algorithm. ie. these values are
-   * simply 'views' of parts of a Unicode_string.t *)
-  let of_yojson j = failwith "Not implemented: Character of yojson"
+  (* See of_string comment *)
+  let of_yojson j = match j with `String s -> Ok s | _ -> Error "Not bytes"
 end
 
 (* This validates that the passed string is UTF-8 encoded, and also normalizes
