@@ -704,10 +704,6 @@ let unsafe_dval_of_json_string (s : string) : dval =
   |> Result.ok_or_failwith
 
 
-let unsafe_dval_to_pretty_json_string ?(redact = true) (v : dval) : string =
-  v |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.pretty_to_string
-
-
 let unsafe_dvalmap_to_string ?(redact = true) (m : dval_map) : string =
   DObj m |> unsafe_dval_to_yojson ~redact |> Yojson.Safe.to_string
 
