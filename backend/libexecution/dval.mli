@@ -161,9 +161,6 @@ val empty_dobj : Types.RuntimeT.dval
 (* Misc *)
 (* ------------------------- *)
 val hash : Types.RuntimeT.dval list -> string
-
 (* ------------------------- *)
 (* Old functions for testing only *)
 (* ------------------------- *)
-
-val old_to_repr : Types.RuntimeT.dval -> string

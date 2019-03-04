@@ -1017,9 +1017,6 @@ let rec to_hashable_repr (dv : dval) : string =
 let hash (arglist : dval list) : string =
   arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash
 
-
 (* ------------------------- *)
 (* Old representations, here for testing *)
 (* ------------------------- *)
-
-let old_to_repr s = to_repr s
