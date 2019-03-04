@@ -189,8 +189,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DObj o] ->
               DObj o
-              |> Dval.unsafe_dval_to_yojson
-              |> Yojson.Safe.to_string
+              |> Dval.to_pretty_machine_json_v0
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
