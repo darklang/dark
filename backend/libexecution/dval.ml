@@ -763,7 +763,23 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     let inl = "\n" ^ String.make (indent + 2) ' ' in
     let indent = indent + 2 in
     match dv with
-    | dv when is_stringable dv ->
+    | DInt _
+    | DFloat _
+    | DBool _
+    | DNull
+    | DChar _
+    | DCharacter _
+    | DStr _
+    | DBlock _
+    | DIncomplete
+    | DError _
+    | DID _
+    | DDate _
+    | DTitle _
+    | DUrl _
+    | DPassword _
+    | DDB _
+    | DUuid _ ->
         to_simple_repr dv ~open_:"<" ~close_:">"
     | DResp (h, hdv) ->
         dhttp_to_formatted_string h ^ nl ^ to_repr_ indent hdv
@@ -789,10 +805,12 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         "Nothing"
     | DOption (OptJust dv) ->
         "Just " ^ to_repr_ indent dv
+    | DResult (ResOk dv) ->
+        "Ok " ^ to_repr_ indent dv
+    | DResult (ResError dv) ->
+        "Error " ^ to_repr_ indent dv
     | DErrorRail dv ->
         "ErrorRail: " ^ to_repr_ indent dv
-    | _ ->
-        failwith ("printing an unprintable value:" ^ to_simple_repr dv)
   in
   to_repr_ 0 dv
 
