@@ -18,6 +18,8 @@ module Character : sig
 
   val to_string : t -> string
 
+  val unsafe_of_string : string -> t
+
   val to_yojson : t -> Yojson.Safe.json
 
   val of_yojson : Yojson.Safe.json -> (t, string) Result.t

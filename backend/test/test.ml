@@ -250,12 +250,7 @@ let sample_dvals =
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("option", DOption OptNothing)
   ; ("option2", DOption (OptJust (DInt 15)))
-    (* ; ( "character" *)
-    (*   , "s" *)
-    (*     |> Unicode_string.of_string_exn *)
-    (*     |> Unicode_string.characters *)
-    (*     |> List.hd_exn *)
-    (*     |> fun x -> DCharacter x ) *)
+  ; ("character", DCharacter (Unicode_string.Character.unsafe_of_string "s"))
   ; ("result", DResult (ResOk (DInt 15)))
   ; ( "result2"
     , DResult
