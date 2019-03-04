@@ -124,12 +124,6 @@ val unsafe_dval_of_json_string : string -> Types.RuntimeT.dval
 val unsafe_dval_to_yojson :
   ?redact:bool -> Types.RuntimeT.dval -> Yojson.Safe.json
 
-(* Uses:
-   * user_page response 
-   *)
-val unsafe_dval_to_pretty_json_string :
-  ?redact:bool -> Types.RuntimeT.dval -> string
-
 (* dvalmap *)
 (* Uses:
   * user_db
