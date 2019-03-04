@@ -523,12 +523,13 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "v" TAny]
     ; r = TStr
-    ; d = "Returns a string representation of `v`"
+    ; d =
+        "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
     ; f =
         InProcess
           (function
           | _, [a] ->
-              Dval.dstr_of_string_exn (Dval.as_string a)
+              Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
               fail args)
     ; ps = true

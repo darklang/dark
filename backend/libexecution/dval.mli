@@ -57,26 +57,26 @@ val of_internal_queryable_v0 : string -> Types.RuntimeT.dval
 (* When printing to grand-users (our users' users) using text/plain, print a
  * human-readable format. TODO: this should probably be part of the functions
  * generating the responses. Redacts passwords. *)
-val to_text_plain_http_response : Types.RuntimeT.dval -> string
+val to_enduser_readable_text_v0 : Types.RuntimeT.dval -> string
 
 (* When printing to grand-users (our users' users) using text/html, attempt to
  * extract a html-like string. Redacts passwords. TODO: this should probably be
  * part of the functions generating the responses. *)
-val to_text_html_http_response : Types.RuntimeT.dval -> string
+val to_enduser_readable_html_v0 : Types.RuntimeT.dval -> string
 
 (* For printing something for the developer to read, as a live-value, error
  * message, etc. This will faithfully represent the code, textually. Redacts
  * passwords. *)
-val to_developer_repr : Types.RuntimeT.dval -> string
+val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
 (* When sending json back to the user, or via a HTTP API, attempt to convert
  * everything into reasonable json, in the absence of a schema. This turns
  * Option and Result into plain values, or null/error. Redacts passwords.  *)
-val to_pretty_machine_json : Types.RuntimeT.dval -> string
+val to_pretty_machine_json_v0 : Types.RuntimeT.dval -> string
 
 (* When receiving unknown json from the user, or via a HTTP API, attempt to
  * convert everything into reasonable types, in the absense of a schema.  *)
-val of_unknown_json : string -> Types.RuntimeT.dval
+val of_unknown_json_v0 : string -> Types.RuntimeT.dval
 
 (* JSON coming in from the user as part of a known API should have a type which
  * can act as a schema to reconstruct the data perfectly. Redacts passwords. *)
@@ -90,7 +90,6 @@ val of_unknown_json : string -> Types.RuntimeT.dval
   *)
 
 (* uses:
-  * Libstd::toString
   * headers in httpclient
   * *)
 val as_string : Types.RuntimeT.dval -> string
