@@ -733,6 +733,10 @@ let to_string_pairs_exn dv : (string * string) list =
   dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
 
 
+(* ------------------------- *)
+(* Forms and queries Functions *)
+(* ------------------------- *)
+
 (* For putting into URLs as query params *)
 let rec to_url_string_exn (dv : dval) : string =
   match dv with
