@@ -180,6 +180,5 @@ val hash : Types.RuntimeT.dval list -> string
 (* ------------------------- *)
 (* Old functions for testing only *)
 (* ------------------------- *)
-val old_to_human_repr : Types.RuntimeT.dval -> string
 
 val old_to_repr : Types.RuntimeT.dval -> string
