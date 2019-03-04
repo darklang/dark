@@ -174,16 +174,19 @@ let fns : Lib.shortfn list =
                      | "secure", DBool b | "httponly", DBool b ->
                          if b then [x] else []
                      (* X=y set-cookie params *)
-                     | "path", DStr _
-                     | "domain", DStr _
-                     | "samesite", DStr _
-                     | "max-age", DInt _
-                     | "expires", DInt _ ->
-                         [Format.sprintf "%s=%s" x (Dval.as_string y)]
+                     | "path", DStr str
+                     | "domain", DStr str
+                     | "samesite", DStr str ->
+                         [ Format.sprintf
+                             "%s=%s"
+                             x
+                             (Unicode_string.to_string str) ]
+                     | "max-age", DInt i | "expires", DInt i ->
+                         [Format.sprintf "%s=%s" x (string_of_int i)]
                      (* Throw if there's not a good way to transform the k/v pair *)
                      | _ ->
                          y
-                         |> Dval.as_string
+                         |> Dval.to_developer_repr_v0
                          |> Format.sprintf "Unknown set-cookie param: %s: %s" x
                          |> Exception.user )
               (* Combine it into a set-cookie header *)

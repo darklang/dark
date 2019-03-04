@@ -99,11 +99,11 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
 
 
 let check_error_contains (name : string) (result : dval) (substring : string) =
-  let strresult = Dval.as_string result in
+  let strresult = Dval.to_developer_repr_v0 result in
   AT.(check bool)
     (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
     true
-    (String.is_substring ~substring (Dval.as_string result))
+    (String.is_substring ~substring strresult)
 
 
 (* ------------------- *)
