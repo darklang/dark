@@ -14,12 +14,10 @@ let error
   Exception.raise_
     UserCode
     ?bt
-    ~actual:
-      (actual |> Dval.unsafe_dval_to_yojson |> Yojson.Safe.pretty_to_string)
-    ~result:
-      (result |> Dval.unsafe_dval_to_yojson |> Yojson.Safe.pretty_to_string)
-    ~actual_tipe:(actual |> Dval.tipename)
-    ~result_tipe:(result |> Dval.tipename)
+    ~actual:(Dval.to_developer_repr_v0 actual)
+    ~result:(Dval.to_developer_repr_v0 result)
+    ~actual_tipe:(Dval.tipename actual)
+    ~result_tipe:(Dval.tipename result)
     ~info
     ~expected
     ~workarounds
