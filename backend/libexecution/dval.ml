@@ -341,8 +341,8 @@ let as_literal (dv : dval) : string =
   match dv with
   | DStr s ->
       "\"" ^ Unicode_string.to_string s ^ "\""
-  | DChar _ ->
-      "'" ^ as_string dv ^ "'"
+  | DChar c ->
+      "'" ^ Char.to_string c ^ "'"
   | DCharacter c ->
       "'" ^ Unicode_string.Character.to_string c ^ "'"
   | _ ->
