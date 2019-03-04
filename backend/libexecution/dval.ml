@@ -285,24 +285,6 @@ let empty_dobj : dval = DObj DvalMap.empty
 (* ------------------------- *)
 (* Old Representations *)
 (* ------------------------- *)
-let list_to_formatted_string ~(f : dval -> string) (l : dval list) : string =
-  if List.is_empty l
-  then "[]"
-  else "[ " ^ String.concat ~sep:", " (List.map ~f l) ^ "]"
-
-
-let object_to_formatted_string ~(f : dval -> string) (obj : dval_map) : string
-    =
-  if DvalMap.is_empty obj
-  then "{}"
-  else
-    let strs =
-      DvalMap.fold obj ~init:[] ~f:(fun ~key ~data l ->
-          (key ^ ": " ^ f data) :: l )
-    in
-    "{ " ^ String.concat ~sep:", " strs ^ "}"
-
-
 let dhttp_to_formatted_string (d : dhttp) : string =
   match d with
   | Redirect url ->
@@ -403,6 +385,37 @@ let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
       wrap (as_string dv)
   | _ ->
       open_ ^ (dv |> tipename) ^ close_
+
+
+let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
+  let rec inner (indent : int) (dv : dval) : string =
+    let nl = "\n" ^ String.make indent ' ' in
+    let inl = "\n" ^ String.make (indent + 2) ' ' in
+    let indent = indent + 2 in
+    let recurse = inner indent in
+    match dv with
+    | DList l ->
+        if List.is_empty l
+        then "[]"
+        else
+          "[ "
+          ^ inl
+          ^ String.concat ~sep:", " (List.map ~f:recurse l)
+          ^ nl
+          ^ "]"
+    | DObj o ->
+        if DvalMap.is_empty o
+        then "{}"
+        else
+          let strs =
+            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+                (key ^ ": " ^ recurse data) :: l )
+          in
+          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
+    | _ ->
+        reprfn dv
+  in
+  inner 0 dv
 
 
 (* A full representation, building on to_simple_repr, but including
@@ -872,44 +885,53 @@ let as_simple_stringable dv : string option =
       None
 
 
-let rec to_enduser_readable_text_v0 dv =
-  let f = to_enduser_readable_text_v0 in
-  match as_simple_stringable dv with
-  | Some str ->
-      str
-  | None ->
-    ( match dv with
-    | DDB dbname ->
-        "<DB: " ^ dbname ^ ">"
-    | DError msg ->
-        "Error: " ^ msg
-    | DIncomplete ->
-        "<Incomplete>"
-    | DBlock _ ->
-        "<Block>"
-    | DPassword _ ->
-        (* redacting, do not unredact *)
-        "<Password>"
-    | DObj o ->
-        object_to_formatted_string o ~f
-    | DList l ->
-        list_to_formatted_string l ~f
-    | DErrorRail nested ->
-        (* We don't print error here, because the errorrail value will know
-       * whether it's an error or not. *)
-        f nested
-    | DResp (dh, dv) ->
-        dhttp_to_formatted_string dh ^ "\n" ^ f dv
-    | DResult (ResOk nested) ->
-        f nested
-    | DResult (ResError nested) ->
-        "Error: " ^ f nested
-    | DOption (OptJust nested) ->
-        f nested
-    | DOption OptNothing ->
-        "<Nothing>"
+let rec to_enduser_readable_text_v0 dval =
+  let rec nestedreprfn dv =
+    (* If nesting inside an object or a list, wrap strings in quotes *)
+    match dv with
+    | DStr _ | DID _ | DTitle _ | DUrl _ | DUuid _ | DCharacter _ ->
+        "\"" ^ reprfn dv ^ "\""
     | _ ->
-        Exception.internal "Stringable not handled" )
+        reprfn dv
+  and reprfn dv =
+    match as_simple_stringable dv with
+    | Some str ->
+        str
+    | None ->
+      ( match dv with
+      | DDB dbname ->
+          dbname
+      | DError msg ->
+          "Error: " ^ msg
+      | DIncomplete ->
+          "<incomplete>"
+      | DBlock _ ->
+          "<block>"
+      | DPassword _ ->
+          (* redacting, do not unredact *)
+          "<password>"
+      | DObj o ->
+          to_nested_string ~reprfn:nestedreprfn dv
+      | DList l ->
+          to_nested_string ~reprfn:nestedreprfn dv
+      | DErrorRail d ->
+          (* We don't print error here, because the errorrail value will know
+         * whether it's an error or not. *)
+          "ErrorRail: " ^ reprfn d
+      | DResp (dh, dv) ->
+          dhttp_to_formatted_string dh ^ "\n" ^ nestedreprfn dv ^ ""
+      | DResult (ResOk d) ->
+          reprfn d
+      | DResult (ResError d) ->
+          "Error: " ^ reprfn d
+      | DOption (OptJust d) ->
+          "Just " ^ reprfn d
+      | DOption OptNothing ->
+          "Nothing"
+      | _ ->
+          Exception.internal "Stringable not handled" )
+  in
+  reprfn dval
 
 
 let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
@@ -963,6 +985,45 @@ let of_unknown_json_v0 str =
     Exception.user ~actual:str ("Invalid json" ^ Exception.to_string e)
 
 
+let rec show dv =
+  match as_simple_stringable dv with
+  | Some str ->
+      "<" ^ tipename dv ^ ": " ^ str ^ ">"
+  | None ->
+    ( match dv with
+    | DDB dbname ->
+        "<db: " ^ dbname ^ ">"
+    | DError msg ->
+        "<error: " ^ msg ^ ">"
+    | DIncomplete ->
+        "<incomplete>"
+    | DBlock _ ->
+        "<block>"
+    | DPassword _ ->
+        (* redacting, do not unredact *)
+        "<password>"
+    | DObj o ->
+        to_nested_string ~reprfn:show dv
+    | DList l ->
+        to_nested_string ~reprfn:show dv
+    | DErrorRail d ->
+        (* We don't print error here, because the errorrail value will know
+         * whether it's an error or not. *)
+        "<ErrorRail: " ^ show d ^ ">"
+    | DResp (dh, dv) ->
+        dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
+    | DResult (ResOk d) ->
+        "Ok " ^ show d
+    | DResult (ResError d) ->
+        "Error " ^ show d
+    | DOption (OptJust d) ->
+        "Just " ^ show d
+    | DOption OptNothing ->
+        "Nothing"
+    | _ ->
+        Exception.internal "Stringable not handled" )
+
+
 (* ------------------------- *)
 (* Hashes *)
 (* ------------------------- *)
@@ -992,3 +1053,6 @@ let rec old_to_human_repr (dv : dval) : string =
   (* contents of lists and objs should still be quoted *)
   | _ ->
       to_repr dv
+
+
+let old_to_repr s = to_repr s

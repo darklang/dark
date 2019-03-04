@@ -63,7 +63,7 @@ let clear_test_data () : unit =
 
 let at_dval =
   AT.testable
-    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_developer_repr_v0 dv))
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
     (fun a b -> compare_dval a b = 0)
 
 
@@ -215,35 +215,51 @@ let t4_get4th (_, _, _, x) = x
 
 let sample_dvals =
   [ ("int", DInt 5)
-  ; ("int", DInt 5)
-  ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
-  ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
-  ; ("incomplete", DIncomplete)
+  ; ("int2", DInt (-1))
   ; ("float", DFloat 7.2)
+  ; ("float2", DFloat (-7.2))
   ; ("true", DBool true)
   ; ("false", DBool false)
-  ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
   ; ("null", DNull)
-  ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
-  ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
-  ; ("title", DTitle "some title")
-  ; ("errorrail", DErrorRail (DInt 5))
-  ; ("option", DOption OptNothing)
-  ; ("option", DOption (OptJust (DInt 15)))
-  ; ("db", DDB "Visitors")
+  ; ("char", DChar 'c')
+  ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
   ; ("list", DList [DDB "Visitors"; DInt 4])
-  ; ("redirect", DResp (Redirect "/home", DNull))
-  ; ( "httpresponse"
-    , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
-  ; ( "weird assoc 1"
+  ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
+  ; ( "obj2"
     , DObj
         (DvalMap.of_alist_exn
            [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
-  ; ( "weird assoc 2"
+  ; ( "obj3"
     , DObj
         (DvalMap.of_alist_exn
            [ ("type", Dval.dstr_of_string_exn "weird")
-           ; ("value", Dval.dstr_of_string_exn "x") ]) ) ]
+           ; ("value", Dval.dstr_of_string_exn "x") ]) )
+  ; ("incomplete", DIncomplete) (* ; ("error", DError "some error string") *)
+  ; ("block", DBlock (fun _args -> DNull))
+  ; ("errorrail", DErrorRail (DInt 5))
+  ; ("redirect", DResp (Redirect "/home", DNull))
+  ; ( "httpresponse"
+    , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
+  ; ("db", DDB "Visitors")
+  ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
+  ; ("title", DTitle "some title")
+  ; ("url", DUrl "https://darklang.com")
+  ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+  ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("option", DOption OptNothing)
+  ; ("option2", DOption (OptJust (DInt 15)))
+    (* ; ( "character" *)
+    (*   , "s" *)
+    (*     |> Unicode_string.of_string_exn *)
+    (*     |> Unicode_string.characters *)
+    (*     |> List.hd_exn *)
+    (*     |> fun x -> DCharacter x ) *)
+  (* ; ("result", DResult (ResOk (DInt 15))) *)
+  (* ; ( "result2" *)
+  (*   , DResult *)
+  (*       (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"])) *)
+    ) ]
 
 
 (* ------------------- *)
@@ -760,9 +776,7 @@ let t_dval_yojson_roundtrips () =
     |> Dval.of_internal_roundtrippable_v0
   in
   let queryable_rt v =
-    v
-    |> Dval.to_internal_roundtrippable_v0
-    |> Dval.of_internal_roundtrippable_v0
+    v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v0
   in
   (* Don't really need to check this but what harm *)
   let safe_rt v =
@@ -774,7 +788,9 @@ let t_dval_yojson_roundtrips () =
     check_dval ("queryable" ^ name) v (queryable_rt v) ;
     ()
   in
-  List.iter sample_dvals ~f:(fun (name, dv) -> check name dv)
+  sample_dvals
+  |> List.filter ~f:(function _, DBlock _ -> false | _ -> true)
+  |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
 let t_password_hashing_and_checking_works () =
@@ -2163,6 +2179,16 @@ let t_result_to_response_works () =
   ()
 
 
+let t_old_new_dval_reprs () =
+  List.iter sample_dvals ~f:(fun (name, dv) ->
+      AT.check
+        AT.string
+        ("old_new_dval check: " ^ name)
+        (Dval.old_to_human_repr dv)
+        (Dval.to_enduser_readable_text_v0 dv) ) ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2342,7 +2368,10 @@ let suite =
   ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
   ; ( "Dvals get converted to web responses correctly"
     , `Quick
-    , t_result_to_response_works ) ]
+    , t_result_to_response_works )
+  ; ( "New dval representations are the same as the old ones"
+    , `Quick
+    , t_old_new_dval_reprs ) ]
 
 
 let () =
