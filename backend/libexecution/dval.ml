@@ -454,53 +454,6 @@ let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
   inner 0 dv
 
 
-(* A full representation, building on to_simple_repr, but including
- * lists and objects. *)
-let rec to_repr
-    ?(pp = true)
-    ?(open_ = "<")
-    ?(close_ = ">")
-    ?(reprfn : dval -> string = to_simple_repr ~open_ ~close_)
-    (dv : dval) : string =
-  let rec to_repr_ (indent : int) (pp : bool) (dv : dval) : string =
-    let nl = if pp then "\n" ^ String.make indent ' ' else " " in
-    let inl = if pp then "\n" ^ String.make (indent + 2) ' ' else "" in
-    let indent = indent + 2 in
-    match dv with
-    | dv when is_stringable dv ->
-        reprfn dv
-    | DResp (h, hdv) ->
-        dhttp_to_formatted_string h ^ nl ^ to_repr_ indent pp hdv
-    | DList l ->
-        if List.is_empty l
-        then "[]"
-        else
-          "[ "
-          ^ inl
-          ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent pp) l)
-          ^ nl
-          ^ "]"
-    | DObj o ->
-        if DvalMap.is_empty o
-        then "{}"
-        else
-          let strs =
-            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                (key ^ ": " ^ to_repr_ indent pp data) :: l )
-          in
-          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
-    | DOption OptNothing ->
-        "Nothing"
-    | DOption (OptJust dv) ->
-        "Just " ^ to_repr_ indent pp dv
-    | DErrorRail dv ->
-        "ErrorRail: " ^ to_repr_ indent pp dv
-    | _ ->
-        failwith ("printing an unprintable value:" ^ to_simple_repr dv)
-  in
-  to_repr_ 0 pp dv
-
-
 (* ------------------------- *)
 (* Json *)
 (* ------------------------- *)
@@ -727,113 +680,6 @@ let parse_literal (str : string) : dval option =
 
 
 (* ------------------------- *)
-(* Conversion Functions *)
-(* ------------------------- *)
-let to_char dv : string option =
-  match dv with
-  | DCharacter c ->
-      Some (Unicode_string.Character.to_string c)
-  | _ ->
-      None
-
-
-let to_char_deprecated dv : char option =
-  match dv with DChar c -> Some c | _ -> None
-
-
-let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
-
-let to_dobj_exn (pairs : (string * dval) list) : dval =
-  try DObj (DvalMap.of_alist_exn pairs) with e ->
-    DError "The same key occurs multiple times"
-
-
-let to_string_exn dv : string =
-  match dv with
-  | DStr s ->
-      Unicode_string.to_string s
-  | _ ->
-      Exception.user "expecting str" ~actual:(to_repr dv)
-
-
-let to_dval_pairs_exn dv : (string * dval) list =
-  match dv with
-  | DObj obj ->
-      obj |> DvalMap.to_alist
-  | _ ->
-      Exception.user "expecting str" ~actual:(to_repr dv)
-
-
-let to_string_pairs_exn dv : (string * string) list =
-  dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
-
-
-(* For putting into URLs as query params *)
-let rec to_url_string_exn (dv : dval) : string =
-  match dv with
-  | dv when is_stringable dv ->
-      as_string dv
-  | DResp (_, hdv) ->
-      to_url_string_exn hdv
-  | DList l ->
-      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
-  | DObj o ->
-      let strs =
-        DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-            (key ^ ": " ^ to_url_string_exn data) :: l )
-      in
-      "{ " ^ String.concat ~sep:", " strs ^ " }"
-  | _ ->
-      failwith "to_url_string of unurlable value"
-
-
-(* ------------------------- *)
-(* Forms and queries Functions *)
-(* ------------------------- *)
-
-let query_to_dval (query : (string * string list) list) : dval =
-  query
-  |> List.map ~f:(fun (key, vals) ->
-         let dval =
-           match vals with
-           | [] ->
-               DNull
-           | [v] ->
-               if v = "" then DNull else dstr_of_string_exn v
-           | vals ->
-               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
-         in
-         (key, dval) )
-  |> DvalMap.of_alist_exn
-  |> fun x -> DObj x
-
-
-let dval_to_query (dv : dval) : (string * string list) list =
-  match dv with
-  | DObj kvs ->
-      kvs
-      |> DvalMap.to_alist
-      |> List.map ~f:(fun (k, value) ->
-             match value with
-             | DNull ->
-                 (k, [])
-             | DList l ->
-                 (k, List.map ~f:to_url_string_exn l)
-             | _ ->
-                 (k, [to_url_string_exn value]) )
-  | _ ->
-      Exception.user "attempting to use non-object as query param"
-
-
-let to_form_encoding (dv : dval) : string =
-  dv |> dval_to_query |> Uri.encoded_of_query
-
-
-let of_form_encoding (f : string) : dval =
-  f |> Uri.query_of_encoded |> query_to_dval
-
-
-(* ------------------------- *)
 (* New Representations *)
 (* ------------------------- *)
 let to_internal_roundtrippable_v0 dval : string =
@@ -1000,16 +846,158 @@ let rec show dv =
 
 
 (* ------------------------- *)
+(* Conversion Functions *)
+(* ------------------------- *)
+let to_char dv : string option =
+  match dv with
+  | DCharacter c ->
+      Some (Unicode_string.Character.to_string c)
+  | _ ->
+      None
+
+
+let to_char_deprecated dv : char option =
+  match dv with DChar c -> Some c | _ -> None
+
+
+let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
+
+let to_dobj_exn (pairs : (string * dval) list) : dval =
+  try DObj (DvalMap.of_alist_exn pairs) with e ->
+    DError "The same key occurs multiple times"
+
+
+let to_string_exn dv : string =
+  match dv with
+  | DStr s ->
+      Unicode_string.to_string s
+  | _ ->
+      Exception.user "expecting str" ~actual:(to_developer_repr_v0 dv)
+
+
+let to_dval_pairs_exn dv : (string * dval) list =
+  match dv with
+  | DObj obj ->
+      obj |> DvalMap.to_alist
+  | _ ->
+      Exception.user "expecting str" ~actual:(to_developer_repr_v0 dv)
+
+
+let to_string_pairs_exn dv : (string * string) list =
+  dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
+
+
+(* For putting into URLs as query params *)
+let rec to_url_string_exn (dv : dval) : string =
+  match dv with
+  | dv when is_stringable dv ->
+      as_string dv
+  | DResp (_, hdv) ->
+      to_url_string_exn hdv
+  | DList l ->
+      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
+  | DObj o ->
+      let strs =
+        DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+            (key ^ ": " ^ to_url_string_exn data) :: l )
+      in
+      "{ " ^ String.concat ~sep:", " strs ^ " }"
+  | _ ->
+      failwith "to_url_string of unurlable value"
+
+
+(* ------------------------- *)
+(* Forms and queries Functions *)
+(* ------------------------- *)
+
+let query_to_dval (query : (string * string list) list) : dval =
+  query
+  |> List.map ~f:(fun (key, vals) ->
+         let dval =
+           match vals with
+           | [] ->
+               DNull
+           | [v] ->
+               if v = "" then DNull else dstr_of_string_exn v
+           | vals ->
+               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
+         in
+         (key, dval) )
+  |> DvalMap.of_alist_exn
+  |> fun x -> DObj x
+
+
+let dval_to_query (dv : dval) : (string * string list) list =
+  match dv with
+  | DObj kvs ->
+      kvs
+      |> DvalMap.to_alist
+      |> List.map ~f:(fun (k, value) ->
+             match value with
+             | DNull ->
+                 (k, [])
+             | DList l ->
+                 (k, List.map ~f:to_url_string_exn l)
+             | _ ->
+                 (k, [to_url_string_exn value]) )
+  | _ ->
+      Exception.user "attempting to use non-object as query param"
+
+
+let to_form_encoding (dv : dval) : string =
+  dv |> dval_to_query |> Uri.encoded_of_query
+
+
+let of_form_encoding (f : string) : dval =
+  f |> Uri.query_of_encoded |> query_to_dval
+
+
+(* ------------------------- *)
 (* Hashes *)
 (* ------------------------- *)
+
+(* A full representation, building on to_simple_repr, but including
+ * lists and objects. *)
 let rec to_hashable_repr (dv : dval) : string =
-  match dv with
-  | DDB dbname ->
-      "<db: " ^ dbname ^ ">"
-  | dv when is_stringable dv ->
-      to_simple_repr dv
-  | _ ->
-      to_repr ~reprfn:to_hashable_repr dv
+  let rec to_repr_ (indent : int) (dv : dval) : string =
+    let nl = "\n" ^ String.make indent ' ' in
+    let inl = "\n" ^ String.make (indent + 2) ' ' in
+    let indent = indent + 2 in
+    match dv with
+    | DDB dbname ->
+        "<db: " ^ dbname ^ ">"
+    | dv when is_stringable dv ->
+        to_simple_repr dv
+    | DResp (h, hdv) ->
+        dhttp_to_formatted_string h ^ nl ^ to_repr_ indent hdv
+    | DList l ->
+        if List.is_empty l
+        then "[]"
+        else
+          "[ "
+          ^ inl
+          ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l)
+          ^ nl
+          ^ "]"
+    | DObj o ->
+        if DvalMap.is_empty o
+        then "{}"
+        else
+          let strs =
+            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+                (key ^ ": " ^ to_repr_ indent data) :: l )
+          in
+          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
+    | DOption OptNothing ->
+        "Nothing"
+    | DOption (OptJust dv) ->
+        "Just " ^ to_repr_ indent dv
+    | DErrorRail dv ->
+        "ErrorRail: " ^ to_repr_ indent dv
+    | _ ->
+        failwith ("printing an unprintable value:" ^ to_simple_repr dv)
+  in
+  to_repr_ 0 dv
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
