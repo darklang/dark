@@ -532,6 +532,25 @@ body #grid * {
   }
 }
 
+.routing-section.deploys .simple-route.deploy {
+  display: block;
+  margin-left: 16px;
+  color: @grey3;
+  font-size: 0.8rem;
+
+  .datetime, .hash {
+    margin-right: 2ch;
+  }
+
+  .status {
+    color: @white1;
+
+    &.success {
+      color: @green;
+    }
+  }
+}
+
 //*************
 // DB
 //*************
