@@ -1,5 +1,4 @@
 open Core_kernel
-module RT = Runtime
 open Types.RuntimeT
 
 (* Internal invariant, _must_ be a DObj *)
