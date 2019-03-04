@@ -711,7 +711,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
       | None ->
           (* Attempted to execute a function in a toplevel that we just deleted! *)
-          (m, Cmd.none) )
+          (m, Cmd.none) |> updateMod (ExecutingFunctionComplete [(tlid, id)])
+      )
     | ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member ~value:target targets in
         let nexecutingFunctions =
