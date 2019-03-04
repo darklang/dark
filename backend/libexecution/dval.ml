@@ -746,7 +746,7 @@ let rec to_enduser_readable_text_v0 dval =
       | DResult (ResError d) ->
           "Error: " ^ reprfn d
       | DOption (OptJust d) ->
-          "Just " ^ reprfn d
+          reprfn d
       | DOption OptNothing ->
           "Nothing"
       | _ ->
