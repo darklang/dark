@@ -693,15 +693,6 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
           [unsafe_dval_to_yojson ~redact dv] )
 
 
-let parse_basic_json (str : string) : dval option =
-  try
-    str
-    |> Yojson.Safe.from_string
-    |> unsafe_dval_of_yojson_
-    |> fun dv -> Some dv
-  with Yojson.Json_error e -> None
-
-
 let parse_literal (str : string) : dval option =
   (* str is a raw string that the user entered. It is not valid json,
    * or anything like it. We use the json parser to get values from int
@@ -723,7 +714,16 @@ let parse_literal (str : string) : dval option =
     |> fun s -> Some (dstr_of_string_exn s)
   else if String.Caseless.equal "nothing" str
   then Some (DOption OptNothing)
-  else parse_basic_json str
+  else
+    (* We're doing this for ints and floats, but also possibly some other
+     * stuff. Originally we thought we were going to be parsing lots of things
+     * here like actual json objects, but that hasn't materialized. *)
+    try
+      str
+      |> Yojson.Safe.from_string
+      |> unsafe_dval_of_yojson_
+      |> fun dv -> Some dv
+    with Yojson.Json_error e -> None
 
 
 (* ------------------------- *)
