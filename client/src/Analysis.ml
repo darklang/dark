@@ -80,40 +80,36 @@ let replaceFunctionResult
   {m with traces}
 
 
-let getArguments (m : model) (tlid : tlid) (traceID : traceID) (callerID : id)
-    : dval list option =
-  let tl = TL.get m tlid in
-  match tl with
-  | None ->
-      None
-  | Some tl ->
-      let caller = TL.find tl callerID in
-      let threadPrevious =
-        match TL.rootOf tl with
-        | Some (PExpr expr) ->
-            Option.toList (AST.threadPrevious callerID expr)
-        | _ ->
-            []
-      in
-      let args =
-        match caller with
-        | Some (PExpr (F (_, FnCall (_, args, _)))) ->
-            threadPrevious @ args
-        | _ ->
-            []
-      in
-      let argIDs = List.map ~f:B.toID args in
-      let analyses = StrDict.get ~key:traceID m.analyses in
-      let dvals =
-        match analyses with
-        | Some analyses_ ->
-            List.filterMap
-              ~f:(fun id -> StrDict.get ~key:(deID id) analyses_.liveValues)
-              argIDs
-        | None ->
-            []
-      in
-      if List.length dvals = List.length argIDs then Some dvals else None
+let getArguments
+    (m : model) (tl : toplevel) (traceID : traceID) (callerID : id) :
+    dval list option =
+  let caller = TL.find tl callerID in
+  let threadPrevious =
+    match TL.rootOf tl with
+    | Some (PExpr expr) ->
+        Option.toList (AST.threadPrevious callerID expr)
+    | _ ->
+        []
+  in
+  let args =
+    match caller with
+    | Some (PExpr (F (_, FnCall (_, args, _)))) ->
+        threadPrevious @ args
+    | _ ->
+        []
+  in
+  let argIDs = List.map ~f:B.toID args in
+  let analyses = StrDict.get ~key:traceID m.analyses in
+  let dvals =
+    match analyses with
+    | Some analyses_ ->
+        List.filterMap
+          ~f:(fun id -> StrDict.get ~key:(deID id) analyses_.liveValues)
+          argIDs
+    | None ->
+        []
+  in
+  if List.length dvals = List.length argIDs then Some dvals else None
 
 
 (* ---------------------- *)

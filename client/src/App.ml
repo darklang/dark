@@ -685,27 +685,33 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionRPC (tlid, id, name) ->
-      ( match Analysis.getCurrentTrace m tlid with
-      | Some (traceID, _) ->
-        ( match Analysis.getArguments m tlid traceID id with
-        | Some args ->
-            let params =
-              { efpTLID = tlid
-              ; efpCallerID = id
-              ; efpTraceID = traceID
-              ; efpFnName = name
-              ; efpArgs = args }
-            in
-            (m, RPC.executeFunction m params)
+      ( match TL.get m tlid with
+      | Some tl ->
+        ( match Analysis.getCurrentTrace m tlid with
+        | Some (traceID, _) ->
+          ( match Analysis.getArguments m tl traceID id with
+          | Some args ->
+              let params =
+                { efpTLID = tlid
+                ; efpCallerID = id
+                ; efpTraceID = traceID
+                ; efpFnName = name
+                ; efpArgs = args }
+              in
+              (m, RPC.executeFunction m params)
+          | None ->
+              (m, Cmd.none)
+              |> updateMod
+                   (DisplayError "Traces are not loaded for this handler")
+              |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
         | None ->
             (m, Cmd.none)
             |> updateMod
                  (DisplayError "Traces are not loaded for this handler")
             |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
       | None ->
-          (m, Cmd.none)
-          |> updateMod (DisplayError "Traces are not loaded for this handler")
-          |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
+          (* Attempted to execute a function in a toplevel that we just deleted! *)
+          (m, Cmd.none) )
     | ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member ~value:target targets in
         let nexecutingFunctions =
