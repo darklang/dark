@@ -26,21 +26,14 @@ let body_parser_type headers =
   else Unknown
 
 
-let parser_fn p str =
+let parser_fn p (str : string) : dval =
   match p with
   | Json ->
-    ( match Dval.parse_basic_json str with
-    | Some dv ->
-        dv
-    | None ->
-        Exception.user ~actual:str "Invalid json" )
+      Dval.of_unknown_json_v0 str
   | Form ->
       Dval.from_form_encoding str
   | Unknown ->
-    ( match Dval.parse_basic_json str with
-    | Some dv ->
-        dv
-    | None ->
+    ( try Dval.of_unknown_json_v0 str with e ->
         Exception.enduser
           ~actual:str
           "Unknown Content-type -- we assumed application/json but invalid JSON was sent"

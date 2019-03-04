@@ -99,28 +99,6 @@ val of_unknown_json_v0 : string -> Types.RuntimeT.dval
   * *)
 val to_url_string_exn : Types.RuntimeT.dval -> string
 
-(* json *)
-
-(* Uses:
-   * user_db
-   * runtime errors
-   * libhttpclient
-   *)
-val unsafe_dval_to_yojson :
-  ?redact:bool -> Types.RuntimeT.dval -> Yojson.Safe.json
-
-(* parsing *)
-(* Uses:
-  * JSON::read
-  * parsed_request
-  * parse_literal
-  * libhttpclient
-  *)
-val parse_basic_json : string -> Types.RuntimeT.dval option
-
-(* Parse our internal literal strings (eg AST Values) *)
-val parse_literal : string -> Types.RuntimeT.dval option
-
 (* queries *)
 (* Uses:
   * from_form_encoding
@@ -149,9 +127,11 @@ val from_form_encoding : string -> Types.RuntimeT.dval
 (* Conversion Functions *)
 (* ------------------------- *)
 
+(* Parse our internal literal strings (eg AST Values) *)
+val parse_literal : string -> Types.RuntimeT.dval option
+
 (* If a DCharacter, returns `Some char`, as a string (Dark characters are EGCs,
  * and can be longer than a byte. *)
-
 val to_char : Types.RuntimeT.dval -> string option
 
 (* If a DChar, returns a char. *)

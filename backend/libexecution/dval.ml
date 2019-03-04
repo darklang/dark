@@ -973,7 +973,10 @@ let to_pretty_machine_json_v0 _dval =
   `Null |> Yojson.Basic.pretty_to_string ~std:false
 
 
-let of_unknown_json_v0 _json = DNull
+let of_unknown_json_v0 str =
+  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_ with e ->
+    Exception.user ~actual:str ("Invalid json" ^ Exception.to_string e)
+
 
 (* ------------------------- *)
 (* Conversions *)
