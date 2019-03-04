@@ -24,14 +24,6 @@ let has_json_header (headers : headers) : bool =
          |> String.is_substring ~substring:"application/json" )
 
 
-let read_json (json : string) : dval =
-  match Dval.parse_basic_json json with
-  | Some dv ->
-      dv
-  | None ->
-      Exception.user ~actual:json "Invalid json"
-
-
 (* TODO: integrate with dark_request *)
 let send_request uri verb body query_ headers_ =
   let query = Dval.dval_to_query query_ in
@@ -48,7 +40,7 @@ let send_request uri verb body query_ headers_ =
     if has_form_header headers
     then Dval.from_form_encoding result
     else if has_json_header headers
-    then read_json result
+    then Dval.of_unknown_json_v0 result
     else Dval.dstr_of_string_exn result
   in
   let parsed_headers =

@@ -557,11 +557,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr json] ->
-            ( match Dval.parse_basic_json (Unicode_string.to_string json) with
-            | Some dv ->
-                dv
-            | _ ->
-                DNull )
+            ( try Dval.of_unknown_json_v0 (Unicode_string.to_string json)
+              with _ -> DNull )
           | args ->
               fail args)
     ; ps = true
