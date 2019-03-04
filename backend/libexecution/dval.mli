@@ -102,14 +102,6 @@ val to_url_string_exn : Types.RuntimeT.dval -> string
 (* json *)
 
 (* Uses:
-   * stored_function_result
-   * stored_event
-   * event queue
-   * user_db
-   *)
-val unsafe_dval_of_json_string : string -> Types.RuntimeT.dval
-
-(* Uses:
    * user_db
    * runtime errors
    * libhttpclient
