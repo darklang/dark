@@ -90,11 +90,6 @@ val show : Types.RuntimeT.dval -> string
 (* val of_json_with_schema : schema: schema -> Yojson.Safe.json -> Types.RuntimeT.dval *)
 (* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.json  *)
 
-(* all uses:
-  * url query string
-  * form encoding
-  *)
-
 (* For putting into URLs as query params 
  * uses:
   * Libtwitter urls
@@ -103,21 +98,11 @@ val show : Types.RuntimeT.dval -> string
 val to_url_string_exn : Types.RuntimeT.dval -> string
 
 (* queries *)
-(* Uses:
-  * from_form_encoding
-  * parsed_request
-  *)
 val query_to_dval : (string * string list) list -> Types.RuntimeT.dval
 
-(* Uses:
-  * libhttpclient
-   *)
 val dval_to_query : Types.RuntimeT.dval -> (string * string list) list
 
 (* forms *)
-(* Uses:
-  * libhttpclient
-   *)
 val to_form_encoding : Types.RuntimeT.dval -> string
 
 val of_form_encoding : string -> Types.RuntimeT.dval
@@ -142,9 +127,12 @@ val to_int : Types.RuntimeT.dval -> int option
  * string. *)
 val to_string_exn : Types.RuntimeT.dval -> string
 
-(* Converts an object to string pairs. Raises an exception if not an object. *)
+(* Converts an object to (string,string) pairs. Raises an exception if not an
+ * object. *)
 val to_string_pairs_exn : Types.RuntimeT.dval -> (string * string) list
 
+(* Converts an object to (string,dval) pairs. Raises an exception if not an
+ * object. *)
 val to_dval_pairs_exn :
   Types.RuntimeT.dval -> (string * Types.RuntimeT.dval) list
 
