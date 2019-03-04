@@ -81,6 +81,9 @@ val to_pretty_machine_json_v0 : Types.RuntimeT.dval -> string
  * convert everything into reasonable types, in the absense of a schema.  *)
 val of_unknown_json_v0 : string -> Types.RuntimeT.dval
 
+(* For debugging internally, redacts by default. Never throws. *)
+val show : Types.RuntimeT.dval -> string
+
 (* JSON coming in from the user as part of a known API should have a type which
  * can act as a schema to reconstruct the data perfectly. Redacts passwords. *)
 (* type schema  *)
@@ -173,3 +176,10 @@ val empty_dobj : Types.RuntimeT.dval
 (* Misc *)
 (* ------------------------- *)
 val hash : Types.RuntimeT.dval list -> string
+
+(* ------------------------- *)
+(* Old functions for testing only *)
+(* ------------------------- *)
+val old_to_human_repr : Types.RuntimeT.dval -> string
+
+val old_to_repr : Types.RuntimeT.dval -> string
