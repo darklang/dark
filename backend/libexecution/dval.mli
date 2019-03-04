@@ -44,6 +44,9 @@ val to_internal_roundtrippable_v0 : Types.RuntimeT.dval -> string
  * bugs. *)
 val of_internal_roundtrippable_v0 : string -> Types.RuntimeT.dval
 
+val of_internal_roundtrippable_json_v0 :
+  Yojson.Safe.json -> (Types.RuntimeT.dval, string) Core_kernel._result
+
 (* This is a format used for roundtripping dvals internally, while still being
  * queryable. v0 has bugs due to a legacy of trying to make one function useful
  * for everything. Also roundtrippable. Does not redact. *)
@@ -98,16 +101,6 @@ val to_url_string_exn : Types.RuntimeT.dval -> string
 
 (* json *)
 
-(* The "unsafe" variations here are bad. They encode data ambiguously, and
- * though we mostly have the decoding right, it's brittle and unsafe.
- * Uses:
-   * twitter
-   * jsanalysis
-   *)
-
-val unsafe_dval_of_yojson :
-  Yojson.Safe.json -> (Types.RuntimeT.dval, string) Core_kernel.result
-
 (* Uses:
    * stored_function_result
    * stored_event
@@ -123,19 +116,6 @@ val unsafe_dval_of_json_string : string -> Types.RuntimeT.dval
    *)
 val unsafe_dval_to_yojson :
   ?redact:bool -> Types.RuntimeT.dval -> Yojson.Safe.json
-
-(* dvalmap *)
-(* Uses:
-  * user_db
-  * stored_function_arguments
-  *)
-val unsafe_dvalmap_to_yojson :
-  ?redact:bool -> Types.RuntimeT.dval_map -> Yojson.Safe.json
-
-(* Uses:
-  * stored_function_arguments
-  *)
-val unsafe_dvalmap_of_yojson : Yojson.Safe.json -> Types.RuntimeT.dval_map
 
 (* parsing *)
 (* Uses:

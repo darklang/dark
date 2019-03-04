@@ -832,6 +832,8 @@ let to_internal_roundtrippable_v0 dval : string =
   unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
 
 
+let of_internal_roundtrippable_json_v0 j = unsafe_dval_of_yojson j
+
 let of_internal_roundtrippable_v0 str : dval =
   str
   |> Yojson.Safe.from_string
