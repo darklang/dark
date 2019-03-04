@@ -38,7 +38,7 @@ let send_request uri verb body query_ headers_ =
   let result, headers = Httpclient.http_call uri query verb headers body in
   let parsed_result =
     if has_form_header headers
-    then Dval.from_form_encoding result
+    then Dval.of_form_encoding result
     else if has_json_header headers
     then Dval.of_unknown_json_v0 result
     else Dval.dstr_of_string_exn result

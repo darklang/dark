@@ -120,11 +120,7 @@ val dval_to_query : Types.RuntimeT.dval -> (string * string list) list
    *)
 val to_form_encoding : Types.RuntimeT.dval -> string
 
-(* Uses:
-  * parsed_request
-  * libhttpclient
-   *)
-val from_form_encoding : string -> Types.RuntimeT.dval
+val of_form_encoding : string -> Types.RuntimeT.dval
 
 (* ------------------------- *)
 (* Conversion Functions *)
