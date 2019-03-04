@@ -285,7 +285,25 @@ let empty_dobj : dval = DObj DvalMap.empty
 (* ------------------------- *)
 (* Old Representations *)
 (* ------------------------- *)
-let repr_of_dhttp (d : dhttp) : string =
+let list_to_formatted_string ~(f : dval -> string) (l : dval list) : string =
+  if List.is_empty l
+  then "[]"
+  else "[ " ^ String.concat ~sep:", " (List.map ~f l) ^ "]"
+
+
+let object_to_formatted_string ~(f : dval -> string) (obj : dval_map) : string
+    =
+  if DvalMap.is_empty obj
+  then "{}"
+  else
+    let strs =
+      DvalMap.fold obj ~init:[] ~f:(fun ~key ~data l ->
+          (key ^ ": " ^ f data) :: l )
+    in
+    "{ " ^ String.concat ~sep:", " strs ^ "}"
+
+
+let dhttp_to_formatted_string (d : dhttp) : string =
   match d with
   | Redirect url ->
       "302 " ^ url
@@ -403,7 +421,7 @@ let rec to_repr
     | dv when is_stringable dv ->
         reprfn dv
     | DResp (h, hdv) ->
-        repr_of_dhttp h ^ nl ^ to_repr_ indent pp hdv
+        dhttp_to_formatted_string h ^ nl ^ to_repr_ indent pp hdv
     | DList l ->
         if List.is_empty l
         then "[]"
@@ -836,17 +854,90 @@ let of_internal_queryable_v0 str : dval =
   |> Result.ok_or_failwith
 
 
-let to_text_plain_http_response _dval = "TODO"
+(* Utility function to handle the straightforward value-as-string conversions
+ * that don't change based on formatting. Returns None if it's not a simple
+ * stringable. *)
+let as_simple_stringable dv : string option =
+  match dv with
+  | DInt i ->
+      Some (string_of_int i)
+  | DBool true ->
+      Some "true"
+  | DBool false ->
+      Some "false"
+  | DStr s ->
+      Some (Unicode_string.to_string s)
+  | DFloat f ->
+      Some (string_of_float f)
+  | DChar c ->
+      Some (Char.to_string c)
+  | DCharacter c ->
+      Some (Unicode_string.Character.to_string c)
+  | DNull ->
+      Some "null"
+  | DID id ->
+      Some (Uuidm.to_string id)
+  | DDate d ->
+      Some (Util.isostring_of_date d)
+  | DTitle t ->
+      Some t
+  | DUrl url ->
+      Some url
+  | DUuid uuid ->
+      Some (Uuidm.to_string uuid)
+  | _ ->
+      None
 
-let to_text_html_http_response _dval = "TODO"
 
-let to_developer_repr _dval = "TODO"
+let rec to_enduser_readable_text_v0 dv =
+  let f = to_enduser_readable_text_v0 in
+  match as_simple_stringable dv with
+  | Some str ->
+      str
+  | None ->
+    ( match dv with
+    | DDB dbname ->
+        "<DB: " ^ dbname ^ ">"
+    | DError msg ->
+        "Error: " ^ msg
+    | DIncomplete ->
+        "<Incomplete>"
+    | DBlock _ ->
+        "<Block>"
+    | DPassword _ ->
+        (* redacting, do not unredact *)
+        "<Password>"
+    | DObj o ->
+        object_to_formatted_string o ~f
+    | DList l ->
+        list_to_formatted_string l ~f
+    | DErrorRail nested ->
+        (* We don't print error here, because the errorrail value will know
+       * whether it's an error or not. *)
+        f nested
+    | DResp (dh, dv) ->
+        dhttp_to_formatted_string dh ^ "\n" ^ f dv
+    | DResult (ResOk nested) ->
+        f nested
+    | DResult (ResError nested) ->
+        "Error: " ^ f nested
+    | DOption (OptJust nested) ->
+        f nested
+    | DOption OptNothing ->
+        "<Nothing>"
+    | _ ->
+        Exception.internal "Stringable not handled" )
 
-let to_pretty_machine_json _dval =
+
+let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
+
+let to_developer_repr_v0 dv = "TODO"
+
+let to_pretty_machine_json_v0 _dval =
   `Null |> Yojson.Basic.pretty_to_string ~std:true
 
 
-let of_unknown_json _json = DNull
+let of_unknown_json_v0 _json = DNull
 
 (* ------------------------- *)
 (* Conversions *)
