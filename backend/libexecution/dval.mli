@@ -90,12 +90,9 @@ val show : Types.RuntimeT.dval -> string
 (* val of_json_with_schema : schema: schema -> Yojson.Safe.json -> Types.RuntimeT.dval *)
 (* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.json  *)
 
-(* For putting into URLs as query params 
- * uses:
-  * Libtwitter urls
-  * dval_to_query
-  * *)
-val to_url_string_exn : Types.RuntimeT.dval -> string
+(* ------------------------- *)
+(* Conversion Functions *)
+(* ------------------------- *)
 
 (* queries *)
 val query_to_dval : (string * string list) list -> Types.RuntimeT.dval
@@ -136,7 +133,11 @@ val to_string_pairs_exn : Types.RuntimeT.dval -> (string * string) list
 val to_dval_pairs_exn :
   Types.RuntimeT.dval -> (string * Types.RuntimeT.dval) list
 
-(* Errors if the values in the list are not strings, or if any key is duplicated. *)
+(* For putting into URLs as query params  *)
+val to_url_string_exn : Types.RuntimeT.dval -> string
+
+(* Errors if the values in the list are not strings, or if any key is
+ * duplicated. *)
 val to_dobj_exn : (string * Types.RuntimeT.dval) list -> Types.RuntimeT.dval
 
 val exception_to_dval : Core_kernel.Exn.t -> Types.RuntimeT.dval
