@@ -236,10 +236,11 @@ let rec tipe_of (dv : dval) : tipe =
 
 
 (* Users should not be aware of this *)
-
 let tipename (dv : dval) : string =
   dv |> tipe_of |> tipe_to_string |> String.lowercase
 
+
+let pretty_tipename (dv : dval) : string = dv |> tipe_of |> tipe_to_string
 
 let tipe_to_yojson (t : tipe) : Yojson.Safe.json =
   `String (t |> tipe_to_string |> String.lowercase)
@@ -898,16 +899,16 @@ let rec to_enduser_readable_text_v0 dval =
     | None ->
       ( match dv with
       | DDB dbname ->
-          dbname
+          "<DB: " ^ dbname ^ ">"
       | DError msg ->
           "Error: " ^ msg
       | DIncomplete ->
-          "<incomplete>"
+          "<Incomplete>"
       | DBlock _ ->
-          "<block>"
+          "<Block>"
       | DPassword _ ->
           (* redacting, do not unredact *)
-          "<password>"
+          "<Password>"
       | DObj o ->
           to_nested_string ~reprfn:nestedreprfn dv
       | DList l ->
@@ -986,20 +987,20 @@ let of_unknown_json_v0 str =
 let rec show dv =
   match as_simple_stringable dv with
   | Some str ->
-      "<" ^ tipename dv ^ ": " ^ str ^ ">"
+      "<" ^ pretty_tipename dv ^ ": " ^ str ^ ">"
   | None ->
     ( match dv with
     | DDB dbname ->
-        "<db: " ^ dbname ^ ">"
+        "<DB: " ^ dbname ^ ">"
     | DError msg ->
-        "<error: " ^ msg ^ ">"
+        "<Error: " ^ msg ^ ">"
     | DIncomplete ->
-        "<incomplete>"
+        "<Incomplete>"
     | DBlock _ ->
-        "<block>"
+        "<Block>"
     | DPassword _ ->
         (* redacting, do not unredact *)
-        "<password>"
+        "<Password>"
     | DObj o ->
         to_nested_string ~reprfn:show dv
     | DList l ->
@@ -1044,13 +1045,5 @@ let hash (arglist : dval list) : string =
 (* ------------------------- *)
 (* Old representations, here for testing *)
 (* ------------------------- *)
-let rec old_to_human_repr (dv : dval) : string =
-  match dv with
-  | dv when is_stringable dv ->
-      as_string dv
-  (* contents of lists and objs should still be quoted *)
-  | _ ->
-      to_repr dv
-
 
 let old_to_repr s = to_repr s
