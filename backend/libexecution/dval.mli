@@ -89,15 +89,6 @@ val of_unknown_json_v0 : string -> Types.RuntimeT.dval
   * form encoding
   *)
 
-(* If someone returns a string or int, that's probably a web page. If
- * someone returns something else, show the structure so they can figure
- * out how to get it into a string.
- *
- * uses:
-  * text/plain & text/html printing in user_page
-  * *)
-val to_human_repr : Types.RuntimeT.dval -> string
-
 (* For putting into URLs as query params 
  * uses:
   * Libtwitter urls
