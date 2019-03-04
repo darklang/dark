@@ -38,12 +38,10 @@ let send_request uri verb body query_ headers_ =
   let headers = Dval.to_string_pairs_exn headers_ in
   let body =
     match body with
-    | DObj obj ->
-        if has_form_header headers
-        then Dval.to_form_encoding body
-        else body |> Dval.unsafe_dval_to_yojson |> Yojson.Safe.to_string
+    | DObj obj when has_form_header headers ->
+        Dval.to_form_encoding body
     | _ ->
-        Dval.to_repr body
+        Dval.to_pretty_machine_json_v0 body
   in
   let result, headers = Httpclient.http_call uri query verb headers body in
   let parsed_result =
