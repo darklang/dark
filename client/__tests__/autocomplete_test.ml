@@ -82,6 +82,15 @@ let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
 
 let () =
   describe "autocomplete" (fun () ->
+      describe "generation" (fun () ->
+          test
+            "invalidated cursor state/target still produces a valid autocomplete"
+            (fun () ->
+              let m = {(enteringModel ()) with toplevels = []} in
+              expect (fun () ->
+                  init m |> setTarget m (Some (tlid, PExpr (Blank blankID))) )
+              |> not_
+              |> toThrow ) ) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringModel () in
           test "empty autocomplete doesn't highlight" (fun () ->
