@@ -152,6 +152,8 @@ val to_dval_pairs_exn :
 (* Errors if the values in the list are not strings, or if any key is duplicated. *)
 val to_dobj_exn : (string * Types.RuntimeT.dval) list -> Types.RuntimeT.dval
 
+val exception_to_dval : Core_kernel.Exn.t -> Types.RuntimeT.dval
+
 (* ------------------------- *)
 (* ErrorRail Functions *)
 (* ------------------------- *)
@@ -166,8 +168,6 @@ val obj_merge :
   Types.RuntimeT.dval -> Types.RuntimeT.dval -> Types.RuntimeT.dval
 
 val empty_dobj : Types.RuntimeT.dval
-
-val exception_to_dval : Core_kernel.Exn.t -> Types.RuntimeT.dval
 
 (* ------------------------- *)
 (* Misc *)
