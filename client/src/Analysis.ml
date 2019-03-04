@@ -186,7 +186,7 @@ let route_variables (route : string) : string list =
   |> List.map ~f:(String.dropLeft ~count:1 (* ":" *))
 
 
-let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
+let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     varName list =
   (* TODO: Calling out is so slow that calculating on the fly is faster. But we
    * can also cache this so that's it's not in the display hot-path. *)
@@ -196,7 +196,6 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
     |> StrDict.get ~key:id
     |> Option.withDefault ~default:[]
   in
-  let tl = TL.getTL m tlid in
   let dbs = TL.allDBNames m.toplevels in
   match tl.data with
   | TLHandler h ->
@@ -226,15 +225,6 @@ let getCurrentAvailableVarnames (m : model) (tlid : tlid) (ID id : id) :
         |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
       in
       varsFor fn.ufAST @ params
-
-
-let currentVarnamesFor (m : model) (target : (tlid * pointerData) option) :
-    varName list =
-  match target with
-  | Some (tlid, (PExpr _ as pd)) ->
-      getCurrentAvailableVarnames m tlid (P.toID pd)
-  | _ ->
-      []
 
 
 (* ---------------------- *)
