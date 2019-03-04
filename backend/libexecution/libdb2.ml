@@ -100,7 +100,7 @@ let fns : Lib.shortfn list =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
     ; f = NotClientAvailable
     ; pr = None
-    ; ps = true
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::queryOneWithKey_v1"]
     ; ins = []
