@@ -379,7 +379,23 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.Aborted ->
               true
         in
-        let shouldRollbar = e <> Http.NetworkError in
+        let shouldRollbar =
+          match e with
+          | Http.BadUrl _ ->
+              true
+          | Http.Timeout ->
+              true
+          | Http.NetworkError ->
+              (* Don't rollbar if the internet is down *)
+              false
+          | Http.BadStatus response ->
+              (* Don't rollbar if you aren't logged in *)
+              if response.status.code = 401 then false else true
+          | Http.BadPayload _ ->
+              true
+          | Http.Aborted ->
+              true
+        in
         let msg = msg ^ " (" ^ context ^ ")" in
         let custom = Encoders.httpError e in
         let cmds =
