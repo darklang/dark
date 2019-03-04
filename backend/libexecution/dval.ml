@@ -475,25 +475,6 @@ let rec to_human_repr (dv : dval) : string =
       to_repr dv
 
 
-(* For putting into URLs as query params *)
-let rec to_url_string_exn (dv : dval) : string =
-  match dv with
-  | dv when is_stringable dv ->
-      as_string dv
-  | DResp (_, hdv) ->
-      to_url_string_exn hdv
-  | DList l ->
-      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
-  | DObj o ->
-      let strs =
-        DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-            (key ^ ": " ^ to_url_string_exn data) :: l )
-      in
-      "{ " ^ String.concat ~sep:", " strs ^ " }"
-  | _ ->
-      failwith "to_url_string of unurlable value"
-
-
 (* ------------------------- *)
 (* Json *)
 (* ------------------------- *)
@@ -779,6 +760,25 @@ let to_dval_pairs_exn dv : (string * dval) list =
 
 let to_string_pairs_exn dv : (string * string) list =
   dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
+
+
+(* For putting into URLs as query params *)
+let rec to_url_string_exn (dv : dval) : string =
+  match dv with
+  | dv when is_stringable dv ->
+      as_string dv
+  | DResp (_, hdv) ->
+      to_url_string_exn hdv
+  | DList l ->
+      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
+  | DObj o ->
+      let strs =
+        DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+            (key ^ ": " ^ to_url_string_exn data) :: l )
+      in
+      "{ " ^ String.concat ~sep:", " strs ^ " }"
+  | _ ->
+      failwith "to_url_string of unurlable value"
 
 
 let query_to_dval (query : (string * string list) list) : dval =
