@@ -213,6 +213,39 @@ let t4_get1st (x, _, _, _) = x
 
 let t4_get4th (_, _, _, x) = x
 
+let sample_dvals =
+  [ ("int", DInt 5)
+  ; ("int", DInt 5)
+  ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
+  ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
+  ; ("incomplete", DIncomplete)
+  ; ("float", DFloat 7.2)
+  ; ("true", DBool true)
+  ; ("false", DBool false)
+  ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
+  ; ("null", DNull)
+  ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("title", DTitle "some title")
+  ; ("errorrail", DErrorRail (DInt 5))
+  ; ("option", DOption OptNothing)
+  ; ("option", DOption (OptJust (DInt 15)))
+  ; ("db", DDB "Visitors")
+  ; ("list", DList [DDB "Visitors"; DInt 4])
+  ; ("redirect", DResp (Redirect "/home", DNull))
+  ; ( "httpresponse"
+    , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
+  ; ( "weird assoc 1"
+    , DObj
+        (DvalMap.of_alist_exn
+           [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
+  ; ( "weird assoc 2"
+    , DObj
+        (DvalMap.of_alist_exn
+           [ ("type", Dval.dstr_of_string_exn "weird")
+           ; ("value", Dval.dstr_of_string_exn "x") ]) ) ]
+
+
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
@@ -721,7 +754,12 @@ let t_internal_roundtrippable_doesnt_care_about_order () =
 
 
 let t_dval_yojson_roundtrips () =
-  let unsafe_rt v =
+  let roundtrippable_rt v =
+    v
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
+  in
+  let queryable_rt v =
     v
     |> Dval.to_internal_roundtrippable_v0
     |> Dval.of_internal_roundtrippable_v0
@@ -732,45 +770,11 @@ let t_dval_yojson_roundtrips () =
   in
   let check name (v : dval) =
     check_dval name v (safe_rt v) ;
-    check_dval ("unsafe " ^ name) v (unsafe_rt v) ;
+    check_dval ("roundtrippable" ^ name) v (roundtrippable_rt v) ;
+    check_dval ("queryable" ^ name) v (queryable_rt v) ;
     ()
   in
-  check "int" (DInt 5) ;
-  check "int" (DInt 5) ;
-  check "obj" (DObj (DvalMap.of_alist_exn [("foo", DInt 5)])) ;
-  check "date" (DDate (Time.of_string "2018-09-14T00:31:41Z")) ;
-  check "incomplete" DIncomplete ;
-  check "float" (DFloat 7.2) ;
-  check "true" (DBool true) ;
-  check "false" (DBool false) ;
-  check "string" (Dval.dstr_of_string_exn "incredibly this was broken") ;
-  check "null" DNull ;
-  check "id" (DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6")) ;
-  check
-    "uuid"
-    (DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6")) ;
-  check "title" (DTitle "some title") ;
-  check "errorrail" (DErrorRail (DInt 5)) ;
-  check "option" (DOption OptNothing) ;
-  check "option" (DOption (OptJust (DInt 15))) ;
-  check "db" (DDB "Visitors") ;
-  check "list" (DList [DDB "Visitors"; DInt 4]) ;
-  check "redirect" (DResp (Redirect "/home", DNull)) ;
-  check
-    "httpresponse"
-    (DResp (Response (200, []), Dval.dstr_of_string_exn "success")) ;
-  check
-    "weird assoc 1"
-    (DObj
-       (DvalMap.of_alist_exn
-          [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)])) ;
-  check
-    "weird assoc 2"
-    (DObj
-       (DvalMap.of_alist_exn
-          [ ("type", Dval.dstr_of_string_exn "weird")
-          ; ("value", Dval.dstr_of_string_exn "x") ])) ;
-  ()
+  List.iter sample_dvals ~f:(fun (name, dv) -> check name dv)
 
 
 let t_password_hashing_and_checking_works () =
