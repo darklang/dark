@@ -18,7 +18,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       curl \
       apt-transport-https \
       ca-certificates \
-      lsb-core
+      lsb-core \
+      less
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
@@ -104,7 +105,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       tmux \
       libssl-dev=1.0.2g-1ubuntu13.6 \
       zlib1g-dev \
-      nodejs \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -259,19 +259,6 @@ RUN \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
-
-
-############################
-# Incredibly -- and reproducibly -- if we move this to the top the
-# execute_function_works integration test fails
-############################
-RUN DEBIAN_FRONTEND=noninteractive \
-    sudo apt-get update && \
-    DEBIAN_FRONTEND=noninteractive \
-    sudo apt-get install \
-      --no-install-recommends \
-      -y \
-      less
 
 
 ########################
