@@ -15,6 +15,13 @@ type static_asset_error =
   | `FailureUploadingStaticAsset of string
   | `FailureDeletingStaticAsset of string ]
 
+type static_asset =
+  { deploy_hash : string
+  ; url : string
+  ; created_at : string
+  ; status : string
+  } [@@deriving show, yojson]
+
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
     ( match Config.gcloud_application_credentials with
@@ -183,3 +190,20 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) =
     SET live_at = NOW()
     WHERE canvas_id = $1 AND deploy_hash = $2"
     ~params:[Uuid canvas_id; String deploy_hash]
+
+
+let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_asset list =
+  Db.fetch
+    ~name:"all static_asset_deploys by canvas"
+    "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
+    WHERE canvas_id=$1 ORDER BY created_at desc"
+    ~params:[Uuid canvas_id]
+  |> List.map ~f:(function
+    | [deploy_hash; created_at; live_at] ->
+      { deploy_hash = deploy_hash
+      ; url = url canvas_id deploy_hash `Short
+      ; created_at = created_at
+      ; status = if live_at = "" then "Deploying" else "Deployed"
+      }
+    | _ ->
+      Exception.internal "Bad DB format for static assets deploys" )
