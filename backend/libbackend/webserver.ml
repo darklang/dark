@@ -402,9 +402,9 @@ let static_assets_upload_handler
         * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
        *)
       let branch = "main" in
-      let deploy_hash =
-        Static_assets.start_static_asset_deploy canvas branch username
-      in
+      let sa = Static_assets.start_static_asset_deploy canvas branch username in
+      Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas sa;
+      let deploy_hash = sa.deploy_hash in
       let%lwt stream = Multipart.parse_stream (Lwt_stream.of_list [body]) ct in
       let%lwt upload_results =
         let%lwt parts = Multipart.get_parts stream in
@@ -449,7 +449,8 @@ let static_assets_upload_handler
                | Error _ ->
                    Lwt.return false )
       in
-      Static_assets.finish_static_asset_deploy canvas deploy_hash ;
+      let deploy = Static_assets.finish_static_asset_deploy canvas deploy_hash in
+      Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas deploy;
       match errors with
       | [] ->
           respond
