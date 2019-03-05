@@ -284,180 +284,6 @@ let obj_merge (l : dval) (r : dval) : dval =
 let empty_dobj : dval = DObj DvalMap.empty
 
 (* ------------------------- *)
-(* Old Representations *)
-(* ------------------------- *)
-let dhttp_to_formatted_string (d : dhttp) : string =
-  match d with
-  | Redirect url ->
-      "302 " ^ url
-  | Response (c, hs) ->
-      let string_of_headers hs =
-        hs
-        |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v)
-        |> String.concat ~sep:","
-        |> fun s -> "{ " ^ s ^ " }"
-      in
-      string_of_int c ^ " " ^ string_of_headers hs
-
-
-(* Returns the string within string-ish values, without adornment. *)
-let as_string (dv : dval) : string =
-  match dv with
-  | DInt i ->
-      string_of_int i
-  | DBool true ->
-      "true"
-  | DBool false ->
-      "false"
-  | DStr s ->
-      Unicode_string.to_string s
-  | DFloat f ->
-      string_of_float f
-  | DChar c ->
-      Char.to_string c
-  | DCharacter c ->
-      Unicode_string.Character.to_string c
-  | DNull ->
-      "null"
-  | DID id ->
-      Uuidm.to_string id
-  | DDate d ->
-      Util.isostring_of_date d
-  | DTitle t ->
-      t
-  | DUrl url ->
-      url
-  | DDB dbname ->
-      dbname
-  | DError msg ->
-      msg
-  | DUuid uuid ->
-      Uuidm.to_string uuid
-  | _ ->
-      "<" ^ (dv |> tipename) ^ ">"
-
-
-let as_literal (dv : dval) : string =
-  match dv with
-  | DStr s ->
-      "\"" ^ Unicode_string.to_string s ^ "\""
-  | DChar c ->
-      "'" ^ Char.to_string c ^ "'"
-  | DCharacter c ->
-      "'" ^ Unicode_string.Character.to_string c ^ "'"
-  | _ ->
-      as_string dv
-
-
-let is_primitive (dv : dval) : bool =
-  match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _ | DStr _ ->
-      true
-  | _ ->
-      false
-
-
-let is_stringable (dv : dval) : bool =
-  match dv with
-  | DBlock _
-  | DIncomplete
-  | DError _
-  | DID _
-  | DDate _
-  | DTitle _
-  | DUrl _
-  | DPassword _
-  | DDB _
-  | DUuid _ ->
-      true
-  | _ ->
-      is_primitive dv
-
-
-(* Utility function to handle the straightforward value-as-string conversions
- * that don't change based on formatting. Returns None if it's not a simple
- * stringable. *)
-let as_simple_stringable dv : string option =
-  match dv with
-  | DInt i ->
-      Some (string_of_int i)
-  | DBool true ->
-      Some "true"
-  | DBool false ->
-      Some "false"
-  | DStr s ->
-      Some (Unicode_string.to_string s)
-  | DFloat f ->
-      Some (string_of_float f)
-  | DChar c ->
-      Some (Char.to_string c)
-  | DCharacter c ->
-      Some (Unicode_string.Character.to_string c)
-  | DNull ->
-      Some "null"
-  | DID id ->
-      Some (Uuidm.to_string id)
-  | DDate d ->
-      Some (Util.isostring_of_date d)
-  | DTitle t ->
-      Some t
-  | DUrl url ->
-      Some url
-  | DUuid uuid ->
-      Some (Uuidm.to_string uuid)
-  | DPassword _ ->
-      (* Let's be very clear about this, it's not stringable *)
-      None
-  | _ ->
-      None
-
-
-(* A simple representation, showing primitives as their expected literal
- * syntax, and odd types get type info in a readable format. Compound
- * types are listed as their type only *)
-let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
-  let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
-  match dv with
-  | dv when is_primitive dv ->
-      as_literal dv
-  | dv when is_stringable dv ->
-      wrap (as_string dv)
-  | _ ->
-      open_ ^ (dv |> tipename) ^ close_
-
-
-let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
-  let rec inner (indent : int) (dv : dval) : string =
-    let nl = "\n" ^ String.make indent ' ' in
-    let inl = "\n" ^ String.make (indent + 2) ' ' in
-    let indent = indent + 2 in
-    let recurse = inner indent in
-    match dv with
-    | DList l ->
-        if List.is_empty l
-        then "[]"
-        else
-          "[ "
-          ^ inl
-          ^ String.concat ~sep:", " (List.map ~f:recurse l)
-          ^ nl
-          ^ "]"
-    | DObj o ->
-        if DvalMap.is_empty o
-        then "{}"
-        else
-          let strs =
-            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                (key ^ ": " ^ recurse data) :: l )
-          in
-          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
-    | _ ->
-        reprfn dv
-  in
-  inner 0 dv
-
-
-(* ------------------------- *)
 (* Json *)
 (* ------------------------- *)
 let is_json_primitive (dv : dval) : bool =
@@ -644,46 +470,58 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
           [unsafe_dval_to_yojson ~redact dv] )
 
 
-let parse_literal (str : string) : dval option =
-  let len = String.length str in
-  (* Character *)
-  if len > 2 && str.[0] = '\'' && str.[len - 1] = '\''
-  then
-    Some
-      (DCharacter
-         (Unicode_string.Character.unsafe_of_string
-            (String.sub ~pos:1 ~len:(len - 2) str)))
-    (* String *)
-  else if len > 1 && str.[0] = '"' && str.[len - 1] = '"'
-  then
-    (* It might have \n characters in it (as well as probably other codes like
-     * \r or some shit that we haven't taken into account), which need to be
-     * converted manually to appropriate string chars. *)
-    str
-    |> String.sub ~pos:1 ~len:(len - 2)
-    |> Util.string_replace "\\\"" "\""
-    |> fun s -> Some (dstr_of_string_exn s)
-  else if str = "null"
-  then Some DNull
-  else if str = "true"
-  then Some (DBool true)
-  else if str = "false"
-  then Some (DBool false)
-  else
-    match int_of_string_opt str with
-    | Some v ->
-        Some (DInt v)
+(* ------------------------- *)
+(* String representations *)
+(* ------------------------- *)
+(* We previously had a lot of code reuse, which made all these different
+ * versions brittle, buggy, and difficult to change. After inlining everything,
+ * they became a lot easier to reason about. *)
+
+let dhttp_to_formatted_string (d : dhttp) : string =
+  match d with
+  | Redirect url ->
+      "302 " ^ url
+  | Response (c, hs) ->
+      let string_of_headers hs =
+        hs
+        |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v)
+        |> String.concat ~sep:","
+        |> fun s -> "{ " ^ s ^ " }"
+      in
+      string_of_int c ^ " " ^ string_of_headers hs
+
+
+let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
+  let rec inner (indent : int) (dv : dval) : string =
+    let nl = "\n" ^ String.make indent ' ' in
+    let inl = "\n" ^ String.make (indent + 2) ' ' in
+    let indent = indent + 2 in
+    let recurse = inner indent in
+    match dv with
+    | DList l ->
+        if List.is_empty l
+        then "[]"
+        else
+          "[ "
+          ^ inl
+          ^ String.concat ~sep:", " (List.map ~f:recurse l)
+          ^ nl
+          ^ "]"
+    | DObj o ->
+        if DvalMap.is_empty o
+        then "{}"
+        else
+          let strs =
+            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
+                (key ^ ": " ^ recurse data) :: l )
+          in
+          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
     | _ ->
-      ( match float_of_string_opt str with
-      | Some v ->
-          Some (DFloat v)
-      | None ->
-          None )
+        reprfn dv
+  in
+  inner 0 dv
 
 
-(* ------------------------- *)
-(* New Representations *)
-(* ------------------------- *)
 let to_internal_roundtrippable_v0 dval : string =
   unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
 
@@ -714,42 +552,62 @@ let rec to_enduser_readable_text_v0 dval =
     | _ ->
         reprfn dv
   and reprfn dv =
-    match as_simple_stringable dv with
-    | Some str ->
-        str
-    | None ->
-      ( match dv with
-      | DDB dbname ->
-          "<DB: " ^ dbname ^ ">"
-      | DError msg ->
-          "Error: " ^ msg
-      | DIncomplete ->
-          "<Incomplete>"
-      | DBlock _ ->
-          "<Block>"
-      | DPassword _ ->
-          (* redacting, do not unredact *)
-          "<Password>"
-      | DObj o ->
-          to_nested_string ~reprfn:nestedreprfn dv
-      | DList l ->
-          to_nested_string ~reprfn:nestedreprfn dv
-      | DErrorRail d ->
-          (* We don't print error here, because the errorrail value will know
+    match dv with
+    | DInt i ->
+        string_of_int i
+    | DBool true ->
+        "true"
+    | DBool false ->
+        "false"
+    | DStr s ->
+        Unicode_string.to_string s
+    | DFloat f ->
+        string_of_float f
+    | DChar c ->
+        Char.to_string c
+    | DCharacter c ->
+        Unicode_string.Character.to_string c
+    | DNull ->
+        "null"
+    | DID id ->
+        Uuidm.to_string id
+    | DDate d ->
+        Util.isostring_of_date d
+    | DTitle t ->
+        t
+    | DUrl url ->
+        url
+    | DUuid uuid ->
+        Uuidm.to_string uuid
+    | DDB dbname ->
+        "<DB: " ^ dbname ^ ">"
+    | DError msg ->
+        "Error: " ^ msg
+    | DIncomplete ->
+        "<Incomplete>"
+    | DBlock _ ->
+        "<Block>"
+    | DPassword _ ->
+        (* redacting, do not unredact *)
+        "<Password>"
+    | DObj o ->
+        to_nested_string ~reprfn:nestedreprfn dv
+    | DList l ->
+        to_nested_string ~reprfn:nestedreprfn dv
+    | DErrorRail d ->
+        (* We don't print error here, because the errorrail value will know
            * whether it's an error or not. *)
-          reprfn d
-      | DResp (dh, dv) ->
-          dhttp_to_formatted_string dh ^ "\n" ^ nestedreprfn dv ^ ""
-      | DResult (ResOk d) ->
-          reprfn d
-      | DResult (ResError d) ->
-          "Error: " ^ reprfn d
-      | DOption (OptJust d) ->
-          reprfn d
-      | DOption OptNothing ->
-          "Nothing"
-      | _ ->
-          Exception.internal "Stringable not handled" )
+        reprfn d
+    | DResp (dh, dv) ->
+        dhttp_to_formatted_string dh ^ "\n" ^ nestedreprfn dv ^ ""
+    | DResult (ResOk d) ->
+        reprfn d
+    | DResult (ResError d) ->
+        "Error: " ^ reprfn d
+    | DOption (OptJust d) ->
+        reprfn d
+    | DOption OptNothing ->
+        "Nothing"
   in
   reprfn dval
 
@@ -761,26 +619,45 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     let nl = "\n" ^ String.make indent ' ' in
     let inl = "\n" ^ String.make (indent + 2) ' ' in
     let indent = indent + 2 in
+    let wrap str = "<" ^ pretty_tipename dv ^ ": " ^ str ^ ">" in
+    let justtipe = "<" ^ pretty_tipename dv ^ ">" in
     match dv with
     | DPassword _ ->
         "<password>"
-    | DInt _
-    | DFloat _
-    | DBool _
-    | DNull
-    | DChar _
-    | DCharacter _
-    | DStr _
-    | DBlock _
-    | DIncomplete
-    | DError _
-    | DID _
-    | DDate _
-    | DTitle _
-    | DUrl _
-    | DDB _
-    | DUuid _ ->
-        to_simple_repr dv ~open_:"<" ~close_:">"
+    | DStr s ->
+        "\"" ^ Unicode_string.to_string s ^ "\""
+    | DChar c ->
+        "'" ^ Char.to_string c ^ "'"
+    | DCharacter c ->
+        "'" ^ Unicode_string.Character.to_string c ^ "'"
+    | DInt i ->
+        string_of_int i
+    | DBool true ->
+        "true"
+    | DBool false ->
+        "false"
+    | DFloat f ->
+        string_of_float f
+    | DNull ->
+        "null"
+    | DBlock _ ->
+        justtipe
+    | DIncomplete ->
+        justtipe
+    | DError msg ->
+        wrap msg
+    | DID id ->
+        wrap (Uuidm.to_string id)
+    | DDate d ->
+        wrap (Util.isostring_of_date d)
+    | DTitle t ->
+        wrap t
+    | DUrl u ->
+        wrap u
+    | DDB name ->
+        wrap name
+    | DUuid uuid ->
+        wrap (Uuidm.to_string uuid)
     | DResp (h, hdv) ->
         dhttp_to_formatted_string h ^ nl ^ to_repr_ indent hdv
     | DList l ->
@@ -825,42 +702,99 @@ let of_unknown_json_v0 str =
 
 
 let rec show dv =
-  match as_simple_stringable dv with
-  | Some str ->
-      "<" ^ pretty_tipename dv ^ ": " ^ str ^ ">"
-  | None ->
-    ( match dv with
-    | DDB dbname ->
-        "<DB: " ^ dbname ^ ">"
-    | DError msg ->
-        "<Error: " ^ msg ^ ">"
-    | DIncomplete ->
-        "<Incomplete>"
-    | DBlock _ ->
-        "<Block>"
-    | DPassword _ ->
-        (* redacting, do not unredact *)
-        "<Password>"
-    | DObj o ->
-        to_nested_string ~reprfn:show dv
-    | DList l ->
-        to_nested_string ~reprfn:show dv
-    | DErrorRail d ->
-        (* We don't print error here, because the errorrail value will know
+  match dv with
+  | DInt i ->
+      string_of_int i
+  | DBool true ->
+      "true"
+  | DBool false ->
+      "false"
+  | DStr s ->
+      Unicode_string.to_string s
+  | DFloat f ->
+      string_of_float f
+  | DChar c ->
+      Char.to_string c
+  | DCharacter c ->
+      Unicode_string.Character.to_string c
+  | DNull ->
+      "null"
+  | DID id ->
+      Uuidm.to_string id
+  | DDate d ->
+      Util.isostring_of_date d
+  | DTitle t ->
+      t
+  | DUrl url ->
+      url
+  | DUuid uuid ->
+      Uuidm.to_string uuid
+  | DDB dbname ->
+      "<DB: " ^ dbname ^ ">"
+  | DError msg ->
+      "<Error: " ^ msg ^ ">"
+  | DIncomplete ->
+      "<Incomplete>"
+  | DBlock _ ->
+      "<Block>"
+  | DPassword _ ->
+      (* redacting, do not unredact *)
+      "<Password>"
+  | DObj o ->
+      to_nested_string ~reprfn:show dv
+  | DList l ->
+      to_nested_string ~reprfn:show dv
+  | DErrorRail d ->
+      (* We don't print error here, because the errorrail value will know
          * whether it's an error or not. *)
-        "<ErrorRail: " ^ show d ^ ">"
-    | DResp (dh, dv) ->
-        dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
-    | DResult (ResOk d) ->
-        "Ok " ^ show d
-    | DResult (ResError d) ->
-        "Error " ^ show d
-    | DOption (OptJust d) ->
-        "Just " ^ show d
-    | DOption OptNothing ->
-        "Nothing"
+      "<ErrorRail: " ^ show d ^ ">"
+  | DResp (dh, dv) ->
+      dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
+  | DResult (ResOk d) ->
+      "Ok " ^ show d
+  | DResult (ResError d) ->
+      "Error " ^ show d
+  | DOption (OptJust d) ->
+      "Just " ^ show d
+  | DOption OptNothing ->
+      "Nothing"
+
+
+let parse_literal (str : string) : dval option =
+  let len = String.length str in
+  (* Character *)
+  if len > 2 && str.[0] = '\'' && str.[len - 1] = '\''
+  then
+    Some
+      (DCharacter
+         (Unicode_string.Character.unsafe_of_string
+            (String.sub ~pos:1 ~len:(len - 2) str)))
+    (* String *)
+  else if len > 1 && str.[0] = '"' && str.[len - 1] = '"'
+  then
+    (* It might have \n characters in it (as well as probably other codes like
+     * \r or some shit that we haven't taken into account), which need to be
+     * converted manually to appropriate string chars. *)
+    str
+    |> String.sub ~pos:1 ~len:(len - 2)
+    |> Util.string_replace "\\\"" "\""
+    |> fun s -> Some (dstr_of_string_exn s)
+  else if str = "null"
+  then Some DNull
+  else if str = "true"
+  then Some (DBool true)
+  else if str = "false"
+  then Some (DBool false)
+  else
+    match int_of_string_opt str with
+    | Some v ->
+        Some (DInt v)
     | _ ->
-        Exception.internal "Stringable not handled" )
+      ( match float_of_string_opt str with
+      | Some v ->
+          Some (DFloat v)
+      | None ->
+          None )
 
 
 (* ------------------------- *)
@@ -908,8 +842,38 @@ let to_string_pairs_exn dv : (string * string) list =
 (* For putting into URLs as query params *)
 let rec to_url_string_exn (dv : dval) : string =
   match dv with
-  | dv when is_stringable dv ->
-      as_string dv
+  | DBlock _ | DIncomplete | DPassword _ ->
+      "<" ^ (dv |> tipename) ^ ">"
+  | DInt i ->
+      string_of_int i
+  | DBool true ->
+      "true"
+  | DBool false ->
+      "false"
+  | DStr s ->
+      Unicode_string.to_string s
+  | DFloat f ->
+      string_of_float f
+  | DChar c ->
+      Char.to_string c
+  | DCharacter c ->
+      Unicode_string.Character.to_string c
+  | DNull ->
+      "null"
+  | DID id ->
+      Uuidm.to_string id
+  | DDate d ->
+      Util.isostring_of_date d
+  | DTitle t ->
+      t
+  | DUrl url ->
+      url
+  | DDB dbname ->
+      dbname
+  | DError msg ->
+      msg
+  | DUuid uuid ->
+      Uuidm.to_string uuid
   | DResp (_, hdv) ->
       to_url_string_exn hdv
   | DList l ->
