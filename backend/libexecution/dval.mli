@@ -90,6 +90,9 @@ val show : Types.RuntimeT.dval -> string
 (* val of_json_with_schema : schema: schema -> Yojson.Safe.json -> Types.RuntimeT.dval *)
 (* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.json  *)
 
+(* Parse our internal literal strings (eg AST Values) *)
+val parse_literal : string -> Types.RuntimeT.dval option
+
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
@@ -107,9 +110,6 @@ val of_form_encoding : string -> Types.RuntimeT.dval
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
-
-(* Parse our internal literal strings (eg AST Values) *)
-val parse_literal : string -> Types.RuntimeT.dval option
 
 (* If a DCharacter, returns `Some char`, as a string (Dark characters are EGCs,
  * and can be longer than a byte. *)
@@ -161,6 +161,3 @@ val empty_dobj : Types.RuntimeT.dval
 (* Misc *)
 (* ------------------------- *)
 val hash : Types.RuntimeT.dval list -> string
-(* ------------------------- *)
-(* Old functions for testing only *)
-(* ------------------------- *)
