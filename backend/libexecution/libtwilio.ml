@@ -16,6 +16,5 @@ let fns : Lib.shortfn list =
     ; d =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false } ]

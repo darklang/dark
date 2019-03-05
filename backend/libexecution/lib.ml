@@ -18,7 +18,6 @@ type shortfn =
   ; r : tipe
   ; f : funcimpl
   ; d : string
-  ; pr : (dval list -> int -> dval list) option
   ; ps : bool
   ; dep : bool }
 

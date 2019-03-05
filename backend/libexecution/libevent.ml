@@ -10,6 +10,5 @@ let fns : Lib.shortfn list =
     ; r = TAny
     ; d = "Emit event `name` in `space`, passing along `data` as a parameter"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false } ]

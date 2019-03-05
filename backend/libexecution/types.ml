@@ -465,7 +465,6 @@ module RuntimeT = struct
     ; parameters : param list
     ; return_type : tipe
     ; description : string
-    ; preview : (dval list -> int -> dval list) option
     ; func : funcimpl
     ; preview_execution_safe : bool
     ; deprecated : bool }
@@ -504,7 +503,6 @@ module RuntimeT = struct
         ; return_type = t
         ; description = uf.metadata.description
         ; preview_execution_safe = false
-        ; preview = None
         ; func = UserCreated (uf.tlid, uf.ast)
         ; deprecated = false }
         |> Some
