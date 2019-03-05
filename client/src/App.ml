@@ -1314,6 +1314,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
           NewTracePush s )
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
+    ; Analysis.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s -> NewStaticAssetPush s)
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in
