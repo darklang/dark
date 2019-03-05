@@ -93,8 +93,7 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
       |> List.takeWhile ~f:(fun elem ->
              let id = B.toID elem in
              let availableVars =
-               Analysis.getCurrentAvailableVarnames m tl.id id
-               |> StrSet.fromList
+               Analysis.getCurrentAvailableVarnames m tl id |> StrSet.fromList
              in
              let allRequiredVariablesAvailable =
                StrSet.diff freeVariables availableVars |> StrSet.isEmpty

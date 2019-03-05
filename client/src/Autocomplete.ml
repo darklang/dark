@@ -554,10 +554,17 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let space =
     a.target
     |> Option.map ~f:Tuple2.first
-    |> Option.map ~f:(TL.getTL m)
+    |> Option.andThen ~f:(TL.get m)
     |> Option.andThen ~f:TL.spaceOf
   in
-  let varnames = Analysis.currentVarnamesFor m a.target in
+  let varnames =
+    a.target
+    |> Option.andThen ~f:(fun (tlid, pd) ->
+           TL.get m tlid |> Option.map ~f:(fun tl -> (tl, Pointer.toID pd)) )
+    |> Option.map ~f:(fun (tl, id) ->
+           Analysis.getCurrentAvailableVarnames m tl id )
+    |> Option.withDefault ~default:[]
+  in
   let dval = Option.andThen ~f:(dvalForTarget m) a.target in
   let fields =
     match dval with
