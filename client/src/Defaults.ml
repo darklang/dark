@@ -78,4 +78,19 @@ let defaultModel : model =
   ; csrfToken = "UNSET_CSRF"
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
-  ; usedFns = StrDict.empty }
+  ; usedFns = StrDict.empty
+  ; staticAssets = [
+    {
+      deploy_hash = "yf2pm1rahu"
+      ; url = "https://alice-saturn.darksa.com/thvcoorn83b5q1niaehrxgkr-ho/yf2pm1rahu"
+      ; created_at = "2019-03-05 00:26:44.53+00"
+      ; status = "Deploying"
+    }
+    ; {
+      deploy_hash = "tsfo2dhzuy"
+      ; url = "https://alice-saturn.darksa.com/thvcoorn83b5q1niaehrxgkr-ho/tsfo2dhzuy"
+      ; created_at = "2019-03-04 23:59:33.11+00"
+      ; status = "Deployed"
+    }
+  ]
+}

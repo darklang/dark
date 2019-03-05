@@ -23,12 +23,6 @@ type entry =
   ; externalLink : handlerSpec option
   (* for http handlers to link out *) }
 
-and deploy  =
-  { hash: string
-  ; datetime: string
-  ; isDeployed: bool
-  }
-
 and category =
   { count : int
   ; name : string
@@ -39,7 +33,7 @@ and category =
 and item =
   | Category of category
   | Entry of entry
-  | Deploy of deploy
+  | Deploy of staticAsset
 
 let buttonLink
     ~(key : string)
@@ -379,14 +373,18 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     [Html.classList [("simple-route handler", true); ("selected", selected)]]
     [Html.span [Html.class' "name"] mainlink; auxViews]
 
-let deploy2html (d : deploy) :  msg Html.html =
+let deploy2html (d : staticAsset) :  msg Html.html =
   Html.div
   [Html.class' "simple-route deploy"]
-  [ Html.span [Html.class' "datetime"] [Html.text d.datetime]
-  ; Html.span [Html.class' "hash"] [Html.text d.hash]
+  [ Html.span [Html.class' "datetime"] [Html.text d.created_at]
+  ; Html.a
+    [ Html.href d.url
+    ; Html.target "_blank"
+    ; Html.class' "hash"]
+    [Html.text d.deploy_hash]
   ; Html.span
-    [Html.classList [("status", true); ("success", d.isDeployed)]]
-    [Html.text (if d.isDeployed then "Deployed" else "Deploying")]
+    [Html.classList [("status", true); ("success", d.status = "Deployed" )]]
+    [Html.text d.status]
   ]
 
 let rec item2html (m : model) (s : item) : msg Html.html =
@@ -462,9 +460,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     ; plusButton = None
     ; classname = "deploys"
     ; entries =
-      [ Deploy {hash = "abcss12388"; datetime = "2019-12-21Z20:21:11Z"; isDeployed = false}
-      ; Deploy {hash = "xyxki09867"; datetime = "2019-09-21Z20:21:11Z"; isDeployed = true }
-      ]
+      List.map ~f:(fun sa -> Deploy sa) m.staticAssets
     }
   in
   let cats =

@@ -368,6 +368,13 @@ and fourOhFour =
   ; path : string
   ; modifier : string }
 
+and staticAsset =
+  { deploy_hash : string
+  ; url : string
+  ; created_at : string
+  ; status : string
+  }
+
 (* ------------------- *)
 (* ops *)
 (* ------------------- *)
@@ -816,7 +823,9 @@ and model =
   ; csrfToken : string
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
-  ; usedFns : int StrDict.t }
+  ; usedFns : int StrDict.t
+  ; staticAssets : staticAsset list
+  }
 
 (* Values that we serialize *)
 and serializableEditor =
