@@ -261,8 +261,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
 
 let rec count (s : item) : int =
   match s with
-  | Entry _
-  | Deploy _ ->
+  | Entry _ | Deploy _ ->
       1
   | Category c ->
       c.entries |> List.map ~f:count |> List.sum
@@ -373,22 +372,28 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     [Html.classList [("simple-route handler", true); ("selected", selected)]]
     [Html.span [Html.class' "name"] mainlink; auxViews]
 
-let deploy2html (d : staticAsset) :  msg Html.html =
+
+let deploy2html (d : staticAsset) : msg Html.html =
   Html.div
-  [Html.class' "simple-route deploy"]
-  [ Html.span [Html.class' "datetime"] [Html.text d.created_at]
-  ; Html.a
-    [ Html.href d.url
-    ; Html.target "_blank"
-    ; Html.class' "hash"]
-    [Html.text d.deploy_hash]
-  ; Html.span
-    [Html.classList [("status", true); ("success", d.status = "Deployed" )]]
-    [Html.text d.status]
-  ]
+    [Html.class' "simple-route deploy"]
+    [ Html.span [Html.class' "datetime"] [Html.text d.created_at]
+    ; Html.a
+        [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
+        [Html.text d.deploy_hash]
+    ; Html.span
+        [Html.classList [("status", true); ("success", d.status = "Deployed")]]
+        [Html.text d.status] ]
+
 
 let rec item2html (m : model) (s : item) : msg Html.html =
-  match s with Category c -> category2html m c | Entry e -> entry2html m e | Deploy e -> deploy2html e
+  match s with
+  | Category c ->
+      category2html m c
+  | Entry e ->
+      entry2html m e
+  | Deploy e ->
+      deploy2html e
+
 
 and category2html (m : model) (c : category) : msg Html.html =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
@@ -402,8 +407,7 @@ and category2html (m : model) (c : category) : msg Html.html =
   let openAttr =
     if isOpen then [Vdom.attribute "" "open" ""] else [Vdom.noProp]
   in
-  let isDeploys = c.classname = "deploys" && List.length c.entries > 1
-  in
+  let isDeploys = c.classname = "deploys" && List.length c.entries > 1 in
   let header =
     let title =
       [ text "title" c.name
@@ -412,14 +416,14 @@ and category2html (m : model) (c : category) : msg Html.html =
       ; text "parens" ")" ]
     and plusButton =
       match c.plusButton with
-        | Some msg ->
-            [ buttonLink
+      | Some msg ->
+          [ buttonLink
               ~key:("plus-" ^ c.classname)
               (fontAwesome "plus-circle")
               msg
-              None
-            ]
-        | None -> []
+              None ]
+      | None ->
+          []
     and deployLatest =
       if isDeploys
       then List.take ~count:1 c.entries |> List.map ~f:(item2html m)
@@ -459,9 +463,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     ; name = "Static Asset Deploys"
     ; plusButton = None
     ; classname = "deploys"
-    ; entries =
-      List.map ~f:(fun sa -> Deploy sa) m.staticAssets
-    }
+    ; entries = List.map ~f:(fun sa -> Deploy sa) m.staticAssets }
   in
   let cats =
     [ httpCategory m tls

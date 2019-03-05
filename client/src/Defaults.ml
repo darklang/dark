@@ -79,5 +79,4 @@ let defaultModel : model =
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
-  ; staticAssets = []
-  }
+  ; staticAssets = [] }

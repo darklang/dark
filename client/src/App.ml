@@ -664,9 +664,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with f404s = new404s}, Cmd.none)
     | AppendStaticAssets assets ->
-      let updatedAssets = List.uniqueBy ~f:(fun a -> a.deploy_hash) (assets @ m.staticAssets)
-      in
-      ({m with staticAssets = updatedAssets}, Cmd.none)
+        let updatedAssets =
+          List.uniqueBy ~f:(fun a -> a.deploy_hash) (assets @ m.staticAssets)
+        in
+        ({m with staticAssets = updatedAssets}, Cmd.none)
     | SetHover (tlid, id) ->
         let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
@@ -868,7 +869,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-
+              
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1314,7 +1315,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
           NewTracePush s )
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
-    ; Analysis.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s -> NewStaticAssetPush s)
+    ; Analysis.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
+          NewStaticAssetPush s )
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in
