@@ -9,6 +9,8 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Gcloud.Auth.pp_error Format.str_formatter err ;
   Format.flush_str_formatter ()
 
+let status_start : string = "Deploying"
+and status_done : string = "Deployed"
 
 type static_asset_error =
   [ `GcloudAuthError of string
@@ -135,7 +137,7 @@ let upload_to_bucket
 
 
 let start_static_asset_deploy
-    (canvas_id : Uuidm.t) (branch : string) (username : string) : string =
+    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_asset =
   let account_id = Account.id_of_username username |> Option.value_exn in
   let deploy_hash =
     Nocrypto.Hash.SHA1.digest
@@ -147,14 +149,21 @@ let start_static_asset_deploy
     |> String.lowercase
     |> fun s -> String.prefix s 10
   in
-  Db.run
-    ~name:"add static_asset_deploy record"
-    ~subject:deploy_hash
-    "INSERT INTO static_asset_deploys
-      (canvas_id, branch, deploy_hash, uploaded_by_account_id)
-      VALUES ($1, $2, $3, $4)"
-    ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id] ;
-  deploy_hash
+  let created_at =
+    Db.fetch_one
+      ~name:"add static_asset_deploy record"
+      ~subject:deploy_hash
+      "INSERT INTO static_asset_deploys
+        (canvas_id, branch, deploy_hash, uploaded_by_account_id)
+        VALUES ($1, $2, $3, $4) RETURNING created_at"
+      ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
+    |> List.hd_exn
+  in
+  { deploy_hash = deploy_hash
+  ; url = url canvas_id deploy_hash `Short
+  ; created_at = created_at
+  ; status = status_start
+  }
 
 
 (* since postgres doesn't have named transactions, we just delete the db
@@ -182,15 +191,22 @@ let delete_static_asset_deploy
     ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
 
 
-let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) =
-  Db.run
-    ~name:"finish static_asset_deploy record"
-    ~subject:deploy_hash
-    "UPDATE static_asset_deploys
-    SET live_at = NOW()
-    WHERE canvas_id = $1 AND deploy_hash = $2"
-    ~params:[Uuid canvas_id; String deploy_hash]
-
+let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) : static_asset =
+  let timestamp =
+    Db.fetch_one
+      ~name:"finish static_asset_deploy record"
+      ~subject:deploy_hash
+      "UPDATE static_asset_deploys
+      SET live_at = NOW()
+      WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING created_at"
+      ~params:[Uuid canvas_id; String deploy_hash]
+    |> List.hd_exn
+  in
+  { deploy_hash = deploy_hash
+  ; url = url canvas_id deploy_hash `Short
+  ; created_at = timestamp
+  ; status = status_done
+  }
 
 let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_asset list =
   Db.fetch
@@ -203,7 +219,7 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_asset list =
       { deploy_hash = deploy_hash
       ; url = url canvas_id deploy_hash `Short
       ; created_at = created_at
-      ; status = if live_at = "" then "Deploying" else "Deployed"
+      ; status = if live_at = "" then status_start else status_done
       }
     | _ ->
       Exception.internal "Bad DB format for static assets deploys" )

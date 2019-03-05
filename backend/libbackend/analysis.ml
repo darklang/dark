@@ -195,6 +195,12 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
   fof |> new_404_push_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+type new_static_deploy = SA.static_asset [@@deriving to_yojson]
+
+let to_new_static_deploy_frontend (asset : SA.static_asset) : string =
+  asset |> new_static_deploy_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 (* Toplevel deletion:
  * The server announces that a toplevel is deleted by it appearing in
  * deleted_toplevels. The server announces it is no longer deleted by it
