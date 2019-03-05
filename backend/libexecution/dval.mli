@@ -81,7 +81,7 @@ val to_pretty_machine_json_v0 : Types.RuntimeT.dval -> string
  * convert everything into reasonable types, in the absense of a schema.  *)
 val of_unknown_json_v0 : string -> Types.RuntimeT.dval
 
-(* For debugging internally, redacts by default. Never throws. *)
+(* For debugging internally, redacts passwords. Never throws. *)
 val show : Types.RuntimeT.dval -> string
 
 (* JSON coming in from the user as part of a known API should have a type which
