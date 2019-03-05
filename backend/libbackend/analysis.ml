@@ -7,6 +7,7 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 module SE = Stored_event
+module SA = Static_assets
 
 type canvas = Canvas.canvas
 
@@ -225,21 +226,25 @@ type initial_load_rpc_result =
   ; deleted_user_functions : RTT.user_fn list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
-  ; traces : tlid_traceid list }
+  ; traces : tlid_traceid list
+  ; assets : SA.static_asset list
+  }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
     (c : canvas)
     (fofs : SE.four_oh_four list)
     (traces : tlid_traceid list)
-    (unlocked_dbs : tlid list) : string =
+    (unlocked_dbs : tlid list)
+    (assets : SA.static_asset list) : string =
   { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
   ; deleted_user_functions = c.deleted_user_functions
   ; unlocked_dbs
   ; fofs
-  ; traces }
+  ; traces
+  ; assets }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

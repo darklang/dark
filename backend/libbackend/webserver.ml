@@ -3,6 +3,7 @@ open Libcommon
 open Lwt
 module Cl = Cohttp_lwt
 module Clu = Cohttp_lwt_unix
+module SA = Static_assets
 module S = Clu.Server
 module CRequest = Clu.Request
 module CResponse = Clu.Response
@@ -565,13 +566,15 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
         in
         htraces @ uftraces )
   in
-  let t5, result =
-    time "5-to-frontend" (fun _ ->
-        Analysis.to_initial_load_rpc_result !c f404s traces unlocked )
+  let t5, assets = time "5-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
+  in
+  let t6, result =
+    time "6-to-frontend" (fun _ ->
+        Analysis.to_initial_load_rpc_result !c f404s traces unlocked assets )
   in
   respond
     ~execution_id
-    ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+    ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6])
     `OK
     result
 

@@ -78,4 +78,6 @@ let defaultModel : model =
   ; csrfToken = "UNSET_CSRF"
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
-  ; usedFns = StrDict.empty }
+  ; usedFns = StrDict.empty
+  ; staticAssets = []
+  }
