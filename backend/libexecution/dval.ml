@@ -423,10 +423,8 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       |> DvalMap.to_alist
       |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
       |> fun x -> `Assoc x
-  (* opaque types *)
   | DBlock _ | DIncomplete ->
       wrap_user_type `Null
-  (* user-ish types *)
   | DChar c ->
       wrap_user_str (Char.to_string c)
   | DCharacter c ->
@@ -692,8 +690,63 @@ let rec to_developer_repr_v0 (dv : dval) : string =
   to_repr_ 0 dv
 
 
-let to_pretty_machine_json_v0 _dval =
-  `Null |> Yojson.Basic.pretty_to_string ~std:false
+let to_pretty_machine_json_v0 dval =
+  let rec recurse dv =
+    match dv with
+    (* basic types *)
+    | DInt i ->
+        `Int i
+    | DFloat f ->
+        `Float f
+    | DBool b ->
+        `Bool b
+    | DNull ->
+        `Null
+    | DStr s ->
+        Unicode_string.to_yojson s
+    | DList l ->
+        `List (List.map l recurse)
+    | DObj o ->
+        o
+        |> DvalMap.to_alist
+        |> List.map ~f:(fun (k, v) -> (k, recurse v))
+        |> fun x -> `Assoc x
+    | DBlock _ | DIncomplete ->
+        `Null
+    | DChar c ->
+        `String (Char.to_string c)
+    | DCharacter c ->
+        `String (Unicode_string.Character.to_string c)
+    | DError msg ->
+        `Assoc [("Error", `String msg)]
+    | DResp (h, hdv) ->
+        recurse hdv
+    | DDB dbname ->
+        `String dbname
+    | DID id ->
+        `String (Uuidm.to_string id)
+    | DUrl url ->
+        `String url
+    | DTitle title ->
+        `String title
+    | DDate date ->
+        `String (Util.isostring_of_date date)
+    | DPassword hashed ->
+        `Null
+    | DUuid uuid ->
+        `String (Uuidm.to_string uuid)
+    | DOption opt ->
+      (match opt with OptNothing -> `Null | OptJust dv -> recurse dv)
+    | DErrorRail dv ->
+        recurse dv
+    | DResult res ->
+      ( match res with
+      | ResOk dv ->
+          recurse dv
+      | ResError dv ->
+          `Assoc [("Error", recurse dv)] )
+  in
+  recurse dval |> Yojson.Safe.pretty_to_string
 
 
 let of_unknown_json_v0 str =
