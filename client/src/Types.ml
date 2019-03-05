@@ -824,7 +824,8 @@ and model =
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
-  ; staticAssets : staticAsset list}
+  ; staticAssets : staticAsset list
+  }
 
 (* Values that we serialize *)
 and serializableEditor =
