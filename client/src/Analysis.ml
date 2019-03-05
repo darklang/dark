@@ -274,6 +274,22 @@ module New404Push = struct
   let listen ~key tagger = Native.registerGlobal "new404Push" key tagger decode
 end
 
+module NewStaticDeployPush = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    let decodeDeploy = map4
+      (fun deploy_hash url created_at status ->
+        {deploy_hash; url; created_at; status})
+      (field "deploy_hash" string)
+      (field "url" string)
+      (field "created_at" string)
+      (field "status" string)
+    in
+    map (fun msg -> msg) (field "detail" decodeDeploy)
+
+  let listen ~key tagger = Native.registerGlobal "newStaticDeploy" key tagger decode
+end
+
 (* Request analysis *)
 
 module RequestAnalysis = struct
