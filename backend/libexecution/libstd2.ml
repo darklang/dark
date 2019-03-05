@@ -23,7 +23,6 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; (* ====================================== *)
@@ -45,7 +44,6 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["List::last_v1"]
@@ -62,6 +60,5 @@ let fns : Lib.shortfn list =
               DOption (OptJust (List.last_exn l))
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false } ]
