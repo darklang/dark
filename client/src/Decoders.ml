@@ -270,10 +270,10 @@ and fof j : fourOhFour =
   ; modifier = index 2 string j }
 
 
-and asset j : staticAsset =
-  { deploy_hash = field "deploy_hash" string j
+and sDeploy j : staticDeploy =
+  { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
-  ; created_at = field "created_at" string j
+  ; createdAt = field "created_at" string j
   ; status = field "status" string j }
 
 
@@ -322,7 +322,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; unlockedDBs = field "unlocked_dbs" (list tlid) j
   ; fofs = field "fofs" (list fof) j
-  ; assets = field "assets" (list asset) j
+  ; staticDeploys = field "assets" (list sDeploy) j
   ; traces = field "traces" (list (pair tlid traceID)) j }
 
 

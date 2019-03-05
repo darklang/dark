@@ -15,7 +15,7 @@ val push_new_404 :
 val push_new_static_deploy :
      execution_id:Types.id
   -> canvas_id:Uuidm.t
-  -> Static_assets.static_asset
+  -> Static_assets.static_deploy
   -> unit
 
 val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string] Lwt.t

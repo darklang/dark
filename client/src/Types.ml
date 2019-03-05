@@ -368,10 +368,10 @@ and fourOhFour =
   ; path : string
   ; modifier : string }
 
-and staticAsset =
-  { deploy_hash : string
+and staticDeploy =
+  { deployHash : string
   ; url : string
-  ; created_at : string
+  ; createdAt : string
   ; status : string }
 
 (* ------------------- *)
@@ -469,7 +469,7 @@ and initialLoadRPCResult =
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : tlid list
   ; fofs : fourOhFour list
-  ; assets : staticAsset list
+  ; staticDeploys : staticDeploy list
   ; traces : (tlid * traceID) list }
 
 and saveTestRPCResult = string
@@ -658,7 +658,7 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
-  | AppendStaticAssets of staticAsset list
+  | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 
@@ -690,7 +690,7 @@ and msg =
       [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | New404Push of fourOhFour
-  | NewStaticAssetPush of staticAsset
+  | NewStaticDeployPush of staticDeploy
   | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
       [@printer opaque "Delete404RPCCallback"]
   | InitialLoadRPCCallback of
@@ -826,7 +826,7 @@ and model =
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
-  ; staticAssets : staticAsset list }
+  ; staticDeploys : staticDeploy list }
 
 (* Values that we serialize *)
 and serializableEditor =
