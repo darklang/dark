@@ -29,8 +29,11 @@ RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 
 # RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
-RUN echo "deb https://deb.nodesource.com/node_9.x zesty main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_9.x zesty main" >> /etc/apt/sources.list.d/nodesource.list
+
+# Testcafe needs node >= 11
+RUN echo "deb https://deb.nodesource.com/node_11.x bionic main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_11.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
+
 RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
     echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
@@ -99,6 +102,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       xvfb \
       ffmpeg \
       tmux \
+      libssl-dev=1.0.2g-1ubuntu13.6 \
+      zlib1g-dev \
+      nodejs \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -226,7 +232,12 @@ RUN opam install -y \
   js_of_ocaml-lwt.3.2.0 \
   sodium.0.6.0 \
   utop \
-  ocamlformat
+  ocamlformat \
+  uuseg.11.0.0 \
+  uunf.11.0.0 \
+  multipart-form-data.0.1.0 \
+  magic-mime.1.1.1 \
+  ezgzip.0.2.1
 
 # To use PPXes in bucklescript, we need to install them from opam
 RUN opam switch create 4.02.3
@@ -296,6 +307,13 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
 
+# for ocaml-gcloud
+RUN opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
+  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
+  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
+
+RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+
 ############################
 # Environment
 ############################
@@ -305,38 +323,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-RUN opam install -y \
-  uuseg.11.0.0 \
-  uunf.11.0.0 \
-  multipart-form-data.0.1.0 \
-  magic-mime.1.1.1
-
-# for ocaml-gcloud
-RUN sudo apt install -y zlib1g-dev libssl-dev \
-  && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
-  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
-  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
-
-
-# required by Rust hyper-tls crate
-USER root
-RUN apt install \
-      -y \
-      --no-install-recommends \
-      libssl-dev=1.0.2g-1ubuntu13.6
-
-# testcafe needs node 11
-USER root
-RUN echo "deb https://deb.nodesource.com/node_11.x bionic main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_11.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
-RUN sudo apt update && sudo apt install --reinstall -y nodejs
-USER dark
-
-RUN opam install -y \
-    ezgzip.0.2.1
-
 
 ############################
 # Finish
