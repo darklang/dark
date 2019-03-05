@@ -405,6 +405,9 @@ let as_simple_stringable dv : string option =
       Some url
   | DUuid uuid ->
       Some (Uuidm.to_string uuid)
+  | DPassword _ ->
+      (* Let's be very clear about this, it's not stringable *)
+      None
   | _ ->
       None
 
@@ -759,6 +762,8 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     let inl = "\n" ^ String.make (indent + 2) ' ' in
     let indent = indent + 2 in
     match dv with
+    | DPassword _ ->
+        "<password>"
     | DInt _
     | DFloat _
     | DBool _
@@ -773,7 +778,6 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     | DDate _
     | DTitle _
     | DUrl _
-    | DPassword _
     | DDB _
     | DUuid _ ->
         to_simple_repr dv ~open_:"<" ~close_:">"
