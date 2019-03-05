@@ -195,9 +195,9 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
   fof |> new_404_push_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
-type new_static_deploy = SA.static_asset [@@deriving to_yojson]
+type new_static_deploy = SA.static_deploy [@@deriving to_yojson]
 
-let to_new_static_deploy_frontend (asset : SA.static_asset) : string =
+let to_new_static_deploy_frontend (asset : SA.static_deploy) : string =
   asset |> new_static_deploy_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
@@ -233,7 +233,7 @@ type initial_load_rpc_result =
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
   ; traces : tlid_traceid list
-  ; assets : SA.static_asset list }
+  ; assets : SA.static_deploy list }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
@@ -241,7 +241,7 @@ let to_initial_load_rpc_result
     (fofs : SE.four_oh_four list)
     (traces : tlid_traceid list)
     (unlocked_dbs : tlid list)
-    (assets : SA.static_asset list) : string =
+    (assets : SA.static_deploy list) : string =
   { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions

@@ -279,8 +279,8 @@ module NewStaticDeployPush = struct
     let open Tea.Json.Decoder in
     let decodeDeploy =
       map4
-        (fun deploy_hash url created_at status ->
-          {deploy_hash; url; created_at; status} )
+        (fun deployHash url createdAt status ->
+          {deployHash; url; createdAt; status} )
         (field "deploy_hash" string)
         (field "url" string)
         (field "created_at" string)

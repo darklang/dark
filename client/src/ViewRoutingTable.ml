@@ -33,7 +33,7 @@ and category =
 and item =
   | Category of category
   | Entry of entry
-  | Deploy of staticAsset
+  | Deploy of staticDeploy
 
 let buttonLink
     ~(key : string)
@@ -373,13 +373,13 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     [Html.span [Html.class' "name"] mainlink; auxViews]
 
 
-let deploy2html (d : staticAsset) : msg Html.html =
+let deploy2html (d : staticDeploy) : msg Html.html =
   Html.div
     [Html.class' "simple-route deploy"]
-    [ Html.span [Html.class' "datetime"] [Html.text d.created_at]
+    [ Html.span [Html.class' "datetime"] [Html.text d.createdAt]
     ; Html.a
         [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
-        [Html.text d.deploy_hash]
+        [Html.text d.deployHash]
     ; Html.span
         [Html.classList [("status", true); ("success", d.status = "Deployed")]]
         [Html.text d.status] ]
@@ -458,19 +458,19 @@ let viewRoutingTable_ (m : model) : msg Html.html =
            |> Blank.toMaybe
            |> Option.withDefault ~default:"" )
   in
-  let mockDeploys =
-    { count = List.length m.staticAssets
+  let staticDeploys =
+    { count = List.length m.staticDeploys
     ; name = "Static Asset Deploys"
     ; plusButton = None
     ; classname = "deploys"
-    ; entries = List.map ~f:(fun sa -> Deploy sa) m.staticAssets }
+    ; entries = List.map ~f:(fun sa -> Deploy sa) m.staticDeploys }
   in
   let cats =
     [ httpCategory m tls
     ; dbCategory m tls
     ; userFunctionCategory m ufns
     ; cronCategory m tls
-    ; mockDeploys ]
+    ; staticDeploys ]
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in

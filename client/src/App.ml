@@ -663,11 +663,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  f404.space ^ f404.path ^ f404.modifier )
         in
         ({m with f404s = new404s}, Cmd.none)
-    | AppendStaticAssets assets ->
-        let updatedAssets =
-          List.uniqueBy ~f:(fun a -> a.deploy_hash) (assets @ m.staticAssets)
+    | AppendStaticDeploy d ->
+        let updated =
+          List.uniqueBy ~f:(fun a -> a.deployHash) (d @ m.staticDeploys)
         in
-        ({m with staticAssets = updatedAssets}, Cmd.none)
+        ({m with staticDeploys = updated}, Cmd.none)
     | SetHover (tlid, id) ->
         let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
@@ -1058,7 +1058,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
-        ; AppendStaticAssets r.assets
+        ; AppendStaticDeploy r.staticDeploys
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod
@@ -1084,8 +1084,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
   | New404Push f404 ->
       Append404s [f404]
-  | NewStaticAssetPush asset ->
-      AppendStaticAssets [asset]
+  | NewStaticDeployPush asset ->
+      AppendStaticDeploy [asset]
   | Delete404RPCCallback (f404, Ok ()) ->
       Delete404 f404
   | ReceiveAnalysis result ->
@@ -1316,7 +1316,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           NewTracePush s )
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
     ; Analysis.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
-          NewStaticAssetPush s )
+          NewStaticDeployPush s )
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in

@@ -19,7 +19,7 @@ type static_asset_error =
   | `FailureUploadingStaticAsset of string
   | `FailureDeletingStaticAsset of string ]
 
-type static_asset =
+type static_deploy =
   { deploy_hash : string
   ; url : string
   ; created_at : string
@@ -139,7 +139,7 @@ let upload_to_bucket
 
 
 let start_static_asset_deploy
-    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_asset
+    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_deploy
     =
   let account_id = Account.id_of_username username |> Option.value_exn in
   let deploy_hash =
@@ -195,7 +195,7 @@ let delete_static_asset_deploy
 
 
 let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
-    static_asset =
+    static_deploy =
   let timestamp =
     Db.fetch_one
       ~name:"finish static_asset_deploy record"
@@ -212,7 +212,7 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
   ; status = status_done }
 
 
-let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_asset list =
+let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
   Db.fetch
     ~name:"all static_asset_deploys by canvas"
     "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys

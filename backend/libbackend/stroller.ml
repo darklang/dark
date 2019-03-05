@@ -93,6 +93,6 @@ let push_new_404
 let push_new_static_deploy
     ~(execution_id : Types.id)
     ~(canvas_id : Uuidm.t)
-    (asset : Static_assets.static_asset) =
+    (asset : Static_assets.static_deploy) =
   let payload = Analysis.to_new_static_deploy_frontend asset in
   push ~execution_id ~canvas_id ~event:"new_static_deploy" payload
