@@ -269,6 +269,12 @@ and fof j : fourOhFour =
   ; path = index 1 string j
   ; modifier = index 2 string j }
 
+and asset j : staticAsset =
+  { deploy_hash = field "deploy_hash" string j
+  ; url = field "url" string j
+  ; created_at = field "created_at" string j
+  ; status = field "status" string j
+  }
 
 and inputValueDict j : inputValueDict =
   j |> list (tuple2 string dval) |> StrDict.fromList
@@ -315,6 +321,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; unlockedDBs = field "unlocked_dbs" (list tlid) j
   ; fofs = field "fofs" (list fof) j
+  ; assets = field "assets" (list asset) j
   ; traces = field "traces" (list (pair tlid traceID)) j }
 
 

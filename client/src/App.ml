@@ -663,6 +663,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  f404.space ^ f404.path ^ f404.modifier )
         in
         ({m with f404s = new404s}, Cmd.none)
+    | AppendStaticAssets assets ->
+      let updatedAssets = List.uniqueBy ~f:(fun a -> a.deploy_hash) (assets @ m.staticAssets)
+      in
+      ({m with staticAssets = updatedAssets}, Cmd.none)
     | SetHover (tlid, id) ->
         let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
@@ -864,7 +868,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
+
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1053,6 +1057,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
+        ; AppendStaticAssets r.assets
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod
@@ -1078,6 +1083,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
   | New404Push f404 ->
       Append404s [f404]
+  | NewStaticAssetPush asset ->
+      AppendStaticAssets [asset]
   | Delete404RPCCallback (f404, Ok ()) ->
       Delete404 f404
   | ReceiveAnalysis result ->
