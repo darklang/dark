@@ -237,7 +237,10 @@ RUN opam install -y \
   uunf.11.0.0 \
   multipart-form-data.0.1.0 \
   magic-mime.1.1.1 \
-  ezgzip.0.2.1
+  ezgzip.0.2.1 \
+  && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
+  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
+  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
 
 # To use PPXes in bucklescript, we need to install them from opam
 RUN opam switch create 4.02.3
@@ -293,11 +296,6 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
-
-# for ocaml-gcloud
-RUN opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
-  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
-  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
 
 RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
 
