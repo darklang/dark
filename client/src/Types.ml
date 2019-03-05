@@ -470,6 +470,7 @@ and initialLoadRPCResult =
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : tlid list
   ; fofs : fourOhFour list
+  ; assets : staticAsset list
   ; traces : (tlid * traceID) list }
 
 and saveTestRPCResult = string
@@ -658,6 +659,7 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
+  | AppendStaticAssets of staticAsset list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 
@@ -689,6 +691,7 @@ and msg =
       [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | New404Push of fourOhFour
+  | NewStaticAssetPush of staticAsset
   | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
       [@printer opaque "Delete404RPCCallback"]
   | InitialLoadRPCCallback of
