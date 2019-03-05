@@ -33,6 +33,7 @@ and category =
 and item =
   | Category of category
   | Entry of entry
+  | Deploy of staticAsset
 
 let buttonLink
     ~(key : string)
@@ -260,7 +261,8 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
 
 let rec count (s : item) : int =
   match s with
-  | Entry _ ->
+  | Entry _
+  | Deploy _ ->
       1
   | Category c ->
       c.entries |> List.map ~f:count |> List.sum
@@ -371,10 +373,22 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     [Html.classList [("simple-route handler", true); ("selected", selected)]]
     [Html.span [Html.class' "name"] mainlink; auxViews]
 
+let deploy2html (d : staticAsset) :  msg Html.html =
+  Html.div
+  [Html.class' "simple-route deploy"]
+  [ Html.span [Html.class' "datetime"] [Html.text d.created_at]
+  ; Html.a
+    [ Html.href d.url
+    ; Html.target "_blank"
+    ; Html.class' "hash"]
+    [Html.text d.deploy_hash]
+  ; Html.span
+    [Html.classList [("status", true); ("success", d.status = "Deployed" )]]
+    [Html.text d.status]
+  ]
 
 let rec item2html (m : model) (s : item) : msg Html.html =
-  match s with Category c -> category2html m c | Entry e -> entry2html m e
-
+  match s with Category c -> category2html m c | Entry e -> entry2html m e | Deploy e -> deploy2html e
 
 and category2html (m : model) (c : category) : msg Html.html =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
@@ -388,24 +402,38 @@ and category2html (m : model) (c : category) : msg Html.html =
   let openAttr =
     if isOpen then [Vdom.attribute "" "open" ""] else [Vdom.noProp]
   in
+  let isDeploys = c.classname = "deploys" && List.length c.entries > 1
+  in
   let header =
-    Html.summary
-      [Html.class' "header"; openEventHandler]
+    let title =
       [ text "title" c.name
       ; text "parens" "("
       ; text "count" (c.count |> string_of_int)
-      ; text "parens" ")"
-      ; ( match c.plusButton with
+      ; text "parens" ")" ]
+    and plusButton =
+      match c.plusButton with
         | Some msg ->
-            buttonLink
+            [ buttonLink
               ~key:("plus-" ^ c.classname)
               (fontAwesome "plus-circle")
               msg
               None
-        | None ->
-            text "" "" ) ]
+            ]
+        | None -> []
+    and deployLatest =
+      if isDeploys
+      then List.take ~count:1 c.entries |> List.map ~f:(item2html m)
+      else []
+    in
+    Html.summary
+      [Html.class' "header"; openEventHandler]
+      (title @ plusButton @ deployLatest)
   in
-  let routes = List.map ~f:(item2html m) c.entries in
+  let routes =
+    if isDeploys
+    then List.drop ~count:1 c.entries |> List.map ~f:(item2html m)
+    else List.map ~f:(item2html m) c.entries
+  in
   if List.length c.entries = 0
   then
     Html.div
@@ -426,11 +454,21 @@ let viewRoutingTable_ (m : model) : msg Html.html =
            |> Blank.toMaybe
            |> Option.withDefault ~default:"" )
   in
+  let mockDeploys =
+    { count = List.length m.staticAssets
+    ; name = "Static Asset Deploys"
+    ; plusButton = None
+    ; classname = "deploys"
+    ; entries =
+      List.map ~f:(fun sa -> Deploy sa) m.staticAssets
+    }
+  in
   let cats =
     [ httpCategory m tls
     ; dbCategory m tls
     ; userFunctionCategory m ufns
-    ; cronCategory m tls ]
+    ; cronCategory m tls
+    ; mockDeploys ]
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
