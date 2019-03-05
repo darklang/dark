@@ -9,7 +9,9 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Gcloud.Auth.pp_error Format.str_formatter err ;
   Format.flush_str_formatter ()
 
+
 let status_start : string = "Deploying"
+
 and status_done : string = "Deployed"
 
 type static_asset_error =
@@ -21,8 +23,8 @@ type static_asset =
   { deploy_hash : string
   ; url : string
   ; created_at : string
-  ; status : string
-  } [@@deriving show, yojson]
+  ; status : string }
+[@@deriving show, yojson]
 
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
@@ -137,7 +139,8 @@ let upload_to_bucket
 
 
 let start_static_asset_deploy
-    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_asset =
+    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_asset
+    =
   let account_id = Account.id_of_username username |> Option.value_exn in
   let deploy_hash =
     Nocrypto.Hash.SHA1.digest
@@ -156,14 +159,14 @@ let start_static_asset_deploy
       "INSERT INTO static_asset_deploys
         (canvas_id, branch, deploy_hash, uploaded_by_account_id)
         VALUES ($1, $2, $3, $4) RETURNING created_at"
-      ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
+      ~params:
+        [Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
     |> List.hd_exn
   in
-  { deploy_hash = deploy_hash
+  { deploy_hash
   ; url = url canvas_id deploy_hash `Short
-  ; created_at = created_at
-  ; status = status_start
-  }
+  ; created_at
+  ; status = status_start }
 
 
 (* since postgres doesn't have named transactions, we just delete the db
@@ -191,7 +194,8 @@ let delete_static_asset_deploy
     ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
 
 
-let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) : static_asset =
+let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
+    static_asset =
   let timestamp =
     Db.fetch_one
       ~name:"finish static_asset_deploy record"
@@ -202,11 +206,11 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) : st
       ~params:[Uuid canvas_id; String deploy_hash]
     |> List.hd_exn
   in
-  { deploy_hash = deploy_hash
+  { deploy_hash
   ; url = url canvas_id deploy_hash `Short
   ; created_at = timestamp
-  ; status = status_done
-  }
+  ; status = status_done }
+
 
 let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_asset list =
   Db.fetch
@@ -215,11 +219,10 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_asset list =
     WHERE canvas_id=$1 ORDER BY created_at desc"
     ~params:[Uuid canvas_id]
   |> List.map ~f:(function
-    | [deploy_hash; created_at; live_at] ->
-      { deploy_hash = deploy_hash
-      ; url = url canvas_id deploy_hash `Short
-      ; created_at = created_at
-      ; status = if live_at = "" then status_start else status_done
-      }
-    | _ ->
-      Exception.internal "Bad DB format for static assets deploys" )
+         | [deploy_hash; created_at; live_at] ->
+             { deploy_hash
+             ; url = url canvas_id deploy_hash `Short
+             ; created_at
+             ; status = (if live_at = "" then status_start else status_done) }
+         | _ ->
+             Exception.internal "Bad DB format for static assets deploys" )

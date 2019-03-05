@@ -233,8 +233,7 @@ type initial_load_rpc_result =
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
   ; traces : tlid_traceid list
-  ; assets : SA.static_asset list
-  }
+  ; assets : SA.static_asset list }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result

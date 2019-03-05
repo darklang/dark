@@ -269,12 +269,13 @@ and fof j : fourOhFour =
   ; path = index 1 string j
   ; modifier = index 2 string j }
 
+
 and asset j : staticAsset =
   { deploy_hash = field "deploy_hash" string j
   ; url = field "url" string j
   ; created_at = field "created_at" string j
-  ; status = field "status" string j
-  }
+  ; status = field "status" string j }
+
 
 and inputValueDict j : inputValueDict =
   j |> list (tuple2 string dval) |> StrDict.fromList
