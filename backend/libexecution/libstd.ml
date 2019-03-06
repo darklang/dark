@@ -188,8 +188,9 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o] ->
-              Dval.dstr_of_string_exn
-                (Dval.unsafe_dval_to_json_string (DObj o))
+              DObj o
+              |> Dval.to_pretty_machine_json_v0
+              |> Dval.dstr_of_string_exn
           | args ->
               fail args)
     ; ps = true
@@ -460,7 +461,7 @@ let fns : Lib.shortfn list =
                        ~result:(DList result)
                        ~long:
                          ( "Int::sum requires all values to be integers, but "
-                         ^ Dval.to_repr example_value
+                         ^ Dval.to_developer_repr_v0 example_value
                          ^ " is a "
                          ^ Dval.tipename example_value )
                        ~expected:"every list item to be an int "
@@ -521,12 +522,13 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "v" TAny]
     ; r = TStr
-    ; d = "Returns a string representation of `v`"
+    ; d =
+        "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
     ; f =
         InProcess
           (function
           | _, [a] ->
-              Dval.dstr_of_string_exn (Dval.as_string a)
+              Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
               fail args)
     ; ps = true
@@ -535,12 +537,13 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "v" TAny]
     ; r = TStr
-    ; d = "Returns an adorned string representation of `v`"
+    ; d =
+        "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
     ; f =
         InProcess
           (function
           | _, [a] ->
-              Dval.dstr_of_string_exn (Dval.to_repr a)
+              Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
               fail args)
     ; ps = true
@@ -554,11 +557,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr json] ->
-            ( match Dval.parse_basic_json (Unicode_string.to_string json) with
-            | Some dv ->
-                dv
-            | _ ->
-                DNull )
+            ( try Dval.of_unknown_json_v0 (Unicode_string.to_string json)
+              with _ -> DNull )
           | args ->
               fail args)
     ; ps = true
@@ -680,7 +680,7 @@ let fns : Lib.shortfn list =
                          ~result:(DList result)
                          ~long:
                            ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-                           ^ Dval.to_repr example_value
+                           ^ Dval.to_developer_repr_v0 example_value
                            ^ " is a "
                            ^ Dval.tipename example_value )
                          ~expected:"every value to be a char"
@@ -716,7 +716,7 @@ let fns : Lib.shortfn list =
                          ~result:(DList result)
                          ~long:
                            ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-                           ^ Dval.to_repr example_value
+                           ^ Dval.to_developer_repr_v0 example_value
                            ^ " is a "
                            ^ Dval.tipename example_value )
                          ~expected:"every value to be a char"
@@ -1783,10 +1783,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [err] ->
-              Dval.dstr_of_string_exn (Dval.as_string err)
-          | args ->
-              fail args)
+          | _, [DError err] -> Dval.dstr_of_string_exn err | args -> fail args)
     ; ps = true
     ; dep = false }
   ; (* ====================================== *)

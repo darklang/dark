@@ -209,6 +209,6 @@ let replacements =
             User_db.cols_for db
             |> List.map ~f:(fun (k, v) ->
                    (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)) )
-            |> Dval.to_dobj
+            |> Dval.to_dobj_exn
         | args ->
             fail args) ) ]

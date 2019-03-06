@@ -111,7 +111,7 @@ let query_for (col : string) (dv : dval) : string =
     (* compare against json in a string *)
     (Db.escape (String col))
     (Db.cast_expression_for dv |> Option.value ~default:"")
-    (Db.escape (DvalJson dv))
+    (Db.escape (QueryableDval dv))
 
 
 let rec query ~state ~magic db (pairs : (string * dval) list) : dval =
@@ -159,7 +159,7 @@ and (* PG returns lists of strings. This converts them to types using the
   match db_strings with
   | [obj] ->
       let p_obj =
-        match Dval.unsafe_dval_of_json_string obj with
+        match Dval.of_internal_queryable_v0 obj with
         | DObj o ->
             (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
          * data object itself. they got in the database on the `update` of
@@ -412,7 +412,7 @@ and set ~state ~magic ~upsert (db : db) (key : string) (vals : dval_map) :
       ; Int db.version
       ; Int current_dark_version
       ; String key
-      ; DvalmapJsonb merged ] ;
+      ; QueryableDvalmap merged ] ;
   id
 
 
@@ -436,7 +436,7 @@ and update ~state db (vals : dval_map) =
      AND user_version = $6
      AND dark_version = $7"
     ~params:
-      [ DvalmapJsonb merged
+      [ QueryableDvalmap merged
       ; Uuid id
       ; Uuid state.account_id
       ; Uuid state.canvas_id

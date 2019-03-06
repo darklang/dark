@@ -24,33 +24,23 @@ let has_json_header (headers : headers) : bool =
          |> String.is_substring ~substring:"application/json" )
 
 
-let read_json (json : string) : dval =
-  match Dval.parse_basic_json json with
-  | Some dv ->
-      dv
-  | None ->
-      Exception.user ~actual:json "Invalid json"
-
-
 (* TODO: integrate with dark_request *)
 let send_request uri verb body query_ headers_ =
   let query = Dval.dval_to_query query_ in
-  let headers = Dval.to_string_pairs headers_ in
+  let headers = Dval.to_string_pairs_exn headers_ in
   let body =
     match body with
-    | DObj obj ->
-        if has_form_header headers
-        then Dval.to_form_encoding body
-        else Dval.unsafe_dval_to_json_string body
+    | DObj obj when has_form_header headers ->
+        Dval.to_form_encoding body
     | _ ->
-        Dval.to_repr body
+        Dval.to_pretty_machine_json_v0 body
   in
   let result, headers = Httpclient.http_call uri query verb headers body in
   let parsed_result =
     if has_form_header headers
-    then Dval.from_form_encoding result
+    then Dval.of_form_encoding result
     else if has_json_header headers
-    then read_json result
+    then Dval.of_unknown_json_v0 result
     else Dval.dstr_of_string_exn result
   in
   let parsed_headers =
@@ -63,7 +53,7 @@ let send_request uri verb body query_ headers_ =
          ~f:(fun old neww -> neww )
     |> fun dm -> DObj dm
   in
-  Dval.to_dobj
+  Dval.to_dobj_exn
     [ ("body", parsed_result)
     ; ("headers", parsed_headers)
     ; ("raw", Dval.dstr_of_string_exn result) ]

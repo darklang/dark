@@ -133,7 +133,7 @@ let replacements =
             | Some {username; name; email} ->
                 DOption
                   (OptJust
-                     (Dval.to_dobj
+                     (Dval.to_dobj_exn
                         [ ("username", Dval.dstr_of_string_exn username)
                         ; ("name", Dval.dstr_of_string_exn name)
                         ; ("email", Dval.dstr_of_string_exn email) ])) )
@@ -149,7 +149,7 @@ let replacements =
             | Some {username; name; admin; email} ->
                 DOption
                   (OptJust
-                     (Dval.to_dobj
+                     (Dval.to_dobj_exn
                         [ ("username", Dval.dstr_of_string_exn username)
                         ; ("name", Dval.dstr_of_string_exn name)
                         ; ("email", Dval.dstr_of_string_exn email)
@@ -215,7 +215,7 @@ let replacements =
             | OptJust dv ->
                 Error
                   ( "Received something other than an Nothing, Just [...], or Just \"*\": "
-                  ^ Dval.as_string dv )
+                  ^ Dval.to_developer_repr_v0 dv )
           with e -> Error (Exception.exn_to_string e)
         in
         function

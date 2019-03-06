@@ -21,7 +21,7 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
       ; String fnname
       ; ID id
       ; String (Dval.hash arglist)
-      ; DvalJson result ]
+      ; RoundtrippableDval result ]
 
 
 let load ~canvas_id ~trace_id tlid : function_result list =
@@ -44,7 +44,7 @@ let load ~canvas_id ~trace_id tlid : function_result list =
              ( fnname
              , id_of_string id
              , hash
-             , Dval.unsafe_dval_of_json_string dval )
+             , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
              Exception.internal
                "Bad DB format for stored_functions_results.load" )

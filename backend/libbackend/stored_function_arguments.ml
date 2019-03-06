@@ -13,14 +13,7 @@ let store ~canvas_id ~trace_id tlid args =
     "INSERT INTO function_arguments
      (canvas_id, trace_id, tlid, timestamp, arguments_json)
      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)"
-    ~params:
-      [ Uuid canvas_id
-      ; Uuid trace_id
-      ; ID tlid
-      ; String
-          ( args
-          |> Dval.unsafe_dvalmap_to_yojson ~redact:false
-          |> Yojson.Safe.to_string ) ]
+    ~params:[Uuid canvas_id; Uuid trace_id; ID tlid; RoundtrippableDvalmap args]
 
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
@@ -38,12 +31,11 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
   |> Option.map ~f:(function
          | [args] ->
              args
-             |> Yojson.Safe.from_string
-             |> Dval.unsafe_dvalmap_of_yojson
-             |> RTT.DvalMap.to_alist
+             |> Dval.of_internal_roundtrippable_v0
+             |> Dval.to_dval_pairs_exn
          | _ ->
              Exception.internal
-               "Bad DB format for stored_functions.load_for_analysis" )
+               "Bad format for stored_functions.load_for_analysis" )
   |> Option.value ~default:[]
 
 

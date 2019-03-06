@@ -268,22 +268,22 @@ let result_to_response
       let resp_headers =
         maybe_infer_headers (Header.of_list resp_headers) value
       in
+      let content_type =
+        Header.get resp_headers "Content-Type"
+        |> Option.value ~default:"application/json"
+      in
       let body =
-        if Header.get resp_headers "Content-Type"
-           |> Option.value_map
-                ~f:(fun v ->
-                  String.is_prefix v ~prefix:"text/html"
-                  || String.is_prefix v ~prefix:"text/plain" )
-                ~default:false
-        then
-          (* TODO: only pretty print for a webbrowser *)
-          Dval.to_human_repr value
-        else Dval.unsafe_dval_to_pretty_json_string value
+        (* TODO: only pretty print for a webbrowser *)
+        if String.is_prefix ~prefix:"text/plain" content_type
+        then Dval.to_enduser_readable_text_v0 value
+        else if String.is_prefix ~prefix:"text/html" content_type
+        then Dval.to_enduser_readable_html_v0 value
+        else Dval.to_pretty_machine_json_v0 value
       in
       let status = Cohttp.Code.status_of_code code in
       respond ~resp_headers ~execution_id status body
   | _ ->
-      let body = Dval.unsafe_dval_to_pretty_json_string result in
+      let body = Dval.to_pretty_machine_json_v0 result in
       (* for demonstrations sake, let's return 200 Okay when
       * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in
