@@ -105,31 +105,16 @@ let dv_to_id col (dv : dval) : Uuidm.t =
       Exception.user (type_error_msg col TID dv)
 
 
-let query_for (col : string) (dv : dval) : string =
-  Printf.sprintf
-    "AND (data->%s)%s = %s"
-    (* compare against json in a string *)
-    (Db.escape (String col))
-    (Db.cast_expression_for dv |> Option.value ~default:"")
-    (Db.escape (QueryableDval dv))
-
-
 let rec query ~state ~magic db (pairs : (string * dval) list) : dval =
-  let conds =
-    pairs
-    |> List.map ~f:(fun (k, v) -> query_for k v)
-    |> String.concat ~sep:"\n     "
-  in
+  let query_obj = pairs |> DvalMap.of_alist_exn |> fun m -> DObj m in
   let sql =
-    Printf.sprintf
-      "SELECT key, data
-       FROM user_data
-       WHERE table_tlid = $1
-       AND user_version = $2
-       AND dark_version = $3
-       AND canvas_id = $4
-       %s"
-      conds
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND user_version = $2
+     AND dark_version = $3
+     AND canvas_id = $4
+     AND data @> $5"
   in
   Db.fetch
     ~name:"fetch_by"
@@ -138,7 +123,8 @@ let rec query ~state ~magic db (pairs : (string * dval) list) : dval =
       [ ID db.tlid
       ; Int db.version
       ; Int current_dark_version
-      ; Uuid state.canvas_id ]
+      ; Uuid state.canvas_id
+      ; QueryableDval query_obj ]
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
