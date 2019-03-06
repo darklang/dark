@@ -13,6 +13,7 @@ type param =
   | Secret of string
   | RoundtrippableDval of Types.RuntimeT.dval
   | RoundtrippableDvalmap of Types.RuntimeT.dval_map
+  (* Queryable are stored as jsonb so that they can be queried. *)
   | QueryableDval of Types.RuntimeT.dval
   | QueryableDvalmap of Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
