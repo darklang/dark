@@ -150,6 +150,7 @@ do
       ;;
     --honeycomb-write-key=*)
       DARK_CLUSTER_HONEYCOMB_WRITE_KEY="${i/--honeycomb-write-key=/''}"
+      DARK_CLUSTER_HONEYCOMB_WRITE_KEY=$(printf "%s" "$DARK_CLUSTER_HONEYCOMB_WRITE_KEY" | base64)
       ;;
     --help)
       echo "$HELP"
