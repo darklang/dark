@@ -48,13 +48,14 @@ val of_internal_roundtrippable_json_v0 :
   Yojson.Safe.json -> (Types.RuntimeT.dval, string) Core_kernel._result
 
 (* This is a format used for roundtripping dvals internally, while still being
- * queryable. v0 has bugs due to a legacy of trying to make one function useful
- * for everything. Also roundtrippable. Does not redact. *)
+ * queryable using jsonb in our DB. v0 has bugs due to a legacy of trying to
+ * make one function useful for everything. Also roundtrippable. Does not
+ * redact. *)
 val to_internal_queryable_v0 : Types.RuntimeT.dval -> string
 
 (* This is a format used for roundtripping dvals internally, while still being
- * queryable. There are some rare cases where it will parse incorrectly without
- * error. Throws on Json bugs. *)
+ * queryable using jsonb in our DB. There are some rare cases where it will
+ * parse incorrectly without error. Throws on Json bugs. *)
 val of_internal_queryable_v0 : string -> Types.RuntimeT.dval
 
 (* When printing to grand-users (our users' users) using text/plain, print a
