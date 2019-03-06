@@ -67,8 +67,11 @@ data:
         parser: glog
       - labelSelector: "app=bwd-app"
         containerName: http-proxy
-        parser: nginx
-        dataset: kubernetes-bwd-nginx
+        parser:
+          name: nginx
+          dataset: kubernetes-bwd-nginx
+          options:
+            log_format: '$remote_addr - $remote_user [$time_local] $host "$request" $status $bytes_sent $body_bytes_sent $request_time "$http_referer" "$http_user_agent" $request_length "$http_authorization" "$http_x_forwarded_proto" "$http_x_forwarded_for" $server_name "$upstream_http_x_darklang_execution_id" "$http_cookie"'
         processors:
         - request_shape:
             field: request
