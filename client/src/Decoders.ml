@@ -280,7 +280,7 @@ and deployStatus j : deployStatus =
 and sDeploy j : staticDeploy =
   { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
-  ; createdAt = field "created_at" string j
+  ; lastUpdate = field "last_update" string j
   ; status = field "status" deployStatus j }
 
 

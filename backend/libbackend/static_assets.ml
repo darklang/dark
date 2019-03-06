@@ -23,7 +23,7 @@ type static_asset_error =
 type static_deploy =
   { deploy_hash : string
   ; url : string
-  ; created_at : string
+  ; last_update : string
   ; status : deploy_status }
 [@@deriving show, yojson]
 
@@ -153,7 +153,7 @@ let start_static_asset_deploy
     |> String.lowercase
     |> fun s -> String.prefix s 10
   in
-  let created_at =
+  let last_update =
     Db.fetch_one
       ~name:"add static_asset_deploy record"
       ~subject:deploy_hash
@@ -166,7 +166,7 @@ let start_static_asset_deploy
   in
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
-  ; created_at
+  ; last_update
   ; status = Deploying }
 
 
@@ -197,19 +197,19 @@ let delete_static_asset_deploy
 
 let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
     static_deploy =
-  let timestamp =
+  let last_update =
     Db.fetch_one
       ~name:"finish static_asset_deploy record"
       ~subject:deploy_hash
       "UPDATE static_asset_deploys
       SET live_at = NOW()
-      WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING created_at"
+      WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING live_at"
       ~params:[Uuid canvas_id; String deploy_hash]
     |> List.hd_exn
   in
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
-  ; created_at = timestamp
+  ; last_update
   ; status = Deployed }
 
 
@@ -221,9 +221,10 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
     ~params:[Uuid canvas_id]
   |> List.map ~f:(function
          | [deploy_hash; created_at; live_at] ->
+            let isLive = live_at <> "" in
              { deploy_hash
              ; url = url canvas_id deploy_hash `Short
-             ; created_at
-             ; status = (if live_at = "" then Deploying else Deployed) }
+             ; last_update = (if isLive then live_at else created_at)
+             ; status = (if isLive then Deployed else Deploying) }
          | _ ->
              Exception.internal "Bad DB format for static assets deploys" )
