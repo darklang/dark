@@ -270,11 +270,18 @@ and fof j : fourOhFour =
   ; modifier = index 2 string j }
 
 
+and deployStatus j : deployStatus =
+  let sumtypes =
+    [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
+  in
+  j |> variants sumtypes
+
+
 and sDeploy j : staticDeploy =
   { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
   ; createdAt = field "created_at" string j
-  ; status = field "status" string j }
+  ; status = field "status" deployStatus j }
 
 
 and inputValueDict j : inputValueDict =

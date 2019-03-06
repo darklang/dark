@@ -277,6 +277,15 @@ end
 module NewStaticDeployPush = struct
   let decode =
     let open Tea.Json.Decoder in
+    let decodeStatus v =
+      match Obj.magic v with
+      | ["Deploying"] ->
+          Tea_result.Ok Deploying
+      | ["Deployed"] ->
+          Tea_result.Ok Deployed
+      | _ ->
+          Tea_result.Error "Unable to decode deployStatus"
+    in
     let decodeDeploy =
       map4
         (fun deployHash url createdAt status ->
@@ -284,7 +293,7 @@ module NewStaticDeployPush = struct
         (field "deploy_hash" string)
         (field "url" string)
         (field "created_at" string)
-        (field "status" string)
+        (field "status" (Decoder decodeStatus))
     in
     map (fun msg -> msg) (field "detail" decodeDeploy)
 
