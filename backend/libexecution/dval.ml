@@ -842,7 +842,7 @@ let parse_literal (str : string) : dval option =
     match int_of_string_opt str with
     | Some v ->
         Some (DInt v)
-    | _ ->
+    | None ->
       ( match float_of_string_opt str with
       | Some v ->
           Some (DFloat v)
