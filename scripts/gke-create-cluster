@@ -196,7 +196,7 @@ fi
 if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_DL_TLS_KEY ] || [ ! -v DARK_CLUSTER_DL_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ] || [ ! -v DARK_CLUSTER_CLOUDSQL_USER ] \
-     || [ ! -v DARK_CLUSTER_HONEYCOMB_WRITE_KEY ]
+     || [ ! -v DARK_CLUSTER_HONEYCOMB_WRITE_KEY ] \
      || [ ! -v DARK_CLUSTER_CLOUDSQL_PASS ]; then
   print_step "authorizing with the current cluster"
   gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/$(< current-cluster)" --region=${DARK_CLUSTER_REGION}
