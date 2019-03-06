@@ -751,7 +751,7 @@ let to_pretty_machine_json_v0 dval =
 
 let of_unknown_json_v0 str =
   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson with e ->
-    Exception.user ~actual:str ("Invalid json" ^ Exception.to_string e)
+    Exception.user ~actual:str ("Invalid json: " ^ Exception.to_string e)
 
 
 let rec show dv =
