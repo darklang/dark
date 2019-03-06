@@ -84,18 +84,18 @@ let replacements =
   ; ( "DB::query_v1"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            map |> DvalMap.to_alist |> User_db.query ~state ~magic:false db
+            User_db.query ~state ~magic:false db obj
         | args ->
             fail args) )
   ; ( "DB::query_v2"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              map |> DvalMap.to_alist |> User_db.query ~state ~magic:false db
+              User_db.query ~state ~magic:false db obj
             in
             ( match results with
             | DList xs ->
@@ -113,18 +113,18 @@ let replacements =
   ; ( "DB::queryWithKey_v1"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            map |> DvalMap.to_alist |> User_db.query ~state ~magic:false db
+            User_db.query ~state ~magic:false db obj
         | args ->
             fail args) )
   ; ( "DB::queryOne_v1"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              map |> DvalMap.to_alist |> User_db.query ~state ~magic:false db
+              User_db.query ~state ~magic:false db obj
             in
             ( match results with
             | DList [res] ->
@@ -141,10 +141,10 @@ let replacements =
   ; ( "DB::queryOneWithKey_v1"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              map |> DvalMap.to_alist |> User_db.query ~state ~magic:false db
+              User_db.query ~state ~magic:false db obj
             in
             ( match results with
             | DList [res] ->
