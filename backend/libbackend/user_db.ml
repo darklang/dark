@@ -105,8 +105,7 @@ let dv_to_id col (dv : dval) : Uuidm.t =
       Exception.user (type_error_msg col TID dv)
 
 
-let rec query ~state ~magic db (pairs : (string * dval) list) : dval =
-  let query_obj = pairs |> DvalMap.of_alist_exn |> fun m -> DObj m in
+let rec query ~state ~magic db query_obj : dval =
   let sql =
     "SELECT key, data
      FROM user_data
@@ -136,7 +135,7 @@ let rec query ~state ~magic db (pairs : (string * dval) list) : dval =
 
 
 and query_by_one ~state ~magic db (col : string) (dv : dval) : dval =
-  query ~state ~magic db [(col, dv)]
+  query ~state ~magic db (DObj (DvalMap.singleton col dv))
 
 
 and (* PG returns lists of strings. This converts them to types using the
