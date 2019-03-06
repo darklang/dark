@@ -148,6 +148,9 @@ do
     --machine-type=*)
       DARK_CLUSTER_NODE_MACHINE_TYPE="${i/--machine-type=/''}"
       ;;
+    --honeycomb-write-key=*)
+      DARK_CLUSTER_HONEYCOMB_WRITE_KEY="${i/--honeycomb-write-key=/''}"
+      ;;
     --help)
       echo "$HELP"
       exit 0
@@ -236,6 +239,11 @@ if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
     print_step "Fetching DARK_CLUSTER_STATIC_ASSETS_CREDS"
     DARK_CLUSTER_STATIC_ASSETS_CREDS=$(kubectl get secret dark-static-assets -o json | jq -r '.data["balmy-ground-195100-d9b0f3de3013.json"]')
   fi
+
+  if [ ! -v DARK_CLUSTER_HONEYCOMB_WRITE_KEY ]; then
+    print_step "Fetching DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
+    DARK_CLUSTER_HONEYCOMB_WRITE_KEY=$(kubectl get secret honeycomb-writekey -o json | jq -r '.data["key"]')
+  fi
 fi
 
 
@@ -315,6 +323,10 @@ kubectl create -f - <<EOF
   }
 }
 EOF
+
+# Honeycomb write key
+kubectl create secret generic -n default honeycomb-writekey \
+    --from-literal=key="$DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
 
 kubectl create -f - <<EOF
 {
