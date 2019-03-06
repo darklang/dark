@@ -325,8 +325,19 @@ kubectl create -f - <<EOF
 EOF
 
 # Honeycomb write key
-kubectl create secret generic -n default honeycomb-writekey \
-    --from-literal=key="$DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
+kubectl create -f - <<EOF
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "Opaque",
+  "data": {
+    "key": "$DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
+  },
+  "metadata": {
+    "name": "honeycomb-writekey"
+  }
+}
+EOF
 
 kubectl create -f - <<EOF
 {
