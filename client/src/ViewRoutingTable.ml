@@ -374,6 +374,9 @@ let entry2html (m : model) (e : entry) : msg Html.html =
 
 
 let deploy2html (d : staticDeploy) : msg Html.html =
+  let statusString =
+    match d.status with Deployed -> "Deployed" | Deploying -> "Deploying"
+  in
   Html.div
     [Html.class' "simple-route deploy"]
     [ Html.span [Html.class' "datetime"] [Html.text d.createdAt]
@@ -381,8 +384,11 @@ let deploy2html (d : staticDeploy) : msg Html.html =
         [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
         [Html.text d.deployHash]
     ; Html.span
-        [Html.classList [("status", true); ("success", d.status = "Deployed")]]
-        [Html.text d.status] ]
+        [ Html.classList
+            [ ("status", true)
+            ; ("success", match d.status with Deployed -> true | _ -> false) ]
+        ]
+        [Html.text statusString] ]
 
 
 let rec item2html (m : model) (s : item) : msg Html.html =
@@ -460,7 +466,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
   in
   let staticDeploys =
     { count = List.length m.staticDeploys
-    ; name = "Static Asset Deploys"
+    ; name = "Static Assets"
     ; plusButton = None
     ; classname = "deploys"
     ; entries = List.map ~f:(fun sa -> Deploy sa) m.staticDeploys }

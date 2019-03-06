@@ -368,11 +368,15 @@ and fourOhFour =
   ; path : string
   ; modifier : string }
 
+and deployStatus =
+  | Deploying
+  | Deployed
+
 and staticDeploy =
   { deployHash : string
   ; url : string
   ; createdAt : string
-  ; status : string }
+  ; status : deployStatus }
 
 (* ------------------- *)
 (* ops *)

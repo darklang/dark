@@ -10,9 +10,10 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Format.flush_str_formatter ()
 
 
-let status_start : string = "Deploying"
-
-and status_done : string = "Deployed"
+type deploy_status =
+  | Deploying
+  | Deployed
+[@@deriving eq, show, yojson]
 
 type static_asset_error =
   [ `GcloudAuthError of string
@@ -23,7 +24,7 @@ type static_deploy =
   { deploy_hash : string
   ; url : string
   ; created_at : string
-  ; status : string }
+  ; status : deploy_status }
 [@@deriving show, yojson]
 
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
@@ -166,7 +167,7 @@ let start_static_asset_deploy
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
   ; created_at
-  ; status = status_start }
+  ; status = Deploying }
 
 
 (* since postgres doesn't have named transactions, we just delete the db
@@ -209,7 +210,7 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
   ; created_at = timestamp
-  ; status = status_done }
+  ; status = Deployed }
 
 
 let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
@@ -223,6 +224,6 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
              { deploy_hash
              ; url = url canvas_id deploy_hash `Short
              ; created_at
-             ; status = (if live_at = "" then status_start else status_done) }
+             ; status = (if live_at = "" then Deploying else Deployed) }
          | _ ->
              Exception.internal "Bad DB format for static assets deploys" )
