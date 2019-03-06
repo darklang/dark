@@ -923,8 +923,10 @@ let rec to_url_string_exn (dv : dval) : string =
       url
   | DDB dbname ->
       dbname
+  | DErrorRail d ->
+      to_url_string_exn d
   | DError msg ->
-      msg
+      "error=" ^ msg
   | DUuid uuid ->
       Uuidm.to_string uuid
   | DResp (_, hdv) ->
@@ -937,8 +939,14 @@ let rec to_url_string_exn (dv : dval) : string =
             (key ^ ": " ^ to_url_string_exn data) :: l )
       in
       "{ " ^ String.concat ~sep:", " strs ^ " }"
-  | _ ->
-      failwith "to_url_string of unurlable value"
+  | DOption OptNothing ->
+      "none"
+  | DOption (OptJust v) ->
+      to_url_string_exn v
+  | DResult (ResError v) ->
+      "error=" ^ to_url_string_exn v
+  | DResult (ResOk v) ->
+      to_url_string_exn v
 
 
 (* ------------------------- *)
