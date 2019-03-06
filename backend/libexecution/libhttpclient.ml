@@ -16,7 +16,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP POST call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::put"]
@@ -25,7 +24,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP PUT call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::get"]
@@ -34,7 +32,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP GET call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::delete"]
@@ -43,7 +40,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP DELETE call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::options"]
@@ -52,7 +48,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP OPTIONS call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::head"]
@@ -61,7 +56,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP HEAD call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::patch"]
@@ -70,7 +64,6 @@ let fns : Lib.shortfn list =
     ; r = TObj
     ; d = "Make blocking HTTP PATCH call to `uri`"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::formContentType"]
@@ -89,7 +82,6 @@ let fns : Lib.shortfn list =
                          "application/x-www-form-urlencoded" ) ])
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["HttpClient::jsonContentType"]
@@ -108,7 +100,6 @@ let fns : Lib.shortfn list =
                          "application/json; charset=utf-8" ) ])
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["HttpClient::plainTextContentType"]
@@ -126,7 +117,6 @@ let fns : Lib.shortfn list =
                      , Dval.dstr_of_string_exn "text/plain; charset=utf-8" ) ])
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["HttpClient::htmlContentType"]
@@ -144,7 +134,6 @@ let fns : Lib.shortfn list =
                      , Dval.dstr_of_string_exn "text/html; charset=utf-8" ) ])
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["HttpClient::basicAuth"]
@@ -154,7 +143,6 @@ let fns : Lib.shortfn list =
     ; d =
         "Returns an object with 'Authorization' created using HTTP basic auth"
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::bearerToken"]
@@ -174,6 +162,5 @@ let fns : Lib.shortfn list =
               DObj (DvalMap.of_alist_exn [("Authorization", DStr auth_string)])
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false } ]

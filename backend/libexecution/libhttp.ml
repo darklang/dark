@@ -15,7 +15,6 @@ let fns : Lib.shortfn list =
               DResp (Response (code, []), dv)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; (* TODO(ian): merge Http::respond with Http::respond_with_headers
@@ -36,7 +35,6 @@ let fns : Lib.shortfn list =
               DResp (Response (code, pairs), dv)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::success"]
@@ -48,7 +46,6 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::respondWithHtml"]
@@ -64,7 +61,6 @@ let fns : Lib.shortfn list =
               DResp (Response (code, [("Content-Type", "text/html")]), dv)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::respondWithText"]
@@ -80,7 +76,6 @@ let fns : Lib.shortfn list =
               DResp (Response (code, [("Content-Type", "text/plain")]), dv)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::respondWithJson"]
@@ -97,7 +92,6 @@ let fns : Lib.shortfn list =
                 (Response (code, [("Content-Type", "application/json")]), dv)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::redirectTo"]
@@ -112,7 +106,6 @@ let fns : Lib.shortfn list =
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::badRequest"]
@@ -127,7 +120,6 @@ let fns : Lib.shortfn list =
               DResp (Response (400, []), DStr msg)
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::notFound"]
@@ -139,7 +131,6 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::unauthorized"]
@@ -151,7 +142,6 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::forbidden"]
@@ -163,7 +153,6 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
-    ; pr = None
     ; ps = true
     ; dep = false }
   ; { pns = ["Http::setCookie"]
@@ -207,6 +196,5 @@ let fns : Lib.shortfn list =
               |> fun x -> Dval.to_dobj [("Set-Cookie", x)]
           | args ->
               fail args)
-    ; pr = None
     ; ps = true
     ; dep = false } ]
