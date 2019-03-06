@@ -33,8 +33,10 @@ type param =
   | Binary of string
   (* only works for passed params *)
   | Secret of string
-  | DvalJson of Types.RuntimeT.dval
-  | DvalmapJsonb of Types.RuntimeT.dval_map
+  | RoundtrippableDval of Types.RuntimeT.dval
+  | RoundtrippableDvalmap of Types.RuntimeT.dval_map
+  | QueryableDval of Types.RuntimeT.dval
+  | QueryableDvalmap of Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
   | Null
   | List of param list
@@ -68,11 +70,22 @@ let rec escape (param : param) : string =
       Exception.internal "Prefer not to escape binary data"
   | Secret str ->
       str |> escape_single |> single_quote
-  | DvalJson dv ->
-      dv |> Dval.unsafe_dval_to_json_string |> escape_single |> single_quote
-  | DvalmapJsonb dvm ->
-      dvm
-      |> Dval.unsafe_dvalmap_to_string
+  | RoundtrippableDval dv ->
+      dv |> Dval.to_internal_roundtrippable_v0 |> escape_single |> single_quote
+  | RoundtrippableDvalmap dvm ->
+      DObj dvm
+      |> Dval.to_internal_roundtrippable_v0
+      |> escape_single
+      |> single_quote
+  | QueryableDval dv ->
+      dv
+      |> Dval.to_internal_queryable_v0
+      |> escape_single
+      |> single_quote
+      |> cast_to ~tipe:"jsonb"
+  | QueryableDvalmap dvm ->
+      DObj dvm
+      |> Dval.to_internal_queryable_v0
       |> escape_single
       |> single_quote
       |> cast_to ~tipe:"jsonb"
@@ -106,10 +119,14 @@ let rec to_sql param : string =
       str (* the to_binary_bool handled this *)
   | Secret str ->
       str
-  | DvalJson dv ->
-      Dval.unsafe_dval_to_json_string ~redact:false dv
-  | DvalmapJsonb dvm ->
-      Dval.unsafe_dvalmap_to_string ~redact:false dvm
+  | QueryableDval dv ->
+      Dval.to_internal_queryable_v0 dv
+  | QueryableDvalmap dvm ->
+      Dval.to_internal_queryable_v0 (DObj dvm)
+  | RoundtrippableDval dv ->
+      Dval.to_internal_roundtrippable_v0 dv
+  | RoundtrippableDvalmap dvm ->
+      Dval.to_internal_roundtrippable_v0 (DObj dvm)
   | Null ->
       Postgresql.null
   | Time t ->
@@ -142,10 +159,14 @@ let rec to_log param : string =
       "<binary>"
   | Secret str ->
       "<secret>"
-  | DvalJson dv ->
-      abbrev (Dval.unsafe_dval_to_json_string dv)
-  | DvalmapJsonb dvm ->
-      abbrev (Dval.unsafe_dvalmap_to_string dvm)
+  | RoundtrippableDval dv ->
+      dv |> Dval.to_internal_roundtrippable_v0 |> abbrev
+  | RoundtrippableDvalmap dvm ->
+      DObj dvm |> Dval.to_internal_roundtrippable_v0 |> abbrev
+  | QueryableDval dv ->
+      dv |> Dval.to_internal_queryable_v0 |> abbrev
+  | QueryableDvalmap dvm ->
+      DObj dvm |> Dval.to_internal_queryable_v0 |> abbrev
   | Null ->
       "NULL"
   | Time t ->

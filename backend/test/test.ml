@@ -63,7 +63,7 @@ let clear_test_data () : unit =
 
 let at_dval =
   AT.testable
-    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
     (fun a b -> compare_dval a b = 0)
 
 
@@ -79,7 +79,7 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
   let e =
     try
       let r = f () in
-      Log.erroR "result" ~data:(Dval.to_repr r) ;
+      Log.erroR "result" ~data:(Dval.to_developer_repr_v0 r) ;
       Some "no exception"
     with
     | Exception.DarkException ed ->
@@ -99,11 +99,11 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
 
 
 let check_error_contains (name : string) (result : dval) (substring : string) =
-  let strresult = Dval.as_string result in
+  let strresult = Dval.to_developer_repr_v0 result in
   AT.(check bool)
     (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
     true
-    (String.is_substring ~substring (Dval.as_string result))
+    (String.is_substring ~substring strresult)
 
 
 (* ------------------- *)
@@ -212,6 +212,51 @@ let user_fn name params ast : user_fn =
 let t4_get1st (x, _, _, _) = x
 
 let t4_get4th (_, _, _, x) = x
+
+let sample_dvals =
+  [ ("int", DInt 5)
+  ; ("int2", DInt (-1))
+  ; ("float", DFloat 7.2)
+  ; ("float2", DFloat (-7.2))
+  ; ("true", DBool true)
+  ; ("false", DBool false)
+  ; ("null", DNull)
+  ; ("char", DChar 'c')
+  ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
+  ; ("list", DList [DDB "Visitors"; DInt 4])
+  ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
+  ; ( "obj2"
+    , DObj
+        (DvalMap.of_alist_exn
+           [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
+  ; ( "obj3"
+    , DObj
+        (DvalMap.of_alist_exn
+           [ ("type", Dval.dstr_of_string_exn "weird")
+           ; ("value", Dval.dstr_of_string_exn "x") ]) )
+  ; ("incomplete", DIncomplete)
+  ; ("error", DError "some error string")
+  ; ("block", DBlock (fun _args -> DNull))
+  ; ("errorrail", DErrorRail (DInt 5))
+  ; ("redirect", DResp (Redirect "/home", DNull))
+  ; ( "httpresponse"
+    , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
+  ; ("db", DDB "Visitors")
+  ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
+  ; ("title", DTitle "some title")
+  ; ("url", DUrl "https://darklang.com")
+  ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+  ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("option", DOption OptNothing)
+  ; ("option2", DOption (OptJust (DInt 15)))
+  ; ("character", DCharacter (Unicode_string.Character.unsafe_of_string "s"))
+  ; ("result", DResult (ResOk (DInt 15)))
+  ; ( "result2"
+    , DResult
+        (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
+    ) ]
+
 
 (* ------------------- *)
 (* Execution *)
@@ -381,9 +426,8 @@ let t_derror_roundtrip () =
   let x = DError "test" in
   let converted =
     x
-    |> Dval.unsafe_dval_to_yojson
-    |> Dval.unsafe_dval_of_yojson
-    |> Result.ok_or_failwith
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
   in
   check_dval "roundtrip" converted x
 
@@ -441,7 +485,7 @@ let t_case_insensitive_db_roundtrip () =
         true
         (List.mem ~equal:( = ) (DvalMap.data v) value)
   | other ->
-      Log.erroR "error" ~data:(Dval.to_repr other) ;
+      Log.erroR "error" ~data:(Dval.to_developer_repr_v0 other) ;
       AT.(check bool) "failed" true false
 
 
@@ -706,15 +750,15 @@ let t_nulls_added_to_missing_column () =
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 
-let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
+let t_internal_roundtrippable_doesnt_care_about_order () =
   check_dval
-    "dval_of_json_string doesn't care about key order"
-    (Dval.unsafe_dval_of_json_string
+    "internal_roundtrippable doesn't care about key order"
+    (Dval.of_internal_roundtrippable_v0
        "{
          \"type\": \"url\",
          \"value\": \"https://example.com\"
         }")
-    (Dval.unsafe_dval_of_json_string
+    (Dval.of_internal_roundtrippable_v0
        "{
          \"value\": \"https://example.com\",
          \"type\": \"url\"
@@ -722,57 +766,27 @@ let t_unsafe_dval_of_yojson_doesnt_care_about_order () =
 
 
 let t_dval_yojson_roundtrips () =
-  let unsafe_rt v =
+  let roundtrippable_rt v =
     v
-    |> Dval.unsafe_dval_to_yojson
-    |> Dval.unsafe_dval_of_yojson
-    |> Result.ok_or_failwith
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
+  in
+  let queryable_rt v =
+    v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v0
   in
   (* Don't really need to check this but what harm *)
   let safe_rt v =
     v |> dval_to_yojson |> dval_of_yojson |> Result.ok_or_failwith
   in
   let check name (v : dval) =
-    check_dval name v (safe_rt v) ;
-    check_dval ("unsafe " ^ name) v (unsafe_rt v) ;
+    check_dval ("safe: " ^ name) v (safe_rt v) ;
+    check_dval ("roundtrippable: " ^ name) v (roundtrippable_rt v) ;
+    check_dval ("queryable: " ^ name) v (queryable_rt v) ;
     ()
   in
-  check "int" (DInt 5) ;
-  check "int" (DInt 5) ;
-  check "obj" (DObj (DvalMap.of_alist_exn [("foo", DInt 5)])) ;
-  check "date" (DDate (Time.of_string "2018-09-14T00:31:41Z")) ;
-  check "incomplete" DIncomplete ;
-  check "float" (DFloat 7.2) ;
-  check "true" (DBool true) ;
-  check "false" (DBool false) ;
-  check "string" (Dval.dstr_of_string_exn "incredibly this was broken") ;
-  check "null" DNull ;
-  check "id" (DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6")) ;
-  check
-    "uuid"
-    (DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6")) ;
-  check "title" (DTitle "some title") ;
-  check "errorrail" (DErrorRail (DInt 5)) ;
-  check "option" (DOption OptNothing) ;
-  check "option" (DOption (OptJust (DInt 15))) ;
-  check "db" (DDB "Visitors") ;
-  check "list" (DList [DDB "Visitors"; DInt 4]) ;
-  check "redirect" (DResp (Redirect "/home", DNull)) ;
-  check
-    "httpresponse"
-    (DResp (Response (200, []), Dval.dstr_of_string_exn "success")) ;
-  check
-    "weird assoc 1"
-    (DObj
-       (DvalMap.of_alist_exn
-          [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)])) ;
-  check
-    "weird assoc 2"
-    (DObj
-       (DvalMap.of_alist_exn
-          [ ("type", Dval.dstr_of_string_exn "weird")
-          ; ("value", Dval.dstr_of_string_exn "x") ])) ;
-  ()
+  sample_dvals
+  |> List.filter ~f:(function _, DBlock _ -> false | _ -> true)
+  |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
 let t_password_hashing_and_checking_works () =
@@ -812,39 +826,57 @@ let t_password_hash_db_roundtrip () =
         1 )
 
 
-let t_passwords_dont_serialize () =
-  let password = DPassword (Bytes.of_string "x") in
-  AT.check
-    AT.bool
-    "Passwords don't serialize by default"
+let t_password_serialization () =
+  let does_serialize name expected f =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DPassword bytes in
+    AT.check
+      AT.bool
+      ("Passwords serialize in non-redaction function: " ^ name)
+      expected
+      (String.is_substring
+         ~substring:(B64.encode "encryptedbytes")
+         (f password))
+  in
+  let roundtrips name serialize deserialize =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DPassword bytes in
+    AT.check
+      at_dval
+      ("Passwords serialize in non-redaction function: " ^ name)
+      password
+      (password |> serialize |> deserialize |> serialize |> deserialize)
+  in
+  (* doesn't redact *)
+  does_serialize
+    "to_internal_roundtrippable_v0"
     true
-    (let serialized =
-       password
-       |> Dval.unsafe_dval_to_yojson
-       (* ~redact:true by default *)
-       |> Yojson.Safe.sort
-     in
-     match serialized with
-     | `Assoc [("type", `String "password"); ("value", `Null)] ->
-         true
-     | _ ->
-         false)
-
-
-let t_passwords_serialize () =
-  let password = DPassword (Bytes.of_string "x") in
-  AT.check
-    (AT.option AT.string)
-    "Passwords serialize if you turn off redaction "
-    (Some "x")
-    (let serialized =
-       password |> Dval.unsafe_dval_to_yojson ~redact:false |> Yojson.Safe.sort
-     in
-     match serialized with
-     | `Assoc [("type", `String "password"); ("value", `String x)] ->
-         Some (B64.decode x)
-     | _ ->
-         None)
+    Dval.to_internal_roundtrippable_v0 ;
+  does_serialize "to_internal_queryable_v0" true Dval.to_internal_queryable_v0 ;
+  (* roundtrips *)
+  roundtrips
+    "to_internal_roundtrippable_v0"
+    Dval.to_internal_roundtrippable_v0
+    Dval.of_internal_roundtrippable_v0 ;
+  roundtrips
+    "to_internal_queryable_v0"
+    Dval.to_internal_queryable_v0
+    Dval.of_internal_roundtrippable_v0 ;
+  (* redacting *)
+  does_serialize
+    "to_enduser_readable_text_v0"
+    false
+    Dval.to_enduser_readable_text_v0 ;
+  does_serialize
+    "to_enduser_readable_html_v0"
+    false
+    Dval.to_enduser_readable_html_v0 ;
+  does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
+  does_serialize
+    "to_pretty_machine_json_v0"
+    false
+    Dval.to_pretty_machine_json_v0 ;
+  ()
 
 
 let t_password_json_round_trip_forwards () =
@@ -853,23 +885,10 @@ let t_password_json_round_trip_forwards () =
     "Passwords serialize and deserialize if there's no redaction."
     password
     ( password
-    |> Dval.unsafe_dval_to_json_string ~redact:false
-    |> Dval.unsafe_dval_of_json_string )
-
-
-let t_password_json_round_trip_backwards () =
-  let json =
-    "x"
-    |> Bytes.of_string
-    |> fun p -> DPassword p |> Dval.unsafe_dval_to_json_string ~redact:false
-  in
-  AT.check
-    AT.string
-    "Passwords deserialize and serialize if there's no redaction."
-    json
-    ( json
-    |> Dval.unsafe_dval_of_json_string
-    |> Dval.unsafe_dval_to_json_string ~redact:false )
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0 )
 
 
 let t_incomplete_propagation () =
@@ -1726,10 +1745,10 @@ let t_db_getAll_v2_works () =
   (* sorting to ensure the test isn't flakey *)
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-               (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. (List::last x) sort_by)))
-                 (== (one two three) fetched)))))"
+       (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
+         (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
+            (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. x sort_by)))
+              (== (one two three) fetched)))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
@@ -1797,15 +1816,15 @@ let t_parsed_request_cookies () =
     ; with_cookies "a=b;"
     ; with_cookies "a=b; c=d"
     ; with_cookies "a=b; c=d;" ]
-    [ Dval.to_dobj []
-    ; Dval.to_dobj []
-    ; Dval.to_dobj []
-    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "")]
-    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "b")]
-    ; Dval.to_dobj [("a", Dval.dstr_of_string_exn "b")]
-    ; Dval.to_dobj
+    [ Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn
         [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
-    ; Dval.to_dobj
+    ; Dval.to_dobj_exn
         [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
     ]
 
@@ -2156,6 +2175,17 @@ let t_result_to_response_works () =
   ()
 
 
+let t_old_new_dval_reprs () =
+  List.iter sample_dvals ~f:(fun (name, dv) ->
+      (* AT.check *)
+      (*   AT.string *)
+      (*   ("old_new_dval check: " ^ name) *)
+      (*   (Dval.old_to_internal_repr dv) *)
+      (*   (Dval.to_hashable_repr dv) ; *)
+      () ) ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2191,23 +2221,16 @@ let suite =
   ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column)
   ; ( "Parsing JSON to DVals doesn't care about key order"
     , `Quick
-    , t_unsafe_dval_of_yojson_doesnt_care_about_order )
+    , t_internal_roundtrippable_doesnt_care_about_order )
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works )
   ; ( "Password hashes can be stored in and retrieved from the DB"
     , `Quick
     , t_password_hash_db_roundtrip )
-  ; ("Passwords don't serialize by default", `Quick, t_passwords_dont_serialize)
-  ; ( "Passwords serialize if you turn off redaction"
+  ; ( "Passwords serialize correctly and redact (or not) correctly"
     , `Quick
-    , t_passwords_serialize )
-  ; ( "Passwords serialize and deserialize if there's no redaction."
-    , `Quick
-    , t_password_json_round_trip_forwards )
-  ; ( "Passwords deserialize and serialize if there's no redaction."
-    , `Quick
-    , t_password_json_round_trip_backwards )
+    , t_password_serialization )
   ; ("Incompletes propagate correctly", `Quick, t_incomplete_propagation)
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
   ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
@@ -2342,7 +2365,10 @@ let suite =
   ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
   ; ( "Dvals get converted to web responses correctly"
     , `Quick
-    , t_result_to_response_works ) ]
+    , t_result_to_response_works )
+  ; ( "New dval representations are the same as the old ones"
+    , `Quick
+    , t_old_new_dval_reprs ) ]
 
 
 let () =

@@ -245,7 +245,8 @@ let isComplete (dv : dval) : bool =
 
 let isTrue (dv : dval) : bool = dv = DBool true
 
-(* Copied from Dval.to_repr in backend code *)
+(* Copied from Dval.to_repr in backend code, but that's terrible and it should
+ * be recopied from to_developer_repr *)
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
   let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in

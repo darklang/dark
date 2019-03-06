@@ -225,7 +225,7 @@ let rec exec
         ps
         |> List.map ~f:Tuple.T2.get2
         |> find_derrorrail
-        |> Option.value ~default:(Dval.to_dobj ps)
+        |> Option.value ~default:(Dval.to_dobj_exn ps)
     | Filled (_, Variable name) ->
       ( match Symtable.find st name with
       | None ->
@@ -432,7 +432,8 @@ let rec exec
           | DErrorRail _ ->
               obj
           | x ->
-              DError ("Can't access field of non-object: " ^ Dval.to_repr x)
+              DError
+                "Attempting to access of a field of something that isn't an object"
         in
         trace_blank field result st ;
         result
