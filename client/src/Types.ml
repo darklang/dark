@@ -375,7 +375,7 @@ and deployStatus =
 and staticDeploy =
   { deployHash : string
   ; url : string
-  ; createdAt : string
+  ; lastUpdate : string
   ; status : deployStatus }
 
 (* ------------------- *)
