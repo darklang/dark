@@ -1789,7 +1789,25 @@ let fns : Lib.shortfn list =
   ; (* ====================================== *)
     (* StaticAssets *)
     (* ====================================== *)
-    { pns = ["StaticAssets::urlFor"]
+    { pns = ["StaticAssets::baseUrlFor"]
+    ; ins = []
+    ; p = [par "deploy_hash" TStr]
+    ; r = TStr
+    ; d = "Return the baseUrl for the specified deploy hash"
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["StaticAssets::baseUrlForLatest"]
+    ; ins = []
+    ; p = []
+    ; r = TStr
+    ; d = "Return the baseUrl for the latest deploy"
+    ; f = NotClientAvailable
+    ; pr = None
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["StaticAssets::urlFor"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TStr
