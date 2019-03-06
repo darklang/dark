@@ -18,7 +18,7 @@ let store ~canvas_id ~trace_id tlid args =
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
     Analysis_types.input_vars =
-  Db.fetch_one
+  Db.fetch
     ~name:"stored_function_arguments.load_for_analysis"
     "SELECT arguments_json
      FROM function_arguments
@@ -27,11 +27,16 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
        AND trace_id = $3
      LIMIT 1"
     ~params:[Db.Uuid canvas_id; Db.ID tlid; Db.Uuid trace_id]
-  |> function
-  | [args] ->
-      args |> Dval.of_internal_roundtrippable_v0 |> Dval.to_dval_pairs_exn
-  | _ ->
-      Exception.internal "Bad DB format for stored_functions.load_for_analysis"
+  |> List.hd
+  |> Option.map ~f:(function
+         | [args] ->
+             args
+             |> Dval.of_internal_roundtrippable_v0
+             |> Dval.to_dval_pairs_exn
+         | _ ->
+             Exception.internal
+               "Bad format for stored_functions.load_for_analysis" )
+  |> Option.value ~default:[]
 
 
 let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
