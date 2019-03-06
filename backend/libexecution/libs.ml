@@ -24,7 +24,6 @@ let add_short_fn (s : shortfn) : unit =
     ; parameters = s.p
     ; description = s.d
     ; func = s.f
-    ; preview = s.pr
     ; preview_execution_safe = s.ps
     ; deprecated = s.dep }
   in

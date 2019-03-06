@@ -14,7 +14,6 @@ let fns : Lib.shortfn list =
     ; d =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2."
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false }
   ; { pns = ["Password::check"]
@@ -24,6 +23,5 @@ let fns : Lib.shortfn list =
     ; d =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2."
     ; f = NotClientAvailable
-    ; pr = None
     ; ps = false
     ; dep = false } ]

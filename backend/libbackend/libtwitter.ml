@@ -46,11 +46,10 @@ let fns =
                 ; r = TAny
                 ; f = API (call_twitter api.path)
                 ; p = List.map ~f:param2param get.parameters
-                ; d = Option.value ~default:"" get.summary
-                ; pr =
-                    None
-                    (* TODO: gets could be preview safe, but we need to account
-             * for errors, rate-limiting, etc. We can't just run these
-             * every second! *)
+                ; d =
+                    Option.value ~default:"" get.summary
+                    (* TODO: gets could be preview safe, but we need to account for
+                 * errors, rate-limiting, etc. We can't just run these every
+                 * second! *)
                 ; ps = false
                 ; dep = false } ) )
