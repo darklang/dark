@@ -145,17 +145,6 @@ module Base64 = struct
     try Ok (Webapi.Base64.atob b64) with e -> Error (Printexc.to_string e)
 end
 
-module Rollbar = struct
-  external rollbarError :
-    string -> string Js.nullable -> 'a -> 'a -> Js.Json.t -> unit
-    = "error"
-    [@@bs.val] [@@bs.scope "window", "Rollbar"]
-
-  let send (msg : string) (url : string option) (custom : Js.Json.t) : unit =
-    let url = Js.Nullable.fromOption url in
-    rollbarError msg url Js.null Js.null custom
-end
-
 module DisplayClientError = struct
   let decode =
     let open Tea.Json.Decoder in

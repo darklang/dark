@@ -272,7 +272,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with error = updateError m.error e}, Cmd.none)
     | DisplayAndReportError e ->
         ( {m with error = updateError m.error e}
-        , Tea.Cmd.call (fun _ -> Native.Rollbar.send e None Js.Json.null) )
+        , Tea.Cmd.call (fun _ -> Rollbar.send e None Js.Json.null) )
     | DisplayAndReportHttpError (context, ignoreCommon, e) ->
         let body (body : Tea.Http.responseBody) =
           let maybe name m =
@@ -400,7 +400,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let custom = Encoders.httpError e in
         let cmds =
           if shouldRollbar
-          then [Tea.Cmd.call (fun _ -> Native.Rollbar.send msg url custom)]
+          then [Tea.Cmd.call (fun _ -> Rollbar.send msg url custom)]
           else []
         in
         ( (if displayError then {m with error = updateError m.error msg} else m)

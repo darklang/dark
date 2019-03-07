@@ -34,9 +34,8 @@ window.stopKeys = stopKeys;
 // ---------------------------
 var rollbar = require('rollbar');
 
-var Rollbar = rollbar.init({});
+var Rollbar = rollbar.init(rollbarConfig);
 window.Rollbar = Rollbar;
-window.Rollbar.configure(rollbarConfig);
 
 function displayError (msg){
   var event = new CustomEvent('displayError', {detail: msg});
@@ -294,23 +293,28 @@ setTimeout(function(){
         throw err;
       });
   }
+  let rollbarConfigSetup = "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
 
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
   let fetcherjs = fetcher("/tracefetcher.js");
   (async function () {
-    var strings = [ await analysisjs, "\n\n", await analysiswrapperjs ];
+    var strings = [
+      rollbarConfigSetup,
+      await analysisjs,
+      "\n\n",
+      await analysiswrapperjs
+    ];
     var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.analysisWorker = new Worker(analysisWorkerUrl);
-    window.analysisWorker.onerror = window.onerror;
-    window.analysisWorker.onunhandledrejection = window.onunhandledrejection;
   })();
   (async function () {
-    var strings = [ await fetcherjs ];
+    var strings = [
+      rollbarConfigSetup,
+      await fetcherjs
+    ];
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
-    window.fetcherWorker.onerror = window.onerror;
-    window.fetcherWorker.onunhandledrejection = window.onunhandledrejection;
   })();
 
 

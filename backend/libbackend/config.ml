@@ -193,7 +193,7 @@ let rollbar_js =
   match rollbar_client_access_token with
   | Some token ->
       Printf.sprintf
-        "{captureUncaught:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
+        "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
         (string_of_bool rollbar_enabled)
         token
         rollbar_environment
