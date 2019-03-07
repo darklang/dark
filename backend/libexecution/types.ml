@@ -265,7 +265,7 @@ module RuntimeT = struct
       | `String s ->
           Ok (s |> B64.decode |> Bytes.of_string)
       | _ ->
-          Error "Invalid time"
+          Error "Invalid base64 encoded password"
   end
 
   (* Special types:
