@@ -67,6 +67,7 @@ data:
         parser: glog
       - labelSelector: "app=bwd-app"
         containerName: http-proxy
+        dataset: kubernetes-bwd-nginx
         parser:
           name: nginx
           dataset: kubernetes-bwd-nginx
