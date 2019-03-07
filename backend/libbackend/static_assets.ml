@@ -217,11 +217,11 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
   Db.fetch
     ~name:"all static_asset_deploys by canvas"
     "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
-    WHERE canvas_id=$1 ORDER BY created_at DESC LIMIT 100"
+    WHERE canvas_id=$1 ORDER BY created_at DESC LIMIT 25"
     ~params:[Uuid canvas_id]
   |> List.map ~f:(function
          | [deploy_hash; created_at; live_at] ->
-            let isLive = live_at <> "" in
+             let isLive = live_at <> "" in
              { deploy_hash
              ; url = url canvas_id deploy_hash `Short
              ; last_update = (if isLive then live_at else created_at)
