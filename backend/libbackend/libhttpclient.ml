@@ -111,6 +111,16 @@ let replacements =
     , call Httpclient.HEAD Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
   ; ( "HttpClient::patch"
     , call Httpclient.PATCH Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+  ; ("HttpClient::post_v1", call Httpclient.POST Dval.to_pretty_machine_json_v1)
+  ; ("HttpClient::put_v1", call Httpclient.PUT Dval.to_pretty_machine_json_v1)
+  ; ("HttpClient::get_v1", call Httpclient.GET Dval.to_pretty_machine_json_v1)
+  ; ( "HttpClient::delete_v1"
+    , call Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::options_v1"
+    , call Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+  ; ("HttpClient::head_v1", call Httpclient.HEAD Dval.to_pretty_machine_json_v1)
+  ; ( "HttpClient::patch_v1"
+    , call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::basicAuth"
     , InProcess
         (function
