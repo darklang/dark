@@ -401,8 +401,16 @@ let rec item2html (m : model) (s : item) : msg Html.html =
       deploy2html e
 
 
-and category2html (m : model) (c : category) : msg Html.html =
+and categoryTitle (c : category) : msg Html.html list =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
+  [ text "title" c.name
+  ; text "parens" "("
+  ; text "count" (c.count |> string_of_int)
+  ; text "parens" ")" ]
+
+
+and categoryOpenCloseHelpers (m : model) (c : category) :
+    msg Vdom.property * msg Vdom.property =
   let isOpen = StrSet.has m.routingTableOpenDetails ~value:c.classname in
   let openEventHandler =
     ViewUtils.eventNoPropagation
@@ -411,15 +419,39 @@ and category2html (m : model) (c : category) : msg Html.html =
       (fun _ -> MarkRoutingTableOpen (not isOpen, c.classname))
   in
   let openAttr =
-    if isOpen then [Vdom.attribute "" "open" ""] else [Vdom.noProp]
+    if isOpen && List.length c.entries = 0
+    then Vdom.attribute "" "open" ""
+    else Vdom.noProp
   in
-  let isDeploys = c.classname = "deploys" && List.length c.entries > 1 in
+  (openEventHandler, openAttr)
+
+
+and deploysCat2html (m : model) (c : category) : msg Html.html =
+  let openEventHandler, openAttr = categoryOpenCloseHelpers m c in
+  let isEmpty = List.length c.entries = 0 in
   let header =
-    let title =
-      [ text "title" c.name
-      ; text "parens" "("
-      ; text "count" (c.count |> string_of_int)
-      ; text "parens" ")" ]
+    let title = categoryTitle c
+    and deployLatest =
+      if not isEmpty
+      then c.entries |> List.take ~count:1 |> List.map ~f:(item2html m)
+      else []
+    in
+    Html.summary [Html.class' "header"; openEventHandler] (title @ deployLatest)
+  and routes =
+    if List.length c.entries > 1
+    then c.entries |> List.drop ~count:1 |> List.map ~f:(item2html m)
+    else []
+  and classes =
+    Html.classList
+      [("routing-section", true); ("empty", isEmpty); (c.classname, true)]
+  in
+  Html.details [classes; openAttr] (header :: routes)
+
+
+and category2html (m : model) (c : category) : msg Html.html =
+  let openEventHandler, openAttr = categoryOpenCloseHelpers m c in
+  let header =
+    let title = categoryTitle c
     and plusButton =
       match c.plusButton with
       | Some msg ->
@@ -430,29 +462,17 @@ and category2html (m : model) (c : category) : msg Html.html =
               None ]
       | None ->
           []
-    and deployLatest =
-      if isDeploys
-      then List.take ~count:1 c.entries |> List.map ~f:(item2html m)
-      else []
     in
-    Html.summary
-      [Html.class' "header"; openEventHandler]
-      (title @ plusButton @ deployLatest)
+    Html.summary [Html.class' "header"; openEventHandler] (title @ plusButton)
   in
-  let routes =
-    if isDeploys
-    then List.drop ~count:1 c.entries |> List.map ~f:(item2html m)
-    else List.map ~f:(item2html m) c.entries
+  let routes = List.map ~f:(item2html m) c.entries in
+  let classes =
+    Html.classList
+      [ ("routing-section", true)
+      ; ("empty", List.length c.entries = 0)
+      ; (c.classname, true) ]
   in
-  if List.length c.entries = 0
-  then
-    Html.div
-      [Html.class' ("routing-section empty " ^ c.classname)]
-      (header :: routes)
-  else
-    Html.details
-      (Html.class' ("routing-section " ^ c.classname) :: openAttr)
-      (header :: routes)
+  Html.details [classes; openAttr] (header :: routes)
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
@@ -475,8 +495,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     [ httpCategory m tls
     ; dbCategory m tls
     ; userFunctionCategory m ufns
-    ; cronCategory m tls
-    ; staticDeploys ]
+    ; cronCategory m tls ]
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
@@ -488,7 +507,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      (List.map ~f:(category2html m) cats)
+      (List.map ~f:(category2html m) cats @ [deploysCat2html m staticDeploys])
   in
   Html.div [Html.id "sidebar-left"] [html]
 
