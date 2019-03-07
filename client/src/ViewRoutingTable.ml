@@ -430,18 +430,20 @@ and deploysCat2html (m : model) (c : category) : msg Html.html =
   let openEventHandler, openAttr = categoryOpenCloseHelpers m c in
   let isEmpty = List.length c.entries = 0 in
   let header =
-    let title = categoryTitle c
-    and deployLatest =
+    let title = categoryTitle c in
+    let deployLatest =
       if not isEmpty
       then c.entries |> List.take ~count:1 |> List.map ~f:(item2html m)
       else []
     in
     Html.summary [Html.class' "header"; openEventHandler] (title @ deployLatest)
-  and routes =
+  in
+  let routes =
     if List.length c.entries > 1
     then c.entries |> List.drop ~count:1 |> List.map ~f:(item2html m)
     else []
-  and classes =
+  in
+  let classes =
     Html.classList
       [("routing-section", true); ("empty", isEmpty); (c.classname, true)]
   in
@@ -451,8 +453,8 @@ and deploysCat2html (m : model) (c : category) : msg Html.html =
 and category2html (m : model) (c : category) : msg Html.html =
   let openEventHandler, openAttr = categoryOpenCloseHelpers m c in
   let header =
-    let title = categoryTitle c
-    and plusButton =
+    let title = categoryTitle c in
+    let plusButton =
       match c.plusButton with
       | Some msg ->
           [ buttonLink
