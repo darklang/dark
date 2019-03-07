@@ -19,7 +19,7 @@ pub fn handle(
 ) -> BoxFut<Response<Body>, hyper::Error> {
     let mut response = Response::new(Body::empty());
 
-    println!("{:?}", req);
+    slog_info!(slog_scope::logger(), "handle(...): {:?}", req);
 
     if shutting_down.load(Ordering::Acquire) {
         *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
@@ -34,11 +34,17 @@ pub fn handle(
             *response.body_mut() = Body::from("OK");
         }
         (&Method::POST, ["", "pkill"]) => {
-            println!("Entering shutdown mode, no more requests will be processed.");
+            slog_info!(
+                slog_scope::logger(),
+                "pkill: Entering shutdown mode, no more requests will be processed."
+            );
 
             shutting_down.store(true, Ordering::Release);
             if sender.send(Message::Die).is_err() {
-                eprintln!("Tried to send `Die` to worker, but it was dropped!");
+                slog_error!(
+                    slog_scope::logger(),
+                    "Tried to send `Die` to worker, but it was dropped!"
+                );
             };
 
             *response.status_mut() = StatusCode::ACCEPTED;
@@ -56,7 +62,8 @@ pub fn handle(
                     future::ok::<_, hyper::Error>(acc)
                 })
                 .map(move |req_body| {
-                    let canvas_event = Message::CanvasEvent(canvas_uuid, event, req_body);
+                    let canvas_event = Message::CanvasEvent(canvas_uuid.to_string(), event.to_string(), req_body);
+
                     match sender.send(canvas_event) {
                         Ok(()) => {
                             *response.status_mut() = StatusCode::ACCEPTED;
@@ -64,7 +71,7 @@ pub fn handle(
                             response
                         }
                         Err(_) => {
-                            eprintln!("Tried to send CanvasEvent to worker, but it was dropped!");
+                            slog_error!(slog_scope::logger(), "Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.to_string(), "event" => event.to_string()));
                             *response.status_mut() = StatusCode::ACCEPTED;
                             *response.body_mut() = Body::empty();
                             response
@@ -72,7 +79,7 @@ pub fn handle(
                     }
                 })
                 .or_else(|_| {
-                    eprintln!("Couldn't read request body from client!");
+                    slog_error!(slog_scope::logger(), "Couldn't read request body from client!");
                     Ok(Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .body(Body::empty())

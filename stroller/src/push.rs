@@ -158,7 +158,13 @@ impl PusherClient {
 
         let pusher_request =
             self.build_push_request(timestamp, &channel_name, &event_name, json_bytes)?;
-        println!("sending request: {:?}", pusher_request);
+        slog_info!(slog_scope::logger(), "sending pusher request"; o!(
+                "channel" => channel_name,
+                "event" => event_name));
+        // TODO ismith:
+        // recursion limit reached while expanding the macro `kv`
+        // (on o!(...))
+        //"json_bytes" => json_bytes.to_string()));
 
         let start = SystemTime::now();
 
@@ -169,9 +175,11 @@ impl PusherClient {
                 let req_time = start.elapsed().unwrap();
                 match resp.status() {
                     StatusCode::OK => {
-                        println!(
+                        let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
+                        slog_info!(slog_scope::logger(),
                             "Pushed event in {}ms",
-                            1000 * req_time.as_secs() + u64::from(req_time.subsec_millis())
+                            ms;
+                            o!("dur_ms" => ms)
                         );
                         Ok(())
                     }
