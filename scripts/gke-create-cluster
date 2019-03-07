@@ -355,6 +355,10 @@ kubectl create -f - <<EOF
 }
 EOF
 
+kubectl create clusterrolebinding circleci-admin-binding \
+--clusterrole=cluster-admin \
+--user=circleci-deployer@${DARK_CLUSTER_PROJECT}.iam.gserviceaccount.com
+
 print_step "deploying code and containers"
 
 ./scripts/gke-deploy \
