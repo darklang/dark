@@ -121,10 +121,9 @@ let replacements =
   ; ( "DB::fetchByMany"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            map
-            |> DvalMap.to_alist
+            obj
             |> User_db.query ~state ~magic:true db
             |> User_db.coerce_dlist_of_kv_pairs_to_legacy_object
         | args ->
@@ -132,11 +131,9 @@ let replacements =
   ; ( "DB::fetchOneByMany"
     , InProcess
         (function
-        | state, [DObj map; DDB dbname] ->
+        | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            let result =
-              User_db.query ~state ~magic:true db (DvalMap.to_alist map)
-            in
+            let result = User_db.query ~state ~magic:true db obj in
             ( match result with
             | DList (x :: xs) ->
               ( match x with

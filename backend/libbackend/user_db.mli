@@ -22,8 +22,7 @@ val get_many : state:exec_state -> magic:bool -> DbT.db -> string list -> dval
 
 val get_all : state:exec_state -> magic:bool -> DbT.db -> dval
 
-val query :
-  state:exec_state -> magic:bool -> DbT.db -> (string * dval) list -> dval
+val query : state:exec_state -> magic:bool -> DbT.db -> dval -> dval
 
 val query_by_one :
   state:exec_state -> magic:bool -> DbT.db -> string -> dval -> dval
