@@ -33,7 +33,7 @@ let send_request uri verb body query_ headers_ =
     | DObj obj when has_form_header headers ->
         Dval.to_form_encoding body
     | _ ->
-        Dval.to_pretty_machine_json_v0 body
+        Dval.to_repr body
   in
   let result, headers = Httpclient.http_call uri query verb headers body in
   let parsed_result =

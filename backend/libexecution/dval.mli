@@ -91,6 +91,8 @@ val show : Types.RuntimeT.dval -> string
 (* val of_json_with_schema : schema: schema -> Yojson.Safe.json -> Types.RuntimeT.dval *)
 (* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.json  *)
 
+val to_repr : Types.RuntimeT.dval -> string
+
 (* Parse our internal literal strings (eg AST Values) *)
 val parse_literal : string -> Types.RuntimeT.dval option
 
