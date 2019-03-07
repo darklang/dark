@@ -204,7 +204,11 @@ kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-nodeport.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-network-policy.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-nodeport.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-ingress.yaml
+
+# TODO make this better?
+kubectl create clusterrolebinding circleci-admin-binding --clusterrole=cluster-admin --user=circleci-deployer@balmy-ground-195100.iam.gserviceaccount.com
 kubectl apply -f scripts/support/kubernetes/builtwithdark/honeycomb.yaml
+
 kubectl apply -f scripts/support/kubernetes/queueworker/qw-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/queueworker/qw-network-policy.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
