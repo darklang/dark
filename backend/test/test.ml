@@ -877,9 +877,9 @@ let t_password_serialization () =
     Dval.to_enduser_readable_html_v0 ;
   does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
   does_serialize
-    "to_pretty_machine_json_v0"
+    "to_pretty_machine_json_v1"
     false
-    Dval.to_pretty_machine_json_v0 ;
+    Dval.to_pretty_machine_json_v1 ;
   ()
 
 

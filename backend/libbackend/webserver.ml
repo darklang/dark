@@ -278,12 +278,14 @@ let result_to_response
         then Dval.to_enduser_readable_text_v0 value
         else if String.is_prefix ~prefix:"text/html" content_type
         then Dval.to_enduser_readable_html_v0 value
-        else Dval.to_pretty_machine_json_v0 value
+        else Libexecution.Legacy.PrettyJsonV0.to_pretty_machine_json_v0 value
       in
       let status = Cohttp.Code.status_of_code code in
       respond ~resp_headers ~execution_id status body
   | _ ->
-      let body = Dval.to_pretty_machine_json_v0 result in
+      let body =
+        Libexecution.Legacy.PrettyJsonV0.to_pretty_machine_json_v0 result
+      in
       (* for demonstrations sake, let's return 200 Okay when
       * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in

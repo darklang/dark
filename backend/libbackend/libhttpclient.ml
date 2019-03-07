@@ -25,7 +25,7 @@ let has_json_header (headers : headers) : bool =
 
 
 (* TODO: integrate with dark_request *)
-let send_request uri verb body query_ headers_ =
+let send_request uri verb json_fn body query_ headers_ =
   let query = Dval.dval_to_query query_ in
   let headers = Dval.to_string_pairs_exn headers_ in
   let body =
@@ -33,7 +33,7 @@ let send_request uri verb body query_ headers_ =
     | DObj obj when has_form_header headers ->
         Dval.to_form_encoding body
     | _ ->
-        Dval.to_repr body
+        json_fn body
   in
   let result, headers = Httpclient.http_call uri query verb headers body in
   let parsed_result =
@@ -80,23 +80,37 @@ let encode_basic_auth u p =
   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
 
-let call verb =
+let call verb json_fn =
   InProcess
     (function
     | _, [DStr uri; body; query_; headers_] ->
-        send_request (Unicode_string.to_string uri) verb body query_ headers_
+        send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          body
+          query_
+          headers_
     | args ->
         fail args)
 
 
 let replacements =
-  [ ("HttpClient::post", call Httpclient.POST)
-  ; ("HttpClient::put", call Httpclient.PUT)
-  ; ("HttpClient::get", call Httpclient.GET)
-  ; ("HttpClient::delete", call Httpclient.DELETE)
-  ; ("HttpClient::options", call Httpclient.OPTIONS)
-  ; ("HttpClient::head", call Httpclient.HEAD)
-  ; ("HttpClient::patch", call Httpclient.PATCH)
+  [ ( "HttpClient::post"
+    , call Httpclient.POST Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+  ; ( "HttpClient::put"
+    , call Httpclient.PUT Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+  ; ( "HttpClient::get"
+    , call Httpclient.GET Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+  ; ( "HttpClient::delete"
+    , call Httpclient.DELETE Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+  ; ( "HttpClient::options"
+    , call Httpclient.OPTIONS Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a
+    )
+  ; ( "HttpClient::head"
+    , call Httpclient.HEAD Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+  ; ( "HttpClient::patch"
+    , call Httpclient.PATCH Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
   ; ( "HttpClient::basicAuth"
     , InProcess
         (function

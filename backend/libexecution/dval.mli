@@ -75,8 +75,9 @@ val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
 (* When sending json back to the user, or via a HTTP API, attempt to convert
  * everything into reasonable json, in the absence of a schema. This turns
- * Option and Result into plain values, or null/error. Redacts passwords.  *)
-val to_pretty_machine_json_v0 : Types.RuntimeT.dval -> string
+ * Option and Result into plain values, or null/error. String-like values are
+ * rendered as string. Redacts passwords.  *)
+val to_pretty_machine_json_v1 : Types.RuntimeT.dval -> string
 
 (* When receiving unknown json from the user, or via a HTTP API, attempt to
  * convert everything into reasonable types, in the absense of a schema.  *)
@@ -90,8 +91,6 @@ val show : Types.RuntimeT.dval -> string
 (* type schema  *)
 (* val of_json_with_schema : schema: schema -> Yojson.Safe.json -> Types.RuntimeT.dval *)
 (* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.json  *)
-
-val to_repr : Types.RuntimeT.dval -> string
 
 (* Parse our internal literal strings (eg AST Values) *)
 val parse_literal : string -> Types.RuntimeT.dval option
