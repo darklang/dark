@@ -563,7 +563,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["JSON::read"]
     ; ins = []
     ; p = [par "json" TStr]
