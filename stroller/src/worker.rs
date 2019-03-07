@@ -20,22 +20,34 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
         &config::pusher_key(),
         &config::pusher_secret(),
     );
-    println!("Worker initialized");
+    slog_info!(slog_scope::logger(), "Worker initialized");
     loop {
         match channel.recv() {
             Ok(Message::CanvasEvent(canvas_uuid, event_name, body)) => {
-                println!("{} {} {:?}", canvas_uuid, event_name, body);
+                /* TODO ismith
+                 * removed body from log b/c "body" => body.to_string() got:
+                   = note: the method `to_string` exists but the following trait bounds were not satisfied:
+                        `std::vec::Vec<u8> : std::string::ToString`
+                        `[u8] : std::string::ToString`
+                */
+                let log = &slog_scope::logger().new(o!("canvas" => canvas_uuid.to_string(),
+                                                       "event" => event_name.to_string()));
+
+                slog_info!(log, "msg recv: ok");
                 let result = client.push_canvas_event(&canvas_uuid, &event_name, &body);
                 if let Err(e) = result {
-                    eprintln!("Error pushing to Pusher: {}", e);
+                    slog_error!(log, "Error pushing to pusher: {}", e);
                 }
             }
             Ok(Message::Die) => {
-                println!("Received `Die` in worker thread");
+                slog_info!(slog_scope::logger(), "Received `Die` in worker thread");
                 break WorkerTerminationReason::ViaDie;
             }
             Err(_) => {
-                eprintln!("All senders dropped and queue didn't receive `Die`!");
+                slog_error!(
+                    slog_scope::logger(),
+                    "All senders dropped and queue didn't receive `Die`!"
+                );
                 break WorkerTerminationReason::SendersDropped;
             }
         }

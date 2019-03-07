@@ -15,7 +15,45 @@ use hyper::Server;
 
 use crate::worker::{Message, WorkerTerminationReason};
 
+#[macro_use(o, slog_info, slog_error)]
+extern crate slog;
+
+extern crate slog_json;
+extern crate slog_scope;
+
+extern crate chrono;
+
+use slog::{Drain, FnValue, PushFnValue, Record};
+use std::sync::Mutex;
+
 fn main() {
+    //let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
+    let log = slog::Logger::root(
+        Mutex::new(
+            slog_json::Json::new(std::io::stdout())
+                .set_pretty(true)
+                .add_key_value(o!(
+                           "timestamp" => PushFnValue(move |_ : &Record, ser| {
+                    ser.emit(chrono::Local::now().to_rfc3339())
+                }),
+                "level" => FnValue(move |rinfo : &Record| {
+                    rinfo.level().as_short_str()
+                }),
+                "msg" => PushFnValue(move |record : &Record, ser| {
+                    ser.emit(record.msg())
+                })))
+                .build(),
+        )
+        .map(slog::Fuse),
+        o!("file" => FnValue(move |info| {
+            format!("{}:{} {}",
+                    info.file(),
+                    info.line(),
+                    info.module()) })
+        ),
+    );
+    let _guard = slog_scope::set_global_logger(log);
+
     let addr = ([0, 0, 0, 0], config::port()).into();
 
     let shutting_down = Arc::new(AtomicBool::new(false));
@@ -36,9 +74,8 @@ fn main() {
 
     let server = Server::bind(&addr)
         .serve(make_service)
-        .map_err(|e| eprintln!("server error: {}", e));
+        .map_err(|e| slog_error!(slog_scope::logger(), "server error: {}", e));
 
-    println!("Listening on {}", addr);
-
+    slog_info!(slog_scope::logger(), "Listening on {}", addr);
     hyper::rt::run(server);
 }
