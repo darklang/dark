@@ -148,6 +148,10 @@ do
     --machine-type=*)
       DARK_CLUSTER_NODE_MACHINE_TYPE="${i/--machine-type=/''}"
       ;;
+    --honeycomb-write-key=*)
+      DARK_CLUSTER_HONEYCOMB_WRITE_KEY="${i/--honeycomb-write-key=/''}"
+      DARK_CLUSTER_HONEYCOMB_WRITE_KEY=$(printf "%s" "$DARK_CLUSTER_HONEYCOMB_WRITE_KEY" | base64)
+      ;;
     --help)
       echo "$HELP"
       exit 0
@@ -193,6 +197,7 @@ fi
 if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_DL_TLS_KEY ] || [ ! -v DARK_CLUSTER_DL_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_CLOUDSQL_INSTANCE_CREDS ] || [ ! -v DARK_CLUSTER_CLOUDSQL_USER ] \
+     || [ ! -v DARK_CLUSTER_HONEYCOMB_WRITE_KEY ] \
      || [ ! -v DARK_CLUSTER_CLOUDSQL_PASS ]; then
   print_step "authorizing with the current cluster"
   gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/$(< current-cluster)" --region=${DARK_CLUSTER_REGION}
@@ -235,6 +240,11 @@ if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
   if [ ! -v DARK_CLUSTER_STATIC_ASSETS_CREDS ]; then
     print_step "Fetching DARK_CLUSTER_STATIC_ASSETS_CREDS"
     DARK_CLUSTER_STATIC_ASSETS_CREDS=$(kubectl get secret dark-static-assets -o json | jq -r '.data["balmy-ground-195100-d9b0f3de3013.json"]')
+  fi
+
+  if [ ! -v DARK_CLUSTER_HONEYCOMB_WRITE_KEY ]; then
+    print_step "Fetching DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
+    DARK_CLUSTER_HONEYCOMB_WRITE_KEY=$(kubectl get secret honeycomb-writekey -o json | jq -r '.data["key"]')
   fi
 fi
 
@@ -312,6 +322,21 @@ kubectl create -f - <<EOF
   },
   "metadata": {
     "name": "cloudsql-instance-credentials"
+  }
+}
+EOF
+
+# Honeycomb write key
+kubectl create -f - <<EOF
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "Opaque",
+  "data": {
+    "key": "$DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
+  },
+  "metadata": {
+    "name": "honeycomb-writekey"
   }
 }
 EOF
