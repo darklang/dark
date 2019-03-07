@@ -1,3 +1,7 @@
+external rollbarConfig : string = "rollbarConfig" [@@bs.val]
+
+let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
+
 type event =
   < data : Types.traceFetchContext * Types.getTraceDataRPCParams [@bs.get] >
   Js.t
