@@ -66,6 +66,10 @@ data:
         namespace: kube-system
         parser: glog
       - labelSelector: "app=bwd-app"
+        containerName: stroller
+        dataset: kubernetes-stroller
+        parser: json
+      - labelSelector: "app=bwd-app"
         containerName: http-proxy
         dataset: kubernetes-bwd-nginx
         parser:
