@@ -11,7 +11,6 @@ let replacements =
         (function
         | state, [] ->
             url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
-            ^ "/"
             |> Dval.dstr_of_string_exn
         | args ->
             Libexecution.Lib.fail args) )
@@ -20,7 +19,6 @@ let replacements =
         (function
         | state, [DStr deploy_hash] ->
             url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
-            ^ "/"
             |> Dval.dstr_of_string_exn
         | args ->
             Libexecution.Lib.fail args) )
