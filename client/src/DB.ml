@@ -74,8 +74,12 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
 
 
 let createDB (name : string) (pos : pos) : modification =
-  let next = Prelude.gid ()
-  and tlid = Prelude.gtlid () in
+  let next = Prelude.gid () in
+  let tlid = Prelude.gtlid () in
+  (* This is not _strictly_ correct, as there's no guarantee that the new DB
+   * doesn't share a name with an old DB in a weird state that still has
+   * data in the user_data table. But it's 99.999% correct, which of course
+   * is the best type of correct *)
   Many
     [ AppendUnlockedDBs (StrSet.fromList [deTLID tlid])
     ; RPC
