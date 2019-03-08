@@ -97,20 +97,29 @@ let call verb json_fn =
 
 let replacements =
   [ ( "HttpClient::post"
-    , call Httpclient.POST Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
-  ; ( "HttpClient::put"
-    , call Httpclient.PUT Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
-  ; ( "HttpClient::get"
-    , call Httpclient.GET Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
-  ; ( "HttpClient::delete"
-    , call Httpclient.DELETE Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
-  ; ( "HttpClient::options"
-    , call Httpclient.OPTIONS Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a
+    , call Httpclient.POST Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     )
+  ; ( "HttpClient::put"
+    , call Httpclient.PUT Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
+  ; ( "HttpClient::get"
+    , call Httpclient.GET Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
+  ; ( "HttpClient::delete"
+    , call
+        Httpclient.DELETE
+        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
+  ; ( "HttpClient::options"
+    , call
+        Httpclient.OPTIONS
+        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
   ; ( "HttpClient::head"
-    , call Httpclient.HEAD Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+    , call Httpclient.HEAD Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
   ; ( "HttpClient::patch"
-    , call Httpclient.PATCH Legacy.PrettyJsonV0a.to_pretty_machine_json_v0a )
+    , call
+        Httpclient.PATCH
+        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
   ; ("HttpClient::post_v1", call Httpclient.POST Dval.to_pretty_machine_json_v1)
   ; ("HttpClient::put_v1", call Httpclient.PUT Dval.to_pretty_machine_json_v1)
   ; ("HttpClient::get_v1", call Httpclient.GET Dval.to_pretty_machine_json_v1)

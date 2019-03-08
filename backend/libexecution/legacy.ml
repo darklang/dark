@@ -2,7 +2,7 @@ open Core_kernel
 open Types
 open Types.RuntimeT
 
-module PrettyJsonV0 = struct
+module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
   let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json
       =
@@ -78,11 +78,11 @@ module PrettyJsonV0 = struct
             [unsafe_dval_to_yojson ~redact dv] )
 
 
-  let to_pretty_machine_json_v0 dval =
+  let to_pretty_response_json_v0 dval =
     unsafe_dval_to_yojson dval |> Yojson.Safe.pretty_to_string
 end
 
-module PrettyJsonV0a = struct
+module PrettyRequestJsonV0 = struct
   (* Returns the string within string-ish values, without adornment. *)
   let as_string (dv : dval) : string =
     match dv with
@@ -187,7 +187,7 @@ module PrettyJsonV0a = struct
 
   (* A full representation, building on to_simple_repr, but including	
  * lists and objects. *)
-  let rec to_pretty_machine_json_v0a (dv : dval) : string =
+  let rec to_pretty_request_json_v0 (dv : dval) : string =
     let pp = true in
     let open_ = "<" in
     let close_ = ">" in

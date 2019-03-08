@@ -189,7 +189,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DObj o] ->
               DObj o
-              |> Legacy.PrettyJsonV0.to_pretty_machine_json_v0
+              |> Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
