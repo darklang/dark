@@ -29,6 +29,8 @@ pub fn handle(
         .headers_mut()
         .insert("x-request-id", request_id.parse::<HeaderValue>().unwrap());
 
+    slog_scope::scope(&slog_scope::logger().new(o!("request-id" => request_id)), || {
+
     if shutting_down.load(Ordering::Acquire) {
         *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
         return Box::new(future::ok(response));
@@ -110,7 +112,8 @@ pub fn handle(
         }
     }
 
-    Box::new(future::ok(response))
+    return Box::new(future::ok(response))
+    })
 }
 
 #[cfg(test)]
