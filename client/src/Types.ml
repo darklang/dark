@@ -450,7 +450,7 @@ and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
 
-and unlockedDBs = tlid list
+and unlockedDBs = StrSet.t
 
 and getUnlockedDBsRPCResult = unlockedDBs
 
@@ -461,7 +461,7 @@ and initialLoadRPCResult =
   ; deletedToplevels : toplevel list
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
-  ; unlockedDBs : tlid list
+  ; unlockedDBs : unlockedDBs
   ; fofs : fourOhFour list
   ; traces : (tlid * traceID) list }
 
@@ -625,8 +625,8 @@ and modification =
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
   | SetUserFunctions of userFunction list * userFunction list * bool
-  | SetUnlockedDBs of tlid list
-  | AppendUnlockedDBs of tlid list
+  | SetUnlockedDBs of unlockedDBs
+  | AppendUnlockedDBs of unlockedDBs
   | Append404s of fourOhFour list
   | Delete404 of fourOhFour
   | Enter of entryCursor
@@ -795,7 +795,7 @@ and model =
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list
-  ; unlockedDBs : tlid list
+  ; unlockedDBs : unlockedDBs
   ; integrationTestState : integrationTestState
   ; visibility : Native.PageVisibility.visibility
   ; syncState : syncState
