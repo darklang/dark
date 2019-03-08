@@ -880,6 +880,14 @@ let t_password_serialization () =
     "to_pretty_machine_json_v1"
     false
     Dval.to_pretty_machine_json_v1 ;
+  does_serialize
+    "to_pretty_request_json_v0"
+    false
+    Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
+  does_serialize
+    "to_pretty_response_json_v1"
+    false
+    Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
   ()
 
 
