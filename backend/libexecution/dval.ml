@@ -732,7 +732,7 @@ let to_pretty_machine_json_v1 dval =
     | DDate date ->
         `String (Util.isostring_of_date date)
     | DPassword hashed ->
-        `Null
+        `Assoc [("Error", `String "Password is redacted")]
     | DUuid uuid ->
         `String (Uuidm.to_string uuid)
     | DOption opt ->
