@@ -24,12 +24,7 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
 let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let offset =
-    match m.currentPage with
-    | FocusedDB _ ->
-        {x = 0; y = 0}
-    | Architecture _ | FocusedFn _ | FocusedHandler _ ->
-        m.canvasProps.offset
+  let offset = m.canvasProps.offset
   in
   let pos = addPos offset {x; y} in
   MoveCanvasTo pos

@@ -68,7 +68,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Architecture tl.pos)
+            ; destination = Some (FocusedHandler tl.id)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -92,7 +92,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Architecture tl.pos)
+            ; destination = Some (FocusedHandler tl.id)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -108,7 +108,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
     |> List.sortBy ~f:(fun (db, _) -> B.valueWithDefault "" db.dbName)
   in
   let entries =
-    List.map dbs ~f:(fun (db, pos) ->
+    List.map dbs ~f:(fun (db, _) ->
         let uses =
           match db.dbName with
           | Blank _ ->
@@ -125,7 +125,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = Some uses
-          ; destination = Some (Architecture pos)
+          ; destination = Some (FocusedDB db.dbTLID)
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
