@@ -322,6 +322,20 @@ module RuntimeT = struct
       map |> T.map ~f:fn |> T.to_alist |> fun l -> `Assoc l
 
 
+    let pp
+        (valueFormatter : Format.formatter -> 'value -> unit)
+        (fmt : Format.formatter)
+        (map : 'value t) =
+      Format.pp_print_string fmt "{ " ;
+      Map.iteri map (fun ~key ~data ->
+          Format.pp_print_string fmt key ;
+          Format.pp_print_string fmt ": " ;
+          valueFormatter fmt data ;
+          Format.pp_print_string fmt ",  " ) ;
+      Format.pp_print_string fmt "}" ;
+      ()
+
+
     let of_yojson fn json =
       match json with
       | `Assoc l ->
@@ -378,7 +392,7 @@ module RuntimeT = struct
     | DOption of optionT
     | DCharacter of Unicode_string.Character.t
     | DResult of resultT
-  [@@deriving eq, yojson, compare]
+  [@@deriving show, eq, yojson, compare]
 
   type dval_list = dval list
 

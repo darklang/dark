@@ -5,7 +5,7 @@ type t = string [@@deriving show]
 (* This just treats it like any old string, if we have lots of tests that use this
  * we should consider only printing ASCII chars, and outputting hex syntax bytes
  * like "hello, \xfd\xfd" *)
-let pp_t t = Format.pp_print_string t
+let pp t = Format.pp_print_string t
 
 (* from http://erratique.ch/software/uucp/doc/Uucp.Case.html#caseexamples *)
 let cmap_utf_8 cmap s =
@@ -30,6 +30,8 @@ module Character = struct
   let compare a b = Pervasives.compare a b
 
   let to_string t = t
+
+  let pp t = Format.pp_print_string t
 
   (* Characters are simply 'views' of parts of a Unicode_string.t, and it would
    * be best to allow no creation of Character.t values outside of iterating
