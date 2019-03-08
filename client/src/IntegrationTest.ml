@@ -722,6 +722,11 @@ let result_ok_roundtrips (m : model) : testResult =
       fail ~f:show_expr ast
 
 
+let passwords_are_redacted (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -824,5 +829,7 @@ let trigger (test_name : string) : integrationTestState =
         cant_delete_locked_col
     | "result_ok_roundtrips" ->
         result_ok_roundtrips
+    | "passwords_are_redacted" ->
+        passwords_are_redacted
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
