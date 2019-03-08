@@ -33,7 +33,6 @@ and category =
 and item =
   | Category of category
   | Entry of entry
-  | Deploy of staticDeploy
 
 let buttonLink
     ~(key : string)
@@ -261,7 +260,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
 
 let rec count (s : item) : int =
   match s with
-  | Entry _ | Deploy _ ->
+  | Entry _ ->
       1
   | Category c ->
       c.entries |> List.map ~f:count |> List.sum
@@ -391,69 +390,68 @@ let deploy2html (d : staticDeploy) : msg Html.html =
         [Html.text statusString] ]
 
 
-let rec item2html (m : model) (s : item) : msg Html.html =
-  match s with
-  | Category c ->
-      category2html m c
-  | Entry e ->
-      entry2html m e
-  | Deploy e ->
-      deploy2html e
+(* Category Views *)
 
-
-and categoryTitle (c : category) : msg Html.html list =
+let categoryTitle (name : string) (count : int) : msg Html.html list =
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  [ text "title" c.name
+  [ text "title" name
   ; text "parens" "("
-  ; text "count" (c.count |> string_of_int)
+  ; text "count" (count |> string_of_int)
   ; text "parens" ")" ]
 
 
-and categoryOpenCloseHelpers (m : model) (c : category) :
+let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
     msg Vdom.property * msg Vdom.property =
-  let isOpen = StrSet.has m.routingTableOpenDetails ~value:c.classname in
+  let isOpen = StrSet.has m.routingTableOpenDetails ~value:classname in
   let openEventHandler =
     ViewUtils.eventNoPropagation
-      ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ c.classname)
+      ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ classname)
       "click"
-      (fun _ -> MarkRoutingTableOpen (not isOpen, c.classname))
+      (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
   in
   let openAttr =
-    if isOpen && List.length c.entries = 0
-    then Vdom.attribute "" "open" ""
-    else Vdom.noProp
+    if isOpen && count = 0 then Vdom.attribute "" "open" "" else Vdom.noProp
   in
   (openEventHandler, openAttr)
 
 
-and deploysCat2html (m : model) (c : category) : msg Html.html =
-  let openEventHandler, openAttr = categoryOpenCloseHelpers m c in
-  let isEmpty = List.length c.entries = 0 in
+let deployStats2html (m : model) : msg Html.html =
+  let entries = m.staticDeploys in
+  let count = List.length entries in
+  let openEventHandler, openAttr =
+    categoryOpenCloseHelpers m "deploys" count
+  in
   let header =
-    let title = categoryTitle c in
+    let title = categoryTitle "Static Assets" count in
     let deployLatest =
-      if not isEmpty
-      then c.entries |> List.take ~count:1 |> List.map ~f:(item2html m)
+      if count <> 0
+      then entries |> List.take ~count:1 |> List.map ~f:deploy2html
       else []
     in
     Html.summary [Html.class' "header"; openEventHandler] (title @ deployLatest)
   in
   let routes =
-    if List.length c.entries > 1
-    then c.entries |> List.drop ~count:1 |> List.map ~f:(item2html m)
+    if count > 1
+    then entries |> List.drop ~count:1 |> List.map ~f:deploy2html
     else []
   in
   let classes =
     Html.classList
-      [("routing-section", true); ("empty", isEmpty); (c.classname, true)]
+      [("routing-section", true); ("deploys", true); ("empty", count = 0)]
   in
   Html.details [classes; openAttr] (header :: routes)
 
 
+let rec item2html (m : model) (s : item) : msg Html.html =
+  match s with Category c -> category2html m c | Entry e -> entry2html m e
+
+
 and category2html (m : model) (c : category) : msg Html.html =
-  let openEventHandler, openAttr = categoryOpenCloseHelpers m c in
+  let openEventHandler, openAttr =
+    categoryOpenCloseHelpers m c.classname c.count
+  in
   let header =
-    let title = categoryTitle c in
+    let title = categoryTitle c.name c.count in
     let plusButton =
       match c.plusButton with
       | Some msg ->
@@ -470,9 +468,7 @@ and category2html (m : model) (c : category) : msg Html.html =
   let routes = List.map ~f:(item2html m) c.entries in
   let classes =
     Html.classList
-      [ ("routing-section", true)
-      ; ("empty", List.length c.entries = 0)
-      ; (c.classname, true) ]
+      [("routing-section", true); (c.classname, true); ("empty", c.count = 0)]
   in
   Html.details [classes; openAttr] (header :: routes)
 
@@ -485,13 +481,6 @@ let viewRoutingTable_ (m : model) : msg Html.html =
            fn.ufMetadata.ufmName
            |> Blank.toMaybe
            |> Option.withDefault ~default:"" )
-  in
-  let staticDeploys =
-    { count = List.length m.staticDeploys
-    ; name = "Static Assets"
-    ; plusButton = None
-    ; classname = "deploys"
-    ; entries = List.map ~f:(fun sa -> Deploy sa) m.staticDeploys }
   in
   let cats =
     [ httpCategory m tls
@@ -509,7 +498,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      (List.map ~f:(category2html m) cats @ [deploysCat2html m staticDeploys])
+      (List.map ~f:(category2html m) cats @ [deployStats2html m])
   in
   Html.div [Html.id "sidebar-left"] [html]
 
