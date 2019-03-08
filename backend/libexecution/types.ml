@@ -258,14 +258,14 @@ module RuntimeT = struct
   module PasswordBytes = struct
     include Bytes
 
-    let to_yojson bytes = `String (bytes |> Bytes.to_string |> B64.encode)
+    let to_yojson bytes = `String "Redacted"
 
     let of_yojson json =
       match json with
       | `String s ->
-          Ok (s |> B64.decode |> Bytes.of_string)
+          Ok (s |> Bytes.of_string)
       | _ ->
-          Error "Invalid time"
+          Error "Expected a string"
   end
 
   (* Special types:
@@ -320,6 +320,20 @@ module RuntimeT = struct
 
     let to_yojson fn map =
       map |> T.map ~f:fn |> T.to_alist |> fun l -> `Assoc l
+
+
+    let pp
+        (valueFormatter : Format.formatter -> 'value -> unit)
+        (fmt : Format.formatter)
+        (map : 'value t) =
+      Format.pp_print_string fmt "{ " ;
+      Map.iteri map (fun ~key ~data ->
+          Format.pp_print_string fmt key ;
+          Format.pp_print_string fmt ": " ;
+          valueFormatter fmt data ;
+          Format.pp_print_string fmt ",  " ) ;
+      Format.pp_print_string fmt "}" ;
+      ()
 
 
     let of_yojson fn json =
@@ -378,7 +392,7 @@ module RuntimeT = struct
     | DOption of optionT
     | DCharacter of Unicode_string.Character.t
     | DResult of resultT
-  [@@deriving eq, yojson, compare]
+  [@@deriving show, eq, yojson, compare]
 
   type dval_list = dval list
 

@@ -402,12 +402,7 @@ and dval j : dval =
     ; ("DDate", dv1 (fun x -> DDate x) string)
     ; ("DTitle", dv1 (fun x -> DTitle x) string)
     ; ("DUrl", dv1 (fun x -> DUrl x) string)
-    ; ( "DPassword"
-      , dv1
-          ( Native.Base64.decode
-          >> Result.withDefault ~default:"<Internal error in base64 decoding>"
-          >> fun x -> DPassword x )
-          string )
+    ; ("DPassword", dv1 (fun x -> DPassword x) string)
     ; ("DUuid", dv1 (fun x -> DUuid x) string)
     ; ("DOption", dv1 (fun x -> DOption x) optionT)
     ; ("DResult", dv1 (fun x -> DResult x) resultT) ]

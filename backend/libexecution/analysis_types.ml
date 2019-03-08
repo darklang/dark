@@ -35,21 +35,21 @@ let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
 (* -------------------- *)
 type analysis = {live_values : dval_store} [@@deriving to_yojson]
 
-type input_vars = (string * dval) list [@@deriving yojson]
+type input_vars = (string * dval) list [@@deriving eq, show, yojson]
 
-type function_arg_hash = string [@@deriving yojson]
+type function_arg_hash = string [@@deriving eq, show, yojson]
 
 type fnname = string [@@deriving yojson]
 
 type function_result = fnname * id * function_arg_hash * dval
-[@@deriving yojson]
+[@@deriving eq, show, yojson]
 
 type traceid = uuid [@@deriving yojson]
 
 type trace_data =
   { input : input_vars
   ; function_results : function_result list }
-[@@deriving yojson]
+[@@deriving eq, show, yojson]
 
 type trace = traceid * trace_data option [@@deriving yojson]
 
