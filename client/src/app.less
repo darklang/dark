@@ -1070,15 +1070,18 @@ body #grid * {
 
     .execution-button {
       position: absolute;
-      font-size: 60%;
-      margin-left: -10px;
+      font-size: 55%;
+      margin-left: -3px;
       transition: color linear 0.1s;
 
       &:hover {
-        font-size: 100%;
+        font-size: 75%;
         font-weight: strong;
-        margin-top: -5px;
+        margin-top: -2px;
         cursor: pointer;
+      }
+      &.execution-button-unsafe {
+        color: @red;
       }
       &.execution-button-unavailable {
         color: grey;
