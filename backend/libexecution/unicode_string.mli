@@ -5,7 +5,7 @@ open Core_kernel
  ** is given regarding the representation or encoding. **)
 type t
 
-val pp_t : Format.formatter -> t -> unit
+val pp : Format.formatter -> t -> unit
 
 module Character : sig
   (** Represents a single user-perceivable Unicode character, more specifically
@@ -17,6 +17,8 @@ module Character : sig
   val equal : t -> t -> bool
 
   val to_string : t -> string
+
+  val pp : Format.formatter -> t -> unit
 
   val unsafe_of_string : string -> t
 

@@ -82,7 +82,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DDate date ->
       ev "DDate" [string date]
   | DPassword hashed ->
-      ev "DPassword" [string (Native.Base64.encode hashed)]
+      ev "DPassword" [string hashed]
   | DUuid uuid ->
       ev "DUuid" [string uuid]
   | DOption opt ->

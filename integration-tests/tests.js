@@ -915,3 +915,18 @@ test('cant_delete_locked_col', async t => {
     .expect(Selector('.delete-col').exists).notOk()
   ;
 })
+
+// TODO: This needs Stroller/Pusher in CI
+// test('passwords_are_redacted', async t => {
+//   const callBackend = ClientFunction(
+//     function (url) {
+//       var xhttp = new XMLHttpRequest();
+//       xhttp.open("POST", url, true);
+//       xhttp.setRequestHeader("Content-type", "application/json");
+//       xhttp.send('{ "password": "redactme!" }');
+//     });
+
+//   await t.click(Selector('.Password\\:\\:hash'))
+//   await callBackend(user_content_url(t, "/signup"));
+//   await t.expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
+// })

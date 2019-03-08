@@ -250,7 +250,13 @@ and viewNExpr
         ; ViewUtils.nothingMouseEvent "dblclick" ]
       in
       let {class_; event; title; icon} =
-        if buttonUnavailable
+        if name = "Password::check" || name = "Password::hash"
+        then
+          { class_ = "execution-button-unsafe"
+          ; event = []
+          ; title = "Cannot run interactively for security reasons."
+          ; icon = "times" }
+        else if buttonUnavailable
         then
           { class_ = "execution-button-unavailable"
           ; event = []
