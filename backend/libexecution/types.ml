@@ -258,14 +258,14 @@ module RuntimeT = struct
   module PasswordBytes = struct
     include Bytes
 
-    let to_yojson bytes = `String (bytes |> Bytes.to_string |> B64.encode)
+    let to_yojson bytes = `String "Redacted"
 
     let of_yojson json =
       match json with
       | `String s ->
-          Ok (s |> B64.decode |> Bytes.of_string)
+          Ok (s |> Bytes.of_string)
       | _ ->
-          Error "Invalid base64 encoded password"
+          Error "Expected a string"
   end
 
   (* Special types:
