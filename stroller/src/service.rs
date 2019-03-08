@@ -3,10 +3,13 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use futures::future;
+use hyper::header::HeaderValue;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
+use uuid::Uuid;
 
 use crate::worker::Message;
 
@@ -17,15 +20,19 @@ pub fn handle(
     sender: Sender<Message>,
     req: Request<Body>,
 ) -> BoxFut<Response<Body>, hyper::Error> {
+    let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
-
-    slog_info!(slog_scope::logger(), "handle(...): {:?}", req);
+    let request_id = Uuid::new_v4().to_string();
+    response
+        .headers_mut()
+        .insert("x-request-id", request_id.parse::<HeaderValue>().unwrap());
 
     if shutting_down.load(Ordering::Acquire) {
         *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
         return Box::new(future::ok(response));
     }
 
+    let method = req.method().to_string();
     let uri = req.uri().clone();
     let path_segments: Vec<&str> = uri.path().split('/').collect();
 
@@ -85,6 +92,15 @@ pub fn handle(
                         .body(Body::empty())
                         .unwrap())
                 });
+            slog_info!(slog_scope::logger(), "HERE DONE 2?");
+            let req_time = start.elapsed().unwrap();
+            let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
+            slog_info!(slog_scope::logger(), "handle(...):";
+               o!(
+            "uri" => uri.to_string(),
+            "method" => method,
+            "dur (ms)" => ms
+            ));
             return Box::new(handled);
         }
         _ => {
