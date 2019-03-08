@@ -785,7 +785,11 @@ let t_dval_yojson_roundtrips () =
     ()
   in
   sample_dvals
-  |> List.filter ~f:(function _, DBlock _ -> false | _ -> true)
+  |> List.filter ~f:(function
+         | _, DBlock _ | _, DPassword _ ->
+             false
+         | _ ->
+             true )
   |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
