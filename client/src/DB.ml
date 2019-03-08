@@ -75,10 +75,12 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
 let createDB (name : string) (pos : pos) : modification =
   let next = Prelude.gid ()
   and tlid = Prelude.gtlid () in
-  RPC
-    ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
-      ; AddDBCol (tlid, next, Prelude.gid ()) ]
-    , FocusExact (tlid, next) )
+  Many
+    [ AppendUnlockedDBs [tlid]
+    ; RPC
+        ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
+          ; AddDBCol (tlid, next, Prelude.gid ()) ]
+        , FocusExact (tlid, next) ) ]
 
 
 let generateDBName (_ : unit) : string =

@@ -654,6 +654,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m4 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
+    | AppendUnlockedDBs newDBs ->
+        ({m with unlockedDBs = m.unlockedDBs @ newDBs}, Cmd.none)
     | Delete404 f404 ->
         ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
     | Append404s f404s ->
