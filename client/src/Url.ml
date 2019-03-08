@@ -64,22 +64,20 @@ let maybeUpdateScrollUrl (m : model) : modification =
           [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
           ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
       else NoChange
-  | FocusedDB dbtlid ->
+  | FocusedDB fid | FocusedHandler fid ->
     let pos = Some m.canvasProps.offset in
-    let selected = match m.cursorState with Selecting (tlid, _) -> dbtlid = tlid | _ -> false in
     if pos <> m.urlState.lastPos
     then
       let hash =
-        if selected
+        if match m.cursorState with Selecting (tlid, _) -> fid = tlid | _ -> false
         then urlOf m.currentPage pos
         else urlOf (Architecture m.canvasProps.offset) pos
       in
-      Debug.loG "url hash" hash;
       Many
         [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
         ; MakeCmd (Navigation.modifyUrl hash) ]
     else NoChange
-  | FocusedHandler _ | FocusedFn _ ->
+  | FocusedFn _ ->
       (* Dont update the scroll in the as we don't record the scroll in the
        * URL, and the url has already been changed *)
       NoChange

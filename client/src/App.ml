@@ -444,10 +444,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           let savedUrlState =
             match m.currentPage with
-            | Architecture _
-            | FocusedDB _ ->
+            | Architecture _ | FocusedDB _ | FocusedHandler _ ->
                 Some m.canvasProps.offset
-            | FocusedFn _ | FocusedHandler _ ->
+            | FocusedFn _ ->
                 m.urlState.lastPos
           in
           ( match page with
@@ -458,7 +457,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ; urlState = {lastPos = Some pos2}
                 ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
-          | FocusedDB tlid ->
+          | FocusedDB tlid | FocusedHandler tlid ->
             let tl = TL.getTL m tlid in
             let pos2 = Viewport.subPos tl.pos Defaults.focusCodePos in
             ( { m with
@@ -467,7 +466,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ; canvasProps = {m.canvasProps with offset = pos2 }
                 ; cursorState = Selecting (tlid, None)
               }, Cmd.none)
-          | FocusedFn _ | FocusedHandler _ ->
+          | FocusedFn _ ->
               ( { m with
                   currentPage = page
                 ; canvasProps =
