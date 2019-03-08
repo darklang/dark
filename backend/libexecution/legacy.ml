@@ -6,7 +6,7 @@ module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
   let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json
       =
-    let tipe = dv |> Dval.tipe_of |> tipe_to_yojson in
+    let tipe = dv |> Dval.tipe_of |> Dval.tipe_to_yojson in
     let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
     let wrap_constructed_type cons values =
       `Assoc [("type", tipe); ("constructor", cons); ("values", `List values)]
