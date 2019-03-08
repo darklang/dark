@@ -22,6 +22,7 @@ extern crate slog_json;
 extern crate slog_scope;
 
 extern crate chrono;
+extern crate uuid;
 
 use slog::{Drain, FnValue, PushFnValue, Record};
 use std::sync::Mutex;

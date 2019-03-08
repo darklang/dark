@@ -183,6 +183,7 @@ impl PusherClient {
                         );
                         Ok(())
                     }
+                    // TODO time to failure might be nice to log here
                     code => resp
                         .text()
                         .map_err(|e| format!("Error reading push error: {:?}", e).into())
