@@ -444,9 +444,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           let savedUrlState =
             match m.currentPage with
-            | Architecture _ ->
+            | Architecture _
+            | FocusedDB _ ->
                 Some m.canvasProps.offset
-            | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
+            | FocusedFn _ | FocusedHandler _ ->
                 m.urlState.lastPos
           in
           ( match page with
