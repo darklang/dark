@@ -626,6 +626,7 @@ and modification =
   | UpdateAnalysis of traceID * analysisResults
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of tlid list
+  | AppendUnlockedDBs of tlid list
   | Append404s of fourOhFour list
   | Delete404 of fourOhFour
   | Enter of entryCursor
