@@ -22,6 +22,8 @@ pub fn handle(
 ) -> BoxFut<Response<Body>, hyper::Error> {
     let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
+
+    // TODO ismith: it'd be nice to use this with slog_scope to put x-request-id in the log
     let request_id = Uuid::new_v4().to_string();
     response
         .headers_mut()
