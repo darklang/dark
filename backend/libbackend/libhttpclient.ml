@@ -25,9 +25,9 @@ let has_json_header (headers : headers) : bool =
 
 
 (* TODO: integrate with dark_request *)
-let send_request uri verb json_fn body query_ headers_ =
-  let query = Dval.dval_to_query query_ in
-  let headers = Dval.to_string_pairs_exn headers_ in
+let send_request uri verb json_fn body query headers =
+  let query = Dval.dval_to_query query in
+  let headers = Dval.to_string_pairs_exn headers in
   let body =
     match body with
     | DObj obj when has_form_header headers ->
@@ -83,14 +83,30 @@ let encode_basic_auth u p =
 let call verb json_fn =
   InProcess
     (function
-    | _, [DStr uri; body; query_; headers_] ->
+    | _, [DStr uri; body; query; headers] ->
         send_request
           (Unicode_string.to_string uri)
           verb
           json_fn
           body
-          query_
-          headers_
+          query
+          headers
+    | args ->
+        fail args)
+
+
+(* Some verbs dont have HTTP bodies *)
+let call_no_body verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; query; headers] ->
+        send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          (Dval.dstr_of_string_exn "")
+          query
+          headers
     | args ->
         fail args)
 
@@ -122,12 +138,14 @@ let replacements =
         Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
   ; ("HttpClient::post_v1", call Httpclient.POST Dval.to_pretty_machine_json_v1)
   ; ("HttpClient::put_v1", call Httpclient.PUT Dval.to_pretty_machine_json_v1)
-  ; ("HttpClient::get_v1", call Httpclient.GET Dval.to_pretty_machine_json_v1)
+  ; ( "HttpClient::get_v1"
+    , call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::delete_v1"
-    , call Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+    , call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::options_v1"
-    , call Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
-  ; ("HttpClient::head_v1", call Httpclient.HEAD Dval.to_pretty_machine_json_v1)
+    , call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::head_v1"
+    , call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::patch_v1"
     , call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::basicAuth"
