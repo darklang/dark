@@ -2037,9 +2037,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
   ()
 
 
-let unicode_string_tester =
-  AT.testable Unicode_string.pp_t Unicode_string.equal
-
+let unicode_string_tester = AT.testable Unicode_string.pp Unicode_string.equal
 
 let t_unicode_string_reverse_works_with_emojis () =
   let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
@@ -2188,6 +2186,36 @@ let t_old_new_dval_reprs () =
       (*   (Dval.to_hashable_repr dv) ; *)
       () ) ;
   ()
+
+
+let t_trace_data_json_format_redacts_passwords () =
+  let id = fid () in
+  let trace_data : Analysis_types.trace_data =
+    { input = [("event", DPassword (PasswordBytes.of_string "redactme1"))]
+    ; function_results =
+        [ ( "Password::hash"
+          , id
+          , "foobar"
+          , DPassword (PasswordBytes.of_string "redactme2") ) ] }
+  in
+  let expected : Analysis_types.trace_data =
+    { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
+    ; function_results =
+        [ ( "Password::hash"
+          , id
+          , "foobar"
+          , DPassword (PasswordBytes.of_string "Redacted") ) ] }
+  in
+  trace_data
+  |> Analysis_types.trace_data_to_yojson
+  |> Analysis_types.trace_data_of_yojson
+  |> Result.ok_or_failwith
+  |> AT.check
+       (AT.testable
+          Analysis_types.pp_trace_data
+          Analysis_types.equal_trace_data)
+       "trace_data round trip"
+       expected
 
 
 (* ------------------- *)
@@ -2372,7 +2400,10 @@ let suite =
     , t_result_to_response_works )
   ; ( "New dval representations are the same as the old ones"
     , `Quick
-    , t_old_new_dval_reprs ) ]
+    , t_old_new_dval_reprs )
+  ; ( "Trace data redacts passwords"
+    , `Quick
+    , t_trace_data_json_format_redacts_passwords ) ]
 
 
 let () =
