@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use futures::future;
+use futures::future::Either;
 use hyper::header::HeaderValue;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
@@ -16,13 +17,11 @@ use crate::worker::Message;
 use slog::{o, slog_error, slog_info};
 use slog_scope::{error, info};
 
-type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
-
 pub fn handle(
     shutting_down: &Arc<AtomicBool>,
     sender: Sender<Message>,
     req: Request<Body>,
-) -> BoxFut<Response<Body>, hyper::Error> {
+) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
     let request_id = Uuid::new_v4().to_string();
@@ -32,7 +31,7 @@ pub fn handle(
 
     if shutting_down.load(Ordering::Acquire) {
         *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
-        return Box::new(future::ok(response));
+        return Either::A(future::ok(response));
     }
 
     let method = req.method().to_string();
@@ -105,14 +104,14 @@ pub fn handle(
             "dur (ms)" => ms,
             "x-request-id" => &request_id
             ));
-            return Box::new(handled);
+            return Either::B(handled);
         }
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
         }
     }
 
-    Box::new(future::ok(response))
+    Either::A(future::ok(response))
 }
 
 #[cfg(test)]
