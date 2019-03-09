@@ -24,8 +24,7 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
 let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let offset = m.canvasProps.offset
-  in
+  let offset = m.canvasProps.offset in
   let pos = addPos offset {x; y} in
   MoveCanvasTo pos
 

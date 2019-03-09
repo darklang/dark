@@ -206,8 +206,7 @@ let viewCanvas (m : model) : msg Html.html =
           [] )
   in
   let canvasTransform =
-    let offset = m.canvasProps.offset
-    in
+    let offset = m.canvasProps.offset in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in
     "translate(" ^ x ^ "px, " ^ y ^ "px)"

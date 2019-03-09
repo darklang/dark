@@ -50,12 +50,17 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
     msg Html.html =
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
-let hashCmd (tl : toplevel) : (msg Cmd.t) list =
+
+let hashCmd (tl : toplevel) : msg Cmd.t list =
   let hash page = Navigation.modifyUrl (urlOf page None) in
   match tl.data with
-  | TLDB _ -> [hash (FocusedDB tl.id)]
-  | TLHandler _ -> [hash (FocusedHandler tl.id)]
-  | TLFunc _ -> []
+  | TLDB _ ->
+      [hash (FocusedDB tl.id)]
+  | TLHandler _ ->
+      [hash (FocusedHandler tl.id)]
+  | TLFunc _ ->
+      []
+
 
 (* When scrolling, there are way too many events to process them through *)
 (* the History/location handlers. So instead we process them directly, *)
@@ -71,18 +76,22 @@ let maybeUpdateScrollUrl (m : model) : modification =
           ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
       else NoChange
   | FocusedDB fid | FocusedHandler fid ->
-    let pos = Some m.canvasProps.offset in
-    if pos <> m.urlState.lastPos
-    then
-      let hash =
-        if match m.cursorState with Selecting (tlid, _) -> fid = tlid | _ -> false
-        then urlOf m.currentPage pos
-        else urlOf (Architecture m.canvasProps.offset) pos
-      in
-      Many
-        [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
-        ; MakeCmd (Navigation.modifyUrl hash) ]
-    else NoChange
+      let pos = Some m.canvasProps.offset in
+      if pos <> m.urlState.lastPos
+      then
+        let hash =
+          if match m.cursorState with
+             | Selecting (tlid, _) ->
+                 fid = tlid
+             | _ ->
+                 false
+          then urlOf m.currentPage pos
+          else urlOf (Architecture m.canvasProps.offset) pos
+        in
+        Many
+          [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
+          ; MakeCmd (Navigation.modifyUrl hash) ]
+      else NoChange
   | FocusedFn _ ->
       (* Dont update the scroll in the as we don't record the scroll in the
        * URL, and the url has already been changed *)

@@ -458,14 +458,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
           | FocusedDB tlid | FocusedHandler tlid ->
-            let tl = TL.getTL m tlid in
-            let pos2 = Viewport.subPos tl.pos Defaults.focusCodePos in
-            ( { m with
+              let tl = TL.getTL m tlid in
+              let pos2 = Viewport.subPos tl.pos Defaults.focusCodePos in
+              ( { m with
                   currentPage = page
                 ; urlState = {lastPos = Some pos2}
-                ; canvasProps = {m.canvasProps with offset = pos2 }
-                ; cursorState = Selecting (tlid, None)
-              }, Cmd.none)
+                ; canvasProps = {m.canvasProps with offset = pos2}
+                ; cursorState = Selecting (tlid, None) }
+              , Cmd.none )
           | FocusedFn _ ->
               ( { m with
                   currentPage = page
@@ -889,7 +889,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-
+              
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
