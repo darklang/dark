@@ -4,7 +4,7 @@ use crate::config;
 use crate::push::PusherClient;
 
 pub enum Message {
-    CanvasEvent(String, String, Vec<u8>),
+    CanvasEvent(String, String, Vec<u8>, String),
     Die,
 }
 
@@ -23,20 +23,25 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
     slog_info!(slog_scope::logger(), "Worker initialized");
     loop {
         match channel.recv() {
-            Ok(Message::CanvasEvent(canvas_uuid, event_name, body)) => {
+            Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
                 /* TODO ismith
                  * removed body from log b/c "body" => body.to_string() got:
                    = note: the method `to_string` exists but the following trait bounds were not satisfied:
                         `std::vec::Vec<u8> : std::string::ToString`
                         `[u8] : std::string::ToString`
                 */
-                let log = &slog_scope::logger().new(o!("canvas" => canvas_uuid.to_string(),
-                                                       "event" => event_name.to_string()));
 
-                slog_info!(log, "msg recv: ok");
-                let result = client.push_canvas_event(&canvas_uuid, &event_name, &body);
+                slog_info!(slog_scope::logger(), "msg recv: ok"; o!("canvas" => canvas_uuid.to_string(),
+                "event" => event_name.to_string(),
+                "x-request-id" => request_id.to_string()
+                ));
+                let result =
+                    client.push_canvas_event(&canvas_uuid, &event_name, &body, &request_id);
                 if let Err(e) = result {
-                    slog_error!(log, "Error pushing to pusher: {}", e);
+                    slog_error!(slog_scope::logger(), "Error pushing to pusher: {}", e; o!("canvas" => canvas_uuid.to_string(),
+                    "event" => event_name.to_string(),
+                    "x-request-id" => request_id
+                    ));
                 }
             }
             Ok(Message::Die) => {

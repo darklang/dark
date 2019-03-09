@@ -23,6 +23,9 @@ pub fn handle(
     let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
     let request_id = Uuid::new_v4().to_string();
+    // this is dumb, but otherwise, the final log call attempts to borrow after we move into the
+    // map closure
+    let request_id2 = request_id.to_string();
     response
         .headers_mut()
         .insert("x-request-id", request_id.parse::<HeaderValue>().unwrap());
@@ -69,7 +72,7 @@ pub fn handle(
                     future::ok::<_, hyper::Error>(acc)
                 })
                 .map(move |req_body| {
-                    let canvas_event = Message::CanvasEvent(canvas_uuid.to_string(), event.to_string(), req_body);
+                    let canvas_event = Message::CanvasEvent(canvas_uuid.to_string(), event.to_string(), req_body, request_id.to_string());
 
                     match sender.send(canvas_event) {
                         Ok(()) => {
@@ -78,7 +81,7 @@ pub fn handle(
                             response
                         }
                         Err(_) => {
-                            slog_error!(slog_scope::logger(), "Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.to_string(), "event" => event.to_string()));
+                            slog_error!(slog_scope::logger(), "Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.to_string(), "event" => event.to_string(), "x-request-id" => request_id));
                             *response.status_mut() = StatusCode::ACCEPTED;
                             *response.body_mut() = Body::empty();
                             response
@@ -92,14 +95,14 @@ pub fn handle(
                         .body(Body::empty())
                         .unwrap())
                 });
-            slog_info!(slog_scope::logger(), "HERE DONE 2?");
             let req_time = start.elapsed().unwrap();
             let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
             slog_info!(slog_scope::logger(), "handle(...):";
                o!(
             "uri" => uri.to_string(),
             "method" => method,
-            "dur (ms)" => ms
+            "dur (ms)" => ms,
+            "x-request-id" => request_id2
             ));
             return Box::new(handled);
         }
