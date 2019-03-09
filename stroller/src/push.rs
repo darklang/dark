@@ -152,6 +152,7 @@ impl PusherClient {
         canvas_uuid: &str,
         event_name: &str,
         json_bytes: &[u8],
+        request_id: &str,
     ) -> Result<(), PusherError> {
         let channel_name = format!("canvas_{}", canvas_uuid);
         let timestamp = SystemTime::now();
@@ -159,6 +160,7 @@ impl PusherClient {
         let pusher_request =
             self.build_push_request(timestamp, &channel_name, &event_name, json_bytes)?;
         slog_info!(slog_scope::logger(), "sending pusher request"; o!(
+                "x-request-id" => request_id,
                 "channel" => channel_name,
                 "event" => event_name));
         // TODO ismith:
@@ -177,10 +179,11 @@ impl PusherClient {
                     StatusCode::OK => {
                         let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
                         slog_info!(slog_scope::logger(),
-                            "Pushed event in {}ms",
-                            ms;
-                            o!("dur_ms" => ms)
-                        );
+                                    "Pushed event in {}ms",
+                                    ms;
+                                    o!("dur_ms" => ms,
+                        "x-request-id" => request_id)
+                                );
                         Ok(())
                     }
                     // TODO time to failure might be nice to log here
