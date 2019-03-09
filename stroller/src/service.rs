@@ -81,7 +81,7 @@ pub fn handle(
                             response
                         }
                         Err(_) => {
-                            slog_error!(slog_scope::logger(), "Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.to_string(), "event" => event.to_string(), "x-request-id" => request_id));
+                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.to_string(), "event" => event.to_string(), "x-request-id" => request_id));
                             *response.status_mut() = StatusCode::ACCEPTED;
                             *response.body_mut() = Body::empty();
                             response
@@ -89,7 +89,7 @@ pub fn handle(
                     }
                 })
                 .or_else(|_| {
-                    slog_error!(slog_scope::logger(), "Couldn't read request body from client!");
+                    error!("Couldn't read request body from client!");
                     Ok(Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .body(Body::empty())
@@ -97,7 +97,7 @@ pub fn handle(
                 });
             let req_time = start.elapsed().unwrap();
             let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
-            slog_info!(slog_scope::logger(), "handle(...):";
+            info!("handle(...):";
                o!(
             "uri" => uri.to_string(),
             "method" => method,

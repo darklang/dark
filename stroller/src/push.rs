@@ -159,7 +159,7 @@ impl PusherClient {
 
         let pusher_request =
             self.build_push_request(timestamp, &channel_name, &event_name, json_bytes)?;
-        slog_info!(slog_scope::logger(), "sending pusher request"; o!(
+        info!("sending pusher request"; o!(
                 "x-request-id" => request_id,
                 "channel" => channel_name,
                 "event" => event_name));
@@ -178,7 +178,7 @@ impl PusherClient {
                 match resp.status() {
                     StatusCode::OK => {
                         let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
-                        slog_info!(slog_scope::logger(),
+                        info!(
                                     "Pushed event in {}ms",
                                     ms;
                                     o!("dur_ms" => ms,
