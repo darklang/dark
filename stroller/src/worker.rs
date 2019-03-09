@@ -20,7 +20,7 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
         &config::pusher_key(),
         &config::pusher_secret(),
     );
-    slog_info!(slog_scope::logger(), "Worker initialized");
+    info!("Worker initialized");
     loop {
         match channel.recv() {
             Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
@@ -31,21 +31,21 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
                         `[u8] : std::string::ToString`
                 */
 
-                slog_info!(slog_scope::logger(), "msg recv: ok"; o!("canvas" => canvas_uuid.to_string(),
+                info!("msg recv: ok"; o!("canvas" => canvas_uuid.to_string(),
                 "event" => event_name.to_string(),
                 "x-request-id" => request_id.to_string()
                 ));
                 let result =
                     client.push_canvas_event(&canvas_uuid, &event_name, &body, &request_id);
                 if let Err(e) = result {
-                    slog_error!(slog_scope::logger(), "Error pushing to pusher: {}", e; o!("canvas" => canvas_uuid.to_string(),
+                    error!("Error pushing to pusher: {}", e; o!("canvas" => canvas_uuid.to_string(),
                     "event" => event_name.to_string(),
                     "x-request-id" => request_id
                     ));
                 }
             }
             Ok(Message::Die) => {
-                slog_info!(slog_scope::logger(), "Received `Die` in worker thread");
+                info!("Received `Die` in worker thread");
                 break WorkerTerminationReason::ViaDie;
             }
             Err(_) => {

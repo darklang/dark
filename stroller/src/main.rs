@@ -19,6 +19,7 @@ use crate::worker::{Message, WorkerTerminationReason};
 extern crate slog;
 
 extern crate slog_json;
+#[macro_use(info, error)]
 extern crate slog_scope;
 
 extern crate chrono;
@@ -75,8 +76,8 @@ fn main() {
 
     let server = Server::bind(&addr)
         .serve(make_service)
-        .map_err(|e| slog_error!(slog_scope::logger(), "server error: {}", e));
+        .map_err(|e| error!("server error: {}", e));
 
-    slog_info!(slog_scope::logger(), "Listening on {}", addr);
+    info!("Listening on {}", addr);
     hyper::rt::run(server);
 }
