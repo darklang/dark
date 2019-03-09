@@ -50,6 +50,12 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
     msg Html.html =
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
+let hashCmd (tl : toplevel) : (msg Cmd.t) list =
+  let hash page = Navigation.modifyUrl (urlOf page None) in
+  match tl.data with
+  | TLDB _ -> [hash (FocusedDB tl.id)]
+  | TLHandler _ -> [hash (FocusedHandler tl.id)]
+  | TLFunc _ -> []
 
 (* When scrolling, there are way too many events to process them through *)
 (* the History/location handlers. So instead we process them directly, *)

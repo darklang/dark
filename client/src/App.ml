@@ -479,7 +479,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch (closeBlanks m @ [afCmd]))
+        let tl = TL.getTL m tlid in
+        let urlUpdate = Url.hashCmd tl in
+        (m, Cmd.batch (closeBlanks m @ [afCmd] @ urlUpdate))
     | Deselect ->
         let m, acCmd = processAutocompleteMods m [ACReset] in
         let m = {m with cursorState = Deselected} in
