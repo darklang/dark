@@ -690,67 +690,64 @@ let rec to_developer_repr_v0 (dv : dval) : string =
   to_repr_ 0 dv
 
 
-let to_pretty_machine_json_v0 dval =
-  unsafe_dval_to_yojson dval |> Yojson.Safe.pretty_to_string
+let to_pretty_machine_json_v1 dval =
+  let rec recurse dv =
+    match dv with
+    (* basic types *)
+    | DInt i ->
+        `Int i
+    | DFloat f ->
+        `Float f
+    | DBool b ->
+        `Bool b
+    | DNull ->
+        `Null
+    | DStr s ->
+        Unicode_string.to_yojson s
+    | DList l ->
+        `List (List.map l recurse)
+    | DObj o ->
+        o
+        |> DvalMap.to_alist
+        |> List.map ~f:(fun (k, v) -> (k, recurse v))
+        |> fun x -> `Assoc x
+    | DBlock _ | DIncomplete ->
+        `Null
+    | DChar c ->
+        `String (Char.to_string c)
+    | DCharacter c ->
+        `String (Unicode_string.Character.to_string c)
+    | DError msg ->
+        `Assoc [("Error", `String msg)]
+    | DResp (h, hdv) ->
+        recurse hdv
+    | DDB dbname ->
+        `String dbname
+    | DID id ->
+        `String (Uuidm.to_string id)
+    | DUrl url ->
+        `String url
+    | DTitle title ->
+        `String title
+    | DDate date ->
+        `String (Util.isostring_of_date date)
+    | DPassword hashed ->
+        `Assoc [("Error", `String "Password is redacted")]
+    | DUuid uuid ->
+        `String (Uuidm.to_string uuid)
+    | DOption opt ->
+      (match opt with OptNothing -> `Null | OptJust dv -> recurse dv)
+    | DErrorRail dv ->
+        recurse dv
+    | DResult res ->
+      ( match res with
+      | ResOk dv ->
+          recurse dv
+      | ResError dv ->
+          `Assoc [("Error", recurse dv)] )
+  in
+  recurse dval |> Yojson.Safe.pretty_to_string
 
-
-(* let rec recurse dv = *)
-(*   match dv with *)
-(*   (* basic types *) *)
-(*   | DInt i -> *)
-(*       `Int i *)
-(*   | DFloat f -> *)
-(*       `Float f *)
-(*   | DBool b -> *)
-(*       `Bool b *)
-(*   | DNull -> *)
-(*       `Null *)
-(*   | DStr s -> *)
-(*       Unicode_string.to_yojson s *)
-(*   | DList l -> *)
-(*       `List (List.map l recurse) *)
-(*   | DObj o -> *)
-(*       o *)
-(*       |> DvalMap.to_alist *)
-(*       |> List.map ~f:(fun (k, v) -> (k, recurse v)) *)
-(*       |> fun x -> `Assoc x *)
-(*   | DBlock _ | DIncomplete -> *)
-(*       `Null *)
-(*   | DChar c -> *)
-(*       `String (Char.to_string c) *)
-(*   | DCharacter c -> *)
-(*       `String (Unicode_string.Character.to_string c) *)
-(*   | DError msg -> *)
-(*       `Assoc [("Error", `String msg)] *)
-(*   | DResp (h, hdv) -> *)
-(*       recurse hdv *)
-(*   | DDB dbname -> *)
-(*       `String dbname *)
-(*   | DID id -> *)
-(*       `String (Uuidm.to_string id) *)
-(*   | DUrl url -> *)
-(*       `String url *)
-(*   | DTitle title -> *)
-(*       `String title *)
-(*   | DDate date -> *)
-(*       `String (Util.isostring_of_date date) *)
-(*   | DPassword hashed -> *)
-(*       `Null *)
-(*   | DUuid uuid -> *)
-(*       `String (Uuidm.to_string uuid) *)
-(*   | DOption opt -> *)
-(*     (match opt with OptNothing -> `Null | OptJust dv -> recurse dv) *)
-(*   | DErrorRail dv -> *)
-(*       recurse dv *)
-(*   | DResult res -> *)
-(*     ( match res with *)
-(*     | ResOk dv -> *)
-(*         recurse dv *)
-(*     | ResError dv -> *)
-(*         `Assoc [("Error", recurse dv)] ) *)
-(* in *)
-(* recurse dval |> Yojson.Safe.pretty_to_string *)
-(*  *)
 
 let of_unknown_json_v0 str =
   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson with e ->
@@ -1097,141 +1094,3 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
  * size of the data stored by only storing a hash *)
 let hash (arglist : dval list) : string =
   arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash
-
-
-(* ------------------------- *)
-(* Old deprecated representations *)
-(* ------------------------- *)
-
-(* Returns the string within string-ish values, without adornment. *)
-let as_string (dv : dval) : string =
-  match dv with
-  | DInt i ->
-      string_of_int i
-  | DBool true ->
-      "true"
-  | DBool false ->
-      "false"
-  | DStr s ->
-      Unicode_string.to_string s
-  | DFloat f ->
-      string_of_float f
-  | DChar c ->
-      Char.to_string c
-  | DCharacter c ->
-      Unicode_string.Character.to_string c
-  | DNull ->
-      "null"
-  | DID id ->
-      Uuidm.to_string id
-  | DDate d ->
-      Util.isostring_of_date d
-  | DTitle t ->
-      t
-  | DUrl url ->
-      url
-  | DDB dbname ->
-      dbname
-  | DError msg ->
-      msg
-  | DUuid uuid ->
-      Uuidm.to_string uuid
-  | _ ->
-      "<" ^ (dv |> tipename) ^ ">"
-
-
-let as_literal (dv : dval) : string =
-  match dv with
-  | DStr s ->
-      "\"" ^ Unicode_string.to_string s ^ "\""
-  | DChar _ ->
-      "'" ^ as_string dv ^ "'"
-  | DCharacter c ->
-      "'" ^ Unicode_string.Character.to_string c ^ "'"
-  | _ ->
-      as_string dv
-
-
-let is_primitive (dv : dval) : bool =
-  match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _ | DStr _ ->
-      true
-  | _ ->
-      false
-
-
-let is_stringable (dv : dval) : bool =
-  match dv with
-  | DBlock _
-  | DIncomplete
-  | DError _
-  | DID _
-  | DDate _
-  | DTitle _
-  | DUrl _
-  | DPassword _
-  | DDB _
-  | DUuid _ ->
-      true
-  | _ ->
-      is_primitive dv
-
-
-(* A simple representation, showing primitives as their expected literal	
- * syntax, and odd types get type info in a readable format. Compund	
- * types are listed as their type only *)
-let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
-  let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
-  match dv with
-  | dv when is_primitive dv ->
-      as_literal dv
-  | dv when is_stringable dv ->
-      wrap (as_string dv)
-  | _ ->
-      open_ ^ (dv |> tipename) ^ close_
-
-
-(* A full representation, building on to_simple_repr, but including	
- * lists and objects. *)
-let rec to_repr (dv : dval) : string =
-  let pp = true in
-  let open_ = "<" in
-  let close_ = ">" in
-  let reprfn = to_simple_repr ~open_ ~close_ in
-  let rec to_repr_ (indent : int) (pp : bool) (dv : dval) : string =
-    let nl = if pp then "\n" ^ String.make indent ' ' else " " in
-    let inl = if pp then "\n" ^ String.make (indent + 2) ' ' else "" in
-    let indent = indent + 2 in
-    match dv with
-    | dv when is_stringable dv ->
-        reprfn dv
-    | DResp (h, hdv) ->
-        dhttp_to_formatted_string h ^ nl ^ to_repr_ indent pp hdv
-    | DList l ->
-        if List.is_empty l
-        then "[]"
-        else
-          "[ "
-          ^ inl
-          ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent pp) l)
-          ^ nl
-          ^ "]"
-    | DObj o ->
-        if DvalMap.is_empty o
-        then "{}"
-        else
-          let strs =
-            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                (key ^ ": " ^ to_repr_ indent pp data) :: l )
-          in
-          "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
-    | DOption OptNothing ->
-        "Nothing"
-    | DOption (OptJust dv) ->
-        "Just " ^ to_repr_ indent pp dv
-    | DErrorRail dv ->
-        "ErrorRail: " ^ to_repr_ indent pp dv
-    | _ ->
-        failwith ("printing an unprintable value:" ^ to_simple_repr dv)
-  in
-  to_repr_ 0 pp dv

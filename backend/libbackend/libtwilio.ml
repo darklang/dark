@@ -44,6 +44,7 @@ let replacements =
             Libhttpclient.send_request
               twilio_uri
               Httpclient.POST
+              Libexecution.Dval.to_pretty_machine_json_v1
               body
               (DObj DvalMap.empty)
               headers

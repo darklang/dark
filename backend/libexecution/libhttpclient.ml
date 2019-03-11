@@ -3,6 +3,8 @@ open Runtime
 open Lib
 open Types.RuntimeT
 
+let params_no_body = [par "uri" TStr; par "query" TObj; par "headers" TObj]
+
 let params =
   [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]
 
@@ -14,11 +16,73 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
+    ; d =
+        "DEPRECATED: Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::put"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "DEPRECATED: Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::get"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "DEPRECATED: Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::delete"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "DEPRECATED: Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::options"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "DEPRECATED: Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::head"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "DEPRECATED: Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::patch"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::post_v1"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
     ; d = "Make blocking HTTP POST call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
-  ; { pns = ["HttpClient::put"]
+  ; { pns = ["HttpClient::put_v1"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -26,39 +90,42 @@ let fns : Lib.shortfn list =
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
-  ; { pns = ["HttpClient::get"]
+  ; { pns = ["HttpClient::get_v1"]
     ; ins = []
-    ; p = params
+    ; p = params_no_body
     ; r = TObj
     ; d = "Make blocking HTTP GET call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
-  ; { pns = ["HttpClient::delete"]
-    ; ins = []
-    ; p = params
+  ; { pns = ["HttpClient::delete_v1"]
+    ; ins =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE 
+         * the spec says it may have a body *)
+    ; p = params_no_body
     ; r = TObj
     ; d = "Make blocking HTTP DELETE call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
-  ; { pns = ["HttpClient::options"]
+  ; { pns = ["HttpClient::options_v1"]
     ; ins = []
-    ; p = params
+    ; p = params_no_body
     ; r = TObj
     ; d = "Make blocking HTTP OPTIONS call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
-  ; { pns = ["HttpClient::head"]
+  ; { pns = ["HttpClient::head_v1"]
     ; ins = []
-    ; p = params
+    ; p = params_no_body
     ; r = TObj
     ; d = "Make blocking HTTP HEAD call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
-  ; { pns = ["HttpClient::patch"]
+  ; { pns = ["HttpClient::patch_v1"]
     ; ins = []
     ; p = params
     ; r = TObj

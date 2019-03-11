@@ -189,7 +189,23 @@ let fns : Lib.shortfn list =
           (function
           | _, [DObj o] ->
               DObj o
-              |> Dval.to_pretty_machine_json_v0
+              |> Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
+              |> Dval.dstr_of_string_exn
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["Object::toJSON_v1"]
+    ; ins = []
+    ; p = [par "obj" TObj]
+    ; r = TStr
+    ; d = "Dumps `obj` to a JSON string"
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o] ->
+              DObj o
+              |> Dval.to_pretty_machine_json_v1
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
@@ -547,7 +563,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["JSON::read"]
     ; ins = []
     ; p = [par "json" TStr]

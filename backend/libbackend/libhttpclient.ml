@@ -25,15 +25,15 @@ let has_json_header (headers : headers) : bool =
 
 
 (* TODO: integrate with dark_request *)
-let send_request uri verb body query_ headers_ =
-  let query = Dval.dval_to_query query_ in
-  let headers = Dval.to_string_pairs_exn headers_ in
+let send_request uri verb json_fn body query headers =
+  let query = Dval.dval_to_query query in
+  let headers = Dval.to_string_pairs_exn headers in
   let body =
     match body with
     | DObj obj when has_form_header headers ->
         Dval.to_form_encoding body
     | _ ->
-        Dval.to_repr body
+        json_fn body
   in
   let result, headers = Httpclient.http_call uri query verb headers body in
   let parsed_result =
@@ -80,23 +80,74 @@ let encode_basic_auth u p =
   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
 
-let call verb =
+let call verb json_fn =
   InProcess
     (function
-    | _, [DStr uri; body; query_; headers_] ->
-        send_request (Unicode_string.to_string uri) verb body query_ headers_
+    | _, [DStr uri; body; query; headers] ->
+        send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          body
+          query
+          headers
+    | args ->
+        fail args)
+
+
+(* Some verbs dont have HTTP bodies *)
+let call_no_body verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; query; headers] ->
+        send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          (Dval.dstr_of_string_exn "")
+          query
+          headers
     | args ->
         fail args)
 
 
 let replacements =
-  [ ("HttpClient::post", call Httpclient.POST)
-  ; ("HttpClient::put", call Httpclient.PUT)
-  ; ("HttpClient::get", call Httpclient.GET)
-  ; ("HttpClient::delete", call Httpclient.DELETE)
-  ; ("HttpClient::options", call Httpclient.OPTIONS)
-  ; ("HttpClient::head", call Httpclient.HEAD)
-  ; ("HttpClient::patch", call Httpclient.PATCH)
+  [ ( "HttpClient::post"
+    , call Httpclient.POST Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
+  ; ( "HttpClient::put"
+    , call Httpclient.PUT Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
+  ; ( "HttpClient::get"
+    , call Httpclient.GET Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
+  ; ( "HttpClient::delete"
+    , call
+        Httpclient.DELETE
+        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
+  ; ( "HttpClient::options"
+    , call
+        Httpclient.OPTIONS
+        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
+  ; ( "HttpClient::head"
+    , call Httpclient.HEAD Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    )
+  ; ( "HttpClient::patch"
+    , call
+        Httpclient.PATCH
+        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
+  ; ("HttpClient::post_v1", call Httpclient.POST Dval.to_pretty_machine_json_v1)
+  ; ("HttpClient::put_v1", call Httpclient.PUT Dval.to_pretty_machine_json_v1)
+  ; ( "HttpClient::get_v1"
+    , call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::delete_v1"
+    , call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::options_v1"
+    , call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::head_v1"
+    , call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::patch_v1"
+    , call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::basicAuth"
     , InProcess
         (function
