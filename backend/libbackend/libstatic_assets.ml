@@ -107,7 +107,7 @@ UTF-8 safe"))
                 `Short
                 (Unicode_string.to_string file)
             in
-            let body, code, headers =
+            let body, code, headers, _error =
               Httpclient.http_call_with_code url [] Httpclient.GET [] ""
             in
             let headers =
@@ -143,7 +143,7 @@ UTF-8 safe"))
                 `Short
                 (Unicode_string.to_string file)
             in
-            let body, code, headers =
+            let body, code, headers, _error =
               Httpclient.http_call_with_code url [] Httpclient.GET [] ""
             in
             let headers =
