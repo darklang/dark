@@ -18,12 +18,8 @@ use crate::worker::{Message, WorkerTerminationReason};
 #[macro_use(o, slog_info, slog_error)]
 extern crate slog;
 
-extern crate slog_json;
 #[macro_use(info, error)]
 extern crate slog_scope;
-
-extern crate chrono;
-extern crate uuid;
 
 use slog::{Drain, FnValue, PushFnValue, Record};
 use std::sync::Mutex;
