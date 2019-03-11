@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # To install:
-# - cp scripts/pre-commit.hook.sh .git/hooks/pre-commit
+# - cp scripts/pre-commit-hook.sh .git/hooks/pre-commit
 # - chmod +x .git/hooks/pre-commit
 
 files=$(git diff --cached --name-only --diff-filter=ACM "*.ml" | tr '\n' ' ')
