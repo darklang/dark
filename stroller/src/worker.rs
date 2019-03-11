@@ -27,15 +27,9 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
     loop {
         match channel.recv() {
             Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
-                /* TODO ismith
-                 * removed body from log b/c "body" => body.to_string() got:
-                   = note: the method `to_string` exists but the following trait bounds were not satisfied:
-                        `std::vec::Vec<u8> : std::string::ToString`
-                        `[u8] : std::string::ToString`
-                */
-
                 info!("msg recv: ok"; o!("canvas" => canvas_uuid.clone(),
                 "event" => event_name.clone(),
+                "body" => String::from_utf8_lossy(&body).to_string(),
                 "x-request-id" => request_id.clone()
                 ));
                 let result =
