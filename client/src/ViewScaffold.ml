@@ -47,9 +47,7 @@ let viewButtons (m : model) : msg Html.html =
   in
   let returnButton =
     match m.currentPage with
-    | Architecture _ ->
-        []
-    | _ ->
+    | FocusedFn _ ->
         let offset =
           m.urlState.lastPos |> Option.withDefault ~default:Defaults.origin
         in
@@ -57,6 +55,8 @@ let viewButtons (m : model) : msg Html.html =
             (Architecture offset)
             "specialButton default-link return-to-canvas"
             [Html.text "Return to Canvas"] ]
+    | _ ->
+        []
   in
   let status =
     match m.error.message with
