@@ -17,7 +17,7 @@ val dir : root -> string
 
 val port : int
 
-val log_format : [`Stackdriver | `Regular | `Decorated]
+val log_format : [`Stackdriver | `Regular | `Json | `Decorated]
 
 val log_level : Libcommon.Log.level
 

@@ -181,6 +181,7 @@ let should_log (user_level : level) : bool =
 type format =
   [ `Stackdriver
   | `Regular
+  | `Json
   | `Decorated ]
 
 let format : format ref = ref `Stackdriver
@@ -220,7 +221,7 @@ let dump v : string =
   else Vendor.dump v
 
 
-let print_console_log
+let[@deriving yojson] print_console_log
     ?(bt : Caml.Printexc.raw_backtrace option = None) ~decorate ~level params :
     unit =
   let bt_param =
@@ -233,7 +234,8 @@ let print_console_log
   let color = if decorate then level_to_color level else "" in
   let reset = if decorate then "\x1b[0m" else "" in
   let paramstr =
-    params @ bt_param
+    (params |> List.map ~f:(fun (k, v) -> (k, Yojson.Safe.to_string v)))
+    @ bt_param
     |> List.map ~f:(fun (k, v) ->
            color ^ k ^ reset ^ "=" ^ format_string ~level v )
     |> String.concat ~sep:" "
@@ -249,9 +251,24 @@ let print_console_log
       ()
 
 
+let print_json_log
+    ~(level : level)
+    ?(bt : Caml.Printexc.raw_backtrace option = None)
+    (params : (string * Yojson.Safe.json) list) : unit =
+  let bt_params =
+    match bt with
+    | None ->
+        []
+    | Some some_bt ->
+        [("backtrace", `String (Caml.Printexc.raw_backtrace_to_string some_bt))]
+  in
+  let params = `Assoc (params @ bt_params) in
+  Yojson.Safe.to_string params |> Caml.print_endline
+
+
 let pP
     ?data
-    ?(params : (string * string) list = [])
+    ?(params : (string * Yojson.Safe.json) list = [])
     ?(bt : Caml.Printexc.raw_backtrace option)
     ~(level : level)
     (name : string) : unit =
@@ -262,7 +279,7 @@ let pP
         match data with None -> [] | Some data -> [("data", data)]
       in
       let params =
-        [ ("name", string_replace ~search:" " ~replace:"_" name)
+        [ ("name", `String (string_replace ~search:" " ~replace:"_" name))
         (* operation time *)
         (* timestamp *)
         (* slow request *)
@@ -278,11 +295,13 @@ let pP
           print_console_log ~bt ~decorate:false ~level params
       | `Decorated ->
           print_console_log ~bt ~decorate:true ~level params
+      | `Json ->
+          print_json_log ~bt ~level params
   with e -> Caml.print_endline "UNHANDLED ERROR: log.pP"
 
 
 let inspecT ?(f = dump) (name : string) (x : 'a) : unit =
-  pP ~level:`Inspect name ~params:[("data", f x)]
+  pP ~level:`Inspect name ~params:[("data", `String (f x))]
 
 
 let inspect ?(f = dump) (name : string) (x : 'a) : 'a =
@@ -310,7 +329,7 @@ let log_exception
   erroR
     ~bt:backtrace
     name
-    ~params:[("exception", pp e); ("execution_id", trace_id)]
+    ~params:[("exception", `String (pp e)); ("execution_id", `String trace_id)]
 
 
 (* ----------------- *)
