@@ -30,6 +30,7 @@ val should_log : level -> bool
 type format =
   [ `Stackdriver
   | `Regular
+  | `Json
   | `Decorated ]
 
 val format : format ref
@@ -44,7 +45,7 @@ val init : level:level -> format:format -> unit -> unit
 (* printing *)
 val pP :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> level:level
   -> string
@@ -56,49 +57,49 @@ val inspect : ?f:('a -> string) -> string -> 'a -> 'a
 
 val debuG :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val infO :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val warN :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val erroR :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val fataL :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val succesS :
      ?data:string
-  -> ?params:(string * string) list
+  -> ?params:(string * Yojson.Safe.json) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val log_exception :
      ?bt:Caml.Printexc.raw_backtrace
-  -> ?pp:(exn -> string)
+  -> ?pp:(exn -> Yojson.Safe.json)
   -> string
   -> string
   -> exn
