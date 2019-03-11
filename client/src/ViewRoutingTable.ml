@@ -410,7 +410,7 @@ let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
       (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
   in
   let openAttr =
-    if isOpen && count = 0 then Vdom.attribute "" "open" "" else Vdom.noProp
+    if isOpen && count <> 0 then Vdom.attribute "" "open" "" else Vdom.noProp
   in
   (openEventHandler, openAttr)
 
@@ -439,7 +439,9 @@ let deployStats2html (m : model) : msg Html.html =
     Html.classList
       [("routing-section", true); ("deploys", true); ("empty", count = 0)]
   in
-  Html.details [classes; openAttr] (header :: routes)
+  (if count = 0 then Html.div else Html.details)
+    [classes; openAttr]
+    (header :: routes)
 
 
 let rec item2html (m : model) (s : item) : msg Html.html =
@@ -470,7 +472,9 @@ and category2html (m : model) (c : category) : msg Html.html =
     Html.classList
       [("routing-section", true); (c.classname, true); ("empty", c.count = 0)]
   in
-  Html.details [classes; openAttr] (header :: routes)
+  (if c.count = 0 then Html.div else Html.details)
+    [classes; openAttr]
+    (header :: routes)
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
