@@ -15,8 +15,8 @@ use hyper::Server;
 
 use crate::worker::{Message, WorkerTerminationReason};
 
-use slog::{o,slog_info,slog_error};
-use slog_scope::{info,error};
+use slog::{o, slog_error, slog_info};
+use slog_scope::{error, info};
 
 use slog::{Drain, FnValue, PushFnValue, Record};
 use std::sync::Mutex;

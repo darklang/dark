@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::worker::Message;
 
-use slog::{o,slog_info,slog_error};
-use slog_scope::{info,error};
+use slog::{o, slog_error, slog_info};
+use slog_scope::{error, info};
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
