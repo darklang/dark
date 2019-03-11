@@ -3,8 +3,8 @@ use std::sync::mpsc::Receiver;
 use crate::config;
 use crate::push::PusherClient;
 
-use slog::{o,slog_info,slog_error};
-use slog_scope::{info,error};
+use slog::{o, slog_error, slog_info};
+use slog_scope::{error, info};
 
 pub enum Message {
     CanvasEvent(String, String, Vec<u8>, String),

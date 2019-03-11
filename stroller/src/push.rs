@@ -12,8 +12,8 @@ use sha2::Sha256;
 use reqwest::StatusCode;
 use serde::Serialize;
 
-use slog::{o,slog_info};
-use slog_scope::{info};
+use slog::{o, slog_info};
+use slog_scope::info;
 
 #[derive(Debug)]
 pub enum PusherError {
