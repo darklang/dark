@@ -29,7 +29,6 @@ use slog::{Drain, FnValue, PushFnValue, Record};
 use std::sync::Mutex;
 
 fn main() {
-    //let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
     let log = slog::Logger::root(
         Mutex::new(
             slog_json::Json::new(std::io::stdout())
