@@ -88,3 +88,11 @@ let push_new_404
     (fof : Stored_event.four_oh_four) =
   let payload = Analysis.to_new_404_frontend fof in
   push ~execution_id ~canvas_id ~event:"new_404" payload
+
+
+let push_new_static_deploy
+    ~(execution_id : Types.id)
+    ~(canvas_id : Uuidm.t)
+    (asset : Static_assets.static_deploy) =
+  let payload = Analysis.to_new_static_deploy_frontend asset in
+  push ~execution_id ~canvas_id ~event:"new_static_deploy" payload

@@ -12,4 +12,10 @@ val push_new_404 :
   -> Stored_event.four_oh_four
   -> unit
 
+val push_new_static_deploy :
+     execution_id:Types.id
+  -> canvas_id:Uuidm.t
+  -> Static_assets.static_deploy
+  -> unit
+
 val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string] Lwt.t

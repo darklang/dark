@@ -7,6 +7,7 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 module SE = Stored_event
+module SA = Static_assets
 
 type canvas = Canvas.canvas
 
@@ -194,6 +195,10 @@ let to_new_404_frontend (fof : SE.four_oh_four) : string =
   fof |> new_404_push_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+let to_new_static_deploy_frontend (asset : SA.static_deploy) : string =
+  asset |> SA.static_deploy_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 (* Toplevel deletion:
  * The server announces that a toplevel is deleted by it appearing in
  * deleted_toplevels. The server announces it is no longer deleted by it
@@ -225,21 +230,24 @@ type initial_load_rpc_result =
   ; deleted_user_functions : RTT.user_fn list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
-  ; traces : tlid_traceid list }
+  ; traces : tlid_traceid list
+  ; assets : SA.static_deploy list }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
     (c : canvas)
     (fofs : SE.four_oh_four list)
     (traces : tlid_traceid list)
-    (unlocked_dbs : tlid list) : string =
+    (unlocked_dbs : tlid list)
+    (assets : SA.static_deploy list) : string =
   { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
   ; deleted_user_functions = c.deleted_user_functions
   ; unlocked_dbs
   ; fofs
-  ; traces }
+  ; traces
+  ; assets }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
