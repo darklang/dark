@@ -256,6 +256,12 @@ let result_to_response
     | Some h ->
         Header.add_unless_exists headers "Access-Control-Allow-Origin" h
   in
+  let json_formatter =
+    if Header.get (CRequest.headers req) "x-dark-json-format-version"
+       = Some "1"
+    then Dval.to_pretty_machine_json_v1
+    else Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
+  in
   match result with
   | RTT.DIncomplete ->
       respond
@@ -278,12 +284,12 @@ let result_to_response
         then Dval.to_enduser_readable_text_v0 value
         else if String.is_prefix ~prefix:"text/html" content_type
         then Dval.to_enduser_readable_html_v0 value
-        else Dval.to_pretty_machine_json_v0 value
+        else json_formatter value
       in
       let status = Cohttp.Code.status_of_code code in
       respond ~resp_headers ~execution_id status body
   | _ ->
-      let body = Dval.to_pretty_machine_json_v0 result in
+      let body = json_formatter result in
       (* for demonstrations sake, let's return 200 Okay when
       * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in

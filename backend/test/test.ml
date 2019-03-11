@@ -463,6 +463,25 @@ let t_http_oplist_roundtrip () =
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
+let date_migration_has_correct_formats () =
+  let str = "2019-03-08T08:26:14Z" in
+  let date = DDate (Util.date_of_isostring str) in
+  let expected =
+    Yojson.pretty_to_string
+      (`Assoc [("type", `String "date"); ("value", `String str)])
+  in
+  AT.check
+    AT.string
+    "old format"
+    expected
+    (Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 date) ;
+  AT.check
+    AT.string
+    "new format"
+    ("\"" ^ str ^ "\"")
+    (Dval.to_pretty_machine_json_v1 date)
+
+
 let t_case_insensitive_db_roundtrip () =
   clear_test_data () ;
   let colname = "cOlUmNnAmE" in
@@ -877,9 +896,17 @@ let t_password_serialization () =
     Dval.to_enduser_readable_html_v0 ;
   does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
   does_serialize
-    "to_pretty_machine_json_v0"
+    "to_pretty_machine_json_v1"
     false
-    Dval.to_pretty_machine_json_v0 ;
+    Dval.to_pretty_machine_json_v1 ;
+  does_serialize
+    "to_pretty_request_json_v0"
+    false
+    Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
+  does_serialize
+    "to_pretty_response_json_v1"
+    false
+    Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
   ()
 
 
@@ -2403,7 +2430,10 @@ let suite =
     , t_old_new_dval_reprs )
   ; ( "Trace data redacts passwords"
     , `Quick
-    , t_trace_data_json_format_redacts_passwords ) ]
+    , t_trace_data_json_format_redacts_passwords )
+  ; ( "Date has correct formats in migration"
+    , `Quick
+    , date_migration_has_correct_formats ) ]
 
 
 let () =
