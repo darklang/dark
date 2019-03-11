@@ -34,15 +34,15 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
                         `[u8] : std::string::ToString`
                 */
 
-                info!("msg recv: ok"; o!("canvas" => canvas_uuid.to_string(),
-                "event" => event_name.to_string(),
-                "x-request-id" => request_id.to_string()
+                info!("msg recv: ok"; o!("canvas" => canvas_uuid.clone(),
+                "event" => event_name.clone(),
+                "x-request-id" => request_id.clone()
                 ));
                 let result =
                     client.push_canvas_event(&canvas_uuid, &event_name, &body, &request_id);
                 if let Err(e) = result {
-                    error!("Error pushing to pusher: {}", e; o!("canvas" => canvas_uuid.to_string(),
-                    "event" => event_name.to_string(),
+                    error!("Error pushing to pusher: {}", e; o!("canvas" => canvas_uuid.clone(),
+                    "event" => event_name.clone(),
                     "x-request-id" => request_id
                     ));
                 }

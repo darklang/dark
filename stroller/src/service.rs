@@ -28,7 +28,7 @@ pub fn handle(
     let request_id = Uuid::new_v4().to_string();
     // this is dumb, but otherwise, the final log call attempts to borrow after we move into the
     // map closure
-    let request_id2 = request_id.to_string();
+    let request_id2 = request_id.clone();
     response
         .headers_mut()
         .insert("x-request-id", request_id.parse::<HeaderValue>().unwrap());
@@ -75,7 +75,7 @@ pub fn handle(
                     future::ok::<_, hyper::Error>(acc)
                 })
                 .map(move |req_body| {
-                    let canvas_event = Message::CanvasEvent(canvas_uuid.to_string(), event.to_string(), req_body, request_id.to_string());
+                    let canvas_event = Message::CanvasEvent(canvas_uuid.clone(), event.clone(), req_body, request_id.clone());
 
                     match sender.send(canvas_event) {
                         Ok(()) => {
@@ -84,7 +84,7 @@ pub fn handle(
                             response
                         }
                         Err(_) => {
-                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.to_string(), "event" => event.to_string(), "x-request-id" => request_id));
+                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.clone(), "event" => event.clone(), "x-request-id" => request_id));
                             *response.status_mut() = StatusCode::ACCEPTED;
                             *response.body_mut() = Body::empty();
                             response
