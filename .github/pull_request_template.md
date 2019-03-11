@@ -5,3 +5,16 @@
 - [ ] Add intended followups as trellos 
 - [ ] If risky, discuss your reversion strategy
 - [ ] If this is fixing a regression, add a test
+
+Reviewer checklist:
+- Product:
+  - [ ] Does this match the goal of the PR or trello?
+  - [ ] Does this add or change product features not discussed in the goals?
+- User facing:
+  - [ ] Could this cause a silent change in behaviour of user programs, eg an output format or function behaviour?
+  - [ ] Is there consistent naming of new user concepts?
+- Engineering: 
+  - [ ] If this was a regression, is there a test?
+  - [ ] Would comments help future understanding somewhere?
+  - [ ] Double check any change related to the serialization format.
+
