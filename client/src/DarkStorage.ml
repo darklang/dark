@@ -29,8 +29,10 @@ module NewStaticDeployPush = struct
     Native.registerGlobal "newStaticDeploy" key tagger decode
 end
 
-let appendDeploy (newDeploys : staticDeploy list) (oldDeploys : staticDeploy list) : staticDeploy list =
-  (newDeploys @ oldDeploys)
+let appendDeploy
+    (newDeploys : staticDeploy list) (oldDeploys : staticDeploy list) :
+    staticDeploy list =
+  newDeploys @ oldDeploys
   |> List.sortBy ~f:(fun d -> d.lastUpdate)
   |> List.reverse
   |> List.uniqueBy ~f:(fun d -> d.deployHash)

@@ -664,7 +664,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with f404s = new404s}, Cmd.none)
     | AppendStaticDeploy d ->
-        ({m with staticDeploys = (DarkStorage.appendDeploy d m.staticDeploys)}, Cmd.none)
+        ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
+        , Cmd.none )
     | SetHover (tlid, id) ->
         let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
@@ -866,7 +867,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-
+              
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
