@@ -51,15 +51,8 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
 
-let hashCmd (tl : toplevel) : msg Cmd.t list =
-  let hash page = Navigation.modifyUrl (urlOf page None) in
-  match tl.data with
-  | TLDB _ ->
-      [hash (FocusedDB tl.id)]
-  | TLHandler _ ->
-      [hash (FocusedHandler tl.id)]
-  | TLFunc _ ->
-      []
+let hashPageCmd (page : page) (pos : pos) : msg Tea_cmd.t =
+  Navigation.modifyUrl (urlOf page (Some pos))
 
 
 (* When scrolling, there are way too many events to process them through *)

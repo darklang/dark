@@ -477,11 +477,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ; cursorState = Deselected }
               , Cmd.none ) )
     | Select (tlid, p) ->
-        let m = {m with cursorState = Selecting (tlid, p)} in
-        let m, afCmd = Analysis.analyzeFocused m in
-        let tl = TL.getTL m tlid in
-        let urlUpdate = Url.hashCmd tl in
-        (m, Cmd.batch (closeBlanks m @ [afCmd] @ urlUpdate))
+        let m2 = {m with cursorState = Selecting (tlid, p)} in
+        let m3, afCmd = Analysis.analyzeFocused m2 in
+        let shouldUpdateUrl =
+          match tlidOf m.cursorState with
+          | Some oldTLID ->
+              oldTLID <> tlid
+          | None ->
+              true
+        in
+        let commands =
+          if shouldUpdateUrl
+          then
+            let page = TL.getPage m tlid in
+            let urlcmd = Url.hashPageCmd page m.canvasProps.offset in
+            urlcmd :: (closeBlanks m @ [afCmd])
+          else closeBlanks m @ [afCmd]
+        in
+        (m3, Cmd.batch commands)
     | Deselect ->
         let m, acCmd = processAutocompleteMods m [ACReset] in
         let m = {m with cursorState = Deselected} in

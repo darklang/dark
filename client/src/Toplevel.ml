@@ -466,6 +466,17 @@ let get (m : model) (id : tlid) : toplevel option =
 
 let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
 
+let getPage (m : model) (id : tlid) : page =
+  let tl = getTL m id in
+  match tl.data with
+  | TLHandler _ ->
+      FocusedHandler id
+  | TLDB _ ->
+      FocusedDB id
+  | TLFunc _ ->
+      FocusedFn id
+
+
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
   |> List.filter ~f:(fun d -> id = P.toID d)
