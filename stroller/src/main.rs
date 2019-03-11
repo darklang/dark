@@ -46,6 +46,7 @@ fn main() {
                     info.module()) })
         ),
     );
+    // setting the global logger here so we can use slog_scope::logger() everywhere else
     let _guard = slog_scope::set_global_logger(log);
 
     let addr = ([0, 0, 0, 0], config::port()).into();
