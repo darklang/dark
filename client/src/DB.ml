@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 
 (* Dark *)
 module B = Blank
@@ -39,8 +40,8 @@ let hasCol (db : dB) (name : string) : bool =
          match colname with Blank _ -> false | F (_, n) -> name = n )
 
 
-let isLocked (m : model) (tlid : tlid) : bool =
-  not (List.member ~value:tlid m.unlockedDBs)
+let isLocked (m : model) (TLID tlid : tlid) : bool =
+  not (StrSet.has ~value:tlid m.unlockedDBs)
 
 
 let isMigrating (db : dB) : bool =
@@ -73,12 +74,18 @@ let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
 
 
 let createDB (name : string) (pos : pos) : modification =
-  let next = Prelude.gid ()
-  and tlid = Prelude.gtlid () in
-  RPC
-    ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
-      ; AddDBCol (tlid, next, Prelude.gid ()) ]
-    , FocusExact (tlid, next) )
+  let next = Prelude.gid () in
+  let tlid = Prelude.gtlid () in
+  (* This is not _strictly_ correct, as there's no guarantee that the new DB
+   * doesn't share a name with an old DB in a weird state that still has
+   * data in the user_data table. But it's 99.999% correct, which of course
+   * is the best type of correct *)
+  Many
+    [ AppendUnlockedDBs (StrSet.fromList [deTLID tlid])
+    ; RPC
+        ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
+          ; AddDBCol (tlid, next, Prelude.gid ()) ]
+        , FocusExact (tlid, next) ) ]
 
 
 let generateDBName (_ : unit) : string =

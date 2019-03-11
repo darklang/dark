@@ -301,7 +301,7 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
-  field "unlocked_dbs" (list tlid) j
+  j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
 
 
 and getTraceDataRPCResult j : getTraceDataRPCResult =
@@ -313,7 +313,8 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  ; unlockedDBs = field "unlocked_dbs" (list tlid) j
+  ; unlockedDBs =
+      j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
   ; fofs = field "fofs" (list fof) j
   ; traces = field "traces" (list (pair tlid traceID)) j }
 
