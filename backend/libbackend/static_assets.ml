@@ -10,10 +10,22 @@ let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Format.flush_str_formatter ()
 
 
+type deploy_status =
+  | Deploying
+  | Deployed
+[@@deriving eq, show, yojson]
+
 type static_asset_error =
   [ `GcloudAuthError of string
   | `FailureUploadingStaticAsset of string
   | `FailureDeletingStaticAsset of string ]
+
+type static_deploy =
+  { deploy_hash : string
+  ; url : string
+  ; last_update : string
+  ; status : deploy_status }
+[@@deriving show, yojson]
 
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
@@ -128,7 +140,8 @@ let upload_to_bucket
 
 
 let start_static_asset_deploy
-    (canvas_id : Uuidm.t) (branch : string) (username : string) : string =
+    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_deploy
+    =
   let account_id = Account.id_of_username username |> Option.value_exn in
   let deploy_hash =
     Nocrypto.Hash.SHA1.digest
@@ -140,14 +153,21 @@ let start_static_asset_deploy
     |> String.lowercase
     |> fun s -> String.prefix s 10
   in
-  Db.run
-    ~name:"add static_asset_deploy record"
-    ~subject:deploy_hash
-    "INSERT INTO static_asset_deploys
-      (canvas_id, branch, deploy_hash, uploaded_by_account_id)
-      VALUES ($1, $2, $3, $4)"
-    ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id] ;
-  deploy_hash
+  let last_update =
+    Db.fetch_one
+      ~name:"add static_asset_deploy record"
+      ~subject:deploy_hash
+      "INSERT INTO static_asset_deploys
+        (canvas_id, branch, deploy_hash, uploaded_by_account_id)
+        VALUES ($1, $2, $3, $4) RETURNING created_at"
+      ~params:
+        [Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
+    |> List.hd_exn
+  in
+  { deploy_hash
+  ; url = url canvas_id deploy_hash `Short
+  ; last_update
+  ; status = Deploying }
 
 
 (* since postgres doesn't have named transactions, we just delete the db
@@ -175,11 +195,36 @@ let delete_static_asset_deploy
     ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
 
 
-let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) =
-  Db.run
-    ~name:"finish static_asset_deploy record"
-    ~subject:deploy_hash
-    "UPDATE static_asset_deploys
-    SET live_at = NOW()
-    WHERE canvas_id = $1 AND deploy_hash = $2"
-    ~params:[Uuid canvas_id; String deploy_hash]
+let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
+    static_deploy =
+  let last_update =
+    Db.fetch_one
+      ~name:"finish static_asset_deploy record"
+      ~subject:deploy_hash
+      "UPDATE static_asset_deploys
+      SET live_at = NOW()
+      WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING live_at"
+      ~params:[Uuid canvas_id; String deploy_hash]
+    |> List.hd_exn
+  in
+  { deploy_hash
+  ; url = url canvas_id deploy_hash `Short
+  ; last_update
+  ; status = Deployed }
+
+
+let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
+  Db.fetch
+    ~name:"all static_asset_deploys by canvas"
+    "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
+    WHERE canvas_id=$1 ORDER BY created_at DESC LIMIT 25"
+    ~params:[Uuid canvas_id]
+  |> List.map ~f:(function
+         | [deploy_hash; created_at; live_at] ->
+             let isLive = live_at <> "" in
+             { deploy_hash
+             ; url = url canvas_id deploy_hash `Short
+             ; last_update = (if isLive then live_at else created_at)
+             ; status = (if isLive then Deployed else Deploying) }
+         | _ ->
+             Exception.internal "Bad DB format for static assets deploys" )

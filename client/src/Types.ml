@@ -368,6 +368,16 @@ and fourOhFour =
   ; path : string
   ; modifier : string }
 
+and deployStatus =
+  | Deploying
+  | Deployed
+
+and staticDeploy =
+  { deployHash : string
+  ; url : string
+  ; lastUpdate : string
+  ; status : deployStatus }
+
 (* ------------------- *)
 (* ops *)
 (* ------------------- *)
@@ -463,6 +473,7 @@ and initialLoadRPCResult =
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : unlockedDBs
   ; fofs : fourOhFour list
+  ; staticDeploys : staticDeploy list
   ; traces : (tlid * traceID) list }
 
 and saveTestRPCResult = string
@@ -652,6 +663,7 @@ and modification =
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
+  | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
 
@@ -683,6 +695,7 @@ and msg =
       [@printer opaque "GetUnlockedDBsRPCCallback"]
   | NewTracePush of (tlid * traceID)
   | New404Push of fourOhFour
+  | NewStaticDeployPush of staticDeploy
   | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
       [@printer opaque "Delete404RPCCallback"]
   | InitialLoadRPCCallback of
@@ -817,7 +830,8 @@ and model =
   ; csrfToken : string
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
-  ; usedFns : int StrDict.t }
+  ; usedFns : int StrDict.t
+  ; staticDeploys : staticDeploy list }
 
 (* Values that we serialize *)
 and serializableEditor =

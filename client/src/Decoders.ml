@@ -270,6 +270,20 @@ and fof j : fourOhFour =
   ; modifier = index 2 string j }
 
 
+and deployStatus j : deployStatus =
+  let sumtypes =
+    [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
+  in
+  j |> variants sumtypes
+
+
+and sDeploy j : staticDeploy =
+  { deployHash = field "deploy_hash" string j
+  ; url = field "url" string j
+  ; lastUpdate = field "last_update" string j
+  ; status = field "status" deployStatus j }
+
+
 and inputValueDict j : inputValueDict =
   j |> list (tuple2 string dval) |> StrDict.fromList
 
@@ -316,6 +330,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; unlockedDBs =
       j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
   ; fofs = field "fofs" (list fof) j
+  ; staticDeploys = field "assets" (list sDeploy) j
   ; traces = field "traces" (list (pair tlid traceID)) j }
 
 

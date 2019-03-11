@@ -3,6 +3,7 @@ open Libcommon
 open Lwt
 module Cl = Cohttp_lwt
 module Clu = Cohttp_lwt_unix
+module SA = Static_assets
 module S = Clu.Server
 module CRequest = Clu.Request
 module CResponse = Clu.Response
@@ -407,9 +408,11 @@ let static_assets_upload_handler
         * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
        *)
       let branch = "main" in
-      let deploy_hash =
+      let sa =
         Static_assets.start_static_asset_deploy canvas branch username
       in
+      Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas sa ;
+      let deploy_hash = sa.deploy_hash in
       let%lwt stream = Multipart.parse_stream (Lwt_stream.of_list [body]) ct in
       let%lwt upload_results =
         let%lwt parts = Multipart.get_parts stream in
@@ -454,7 +457,10 @@ let static_assets_upload_handler
                | Error _ ->
                    Lwt.return false )
       in
-      Static_assets.finish_static_asset_deploy canvas deploy_hash ;
+      let deploy =
+        Static_assets.finish_static_asset_deploy canvas deploy_hash
+      in
+      Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas deploy ;
       match errors with
       | [] ->
           respond
@@ -571,13 +577,16 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
         in
         htraces @ uftraces )
   in
-  let t5, result =
-    time "5-to-frontend" (fun _ ->
-        Analysis.to_initial_load_rpc_result !c f404s traces unlocked )
+  let t5, assets =
+    time "5-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
+  in
+  let t6, result =
+    time "6-to-frontend" (fun _ ->
+        Analysis.to_initial_load_rpc_result !c f404s traces unlocked assets )
   in
   respond
     ~execution_id
-    ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+    ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6])
     `OK
     result
 

@@ -674,6 +674,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  f404.space ^ f404.path ^ f404.modifier )
         in
         ({m with f404s = new404s}, Cmd.none)
+    | AppendStaticDeploy d ->
+        ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
+        , Cmd.none )
     | SetHover (tlid, id) ->
         let nhovering = (tlid, id) :: m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
@@ -1064,6 +1067,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
+        ; AppendStaticDeploy r.staticDeploys
         ; AutocompleteMod ACReset
         ; ClearError
         ; extraMod
@@ -1089,6 +1093,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
   | New404Push f404 ->
       Append404s [f404]
+  | NewStaticDeployPush asset ->
+      AppendStaticDeploy [asset]
   | Delete404RPCCallback (f404, Ok ()) ->
       Delete404 f404
   | ReceiveAnalysis result ->
@@ -1318,6 +1324,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
           NewTracePush s )
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
+    ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
+          NewStaticDeployPush s )
     ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
           ReceiveTraces s ) ]
   in
