@@ -12,7 +12,7 @@ Reviewer checklist:
   - [ ] Does this add or change product features not discussed in the goals?
 - User facing:
   - [ ] Could this cause a silent change in behaviour of user programs, eg an output format or function behaviour?
-  - [ ] Consistent naming of new user concepts?
+  - [ ] Is there consistent naming of new user concepts?
 - Engineering: 
   - [ ] If this was a regression, is there a test?
   - [ ] Would comments help future understanding somewhere?
