@@ -654,6 +654,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m4 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
+    | AppendUnlockedDBs newDBs ->
+        (* You probably don't want to use this, you probably want to wait for the
+         * regular unlockedDBs RPC timer to do a full SetUnlockedDBs, but this
+         * can be useful if you've done an operation to a DB and you know 100%
+         * that it will be in the next unlockedDBs set.
+         *
+         * If your assumption is wrong, it'll be blown away by the next SetUnlockedDBs
+         * operation regardless -- so as long as that interim period doesn't result
+         * in the potential for dangerous operations, you should be fine.
+        *)
+        ({m with unlockedDBs = StrSet.union m.unlockedDBs newDBs}, Cmd.none)
     | Delete404 f404 ->
         ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
     | Append404s f404s ->
