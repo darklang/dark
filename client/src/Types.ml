@@ -658,7 +658,6 @@ and modification =
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
-  | SetLockedHandlers of tlid list
   | MoveCanvasTo of pos
   | UpdateTraces of traces
   | UpdateTraceFunctionResult of
@@ -774,6 +773,10 @@ and syncState = StrSet.t
 
 and urlState = {lastPos : pos option}
 
+and handlerProp =
+  { handlerLock : bool
+  ; handlerExpand : bool }
+
 and tlCursors = traceID StrDict.t
 
 (* Error Handling *)
@@ -823,7 +826,6 @@ and model =
       (* be confused with cursorState, which is the code *)
       (* that is currently selected.) *)
   ; featureFlags : flagsVS
-  ; lockedHandlers : tlid list
   ; canvasProps : canvasProps
   ; canvasName : string
   ; userContentHost : string
@@ -832,13 +834,13 @@ and model =
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
+  ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list }
 
 (* Values that we serialize *)
 and serializableEditor =
   { timersEnabled : bool
   ; cursorState : cursorState
-  ; lockedHandlers : tlid list
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS }

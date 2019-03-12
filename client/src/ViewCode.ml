@@ -10,6 +10,8 @@ module B = Blank
 
 type viewState = ViewUtils.viewState
 
+let isLocked = ViewUtils.isHandlerLocked
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -489,16 +491,15 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     then viewText EventModifier vs configs spec.modifier
     else Html.div [] []
   and viewEventActions =
+    let isLocked = isLocked vs in
     let lock =
       Html.div
-        [ Html.classList
-            [("handler-lock", true); ("is-locked", vs.handlerLocked)]
+        [ Html.classList [("handler-lock", true); ("is-locked", isLocked)]
         ; ViewUtils.eventNoPropagation
-            ~key:
-              ("lh-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool vs.handlerLocked)
+            ~key:("lh-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
             "click"
-            (fun _ -> LockHandler (vs.tlid, not vs.handlerLocked)) ]
-        [fontAwesome (if vs.handlerLocked then "lock" else "lock-open")]
+            (fun _ -> LockHandler (vs.tlid, not isLocked)) ]
+        [fontAwesome (if isLocked then "lock" else "lock-open")]
     in
     Html.div
       [Html.class' "actions"]
