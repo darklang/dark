@@ -153,16 +153,10 @@ UTF-8 safe"))
                      not
                        (Core_kernel.String.is_substring
                           k
-                          ~substring:"Content-Length") )
-              |> List.filter (fun (k, v) ->
-                     not
-                       (Core_kernel.String.is_substring
-                          k
                           ~substring:"Transfer-Encoding") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
-            let headers = headers @ [("x-darklang-as-text", "true")] in
             let body = Dval.dstr_of_string body in
             ( match body with
             | Some dv ->
