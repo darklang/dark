@@ -666,12 +666,23 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         *)
         ({m with unlockedDBs = StrSet.union m.unlockedDBs newDBs}, Cmd.none)
     | Delete404 f404 ->
-        ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
+        ( { m with
+            f404s =
+              List.filter
+                ~f:(fun f ->
+                  f.space ^ f.path ^ f.modifier
+                  <> f404.space ^ f404.path ^ f404.modifier )
+                m.f404s }
+        , Cmd.none )
     | Append404s f404s ->
         let new404s =
           f404s @ m.f404s
           |> List.uniqueBy ~f:(fun f404 ->
-                 f404.space ^ f404.path ^ f404.modifier )
+                 f404.space
+                 ^ f404.path
+                 ^ f404.modifier
+                 ^ f404.timestamp
+                 ^ f404.traceID )
         in
         ({m with f404s = new404s}, Cmd.none)
     | AppendStaticDeploy d ->
@@ -1177,10 +1188,31 @@ let update_ (msg : msg) (m : model) : modification =
             ; modifier = B.newF modifier }
         ; tlid }
       in
+      let traces =
+        List.foldl
+          ~init:[]
+          ~f:(fun search acc ->
+            if search.space = fof.space
+               && search.path = fof.path
+               && search.modifier = fof.modifier
+            then (search.traceID, None) :: acc
+            else acc )
+          m.f404s
+      in
+      let traceMods =
+        match List.head traces with
+        | Some (first, _) ->
+            let traceDict = StrDict.fromList [(deTLID tlid, traces)] in
+            [UpdateTraces traceDict; SetCursor (tlid, first)]
+        | None ->
+            []
+      in
       Many
-        [ RPC
-            ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
-        ; Delete404 fof ]
+        ( [ RPC
+              ( [SetHandler (tlid, aPos, aHandler)]
+              , FocusExact (tlid, B.toID ast) )
+          ; Delete404 fof ]
+        @ traceMods )
   | Delete404RPC fof ->
       MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->

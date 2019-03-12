@@ -46,9 +46,7 @@ let list_events
         "AND timestamp > " ^ Db.escape (Time since)
   in
   let sql =
-    "SELECT
-         DISTINCT ON (module, path, modifier)
-         module, path, modifier, timestamp, trace_id
+    "SELECT module, path, modifier, timestamp, trace_id
        FROM stored_events_v2
        WHERE canvas_id = $1"
     ^ timestamp_constraint

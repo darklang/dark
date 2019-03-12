@@ -366,7 +366,9 @@ and traces = trace list StrDict.t
 and fourOhFour =
   { space : string
   ; path : string
-  ; modifier : string }
+  ; modifier : string
+  ; timestamp : string
+  ; traceID : string }
 
 and deployStatus =
   | Deploying

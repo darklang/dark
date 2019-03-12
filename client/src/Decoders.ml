@@ -273,7 +273,9 @@ and userFunction j : userFunction =
 and fof j : fourOhFour =
   { space = index 0 string j
   ; path = index 1 string j
-  ; modifier = index 2 string j }
+  ; modifier = index 2 string j
+  ; timestamp = index 3 string j
+  ; traceID = index 4 traceID j }
 
 
 and deployStatus j : deployStatus =
