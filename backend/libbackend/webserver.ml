@@ -280,14 +280,8 @@ let result_to_response
         |> Option.value ~default:"application/json"
       in
       let body =
-        (* if we set x-darklang-as-text, don't process as json *)
-        if Header.get resp_headers "x-darklang-as-text" |> Option.is_some
-        then
-          Dval.to_enduser_readable_text_v0 value
-          (* TODO: only pretty print for a webbrowser *)
-        else if String.is_prefix ~prefix:"text/plain" content_type
-        then Dval.to_enduser_readable_text_v0 value
-        else if String.is_prefix ~prefix:"application/xml" content_type
+        (* TODO: only pretty print for a webbrowser *)
+        if String.is_prefix ~prefix:"text/plain" content_type
         then Dval.to_enduser_readable_text_v0 value
         else if String.is_prefix ~prefix:"text/html" content_type
         then Dval.to_enduser_readable_html_v0 value
