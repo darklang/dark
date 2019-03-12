@@ -12,6 +12,8 @@ type viewState = ViewUtils.viewState
 
 let isLocked = ViewUtils.isHandlerLocked
 
+let isExpanded = ViewUtils.isHandlerExpanded
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -478,6 +480,22 @@ let externalLink
       []
 
 
+let toggleIconButton
+    (tlid : tlid)
+    (name : string)
+    (active : bool)
+    (action : msg)
+    (activeIcon : string)
+    (inactiveIcon : string) : msg Html.html =
+  Html.div
+    [ Html.classList [(name, true); ("active", active)]
+    ; ViewUtils.eventNoPropagation
+        ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
+        "click"
+        (fun _ -> action) ]
+    [fontAwesome (if active then activeIcon else inactiveIcon)]
+
+
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -491,19 +509,28 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     then viewText EventModifier vs configs spec.modifier
     else Html.div [] []
   and viewEventActions =
-    let isLocked = isLocked vs in
+    let testGet = externalLink spec vs.canvasName vs.userContentHost in
     let lock =
-      Html.div
-        [ Html.classList [("handler-lock", true); ("is-locked", isLocked)]
-        ; ViewUtils.eventNoPropagation
-            ~key:("lh-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
-            "click"
-            (fun _ -> LockHandler (vs.tlid, not isLocked)) ]
-        [fontAwesome (if isLocked then "lock" else "lock-open")]
+      let isLocked = isLocked vs in
+      toggleIconButton
+        vs.tlid
+        "handler-lock"
+        isLocked
+        (LockHandler (vs.tlid, not isLocked))
+        "lock"
+        "lock-open"
     in
-    Html.div
-      [Html.class' "actions"]
-      (externalLink spec vs.canvasName vs.userContentHost @ [lock])
+    let expandCollapse =
+      let isExpand = isExpanded vs in
+      toggleIconButton
+        vs.tlid
+        "handler-expand"
+        isExpand
+        (ExpandHandler (vs.tlid, not isExpand))
+        "caret-square-up"
+        "caret-square-down"
+    in
+    Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])
   in
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
@@ -512,7 +539,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
     Html.div
-      [Html.class' "handler-body"]
+      [Html.classList [("handler-body", true); ("expand", isExpanded vs)]]
       [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]

@@ -1214,6 +1214,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
+  | ExpandHandler (tlid, expand) ->
+      TweakModel (Editor.setHandlerExpand tlid expand)
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
