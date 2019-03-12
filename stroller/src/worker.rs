@@ -37,7 +37,7 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
                 if let Err(e) = result {
                     error!("Error pushing to pusher: {}", e; o!("canvas" => &canvas_uuid,
                     "event" => &event_name,
-                    "x-request-id" => request_id
+                    "x-request-id" => &request_id
                     ));
                 }
             }
@@ -46,10 +46,7 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
                 break WorkerTerminationReason::ViaDie;
             }
             Err(_) => {
-                slog_error!(
-                    slog_scope::logger(),
-                    "All senders dropped and queue didn't receive `Die`!"
-                );
+                error!("All senders dropped and queue didn't receive `Die`!");
                 break WorkerTerminationReason::SendersDropped;
             }
         }
