@@ -1,5 +1,7 @@
-open Tc
 open Types
+open Tc
+
+let showTLID = Prelude.showTLID
 
 let fromString (json : string option) : serializableEditor =
   match json with
@@ -24,8 +26,7 @@ let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
   { m with
     timersEnabled = e.timersEnabled
-  ; cursorState = e.cursorState |> stripDragging
-  ; lockedHandlers = e.lockedHandlers
+  ; cursorState = e.cursorState |> stripDragging (* TODO(alice) handlerProps *)
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlCursors = e.tlCursors
   ; featureFlags = e.featureFlags }
@@ -33,9 +34,9 @@ let editor2model (e : serializableEditor) : model =
 
 let model2editor (m : model) : serializableEditor =
   { timersEnabled = m.timersEnabled (* are timers enabled *)
-  ; cursorState = m.cursorState
-  ; lockedHandlers =
-      m.lockedHandlers
+  ; cursorState =
+      m.cursorState
+      (* TODO(alice) handlerProps *)
       (* whether handlers are locked, saved as client-side only *)
   ; routingTableOpenDetails =
       m.routingTableOpenDetails (* state of the routing table *)
@@ -43,16 +44,15 @@ let model2editor (m : model) : serializableEditor =
   ; featureFlags = m.featureFlags (* which flags are expanded *) }
 
 
-let updateLockedHandlers (tlid : tlid) (lockHandler : bool) (m : model) :
-    modification =
-  let tl = Toplevel.getTL m tlid in
-  match tl.data with
-  | TLHandler _ ->
-      let lockedList =
-        if lockHandler
-        then tlid :: m.lockedHandlers
-        else List.filter ~f:(fun t -> t <> tlid) m.lockedHandlers
-      in
-      SetLockedHandlers lockedList
-  | _ ->
-      NoChange
+let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
+  let updateProps prop =
+    match prop with
+    | Some p ->
+        Some {p with handlerLock = lock}
+    | None ->
+        Some {Defaults.defaultHandlerProp with handlerLock = lock}
+  in
+  let props =
+    m.handlerProps |> StrDict.update ~key:(showTLID tlid) ~f:updateProps
+  in
+  {m with handlerProps = props}
