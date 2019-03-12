@@ -3,8 +3,11 @@ use std::sync::mpsc::Receiver;
 use crate::config;
 use crate::push::PusherClient;
 
+use slog::{o, slog_error, slog_info};
+use slog_scope::{error, info};
+
 pub enum Message {
-    CanvasEvent(String, String, Vec<u8>),
+    CanvasEvent(String, String, Vec<u8>, String),
     Die,
 }
 
@@ -20,22 +23,30 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
         &config::pusher_key(),
         &config::pusher_secret(),
     );
-    println!("Worker initialized");
+    info!("Worker initialized");
     loop {
         match channel.recv() {
-            Ok(Message::CanvasEvent(canvas_uuid, event_name, body)) => {
-                println!("{} {} {:?}", canvas_uuid, event_name, body);
-                let result = client.push_canvas_event(&canvas_uuid, &event_name, &body);
+            Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
+                info!("msg recv: ok"; o!("canvas" => &canvas_uuid,
+                "event" => &event_name,
+                "body" => String::from_utf8_lossy(&body).to_string(),
+                "x-request-id" => &request_id
+                ));
+                let result =
+                    client.push_canvas_event(&canvas_uuid, &event_name, &body, &request_id);
                 if let Err(e) = result {
-                    eprintln!("Error pushing to Pusher: {}", e);
+                    error!("Error pushing to pusher: {}", e; o!("canvas" => &canvas_uuid,
+                    "event" => &event_name,
+                    "x-request-id" => &request_id
+                    ));
                 }
             }
             Ok(Message::Die) => {
-                println!("Received `Die` in worker thread");
+                info!("Received `Die` in worker thread");
                 break WorkerTerminationReason::ViaDie;
             }
             Err(_) => {
-                eprintln!("All senders dropped and queue didn't receive `Die`!");
+                error!("All senders dropped and queue didn't receive `Die`!");
                 break WorkerTerminationReason::SendersDropped;
             }
         }

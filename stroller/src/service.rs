@@ -3,12 +3,18 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use futures::future;
+use hyper::header::HeaderValue;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
+use uuid::Uuid;
 
 use crate::worker::Message;
+
+use slog::{o, slog_error, slog_info};
+use slog_scope::{error, info};
 
 type BoxFut<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
@@ -17,28 +23,38 @@ pub fn handle(
     sender: Sender<Message>,
     req: Request<Body>,
 ) -> BoxFut<Response<Body>, hyper::Error> {
+    let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
-
-    println!("{:?}", req);
+    let request_id = Uuid::new_v4().to_string();
+    response
+        .headers_mut()
+        .insert("x-request-id", request_id.parse::<HeaderValue>().unwrap());
 
     if shutting_down.load(Ordering::Acquire) {
         *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
         return Box::new(future::ok(response));
     }
 
-    let uri = req.uri().clone();
-    let path_segments: Vec<&str> = uri.path().split('/').collect();
+    let method = req.method().to_string();
+    let uri = req.uri().to_string();
+    let path_segments: Vec<&str> = req.uri().path().split('/').collect();
 
     match (req.method(), path_segments.as_slice()) {
         (&Method::GET, ["", ""]) => {
             *response.body_mut() = Body::from("OK");
         }
         (&Method::POST, ["", "pkill"]) => {
-            println!("Entering shutdown mode, no more requests will be processed.");
+            slog_info!(
+                slog_scope::logger(),
+                "pkill: Entering shutdown mode, no more requests will be processed."
+            );
 
             shutting_down.store(true, Ordering::Release);
             if sender.send(Message::Die).is_err() {
-                eprintln!("Tried to send `Die` to worker, but it was dropped!");
+                slog_error!(
+                    slog_scope::logger(),
+                    "Tried to send `Die` to worker, but it was dropped!"
+                );
             };
 
             *response.status_mut() = StatusCode::ACCEPTED;
@@ -47,6 +63,7 @@ pub fn handle(
         (&Method::POST, ["", "canvas", canvas_uuid, "events", event]) => {
             let canvas_uuid = canvas_uuid.to_string();
             let event = event.to_string();
+            let moved_request_id = request_id.clone();
             let handled = req
                 .into_body()
                 .fold(Vec::new(), |mut acc, chunk| {
@@ -56,7 +73,8 @@ pub fn handle(
                     future::ok::<_, hyper::Error>(acc)
                 })
                 .map(move |req_body| {
-                    let canvas_event = Message::CanvasEvent(canvas_uuid, event, req_body);
+                    let canvas_event = Message::CanvasEvent(canvas_uuid.clone(), event.clone(), req_body, moved_request_id.clone());
+
                     match sender.send(canvas_event) {
                         Ok(()) => {
                             *response.status_mut() = StatusCode::ACCEPTED;
@@ -64,7 +82,7 @@ pub fn handle(
                             response
                         }
                         Err(_) => {
-                            eprintln!("Tried to send CanvasEvent to worker, but it was dropped!");
+                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => &canvas_uuid, "event" => &event, "x-request-id" => &moved_request_id));
                             *response.status_mut() = StatusCode::ACCEPTED;
                             *response.body_mut() = Body::empty();
                             response
@@ -72,12 +90,21 @@ pub fn handle(
                     }
                 })
                 .or_else(|_| {
-                    eprintln!("Couldn't read request body from client!");
+                    error!("Couldn't read request body from client!");
                     Ok(Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .body(Body::empty())
                         .unwrap())
                 });
+            let req_time = start.elapsed().unwrap();
+            let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
+            info!("handle(...):";
+               o!(
+            "uri" => uri,
+            "method" => method,
+            "dur (ms)" => ms,
+            "x-request-id" => &request_id
+            ));
             return Box::new(handled);
         }
         _ => {
