@@ -280,19 +280,24 @@ let result_to_response
         |> Option.value ~default:"application/json"
       in
       let body =
-        (* TODO: only pretty print for a webbrowser *)
-        if String.is_prefix ~prefix:"text/plain" content_type
+        if String.is_prefix ~prefix:"application/json" content_type
+        then
+          json_formatter value
+          (* TODO: only pretty print for a webbrowser *)
+        else if String.is_prefix ~prefix:"text/plain" content_type
         then Dval.to_enduser_readable_text_v0 value
         else if String.is_prefix ~prefix:"text/html" content_type
-        then Dval.to_enduser_readable_html_v0 value
-        else json_formatter value
+        then
+          Dval.to_enduser_readable_html_v0 value
+          (* this is the case where a content-type _was_ set, but is not handled. An unset content-type defaults to application/json *)
+        else Dval.to_enduser_readable_text_v0 value
       in
       let status = Cohttp.Code.status_of_code code in
       respond ~resp_headers ~execution_id status body
   | _ ->
       let body = json_formatter result in
       (* for demonstrations sake, let's return 200 Okay when
-      * no HTTP response object is returned *)
+     * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in
       respond ~resp_headers ~execution_id `OK body
 
