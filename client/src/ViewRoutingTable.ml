@@ -324,13 +324,26 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     | _ ->
         e.name
   in
+  let destinationLink page classes name =
+    match page with
+    | Architecture pos ->
+        Html.a
+          [ Html.class' classes
+          ; ViewUtils.eventNoPropagation
+              ~key:("goto-" ^ showTLID e.tlid)
+              "click"
+              (fun _ -> SelectToplevelAt (e.tlid, pos)) ]
+          [Html.text name]
+    | _ ->
+        Url.linkFor page classes [Html.text name]
+  in
   let mainlink =
     match e.destination with
     | Some dest ->
         let cl =
           if e.uses = Some 0 then "default-link unused" else "default-link"
         in
-        [Url.linkFor dest cl [Html.text name]]
+        [destinationLink dest cl name]
     | _ ->
         [Html.text name]
   in
@@ -338,7 +351,7 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     let noExt = if List.isEmpty ext then " no-ext" else "" in
     match (e.destination, e.verb) with
     | Some dest, Some v ->
-        [Url.linkFor dest ("verb verb-link" ^ noExt) [Html.text v]]
+        [destinationLink dest ("verb verb-link" ^ noExt) v]
     | None, Some v ->
         [Html.span [Html.class' ("verb" ^ noExt)] [Html.text v]]
     | _ ->

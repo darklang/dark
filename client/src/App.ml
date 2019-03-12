@@ -1257,6 +1257,9 @@ let update_ (msg : msg) (m : model) : modification =
   | ClipboardCopyLivevalue lv ->
       Native.Clipboard.copyToClipboard lv ;
       NoChange
+  | SelectToplevelAt (tlid, pos) ->
+      let centerPos = Viewport.toCenteredOn pos in
+      Many [SetPage (Architecture centerPos); Select (tlid, None)]
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
