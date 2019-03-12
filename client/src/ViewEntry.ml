@@ -15,6 +15,14 @@ let onSubmit ~key fn =
     (Decoders.wrapDecoder fn)
 
 
+let defaultPasteHandler =
+  Html.onWithOptions
+    ~key:"paste"
+    "paste"
+    {stopPropagation = true; preventDefault = false}
+    (Decoders.wrapDecoder (fun _ -> IgnoreMsg))
+
+
 let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     msg Html.html =
   let maxWidthChars =
@@ -51,6 +59,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
       [ Attributes.id Defaults.entryID
       ; Events.onInput
           ((fun x -> EntryInputMsg x) << Util.transformFromStringEntry)
+      ; defaultPasteHandler
       ; Attributes.value value
       ; Attributes.spellcheck false (* Stop other events firing *)
       ; nothingMouseEvent "mouseup"
@@ -94,6 +103,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
               ; ("highlighted", highlighted)
               ; (class', true) ]
           ; nothingMouseEvent "mouseup"
+          ; defaultPasteHandler
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick name ) ]
@@ -125,6 +135,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
     Html.input'
       [ Attributes.id Defaults.entryID
       ; Events.onInput (fun x -> EntryInputMsg x)
+      ; defaultPasteHandler
       ; Attributes.value search
       ; Attributes.placeholder placeholder
       ; Attributes.spellcheck false
