@@ -353,4 +353,16 @@ let createHP (tls : toplevel list) : handlerProp StrDict.t =
 
 
 let isHandlerLocked (vs : viewState) : bool =
-  match vs.handlerProp with Some p -> p.handlerLock | None -> false
+  match vs.handlerProp with
+  | Some p ->
+      p.handlerLock
+  | None ->
+      Defaults.defaultHandlerProp.handlerLock
+
+
+let isHandlerExpanded (vs : viewState) : bool =
+  match vs.handlerProp with
+  | Some p ->
+      p.handlerExpand
+  | None ->
+      Defaults.defaultHandlerProp.handlerExpand

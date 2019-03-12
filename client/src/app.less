@@ -816,7 +816,7 @@ body #grid * {
 
     a, div {
       display: inline;
-      margin-left: 2ch;
+      margin-left: 1ch;
     }
   }
 
@@ -825,12 +825,16 @@ body #grid * {
   }
 
   .handler-lock {
-    text-align: right;
     color: @white1;
 
-    &.is-locked {
+    &.active {
       color: @red;
     }
+  }
+
+  .handler-expand {
+    font-size: 16px;
+    color: @white1;
   }
 }
 
@@ -838,6 +842,12 @@ body #grid * {
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
+  height: 0;
+  overflow: hidden;
+
+  &.expand {
+    height: auto;
+  }
 
   .ast, .rop-rail {
     display: inline-block;
