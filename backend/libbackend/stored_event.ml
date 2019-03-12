@@ -4,7 +4,8 @@ module RTT = Types.RuntimeT
 
 type event_desc = string * string * string [@@deriving show, yojson]
 
-type event_record = string * string * string * RTT.time
+type event_record =
+  string * string * string * RTT.time * Analysis_types.traceid
 [@@deriving show, yojson]
 
 type four_oh_four = event_record [@@deriving show, yojson]
@@ -47,15 +48,25 @@ let list_events
   let sql =
     "SELECT
          DISTINCT ON (module, path, modifier)
-         module, path, modifier, timestamp
+         module, path, modifier, timestamp, trace_id
        FROM stored_events_v2
        WHERE canvas_id = $1"
     ^ timestamp_constraint
   in
   Db.fetch sql ~name:"list_events" ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(function
-         | [module_; path; modifier; timestamp] ->
-             (module_, path, modifier, Util.date_of_isostring timestamp)
+         | [module_; path; modifier; timestamp; trace_id] ->
+             let trace_id =
+               trace_id
+               |> Uuidm.of_string
+               |> Option.value_exn
+                    ~message:("Bad UUID from stored_events: " ^ trace_id)
+             in
+             ( module_
+             , path
+             , modifier
+             , Util.date_of_isostring timestamp
+             , trace_id )
          | out ->
              Exception.internal "Bad DB format for stored_events" )
 
@@ -132,7 +143,7 @@ let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
 
 
 let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
-  let module_, path, modifier, _ = event_rec in
+  let module_, path, modifier, _, _ = event_rec in
   Db.fetch
     ~name:"stored_event.get_recent_traces"
     "SELECT trace_id FROM stored_events_v2
