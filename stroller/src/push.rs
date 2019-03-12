@@ -12,6 +12,9 @@ use sha2::Sha256;
 use reqwest::StatusCode;
 use serde::Serialize;
 
+use slog::{o, slog_info};
+use slog_scope::info;
+
 #[derive(Debug)]
 pub enum PusherError {
     MalformedPayload(String),
@@ -152,13 +155,21 @@ impl PusherClient {
         canvas_uuid: &str,
         event_name: &str,
         json_bytes: &[u8],
+        request_id: &str,
     ) -> Result<(), PusherError> {
         let channel_name = format!("canvas_{}", canvas_uuid);
         let timestamp = SystemTime::now();
 
         let pusher_request =
             self.build_push_request(timestamp, &channel_name, &event_name, json_bytes)?;
-        println!("sending request: {:?}", pusher_request);
+        info!("sending pusher request"; o!(
+                "x-request-id" => request_id,
+                "channel" => channel_name,
+                "event" => event_name));
+        // TODO ismith:
+        // recursion limit reached while expanding the macro `kv`
+        // (on o!(...))
+        //"json_bytes" => json_bytes.to_string()));
 
         let start = SystemTime::now();
 
@@ -169,12 +180,16 @@ impl PusherClient {
                 let req_time = start.elapsed().unwrap();
                 match resp.status() {
                     StatusCode::OK => {
-                        println!(
-                            "Pushed event in {}ms",
-                            1000 * req_time.as_secs() + u64::from(req_time.subsec_millis())
-                        );
+                        let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
+                        info!(
+                                    "Pushed event in {}ms",
+                                    ms;
+                                    o!("dur_ms" => ms,
+                        "x-request-id" => request_id)
+                                );
                         Ok(())
                     }
+                    // TODO time to failure might be nice to log here
                     code => resp
                         .text()
                         .map_err(|e| format!("Error reading push error: {:?}", e).into())

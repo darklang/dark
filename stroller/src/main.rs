@@ -15,7 +15,40 @@ use hyper::Server;
 
 use crate::worker::{Message, WorkerTerminationReason};
 
+use slog::{o, slog_error, slog_info};
+use slog_scope::{error, info};
+
+use slog::{Drain, FnValue, PushFnValue, Record};
+use std::sync::Mutex;
+
 fn main() {
+    let log = slog::Logger::root(
+        Mutex::new(
+            slog_json::Json::new(std::io::stdout())
+                .set_pretty(true)
+                .add_key_value(o!(
+                           "timestamp" => PushFnValue(move |_ : &Record, ser| {
+                    ser.emit(chrono::Local::now().to_rfc3339())
+                }),
+                "level" => FnValue(move |rinfo : &Record| {
+                    rinfo.level().as_short_str()
+                }),
+                "msg" => PushFnValue(move |record : &Record, ser| {
+                    ser.emit(record.msg())
+                })))
+                .build(),
+        )
+        .map(slog::Fuse),
+        o!("file" => FnValue(move |info| {
+            format!("{}:{} {}",
+                    info.file(),
+                    info.line(),
+                    info.module()) })
+        ),
+    );
+    // setting the global logger here so we can use slog_scope::logger() everywhere else
+    let _guard = slog_scope::set_global_logger(log);
+
     let addr = ([0, 0, 0, 0], config::port()).into();
 
     let shutting_down = Arc::new(AtomicBool::new(false));
@@ -36,9 +69,8 @@ fn main() {
 
     let server = Server::bind(&addr)
         .serve(make_service)
-        .map_err(|e| eprintln!("server error: {}", e));
+        .map_err(|e| error!("server error: {}", e));
 
-    println!("Listening on {}", addr);
-
+    info!("Listening on {}", addr);
     hyper::rt::run(server);
 }
