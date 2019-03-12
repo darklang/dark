@@ -50,7 +50,15 @@ let paste (m : model) (data : copyData) : modification =
         TL.replaceMod currentPd newPd tl
     | `Text t ->
         let newPd =
-          Pointer.strMap currentPd ~f:(fun _ -> t) |> TL.clonePointerData
+          ( match currentPd with
+          | PExpr (Blank id) ->
+              (* If we have a blank PExpr and want to map a String into it,
+              * we can create a new String literal from it. *)
+              let wrapped = "\"" ^ t ^ "\"" in
+              PExpr (F (id, Value wrapped))
+          | _ ->
+              Pointer.strMap currentPd ~f:(fun _ -> t) )
+          |> TL.clonePointerData
         in
         TL.replaceMod currentPd newPd tl
     | `None ->
