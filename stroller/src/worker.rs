@@ -27,16 +27,16 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
     loop {
         match channel.recv() {
             Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
-                info!("msg recv: ok"; o!("canvas" => canvas_uuid.clone(),
-                "event" => event_name.clone(),
+                info!("msg recv: ok"; o!("canvas" => &canvas_uuid,
+                "event" => &event_name,
                 "body" => String::from_utf8_lossy(&body).to_string(),
-                "x-request-id" => request_id.clone()
+                "x-request-id" => &request_id
                 ));
                 let result =
                     client.push_canvas_event(&canvas_uuid, &event_name, &body, &request_id);
                 if let Err(e) = result {
-                    error!("Error pushing to pusher: {}", e; o!("canvas" => canvas_uuid.clone(),
-                    "event" => event_name.clone(),
+                    error!("Error pushing to pusher: {}", e; o!("canvas" => &canvas_uuid,
+                    "event" => &event_name,
                     "x-request-id" => request_id
                     ));
                 }
