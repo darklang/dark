@@ -25,7 +25,7 @@ fn main() {
     let log = slog::Logger::root(
         Mutex::new(
             slog_json::Json::new(std::io::stdout())
-                .set_pretty(true)
+                .set_pretty(false) // for honeytail compatibility
                 .add_key_value(o!(
                            "timestamp" => PushFnValue(move |_ : &Record, ser| {
                     ser.emit(chrono::Local::now().to_rfc3339())
