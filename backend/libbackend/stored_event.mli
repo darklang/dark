@@ -4,7 +4,8 @@ open Libexecution
 (* space, path, modifier *)
 type event_desc = string * string * string [@@deriving show, yojson]
 
-type event_record = string * string * string * Types.RuntimeT.time
+type event_record =
+  string * string * string * Types.RuntimeT.time * Analysis_types.traceid
 [@@deriving show, yojson]
 
 type four_oh_four = event_record [@@deriving show, yojson]

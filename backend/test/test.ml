@@ -567,7 +567,7 @@ let t_stored_event_roundtrip () =
        desc2
        (Dval.dstr_of_string_exn "3")) ;
   let at_desc = AT.of_pp SE.pp_event_desc in
-  let rec2desc (t1, t2, t3, t4) = (t1, t2, t3) in
+  let rec2desc (t1, t2, t3, t4, t5) = (t1, t2, t3) in
   let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
   AT.check
     (AT.list at_desc)

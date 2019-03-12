@@ -338,7 +338,7 @@ let user_page_handler
       Stroller.push_new_404
         ~execution_id
         ~canvas_id
-        ("HTTP", Uri.path uri, verb, fof_timestamp) ;
+        ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
       let resp_headers = Cohttp.Header.of_list [cors] in
       respond
         ~resp_headers
