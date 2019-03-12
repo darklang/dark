@@ -26,9 +26,6 @@ pub fn handle(
     let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
     let request_id = Uuid::new_v4().to_string();
-    // this is dumb, but otherwise, the final log call attempts to borrow after we move into the
-    // map closure
-    let request_id2 = request_id.clone();
     response
         .headers_mut()
         .insert("x-request-id", request_id.parse::<HeaderValue>().unwrap());
@@ -39,8 +36,8 @@ pub fn handle(
     }
 
     let method = req.method().to_string();
-    let uri = req.uri().clone();
-    let path_segments: Vec<&str> = uri.path().split('/').collect();
+    let uri = req.uri().to_string();
+    let path_segments: Vec<&str> = req.uri().path().split('/').collect();
 
     match (req.method(), path_segments.as_slice()) {
         (&Method::GET, ["", ""]) => {
@@ -66,6 +63,7 @@ pub fn handle(
         (&Method::POST, ["", "canvas", canvas_uuid, "events", event]) => {
             let canvas_uuid = canvas_uuid.to_string();
             let event = event.to_string();
+            let moved_request_id = request_id.clone();
             let handled = req
                 .into_body()
                 .fold(Vec::new(), |mut acc, chunk| {
@@ -75,7 +73,7 @@ pub fn handle(
                     future::ok::<_, hyper::Error>(acc)
                 })
                 .map(move |req_body| {
-                    let canvas_event = Message::CanvasEvent(canvas_uuid.clone(), event.clone(), req_body, request_id.clone());
+                    let canvas_event = Message::CanvasEvent(canvas_uuid.clone(), event.clone(), req_body, moved_request_id.clone());
 
                     match sender.send(canvas_event) {
                         Ok(()) => {
@@ -84,7 +82,7 @@ pub fn handle(
                             response
                         }
                         Err(_) => {
-                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => canvas_uuid.clone(), "event" => event.clone(), "x-request-id" => request_id));
+                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => &canvas_uuid, "event" => &event, "x-request-id" => &moved_request_id));
                             *response.status_mut() = StatusCode::ACCEPTED;
                             *response.body_mut() = Body::empty();
                             response
@@ -102,10 +100,10 @@ pub fn handle(
             let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
             info!("handle(...):";
                o!(
-            "uri" => uri.to_string(),
+            "uri" => uri,
             "method" => method,
             "dur (ms)" => ms,
-            "x-request-id" => request_id2
+            "x-request-id" => &request_id
             ));
             return Box::new(handled);
         }
