@@ -65,6 +65,10 @@ data:
         labelSelector: "k8s-app=dns-controller"
         namespace: kube-system
         parser: glog
+      - labelSelector: "app in (bwd-app, qw-worker)"
+        containerName: stroller
+        dataset: kubernetes-stroller
+        parser: json
       - labelSelector: "app=bwd-app"
         containerName: http-proxy
         dataset: kubernetes-bwd-nginx
