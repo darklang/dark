@@ -117,6 +117,11 @@ UTF-8 safe"))
                      not
                        (Core_kernel.String.is_substring
                           k
+                          ~substring:"Content-Length") )
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
                           ~substring:"Transfer-Encoding") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
@@ -149,6 +154,11 @@ UTF-8 safe"))
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, String.trim v))
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Content-Length") )
               |> List.filter (fun (k, v) ->
                      not
                        (Core_kernel.String.is_substring
