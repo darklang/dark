@@ -267,8 +267,8 @@ module New404Push = struct
   let decode =
     let open Tea.Json.Decoder in
     let open Native.Decoder in
-    let mk404WithTs (space, path, modifier) = {space; path; modifier} in
-    map mk404WithTs (field "detail" (tuple3 string string string))
+    let mk404WithTs (space, path, modifier, _) = {space; path; modifier} in
+    map mk404WithTs (field "detail" (tuple4 string string string string))
 
 
   let listen ~key tagger = Native.registerGlobal "new404Push" key tagger decode
