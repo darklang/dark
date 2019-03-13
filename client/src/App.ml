@@ -1296,6 +1296,10 @@ let update_ (msg : msg) (m : model) : modification =
       let centerPos = Viewport.toCenteredOn pos in
       Many [SetPage (Architecture centerPos); Select (tlid, None)]
   | EventDecoderError (name, key, error) ->
+      (* Consider rollbar'ing here, but consider the following before doing so:
+       *    - old clients after a deploy
+       *    - lots of events using a bad decoder
+       *    - rollbar token exhaustion *)
       DisplayError
         ( "INTERNAL: Error decoding js event "
         ^ name
