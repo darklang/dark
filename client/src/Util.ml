@@ -51,9 +51,9 @@ let transformToStringEntry (s_ : string) : string =
   s
   |> String.dropLeft ~count:1
   |> String.dropRight ~count:1
-  |> Regex.replace ~re:"\\\\\"" ~repl:"\""
+  |> Regex.replace ~re:(Regex.regex "\\\\\"") ~repl:"\""
 
 
 let transformFromStringEntry (s : string) : string =
-  let s2 = s |> Regex.replace ~re:"\"" ~repl:"\\\"" in
+  let s2 = s |> Regex.replace ~re:(Regex.regex "\"") ~repl:"\\\"" in
   "\"" ^ s2 ^ "\""

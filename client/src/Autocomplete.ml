@@ -364,11 +364,11 @@ let rec stripCharsFromFront (disallowed : string) (s : string) : string =
 
 
 let stripChars (disallowed : string) (s : string) : string =
-  Regex.replace ~re:disallowed ~repl:"" s
+  Regex.replace ~re:(Regex.regex disallowed) ~repl:"" s
 
 
 let removeExtraSlashes (s : string) : string =
-  let s = Regex.replace ~re:"/+" ~repl:"/" s in
+  let s = Regex.replace ~re:(Regex.regex "/+") ~repl:"/" s in
   let s =
     if s <> "/" && String.endsWith ~suffix:"/" s
     then String.dropRight ~count:1 s
@@ -677,7 +677,7 @@ let filter
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
-    |> Regex.replace ~re:{js|⟶|js} ~repl:"->"
+    |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
   in
   (* HACK: dont show Gotos when the query is "" *)
   let list =
