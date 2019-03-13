@@ -35,13 +35,6 @@ let registerGlobalDirect name key tagger =
   Tea_sub.registration key enableCall
 
 
-module PageVisibility = struct
-  type visibility =
-    | Hidden
-    | Visible
-  [@@deriving show]
-end
-
 type size =
   { width : int
   ; height : int }
