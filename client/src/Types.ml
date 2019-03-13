@@ -748,6 +748,7 @@ and msg =
   | ClipboardCutEvent of clipboardCutEvent
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string
+  | SelectToplevelAt of tlid * pos
 
 (* ----------------------------- *)
 (* AB tests *)

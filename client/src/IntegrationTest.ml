@@ -727,6 +727,14 @@ let passwords_are_redacted (_m : model) : testResult =
   pass
 
 
+let select_route (m : model) : testResult =
+  match m.cursorState with
+  | Selecting (_, None) ->
+      pass
+  | _ ->
+      fail ~f:show_cursorState m.cursorState
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -831,5 +839,7 @@ let trigger (test_name : string) : integrationTestState =
         result_ok_roundtrips
     | "passwords_are_redacted" ->
         passwords_are_redacted
+    | "select_route" ->
+        select_route
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
