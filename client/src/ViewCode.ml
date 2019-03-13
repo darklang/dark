@@ -509,8 +509,8 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
       ViewUtils.toggleIconButton
         ~tlid:vs.tlid
         ~name:"handler-expand"
-        ~activeIcon:"caret-square-up"
-        ~inactiveIcon:"caret-square-down"
+        ~activeIcon:"caret-up"
+        ~inactiveIcon:"caret-down"
         ~action:(ExpandHandler (vs.tlid, not isExpand))
         ~active:isExpand
     in
