@@ -497,22 +497,22 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     let lock =
       let isLocked = isLocked vs in
       ViewUtils.toggleIconButton
-        vs.tlid
-        "handler-lock"
-        isLocked
-        (LockHandler (vs.tlid, not isLocked))
-        "lock"
-        "lock-open"
+        ~tlid:vs.tlid
+        ~name:"handler-lock"
+        ~activeIcon:"lock"
+        ~inactiveIcon:"lock-open"
+        ~action:(LockHandler (vs.tlid, not isLocked))
+        ~active:isLocked
     in
     let expandCollapse =
       let isExpand = isExpanded vs in
       ViewUtils.toggleIconButton
-        vs.tlid
-        "handler-expand"
-        isExpand
-        (ExpandHandler (vs.tlid, not isExpand))
-        "caret-square-up"
-        "caret-square-down"
+        ~tlid:vs.tlid
+        ~name:"handler-expand"
+        ~activeIcon:"caret-square-up"
+        ~inactiveIcon:"caret-square-down"
+        ~action:(ExpandHandler (vs.tlid, not isExpand))
+        ~active:isExpand
     in
     Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])
   in
