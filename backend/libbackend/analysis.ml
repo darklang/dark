@@ -89,13 +89,15 @@ let saved_input_vars
 
 
 let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
-    : trace option =
-  saved_input_vars c h trace_id
-  |> Option.map ~f:(fun ivs ->
-         let function_results =
-           Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
-         in
-         (trace_id, Some {input = ivs; function_results}) )
+    : trace =
+  let ivs =
+    saved_input_vars c h trace_id
+    |> Option.value ~default:(Execution.sample_input_vars h)
+  in
+  let function_results =
+    Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
+  in
+  (trace_id, Some {input = ivs; function_results})
 
 
 let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace

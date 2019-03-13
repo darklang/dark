@@ -642,7 +642,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
           !c.handlers
           |> List.hd
           |> Option.bind ~f:TL.as_handler
-          |> Option.bind ~f:(fun h -> Analysis.handler_trace !c h trace_id) )
+          |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id) )
     in
     let t4, mft =
       time "4-user-fn-analyses" (fun _ ->
