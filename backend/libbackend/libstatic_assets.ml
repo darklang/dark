@@ -107,12 +107,17 @@ UTF-8 safe"))
                 `Short
                 (Unicode_string.to_string file)
             in
-            let body, code, headers =
+            let body, code, headers, _error =
               Httpclient.http_call_with_code url [] Httpclient.GET [] ""
             in
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, String.trim v))
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Content-Length") )
               |> List.filter (fun (k, v) ->
                      not
                        (Core_kernel.String.is_substring
@@ -143,12 +148,17 @@ UTF-8 safe"))
                 `Short
                 (Unicode_string.to_string file)
             in
-            let body, code, headers =
+            let body, code, headers, _error =
               Httpclient.http_call_with_code url [] Httpclient.GET [] ""
             in
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, String.trim v))
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Content-Length") )
               |> List.filter (fun (k, v) ->
                      not
                        (Core_kernel.String.is_substring

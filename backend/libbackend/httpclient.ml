@@ -89,7 +89,7 @@ let http_call_with_code
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * int * (string * string) list =
+    (body : string) : string * int * (string * string) list * string =
   let query_params =
     url |> Uri.of_string |> Uri.query |> List.append query_params
   in
@@ -202,7 +202,19 @@ let http_call_with_code
       in
       Exception.user ~info ("Bad HTTP request: " ^ Curl.strerror curl_code)
   in
-  if code < 200 || code >= 300
+  (body, code, !result_headers, error)
+
+
+let http_call
+    (url : string)
+    (query_params : (string * string list) list)
+    (verb : verb)
+    (headers : (string * string) list)
+    (body : string) : string * (string * string) list =
+  let resp_body, code, resp_headers, error =
+    http_call_with_code url query_params verb headers body
+  in
+  if code < 200 || code > 299
   then
     let info =
       [ ("url", url)
@@ -213,19 +225,7 @@ let http_call_with_code
     Exception.user
       ~info
       ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
-  else (body, code, !result_headers)
-
-
-let http_call
-    (url : string)
-    (query_params : (string * string list) list)
-    (verb : verb)
-    (headers : (string * string) list)
-    (body : string) : string * (string * string) list =
-  let resp_body, _code, resp_headers =
-    http_call_with_code url query_params verb headers body
-  in
-  (resp_body, resp_headers)
+  else (resp_body, resp_headers)
 
 
 let call
