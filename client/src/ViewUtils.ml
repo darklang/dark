@@ -369,12 +369,12 @@ let isHandlerExpanded (vs : viewState) : bool =
 
 
 let toggleIconButton
-    (tlid : tlid)
-    (name : string)
-    (active : bool)
-    (action : msg)
-    (activeIcon : string)
-    (inactiveIcon : string) : msg Html.html =
+    ~(tlid : tlid)
+    ~(name : string)
+    ~(activeIcon : string)
+    ~(inactiveIcon : string)
+    ~(action : msg)
+    ~(active : bool) : msg Html.html =
   Html.div
     [ Html.classList [(name, true); ("active", active)]
     ; eventNoPropagation
