@@ -264,7 +264,10 @@ module NewTracePush = struct
 end
 
 module New404Push = struct
-  let decode = Decoders.wrapDecoder Decoders.fof
+  let decode =
+    let open Tea.Json.Decoder in
+    field "detail" (Decoders.wrapDecoder Decoders.fof)
+
 
   let listen ~key tagger = Native.registerGlobal "new404Push" key tagger decode
 end
