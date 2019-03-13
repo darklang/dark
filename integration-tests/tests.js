@@ -944,3 +944,8 @@ test('select_route', async t => {
 //   await callBackend(user_content_url(t, "/signup"));
 //   await t.expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
 // })
+//
+//
+
+// TODO: Add test that verifies pasting text/plain when Entering works
+// See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
