@@ -887,7 +887,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
+
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1295,8 +1295,15 @@ let update_ (msg : msg) (m : model) : modification =
   | SelectToplevelAt (tlid, pos) ->
       let centerPos = Viewport.toCenteredOn pos in
       Many [SetPage (Architecture centerPos); Select (tlid, None)]
-  | EventDecoderError err ->
-      DisplayError ("Error: " ^ err)
+  | EventDecoderError (name, key, error) ->
+      DisplayError
+        ( "INTERNAL: Error decoding js event "
+        ^ name
+        ^ " with key "
+        ^ key
+        ^ " got error: \""
+        ^ error
+        ^ "\"" )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
