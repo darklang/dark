@@ -844,5 +844,6 @@ and serializableEditor =
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
-  ; featureFlags : flagsVS }
+  ; featureFlags : flagsVS
+  ; handlerProps : handlerProp StrDict.t }
 [@@deriving show {with_path = false}]
