@@ -280,7 +280,7 @@ let result_to_response
         |> Option.value ~default:"application/json"
       in
       let body =
-          (* TODO: only pretty print for a webbrowser *)
+        (* TODO: only pretty print for a webbrowser *)
         if String.is_prefix ~prefix:"text/plain" content_type
         then Dval.to_enduser_readable_text_v0 value
         else if String.is_prefix ~prefix:"application/xml" content_type
