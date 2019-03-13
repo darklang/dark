@@ -1295,6 +1295,8 @@ let update_ (msg : msg) (m : model) : modification =
   | SelectToplevelAt (tlid, pos) ->
       let centerPos = Viewport.toCenteredOn pos in
       Many [SetPage (Architecture centerPos); Select (tlid, None)]
+  | EventDecoderError err ->
+      DisplayError ("Error: " ^ err)
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

@@ -460,5 +460,8 @@ let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   Decoder
     (fun value ->
-      try Tea_result.Ok (fn value) with e ->
-        Tea_result.Error ("Json error: " ^ Printexc.to_string e) )
+      try Tea_result.Ok (fn value) with
+      | DecodeError e ->
+          Tea_result.Error e
+      | e ->
+          Tea_result.Error ("Json error: " ^ Printexc.to_string e) )
