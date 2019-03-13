@@ -15,6 +15,10 @@ let onSubmit ~key fn =
     (Decoders.wrapDecoder fn)
 
 
+(* This is a paste handler that allows the default behaviour, ignores
+ * the incoming Msg, and does _not_ propagate the event upwords.
+ *
+ * This is to prevent the paste handler on `document` from eating the event *)
 let defaultPasteHandler =
   Html.onWithOptions
     ~key:"paste"
