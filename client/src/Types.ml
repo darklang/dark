@@ -9,6 +9,14 @@ let opaque msg fmt _ =
   ()
 
 
+(* Probably deletable? *)
+module PageVisibility = struct
+  type visibility =
+    | Hidden
+    | Visible
+  [@@deriving show]
+end
+
 type exception_ =
   { short : string
   ; long : string option
@@ -727,7 +735,7 @@ and msg =
   | WindowResize of int * int
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
-  | PageVisibilityChange of Native.PageVisibility.visibility
+  | PageVisibilityChange of PageVisibility.visibility
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
@@ -828,7 +836,7 @@ and model =
   ; f404s : fourOhFour list
   ; unlockedDBs : unlockedDBs
   ; integrationTestState : integrationTestState
-  ; visibility : Native.PageVisibility.visibility
+  ; visibility : PageVisibility.visibility
   ; syncState : syncState
   ; urlState : urlState
   ; timersEnabled : bool
