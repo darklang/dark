@@ -916,6 +916,20 @@ test('cant_delete_locked_col', async t => {
   ;
 })
 
+test('select_route', async t => {
+  const categoryHeader = 'summary.header';
+  const httpVerbLink = 'a.verb.verb-link';
+  const toplevelElement = '.node .sidebar-box';
+
+  await t.click(Selector(categoryHeader));
+
+  await Selector(httpVerbLink, {timeout: 5000})();
+  await t.click(Selector(httpVerbLink));
+
+  await Selector(toplevelElement, {timeout: 5000})();
+  await t.expect(Selector(toplevelElement).hasClass('selected')).ok()
+})
+
 // TODO: This needs Stroller/Pusher in CI
 // test('passwords_are_redacted', async t => {
 //   const callBackend = ClientFunction(
