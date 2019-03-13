@@ -770,6 +770,7 @@ and msg =
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string
   | SelectToplevelAt of tlid * pos
+  | EventDecoderError of string
 
 (* ----------------------------- *)
 (* AB tests *)

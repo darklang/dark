@@ -8,8 +8,8 @@ let registerGlobal name key tagger decoder =
       let open Tea_json.Decoder in
       let open Tea_result in
       match decodeEvent decoder ev with
-      | Error _ ->
-          None
+      | Error err ->
+          Some (Types.EventDecoderError err)
       | Ok pos ->
           Some (tagger pos)
     in
