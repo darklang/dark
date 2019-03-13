@@ -566,14 +566,14 @@ let t_stored_event_roundtrip () =
        ~trace_id:t5
        desc2
        (Dval.dstr_of_string_exn "3")) ;
-  let at_desc = AT.of_pp SE.pp_event_desc in
-  let rec2desc (t1, t2, t3, t4, t5) = (t1, t2, t3) in
+  let at_trace_id = AT.of_pp Uuidm.pp_string in
+  let to_trace_id (t1, t2, t3, t4, t5) = t5 in
   let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
   AT.check
-    (AT.list at_desc)
+    (AT.list at_trace_id)
     "list host events"
-    (List.sort ~compare [desc1; desc2; desc3])
-    (List.sort ~compare (List.map ~f:rec2desc listed)) ;
+    (List.sort ~compare [t1; t2; t3; t4])
+    (List.sort ~compare (List.map ~f:to_trace_id listed)) ;
   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
   check_dval_list
     "load GET events"
