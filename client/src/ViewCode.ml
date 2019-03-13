@@ -480,22 +480,6 @@ let externalLink
       []
 
 
-let toggleIconButton
-    (tlid : tlid)
-    (name : string)
-    (active : bool)
-    (action : msg)
-    (activeIcon : string)
-    (inactiveIcon : string) : msg Html.html =
-  Html.div
-    [ Html.classList [(name, true); ("active", active)]
-    ; ViewUtils.eventNoPropagation
-        ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
-        "click"
-        (fun _ -> action) ]
-    [fontAwesome (if active then activeIcon else inactiveIcon)]
-
-
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -512,7 +496,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     let testGet = externalLink spec vs.canvasName vs.userContentHost in
     let lock =
       let isLocked = isLocked vs in
-      toggleIconButton
+      ViewUtils.toggleIconButton
         vs.tlid
         "handler-lock"
         isLocked
@@ -522,7 +506,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     in
     let expandCollapse =
       let isExpand = isExpanded vs in
-      toggleIconButton
+      ViewUtils.toggleIconButton
         vs.tlid
         "handler-expand"
         isExpand

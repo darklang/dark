@@ -366,3 +366,19 @@ let isHandlerExpanded (vs : viewState) : bool =
       p.handlerExpand
   | None ->
       Defaults.defaultHandlerProp.handlerExpand
+
+
+let toggleIconButton
+    (tlid : tlid)
+    (name : string)
+    (active : bool)
+    (action : msg)
+    (activeIcon : string)
+    (inactiveIcon : string) : msg Html.html =
+  Html.div
+    [ Html.classList [(name, true); ("active", active)]
+    ; eventNoPropagation
+        ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
+        "click"
+        (fun _ -> action) ]
+    [fontAwesome (if active then activeIcon else inactiveIcon)]

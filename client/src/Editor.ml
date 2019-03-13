@@ -26,22 +26,21 @@ let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
   { m with
     timersEnabled = e.timersEnabled
-  ; cursorState = e.cursorState |> stripDragging (* TODO(alice) handlerProps *)
+  ; cursorState = e.cursorState |> stripDragging
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlCursors = e.tlCursors
-  ; featureFlags = e.featureFlags }
+  ; featureFlags = e.featureFlags
+  ; handlerProps = e.handlerProps }
 
 
 let model2editor (m : model) : serializableEditor =
   { timersEnabled = m.timersEnabled (* are timers enabled *)
-  ; cursorState =
-      m.cursorState
-      (* TODO(alice) handlerProps *)
-      (* whether handlers are locked, saved as client-side only *)
+  ; cursorState = m.cursorState
   ; routingTableOpenDetails =
       m.routingTableOpenDetails (* state of the routing table *)
   ; tlCursors = m.tlCursors (* what trace cursor is selected *)
-  ; featureFlags = m.featureFlags (* which flags are expanded *) }
+  ; featureFlags = m.featureFlags (* which flags are expanded *)
+  ; handlerProps = m.handlerProps }
 
 
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =

@@ -60,6 +60,9 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
         with _ -> StrDict.empty )
   ; featureFlags =
       ( try orNull (field "featureFlags" (dict bool)) StrDict.empty j
+        with _ -> StrDict.empty )
+  ; handlerProps =
+      ( try orNull (field "handlerProps" (dict handlerProp)) StrDict.empty j
         with _ -> StrDict.empty ) }
 
 
@@ -157,6 +160,11 @@ and handlerSpec j : handlerSpec =
   { module_ = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
   ; modifier = field "modifier" (blankOr string) j }
+
+
+and handlerProp j : handlerProp =
+  { handlerLock = field "handlerLock" bool j
+  ; handlerExpand = field "handlerExpand" bool j }
 
 
 and handler j : handler =

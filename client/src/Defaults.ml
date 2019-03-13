@@ -24,7 +24,8 @@ let defaultEditor : serializableEditor =
   ; cursorState = Deselected
   ; routingTableOpenDetails = StrSet.empty
   ; tlCursors = StrDict.empty
-  ; featureFlags = StrDict.empty }
+  ; featureFlags = StrDict.empty
+  ; handlerProps = StrDict.empty }
 
 
 let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
