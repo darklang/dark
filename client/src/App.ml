@@ -1208,11 +1208,11 @@ let update_ (msg : msg) (m : model) : modification =
             []
       in
       Many
-        ( [ RPC
+        ( traceMods
+        @ [ RPC
               ( [SetHandler (tlid, aPos, aHandler)]
               , FocusExact (tlid, B.toID ast) )
-          ; Delete404 fof ]
-        @ traceMods )
+          ; Delete404 fof ] )
   | Delete404RPC fof ->
       MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
