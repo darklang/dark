@@ -733,8 +733,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           List.filter ~f:isComplete m.executingFunctions
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
-    | SetLockedHandlers locked ->
-        ({m with lockedHandlers = locked}, Cmd.none)
     | MoveCanvasTo pos ->
         let newCanvasProps = {m.canvasProps with offset = pos} in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
@@ -1048,7 +1046,10 @@ let update_ (msg : msg) (m : model) : modification =
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
-        {m with toplevels = r.toplevels; userFunctions = r.userFunctions}
+        { m with
+          toplevels = r.toplevels
+        ; userFunctions = r.userFunctions
+        ; handlerProps = ViewUtils.createHandlerProp r.toplevels }
       in
       let newState = processFocus pfM focus in
       let traces : traces =
@@ -1211,8 +1212,10 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ RPC ([SetFunction ufun], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
-  | LockHandler (tlid, isLocked) ->
-      Editor.updateLockedHandlers tlid isLocked m
+  | LockHandler (tlid, locked) ->
+      TweakModel (Editor.setHandlerLock tlid locked)
+  | ExpandHandler (tlid, expand) ->
+      TweakModel (Editor.setHandlerExpand tlid expand)
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
