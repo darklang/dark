@@ -816,7 +816,7 @@ body #grid * {
 
     a, div {
       display: inline;
-      margin-left: 2ch;
+      margin-left: 1ch;
     }
   }
 
@@ -825,12 +825,16 @@ body #grid * {
   }
 
   .handler-lock {
-    text-align: right;
     color: @white1;
 
-    &.is-locked {
+    &.active {
       color: @red;
     }
+  }
+
+  .handler-expand {
+    font-size: 16px;
+    color: @white1;
   }
 }
 
@@ -839,9 +843,24 @@ body #grid * {
   flex-wrap: nowrap;
   align-items: stretch;
 
+  /* We are using height instead of the usual display:none/block for visibility
+  so we can have setup for animations. Display not animatiable, but height is.
+  I also want to keep the width the same, so the change is not that drastic. */
+  height: 0;
+  overflow: hidden;
+
+  &.expand {
+    height: auto;
+
+    .ast {
+      opacity: 1;
+    }
+  }
+
   .ast, .rop-rail {
     display: inline-block;
     vertical-align: top;
+    opacity: 0;
   }
 
   .rop-rail {

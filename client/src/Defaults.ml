@@ -22,15 +22,19 @@ let pageWidth : int = 500
 let defaultEditor : serializableEditor =
   { timersEnabled = true
   ; cursorState = Deselected
-  ; lockedHandlers = []
   ; routingTableOpenDetails = StrSet.empty
   ; tlCursors = StrDict.empty
-  ; featureFlags = StrDict.empty }
+  ; featureFlags = StrDict.empty
+  ; handlerProps = StrDict.empty }
 
 
 let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
 
 let defaultCanvasProps : canvasProps = {offset = origin; enablePan = true}
+
+let defaultHandlerProp : handlerProp =
+  {handlerLock = false; handlerExpand = true}
+
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
@@ -70,7 +74,6 @@ let defaultModel : model =
   ; executingFunctions = []
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
-  ; lockedHandlers = []
   ; canvasProps = defaultCanvasProps
   ; canvasName = "builtwithdark"
   ; userContentHost = "builtwithdark.com"
@@ -79,4 +82,5 @@ let defaultModel : model =
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
+  ; handlerProps = StrDict.empty
   ; staticDeploys = [] }

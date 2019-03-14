@@ -23,13 +23,9 @@ type viewState =
   ; tlCursors : tlCursors
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
-  ; handlerLocked : bool
+  ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string }
-
-let isLocked (tlid : tlid) (m : model) : bool =
-  List.member ~value:tlid m.lockedHandlers
-
 
 let createVS (m : model) (tl : toplevel) : viewState =
   { tl
@@ -100,7 +96,12 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
-  ; handlerLocked = isLocked tl.id m
+  ; handlerProp =
+      ( match tl.data with
+      | TLHandler _ ->
+          StrDict.get ~key:(showTLID tl.id) m.handlerProps
+      | _ ->
+          None )
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost }
 
@@ -333,3 +334,51 @@ let svgIconFn (color : string) : msg Html.html =
                 "M12.89,9.91l.76.75-1.48,1.48,1.48,1.48-.76.76L11.41,12.9,9.93,14.38l-.75-.76,1.48-1.48L9.18,10.66l.75-.75,1.48,1.48Z"
             ]
             [] ] ]
+
+
+let createHandlerProp (tls : toplevel list) : handlerProp StrDict.t =
+  let insertProps tlid props =
+    props
+    |> StrDict.insert ~key:(showTLID tlid) ~value:Defaults.defaultHandlerProp
+  in
+  tls
+  |> List.foldl
+       ~f:(fun tl props ->
+         match tl.data with
+         | TLHandler _ ->
+             insertProps tl.id props
+         | _ ->
+             props )
+       ~init:StrDict.empty
+
+
+let isHandlerLocked (vs : viewState) : bool =
+  match vs.handlerProp with
+  | Some p ->
+      p.handlerLock
+  | None ->
+      Defaults.defaultHandlerProp.handlerLock
+
+
+let isHandlerExpanded (vs : viewState) : bool =
+  match vs.handlerProp with
+  | Some p ->
+      p.handlerExpand
+  | None ->
+      Defaults.defaultHandlerProp.handlerExpand
+
+
+let toggleIconButton
+    ~(tlid : tlid)
+    ~(name : string)
+    ~(activeIcon : string)
+    ~(inactiveIcon : string)
+    ~(action : msg)
+    ~(active : bool) : msg Html.html =
+  Html.div
+    [ Html.classList [(name, true); ("active", active)]
+    ; eventNoPropagation
+        ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
+        "click"
+        (fun _ -> action) ]
+    [fontAwesome (if active then activeIcon else inactiveIcon)]

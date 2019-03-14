@@ -10,6 +10,10 @@ module B = Blank
 
 type viewState = ViewUtils.viewState
 
+let isLocked = ViewUtils.isHandlerLocked
+
+let isExpanded = ViewUtils.isHandlerExpanded
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -489,20 +493,28 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     then viewText EventModifier vs configs spec.modifier
     else Html.div [] []
   and viewEventActions =
+    let testGet = externalLink spec vs.canvasName vs.userContentHost in
     let lock =
-      Html.div
-        [ Html.classList
-            [("handler-lock", true); ("is-locked", vs.handlerLocked)]
-        ; ViewUtils.eventNoPropagation
-            ~key:
-              ("lh-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool vs.handlerLocked)
-            "click"
-            (fun _ -> LockHandler (vs.tlid, not vs.handlerLocked)) ]
-        [fontAwesome (if vs.handlerLocked then "lock" else "lock-open")]
+      let isLocked = isLocked vs in
+      ViewUtils.toggleIconButton
+        ~tlid:vs.tlid
+        ~name:"handler-lock"
+        ~activeIcon:"lock"
+        ~inactiveIcon:"lock-open"
+        ~action:(LockHandler (vs.tlid, not isLocked))
+        ~active:isLocked
     in
-    Html.div
-      [Html.class' "actions"]
-      (externalLink spec vs.canvasName vs.userContentHost @ [lock])
+    let expandCollapse =
+      let isExpand = isExpanded vs in
+      ViewUtils.toggleIconButton
+        ~tlid:vs.tlid
+        ~name:"handler-expand"
+        ~activeIcon:"caret-up"
+        ~inactiveIcon:"caret-down"
+        ~action:(ExpandHandler (vs.tlid, not isExpand))
+        ~active:isExpand
+    in
+    Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])
   in
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
@@ -511,7 +523,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
   let ast =
     Html.div
-      [Html.class' "handler-body"]
+      [Html.classList [("handler-body", true); ("expand", isExpanded vs)]]
       [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]

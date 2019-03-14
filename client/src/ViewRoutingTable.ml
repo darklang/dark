@@ -527,7 +527,6 @@ let rtCacheKey m =
   , m.deletedToplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
   , m.deletedUserFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
   , m.routingTableOpenDetails
-  , m.lockedHandlers
   , m.unlockedDBs
   , m.usedDBs
   , m.usedFns
