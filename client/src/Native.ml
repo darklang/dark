@@ -69,6 +69,14 @@ module Ext = struct
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 end
 
+module JsViewUtils = struct
+  external expandHandler : string -> unit = "expandHandler"
+    [@@bs.val] [@@bs.scope "window", "Dark", "viewUtils"]
+
+  external collapseHandler : string -> unit = "collapseHandler"
+    [@@bs.val] [@@bs.scope "window", "Dark", "viewUtils"]
+end
+
 module Random = struct
   let random () : int = Js_math.random_int 0 2147483647
 end

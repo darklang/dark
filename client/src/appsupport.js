@@ -155,10 +155,30 @@ window.Dark = {
         nested: find(tl, true)
       }
     }
+  },
+  viewUtils: {
+    expandHandler: (tlid) => {
+      const handler = document.querySelector(`.toplevel.tl-${tlid} .handler-body`);
+      handler.style.height = `${handler.scrollHeight}px`;
+
+
+      setTimeout(() => {
+        handler.style.height = null;
+      }, 250)
+
+
+    },
+    collapseHandler: (tlid) => {
+      var handler = document.querySelector(`.toplevel.tl-${tlid} .handler-body`);
+      handler.style.height = `${handler.scrollHeight}px`;
+
+      setTimeout(() => {
+        handler.style.height = `0px`;
+      }, 50)
+
+    }
   }
 }
-
-
 
 function windowFocusChange (visible){
   var event = new CustomEvent('windowFocusChange', {detail: visible});

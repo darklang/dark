@@ -7,6 +7,7 @@ module Svg = Tea.Svg
 
 (* Dark *)
 module B = Blank
+module Jvu = Native.JsViewUtils
 
 type viewState = ViewUtils.viewState
 
@@ -501,17 +502,22 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
         ~name:"handler-lock"
         ~activeIcon:"lock"
         ~inactiveIcon:"lock-open"
-        ~action:(LockHandler (vs.tlid, not isLocked))
+        ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
         ~active:isLocked
     in
     let expandCollapse =
       let isExpand = isExpanded vs in
+      let expandFun _ =
+        let sid = showTLID vs.tlid in
+        if isExpand then Jvu.collapseHandler sid else Jvu.expandHandler sid ;
+        ExpandHandler (vs.tlid, not isExpand)
+      in
       ViewUtils.toggleIconButton
         ~tlid:vs.tlid
         ~name:"handler-expand"
         ~activeIcon:"caret-up"
         ~inactiveIcon:"caret-down"
-        ~action:(ExpandHandler (vs.tlid, not isExpand))
+        ~msg:expandFun
         ~active:isExpand
     in
     Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])

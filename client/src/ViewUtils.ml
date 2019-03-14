@@ -373,12 +373,12 @@ let toggleIconButton
     ~(name : string)
     ~(activeIcon : string)
     ~(inactiveIcon : string)
-    ~(action : msg)
+    ~(msg : mouseEvent -> msg)
     ~(active : bool) : msg Html.html =
   Html.div
     [ Html.classList [(name, true); ("active", active)]
     ; eventNoPropagation
         ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
         "click"
-        (fun _ -> action) ]
+        msg ]
     [fontAwesome (if active then activeIcon else inactiveIcon)]
