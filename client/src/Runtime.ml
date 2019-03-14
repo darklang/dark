@@ -333,9 +333,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
 and toRepr (dv : dval) : string = toRepr_ 0 dv
 
 let inputValueAsString (iv : inputValueDict) : string =
-  iv
-  |> fun i ->
-  DObj i
+  DObj iv
   |> toRepr
   |> String.split ~on:"\n"
   |> List.drop ~count:1
