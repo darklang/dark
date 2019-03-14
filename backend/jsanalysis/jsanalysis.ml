@@ -118,8 +118,14 @@ let () =
   Js.export
     "darkAnalysis"
     (object%js
-       method performAnalysis (tlids : js_string) : js_string =
-         try tlids |> Js.to_string |> perform_analysis |> Js.string with e ->
+       method performAnalysis (stringified_handler_analysis_param : js_string)
+           : js_string =
+         try
+           stringified_handler_analysis_param
+           |> Js.to_string
+           |> perform_analysis
+           |> Js.string
+         with e ->
            print_endline ("Exception in jsanalysis: " ^ Exn.to_string e) ;
            Exception.reraise e
     end) ;
