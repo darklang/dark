@@ -336,8 +336,8 @@ let svgIconFn (color : string) : msg Html.html =
             [] ] ]
 
 
-let createHP (tls : toplevel list) : handlerProp StrDict.t =
-  let createProps tlid props =
+let createHandlerProp (tls : toplevel list) : handlerProp StrDict.t =
+  let insertProps tlid props =
     props
     |> StrDict.insert ~key:(showTLID tlid) ~value:Defaults.defaultHandlerProp
   in
@@ -346,7 +346,7 @@ let createHP (tls : toplevel list) : handlerProp StrDict.t =
        ~f:(fun tl props ->
          match tl.data with
          | TLHandler _ ->
-             createProps tl.id props
+             insertProps tl.id props
          | _ ->
              props )
        ~init:StrDict.empty

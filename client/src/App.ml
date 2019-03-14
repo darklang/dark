@@ -1049,7 +1049,7 @@ let update_ (msg : msg) (m : model) : modification =
         { m with
           toplevels = r.toplevels
         ; userFunctions = r.userFunctions
-        ; handlerProps = ViewUtils.createHP r.toplevels }
+        ; handlerProps = ViewUtils.createHandlerProp r.toplevels }
       in
       let newState = processFocus pfM focus in
       let traces : traces =
