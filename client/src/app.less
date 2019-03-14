@@ -843,17 +843,16 @@ body #grid * {
   flex-wrap: nowrap;
   align-items: stretch;
 
-  /* We are using height instead of the usual display:none/block for visibility
-  so we can have setup for animations. Display not animatiable, but height is.
-  I also want to keep the width the same, so the change is not that drastic. */
   height: 0;
   overflow: hidden;
+  transition: 0.2s height ease-in;
 
   &.expand {
     height: auto;
 
     .ast {
       opacity: 1;
+      transition: 0.1s opacity linear 0.18s;
     }
   }
 
@@ -861,6 +860,7 @@ body #grid * {
     display: inline-block;
     vertical-align: top;
     opacity: 0;
+    transition: 0.1s opacity linear 0s;
   }
 
   .rop-rail {
