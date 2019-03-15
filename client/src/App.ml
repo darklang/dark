@@ -887,7 +887,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
+
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1207,6 +1207,13 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             []
       in
+      (* It's important that we update the traces + set the cursor _first_
+       * -- otherwise both of them will attempt to 'analyzeFocused' on the new
+       * TLID which might not have made it to the server yet.
+       *
+       * By doing them first they'll fire the analysis on whatever the user is
+       * currently focused on, which is safe.
+       *)
       Many
         ( traceMods
         @ [ RPC
