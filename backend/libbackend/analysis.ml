@@ -103,11 +103,11 @@ let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
 let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
     =
   let ivs =
-    (* todo: make example values *)
     Stored_function_arguments.load_for_analysis
       ~canvas_id:c.id
       fn.tlid
       trace_id
+    |> Option.value ~default:(Execution.sample_function_input_vars fn)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid

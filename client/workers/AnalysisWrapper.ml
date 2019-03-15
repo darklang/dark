@@ -15,18 +15,31 @@ external postMessage :
   = "postMessage"
   [@@bs.send]
 
-type darkAnalysis = < performAnalysis : string -> string [@bs.meth] > Js.t
+type darkAnalysis =
+  < performHandlerAnalysis : string -> string [@bs.meth]
+  ; performFunctionAnalysis : string -> string [@bs.meth] >
+  Js.t
 
 external darkAnalysis : darkAnalysis = "darkAnalysis" [@@bs.val]
 
 let () =
   onmessage self (fun event ->
-      let encoded =
-        Js.Json.stringify (Encoders.performAnalysisParams event##data)
-      in
       let result =
         (* TODO: couldn't make Tc work *)
-        try Belt.Result.Ok (darkAnalysis##performAnalysis encoded)
+        try
+          match event##data with
+          | AnalyzeHandler hParams ->
+              let encoded =
+                Js.Json.stringify
+                  (Encoders.performHandlerAnalysisParams hParams)
+              in
+              Belt.Result.Ok (darkAnalysis##performHandlerAnalysis encoded)
+          | AnalyzeFunction fParams ->
+              let encoded =
+                Js.Json.stringify
+                  (Encoders.performFunctionAnalysisParams fParams)
+              in
+              Belt.Result.Ok (darkAnalysis##performFunctionAnalysis encoded)
         with Js.Exn.Error err ->
           let msg =
             err

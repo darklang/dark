@@ -14,6 +14,9 @@ val http_route_input_vars :
 val sample_input_vars :
   Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
 
+val sample_function_input_vars :
+  Types.RuntimeT.user_fn -> Types.RuntimeT.input_vars
+
 val sample_unknown_handler_input_vars : Types.RuntimeT.input_vars
 
 (* ----------------- *)

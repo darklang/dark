@@ -320,12 +320,16 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
   let dbs = TL.dbs m.toplevels in
   let userFns = m.userFunctions in
   let trace = getTrace m tlid traceID in
-  let h = TL.getTL m tlid |> TL.asHandler in
-  match (h, trace) with
-  | Some h, Some (_, Some traceData) ->
+  let tl = TL.getTL m tlid in
+  match (tl.data, trace) with
+  | TLHandler h, Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
-          RequestAnalysis.send {handler = h; traceID; traceData; dbs; userFns}
-      )
+          RequestAnalysis.send
+            (AnalyzeHandler {handler = h; traceID; traceData; dbs; userFns}) )
+  | TLFunc f, Some (_, Some traceData) ->
+      Tea_cmd.call (fun _ ->
+          RequestAnalysis.send
+            (AnalyzeFunction {func = f; traceID; traceData; dbs; userFns}) )
   | _ ->
       Cmd.none
 
