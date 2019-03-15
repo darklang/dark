@@ -44,7 +44,7 @@ type fnname = string [@@deriving yojson]
 type function_result = fnname * id * function_arg_hash * dval
 [@@deriving eq, show, yojson]
 
-type traceid = uuid [@@deriving yojson]
+type traceid = uuid [@@deriving show, yojson]
 
 type trace_data =
   { input : input_vars

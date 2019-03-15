@@ -273,7 +273,9 @@ and userFunction j : userFunction =
 and fof j : fourOhFour =
   { space = index 0 string j
   ; path = index 1 string j
-  ; modifier = index 2 string j }
+  ; modifier = index 2 string j
+  ; timestamp = index 3 string j
+  ; traceID = index 4 traceID j }
 
 
 and deployStatus j : deployStatus =
@@ -458,5 +460,8 @@ let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   Decoder
     (fun value ->
-      try Tea_result.Ok (fn value) with e ->
-        Tea_result.Error ("Json error: " ^ Printexc.to_string e) )
+      try Tea_result.Ok (fn value) with
+      | DecodeError e ->
+          Tea_result.Error e
+      | e ->
+          Tea_result.Error ("Json error: " ^ Printexc.to_string e) )

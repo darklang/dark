@@ -666,12 +666,23 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         *)
         ({m with unlockedDBs = StrSet.union m.unlockedDBs newDBs}, Cmd.none)
     | Delete404 f404 ->
-        ({m with f404s = List.filter ~f:(( <> ) f404) m.f404s}, Cmd.none)
+        ( { m with
+            f404s =
+              List.filter
+                ~f:(fun f ->
+                  f.space ^ f.path ^ f.modifier
+                  <> f404.space ^ f404.path ^ f404.modifier )
+                m.f404s }
+        , Cmd.none )
     | Append404s f404s ->
         let new404s =
           f404s @ m.f404s
           |> List.uniqueBy ~f:(fun f404 ->
-                 f404.space ^ f404.path ^ f404.modifier )
+                 f404.space
+                 ^ f404.path
+                 ^ f404.modifier
+                 ^ f404.timestamp
+                 ^ f404.traceID )
         in
         ({m with f404s = new404s}, Cmd.none)
     | AppendStaticDeploy d ->
@@ -1177,10 +1188,38 @@ let update_ (msg : msg) (m : model) : modification =
             ; modifier = B.newF modifier }
         ; tlid }
       in
+      let traces =
+        List.foldl
+          ~init:[]
+          ~f:(fun search acc ->
+            if search.space = fof.space
+               && search.path = fof.path
+               && search.modifier = fof.modifier
+            then (search.traceID, None) :: acc
+            else acc )
+          m.f404s
+      in
+      let traceMods =
+        match List.head traces with
+        | Some (first, _) ->
+            let traceDict = StrDict.fromList [(deTLID tlid, traces)] in
+            [UpdateTraces traceDict; SetCursor (tlid, first)]
+        | None ->
+            []
+      in
+      (* It's important that we update the traces + set the cursor _first_
+       * -- otherwise both of them will attempt to 'analyzeFocused' on the new
+       * TLID which might not have made it to the server yet.
+       *
+       * By doing them first they'll fire the analysis on whatever the user is
+       * currently focused on, which is safe.
+       *)
       Many
-        [ RPC
-            ([SetHandler (tlid, aPos, aHandler)], FocusExact (tlid, B.toID ast))
-        ; Delete404 fof ]
+        ( traceMods
+        @ [ RPC
+              ( [SetHandler (tlid, aPos, aHandler)]
+              , FocusExact (tlid, B.toID ast) )
+          ; Delete404 fof ] )
   | Delete404RPC fof ->
       MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
@@ -1263,6 +1302,19 @@ let update_ (msg : msg) (m : model) : modification =
   | SelectToplevelAt (tlid, pos) ->
       let centerPos = Viewport.toCenteredOn pos in
       Many [SetPage (Architecture centerPos); Select (tlid, None)]
+  | EventDecoderError (name, key, error) ->
+      (* Consider rollbar'ing here, but consider the following before doing so:
+       *    - old clients after a deploy
+       *    - lots of events using a bad decoder
+       *    - rollbar token exhaustion *)
+      DisplayError
+        ( "INTERNAL: Error decoding js event "
+        ^ name
+        ^ " with key "
+        ^ key
+        ^ " got error: \""
+        ^ error
+        ^ "\"" )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
