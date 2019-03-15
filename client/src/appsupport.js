@@ -155,44 +155,7 @@ window.Dark = {
         nested: find(tl, true)
       }
     }
-  },/*
-  viewUtils: {
-    expandHandler: (tlid) => {
-      const handler = document.querySelector(`.toplevel.tl-${tlid} .handler-body`);
-
-      handler.addEventListener('transitionend', function _doneExpand(evt) {
-
-        if (evt.propertyName === "height"){
-        evt.target.removeEventListener('transitionend', _doneExpand, true);
-
-        var event = new CustomEvent('UpdateHandlerState', {detail: {tlid: tlid, state : "HandlerExpanded"}});
-        document.dispatchEvent(event);
-
-        
-        }
-      }, true)
-
-    },
-    collapseHandler: (tlid) => {
-      var handler = document.querySelector(`.toplevel.tl-${tlid} .handler-body`);
-
-      handler.addEventListener('transitionend', function _doneCollapse(evt) {
-
-        if (evt.propertyName === "opacity") {
-
-          var event = new CustomEvent('UpdateHandlerState', {detail: {tlid: tlid, state : "HandlerCollapsing"}});
-          document.dispatchEvent(event);
-        
-        } else if (evt.propertyName === "height"){
-          evt.target.removeEventListener('transitionend', _doneCollapse, true);
-
-          var event = new CustomEvent('UpdateHandlerState', {detail: {tlid: tlid, state : "HandlerCollapsed"}});
-          document.dispatchEvent(event);
-        }
-        
-      }, true)
-    }
-  } */
+  }
 }
 
 function windowFocusChange (visible){

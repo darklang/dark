@@ -57,26 +57,6 @@ let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
   {m with handlerProps = props}
 
 
-let setHandlerExpand (tlid : tlid) (expand : bool) (m : model) : model =
-  let updateProps prop =
-    match prop with
-    | Some p ->
-        Some
-          { p with
-            handlerState =
-              (if expand then HandlerExpanded else HandlerCollapsed) }
-    | None ->
-        Some
-          { Defaults.defaultHandlerProp with
-            handlerState =
-              (if expand then HandlerExpanded else HandlerCollapsed) }
-  in
-  let props =
-    m.handlerProps |> StrDict.update ~key:(showTLID tlid) ~f:updateProps
-  in
-  {m with handlerProps = props}
-
-
 let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
   let updateProps prop =
     match prop with

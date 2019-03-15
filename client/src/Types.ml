@@ -755,7 +755,6 @@ and msg =
   | DeleteUserFunctionForever of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
-  | ExpandHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveTraces of traceFetchResult
   | EnablePanning of bool
