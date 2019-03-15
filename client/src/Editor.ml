@@ -57,13 +57,13 @@ let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
   {m with handlerProps = props}
 
 
-let setHandlerExpand (tlid : tlid) (expand : bool) (m : model) : model =
+let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
   let updateProps prop =
     match prop with
     | Some p ->
-        Some {p with handlerExpand = expand}
+        Some {p with handlerState = state}
     | None ->
-        Some {Defaults.defaultHandlerProp with handlerExpand = expand}
+        Some {Defaults.defaultHandlerProp with handlerState = state}
   in
   let props =
     m.handlerProps |> StrDict.update ~key:(showTLID tlid) ~f:updateProps

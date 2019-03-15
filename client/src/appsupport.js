@@ -158,8 +158,6 @@ window.Dark = {
   }
 }
 
-
-
 function windowFocusChange (visible){
   var event = new CustomEvent('windowFocusChange', {detail: visible});
   document.dispatchEvent(event);
