@@ -4,6 +4,7 @@ metadata:
   name: bwd-nodeport
 spec:
   type: NodePort
+  externalTrafficPolicy: Local
   selector:
     app: bwd-app
   ports:
