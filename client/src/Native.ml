@@ -8,8 +8,8 @@ let registerGlobal name key tagger decoder =
       let open Tea_json.Decoder in
       let open Tea_result in
       match decodeEvent decoder ev with
-      | Error _ ->
-          None
+      | Error err ->
+          Some (Types.EventDecoderError (name, key, err))
       | Ok pos ->
           Some (tagger pos)
     in
@@ -34,13 +34,6 @@ let registerGlobalDirect name key tagger =
   in
   Tea_sub.registration key enableCall
 
-
-module PageVisibility = struct
-  type visibility =
-    | Hidden
-    | Visible
-  [@@deriving show]
-end
 
 type size =
   { width : int

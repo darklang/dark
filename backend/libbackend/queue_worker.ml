@@ -49,7 +49,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                   Stroller.push_new_404
                     ~execution_id
                     ~canvas_id
-                    (space, name, modifier, event_timestamp) ;
+                    (space, name, modifier, event_timestamp, trace_id) ;
                   Event_queue.put_back transaction event `Incomplete ;
                   Ok ()
               | Some h ->

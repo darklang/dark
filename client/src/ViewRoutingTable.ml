@@ -209,7 +209,9 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
 
 
 let f404Category (m : model) : category =
-  let f404s = m.f404s in
+  let f404s =
+    m.f404s |> List.uniqueBy ~f:(fun f -> f.space ^ f.path ^ f.modifier)
+  in
   { count = List.length f404s
   ; name = "404s"
   ; plusButton = None
