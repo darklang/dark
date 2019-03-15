@@ -572,7 +572,7 @@ let t_stored_event_roundtrip () =
   AT.check
     (AT.list at_trace_id)
     "list host events"
-    (List.sort ~compare [t1; t2; t3; t4])
+    (List.sort ~compare [t1; t3; t4])
     (List.sort ~compare (List.map ~f:to_trace_id listed)) ;
   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
   check_dval_list
