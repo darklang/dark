@@ -1253,8 +1253,6 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
-  | ExpandHandler (tlid, expand) ->
-      TweakModel (Editor.setHandlerExpand tlid expand)
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
@@ -1316,7 +1314,7 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      Debug.loG ("Updating handler " ^ showTLID tlid) state;
+      Debug.loG ("Updating handler " ^ showTLID tlid) state ;
       TweakModel (Editor.setHandlerState tlid state)
 
 
@@ -1408,8 +1406,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        ; visibility
        ; onError
        ; mousewheelSubs
-       ; analysisSubs
-       ])
+       ; analysisSubs ])
 
 
 let debugging =
