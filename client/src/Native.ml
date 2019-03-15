@@ -67,15 +67,13 @@ module Ext = struct
 
   external astPositions : string -> jsRectArr = "positions"
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
+
+  external qs : string -> Dom.element = "querySelector" [@@bs.val] [@@bs.scope "document"]
+
+  external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
+
 end
 
-module JsViewUtils = struct
-  external expandHandler : string -> unit = "expandHandler"
-    [@@bs.val] [@@bs.scope "window", "Dark", "viewUtils"]
-
-  external collapseHandler : string -> unit = "collapseHandler"
-    [@@bs.val] [@@bs.scope "window", "Dark", "viewUtils"]
-end
 
 module Random = struct
   let random () : int = Js_math.random_int 0 2147483647
@@ -171,6 +169,7 @@ module Clipboard = struct
 
   external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]
 end
+
 
 module Decoder = struct
   let tuple2 decodeA decodeB =

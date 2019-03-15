@@ -25,7 +25,7 @@ let defaultEditor : serializableEditor =
   ; routingTableOpenDetails = StrSet.empty
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
-  ; handlerProps = StrDict.empty }
+  (* ; handlerProps = StrDict.empty *) }
 
 
 let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
@@ -33,7 +33,7 @@ let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
 let defaultCanvasProps : canvasProps = {offset = origin; enablePan = true}
 
 let defaultHandlerProp : handlerProp =
-  {handlerLock = false; handlerExpand = true}
+  {handlerLock = false; handlerState = HandlerExpanded }
 
 
 let defaultModel : model =

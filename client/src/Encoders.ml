@@ -545,10 +545,10 @@ and trace (t : Types.trace) : Js.Json.t =
   pair traceID data t
 
 
-let handlerProp (p : Types.handlerProp) : Js.Json.t =
+(* let handlerProp (p : Types.handlerProp) : Js.Json.t =
   object_
     [ ("handlerLock", bool p.handlerLock)
-    ; ("handlerExpand", bool p.handlerExpand) ]
+    ; ("handlerExpand", bool p.handlerExpand) ] *)
 
 
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
@@ -558,7 +558,7 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
     ; ("tlCursors", tcStrDict traceID se.tlCursors)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
-    ; ("handlerProps", tcStrDict handlerProp se.handlerProps) ]
+    (* ; ("handlerProps", tcStrDict handlerProp se.handlerProps) *) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

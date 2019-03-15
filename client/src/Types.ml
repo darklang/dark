@@ -771,6 +771,7 @@ and msg =
   | ClipboardCopyLivevalue of string
   | SelectToplevelAt of tlid * pos
   | EventDecoderError of string * string * string
+  | UpdateHandlerState of tlid * handlerState
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -796,9 +797,17 @@ and syncState = StrSet.t
 
 and urlState = {lastPos : pos option}
 
+and handlerState =
+  | HandlerExpanded
+  | HandlerPrepCollapse
+  | HandlerCollapsing
+  | HandlerCollapsed
+  | HandlerExpanding
+
 and handlerProp =
   { handlerLock : bool
-  ; handlerExpand : bool }
+(*   ; handlerExpand : bool *)
+  ; handlerState : handlerState }
 
 and tlCursors = traceID StrDict.t
 
@@ -867,5 +876,5 @@ and serializableEditor =
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
-  ; handlerProps : handlerProp StrDict.t }
+  (* ; handlerProps : handlerProp StrDict.t *) }
 [@@deriving show {with_path = false}]

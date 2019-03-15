@@ -117,6 +117,9 @@ let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
         {vx = JSD.field "pageX" JSD.int j; vy = JSD.field "pageY" JSD.int j}
     ; button = JSD.field "button" JSD.int j }
 
+let decodeTransEvent (fn : string -> 'a) j : 'a =
+  let module JSD = Json_decode_extended in
+  fn (JSD.field "propertyName" JSD.string j)
 
 let eventNoPropagation
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
@@ -137,6 +140,14 @@ let eventNoDefault
     {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
+let transEvent
+  ~(key : string) (event : string) (constructor : string -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    event
+    {stopPropagation = false; preventDefault = true}
+    (Decoders.wrapDecoder (decodeTransEvent constructor))
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
@@ -359,13 +370,17 @@ let isHandlerLocked (vs : viewState) : bool =
   | None ->
       Defaults.defaultHandlerProp.handlerLock
 
+let getHandlerState (vs : viewState) : handlerState =
+  match vs.handlerProp with
+  | Some p -> p.handlerState
+  | None -> Defaults.defaultHandlerProp.handlerState
 
 let isHandlerExpanded (vs : viewState) : bool =
-  match vs.handlerProp with
-  | Some p ->
-      p.handlerExpand
-  | None ->
-      Defaults.defaultHandlerProp.handlerExpand
+  let state = getHandlerState vs in
+  match state with
+  | HandlerExpanded
+  | HandlerExpanding -> true
+  | _ -> false
 
 
 let toggleIconButton
@@ -382,3 +397,9 @@ let toggleIconButton
         "click"
         msg ]
     [fontAwesome (if active then activeIcon else inactiveIcon)]
+
+let intInUnit (i : int) (u : string) : string = (string_of_int i) ^ u
+
+let getHandlerFullHeight (tlid : tlid) : int =
+  let e = Native.Ext.qs (".toplevel.tl-" ^ (showTLID tlid) ^ " .handler-body") in
+  Native.Ext.scrollHeight e
