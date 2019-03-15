@@ -17,7 +17,7 @@ let store ~canvas_id ~trace_id tlid args =
 
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
-    Analysis_types.input_vars =
+    Analysis_types.input_vars option =
   Db.fetch
     ~name:"stored_function_arguments.load_for_analysis"
     "SELECT arguments_json
@@ -36,7 +36,6 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
          | _ ->
              Exception.internal
                "Bad format for stored_functions.load_for_analysis" )
-  |> Option.value ~default:[]
 
 
 let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =

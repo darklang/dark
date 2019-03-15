@@ -61,8 +61,17 @@ let convert_db (db : our_db) : DbT.db =
   ; active_migration = Option.map ~f:convert_migration db.active_migration }
 
 
-type analysis_param =
+type handler_analysis_param =
   { handler : HandlerT.handler
+  ; trace_id : Analysis_types.traceid
+  ; trace_data :
+      Analysis_types.trace_data (* dont use a trace as this isn't optional *)
+  ; dbs : our_db list
+  ; user_fns : user_fn list }
+[@@deriving of_yojson]
+
+type function_analysis_param =
+  { func : user_fn
   ; trace_id : Analysis_types.traceid
   ; trace_data :
       Analysis_types.trace_data (* dont use a trace as this isn't optional *)
@@ -84,19 +93,19 @@ let load_from_trace results (tlid, fnname, caller_id) args :
   |> Option.map ~f:(fun dv -> (dv, Time.now ()))
 
 
-let perform_analysis (str : string) : string =
-  let {handler; dbs; user_fns; trace_id; trace_data} =
-    str
-    |> Yojson.Safe.from_string
-    |> analysis_param_of_yojson
-    |> Result.ok_or_failwith
-  in
+let perform_analysis
+    ~(tlid : tlid)
+    ~(dbs : our_db list)
+    ~(user_fns : user_fn list)
+    ~(trace_id : RuntimeT.uuid)
+    ~(trace_data : Analysis_types.trace_data)
+    ast =
   let dbs : DbT.db list = List.map ~f:convert_db dbs in
   let input_vars = trace_data.input in
   ( trace_id
   , Execution.analyse_ast
-      handler.ast
-      ~tlid:handler.tlid
+      ast
+      ~tlid
       ~execution_id:(Types.id_of_int 1)
       ~account_id:(Util.create_uuid ())
       ~canvas_id:(Util.create_uuid ())
@@ -109,6 +118,38 @@ let perform_analysis (str : string) : string =
   |> Yojson.Safe.to_string
 
 
+let perform_handler_analysis (str : string) : string =
+  let {handler; dbs; user_fns; trace_id; trace_data} =
+    str
+    |> Yojson.Safe.from_string
+    |> handler_analysis_param_of_yojson
+    |> Result.ok_or_failwith
+  in
+  perform_analysis
+    ~tlid:handler.tlid
+    ~dbs
+    ~user_fns
+    ~trace_id
+    ~trace_data
+    handler.ast
+
+
+let perform_function_analysis (str : string) : string =
+  let {func; dbs; user_fns; trace_id; trace_data} =
+    str
+    |> Yojson.Safe.from_string
+    |> function_analysis_param_of_yojson
+    |> Result.ok_or_failwith
+  in
+  perform_analysis
+    ~tlid:func.tlid
+    ~dbs
+    ~user_fns
+    ~trace_id
+    ~trace_data
+    func.ast
+
+
 open Js_of_ocaml
 
 type js_string = Js.js_string Js.t
@@ -118,8 +159,26 @@ let () =
   Js.export
     "darkAnalysis"
     (object%js
-       method performAnalysis (tlids : js_string) : js_string =
-         try tlids |> Js.to_string |> perform_analysis |> Js.string with e ->
+       method performHandlerAnalysis
+             (stringified_handler_analysis_param : js_string) : js_string =
+         try
+           stringified_handler_analysis_param
+           |> Js.to_string
+           |> perform_handler_analysis
+           |> Js.string
+         with e ->
+           print_endline
+             ("Exception in jsanalysis for handler: " ^ Exn.to_string e) ;
+           Exception.reraise e
+
+       method performFunctionAnalysis
+             (stringified_function_analysis_param : js_string) : js_string =
+         try
+           stringified_function_analysis_param
+           |> Js.to_string
+           |> perform_function_analysis
+           |> Js.string
+         with e ->
            print_endline ("Exception in jsanalysis: " ^ Exn.to_string e) ;
            Exception.reraise e
     end) ;

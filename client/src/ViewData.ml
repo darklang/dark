@@ -45,6 +45,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     let value =
       Option.map ~f:(fun td -> asValue td.input) traceData
       |> Option.withDefault ~default:"<loading>"
+      |> fun s -> if String.length s = 0 then "No input parameters" else s
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =

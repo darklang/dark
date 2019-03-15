@@ -68,6 +68,10 @@ let sample_input_vars h =
   sample_module_input_vars h @ sample_route_input_vars h
 
 
+let sample_function_input_vars f =
+  f |> input_vars_for_user_fn |> DvalMap.to_alist
+
+
 (* -------------------- *)
 (* For exec_state *)
 (* -------------------- *)

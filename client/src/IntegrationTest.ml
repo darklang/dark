@@ -735,6 +735,11 @@ let select_route (m : model) : testResult =
       fail ~f:show_cursorState m.cursorState
 
 
+let function_analysis_works (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -841,5 +846,7 @@ let trigger (test_name : string) : integrationTestState =
         passwords_are_redacted
     | "select_route" ->
         select_route
+    | "function_analysis_works" ->
+        function_analysis_works
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
