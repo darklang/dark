@@ -946,6 +946,19 @@ test('select_route', async t => {
 // })
 //
 //
-
 // TODO: Add test that verifies pasting text/plain when Entering works
 // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
+
+test('function_analysis_works', async t => {
+  await t
+    .click(Selector('.fnname'))
+    .click(Selector('.fa-edit'))
+    .click(Selector('.fncall'));
+
+  await t
+    .expect(Selector('.selected .live-value').textContent)
+    .eql("10", { timeout : 5000 });
+
+    // Return to main canvas to finish tests
+  await t.click(".return-to-canvas")
+})
