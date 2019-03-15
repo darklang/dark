@@ -46,9 +46,18 @@ let list_events
         "AND timestamp > " ^ Db.escape (Time since)
   in
   let sql =
-    "SELECT module, path, modifier, timestamp, trace_id
-       FROM stored_events_v2
-       WHERE canvas_id = $1"
+    (* Note we just grab the first one in the group because the ergonomics
+     * of SELECT DISTINCT ON is much easier than the complex GROUP BY
+     * with row_partition/row_num counting to express "give me the
+     * first N in the group" which is probably more what we want
+     * from a product POV.
+     *
+     * Also we _could_ order by timestamp desc here to get the more
+     * recent events if we desire in the future *)
+    "SELECT DISTINCT ON (module, path, modifier)
+     module, path, modifier, timestamp, trace_id
+     FROM stored_events_v2
+     WHERE canvas_id = $1"
     ^ timestamp_constraint
   in
   Db.fetch sql ~name:"list_events" ~params:[Db.Uuid canvas_id]
