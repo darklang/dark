@@ -7,7 +7,6 @@ module Svg = Tea.Svg
 
 (* Dark *)
 module B = Blank
-module Jvu = Native.JsViewUtils
 
 type viewState = ViewUtils.viewState
 
@@ -508,9 +507,18 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
     let expandCollapse =
       let isExpand = isExpanded vs in
       let expandFun _ =
-        let sid = showTLID vs.tlid in
-        if isExpand then Jvu.collapseHandler sid else Jvu.expandHandler sid ;
-        ExpandHandler (vs.tlid, not isExpand)
+        let state = ViewUtils.getHandlerState vs in
+        match state with
+        | HandlerExpanding ->
+          IgnoreMsg
+        | HandlerExpanded ->
+          UpdateHandlerState(vs.tlid, HandlerPrepCollapse)
+        | HandlerPrepCollapse ->
+          IgnoreMsg
+        | HandlerCollapsing ->
+          IgnoreMsg
+        | HandlerCollapsed ->
+          UpdateHandlerState(vs.tlid, HandlerExpanding)
       in
       ViewUtils.toggleIconButton
         ~tlid:vs.tlid
@@ -527,9 +535,53 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
 
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
+  let attrs =
+    let sid = showTLID vs.tlid in
+    match (ViewUtils.getHandlerState vs) with
+    | HandlerExpanding ->
+      let h = ViewUtils.intInUnit (ViewUtils.getHandlerFullHeight vs.tlid) "px" in
+      [ Html.class' "handler-body expand"
+      ; Html.style "height" h
+      ; ViewUtils.transEvent ~key:("xha-" ^ sid) "transitionend"
+          (fun prop ->
+            if prop = "opacity"
+            then UpdateHandlerState(vs.tlid, HandlerExpanded)
+            else IgnoreMsg
+          )
+      ]
+    | HandlerExpanded ->
+      [ Html.class' "handler-body expand"
+      ; Html.style "height" "auto"
+      ; Vdom.noProp ]
+    | HandlerPrepCollapse ->
+      let h = ViewUtils.intInUnit (ViewUtils.getHandlerFullHeight vs.tlid) "px" in
+      [ Html.class' "handler-body"
+      ; Html.style "height" h
+      ; ViewUtils.transEvent ~key:("pcha-" ^ sid) "transitionend"
+          (fun prop ->
+            if prop = "opacity"
+            then UpdateHandlerState(vs.tlid, HandlerCollapsing)
+            else IgnoreMsg
+          )
+      ]
+    | HandlerCollapsing ->
+      [ Html.class' "handler-body"
+      ; Html.style "height" "0"
+      ; ViewUtils.transEvent ~key:("cha-" ^ sid) "transitionend"
+          (fun prop ->
+            if prop = "height"
+            then UpdateHandlerState(vs.tlid, HandlerCollapsed)
+            else IgnoreMsg
+          )
+      ]
+    | HandlerCollapsed ->
+      [ Html.class' "handler-body"
+      ; Html.style "height" "0"
+      ; Vdom.noProp ]
+  in
   let ast =
     Html.div
-      [Html.classList [("handler-body", true); ("expand", isExpanded vs)]]
+      attrs
       [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]

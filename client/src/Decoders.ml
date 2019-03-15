@@ -61,9 +61,9 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; featureFlags =
       ( try orNull (field "featureFlags" (dict bool)) StrDict.empty j
         with _ -> StrDict.empty )
-  ; handlerProps =
+(*   ; handlerProps =
       ( try orNull (field "handlerProps" (dict handlerProp)) StrDict.empty j
-        with _ -> StrDict.empty ) }
+        with _ -> StrDict.empty ) *) }
 
 
 and cursorState j =
@@ -89,7 +89,6 @@ and entering j =
     [ ("Creating", dv1 (fun x -> Creating x) pos)
     ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
     j
-
 
 and expr j : expr =
   match blankOr nExpr j with
@@ -162,9 +161,10 @@ and handlerSpec j : handlerSpec =
   ; modifier = field "modifier" (blankOr string) j }
 
 
-and handlerProp j : handlerProp =
+(* and handlerProp j : handlerProp =
   { handlerLock = field "handlerLock" bool j
-  ; handlerExpand = field "handlerExpand" bool j }
+  ; handlerExpand = field "handlerExpand" bool j
+  } *)
 
 
 and handler j : handler =

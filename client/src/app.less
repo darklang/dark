@@ -844,23 +844,20 @@ body #grid * {
   align-items: stretch;
 
   height: 0;
+  opacity: 0;
   overflow: hidden;
-  transition: 0.2s height ease-in;
+  transition: 0.2s height ease, 0.1s opacity linear 0s;
 
   &.expand {
     height: auto;
+    opacity: 1;
 
-    .ast {
-      opacity: 1;
-      transition: 0.1s opacity linear 0.18s;
-    }
+    transition: 0.2s height ease, 0.1s opacity linear 0.18s;
   }
 
   .ast, .rop-rail {
     display: inline-block;
     vertical-align: top;
-    opacity: 0;
-    transition: 0.1s opacity linear 0s;
   }
 
   .rop-rail {
