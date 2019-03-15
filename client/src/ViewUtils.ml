@@ -143,13 +143,13 @@ let eventNoDefault
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
-let transEvent ~(key : string) (event : string) (constructor : string -> msg) :
+let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
     msg Vdom.property =
   Patched_tea_html.onWithOptions
     ~key
-    event
+    "transitionend"
     {stopPropagation = false; preventDefault = true}
-    (Decoders.wrapDecoder (decodeTransEvent constructor))
+    (Decoders.wrapDecoder (decodeTransEvent listener))
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =

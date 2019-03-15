@@ -539,7 +539,9 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
     =
   let sid = showTLID tlid in
   let codeHeight id =
-    let e = Native.Ext.qs (".toplevel.tl-" ^ id ^ " .handler-body") in
+    let e =
+      Native.Ext.querySelector (".toplevel.tl-" ^ id ^ " .handler-body")
+    in
     Native.Ext.scrollHeight e
   in
   match state with
@@ -547,10 +549,7 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
       let h = inUnit (codeHeight sid) "px" in
       [ Html.class' "handler-body expand"
       ; Html.style "height" h
-      ; ViewUtils.transEvent
-          ~key:("hdlexp-" ^ sid)
-          "transitionend"
-          (fun prop ->
+      ; ViewUtils.onTransitionEnd ~key:("hdlexp-" ^ sid) ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerExpanded)
             else IgnoreMsg ) ]
@@ -562,20 +561,18 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
       let h = inUnit (codeHeight sid) "px" in
       [ Html.class' "handler-body"
       ; Html.style "height" h
-      ; ViewUtils.transEvent
+      ; ViewUtils.onTransitionEnd
           ~key:("hdlpcol-" ^ sid)
-          "transitionend"
-          (fun prop ->
+          ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerCollapsing)
             else IgnoreMsg ) ]
   | HandlerCollapsing ->
       [ Html.class' "handler-body"
       ; Html.style "height" "0"
-      ; ViewUtils.transEvent
+      ; ViewUtils.onTransitionEnd
           ~key:("hdlcolng-" ^ sid)
-          "transitionend"
-          (fun prop ->
+          ~listener:(fun prop ->
             if prop = "height"
             then UpdateHandlerState (tlid, HandlerCollapsed)
             else IgnoreMsg ) ]
