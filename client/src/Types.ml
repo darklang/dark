@@ -806,7 +806,6 @@ and handlerState =
 
 and handlerProp =
   { handlerLock : bool
-(*   ; handlerExpand : bool *)
   ; handlerState : handlerState }
 
 and tlCursors = traceID StrDict.t
@@ -876,5 +875,5 @@ and serializableEditor =
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
-  (* ; handlerProps : handlerProp StrDict.t *) }
+  ; handlerProps : handlerProp StrDict.t }
 [@@deriving show {with_path = false}]
