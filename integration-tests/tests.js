@@ -962,3 +962,20 @@ test('function_analysis_works', async t => {
     // Return to main canvas to finish tests
   await t.click(".return-to-canvas")
 })
+
+test('fourohfours_parse', async t => {
+  const sendPushEvent = ClientFunction(
+    function () {
+      const data = [
+        "HTTP",
+        "/nonexistant",
+        "GET",
+        "2019-03-15T22:16:40Z",
+        "0623608c-a339-45b3-8233-0eec6120e0df"
+      ];
+      var event = new CustomEvent('new404Push', { detail: data });
+      document.dispatchEvent(event);
+    });
+
+  await sendPushEvent()
+})
