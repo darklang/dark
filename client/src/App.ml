@@ -887,7 +887,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
+
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1253,8 +1253,6 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
-  | ExpandHandler (tlid, expand) ->
-      TweakModel (Editor.setHandlerExpand tlid expand)
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
@@ -1315,6 +1313,8 @@ let update_ (msg : msg) (m : model) : modification =
         ^ " got error: \""
         ^ error
         ^ "\"" )
+  | UpdateHandlerState (tlid, state) ->
+      TweakModel (Editor.setHandlerState tlid state)
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

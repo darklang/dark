@@ -14,6 +14,8 @@ let isLocked = ViewUtils.isHandlerLocked
 
 let isExpanded = ViewUtils.isHandlerExpanded
 
+let inUnit = ViewUtils.intAsUnit
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -501,17 +503,31 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
         ~name:"handler-lock"
         ~activeIcon:"lock"
         ~inactiveIcon:"lock-open"
-        ~action:(LockHandler (vs.tlid, not isLocked))
+        ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
         ~active:isLocked
     in
     let expandCollapse =
       let isExpand = isExpanded vs in
+      let expandFun _ =
+        let state = ViewUtils.getHandlerState vs in
+        match state with
+        | HandlerExpanding ->
+            IgnoreMsg
+        | HandlerExpanded ->
+            UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
+        | HandlerPrepCollapse ->
+            IgnoreMsg
+        | HandlerCollapsing ->
+            IgnoreMsg
+        | HandlerCollapsed ->
+            UpdateHandlerState (vs.tlid, HandlerExpanding)
+      in
       ViewUtils.toggleIconButton
         ~tlid:vs.tlid
         ~name:"handler-expand"
         ~activeIcon:"caret-up"
         ~inactiveIcon:"caret-down"
-        ~action:(ExpandHandler (vs.tlid, not isExpand))
+        ~msg:expandFun
         ~active:isExpand
     in
     Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])
@@ -519,11 +535,57 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
 
+let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
+    =
+  let sid = showTLID tlid in
+  let codeHeight id =
+    let e =
+      Native.Ext.querySelector (".toplevel.tl-" ^ id ^ " .handler-body")
+    in
+    Native.Ext.scrollHeight e
+  in
+  match state with
+  | HandlerExpanding ->
+      let h = inUnit (codeHeight sid) "px" in
+      [ Html.class' "handler-body expand"
+      ; Html.style "height" h
+      ; ViewUtils.onTransitionEnd ~key:("hdlexp-" ^ sid) ~listener:(fun prop ->
+            if prop = "opacity"
+            then UpdateHandlerState (tlid, HandlerExpanded)
+            else IgnoreMsg ) ]
+  | HandlerExpanded ->
+      [ Html.class' "handler-body expand"
+      ; Html.style "height" "auto"
+      ; Vdom.noProp ]
+  | HandlerPrepCollapse ->
+      let h = inUnit (codeHeight sid) "px" in
+      [ Html.class' "handler-body"
+      ; Html.style "height" h
+      ; ViewUtils.onTransitionEnd
+          ~key:("hdlpcol-" ^ sid)
+          ~listener:(fun prop ->
+            if prop = "opacity"
+            then UpdateHandlerState (tlid, HandlerCollapsing)
+            else IgnoreMsg ) ]
+  | HandlerCollapsing ->
+      [ Html.class' "handler-body"
+      ; Html.style "height" "0"
+      ; ViewUtils.onTransitionEnd
+          ~key:("hdlcolng-" ^ sid)
+          ~listener:(fun prop ->
+            if prop = "height"
+            then UpdateHandlerState (tlid, HandlerCollapsed)
+            else IgnoreMsg ) ]
+  | HandlerCollapsed ->
+      [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
+
+
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let showRail = AST.usesRail h.ast in
+  let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
   let ast =
     Html.div
-      [Html.classList [("handler-body", true); ("expand", isExpanded vs)]]
+      attrs
       [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]

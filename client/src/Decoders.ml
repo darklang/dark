@@ -45,6 +45,21 @@ let rec pointerData j : pointerData =
     j
 
 
+and handlerState j : handlerState =
+  j
+  |> variants
+       [ ("HandlerExpanded", variant0 HandlerExpanded)
+       ; ("HandlerPrepCollapse", variant0 HandlerPrepCollapse)
+       ; ("HandlerCollapsing", variant0 HandlerCollapsing)
+       ; ("HandlerCollapsed", variant0 HandlerCollapsed)
+       ; ("HandlerExpanding", variant0 HandlerExpanding) ]
+
+
+and handlerProp j : handlerProp =
+  { handlerLock = field "handlerLock" bool j
+  ; handlerState = field "handlerState" handlerState j }
+
+
 and serializableEditor (j : Js.Json.t) : serializableEditor =
   (* always make these optional so that we don't crash the page when we *)
   (* change the structure *)
@@ -160,11 +175,6 @@ and handlerSpec j : handlerSpec =
   { module_ = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
   ; modifier = field "modifier" (blankOr string) j }
-
-
-and handlerProp j : handlerProp =
-  { handlerLock = field "handlerLock" bool j
-  ; handlerExpand = field "handlerExpand" bool j }
 
 
 and handler j : handler =

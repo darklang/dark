@@ -118,6 +118,11 @@ let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
     ; button = JSD.field "button" JSD.int j }
 
 
+let decodeTransEvent (fn : string -> 'a) j : 'a =
+  let module JSD = Json_decode_extended in
+  fn (JSD.field "propertyName" JSD.string j)
+
+
 let eventNoPropagation
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
@@ -136,6 +141,15 @@ let eventNoDefault
     event
     {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
+
+
+let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    "transitionend"
+    {stopPropagation = false; preventDefault = true}
+    (Decoders.wrapDecoder (decodeTransEvent listener))
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
@@ -360,12 +374,17 @@ let isHandlerLocked (vs : viewState) : bool =
       Defaults.defaultHandlerProp.handlerLock
 
 
-let isHandlerExpanded (vs : viewState) : bool =
+let getHandlerState (vs : viewState) : handlerState =
   match vs.handlerProp with
   | Some p ->
-      p.handlerExpand
+      p.handlerState
   | None ->
-      Defaults.defaultHandlerProp.handlerExpand
+      Defaults.defaultHandlerProp.handlerState
+
+
+let isHandlerExpanded (vs : viewState) : bool =
+  let state = getHandlerState vs in
+  match state with HandlerExpanded | HandlerExpanding -> true | _ -> false
 
 
 let toggleIconButton
@@ -373,12 +392,15 @@ let toggleIconButton
     ~(name : string)
     ~(activeIcon : string)
     ~(inactiveIcon : string)
-    ~(action : msg)
+    ~(msg : mouseEvent -> msg)
     ~(active : bool) : msg Html.html =
   Html.div
     [ Html.classList [(name, true); ("active", active)]
     ; eventNoPropagation
         ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
         "click"
-        (fun _ -> action) ]
+        msg ]
     [fontAwesome (if active then activeIcon else inactiveIcon)]
+
+
+let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
