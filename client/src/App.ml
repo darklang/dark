@@ -1314,7 +1314,6 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      Debug.loG ("Updating handler " ^ showTLID tlid) state ;
       TweakModel (Editor.setHandlerState tlid state)
 
 
