@@ -14,6 +14,8 @@ let isLocked = ViewUtils.isHandlerLocked
 
 let isExpanded = ViewUtils.isHandlerExpanded
 
+let inUnit = ViewUtils.intAsUnit
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -510,15 +512,15 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
         let state = ViewUtils.getHandlerState vs in
         match state with
         | HandlerExpanding ->
-          IgnoreMsg
+            IgnoreMsg
         | HandlerExpanded ->
-          UpdateHandlerState(vs.tlid, HandlerPrepCollapse)
+            UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
         | HandlerPrepCollapse ->
-          IgnoreMsg
+            IgnoreMsg
         | HandlerCollapsing ->
-          IgnoreMsg
+            IgnoreMsg
         | HandlerCollapsed ->
-          UpdateHandlerState(vs.tlid, HandlerExpanding)
+            UpdateHandlerState (vs.tlid, HandlerExpanding)
       in
       ViewUtils.toggleIconButton
         ~tlid:vs.tlid
@@ -533,52 +535,57 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
 
-let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
-  let showRail = AST.usesRail h.ast in
-  let attrs =
-    let sid = showTLID vs.tlid in
-    match (ViewUtils.getHandlerState vs) with
-    | HandlerExpanding ->
-      let h = ViewUtils.intInUnit (ViewUtils.getHandlerFullHeight vs.tlid) "px" in
+let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
+    =
+  let sid = showTLID tlid in
+  let codeHeight id =
+    let e = Native.Ext.qs (".toplevel.tl-" ^ id ^ " .handler-body") in
+    Native.Ext.scrollHeight e
+  in
+  match state with
+  | HandlerExpanding ->
+      let h = inUnit (codeHeight sid) "px" in
       [ Html.class' "handler-body expand"
       ; Html.style "height" h
-      ; ViewUtils.transEvent ~key:("xha-" ^ sid) "transitionend"
+      ; ViewUtils.transEvent
+          ~key:("hdlexp-" ^ sid)
+          "transitionend"
           (fun prop ->
             if prop = "opacity"
-            then UpdateHandlerState(vs.tlid, HandlerExpanded)
-            else IgnoreMsg
-          )
-      ]
-    | HandlerExpanded ->
+            then UpdateHandlerState (tlid, HandlerExpanded)
+            else IgnoreMsg ) ]
+  | HandlerExpanded ->
       [ Html.class' "handler-body expand"
       ; Html.style "height" "auto"
       ; Vdom.noProp ]
-    | HandlerPrepCollapse ->
-      let h = ViewUtils.intInUnit (ViewUtils.getHandlerFullHeight vs.tlid) "px" in
+  | HandlerPrepCollapse ->
+      let h = inUnit (codeHeight sid) "px" in
       [ Html.class' "handler-body"
       ; Html.style "height" h
-      ; ViewUtils.transEvent ~key:("pcha-" ^ sid) "transitionend"
+      ; ViewUtils.transEvent
+          ~key:("hdlpcol-" ^ sid)
+          "transitionend"
           (fun prop ->
             if prop = "opacity"
-            then UpdateHandlerState(vs.tlid, HandlerCollapsing)
-            else IgnoreMsg
-          )
-      ]
-    | HandlerCollapsing ->
+            then UpdateHandlerState (tlid, HandlerCollapsing)
+            else IgnoreMsg ) ]
+  | HandlerCollapsing ->
       [ Html.class' "handler-body"
       ; Html.style "height" "0"
-      ; ViewUtils.transEvent ~key:("cha-" ^ sid) "transitionend"
+      ; ViewUtils.transEvent
+          ~key:("hdlcolng-" ^ sid)
+          "transitionend"
           (fun prop ->
             if prop = "height"
-            then UpdateHandlerState(vs.tlid, HandlerCollapsed)
-            else IgnoreMsg
-          )
-      ]
-    | HandlerCollapsed ->
-      [ Html.class' "handler-body"
-      ; Html.style "height" "0"
-      ; Vdom.noProp ]
-  in
+            then UpdateHandlerState (tlid, HandlerCollapsed)
+            else IgnoreMsg ) ]
+  | HandlerCollapsed ->
+      [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
+
+
+let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
+  let showRail = AST.usesRail h.ast in
+  let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
   let ast =
     Html.div
       attrs
