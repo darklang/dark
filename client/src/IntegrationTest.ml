@@ -740,6 +740,20 @@ let function_analysis_works (_m : model) : testResult =
   pass
 
 
+let fourohfours_parse (m : model) : testResult =
+  match m.f404s with
+  | [x] ->
+      if x.space = "HTTP"
+         && x.path = "/nonexistant"
+         && x.modifier = "GET"
+         && x.timestamp = "2019-03-15T22:16:40Z"
+         && x.traceID = "0623608c-a339-45b3-8233-0eec6120e0df"
+      then pass
+      else fail ~f:show_fourOhFour x
+  | _ ->
+      fail ~f:(show_list ~f:show_fourOhFour) m.f404s
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -848,5 +862,7 @@ let trigger (test_name : string) : integrationTestState =
         select_route
     | "function_analysis_works" ->
         function_analysis_works
+    | "fourohfours_parse" ->
+        fourohfours_parse
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
