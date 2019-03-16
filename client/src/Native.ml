@@ -68,10 +68,15 @@ module Ext = struct
   external astPositions : string -> jsRectArr = "positions"
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
-  external querySelector : string -> Dom.element = "querySelector"
+  external _querySelector :
+    string -> Dom.element Js.Nullable.t
+    = "querySelector"
     [@@bs.val] [@@bs.scope "document"]
 
   external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
+
+  let querySelector (s : string) : Dom.element option =
+    Js.Nullable.toOption (_querySelector s)
 end
 
 module Random = struct
