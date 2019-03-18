@@ -267,7 +267,7 @@ let print_json_log
 
 
 let pP
-    ?data
+    ?(data : string option)
     ?(params : (string * Yojson.Safe.json) list = [])
     ?(bt : Caml.Printexc.raw_backtrace option)
     ~(level : level)
@@ -276,7 +276,7 @@ let pP
     if should_log level
     then
       let data_param =
-        match data with None -> [] | Some data -> [("data", data)]
+        match data with None -> [] | Some data -> [("data", `String data)]
       in
       let params =
         [ ("name", `String (string_replace ~search:" " ~replace:"_" name))

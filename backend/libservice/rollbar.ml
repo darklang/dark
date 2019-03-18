@@ -157,13 +157,14 @@ let report_lwt
                       Log.erroR
                         "Rollbar err"
                         ~data:(Curl.strerror other)
-                        ~params:[("execution_id", Log.dump execution_id)] ;
+                        ~params:
+                          [("execution_id", `String (Log.dump execution_id))] ;
                       `Failure
             with err ->
               Log.erroR
                 "Rollbar err"
                 ~data:(Log.dump err)
-                ~params:[("execution_id", Log.dump execution_id)] ;
+                ~params:[("execution_id", `String (Log.dump execution_id))] ;
               Lwt.fail err )
             [%lwt.finally
               Curl.cleanup c ;

@@ -79,10 +79,10 @@ let respond
   Log.infO
     "response"
     ~params:
-      [ ("status", Log.dump (Cohttp.Code.code_of_status status))
-      ; ("execution_id", Log.dump execution_id)
-      ; ("headers", Log.dump resp_headers)
-      ; ("body", Log.dump body) ] ;
+      [ ("status", `Int (Cohttp.Code.code_of_status status))
+      ; ("execution_id", `String (Int63.to_string execution_id))
+      ; ("headers", `String (Log.dump resp_headers))
+      ; ("body", `String body) ] ;
   S.respond_string ~status ~body ~headers:resp_headers ()
 
 
@@ -308,7 +308,7 @@ let user_page_handler
     ~(uri : Uri.t)
     ~(body : string)
     (req : CRequest.t) =
-  Log.infO "user_page_handler" ~params:[("uri", Uri.to_string uri)] ;
+  Log.infO "user_page_handler" ~params:[("uri", `String (Uri.to_string uri))] ;
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
@@ -1159,7 +1159,7 @@ let k8s_handler req ~execution_id ~stopper =
         Log.infO
           "shutdown"
           ~data:"Received shutdown request - shutting down"
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+          ~params:[("execution_id", `String (Types.string_of_id execution_id))] ;
         (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
         Lwt_unix.sleep 28.0
         >>= fun _ ->
@@ -1169,7 +1169,7 @@ let k8s_handler req ~execution_id ~stopper =
         Log.infO
           "shutdown"
           ~data:"Received redundant shutdown request - already shutting down"
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+          ~params:[("execution_id", `String (Types.string_of_id execution_id))] ;
         respond ~execution_id `OK "Terminated" )
   | _ ->
       respond ~execution_id `Not_found ""
@@ -1210,7 +1210,10 @@ let server () =
           (* ^ (Exception.get_backtrace () *)
           (*             |> Exception.backtrace_to_string) *)
         in
-        Log.erroR real_err ~bt ~params:[("execution_id", Log.dump execution_id)] ;
+        Log.erroR
+          real_err
+          ~bt
+          ~params:[("execution_id", `String (Types.string_of_id execution_id))] ;
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
             respond ~execution_id `Bad_request e.short
@@ -1230,10 +1233,11 @@ let server () =
       Log.infO
         "request"
         ~params:
-          [ ("ip", ip)
-          ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
-          ; ("uri", Uri.to_string uri)
-          ; ("execution_id", Log.dump execution_id) ] ;
+          [ ("ip", `String ip)
+          ; ( "method"
+            , `String (req |> CRequest.meth |> Cohttp.Code.string_of_method) )
+          ; ("uri", `String (Uri.to_string uri))
+          ; ("execution_id", `String (Types.string_of_id execution_id)) ] ;
       (* first: if this isn't https and should be, redirect *)
       match redirect_to (with_x_forwarded_proto req) with
       | Some x ->

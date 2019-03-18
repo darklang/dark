@@ -208,19 +208,24 @@ let execute
   let binary_params = params |> List.map ~f:to_binary_bool |> Array.of_list in
   let string_params = params |> List.map ~f:to_sql |> Array.of_list in
   let subject_log =
-    match subject with Some str -> [("subject", str)] | None -> []
+    match subject with Some str -> [("subject", `String str)] | None -> []
   in
   try
     let res = f ~binary_params ~binary_result ~params:string_params sql in
     (* Transform and log the result *)
     let logr, result = r res in
-    let result_log = if logr = "" then [] else [("result", logr)] in
-    Log.succesS name ~params:([("op", op)] @ result_log @ subject_log) ;
+    let result_log = if logr = "" then [] else [("result", `String logr)] in
+    Log.succesS name ~params:([("op", `String op)] @ result_log @ subject_log) ;
     result
   with e ->
     let bt = Exception.get_backtrace () in
     let log_string = params |> List.map ~f:to_log |> String.concat ~sep:", " in
-    Log.erroR name ~params:[("op", op); ("params", log_string); ("query", sql)] ;
+    Log.erroR
+      name
+      ~params:
+        [ ("op", `String op)
+        ; ("params", `String log_string)
+        ; ("query", `String sql) ] ;
     let msg =
       match e with
       | Postgresql.Error (Unexpected_status (_, msg, _)) ->

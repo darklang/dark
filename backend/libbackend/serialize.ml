@@ -203,7 +203,10 @@ let load_json_from_disk
     Op.tlid_oplists =
   Log.infO
     "serialization"
-    ~params:[("load", "disk"); ("format", "json"); ("host", host)] ;
+    ~params:
+      [ ("load", `String "disk")
+      ; ("format", `String "json")
+      ; ("host", `String host) ] ;
   let filename = json_filename host in
   File.maybereadjsonfile
     ~root
@@ -218,7 +221,10 @@ let save_json_to_disk ~root (filename : string) (ops : Op.tlid_oplists) : unit
     =
   Log.infO
     "serialization"
-    ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
+    ~params:
+      [ ("save_to", `String "disk")
+      ; ("format", `String "json")
+      ; ("filename", `String filename) ] ;
   ops
   |> Op.tlid_oplists2oplist
   |> Op.oplist_to_yojson

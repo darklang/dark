@@ -628,8 +628,8 @@ let execute_saving_intermediates
   Log.infO
     "Executing for intermediates"
     ~params:
-      [ ("tlid", show_tlid state.tlid)
-      ; ("execution_id", Log.dump state.execution_id) ] ;
+      [ ("tlid", `String (show_tlid state.tlid))
+      ; ("execution_id", `String (Log.dump state.execution_id)) ] ;
   let value_store = IDTable.create () in
   let engine = analysis_engine value_store in
   let st = input_vars2symtable input_vars in
@@ -650,8 +650,8 @@ let execute_ast ~input_vars (state : exec_state) expr : dval =
   Log.infO
     "Executing for real"
     ~params:
-      [ ("tlid", show_tlid state.tlid)
-      ; ("execution_id", Log.dump state.execution_id) ] ;
+      [ ("tlid", `String (show_tlid state.tlid))
+      ; ("execution_id", `String (Log.dump state.execution_id)) ] ;
   exec
     (input_vars2symtable input_vars)
     expr

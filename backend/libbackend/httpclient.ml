@@ -236,9 +236,9 @@ let call
   Log.debuG
     "HTTP"
     ~params:
-      [ ("verb", show_verb verb)
-      ; ("url", url)
-      ; ("body", body |> String.length |> string_of_int) ] ;
+      [ ("verb", `String (show_verb verb))
+      ; ("url", `String url)
+      ; ("body", `Int (body |> String.length)) ] ;
   let results, _ = http_call url [] verb headers body in
   results
 
