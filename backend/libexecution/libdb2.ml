@@ -129,6 +129,14 @@ let fns : Lib.shortfn list =
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
+  ; { pns = ["DB::count"]
+    ; ins = []
+    ; p = [par "table" TDB]
+    ; r = TInt
+    ; d = "Return the number of items stored in `table`."
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
   ; (* previously called `DB::keys` *)
     { pns = ["DB::schemaFields_v1"]
     ; ins = []
