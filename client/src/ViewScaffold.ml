@@ -52,11 +52,7 @@ let viewButtons (m : model) : msg Html.html =
     | _ ->
         [ Html.a
             [ Html.class' "specialButton default-link return-to-canvas"
-            ; Html.href "#"
-            ; ViewUtils.eventNoPropagation
-                ~key:"return2canvas"
-                "click"
-                (fun _ -> LoadLastArchitectureView ) ]
+            ; Html.href "#" ]
             [Html.text "Return to Canvas"] ]
   in
   let status =

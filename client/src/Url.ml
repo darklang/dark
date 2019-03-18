@@ -50,7 +50,7 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
 
-let parseLocation (loc : Web.Location.location) : page option =
+let parseLocation (m : model) (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash
     |> String.dropLeft ~count:1
@@ -60,19 +60,7 @@ let parseLocation (loc : Web.Location.location) : page option =
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
-  let architecture () =
-    match
-      (StrDict.get ~key:"x" unstructured, StrDict.get ~key:"y" unstructured)
-    with
-    | Some x, Some y ->
-      ( match (String.toInt x, String.toInt y) with
-      | Ok x, Ok y ->
-          Some (Architecture {x; y})
-      | _ ->
-          None )
-    | _ ->
-        None
-  in
+  let architecture () = Some (Architecture m.canvasProps.lastOffset) in
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
@@ -94,14 +82,14 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  architecture ()
+  fn ()
   |> Option.orElse (handler ())
-  |> Option.orElse (fn ())
   |> Option.orElse (db ())
+  |> Option.orElse (architecture ())
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
-  let mPage = parseLocation loc in
+  let mPage = parseLocation m loc in
   match mPage with
   | Some (FocusedFn id) ->
     ( match Functions.find m id with
@@ -173,3 +161,24 @@ let queryParamSet (name : string) : bool =
 let isDebugging = queryParamSet "debugger"
 
 let isIntegrationTest = queryParamSet "integration-test"
+
+let setPage (m : model) (oldPage : page) (newPage : page) : model =
+  if oldPage = newPage
+  then m
+  else
+    match newPage with
+    | Architecture pos ->
+        (* Pan to position *)
+        { m with
+          currentPage = newPage; canvasProps = {m.canvasProps with offset = pos}
+        }
+    | FocusedFn _ ->
+        { m with
+          currentPage = newPage
+        ; canvasProps =
+            { m.canvasProps with
+              lastOffset = m.canvasProps.offset; offset = Defaults.origin }
+            (* Stash the offset so that returning to canvas goes to the previous place *)
+        ; cursorState = Deselected }
+    | FocusedHandler _ | FocusedDB _ ->
+        m

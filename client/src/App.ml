@@ -20,7 +20,7 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
-    Url.parseLocation location
+    Url.parseLocation m location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
   (* these saved values may not be valid yet *)
@@ -433,28 +433,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
-        Debug.loG "SetPage" page ;
-        if m.currentPage = page
-        then (m, Cmd.none)
-        else (
-          match page with
-          | Architecture pos2 ->
-              (* scrolling *)
-              ( { m with
-                  currentPage = page
-                ; canvasProps = {m.canvasProps with offset = pos2} }
-              , Cmd.none )
-          | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
-              ( { m with
-                  currentPage = page
-                ; canvasProps =
-                    { m.canvasProps with
-                      lastOffset = m.canvasProps.offset
-                    ; offset = Defaults.origin }
-                    (* Stash the offset so that returning to canvas goes to the
-                 * previous place *)
-                ; cursorState = Deselected }
-              , Cmd.none ) )
+        (Url.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -1284,8 +1263,6 @@ let update_ (msg : msg) (m : model) : modification =
   | SelectToplevelAt (tlid, pos) ->
       let centerPos = Viewport.toCenteredOn pos in
       Many [SetPage (Architecture centerPos); Select (tlid, None)]
-  | LoadLastArchitectureView ->
-      SetPage (Architecture m.canvasProps.lastOffset)
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
