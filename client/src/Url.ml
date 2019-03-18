@@ -36,8 +36,7 @@ let urlFor (page : page) : string =
   let pos =
     match page with
     | Architecture pos ->
-        Some
-          {x = pos.x - Defaults.centerPos.x; y = pos.y - Defaults.centerPos.y}
+        Some {x = pos.x; y = pos.y}
     | _ ->
         None
   in
@@ -49,25 +48,6 @@ let navigateTo (page : page) : msg Cmd.t = Navigation.newUrl (urlFor page)
 let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
     msg Html.html =
   Html.a [Html.href (urlFor page); Html.class' class_] content
-
-
-(* When scrolling, there are way too many events to process them through *)
-(* the History/location handlers. So instead we process them directly, *)
-(* and update the browser url periodically. *)
-let maybeUpdateScrollUrl (m : model) : modification =
-  match m.currentPage with
-  | Architecture _ ->
-      let pos = Some m.canvasProps.offset in
-      if pos <> m.urlState.lastPos
-      then
-        Many
-          [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
-          ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
-      else NoChange
-  | FocusedDB _ | FocusedHandler _ | FocusedFn _ ->
-      (* Dont update the scroll in the as we don't record the scroll in the
-       * URL, and the url has already been changed *)
-      NoChange
 
 
 let parseLocation (loc : Web.Location.location) : page option =

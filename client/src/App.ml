@@ -35,12 +35,6 @@ let init (flagString : string) (location : Web.Location.location) =
     ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
     ; toplevels = []
-    ; canvasProps =
-        ( match page with
-        | Architecture pos ->
-            {m.canvasProps with offset = pos}
-        | _ ->
-            m.canvasProps )
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
@@ -439,32 +433,26 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
+        Debug.loG "SetPage" page ;
         if m.currentPage = page
         then (m, Cmd.none)
-        else
-          let savedUrlState =
-            match m.currentPage with
-            | Architecture _ ->
-                Some m.canvasProps.offset
-            | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
-                m.urlState.lastPos
-          in
-          ( match page with
+        else (
+          match page with
           | Architecture pos2 ->
               (* scrolling *)
               ( { m with
                   currentPage = page
-                ; urlState = {lastPos = Some pos2}
                 ; canvasProps = {m.canvasProps with offset = pos2} }
               , Cmd.none )
           | FocusedFn _ | FocusedHandler _ | FocusedDB _ ->
               ( { m with
                   currentPage = page
                 ; canvasProps =
-                    {m.canvasProps with offset = Defaults.origin}
+                    { m.canvasProps with
+                      lastOffset = m.canvasProps.offset
+                    ; offset = Defaults.origin }
                     (* Stash the offset so that returning to canvas goes to the
                  * previous place *)
-                ; urlState = {lastPos = savedUrlState}
                 ; cursorState = Deselected }
               , Cmd.none ) )
     | Select (tlid, p) ->
@@ -1163,11 +1151,7 @@ let update_ (msg : msg) (m : model) : modification =
   | LocationChange loc ->
       Url.changeLocation m loc
   | TimerFire (action, _) ->
-    ( match action with
-    | RefreshAnalysis ->
-        GetUnlockedDBsRPC
-    | CheckUrlHashPosition ->
-        Url.maybeUpdateScrollUrl m )
+    (match action with RefreshAnalysis -> GetUnlockedDBsRPC | _ -> NoChange)
   | IgnoreMsg ->
       (* Many times we have to receive a Msg and we don't actually do anything.
        * To lower to conceptual load, we send an IgnoreMsg, rather than a
@@ -1300,6 +1284,8 @@ let update_ (msg : msg) (m : model) : modification =
   | SelectToplevelAt (tlid, pos) ->
       let centerPos = Viewport.toCenteredOn pos in
       Many [SetPage (Architecture centerPos); Select (tlid, None)]
+  | LoadLastArchitectureView ->
+      SetPage (Architecture m.canvasProps.lastOffset)
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -1348,18 +1334,14 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let timers =
     if m.timersEnabled
     then
-      ( match m.visibility with
+      match m.visibility with
       | Hidden ->
           []
       | Visible ->
           [ Patched_tea_time.every
               ~key:"refresh_analysis"
               Tea.Time.second
-              (fun f -> TimerFire (RefreshAnalysis, f) ) ] )
-      @ [ Patched_tea_time.every
-            ~key:"check_url_hash_position"
-            Tea.Time.second
-            (fun f -> TimerFire (CheckUrlHashPosition, f) ) ]
+              (fun f -> TimerFire (RefreshAnalysis, f) ) ]
     else []
   in
   let onError =

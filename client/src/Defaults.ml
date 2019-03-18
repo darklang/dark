@@ -29,9 +29,9 @@ let defaultEditor : serializableEditor =
   ; canvasPos = origin }
 
 
-let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}
+let defaultCanvasProps : canvasProps =
+  {offset = origin; enablePan = true; lastOffset = origin}
 
-let defaultCanvasProps : canvasProps = {offset = origin; enablePan = true}
 
 let defaultHandlerProp : handlerProp =
   {handlerLock = false; handlerState = HandlerExpanded}
@@ -69,7 +69,6 @@ let defaultModel : model =
   ; integrationTestState = NoIntegrationTest
   ; visibility = PageVisibility.Visible (* partially saved in editor *)
   ; syncState = StrSet.empty
-  ; urlState = defaultUrlState
   ; timersEnabled = true (* saved in editor *)
   ; cursorState = Deselected
   ; executingFunctions = []

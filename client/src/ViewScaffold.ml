@@ -50,12 +50,13 @@ let viewButtons (m : model) : msg Html.html =
     | Architecture _ ->
         []
     | _ ->
-        let offset =
-          m.urlState.lastPos |> Option.withDefault ~default:Defaults.origin
-        in
-        [ Url.linkFor
-            (Architecture offset)
-            "specialButton default-link return-to-canvas"
+        [ Html.a
+            [ Html.class' "specialButton default-link return-to-canvas"
+            ; Html.href "#"
+            ; ViewUtils.eventNoPropagation
+                ~key:"return2canvas"
+                "click"
+                (fun _ -> LoadLastArchitectureView ) ]
             [Html.text "Return to Canvas"] ]
   in
   let status =
