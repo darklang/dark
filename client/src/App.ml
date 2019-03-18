@@ -351,8 +351,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let url =
           match e with
-          | Http.BadUrl str ->
-              Some str
+          | Http.BadUrl url ->
+              Some url
           | Http.Timeout ->
               None
           | Http.NetworkError ->
