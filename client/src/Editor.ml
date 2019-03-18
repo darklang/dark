@@ -24,13 +24,15 @@ let toString (se : serializableEditor) : string =
 
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
+  let cp = m.canvasProps in
   { m with
     timersEnabled = e.timersEnabled
   ; cursorState = e.cursorState |> stripDragging
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlCursors = e.tlCursors
   ; featureFlags = e.featureFlags
-  ; handlerProps = e.handlerProps }
+  ; handlerProps = e.handlerProps
+  ; canvasProps = {cp with offset = e.canvasPos} }
 
 
 let model2editor (m : model) : serializableEditor =
@@ -40,7 +42,8 @@ let model2editor (m : model) : serializableEditor =
       m.routingTableOpenDetails (* state of the routing table *)
   ; tlCursors = m.tlCursors (* what trace cursor is selected *)
   ; featureFlags = m.featureFlags (* which flags are expanded *)
-  ; handlerProps = m.handlerProps }
+  ; handlerProps = m.handlerProps
+  ; canvasPos = m.canvasProps.offset }
 
 
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
