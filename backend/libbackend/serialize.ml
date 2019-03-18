@@ -238,16 +238,14 @@ let current_hosts () : string list =
 
 
 let tier_one_hosts () : string list =
-  [ "dabblefox-shelf"
-  ; "dabblefox-news"
-  ; "dabblefox-temp"
-  ; "gracey"
+  [ "gracey"
   ; "ian-httpbin"
   ; "paul-slackermuse"
   ; "listo"
   ; "ellen-battery2"
   ; "mike-brickbreaker"
-  ; "rohankanchana-brickbreaker" ]
+  ; "rohankanchana-brickbreaker"
+  ; "julius-tokimeki-unfollow" ]
 
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
