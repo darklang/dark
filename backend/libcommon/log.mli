@@ -99,7 +99,7 @@ val succesS :
 
 val log_exception :
      ?bt:Caml.Printexc.raw_backtrace
-  -> ?pp:(exn -> Yojson.Safe.json)
+  -> ?pp:(exn -> string)
   -> string
   -> string
   -> exn
