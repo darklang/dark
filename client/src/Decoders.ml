@@ -330,18 +330,16 @@ and userRecordField j =
   ; urfTipe = field "tipe" (blankOr tipe) j }
 
 
-and userRecord j =
-  { urName = field "name" (blankOr string) j
-  ; urVersion = field "version" int j
-  ; urFields = field "fields" (list userRecordField) j }
-
-
 and userTipeDefinition j =
-  variants [("UTRecord", variant1 (fun x -> UTRecord x) userRecord)] j
+  variants
+    [("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField))]
+    j
 
 
 and userTipe j =
   { utTLID = field "tlid" tlid j
+  ; utName = field "name" (blankOr string) j
+  ; utVersion = field "version" int j
   ; utDefinition = field "utDefinition" userTipeDefinition j }
 
 
