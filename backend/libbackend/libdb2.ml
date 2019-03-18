@@ -190,6 +190,14 @@ let replacements =
             User_db.get_all ~state ~magic:false db
         | args ->
             fail args) )
+  ; ( "DB::count"
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
+            let db = find_db state.dbs dbname in
+            User_db.count ~state db |> DInt
+        | args ->
+            fail args) )
   ; (* previously called `DB::keys` *)
     ( "DB::schemaFields_v1"
     , InProcess
