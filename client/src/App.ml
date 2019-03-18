@@ -628,6 +628,37 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
+    | SetTypes (userTipes, _updateCurrent) ->
+        let m2 =
+          { m with
+            userTipes =
+              UserTypes.upsertAllByTLID m.userTipes ~newTipes:userTipes }
+        in
+        (* Bring back the TL being edited, so we don't lose work done since the
+           API call *)
+        let m3 =
+          m2
+          (* let m3 = *)
+          (*   match tlidOf m.cursorState with *)
+          (*   | Some tlid -> *)
+          (*       if updateCurrent *)
+          (*       then m2 *)
+          (*       else *)
+          (*         let tl = TL.getTL m tlid in *)
+          (*         ( match tl.data with *)
+          (*         | TLTipe t -> *)
+          (*             UserTypes.upsert m2t *)
+          (*         | TLFunc _ -> *)
+          (*             m2 *)
+          (*         | TLDB _ -> *)
+          (*             m2 *)
+          (*         | TLHandler _ -> *)
+          (*             m2 ) *)
+          (*   | None -> *)
+          (*       m2 *)
+        in
+        let m4 = Refactor.updateUsageCounts m3 in
+        processAutocompleteMods m4 [ACRegenerate]
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs newDBs ->

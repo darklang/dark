@@ -210,6 +210,7 @@ type add_op_rpc_result =
   ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
   ; deleted_user_functions : RTT.user_fn list
+  ; user_tipes : RTT.user_tipe list
   (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
@@ -217,7 +218,8 @@ let to_add_op_rpc_result (c : canvas) : string =
   { toplevels = c.dbs @ c.handlers
   ; deleted_toplevels = c.deleted_toplevels
   ; user_functions = c.user_functions
-  ; deleted_user_functions = c.deleted_user_functions }
+  ; deleted_user_functions = c.deleted_user_functions
+  ; user_tipes = c.user_tipes }
   |> add_op_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

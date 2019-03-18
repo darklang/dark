@@ -22,7 +22,7 @@ type canvas =
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
   ; cors_setting : cors_setting option
-  ; user_types : RTT.user_tipe list }
+  ; user_tipes : RTT.user_tipe list }
 [@@deriving eq, show]
 
 (* ------------------------- *)
@@ -46,6 +46,11 @@ let upsert_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
     List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions
   in
   {c with user_functions = fns @ [user_fn]}
+
+
+let upsert_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
+  let fns = List.filter ~f:(fun x -> x.tlid <> user_tipe.tlid) c.user_tipes in
+  {c with user_tipes = fns @ [user_tipe]}
 
 
 let remove_function (tlid : tlid) (c : canvas) : canvas =
@@ -214,6 +219,8 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
         remove_tl_forever tlid
     | DeleteFunctionForever tlid ->
         remove_function_forever tlid
+    | SetType user_tipe ->
+        upsert_tipe user_tipe
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
@@ -278,7 +285,7 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; user_functions = []
       ; deleted_user_functions = []
       ; cors_setting = cors
-      ; user_types = [] }
+      ; user_tipes = [] }
   in
   add_ops c [] ops ;
   c
@@ -357,7 +364,7 @@ let load_from
       ; deleted_toplevels = []
       ; deleted_user_functions = []
       ; cors_setting = cors
-      ; user_types = [] }
+      ; user_tipes = [] }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops ;
   c

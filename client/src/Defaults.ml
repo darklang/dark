@@ -85,4 +85,5 @@ let defaultModel : model =
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
   ; handlerProps = StrDict.empty
-  ; staticDeploys = [] }
+  ; staticDeploys = []
+  ; userTipes = [] }
