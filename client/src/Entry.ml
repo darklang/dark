@@ -252,7 +252,9 @@ let getAstFromTopLevel tl =
   | TLFunc f ->
       f.ufAST
   | TLDB _ ->
-      impossible ("No fields in DBs", tl.data)
+      impossible ("No ASTs in DBs", tl.data)
+  | TLTipe _ ->
+      impossible ("No ASTs in Types", tl.data)
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -395,6 +397,8 @@ let submitACItem
                 wrapNew [SetHandler (tlid, tl.pos, h)] next
             | TLFunc f ->
                 wrapNew [SetFunction f] next
+            | TLTipe t ->
+                wrapNew [SetType t] next
             | TLDB _ ->
                 impossible ("no vars in DBs", tl.data)
         in
@@ -406,7 +410,9 @@ let submitACItem
           | TLFunc f ->
               save {tl with data = TLFunc {f with ufAST = ast}} next
           | TLDB _ ->
-              impossible ("no vars in DBs", tl.data)
+              impossible ("no ASTs in DBs", tl.data)
+          | TLTipe _ ->
+              impossible ("no ASTs in Tipes", tl.data)
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -532,6 +538,9 @@ let submitACItem
           | TLFunc f ->
               let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
+          | TLTipe _ ->
+              (* TODO(types): error here? *)
+              NoChange
           | TLDB db ->
             ( match db.activeMigration with
             | None ->

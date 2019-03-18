@@ -38,6 +38,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         (ViewDB.viewDB vs db, [])
     | TLFunc f ->
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
+    | TLTipe _ ->
+        ([Html.text "TODO(types): view code!"], [])
   in
   let events =
     [ ViewUtils.eventNoPropagation
@@ -180,9 +182,12 @@ let tlCacheKeyDB (m : model) tl =
 
 let viewTL m tl =
   match tl.data with
+  | TLTipe _ ->
+      (* TODO(types): caching! *)
+      viewTL_ m tl
   | TLDB _ ->
       Cache.cache2m tlCacheKeyDB viewTL_ m tl
-  | _ ->
+  | TLFunc _ | TLHandler _ ->
       Cache.cache2m tlCacheKey viewTL_ m tl
 
 

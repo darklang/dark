@@ -235,6 +235,9 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
   match tl.data with
   | TLDB db ->
       enterDB m db tl id
+  | TLTipe _ ->
+      (* TODO(types): see DB above *)
+      NoChange
   | _ ->
       let pd = TL.findExn tl id in
       if TL.getChildrenOf tl pd <> []
@@ -407,7 +410,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
               RPC ([SetHandler (tlid, tl.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
-          | TLDB _ ->
+          | TLTipe _ | TLDB _ ->
               impossible ("pointer type mismatch", newTL.data, pd) )
       | FnName ->
           Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
@@ -418,5 +421,5 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
               RPC ([SetHandler (tlid, tl.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
-          | TLDB _ ->
+          | TLDB _ | TLTipe _ ->
               impossible ("pointer type mismatch", newTL.data, pd) ) )

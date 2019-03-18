@@ -22,6 +22,8 @@ let name (tl : toplevel) : string =
   | TLFunc f ->
       "Func: "
       ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
+  | TLTipe t ->
+      "Type: " ^ (t.utName |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
@@ -36,6 +38,8 @@ let sortkey (tl : toplevel) : string =
       f.ufMetadata.ufmName
       |> B.toMaybe
       |> Option.withDefault ~default:"Unnamed"
+  | TLTipe t ->
+      t.utName |> B.toMaybe |> Option.withDefault ~default:"Unnamed"
 
 
 let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
@@ -96,6 +100,10 @@ let asUserFunction (tl : toplevel) : userFunction option =
   match tl.data with TLFunc f -> Some f | _ -> None
 
 
+let asUserTipe (tl : toplevel) : userTipe option =
+  match tl.data with TLTipe t -> Some t | _ -> None
+
+
 let asHandler (tl : toplevel) : handler option =
   match tl.data with TLHandler h -> Some h | _ -> None
 
@@ -142,7 +150,9 @@ let toOp (tl : toplevel) : op list =
       [SetHandler (tl.id, tl.pos, h)]
   | TLFunc fn ->
       [SetFunction fn]
-  | _ ->
+  | TLTipe t ->
+      [SetType t]
+  | TLDB _ ->
       impossible "This isn't how database ops work"
 
 
@@ -157,6 +167,8 @@ let allData (tl : toplevel) : pointerData list =
       DB.allData db
   | TLFunc f ->
       Functions.allData f
+  | TLTipe t ->
+      UserTypes.allData t
 
 
 let isValidID (tl : toplevel) (id : id) : bool =
@@ -255,6 +267,8 @@ let siblings (tl : toplevel) (p : pointerData) : pointerData list =
       DB.siblings p db
   | TLFunc f ->
       AST.siblings p f.ufAST
+  | TLTipe t ->
+      UserTypes.siblings p t
 
 
 let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
@@ -290,6 +304,9 @@ let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
       |> Option.values
       |> List.head
       |> Option.map ~f:(fun x -> PExpr x)
+  | TLTipe _ ->
+      (* Type definitions are flat *)
+      None
 
 
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
@@ -302,6 +319,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
         AST.childrenOf pid f.ufAST
     | TLDB db ->
         db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
+    | TLTipe _ ->
+        []
   in
   match pd with
   | PVarBind _ ->
@@ -353,7 +372,7 @@ let rootOf (tl : toplevel) : pointerData option =
       Some (PExpr h.ast)
   | TLFunc f ->
       Some (PExpr f.ufAST)
-  | _ ->
+  | TLDB _ | TLTipe _ ->
       None
 
 
@@ -370,7 +389,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLFunc f ->
         let newAST = AST.replace p replacement f.ufAST in
         {tl with data = TLFunc {f with ufAST = newAST}}
-    | _ ->
+    | TLDB _ | TLTipe _ ->
         impossible ("no AST here", tl.data)
   in
   let specHeaderReplace bo =
@@ -415,7 +434,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLFunc f ->
         let ast = AST.replace p replacement f.ufAST in
         {tl with data = TLFunc {f with ufAST = ast}}
-    | _ ->
+    | TLDB _ | TLTipe _ ->
         tl )
   | PFnName _ ->
       fnMetadataReplace ()
@@ -443,6 +462,9 @@ let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
         RPC (ops, FocusNoChange)
     | TLFunc f ->
         let ops = [SetFunction f] in
+        RPC (ops, FocusNoChange)
+    | TLTipe t ->
+        let ops = [SetType t] in
         RPC (ops, FocusNoChange)
     | TLDB _ ->
         impossible ("no vars in DBs", tl.data)

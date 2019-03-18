@@ -273,6 +273,7 @@ and tlData =
   | TLHandler of handler
   | TLDB of dB
   | TLFunc of userFunction
+  | TLTipe of userTipe
 
 and toplevel =
   { id : tlid

@@ -84,6 +84,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             if event.shiftKey
             then
               match tl.data with
+              | TLTipe _ ->
+                  (* TODO(types): see below *)
+                  NoChange
               | TLDB _ ->
                   let blankid = gid () in
                   RPC
@@ -346,6 +349,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Filling (tlid, _) ->
               let tl = TL.getTL m tlid in
               ( match tl.data with
+              | TLTipe _ ->
+                  (* TODO(types): see below *)
+                  NoChange
               | TLDB _ ->
                   NoChange
               | TLHandler _ ->
