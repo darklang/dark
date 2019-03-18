@@ -256,6 +256,21 @@ and userFunction =
   ; ufMetadata : userFunctionMetadata
   ; ufAST : expr }
 
+and userRecordField =
+  { urfName : string blankOr
+  ; urfTipe : tipe blankOr }
+
+and userRecord =
+  { urName : string blankOr
+  ; urVersion : int
+  ; urFields : recordField list }
+
+and userTipeDefinition = UTRecord of userRecord
+
+and userTipe =
+  { utTLID : tlid
+  ; utDefinition : userTipeDefinition }
+
 (* toplevels *)
 and tlData =
   | TLHandler of handler
