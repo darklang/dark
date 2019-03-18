@@ -468,5 +468,7 @@ let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
              if newAST <> f.ufAST
              then Some (SetFunction {f with ufAST = newAST})
              else None
+         | TLTipe _ ->
+             None
          | TLDB _ ->
              None )

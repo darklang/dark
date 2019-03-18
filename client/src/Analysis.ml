@@ -213,14 +213,14 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
             ["request"; "event"]
       in
       varsFor h.ast @ dbs @ extras
-  | TLDB _ ->
-      []
   | TLFunc fn ->
       let params =
         fn.ufMetadata.ufmParameters
         |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
       in
       varsFor fn.ufAST @ params
+  | TLDB _ | TLTipe _ ->
+      []
 
 
 (* ---------------------- *)

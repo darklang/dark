@@ -102,6 +102,8 @@ let processFocus (m : model) (focus : focus) : modification =
           | TLDB _ ->
               true
           | TLFunc _ ->
+              false
+          | TLTipe _ ->
               false )
         | FocusedFn id | FocusedHandler id | FocusedDB id ->
             tl.id = id
@@ -216,7 +218,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
                  [RPC.addOp newM FocusSame params]
-           | _ ->
+           | TLDB _ | TLTipe _ ->
                [] )
     |> Option.withDefault ~default:[]
     |> fun rpc ->
@@ -506,6 +508,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     TL.upsert m2 tl
                 | TLHandler _ ->
                     TL.upsert m2 tl
+                | TLTipe _ ->
+                    m2
                 | TLFunc _ ->
                     m2 )
           | None ->
@@ -619,9 +623,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ( match tl.data with
                 | TLFunc f ->
                     Functions.upsert m2 f
-                | TLDB _ ->
-                    m2
-                | TLHandler _ ->
+                | TLTipe _ | TLDB _ | TLHandler _ ->
                     m2 )
           | None ->
               m2
@@ -879,9 +881,9 @@ let update_ (msg : msg) (m : model) : modification =
       then
         let tl = TL.getTL m targetTLID in
         match tl.data with
-        | TLFunc _ ->
+        | TLFunc _ | TLTipe _ ->
             NoChange
-        | _ ->
+        | TLHandler _ | TLDB _ ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (_, event) ->

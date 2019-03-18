@@ -506,6 +506,8 @@ let tlGotoName (tl : toplevel) : string =
       ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
   | TLFunc _ ->
       Debug.crash "cannot happen"
+  | TLTipe _ ->
+      Debug.crash "cannot happen"
 
 
 let tlDestinations (m : model) : autocompleteItem list =
