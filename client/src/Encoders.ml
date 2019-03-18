@@ -197,6 +197,8 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | DeleteTLForever tlid ->
       tlid
+  | SetType ut ->
+      ut.utTLID
 
 
 and ops (ops : Types.op list) : Js.Json.t =
@@ -330,6 +332,8 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteFunctionForever" [tlid t]
   | DeleteTLForever t ->
       ev "DeleteTLForever" [tlid t]
+  | SetType t ->
+      ev "SetType" [userTipe t]
 
 
 and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
@@ -385,6 +389,29 @@ and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
     ; ("description", string f.ufmDescription)
     ; ("return_type", blankOr tipe f.ufmReturnTipe)
     ; ("infix", bool f.ufmInfix) ]
+
+
+and userTipe (ut : Types.userTipe) : Js.Json.t =
+  object_
+    [ ("tlid", tlid ut.utTLID)
+    ; ("defintion", userTipeDefinition ut.utDefinition) ]
+
+
+and userTipeDefinition (utd : Types.userTipeDefinition) : Js.Json.t =
+  let ev = variant in
+  match utd with UTRecord record -> ev "UTRecord" [userRecord record]
+
+
+and userRecord (ur : Types.userRecord) : Js.Json.t =
+  object_
+    [ ("name", blankOr string ur.urName)
+    ; ("version", int ur.urVersion)
+    ; ("fields", list userRecordField ur.urFields) ]
+
+
+and userRecordField (urf : Types.userRecordField) : Js.Json.t =
+  object_
+    [("name", blankOr string urf.urfName); ("tipe", blankOr tipe urf.urfTipe)]
 
 
 and tipe (t : Types.tipe) : Js.Json.t =

@@ -325,12 +325,32 @@ and traceData j : traceData =
 
 and trace j : trace = pair traceID (optional traceData) j
 
+and userRecordField j =
+  { urfName = field "name" (blankOr string) j
+  ; urfTipe = field "tipe" (blankOr tipe) j }
+
+
+and userRecord j =
+  { urName = field "name" (blankOr string) j
+  ; urVersion = field "version" int j
+  ; urFields = field "fields" (list userRecordField) j }
+
+
+and userTipeDefinition j =
+  variants [("UTRecord", variant1 (fun x -> UTRecord x) userRecord)] j
+
+
+and userTipe j =
+  { utTLID = field "tlid" tlid j
+  ; utDefinition = field "utDefinition" userTipeDefinition j }
+
+
 and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  }
+  ; userTipes = field "user_tipes" (list userTipe) j }
 
 
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =

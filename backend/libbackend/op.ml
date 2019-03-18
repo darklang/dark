@@ -32,6 +32,7 @@ type op =
   | CreateDBWithBlankOr of tlid * pos * id * string
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
+  | SetType of RuntimeT.user_tipe
 [@@deriving eq, yojson, show, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -104,6 +105,8 @@ let tlidOf (op : op) : tlid option =
       Some tlid
   | DeleteFunctionForever tlid ->
       Some tlid
+  | SetType ut ->
+      Some ut.tlid
 
 
 let oplist_to_string (ops : op list) : string =

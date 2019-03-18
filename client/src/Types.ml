@@ -263,7 +263,7 @@ and userRecordField =
 and userRecord =
   { urName : string blankOr
   ; urVersion : int
-  ; urFields : recordField list }
+  ; urFields : userRecordField list }
 
 and userTipeDefinition = UTRecord of userRecord
 
@@ -445,6 +445,7 @@ and op =
   | CreateDBWithBlankOr of tlid * pos * id * dBName
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
+  | SetType of userTipe
 
 (* ------------------- *)
 (* RPCs *)
@@ -496,7 +497,8 @@ and addOpRPCResult =
   { toplevels : toplevel list
   ; deletedToplevels : toplevel list
   ; userFunctions : userFunction list
-  ; deletedUserFunctions : userFunction list }
+  ; deletedUserFunctions : userFunction list
+  ; userTipes : userTipe list }
 
 and dvalArgsHash = string
 
@@ -711,6 +713,7 @@ and modification =
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
+  | SetTypes of userTipe list * bool
 
 (* ------------------- *)
 (* Msgs *)
@@ -888,7 +891,8 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
-  ; staticDeploys : staticDeploy list }
+  ; staticDeploys : staticDeploy list
+  ; userTipes : userTipe list }
 
 (* Values that we serialize *)
 and serializableEditor =
