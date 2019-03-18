@@ -602,13 +602,18 @@ let httpError (e : string Tea.Http.error) : Js.Json.t =
         object_ [("rawResponse", string str)]
   in
   let response (r : Http.response) =
+    let module StringMap = Map.Make (Caml.String) in
     object_
       [ ("url", string r.url)
       ; ( "status"
         , object_
             [("code", int r.status.code); ("message", string r.status.message)]
         )
-        (* ; ("headers", dict identity string r.headers) *)
+      ; ( "headers"
+        , r.headers
+          |> StringMap.bindings
+          |> List.map ~f:(fun (k, v) -> (k, string v))
+          |> object_ )
       ; ("body", responseBody r.body) ]
   in
   match e with
