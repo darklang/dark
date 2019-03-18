@@ -50,7 +50,7 @@ let () =
       in
       let decoded =
         Tc.Result.andThen
-          (fun res ->
+          ~f:(fun res ->
             try
               Belt.Result.Ok
                 (Decoders.analysisEnvelope (Json.parseOrRaise res))

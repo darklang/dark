@@ -312,6 +312,7 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
+RUN opam install -y tablecloth-native.0.0.2
 
 ############################
 # Finish
