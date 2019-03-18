@@ -38,8 +38,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         (ViewDB.viewDB vs db, [])
     | TLFunc f ->
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
-    | TLTipe _ ->
-        ([Html.text "TODO(types): view code!"], [])
+    | TLTipe t ->
+        ([ViewUserType.viewUserTipe vs t], [])
   in
   let events =
     [ ViewUtils.eventNoPropagation
