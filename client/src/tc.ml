@@ -1,5 +1,9 @@
 (* This file is a local variant of Tablecloth. It allows us to add, modify,
  * etc, tablecloth function and type definitions, to be upstreamed later. *)
+module Caml = struct
+  module String = String
+  module List = List
+end
 
 (* This allows us override submodules. See
  * http://gallium.inria.fr/blog/overriding-submodules/ *)
