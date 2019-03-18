@@ -260,15 +260,12 @@ and userRecordField =
   { urfName : string blankOr
   ; urfTipe : tipe blankOr }
 
-and userRecord =
-  { urName : string blankOr
-  ; urVersion : int
-  ; urFields : userRecordField list }
-
-and userTipeDefinition = UTRecord of userRecord
+and userTipeDefinition = UTRecord of userRecordField list
 
 and userTipe =
   { utTLID : tlid
+  ; utName : string blankOr
+  ; utVersion : int
   ; utDefinition : userTipeDefinition }
 
 (* toplevels *)

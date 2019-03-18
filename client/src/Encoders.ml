@@ -394,19 +394,15 @@ and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
 and userTipe (ut : Types.userTipe) : Js.Json.t =
   object_
     [ ("tlid", tlid ut.utTLID)
+    ; ("name", blankOr string ut.utName)
+    ; ("version", int ut.utVersion)
     ; ("defintion", userTipeDefinition ut.utDefinition) ]
 
 
 and userTipeDefinition (utd : Types.userTipeDefinition) : Js.Json.t =
   let ev = variant in
-  match utd with UTRecord record -> ev "UTRecord" [userRecord record]
-
-
-and userRecord (ur : Types.userRecord) : Js.Json.t =
-  object_
-    [ ("name", blankOr string ur.urName)
-    ; ("version", int ur.urVersion)
-    ; ("fields", list userRecordField ur.urFields) ]
+  match utd with UTRecord fields ->
+    ev "UTRecord" [(list userRecordField) fields]
 
 
 and userRecordField (urf : Types.userRecordField) : Js.Json.t =
