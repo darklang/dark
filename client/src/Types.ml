@@ -636,8 +636,10 @@ and focus =
 
 and canvasProps =
   { offset : pos
-  ; enablePan : bool }
+  ; enablePan : bool
+  ; lastOffset : pos }
 
+(* We would ideally want a page stack *)
 and httpError = (string Tea.Http.error[@opaque])
 
 and modification =
@@ -769,6 +771,7 @@ and msg =
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string
   | SelectToplevelAt of tlid * pos
+  | LoadLastArchitectureView
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
 
@@ -793,8 +796,6 @@ and flagsVS = ffIsExpanded StrDict.t
 (* Model *)
 (* ----------------------------- *)
 and syncState = StrSet.t
-
-and urlState = {lastPos : pos option}
 
 and handlerState =
   | HandlerExpanded
@@ -846,7 +847,6 @@ and model =
   ; integrationTestState : integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; urlState : urlState
   ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
   ; tlCursors :
