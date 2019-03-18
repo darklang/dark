@@ -771,7 +771,6 @@ and msg =
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string
   | SelectToplevelAt of tlid * pos
-  | LoadLastArchitectureView
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
 
