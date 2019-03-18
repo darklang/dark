@@ -238,13 +238,10 @@ let current_hosts () : string list =
 
 
 let tier_one_hosts () : string list =
-  [ "gracey"
-  ; "ian-httpbin"
+  [ "ian-httpbin"
   ; "paul-slackermuse"
   ; "listo"
   ; "ellen-battery2"
-  ; "mike-brickbreaker"
-  ; "rohankanchana-brickbreaker"
   ; "julius-tokimeki-unfollow" ]
 
 
