@@ -25,7 +25,8 @@ let defaultEditor : serializableEditor =
   ; routingTableOpenDetails = StrSet.empty
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
-  ; handlerProps = StrDict.empty }
+  ; handlerProps = StrDict.empty
+  ; canvasPos = origin }
 
 
 let defaultUrlState : urlState = {lastPos = Some {x = 0; y = 0}}

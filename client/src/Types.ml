@@ -874,5 +874,6 @@ and serializableEditor =
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
-  ; handlerProps : handlerProp StrDict.t }
+  ; handlerProps : handlerProp StrDict.t
+  ; canvasPos : pos }
 [@@deriving show {with_path = false}]
