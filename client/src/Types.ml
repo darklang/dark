@@ -641,7 +641,8 @@ and canvasProps =
 and httpError = (string Tea.Http.error[@opaque])
 
 and modification =
-  | DisplayAndReportHttpError of string * bool * httpError
+  | DisplayAndReportHttpError of
+      string * bool * httpError * (Js.Json.t[@opaque])
   | DisplayAndReportError of string
   | DisplayError of string
   | ClearError
