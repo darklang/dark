@@ -496,3 +496,13 @@ let allDBNames (toplevels : toplevel list) : string list =
            (match db.dbName with F (_, name) -> Some name | Blank _ -> None)
          | _ ->
              None )
+
+
+let asPage (tl : toplevel) : page =
+  match tl.data with
+  | TLHandler _ ->
+      FocusedHandler tl.id
+  | TLDB _ ->
+      FocusedDB tl.id
+  | TLFunc _ ->
+      FocusedFn tl.id

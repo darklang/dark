@@ -149,11 +149,8 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   then m
   else
     match newPage with
-    | Architecture pos ->
-        (* Pan to position *)
-        { m with
-          currentPage = newPage; canvasProps = {m.canvasProps with offset = pos}
-        }
+    | Architecture _ ->
+        {m with currentPage = newPage}
     | FocusedFn _ ->
         { m with
           currentPage = newPage
@@ -191,3 +188,13 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; cursorState = Selecting (tlid, None)
         ; canvasProps = {m.canvasProps with offset = updateOffset} }
+
+
+let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
+  let prevTLID = tlidOf m.cursorState in
+  if match prevTLID with Some tid -> tlid <> tid | None -> false
+  then
+    let tl = TL.getTL m tlid in
+    let page = TL.asPage tl in
+    [navigateTo page]
+  else []
