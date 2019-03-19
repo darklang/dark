@@ -313,6 +313,7 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 RUN opam install -y tablecloth-native.0.0.2
+RUN sudo apt update && sudo apt install nodejs=11.12.0-1nodesource1
 
 ############################
 # Finish
