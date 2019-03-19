@@ -4,7 +4,20 @@ open Prelude
 (* Dark *)
 type viewState = ViewUtils.viewState
 
-let viewUserTipe (_vs : viewState) (_t : userTipe) : msg Html.html =
-  Html.div
-    [Html.class' "user-type-toplevel"]
-    [Html.div [Html.class' "wassup"] [Html.text "TODO"]]
+let idConfigs = ViewBlankOr.idConfigs
+
+let wc = ViewBlankOr.wc
+
+let enterable = ViewBlankOr.Enterable
+
+let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
+  let nameField =
+    let c = (enterable :: idConfigs) @ [wc "dbname"] in
+    ViewBlankOr.viewText DBName vs c t.utName
+  in
+  Html.div [Html.class' "dbtitle"] [nameField]
+
+
+let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
+  let namediv = viewTipeName vs t in
+  Html.div [Html.class' "user-type-toplevel"] [namediv]
