@@ -1295,6 +1295,10 @@ let update_ (msg : msg) (m : model) : modification =
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
       TweakModel (Editor.setHandlerState tlid state)
+  | CanvasPanAnimationEnd ->
+      TweakModel
+        (fun m ->
+          {m with canvasProps = {m.canvasProps with panAnimation = false}} )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

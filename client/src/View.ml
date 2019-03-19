@@ -211,8 +211,18 @@ let viewCanvas (m : model) : msg Html.html =
     let y = string_of_int (-offset.y) in
     "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
+  let styles =
+    [ ( "transition"
+      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
+    ; ("transform", canvasTransform) ]
+  in
   let allDivs = asts @ entry in
-  Html.div [Html.id "canvas"; Html.style "transform" canvasTransform] allDivs
+  Html.div
+    [ Html.id "canvas"
+    ; Html.styles styles
+    ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
+          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
+    allDivs
 
 
 let view (m : model) : msg Html.html =
