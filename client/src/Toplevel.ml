@@ -108,6 +108,10 @@ let asUserTipe (tl : toplevel) : userTipe option =
   match tl.data with TLTipe t -> Some t | _ -> None
 
 
+let isUserTipe (tl : toplevel) : bool =
+  match tl.data with TLTipe _ -> true | _ -> false
+
+
 let asHandler (tl : toplevel) : handler option =
   match tl.data with TLHandler h -> Some h | _ -> None
 
