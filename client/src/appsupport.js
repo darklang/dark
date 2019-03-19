@@ -34,7 +34,7 @@ window.stopKeys = stopKeys;
 // ---------------------------
 var rollbar = require('rollbar');
 rollbarConfig.payload = rollbarConfig.payload || {};
-rollbarConfig.payload.person = { id: username, username: username };
+rollbarConfig.payload.person = { id: userId, username: username };
 var Rollbar = rollbar.init(rollbarConfig);
 window.Rollbar = Rollbar;
 

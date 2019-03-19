@@ -761,6 +761,12 @@ let admin_ui_html
   >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
   >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
   >|= Util.string_replace "{USERNAME}" username
+  >|= Util.string_replace
+        "{USER_ID}"
+        ( username
+        |> Account.id_of_username
+        |> Option.value_exn
+        |> Uuidm.to_string )
   >|= Util.string_replace "{CANVAS_ID}" (Uuidm.to_string canvas_id)
   >|= Util.string_replace
         "{APPSUPPORT}"
