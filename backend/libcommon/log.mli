@@ -18,8 +18,6 @@ val loglevel : level ref
 
 val set_level : level -> unit
 
-val level_to_length : level -> int
-
 val level_to_string : level -> string
 
 val level_to_color : level -> string

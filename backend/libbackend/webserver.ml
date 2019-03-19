@@ -81,8 +81,10 @@ let respond
     ~params:
       [ ("status", `Int (Cohttp.Code.code_of_status status))
       ; ("execution_id", `String (Int63.to_string execution_id))
+        (* TODO ismith: maybe a ,-sep list of headers, and then a selection of
+         * whitelisted headers? Needs to be flattened. *)
       ; ("headers", `String (Log.dump resp_headers))
-      ; ("body", `String body) ] ;
+      ; ("body_bytes", `Int (String.length body)) ] ;
   S.respond_string ~status ~body ~headers:resp_headers ()
 
 
