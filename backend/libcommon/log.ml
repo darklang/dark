@@ -227,6 +227,12 @@ let print_json_log
     ~(level : level)
     ?(bt : Caml.Printexc.raw_backtrace option = None)
     (params : (string * Yojson.Safe.json) list) : unit =
+  let timestamp =
+    Unix.gettimeofday ()
+    |> Ptime.of_float_s
+    |> Option.value ~default:Ptime.max
+    |> Ptime.to_rfc3339 ~frac_s:9
+  in
   let bt_params =
     match bt with
     | None ->
@@ -234,7 +240,13 @@ let print_json_log
     | Some some_bt ->
         [("backtrace", `String (Caml.Printexc.raw_backtrace_to_string some_bt))]
   in
-  let params = `Assoc (params @ bt_params) in
+  let params =
+    `Assoc
+      ( [ ("timestamp", `String timestamp)
+        ; ("level", `String (level_to_string level)) ]
+      @ params
+      @ bt_params )
+  in
   Yojson.Safe.to_string params |> Caml.print_endline
 
 
