@@ -273,7 +273,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | DisplayAndReportError e ->
         ( {m with error = updateError m.error e}
         , Tea.Cmd.call (fun _ -> Rollbar.send e None Js.Json.null) )
-    | DisplayAndReportHttpError (context, ignoreCommon, e) ->
+    | DisplayAndReportHttpError (context, ignoreCommon, e, params) ->
         let body (body : Tea.Http.responseBody) =
           let maybe name m =
             match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
@@ -351,8 +351,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let url =
           match e with
-          | Http.BadUrl str ->
-              Some str
+          | Http.BadUrl url ->
+              Some url
           | Http.Timeout ->
               None
           | Http.NetworkError ->
@@ -397,7 +397,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               true
         in
         let msg = msg ^ " (" ^ context ^ ")" in
-        let custom = Encoders.httpError e in
+        let custom =
+          Json_encode_extended.object_
+            [ ("httpResponse", Encoders.httpError e)
+            ; ("parameters", params)
+            ; ("cursorState", Encoders.cursorState m.cursorState) ]
+        in
         let cmds =
           if shouldRollbar
           then [Tea.Cmd.call (fun _ -> Rollbar.send msg url custom)]
@@ -1140,20 +1145,26 @@ let update_ (msg : msg) (m : model) : modification =
           params.gtdrpTraceID
       in
       MakeCmd cmd
-  | AddOpRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpError ("RPC", false, err)
+  | AddOpRPCCallback (_, params, Error err) ->
+      DisplayAndReportHttpError
+        ("RPC", false, err, Encoders.addOpRPCParams params)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
-  | ExecuteFunctionRPCCallback (_, Error err) ->
-      DisplayAndReportHttpError ("ExecuteFunction", false, err)
+  | ExecuteFunctionRPCCallback (params, Error err) ->
+      DisplayAndReportHttpError
+        ( "ExecuteFunction"
+        , false
+        , err
+        , Encoders.executeFunctionRPCParams params )
   | InitialLoadRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpError ("InitialLoad", false, err)
+      DisplayAndReportHttpError ("InitialLoad", false, err, Js.Json.null)
   | GetUnlockedDBsRPCCallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
-        ; DisplayAndReportHttpError ("GetUnlockedDBs", true, err) ]
-  | Delete404RPCCallback (_param, Error err) ->
-      DisplayAndReportHttpError ("Delete404", false, err)
+        ; DisplayAndReportHttpError ("GetUnlockedDBs", true, err, Js.Json.null)
+        ]
+  | Delete404RPCCallback (params, Error err) ->
+      DisplayAndReportHttpError ("Delete404", false, err, Encoders.fof params)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (_, _) ->
