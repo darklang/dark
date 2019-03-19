@@ -276,13 +276,12 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
-  /* TODO(alice) make a seperate window on ready event */
   window.onload = function(evt){
     const size = {
       width : window.innerWidth,
       height: window.innerHeight
     }
-    var event = new CustomEvent('windowResize',
+    var event = new CustomEvent('windowOnload',
       { detail : size })
     document.dispatchEvent(event)
   };

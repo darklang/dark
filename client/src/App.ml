@@ -1138,7 +1138,7 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("Delete404", false, err, Encoders.fof params)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (w, h) ->
+  | WindowResize (w, h) | WindowOnLoad (w, h) ->
       TweakModel
         (fun m_ ->
           {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
@@ -1312,7 +1312,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let resizes =
     [ Native.Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
-          WindowResize (w, h) ) ]
+          WindowResize (w, h) )
+    ; Native.Window.OnLoad.listen ~key:"window_on_load" (fun (w, h) ->
+          WindowOnLoad (w, h) ) ]
   in
   let dragSubs =
     match m.cursorState with

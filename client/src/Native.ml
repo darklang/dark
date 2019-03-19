@@ -133,6 +133,21 @@ module Window = struct
     let listen ~key tagger = registerGlobal "windowResize" key tagger decode
   end
 
+  module OnLoad = struct
+    let decode =
+      let open Tea.Json.Decoder in
+      let decodeDetail =
+        map2
+          (fun width height -> (width, height))
+          (field "width" int)
+          (field "height" int)
+      in
+      map (fun msg -> msg) (field "detail" decodeDetail)
+
+
+    let listen ~key tagger = registerGlobal "windowOnload" key tagger decode
+  end
+
   module OnFocusChange = struct
     let decode =
       let open Tea.Json.Decoder in
