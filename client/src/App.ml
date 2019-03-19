@@ -441,13 +441,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         Debug.loG "SetPage" page ;
         (Url.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
+        let hashCmd = Url.shouldUpdateHash m tlid in
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch (closeBlanks m @ [afCmd]))
+        let commands = hashCmd @ closeBlanks m @ [afCmd] in
+        (m, Cmd.batch commands)
     | Deselect ->
+        let hashCmd = Url.navigateTo (Architecture m.canvasProps.offset) in
         let m, acCmd = processAutocompleteMods m [ACReset] in
         let m = {m with cursorState = Deselected} in
-        (m, Cmd.batch (closeBlanks m @ [acCmd]))
+        let commands = hashCmd :: (closeBlanks m @ [acCmd]) in
+        (m, Cmd.batch commands)
     | Enter entry ->
         let target =
           match entry with
