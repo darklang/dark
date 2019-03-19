@@ -644,7 +644,8 @@ and canvasProps =
   { offset : pos
   ; enablePan : bool
   ; lastOffset : pos
-  ; viewportSize : size }
+  ; viewportSize : size
+  ; panAnimation : bool }
 
 and httpError = (string Tea.Http.error[@opaque])
 
@@ -780,6 +781,7 @@ and msg =
   | SelectToplevelAt of tlid * pos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
+  | CanvasPanAnimationEnd
 
 (* ----------------------------- *)
 (* AB tests *)

@@ -31,7 +31,8 @@ let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
   ; lastOffset = origin
-  ; viewportSize = {w = 0; h = 0} }
+  ; viewportSize = {w = 0; h = 0}
+  ; panAnimation = false }
 
 
 let defaultHandlerProp : handlerProp =

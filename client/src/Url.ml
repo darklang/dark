@@ -184,10 +184,12 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           | None ->
               m.canvasProps.offset
         in
+        let panAnimation = updateOffset <> m.canvasProps.offset in
         { m with
           currentPage = newPage
         ; cursorState = Selecting (tlid, None)
-        ; canvasProps = {m.canvasProps with offset = updateOffset} }
+        ; canvasProps = {m.canvasProps with offset = updateOffset; panAnimation}
+        }
 
 
 let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
