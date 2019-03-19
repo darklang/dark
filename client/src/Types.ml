@@ -516,7 +516,8 @@ and initialLoadRPCResult =
   ; unlockedDBs : unlockedDBs
   ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
-  ; traces : (tlid * traceID) list }
+  ; traces : (tlid * traceID) list
+  ; userTipes : userTipe list }
 
 and saveTestRPCResult = string
 
@@ -645,6 +646,7 @@ and page =
   | FocusedFn of tlid
   | FocusedHandler of tlid
   | FocusedDB of tlid
+  | FocusedType of tlid
 
 and focus =
   | FocusNothing
@@ -778,6 +780,7 @@ and msg =
   | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction
+  | CreateType
   | DeleteUserFunction of tlid
   | DeleteUserFunctionForever of tlid
   | RestoreToplevel of tlid

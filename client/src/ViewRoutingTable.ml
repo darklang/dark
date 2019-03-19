@@ -260,6 +260,30 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   ; entries }
 
 
+let userTipeCategory (_m : model) (tipes : userTipe list) : category =
+  Js.log2 "tipes" tipes ;
+  let tipes = tipes |> List.filter ~f:(fun t -> B.isF t.utName) in
+  let entries =
+    List.map tipes ~f:(fun tipe ->
+        let name = tipe.utName |> Blank.toMaybe |> deOption "userTipe name" in
+        Entry
+          { name
+          ; tlid = tipe.utTLID
+          ; uses = None
+          ; minusButton = None
+          ; killAction = None
+          ; destination = Some (FocusedType tipe.utTLID)
+          ; plusButton = None
+          ; verb = None
+          ; externalLink = None } )
+  in
+  { count = List.length tipes
+  ; name = "Types"
+  ; classname = "types"
+  ; plusButton = Some CreateType
+  ; entries }
+
+
 let rec count (s : item) : int =
   match s with
   | Entry _ ->
@@ -491,10 +515,16 @@ let viewRoutingTable_ (m : model) : msg Html.html =
            |> Blank.toMaybe
            |> Option.withDefault ~default:"" )
   in
+  let uts =
+    m.userTipes
+    |> List.sortBy ~f:(fun t ->
+           t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
+  in
   let cats =
     [ httpCategory m tls
     ; dbCategory m tls
     ; userFunctionCategory m ufns
+    ; userTipeCategory m uts
     ; cronCategory m tls ]
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]

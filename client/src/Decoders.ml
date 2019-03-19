@@ -340,7 +340,7 @@ and userTipe j =
   { utTLID = field "tlid" tlid j
   ; utName = field "name" (blankOr string) j
   ; utVersion = field "version" int j
-  ; utDefinition = field "utDefinition" userTipeDefinition j }
+  ; utDefinition = field "definition" userTipeDefinition j }
 
 
 and addOpRPCResult j : addOpRPCResult =
@@ -368,7 +368,8 @@ and initialLoadRPCResult j : initialLoadRPCResult =
       j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
   ; fofs = field "fofs" (list fof) j
   ; staticDeploys = field "assets" (list sDeploy) j
-  ; traces = field "traces" (list (pair tlid traceID)) j }
+  ; traces = field "traces" (list (pair tlid traceID)) j
+  ; userTipes = field "user_tipes" (list userTipe) j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =

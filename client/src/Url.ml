@@ -21,6 +21,8 @@ let urlFor (page : page) : string =
         [("handler", deTLID tlid)]
     | FocusedDB tlid ->
         [("db", deTLID tlid)]
+    | FocusedType tlid ->
+        [("type", deTLID tlid)]
   in
   hashUrlParams args
 
@@ -64,10 +66,18 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  fn ()
+  let tipe () =
+    match StrDict.get ~key:"type" unstructured with
+    | Some sid ->
+        Some (FocusedType (TLID sid))
+    | _ ->
+        None
+  in
+  architecture ()
   |> Option.orElse (handler ())
   |> Option.orElse (db ())
   |> Option.orElse (architecture ())
+  |> Option.orElse (tipe ())
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
@@ -91,6 +101,12 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
         DisplayError "No DB with this id"
     | _ ->
         SetPage (FocusedDB id) )
+  | Some (FocusedType id) ->
+    ( match TL.get m id with
+    | None ->
+        DisplayError "No Type with this id"
+    | _ ->
+        SetPage (FocusedType id) )
   | Some Architecture ->
       SetPage Architecture
   | None ->

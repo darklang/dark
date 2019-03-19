@@ -11,6 +11,10 @@ let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
 
 
+let generateTipeName () : string =
+  "type_" ^ (() |> Util.random |> string_of_int)
+
+
 let convertTipe (tipe : tipe) : tipe =
   match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
 
@@ -443,6 +447,16 @@ let generateEmptyFunction (_ : unit) : userFunction =
     ; ufmInfix = false }
   in
   {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
+
+
+let generateEmptyUserType () : userTipe =
+  let tipeName = generateTipeName () in
+  let tlid = gtlid () in
+  let definition = UTRecord [] in
+  { utTLID = tlid
+  ; utName = F (gid (), tipeName)
+  ; utVersion = 0
+  ; utDefinition = definition }
 
 
 let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :

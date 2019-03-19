@@ -233,7 +233,8 @@ type initial_load_rpc_result =
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
   ; traces : tlid_traceid list
-  ; assets : SA.static_deploy list }
+  ; assets : SA.static_deploy list
+  ; user_tipes : RTT.user_tipe list }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
@@ -249,7 +250,8 @@ let to_initial_load_rpc_result
   ; unlocked_dbs
   ; fofs
   ; traces
-  ; assets }
+  ; assets
+  ; user_tipes = c.user_tipes }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

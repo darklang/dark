@@ -396,7 +396,7 @@ and userTipe (ut : Types.userTipe) : Js.Json.t =
     [ ("tlid", tlid ut.utTLID)
     ; ("name", blankOr string ut.utName)
     ; ("version", int ut.utVersion)
-    ; ("defintion", userTipeDefinition ut.utDefinition) ]
+    ; ("definition", userTipeDefinition ut.utDefinition) ]
 
 
 and userTipeDefinition (utd : Types.userTipeDefinition) : Js.Json.t =

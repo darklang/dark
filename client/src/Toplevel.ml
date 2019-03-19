@@ -96,6 +96,10 @@ let ufToTL (uf : userFunction) : toplevel =
   {id = uf.ufTLID; pos = Defaults.centerPos; data = TLFunc uf}
 
 
+let utToTL (ut : userTipe) : toplevel =
+  {id = ut.utTLID; pos = Defaults.centerPos; data = TLTipe ut}
+
+
 let asUserFunction (tl : toplevel) : userFunction option =
   match tl.data with TLFunc f -> Some f | _ -> None
 
@@ -478,7 +482,9 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
 
 
 let all (m : model) : toplevel list =
-  m.toplevels @ List.map ~f:ufToTL m.userFunctions
+  m.toplevels
+  @ List.map ~f:ufToTL m.userFunctions
+  @ List.map ~f:utToTL m.userTipes
 
 
 let get (m : model) (id : tlid) : toplevel option =
