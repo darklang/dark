@@ -296,9 +296,9 @@ let contextFromModel (m : model) : traceFetchContext =
 
 let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
   let should =
-    (* DBs dont have traces *)
+    (* DBs + Types dont have traces *)
     TL.get m tlid
-    |> Option.map ~f:(not << TL.isDB)
+    |> Option.map ~f:(fun tl -> not (TL.isDB tl || TL.isUserTipe tl))
     |> Option.withDefault ~default:false
   in
   if should
