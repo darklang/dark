@@ -9,13 +9,7 @@ let pagePos (page : page) : pos =
 
 
 let toAbsolute (m : model) (pos : vPos) : pos =
-  let topleft =
-    match m.currentPage with
-    | Architecture _ ->
-        m.canvasProps.offset
-    | _ ->
-        {x = 0; y = 0}
-  in
+  let topleft = m.canvasProps.offset in
   addPos {x = pos.vx; y = pos.vy} topleft
 
 
@@ -60,3 +54,14 @@ let moveLeft (m : model) : modification =
 let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
 let moveToOrigin : modification = MoveCanvasTo Defaults.origin
+
+let isEnclosed (outer : box) (inner : box) : bool =
+  let oOrigin, oSize = outer in
+  let oLeft, oTop = (oOrigin.x, oOrigin.y) in
+  let oRight = oLeft + oSize.w in
+  let oBottom = oTop + oSize.h in
+  let iOrigin, iSize = inner in
+  let iLeft, iTop = (iOrigin.x, iOrigin.y) in
+  let iRight = iLeft + iSize.w in
+  let iBottom = iTop + iSize.h in
+  (oLeft < iLeft && iRight < oRight) && oTop < iTop && iBottom < oBottom
