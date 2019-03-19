@@ -474,7 +474,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod (ACSetVisible true) )
     | Deselected ->
       ( match m.currentPage with
-      | Architecture _ ->
+      | Architecture ->
         ( match event.keyCode with
         | Key.Enter ->
             Entry.createFindSpace m

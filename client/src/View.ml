@@ -140,7 +140,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
-    | Architecture _ | FocusedHandler _ | FocusedDB _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ ->
         tl.pos
     | FocusedFn _ ->
         Defaults.centerPos
@@ -190,7 +190,7 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Architecture _ | FocusedHandler _ | FocusedDB _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ ->
         m.toplevels
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the

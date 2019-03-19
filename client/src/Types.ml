@@ -626,7 +626,7 @@ and clipboardCutEvent = jsEvent
 (* Modifications *)
 (* ------------------- *)
 and page =
-  | Architecture of pos
+  | Architecture
   | FocusedFn of tlid
   | FocusedHandler of tlid
   | FocusedDB of tlid
@@ -643,7 +643,7 @@ and focus =
 and canvasProps =
   { offset : pos
   ; enablePan : bool
-  ; lastOffset : pos
+  ; lastOffset : pos option
   ; viewportSize : size
   ; panAnimation : bool }
 
@@ -778,7 +778,6 @@ and msg =
   | ClipboardCutEvent of clipboardCutEvent
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string
-  | SelectToplevelAt of tlid * pos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd

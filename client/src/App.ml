@@ -20,7 +20,7 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
-    Url.parseLocation m location
+    Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
   (* these saved values may not be valid yet *)
@@ -95,7 +95,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let target tuple = ACSetTarget (Some tuple) in
       let tlOnPage tl =
         match page with
-        | Architecture _ ->
+        | Architecture ->
           ( match tl.data with
           | TLHandler _ ->
               true
@@ -438,7 +438,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
-        Debug.loG "SetPage" page ;
         (Url.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
         let hashCmd = Url.shouldUpdateHash m tlid in
@@ -447,7 +446,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let commands = hashCmd @ closeBlanks m @ [afCmd] in
         (m, Cmd.batch commands)
     | Deselect ->
-        let hashCmd = Url.navigateTo (Architecture m.canvasProps.offset) in
+        let hashCmd = Url.navigateTo Architecture in
         let m, acCmd = processAutocompleteMods m [ACReset] in
         let m = {m with cursorState = Deselected} in
         let commands = hashCmd :: (closeBlanks m @ [acCmd]) in
@@ -763,8 +762,8 @@ let toggleTimers (m : model) : model =
 
 let findCenter (m : model) : pos =
   match m.currentPage with
-  | Architecture center ->
-      Viewport.toCenter center
+  | Architecture | FocusedHandler _ | FocusedDB _ ->
+      Viewport.toCenter m.canvasProps.offset
   | _ ->
       Defaults.centerPos
 
@@ -797,7 +796,7 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | Architecture _ ->
+    | Architecture ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
@@ -1277,9 +1276,6 @@ let update_ (msg : msg) (m : model) : modification =
   | ClipboardCopyLivevalue lv ->
       Native.Clipboard.copyToClipboard lv ;
       NoChange
-  | SelectToplevelAt (tlid, pos) ->
-      let centerPos = Viewport.toCenteredOn pos in
-      Many [SetPage (Architecture centerPos); Select (tlid, None)]
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
