@@ -1,8 +1,11 @@
+open Tc
 open Types
 open Prelude
 
 (* Dark *)
 type viewState = ViewUtils.viewState
+
+type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
 
@@ -18,6 +21,29 @@ let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
   Html.div [Html.class' "dbtitle"] [nameField]
 
 
+let viewFieldName (vs : viewState) (_c : htmlConfig list) (v : string blankOr)
+    : msg Html.html =
+  let configs = enterable :: idConfigs in
+  ViewBlankOr.viewText DBColName vs configs v
+
+
+let viewFieldType (vs : viewState) (_c : htmlConfig list) (v : tipe blankOr) :
+    msg Html.html =
+  let configs = enterable :: idConfigs in
+  ViewBlankOr.viewTipe DBColType vs configs v
+
+
+let viewTipeField (vs : viewState) (field : userRecordField) : msg Html.html =
+  let row =
+    [ viewFieldName vs [wc "name"] field.urfName
+    ; viewFieldType vs [wc "type"] field.urfTipe ]
+  in
+  Html.div [Html.class' "col"] row
+
+
 let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
-  let namediv = viewTipeName vs t in
-  Html.div [Html.class' "user-type-toplevel"] [namediv]
+  match t.utDefinition with UTRecord fields ->
+    Js.log2 "fields" fields ;
+    let nameDiv = viewTipeName vs t in
+    let fieldDivs = List.map ~f:(viewTipeField vs) fields in
+    Html.div [Html.class' "user-type-toplevel"] (nameDiv :: fieldDivs)

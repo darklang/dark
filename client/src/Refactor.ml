@@ -452,7 +452,9 @@ let generateEmptyFunction (_ : unit) : userFunction =
 let generateEmptyUserType () : userTipe =
   let tipeName = generateTipeName () in
   let tlid = gtlid () in
-  let definition = UTRecord [] in
+  let definition =
+    UTRecord [{urfName = F (gid (), "lol"); urfTipe = F (gid (), TInt)}]
+  in
   { utTLID = tlid
   ; utName = F (gid (), tipeName)
   ; utVersion = 0
