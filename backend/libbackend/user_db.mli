@@ -27,6 +27,8 @@ val query : state:exec_state -> magic:bool -> DbT.db -> dval -> dval
 val query_by_one :
   state:exec_state -> magic:bool -> DbT.db -> string -> dval -> dval
 
+val count : state:exec_state -> DbT.db -> int
+
 val delete : state:exec_state -> DbT.db -> string -> unit
 
 val delete_all : state:exec_state -> DbT.db -> unit

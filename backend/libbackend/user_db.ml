@@ -506,6 +506,27 @@ let get_all ~state ~magic (db : db) : dval =
   |> DList
 
 
+let count ~state (db : db) : int =
+  Db.fetch
+    ~name:"count"
+    "SELECT count(*)
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5"
+    ~params:
+      [ ID db.tlid
+      ; Uuid state.account_id
+      ; Uuid state.canvas_id
+      ; Int db.version
+      ; Int current_dark_version ]
+  |> List.hd_exn
+  |> List.hd_exn
+  |> int_of_string
+
+
 let delete ~state (db : db) (key : string) =
   (* covered by composite PK index *)
   Db.run
