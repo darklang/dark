@@ -105,7 +105,7 @@ let processFocus (m : model) (focus : focus) : modification =
               false
           | TLTipe _ ->
               false )
-        | FocusedFn id | FocusedHandler id | FocusedDB id ->
+        | FocusedFn id | FocusedHandler id | FocusedDB id | FocusedType id ->
             tl.id = id
       in
       let setQuery =
@@ -1051,6 +1051,7 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
+          ; SetTypes (r.userTipes, false)
           ; MakeCmd (Entry.focusEntry m) ]
       else
         let m2 = TL.upsertAll m r.toplevels in
@@ -1060,6 +1061,7 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+          ; SetTypes (r.userTipes, true)
           ; AutocompleteMod ACReset
           ; ClearError
           ; newState ]
@@ -1086,6 +1088,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+        ; SetTypes (r.userTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
@@ -1263,6 +1266,11 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ RPC ([SetFunction ufun], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
+  | CreateType ->
+      let tipe = Refactor.generateEmptyUserType () in
+      Many
+        [ RPC ([SetType tipe], FocusNothing)
+        ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
   | EnablePanning pan ->

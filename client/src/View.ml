@@ -145,6 +145,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | Architecture | FocusedHandler _ | FocusedDB _ ->
         tl.pos
     | FocusedFn _ ->
+        Defaults.focusCodePos
+    | FocusedType _ ->
         Defaults.centerPos
   in
   let html =
