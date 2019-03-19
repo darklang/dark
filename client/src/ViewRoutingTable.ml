@@ -68,7 +68,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Architecture tl.pos)
+            ; destination = Some (FocusedHandler tl.id)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -92,7 +92,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Architecture tl.pos)
+            ; destination = Some (FocusedHandler tl.id)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -108,7 +108,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
     |> List.sortBy ~f:(fun (db, _) -> B.valueWithDefault "" db.dbName)
   in
   let entries =
-    List.map dbs ~f:(fun (db, pos) ->
+    List.map dbs ~f:(fun (db, _) ->
         let uses =
           match db.dbName with
           | Blank _ ->
@@ -125,7 +125,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = Some uses
-          ; destination = Some (Architecture pos)
+          ; destination = Some (FocusedDB db.dbTLID)
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
@@ -155,7 +155,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (Architecture tl.pos)
+            ; destination = Some (FocusedHandler tl.id)
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -327,17 +327,7 @@ let entry2html (m : model) (e : entry) : msg Html.html =
         e.name
   in
   let destinationLink page classes name =
-    match page with
-    | Architecture pos ->
-        Html.a
-          [ Html.class' classes
-          ; ViewUtils.eventNoPropagation
-              ~key:("goto-" ^ showTLID e.tlid)
-              "click"
-              (fun _ -> SelectToplevelAt (e.tlid, pos)) ]
-          [Html.text name]
-    | _ ->
-        Url.linkFor page classes [Html.text name]
+    Url.linkFor page classes [Html.text name]
   in
   let mainlink =
     match e.destination with

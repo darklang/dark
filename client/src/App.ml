@@ -438,6 +438,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
+        Debug.loG "SetPage" page ;
         (Url.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
         let m = {m with cursorState = Selecting (tlid, p)} in
@@ -1134,10 +1135,11 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("Delete404", false, err, Encoders.fof params)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (_, _) ->
-      (* just receiving the subscription will cause a redraw, which uses *)
-      (* the native sizing function. *)
-      NoChange
+  | WindowResize (w, h) ->
+      TweakModel
+        (fun m_ ->
+          {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
+          )
   | LocationChange loc ->
       Url.changeLocation m loc
   | TimerFire (action, _) ->

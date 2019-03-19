@@ -53,6 +53,12 @@ and vPos =
   { vx : int
   ; vy : int }
 
+and size =
+  { w : int
+  ; h : int }
+
+and box = pos * size
+
 (* ---------------------- *)
 (* Types *)
 (* ---------------------- *)
@@ -637,7 +643,8 @@ and focus =
 and canvasProps =
   { offset : pos
   ; enablePan : bool
-  ; lastOffset : pos }
+  ; lastOffset : pos
+  ; viewportSize : size }
 
 and httpError = (string Tea.Http.error[@opaque])
 

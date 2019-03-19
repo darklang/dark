@@ -10,8 +10,8 @@ let hashUrlParams (params : (string * string) list) : string =
   "#" ^ String.join ~sep:"&" merged
 
 
-let urlOf (page : page) (mpos : pos option) : string =
-  let head =
+let urlFor (page : page) : string =
+  let args =
     match page with
     | Architecture _ ->
         []
@@ -22,25 +22,7 @@ let urlOf (page : page) (mpos : pos option) : string =
     | FocusedDB tlid ->
         [("db", deTLID tlid)]
   in
-  let tail =
-    match mpos with
-    | Some pos ->
-        [("x", string_of_int pos.x); ("y", string_of_int pos.y)]
-    | None ->
-        []
-  in
-  hashUrlParams (head @ tail)
-
-
-let urlFor (page : page) : string =
-  let pos =
-    match page with
-    | Architecture pos ->
-        Some {x = pos.x; y = pos.y}
-    | _ ->
-        None
-  in
-  urlOf page pos
+  hashUrlParams args
 
 
 let navigateTo (page : page) : msg Cmd.t = Navigation.newUrl (urlFor page)
@@ -177,9 +159,35 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps =
             { m.canvasProps with
+<<<<<<< HEAD
               (* Stash the offset so that returning to canvas goes to the previous place *)
               lastOffset = m.canvasProps.offset
             ; offset = Defaults.origin }
+=======
+              lastOffset = m.canvasProps.offset; offset = Defaults.origin }
+>>>>>>> hash routes
         ; cursorState = Deselected }
-    | FocusedHandler _ | FocusedDB _ ->
-        m
+    | FocusedHandler tlid | FocusedDB tlid ->
+        let updateOffset =
+          let telem =
+            Native.Ext.querySelector (".toplevel.tl-" ^ showTLID tlid)
+          in
+          match telem with
+          | Some e ->
+              let tsize =
+                {w = Native.Ext.clientWidth e; h = Native.Ext.clientHeight e}
+              in
+              let tl = TL.getTL m tlid in
+              let windowSize = m.canvasProps.viewportSize in
+              if Viewport.isEnclosed
+                   (m.canvasProps.offset, windowSize)
+                   (tl.pos, tsize)
+              then m.canvasProps.offset
+              else Viewport.toCenteredOn tl.pos
+          | None ->
+              m.canvasProps.offset
+        in
+        { m with
+          currentPage = newPage
+        ; cursorState = Selecting (tlid, None)
+        ; canvasProps = {m.canvasProps with offset = updateOffset} }
