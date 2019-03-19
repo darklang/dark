@@ -13,7 +13,7 @@ let hashUrlParams (params : (string * string) list) : string =
 let urlFor (page : page) : string =
   let args =
     match page with
-    | Architecture _ ->
+    | Architecture ->
         []
     | FocusedFn tlid ->
         [("fn", deTLID tlid)]
@@ -32,7 +32,7 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
 
-let parseLocation (m : model) (loc : Web.Location.location) : page option =
+let parseLocation (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash
     |> String.dropLeft ~count:1
@@ -42,7 +42,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
-  let architecture () = Some (Architecture m.canvasProps.lastOffset) in
+  let architecture () = Some Architecture in
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
@@ -71,7 +71,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
-  let mPage = parseLocation m loc in
+  let mPage = parseLocation loc in
   match mPage with
   | Some (FocusedFn id) ->
     ( match Functions.find m id with
@@ -91,8 +91,8 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
         DisplayError "No DB with this id"
     | _ ->
         SetPage (FocusedDB id) )
-  | Some (Architecture pos) ->
-      SetPage (Architecture pos)
+  | Some Architecture ->
+      SetPage Architecture
   | None ->
       NoChange
 
@@ -149,23 +149,27 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   then m
   else
     match newPage with
-    | Architecture _ ->
-        {m with currentPage = newPage}
+    | Architecture ->
+        let offset =
+          match m.canvasProps.lastOffset with
+          | Some lo ->
+              lo
+          | None ->
+              m.canvasProps.offset
+        in
+        { m with
+          currentPage = newPage
+        ; canvasProps = {m.canvasProps with offset; lastOffset = None} }
     | FocusedFn _ ->
         { m with
           currentPage = newPage
         ; canvasProps =
             { m.canvasProps with
-<<<<<<< HEAD
-              (* Stash the offset so that returning to canvas goes to the previous place *)
-              lastOffset = m.canvasProps.offset
-            ; offset = Defaults.origin }
-=======
-              lastOffset = m.canvasProps.offset; offset = Defaults.origin }
->>>>>>> hash routes
+              lastOffset = Some m.canvasProps.offset; offset = Defaults.origin
+            }
         ; cursorState = Deselected }
     | FocusedHandler tlid | FocusedDB tlid ->
-        let updateOffset =
+        let offset =
           let telem =
             Native.Ext.querySelector (".toplevel.tl-" ^ showTLID tlid)
           in
@@ -184,12 +188,12 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           | None ->
               m.canvasProps.offset
         in
-        let panAnimation = updateOffset <> m.canvasProps.offset in
+        let panAnimation = offset <> m.canvasProps.offset in
         { m with
           currentPage = newPage
         ; cursorState = Selecting (tlid, None)
-        ; canvasProps = {m.canvasProps with offset = updateOffset; panAnimation}
-        }
+        ; canvasProps =
+            {m.canvasProps with offset; panAnimation; lastOffset = None} }
 
 
 let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =

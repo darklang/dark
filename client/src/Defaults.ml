@@ -30,7 +30,7 @@ let defaultEditor : serializableEditor =
 let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
-  ; lastOffset = origin
+  ; lastOffset = None
   ; viewportSize = {w = 0; h = 0}
   ; panAnimation = false }
 
@@ -59,7 +59,7 @@ let defaultModel : model =
   ; userFunctions = []
   ; deletedUserFunctions = []
   ; builtInFunctions = []
-  ; currentPage = Architecture {x = 0; y = 0}
+  ; currentPage = Architecture
   ; hovering = []
   ; tests = []
   ; toplevels = []

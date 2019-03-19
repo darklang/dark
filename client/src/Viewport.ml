@@ -4,10 +4,6 @@ let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
 
 let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
 
-let pagePos (page : page) : pos =
-  match page with Architecture pos -> pos | _ -> Defaults.centerPos
-
-
 let toAbsolute (m : model) (pos : vPos) : pos =
   let topleft = m.canvasProps.offset in
   addPos {x = pos.vx; y = pos.vy} topleft
