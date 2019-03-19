@@ -817,6 +817,7 @@ let check_csrf_then_handle ~execution_id ~session handler req =
 let authenticate_then_handle ~(execution_id : Types.id) handler req =
   let path = req |> CRequest.uri |> Uri.path in
   let headers = req |> CRequest.headers in
+  let username_header username = ("x-dark-username", username) in
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) ->
       let username = Auth.Session.username_for session in
@@ -825,11 +826,17 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
       then (
         Auth.Session.clear Auth.Session.backend session ;%lwt
         let headers =
-          Header.of_list (Auth.Session.clear_hdrs Auth.Session.cookie_key)
+          Header.of_list
+            ( username_header username
+            :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
         in
         let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
         S.respond_redirect ~headers ~uri () )
-      else handler ~session ~csrf_token req
+      else
+        let headers = [username_header username] in
+        over_headers_promise
+          ~f:(fun h -> Header.add_list h headers)
+          (handler ~session ~csrf_token req)
   | _ ->
     ( match Header.get_authorization headers with
     | Some (`Basic (username, password)) ->
@@ -838,12 +845,13 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
           let%lwt session = Auth.Session.new_for_username username in
           let https_only_cookie = req |> CRequest.uri |> should_use_https in
           let headers =
-            Auth.Session.to_cookie_hdrs
-              ~http_only:true
-              ~secure:https_only_cookie
-              ~path:"/"
-              Auth.Session.cookie_key
-              session
+            username_header username
+            :: Auth.Session.to_cookie_hdrs
+                 ~http_only:true
+                 ~secure:https_only_cookie
+                 ~path:"/"
+                 Auth.Session.cookie_key
+                 session
           in
           let csrf_token = Auth.Session.csrf_token_for session in
           over_headers_promise
