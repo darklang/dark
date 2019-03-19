@@ -1,9 +1,6 @@
 open Tc
 open Json_encode_extended
 
-(* Tea *)
-module Http = Tea.Http
-
 (* Dark *)
 module RT = Runtime
 
@@ -583,18 +580,41 @@ let fof (fof : Types.fourOhFour) : Js.Json.t =
     ; ("modifier", string fof.modifier) ]
 
 
-let httpError (e : string Http.error) : Js.Json.t =
+let httpError (e : string Tea.Http.error) : Js.Json.t =
+  let module Http = Tea.Http in
+  let responseBody (r : Http.responseBody) =
+    match r with
+    | NoResponse ->
+        object_ [("noResponse", null)]
+    | StringResponse str ->
+        string str
+    | ArrayBufferResponse () ->
+        object_ [("arrayBufferResponse", null)]
+    | BlobResponse () ->
+        object_ [("blobResponse", null)]
+    | DocumentResponse _ ->
+        object_ [("documentResponse", string "<documentResponse>")]
+    | JsonResponse json ->
+        json
+    | TextResponse text ->
+        string text
+    | RawResponse (str, ()) ->
+        object_ [("rawResponse", string str)]
+  in
   let response (r : Http.response) =
+    let module StringMap = Map.Make (Caml.String) in
     object_
       [ ("url", string r.url)
       ; ( "status"
         , object_
             [("code", int r.status.code); ("message", string r.status.message)]
         )
-      ; ("TODO", string "some more fields")
-      (* ; ("headers", dict identity string r.headers) *)
-      (* ; ("body", string r.body) *)
-       ]
+      ; ( "headers"
+        , r.headers
+          |> StringMap.bindings
+          |> List.map ~f:(fun (k, v) -> (k, string v))
+          |> object_ )
+      ; ("body", responseBody r.body) ]
   in
   match e with
   | Http.BadUrl url ->
