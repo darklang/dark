@@ -1,7 +1,18 @@
 open Tc
 open Types
 
-let allData (_t : userTipe) : pointerData list = []
+let allData (t : userTipe) : pointerData list =
+  let namePointer = PTypeName t.utName in
+  let definitionPointers =
+    match t.utDefinition with UTRecord fields ->
+      List.foldl
+        ~init:[]
+        ~f:(fun f acc ->
+          acc @ [PTypeFieldName f.urfName; PTypeFieldTipe f.urfTipe] )
+        fields
+  in
+  namePointer :: definitionPointers
+
 
 let siblings (_p : pointerData) (_t : userTipe) : pointerData list = []
 
