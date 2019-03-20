@@ -636,7 +636,8 @@ and focus =
 
 and canvasProps =
   { offset : pos
-  ; enablePan : bool }
+  ; enablePan : bool
+  ; lastOffset : pos }
 
 and httpError = (string Tea.Http.error[@opaque])
 
@@ -795,8 +796,6 @@ and flagsVS = ffIsExpanded StrDict.t
 (* ----------------------------- *)
 and syncState = StrSet.t
 
-and urlState = {lastPos : pos option}
-
 and handlerState =
   | HandlerExpanded
   | HandlerPrepCollapse
@@ -847,7 +846,6 @@ and model =
   ; integrationTestState : integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; urlState : urlState
   ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
   ; tlCursors :
@@ -875,5 +873,6 @@ and serializableEditor =
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
-  ; handlerProps : handlerProp StrDict.t }
+  ; handlerProps : handlerProp StrDict.t
+  ; canvasPos : pos }
 [@@deriving show {with_path = false}]
