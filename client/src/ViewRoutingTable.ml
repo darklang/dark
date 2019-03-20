@@ -261,7 +261,6 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
 
 
 let userTipeCategory (_m : model) (tipes : userTipe list) : category =
-  Js.log2 "tipes" tipes ;
   let tipes = tipes |> List.filter ~f:(fun t -> B.isF t.utName) in
   let entries =
     List.map tipes ~f:(fun tipe ->
