@@ -37,3 +37,8 @@ let upsertByTLID (tipes : userTipe list) (t : userTipe) : userTipe list =
 let upsertAllByTLID (tipes : userTipe list) ~(newTipes : userTipe list) :
     userTipe list =
   List.foldl ~f:(fun t acc -> upsertByTLID acc t) ~init:tipes newTipes
+
+
+let replace (_p : pointerData) (_replacement : pointerData) (tipe : userTipe) :
+    userTipe =
+  tipe

@@ -340,6 +340,8 @@ let keynameValidator = ".+"
 
 let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
 
+let typeNameValidator = fnNameValidator
+
 let paramTypeValidator = "[A-Z][a-z]*"
 
 let assertValid pattern value : string =

@@ -139,6 +139,12 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
       ev "PConstructorName" [blankOr string n]
   | PFnCallName n ->
       ev "PFnCallName" [blankOr string n]
+  | PTypeName n ->
+      ev "PTypeName" [blankOr string n]
+  | PTypeFieldName n ->
+      ev "PTypeFieldName" [blankOr string n]
+  | PTypeFieldTipe t ->
+      ev "PTypeFieldTipe" [blankOr tipe t]
 
 
 and tlidOf (op : Types.op) : Types.tlid =
