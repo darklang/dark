@@ -43,7 +43,6 @@ let viewTipeField (vs : viewState) (field : userRecordField) : msg Html.html =
 
 let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
   match t.utDefinition with UTRecord fields ->
-    Js.log2 "fields" fields ;
     let nameDiv = viewTipeName vs t in
     let fieldDivs = List.map ~f:(viewTipeField vs) fields in
     Html.div [Html.class' "user-type-toplevel"] (nameDiv :: fieldDivs)
