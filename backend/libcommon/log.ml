@@ -223,8 +223,23 @@ let[@deriving yojson] print_console_log
       ()
 
 
+let fix_json_colors ~(decorate : bool) ~(level : level) (input : string) :
+    string =
+  if not decorate
+  then input
+  else
+    let color = level_to_color level in
+    let reset = "\x1b[0m" in
+    let clear_regex = Str.regexp "\\\\u001b\\[0m" in
+    let color_regex = Str.regexp "\\\\u001b.38;5;[0-9]*m" in
+    input
+    |> Str.global_replace color_regex color
+    |> Str.global_replace clear_regex reset
+
+
 let print_json_log
     ~(level : level)
+    ~(decorate : bool)
     ?(bt : Caml.Printexc.raw_backtrace option = None)
     (params : (string * Yojson.Safe.json) list) : unit =
   let timestamp =
@@ -240,14 +255,18 @@ let print_json_log
     | Some some_bt ->
         [("backtrace", `String (Caml.Printexc.raw_backtrace_to_string some_bt))]
   in
+  let color = if decorate then level_to_color level else "" in
+  let reset = if decorate then "\x1b[0m" else "" in
   let params =
-    `Assoc
-      ( [ ("timestamp", `String timestamp)
-        ; ("level", `String (level_to_string level)) ]
-      @ params
-      @ bt_params )
+    [ ("timestamp", `String timestamp)
+    ; ("level", `String (level_to_string level)) ]
+    @ params
+    @ bt_params
+    |> List.map ~f:(fun (k, v) -> (color ^ k ^ reset, v))
   in
-  Yojson.Safe.to_string params |> Caml.print_endline
+  Yojson.Safe.to_string (`Assoc params)
+  |> fix_json_colors ~decorate ~level
+  |> Caml.print_endline
 
 
 let pP
@@ -278,9 +297,9 @@ let pP
       | `Regular ->
           print_console_log ~bt ~decorate:false ~level params
       | `Decorated ->
-          print_console_log ~bt ~decorate:true ~level params
+          print_json_log ~bt ~decorate:true ~level params
       | `Json ->
-          print_json_log ~bt ~level params
+          print_json_log ~bt ~decorate:false ~level params
   with e -> Caml.print_endline "UNHANDLED ERROR: log.pP"
 
 
