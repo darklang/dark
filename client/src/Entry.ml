@@ -596,6 +596,12 @@ let submitACItem
               |> AST.replace pd new_
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ )
+        | PTypeName _, ACConstructorName value ->
+            replace (PTypeName (B.newF value))
+        | PTypeFieldName _, ACExtra value ->
+            replace (PTypeFieldName (B.newF value))
+        | PTypeFieldTipe _, ACTypeFieldTipe value ->
+            replace (PTypeFieldTipe (B.newF (RT.str2tipe value)))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option: ("
