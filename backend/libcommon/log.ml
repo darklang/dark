@@ -157,12 +157,10 @@ let should_log (user_level : level) : bool =
 (* format *)
 (* ----------------- *)
 type format =
-  [ `Stackdriver
-  | `Regular
-  | `Json
+  [ `Json
   | `Decorated ]
 
-let format : format ref = ref `Stackdriver
+let format : format ref = ref `Json
 
 let set_format (newformat : format) = format := newformat
 
@@ -292,10 +290,6 @@ let pP
         @ params
       in
       match !format with
-      | `Stackdriver ->
-          print_console_log ~bt ~decorate:false ~level params
-      | `Regular ->
-          print_console_log ~bt ~decorate:false ~level params
       | `Decorated ->
           print_json_log ~bt ~decorate:true ~level params
       | `Json ->

@@ -26,9 +26,7 @@ val should_log : level -> bool
 
 (* formats *)
 type format =
-  [ `Stackdriver
-  | `Regular
-  | `Json
+  [ `Json
   | `Decorated ]
 
 val format : format ref
