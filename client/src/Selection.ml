@@ -235,9 +235,6 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
   match tl.data with
   | TLDB db ->
       enterDB m db tl id
-  | TLTipe _ ->
-      (* TODO(types): see DB above *)
-      NoChange
   | _ ->
       let pd = TL.findExn tl id in
       if TL.getChildrenOf tl pd <> []
