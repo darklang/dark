@@ -305,6 +305,12 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       None
   | PParamTipe _ ->
       v AC.paramTypeValidator "param type"
+  | PTypeName _ ->
+      v AC.typeNameValidator "type name"
+  | PTypeFieldName _ ->
+      v AC.fieldNameValidator "type field name"
+  | PTypeFieldTipe _ ->
+      v AC.paramTypeValidator "type field type"
   | PPattern currentPattern ->
       let validPattern value =
         Decoders.isLiteralString value

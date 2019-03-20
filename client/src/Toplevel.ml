@@ -213,6 +213,12 @@ let clonePointerData (pd : pointerData) : pointerData =
       PPattern (AST.clonePattern pattern)
   | PConstructorName name ->
       PConstructorName (B.clone identity name)
+  | PTypeName name ->
+      PTypeName (B.clone identity name)
+  | PTypeFieldName name ->
+      PTypeFieldName (B.clone identity name)
+  | PTypeFieldTipe tipe ->
+      PTypeFieldTipe (B.clone identity tipe)
   | PDBColName _ | PDBColType _ | PDBName _ ->
       pd
 
@@ -365,6 +371,12 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PConstructorName _ ->
       []
+  | PTypeName _ ->
+      []
+  | PTypeFieldName _ ->
+      []
+  | PTypeFieldTipe _ ->
+      []
 
 
 (* TODO(match) *)
@@ -386,8 +398,9 @@ let rootOf (tl : toplevel) : pointerData option =
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     toplevel =
-  let ha () = tl |> asHandler |> deOption "TL.replace" in
-  let fn () = tl |> asUserFunction |> deOption "TL.replace" in
+  let ha () = tl |> asHandler |> deOption "TL.replace ha ()" in
+  let fn () = tl |> asUserFunction |> deOption "TL.replace fn ()" in
+  let tipe () = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
   let id = P.toID p in
   let astReplace () =
     match tl.data with
@@ -409,6 +422,11 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     let f = fn () in
     let newF = Functions.replaceMetadataField p replacement f in
     {tl with data = TLFunc newF}
+  in
+  let tipeReplace () =
+    let t = tipe () in
+    let newTipe = UserTypes.replace p replacement t in
+    {tl with data = TLTipe newTipe}
   in
   match replacement with
   | PVarBind _ ->
@@ -456,6 +474,12 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       astReplace ()
   | PFnCallName _ ->
       tl
+  | PTypeName _ ->
+      tipeReplace ()
+  | PTypeFieldName _ ->
+      tipeReplace ()
+  | PTypeFieldTipe _ ->
+      tipeReplace ()
 
 
 let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :

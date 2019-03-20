@@ -159,6 +159,9 @@ and pointerData =
   | PParamTipe of tipe blankOr
   | PPattern of pattern
   | PConstructorName of string blankOr
+  | PTypeName of string blankOr
+  | PTypeFieldName of string blankOr
+  | PTypeFieldTipe of tipe blankOr
 
 and pointerType =
   | VarBind
@@ -178,6 +181,9 @@ and pointerType =
   | ParamTipe
   | Pattern
   | ConstructorName
+  | TypeName
+  | TypeFieldName
+  | TypeFieldTipe
 
 and pointerOwner =
   | POSpecHeader
