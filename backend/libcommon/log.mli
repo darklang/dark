@@ -33,8 +33,6 @@ val format : format ref
 
 val set_format : format -> unit
 
-val format_string : level:level -> string -> string
-
 (* initialization *)
 val init : level:level -> format:format -> unit -> unit
 

@@ -1,12 +1,5 @@
 open Core_kernel
 
-let string_replace ~search ~replace s =
-  String.Search_pattern.replace_all
-    ~in_:s
-    ~with_:replace
-    (String.Search_pattern.create search)
-
-
 (* ----------------- *)
 (* levels *)
 (* ----------------- *)
@@ -164,61 +157,10 @@ let format : format ref = ref `Json
 
 let set_format (newformat : format) = format := newformat
 
-let timestr time =
-  if Float.is_nan time
-  then ""
-  else
-    let result = "(" ^ (time |> Float.to_int |> Int.to_string) ^ "ms)" in
-    if Float.to_int time > 100 then result ^ "(SLOW REQUEST)" else result
-
-
-let format_string ~level (str : string) =
-  (* escape newlines *)
-  let str = string_replace ~search:"\n" ~replace:"\\n" str in
-  (* wrap in quotes *)
-  let str =
-    if String.contains str ' '
-    then
-      if String.contains str '\'' then "\"" ^ str ^ "\"" else "'" ^ str ^ "'"
-    else str
-  in
-  str
-
-
 let dump v : string =
   if Obj.tag (Obj.repr v) = Obj.string_tag
   then "'" ^ Obj.magic v ^ "'"
   else Vendor.dump v
-
-
-let[@deriving yojson] print_console_log
-    ?(bt : Caml.Printexc.raw_backtrace option = None) ~decorate ~level params :
-    unit =
-  let bt_param =
-    match bt with
-    | Some bt when not decorate ->
-        [("backtrace", Caml.Printexc.raw_backtrace_to_string bt)]
-    | _ ->
-        []
-  in
-  let color = if decorate then level_to_color level else "" in
-  let reset = if decorate then "\x1b[0m" else "" in
-  let paramstr =
-    (params |> List.map ~f:(fun (k, v) -> (k, Yojson.Safe.to_string v)))
-    @ bt_param
-    |> List.map ~f:(fun (k, v) ->
-           color ^ k ^ reset ^ "=" ^ format_string ~level v )
-    |> String.concat ~sep:" "
-  in
-  let msg =
-    color ^ "log " ^ "level=" ^ level_to_string level ^ reset ^ " " ^ paramstr
-  in
-  Caml.print_endline msg ;
-  match bt with
-  | Some bt when decorate ->
-      Caml.print_endline (Caml.Printexc.raw_backtrace_to_string bt)
-  | _ ->
-      ()
 
 
 let fix_json_colors ~(decorate : bool) ~(level : level) (input : string) :
@@ -280,7 +222,7 @@ let pP
         match data with None -> [] | Some data -> [("data", `String data)]
       in
       let params =
-        [ ("name", `String (string_replace ~search:" " ~replace:"_" name))
+        [ ("name", `String name)
         (* operation time *)
         (* timestamp *)
         (* slow request *)
