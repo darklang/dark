@@ -323,28 +323,6 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   |> fun id -> Select (tlid, id)
 
 
-let selectNextSibling (m : model) (tlid : tlid) (cur : id option) :
-    modification =
-  let tl = TL.getTL m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> Option.map ~f:(TL.getNextSibling tl)
-  |> Option.orElse pd
-  |> Option.map ~f:P.toID
-  |> fun id -> Select (tlid, id)
-
-
-let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
-    modification =
-  let tl = TL.getTL m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> Option.map ~f:(TL.getPrevSibling tl)
-  |> Option.orElse pd
-  |> Option.map ~f:P.toID
-  |> fun id -> Select (tlid, id)
-
-
 (* ------------------------------- *)
 (* Blanks *)
 (* ------------------------------- *)

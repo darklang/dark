@@ -225,14 +225,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         (*   if event.ctrlKey *)
         (*   then Selection.selectDownLevel m tlid mId *)
         (*   else NoChange *)
-        | Key.N ->
-            if event.ctrlKey
-            then Selection.selectNextSibling m tlid mId
-            else NoChange
-        | Key.P ->
-            if event.ctrlKey
-            then Selection.selectPreviousSibling m tlid mId
-            else NoChange
         | Key.C ->
             if event.ctrlKey && event.altKey
             then
