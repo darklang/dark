@@ -45,6 +45,10 @@ let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
 let moveToOrigin : modification = MoveCanvasTo Defaults.origin
 
+(* Gets coordinates of the corners of outer box and inner box.
+  Inner box is enclosed withing outer box, if and only if
+  all 4 corners (points) of the inner box lay within the outer box boundaries.
+ *)
 let isEnclosed (outer : box) (inner : box) : bool =
   let oOrigin, oSize = outer in
   let oLeft, oTop = (oOrigin.x, oOrigin.y) in
