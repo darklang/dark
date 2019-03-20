@@ -387,7 +387,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
               RPC ([SetFunction f], focus)
           | TLTipe _ | TLDB _ ->
               impossible ("pointer type mismatch", newTL.data, pd) )
-      | FnName ->
+      | FnName | TypeName ->
           Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
       | _ ->
           let newTL = TL.delete tl pd newID in
@@ -396,5 +396,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
               RPC ([SetHandler (tlid, tl.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
-          | TLDB _ | TLTipe _ ->
+          | TLTipe t ->
+              RPC ([SetType t], focus)
+          | TLDB _ ->
               impossible ("pointer type mismatch", newTL.data, pd) ) )
