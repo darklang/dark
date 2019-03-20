@@ -16,7 +16,7 @@ let enterable = ViewBlankOr.Enterable
 let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
   let nameField =
     let c = (enterable :: idConfigs) @ [wc "dbname"] in
-    ViewBlankOr.viewText DBName vs c t.utName
+    ViewBlankOr.viewText TypeName vs c t.utName
   in
   Html.div [Html.class' "dbtitle"] [nameField]
 
@@ -24,13 +24,13 @@ let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
 let viewFieldName (vs : viewState) (_c : htmlConfig list) (v : string blankOr)
     : msg Html.html =
   let configs = enterable :: idConfigs in
-  ViewBlankOr.viewText DBColName vs configs v
+  ViewBlankOr.viewText TypeFieldName vs configs v
 
 
 let viewFieldType (vs : viewState) (_c : htmlConfig list) (v : tipe blankOr) :
     msg Html.html =
   let configs = enterable :: idConfigs in
-  ViewBlankOr.viewTipe DBColType vs configs v
+  ViewBlankOr.viewTipe TypeFieldTipe vs configs v
 
 
 let viewTipeField (vs : viewState) (field : userRecordField) : msg Html.html =
