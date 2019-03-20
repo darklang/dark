@@ -1056,7 +1056,8 @@ let update_ (msg : msg) (m : model) : modification =
       else
         let m2 = TL.upsertAll m r.toplevels in
         let m3 = {m2 with userFunctions = r.userFunctions} in
-        let newState = processFocus m3 focus in
+        let m4 = {m3 with userTipes = r.userTipes} in
+        let newState = processFocus m4 focus in
         Many
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
