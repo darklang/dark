@@ -1,6 +1,10 @@
 open Tc
 open Types
 
+(* Dark *)
+module B = Blank
+module P = Pointer
+
 let allData (t : userTipe) : pointerData list =
   let namePointer = PTypeName t.utName in
   let definitionPointers =
@@ -48,6 +52,46 @@ let upsertAllByTLID (tipes : userTipe list) ~(newTipes : userTipe list) :
   List.foldl ~f:(fun t acc -> upsertByTLID acc t) ~init:tipes newTipes
 
 
-let replace (_p : pointerData) (_replacement : pointerData) (tipe : userTipe) :
+let replaceDefinitionElement
+    (old : pointerData) (new_ : pointerData) (tipe : userTipe) : userTipe =
+  let sId = P.toID old in
+  match tipe.utDefinition with UTRecord fields ->
+    let newFields =
+      List.map
+        ~f:(fun f ->
+          if B.toID f.urfName = sId
+          then
+            match new_ with
+            | PTypeFieldName new_ ->
+                {f with urfName = B.replace sId new_ f.urfName}
+            | _ ->
+                f
+          else if B.toID f.urfTipe = sId
+          then
+            match new_ with
+            | PTypeFieldTipe new_ ->
+                {f with urfTipe = B.replace sId new_ f.urfTipe}
+            | _ ->
+                f
+          else f )
+        fields
+    in
+    {tipe with utDefinition = UTRecord newFields}
+
+
+let replaceTypeName (old : pointerData) (new_ : pointerData) (tipe : userTipe)
+    : userTipe =
+  let sId = P.toID old in
+  if B.toID tipe.utName = sId
+  then
+    match new_ with
+    | PTypeName new_ ->
+        {tipe with utName = B.replace sId new_ tipe.utName}
+    | _ ->
+        tipe
+  else tipe
+
+
+let replace (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
     userTipe =
-  tipe
+  tipe |> replaceTypeName old new_ |> replaceDefinitionElement old new_
