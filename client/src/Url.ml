@@ -36,8 +36,7 @@ let urlFor (page : page) : string =
   let pos =
     match page with
     | Architecture pos ->
-        Some
-          {x = pos.x - Defaults.centerPos.x; y = pos.y - Defaults.centerPos.y}
+        Some {x = pos.x; y = pos.y}
     | _ ->
         None
   in
@@ -51,26 +50,7 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
 
-(* When scrolling, there are way too many events to process them through *)
-(* the History/location handlers. So instead we process them directly, *)
-(* and update the browser url periodically. *)
-let maybeUpdateScrollUrl (m : model) : modification =
-  match m.currentPage with
-  | Architecture _ ->
-      let pos = Some m.canvasProps.offset in
-      if pos <> m.urlState.lastPos
-      then
-        Many
-          [ TweakModel (fun m -> {m with urlState = {lastPos = pos}})
-          ; MakeCmd (Navigation.modifyUrl (urlOf m.currentPage pos)) ]
-      else NoChange
-  | FocusedDB _ | FocusedHandler _ | FocusedFn _ ->
-      (* Dont update the scroll in the as we don't record the scroll in the
-       * URL, and the url has already been changed *)
-      NoChange
-
-
-let parseLocation (loc : Web.Location.location) : page option =
+let parseLocation (m : model) (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash
     |> String.dropLeft ~count:1
@@ -80,19 +60,7 @@ let parseLocation (loc : Web.Location.location) : page option =
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
-  let architecture () =
-    match
-      (StrDict.get ~key:"x" unstructured, StrDict.get ~key:"y" unstructured)
-    with
-    | Some x, Some y ->
-      ( match (String.toInt x, String.toInt y) with
-      | Ok x, Ok y ->
-          Some (Architecture {x; y})
-      | _ ->
-          None )
-    | _ ->
-        None
-  in
+  let architecture () = Some (Architecture m.canvasProps.lastOffset) in
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
@@ -114,14 +82,14 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  architecture ()
+  fn ()
   |> Option.orElse (handler ())
-  |> Option.orElse (fn ())
   |> Option.orElse (db ())
+  |> Option.orElse (architecture ())
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
-  let mPage = parseLocation loc in
+  let mPage = parseLocation m loc in
   match mPage with
   | Some (FocusedFn id) ->
     ( match Functions.find m id with
@@ -193,3 +161,25 @@ let queryParamSet (name : string) : bool =
 let isDebugging = queryParamSet "debugger"
 
 let isIntegrationTest = queryParamSet "integration-test"
+
+let setPage (m : model) (oldPage : page) (newPage : page) : model =
+  if oldPage = newPage
+  then m
+  else
+    match newPage with
+    | Architecture pos ->
+        (* Pan to position *)
+        { m with
+          currentPage = newPage; canvasProps = {m.canvasProps with offset = pos}
+        }
+    | FocusedFn _ ->
+        { m with
+          currentPage = newPage
+        ; canvasProps =
+            { m.canvasProps with
+              (* Stash the offset so that returning to canvas goes to the previous place *)
+              lastOffset = m.canvasProps.offset
+            ; offset = Defaults.origin }
+        ; cursorState = Deselected }
+    | FocusedHandler _ | FocusedDB _ ->
+        m
