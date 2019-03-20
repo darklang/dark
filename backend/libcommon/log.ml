@@ -168,13 +168,21 @@ let fix_json_colors ~(decorate : bool) ~(level : level) (input : string) :
   if not decorate
   then input
   else
-    let color = level_to_color level in
-    let reset = "\x1b[0m" in
-    let clear_regex = Str.regexp "\\\\u001b\\[0m" in
-    let color_regex = Str.regexp "\\\\u001b.38;5;[0-9]*m" in
-    input
-    |> Str.global_replace color_regex color
-    |> Str.global_replace clear_regex reset
+    let replacements =
+      [ ("\\u001b[38;5;196m", "\027[38;5;196m")
+      ; ("\\u001b[38;5;196m", "\027[38;5;196m")
+      ; ("\\u001b[38;5;165m", "\027[38;5;165m")
+      ; ("\\u001b[38;5;108m", "\027[38;5;108m")
+      ; ("\\u001b[38;5;38m", "\027[38;5;38m")
+      ; ("\\u001b[38;5;221m", "\027[38;5;221m")
+      ; ("\\u001b[38;5;221m", "\027[38;5;221m")
+      ; ("\\u001b[0m", "\x1b[0m") ]
+    in
+    List.fold replacements ~init:input ~f:(fun acc (find, replace) ->
+        String.Search_pattern.replace_all
+          (String.Search_pattern.create find)
+          ~in_:acc
+          ~with_:replace )
 
 
 let print_json_log
