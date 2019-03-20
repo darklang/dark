@@ -639,7 +639,6 @@ and canvasProps =
   ; enablePan : bool
   ; lastOffset : pos }
 
-(* We would ideally want a page stack *)
 and httpError = (string Tea.Http.error[@opaque])
 
 and modification =

@@ -177,8 +177,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps =
             { m.canvasProps with
-              lastOffset = m.canvasProps.offset; offset = Defaults.origin }
-            (* Stash the offset so that returning to canvas goes to the previous place *)
+              (* Stash the offset so that returning to canvas goes to the previous place *)
+              lastOffset = m.canvasProps.offset
+            ; offset = Defaults.origin }
         ; cursorState = Deselected }
     | FocusedHandler _ | FocusedDB _ ->
         m
