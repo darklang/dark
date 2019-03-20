@@ -796,7 +796,9 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | Architecture ->
+    | FocusedFn _ ->
+        NoChange
+    | _ ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
@@ -806,9 +808,7 @@ let update_ (msg : msg) (m : model) : modification =
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
           | _ ->
               Deselect
-        else NoChange
-    | _ ->
-        NoChange )
+        else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
