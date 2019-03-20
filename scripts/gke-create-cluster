@@ -341,6 +341,21 @@ kubectl create -f - <<EOF
 }
 EOF
 
+# Honeycomb write key for honeycomb-heapster
+kubectl create --namespace=kube-system -f - <<EOF
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "type": "Opaque",
+  "data": {
+    "key": "$DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
+  },
+  "metadata": {
+    "name": "honeycomb-writekey"
+  }
+}
+EOF
+
 kubectl create -f - <<EOF
 {
   "apiVersion": "v1",
