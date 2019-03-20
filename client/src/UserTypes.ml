@@ -14,8 +14,6 @@ let allData (t : userTipe) : pointerData list =
   namePointer :: definitionPointers
 
 
-let siblings (_p : pointerData) (_t : userTipe) : pointerData list = []
-
 let find (m : model) (id : tlid) : userTipe option =
   List.find ~f:(fun t -> id = t.utTLID) m.userTipes
 

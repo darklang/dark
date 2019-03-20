@@ -268,38 +268,6 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
 
 
 (* ------------------------- *)
-(* Siblings *)
-(* ------------------------- *)
-let siblings (tl : toplevel) (p : pointerData) : pointerData list =
-  match tl.data with
-  | TLHandler h ->
-      let toplevels = SpecHeaders.allData h.spec @ [PExpr h.ast] in
-      if List.member ~value:p toplevels
-      then toplevels
-      else AST.siblings p h.ast
-  | TLDB db ->
-      DB.siblings p db
-  | TLFunc f ->
-      AST.siblings p f.ufAST
-  | TLTipe t ->
-      UserTypes.siblings p t
-
-
-let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p
-  |> Util.listNextWrap ~value:p
-  (* 'safe' to deOption as there's always at least one member in the array *)
-  |> deOption "nextSibling"
-
-
-let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p
-  |> Util.listPreviousWrap ~value:p
-  (* 'safe' to deOption as there's always at least one member in the array *)
-  |> deOption "prevSibling"
-
-
-(* ------------------------- *)
 (* Up/Down the tree *)
 (* ------------------------- *)
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
