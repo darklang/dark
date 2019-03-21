@@ -88,7 +88,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 ( match mId with
                 | Some id ->
                   ( match TL.findExn tl id with
-                  | PTypeFieldName _ | PTypeFieldTipe _ ->
+                  | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
                       let replacement = UserTypes.extend t in
                       RPC ([SetType replacement], FocusNext (tlid, Some id))
                   | _ ->
