@@ -20,7 +20,7 @@ do
     ;;
     *)
     echo "Unexpected argument: $i"
-    exit 255
+    exit 1
     ;;
   esac
 done

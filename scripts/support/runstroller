@@ -28,5 +28,5 @@ if [[ -f "${STROLLER}" ]]; then
   "${STROLLER}" > "$LOGS/stroller.log" 2>&1 &
 else
   echo "Missing binary"
-  exit 255
+  exit 1
 fi
