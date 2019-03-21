@@ -13,7 +13,8 @@ TEMPDB=prodcloneclone
 ###########################
 echo "Exporting DB to $GSFILENAME "
 ###########################
-gcloud sql export sql dark-west $GSFILENAME --database=postgres
+ID=$(gcloud sql export sql dark-west $GSFILENAME --async --database=postgres)
+gcloud beta sql operations wait --timeout=unlimited "${ID}"
 
 ###########################
 echo "Downloading DB from $GSFILENAME"
@@ -33,15 +34,18 @@ echo "Loading DB $TEMPDB (logging to $LOGFILE)"
 gunzip --stdout $FILENAME | grep -v cloudsql | psql -d $TEMPDB > $LOGFILE
 
 ###########################
+echo "Deleting dumpfiles ($GSFILENAME)"
+###########################
+gsutil rm $GSFILENAME
+
+###########################
+echo "Download complete. If this fails from here, restart your container and run ./scripts/reset-prodclone"
+###########################
+
+###########################
 echo "Stopping procs, copying into $DB, restarting"
 ###########################
 ./scripts/reset-prodclone
-
-###########################
-echo "Deleting dumpfiles ($GSFILENAME, $FILENAME)"
-###########################
 rm $FILENAME
-gsutil rm $GSFILENAME
-
 
 echo "Done. To reset prodclone again, run ./scripts/reset-prodclone"
