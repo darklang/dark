@@ -1014,3 +1014,11 @@ test('fn_page_to_handler_pos', async t => {
 
   await t.expect(Selector('#canvas').getStyleProperty('transform')).notEql(fnOffset);
 })
+
+test('autocomplete_visible_height', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "r")
+    .expect(Selector('li.autocomplete-item.valid').nth(5).visible).ok();
+});
