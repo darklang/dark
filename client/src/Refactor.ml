@@ -309,7 +309,8 @@ let fnUseCount (m : model) (name : string) : int =
 
 let usedFn (m : model) (name : string) : bool = fnUseCount m name <> 0
 
-(* TODO(types): do this properly once you can actually use them somewhere *)
+(* This needs to take into account where the type is used in all cases
+ * ie. in a function type parameter or in a DB definition *)
 let tipeUseCount (_m : model) (_name : string) : int = 0
 
 let usedTipe (m : model) (name : string) : bool = tipeUseCount m name <> 0
