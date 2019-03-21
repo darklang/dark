@@ -23,7 +23,7 @@ let rec rec_con depth =
   with e ->
     Log.infO
       "Couldn't connect to postgres"
-      ~params:[("attempt", string_of_int depth)] ;
+      ~jsonparams:[("attempt", `Int depth)] ;
     if depth < 10
     then (
       (* It takes the CloudSQL proxy ~30 seconds to go from 'started' to 'ready'

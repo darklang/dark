@@ -63,7 +63,8 @@ let push
                 in
                 Log.infO
                   "pushed via stroller"
-                  ~params:(("status", string_of_int code) :: log_params) ;
+                  ~jsonparams:[("status", `Int code)]
+                  ~params:log_params ;
                 Lwt.return ()
           with e ->
             let bt = Exception.get_backtrace () in

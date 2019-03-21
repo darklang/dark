@@ -18,8 +18,6 @@ val loglevel : level ref
 
 val set_level : level -> unit
 
-val level_to_length : level -> int
-
 val level_to_string : level -> string
 
 val level_to_color : level -> string
@@ -28,15 +26,12 @@ val should_log : level -> bool
 
 (* formats *)
 type format =
-  [ `Stackdriver
-  | `Regular
-  | `Decorated ]
+  [ `Json
+  | `DecoratedJson ]
 
 val format : format ref
 
 val set_format : format -> unit
-
-val format_string : level:level -> string -> string
 
 (* initialization *)
 val init : level:level -> format:format -> unit -> unit
@@ -44,6 +39,7 @@ val init : level:level -> format:format -> unit -> unit
 (* printing *)
 val pP :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> level:level
@@ -56,6 +52,7 @@ val inspect : ?f:('a -> string) -> string -> 'a -> 'a
 
 val debuG :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -63,6 +60,7 @@ val debuG :
 
 val infO :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -70,6 +68,7 @@ val infO :
 
 val warN :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -77,6 +76,7 @@ val warN :
 
 val erroR :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -84,6 +84,7 @@ val erroR :
 
 val fataL :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -91,6 +92,7 @@ val fataL :
 
 val succesS :
      ?data:string
+  -> ?jsonparams:(string * Yojson.Safe.json) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
