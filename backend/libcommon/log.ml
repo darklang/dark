@@ -185,17 +185,25 @@ let fix_json_colors ~(decorate : bool) ~(level : level) (input : string) :
           ~with_:replace )
 
 
+let rfc3339_of_float (time : float) : string =
+  let span = Time.Span.of_sec time in
+  (* rfc3339 is ~iso8601, and we're using the variant with nanoseconds *)
+  (* to_string_iso8601_basic gets us ms, so this fakes ns *)
+  String.Search_pattern.replace_first
+    (String.Search_pattern.create "Z")
+    ~in_:
+      (Time.to_string_iso8601_basic
+         (Time.of_span_since_epoch span)
+         ~zone:Time.Zone.utc)
+    ~with_:"000Z"
+
+
 let print_json_log
     ~(level : level)
     ~(decorate : bool)
     ?(bt : Caml.Printexc.raw_backtrace option = None)
     (params : (string * Yojson.Safe.json) list) : unit =
-  let timestamp =
-    Unix.gettimeofday ()
-    |> Ptime.of_float_s
-    |> Option.value ~default:Ptime.max
-    |> Ptime.to_rfc3339 ~frac_s:9
-  in
+  let timestamp = rfc3339_of_float (Unix.gettimeofday ()) in
   let bt_params =
     match bt with
     | None ->

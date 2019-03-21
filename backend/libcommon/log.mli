@@ -27,7 +27,7 @@ val should_log : level -> bool
 (* formats *)
 type format =
   [ `Json
-  | `Decorated ]
+  | `DecoratedJson ]
 
 val format : format ref
 
