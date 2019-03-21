@@ -754,6 +754,38 @@ let fourohfours_parse (m : model) : testResult =
       fail ~f:(show_list ~f:show_fourOhFour) m.f404s
 
 
+let setpage_on_tlclick (m : model) : testResult =
+  match m.currentPage with
+  | FocusedHandler (TLID "123") ->
+    ( match tlidOf m.cursorState with
+    | Some (TLID "123") ->
+        pass
+    | _ ->
+        fail ~f:show_cursorState m.cursorState )
+  | _ ->
+      fail ~f:show_page m.currentPage
+
+
+let return_to_architecture_on_deselect (m : model) : testResult =
+  match m.currentPage with
+  | Architecture ->
+    ( match m.cursorState with
+    | Deselected ->
+        pass
+    | _ ->
+        fail ~f:show_cursorState m.cursorState )
+  | _ ->
+      fail ~f:show_page m.currentPage
+
+
+let fn_page_returns_to_lastpos (m : model) : testResult =
+  if m.canvasProps.offset = Viewport.toCenteredOn {x = -900; y = -600}
+  then pass
+  else fail ~f:show_pos m.canvasProps.offset
+
+
+let fn_page_to_handler_pos (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -864,5 +896,13 @@ let trigger (test_name : string) : integrationTestState =
         function_analysis_works
     | "fourohfours_parse" ->
         fourohfours_parse
+    | "setpage_on_tlclick" ->
+        setpage_on_tlclick
+    | "return_to_architecture_on_deselect" ->
+        return_to_architecture_on_deselect
+    | "fn_page_returns_to_lastpos" ->
+        fn_page_returns_to_lastpos
+    | "fn_page_to_handler_pos" ->
+        fn_page_to_handler_pos
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
