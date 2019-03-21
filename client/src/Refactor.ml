@@ -12,7 +12,7 @@ let generateFnName (_ : unit) : string =
 
 
 let generateTipeName () : string =
-  "type_" ^ (() |> Util.random |> string_of_int)
+  "Type_" ^ (() |> Util.random |> string_of_int)
 
 
 let convertTipe (tipe : tipe) : tipe =
