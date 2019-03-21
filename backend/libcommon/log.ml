@@ -223,7 +223,8 @@ let print_json_log
 
 let pP
     ?(data : string option)
-    ?(params : (string * Yojson.Safe.json) list = [])
+    ?(jsonparams : (string * Yojson.Safe.json) list = [])
+    ?(params : (string * string) list = [])
     ?(bt : Caml.Printexc.raw_backtrace option)
     ~(level : level)
     (name : string) : unit =
@@ -241,7 +242,8 @@ let pP
         (* ip address *)
          ]
         @ data_param
-        @ params
+        @ jsonparams
+        @ List.map params (fun (k, v) -> (k, `String v))
       in
       match !format with
       | `DecoratedJson ->

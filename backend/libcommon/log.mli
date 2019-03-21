@@ -39,7 +39,8 @@ val init : level:level -> format:format -> unit -> unit
 (* printing *)
 val pP :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> level:level
   -> string
@@ -51,42 +52,48 @@ val inspect : ?f:('a -> string) -> string -> 'a -> 'a
 
 val debuG :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val infO :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val warN :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val erroR :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val fataL :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val succesS :
      ?data:string
-  -> ?params:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
