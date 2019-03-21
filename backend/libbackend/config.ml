@@ -114,19 +114,15 @@ let create_accounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let log_format : [`Stackdriver | `Regular | `Decorated] =
+let log_format : [`Json | `DecoratedJson] =
   let as_str =
-    string_choice
-      "DARK_CONFIG_LOGGING_FORMAT"
-      ["stackdriver"; "regular"; "decorated"]
+    string_choice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated_json"]
   in
   match as_str with
-  | "stackdriver" ->
-      `Stackdriver
-  | "regular" ->
-      `Regular
-  | "decorated" ->
-      `Decorated
+  | "json" ->
+      `Json
+  | "decorated_json" ->
+      `DecoratedJson
   | _ ->
       failwith ("Invalid logging format: " ^ as_str)
 

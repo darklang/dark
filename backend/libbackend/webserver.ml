@@ -78,11 +78,14 @@ let respond
   in
   Log.infO
     "response"
+    ~jsonparams:
+      [ ("status", `Int (Cohttp.Code.code_of_status status))
+      ; ("body_bytes", `Int (String.length body)) ]
     ~params:
-      [ ("status", Log.dump (Cohttp.Code.code_of_status status))
-      ; ("execution_id", Log.dump execution_id)
-      ; ("headers", Log.dump resp_headers)
-      ; ("body", Log.dump body) ] ;
+      [ ("execution_id", Int63.to_string execution_id)
+        (* TODO ismith: maybe a ,-sep list of headers, and then a selection of
+         * whitelisted headers? Needs to be flattened. *)
+      ; ("headers", Log.dump resp_headers) ] ;
   S.respond_string ~status ~body ~headers:resp_headers ()
 
 
@@ -1225,7 +1228,10 @@ let server () =
           (* ^ (Exception.get_backtrace () *)
           (*             |> Exception.backtrace_to_string) *)
         in
-        Log.erroR real_err ~bt ~params:[("execution_id", Log.dump execution_id)] ;
+        Log.erroR
+          real_err
+          ~bt
+          ~params:[("execution_id", Types.string_of_id execution_id)] ;
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
             respond ~execution_id `Bad_request e.short
@@ -1248,7 +1254,7 @@ let server () =
           [ ("ip", ip)
           ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
           ; ("uri", Uri.to_string uri)
-          ; ("execution_id", Log.dump execution_id) ] ;
+          ; ("execution_id", Types.string_of_id execution_id) ] ;
       (* first: if this isn't https and should be, redirect *)
       match redirect_to (with_x_forwarded_proto req) with
       | Some x ->
