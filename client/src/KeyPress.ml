@@ -350,7 +350,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               let tl = TL.getTL m tlid in
               ( match tl.data with
               | TLTipe _ ->
-                  (* TODO(types): see below *)
                   NoChange
               | TLDB _ ->
                   NoChange
