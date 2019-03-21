@@ -70,6 +70,14 @@ data:
         dataset: kubernetes-stroller
         parser: json
       - labelSelector: "app=bwd-app"
+        containerName: bwd-ctr
+        dataset: kubernetes-bwd-ocaml
+        parser: json
+      - labelSelector: "app=qw-worker"
+        containerName: qw-ctr
+        dataset: kubernetes-bwd-ocaml
+        parser: json
+      - labelSelector: "app=bwd-app"
         containerName: http-proxy
         dataset: kubernetes-bwd-nginx
         parser:
