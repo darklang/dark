@@ -981,7 +981,8 @@ test('fourohfours_parse', async t => {
 })
 
 test('setpage_on_tlclick', async t => {
-  await t.click('.tl-123')
+  await t.click('.tl-123', {offsetX: 5, offsetY: 5})
+  .expect(Selector('.tl-123', {timeout: 5000}).hasClass('selected')).ok()
 })
 
 test('return_to_architecture_on_deselect', async t => {
