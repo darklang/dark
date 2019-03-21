@@ -596,7 +596,7 @@ let submitACItem
               |> AST.replace pd new_
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ )
-        | PTypeName _, ACConstructorName value ->
+        | PTypeName _, ACExtra value ->
             replace (PTypeName (B.newF value))
         | PTypeFieldName _, ACExtra value ->
             replace (PTypeFieldName (B.newF value))
