@@ -530,7 +530,7 @@ let cleanup_old_traces (host : string) : unit =
   Log.infO
     "cleanup_trace"
     ~params:[("host", host)]
-    ~jsonparams:[("host", `String host)] ;
+    ~jsonparams:[("count", `Int (List.length keep))] ;
   Stored_event.trim_events ~canvas_id ~keep () ;
   Stored_function_result.trim_results ~canvas_id ~keep () ;
   ()
