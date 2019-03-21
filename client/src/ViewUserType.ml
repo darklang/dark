@@ -3,6 +3,10 @@ open Types
 open Prelude
 
 (* Dark *)
+module B = Blank
+
+let fontAwesome = ViewUtils.fontAwesome
+
 type viewState = ViewUtils.viewState
 
 type htmlConfig = ViewBlankOr.htmlConfig
@@ -33,10 +37,26 @@ let viewFieldType (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
   ViewBlankOr.viewTipe TypeFieldTipe vs configs v
 
 
-let viewTipeField (vs : viewState) (field : userRecordField) : msg Html.html =
+let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
+  Html.div
+    [ Html.class' "field-btn"
+    ; ViewUtils.eventNoPropagation
+        ~key:
+          ( "dutf-"
+          ^ showTLID t.utTLID
+          ^ "-"
+          ^ (field.urfName |> B.toID |> showID) )
+        "click"
+        (fun _ -> DeleteUserTypeField (t, field)) ]
+    [fontAwesome "times-circle"]
+
+
+let viewTipeField (vs : viewState) (t : userTipe) (field : userRecordField) :
+    msg Html.html =
   let row =
     [ viewFieldName vs [wc "name"] field.urfName
-    ; viewFieldType vs [wc "type"] field.urfTipe ]
+    ; viewFieldType vs [wc "type"] field.urfTipe
+    ; viewKillFieldBtn t field ]
   in
   Html.div [Html.class' "field"] row
 
@@ -45,6 +65,6 @@ let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
   match t.utDefinition with UTRecord fields ->
     let nameDiv = viewTipeName vs t in
     let fieldDivs =
-      Html.div [Html.class' "fields"] (List.map ~f:(viewTipeField vs) fields)
+      Html.div [Html.class' "fields"] (List.map ~f:(viewTipeField vs t) fields)
     in
     Html.div [Html.class' "user-type"] [nameDiv; fieldDivs]

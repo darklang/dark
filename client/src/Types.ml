@@ -780,6 +780,7 @@ and msg =
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
   | DeleteUserFunctionParameter of userFunction * userFunctionParameter
+  | DeleteUserTypeField of userTipe * userRecordField
   | BlankOrClick of tlid * id * mouseEvent
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent
