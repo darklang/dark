@@ -530,3 +530,5 @@ let asPage (tl : toplevel) : page =
       FocusedDB tl.id
   | TLFunc _ ->
       FocusedFn tl.id
+  | TLTipe _ ->
+      FocusedType tl.id

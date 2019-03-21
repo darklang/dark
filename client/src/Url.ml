@@ -73,11 +73,11 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  architecture ()
+  fn ()
   |> Option.orElse (handler ())
   |> Option.orElse (db ())
-  |> Option.orElse (architecture ())
   |> Option.orElse (tipe ())
+  |> Option.orElse (architecture ())
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
