@@ -450,6 +450,8 @@ and op =
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
   | SetType of userTipe
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
 
 (* ------------------- *)
 (* RPCs *)
@@ -502,7 +504,8 @@ and addOpRPCResult =
   ; deletedToplevels : toplevel list
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
-  ; userTipes : userTipe list }
+  ; userTipes : userTipe list
+  ; deletedUserTipes : userTipe list }
 
 and dvalArgsHash = string
 
@@ -523,7 +526,8 @@ and initialLoadRPCResult =
   ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
   ; traces : (tlid * traceID) list
-  ; userTipes : userTipe list }
+  ; userTipes : userTipe list
+  ; deletedUserTipes : userTipe list }
 
 and saveTestRPCResult = string
 
@@ -720,7 +724,7 @@ and modification =
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
-  | SetTypes of userTipe list * bool
+  | SetTypes of userTipe list * userTipe list * bool
 
 (* ------------------- *)
 (* Msgs *)
@@ -790,6 +794,8 @@ and msg =
   | CreateType
   | DeleteUserFunction of tlid
   | DeleteUserFunctionForever of tlid
+  | DeleteUserType of tlid
+  | DeleteUserTypeForever of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
@@ -900,7 +906,8 @@ and model =
   ; usedFns : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
-  ; userTipes : userTipe list }
+  ; userTipes : userTipe list
+  ; deletedUserTipes : userTipe list }
 
 (* Values that we serialize *)
 and serializableEditor =

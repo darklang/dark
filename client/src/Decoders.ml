@@ -348,7 +348,8 @@ and addOpRPCResult j : addOpRPCResult =
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  ; userTipes = field "user_tipes" (list userTipe) j }
+  ; userTipes = field "user_tipes" (list userTipe) j
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
@@ -369,7 +370,8 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; fofs = field "fofs" (list fof) j
   ; staticDeploys = field "assets" (list sDeploy) j
   ; traces = field "traces" (list (pair tlid traceID)) j
-  ; userTipes = field "user_tipes" (list userTipe) j }
+  ; userTipes = field "user_tipes" (list userTipe) j
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
