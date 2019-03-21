@@ -101,3 +101,9 @@ let extend (tipe : userTipe) : userTipe =
   match tipe.utDefinition with UTRecord fields ->
     let newFields = fields @ [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
     {tipe with utDefinition = UTRecord newFields}
+
+
+let removeField (tipe : userTipe) (field : userRecordField) : userTipe =
+  match tipe.utDefinition with UTRecord fields ->
+    let newFields = List.filter ~f:(fun f -> field <> f) fields in
+    {tipe with utDefinition = UTRecord newFields}
