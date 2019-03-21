@@ -9,7 +9,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
   Log.infO
     "queue_worker"
     ~data:"Worker starting"
-    ~params:[("execution_id", `String (Log.dump execution_id))] ;
+    ~params:[("execution_id", Log.dump execution_id)] ;
   Event_queue.with_transaction (fun transaction ->
       try
         let event = Event_queue.dequeue transaction in
@@ -18,7 +18,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
             Log.infO
               "queue_worker"
               ~data:"No events in queue"
-              ~params:[("execution_id", `String (Log.dump execution_id))] ;
+              ~params:[("execution_id", Log.dump execution_id)] ;
             Ok ()
         | Some event ->
           ( try
@@ -42,9 +42,9 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                     "queue_worker"
                     ~data:"No handler for event"
                     ~params:
-                      [ ("execution_id", `String (Log.dump execution_id))
-                      ; ("host", `String host)
-                      ; ("event", `String (Log.dump desc)) ] ;
+                      [ ("execution_id", Log.dump execution_id)
+                      ; ("host", host)
+                      ; ("event", Log.dump desc) ] ;
                   let space, name, modifier = desc in
                   Stroller.push_new_404
                     ~execution_id
@@ -62,10 +62,10 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                     "queue_worker"
                     ~data:"Executing handler for event"
                     ~params:
-                      [ ("execution_id", `String (Log.dump execution_id))
-                      ; ("event", `String (Log.dump desc))
-                      ; ("host", `String host)
-                      ; ("handler_id", `String (Log.dump h.tlid)) ] ;
+                      [ ("execution_id", Log.dump execution_id)
+                      ; ("event", Log.dump desc)
+                      ; ("host", host)
+                      ; ("handler_id", Log.dump h.tlid) ] ;
                   let result =
                     Execution.execute_handler
                       h
@@ -81,11 +81,11 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                     "queue_worker"
                     ~data:"Successful execution"
                     ~params:
-                      [ ("execution_id", `String (Log.dump execution_id))
-                      ; ("host", `String host)
-                      ; ("event", `String (Log.dump desc))
-                      ; ("handler_id", `String (Log.dump h.tlid))
-                      ; ("result", `String (Log.dump result)) ] ;
+                      [ ("execution_id", Log.dump execution_id)
+                      ; ("host", host)
+                      ; ("event", Log.dump desc)
+                      ; ("handler_id", Log.dump h.tlid)
+                      ; ("result", Log.dump result) ] ;
                   Event_queue.finish transaction event ;
                   Ok ()
             with e ->
@@ -109,6 +109,6 @@ let run execution_id : (unit, Exception.captured) Result.t =
     Log.erroR
       "queue_worker"
       ~data:"Pointing at prodclone; will not dequeue"
-      ~params:[("execution_id", `String (Log.dump execution_id))] ;
+      ~params:[("execution_id", (Log.dump execution_id))] ;
     Ok () )
   else dequeue_and_process execution_id

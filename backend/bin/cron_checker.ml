@@ -24,17 +24,15 @@ let () =
                 ~data:"Spinning up health check service"
                 ~params:
                   [ ( "execution_id"
-                    , `String (Libexecution.Types.string_of_id execution_id) )
-                  ] ;
+                    , Libexecution.Types.string_of_id execution_id ) ] ;
               Libservice.Health_check.run ~shutdown ~execution_id
         with e ->
           Libcommon.Log.erroR
             "cron_checker"
             ~data:"Health check service threw error"
             ~params:
-              [ ( "execution_id"
-                , `String (Libexecution.Types.string_of_id execution_id) )
-              ; ("exn", `String (Libcommon.Log.dump e)) ] ;
+              [ ("execution_id", Libexecution.Types.string_of_id execution_id)
+              ; ("exn", Libcommon.Log.dump e) ] ;
           let bt = Libexecution.Exception.get_backtrace () in
           Lwt.async (fun () ->
               Libbackend.Rollbar.report_lwt
@@ -54,9 +52,8 @@ let () =
           "cron_checker"
           ~data:"Uncaught error"
           ~params:
-            [ ( "execution_id"
-              , `String (Libexecution.Types.string_of_id execution_id) )
-            ; ("exn", `String (Libexecution.Exception.exn_to_string e)) ] ;
+            [ ("execution_id", Libexecution.Types.string_of_id execution_id)
+            ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
         Lwt.async (fun () ->
             Libbackend.Rollbar.report_lwt
               e

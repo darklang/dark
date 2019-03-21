@@ -254,7 +254,7 @@ let pP
 
 
 let inspecT ?(f = dump) (name : string) (x : 'a) : unit =
-  pP ~level:`Inspect name ~params:[("data", `String (f x))]
+  pP ~level:`Inspect name ~params:[("data", f x)]
 
 
 let inspect ?(f = dump) (name : string) (x : 'a) : 'a =
@@ -282,7 +282,7 @@ let log_exception
   erroR
     ~bt:backtrace
     name
-    ~params:[("exception", `String (pp e)); ("execution_id", `String trace_id)]
+    ~params:[("exception", pp e); ("execution_id", trace_id)]
 
 
 (* ----------------- *)

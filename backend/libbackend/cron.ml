@@ -81,7 +81,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
   Log.infO
     "cron_checker"
     ~data:"Cron check starting"
-    ~params:[("execution_id", `String (Types.string_of_id execution_id))] ;
+    ~params:[("execution_id", Types.string_of_id execution_id)] ;
   let current_endpoints =
     if String.Caseless.equal
          Libservice.Config.postgres_settings.dbname
@@ -90,7 +90,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
       Log.erroR
         "cron_checker"
         ~data:"Not running any crons; pointed at prodclone!"
-        ~params:[("execution_id", `String (Types.string_of_id execution_id))] ;
+        ~params:[("execution_id", Types.string_of_id execution_id)] ;
       [] )
     else
       Serialize.current_hosts ()
@@ -109,10 +109,9 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                ~data:"Deserialization error"
                ~bt
                ~params:
-                 [ ("host", `String endp)
-                 ; ("exn", `String (Log.dump e))
-                 ; ("execution_id", `String (Types.string_of_id execution_id))
-                 ] ;
+                 [ ("host", endp)
+                 ; ("exn", Log.dump e)
+                 ; ("execution_id", Types.string_of_id execution_id) ] ;
              ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
              None )
     |> List.iter ~f:(fun (endp, c) ->
@@ -126,9 +125,9 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              "cron_checker"
              ~data:"checking canvas"
              ~params:
-               [ ("execution_id", `String (Types.string_of_id execution_id))
-               ; ("host", `String endp)
-               ; ("number_of_crons", `Int (List.length crons)) ] ;
+               [ ("execution_id", Types.string_of_id execution_id)
+               ; ("host", endp) ]
+             ~jsonparams:[("number_of_crons", `Int (List.length crons))] ;
            List.iter
              ~f:(fun cr ->
                if should_execute !c.id cr
@@ -148,12 +147,11 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                    "cron_checker"
                    ~data:"enqueued event"
                    ~params:
-                     [ ( "execution_id"
-                       , `String (Types.string_of_id execution_id) )
-                     ; ("host", `String endp)
-                     ; ("tlid", `String (Types.string_of_id cr.tlid))
-                     ; ("event_name", `String name)
-                     ; ("cron_freq", `String modifier) ] ) )
+                     [ ("execution_id", Types.string_of_id execution_id)
+                     ; ("host", endp)
+                     ; ("tlid", Types.string_of_id cr.tlid)
+                     ; ("event_name", name)
+                     ; ("cron_freq", modifier) ] ) )
              crons )
     |> Ok
   with e ->
