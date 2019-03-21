@@ -182,11 +182,14 @@ let tlCacheKeyDB (m : model) tl =
   else Some (tl, DB.isLocked m tl.id)
 
 
+let tlCacheKeyTipe (m : model) tl =
+  if Some tl.id = tlidOf m.cursorState then None else Some tl
+
+
 let viewTL m tl =
   match tl.data with
   | TLTipe _ ->
-      (* TODO(types): caching! *)
-      viewTL_ m tl
+      Cache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
       Cache.cache2m tlCacheKeyDB viewTL_ m tl
   | TLFunc _ | TLHandler _ ->
