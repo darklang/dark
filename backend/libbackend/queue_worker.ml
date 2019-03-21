@@ -109,6 +109,6 @@ let run execution_id : (unit, Exception.captured) Result.t =
     Log.erroR
       "queue_worker"
       ~data:"Pointing at prodclone; will not dequeue"
-      ~params:[("execution_id", (Log.dump execution_id))] ;
+      ~params:[("execution_id", Log.dump execution_id)] ;
     Ok () )
   else dequeue_and_process execution_id
