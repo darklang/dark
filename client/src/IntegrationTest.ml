@@ -753,6 +753,9 @@ let fourohfours_parse (m : model) : testResult =
   | _ ->
       fail ~f:(show_list ~f:show_fourOhFour) m.f404s
 
+let autocomplete_visible_height (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
 
 let return_to_architecture_on_deselect (m : model) : testResult =
   match m.currentPage with
@@ -890,5 +893,7 @@ let trigger (test_name : string) : integrationTestState =
         fn_page_returns_to_lastpos
     | "fn_page_to_handler_pos" ->
         fn_page_to_handler_pos
+    | "autocomplete_visible_height" ->
+        autocomplete_visible_height
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
