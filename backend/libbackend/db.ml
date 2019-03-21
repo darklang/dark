@@ -220,9 +220,7 @@ let execute
   with e ->
     let bt = Exception.get_backtrace () in
     let log_string = params |> List.map ~f:to_log |> String.concat ~sep:", " in
-    Log.erroR
-      name
-      ~params:[("op", op); ("params", log_string); ("query", sql)] ;
+    Log.erroR name ~params:[("op", op); ("params", log_string); ("query", sql)] ;
     let msg =
       match e with
       | Postgresql.Error (Unexpected_status (_, msg, _)) ->
