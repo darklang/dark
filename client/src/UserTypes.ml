@@ -95,3 +95,9 @@ let replaceTypeName (old : pointerData) (new_ : pointerData) (tipe : userTipe)
 let replace (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
     userTipe =
   tipe |> replaceTypeName old new_ |> replaceDefinitionElement old new_
+
+
+let extend (tipe : userTipe) : userTipe =
+  match tipe.utDefinition with UTRecord fields ->
+    let newFields = fields @ [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
+    {tipe with utDefinition = UTRecord newFields}
