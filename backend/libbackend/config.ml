@@ -114,15 +114,15 @@ let create_accounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let log_format : [`Json | `Decorated] =
+let log_format : [`Json | `DecoratedJson] =
   let as_str =
-    string_choice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated"]
+    string_choice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated_json"]
   in
   match as_str with
   | "json" ->
       `Json
-  | "decorated" ->
-      `Decorated
+  | "decorated_json" ->
+      `DecoratedJson
   | _ ->
       failwith ("Invalid logging format: " ^ as_str)
 

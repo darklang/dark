@@ -151,7 +151,7 @@ let should_log (user_level : level) : bool =
 (* ----------------- *)
 type format =
   [ `Json
-  | `Decorated ]
+  | `DecoratedJson ]
 
 let format : format ref = ref `Json
 
@@ -240,7 +240,7 @@ let pP
         @ params
       in
       match !format with
-      | `Decorated ->
+      | `DecoratedJson ->
           print_json_log ~bt ~decorate:true ~level params
       | `Json ->
           print_json_log ~bt ~decorate:false ~level params
