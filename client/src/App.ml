@@ -798,7 +798,7 @@ let update_ (msg : msg) (m : model) : modification =
     ( match m.currentPage with
     | FocusedFn _ ->
         NoChange
-    | _ ->
+    | Architecture | FocusedDB _ | FocusedHandler _ ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
