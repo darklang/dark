@@ -545,7 +545,6 @@ let submitACItem
               let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
           | TLTipe _ ->
-              (* TODO(types): error here? *)
               NoChange
           | TLDB db ->
             ( match db.activeMigration with
