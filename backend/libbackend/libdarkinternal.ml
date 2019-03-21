@@ -24,13 +24,11 @@ let internal_fn ((name, f) : string * (exec_state * dval list -> dval)) =
             then (
               Log.infO
                 "internal_fn"
-                ~params:
-                  [("user", `String username); ("status", `String "starting")] ;
+                ~params:[("user", username); ("status", "starting")] ;
               let result = f (es, params) in
               Log.infO
                 "internal_fn"
-                ~params:
-                  [("user", `String username); ("status", `String "finished")] ;
+                ~params:[("user", username); ("status", "finished")] ;
               result )
             else
               username

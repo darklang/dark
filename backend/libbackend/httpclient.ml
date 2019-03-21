@@ -235,10 +235,8 @@ let call
     (body : string) : string =
   Log.debuG
     "HTTP"
-    ~params:
-      [ ("verb", `String (show_verb verb))
-      ; ("url", `String url)
-      ; ("body", `Int (body |> String.length)) ] ;
+    ~params:[("verb", show_verb verb); ("url", url)]
+    ~jsonparams:[("body", `Int (body |> String.length))] ;
   let results, _ = http_call url [] verb headers body in
   results
 

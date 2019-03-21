@@ -39,9 +39,7 @@ let push
     ~(event : string)
     (payload : string) =
   let canvas_id_str = Uuidm.to_string canvas_id in
-  let log_params =
-    [("canvas_id", `String canvas_id_str); ("event", `String event)]
-  in
+  let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
   match Config.stroller_port with
   | None ->
       Log.infO "stroller not configured, skipping push" ~params:log_params
@@ -65,7 +63,8 @@ let push
                 in
                 Log.infO
                   "pushed via stroller"
-                  ~params:(("status", `Int code) :: log_params) ;
+                  ~jsonparams:[("status", `Int code)]
+                  ~params:log_params ;
                 Lwt.return ()
           with e ->
             let bt = Exception.get_backtrace () in
