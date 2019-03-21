@@ -86,4 +86,5 @@ let defaultModel : model =
   ; usedFns = StrDict.empty
   ; handlerProps = StrDict.empty
   ; staticDeploys = []
-  ; userTipes = [] }
+  ; userTipes = []
+  ; deletedUserTipes = [] }

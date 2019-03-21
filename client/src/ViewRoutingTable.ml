@@ -260,17 +260,22 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   ; entries }
 
 
-let userTipeCategory (_m : model) (tipes : userTipe list) : category =
+let userTipeCategory (m : model) (tipes : userTipe list) : category =
   let tipes = tipes |> List.filter ~f:(fun t -> B.isF t.utName) in
   let entries =
     List.map tipes ~f:(fun tipe ->
         let name = tipe.utName |> Blank.toMaybe |> deOption "userTipe name" in
+        let minusButton =
+          if Refactor.usedTipe m name
+          then None
+          else Some (DeleteUserType tipe.utTLID)
+        in
         Entry
           { name
           ; tlid = tipe.utTLID
-          ; uses = None
-          ; minusButton = None
-          ; killAction = None
+          ; uses = Some (Refactor.tipeUseCount m name)
+          ; minusButton
+          ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
           ; destination = Some (FocusedType tipe.utTLID)
           ; plusButton = None
           ; verb = None
@@ -300,10 +305,16 @@ let deletedCategory (m : model) : category =
            |> Blank.toMaybe
            |> Option.withDefault ~default:"" )
   in
+  let tipes =
+    m.deletedUserTipes
+    |> List.sortBy ~f:(fun t ->
+           t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
+  in
   let cats =
     [ httpCategory m tls
     ; dbCategory m tls
     ; userFunctionCategory m ufns
+    ; userTipeCategory m tipes
     ; cronCategory m tls ]
     @ eventCategories m tls
     @ [undefinedCategory m tls]
@@ -551,6 +562,8 @@ let rtCacheKey m =
   , m.unlockedDBs
   , m.usedDBs
   , m.usedFns
+  , m.userTipes |> List.map ~f:(fun t -> t.utName)
+  , m.deletedUserTipes |> List.map ~f:(fun t -> t.utName)
   , tlidOf m.cursorState )
 
 

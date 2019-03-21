@@ -205,6 +205,10 @@ and tlidOf (op : Types.op) : Types.tlid =
       tlid
   | SetType ut ->
       ut.utTLID
+  | DeleteType tlid ->
+      tlid
+  | DeleteTypeForever tlid ->
+      tlid
 
 
 and ops (ops : Types.op list) : Js.Json.t =
@@ -340,6 +344,10 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteTLForever" [tlid t]
   | SetType t ->
       ev "SetType" [userTipe t]
+  | DeleteType t ->
+      ev "DeleteType" [tlid t]
+  | DeleteTypeForever t ->
+      ev "DeleteTypeForever" [tlid t]
 
 
 and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =

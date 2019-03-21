@@ -33,6 +33,8 @@ type op =
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
   | SetType of RuntimeT.user_tipe
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
 [@@deriving eq, yojson, show, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -107,6 +109,10 @@ let tlidOf (op : op) : tlid option =
       Some tlid
   | SetType ut ->
       Some ut.tlid
+  | DeleteType tlid ->
+      Some tlid
+  | DeleteTypeForever tlid ->
+      Some tlid
 
 
 let oplist_to_string (ops : op list) : string =

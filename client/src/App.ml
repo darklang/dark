@@ -630,34 +630,38 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
-    | SetTypes (userTipes, _updateCurrent) ->
+    | SetTypes (userTipes, deletedUserTipes, updateCurrent) ->
         let m2 =
           { m with
             userTipes =
-              UserTypes.upsertAllByTLID m.userTipes ~newTipes:userTipes }
+              UserTypes.upsertAllByTLID m.userTipes ~newTipes:userTipes
+              |> UserTypes.removeByTLID ~toBeRemoved:deletedUserTipes
+          ; deletedUserTipes =
+              UserTypes.upsertAllByTLID
+                m.deletedUserTipes
+                ~newTipes:deletedUserTipes
+              |> UserTypes.removeByTLID ~toBeRemoved:userTipes }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m3 =
-          m2
-          (* let m3 = *)
-          (*   match tlidOf m.cursorState with *)
-          (*   | Some tlid -> *)
-          (*       if updateCurrent *)
-          (*       then m2 *)
-          (*       else *)
-          (*         let tl = TL.getTL m tlid in *)
-          (*         ( match tl.data with *)
-          (*         | TLTipe t -> *)
-          (*             UserTypes.upsert m2t *)
-          (*         | TLFunc _ -> *)
-          (*             m2 *)
-          (*         | TLDB _ -> *)
-          (*             m2 *)
-          (*         | TLHandler _ -> *)
-          (*             m2 ) *)
-          (*   | None -> *)
-          (*       m2 *)
+          match tlidOf m.cursorState with
+          | Some tlid ->
+              if updateCurrent
+              then m2
+              else
+                let tl = TL.getTL m tlid in
+                ( match tl.data with
+                | TLTipe t ->
+                    UserTypes.upsert m2 t
+                | TLFunc _ ->
+                    m2
+                | TLDB _ ->
+                    m2
+                | TLHandler _ ->
+                    m2 )
+          | None ->
+              m2
         in
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
@@ -1044,6 +1048,18 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun uf -> uf.ufTLID <> tlid)
                     m.deletedUserFunctions } ) ]
+  | DeleteUserType tlid ->
+      RPC ([DeleteType tlid], FocusSame)
+  | DeleteUserTypeForever tlid ->
+      Many
+        [ RPC ([DeleteTypeForever tlid], FocusSame)
+        ; TweakModel
+            (fun m ->
+              { m with
+                deletedUserTipes =
+                  List.filter
+                    ~f:(fun ut -> ut.utTLID <> tlid)
+                    m.deletedUserTipes } ) ]
   | AddOpRPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then
@@ -1051,7 +1067,7 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; SetTypes (r.userTipes, false)
+          ; SetTypes (r.userTipes, r.deletedUserTipes, false)
           ; MakeCmd (Entry.focusEntry m) ]
       else
         let m2 = TL.upsertAll m r.toplevels in
@@ -1062,7 +1078,7 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; SetTypes (r.userTipes, true)
+          ; SetTypes (r.userTipes, r.deletedUserTipes, true)
           ; AutocompleteMod ACReset
           ; ClearError
           ; newState ]
@@ -1089,7 +1105,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-        ; SetTypes (r.userTipes, true)
+        ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
