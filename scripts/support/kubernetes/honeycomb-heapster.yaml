@@ -1,3 +1,6 @@
+# If you are editing the configmap, you probably also want to delete the old
+# honeycomb-agent pods so there will be new ones with the new config:
+# `kubectl delete pod --selector k8s-app=honeycomb-agent`
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
