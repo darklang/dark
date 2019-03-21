@@ -163,26 +163,22 @@ let dump v : string =
   else Vendor.dump v
 
 
+(* This exists because ... our decorating, in print_json_log, is to use terminal
+ * coloring on the keys. Yojson.Safe.tojson then escapes those strings to make
+ * the whole thing proper json. This function does a global search and replace
+ * for the escaped strings, making terminal output colorful.
+ *
+ * e.g., \\u001b[0m -> \x1b[0m resets coloring
+ * *)
 let fix_json_colors ~(decorate : bool) ~(level : level) (input : string) :
     string =
   if not decorate
   then input
   else
-    let replacements =
-      [ ("\\u001b[38;5;196m", "\027[38;5;196m")
-      ; ("\\u001b[38;5;196m", "\027[38;5;196m")
-      ; ("\\u001b[38;5;165m", "\027[38;5;165m")
-      ; ("\\u001b[38;5;108m", "\027[38;5;108m")
-      ; ("\\u001b[38;5;38m", "\027[38;5;38m")
-      ; ("\\u001b[38;5;221m", "\027[38;5;221m")
-      ; ("\\u001b[38;5;221m", "\027[38;5;221m")
-      ; ("\\u001b[0m", "\x1b[0m") ]
-    in
-    List.fold replacements ~init:input ~f:(fun acc (find, replace) ->
-        String.Search_pattern.replace_all
-          (String.Search_pattern.create find)
-          ~in_:acc
-          ~with_:replace )
+    String.Search_pattern.replace_all
+      (String.Search_pattern.create "\\u001b")
+      ~in_:input
+      ~with_:"\x1b"
 
 
 let rfc3339_of_float (time : float) : string =
