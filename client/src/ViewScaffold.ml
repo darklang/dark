@@ -86,7 +86,6 @@ let viewButtons (m : model) : msg Html.html =
     | FocusedDB tlid ->
         Printf.sprintf "DB (TLID %s)" (deTLID tlid)
     | FocusedType tlid ->
-        (* TODO(types): use the type name probably? *)
         Printf.sprintf "Type (TLID %s)" (deTLID tlid)
   in
   let saveTestButton =
