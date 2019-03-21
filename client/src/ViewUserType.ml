@@ -39,7 +39,7 @@ let viewFieldType (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
 
 let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
   Html.div
-    [ Html.class' "field-btn"
+    [ Html.class' "field-btn allowed"
     ; ViewUtils.eventNoPropagation
         ~key:
           ( "dutf-"
