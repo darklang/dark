@@ -753,9 +753,11 @@ let fourohfours_parse (m : model) : testResult =
   | _ ->
       fail ~f:(show_list ~f:show_fourOhFour) m.f404s
 
+
 let autocomplete_visible_height (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
+
 
 let return_to_architecture_on_deselect (m : model) : testResult =
   match m.currentPage with
