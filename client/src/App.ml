@@ -236,6 +236,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 false
             | SetFunction _ ->
                 false
+            | SetType _ ->
+                false
             | _ ->
                 true )
           params.ops
@@ -251,6 +253,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   TL.upsert m {id = tlid; pos; data = TLHandler h}
               | SetFunction f ->
                   Functions.upsert m f
+              | SetType t ->
+                  UserTypes.upsert m t
               | _ ->
                   m )
             ~init:m
