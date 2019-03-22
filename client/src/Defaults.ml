@@ -11,8 +11,6 @@ let centerPos : pos = {x = 475; y = 200}
 
 let origin : pos = {x = 0; y = 0}
 
-let focusCodePos : pos = {x = 475; y = 100}
-
 let moveSize : int = 50
 
 let pageHeight : int = 400
@@ -30,7 +28,11 @@ let defaultEditor : serializableEditor =
 
 
 let defaultCanvasProps : canvasProps =
-  {offset = origin; enablePan = true; lastOffset = origin}
+  { offset = origin
+  ; enablePan = true
+  ; lastOffset = None
+  ; viewportSize = {w = 0; h = 0}
+  ; panAnimation = false }
 
 
 let defaultHandlerProp : handlerProp =
@@ -57,7 +59,7 @@ let defaultModel : model =
   ; userFunctions = []
   ; deletedUserFunctions = []
   ; builtInFunctions = []
-  ; currentPage = Architecture {x = 0; y = 0}
+  ; currentPage = Architecture
   ; hovering = []
   ; tests = []
   ; toplevels = []

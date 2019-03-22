@@ -276,6 +276,16 @@ setTimeout(function(){
     document.dispatchEvent(event)
   };
 
+  window.onload = function(evt){
+    const size = {
+      width : window.innerWidth,
+      height: window.innerHeight
+    }
+    var event = new CustomEvent('windowOnload',
+      { detail : size })
+    document.dispatchEvent(event)
+  };
+
   async function fetcher(url) {
     url = "//" + staticUrl + url;
     return fetch(url)

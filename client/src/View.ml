@@ -140,11 +140,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
-    | Architecture _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ ->
         tl.pos
-    | FocusedHandler _ | FocusedFn _ ->
-        Defaults.focusCodePos
-    | FocusedDB _ ->
+    | FocusedFn _ ->
         Defaults.centerPos
   in
   let html =
@@ -192,7 +190,7 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Architecture _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ ->
         m.toplevels
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
@@ -206,35 +204,24 @@ let viewCanvas (m : model) : msg Html.html =
           [viewTL m (TL.ufToTL func)]
       | None ->
           [] )
-    | FocusedHandler tlid | FocusedDB tlid ->
-      (match TL.get m tlid with Some h -> [viewTL m h] | None -> [])
   in
   let canvasTransform =
-    let offset =
-      match m.currentPage with
-      | Architecture _ | FocusedFn _ | FocusedHandler _ ->
-          m.canvasProps.offset
-      | FocusedDB _ ->
-          {x = 0; y = 0}
-    in
+    let offset = m.canvasProps.offset in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in
     "translate(" ^ x ^ "px, " ^ y ^ "px)"
   in
-  let pageType =
-    match m.currentPage with
-    | FocusedHandler _ ->
-        "page-handler"
-    | FocusedFn _ ->
-        "page-function"
-    | FocusedDB _ | Architecture _ ->
-        ""
+  let styles =
+    [ ( "transition"
+      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
+    ; ("transform", canvasTransform) ]
   in
   let allDivs = asts @ entry in
   Html.div
     [ Html.id "canvas"
-    ; Html.style "transform" canvasTransform
-    ; Html.class' pageType ]
+    ; Html.styles styles
+    ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
+          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
     allDivs
 
 
