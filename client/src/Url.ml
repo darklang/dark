@@ -189,8 +189,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
   | Architecture, FocusedFn _
   | FocusedHandler _, FocusedFn _
-  | FocusedDB _, FocusedFn _ ->
-      (* Going from non-fn page to fn page.
+  | FocusedDB _, FocusedFn _
+  | Architecture, FocusedType _
+  | FocusedHandler _, FocusedType _
+  | FocusedDB _, FocusedType _ ->
+      (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
       { m with
@@ -199,7 +202,10 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           { m.canvasProps with
             lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
       ; cursorState = Deselected }
-  | FocusedFn oldtlid, FocusedFn newtlid ->
+  | FocusedFn oldtlid, FocusedFn newtlid
+  | FocusedType oldtlid, FocusedFn newtlid
+  | FocusedFn oldtlid, FocusedType newtlid
+  | FocusedType oldtlid, FocusedType newtlid ->
       (* Going between fn pages
     * Check they are not the same user function;
     * reset offset to origin, just in case user moved around on the fn page
@@ -211,8 +217,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Deselected }
-  | FocusedFn _, FocusedHandler tlid | FocusedFn _, FocusedDB tlid ->
-      (* Going from Fn to focused DB/hanlder
+  | FocusedFn _, FocusedHandler tlid
+  | FocusedFn _, FocusedDB tlid
+  | FocusedType _, FocusedHandler tlid
+  | FocusedType _, FocusedDB tlid ->
+      (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
       let tl = TL.getTL m tlid in
@@ -241,7 +250,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       else
         let tl = TL.getTL m tlid in
         calculatePanOffset m tl newPage
-  | FocusedFn _, Architecture ->
+  | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
     *)

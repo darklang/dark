@@ -833,7 +833,7 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | FocusedFn _ ->
+    | FocusedFn _ | FocusedType _ ->
         NoChange
     | Architecture | FocusedDB _ | FocusedHandler _ ->
         if event.button = Defaults.leftButton
