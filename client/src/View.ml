@@ -144,9 +144,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ ->
         tl.pos
-    | FocusedFn _ ->
-        Defaults.focusCodePos
-    | FocusedType _ ->
+    | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
   let html =
@@ -212,6 +210,12 @@ let viewCanvas (m : model) : msg Html.html =
       ( match List.find ~f:(fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
+      | None ->
+          [] )
+    | FocusedType tlid ->
+      ( match List.find ~f:(fun t -> t.utTLID = tlid) m.userTipes with
+      | Some tipe ->
+          [viewTL m (TL.utToTL tipe)]
       | None ->
           [] )
   in
