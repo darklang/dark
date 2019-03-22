@@ -567,18 +567,21 @@ let submitACItem
         | PFFMsg _, ACExtra value ->
             replace (PFFMsg (B.newF value))
         | PFnName _, ACExtra value ->
-            let newPD = PFnName (B.newF value) in
-            let newTL = TL.replace pd newPD tl in
-            let changedNames =
-              let old = TL.asUserFunction tl |> deOption "old userFn" in
-              let new_ = TL.asUserFunction newTL |> deOption "new userFn" in
-              Refactor.renameFunction m old new_
-            in
-            wrapNew
-              ( SetFunction
-                  (TL.asUserFunction newTL |> deOption "must be function")
-              :: changedNames )
-              newPD
+            if List.member ~value (Functions.allNames m.userFunctions)
+            then DisplayError ("There is already a Function named " ^ value)
+            else
+              let newPD = PFnName (B.newF value) in
+              let newTL = TL.replace pd newPD tl in
+              let changedNames =
+                let old = TL.asUserFunction tl |> deOption "old userFn" in
+                let new_ = TL.asUserFunction newTL |> deOption "new userFn" in
+                Refactor.renameFunction m old new_
+              in
+              wrapNew
+                ( SetFunction
+                    (TL.asUserFunction newTL |> deOption "must be function")
+                :: changedNames )
+                newPD
         | PConstructorName _, ACConstructorName value ->
             replace (PConstructorName (B.newF value))
         | PParamName _, ACExtra value ->
