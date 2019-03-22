@@ -34,6 +34,8 @@ html {
 @code-font-size: 13.3333px;
 @string-color: lighten(@purple, 10%);
 
+@toplevel-min-width: 360px;
+
 /* Mixins */
 .from (colors, @color) {
   color: @color;
@@ -255,7 +257,7 @@ body #grid * {
   display: flex;
   flex-direction: column;
   width: max-content;
-  min-width: 245px;
+  min-width: @toplevel-min-width;
   padding: 4px;
   border: @top-border;
 
@@ -585,7 +587,7 @@ body #grid * {
     position: absolute;
     top: -12px;
     left: calc(~"100% + 20px");
-    min-width: 245px;
+    min-width: @toplevel-min-width;
     padding: 24px;
     border: @top-border;
     border-color: @yellow;
@@ -851,7 +853,7 @@ body #grid * {
   &.expand {
     height: auto;
     opacity: 1;
-
+    overflow: visible;
     transition: 0.2s height ease, 0.1s opacity linear 0.18s;
   }
 
@@ -1269,7 +1271,7 @@ body #grid * {
     overflow-y: scroll;
     position: absolute;
     text-align: initial;
-    width: 350px;
+    width: @toplevel-min-width - 10px;
     z-index: 1;
 
     .autocomplete-item {
