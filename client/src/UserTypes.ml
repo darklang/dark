@@ -18,6 +18,10 @@ let allData (t : userTipe) : pointerData list =
   namePointer :: definitionPointers
 
 
+let allNames (tipes : userTipe list) : string list =
+  tipes |> List.filter_map ~f:(fun t -> B.toMaybe t.utName)
+
+
 let find (m : model) (id : tlid) : userTipe option =
   List.find ~f:(fun t -> id = t.utTLID) m.userTipes
 
