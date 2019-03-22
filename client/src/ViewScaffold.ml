@@ -47,7 +47,7 @@ let viewButtons (m : model) : msg Html.html =
   in
   let returnButton =
     match m.currentPage with
-    | Architecture _ ->
+    | Architecture ->
         []
     | _ ->
         [ Html.a
@@ -75,13 +75,10 @@ let viewButtons (m : model) : msg Html.html =
                   then "hide details"
                   else "see details" ) ] ]
   in
-  let posToString pos : string =
-    Printf.sprintf "{x = %i, y = %i}" pos.x pos.y
-  in
   let pageToString pg =
     match pg with
-    | Architecture pos ->
-        "Architecture " ^ posToString pos
+    | Architecture ->
+        "Architecture"
     | FocusedFn tlid ->
         Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
     | FocusedHandler tlid ->

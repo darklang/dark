@@ -10,10 +10,10 @@ let hashUrlParams (params : (string * string) list) : string =
   "#" ^ String.join ~sep:"&" merged
 
 
-let urlOf (page : page) (mpos : pos option) : string =
-  let head =
+let urlFor (page : page) : string =
+  let args =
     match page with
-    | Architecture _ ->
+    | Architecture ->
         []
     | FocusedFn tlid ->
         [("fn", deTLID tlid)]
@@ -22,25 +22,7 @@ let urlOf (page : page) (mpos : pos option) : string =
     | FocusedDB tlid ->
         [("db", deTLID tlid)]
   in
-  let tail =
-    match mpos with
-    | Some pos ->
-        [("x", string_of_int pos.x); ("y", string_of_int pos.y)]
-    | None ->
-        []
-  in
-  hashUrlParams (head @ tail)
-
-
-let urlFor (page : page) : string =
-  let pos =
-    match page with
-    | Architecture pos ->
-        Some {x = pos.x; y = pos.y}
-    | _ ->
-        None
-  in
-  urlOf page pos
+  hashUrlParams args
 
 
 let navigateTo (page : page) : msg Cmd.t = Navigation.newUrl (urlFor page)
@@ -50,7 +32,7 @@ let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
   Html.a [Html.href (urlFor page); Html.class' class_] content
 
 
-let parseLocation (m : model) (loc : Web.Location.location) : page option =
+let parseLocation (loc : Web.Location.location) : page option =
   let unstructured =
     loc.hash
     |> String.dropLeft ~count:1
@@ -60,7 +42,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
            match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
     |> StrDict.fromList
   in
-  let architecture () = Some (Architecture m.canvasProps.lastOffset) in
+  let architecture () = Some Architecture in
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
@@ -89,7 +71,7 @@ let parseLocation (m : model) (loc : Web.Location.location) : page option =
 
 
 let changeLocation (m : model) (loc : Web.Location.location) : modification =
-  let mPage = parseLocation m loc in
+  let mPage = parseLocation loc in
   match mPage with
   | Some (FocusedFn id) ->
     ( match Functions.find m id with
@@ -109,8 +91,8 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
         DisplayError "No DB with this id"
     | _ ->
         SetPage (FocusedDB id) )
-  | Some (Architecture pos) ->
-      SetPage (Architecture pos)
+  | Some Architecture ->
+      SetPage Architecture
   | None ->
       NoChange
 
@@ -162,24 +144,113 @@ let isDebugging = queryParamSet "debugger"
 
 let isIntegrationTest = queryParamSet "integration-test"
 
+let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
+  let offset =
+    let telem = Native.Ext.querySelector (".toplevel.tl-" ^ showTLID tl.id) in
+    match telem with
+    | Some e ->
+        let tsize =
+          {w = Native.Ext.clientWidth e; h = Native.Ext.clientHeight e}
+        in
+        let windowSize = m.canvasProps.viewportSize in
+        if Viewport.isEnclosed
+             (m.canvasProps.offset, windowSize)
+             (tl.pos, tsize)
+        then m.canvasProps.offset
+        else Viewport.toCenteredOn tl.pos
+    | None ->
+        m.canvasProps.offset
+  in
+  let panAnimation = offset <> m.canvasProps.offset in
+  { m with
+    currentPage = page
+  ; cursorState = Selecting (tl.id, None)
+  ; canvasProps = {m.canvasProps with offset; panAnimation; lastOffset = None}
+  }
+
+
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
-  if oldPage = newPage
-  then m
-  else
-    match newPage with
-    | Architecture pos ->
-        (* Pan to position *)
-        { m with
-          currentPage = newPage; canvasProps = {m.canvasProps with offset = pos}
-        }
-    | FocusedFn _ ->
+  match (oldPage, newPage) with
+  | Architecture, FocusedFn _
+  | FocusedHandler _, FocusedFn _
+  | FocusedDB _, FocusedFn _ ->
+      (* Going from non-fn page to fn page.
+    * Save the canvas position; set offset to origin
+    *)
+      { m with
+        currentPage = newPage
+      ; canvasProps =
+          { m.canvasProps with
+            lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
+      ; cursorState = Deselected }
+  | FocusedFn oldtlid, FocusedFn newtlid ->
+      (* Going between fn pages
+    * Check they are not the same user function;
+    * reset offset to origin, just in case user moved around on the fn page
+    *)
+      if oldtlid == newtlid
+      then m
+      else
         { m with
           currentPage = newPage
-        ; canvasProps =
-            { m.canvasProps with
-              (* Stash the offset so that returning to canvas goes to the previous place *)
-              lastOffset = m.canvasProps.offset
-            ; offset = Defaults.origin }
+        ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Deselected }
-    | FocusedHandler _ | FocusedDB _ ->
-        m
+  | FocusedFn _, FocusedHandler tlid | FocusedFn _, FocusedDB tlid ->
+      (* Going from Fn to focused DB/hanlder
+    * Jump to position where the toplevel is located
+    *)
+      let tl = TL.getTL m tlid in
+      { m with
+        currentPage = newPage
+      ; cursorState = Selecting (tlid, None)
+      ; canvasProps =
+          { m.canvasProps with
+            offset = Viewport.toCenteredOn tl.pos; lastOffset = None } }
+  | Architecture, FocusedHandler tlid | Architecture, FocusedDB tlid ->
+      (* Going from Architecture to focused db/handler
+  * Figure out if you can stay where you are or animate pan to toplevel pos
+  *)
+      let tl = TL.getTL m tlid in
+      calculatePanOffset m tl newPage
+  | FocusedHandler otlid, FocusedHandler tlid
+  | FocusedHandler otlid, FocusedDB tlid
+  | FocusedDB otlid, FocusedHandler tlid
+  | FocusedDB otlid, FocusedDB tlid ->
+      (* Going from focused db/handler to another focused db/handler
+  * Check it is a different tl;
+  * figure out if you can stay where you are or animate pan to toplevel pos
+  *)
+      if otlid = tlid
+      then m
+      else
+        let tl = TL.getTL m tlid in
+        calculatePanOffset m tl newPage
+  | FocusedFn _, Architecture ->
+      (* Going from fn back to Architecture
+    * Return to the previous position you were on the canvas
+    *)
+      let offset =
+        match m.canvasProps.lastOffset with
+        | Some lo ->
+            lo
+        | None ->
+            m.canvasProps.offset
+      in
+      { m with
+        currentPage = newPage
+      ; canvasProps = {m.canvasProps with offset; lastOffset = None} }
+  | _, Architecture ->
+      (* Anything else to Architecture
+    * Stay where you are, Deselect
+    *)
+      {m with currentPage = newPage; cursorState = Deselected}
+
+
+let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
+  let prevTLID = tlidOf m.cursorState in
+  if match prevTLID with Some tid -> tlid <> tid | None -> false
+  then
+    let tl = TL.getTL m tlid in
+    let page = TL.asPage tl in
+    [navigateTo page]
+  else []

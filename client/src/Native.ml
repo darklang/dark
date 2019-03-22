@@ -61,10 +61,6 @@ module Ext = struct
     [%bs.raw "(typeof window === undefined) ? window : {}"]
 
 
-  external getWidth : Dom.window -> int = "innerWidth" [@@bs.get]
-
-  external getHeight : Dom.window -> int = "innerHeight" [@@bs.get]
-
   external astPositions : string -> jsRectArr = "positions"
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
@@ -75,8 +71,19 @@ module Ext = struct
 
   external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
 
+  external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
+
+  external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
+
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
+
+
+  external windowWidth : Dom.window -> int = "innerWidth" [@@bs.get]
+
+  external windowHeight : Dom.window -> int = "innerHeight" [@@bs.get]
+
+  let windowSize : int * int = (windowWidth window, windowHeight window)
 end
 
 module Random = struct
@@ -111,10 +118,6 @@ module Location = struct
 end
 
 module Window = struct
-  let size () : size =
-    {width = Ext.getWidth Ext.window; height = Ext.getHeight Ext.window}
-
-
   module OnResize = struct
     let decode =
       let open Tea.Json.Decoder in
@@ -128,6 +131,21 @@ module Window = struct
 
 
     let listen ~key tagger = registerGlobal "windowResize" key tagger decode
+  end
+
+  module OnLoad = struct
+    let decode =
+      let open Tea.Json.Decoder in
+      let decodeDetail =
+        map2
+          (fun width height -> (width, height))
+          (field "width" int)
+          (field "height" int)
+      in
+      map (fun msg -> msg) (field "detail" decodeDetail)
+
+
+    let listen ~key tagger = registerGlobal "windowOnload" key tagger decode
   end
 
   module OnFocusChange = struct

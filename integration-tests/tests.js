@@ -979,3 +979,38 @@ test('fourohfours_parse', async t => {
 
   await sendPushEvent()
 })
+
+test('return_to_architecture_on_deselect', async t => {
+  await t.click('.tl-123');
+  await t.expect(Selector('.tl-123', {timeout: 500}).hasClass('selected')).ok()
+
+  await t.click('#canvas', {offsetX: 10, offsetY: 500})
+
+})
+
+test('fn_page_returns_to_lastpos', async t => {
+  await t.navigateTo('#handler=123')
+    .expect(available('.tl-123')).ok({ timeout : 1000 });
+
+  const archOffset = await Selector('#canvas').getStyleProperty('transform');
+
+  await t.navigateTo('#fn=890')
+    .expect(available('.user-fn-toplevel')).ok({ timeout : 1000 });
+
+  await t.expect(Selector('#canvas').getStyleProperty('transform')).notEql(archOffset);
+
+  await t.click(".return-to-canvas")
+    .expect(available('.tl-123')).ok({ timeout : 1000 })
+
+})
+
+test('fn_page_to_handler_pos', async t => {
+  await t.navigateTo('#fn=890')
+    .expect(available('.user-fn-toplevel')).ok({ timeout : 1000 });
+  const fnOffset = await Selector('#canvas').getStyleProperty('transform');
+
+  await t.navigateTo('#handler=123')
+    .expect(available('.tl-123')).ok({ timeout : 1000 });
+
+  await t.expect(Selector('#canvas').getStyleProperty('transform')).notEql(fnOffset);
+})

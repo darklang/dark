@@ -53,6 +53,12 @@ and vPos =
   { vx : int
   ; vy : int }
 
+and size =
+  { w : int
+  ; h : int }
+
+and box = pos * size
+
 (* ---------------------- *)
 (* Types *)
 (* ---------------------- *)
@@ -620,7 +626,7 @@ and clipboardCutEvent = jsEvent
 (* Modifications *)
 (* ------------------- *)
 and page =
-  | Architecture of pos
+  | Architecture
   | FocusedFn of tlid
   | FocusedHandler of tlid
   | FocusedDB of tlid
@@ -637,7 +643,9 @@ and focus =
 and canvasProps =
   { offset : pos
   ; enablePan : bool
-  ; lastOffset : pos }
+  ; lastOffset : pos option
+  ; viewportSize : size
+  ; panAnimation : bool }
 
 and httpError = (string Tea.Http.error[@opaque])
 
@@ -735,6 +743,7 @@ and msg =
   | ExecuteFunctionButton of tlid * id * string
   | CreateHandlerFrom404 of fourOhFour
   | WindowResize of int * int
+  | WindowOnLoad of int * int
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
   | PageVisibilityChange of PageVisibility.visibility
@@ -770,9 +779,9 @@ and msg =
   | ClipboardCutEvent of clipboardCutEvent
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string
-  | SelectToplevelAt of tlid * pos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
+  | CanvasPanAnimationEnd
 
 (* ----------------------------- *)
 (* AB tests *)

@@ -20,7 +20,7 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
-    Url.parseLocation m location
+    Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
   (* these saved values may not be valid yet *)
@@ -95,7 +95,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let target tuple = ACSetTarget (Some tuple) in
       let tlOnPage tl =
         match page with
-        | Architecture _ ->
+        | Architecture ->
           ( match tl.data with
           | TLHandler _ ->
               true
@@ -440,13 +440,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetPage page ->
         (Url.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
+        let hashCmd = Url.shouldUpdateHash m tlid in
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch (closeBlanks m @ [afCmd]))
+        let commands = hashCmd @ closeBlanks m @ [afCmd] in
+        (m, Cmd.batch commands)
     | Deselect ->
+        let hashCmd = Url.navigateTo Architecture in
         let m, acCmd = processAutocompleteMods m [ACReset] in
         let m = {m with cursorState = Deselected} in
-        (m, Cmd.batch (closeBlanks m @ [acCmd]))
+        let commands = hashCmd :: (closeBlanks m @ [acCmd]) in
+        (m, Cmd.batch commands)
     | Enter entry ->
         let target =
           match entry with
@@ -758,8 +762,8 @@ let toggleTimers (m : model) : model =
 
 let findCenter (m : model) : pos =
   match m.currentPage with
-  | Architecture center ->
-      Viewport.toCenter center
+  | Architecture | FocusedHandler _ | FocusedDB _ ->
+      Viewport.toCenter m.canvasProps.offset
   | _ ->
       Defaults.centerPos
 
@@ -792,7 +796,9 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | Architecture _ ->
+    | FocusedFn _ ->
+        NoChange
+    | Architecture | FocusedDB _ | FocusedHandler _ ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
@@ -802,9 +808,7 @@ let update_ (msg : msg) (m : model) : modification =
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
           | _ ->
               Deselect
-        else NoChange
-    | _ ->
-        NoChange )
+        else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
@@ -1134,10 +1138,11 @@ let update_ (msg : msg) (m : model) : modification =
       DisplayAndReportHttpError ("Delete404", false, err, Encoders.fof params)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (_, _) ->
-      (* just receiving the subscription will cause a redraw, which uses *)
-      (* the native sizing function. *)
-      NoChange
+  | WindowResize (w, h) | WindowOnLoad (w, h) ->
+      TweakModel
+        (fun m_ ->
+          {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
+          )
   | LocationChange loc ->
       Url.changeLocation m loc
   | TimerFire (action, _) ->
@@ -1271,9 +1276,6 @@ let update_ (msg : msg) (m : model) : modification =
   | ClipboardCopyLivevalue lv ->
       Native.Clipboard.copyToClipboard lv ;
       NoChange
-  | SelectToplevelAt (tlid, pos) ->
-      let centerPos = Viewport.toCenteredOn pos in
-      Many [SetPage (Architecture centerPos); Select (tlid, None)]
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -1289,6 +1291,10 @@ let update_ (msg : msg) (m : model) : modification =
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
       TweakModel (Editor.setHandlerState tlid state)
+  | CanvasPanAnimationEnd ->
+      TweakModel
+        (fun m ->
+          {m with canvasProps = {m.canvasProps with panAnimation = false}} )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
@@ -1306,7 +1312,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let resizes =
     [ Native.Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
-          WindowResize (w, h) ) ]
+          WindowResize (w, h) )
+    ; Native.Window.OnLoad.listen ~key:"window_on_load" (fun (w, h) ->
+          WindowOnLoad (w, h) ) ]
   in
   let dragSubs =
     match m.cursorState with
