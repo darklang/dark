@@ -38,6 +38,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         (ViewDB.viewDB vs db, [])
     | TLFunc f ->
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
+    | TLTipe t ->
+        ([ViewUserType.viewUserTipe vs t], [])
   in
   let events =
     [ ViewUtils.eventNoPropagation
@@ -142,7 +144,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ ->
         tl.pos
-    | FocusedFn _ ->
+    | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
   let html =
@@ -178,11 +180,17 @@ let tlCacheKeyDB (m : model) tl =
   else Some (tl, DB.isLocked m tl.id)
 
 
+let tlCacheKeyTipe (m : model) tl =
+  if Some tl.id = tlidOf m.cursorState then None else Some tl
+
+
 let viewTL m tl =
   match tl.data with
+  | TLTipe _ ->
+      Cache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
       Cache.cache2m tlCacheKeyDB viewTL_ m tl
-  | _ ->
+  | TLFunc _ | TLHandler _ ->
       Cache.cache2m tlCacheKey viewTL_ m tl
 
 
@@ -202,6 +210,12 @@ let viewCanvas (m : model) : msg Html.html =
       ( match List.find ~f:(fun f -> f.ufTLID = tlid) m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
+      | None ->
+          [] )
+    | FocusedType tlid ->
+      ( match List.find ~f:(fun t -> t.utTLID = tlid) m.userTipes with
+      | Some tipe ->
+          [viewTL m (TL.utToTL tipe)]
       | None ->
           [] )
   in

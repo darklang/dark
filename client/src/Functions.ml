@@ -6,6 +6,10 @@ open Types
 module B = Blank
 module P = Pointer
 
+let allNames (fns : userFunction list) : string list =
+  List.filter_map ~f:(fun fn -> B.toMaybe fn.ufMetadata.ufmName) fns
+
+
 let ufpToP (ufp : userFunctionParameter) : parameter option =
   match (ufp.ufpName, ufp.ufpTipe) with
   | F (_, name), F (_, tipe) ->

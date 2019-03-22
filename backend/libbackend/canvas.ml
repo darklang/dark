@@ -21,7 +21,9 @@ type canvas =
   ; deleted_toplevels : TL.toplevel_list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
-  ; cors_setting : cors_setting option }
+  ; cors_setting : cors_setting option
+  ; user_tipes : RTT.user_tipe list
+  ; deleted_user_tipes : RTT.user_tipe list }
 [@@deriving eq, show]
 
 (* ------------------------- *)
@@ -47,6 +49,11 @@ let upsert_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
   {c with user_functions = fns @ [user_fn]}
 
 
+let upsert_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
+  let fns = List.filter ~f:(fun x -> x.tlid <> user_tipe.tlid) c.user_tipes in
+  {c with user_tipes = fns @ [user_tipe]}
+
+
 let remove_function (tlid : tlid) (c : canvas) : canvas =
   let deletedFn =
     c.user_functions |> List.find ~f:(fun x -> x.tlid = tlid) |> Option.to_list
@@ -62,6 +69,23 @@ let remove_function_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_functions = List.filter ~f c.user_functions
   ; deleted_user_functions = List.filter ~f c.deleted_user_functions }
+
+
+let remove_tipe (tlid : tlid) (c : canvas) : canvas =
+  let deletedTipe =
+    c.user_tipes |> List.find ~f:(fun x -> x.tlid = tlid) |> Option.to_list
+  in
+  let tipes = List.filter ~f:(fun x -> x.tlid <> tlid) c.user_tipes in
+  { c with
+    user_tipes = tipes; deleted_user_tipes = c.deleted_user_tipes @ deletedTipe
+  }
+
+
+let remove_tipe_forever (tlid : tlid) (c : canvas) : canvas =
+  let f (ut : RTT.user_tipe) = ut.tlid <> tlid in
+  { c with
+    user_tipes = List.filter ~f c.user_tipes
+  ; deleted_user_tipes = List.filter ~f c.deleted_user_tipes }
 
 
 let remove_tl_forever (tlid : tlid) (c : canvas) : canvas =
@@ -213,6 +237,12 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
         remove_tl_forever tlid
     | DeleteFunctionForever tlid ->
         remove_function_forever tlid
+    | SetType user_tipe ->
+        upsert_tipe user_tipe
+    | DeleteType tlid ->
+        remove_tipe tlid
+    | DeleteTypeForever tlid ->
+        remove_tipe_forever tlid
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
@@ -276,7 +306,9 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; deleted_toplevels = []
       ; user_functions = []
       ; deleted_user_functions = []
-      ; cors_setting = cors }
+      ; cors_setting = cors
+      ; user_tipes = []
+      ; deleted_user_tipes = [] }
   in
   add_ops c [] ops ;
   c
@@ -354,7 +386,9 @@ let load_from
       ; user_functions = []
       ; deleted_toplevels = []
       ; deleted_user_functions = []
-      ; cors_setting = cors }
+      ; cors_setting = cors
+      ; user_tipes = []
+      ; deleted_user_tipes = [] }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops ;
   c

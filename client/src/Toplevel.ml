@@ -22,6 +22,8 @@ let name (tl : toplevel) : string =
   | TLFunc f ->
       "Func: "
       ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
+  | TLTipe t ->
+      "Type: " ^ (t.utName |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
@@ -36,6 +38,8 @@ let sortkey (tl : toplevel) : string =
       f.ufMetadata.ufmName
       |> B.toMaybe
       |> Option.withDefault ~default:"Unnamed"
+  | TLTipe t ->
+      t.utName |> B.toMaybe |> Option.withDefault ~default:"Unnamed"
 
 
 let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
@@ -92,8 +96,20 @@ let ufToTL (uf : userFunction) : toplevel =
   {id = uf.ufTLID; pos = Defaults.centerPos; data = TLFunc uf}
 
 
+let utToTL (ut : userTipe) : toplevel =
+  {id = ut.utTLID; pos = Defaults.centerPos; data = TLTipe ut}
+
+
 let asUserFunction (tl : toplevel) : userFunction option =
   match tl.data with TLFunc f -> Some f | _ -> None
+
+
+let asUserTipe (tl : toplevel) : userTipe option =
+  match tl.data with TLTipe t -> Some t | _ -> None
+
+
+let isUserTipe (tl : toplevel) : bool =
+  match tl.data with TLTipe _ -> true | _ -> false
 
 
 let asHandler (tl : toplevel) : handler option =
@@ -142,7 +158,9 @@ let toOp (tl : toplevel) : op list =
       [SetHandler (tl.id, tl.pos, h)]
   | TLFunc fn ->
       [SetFunction fn]
-  | _ ->
+  | TLTipe t ->
+      [SetType t]
+  | TLDB _ ->
       impossible "This isn't how database ops work"
 
 
@@ -157,6 +175,8 @@ let allData (tl : toplevel) : pointerData list =
       DB.allData db
   | TLFunc f ->
       Functions.allData f
+  | TLTipe t ->
+      UserTypes.allData t
 
 
 let isValidID (tl : toplevel) (id : id) : bool =
@@ -193,6 +213,12 @@ let clonePointerData (pd : pointerData) : pointerData =
       PPattern (AST.clonePattern pattern)
   | PConstructorName name ->
       PConstructorName (B.clone identity name)
+  | PTypeName name ->
+      PTypeName (B.clone identity name)
+  | PTypeFieldName name ->
+      PTypeFieldName (B.clone identity name)
+  | PTypeFieldTipe tipe ->
+      PTypeFieldTipe (B.clone identity tipe)
   | PDBColName _ | PDBColType _ | PDBName _ ->
       pd
 
@@ -242,36 +268,6 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
 
 
 (* ------------------------- *)
-(* Siblings *)
-(* ------------------------- *)
-let siblings (tl : toplevel) (p : pointerData) : pointerData list =
-  match tl.data with
-  | TLHandler h ->
-      let toplevels = SpecHeaders.allData h.spec @ [PExpr h.ast] in
-      if List.member ~value:p toplevels
-      then toplevels
-      else AST.siblings p h.ast
-  | TLDB db ->
-      DB.siblings p db
-  | TLFunc f ->
-      AST.siblings p f.ufAST
-
-
-let getNextSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p
-  |> Util.listNextWrap ~value:p
-  (* 'safe' to deOption as there's always at least one member in the array *)
-  |> deOption "nextSibling"
-
-
-let getPrevSibling (tl : toplevel) (p : pointerData) : pointerData =
-  siblings tl p
-  |> Util.listPreviousWrap ~value:p
-  (* 'safe' to deOption as there's always at least one member in the array *)
-  |> deOption "prevSibling"
-
-
-(* ------------------------- *)
 (* Up/Down the tree *)
 (* ------------------------- *)
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
@@ -290,6 +286,9 @@ let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
       |> Option.values
       |> List.head
       |> Option.map ~f:(fun x -> PExpr x)
+  | TLTipe _ ->
+      (* Type definitions are flat *)
+      None
 
 
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
@@ -302,6 +301,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
         AST.childrenOf pid f.ufAST
     | TLDB db ->
         db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
+    | TLTipe _ ->
+        []
   in
   match pd with
   | PVarBind _ ->
@@ -338,6 +339,12 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PConstructorName _ ->
       []
+  | PTypeName _ ->
+      []
+  | PTypeFieldName _ ->
+      []
+  | PTypeFieldTipe _ ->
+      []
 
 
 (* TODO(match) *)
@@ -353,14 +360,15 @@ let rootOf (tl : toplevel) : pointerData option =
       Some (PExpr h.ast)
   | TLFunc f ->
       Some (PExpr f.ufAST)
-  | _ ->
+  | TLDB _ | TLTipe _ ->
       None
 
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     toplevel =
-  let ha () = tl |> asHandler |> deOption "TL.replace" in
-  let fn () = tl |> asUserFunction |> deOption "TL.replace" in
+  let ha () = tl |> asHandler |> deOption "TL.replace ha ()" in
+  let fn () = tl |> asUserFunction |> deOption "TL.replace fn ()" in
+  let tipe () = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
   let id = P.toID p in
   let astReplace () =
     match tl.data with
@@ -370,7 +378,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLFunc f ->
         let newAST = AST.replace p replacement f.ufAST in
         {tl with data = TLFunc {f with ufAST = newAST}}
-    | _ ->
+    | TLDB _ | TLTipe _ ->
         impossible ("no AST here", tl.data)
   in
   let specHeaderReplace bo =
@@ -382,6 +390,11 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     let f = fn () in
     let newF = Functions.replaceMetadataField p replacement f in
     {tl with data = TLFunc newF}
+  in
+  let tipeReplace () =
+    let t = tipe () in
+    let newTipe = UserTypes.replace p replacement t in
+    {tl with data = TLTipe newTipe}
   in
   match replacement with
   | PVarBind _ ->
@@ -415,7 +428,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLFunc f ->
         let ast = AST.replace p replacement f.ufAST in
         {tl with data = TLFunc {f with ufAST = ast}}
-    | _ ->
+    | TLDB _ | TLTipe _ ->
         tl )
   | PFnName _ ->
       fnMetadataReplace ()
@@ -429,6 +442,12 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       astReplace ()
   | PFnCallName _ ->
       tl
+  | PTypeName _ ->
+      tipeReplace ()
+  | PTypeFieldName _ ->
+      tipeReplace ()
+  | PTypeFieldTipe _ ->
+      tipeReplace ()
 
 
 let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -444,6 +463,9 @@ let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLFunc f ->
         let ops = [SetFunction f] in
         RPC (ops, FocusNoChange)
+    | TLTipe t ->
+        let ops = [SetType t] in
+        RPC (ops, FocusNoChange)
     | TLDB _ ->
         impossible ("no vars in DBs", tl.data)
 
@@ -456,7 +478,9 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
 
 
 let all (m : model) : toplevel list =
-  m.toplevels @ List.map ~f:ufToTL m.userFunctions
+  m.toplevels
+  @ List.map ~f:ufToTL m.userFunctions
+  @ List.map ~f:utToTL m.userTipes
 
 
 let get (m : model) (id : tlid) : toplevel option =
@@ -506,3 +530,5 @@ let asPage (tl : toplevel) : page =
       FocusedDB tl.id
   | TLFunc _ ->
       FocusedFn tl.id
+  | TLTipe _ ->
+      FocusedType tl.id

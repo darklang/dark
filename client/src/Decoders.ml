@@ -325,12 +325,31 @@ and traceData j : traceData =
 
 and trace j : trace = pair traceID (optional traceData) j
 
+and userRecordField j =
+  { urfName = field "name" (blankOr string) j
+  ; urfTipe = field "tipe" (blankOr tipe) j }
+
+
+and userTipeDefinition j =
+  variants
+    [("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField))]
+    j
+
+
+and userTipe j =
+  { utTLID = field "tlid" tlid j
+  ; utName = field "name" (blankOr string) j
+  ; utVersion = field "version" int j
+  ; utDefinition = field "definition" userTipeDefinition j }
+
+
 and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
-  }
+  ; userTipes = field "user_tipes" (list userTipe) j
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
@@ -350,7 +369,9 @@ and initialLoadRPCResult j : initialLoadRPCResult =
       j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
   ; fofs = field "fofs" (list fof) j
   ; staticDeploys = field "assets" (list sDeploy) j
-  ; traces = field "traces" (list (pair tlid traceID)) j }
+  ; traces = field "traces" (list (pair tlid traceID)) j
+  ; userTipes = field "user_tipes" (list userTipe) j
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =

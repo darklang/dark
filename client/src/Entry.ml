@@ -252,7 +252,9 @@ let getAstFromTopLevel tl =
   | TLFunc f ->
       f.ufAST
   | TLDB _ ->
-      impossible ("No fields in DBs", tl.data)
+      impossible ("No ASTs in DBs", tl.data)
+  | TLTipe _ ->
+      impossible ("No ASTs in Types", tl.data)
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -303,6 +305,12 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       None
   | PParamTipe _ ->
       v AC.paramTypeValidator "param type"
+  | PTypeName _ ->
+      v AC.typeNameValidator "type name"
+  | PTypeFieldName _ ->
+      v AC.fieldNameValidator "type field name"
+  | PTypeFieldTipe _ ->
+      v AC.paramTypeValidator "type field type"
   | PPattern currentPattern ->
       let validPattern value =
         Decoders.isLiteralString value
@@ -395,6 +403,8 @@ let submitACItem
                 wrapNew [SetHandler (tlid, tl.pos, h)] next
             | TLFunc f ->
                 wrapNew [SetFunction f] next
+            | TLTipe t ->
+                wrapNew [SetType t] next
             | TLDB _ ->
                 impossible ("no vars in DBs", tl.data)
         in
@@ -406,7 +416,9 @@ let submitACItem
           | TLFunc f ->
               save {tl with data = TLFunc {f with ufAST = ast}} next
           | TLDB _ ->
-              impossible ("no vars in DBs", tl.data)
+              impossible ("no ASTs in DBs", tl.data)
+          | TLTipe _ ->
+              impossible ("no ASTs in Tipes", tl.data)
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -532,6 +544,8 @@ let submitACItem
           | TLFunc f ->
               let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
+          | TLTipe _ ->
+              NoChange
           | TLDB db ->
             ( match db.activeMigration with
             | None ->
@@ -553,18 +567,21 @@ let submitACItem
         | PFFMsg _, ACExtra value ->
             replace (PFFMsg (B.newF value))
         | PFnName _, ACExtra value ->
-            let newPD = PFnName (B.newF value) in
-            let newTL = TL.replace pd newPD tl in
-            let changedNames =
-              let old = TL.asUserFunction tl |> deOption "old userFn" in
-              let new_ = TL.asUserFunction newTL |> deOption "new userFn" in
-              Refactor.renameFunction m old new_
-            in
-            wrapNew
-              ( SetFunction
-                  (TL.asUserFunction newTL |> deOption "must be function")
-              :: changedNames )
-              newPD
+            if List.member ~value (Functions.allNames m.userFunctions)
+            then DisplayError ("There is already a Function named " ^ value)
+            else
+              let newPD = PFnName (B.newF value) in
+              let newTL = TL.replace pd newPD tl in
+              let changedNames =
+                let old = TL.asUserFunction tl |> deOption "old userFn" in
+                let new_ = TL.asUserFunction newTL |> deOption "new userFn" in
+                Refactor.renameFunction m old new_
+              in
+              wrapNew
+                ( SetFunction
+                    (TL.asUserFunction newTL |> deOption "must be function")
+                :: changedNames )
+                newPD
         | PConstructorName _, ACConstructorName value ->
             replace (PConstructorName (B.newF value))
         | PParamName _, ACExtra value ->
@@ -581,6 +598,14 @@ let submitACItem
               |> AST.replace pd new_
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ )
+        | PTypeName _, ACExtra value ->
+            if List.member ~value (UserTypes.allNames m.userTipes)
+            then DisplayError ("There is already a Type named " ^ value)
+            else replace (PTypeName (B.newF value))
+        | PTypeFieldName _, ACExtra value ->
+            replace (PTypeFieldName (B.newF value))
+        | PTypeFieldTipe _, ACTypeFieldTipe value ->
+            replace (PTypeFieldTipe (B.newF (RT.str2tipe value)))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option: ("

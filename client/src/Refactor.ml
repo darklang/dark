@@ -11,6 +11,10 @@ let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
 
 
+let generateTipeName () : string =
+  "Type_" ^ (() |> Util.random |> string_of_int)
+
+
 let convertTipe (tipe : tipe) : tipe =
   match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
 
@@ -305,6 +309,12 @@ let fnUseCount (m : model) (name : string) : int =
 
 let usedFn (m : model) (name : string) : bool = fnUseCount m name <> 0
 
+(* This needs to take into account where the type is used in all cases
+ * ie. in a function type parameter or in a DB definition *)
+let tipeUseCount (_m : model) (_name : string) : int = 0
+
+let usedTipe (m : model) (name : string) : bool = tipeUseCount m name <> 0
+
 let dbUseCount (m : model) (name : string) : int =
   StrDict.get m.usedDBs ~key:name |> Option.withDefault ~default:0
 
@@ -445,6 +455,16 @@ let generateEmptyFunction (_ : unit) : userFunction =
   {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
 
 
+let generateEmptyUserType () : userTipe =
+  let tipeName = generateTipeName () in
+  let tlid = gtlid () in
+  let definition = UTRecord [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
+  { utTLID = tlid
+  ; utName = F (gid (), tipeName)
+  ; utVersion = 0
+  ; utDefinition = definition }
+
+
 let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
     op list =
   let newPd () = PExpr (B.newF (Variable newName)) in
@@ -468,5 +488,7 @@ let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
              if newAST <> f.ufAST
              then Some (SetFunction {f with ufAST = newAST})
              else None
+         | TLTipe _ ->
+             None
          | TLDB _ ->
              None )
