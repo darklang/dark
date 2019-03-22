@@ -35,6 +35,7 @@ html {
 @string-color: lighten(@purple, 10%);
 
 @toplevel-min-width: 360px;
+@ridiculously-large : 1000%;
 
 /* Mixins */
 .from (colors, @color) {
@@ -154,8 +155,8 @@ body #app * {
     content: "";
     display: block;
     position: absolute;
-    height: 2000%;
-    top: -1000%;
+    height: 2 * @ridiculously-large;
+    top: -1 * @ridiculously-large;
     left: 50%;
     border-left: @axis-style;
   }
@@ -164,9 +165,9 @@ body #app * {
     content: "";
     display: block;
     position: absolute;
-    width: 2000%;
+    width: 2 * @ridiculously-large;
     top: 50%;
-    left: -1000%;
+    left: -1 * @ridiculously-large;
     border-top: @axis-style;
   }
 
@@ -235,6 +236,22 @@ body #app * {
     animation-name: showErrorPanel;
   }
 }
+
+.overlay {
+  position: fixed;
+  top: -1 * @ridiculously-large;
+  left: -1 * @ridiculously-large;
+  display: none;
+  height: 2 * @ridiculously-large;
+  width: 2 * @ridiculously-large;
+  overflow: visible;
+  background-color: rgba(13,13,13, 0.8);
+
+  &.show {
+    display: block;
+  }
+}
+
 
 //*************
 // Toplevel
@@ -1905,6 +1922,10 @@ body #app * {
   #entry-box {
     z-index: 60;
   }
+}
+
+.overlay {
+  z-index: 30;
 }
 
 .sidebar-box {
