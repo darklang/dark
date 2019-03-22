@@ -115,15 +115,14 @@ body {
   }
 }
 
-/********************
- * Top level
- ********************/
-
-#grid {
+#app {
   background: @black1;
+  width: 100%;
   height: 100vh;
   overflow: hidden;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
 
   -webkit-touch-callout: none; /* iOS Safari */
     -webkit-user-select: none; /* Safari */
@@ -134,7 +133,7 @@ body {
                                   supported by Chrome and Opera */
 }
 
-body #grid * {
+body #app * {
   &:not(.fa) { // skip fontawesome
     font-family: 'Fira Code', monospace;
   }
@@ -157,7 +156,7 @@ body #grid * {
     position: absolute;
     height: 2000%;
     top: -1000%;
-    left: 0;
+    left: 50%;
     border-left: @axis-style;
   }
 
@@ -166,7 +165,7 @@ body #grid * {
     display: block;
     position: absolute;
     width: 2000%;
-    top: 0;
+    top: 50%;
     left: -1000%;
     border-top: @axis-style;
   }
@@ -177,7 +176,7 @@ body #grid * {
 }
 
 #buttons {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
@@ -225,7 +224,7 @@ body #grid * {
   padding-bottom: 50px;
   background-color: @red;
   color: @white1;
-  position: absolute;
+  position: fixed;
   left: 0;
   bottom: -70px;
 
@@ -234,19 +233,6 @@ body #grid * {
   &.show {
     bottom: 0;
     animation-name: showErrorPanel;
-  }
-}
-
-.axis {
-  background: #777;
-  height: 200%;
-  position: absolute;
-  transform: translate(0, -50%);
-  width: 1px;
-  &.horizontal {
-    height: 1px;
-    transform: translate(-50%, 0);
-    width: 200%;
   }
 }
 

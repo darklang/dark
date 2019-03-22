@@ -248,10 +248,10 @@ let view (m : model) : msg Html.html =
         Html.class' str
   in
   let attributes =
-    [ Html.id "grid"
+    [ Html.id "app"
     ; activeVariantsClass
     ; Html.onWithOptions
-        ~key:"grid-mu"
+        ~key:"app-mu"
         "mouseup"
         {stopPropagation = false; preventDefault = true}
         (Decoders.wrapDecoder
