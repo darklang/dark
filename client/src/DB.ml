@@ -32,8 +32,6 @@ let allData (db : dB) : pointerData list =
   (name :: colpointers) @ rolls
 
 
-let siblings (_ : pointerData) (db : dB) : pointerData list = allData db
-
 let hasCol (db : dB) (name : string) : bool =
   db.cols
   |> List.any ~f:(fun (colname, _) ->

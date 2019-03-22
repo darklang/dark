@@ -85,6 +85,8 @@ let viewButtons (m : model) : msg Html.html =
         Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
     | FocusedDB tlid ->
         Printf.sprintf "DB (TLID %s)" (deTLID tlid)
+    | FocusedType tlid ->
+        Printf.sprintf "Type (TLID %s)" (deTLID tlid)
   in
   let saveTestButton =
     Html.a

@@ -84,6 +84,17 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             if event.shiftKey
             then
               match tl.data with
+              | TLTipe t ->
+                ( match mId with
+                | Some id ->
+                  ( match TL.findExn tl id with
+                  | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
+                      let replacement = UserTypes.extend t in
+                      RPC ([SetType replacement], FocusNext (tlid, Some id))
+                  | _ ->
+                      NoChange )
+                | None ->
+                    NoChange )
               | TLDB _ ->
                   let blankid = gid () in
                   RPC
@@ -222,14 +233,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         (*   if event.ctrlKey *)
         (*   then Selection.selectDownLevel m tlid mId *)
         (*   else NoChange *)
-        | Key.N ->
-            if event.ctrlKey
-            then Selection.selectNextSibling m tlid mId
-            else NoChange
-        | Key.P ->
-            if event.ctrlKey
-            then Selection.selectPreviousSibling m tlid mId
-            else NoChange
         | Key.C ->
             if event.ctrlKey && event.altKey
             then
@@ -346,6 +349,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Filling (tlid, _) ->
               let tl = TL.getTL m tlid in
               ( match tl.data with
+              | TLTipe _ ->
+                  NoChange
               | TLDB _ ->
                   NoChange
               | TLHandler _ ->
@@ -445,7 +450,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
           | Key.Backspace ->
               (* This was the case in Elm, unclear about bucklescript  *)
-              
               (* NB: when we backspace, we _almost_ always get an *)
               (* EntryInputMsg first. I believe the only time we don't *)
               (* get one when we backspace over '""'. That means that *)
@@ -454,7 +458,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               (* set to the new value '""') or the previous value was *)
               (* '""' (in which case EntryInputMsg will not have run so *)
               (* m.c.v will not have changed. *)
-              
               (* The way we can tell the difference is based on *)
               (* m.c.prevValue. If m.c.pv is '""' or longer, that means *)
               (* EntryInputMsg was run and we are coming from a longer *)

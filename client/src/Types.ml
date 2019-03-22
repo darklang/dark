@@ -159,6 +159,9 @@ and pointerData =
   | PParamTipe of tipe blankOr
   | PPattern of pattern
   | PConstructorName of string blankOr
+  | PTypeName of string blankOr
+  | PTypeFieldName of string blankOr
+  | PTypeFieldTipe of tipe blankOr
 
 and pointerType =
   | VarBind
@@ -178,6 +181,9 @@ and pointerType =
   | ParamTipe
   | Pattern
   | ConstructorName
+  | TypeName
+  | TypeFieldName
+  | TypeFieldTipe
 
 and pointerOwner =
   | POSpecHeader
@@ -256,11 +262,24 @@ and userFunction =
   ; ufMetadata : userFunctionMetadata
   ; ufAST : expr }
 
+and userRecordField =
+  { urfName : string blankOr
+  ; urfTipe : tipe blankOr }
+
+and userTipeDefinition = UTRecord of userRecordField list
+
+and userTipe =
+  { utTLID : tlid
+  ; utName : string blankOr
+  ; utVersion : int
+  ; utDefinition : userTipeDefinition }
+
 (* toplevels *)
 and tlData =
   | TLHandler of handler
   | TLDB of dB
   | TLFunc of userFunction
+  | TLTipe of userTipe
 
 and toplevel =
   { id : tlid
@@ -430,6 +449,9 @@ and op =
   | CreateDBWithBlankOr of tlid * pos * id * dBName
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
+  | SetType of userTipe
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
 
 (* ------------------- *)
 (* RPCs *)
@@ -481,7 +503,9 @@ and addOpRPCResult =
   { toplevels : toplevel list
   ; deletedToplevels : toplevel list
   ; userFunctions : userFunction list
-  ; deletedUserFunctions : userFunction list }
+  ; deletedUserFunctions : userFunction list
+  ; userTipes : userTipe list
+  ; deletedUserTipes : userTipe list }
 
 and dvalArgsHash = string
 
@@ -501,7 +525,9 @@ and initialLoadRPCResult =
   ; unlockedDBs : unlockedDBs
   ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
-  ; traces : (tlid * traceID) list }
+  ; traces : (tlid * traceID) list
+  ; userTipes : userTipe list
+  ; deletedUserTipes : userTipe list }
 
 and saveTestRPCResult = string
 
@@ -565,6 +591,7 @@ and autocompleteItem =
   | ACDBColType of string
   | ACParamTipe of string
   | ACExtra of string
+  | ACTypeFieldTipe of string
 
 and target = tlid * pointerData
 
@@ -630,6 +657,7 @@ and page =
   | FocusedFn of tlid
   | FocusedHandler of tlid
   | FocusedDB of tlid
+  | FocusedType of tlid
 
 and focus =
   | FocusNothing
@@ -696,6 +724,7 @@ and modification =
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
+  | SetTypes of userTipe list * userTipe list * bool
 
 (* ------------------- *)
 (* Msgs *)
@@ -751,6 +780,7 @@ and msg =
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
   | DeleteUserFunctionParameter of userFunction * userFunctionParameter
+  | DeleteUserTypeField of userTipe * userRecordField
   | BlankOrClick of tlid * id * mouseEvent
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent
@@ -762,8 +792,11 @@ and msg =
   | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction
+  | CreateType
   | DeleteUserFunction of tlid
   | DeleteUserFunctionForever of tlid
+  | DeleteUserType of tlid
+  | DeleteUserTypeForever of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
@@ -873,7 +906,9 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
-  ; staticDeploys : staticDeploy list }
+  ; staticDeploys : staticDeploy list
+  ; userTipes : userTipe list
+  ; deletedUserTipes : userTipe list }
 
 (* Values that we serialize *)
 and serializableEditor =

@@ -21,6 +21,8 @@ let urlFor (page : page) : string =
         [("handler", deTLID tlid)]
     | FocusedDB tlid ->
         [("db", deTLID tlid)]
+    | FocusedType tlid ->
+        [("type", deTLID tlid)]
   in
   hashUrlParams args
 
@@ -64,9 +66,17 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
+  let tipe () =
+    match StrDict.get ~key:"type" unstructured with
+    | Some sid ->
+        Some (FocusedType (TLID sid))
+    | _ ->
+        None
+  in
   fn ()
   |> Option.orElse (handler ())
   |> Option.orElse (db ())
+  |> Option.orElse (tipe ())
   |> Option.orElse (architecture ())
 
 
@@ -91,6 +101,12 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
         DisplayError "No DB with this id"
     | _ ->
         SetPage (FocusedDB id) )
+  | Some (FocusedType id) ->
+    ( match TL.get m id with
+    | None ->
+        DisplayError "No Type with this id"
+    | _ ->
+        SetPage (FocusedType id) )
   | Some Architecture ->
       SetPage Architecture
   | None ->
@@ -173,8 +189,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
   | Architecture, FocusedFn _
   | FocusedHandler _, FocusedFn _
-  | FocusedDB _, FocusedFn _ ->
-      (* Going from non-fn page to fn page.
+  | FocusedDB _, FocusedFn _
+  | Architecture, FocusedType _
+  | FocusedHandler _, FocusedType _
+  | FocusedDB _, FocusedType _ ->
+      (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
       { m with
@@ -183,7 +202,10 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           { m.canvasProps with
             lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
       ; cursorState = Deselected }
-  | FocusedFn oldtlid, FocusedFn newtlid ->
+  | FocusedFn oldtlid, FocusedFn newtlid
+  | FocusedType oldtlid, FocusedFn newtlid
+  | FocusedFn oldtlid, FocusedType newtlid
+  | FocusedType oldtlid, FocusedType newtlid ->
       (* Going between fn pages
     * Check they are not the same user function;
     * reset offset to origin, just in case user moved around on the fn page
@@ -195,8 +217,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Deselected }
-  | FocusedFn _, FocusedHandler tlid | FocusedFn _, FocusedDB tlid ->
-      (* Going from Fn to focused DB/hanlder
+  | FocusedFn _, FocusedHandler tlid
+  | FocusedFn _, FocusedDB tlid
+  | FocusedType _, FocusedHandler tlid
+  | FocusedType _, FocusedDB tlid ->
+      (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
       let tl = TL.getTL m tlid in
@@ -225,7 +250,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       else
         let tl = TL.getTL m tlid in
         calculatePanOffset m tl newPage
-  | FocusedFn _, Architecture ->
+  | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
     *)

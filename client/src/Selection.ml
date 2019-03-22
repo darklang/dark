@@ -320,28 +320,6 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   |> fun id -> Select (tlid, id)
 
 
-let selectNextSibling (m : model) (tlid : tlid) (cur : id option) :
-    modification =
-  let tl = TL.getTL m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> Option.map ~f:(TL.getNextSibling tl)
-  |> Option.orElse pd
-  |> Option.map ~f:P.toID
-  |> fun id -> Select (tlid, id)
-
-
-let selectPreviousSibling (m : model) (tlid : tlid) (cur : id option) :
-    modification =
-  let tl = TL.getTL m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> Option.map ~f:(TL.getPrevSibling tl)
-  |> Option.orElse pd
-  |> Option.map ~f:P.toID
-  |> fun id -> Select (tlid, id)
-
-
 (* ------------------------------- *)
 (* Blanks *)
 (* ------------------------------- *)
@@ -407,9 +385,9 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
               RPC ([SetHandler (tlid, tl.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
-          | TLDB _ ->
+          | TLTipe _ | TLDB _ ->
               impossible ("pointer type mismatch", newTL.data, pd) )
-      | FnName ->
+      | FnName | TypeName ->
           Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
       | _ ->
           let newTL = TL.delete tl pd newID in
@@ -418,5 +396,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
               RPC ([SetHandler (tlid, tl.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
+          | TLTipe t ->
+              RPC ([SetType t], focus)
           | TLDB _ ->
               impossible ("pointer type mismatch", newTL.data, pd) ) )

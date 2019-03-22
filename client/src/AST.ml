@@ -861,46 +861,6 @@ let threadAncestors (id : id) (expr : expr) : expr list =
       match e with F (_, Thread _) -> true | _ -> false )
 
 
-(* includes self *)
-let siblings (p : pointerData) (expr : expr) : pointerData list =
-  let pel exprs = List.map ~f:(fun e -> PExpr e) exprs in
-  match findParentOfWithin_ (P.toID p) expr with
-  | None ->
-      [p]
-  | Some parent ->
-    ( match parent with
-    | F (_, If (cond, ifbody, elsebody)) ->
-        [PExpr cond; PExpr ifbody; PExpr elsebody]
-    | F (_, Let (lhs, rhs, body)) ->
-        [PVarBind lhs; PExpr rhs; PExpr body]
-    | F (_, FnCall (_, exprs, _)) ->
-        pel exprs
-    | F (_, Lambda (vars, lexpr)) ->
-        List.map ~f:(fun vb -> PVarBind vb) vars @ [PExpr lexpr]
-    | F (_, Thread exprs) ->
-        pel exprs
-    | F (_, FieldAccess (obj, field)) ->
-        [PExpr obj; PField field]
-    | F (_, Value _) ->
-        [p]
-    | F (_, Variable _) ->
-        [p]
-    | F (_, ObjectLiteral pairs) ->
-        pairs |> List.map ~f:(fun (k, v) -> [PKey k; PExpr v]) |> List.concat
-    | F (_, ListLiteral exprs) ->
-        List.map ~f:(fun e -> PExpr e) exprs
-    | F (_, FeatureFlag (msg, cond, a, b)) ->
-        [PFFMsg msg; PExpr cond; PExpr a; PExpr b]
-    | F (_, Match (matchExpr, cases)) ->
-        (* TODO(match): patterns - no one uses siblings so it should really be deleted *)
-        PExpr matchExpr
-        :: (cases |> List.map ~f:(fun (_, v) -> [PExpr v]) |> List.concat)
-    | F (_, Constructor (name, args)) ->
-        PConstructorName name :: pel args
-    | Blank _ ->
-        [p] )
-
-
 let getValueParent (p : pointerData) (expr : expr) : pointerData option =
   let parent = findParentOfWithin_ (P.toID p) expr in
   match (P.typeOf p, parent) with

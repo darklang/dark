@@ -102,8 +102,10 @@ let processFocus (m : model) (focus : focus) : modification =
           | TLDB _ ->
               true
           | TLFunc _ ->
+              false
+          | TLTipe _ ->
               false )
-        | FocusedFn id | FocusedHandler id | FocusedDB id ->
+        | FocusedFn id | FocusedHandler id | FocusedDB id | FocusedType id ->
             tl.id = id
       in
       let setQuery =
@@ -216,7 +218,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let params = RPC.opsParams ops in
                  (* call RPC on the new model *)
                  [RPC.addOp newM FocusSame params]
-           | _ ->
+           | TLDB _ | TLTipe _ ->
                [] )
     |> Option.withDefault ~default:[]
     |> fun rpc ->
@@ -234,6 +236,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 false
             | SetFunction _ ->
                 false
+            | SetType _ ->
+                false
             | _ ->
                 true )
           params.ops
@@ -249,6 +253,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   TL.upsert m {id = tlid; pos; data = TLHandler h}
               | SetFunction f ->
                   Functions.upsert m f
+              | SetType t ->
+                  UserTypes.upsert m t
               | _ ->
                   m )
             ~init:m
@@ -506,6 +512,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     TL.upsert m2 tl
                 | TLHandler _ ->
                     TL.upsert m2 tl
+                | TLTipe _ ->
+                    m2
                 | TLFunc _ ->
                     m2 )
           | None ->
@@ -619,6 +627,39 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ( match tl.data with
                 | TLFunc f ->
                     Functions.upsert m2 f
+                | TLTipe _ | TLDB _ | TLHandler _ ->
+                    m2 )
+          | None ->
+              m2
+        in
+        let m4 = Refactor.updateUsageCounts m3 in
+        processAutocompleteMods m4 [ACRegenerate]
+    | SetTypes (userTipes, deletedUserTipes, updateCurrent) ->
+        let m2 =
+          { m with
+            userTipes =
+              UserTypes.upsertAllByTLID m.userTipes ~newTipes:userTipes
+              |> UserTypes.removeByTLID ~toBeRemoved:deletedUserTipes
+          ; deletedUserTipes =
+              UserTypes.upsertAllByTLID
+                m.deletedUserTipes
+                ~newTipes:deletedUserTipes
+              |> UserTypes.removeByTLID ~toBeRemoved:userTipes }
+        in
+        (* Bring back the TL being edited, so we don't lose work done since the
+           API call *)
+        let m3 =
+          match tlidOf m.cursorState with
+          | Some tlid ->
+              if updateCurrent
+              then m2
+              else
+                let tl = TL.getTL m tlid in
+                ( match tl.data with
+                | TLTipe t ->
+                    UserTypes.upsert m2 t
+                | TLFunc _ ->
+                    m2
                 | TLDB _ ->
                     m2
                 | TLHandler _ ->
@@ -796,7 +837,7 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | FocusedFn _ ->
+    | FocusedFn _ | FocusedType _ ->
         NoChange
     | Architecture | FocusedDB _ | FocusedHandler _ ->
         if event.button = Defaults.leftButton
@@ -848,9 +889,9 @@ let update_ (msg : msg) (m : model) : modification =
       then
         let tl = TL.getTL m targetTLID in
         match tl.data with
-        | TLFunc _ ->
+        | TLFunc _ | TLTipe _ ->
             NoChange
-        | _ ->
+        | TLHandler _ | TLDB _ ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (_, event) ->
@@ -985,6 +1026,9 @@ let update_ (msg : msg) (m : model) : modification =
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
       RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
+  | DeleteUserTypeField (tipe, field) ->
+      let replacement = UserTypes.removeField tipe field in
+      RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
   | ToplevelDelete tlid ->
       let tl = TL.getTL m tlid in
       Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusSame)]
@@ -1011,6 +1055,18 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun uf -> uf.ufTLID <> tlid)
                     m.deletedUserFunctions } ) ]
+  | DeleteUserType tlid ->
+      RPC ([DeleteType tlid], FocusSame)
+  | DeleteUserTypeForever tlid ->
+      Many
+        [ RPC ([DeleteTypeForever tlid], FocusSame)
+        ; TweakModel
+            (fun m ->
+              { m with
+                deletedUserTipes =
+                  List.filter
+                    ~f:(fun ut -> ut.utTLID <> tlid)
+                    m.deletedUserTipes } ) ]
   | AddOpRPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then
@@ -1018,15 +1074,18 @@ let update_ (msg : msg) (m : model) : modification =
           [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
+          ; SetTypes (r.userTipes, r.deletedUserTipes, false)
           ; MakeCmd (Entry.focusEntry m) ]
       else
         let m2 = TL.upsertAll m r.toplevels in
         let m3 = {m2 with userFunctions = r.userFunctions} in
-        let newState = processFocus m3 focus in
+        let m4 = {m3 with userTipes = r.userTipes} in
+        let newState = processFocus m4 focus in
         Many
           [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+          ; SetTypes (r.userTipes, r.deletedUserTipes, true)
           ; AutocompleteMod ACReset
           ; ClearError
           ; newState ]
@@ -1053,6 +1112,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+        ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
@@ -1230,6 +1290,11 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ RPC ([SetFunction ufun], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
+  | CreateType ->
+      let tipe = Refactor.generateEmptyUserType () in
+      Many
+        [ RPC ([SetType tipe], FocusNothing)
+        ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
   | EnablePanning pan ->

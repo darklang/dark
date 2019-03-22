@@ -139,6 +139,12 @@ let rec pointerData (pd : Types.pointerData) : Js.Json.t =
       ev "PConstructorName" [blankOr string n]
   | PFnCallName n ->
       ev "PFnCallName" [blankOr string n]
+  | PTypeName n ->
+      ev "PTypeName" [blankOr string n]
+  | PTypeFieldName n ->
+      ev "PTypeFieldName" [blankOr string n]
+  | PTypeFieldTipe t ->
+      ev "PTypeFieldTipe" [blankOr tipe t]
 
 
 and tlidOf (op : Types.op) : Types.tlid =
@@ -196,6 +202,12 @@ and tlidOf (op : Types.op) : Types.tlid =
   | DeleteFunctionForever tlid ->
       tlid
   | DeleteTLForever tlid ->
+      tlid
+  | SetType ut ->
+      ut.utTLID
+  | DeleteType tlid ->
+      tlid
+  | DeleteTypeForever tlid ->
       tlid
 
 
@@ -330,6 +342,12 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteFunctionForever" [tlid t]
   | DeleteTLForever t ->
       ev "DeleteTLForever" [tlid t]
+  | SetType t ->
+      ev "SetType" [userTipe t]
+  | DeleteType t ->
+      ev "DeleteType" [tlid t]
+  | DeleteTypeForever t ->
+      ev "DeleteTypeForever" [tlid t]
 
 
 and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
@@ -385,6 +403,25 @@ and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
     ; ("description", string f.ufmDescription)
     ; ("return_type", blankOr tipe f.ufmReturnTipe)
     ; ("infix", bool f.ufmInfix) ]
+
+
+and userTipe (ut : Types.userTipe) : Js.Json.t =
+  object_
+    [ ("tlid", tlid ut.utTLID)
+    ; ("name", blankOr string ut.utName)
+    ; ("version", int ut.utVersion)
+    ; ("definition", userTipeDefinition ut.utDefinition) ]
+
+
+and userTipeDefinition (utd : Types.userTipeDefinition) : Js.Json.t =
+  let ev = variant in
+  match utd with UTRecord fields ->
+    ev "UTRecord" [(list userRecordField) fields]
+
+
+and userRecordField (urf : Types.userRecordField) : Js.Json.t =
+  object_
+    [("name", blankOr string urf.urfName); ("tipe", blankOr tipe urf.urfTipe)]
 
 
 and tipe (t : Types.tipe) : Js.Json.t =

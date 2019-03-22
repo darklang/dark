@@ -44,6 +44,12 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PPattern (Blank id)
   | ConstructorName ->
       PConstructorName (Blank id)
+  | TypeName ->
+      PTypeName (Blank id)
+  | TypeFieldName ->
+      PTypeFieldName (Blank id)
+  | TypeFieldTipe ->
+      PTypeFieldTipe (Blank id)
 
 
 let typeOf (pd : pointerData) : pointerType =
@@ -82,6 +88,12 @@ let typeOf (pd : pointerData) : pointerType =
       ParamTipe
   | PPattern _ ->
       Pattern
+  | PTypeName _ ->
+      TypeName
+  | PTypeFieldName _ ->
+      TypeFieldName
+  | PTypeFieldTipe _ ->
+      TypeFieldTipe
 
 
 let emptyD (pt : pointerType) : pointerData = emptyD_ (gid ()) pt
@@ -122,6 +134,12 @@ let toID (pd : pointerData) : id =
       B.toID d
   | PConstructorName d ->
       B.toID d
+  | PTypeName d ->
+      B.toID d
+  | PTypeFieldName d ->
+      B.toID d
+  | PTypeFieldTipe d ->
+      B.toID d
 
 
 let isBlank (pd : pointerData) : bool =
@@ -159,6 +177,12 @@ let isBlank (pd : pointerData) : bool =
   | PParamTipe d ->
       B.isBlank d
   | PPattern d ->
+      B.isBlank d
+  | PTypeName d ->
+      B.isBlank d
+  | PTypeFieldName d ->
+      B.isBlank d
+  | PTypeFieldTipe d ->
       B.isBlank d
 
 
@@ -217,6 +241,12 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
         PPattern (F (id, PLiteral (f v)))
     | _ ->
         PPattern d )
+  | PTypeName d ->
+      PTypeName (bf d)
+  | PTypeFieldName d ->
+      PTypeFieldName (bf d)
+  | PTypeFieldTipe d ->
+      PTypeFieldTipe d
 
 
 let toContent (pd : pointerData) : string option =
@@ -278,6 +308,16 @@ let toContent (pd : pointerData) : string option =
         Some v
     | _ ->
         None )
+  | PTypeName d ->
+      bs2s d
+  | PTypeFieldName d ->
+      bs2s d
+  | PTypeFieldTipe d ->
+      d
+      |> B.toMaybe
+      |> Option.map ~f:Runtime.tipe2str
+      |> Option.withDefault ~default:""
+      |> fun x -> Some x
 
 
 let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
