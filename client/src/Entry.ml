@@ -596,7 +596,9 @@ let submitACItem
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ )
         | PTypeName _, ACExtra value ->
-            replace (PTypeName (B.newF value))
+            if List.member ~value (UserTypes.allNames m.userTipes)
+            then DisplayError ("There is already a Type named " ^ value)
+            else replace (PTypeName (B.newF value))
         | PTypeFieldName _, ACExtra value ->
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe value ->
