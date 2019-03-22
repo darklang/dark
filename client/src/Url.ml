@@ -248,7 +248,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
 
 let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
   let prevTLID = tlidOf m.cursorState in
-  if match prevTLID with Some tid -> tlid <> tid | None -> true
+  if match prevTLID with Some tid -> tlid <> tid | None -> false
   then
     let tl = TL.getTL m tlid in
     let page = TL.asPage tl in
