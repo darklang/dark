@@ -82,16 +82,37 @@ let aHandler
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
   { ufTLID = tlid
   ; ufMetadata =
-      { ufmName = F (gid (), "myFunc")
+      { ufmName = B.newF "myFunc"
       ; ufmParameters = []
       ; ufmDescription = ""
-      ; ufmReturnTipe = F (gid (), TStr)
+      ; ufmReturnTipe = B.newF TStr
       ; ufmInfix = false }
   ; ufAST = expr }
 
 
-let enteringFunction () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~userFunctions:[aFunction ()] ()
+let aDB ?(tlid = defaultTLID) () : toplevel =
+  { id = tlid
+  ; pos = {x = 0; y = 0}
+  ; data =
+      TLDB
+        { dbTLID = tlid
+        ; dbName = B.newF "MyDB"
+        ; cols = []
+        ; version = 0
+        ; oldMigrations = []
+        ; activeMigration = None } }
+
+
+let enteringFunction
+    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
+    model =
+  defaultModel
+    ~cursorState:(fillingCS ())
+    ~dbs
+    ~handlers
+    ~userTipes
+    ~userFunctions:(aFunction () :: userFunctions)
+    ()
 
 
 let enteringHandler ?(module_ : string option = None) () : model =
@@ -358,7 +379,12 @@ let () =
                    |> itemPresent (ACVariable "request")
                  ; ac |> setQuery m "event" |> itemPresent (ACVariable "event")
                  ])
-              |> toEqual [true; true] ) ) ;
+              |> toEqual [true; true] ) ;
+          test "functions have DB names in the autocomplete" (fun () ->
+              let m = enteringFunction ~dbs:[aDB ~tlid:(TLID "db") ()] () in
+              expect
+                (acFor m |> setQuery m "" |> itemPresent (ACVariable "MyDB"))
+              |> toEqual true ) ) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
           test "entering a DB name that used to be invalid works" (fun () ->
