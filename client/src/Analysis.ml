@@ -64,8 +64,9 @@ let replaceFunctionResult
                 ~default:
                   [ ( traceID
                     , Some
-                        {input = StrDict.empty; functionResults = [newResult]}
-                    ) ]
+                        { input = StrDict.empty
+                        ; timestamp = ""
+                        ; functionResults = [newResult] } ) ]
            |> List.map ~f:(fun ((tid, tdata) as t) ->
                   if tid = traceID
                   then

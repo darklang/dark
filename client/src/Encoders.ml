@@ -571,6 +571,7 @@ and traceID = string
 and traceData (t : Types.traceData) : Js.Json.t =
   object_
     [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
+    ; ("timestamp", string t.timestamp)
     ; ("function_results", list functionResult t.functionResults) ]
 
 
