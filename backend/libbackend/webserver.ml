@@ -261,10 +261,12 @@ let result_to_response
         Header.add_unless_exists headers "Access-Control-Allow-Origin" h
   in
   let json_formatter =
+    (* This was kept in as part of the fallback of the "pretty json" migration.
+     * It can be removed later, if no-one complains. *)
     if Header.get (CRequest.headers req) "x-dark-json-format-version"
-       = Some "1"
-    then Dval.to_pretty_machine_json_v1
-    else Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
+       = Some "0"
+    then Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
+    else Dval.to_pretty_machine_json_v1
   in
   match result with
   | RTT.DIncomplete ->
