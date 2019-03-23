@@ -16,8 +16,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
-    ; d =
-        "DEPRECATED: Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+    ; d = "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
@@ -25,8 +24,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
-    ; d =
-        "DEPRECATED: Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+    ; d = "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
@@ -34,8 +32,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
-    ; d =
-        "DEPRECATED: Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+    ; d = "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
@@ -43,8 +40,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
-    ; d =
-        "DEPRECATED: Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+    ; d = "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
@@ -52,8 +48,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
-    ; d =
-        "DEPRECATED: Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+    ; d = "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
@@ -61,8 +56,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = params
     ; r = TObj
-    ; d =
-        "DEPRECATED: Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+    ; d = "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
