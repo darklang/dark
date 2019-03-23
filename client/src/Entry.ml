@@ -374,7 +374,7 @@ let submitACItem
       let pd = TL.findExn tl id in
       let result = validate tl pd stringValue in
       if result <> None
-      then DisplayAndReportError (deOption "checked above" result)
+      then DisplayAndReportError (deOption "checked above" result, None, None)
       else
         let maybeH = TL.asHandler tl in
         let db = TL.asDB tl in
@@ -608,10 +608,12 @@ let submitACItem
             replace (PTypeFieldTipe (B.newF (RT.str2tipe value)))
         | pd, item ->
             DisplayAndReportError
-              ( "Invalid autocomplete option: ("
-              ^ Types.show_pointerData pd
-              ^ ", "
-              ^ Types.show_autocompleteItem item ) )
+              ( "Invalid autocomplete option"
+              , None
+              , Some
+                  ( Types.show_pointerData pd
+                  ^ ", "
+                  ^ Types.show_autocompleteItem item ) ) )
 
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification

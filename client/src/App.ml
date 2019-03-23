@@ -270,9 +270,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     match mod_ with
     | DisplayError e ->
         ({m with error = updateError m.error e}, Cmd.none)
-    | DisplayAndReportError e ->
-        ( {m with error = updateError m.error e}
-        , Tea.Cmd.call (fun _ -> Rollbar.send e None Js.Json.null) )
+    | DisplayAndReportError (message, url, custom) ->
+        let url = match url with Some url -> " (" ^ url ^ ")" | None -> "" in
+        let custom = match custom with Some c -> ": " ^ c | None -> "" in
+        let error = message ^ url ^ custom in
+        (* Reload on bad csrf *)
+        if String.contains error ~substring:"Bad CSRF"
+        then Native.Location.reload true ;
+        ( {m with error = updateError m.error error}
+        , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | DisplayAndReportHttpError (context, ignoreCommon, e, params) ->
         let body (body : Tea.Http.responseBody) =
           let maybe name m =
@@ -343,7 +349,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               if response.status.code = 502
               then "502"
               else
-                "Bad status: " ^ response.status.message ^ body response.body
+                "Bad status: "
+                ^ response.status.message
+                ^ " - "
+                ^ body response.body
           | Http.BadPayload (msg, _) ->
               "Bad payload (" ^ context ^ "): " ^ msg
           | Http.Aborted ->
@@ -403,6 +412,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; ("parameters", params)
             ; ("cursorState", Encoders.cursorState m.cursorState) ]
         in
+        (* Reload if it's a CSRF failure. *)
+        ( match e with
+        | Http.BadStatus response ->
+            if response.status.code = 401
+               && String.startsWith (body response.body) ~prefix:"Bad CSRF"
+            then Native.Location.reload true
+        | _ ->
+            () ) ;
         let cmds =
           if shouldRollbar
           then [Tea.Cmd.call (fun _ -> Rollbar.send msg url custom)]
@@ -1153,11 +1170,12 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
-  | ReceiveTraces (TraceFetchFailure (params, str)) ->
+  | ReceiveTraces (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
-        ; DisplayAndReportError str ]
+        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
+        ]
   | ReceiveTraces (TraceFetchSuccess (params, result)) ->
       let traces =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
