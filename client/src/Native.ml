@@ -114,6 +114,9 @@ module Location = struct
   external hashString : string = "hash"
     [@@bs.val] [@@bs.scope "window", "location"]
 
+  external reload : bool -> unit = "reload"
+    [@@bs.val] [@@bs.scope "window", "location"]
+
   (* TODO write string query parser *)
 end
 
