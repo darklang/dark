@@ -69,50 +69,58 @@ let delete_404s
 (* Input vars *)
 (* ------------------------- *)
 let saved_input_vars
-    (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid) :
-    input_vars option =
-  SE.load_event_for_trace ~canvas_id:c.id trace_id
-  |> Option.map ~f:(fun (request_path, event) ->
-         match Handler.module_type h with
-         | `Http ->
-             let with_r = [("request", event)] in
-             let bound =
-               Libexecution.Execution.http_route_input_vars h request_path
-             in
-             with_r @ bound
-         | `Event ->
-             [("event", event)]
-         | `Cron ->
-             []
-         | `Unknown ->
-             [] )
+    (h : RTT.HandlerT.handler) (request_path : string) (event : RTT.dval) :
+    input_vars =
+  match Handler.module_type h with
+  | `Http ->
+      let with_r = [("request", event)] in
+      let bound =
+        Libexecution.Execution.http_route_input_vars h request_path
+      in
+      with_r @ bound
+  | `Event ->
+      [("event", event)]
+  | `Cron ->
+      []
+  | `Unknown ->
+      []
 
 
 let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
     : trace =
-  let ivs =
-    saved_input_vars c h trace_id
-    |> Option.value ~default:(Execution.sample_input_vars h)
+  let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
+  let ivs, timestamp =
+    match event with
+    | Some (request_path, timestamp, event) ->
+        (saved_input_vars h request_path event, timestamp)
+    | None ->
+        (Execution.sample_input_vars h, Time.epoch)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
   in
-  (trace_id, Some {input = ivs; function_results})
+  (trace_id, Some {input = ivs; timestamp; function_results})
 
 
 let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
     =
-  let ivs =
+  let event =
     Stored_function_arguments.load_for_analysis
       ~canvas_id:c.id
       fn.tlid
       trace_id
-    |> Option.value ~default:(Execution.sample_function_input_vars fn)
+  in
+  let ivs, timestamp =
+    match event with
+    | Some (input_vars, timestamp) ->
+        (input_vars, timestamp)
+    | None ->
+        (Execution.sample_function_input_vars fn, Time.epoch)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
   in
-  (trace_id, Some {input = ivs; function_results})
+  (trace_id, Some {input = ivs; timestamp; function_results})
 
 
 let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list

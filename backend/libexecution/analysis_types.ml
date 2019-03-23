@@ -48,6 +48,7 @@ type traceid = uuid [@@deriving show, yojson]
 
 type trace_data =
   { input : input_vars
+  ; timestamp : time
   ; function_results : function_result list }
 [@@deriving eq, show, yojson]
 
