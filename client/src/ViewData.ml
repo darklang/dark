@@ -9,6 +9,7 @@ let viewInput
     (tlid : tlid)
     (traceID : traceID)
     (value : string)
+    (timestamp : string)
     (isActive : bool)
     (isHover : bool)
     (tipe : tipe) : msg Html.html =
@@ -29,7 +30,7 @@ let viewInput
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
   Html.li
-    ( [Vdom.attribute "" "data-content" value]
+    ( [Vdom.attribute "" "data-content" (value ^ "\nMade at: " ^ timestamp)]
     @ [classes |> String.join ~sep:" " |> Html.class']
     @ events )
     [Html.text {js|•|js}]
@@ -47,6 +48,10 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
       |> Option.withDefault ~default:"<loading>"
       |> fun s -> if String.length s = 0 then "No input parameters" else s
     in
+    let timestamp =
+      Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
+      |> Option.withDefault ~default:""
+    in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
       Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
@@ -59,7 +64,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
       |> Option.map ~f:Runtime.typeOf
       |> Option.withDefault ~default:TIncomplete
     in
-    viewInput vs.tl.id traceID value isActive isHover astTipe
+    viewInput vs.tl.id traceID value timestamp isActive isHover astTipe
   in
   List.map ~f:traceToHtml vs.traces
 

@@ -104,20 +104,22 @@ let load_events
 
 
 let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
-    (string * RTT.dval) option =
+    (string * RTT.time * RTT.dval) option =
   Db.fetch
-    ~name:"load_events_for_trace"
-    "SELECT path, value FROM stored_events_v2
+    ~name:"load_event_for_trace"
+    "SELECT path, value, timestamp FROM stored_events_v2
     WHERE canvas_id = $1
       AND trace_id = $2
     LIMIT 1"
     ~params:[Uuid canvas_id; Uuid trace_id]
   |> List.hd
   |> Option.map ~f:(function
-         | [request_path; dval] ->
-             (request_path, Dval.of_internal_roundtrippable_v0 dval)
+         | [request_path; dval; timestamp] ->
+             ( request_path
+             , Util.date_of_isostring timestamp
+             , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
-             Exception.internal "Bad DB format for load_events_for_trace" )
+             Exception.internal "Bad DB format for load_event_for_trace" )
 
 
 let load_event_ids

@@ -2219,6 +2219,7 @@ let t_trace_data_json_format_redacts_passwords () =
   let id = fid () in
   let trace_data : Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "redactme1"))]
+    ; timestamp = Time.epoch
     ; function_results =
         [ ( "Password::hash"
           , id
@@ -2227,6 +2228,7 @@ let t_trace_data_json_format_redacts_passwords () =
   in
   let expected : Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
+    ; timestamp = Time.epoch
     ; function_results =
         [ ( "Password::hash"
           , id

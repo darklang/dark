@@ -390,6 +390,7 @@ and traceID = string
 
 and traceData =
   { input : inputValueDict
+  ; timestamp : string
   ; functionResults : functionResult list }
 
 and trace = traceID * traceData option
