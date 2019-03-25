@@ -233,12 +233,18 @@ let replacements =
     ; ( "DarkInternal::dbs"
       , function
         | _, [DStr host] ->
-            let c = Canvas.load_all (Unicode_string.to_string host) [] in
-            !c.dbs
-            |> List.filter_map ~f:Libexecution.Toplevel.as_db
-            |> List.map ~f:(fun d ->
-                   Dval.dstr_of_string_exn
-                     (Libexecution.Types.string_of_id d.tlid) )
+            let db_tlids =
+              Db.fetch
+                ~name:"dbs_in_canvas"
+                "SELECT tlid
+                 FROM toplevel_oplists
+                 JOIN canvases ON canvases.id = canvas_id
+                 WHERE canvases.name = $1 AND tipe = $2"
+                ~params:[String (Unicode_string.to_string host); String "db"]
+              |> List.fold ~init:[] ~f:(fun acc e -> e @ acc)
+            in
+            db_tlids
+            |> List.map ~f:(fun s -> DStr (Unicode_string.of_string_exn s))
             |> fun l -> DList l
         | args ->
             fail args )
