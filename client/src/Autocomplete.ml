@@ -855,9 +855,13 @@ let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | ACFunction f ->
-      if String.length f.fnDescription <> 0
-      then Some f.fnDescription
-      else Some "Function call with no description"
+      let desc =
+        if String.length f.fnDescription <> 0
+        then f.fnDescription
+        else "Function call with no description"
+      in
+      let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
+      Some desc
   | ACCommand c ->
       Some (c.doc ^ " (" ^ c.shortcut ^ ")")
   | ACConstructorName "Just" ->

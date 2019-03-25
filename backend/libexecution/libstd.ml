@@ -673,7 +673,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr; func ["char"]]
     ; r = TStr
     ; d =
-        "DEPRECATED: Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
+        "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
     ; f =
         InProcess
           (function
@@ -747,8 +747,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TList
-    ; d =
-        "DEPRECATED: Returns the list of characters (byte, not EGC) in the string"
+    ; d = "Returns the list of characters (byte, not EGC) in the string"
     ; f =
         InProcess
           (function
@@ -864,7 +863,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "DEPRECATED: Returns the string, uppercased"
+    ; d = "Returns the string, uppercased"
     ; f =
         InProcess
           (function
@@ -893,7 +892,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "DEPRECATED: Returns the string, lowercased"
+    ; d = "Returns the string, lowercased"
     ; f =
         InProcess
           (function
@@ -922,7 +921,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TInt
-    ; d = "DEPRECATED: Returns the length of the string"
+    ; d = "Returns the length of the string"
     ; f =
         InProcess
           (function
@@ -1043,7 +1042,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "l" TList]
     ; r = TStr
-    ; d = "DEPRECATED: Returns the list of characters as a string"
+    ; d = "Returns the list of characters as a string"
     ; f =
         InProcess
           (function
@@ -1085,7 +1084,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "DEPRECATED: Converts a char to a string"
+    ; d = "Converts a char to a string"
     ; f =
         InProcess
           (function
@@ -1739,7 +1738,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TInt
-    ; d = "DEPRECATED: Return `c`'s ASCII code"
+    ; d = "Return `c`'s ASCII code"
     ; f =
         InProcess
           (function _, [DChar c] -> DInt (Char.to_int c) | args -> fail args)
@@ -1749,7 +1748,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "i" TInt]
     ; r = TChar
-    ; d = "DEPRECATED: convert an int to an ASCII character"
+    ; d = "convert an int to an ASCII character"
     ; f =
         InProcess
           (function
@@ -1760,7 +1759,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "DEPRECATED: Return the lowercase value of `c`"
+    ; d = "Return the lowercase value of `c`"
     ; f =
         InProcess
           (function
@@ -1771,7 +1770,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "DEPRECATED: Return the uppercase value of `c`"
+    ; d = "Return the uppercase value of `c`"
     ; f =
         InProcess
           (function
