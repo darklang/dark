@@ -35,6 +35,7 @@ html {
 @string-color: lighten(@purple, 10%);
 
 @toplevel-min-width: 360px;
+@ridiculously-large : 1000%;
 
 /* Mixins */
 .from (colors, @color) {
@@ -115,15 +116,14 @@ body {
   }
 }
 
-/********************
- * Top level
- ********************/
-
-#grid {
+#app {
   background: @black1;
+  width: 100%;
   height: 100vh;
   overflow: hidden;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
 
   -webkit-touch-callout: none; /* iOS Safari */
     -webkit-user-select: none; /* Safari */
@@ -134,7 +134,7 @@ body {
                                   supported by Chrome and Opera */
 }
 
-body #grid * {
+body #app * {
   &:not(.fa) { // skip fontawesome
     font-family: 'Fira Code', monospace;
   }
@@ -155,9 +155,9 @@ body #grid * {
     content: "";
     display: block;
     position: absolute;
-    height: 2000%;
-    top: -1000%;
-    left: 0;
+    height: 2 * @ridiculously-large;
+    top: -1 * @ridiculously-large;
+    left: 50%;
     border-left: @axis-style;
   }
 
@@ -165,9 +165,9 @@ body #grid * {
     content: "";
     display: block;
     position: absolute;
-    width: 2000%;
-    top: 0;
-    left: -1000%;
+    width: 2 * @ridiculously-large;
+    top: 50%;
+    left: -1 * @ridiculously-large;
     border-top: @axis-style;
   }
 
@@ -177,7 +177,7 @@ body #grid * {
 }
 
 #buttons {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
@@ -225,7 +225,7 @@ body #grid * {
   padding-bottom: 50px;
   background-color: @red;
   color: @white1;
-  position: absolute;
+  position: fixed;
   left: 0;
   bottom: -70px;
 
@@ -237,18 +237,21 @@ body #grid * {
   }
 }
 
-.axis {
-  background: #777;
-  height: 200%;
-  position: absolute;
-  transform: translate(0, -50%);
-  width: 1px;
-  &.horizontal {
-    height: 1px;
-    transform: translate(-50%, 0);
-    width: 200%;
+.overlay {
+  position: fixed;
+  top: -1 * @ridiculously-large;
+  left: -1 * @ridiculously-large;
+  display: none;
+  height: 2 * @ridiculously-large;
+  width: 2 * @ridiculously-large;
+  overflow: visible;
+  background-color: rgba(13,13,13, 0.8);
+
+  &.show {
+    display: block;
   }
 }
+
 
 //*************
 // Toplevel
@@ -1919,6 +1922,10 @@ body #grid * {
   #entry-box {
     z-index: 60;
   }
+}
+
+.overlay {
+  z-index: 30;
 }
 
 .sidebar-box {

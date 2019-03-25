@@ -231,12 +231,22 @@ let viewCanvas (m : model) : msg Html.html =
     ; ("transform", canvasTransform) ]
   in
   let allDivs = asts @ entry in
+  let overlay =
+    let show =
+      match m.currentPage with
+      | FocusedHandler _ | FocusedDB _ ->
+          true
+      | _ ->
+          false
+    in
+    Html.div [Html.classList [("overlay", true); ("show", show)]] []
+  in
   Html.div
     [ Html.id "canvas"
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
           if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
-    allDivs
+    (overlay :: allDivs)
 
 
 let view (m : model) : msg Html.html =
@@ -248,10 +258,10 @@ let view (m : model) : msg Html.html =
         Html.class' str
   in
   let attributes =
-    [ Html.id "grid"
+    [ Html.id "app"
     ; activeVariantsClass
     ; Html.onWithOptions
-        ~key:"grid-mu"
+        ~key:"app-mu"
         "mouseup"
         {stopPropagation = false; preventDefault = true}
         (Decoders.wrapDecoder
