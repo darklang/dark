@@ -249,6 +249,51 @@ let replacements =
             |> fun l -> DList l
         | args ->
             fail args )
+    ; ( "DarkInternal::schema"
+      , function
+        | _, [DStr id] ->
+            let dbres =
+              Db.fetch
+                ~name:"dbs_in_canvas"
+                "SELECT canvases.name, tlid
+                 FROM toplevel_oplists
+                 JOIN canvases ON canvases.id = canvas_id
+                 WHERE tipe = $1 AND tlid = $2"
+                ~params:[String "db"; String (Unicode_string.to_string id)]
+              |> List.hd_exn
+              |> List.zip_exn ["name"; "tlid"]
+            in
+            let _, tlid =
+              List.find dbres ~f:(fun (k, _) -> k = "tlid") |> Option.value_exn
+            in
+            let _, canvas_name =
+              List.find dbres ~f:(fun (k, _) -> k = "name") |> Option.value_exn
+            in
+            let c =
+              Canvas.load_only ~tlids:[Types.id_of_string tlid] canvas_name []
+            in
+            let db =
+              !c.dbs
+              |> List.filter_map ~f:Libexecution.Toplevel.as_db
+              |> List.find ~f:(fun d ->
+                     Libexecution.Types.string_of_id d.tlid
+                     = Unicode_string.to_string id )
+            in
+            ( match db with
+            | Some db ->
+                User_db.cols_for db
+                |> List.map ~f:(fun (k, v) ->
+                       ( canvas_name
+                         ^ "-"
+                         ^ Ast.blank_to_string db.name
+                         ^ "-"
+                         ^ k
+                       , Dval.dstr_of_string_exn (Dval.tipe_to_string v) ) )
+                |> Dval.to_dobj_exn
+            | None ->
+                Dval.to_dobj_exn [] )
+        | args ->
+            fail args )
     ; ( "DarkInternal::oplistInfo"
       , function
         | _, [DStr host; DStr tlid_str] ->
