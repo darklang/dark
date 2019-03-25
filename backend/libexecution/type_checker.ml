@@ -85,7 +85,7 @@ let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
       Ok ()
   | TNull, DNull ->
       Ok ()
-  | TChar, DChar _ ->
+  | TChar, DCharacter _ ->
       Ok ()
   | TStr, DStr _ ->
       Ok ()

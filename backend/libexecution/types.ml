@@ -371,7 +371,6 @@ module RuntimeT = struct
     | DFloat of float
     | DBool of bool
     | DNull
-    | DChar of char
     | DStr of Unicode_string.t
     (* compound types *)
     | DList of dval list

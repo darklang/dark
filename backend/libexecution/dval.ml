@@ -90,11 +90,9 @@ let rec tipe_of_string str : tipe =
       TBool
   | "nothing" ->
       TNull
-  | "char" ->
-      TChar
   | "character" ->
       TCharacter
-  | "str" | "url" | "title" ->
+  | "str" | "url" | "title" | "char" ->
       TStr
   | "string" ->
       TStr
@@ -191,8 +189,6 @@ let rec tipe_of (dv : dval) : tipe =
       TBool
   | DNull ->
       TNull
-  | DChar _ ->
-      TChar
   | DCharacter _ ->
       TCharacter
   | DStr _ ->
@@ -354,8 +350,6 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
         DID (Util.uuid_of_string v)
     | "error" ->
         DError v
-    | "char" ->
-        DChar (Char.of_string v)
     | "password" ->
         v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" ->
@@ -413,8 +407,6 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       |> fun x -> `Assoc x
   | DBlock _ | DIncomplete ->
       wrap_user_type `Null
-  | DChar c ->
-      wrap_user_str (Char.to_string c)
   | DCharacter c ->
       wrap_user_str (Unicode_string.Character.to_string c)
   | DError msg ->
@@ -545,8 +537,6 @@ let rec to_enduser_readable_text_v0 dval =
         Unicode_string.to_string s
     | DFloat f ->
         string_of_float f
-    | DChar c ->
-        Char.to_string c
     | DCharacter c ->
         Unicode_string.Character.to_string c
     | DNull ->
@@ -604,8 +594,6 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         "<password>"
     | DStr s ->
         "\"" ^ Unicode_string.to_string s ^ "\""
-    | DChar c ->
-        "'" ^ Char.to_string c ^ "'"
     | DCharacter c ->
         "'" ^ Unicode_string.Character.to_string c ^ "'"
     | DInt i ->
@@ -689,8 +677,6 @@ let to_pretty_machine_json_v1 dval =
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete ->
         `Null
-    | DChar c ->
-        `String (Char.to_string c)
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
     | DError msg ->
@@ -738,8 +724,6 @@ let rec show dv =
       Unicode_string.to_string s
   | DFloat f ->
       string_of_float f
-  | DChar c ->
-      Char.to_string c
   | DCharacter c ->
       Unicode_string.Character.to_string c
   | DNull ->
@@ -829,10 +813,6 @@ let to_char dv : string option =
       None
 
 
-let to_char_deprecated dv : char option =
-  match dv with DChar c -> Some c | _ -> None
-
-
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
@@ -875,8 +855,6 @@ let rec to_url_string_exn (dv : dval) : string =
       Unicode_string.to_string s
   | DFloat f ->
       string_of_float f
-  | DChar c ->
-      Char.to_string c
   | DCharacter c ->
       Unicode_string.Character.to_string c
   | DNull ->
@@ -986,8 +964,6 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       "null"
   | DStr s ->
       "\"" ^ Unicode_string.to_string s ^ "\""
-  | DChar c ->
-      "'" ^ Char.to_string c ^ "'"
   | DCharacter c ->
       "'" ^ Unicode_string.Character.to_string c ^ "'"
   | DIncomplete ->

@@ -673,38 +673,8 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr; func ["char"]]
     ; r = TStr
     ; d =
-        "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-    ; f =
-        InProcess
-          (function
-          | _, [DStr s; DBlock fn] ->
-              let result =
-                s
-                |> Unicode_string.to_string
-                |> String.to_list
-                |> List.map ~f:(fun c -> fn [DChar c])
-              in
-              if List.exists ~f:(( = ) DIncomplete) result
-              then DIncomplete
-              else
-                result
-                |> list_coerce ~f:Dval.to_char_deprecated
-                >>| String.of_char_list
-                >>| (fun x -> Dval.dstr_of_string_exn x)
-                |> Result.map_error ~f:(fun (result, example_value) ->
-                       RT.error
-                         ~actual:(DList result)
-                         ~result:(DList result)
-                         ~long:
-                           ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-                           ^ Dval.to_developer_repr_v0 example_value
-                           ^ " is a "
-                           ^ Dval.tipename example_value )
-                         ~expected:"every value to be a char"
-                         "Foreach expects you to return chars" )
-                |> Result.ok_exn
-          | args ->
-              fail args)
+        "DEPRECATED: Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["String::foreach_v1"]
@@ -747,16 +717,9 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TList
-    ; d = "Returns the list of characters (byte, not EGC) in the string"
-    ; f =
-        InProcess
-          (function
-          | _, [DStr s] ->
-              DList
-                ( String.to_list (Unicode_string.to_string s)
-                |> List.map ~f:(fun c -> DChar c) )
-          | args ->
-              fail args)
+    ; d =
+        "DEPRECATED: Returns the list of characters (byte, not EGC) in the string"
+    ; f = InProcess (function _, [DStr s] -> DList [] | args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["String::toList_v1"]
@@ -1049,11 +1012,8 @@ let fns : Lib.shortfn list =
           | _, [DList l] ->
               Dval.dstr_of_string_exn
                 ( l
-                |> List.map ~f:(function
-                       | DChar c ->
-                           c
-                       | dv ->
-                           RT.error ~actual:dv "expected a char" )
+                |> List.map ~f:(function dv ->
+                       RT.error ~actual:dv "expected a char" )
                 |> String.of_char_list )
           | args ->
               fail args)
@@ -1084,14 +1044,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "Converts a char to a string"
-    ; f =
-        InProcess
-          (function
-          | _, [DChar c] ->
-              Dval.dstr_of_string_exn (Char.to_string c)
-          | args ->
-              fail args)
+    ; d = "DEPRECATED: Converts a char to a string"
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["String::fromChar_v1"]
@@ -1738,43 +1692,32 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TInt
-    ; d = "Return `c`'s ASCII code"
-    ; f =
-        InProcess
-          (function _, [DChar c] -> DInt (Char.to_int c) | args -> fail args)
+    ; d = "DEPRECATED: Return `c`'s ASCII code"
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toASCIIChar"]
     ; ins = []
     ; p = [par "i" TInt]
     ; r = TChar
-    ; d = "convert an int to an ASCII character"
-    ; f =
-        InProcess
-          (function
-          | _, [DInt i] -> DChar (Char.of_int_exn i) | args -> fail args)
+    ; d = "DEPRECATED: convert an int to an ASCII character"
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toLowercase"]
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "Return the lowercase value of `c`"
-    ; f =
-        InProcess
-          (function
-          | _, [DChar c] -> DChar (Char.lowercase c) | args -> fail args)
+    ; d = "DEPRECATED: Return the lowercase value of `c`"
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toUppercase"]
     ; ins = []
     ; p = [par "c" TChar]
     ; r = TChar
-    ; d = "Return the uppercase value of `c`"
-    ; f =
-        InProcess
-          (function
-          | _, [DChar c] -> DChar (Char.uppercase c) | args -> fail args)
+    ; d = "DEPRECATED: Return the uppercase value of `c`"
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Uuid::generate"]
