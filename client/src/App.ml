@@ -378,7 +378,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadUrl _ ->
               true
           | Http.Timeout ->
-              true
+              not ignoreCommon
           | Http.NetworkError ->
               not ignoreCommon
           | Http.BadStatus response ->
