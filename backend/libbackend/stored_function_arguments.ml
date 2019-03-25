@@ -17,10 +17,10 @@ let store ~canvas_id ~trace_id tlid args =
 
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
-    Analysis_types.input_vars option =
+    (Analysis_types.input_vars * RTT.time) option =
   Db.fetch
     ~name:"stored_function_arguments.load_for_analysis"
-    "SELECT arguments_json
+    "SELECT arguments_json, timestamp
      FROM function_arguments
      WHERE canvas_id = $1
        AND tlid = $2
@@ -29,10 +29,11 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
     ~params:[Db.Uuid canvas_id; Db.ID tlid; Db.Uuid trace_id]
   |> List.hd
   |> Option.map ~f:(function
-         | [args] ->
-             args
-             |> Dval.of_internal_roundtrippable_v0
-             |> Dval.to_dval_pairs_exn
+         | [args; timestamp] ->
+             ( args
+               |> Dval.of_internal_roundtrippable_v0
+               |> Dval.to_dval_pairs_exn
+             , Util.date_of_isostring timestamp )
          | _ ->
              Exception.internal
                "Bad format for stored_functions.load_for_analysis" )

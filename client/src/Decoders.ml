@@ -320,6 +320,7 @@ and traces j : traces =
 
 and traceData j : traceData =
   { input = field "input" inputValueDict j
+  ; timestamp = field "timestamp" string j
   ; functionResults = field "function_results" (list functionResult) j }
 
 
