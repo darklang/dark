@@ -18,6 +18,8 @@ external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 
 exception NoneFound
 
+exception BadAuthorization of Fetch.response
+
 let fetch (context : Types.traceFetchContext) params =
   let open Js.Promise in
   let url =
@@ -45,6 +47,8 @@ let fetch (context : Types.traceFetchContext) params =
           * In that case, return TraceFetchMissing so we can try again. *)
          if Fetch.Response.status resp = 404
          then reject NoneFound
+         else if Fetch.Response.status resp = 401
+         then reject (BadAuthorization resp)
          else resolve resp )
   |> then_ Fetch.Response.json
   |> then_ (fun resp ->
@@ -56,12 +60,19 @@ let fetch (context : Types.traceFetchContext) params =
          | NoneFound ->
              Js.log "Received no trace" ;
              resolve (postMessage self (TraceFetchMissing params))
+         | BadAuthorization resp ->
+             Fetch.Response.text resp
+             |> then_ (fun body ->
+                    resolve
+                      (postMessage self (TraceFetchFailure (params, url, body)))
+                )
          | _ ->
              Js.log2 "traceFetch error" err ;
              resolve
                (postMessage
                   self
-                  (TraceFetchFailure (params, "Failure fetching: " ^ url))) )
+                  (TraceFetchFailure (params, url, (Obj.magic err)##message)))
+     )
 
 
 let () =
