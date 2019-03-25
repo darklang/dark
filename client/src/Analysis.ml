@@ -218,7 +218,7 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
         fn.ufMetadata.ufmParameters
         |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
       in
-      varsFor fn.ufAST @ params
+      varsFor fn.ufAST @ dbs @ params
   | TLDB _ | TLTipe _ ->
       []
 
