@@ -16,8 +16,8 @@ external postMessage :
   [@@bs.send]
 
 type darkAnalysis =
-  < performHandlerAnalysis : string -> string [@bs.meth]
-  ; performFunctionAnalysis : string -> string [@bs.meth] >
+  < performHandlerAnalysis : string -> string * string [@bs.meth]
+  ; performFunctionAnalysis : string -> string * string [@bs.meth] >
   Js.t
 
 external darkAnalysis : darkAnalysis = "darkAnalysis" [@@bs.val]
@@ -26,27 +26,30 @@ let () =
   onmessage self (fun event ->
       let result =
         (* TODO: couldn't make Tc work *)
-        try
-          match event##data with
-          | AnalyzeHandler hParams ->
-              let encoded =
-                Js.Json.stringify
-                  (Encoders.performHandlerAnalysisParams hParams)
-              in
-              Belt.Result.Ok (darkAnalysis##performHandlerAnalysis encoded)
-          | AnalyzeFunction fParams ->
-              let encoded =
-                Js.Json.stringify
-                  (Encoders.performFunctionAnalysisParams fParams)
-              in
-              Belt.Result.Ok (darkAnalysis##performFunctionAnalysis encoded)
-        with Js.Exn.Error err ->
-          let msg =
-            err
-            |> Js.Exn.message
-            |> Tc.Option.withDefault ~default:"Unknown execution error"
-          in
-          Belt.Result.Error (Types.AnalysisExecutionError (event##data, msg))
+        match event##data with
+        | AnalyzeHandler hParams ->
+            let encoded =
+              Js.Json.stringify (Encoders.performHandlerAnalysisParams hParams)
+            in
+            let success, msg = darkAnalysis##performHandlerAnalysis encoded in
+            Js.logMany [|"An execution failure occurred in a handler"; msg|] ;
+            if success = "success"
+            then Belt.Result.Ok msg
+            else
+              Belt.Result.Error
+                (Types.AnalysisExecutionError (event##data, msg))
+        | AnalyzeFunction fParams ->
+            let encoded =
+              Js.Json.stringify
+                (Encoders.performFunctionAnalysisParams fParams)
+            in
+            let success, msg = darkAnalysis##performFunctionAnalysis encoded in
+            Js.logMany [|"An execution failure occurred in a function"; msg|] ;
+            if success = "success"
+            then Belt.Result.Ok msg
+            else
+              Belt.Result.Error
+                (Types.AnalysisExecutionError (event##data, msg))
       in
       let decoded =
         Tc.Result.andThen
