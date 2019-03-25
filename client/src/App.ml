@@ -781,6 +781,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | MoveCanvasTo pos ->
         let newCanvasProps = {m.canvasProps with offset = pos} in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
+    | CenterCanvasOn tlid ->
+        ( { m with
+            canvasProps =
+              { m.canvasProps with
+                offset =
+                  Viewport.centerCanvasOn (TL.getTL m tlid) m.canvasProps
+              ; panAnimation = true } }
+        , Cmd.none )
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -973,6 +981,8 @@ let update_ (msg : msg) (m : model) : modification =
             None
       in
       Selection.dblclick m targetTLID targetID offset
+  | ToplevelDoubleClick tlid ->
+      CenterCanvasOn tlid
   | ToplevelClick (targetTLID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->

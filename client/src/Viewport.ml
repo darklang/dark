@@ -59,3 +59,25 @@ let isEnclosed (outer : box) (inner : box) : bool =
   let iRight = iLeft + iSize.w in
   let iBottom = iTop + iSize.h in
   (oLeft < iLeft && iRight < oRight) && oTop < iTop && iBottom < oBottom
+
+
+(* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
+  Default values (when we can't find get elements from dom) are based on
+  min-widths defined in app.less. At some point we will want to find a
+  less volatile method for the constant definitions.
+*)
+let centerCanvasOn (tl : toplevel) (props : canvasProps) : pos =
+  let windowWidth = props.viewportSize.w in
+  let sidebarWidth =
+    let sidebar = Native.Ext.querySelector "#sidebar-left" in
+    match sidebar with Some e -> Native.Ext.clientWidth e | None -> 320
+  in
+  let tlWidth =
+    let tle =
+      Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID tl.id)
+    in
+    match tle with Some e -> Native.Ext.clientWidth e | None -> 245
+  in
+  let availWidth = (windowWidth - tlWidth) / 3 in
+  let offsetLeft = sidebarWidth + availWidth in
+  {x = tl.pos.x - offsetLeft; y = tl.pos.y - 200}
