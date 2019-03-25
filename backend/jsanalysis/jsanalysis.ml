@@ -160,26 +160,27 @@ let () =
     "darkAnalysis"
     (object%js
        method performHandlerAnalysis
-             (stringified_handler_analysis_param : js_string) : js_string =
+             (stringified_handler_analysis_param : js_string)
+           : js_string Js.js_array Js.t =
          try
            stringified_handler_analysis_param
            |> Js.to_string
            |> perform_handler_analysis
-           |> Js.string
+           |> fun msg -> Js.array [|Js.string "success"; Js.string msg|]
          with e ->
-           print_endline
-             ("Exception in jsanalysis for handler: " ^ Exn.to_string e) ;
-           Exception.reraise e
+           let error = Exception.to_string e in
+           Js.array [|Js.string "failure"; Js.string error|]
 
        method performFunctionAnalysis
-             (stringified_function_analysis_param : js_string) : js_string =
+             (stringified_function_analysis_param : js_string)
+           : js_string Js.js_array Js.t =
          try
            stringified_function_analysis_param
            |> Js.to_string
            |> perform_function_analysis
-           |> Js.string
+           |> fun msg -> Js.array [|Js.string "success"; Js.string msg|]
          with e ->
-           print_endline ("Exception in jsanalysis: " ^ Exn.to_string e) ;
-           Exception.reraise e
+           let error = Exception.to_string e in
+           Js.array [|Js.string "failure"; Js.string error|]
     end) ;
   ()
