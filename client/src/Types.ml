@@ -377,7 +377,7 @@ and functionResult =
 (* traces / traceFetcher *)
 and traceFetchResult =
   | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
-  | TraceFetchFailure of getTraceDataRPCParams * string
+  | TraceFetchFailure of getTraceDataRPCParams * string * string
   | TraceFetchMissing of getTraceDataRPCParams
 
 and traceFetchContext =
@@ -680,7 +680,7 @@ and httpError = (string Tea.Http.error[@opaque])
 and modification =
   | DisplayAndReportHttpError of
       string * bool * httpError * (Js.Json.t[@opaque])
-  | DisplayAndReportError of string
+  | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
   | Select of tlid * id option
