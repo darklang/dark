@@ -386,7 +386,6 @@ module RuntimeT = struct
     | DDB of string
     | DID of uuid
     | DDate of time
-    | DTitle of string
     | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
