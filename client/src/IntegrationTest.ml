@@ -771,9 +771,13 @@ let return_to_architecture_on_deselect (m : model) : testResult =
       fail ~f:show_page m.currentPage
 
 
-let fn_page_returns_to_lastpos (_m : model) : testResult =
-  (* The test logic is in tests.js *)
-  pass
+let fn_page_returns_to_lastpos (m : model) : testResult =
+  let tlid = TLID "123" in
+  let tl = TL.getTL m tlid in
+  let centerPos = Viewport.centerCanvasOn tl m.canvasProps in
+  if m.canvasProps.offset = centerPos
+  then pass
+  else fail ~f:show_pos m.canvasProps.offset
 
 
 let fn_page_to_handler_pos (_m : model) : testResult = pass
