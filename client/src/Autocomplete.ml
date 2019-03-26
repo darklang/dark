@@ -635,6 +635,11 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
       | ParamTipe ->
+          let userTypes =
+            m.userTipes
+            |> List.filterMap ~f:UserTypes.toTUserType
+            |> List.map ~f:(fun t -> ACParamTipe t)
+          in
           [ ACParamTipe TAny
           ; ACParamTipe TStr
           ; ACParamTipe TInt
@@ -647,6 +652,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACParamTipe TPassword
           ; ACParamTipe TUuid
           ; ACParamTipe TList ]
+          @ userTypes
       | TypeFieldTipe ->
           [ ACTypeFieldTipe TStr
           ; ACTypeFieldTipe TInt
