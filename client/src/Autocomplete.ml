@@ -103,7 +103,7 @@ let asName (aci : autocompleteItem) : string =
   | ACExtra _ ->
       ""
   | ACTypeFieldTipe tipe ->
-      tipe
+      RT.tipe2str tipe
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -151,8 +151,12 @@ let asTypeString (item : autocompleteItem) : string =
       "name"
   | ACExtra _ ->
       ""
-  | ACTypeFieldTipe _ ->
-      "record field type"
+  | ACTypeFieldTipe tipe ->
+    ( match tipe with
+    | TUserType (_, v) ->
+        "version " ^ string_of_int v
+    | _ ->
+        "builtin" )
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -644,13 +648,13 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACParamTipe "UUID"
           ; ACParamTipe "List" ]
       | TypeFieldTipe ->
-          [ ACTypeFieldTipe "String"
-          ; ACTypeFieldTipe "Int"
-          ; ACTypeFieldTipe "Boolean"
-          ; ACTypeFieldTipe "Float"
-          ; ACTypeFieldTipe "Date"
-          ; ACTypeFieldTipe "Password"
-          ; ACTypeFieldTipe "UUID" ]
+          [ ACTypeFieldTipe TStr
+          ; ACTypeFieldTipe TInt
+          ; ACTypeFieldTipe TBool
+          ; ACTypeFieldTipe TFloat
+          ; ACTypeFieldTipe TDate
+          ; ACTypeFieldTipe TPassword
+          ; ACTypeFieldTipe TUuid ]
       | _ ->
           [] )
     | _ ->
@@ -919,7 +923,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
         Some ("This parameter will be a " ^ name ^ " list")
       else Some ("This parameter will be a " ^ tipe)
   | ACTypeFieldTipe tipe ->
-      Some ("This parameter will be a " ^ tipe)
+      Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACExtra _ ->
       None
 
