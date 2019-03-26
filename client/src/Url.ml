@@ -173,7 +173,7 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
              (m.canvasProps.offset, windowSize)
              (tl.pos, tsize)
         then m.canvasProps.offset
-        else Viewport.toCenteredOn tl.pos
+        else Viewport.centerCanvasOn tl m.canvasProps
     | None ->
         m.canvasProps.offset
   in
