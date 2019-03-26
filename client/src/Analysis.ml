@@ -346,3 +346,23 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
         (m, Cmd.none) )
   | None ->
       (m, Cmd.none)
+
+
+let analyzeTL (m : model) (tlid : tlid) : unit =
+  let tl = TL.getTL m tlid in
+  match tl.data with
+  | TLHandler h ->
+      let pointers = AST.allData h.ast in
+      let fnCalls =
+        List.filterMap
+          ~f:(fun pd ->
+            match pd with
+            | PFnCallName bn ->
+              (match bn with F (_, name) -> Some name | Blank _ -> None)
+            | _ ->
+                None )
+          pointers
+      in
+      Debug.loG "AnalyzeCode" (Belt.List.toArray fnCalls)
+  | _ ->
+      Debug.loG "AnalyzeCode" "hold off"

@@ -190,6 +190,11 @@ and pointerOwner =
   | POAst
   | PODb
 
+and referData =
+  | RDBName of dBName
+  | RUFName of string
+  | REmit of string * string
+
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
@@ -815,6 +820,7 @@ and msg =
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
+  | AnalyzeCode of tlid
 
 (* ----------------------------- *)
 (* AB tests *)
