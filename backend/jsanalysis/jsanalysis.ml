@@ -19,7 +19,7 @@ type input_vars = (string * dval) list (* list of vars *)
 
 type our_tipe = tipe
 
-let our_tipe_of_yojson json = Dval.tipe_of_yojson json
+let our_tipe_of_yojson json = Dval.unsafe_tipe_of_yojson json
 
 type our_col = string or_blank * our_tipe or_blank [@@deriving of_yojson]
 
