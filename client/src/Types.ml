@@ -596,7 +596,7 @@ and autocompleteItem =
   | ACEventSpace of string
   | ACDBName of string
   | ACDBColType of string
-  | ACParamTipe of string
+  | ACParamTipe of tipe
   | ACExtra of string
   | ACTypeFieldTipe of tipe
 

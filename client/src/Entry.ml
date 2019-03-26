@@ -586,8 +586,8 @@ let submitACItem
             replace (PConstructorName (B.newF value))
         | PParamName _, ACExtra value ->
             replace (PParamName (B.newF value))
-        | PParamTipe _, ACParamTipe value ->
-            replace (PParamTipe (B.newF (RT.str2tipe value)))
+        | PParamTipe _, ACParamTipe tipe ->
+            replace (PParamTipe (B.newF tipe))
         | PPattern _, ACExtra value ->
           ( match parsePattern value with
           | None ->
