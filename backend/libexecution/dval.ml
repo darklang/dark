@@ -242,11 +242,11 @@ let tipename (dv : dval) : string =
 
 let pretty_tipename (dv : dval) : string = dv |> tipe_of |> tipe_to_string
 
-let tipe_to_yojson (t : tipe) : Yojson.Safe.json =
+let unsafe_tipe_to_yojson (t : tipe) : Yojson.Safe.json =
   `String (t |> tipe_to_string |> String.lowercase)
 
 
-let tipe_of_yojson (json : Yojson.Safe.json) =
+let unsafe_tipe_of_yojson (json : Yojson.Safe.json) =
   match json with
   | `String s ->
       Ok (s |> String.lowercase |> tipe_of_string)
@@ -398,7 +398,7 @@ and unsafe_dvalmap_of_yojson (json : Yojson.Safe.json) : dval_map =
 
 
 let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
-  let tipe = dv |> tipe_of |> tipe_to_yojson in
+  let tipe = dv |> tipe_of |> unsafe_tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
   let wrap_constructed_type cons values =
     `Assoc [("type", tipe); ("constructor", cons); ("values", `List values)]
