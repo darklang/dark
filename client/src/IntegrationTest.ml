@@ -772,7 +772,10 @@ let return_to_architecture_on_deselect (m : model) : testResult =
 
 
 let fn_page_returns_to_lastpos (m : model) : testResult =
-  if m.canvasProps.offset = Viewport.toCenteredOn {x = -900; y = -600}
+  let tlid = TLID "123" in
+  let tl = TL.getTL m tlid in
+  let centerPos = Viewport.centerCanvasOn tl m.canvasProps in
+  if m.canvasProps.offset = centerPos
   then pass
   else fail ~f:show_pos m.canvasProps.offset
 

@@ -309,6 +309,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                   let pd = TL.findExn tl id in
                   Refactor.toggleOnRail m tl pd
             else NoChange
+        | Key.O ->
+            if event.altKey then CenterCanvasOn tlid else NoChange
         | Key.Unknown _ ->
           ( (* colon *)
           match mId with
