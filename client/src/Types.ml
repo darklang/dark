@@ -482,14 +482,16 @@ and performHandlerAnalysisParams =
   ; traceID : traceID
   ; traceData : traceData
   ; dbs : dB list
-  ; userFns : userFunction list }
+  ; userFns : userFunction list
+  ; userTipes : userTipe list }
 
 and performFunctionAnalysisParams =
   { func : userFunction
   ; traceID : traceID
   ; traceData : traceData
   ; dbs : dB list
-  ; userFns : userFunction list }
+  ; userFns : userFunction list
+  ; userTipes : userTipe list }
 
 and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams

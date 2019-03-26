@@ -274,6 +274,7 @@ let test_execution_data ?(canvas_name = "test") ops :
     ; account_id = !c.owner
     ; canvas_id = !c.id
     ; user_fns = !c.user_functions
+    ; user_tipes = !c.user_tipes
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
@@ -287,8 +288,9 @@ let test_execution_data ?(canvas_name = "test") ops :
 
 
 let execute_ops (ops : Op.op list) : dval =
-  let c, {tlid; execution_id; dbs; user_fns; account_id; canvas_id}, input_vars
-      =
+  let ( c
+      , {tlid; execution_id; dbs; user_fns; user_tipes; account_id; canvas_id}
+      , input_vars ) =
     test_execution_data ops
   in
   let h = !c.handlers |> TL.handlers |> List.hd_exn in
@@ -298,6 +300,7 @@ let execute_ops (ops : Op.op list) : dval =
     ~execution_id
     ~dbs
     ~user_fns
+    ~user_tipes
     ~account_id
     ~canvas_id
     ~input_vars:[]

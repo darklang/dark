@@ -92,6 +92,7 @@ let execute_handler
     ~input_vars
     ~dbs
     ~user_fns
+    ~user_tipes
     ~account_id
     ~canvas_id
     ?(store_fn_result = store_no_results)
@@ -103,6 +104,7 @@ let execute_handler
     ; account_id
     ; canvas_id
     ; user_fns
+    ; user_tipes
     ; dbs
     ; execution_id
     ; fail_fn = None
@@ -129,6 +131,7 @@ let call_function
     ~trace_id
     ~dbs
     ~user_fns
+    ~user_tipes
     ~account_id
     ~canvas_id
     ~caller_id
@@ -139,6 +142,7 @@ let call_function
     ; account_id
     ; canvas_id
     ; user_fns
+    ; user_tipes
     ; dbs
     ; execution_id
     ; fail_fn = None
@@ -159,6 +163,7 @@ let analyse_ast
     ~input_vars
     ~dbs
     ~user_fns
+    ~user_tipes
     ~account_id
     ~canvas_id
     ?(load_fn_result = load_no_results)
@@ -170,6 +175,7 @@ let analyse_ast
     ; account_id
     ; canvas_id
     ; user_fns
+    ; user_tipes
     ; dbs
     ; execution_id
     ; fail_fn = None
