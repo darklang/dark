@@ -1108,3 +1108,133 @@ and rec _allFnCalls (ne : nExpr) (calls: fnCallRef list) : fnCallRef list =
     | Match of expr * (pattern * expr) list
     | Constructor of string blankOr * expr list
 *)
+
+
+(* INTROSPECTION *)
+
+let rec findFnCall (ast : expr) (targetId: id) (name : string) : nExpr option =
+    let f ne =
+        match ne with
+        | FnCall ((F (fid, fname)), exprs, _) ->
+            if fname = name && fid = targetId (* TERMINATING BASE CASE *)
+            then Some ne
+            else
+                exprs
+                |> List.filterMap ~f:(fun e -> findFnCall e targetId name)
+                |> List.head
+        | FnCall (Blank _, exprs, _) ->
+            exprs
+            |> List.filterMap ~f:(fun e -> findFnCall e targetId name)
+            |> List.head
+        | Let (_, bindexpr , bodyexpr) ->
+            findFnCall bindexpr targetId name
+            |> Option.orElse (findFnCall bodyexpr targetId name)
+        | If (condition, ifbody, elsebody) ->
+            findFnCall condition targetId name
+            |> Option.orElse (findFnCall ifbody targetId name)
+            |> Option.orElse (findFnCall elsebody targetId name)
+        | Variable _ -> None
+        | Lambda (_, expr) ->
+            findFnCall expr targetId name
+        | Value _ -> None
+        | ObjectLiteral kvs ->
+            kvs
+            |> List.filterMap ~f:(fun (_, v) -> findFnCall v targetId name)
+            |> List.head
+        | ListLiteral li ->
+            li
+            |> List.filterMap ~f:(fun i -> findFnCall i targetId name)
+            |> List.head
+        | Thread li ->
+            li
+            |> List.filterMap ~f:(fun i -> findFnCall i targetId name)
+            |> List.head
+        | FieldAccess (e, _) ->
+            findFnCall e targetId name
+        | FeatureFlag (_, condition, a, b) ->
+            findFnCall condition targetId name
+            |> Option.orElse (findFnCall a targetId name)
+            |> Option.orElse (findFnCall b targetId name) 
+        | Match (e, patterns) ->
+            (match (findFnCall e targetId name) with
+            | Some e1 -> Some e1
+            | None ->
+                patterns
+                |> List.filterMap ~f:(fun (_, e2) -> findFnCall e2 targetId name)
+                |> List.head
+            )
+        | Constructor (_, li) ->
+            li
+            |> List.filterMap ~f:(fun i -> findFnCall i targetId name)
+            |> List.head
+    in
+    match ast with
+    | F (_, nexpr) ->
+        f nexpr
+    | Blank _ -> None
+
+let pdToNExprs (ast : expr) (calls : (id * string) list) : nExpr list  =
+    List.filterMap ~f:(fun (id, name) -> findFnCall ast id name) calls
+
+let filterFnCallsEmitOnly (calls : (id * string) list) : (id * string) list = 
+    List.filter ~f:(fun (_, name) -> name = "emit") calls
+
+let filterFnCallsDBOnly (calls : (id * string) list) : (id * string) list = 
+    List.filter ~f:(fun (_, name) -> Regex.contains ~re:(Regex.regex "^DB::") name) calls
+
+let allFnCalls (ast : expr) : (id * string) list =
+    (allData ast) |> List.filterMap
+    ~f:(fun pd ->
+        match pd with
+        | PFnCallName bn ->
+        (match bn with F (id, name) -> Some (id, name) | Blank _ -> None)
+        | _ ->
+            None
+        )
+
+let asDBNames (calls : nExpr list) : string list =
+    let matchVarname e = match e with F (_, Variable varname) -> Some varname | _ -> None in
+    let getDBName ne =
+        match ne with
+        | FnCall (_, exprs, _) ->
+            (match (List.last exprs) with
+            | Some e -> matchVarname e
+            | None -> None
+            )
+        | _ -> None
+    in
+    List.filterMap ~f:getDBName calls
+
+let asEmitNames (calls : nExpr list) : (string * string) list =
+    let matchVal e = match e with F (_, Value v) -> v | _ -> "" in
+    let getSpaceAndName ne =
+        match ne with
+        | FnCall (_, exprs, _) ->
+            if List.length exprs = 3
+            then
+                let args = List.drop ~count:1 exprs in
+                (match args with [space; name] -> Some (matchVal space, matchVal name) | _ -> None)
+            else None
+        | _ -> None
+    in
+    List.filterMap ~f:getSpaceAndName calls
+
+let analyzeTL (tl: toplevel) : unit =
+    match tl.data with
+    | TLHandler h ->
+        let fnCalls = allFnCalls h.ast in
+        let emits =
+            filterFnCallsEmitOnly fnCalls
+            |> pdToNExprs h.ast
+            |> asEmitNames
+        in
+        let dbfns =
+            filterFnCallsDBOnly fnCalls
+            |> pdToNExprs h.ast
+            |> asDBNames
+        in
+        Debug.loG "AnalyzeCode DB calls" (Belt.List.toArray dbfns);
+        Debug.loG "AnalyseCode emits" (Belt.List.toArray emits);
+    | _ ->
+        Debug.loG "AnalyzeCode" "hold off"
+  

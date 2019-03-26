@@ -1361,7 +1361,7 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           {m with canvasProps = {m.canvasProps with panAnimation = false}} )
   | AnalyzeCode tlid ->
-      Analysis.analyzeTL m tlid ;
+      AST.analyzeTL (TL.getTL m tlid) ;
       NoChange
 
 
