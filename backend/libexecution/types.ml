@@ -475,6 +475,7 @@ module RuntimeT = struct
     ; canvas_id : Uuidm.t
     ; account_id : Uuidm.t
     ; user_fns : user_fn list
+    ; user_tipes : user_tipe list
     ; dbs : DbT.db list
     ; execution_id : id
     ; load_fn_result : load_fn_result_type

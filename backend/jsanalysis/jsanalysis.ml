@@ -67,7 +67,8 @@ type handler_analysis_param =
   ; trace_data :
       Analysis_types.trace_data (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : user_fn list }
+  ; user_fns : user_fn list
+  ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
 type function_analysis_param =
@@ -76,7 +77,8 @@ type function_analysis_param =
   ; trace_data :
       Analysis_types.trace_data (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : user_fn list }
+  ; user_fns : user_fn list
+  ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
 type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
@@ -97,6 +99,7 @@ let perform_analysis
     ~(tlid : tlid)
     ~(dbs : our_db list)
     ~(user_fns : user_fn list)
+    ~(user_tipes : user_tipe list)
     ~(trace_id : RuntimeT.uuid)
     ~(trace_data : Analysis_types.trace_data)
     ast =
@@ -112,6 +115,7 @@ let perform_analysis
       ~input_vars
       ~dbs
       ~user_fns
+      ~user_tipes
       ~load_fn_result:(load_from_trace trace_data.function_results)
       ~load_fn_arguments:Execution.load_no_arguments )
   |> analysis_envelope_to_yojson
@@ -119,7 +123,7 @@ let perform_analysis
 
 
 let perform_handler_analysis (str : string) : string =
-  let {handler; dbs; user_fns; trace_id; trace_data} =
+  let {handler; dbs; user_fns; user_tipes; trace_id; trace_data} =
     str
     |> Yojson.Safe.from_string
     |> handler_analysis_param_of_yojson
@@ -129,13 +133,14 @@ let perform_handler_analysis (str : string) : string =
     ~tlid:handler.tlid
     ~dbs
     ~user_fns
+    ~user_tipes
     ~trace_id
     ~trace_data
     handler.ast
 
 
 let perform_function_analysis (str : string) : string =
-  let {func; dbs; user_fns; trace_id; trace_data} =
+  let {func; dbs; user_fns; user_tipes; trace_id; trace_data} =
     str
     |> Yojson.Safe.from_string
     |> function_analysis_param_of_yojson
@@ -145,6 +150,7 @@ let perform_function_analysis (str : string) : string =
     ~tlid:func.tlid
     ~dbs
     ~user_fns
+    ~user_tipes
     ~trace_id
     ~trace_data
     func.ast

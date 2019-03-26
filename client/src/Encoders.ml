@@ -376,7 +376,8 @@ and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
     ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
-    ; ("user_fns", list userFunction params.userFns) ]
+    ; ("user_fns", list userFunction params.userFns)
+    ; ("user_tipes", list userTipe params.userTipes) ]
 
 
 and performFunctionAnalysisParams
@@ -386,7 +387,8 @@ and performFunctionAnalysisParams
     ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
-    ; ("user_fns", list userFunction params.userFns) ]
+    ; ("user_fns", list userFunction params.userFns)
+    ; ("user_tipes", list userTipe params.userTipes) ]
 
 
 and userFunction (uf : Types.userFunction) : Js.Json.t =
