@@ -604,8 +604,8 @@ let submitACItem
             else replace (PTypeName (B.newF value))
         | PTypeFieldName _, ACExtra value ->
             replace (PTypeFieldName (B.newF value))
-        | PTypeFieldTipe _, ACTypeFieldTipe value ->
-            replace (PTypeFieldTipe (B.newF (RT.str2tipe value)))
+        | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
+            replace (PTypeFieldTipe (B.newF tipe))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"

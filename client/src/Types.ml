@@ -598,7 +598,7 @@ and autocompleteItem =
   | ACDBColType of string
   | ACParamTipe of string
   | ACExtra of string
-  | ACTypeFieldTipe of string
+  | ACTypeFieldTipe of tipe
 
 and target = tlid * pointerData
 
