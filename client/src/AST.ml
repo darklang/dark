@@ -1079,3 +1079,32 @@ let variablesIn (ast : expr) : avDict =
   |> IDTable.toList
   |> StrDict.fromList
   |. StrDict.map ~f:SymSet.toList
+
+(*
+let fnCallRef = fnName * (expr list)
+
+let allFnCalls (ast : expr) : fnCallRef list =
+    match ast with F (_, nexpr) -> _allFnCalls nexpr [] | Blank _ -> []
+
+and rec _allFnCalls (ne : nExpr) (calls: fnCallRef list) : fnCallRef list =
+    match ne with
+    | FnCall (bName, args, _) -> (*Maybe base-case. dont recurse yet*)
+        calls @ (match bName with F (_, name) -> [(name, args)] | Blank _ -> [] )
+    | If (condition, ifbody, elsebody) ->
+        calls @ (allFnCalls condition) @ (allFnCalls ifbody) @ (allFnCalls elsebody)
+    | Variable _ ->
+        calls
+    | Let (_, bindexpr , bodyexpr) ->
+        calls @ (allFnCalls bindexpr) @ (allFnCalls bodyexpr)
+    | Lambda (_, expr) ->
+        calls @ allFnCalls expr
+    | Value _ ->
+        calls
+    | ObjectLiteral of (key * expr) list
+    | ListLiteral of expr list
+    | Thread of expr list
+    | FieldAccess of expr * field
+    | FeatureFlag of string blankOr * expr * expr * expr
+    | Match of expr * (pattern * expr) list
+    | Constructor of string blankOr * expr list
+*)
