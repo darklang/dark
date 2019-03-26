@@ -230,6 +230,7 @@ and toplevel j : toplevel =
 and tipe j : tipe =
   let dv0 = variant0 in
   let dv1 = variant1 in
+  let dv2 = variant2 in
   variants
     [ ("TInt", dv0 TInt)
     ; ("TStr", dv0 TStr)
@@ -255,7 +256,8 @@ and tipe j : tipe =
     ; ("TErrorRail", dv0 TErrorRail)
     ; ("TBelongsTo", dv1 (fun x -> TBelongsTo x) string)
     ; ("THasMany", dv1 (fun x -> THasMany x) string)
-    ; ("TDbList", dv1 (fun x -> TDbList x) tipe) ]
+    ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
+    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
     j
 
 
