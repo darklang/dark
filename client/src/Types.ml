@@ -90,6 +90,7 @@ and tipe =
   | TBelongsTo of string
   | THasMany of string
   | TDbList of tipe
+  | TUserType of string * int
 
 (* ---------------------- *)
 (* Exprs and AST types *)

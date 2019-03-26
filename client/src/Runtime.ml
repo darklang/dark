@@ -63,6 +63,8 @@ let rec tipe2str (t : tipe) : string =
       "[" ^ s ^ "]"
   | TDbList a ->
       "[" ^ tipe2str a ^ "]"
+  | TUserType (name, _) ->
+      name
 
 
 let str2tipe (t : string) : tipe =

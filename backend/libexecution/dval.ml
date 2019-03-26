@@ -72,6 +72,8 @@ let rec tipe_to_string t : string =
       "ErrorRail"
   | TResult ->
       "Result"
+  | TUserType (name, _) ->
+      name
 
 
 let rec tipe_of_string str : tipe =
