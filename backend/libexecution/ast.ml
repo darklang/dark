@@ -574,22 +574,28 @@ and exec_fn
         then state.store_fn_result sfr_desc arglist result ;
         result
   | UserCreated (tlid, body) ->
-      (* TODO: unify with InProcess, esp paramsIncomplete and paramsErroneous *)
-      let args_with_dbs =
-        let db_dvals =
-          state.dbs
-          |> List.filter_map ~f:(fun db ->
-                 match db.name with
-                 | Filled (_, name) ->
-                     Some (name, DDB name)
-                 | Blank _ ->
-                     None )
-          |> DvalMap.of_alist_exn
+    (* TODO: unify with InProcess, esp paramsIncomplete and paramsErroneous *)
+    ( match
+        Type_checker.check_function_call ~type_env:state.user_tipes fn args
+      with
+    | Ok () ->
+        let args_with_dbs =
+          let db_dvals =
+            state.dbs
+            |> List.filter_map ~f:(fun db ->
+                   match db.name with
+                   | Filled (_, name) ->
+                       Some (name, DDB name)
+                   | Blank _ ->
+                       None )
+            |> DvalMap.of_alist_exn
+          in
+          Util.merge_left db_dvals args
         in
-        Util.merge_left db_dvals args
-      in
-      state.store_fn_arguments tlid args ;
-      exec ~engine ~state args_with_dbs body
+        state.store_fn_arguments tlid args ;
+        exec ~engine ~state args_with_dbs body
+    | Error _errs ->
+        Exception.internal "type error" )
   | API f ->
       f args
 
