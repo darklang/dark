@@ -1198,7 +1198,9 @@ let asEmitNames (calls : nExpr list) : referral list =
   List.filterMap ~f:getSpaceAndName calls
 
 
-let analyzeTL (tl : toplevel) : unit =
+(* Get all references for handlers for now.
+  Will handle dbs and user functions later *)
+let inspectTL (tl : toplevel) : referral list =
   match tl.data with
   | TLHandler h ->
       let fnCalls = allFnCalls h.ast in
@@ -1208,7 +1210,6 @@ let analyzeTL (tl : toplevel) : unit =
       let dbfns =
         filterFnCallsDBOnly fnCalls |> fnAsNExprs h.ast |> asDBNames
       in
-      Debug.loG "AnalyzeCode DB calls" (Belt.List.toArray dbfns) ;
-      Debug.loG "AnalyseCode emits" (Belt.List.toArray emits)
+      emits @ dbfns
   | _ ->
-      Debug.loG "AnalyzeCode" "hold off"
+      []
