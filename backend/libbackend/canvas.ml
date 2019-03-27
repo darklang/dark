@@ -557,17 +557,34 @@ let migrate_all_hosts () : unit =
   ()
 
 
-let cleanup_old_traces (host : string) : unit =
-  let owner = Account.for_host host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
-  let keep = Stored_event.get_all_recent_canvas_traceids canvas_id in
+let cleanup_old_traces () : float =
+  let start = Unix.gettimeofday () in
+  let total_time () =
+    let finish = Unix.gettimeofday () in
+    (finish -. start) *. 1000.0
+  in
+  let stored_events_start = Unix.gettimeofday () in
+  let stored_events_time () =
+    let finish = Unix.gettimeofday () in
+    (finish -. stored_events_start) *. 1000.0
+  in
+  Stored_event.trim_events () ;
+  let stored_events_time = stored_events_time () in
+  let function_results_start = Unix.gettimeofday () in
+  let function_results_time () =
+    let finish = Unix.gettimeofday () in
+    (finish -. function_results_start) *. 1000.0
+  in
+  Stored_function_result.trim_results () ;
+  let function_results_time = function_results_time () in
+  let total_time = total_time () in
   Log.infO
-    "cleanup_trace"
-    ~params:[("host", host)]
-    ~jsonparams:[("count", `Int (List.length keep))] ;
-  Stored_event.trim_events ~canvas_id ~keep () ;
-  Stored_function_result.trim_results ~canvas_id ~keep () ;
-  ()
+    "cleanup_old_traces"
+    ~jsonparams:
+      [ ("stored_events_time", `Float stored_events_time)
+      ; ("function_results_time", `Float function_results_time)
+      ; ("total_time", `Float total_time) ] ;
+  total_time
 
 
 let to_string (host : string) : string =

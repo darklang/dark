@@ -50,8 +50,13 @@ let replacements =
     ; ( "DarkInternal::cleanupOldTraces_v1"
       , function
         | state, [DStr host] ->
-            Canvas.cleanup_old_traces (Unicode_string.to_string host) ;
-            DNull
+            DFloat (Canvas.cleanup_old_traces ())
+        | args ->
+            fail args )
+    ; ( "DarkInternal::cleanupOldTraces_v2"
+      , function
+        | state, [] ->
+            DFloat (Canvas.cleanup_old_traces ())
         | args ->
             fail args )
     ; ( "DarkInternal::checkCanvas"

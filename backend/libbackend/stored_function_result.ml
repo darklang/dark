@@ -50,16 +50,27 @@ let load ~canvas_id ~trace_id tlid : function_result list =
                "Bad DB format for stored_functions_results.load" )
 
 
-let trim_results
-    ~(canvas_id : Uuidm.t) ~(keep : Analysis_types.traceid list) () =
+(* in the previous iteration of this, we did two queries:
+ * - get most recent 10
+ * - delete all older than a week, but not in the first resultset
+ *
+ * turns out, it's cheaper to delete anything that's older than a week, and not
+ * in the most recent ten of that set. This means we keep more traces (we'll
+ * keep the top 10 older than a week, even if there are > 10 more recent than
+ * that), but this is an okay heuristic for garbage collection
+ * *)
+let trim_results () =
   Db.run
     ~name:"stored_function_result.trim_results"
     "DELETE FROM function_results_v2
-     WHERE canvas_id = $1
-       AND timestamp < CURRENT_TIMESTAMP
-       AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
-    ~subject:(Uuidm.to_string canvas_id)
-    ~params:
-      [ Uuid canvas_id
-      ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
-      ; String Db.array_separator ]
+    WHERE trace_id IN (
+      SELECT trace_id FROM (
+        SELECT row_number()
+        OVER (PARTITION BY canvas_id, tlid ORDER BY timestamp
+desc) as rownum, t.trace_id
+        FROM function_results_v2 t
+        WHERE timestamp < (NOW() - interval '1 week')) as u
+      WHERE rownum > 10
+      LIMIT 100000
+    )"
+    ~params:[]
