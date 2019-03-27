@@ -346,4 +346,3 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
         (m, Cmd.none) )
   | None ->
       (m, Cmd.none)
-
