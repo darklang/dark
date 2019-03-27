@@ -5,7 +5,8 @@
                     ppx_compare
                     ppx_deriving.std
                     ppx_deriving_yojson
-                    ppx_pipebang))
+                    ppx_pipebang
+                    ppx_sexp_conv))
   (libraries
               ; note that libtarget.{ocaml,js} are not included here
               libtarget
