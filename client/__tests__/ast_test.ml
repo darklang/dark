@@ -254,4 +254,41 @@ let () =
                  ))
           in
           expect (isFnCallInAST ast) |> toEqual true ) ) ;
+  describe "Get referenced names" (fun () ->
+      test "AST.asDBNames returns db name" (fun () ->
+          let refs =
+            AST.asDBNames
+              [ FnCall
+                  (B.newF "DB::getAll_v2", [B.newF (Variable "Books")], NoRail)
+              ]
+          in
+          expect (match refs with [RDBName "Books"] -> true | _ -> false)
+          |> toEqual true ) ;
+      test "AST.asDBNames db fn call with no args return empty list" (fun () ->
+          let refs =
+            AST.asDBNames [FnCall (B.newF "DB::getAll_v2", [], NoRail)]
+          in
+          expect (List.isEmpty refs) |> toEqual true ) ;
+      test "AST.asEmitNames returns event space and name" (fun () ->
+          let refs =
+            AST.asEmitNames
+              [ FnCall
+                  ( B.newF "emit"
+                  , [ B.new_ ()
+                    ; B.newF (Value "JOB")
+                    ; B.newF (Value "processOrder") ]
+                  , NoRail ) ]
+          in
+          expect
+            ( match refs with
+            | [REmit ("JOB", "processOrder")] ->
+                true
+            | _ ->
+                false )
+          |> toEqual true ) ;
+      test
+        "AST.asEmitNames emit call with no args return empty list"
+        (fun () ->
+          let refs = AST.asEmitNames [FnCall (B.newF "emit", [], NoRail)] in
+          expect (List.isEmpty refs) |> toEqual true ) ) ;
   ()
