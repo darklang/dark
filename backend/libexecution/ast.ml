@@ -576,7 +576,7 @@ and exec_fn
   | UserCreated (tlid, body) ->
     (* TODO: unify with InProcess, esp paramsIncomplete and paramsErroneous *)
     ( match
-        Type_checker.check_function_call ~type_env:state.user_tipes fn args
+        Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
       with
     | Ok () ->
         let args_with_dbs =
