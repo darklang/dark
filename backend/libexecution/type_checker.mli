@@ -8,4 +8,7 @@ type type_error =
   ; actual : tipe }
 
 val check_function_call :
-  type_env:user_tipe list -> fn -> dval_map -> (unit, type_error list) Result.t
+     user_tipes:user_tipe list
+  -> fn
+  -> dval_map
+  -> (unit, type_error list) Result.t

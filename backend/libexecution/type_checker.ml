@@ -7,25 +7,25 @@ type type_error =
   { expected : tipe
   ; actual : tipe }
 
-module TypeMap = Map.Make (struct
+module TypeEnv = Map.Make (struct
   type t = string * int [@@deriving sexp, compare]
 end)
 
-type type_map = user_tipe TypeMap.t
+type type_env = user_tipe TypeEnv.t
 
 (* This converts our list of user_tipes to a (name, version) -> user_tipe lookup
  * table. This corresponds to our lookup key in a TUserType of string * int variant
  * of a tipe *)
-let user_tipe_list_to_type_map (tipes : user_tipe list) : type_map =
-  List.fold_left tipes ~init:TypeMap.empty ~f:(fun map t ->
+let user_tipe_list_to_type_env (tipes : user_tipe list) : type_env =
+  List.fold_left tipes ~init:TypeEnv.empty ~f:(fun map t ->
       match t.name with
       | Filled (_, name) ->
-          TypeMap.add_exn map ~key:(name, t.version) ~data:t
+          TypeEnv.add_exn map ~key:(name, t.version) ~data:t
       | Blank _ ->
           map )
 
 
-let rec unify ~(type_env : type_map) (expected : tipe) (value : dval) :
+let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
     (unit, type_error list) Result.t =
   match (expected, value) with
   | TInt, DInt _ ->
@@ -63,7 +63,7 @@ let rec unify ~(type_env : type_map) (expected : tipe) (value : dval) :
   | TResp, DResp _ ->
       Ok ()
   | TUserType (expected_name, expected_version), DObj dmap ->
-    ( match TypeMap.find type_env (expected_name, expected_version) with
+    ( match TypeEnv.find type_env (expected_name, expected_version) with
     | None ->
         failwith "could not find user tipe in env"
     | Some ut ->
@@ -74,7 +74,7 @@ let rec unify ~(type_env : type_map) (expected : tipe) (value : dval) :
 
 
 and unify_user_record_with_dval_map
-    ~(type_env : type_map)
+    ~(type_env : type_env)
     (definition : user_record_field list)
     (value : dval_map) : (unit, type_error list) Result.t =
   let complete_definition =
@@ -104,9 +104,9 @@ and unify_user_record_with_dval_map
 
 
 let check_function_call
-    ~(type_env : user_tipe list) (fn : fn) (args : dval_map) :
+    ~(user_tipes : user_tipe list) (fn : fn) (args : dval_map) :
     (unit, type_error list) Result.t =
-  let type_env = user_tipe_list_to_type_map type_env in
+  let type_env = user_tipe_list_to_type_env user_tipes in
   let args = DvalMap.to_alist args in
   let withParams =
     List.map
