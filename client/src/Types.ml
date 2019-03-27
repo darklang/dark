@@ -190,7 +190,7 @@ and pointerOwner =
   | POAst
   | PODb
 
-and referData =
+and referral =
   | RDBName of dBName
   | RUFName of string
   | REmit of string * string

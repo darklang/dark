@@ -1080,161 +1080,135 @@ let variablesIn (ast : expr) : avDict =
   |> StrDict.fromList
   |. StrDict.map ~f:SymSet.toList
 
-(*
-let fnCallRef = fnName * (expr list)
-
-let allFnCalls (ast : expr) : fnCallRef list =
-    match ast with F (_, nexpr) -> _allFnCalls nexpr [] | Blank _ -> []
-
-and rec _allFnCalls (ne : nExpr) (calls: fnCallRef list) : fnCallRef list =
-    match ne with
-    | FnCall (bName, args, _) -> (*Maybe base-case. dont recurse yet*)
-        calls @ (match bName with F (_, name) -> [(name, args)] | Blank _ -> [] )
-    | If (condition, ifbody, elsebody) ->
-        calls @ (allFnCalls condition) @ (allFnCalls ifbody) @ (allFnCalls elsebody)
-    | Variable _ ->
-        calls
-    | Let (_, bindexpr , bodyexpr) ->
-        calls @ (allFnCalls bindexpr) @ (allFnCalls bodyexpr)
-    | Lambda (_, expr) ->
-        calls @ allFnCalls expr
-    | Value _ ->
-        calls
-    | ObjectLiteral of (key * expr) list
-    | ListLiteral of expr list
-    | Thread of expr list
-    | FieldAccess of expr * field
-    | FeatureFlag of string blankOr * expr * expr * expr
-    | Match of expr * (pattern * expr) list
-    | Constructor of string blankOr * expr list
-*)
-
 
 (* INTROSPECTION *)
 
-let rec findFnCall (ast : expr) (targetId: id) (name : string) : nExpr option =
-    let f ne =
-        match ne with
-        | FnCall ((F (fid, fname)), exprs, _) ->
-            if fname = name && fid = targetId (* TERMINATING BASE CASE *)
-            then Some ne
-            else
-                exprs
-                |> List.filterMap ~f:(fun e -> findFnCall e targetId name)
-                |> List.head
-        | FnCall (Blank _, exprs, _) ->
-            exprs
-            |> List.filterMap ~f:(fun e -> findFnCall e targetId name)
-            |> List.head
-        | Let (_, bindexpr , bodyexpr) ->
-            findFnCall bindexpr targetId name
-            |> Option.orElse (findFnCall bodyexpr targetId name)
-        | If (condition, ifbody, elsebody) ->
-            findFnCall condition targetId name
-            |> Option.orElse (findFnCall ifbody targetId name)
-            |> Option.orElse (findFnCall elsebody targetId name)
-        | Variable _ -> None
-        | Lambda (_, expr) ->
-            findFnCall expr targetId name
-        | Value _ -> None
-        | ObjectLiteral kvs ->
-            kvs
-            |> List.filterMap ~f:(fun (_, v) -> findFnCall v targetId name)
-            |> List.head
-        | ListLiteral li ->
-            li
-            |> List.filterMap ~f:(fun i -> findFnCall i targetId name)
-            |> List.head
-        | Thread li ->
-            li
-            |> List.filterMap ~f:(fun i -> findFnCall i targetId name)
-            |> List.head
-        | FieldAccess (e, _) ->
-            findFnCall e targetId name
-        | FeatureFlag (_, condition, a, b) ->
-            findFnCall condition targetId name
-            |> Option.orElse (findFnCall a targetId name)
-            |> Option.orElse (findFnCall b targetId name) 
-        | Match (e, patterns) ->
-            (match (findFnCall e targetId name) with
-            | Some e1 -> Some e1
-            | None ->
-                patterns
-                |> List.filterMap ~f:(fun (_, e2) -> findFnCall e2 targetId name)
-                |> List.head
-            )
-        | Constructor (_, li) ->
-            li
-            |> List.filterMap ~f:(fun i -> findFnCall i targetId name)
-            |> List.head
-    in
-    match ast with
-    | F (_, nexpr) ->
-        f nexpr
-    | Blank _ -> None
+type idName = id * string
 
-let pdToNExprs (ast : expr) (calls : (id * string) list) : nExpr list  =
-    List.filterMap ~f:(fun (id, name) -> findFnCall ast id name) calls
+let rec findFnCall (ast : expr) (targetId : id) (name : string) : nExpr option
+    =
+  let findFirst li fn = li |> List.filterMap ~f:fn |> List.head in
+  let f ne =
+    match ne with
+    | FnCall (F (fid, fname), exprs, _) ->
+        if fname = name && fid = targetId (* TERMINATING BASE CASE *)
+        then Some ne
+        else findFirst exprs (fun e -> findFnCall e targetId name)
+    | FnCall (Blank _, exprs, _) ->
+        findFirst exprs (fun e -> findFnCall e targetId name)
+    | Let (_, bindexpr, bodyexpr) ->
+        findFnCall bindexpr targetId name
+        |> Option.orElse (findFnCall bodyexpr targetId name)
+    | If (condition, ifbody, elsebody) ->
+        findFnCall condition targetId name
+        |> Option.orElse (findFnCall ifbody targetId name)
+        |> Option.orElse (findFnCall elsebody targetId name)
+    | Variable _ ->
+        None
+    | Lambda (_, expr) ->
+        findFnCall expr targetId name
+    | Value _ ->
+        None
+    | ObjectLiteral kvs ->
+        findFirst kvs (fun (_, v) -> findFnCall v targetId name)
+    | ListLiteral li ->
+        findFirst li (fun i -> findFnCall i targetId name)
+    | Thread li ->
+        findFirst li (fun i -> findFnCall i targetId name)
+    | FieldAccess (e, _) ->
+        findFnCall e targetId name
+    | FeatureFlag (_, condition, a, b) ->
+        findFnCall condition targetId name
+        |> Option.orElse (findFnCall a targetId name)
+        |> Option.orElse (findFnCall b targetId name)
+    | Match (e, patterns) ->
+      ( match findFnCall e targetId name with
+      | Some e1 ->
+          Some e1
+      | None ->
+          findFirst patterns (fun (_, e2) -> findFnCall e2 targetId name) )
+    | Constructor (_, li) ->
+        findFirst li (fun i -> findFnCall i targetId name)
+  in
+  match ast with F (_, nexpr) -> f nexpr | Blank _ -> None
 
-let filterFnCallsEmitOnly (calls : (id * string) list) : (id * string) list = 
-    List.filter ~f:(fun (_, name) -> name = "emit") calls
 
-let filterFnCallsDBOnly (calls : (id * string) list) : (id * string) list = 
-    List.filter ~f:(fun (_, name) -> Regex.contains ~re:(Regex.regex "^DB::") name) calls
+let fnAsNExprs (ast : expr) (calls : idName list) : nExpr list =
+  List.filterMap ~f:(fun (id, name) -> findFnCall ast id name) calls
 
-let allFnCalls (ast : expr) : (id * string) list =
-    (allData ast) |> List.filterMap
-    ~f:(fun pd ->
-        match pd with
-        | PFnCallName bn ->
-        (match bn with F (id, name) -> Some (id, name) | Blank _ -> None)
-        | _ ->
-            None
-        )
 
-let asDBNames (calls : nExpr list) : string list =
-    let matchVarname e = match e with F (_, Variable varname) -> Some varname | _ -> None in
-    let getDBName ne =
-        match ne with
-        | FnCall (_, exprs, _) ->
-            (match (List.last exprs) with
-            | Some e -> matchVarname e
-            | None -> None
-            )
-        | _ -> None
-    in
-    List.filterMap ~f:getDBName calls
+let filterFnCallsEmitOnly (calls : idName list) : idName list =
+  List.filter ~f:(fun (_, name) -> name = "emit") calls
 
-let asEmitNames (calls : nExpr list) : (string * string) list =
-    let matchVal e = match e with F (_, Value v) -> v | _ -> "" in
-    let getSpaceAndName ne =
-        match ne with
-        | FnCall (_, exprs, _) ->
-            if List.length exprs = 3
-            then
-                let args = List.drop ~count:1 exprs in
-                (match args with [space; name] -> Some (matchVal space, matchVal name) | _ -> None)
-            else None
-        | _ -> None
-    in
-    List.filterMap ~f:getSpaceAndName calls
 
-let analyzeTL (tl: toplevel) : unit =
-    match tl.data with
-    | TLHandler h ->
-        let fnCalls = allFnCalls h.ast in
-        let emits =
-            filterFnCallsEmitOnly fnCalls
-            |> pdToNExprs h.ast
-            |> asEmitNames
-        in
-        let dbfns =
-            filterFnCallsDBOnly fnCalls
-            |> pdToNExprs h.ast
-            |> asDBNames
-        in
-        Debug.loG "AnalyzeCode DB calls" (Belt.List.toArray dbfns);
-        Debug.loG "AnalyseCode emits" (Belt.List.toArray emits);
+let filterFnCallsDBOnly (calls : idName list) : idName list =
+  List.filter
+    ~f:(fun (_, name) -> Regex.contains ~re:(Regex.regex "^DB::") name)
+    calls
+
+
+let allFnCalls (ast : expr) : idName list =
+  allData ast
+  |> List.filterMap ~f:(fun pd ->
+         match pd with
+         | PFnCallName bn ->
+           (match bn with F (id, name) -> Some (id, name) | Blank _ -> None)
+         | _ ->
+             None )
+
+
+let asDBNames (calls : nExpr list) : referral list =
+  let matchVarname e =
+    match e with
+    | F (_, Variable varname) ->
+        Some (RDBName varname)
     | _ ->
-        Debug.loG "AnalyzeCode" "hold off"
-  
+        None
+  in
+  let getDBName ne =
+    match ne with
+    | FnCall (_, exprs, _) ->
+      (match List.last exprs with Some e -> matchVarname e | None -> None)
+    | _ ->
+        None
+  in
+  List.filterMap ~f:getDBName calls
+
+
+let asEmitNames (calls : nExpr list) : referral list =
+  let matchVal e = match e with F (_, Value v) -> v | _ -> "" in
+  let getNames args =
+    match args with
+    | [space; name] ->
+        Some (REmit (matchVal space, matchVal name))
+    | _ ->
+        None
+  in
+  let getSpaceAndName ne =
+    match ne with
+    | FnCall (_, exprs, _) ->
+        if List.length exprs = 3
+        then
+          let args = List.drop ~count:1 exprs in
+          getNames args
+        else None
+    | _ ->
+        None
+  in
+  List.filterMap ~f:getSpaceAndName calls
+
+
+let analyzeTL (tl : toplevel) : unit =
+  match tl.data with
+  | TLHandler h ->
+      let fnCalls = allFnCalls h.ast in
+      let emits =
+        filterFnCallsEmitOnly fnCalls |> fnAsNExprs h.ast |> asEmitNames
+      in
+      let dbfns =
+        filterFnCallsDBOnly fnCalls |> fnAsNExprs h.ast |> asDBNames
+      in
+      Debug.loG "AnalyzeCode DB calls" (Belt.List.toArray dbfns) ;
+      Debug.loG "AnalyseCode emits" (Belt.List.toArray emits)
+  | _ ->
+      Debug.loG "AnalyzeCode" "hold off"

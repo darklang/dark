@@ -2,6 +2,7 @@ open! Tc
 open Types
 open Jest
 open Expect
+open Prelude
 module B = Blank
 
 type ('a, 'b) transformation_test_result =
@@ -113,4 +114,144 @@ let () =
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
              AST.usesRail expr)
           |> toEqual false ) ) ;
+  describe "AST.allFnCalls" (fun () ->
+      test "should return get one call" (fun () ->
+          let ast =
+            B.newF
+              (If
+                 ( B.new_ ()
+                 , B.newF (FnCall (B.newF "Int::add_v0", [], NoRail))
+                 , B.new_ () ))
+          in
+          let getCalls = AST.allFnCalls ast in
+          expect (List.length getCalls) |> toEqual 1 ) ;
+      test "should return empty list" (fun () ->
+          let ast = B.newF (Value "hello world") in
+          let getCalls = AST.allFnCalls ast in
+          expect (List.isEmpty getCalls) |> toEqual true ) ) ;
+  describe "AST filter fncalls" (fun () ->
+      test "emit only" (fun () ->
+          let calls =
+            [ (gid (), "Int::add_v0")
+            ; (gid (), "emit")
+            ; (gid (), "DB::getAll_v2") ]
+          in
+          let res = AST.filterFnCallsEmitOnly calls in
+          expect (match res with [(_, "emit")] -> true | _ -> false)
+          |> toEqual true ) ;
+      test "db functions only" (fun () ->
+          let calls =
+            [ (gid (), "Int::add_v0")
+            ; (gid (), "emit")
+            ; (gid (), "DB::getAll_v2") ]
+          in
+          let res = AST.filterFnCallsDBOnly calls in
+          expect (match res with [(_, "DB::getAll_v2")] -> true | _ -> false)
+          |> toEqual true ) ) ;
+  describe "AST.findFnCall" (fun () ->
+      let targetId = ID "123"
+      and fnName = "DB::getAll_v2" in
+      let isFnCallInAST ast =
+        Option.isSome (AST.findFnCall ast targetId fnName)
+      in
+      test "FnCall at root" (fun () ->
+          let ast = B.newF (FnCall (F (targetId, fnName), [], NoRail)) in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "Found FnCall but it is another function" (fun () ->
+          let ast = B.newF (FnCall (B.newF "Int::add_v0", [], NoRail)) in
+          expect (isFnCallInAST ast) |> toEqual false ) ;
+      test "FnCall inside the arguments of a Blank named FnCall" (fun () ->
+          let ast =
+            B.newF
+              (FnCall
+                 ( B.new_ ()
+                 , [ B.newF (Value "1")
+                   ; B.newF (FnCall (F (targetId, fnName), [], NoRail)) ]
+                 , NoRail ))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside let definition" (fun () ->
+          let ast =
+            B.newF
+              (Let
+                 ( B.new_ ()
+                 , B.newF (FnCall (F (targetId, fnName), [], NoRail))
+                 , B.new_ () ))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside let body" (fun () ->
+          let ast =
+            B.newF
+              (Let
+                 ( B.new_ ()
+                 , B.new_ ()
+                 , B.newF (FnCall (F (targetId, fnName), [], NoRail)) ))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "Body has only a variable, FnCall not found" (fun () ->
+          let ast = B.newF (Variable "request") in
+          expect (isFnCallInAST ast) |> toEqual false ) ;
+      test "FnCall inside lambda" (fun () ->
+          let ast =
+            B.newF
+              (Lambda ([], B.newF (FnCall (F (targetId, fnName), [], NoRail))))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside obj value" (fun () ->
+          let ast =
+            B.newF
+              (ObjectLiteral
+                 [ ( B.newF "books"
+                   , B.newF (FnCall (F (targetId, fnName), [], NoRail)) ) ])
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside list item" (fun () ->
+          let ast =
+            B.newF
+              (ListLiteral
+                 [B.new_ (); B.newF (FnCall (F (targetId, fnName), [], NoRail))])
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside Thread" (fun () ->
+          let ast =
+            B.newF
+              (Thread [B.newF (FnCall (F (targetId, fnName), [], NoRail))])
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside feature flag condition" (fun () ->
+          let ast =
+            B.newF
+              (FeatureFlag
+                 ( B.new_ ()
+                 , B.newF (FnCall (F (targetId, fnName), [], NoRail))
+                 , B.new_ ()
+                 , B.new_ () ))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside feature flag case B" (fun () ->
+          let ast =
+            B.newF
+              (FeatureFlag
+                 ( B.new_ ()
+                 , B.new_ ()
+                 , B.new_ ()
+                 , B.newF (FnCall (F (targetId, fnName), [], NoRail)) ))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside match expression" (fun () ->
+          let ast =
+            B.newF
+              (Match (B.newF (FnCall (F (targetId, fnName), [], NoRail)), []))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ;
+      test "FnCall inside a pattern case" (fun () ->
+          let ast =
+            B.newF
+              (Match
+                 ( B.new_ ()
+                 , [ ( B.newF (PLiteral "users")
+                     , B.newF (FnCall (F (targetId, fnName), [], NoRail)) ) ]
+                 ))
+          in
+          expect (isFnCallInAST ast) |> toEqual true ) ) ;
   ()
