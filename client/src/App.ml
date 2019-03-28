@@ -382,7 +382,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadPayload _ ->
               true
           | Http.Aborted ->
-              true
+              not ignoreCommon
         in
         let shouldRollbar =
           match e with
