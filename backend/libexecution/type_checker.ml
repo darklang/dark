@@ -108,13 +108,13 @@ let check_function_call
     (unit, type_error list) Result.t =
   let type_env = user_tipe_list_to_type_env user_tipes in
   let args = DvalMap.to_alist args in
-  let withParams =
+  let with_params =
     List.map
       ~f:(fun (argname, argval) ->
         (List.find_exn ~f:(fun p -> p.name = argname) fn.parameters, argval) )
       args
   in
-  withParams
+  with_params
   |> List.map ~f:(fun (param, value) -> unify ~type_env param.tipe value)
   |> Result.combine_errors_unit
   |> Result.map_error ~f:List.concat
