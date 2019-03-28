@@ -437,7 +437,7 @@ and deployStatus =
 and staticDeploy =
   { deployHash : string
   ; url : string
-  ; lastUpdate : string
+  ; lastUpdate : Js.Date.t [@opaque]
   ; status : deployStatus }
 
 (* ------------------- *)
