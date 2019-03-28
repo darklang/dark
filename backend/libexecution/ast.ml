@@ -594,8 +594,13 @@ and exec_fn
         in
         state.store_fn_arguments tlid args ;
         exec ~engine ~state args_with_dbs body
-    | Error _errs ->
-        Exception.user "type error" )
+    | Error errs ->
+        let error_msgs =
+          errs
+          |> List.map ~f:Type_checker.Error.to_string
+          |> String.concat ~sep:", "
+        in
+        DError ("Type error(s) in function parameters: " ^ error_msgs) )
   | API f ->
       f args
 
