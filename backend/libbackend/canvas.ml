@@ -558,26 +558,17 @@ let migrate_all_hosts () : unit =
 
 
 let cleanup_old_traces () : float =
+  let runtime_since (start : float) : float =
+    (Unix.gettimeofday () -. start) *. 1000.0
+  in
   let start = Unix.gettimeofday () in
-  let total_time () =
-    let finish = Unix.gettimeofday () in
-    (finish -. start) *. 1000.0
-  in
   let stored_events_start = Unix.gettimeofday () in
-  let stored_events_time () =
-    let finish = Unix.gettimeofday () in
-    (finish -. stored_events_start) *. 1000.0
-  in
   let trimmed_events = Stored_event.trim_events () in
-  let stored_events_time = stored_events_time () in
+  let stored_events_time = runtime_since stored_events_start in
   let function_results_start = Unix.gettimeofday () in
-  let function_results_time () =
-    let finish = Unix.gettimeofday () in
-    (finish -. function_results_start) *. 1000.0
-  in
   let trimmed_results = Stored_function_result.trim_results () in
-  let function_results_time = function_results_time () in
-  let total_time = total_time () in
+  let function_results_time = runtime_since function_results_start in
+  let total_time = runtime_since start in
   Log.infO
     "cleanup_old_traces"
     ~jsonparams:
