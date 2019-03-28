@@ -55,7 +55,7 @@ createdb "$TEMPDB"
 echo "Loading DB $TEMPDB (logging to $LOGFILE)"
 ###########################
 # There are some permission statements for cloudsql that are not relevant
-gunzip --stdout "$FILENAME" | grep -v cloudsql | psql -d "$TEMPDB" > "$LOGFILE"
+gunzip --stdout "$FILENAME" | grep -v cloudsql | pv | psql -d "$TEMPDB" > "$LOGFILE"
 
 ###########################
 echo "Download complete. If this fails from here, restart your container and run ./scripts/reset-prodclone"

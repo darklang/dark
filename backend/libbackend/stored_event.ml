@@ -1,6 +1,7 @@
 open Core_kernel
 open Libexecution
 module RTT = Types.RuntimeT
+open Libcommon
 
 type event_desc = string * string * string [@@deriving show, yojson]
 
@@ -172,22 +173,20 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
              Exception.internal "Bad DB format for stored_events" )
 
 
-let get_all_recent_canvas_traceids (canvas_id : Uuidm.t) =
-  list_events ~limit:`All ~canvas_id ()
-  |> List.map ~f:(get_recent_event_traceids ~canvas_id)
-  |> List.concat
-
-
-let trim_events ~(canvas_id : Uuidm.t) ~(keep : Analysis_types.traceid list) ()
-    =
-  Db.run
+(* see comment on Stored_event.trim_results for why this query *)
+let trim_events () : int =
+  Db.delete
     ~name:"stored_event.trim_events"
     "DELETE FROM stored_events_v2
-     WHERE canvas_id = $1
-       AND timestamp < CURRENT_TIMESTAMP
-       AND NOT (trace_id = ANY (string_to_array($2, $3)::uuid[]))"
-    ~subject:(Uuidm.to_string canvas_id)
-    ~params:
-      [ Uuid canvas_id
-      ; List (List.map ~f:(fun u -> Db.Uuid u) keep)
-      ; String Db.array_separator ]
+    WHERE trace_id IN (
+      SELECT trace_id FROM (
+        SELECT row_number()
+        OVER (PARTITION BY canvas_id, module, path, modifier ORDER BY timestamp
+desc) as rownum, t.trace_id
+        FROM stored_events_v2 t
+        WHERE timestamp < (NOW() - interval '1 week')
+        LIMIT 10000) as u
+      WHERE rownum > 10
+      LIMIT 10000
+    )"
+    ~params:[]
