@@ -981,10 +981,10 @@ test('fourohfours_parse', async t => {
 })
 
 test('return_to_architecture_on_deselect', async t => {
-  await t.click('.tl-123');
-  await t.expect(Selector('.tl-123', {timeout: 500}).hasClass('selected')).ok()
+  await t.navigateTo('#handler=123')
+    .expect(available('.tl-123')).ok({ timeout : 1000 });
 
-  await t.click('#canvas', {offsetX: 10, offsetY: 500})
+  await t.pressKey("esc");
 
 })
 
