@@ -174,8 +174,8 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
 
 
 (* see comment on Stored_event.trim_results for why this query *)
-let trim_events () =
-  Db.run
+let trim_events () : int =
+  Db.delete
     ~name:"stored_event.trim_events"
     "DELETE FROM stored_events_v2
     WHERE trace_id IN (

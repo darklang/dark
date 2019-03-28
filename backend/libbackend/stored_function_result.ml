@@ -59,8 +59,8 @@ let load ~canvas_id ~trace_id tlid : function_result list =
  * keep the top 10 older than a week, even if there are > 10 more recent than
  * that), but this is an okay heuristic for garbage collection
  * *)
-let trim_results () =
-  Db.run
+let trim_results () : int =
+  Db.delete
     ~name:"stored_function_result.trim_results"
     "DELETE FROM function_results_v2
     WHERE trace_id IN (

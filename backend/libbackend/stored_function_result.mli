@@ -18,4 +18,4 @@ val load :
 (* Trim the events for an entire canvas, removing events from before the time,
  * unless listed in keep.
  *)
-val trim_results : unit -> unit
+val trim_results : unit -> int
