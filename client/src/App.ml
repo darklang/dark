@@ -94,19 +94,15 @@ let processFocus (m : model) (focus : focus) : modification =
       let noTarget = ACSetTarget None in
       let target tuple = ACSetTarget (Some tuple) in
       let tlOnPage tl =
-        match page with
-        | Architecture ->
-          ( match tl.data with
-          | TLHandler _ ->
-              true
-          | TLDB _ ->
-              true
-          | TLFunc _ ->
-              false
-          | TLTipe _ ->
-              false )
-        | FocusedFn id | FocusedHandler id | FocusedDB id | FocusedType id ->
-            tl.id = id
+        match tl.data with
+        | TLHandler _ ->
+            true
+        | TLDB _ ->
+            true
+        | TLFunc _ ->
+            false
+        | TLTipe _ ->
+            false
       in
       let setQuery =
         let mTl = cs |> tlidOf |> Option.andThen ~f:(TL.get m) in

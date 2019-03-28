@@ -178,9 +178,19 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
         m.canvasProps.offset
   in
   let panAnimation = offset <> m.canvasProps.offset in
+  let boId =
+    let idInToplevel id =
+      match TL.find tl id with Some _ -> Some id | None -> None
+    in
+    match m.cursorState with
+    | Selecting (tlid, sid) when tlid = tl.id ->
+      (match sid with Some id -> idInToplevel id | None -> None)
+    | _ ->
+        None
+  in
   { m with
     currentPage = page
-  ; cursorState = Selecting (tl.id, None)
+  ; cursorState = Selecting (tl.id, boId)
   ; canvasProps = {m.canvasProps with offset; panAnimation; lastOffset = None}
   }
 
@@ -273,7 +283,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
 
 let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
   let prevTLID = tlidOf m.cursorState in
-  if match prevTLID with Some tid -> tlid <> tid | None -> false
+  let changedFocused =
+    match prevTLID with Some tid -> tlid <> tid | None -> false
+  in
+  let fromArch = m.currentPage = Architecture in
+  if fromArch || changedFocused
   then
     let tl = TL.getTL m tlid in
     let page = TL.asPage tl in
