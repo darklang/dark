@@ -595,7 +595,7 @@ and exec_fn
         state.store_fn_arguments tlid args ;
         exec ~engine ~state args_with_dbs body
     | Error _errs ->
-        Exception.internal "type error" )
+        Exception.user "type error" )
   | API f ->
       f args
 
