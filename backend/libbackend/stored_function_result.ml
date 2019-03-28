@@ -69,8 +69,9 @@ let trim_results () : int =
         OVER (PARTITION BY canvas_id, tlid ORDER BY timestamp
 desc) as rownum, t.trace_id
         FROM function_results_v2 t
-        WHERE timestamp < (NOW() - interval '1 week')) as u
+        WHERE timestamp < (NOW() - interval '1 week')
+        LIMIT 10000) as u
       WHERE rownum > 10
-      LIMIT 100000
+      LIMIT 10000
     )"
     ~params:[]
