@@ -1095,19 +1095,11 @@ let tryDBNames (exprs : expr list) : referral option =
 
 
 let tryEmitNames (exprs : expr list) : referral option =
-  let matchVal e = match e with F (_, Value v) -> v | _ -> "" in
-  let getNames args =
-    match args with
-    | [space; name] ->
-        Some (REmit (matchVal space, matchVal name))
-    | _ ->
-        None
-  in
-  if List.length exprs = 3
-  then
-    let args = List.drop ~count:1 exprs in
-    getNames args
-  else None
+  match exprs with
+  | [_; F (_, Value space); F (_, Value name)] ->
+      Some (REmit (space, name))
+  | _ ->
+      None
 
 
 let getReferrals (pointers : pointerData list) : referral list =
@@ -1115,10 +1107,10 @@ let getReferrals (pointers : pointerData list) : referral list =
     match bname with
     | F (_, "emit") ->
         tryEmitNames exprs
-    | F (_, name) ->
-        if Regex.contains ~re:(Regex.regex "^DB::") name
-        then tryDBNames exprs
-        else None
+    | F (_, name) when Regex.contains ~re:(Regex.regex "^DB::") name ->
+        tryDBNames exprs
+    | F (_, _) ->
+        None
     | Blank _ ->
         None
   in
