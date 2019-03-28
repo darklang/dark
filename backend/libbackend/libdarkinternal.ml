@@ -254,7 +254,7 @@ let replacements =
             let canvas_name, tlid =
               match
                 Db.fetch
-                  ~name:"dbs_in_canvas"
+                  ~name:"canvas_name_and_tlid_for_db_tlid"
                   "SELECT canvases.name, tlid
                  FROM toplevel_oplists
                  JOIN canvases ON canvases.id = canvas_id
