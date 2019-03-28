@@ -251,22 +251,22 @@ let replacements =
     ; ( "DarkInternal::schema"
       , function
         | _, [DStr id] ->
-            let dbres =
-              Db.fetch
-                ~name:"dbs_in_canvas"
-                "SELECT canvases.name, tlid
+            let canvas_name, tlid =
+              match
+                Db.fetch
+                  ~name:"dbs_in_canvas"
+                  "SELECT canvases.name, tlid
                  FROM toplevel_oplists
                  JOIN canvases ON canvases.id = canvas_id
                  WHERE tipe = $1 AND tlid = $2"
-                ~params:[String "db"; String (Unicode_string.to_string id)]
-              |> List.hd_exn
-              |> List.zip_exn ["name"; "tlid"]
-            in
-            let _, tlid =
-              List.find dbres ~f:(fun (k, _) -> k = "tlid") |> Option.value_exn
-            in
-            let _, canvas_name =
-              List.find dbres ~f:(fun (k, _) -> k = "name") |> Option.value_exn
+                  ~params:[String "db"; String (Unicode_string.to_string id)]
+                |> List.hd_exn
+              with
+              | [canvas_name; tlid] ->
+                  (canvas_name, tlid)
+              | _ ->
+                  Exception.internal
+                    "Can't happen, this query should return two fields"
             in
             let c =
               Canvas.load_only ~tlids:[Types.id_of_string tlid] canvas_name []
