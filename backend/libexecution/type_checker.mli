@@ -10,7 +10,8 @@ module Error : sig
     | MismatchedRecordFields of
         { expected_fields : String.Set.t
         ; actual_fields : String.Set.t }
-    | InvalidDefinition of user_record_field list
+
+  val to_string : t -> string
 end
 
 val check_function_call :

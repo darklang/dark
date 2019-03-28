@@ -10,7 +10,46 @@ module Error = struct
     | MismatchedRecordFields of
         { expected_fields : String.Set.t
         ; actual_fields : String.Set.t }
-    | InvalidDefinition of user_record_field list
+
+  let to_string t =
+    match t with
+    | TypeLookupFailure (lookup_name, lookup_version) ->
+        let lookup_string =
+          "(" ^ lookup_name ^ ", v" ^ string_of_int lookup_version ^ ")"
+        in
+        "Type " ^ lookup_string ^ " could not be found on the canvas"
+    | TypeUnificationFailure {expected_tipe; actual_value} ->
+        "Expected to see a value of type "
+        ^ Dval.tipe_to_string expected_tipe
+        ^ " but found a "
+        ^ Dval.tipename actual_value
+    | MismatchedRecordFields {expected_fields; actual_fields} ->
+        (* More or less wholesale from User_db's type checker *)
+        let missing_fields = String.Set.diff expected_fields actual_fields in
+        let missing_msg =
+          "Expected but did not find: ["
+          ^ (missing_fields |> String.Set.to_list |> String.concat ~sep:", ")
+          ^ "]"
+        in
+        let extra_fields = String.Set.diff actual_fields expected_fields in
+        let extra_msg =
+          "Found but did not expect: ["
+          ^ (extra_fields |> String.Set.to_list |> String.concat ~sep:", ")
+          ^ "]"
+        in
+        ( match
+            ( String.Set.is_empty missing_fields
+            , String.Set.is_empty extra_fields )
+          with
+        | false, false ->
+            missing_msg ^ " & " ^ extra_msg
+        | false, true ->
+            missing_msg
+        | true, false ->
+            extra_msg
+        | true, true ->
+            "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!"
+        )
 end
 
 open Error
