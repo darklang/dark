@@ -1360,6 +1360,10 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel
         (fun m ->
           {m with canvasProps = {m.canvasProps with panAnimation = false}} )
+  | AnalyzeCode tlid ->
+      let found = AST.inspectTL (TL.getTL m tlid) in
+      Debug.loG "AnalyzeCode" found ;
+      NoChange
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

@@ -1083,81 +1083,7 @@ let variablesIn (ast : expr) : avDict =
 
 (* INTROSPECTION *)
 
-type idName = id * string
-
-let rec findFnCall (ast : expr) (targetId : id) (name : string) : nExpr option
-    =
-  let findFirst li fn = li |> List.filterMap ~f:fn |> List.head in
-  let f ne =
-    match ne with
-    | FnCall (F (fid, fname), exprs, _) ->
-        if fname = name && fid = targetId (* TERMINATING BASE CASE *)
-        then Some ne
-        else findFirst exprs (fun e -> findFnCall e targetId name)
-    | FnCall (Blank _, exprs, _) ->
-        findFirst exprs (fun e -> findFnCall e targetId name)
-    | Let (_, bindexpr, bodyexpr) ->
-        findFnCall bindexpr targetId name
-        |> Option.orElse (findFnCall bodyexpr targetId name)
-    | If (condition, ifbody, elsebody) ->
-        findFnCall condition targetId name
-        |> Option.orElse (findFnCall ifbody targetId name)
-        |> Option.orElse (findFnCall elsebody targetId name)
-    | Variable _ ->
-        None
-    | Lambda (_, expr) ->
-        findFnCall expr targetId name
-    | Value _ ->
-        None
-    | ObjectLiteral kvs ->
-        findFirst kvs (fun (_, v) -> findFnCall v targetId name)
-    | ListLiteral li ->
-        findFirst li (fun i -> findFnCall i targetId name)
-    | Thread li ->
-        findFirst li (fun i -> findFnCall i targetId name)
-    | FieldAccess (e, _) ->
-        findFnCall e targetId name
-    | FeatureFlag (_, condition, a, b) ->
-        findFnCall condition targetId name
-        |> Option.orElse (findFnCall a targetId name)
-        |> Option.orElse (findFnCall b targetId name)
-    | Match (e, patterns) ->
-      ( match findFnCall e targetId name with
-      | Some e1 ->
-          Some e1
-      | None ->
-          findFirst patterns (fun (_, e2) -> findFnCall e2 targetId name) )
-    | Constructor (_, li) ->
-        findFirst li (fun i -> findFnCall i targetId name)
-  in
-  match ast with F (_, nexpr) -> f nexpr | Blank _ -> None
-
-
-let fnAsNExprs (ast : expr) (calls : idName list) : nExpr list =
-  List.filterMap ~f:(fun (id, name) -> findFnCall ast id name) calls
-
-
-let filterFnCallsEmitOnly (calls : idName list) : idName list =
-  List.filter ~f:(fun (_, name) -> name = "emit") calls
-
-
-let filterFnCallsDBOnly (calls : idName list) : idName list =
-  List.filter
-    ~f:(fun (_, name) -> Regex.contains ~re:(Regex.regex "^DB::") name)
-    calls
-
-
-let allFnCalls (ast : expr) : idName list =
-  allData ast
-  |> List.filterMap ~f:(fun pd ->
-         match pd with
-         | PFnCallName bn ->
-           (match bn with F (id, name) -> Some (id, name) | Blank _ -> None)
-         | _ ->
-             None )
-
-
-let asDBNames (calls : nExpr list) : referral list =
+let tryDBNames (exprs : expr list) : referral option =
   let matchVarname e =
     match e with
     | F (_, Variable varname) ->
@@ -1165,17 +1091,10 @@ let asDBNames (calls : nExpr list) : referral list =
     | _ ->
         None
   in
-  let getDBName ne =
-    match ne with
-    | FnCall (_, exprs, _) ->
-      (match List.last exprs with Some e -> matchVarname e | None -> None)
-    | _ ->
-        None
-  in
-  List.filterMap ~f:getDBName calls
+  match List.last exprs with Some e -> matchVarname e | None -> None
 
 
-let asEmitNames (calls : nExpr list) : referral list =
+let tryEmitNames (exprs : expr list) : referral option =
   let matchVal e = match e with F (_, Value v) -> v | _ -> "" in
   let getNames args =
     match args with
@@ -1184,32 +1103,35 @@ let asEmitNames (calls : nExpr list) : referral list =
     | _ ->
         None
   in
-  let getSpaceAndName ne =
-    match ne with
-    | FnCall (_, exprs, _) ->
-        if List.length exprs = 3
-        then
-          let args = List.drop ~count:1 exprs in
-          getNames args
+  if List.length exprs = 3
+  then
+    let args = List.drop ~count:1 exprs in
+    getNames args
+  else None
+
+
+let getReferrals (pointers : pointerData list) : referral list =
+  let checkFnNames bname exprs =
+    match bname with
+    | F (_, "emit") ->
+        tryEmitNames exprs
+    | F (_, name) ->
+        if Regex.contains ~re:(Regex.regex "^DB::") name
+        then tryDBNames exprs
         else None
-    | _ ->
+    | Blank _ ->
         None
   in
-  List.filterMap ~f:getSpaceAndName calls
+  pointers
+  |> List.filterMap ~f:(fun pd ->
+         match pd with
+         | PExpr (F (_, FnCall (bname, exprs, _))) ->
+             checkFnNames bname exprs
+         | _ ->
+             None )
 
 
 (* Get all references for handlers for now.
   Will handle dbs and user functions later *)
 let inspectTL (tl : toplevel) : referral list =
-  match tl.data with
-  | TLHandler h ->
-      let fnCalls = allFnCalls h.ast in
-      let emits =
-        filterFnCallsEmitOnly fnCalls |> fnAsNExprs h.ast |> asEmitNames
-      in
-      let dbfns =
-        filterFnCallsDBOnly fnCalls |> fnAsNExprs h.ast |> asDBNames
-      in
-      emits @ dbfns
-  | _ ->
-      []
+  match tl.data with TLHandler h -> getReferrals (allData h.ast) | _ -> []

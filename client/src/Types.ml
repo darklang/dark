@@ -820,6 +820,7 @@ and msg =
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
+  | AnalyzeCode of tlid
 
 (* ----------------------------- *)
 (* AB tests *)
