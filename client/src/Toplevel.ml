@@ -532,3 +532,27 @@ let asPage (tl : toplevel) : page =
       FocusedFn tl.id
   | TLTipe _ ->
       FocusedType tl.id
+
+
+let findDBNamed (name : string) (toplevels : toplevel list) : toplevel option =
+  let isNamed db =
+    match db.dbName with F (_, dbname) -> dbname = name | Blank _ -> false
+  in
+  toplevels
+  |> List.find ~f:(fun tl ->
+         match tl.data with TLDB db -> isNamed db | _ -> false )
+
+
+let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
+    : toplevel option =
+  let isNamed h =
+    let spec = h.spec in
+    match (spec.module_, spec.name) with
+    | F (_, smodule), F (_, sname) ->
+        smodule = space && sname = name
+    | _ ->
+        true
+  in
+  toplevels
+  |> List.find ~f:(fun tl ->
+         match tl.data with TLHandler h -> isNamed h | _ -> false )
