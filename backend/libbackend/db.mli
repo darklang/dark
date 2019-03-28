@@ -40,6 +40,14 @@ val run :
   -> string
   -> unit
 
+val delete :
+     params:param list
+  -> ?result:result
+  -> name:string
+  -> ?subject:string
+  -> string
+  -> int
+
 val fetch :
      params:param list
   -> ?result:result

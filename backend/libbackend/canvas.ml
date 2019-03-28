@@ -568,20 +568,22 @@ let cleanup_old_traces () : float =
     let finish = Unix.gettimeofday () in
     (finish -. stored_events_start) *. 1000.0
   in
-  Stored_event.trim_events () ;
+  let trimmed_events = Stored_event.trim_events () in
   let stored_events_time = stored_events_time () in
   let function_results_start = Unix.gettimeofday () in
   let function_results_time () =
     let finish = Unix.gettimeofday () in
     (finish -. function_results_start) *. 1000.0
   in
-  Stored_function_result.trim_results () ;
+  let trimmed_results = Stored_function_result.trim_results () in
   let function_results_time = function_results_time () in
   let total_time = total_time () in
   Log.infO
     "cleanup_old_traces"
     ~jsonparams:
-      [ ("stored_events_time", `Float stored_events_time)
+      [ ("trimmed_results", `Int trimmed_results)
+      ; ("trimmed_events", `Int trimmed_events)
+      ; ("stored_events_time", `Float stored_events_time)
       ; ("function_results_time", `Float function_results_time)
       ; ("total_time", `Float total_time) ] ;
   total_time

@@ -257,6 +257,23 @@ let run
   |> ignore
 
 
+let delete
+    ~(params : param list)
+    ?(result = TextResult)
+    ~(name : string)
+    ?subject
+    (sql : string) : int =
+  execute
+    ~op:"run"
+    ~params
+    ~result
+    ~name
+    ?subject
+    sql
+    ~f:(conn#exec ~expect:[PG.Command_ok])
+    ~r:(fun res -> ("deleted_rows", res#cmd_tuples |> int_of_string))
+
+
 let fetch
     ~(params : param list)
     ?(result = TextResult)
