@@ -245,8 +245,22 @@ let viewCanvas (m : model) : msg Html.html =
     in
     Html.div [Html.classList [("overlay", true); ("show", show)]] []
   in
+  let pageClass =
+    match m.currentPage with
+    | Architecture ->
+        "arch"
+    | FocusedHandler _ ->
+        "focused-handler"
+    | FocusedDB _ ->
+        "focused-db"
+    | FocusedFn _ ->
+        "focused-fn"
+    | FocusedType _ ->
+        "focused-type"
+  in
   Html.div
     [ Html.id "canvas"
+    ; Html.class' pageClass
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
           if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
