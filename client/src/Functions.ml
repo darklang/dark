@@ -214,6 +214,19 @@ let replaceParamTipe
   else uf
 
 
+let usesOfTipe (tipename : string) (version : int) (uf : userFunction) :
+    pointerData list =
+  uf
+  |> allParamData
+  |> List.filterMap ~f:(fun p ->
+         match p with
+         | PParamTipe (F (_, TUserType (n, v))) as pd
+           when n = tipename && v = version ->
+             Some pd
+         | _ ->
+             None )
+
+
 let replaceMetadataField
     (old : pointerData) (new_ : pointerData) (uf : userFunction) : userFunction
     =

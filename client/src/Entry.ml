@@ -601,7 +601,13 @@ let submitACItem
         | PTypeName _, ACExtra value ->
             if List.member ~value (UserTypes.allNames m.userTipes)
             then DisplayError ("There is already a Type named " ^ value)
-            else replace (PTypeName (B.newF value))
+            else
+              let newPD = PTypeName (B.newF value) in
+              let newTL = TL.replace pd newPD tl in
+              let old = TL.asUserTipe tl |> deOption "old userTipe" in
+              let new_ = TL.asUserTipe newTL |> deOption "new userTipe" in
+              let changedNames = Refactor.renameUserTipe m old new_ in
+              wrapNew (SetType new_ :: changedNames) newPD
         | PTypeFieldName _, ACExtra value ->
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
