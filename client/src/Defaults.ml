@@ -84,6 +84,7 @@ let defaultModel : model =
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
+  ; usedTipes = StrDict.empty
   ; handlerProps = StrDict.empty
   ; staticDeploys = []
   ; userTipes = []

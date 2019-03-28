@@ -916,6 +916,7 @@ and model =
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
+  ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
