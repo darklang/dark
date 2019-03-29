@@ -190,6 +190,11 @@ and pointerOwner =
   | POAst
   | PODb
 
+and referral =
+  | RDBName of dBName
+  | RUFName of string
+  | REmit of string * string
+
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
