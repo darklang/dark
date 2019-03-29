@@ -303,15 +303,53 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
              (List.map ~f:Tuple2.second cases) )
 
 
+let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
+  let renameUserTipeInFnParameters fn oldTipe newTipe =
+    let transformUse newName_ oldUse =
+      match oldUse with
+      | PParamTipe (F (id, TUserType (_, v))) ->
+          PParamTipe (F (id, TUserType (newName_, v)))
+      | _ ->
+          oldUse
+    in
+    let origName, uses =
+      match oldTipe.utName with
+      | Blank _ ->
+          (None, [])
+      | F (_, n) ->
+          (Some n, Functions.usesOfTipe n oldTipe.utVersion fn)
+    in
+    let newName =
+      match newTipe.utName with Blank _ -> None | F (_, n) -> Some n
+    in
+    match (origName, newName) with
+    | Some _, Some newName ->
+        List.foldr
+          ~f:(fun use accfn ->
+            Functions.replaceParamTipe use (transformUse newName use) accfn )
+          ~init:fn
+          uses
+    | _ ->
+        fn
+  in
+  let newFunctions =
+    m.userFunctions
+    |> List.filterMap ~f:(fun uf ->
+           let newFn = renameUserTipeInFnParameters uf old new_ in
+           if newFn <> uf then Some (SetFunction newFn) else None )
+  in
+  newFunctions
+
+
 let fnUseCount (m : model) (name : string) : int =
   StrDict.get m.usedFns ~key:name |> Option.withDefault ~default:0
 
 
 let usedFn (m : model) (name : string) : bool = fnUseCount m name <> 0
 
-(* This needs to take into account where the type is used in all cases
- * ie. in a function type parameter or in a DB definition *)
-let tipeUseCount (_m : model) (_name : string) : int = 0
+let tipeUseCount (m : model) (name : string) : int =
+  StrDict.get m.usedTipes ~key:name |> Option.withDefault ~default:0
+
 
 let usedTipe (m : model) (name : string) : bool = tipeUseCount m name <> 0
 
@@ -353,7 +391,19 @@ let updateUsageCounts (m : model) : model =
                None )
     |> countFromList
   in
-  {m with usedDBs; usedFns}
+  let usedTipes =
+    m.userFunctions
+    |> List.map ~f:Functions.allParamData
+    |> List.concat
+    |> List.filterMap ~f:(function
+           (* Note: this does _not_ currently handle multiple versions *)
+           | PParamTipe (F (_, TUserType (name, _))) ->
+               Some name
+           | _ ->
+               None )
+    |> countFromList
+  in
+  {m with usedDBs; usedFns; usedTipes}
 
 
 let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :

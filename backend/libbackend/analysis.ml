@@ -151,6 +151,7 @@ let call_function
       ~trace_id
       ~dbs:(TL.dbs c.dbs)
       ~user_fns:c.user_functions
+      ~user_tipes:c.user_tipes
       ~account_id:c.owner
       ~canvas_id:c.id
       ~caller_id

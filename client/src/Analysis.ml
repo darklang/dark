@@ -318,17 +318,20 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
 let requestAnalysis m tlid traceID : msg Cmd.t =
   let dbs = TL.dbs m.toplevels in
   let userFns = m.userFunctions in
+  let userTipes = m.userTipes in
   let trace = getTrace m tlid traceID in
   let tl = TL.getTL m tlid in
   match (tl.data, trace) with
   | TLHandler h, Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
-            (AnalyzeHandler {handler = h; traceID; traceData; dbs; userFns}) )
+            (AnalyzeHandler
+               {handler = h; traceID; traceData; dbs; userFns; userTipes}) )
   | TLFunc f, Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
-            (AnalyzeFunction {func = f; traceID; traceData; dbs; userFns}) )
+            (AnalyzeFunction
+               {func = f; traceID; traceData; dbs; userFns; userTipes}) )
   | _ ->
       Cmd.none
 

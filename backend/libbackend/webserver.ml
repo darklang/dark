@@ -386,6 +386,7 @@ let user_page_handler
           ~account_id:!c.owner
           ~canvas_id
           ~user_fns:!c.user_functions
+          ~user_tipes:!c.user_tipes
           ~tlid:page.tlid
           ~dbs:(TL.dbs !c.dbs)
           ~input_vars:([("request", PReq.to_dval input)] @ bound)

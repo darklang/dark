@@ -530,68 +530,79 @@ and exec_fn
     |> List.map ~f:(DvalMap.find_exn args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
-  match fn.func with
-  | NotClientAvailable ->
-    ( match state.load_fn_result sfr_desc arglist with
-    | Some (result, _ts) ->
-        result
-    | _ ->
-        DIncomplete )
-  | InProcess f ->
-      if paramsIncomplete arglist
-      then DIncomplete
-      else if paramsErroneous arglist
-      then DError "Fn called with an error as an argument"
-      else if engine.ctx = Preview && not fn.preview_execution_safe
-      then
-        match state.load_fn_result sfr_desc arglist with
-        | Some (result, _ts) ->
-            result
-        | _ ->
-            DIncomplete
-      else
-        let state =
-          {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-        in
-        let result =
-          try f (state, arglist) with
-          | Exception.DarkException de as e when de.tipe = UserCode ->
-              (* These are exceptions that come from an RT.error, which is all
+  if paramsIncomplete arglist
+  then DIncomplete
+  else if paramsErroneous arglist
+  then DError "Fn called with an error as an argument"
+  else
+    match fn.func with
+    | NotClientAvailable ->
+      ( match state.load_fn_result sfr_desc arglist with
+      | Some (result, _ts) ->
+          result
+      | _ ->
+          DIncomplete )
+    | InProcess f ->
+        if engine.ctx = Preview && not fn.preview_execution_safe
+        then
+          match state.load_fn_result sfr_desc arglist with
+          | Some (result, _ts) ->
+              result
+          | _ ->
+              DIncomplete
+        else
+          let state =
+            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+          in
+          let result =
+            try f (state, arglist) with
+            | Exception.DarkException de as e when de.tipe = UserCode ->
+                (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-              Dval.exception_to_dval e
-          | e ->
-              (* After the rethrow, this gets eventually caught then shown to the
+                Dval.exception_to_dval e
+            | e ->
+                (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
             * because we didn't anticipate the problem, give it a nice error
             * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
             * this, give it a nice exception via RT.error.  *)
-              Exception.reraise e
-        in
-        (* there's no point storing data we'll never ask for *)
-        if not fn.preview_execution_safe
-        then state.store_fn_result sfr_desc arglist result ;
-        result
-  | UserCreated (tlid, body) ->
-      (* TODO: unify with InProcess, esp paramsIncomplete and paramsErroneous *)
-      let args_with_dbs =
-        let db_dvals =
-          state.dbs
-          |> List.filter_map ~f:(fun db ->
-                 match db.name with
-                 | Filled (_, name) ->
-                     Some (name, DDB name)
-                 | Blank _ ->
-                     None )
-          |> DvalMap.of_alist_exn
-        in
-        Util.merge_left db_dvals args
-      in
-      state.store_fn_arguments tlid args ;
-      exec ~engine ~state args_with_dbs body
-  | API f ->
-      f args
+                Exception.reraise e
+          in
+          (* there's no point storing data we'll never ask for *)
+          if not fn.preview_execution_safe
+          then state.store_fn_result sfr_desc arglist result ;
+          result
+    | UserCreated (tlid, body) ->
+      ( match
+          Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
+        with
+      | Ok () ->
+          let args_with_dbs =
+            let db_dvals =
+              state.dbs
+              |> List.filter_map ~f:(fun db ->
+                     match db.name with
+                     | Filled (_, name) ->
+                         Some (name, DDB name)
+                     | Blank _ ->
+                         None )
+              |> DvalMap.of_alist_exn
+            in
+            Util.merge_left db_dvals args
+          in
+          state.store_fn_arguments tlid args ;
+          exec ~engine ~state args_with_dbs body
+      | Error errs ->
+          let error_msgs =
+            errs
+            |> List.map ~f:Type_checker.Error.to_string
+            |> String.concat ~sep:", "
+          in
+          DError ("Type error(s) in function parameters: " ^ error_msgs) )
+    | API f ->
+        f args
 
 
 (* | TypeError args -> *)

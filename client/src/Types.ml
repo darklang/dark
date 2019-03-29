@@ -482,14 +482,16 @@ and performHandlerAnalysisParams =
   ; traceID : traceID
   ; traceData : traceData
   ; dbs : dB list
-  ; userFns : userFunction list }
+  ; userFns : userFunction list
+  ; userTipes : userTipe list }
 
 and performFunctionAnalysisParams =
   { func : userFunction
   ; traceID : traceID
   ; traceData : traceData
   ; dbs : dB list
-  ; userFns : userFunction list }
+  ; userFns : userFunction list
+  ; userTipes : userTipe list }
 
 and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams
@@ -596,9 +598,9 @@ and autocompleteItem =
   | ACEventSpace of string
   | ACDBName of string
   | ACDBColType of string
-  | ACParamTipe of string
+  | ACParamTipe of tipe
   | ACExtra of string
-  | ACTypeFieldTipe of string
+  | ACTypeFieldTipe of tipe
 
 and target = tlid * pointerData
 
@@ -914,6 +916,7 @@ and model =
   ; routingTableOpenDetails : StrSet.t
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
+  ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
