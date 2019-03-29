@@ -350,7 +350,7 @@ let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
 
 let typeNameValidator = dbNameValidator
 
-let paramTypeValidator = "[A-Z][a-z]*"
+let paramTypeValidator = "[A-Za-z0-9_]*"
 
 let assertValid pattern value : string =
   if Util.reExactly pattern value
