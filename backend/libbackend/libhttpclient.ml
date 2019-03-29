@@ -111,6 +111,56 @@ let call_no_body verb json_fn =
         fail args)
 
 
+(* This isn't great, but we throw a lot of exceptions below this point
+ * in the callstack and it'd be a lot of churn to rewrite that to propagate Results,
+ * especially given it probably needs a rewrite anyway *)
+let wrapped_call verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; body; query; headers] ->
+      ( try
+          DResult
+            (ResOk
+               (send_request
+                  (Unicode_string.to_string uri)
+                  verb
+                  json_fn
+                  body
+                  query
+                  headers))
+        with
+      | Exception.DarkException ed ->
+          DResult (ResError (Dval.dstr_of_string_exn ed.short))
+      | e ->
+          raise e )
+    | args ->
+        fail args)
+
+
+(* Some verbs dont have HTTP bodies *)
+let wrapped_call_no_body verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; query; headers] ->
+      ( try
+          DResult
+            (ResOk
+               (send_request
+                  (Unicode_string.to_string uri)
+                  verb
+                  json_fn
+                  (Dval.dstr_of_string_exn "")
+                  query
+                  headers))
+        with
+      | Exception.DarkException ed ->
+          DResult (ResError (Dval.dstr_of_string_exn ed.short))
+      | e ->
+          raise e )
+    | args ->
+        fail args)
+
+
 let replacements =
   [ ( "HttpClient::post"
     , call Httpclient.POST Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
@@ -148,6 +198,20 @@ let replacements =
     , call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::patch_v1"
     , call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::post_v2"
+    , wrapped_call Httpclient.POST Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::put_v2"
+    , wrapped_call Httpclient.PUT Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::get_v2"
+    , wrapped_call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::delete_v2"
+    , wrapped_call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::options_v2"
+    , wrapped_call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::head_v2"
+    , wrapped_call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::patch_v2"
+    , wrapped_call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::basicAuth"
     , InProcess
         (function

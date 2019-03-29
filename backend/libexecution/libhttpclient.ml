@@ -75,7 +75,7 @@ let fns : Lib.shortfn list =
     ; d = "Make blocking HTTP POST call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::put_v1"]
     ; ins = []
     ; p = params
@@ -83,7 +83,7 @@ let fns : Lib.shortfn list =
     ; d = "Make blocking HTTP PUT call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::get_v1"]
     ; ins = []
     ; p = params_no_body
@@ -91,18 +91,18 @@ let fns : Lib.shortfn list =
     ; d = "Make blocking HTTP GET call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::delete_v1"]
     ; ins =
         []
-        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE 
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; p = params_no_body
     ; r = TObj
     ; d = "Make blocking HTTP DELETE call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::options_v1"]
     ; ins = []
     ; p = params_no_body
@@ -110,7 +110,7 @@ let fns : Lib.shortfn list =
     ; d = "Make blocking HTTP OPTIONS call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::head_v1"]
     ; ins = []
     ; p = params_no_body
@@ -118,12 +118,78 @@ let fns : Lib.shortfn list =
     ; d = "Make blocking HTTP HEAD call to `uri`"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::patch_v1"]
     ; ins = []
     ; p = params
     ; r = TObj
     ; d = "Make blocking HTTP PATCH call to `uri`"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::post_v2"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::put_v2"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::get_v2"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::delete_v2"]
+    ; ins =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+         * the spec says it may have a body *)
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::options_v2"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::head_v2"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::patch_v2"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
