@@ -2,6 +2,7 @@ open! Tc
 open Types
 open Jest
 open Expect
+open AST
 module B = Blank
 
 type ('a, 'b) transformation_test_result =
@@ -113,4 +114,45 @@ let () =
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
              AST.usesRail expr)
           |> toEqual false ) ) ;
+  describe "AST code introspection" (fun () ->
+      test "AST.tryDBNames returns db name" (fun () ->
+          let refs = tryDBNames [B.newF (Variable "Books")] in
+          expect (match refs with Some (RDBName "Books") -> true | _ -> false)
+          |> toEqual true ) ;
+      test
+        "AST.tryDBNames db fn call with no args return empty list"
+        (fun () -> expect (tryDBNames []) |> toEqual None ) ;
+      test "AST.tryEmitNames returns event space and name" (fun () ->
+          let refs =
+            tryEmitNames
+              [B.new_ (); B.newF (Value "JOB"); B.newF (Value "processOrder")]
+          in
+          expect
+            ( match refs with
+            | Some (REmit ("JOB", "processOrder")) ->
+                true
+            | _ ->
+                false )
+          |> toEqual true ) ;
+      test
+        "AST.tryEmitNames emit call with no args return empty list"
+        (fun () -> expect (tryEmitNames []) |> toEqual None ) ) ;
+  test "AST.getReferrals" (fun () ->
+      let pointers =
+        [ PExpr
+            (B.newF
+               (FnCall
+                  ( B.newF "emit"
+                  , [ B.new_ ()
+                    ; B.newF (Value "JOB")
+                    ; B.newF (Value "processOrder") ]
+                  , NoRail )))
+        ; PExpr
+            (B.newF
+               (FnCall
+                  (B.newF "DB::getAll", [B.newF (Variable "Books")], NoRail)))
+        ; PExpr (B.newF (FnCall (B.newF "Date::now", [], NoRail))) ]
+      in
+      let refs = getReferrals pointers in
+      expect (List.length refs) |> toEqual 2 ) ;
   ()
