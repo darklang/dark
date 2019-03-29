@@ -586,8 +586,8 @@ let submitACItem
             replace (PConstructorName (B.newF value))
         | PParamName _, ACExtra value ->
             replace (PParamName (B.newF value))
-        | PParamTipe _, ACParamTipe value ->
-            replace (PParamTipe (B.newF (RT.str2tipe value)))
+        | PParamTipe _, ACParamTipe tipe ->
+            replace (PParamTipe (B.newF tipe))
         | PPattern _, ACExtra value ->
           ( match parsePattern value with
           | None ->
@@ -601,11 +601,17 @@ let submitACItem
         | PTypeName _, ACExtra value ->
             if List.member ~value (UserTypes.allNames m.userTipes)
             then DisplayError ("There is already a Type named " ^ value)
-            else replace (PTypeName (B.newF value))
+            else
+              let newPD = PTypeName (B.newF value) in
+              let newTL = TL.replace pd newPD tl in
+              let old = TL.asUserTipe tl |> deOption "old userTipe" in
+              let new_ = TL.asUserTipe newTL |> deOption "new userTipe" in
+              let changedNames = Refactor.renameUserTipe m old new_ in
+              wrapNew (SetType new_ :: changedNames) newPD
         | PTypeFieldName _, ACExtra value ->
             replace (PTypeFieldName (B.newF value))
-        | PTypeFieldTipe _, ACTypeFieldTipe value ->
-            replace (PTypeFieldTipe (B.newF (RT.str2tipe value)))
+        | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
+            replace (PTypeFieldTipe (B.newF tipe))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"

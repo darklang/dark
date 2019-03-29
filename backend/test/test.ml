@@ -274,6 +274,7 @@ let test_execution_data ?(canvas_name = "test") ops :
     ; account_id = !c.owner
     ; canvas_id = !c.id
     ; user_fns = !c.user_functions
+    ; user_tipes = !c.user_tipes
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
@@ -287,8 +288,9 @@ let test_execution_data ?(canvas_name = "test") ops :
 
 
 let execute_ops (ops : Op.op list) : dval =
-  let c, {tlid; execution_id; dbs; user_fns; account_id; canvas_id}, input_vars
-      =
+  let ( c
+      , {tlid; execution_id; dbs; user_fns; user_tipes; account_id; canvas_id}
+      , input_vars ) =
     test_execution_data ops
   in
   let h = !c.handlers |> TL.handlers |> List.hd_exn in
@@ -298,6 +300,7 @@ let execute_ops (ops : Op.op list) : dval =
     ~execution_id
     ~dbs
     ~user_fns
+    ~user_tipes
     ~account_id
     ~canvas_id
     ~input_vars:[]
@@ -2247,6 +2250,28 @@ let t_trace_data_json_format_redacts_passwords () =
        expected
 
 
+let t_basic_typecheck_works_happy () =
+  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DInt 4)] in
+  let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
+  let user_tipes = [] in
+  AT.check
+    AT.bool
+    "Basic typecheck succeeds"
+    true
+    (Type_checker.check_function_call ~user_tipes fn args |> Result.is_ok)
+
+
+let t_basic_typecheck_works_unhappy () =
+  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DBool true)] in
+  let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
+  let user_tipes = [] in
+  AT.check
+    AT.bool
+    "Basic typecheck succeeds"
+    true
+    (Type_checker.check_function_call ~user_tipes fn args |> Result.is_error)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2435,7 +2460,13 @@ let suite =
     , t_trace_data_json_format_redacts_passwords )
   ; ( "Date has correct formats in migration"
     , `Quick
-    , date_migration_has_correct_formats ) ]
+    , date_migration_has_correct_formats )
+  ; ( "Basic typechecking works in happy case"
+    , `Quick
+    , t_basic_typecheck_works_happy )
+  ; ( "Basic typechecking works in unhappy case"
+    , `Quick
+    , t_basic_typecheck_works_unhappy ) ]
 
 
 let () =

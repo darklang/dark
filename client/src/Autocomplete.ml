@@ -97,13 +97,13 @@ let asName (aci : autocompleteItem) : string =
   | ACDBColType tipe ->
       tipe
   | ACParamTipe tipe ->
-      tipe
+      RT.tipe2str tipe
   | ACDBName name ->
       name
   | ACExtra _ ->
       ""
   | ACTypeFieldTipe tipe ->
-      tipe
+      RT.tipe2str tipe
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -151,8 +151,12 @@ let asTypeString (item : autocompleteItem) : string =
       "name"
   | ACExtra _ ->
       ""
-  | ACTypeFieldTipe _ ->
-      "record field type"
+  | ACTypeFieldTipe tipe ->
+    ( match tipe with
+    | TUserType (_, v) ->
+        "version " ^ string_of_int v
+    | _ ->
+        "builtin" )
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -346,7 +350,7 @@ let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
 
 let typeNameValidator = dbNameValidator
 
-let paramTypeValidator = "[A-Z][a-z]*"
+let paramTypeValidator = "[A-Za-z0-9_]*"
 
 let assertValid pattern value : string =
   if Util.reExactly pattern value
@@ -631,26 +635,32 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
       | ParamTipe ->
-          [ ACParamTipe "Any"
-          ; ACParamTipe "String"
-          ; ACParamTipe "Int"
-          ; ACParamTipe "Boolean"
-          ; ACParamTipe "Float"
-          ; ACParamTipe "Date"
-          ; ACParamTipe "Obj"
-          ; ACParamTipe "Block"
-          ; ACParamTipe "Char"
-          ; ACParamTipe "Password"
-          ; ACParamTipe "UUID"
-          ; ACParamTipe "List" ]
+          let userTypes =
+            m.userTipes
+            |> List.filterMap ~f:UserTypes.toTUserType
+            |> List.map ~f:(fun t -> ACParamTipe t)
+          in
+          [ ACParamTipe TAny
+          ; ACParamTipe TStr
+          ; ACParamTipe TInt
+          ; ACParamTipe TBool
+          ; ACParamTipe TFloat
+          ; ACParamTipe TDate
+          ; ACParamTipe TObj
+          ; ACParamTipe TBlock
+          ; ACParamTipe TChar
+          ; ACParamTipe TPassword
+          ; ACParamTipe TUuid
+          ; ACParamTipe TList ]
+          @ userTypes
       | TypeFieldTipe ->
-          [ ACTypeFieldTipe "String"
-          ; ACTypeFieldTipe "Int"
-          ; ACTypeFieldTipe "Boolean"
-          ; ACTypeFieldTipe "Float"
-          ; ACTypeFieldTipe "Date"
-          ; ACTypeFieldTipe "Password"
-          ; ACTypeFieldTipe "UUID" ]
+          [ ACTypeFieldTipe TStr
+          ; ACTypeFieldTipe TInt
+          ; ACTypeFieldTipe TBool
+          ; ACTypeFieldTipe TFloat
+          ; ACTypeFieldTipe TDate
+          ; ACTypeFieldTipe TPassword
+          ; ACTypeFieldTipe TUuid ]
       | _ ->
           [] )
     | _ ->
@@ -911,15 +921,9 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACDBColType tipe ->
       Some ("This field will be a " ^ tipe)
   | ACParamTipe tipe ->
-      if String.startsWith ~prefix:"[" tipe
-      then
-        let name =
-          tipe |> String.dropLeft ~count:1 |> String.dropRight ~count:1
-        in
-        Some ("This parameter will be a " ^ name ^ " list")
-      else Some ("This parameter will be a " ^ tipe)
+      Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACTypeFieldTipe tipe ->
-      Some ("This parameter will be a " ^ tipe)
+      Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACExtra _ ->
       None
 
