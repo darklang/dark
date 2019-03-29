@@ -1379,7 +1379,6 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      Debug.loG "UpdateHandlerState" (showTLID tlid, show_handlerState state);
       TweakModel (Editor.setHandlerState tlid state)
   | CanvasPanAnimationEnd ->
       TweakModel
