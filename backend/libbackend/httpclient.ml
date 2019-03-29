@@ -220,7 +220,7 @@ let http_call
       [ ("url", url)
       ; ("code", string_of_int code)
       ; ("error", error)
-      ; ("response", body) ]
+      ; ("response", resp_body) ]
     in
     Exception.user
       ~info
