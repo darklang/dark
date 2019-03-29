@@ -868,6 +868,8 @@ let getValueParent (p : pointerData) (expr : expr) : pointerData option =
       exprs |> List.map ~f:(fun x -> PExpr x) |> Util.listPrevious ~value:p
   | Field, Some (F (_, FieldAccess (obj, _))) ->
       Some (PExpr obj)
+  | Pattern, Some (F (_, Match (cond, _))) ->
+      Some (PExpr cond)
   | _ ->
       None
 
