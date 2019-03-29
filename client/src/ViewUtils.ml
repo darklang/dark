@@ -388,16 +388,16 @@ let isHandlerExpanded (vs : viewState) : bool =
 
 
 let toggleIconButton
-    ~(tlid : tlid)
     ~(name : string)
     ~(activeIcon : string)
     ~(inactiveIcon : string)
     ~(msg : mouseEvent -> msg)
-    ~(active : bool) : msg Html.html =
-  let icon  = if active then activeIcon else inactiveIcon in
+    ~(active : bool)
+    ~(key : string) : msg Html.html =
+  let icon = if active then activeIcon else inactiveIcon in
   Html.div
     [ Html.classList [(name, true); ("active", active)]
-    ; eventNoPropagation ~key:(icon ^ "-" ^ showTLID tlid) "click" msg ]
+    ; eventNoPropagation ~key "click" msg ]
     [fontAwesome icon]
 
 
