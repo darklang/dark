@@ -394,13 +394,11 @@ let toggleIconButton
     ~(inactiveIcon : string)
     ~(msg : mouseEvent -> msg)
     ~(active : bool) : msg Html.html =
+  let icon  = if active then activeIcon else inactiveIcon in
   Html.div
     [ Html.classList [(name, true); ("active", active)]
-    ; eventNoPropagation
-        ~key:("lh-" ^ showTLID tlid ^ "-" ^ string_of_bool active)
-        "click"
-        msg ]
-    [fontAwesome (if active then activeIcon else inactiveIcon)]
+    ; eventNoPropagation ~key:(icon ^ "-" ^ showTLID tlid) "click" msg ]
+    [fontAwesome icon]
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
