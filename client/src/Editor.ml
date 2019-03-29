@@ -25,15 +25,21 @@ let toString (se : serializableEditor) : string =
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
   let finalHandlerStates props =
-    props |> StrDict.map ~f:(fun v ->
-      { v with handlerState =
-      match v.handlerState with
-      | HandlerExpanded -> HandlerExpanded
-      | HandlerPrepCollapse -> HandlerCollapsed
-      | HandlerCollapsing -> HandlerCollapsed
-      | HandlerCollapsed -> HandlerCollapsed
-      | HandlerExpanding -> HandlerExpanded
-      })
+    props
+    |> StrDict.map ~f:(fun v ->
+           { v with
+             handlerState =
+               ( match v.handlerState with
+               | HandlerExpanded ->
+                   HandlerExpanded
+               | HandlerPrepCollapse ->
+                   HandlerCollapsed
+               | HandlerCollapsing ->
+                   HandlerCollapsed
+               | HandlerCollapsed ->
+                   HandlerCollapsed
+               | HandlerExpanding ->
+                   HandlerExpanded ) } )
   in
   { m with
     timersEnabled = e.timersEnabled
