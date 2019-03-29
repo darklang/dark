@@ -481,6 +481,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TErrorRail" []
   | TResult ->
       ev "TResult" []
+  | TUserType (name, version) ->
+      ev "TUserType" [string name; int version]
 
 
 and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
