@@ -80,6 +80,8 @@ type tipe_ =
   | TErrorRail
   | TCharacter
   | TResult
+  (* name * version *)
+  | TUserType of string * int
 [@@deriving eq, compare, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)

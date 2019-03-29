@@ -23,9 +23,9 @@ val tipe_of : Types.RuntimeT.dval -> Types.tipe_
 
 val tipename : Types.RuntimeT.dval -> string
 
-val tipe_to_yojson : Types.RuntimeT.tipe -> Yojson.Safe.json
+val unsafe_tipe_to_yojson : Types.RuntimeT.tipe -> Yojson.Safe.json
 
-val tipe_of_yojson :
+val unsafe_tipe_of_yojson :
   Yojson.Safe.json -> (Types.RuntimeT.tipe, 'a) Core_kernel._result
 
 val is_json_primitive : Types.RuntimeT.dval -> bool

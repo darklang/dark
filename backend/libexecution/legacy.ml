@@ -6,7 +6,7 @@ module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
   let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json
       =
-    let tipe = dv |> Dval.tipe_of |> Dval.tipe_to_yojson in
+    let tipe = dv |> Dval.tipe_of |> Dval.unsafe_tipe_to_yojson in
     let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
     let wrap_constructed_type cons values =
       `Assoc [("type", tipe); ("constructor", cons); ("values", `List values)]
@@ -157,9 +157,9 @@ module PrettyRequestJsonV0 = struct
         is_primitive dv
 
 
-  (* A simple representation, showing primitives as their expected literal	
- * syntax, and odd types get type info in a readable format. Compund	
- * types are listed as their type only *)
+  (* A simple representation, showing primitives as their expected literal
+   * syntax, and odd types get type info in a readable format. Compund
+   * types are listed as their type only *)
   let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
     let wrap value = open_ ^ (dv |> Dval.tipename) ^ ": " ^ value ^ close_ in
     match dv with
@@ -185,7 +185,7 @@ module PrettyRequestJsonV0 = struct
         string_of_int c ^ " " ^ string_of_headers hs
 
 
-  (* A full representation, building on to_simple_repr, but including	
+  (* A full representation, building on to_simple_repr, but including
  * lists and objects. *)
   let rec to_pretty_request_json_v0 (dv : dval) : string =
     let pp = true in
