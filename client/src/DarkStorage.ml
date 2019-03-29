@@ -13,11 +13,6 @@ module NewStaticDeployPush = struct
       | _ ->
           Tea_result.Error "Unable to decode deployStatus"
     in
-    (* let decodeDate v =
-      match (string v) with
-      | Tea_result.Ok s -> Tea_result.Ok (Js.Date.fromString s)
-      | Tea_result.Error e -> Tea_result.Error e
-    in *)
     let decodeDeploy =
       map4
         (fun deployHash url lastUpdate status ->
