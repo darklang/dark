@@ -2250,6 +2250,28 @@ let t_trace_data_json_format_redacts_passwords () =
        expected
 
 
+let t_basic_typecheck_works_happy () =
+  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DInt 4)] in
+  let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
+  let user_tipes = [] in
+  AT.check
+    AT.bool
+    "Basic typecheck succeeds"
+    true
+    (Type_checker.check_function_call ~user_tipes fn args |> Result.is_ok)
+
+
+let t_basic_typecheck_works_unhappy () =
+  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DBool true)] in
+  let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
+  let user_tipes = [] in
+  AT.check
+    AT.bool
+    "Basic typecheck succeeds"
+    true
+    (Type_checker.check_function_call ~user_tipes fn args |> Result.is_error)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2438,7 +2460,13 @@ let suite =
     , t_trace_data_json_format_redacts_passwords )
   ; ( "Date has correct formats in migration"
     , `Quick
-    , date_migration_has_correct_formats ) ]
+    , date_migration_has_correct_formats )
+  ; ( "Basic typechecking works in happy case"
+    , `Quick
+    , t_basic_typecheck_works_happy )
+  ; ( "Basic typechecking works in unhappy case"
+    , `Quick
+    , t_basic_typecheck_works_unhappy ) ]
 
 
 let () =
