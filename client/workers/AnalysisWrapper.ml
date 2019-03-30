@@ -32,24 +32,24 @@ let () =
               Js.Json.stringify (Encoders.performHandlerAnalysisParams hParams)
             in
             let success, msg = darkAnalysis##performHandlerAnalysis encoded in
-            Js.logMany [|"An execution failure occurred in a handler"; msg|] ;
             if success = "success"
             then Belt.Result.Ok msg
-            else
+            else (
+              Js.logMany [|"An execution failure occurred in a handler"; msg|] ;
               Belt.Result.Error
-                (Types.AnalysisExecutionError (event##data, msg))
+                (Types.AnalysisExecutionError (event##data, msg)) )
         | AnalyzeFunction fParams ->
             let encoded =
               Js.Json.stringify
                 (Encoders.performFunctionAnalysisParams fParams)
             in
             let success, msg = darkAnalysis##performFunctionAnalysis encoded in
-            Js.logMany [|"An execution failure occurred in a function"; msg|] ;
             if success = "success"
             then Belt.Result.Ok msg
-            else
+            else (
+              Js.logMany [|"An execution failure occurred in a function"; msg|] ;
               Belt.Result.Error
-                (Types.AnalysisExecutionError (event##data, msg))
+                (Types.AnalysisExecutionError (event##data, msg)) )
       in
       let decoded =
         Tc.Result.andThen
