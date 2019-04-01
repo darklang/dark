@@ -88,4 +88,5 @@ let defaultModel : model =
   ; handlerProps = StrDict.empty
   ; staticDeploys = []
   ; userTipes = []
-  ; deletedUserTipes = [] }
+  ; deletedUserTipes = []
+  ; tlReferences = StrDict.empty }
