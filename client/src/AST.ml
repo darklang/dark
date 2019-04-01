@@ -1124,8 +1124,9 @@ let getReferrals (pointers : pointerData list) : referral list =
          | _ ->
              None )
 
+let inspectAST (ast : expr) : referral list = getReferrals (allData ast)
 
-(* Get all references for handlers for now.
+    (* Get all references for handlers for now.
   Will handle dbs and user functions later *)
 let inspectTL (tl : toplevel) : referral list =
   match tl.data with TLHandler h -> getReferrals (allData h.ast) | _ -> []

@@ -193,12 +193,18 @@ and pointerOwner =
 
 and referral =
   | RDBName of dBName
-  | RUFName of string
   | REmit of string * string
 
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
+
+and direction = USED_IN | REFERS_TO
+
+and tlReference =
+  | ReferenceDB of direction * tlid * dBName * dBColumn list * pos option
+  | ReferenceHandler of direction * tlid * string * string option * string * pos option
+  (* direction tlid space method name pos*)
 
 (* handlers *)
 and handlerSpec =
@@ -920,7 +926,8 @@ and model =
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list }
+  ; deletedUserTipes : userTipe list
+  ; tlReferences : (tlReference list) StrDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =
