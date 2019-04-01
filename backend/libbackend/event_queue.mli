@@ -28,8 +28,8 @@ val enqueue :
   -> unit
 
 val with_transaction :
-     (transaction -> (unit, Exception.captured) Result.t)
-  -> (unit, Exception.captured) Result.t
+     (transaction -> (RuntimeT.dval, Exception.captured) Result.t)
+  -> (RuntimeT.dval, Exception.captured) Result.t
 
 val dequeue : transaction -> t option
 
