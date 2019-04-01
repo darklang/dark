@@ -72,10 +72,7 @@ let asName (aci : autocompleteItem) : string =
     | Goto (_, _, desc) ->
         desc )
   | ACConstructorName name ->
-      let arityOneConstructors = ["Just"; "Ok"; "Error"] in
-      if List.member ~value:name arityOneConstructors
-      then name ^ " ______"
-      else name
+      name
   | ACKeyword k ->
     ( match k with
     | KLet ->
@@ -120,8 +117,14 @@ let asTypeString (item : autocompleteItem) : string =
       "variable"
   | ACCommand _ ->
       ""
-  | ACConstructorName _ ->
-      "option"
+  | ACConstructorName name ->
+      if name = "Just"
+      then "(any) -> option"
+      else if name = "Nothing"
+      then "option"
+      else if name = "Ok" || name = "Error"
+      then "(any) -> result"
+      else ""
   | ACLiteral lit ->
       let tipe =
         lit
@@ -592,6 +595,12 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   (* functions *)
   let funcList = if isExpression then a.functions else [] in
   let functions = List.map ~f:(fun x -> ACFunction x) funcList in
+  let constructors =
+    [ ACConstructorName "Just"
+    ; ACConstructorName "Nothing"
+    ; ACConstructorName "Ok"
+    ; ACConstructorName "Error" ]
+  in
   let extras =
     match a.target with
     | Some (_, p) ->
@@ -661,6 +670,14 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
           ; ACTypeFieldTipe TUuid ]
+      | Pattern ->
+        ( match dval with
+        | Some dv when RT.typeOf dv = TResult ->
+            [ACConstructorName "Ok"; ACConstructorName "Error"]
+        | Some dv when RT.typeOf dv = TOption ->
+            [ACConstructorName "Just"; ACConstructorName "Nothing"]
+        | _ ->
+            constructors )
       | _ ->
           [] )
     | _ ->
@@ -669,12 +686,6 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let exprs =
     if isExpression
     then
-      let constructors =
-        [ ACConstructorName "Just"
-        ; ACConstructorName "Nothing"
-        ; ACConstructorName "Ok"
-        ; ACConstructorName "Error" ]
-      in
       let varnames = List.map ~f:(fun x -> ACVariable x) varnames in
       let keywords =
         List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
