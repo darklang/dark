@@ -591,26 +591,34 @@ let t_stored_event_roundtrip () =
   ()
 
 
-(* module EQ = Event_queue *)
-(* let t_event_queue_roundtrip () = *)
-(*   clear_test_data (); *)
-(*   let dval = DInt 345 in *)
-(*   let exec_id = 147 in *)
-(*   let space = "TEST_SPACE" in *)
-(*   let name = "test_name" in *)
-(*   let c = ops2c "test-event_queue" [] in *)
-(*   let state = Execution.state_for_execution ~c:!c tlid *)
-(*       ~execution_id ~env:DvalMap.empty *)
-(*   in *)
-(*   EQ.enqueue state space name dval; *)
-(*   let v = *)
-(*     EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name *)
-(*     |> fun x -> Option.value_exn x *)
-(*   in *)
+(* This doesn't actually test input, since it's a cron handler and not an actual
+ * event handler *)
+let t_event_queue_roundtrip () =
+  clear_test_data () ;
+  let h = daily_cron (ast_for "123") in
+  let c = ops2c "test-event_queue" [hop h] in
+  Canvas.save_all !c ;
+  let _ : unit =
+    Event_queue.enqueue
+      "CRON"
+      "test"
+      "Daily"
+      DNull (* I don't believe crons take inputs? *)
+      ~account_id:!c.owner
+      ~canvas_id:!c.id
+  in
+  let result = Queue_worker.run execution_id in
+  ( match result with
+  | Ok (DOption (OptJust result_dval)) ->
+      check_dval "Round tripped value" (DInt 123) result_dval
+  | Ok (DOption OptNothing) ->
+      AT.check AT.bool "Failed: OptNothing" false true
+  | Error e ->
+      AT.check AT.bool ("Failed: got error: " ^ Log.dump e) false true
+  | _ ->
+      AT.check AT.bool "Failed: unhandled match" false true ) ;
+  ()
 
-(*   check_dval "v" v.value dval; *)
-
-(*   () *)
 
 let t_bad_ssl_cert _ =
   check_error_contains
@@ -2283,7 +2291,7 @@ let suite =
   ; ("int_add_works", `Quick, t_int_add_works)
   ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
   ; ("stored_events", `Quick, t_stored_event_roundtrip)
-    (* ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip *)
+  ; ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
   ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
   ; ("db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip)
   ; ("http oplist roundtrip", `Quick, t_http_oplist_roundtrip)
