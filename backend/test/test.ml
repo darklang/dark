@@ -598,25 +598,21 @@ let t_event_queue_roundtrip () =
   let h = daily_cron (ast_for "123") in
   let c = ops2c "test-event_queue" [hop h] in
   Canvas.save_all !c ;
-  let _ : unit =
-    Event_queue.enqueue
-      "CRON"
-      "test"
-      "Daily"
-      DNull (* I don't believe crons take inputs? *)
-      ~account_id:!c.owner
-      ~canvas_id:!c.id
-  in
+  Event_queue.enqueue
+    "CRON"
+    "test"
+    "Daily"
+    DNull (* I don't believe crons take inputs? *)
+    ~account_id:!c.owner
+    ~canvas_id:!c.id ;
   let result = Queue_worker.run execution_id in
   ( match result with
-  | Ok (DOption (OptJust result_dval)) ->
+  | Ok (Some result_dval) ->
       check_dval "Round tripped value" (DInt 123) result_dval
-  | Ok (DOption OptNothing) ->
-      AT.check AT.bool "Failed: OptNothing" false true
+  | Ok None ->
+      AT.fail "Failed: expected Some, got None"
   | Error e ->
-      AT.check AT.bool ("Failed: got error: " ^ Log.dump e) false true
-  | _ ->
-      AT.check AT.bool "Failed: unhandled match" false true ) ;
+      AT.fail ("Failed: got error: " ^ Log.dump e) ) ;
   ()
 
 
