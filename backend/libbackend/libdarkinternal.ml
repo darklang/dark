@@ -251,24 +251,9 @@ let replacements =
             fail args )
     ; ( "DarkInternal::schema"
       , function
-        | _, [DStr id] ->
-            let canvas_name, tlid =
-              match
-                Db.fetch
-                  ~name:"canvas_name_and_tlid_for_db_tlid"
-                  "SELECT canvases.name, tlid
-                 FROM toplevel_oplists
-                 JOIN canvases ON canvases.id = canvas_id
-                 WHERE tipe = 'db' AND tlid = $2"
-                  ~params:[String (Unicode_string.to_string id)]
-                |> List.hd_exn
-              with
-              | [canvas_name; tlid] ->
-                  (canvas_name, tlid)
-              | _ ->
-                  Exception.internal
-                    "Can't happen, this query should return two fields"
-            in
+        | _, [DStr canvas_name; DStr tlid] ->
+            let tlid = Unicode_string.to_string tlid in
+            let canvas_name = Unicode_string.to_string canvas_name in
             let c =
               Canvas.load_only ~tlids:[Types.id_of_string tlid] canvas_name []
             in
@@ -276,8 +261,7 @@ let replacements =
               !c.dbs
               |> List.filter_map ~f:Libexecution.Toplevel.as_db
               |> List.find ~f:(fun d ->
-                     Libexecution.Types.string_of_id d.tlid
-                     = Unicode_string.to_string id )
+                     Libexecution.Types.string_of_id d.tlid = tlid )
             in
             ( match db with
             | Some db ->
