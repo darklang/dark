@@ -239,8 +239,8 @@ let replacements =
                 "SELECT tlid
                  FROM toplevel_oplists
                  JOIN canvases ON canvases.id = canvas_id
-                 WHERE canvases.name = $1 AND tipe = $2"
-                ~params:[String (Unicode_string.to_string host); String "db"]
+                 WHERE canvases.name = $1 AND tipe = 'db'"
+                ~params:[String (Unicode_string.to_string host)]
               |> List.fold ~init:[] ~f:(fun acc e -> e @ acc)
             in
             db_tlids
@@ -258,8 +258,8 @@ let replacements =
                   "SELECT canvases.name, tlid
                  FROM toplevel_oplists
                  JOIN canvases ON canvases.id = canvas_id
-                 WHERE tipe = $1 AND tlid = $2"
-                  ~params:[String "db"; String (Unicode_string.to_string id)]
+                 WHERE tipe = 'db' AND tlid = $2"
+                  ~params:[String (Unicode_string.to_string id)]
                 |> List.hd_exn
               with
               | [canvas_name; tlid] ->
