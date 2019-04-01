@@ -588,7 +588,7 @@ let submitACItem
             replace (PParamName (B.newF value))
         | PParamTipe _, ACParamTipe tipe ->
             replace (PParamTipe (B.newF tipe))
-        | PPattern _, ACExtra value ->
+        | PPattern _, ACConstructorName value | PPattern _, ACExtra value ->
           ( match parsePattern value with
           | None ->
               DisplayError "not a pattern"
