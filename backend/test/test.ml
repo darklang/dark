@@ -513,8 +513,9 @@ let t_lambda_with_foreach () =
     "lambda_with_foreach"
     (Dval.dstr_of_string_exn "SOME STRING")
     (exec_ast
-       "(String::foreach 'some string'
-          (\\var -> (Char::toUppercase var)))")
+       "(String::join
+       (List::foreach (String::toList_v1 'some string') (\\var ->
+(String::toUppercase (String::fromChar_v1 var)))) '')")
 
 
 module SE = Stored_event
