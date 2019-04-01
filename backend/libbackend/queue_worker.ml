@@ -73,6 +73,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                       ~tlid:h.tlid
                       ~input_vars:[("event", event.value)]
                       ~dbs:(TL.dbs !c.dbs)
+                      ~user_tipes:!c.user_tipes
                       ~user_fns:!c.user_functions
                       ~account_id:!c.owner
                       ~canvas_id
