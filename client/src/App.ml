@@ -850,8 +850,7 @@ let update_ (msg : msg) (m : model) : modification =
   | AutocompleteClick value ->
     ( match unwrapCursorState m.cursorState with
     | Entering cursor ->
-        let complete = m.complete in
-        let newcomplete = {complete with value} in
+        let newcomplete = AC.setQuery m value m.complete in
         let newm = {m with complete = newcomplete} in
         Entry.submit newm cursor Entry.StayHere
     | _ ->
