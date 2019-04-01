@@ -5,7 +5,8 @@ module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
 
-let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
+let dequeue_and_process execution_id :
+    (RTT.dval option, Exception.captured) Result.t =
   Log.infO
     "queue_worker"
     ~data:"Worker starting"
@@ -19,7 +20,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
               "queue_worker"
               ~data:"No events in queue"
               ~params:[("execution_id", Log.dump execution_id)] ;
-            Ok ()
+            Ok None
         | Some event ->
           ( try
               let c = Canvas.load_for_event event in
@@ -51,7 +52,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                     ~canvas_id
                     (space, name, modifier, event_timestamp, trace_id) ;
                   Event_queue.put_back transaction event `Incomplete ;
-                  Ok ()
+                  Ok None
               | Some h ->
                   Stroller.push_new_trace_id
                     ~execution_id
@@ -88,7 +89,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                       ; ("handler_id", Log.dump h.tlid)
                       ; ("result", Dval.show result) ] ;
                   Event_queue.finish transaction event ;
-                  Ok ()
+                  Ok (Some result)
             with e ->
               (* exception occurred when processing an item,
              * so put it back as an error *)
@@ -102,7 +103,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
         Error (bt, e) )
 
 
-let run execution_id : (unit, Exception.captured) Result.t =
+let run execution_id : (RTT.dval option, Exception.captured) Result.t =
   if String.Caseless.equal
        Libservice.Config.postgres_settings.dbname
        "prodclone"
@@ -111,5 +112,5 @@ let run execution_id : (unit, Exception.captured) Result.t =
       "queue_worker"
       ~data:"Pointing at prodclone; will not dequeue"
       ~params:[("execution_id", Log.dump execution_id)] ;
-    Ok () )
+    Ok None )
   else dequeue_and_process execution_id
