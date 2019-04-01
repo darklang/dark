@@ -86,7 +86,7 @@ let dequeue_and_process execution_id : (unit, Exception.captured) Result.t =
                       ; ("host", host)
                       ; ("event", Log.dump desc)
                       ; ("handler_id", Log.dump h.tlid)
-                      ; ("result", Log.dump result) ] ;
+                      ; ("result", Dval.show result) ] ;
                   Event_queue.finish transaction event ;
                   Ok ()
             with e ->
