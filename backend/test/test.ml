@@ -512,9 +512,12 @@ let t_lambda_with_foreach () =
   check_dval
     "lambda_with_foreach"
     (Dval.dstr_of_string_exn "SOME STRING")
+    (* Can't use String::foreach directly here, b/c it wants back a list of
+     * chars, and we don't have any functions DCharacter -> DCharacter *)
     (exec_ast
-       "(String::foreach 'some string'
-          (\\var -> (Char::toUppercase var)))")
+       "(String::join
+       (List::foreach (String::toList_v1 'some string') (\\var ->
+(String::toUppercase (String::fromChar_v1 var)))) '')")
 
 
 module SE = Stored_event
