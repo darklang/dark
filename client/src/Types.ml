@@ -928,8 +928,7 @@ and model =
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list
-  ; tlReferences : tlReference list StrDict.t }
+  ; deletedUserTipes : userTipe list }
 
 (* Values that we serialize *)
 and serializableEditor =
