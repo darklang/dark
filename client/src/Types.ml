@@ -195,17 +195,13 @@ and referral =
   | RDBName of dBName * id
   | REmit of string * string * id
 
-(* ---------------------- *)
-(* Toplevels *)
-(* ---------------------- *)
-(* and direction =
-  | USED_IN
-  | REFERS_TO *)
 and tlReference =
   | OutReferenceDB of tlid * dBName * dBColumn list * id
   | OutReferenceHandler of tlid * string * string option * string * id
 
-(* direction tlid space method name pos*)
+(* ---------------------- *)
+(* Toplevels *)
+(* ---------------------- *)
 
 (* handlers *)
 and handlerSpec =

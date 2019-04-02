@@ -406,22 +406,27 @@ body #app * {
 .references {
   position: absolute;
   left: calc(~"100% + 30px");
+  
   display: flex;
   flex-direction: column;
 }
 
-.tlref {
+.ref-block {
   display: block;
-  border: @grey1 2px dotted;
-  background-color: @black2;
-  padding: 2px 8px;
-  color: @white1;
+  box-sizing: content-box;
+
   min-width: 120px;
   width: max-content;
-  font-size: @code-font-size;
-  box-sizing: content-box;
-  margin: 8px 0;
 
+  margin: 8px 0;
+  padding: 2px 8px;
+  
+  border: @grey1 2px dotted;
+  background-color: @black2;
+
+  color: @white1;
+  font-size: @code-font-size;
+  
   &:hover {
     cursor: pointer;
   }
@@ -444,13 +449,16 @@ body #app * {
     flex-direction: row;
     .spec {
       display: inline-block;
-      color: @orange;
-      border-bottom: 1px solid @orange;
+      
+      margin-left: 4ch;
       padding-bottom: 2px;
       padding-top: 0;
       padding-left: 1ch;
       padding-right: 1ch;
-      margin-left: 4ch;
+
+      border-bottom: 1px solid @orange;
+      
+      color: @orange;
 
       &:first-child {
         margin-left: 0;

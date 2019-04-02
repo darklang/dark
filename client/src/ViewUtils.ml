@@ -106,7 +106,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
           None )
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
-  ; refs = if selected then Toplevel.getReferences tl m.toplevels else [] }
+  ; refs = (if selected then Toplevel.getReferences tl m.toplevels else []) }
 
 
 let fontAwesome (name : string) : msg Html.html =
