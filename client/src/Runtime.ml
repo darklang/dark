@@ -19,8 +19,6 @@ let rec tipe2str (t : tipe) : string =
       "Bool"
   | TNull ->
       "Null"
-  | TChar ->
-      "Char"
   | TCharacter ->
       "Character"
   | TStr ->
@@ -65,6 +63,8 @@ let rec tipe2str (t : tipe) : string =
       "[" ^ tipe2str a ^ "]"
   | TUserType (name, _) ->
       name
+  | TDeprecated1 ->
+      raise (Js.Exn.raiseError "Deprecated type")
 
 
 let str2tipe (t : string) : tipe =
@@ -128,8 +128,8 @@ let str2tipe (t : string) : tipe =
       TBool
   | "null" ->
       TNull
-  | "char" ->
-      TChar
+  | "character" | "char" ->
+      TCharacter
   | "str" ->
       TStr
   | "string" ->
@@ -181,8 +181,6 @@ let typeOf (dv : dval) : tipe =
       TBool
   | DNull ->
       TNull
-  | DChar _ ->
-      TChar
   | DCharacter _ ->
       TCharacter
   | DStr _ ->
@@ -231,8 +229,6 @@ let isLiteral (dv : dval) : bool =
       true
   | DNull ->
       true
-  | DChar _ ->
-      true
   | DCharacter _ ->
       true
   | DStr _ ->
@@ -272,8 +268,6 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "true"
   | DBool false ->
       "false"
-  | DChar c ->
-      "'" ^ String.fromList [c] ^ "'"
   | DCharacter c ->
       "'" ^ c ^ "'"
   | DNull ->

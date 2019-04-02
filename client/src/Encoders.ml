@@ -60,8 +60,6 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DIncomplete ->
       ev "DIncomplete" []
   (* user-ish types *)
-  | DChar c ->
-      ev "DChar" [string (String.fromList [c])]
   | DCharacter c ->
       ev "DCharacter" [string c]
   | DError msg ->
@@ -433,8 +431,6 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TInt" []
   | TStr ->
       ev "TStr" []
-  | TChar ->
-      ev "TChar" []
   | TCharacter ->
       ev "TCharacter" []
   | TBool ->
@@ -485,6 +481,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TResult" []
   | TUserType (name, version) ->
       ev "TUserType" [string name; int version]
+  | TDeprecated1 ->
+      raise (Js.Exn.raiseError "Deprecated type")
 
 
 and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
