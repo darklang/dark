@@ -403,9 +403,15 @@ body #app * {
   }
 }
 
-.tlref {
+.references {
   position: absolute;
   left: calc(~"100% + 30px");
+  display: flex;
+  flex-direction: column;
+}
+
+.tlref {
+  display: block;
   border: @grey1 2px dotted;
   background-color: @black2;
   padding: 2px 8px;
@@ -414,13 +420,14 @@ body #app * {
   width: max-content;
   font-size: @code-font-size;
   box-sizing: content-box;
+  margin: 8px 0;
 
   &:hover {
     cursor: pointer;
   }
 
   &.db {
-    margin: 0;
+    margin: 8px 0;
 
     .dbtitle {
       margin: 0 auto;
