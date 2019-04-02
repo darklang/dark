@@ -233,13 +233,48 @@ let replacements =
     ; ( "DarkInternal::dbs"
       , function
         | _, [DStr host] ->
-            let c = Canvas.load_all (Unicode_string.to_string host) [] in
-            !c.dbs
-            |> List.filter_map ~f:Libexecution.Toplevel.as_db
-            |> List.map ~f:(fun d ->
-                   Dval.dstr_of_string_exn
-                     (Libexecution.Types.string_of_id d.tlid) )
+            let db_tlids =
+              Db.fetch
+                ~name:"dbs_in_canvas"
+                "SELECT tlid
+                 FROM toplevel_oplists
+                 JOIN canvases ON canvases.id = canvas_id
+                 WHERE canvases.name = $1 AND tipe = 'db'"
+                ~params:[String (Unicode_string.to_string host)]
+              |> List.fold ~init:[] ~f:(fun acc e -> e @ acc)
+            in
+            db_tlids
+            |> List.map ~f:(fun s -> DStr (Unicode_string.of_string_exn s))
             |> fun l -> DList l
+        | args ->
+            fail args )
+    ; ( "DarkInternal::schema"
+      , function
+        | _, [DStr canvas_name; DStr tlid] ->
+            let tlid = Unicode_string.to_string tlid in
+            let canvas_name = Unicode_string.to_string canvas_name in
+            let c =
+              Canvas.load_only ~tlids:[Types.id_of_string tlid] canvas_name []
+            in
+            let db =
+              !c.dbs
+              |> List.filter_map ~f:Libexecution.Toplevel.as_db
+              |> List.find ~f:(fun d ->
+                     Libexecution.Types.string_of_id d.tlid = tlid )
+            in
+            ( match db with
+            | Some db ->
+                User_db.cols_for db
+                |> List.map ~f:(fun (k, v) ->
+                       ( canvas_name
+                         ^ "-"
+                         ^ Ast.blank_to_string db.name
+                         ^ "-"
+                         ^ k
+                       , Dval.dstr_of_string_exn (Dval.tipe_to_string v) ) )
+                |> Dval.to_dobj_exn
+            | None ->
+                Dval.to_dobj_exn [] )
         | args ->
             fail args )
     ; ( "DarkInternal::oplistInfo"
