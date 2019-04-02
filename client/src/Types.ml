@@ -834,6 +834,7 @@ and msg =
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
+  | GoTo of page
 
 (* ----------------------------- *)
 (* AB tests *)

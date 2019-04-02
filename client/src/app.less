@@ -405,16 +405,35 @@ body #app * {
 
 .tlref {
   position: absolute;
-  left: calc(~"100% + 20px");
-  border: @white3 solid 1px;
+  left: calc(~"100% + 30px");
+  border: @grey1 2px dotted;
   background-color: @black2;
   padding: 8px;
   color: @white1;
   min-width: 120px;
   font-size: @code-font-size;
-
+  box-sizing: content-box;
   &.db {
     margin: 0;
+  }
+
+  &.emit {
+    display: flex;
+    flex-direction: row;
+    .spec {
+      display: inline-block;
+      color: @orange;
+      border-bottom: 1px solid @orange;
+      padding-bottom: 2px;
+      padding-top: 0;
+      padding-left: 1ch;
+      padding-right: 1ch;
+      margin-left: 4ch;
+
+      &:first-child {
+        margin-left: 0;
+      }
+    }
   }
 }
 
