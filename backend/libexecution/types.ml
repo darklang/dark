@@ -57,7 +57,7 @@ type tipe_ =
   | TFloat
   | TBool
   | TNull
-  | TChar
+  | TDeprecated1
   | TStr
   | TList
   | TObj
@@ -372,7 +372,6 @@ module RuntimeT = struct
     | DFloat of float
     | DBool of bool
     | DNull
-    | DChar of char
     | DStr of Unicode_string.t
     (* compound types *)
     | DList of dval list

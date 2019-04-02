@@ -33,8 +33,6 @@ module PrettyResponseJsonV0 = struct
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete ->
         wrap_user_type `Null
-    | DChar c ->
-        wrap_user_str (Char.to_string c)
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)
     | DError msg ->
@@ -96,8 +94,6 @@ module PrettyRequestJsonV0 = struct
         Unicode_string.to_string s
     | DFloat f ->
         string_of_float f
-    | DChar c ->
-        Char.to_string c
     | DCharacter c ->
         Unicode_string.Character.to_string c
     | DNull ->
@@ -124,8 +120,6 @@ module PrettyRequestJsonV0 = struct
     match dv with
     | DStr s ->
         "\"" ^ Unicode_string.to_string s ^ "\""
-    | DChar _ ->
-        "'" ^ as_string dv ^ "'"
     | DCharacter c ->
         "'" ^ Unicode_string.Character.to_string c ^ "'"
     | _ ->
@@ -134,7 +128,7 @@ module PrettyRequestJsonV0 = struct
 
   let is_primitive (dv : dval) : bool =
     match dv with
-    | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _ | DStr _ ->
+    | DInt _ | DFloat _ | DBool _ | DNull | DCharacter _ | DStr _ ->
         true
     | _ ->
         false
