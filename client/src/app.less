@@ -403,6 +403,21 @@ body #app * {
   }
 }
 
+.tlref {
+  position: absolute;
+  left: calc(~"100% + 20px");
+  border: @white3 solid 1px;
+  background-color: @black2;
+  padding: 8px;
+  color: @white1;
+  min-width: 120px;
+  font-size: @code-font-size;
+
+  &.db {
+    margin: 0;
+  }
+}
+
 //*************
 // Routing table
 //*************
@@ -1936,6 +1951,10 @@ body #app * {
   &.selected {
     z-index: 40;
   }
+}
+
+.tlref {
+  z-index: 40;
 }
 
 #debug {
