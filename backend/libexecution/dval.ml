@@ -50,8 +50,6 @@ let rec tipe_to_string t : string =
       "ID"
   | TDate ->
       "Date"
-  | TTitle ->
-      "Title"
   | TUrl ->
       "Url"
   | TBelongsTo s ->
@@ -72,7 +70,7 @@ let rec tipe_to_string t : string =
       "Result"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 ->
+  | TDeprecated1 | TDeprecated2 ->
       Exception.internal "Deprecated type"
 
 
@@ -117,7 +115,7 @@ let rec tipe_of_string str : tipe =
   | "date" ->
       TDate
   | "title" ->
-      TTitle
+      Exception.internal "Deprecated type"
   | "url" ->
       TUrl
   | "password" ->
@@ -217,8 +215,6 @@ let rec tipe_of (dv : dval) : tipe =
       TID
   | DDate _ ->
       TDate
-  | DTitle _ ->
-      TTitle
   | DUrl _ ->
       TUrl
   | DPassword _ ->
@@ -359,7 +355,7 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
     | "id" ->
         DID (Util.uuid_of_string v)
     | "title" ->
-        DTitle v
+        Exception.internal "Deprecated type"
     | "url" ->
         DUrl v
     | "error" ->
@@ -434,8 +430,6 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       wrap_user_str (Uuidm.to_string id)
   | DUrl url ->
       wrap_user_str url
-  | DTitle title ->
-      wrap_user_str title
   | DDate date ->
       wrap_user_str (Util.isostring_of_date date)
   | DPassword hashed ->
@@ -539,7 +533,7 @@ let rec to_enduser_readable_text_v0 dval =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
     match dv with
-    | DStr _ | DID _ | DTitle _ | DUrl _ | DUuid _ | DCharacter _ ->
+    | DStr _ | DID _ | DUrl _ | DUuid _ | DCharacter _ ->
         "\"" ^ reprfn dv ^ "\""
     | _ ->
         reprfn dv
@@ -563,8 +557,6 @@ let rec to_enduser_readable_text_v0 dval =
         Uuidm.to_string id
     | DDate d ->
         Util.isostring_of_date d
-    | DTitle t ->
-        t
     | DUrl url ->
         url
     | DUuid uuid ->
@@ -638,8 +630,6 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         wrap (Uuidm.to_string id)
     | DDate d ->
         wrap (Util.isostring_of_date d)
-    | DTitle t ->
-        wrap t
     | DUrl u ->
         wrap u
     | DDB name ->
@@ -715,8 +705,6 @@ let to_pretty_machine_json_v1 dval =
         `String (Uuidm.to_string id)
     | DUrl url ->
         `String url
-    | DTitle title ->
-        `String title
     | DDate date ->
         `String (Util.isostring_of_date date)
     | DPassword hashed ->
@@ -762,8 +750,6 @@ let rec show dv =
       Uuidm.to_string id
   | DDate d ->
       Util.isostring_of_date d
-  | DTitle t ->
-      t
   | DUrl url ->
       url
   | DUuid uuid ->
@@ -897,8 +883,6 @@ let rec to_url_string_exn (dv : dval) : string =
       Uuidm.to_string id
   | DDate d ->
       Util.isostring_of_date d
-  | DTitle t ->
-      t
   | DUrl url ->
       url
   | DDB dbname ->
@@ -1014,8 +998,6 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       "<id: " ^ Uuidm.to_string id ^ ">"
   | DDate d ->
       "<date: " ^ Util.isostring_of_date d ^ ">"
-  | DTitle t ->
-      "<title: " ^ t ^ ">"
   | DUrl url ->
       "<url: " ^ url ^ ">"
   | DPassword _ ->

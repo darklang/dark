@@ -244,7 +244,6 @@ let sample_dvals =
   ; ("db", DDB "Visitors")
   ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
-  ; ("title", DTitle "some title")
   ; ("url", DUrl "https://darklang.com")
   ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))

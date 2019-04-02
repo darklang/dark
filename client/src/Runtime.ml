@@ -41,8 +41,6 @@ let rec tipe2str (t : tipe) : string =
       "ID"
   | TDate ->
       "Date"
-  | TTitle ->
-      "Title"
   | TUrl ->
       "Url"
   | TOption ->
@@ -63,7 +61,7 @@ let rec tipe2str (t : tipe) : string =
       "[" ^ tipe2str a ^ "]"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 ->
+  | TDeprecated1 | TDeprecated2 ->
       raise (Js.Exn.raiseError "Deprecated type")
 
 
@@ -203,8 +201,6 @@ let typeOf (dv : dval) : tipe =
       TID
   | DDate _ ->
       TDate
-  | DTitle _ ->
-      TTitle
   | DUrl _ ->
       TUrl
   | DOption _ ->
@@ -275,8 +271,6 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DID s ->
       wrap s
   | DDate s ->
-      wrap s
-  | DTitle s ->
       wrap s
   | DUrl s ->
       wrap s
