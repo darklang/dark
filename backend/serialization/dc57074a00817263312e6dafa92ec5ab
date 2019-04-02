@@ -147,6 +147,58 @@
                             (Variant
                              ((Blank ((Exp (Base int63 ()))))
                               (Filled
+                               ((Exp (Base int63 ())) (Exp (Rec_app 0 ()))))))))))))
+                      (Match
+                       ((Exp
+                         (Variant
+                          ((Blank ((Exp (Base int63 ()))))
+                           (Filled
+                            ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))
+                        (Exp
+                         (Base list
+                          ((Exp
+                            (Tuple
+                             ((Exp
+                               (Variant
+                                ((Blank ((Exp (Base int63 ()))))
+                                 (Filled
+                                  ((Exp (Base int63 ()))
+                                   (Exp
+                                    (Application
+                                     (Exp
+                                      (Variant
+                                       ((PVariable ((Exp (Base string ()))))
+                                        (PLiteral ((Exp (Base string ()))))
+                                        (PConstructor
+                                         ((Exp (Base string ()))
+                                          (Exp
+                                           (Base list
+                                            ((Exp
+                                              (Variant
+                                               ((Blank
+                                                 ((Exp (Base int63 ()))))
+                                                (Filled
+                                                 ((Exp (Base int63 ()))
+                                                  (Exp (Rec_app 1 ())))))))))))))))
+                                     ())))))))
+                              (Exp
+                               (Variant
+                                ((Blank ((Exp (Base int63 ()))))
+                                 (Filled
+                                  ((Exp (Base int63 ()))
+                                   (Exp (Rec_app 0 ())))))))))))))))
+                      (Constructor
+                       ((Exp
+                         (Variant
+                          ((Blank ((Exp (Base int63 ()))))
+                           (Filled
+                            ((Exp (Base int63 ())) (Exp (Base string ())))))))
+                        (Exp
+                         (Base list
+                          ((Exp
+                            (Variant
+                             ((Blank ((Exp (Base int63 ()))))
+                              (Filled
                                ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))))))))))
                    ()))))))))
            (spec
@@ -228,15 +280,18 @@
                               (Exp
                                (Variant
                                 ((TAny ()) (TInt ()) (TFloat ()) (TBool ())
-                                 (TNull ()) (TChar ()) (TStr ()) (TList ())
-                                 (TObj ()) (TIncomplete ()) (TError ())
-                                 (TBlock ()) (TResp ()) (TDB ()) (TID ())
-                                 (TDate ()) (TTitle ()) (TUrl ())
+                                 (TNull ()) (TDeprecated1 ()) (TStr ())
+                                 (TList ()) (TObj ()) (TIncomplete ())
+                                 (TError ()) (TBlock ()) (TResp ()) (TDB ())
+                                 (TID ()) (TDate ()) (TTitle ()) (TUrl ())
                                  (TBelongsTo ((Exp (Base string ()))))
                                  (THasMany ((Exp (Base string ()))))
                                  (TDbList ((Exp (Rec_app 0 ()))))
                                  (TPassword ()) (TUuid ()) (TOption ())
-                                 (TErrorRail ()))))
+                                 (TErrorRail ()) (TCharacter ()) (TResult ())
+                                 (TUserType
+                                  ((Exp (Base string ()))
+                                   (Exp (Base int ())))))))
                               ()))))))))
                       (block_args (Exp (Base list ((Exp (Base string ()))))))
                       (optional (Exp (Base bool ())))
@@ -252,13 +307,16 @@
                        (Exp
                         (Variant
                          ((TAny ()) (TInt ()) (TFloat ()) (TBool ())
-                          (TNull ()) (TChar ()) (TStr ()) (TList ())
+                          (TNull ()) (TDeprecated1 ()) (TStr ()) (TList ())
                           (TObj ()) (TIncomplete ()) (TError ()) (TBlock ())
                           (TResp ()) (TDB ()) (TID ()) (TDate ()) (TTitle ())
                           (TUrl ()) (TBelongsTo ((Exp (Base string ()))))
                           (THasMany ((Exp (Base string ()))))
                           (TDbList ((Exp (Rec_app 0 ())))) (TPassword ())
-                          (TUuid ()) (TOption ()) (TErrorRail ()))))
+                          (TUuid ()) (TOption ()) (TErrorRail ())
+                          (TCharacter ()) (TResult ())
+                          (TUserType
+                           ((Exp (Base string ())) (Exp (Base int ())))))))
                        ()))))))))
                (description (Exp (Base string ())))
                (infix (Exp (Base bool ())))))))
@@ -395,6 +453,58 @@
                             ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))))
                       (FnCallSendToRail
                        ((Exp (Base string ()))
+                        (Exp
+                         (Base list
+                          ((Exp
+                            (Variant
+                             ((Blank ((Exp (Base int63 ()))))
+                              (Filled
+                               ((Exp (Base int63 ())) (Exp (Rec_app 0 ()))))))))))))
+                      (Match
+                       ((Exp
+                         (Variant
+                          ((Blank ((Exp (Base int63 ()))))
+                           (Filled
+                            ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))
+                        (Exp
+                         (Base list
+                          ((Exp
+                            (Tuple
+                             ((Exp
+                               (Variant
+                                ((Blank ((Exp (Base int63 ()))))
+                                 (Filled
+                                  ((Exp (Base int63 ()))
+                                   (Exp
+                                    (Application
+                                     (Exp
+                                      (Variant
+                                       ((PVariable ((Exp (Base string ()))))
+                                        (PLiteral ((Exp (Base string ()))))
+                                        (PConstructor
+                                         ((Exp (Base string ()))
+                                          (Exp
+                                           (Base list
+                                            ((Exp
+                                              (Variant
+                                               ((Blank
+                                                 ((Exp (Base int63 ()))))
+                                                (Filled
+                                                 ((Exp (Base int63 ()))
+                                                  (Exp (Rec_app 1 ())))))))))))))))
+                                     ())))))))
+                              (Exp
+                               (Variant
+                                ((Blank ((Exp (Base int63 ()))))
+                                 (Filled
+                                  ((Exp (Base int63 ()))
+                                   (Exp (Rec_app 0 ())))))))))))))))
+                      (Constructor
+                       ((Exp
+                         (Variant
+                          ((Blank ((Exp (Base int63 ()))))
+                           (Filled
+                            ((Exp (Base int63 ())) (Exp (Base string ())))))))
                         (Exp
                          (Base list
                           ((Exp
@@ -539,7 +649,138 @@
                         (Variant
                          ((Blank ((Exp (Base int63 ()))))
                           (Filled
+                           ((Exp (Base int63 ())) (Exp (Rec_app 0 ()))))))))))))
+                  (Match
+                   ((Exp
+                     (Variant
+                      ((Blank ((Exp (Base int63 ()))))
+                       (Filled ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))
+                    (Exp
+                     (Base list
+                      ((Exp
+                        (Tuple
+                         ((Exp
+                           (Variant
+                            ((Blank ((Exp (Base int63 ()))))
+                             (Filled
+                              ((Exp (Base int63 ()))
+                               (Exp
+                                (Application
+                                 (Exp
+                                  (Variant
+                                   ((PVariable ((Exp (Base string ()))))
+                                    (PLiteral ((Exp (Base string ()))))
+                                    (PConstructor
+                                     ((Exp (Base string ()))
+                                      (Exp
+                                       (Base list
+                                        ((Exp
+                                          (Variant
+                                           ((Blank ((Exp (Base int63 ()))))
+                                            (Filled
+                                             ((Exp (Base int63 ()))
+                                              (Exp (Rec_app 1 ())))))))))))))))
+                                 ())))))))
+                          (Exp
+                           (Variant
+                            ((Blank ((Exp (Base int63 ()))))
+                             (Filled
+                              ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))))))))))
+                  (Constructor
+                   ((Exp
+                     (Variant
+                      ((Blank ((Exp (Base int63 ()))))
+                       (Filled
+                        ((Exp (Base int63 ())) (Exp (Base string ())))))))
+                    (Exp
+                     (Base list
+                      ((Exp
+                        (Variant
+                         ((Blank ((Exp (Base int63 ()))))
+                          (Filled
                            ((Exp (Base int63 ())) (Exp (Rec_app 0 ())))))))))))))))
                ())))))))))
       (TLSavepoint ((Exp (Base int63 ()))))
-      (DeleteFunction ((Exp (Base int63 ()))))))))))
+      (DeleteFunction ((Exp (Base int63 ()))))
+      (CreateDBMigration
+       ((Exp (Base int63 ())) (Exp (Base int63 ())) (Exp (Base int63 ()))
+        (Exp
+         (Base list
+          ((Exp
+            (Tuple
+             ((Exp
+               (Variant
+                ((Blank ((Exp (Base int63 ()))))
+                 (Filled ((Exp (Base int63 ())) (Exp (Base string ())))))))
+              (Exp
+               (Variant
+                ((Blank ((Exp (Base int63 ()))))
+                 (Filled ((Exp (Base int63 ())) (Exp (Base string ())))))))))))))))
+      (AddDBColToDBMigration
+       ((Exp (Base int63 ())) (Exp (Base int63 ())) (Exp (Base int63 ()))))
+      (SetDBColNameInDBMigration
+       ((Exp (Base int63 ())) (Exp (Base int63 ())) (Exp (Base string ()))))
+      (SetDBColTypeInDBMigration
+       ((Exp (Base int63 ())) (Exp (Base int63 ())) (Exp (Base string ()))))
+      (AbandonDBMigration ((Exp (Base int63 ()))))
+      (DeleteColInDBMigration ((Exp (Base int63 ())) (Exp (Base int63 ()))))
+      (DeleteDBCol ((Exp (Base int63 ())) (Exp (Base int63 ()))))
+      (RenameDBname ((Exp (Base int63 ())) (Exp (Base string ()))))
+      (CreateDBWithBlankOr
+       ((Exp (Base int63 ()))
+        (Exp (Record ((x (Exp (Base int ()))) (y (Exp (Base int ()))))))
+        (Exp (Base int63 ())) (Exp (Base string ()))))
+      (DeleteTLForever ((Exp (Base int63 ()))))
+      (DeleteFunctionForever ((Exp (Base int63 ()))))
+      (SetType
+       ((Exp
+         (Record
+          ((tlid (Exp (Base int63 ())))
+           (name
+            (Exp
+             (Variant
+              ((Blank ((Exp (Base int63 ()))))
+               (Filled ((Exp (Base int63 ())) (Exp (Base string ()))))))))
+           (version (Exp (Base int ())))
+           (definition
+            (Exp
+             (Variant
+              ((UTRecord
+                ((Exp
+                  (Base list
+                   ((Exp
+                     (Record
+                      ((name
+                        (Exp
+                         (Variant
+                          ((Blank ((Exp (Base int63 ()))))
+                           (Filled
+                            ((Exp (Base int63 ())) (Exp (Base string ()))))))))
+                       (tipe
+                        (Exp
+                         (Variant
+                          ((Blank ((Exp (Base int63 ()))))
+                           (Filled
+                            ((Exp (Base int63 ()))
+                             (Exp
+                              (Application
+                               (Exp
+                                (Variant
+                                 ((TAny ()) (TInt ()) (TFloat ()) (TBool ())
+                                  (TNull ()) (TDeprecated1 ()) (TStr ())
+                                  (TList ()) (TObj ()) (TIncomplete ())
+                                  (TError ()) (TBlock ()) (TResp ()) 
+                                  (TDB ()) (TID ()) (TDate ()) (TTitle ())
+                                  (TUrl ())
+                                  (TBelongsTo ((Exp (Base string ()))))
+                                  (THasMany ((Exp (Base string ()))))
+                                  (TDbList ((Exp (Rec_app 0 ()))))
+                                  (TPassword ()) (TUuid ()) (TOption ())
+                                  (TErrorRail ()) (TCharacter ())
+                                  (TResult ())
+                                  (TUserType
+                                   ((Exp (Base string ()))
+                                    (Exp (Base int ())))))))
+                               ())))))))))))))))))))))))))
+      (DeleteType ((Exp (Base int63 ()))))
+      (DeleteTypeForever ((Exp (Base int63 ()))))))))))
