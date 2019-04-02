@@ -69,7 +69,7 @@ type tipe_ =
   | TID
   | TDate
   | TDeprecated2
-  | TUrl
+  | TDeprecated3
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
@@ -386,7 +386,6 @@ module RuntimeT = struct
     | DDB of string
     | DID of uuid
     | DDate of time
-    | DUrl of string
     | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT

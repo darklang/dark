@@ -81,7 +81,7 @@ and tipe =
   | TID
   | TDate
   | TDeprecated2
-  | TUrl
+  | TDeprecated3
   | TPassword
   | TUuid
   | TOption
@@ -324,7 +324,6 @@ and dval =
   | DDB of string
   | DID of string
   | DDate of string
-  | DUrl of string
   | DPassword of string
   | DUuid of string
   | DOption of optionT

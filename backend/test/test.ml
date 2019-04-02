@@ -244,7 +244,6 @@ let sample_dvals =
   ; ("db", DDB "Visitors")
   ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
-  ; ("url", DUrl "https://darklang.com")
   ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("option", DOption OptNothing)
@@ -780,13 +779,13 @@ let t_internal_roundtrippable_doesnt_care_about_order () =
     "internal_roundtrippable doesn't care about key order"
     (Dval.of_internal_roundtrippable_v0
        "{
-         \"type\": \"url\",
-         \"value\": \"https://example.com\"
+         \"type\": \"weird\",
+         \"value\": \"x\"
         }")
     (Dval.of_internal_roundtrippable_v0
        "{
-         \"value\": \"https://example.com\",
-         \"type\": \"url\"
+         \"value\": \"x\",
+         \"type\": \"weird\"
         }")
 
 
