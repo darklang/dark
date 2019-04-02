@@ -198,13 +198,12 @@ and referral =
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
-and direction =
+(* and direction =
   | USED_IN
-  | REFERS_TO
-
+  | REFERS_TO *)
 and tlReference =
-  | ReferenceDB of direction * tlid * dBName * dBColumn list * id
-  | ReferenceHandler of direction * tlid * string * string option * string * id
+  | OutReferenceDB of tlid * dBName * dBColumn list * id
+  | OutReferenceHandler of tlid * string * string option * string * id
 
 (* direction tlid space method name pos*)
 

@@ -567,14 +567,12 @@ let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
 let getReferences (tl : toplevel) (toplevels : toplevel list) :
     tlReference list =
   let findDB name id =
-    let foundDB db =
-      Some (ReferenceDB (REFERS_TO, db.dbTLID, name, db.cols, id))
-    in
+    let foundDB db = Some (OutReferenceDB (db.dbTLID, name, db.cols, id)) in
     findDBNamed name toplevels |> Option.andThen ~f:foundDB
   in
   let findEmit space name id =
     let foundEH h =
-      Some (ReferenceHandler (REFERS_TO, h.tlid, space, None, name, id))
+      Some (OutReferenceHandler (h.tlid, space, None, name, id))
     in
     findEventNamed space name toplevels |> Option.andThen ~f:foundEH
   in
@@ -589,9 +587,9 @@ let getReferences (tl : toplevel) (toplevels : toplevel list) :
                  findEmit space name id )
       |> List.uniqueBy ~f:(fun r ->
              match r with
-             | ReferenceDB (_, TLID tlid, _, _, _) ->
+             | OutReferenceDB (TLID tlid, _, _, _) ->
                  tlid
-             | ReferenceHandler (_, TLID tlid, _, _, _, _) ->
+             | OutReferenceHandler (TLID tlid, _, _, _, _) ->
                  tlid )
   | TLDB _ ->
       []
