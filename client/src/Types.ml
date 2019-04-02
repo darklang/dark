@@ -65,7 +65,7 @@ and box = pos * size
 and tipe =
   | TInt
   | TStr
-  | TChar
+  | TDeprecated1
   | TCharacter
   | TBool
   | TFloat
@@ -312,7 +312,6 @@ and dval =
   | DFloat of float
   | DBool of bool
   | DNull
-  | DChar of char
   | DCharacter of string
   | DStr of string
   | DList of dval list

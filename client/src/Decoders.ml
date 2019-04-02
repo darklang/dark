@@ -234,7 +234,6 @@ and tipe j : tipe =
   variants
     [ ("TInt", dv0 TInt)
     ; ("TStr", dv0 TStr)
-    ; ("TChar", dv0 TChar)
     ; ("TBool", dv0 TBool)
     ; ("TFloat", dv0 TFloat)
     ; ("TObj", dv0 TObj)
@@ -398,7 +397,7 @@ and typeOfLiteralString (s : string) : tipe =
 and parseDvalLiteral (str : string) : dval option =
   match String.toList str with
   | ['\''; c; '\''] ->
-      Some (DChar c)
+      Some (DCharacter (String.fromList [c]))
   | '"' :: rest ->
       if List.last rest = Some '"'
       then
