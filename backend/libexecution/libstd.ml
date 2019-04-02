@@ -679,17 +679,19 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s; DBlock fn] ->
               let result =
-                s
-                |> Unicode_string.to_string
-                |> String.to_list
-                |> List.map ~f:(fun c -> fn [DChar c])
+                Unicode_string.map_characters ~f:(fun c -> fn [DCharacter c]) s
               in
               if List.exists ~f:(( = ) DIncomplete) result
               then DIncomplete
               else
                 result
-                |> list_coerce ~f:Dval.to_char_deprecated
-                >>| String.of_char_list
+                |> list_coerce ~f:(function
+                       | DCharacter c ->
+                           Some c
+                       | _ ->
+                           None )
+                >>| Unicode_string.of_characters
+                >>| Unicode_string.to_string
                 >>| (fun x -> Dval.dstr_of_string_exn x)
                 |> Result.map_error ~f:(fun (result, example_value) ->
                        RT.error
@@ -753,8 +755,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               DList
-                ( String.to_list (Unicode_string.to_string s)
-                |> List.map ~f:(fun c -> DChar c) )
+                (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
           | args ->
               fail args)
     ; ps = true
@@ -1050,11 +1051,12 @@ let fns : Lib.shortfn list =
               Dval.dstr_of_string_exn
                 ( l
                 |> List.map ~f:(function
-                       | DChar c ->
+                       | DCharacter c ->
                            c
                        | dv ->
                            RT.error ~actual:dv "expected a char" )
-                |> String.of_char_list )
+                |> Unicode_string.of_characters
+                |> Unicode_string.to_string )
           | args ->
               fail args)
     ; ps = true
@@ -1082,14 +1084,15 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["String::fromChar"]
     ; ins = []
-    ; p = [par "c" TChar]
-    ; r = TChar
+    ; p = [par "c" TCharacter]
+    ; r = TCharacter
     ; d = "Converts a char to a string"
     ; f =
         InProcess
           (function
-          | _, [DChar c] ->
-              Dval.dstr_of_string_exn (Char.to_string c)
+          | _, [DCharacter c] ->
+              Dval.dstr_of_string_exn
+                (Unicode_string.of_character c |> Unicode_string.to_string)
           | args ->
               fail args)
     ; ps = true
@@ -1736,45 +1739,54 @@ let fns : Lib.shortfn list =
     (* ====================================== *)
     { pns = ["Char::toASCIICode"]
     ; ins = []
-    ; p = [par "c" TChar]
+    ; p = [par "c" TCharacter]
     ; r = TInt
     ; d = "Return `c`'s ASCII code"
-    ; f =
-        InProcess
-          (function _, [DChar c] -> DInt (Char.to_int c) | args -> fail args)
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toASCIIChar"]
     ; ins = []
     ; p = [par "i" TInt]
-    ; r = TChar
+    ; r = TCharacter
     ; d = "convert an int to an ASCII character"
-    ; f =
-        InProcess
-          (function
-          | _, [DInt i] -> DChar (Char.of_int_exn i) | args -> fail args)
+    ; f = InProcess (function args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toLowercase"]
     ; ins = []
-    ; p = [par "c" TChar]
-    ; r = TChar
+    ; p = [par "c" TCharacter]
+    ; r = TCharacter
     ; d = "Return the lowercase value of `c`"
     ; f =
         InProcess
           (function
-          | _, [DChar c] -> DChar (Char.lowercase c) | args -> fail args)
+          | _, [DCharacter c] ->
+              DCharacter
+                ( Unicode_string.of_character c
+                |> Unicode_string.lowercase
+                |> Unicode_string.to_string
+                |> Unicode_string.Character.unsafe_of_string )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toUppercase"]
     ; ins = []
-    ; p = [par "c" TChar]
-    ; r = TChar
+    ; p = [par "c" TCharacter]
+    ; r = TCharacter
     ; d = "Return the uppercase value of `c`"
     ; f =
         InProcess
           (function
-          | _, [DChar c] -> DChar (Char.uppercase c) | args -> fail args)
+          | _, [DCharacter c] ->
+              DCharacter
+                ( Unicode_string.of_character c
+                |> Unicode_string.uppercase
+                |> Unicode_string.to_string
+                |> Unicode_string.Character.unsafe_of_string )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Uuid::generate"]
