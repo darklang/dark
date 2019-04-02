@@ -1085,21 +1085,25 @@ let variablesIn (ast : expr) : avDict =
 
 (* INTROSPECTION *)
 
-let tryDBNames (exprs : expr list) : referral option =
+let tryDBNames (id : id) (exprs : expr list) : referral option =
   let matchVarname e =
     match e with
     | F (_, Variable varname) ->
-        Some (RDBName varname)
+        Some (RDBName (varname, id))
     | _ ->
         None
   in
   match List.last exprs with Some e -> matchVarname e | None -> None
 
 
-let tryEmitNames (exprs : expr list) : referral option =
+let tryEmitNames (id : id) (exprs : expr list) : referral option =
   match exprs with
   | [_; F (_, Value space); F (_, Value name)] ->
-      Some (REmit (space, name))
+      Some
+        (REmit
+           ( Util.transformToStringEntry space
+           , Util.transformToStringEntry name
+           , id ))
   | _ ->
       None
 
@@ -1107,10 +1111,10 @@ let tryEmitNames (exprs : expr list) : referral option =
 let getReferrals (pointers : pointerData list) : referral list =
   let checkFnNames bname exprs =
     match bname with
-    | F (_, "emit") ->
-        tryEmitNames exprs
-    | F (_, name) when Regex.contains ~re:(Regex.regex "^DB::") name ->
-        tryDBNames exprs
+    | F (id, "emit") ->
+        tryEmitNames id exprs
+    | F (id, name) when Regex.contains ~re:(Regex.regex "^DB::") name ->
+        tryDBNames id exprs
     | F (_, _) ->
         None
     | Blank _ ->
@@ -1124,9 +1128,10 @@ let getReferrals (pointers : pointerData list) : referral list =
          | _ ->
              None )
 
+
 let inspectAST (ast : expr) : referral list = getReferrals (allData ast)
 
-    (* Get all references for handlers for now.
+(* Get all references for handlers for now.
   Will handle dbs and user functions later *)
 let inspectTL (tl : toplevel) : referral list =
   match tl.data with TLHandler h -> getReferrals (allData h.ast) | _ -> []

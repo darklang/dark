@@ -537,11 +537,14 @@ let asPage (tl : toplevel) : page =
 let findDBNamed (name : string) (toplevels : toplevel list) : dB option =
   let isNamed db =
     match db.dbName with
-    | F (_, dbname) -> if dbname = name then Some db else None
-    | Blank _ -> None
+    | F (_, dbname) ->
+        if dbname = name then Some db else None
+    | Blank _ ->
+        None
   in
   toplevels
-  |> List.filterMap ~f:(fun tl -> match tl.data with  TLDB db -> isNamed db | _ -> None)
+  |> List.filterMap ~f:(fun tl ->
+         match tl.data with TLDB db -> isNamed db | _ -> None )
   |> List.head
 
 
@@ -551,9 +554,7 @@ let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
     let spec = h.spec in
     match (spec.module_, spec.name) with
     | F (_, smodule), F (_, sname) ->
-        if smodule = space && sname = name
-        then Some h
-        else None
+        if smodule = space && sname = name then Some h else None
     | _ ->
         None
   in
@@ -562,22 +563,36 @@ let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
          match tl.data with TLHandler h -> isNamed h | _ -> None )
   |> List.head
 
-let getReferences (tl : toplevel) (toplevels : toplevel list) : tlReference list =
-  let findDB name =
-    let foundDB db = Some (ReferenceDB (REFERS_TO, db.dbTLID, name, db.cols, None)) in
-    (findDBNamed name toplevels) |> Option.andThen ~f:foundDB
+
+let getReferences (tl : toplevel) (toplevels : toplevel list) :
+    tlReference list =
+  let findDB name id =
+    let foundDB db =
+      Some (ReferenceDB (REFERS_TO, db.dbTLID, name, db.cols, id))
+    in
+    findDBNamed name toplevels |> Option.andThen ~f:foundDB
   in
-  let findEmit space name =
-    let foundEH h = Some (ReferenceHandler (REFERS_TO, h.tlid, space, None, name, None)) in
-    (findEventNamed space name toplevels) |> Option.andThen ~f:foundEH
-  in 
+  let findEmit space name id =
+    let foundEH h =
+      Some (ReferenceHandler (REFERS_TO, h.tlid, space, None, name, id))
+    in
+    findEventNamed space name toplevels |> Option.andThen ~f:foundEH
+  in
   match tl.data with
   | TLHandler h ->
-      AST.inspectAST h.ast |> List.filterMap ~f:(fun r ->
-        match r with
-        | RDBName name -> findDB name
-        | REmit (space, name) -> findEmit space name
-      )
+      AST.inspectAST h.ast
+      |> List.filterMap ~f:(fun r ->
+             match r with
+             | RDBName (name, id) ->
+                 findDB name id
+             | REmit (space, name, id) ->
+                 findEmit space name id )
+      |> List.uniqueBy ~f:(fun r ->
+             match r with
+             | ReferenceDB (_, TLID tlid, _, _, _) ->
+                 tlid
+             | ReferenceHandler (_, TLID tlid, _, _, _, _) ->
+                 tlid )
   | TLDB _ ->
       []
   | TLFunc _ ->
