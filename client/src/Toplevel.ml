@@ -566,31 +566,30 @@ let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
 
 let getReferences (tl : toplevel) (toplevels : toplevel list) :
     tlReference list =
-  let findDB name id =
-    let foundDB db = Some (OutReferenceDB (db.dbTLID, name, db.cols, id)) in
-    findDBNamed name toplevels |> Option.andThen ~f:foundDB
-  in
-  let findEmit space name id =
-    let foundEH h =
-      Some (OutReferenceHandler (h.tlid, space, None, name, id))
-    in
-    findEventNamed space name toplevels |> Option.andThen ~f:foundEH
+  let getTLID r =
+    match r with
+    | OutReferenceDB (TLID tlid, _, _, _) ->
+        tlid
+    | OutReferenceHandler (TLID tlid, _, _, _, _) ->
+        tlid
+  and findReference r =
+    match r with
+    | RDBName (name, id) ->
+        let foundDB db =
+          Some (OutReferenceDB (db.dbTLID, name, db.cols, id))
+        in
+        findDBNamed name toplevels |> Option.andThen ~f:foundDB
+    | REmit (space, name, id) ->
+        let foundEH h =
+          Some (OutReferenceHandler (h.tlid, space, None, name, id))
+        in
+        findEventNamed space name toplevels |> Option.andThen ~f:foundEH
   in
   match tl.data with
   | TLHandler h ->
       AST.inspectAST h.ast
-      |> List.filterMap ~f:(fun r ->
-             match r with
-             | RDBName (name, id) ->
-                 findDB name id
-             | REmit (space, name, id) ->
-                 findEmit space name id )
-      |> List.uniqueBy ~f:(fun r ->
-             match r with
-             | OutReferenceDB (TLID tlid, _, _, _) ->
-                 tlid
-             | OutReferenceHandler (TLID tlid, _, _, _, _) ->
-                 tlid )
+      |> List.filterMap ~f:findReference
+      |> List.uniqueBy ~f:getTLID
   | TLDB _ ->
       []
   | TLFunc _ ->
@@ -598,4 +597,4 @@ let getReferences (tl : toplevel) (toplevels : toplevel list) :
   | TLTipe _ ->
       []
 
-(* To be handled in future tix *)
+(* To DB, Func, Tipe be handled in future tix *)
