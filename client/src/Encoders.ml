@@ -70,8 +70,6 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DDB" [string name]
   | DID id ->
       ev "DID" [string id]
-  | DUrl url ->
-      ev "DUrl" [string url]
   | DDate date ->
       ev "DDate" [string date]
   | DPassword hashed ->
@@ -457,8 +455,6 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TID" []
   | TDate ->
       ev "TDate" []
-  | TUrl ->
-      ev "TUrl" []
   | TBelongsTo s ->
       ev "TBelongsTo" [string s]
   | THasMany s ->
@@ -477,7 +473,7 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TResult" []
   | TUserType (name, version) ->
       ev "TUserType" [string name; int version]
-  | TDeprecated1 | TDeprecated2 ->
+  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
       raise (Js.Exn.raiseError "Deprecated type")
 
 

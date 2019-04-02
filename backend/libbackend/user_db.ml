@@ -201,8 +201,6 @@ and type_check_and_map_dependents
             data
         | TFloat, DFloat _ ->
             data
-        | TUrl, DUrl _ ->
-            data
         | TStr, DStr _ ->
             data
         | TBool, DBool _ ->
