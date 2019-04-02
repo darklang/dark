@@ -408,13 +408,28 @@ body #app * {
   left: calc(~"100% + 30px");
   border: @grey1 2px dotted;
   background-color: @black2;
-  padding: 8px;
+  padding: 2px 8px;
   color: @white1;
   min-width: 120px;
+  width: max-content;
   font-size: @code-font-size;
   box-sizing: content-box;
+
+  &:hover {
+    cursor: pointer;
+  }
+
   &.db {
     margin: 0;
+
+    .dbtitle {
+      margin: 0 auto;
+      margin-bottom: 0;
+    }
+
+    .cols {
+      color: @grey3;
+    }
   }
 
   &.emit {
