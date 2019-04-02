@@ -67,7 +67,7 @@ let dequeue_and_process execution_id :
                       ; ("event", Log.dump desc)
                       ; ("host", host)
                       ; ("handler_id", Log.dump h.tlid) ] ;
-                  let result =
+                  let result, _tlids =
                     Execution.execute_handler
                       h
                       ~execution_id
