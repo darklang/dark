@@ -114,6 +114,7 @@ type context =
 type engine =
   { trace : expr -> dval -> symtable -> unit
   ; trace_blank : string or_blank -> dval -> symtable -> unit
+  ; trace_tlid : tlid -> unit
   ; ctx : context }
 
 let find_derrorrail (dvals : dval list) : dval option =
@@ -593,6 +594,7 @@ and exec_fn
             Util.merge_left db_dvals args
           in
           state.store_fn_arguments tlid args ;
+          engine.trace_tlid tlid ;
           exec ~engine ~state args_with_dbs body
       | Error errs ->
           let error_msgs =
@@ -623,58 +625,70 @@ and exec_fn
 (* -------------------- *)
 
 (* Trace everything and save it *)
-let analysis_engine value_store : engine =
+let analysis_engine value_store tlid_store : engine =
   let trace expr dval st =
     Hashtbl.set value_store ~key:(blank_to_id expr) ~data:dval
   in
   let trace_blank blank dval st =
     Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
   in
-  {trace; trace_blank; ctx = Preview}
+  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
+  {trace; trace_blank; trace_tlid; ctx = Preview}
 
 
 let execute_saving_intermediates
     ~(input_vars : input_vars) (state : exec_state) (ast : expr) :
-    dval * dval_store =
+    dval * dval_store * tlid list =
   Log.infO
     "Executing for intermediates"
     ~params:
       [ ("tlid", show_tlid state.tlid)
       ; ("execution_id", Log.dump state.execution_id) ] ;
   let value_store = IDTable.create () in
-  let engine = analysis_engine value_store in
+  let tlid_store = TLIDTable.create () in
+  let engine = analysis_engine value_store tlid_store in
   let st = input_vars2symtable input_vars in
-  (exec ~engine ~state st ast, value_store)
+  (exec ~engine ~state st ast, value_store, Hashtbl.keys tlid_store)
 
 
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
 
-(* no tracing when running in prod *)
-let server_execution_engine : engine =
+(* no value tracing when running in prod *)
+let real_engine_no_tracing : engine =
   let empty_trace _ _ _ = () in
-  {trace = empty_trace; trace_blank = empty_trace; ctx = Real}
+  let empty_tlid _ = () in
+  { trace = empty_trace
+  ; trace_blank = empty_trace
+  ; trace_tlid = empty_tlid
+  ; ctx = Real }
 
 
-let execute_ast ~input_vars (state : exec_state) expr : dval =
+(* execute for real, tracing executed toplevels *)
+let server_execution_engine tlid_store : engine =
+  let empty_trace _ _ _ = () in
+  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
+  {trace = empty_trace; trace_blank = empty_trace; trace_tlid; ctx = Real}
+
+
+let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
+  let tlid_store = TLIDTable.create () in
+  let engine = server_execution_engine tlid_store in
   Log.infO
     "Executing for real"
     ~params:
       [ ("tlid", show_tlid state.tlid)
       ; ("execution_id", Log.dump state.execution_id) ] ;
-  exec
-    (input_vars2symtable input_vars)
-    expr
-    ~engine:server_execution_engine
-    ~state
+  ( exec ~engine ~state (input_vars2symtable input_vars) expr
+  , Hashtbl.keys tlid_store )
 
 
 let execute_userfn
     (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:server_execution_engine ~state
+  call_fn name id args false ~engine:real_engine_no_tracing ~state
 
 
 let execute_fn
     (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:server_execution_engine ~state
+  call_fn name id args false ~engine:real_engine_no_tracing ~state
