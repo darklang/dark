@@ -46,8 +46,6 @@ module PrettyResponseJsonV0 = struct
         wrap_user_str (Uuidm.to_string id)
     | DUrl url ->
         wrap_user_str url
-    | DTitle title ->
-        wrap_user_str title
     | DDate date ->
         wrap_user_str (Util.isostring_of_date date)
     | DPassword hashed ->
@@ -102,8 +100,6 @@ module PrettyRequestJsonV0 = struct
         Uuidm.to_string id
     | DDate d ->
         Util.isostring_of_date d
-    | DTitle t ->
-        t
     | DUrl url ->
         url
     | DDB dbname ->
@@ -141,7 +137,6 @@ module PrettyRequestJsonV0 = struct
     | DError _
     | DID _
     | DDate _
-    | DTitle _
     | DUrl _
     | DPassword _
     | DDB _

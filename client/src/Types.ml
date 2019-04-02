@@ -80,7 +80,7 @@ and tipe =
   | TDB
   | TID
   | TDate
-  | TTitle
+  | TDeprecated2
   | TUrl
   | TPassword
   | TUuid
@@ -324,7 +324,6 @@ and dval =
   | DDB of string
   | DID of string
   | DDate of string
-  | DTitle of string
   | DUrl of string
   | DPassword of string
   | DUuid of string
