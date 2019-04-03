@@ -112,6 +112,23 @@ let replacements =
             with _ -> DBool false )
         | args ->
             fail args )
+    ; ( "DarkInternal::endUsers"
+      , function
+        | _, [] ->
+            Db.fetch
+              ~name:"fetch_end_users"
+              "SELECT email FROM accounts WHERE admin IS FALSE AND email NOT
+LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
+              ~params:[]
+            |> List.map ~f:(function
+                   | [email] ->
+                       Dval.dstr_of_string_exn email
+                   | _ ->
+                       Exception.internal
+                         "Wrong number of fields from db query" )
+            |> DList
+        | args ->
+            fail args )
     ; ( "DarkInternal::upsertUser"
       , function
         | _, [DStr username; DStr email; DStr name] ->
