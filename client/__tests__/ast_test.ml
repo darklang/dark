@@ -14,12 +14,12 @@ let () =
       let id1 = ID "5" in
       let id2 = ID "10" in
       test "isThreadBlank for thread" (fun () ->
-          expect (AST.isThreadBlank (F (id1, Thread [Blank id2])) id2)
+          expect (isThreadBlank (F (id1, Thread [Blank id2])) id2)
           |> toEqual true ) ;
       test "isThreadBlank for blank" (fun () ->
-          expect (AST.isThreadBlank (Blank id1) id1) |> toEqual false ) ;
+          expect (isThreadBlank (Blank id1) id1) |> toEqual false ) ;
       test "isThreadBlank for thread non-blank" (fun () ->
-          expect (AST.isThreadBlank (F (id1, Thread [F (id2, Value "")])) id2)
+          expect (isThreadBlank (F (id1, Thread [F (id2, Value "")])) id2)
           |> toEqual false ) ;
       test "replacing a function in a thread works" (fun () ->
           expect
@@ -28,7 +28,7 @@ let () =
              in
              let orig = B.new_ () in
              let result =
-               AST.replace
+               replace
                  (PExpr orig)
                  (PExpr replacement)
                  (B.newF (Thread [orig; B.new_ ()]))
@@ -54,7 +54,7 @@ let () =
                             (F (ID "6_name", "+"), [Blank (ID "5")], NoRail) )
                     ; B.new_ () ])
              in
-             match AST.closeThreads threaded with
+             match closeThreads threaded with
              | F
                  ( ID "6"
                  , FnCall (F (_, "+"), [Blank _; Blank (ID "5")], NoRail) ) ->
@@ -74,13 +74,13 @@ let () =
                     , NoRail ))
              in
              let open_ = B.newF (Thread [fn; B.new_ ()]) in
-             let closed = AST.closeThreads open_ in
+             let closed = closeThreads open_ in
              if closed = fn then Pass else Fail (fn, closed))
           |> toEqual Pass ) ;
       test "simple thread is closed properly" (fun () ->
           expect
             (let open_ = B.newF (Thread [B.newF (Value "3"); B.new_ ()]) in
-             let closed = AST.closeThreads open_ in
+             let closed = closeThreads open_ in
              match closed with
              | F (_, Value "3") ->
                  Pass
@@ -92,52 +92,60 @@ let () =
             (let obj = B.newF (Variable "obj") in
              let fieldname = B.newF "field" in
              let expr = B.newF (FieldAccess (obj, fieldname)) in
-             let parent = AST.findParentOfWithin (B.toID fieldname) expr in
+             let parent = findParentOfWithin (B.toID fieldname) expr in
              if parent = expr then Pass else Fail (parent, expr))
           |> toEqual Pass ) ;
       test "usesRail returns true when at top" (fun () ->
           expect
             (let expr = B.newF (FnCall (B.newF "test", [], Rail)) in
-             AST.usesRail expr)
+             usesRail expr)
           |> toEqual true ) ;
       test "usesRail returns true when deep" (fun () ->
           expect
             (let withRail = B.newF (FnCall (B.newF "test2", [], Rail)) in
              let l = B.newF (Let (B.newF "v", withRail, B.new_ ())) in
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
-             AST.usesRail expr)
+             usesRail expr)
           |> toEqual true ) ;
       test "usesRail returns false when norail" (fun () ->
           expect
             (let deep = B.newF (FnCall (B.newF "test2", [], NoRail)) in
              let l = B.newF (Let (B.newF "v", deep, B.new_ ())) in
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
-             AST.usesRail expr)
+             usesRail expr)
           |> toEqual false ) ) ;
   describe "AST code introspection" (fun () ->
-      test "AST.tryDBNames returns db name" (fun () ->
-          let refs = tryDBNames [B.newF (Variable "Books")] in
-          expect (match refs with Some (RDBName "Books") -> true | _ -> false)
-          |> toEqual true ) ;
-      test
-        "AST.tryDBNames db fn call with no args return empty list"
-        (fun () -> expect (tryDBNames []) |> toEqual None ) ;
-      test "AST.tryEmitNames returns event space and name" (fun () ->
-          let refs =
-            tryEmitNames
-              [B.new_ (); B.newF (Value "JOB"); B.newF (Value "processOrder")]
-          in
+      test "tryDBNames returns db name" (fun () ->
+          let id = Prelude.gid () in
+          let refs = tryDBNames id [B.newF (Variable "Books")] in
           expect
             ( match refs with
-            | Some (REmit ("JOB", "processOrder")) ->
-                true
+            | Some (RDBName ("Books", i)) ->
+                i = id
             | _ ->
                 false )
           |> toEqual true ) ;
-      test
-        "AST.tryEmitNames emit call with no args return empty list"
-        (fun () -> expect (tryEmitNames []) |> toEqual None ) ) ;
-  test "AST.getReferrals" (fun () ->
+      test "tryDBNames db fn call with no args return empty list" (fun () ->
+          expect (tryDBNames (Prelude.gid ()) []) |> toEqual None ) ;
+      test "tryEmitNames returns event space and name" (fun () ->
+          let id = Prelude.gid () in
+          let refs =
+            tryEmitNames
+              id
+              [ B.new_ ()
+              ; B.newF (Value "\"JOB\"")
+              ; B.newF (Value "\"processOrder\"") ]
+          in
+          expect
+            ( match refs with
+            | Some (REmit ("JOB", "processOrder", i)) ->
+                i = id
+            | _ ->
+                false )
+          |> toEqual true ) ;
+      test "tryEmitNames emit call with no args return empty list" (fun () ->
+          expect (tryEmitNames (Prelude.gid ()) []) |> toEqual None ) ) ;
+  test "getReferrals" (fun () ->
       let pointers =
         [ PExpr
             (B.newF
