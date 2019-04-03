@@ -18,6 +18,15 @@
 )
 
 (executable
+  (name get_functions_and_tlids)
+  (public_name get_functions_and_tlids)
+  (modules get_functions_and_tlids)
+  (flags (-warn-error +A))
+  (libraries libbackend libexecution)
+  (package dark)
+)
+
+(executable
   (name queue_worker)
   (public_name queue_worker)
   (modules queue_worker)
