@@ -122,6 +122,8 @@ let fncall (a, b) = f (FnCall (a, b))
 
 let tlid = Int63.of_int 7
 
+let tipe_id = Int63.of_int 9
+
 let dbid = Int63.of_int 89
 
 let dbid2 = Int63.of_int 189
@@ -207,6 +209,10 @@ let user_fn name params ast : user_fn =
       ; return_type = f TAny
       ; description = "test user fn"
       ; infix = false } }
+
+
+let user_record name fields : user_tipe =
+  {tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields}
 
 
 let t4_get1st (x, _, _, _) = x
@@ -464,6 +470,23 @@ let t_http_oplist_roundtrip () =
   Canvas.serialize_only [tlid] !c1 ;
   let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
+
+
+let t_http_oplist_loads_user_tipes () =
+  clear_test_data () ;
+  let host = "test-http_oplist_loads_user_tipes" in
+  let tipe = user_record "test-tipe" [] in
+  let oplist =
+    [Op.SetHandler (tlid, pos, http_route_handler ()); Op.SetType tipe]
+  in
+  let c1 = Canvas.init host oplist in
+  Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
+  AT.check
+    (AT.list (AT.testable pp_user_tipe equal_user_tipe))
+    "user tipes"
+    [tipe]
+    !c2.user_tipes
 
 
 let date_migration_has_correct_formats () =
@@ -2483,7 +2506,9 @@ let suite =
     , `Quick
     , t_basic_typecheck_works_unhappy )
   ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
-  ]
+  ; ( "Loading handler via HTTP router loads user tipes"
+    , `Quick
+    , t_http_oplist_loads_user_tipes ) ]
 
 
 let () =
