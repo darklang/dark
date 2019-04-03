@@ -50,7 +50,7 @@ let moveToOrigin : modification = MoveCanvasTo Defaults.origin
   all 4 corners (points) of the inner box lay within the outer box boundaries.
  *)
 let isEnclosed (outer : box) (inner : box) : bool =
-  let ptInside px py =
+  let ptInside (px, py) =
     let oOrigin, oSize = outer in
     let ox1, oy1 = (oOrigin.x, oOrigin.y) in
     let ox2 = ox1 + oSize.w in
@@ -58,10 +58,16 @@ let isEnclosed (outer : box) (inner : box) : bool =
     ox1 < px && px < ox2 && oy1 < py && py < oy2
   in
   let iOrigin, iSize = inner in
-  let ix1, iy1 = (iOrigin.x, iOrigin.y) in
-  let ix2 = ix1 + iSize.w in
-  let iy2 = iy1 + iSize.h in
-  ptInside ix1 iy1 || ptInside ix1 iy2 || ptInside ix2 iy1 || ptInside ix2 iy2
+  let right = iOrigin.x + iSize.w in
+  let bottom = iOrigin.y + iSize.h in
+  let topLeft = (iOrigin.x, iOrigin.y) in
+  let topRight = (right, iOrigin.y) in
+  let bottomLeft = (iOrigin.x, bottom) in
+  let bottomRight = (right, bottom) in
+  ptInside topLeft
+  || ptInside topRight
+  || ptInside bottomLeft
+  || ptInside bottomRight
 
 
 (* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
