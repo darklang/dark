@@ -54,11 +54,6 @@ let dequeue_and_process execution_id :
                   Event_queue.put_back transaction event `Incomplete ;
                   Ok None
               | Some h ->
-                  Stroller.push_new_trace_id
-                    ~execution_id
-                    ~canvas_id
-                    h.tlid
-                    trace_id ;
                   Log.infO
                     "queue_worker"
                     ~data:"Executing handler for event"
@@ -67,7 +62,7 @@ let dequeue_and_process execution_id :
                       ; ("event", Log.dump desc)
                       ; ("host", host)
                       ; ("handler_id", Log.dump h.tlid) ] ;
-                  let result, _tlids =
+                  let result, touched_tlids =
                     Execution.execute_handler
                       h
                       ~execution_id
@@ -79,6 +74,11 @@ let dequeue_and_process execution_id :
                       ~account_id:!c.owner
                       ~canvas_id
                   in
+                  Stroller.push_new_trace_id
+                    ~execution_id
+                    ~canvas_id
+                    trace_id
+                    (h.tlid :: touched_tlids) ;
                   Log.infO
                     "queue_worker"
                     ~data:"Successful execution"

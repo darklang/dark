@@ -680,8 +680,8 @@ let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
     ~params:
       [ ("tlid", show_tlid state.tlid)
       ; ("execution_id", Log.dump state.execution_id) ] ;
-  ( exec ~engine ~state (input_vars2symtable input_vars) expr
-  , Hashtbl.keys tlid_store )
+  let result = exec ~engine ~state (input_vars2symtable input_vars) expr in
+  (result, Hashtbl.keys tlid_store)
 
 
 let execute_userfn
