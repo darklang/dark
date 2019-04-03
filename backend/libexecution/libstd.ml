@@ -668,7 +668,49 @@ let fns : Lib.shortfn list =
   ; (* ====================================== *)
     (* String *)
     (* ====================================== *)
-    { pns = ["String::foreach"]
+    { pns = ["String::mustContainSubstring"]
+    ; ins = []
+    ; p = [par "s" TStr; par "substr" TStr]
+    ; r = TNull
+    ; d = "If input string does not contain substring, fail."
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s; DStr substr] ->
+              if Unicode_string.is_substring ~substring:substr s
+              then DNull
+              else
+                DError
+                  (Printf.sprintf
+                     "Expected '%s' to be a substr of '%s"
+                     (Unicode_string.to_string substr)
+                     (Unicode_string.to_string s))
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["String::mustNotContainSubstring"]
+    ; ins = []
+    ; p = [par "s" TStr; par "substr" TStr]
+    ; r = TNull
+    ; d = "If input string contains substring, fail."
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s; DStr substr] ->
+              if not (Unicode_string.is_substring ~substring:substr s)
+              then DNull
+              else
+                DError
+                  (Printf.sprintf
+                     "Expected '%s' to be a substr of '%s"
+                     (Unicode_string.to_string substr)
+                     (Unicode_string.to_string s))
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["String::foreach"]
     ; ins = []
     ; p = [par "s" TStr; func ["char"]]
     ; r = TStr
