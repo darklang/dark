@@ -169,9 +169,11 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
           {w = Native.Ext.clientWidth e; h = Native.Ext.clientHeight e}
         in
         let windowSize = m.canvasProps.viewportSize in
-        if Viewport.isEnclosed
-             (m.canvasProps.offset, windowSize)
-             (tl.pos, tsize)
+        let enclosed =
+          Viewport.isEnclosed (m.canvasProps.offset, windowSize) (tl.pos, tsize)
+        in
+        Debug.loG "enclosed?" enclosed ;
+        if enclosed
         then m.canvasProps.offset
         else Viewport.centerCanvasOn tl m.canvasProps
     | None ->
