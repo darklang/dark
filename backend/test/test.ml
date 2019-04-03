@@ -448,7 +448,7 @@ let t_db_oplist_roundtrip () =
     ~tlid
     ~canvas_id
     ~account_id:owner
-    ~tipe:`Handler
+    ~tipe:TL.TLHandler
     ~name:None
     ~module_:None
     ~modifier:None ;

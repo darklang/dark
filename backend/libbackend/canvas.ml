@@ -431,15 +431,19 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
   in
   let routes = IDMap.of_alist_exn hmeta in
   let tipes_list =
-    List.map c.handlers ~f:(fun h -> (h.tlid, `Handler))
-    @ List.map c.user_functions ~f:(fun f -> (f.tlid, `User_function))
-    @ List.map c.dbs ~f:(fun d -> (d.tlid, `DB))
+    List.map c.handlers ~f:(fun h -> (h.tlid, TL.TLHandler))
+    @ List.map c.user_functions ~f:(fun f -> (f.tlid, TL.TLUserFunction))
+    @ List.map c.deleted_user_functions ~f:(fun f -> (f.tlid, TL.TLUserFunction)
+      )
+    @ List.map c.user_tipes ~f:(fun t -> (t.tlid, TL.TLUserTipe))
+    @ List.map c.deleted_user_tipes ~f:(fun t -> (t.tlid, TL.TLUserTipe))
+    @ List.map c.dbs ~f:(fun d -> (d.tlid, TL.TLDB))
     @ List.map c.deleted_toplevels ~f:(fun t ->
           match t.data with
           | Handler _ ->
-              (t.tlid, `Handler)
+              (t.tlid, TL.TLHandler)
           | DB _ ->
-              (t.tlid, `DB) )
+              (t.tlid, TL.TLDB) )
   in
   let tipes = IDMap.of_alist_exn tipes_list in
   (* Use ops rather than just set of toplevels, because toplevels may
@@ -457,7 +461,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           (* If the user calls Undo enough, we might not know
                     * the tipe here. In that case, set to handler cause
                     * it won't be used anyway *)
-          |> Option.value ~default:`Handler
+          |> Option.value ~default:TL.TLHandler
         in
         Serialize.save_toplevel_oplist
           oplist
