@@ -743,6 +743,14 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["String::newline"]
+    ; ins = []
+    ; p = []
+    ; r = TStr
+    ; d = "Returns a string containing a single '\n'"
+    ; f = InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
+    ; ps = true
+    ; dep = false }
   ; { pns = ["String::toList"]
     ; ins = []
     ; p = [par "s" TStr]
