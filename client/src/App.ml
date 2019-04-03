@@ -912,7 +912,9 @@ let update_ (msg : msg) (m : model) : modification =
         | TLFunc _ | TLTipe _ ->
             NoChange
         | TLHandler _ | TLDB _ ->
-            Drag (targetTLID, event.mePos, false, m.cursorState)
+            if m.currentPage = Architecture
+            then Drag (targetTLID, event.mePos, false, m.cursorState)
+            else NoChange
       else NoChange
   | ToplevelMouseUp (_, event) ->
       if event.button = Defaults.leftButton
