@@ -11,6 +11,16 @@ let fns : Lib.shortfn list =
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::darkUsers"]
+    ; ins = []
+    ; p = []
+    ; r = TList
+    ; d =
+        "Return a list of all user email addresses for non-admins and not in
+@darklang.com or @example.com"
+    ; f = NotClientAvailable
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::checkAllCanvases"]
     ; ins = []
     ; p = []
