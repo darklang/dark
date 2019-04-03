@@ -192,10 +192,10 @@ let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
   |> Yojson.Safe.to_string ~std:true
 
 
-type new_trace_push = tlid_traceid [@@deriving to_yojson]
+type new_trace_push = traceid_tlids [@@deriving to_yojson]
 
-let to_new_trace_frontend (traceid : tlid_traceid) : string =
-  traceid |> new_trace_push_to_yojson |> Yojson.Safe.to_string ~std:true
+let to_new_trace_frontend (trace : traceid_tlids) : string =
+  trace |> new_trace_push_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
 type new_404_push = SE.four_oh_four [@@deriving to_yojson]
