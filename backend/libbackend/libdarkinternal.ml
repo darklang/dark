@@ -112,11 +112,11 @@ let replacements =
             with _ -> DBool false )
         | args ->
             fail args )
-    ; ( "DarkInternal::darkUsers"
+    ; ( "DarkInternal::endUsers"
       , function
         | _, [] ->
             Db.fetch
-              ~name:"fetch_dark_users"
+              ~name:"fetch_end_users"
               "SELECT email FROM accounts WHERE admin IS FALSE AND email NOT
 LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
               ~params:[]
