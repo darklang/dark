@@ -60,8 +60,6 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DIncomplete ->
       ev "DIncomplete" []
   (* user-ish types *)
-  | DChar c ->
-      ev "DChar" [string (String.fromList [c])]
   | DCharacter c ->
       ev "DCharacter" [string c]
   | DError msg ->
@@ -72,10 +70,6 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DDB" [string name]
   | DID id ->
       ev "DID" [string id]
-  | DUrl url ->
-      ev "DUrl" [string url]
-  | DTitle title ->
-      ev "DTitle" [string title]
   | DDate date ->
       ev "DDate" [string date]
   | DPassword hashed ->
@@ -433,8 +427,6 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TInt" []
   | TStr ->
       ev "TStr" []
-  | TChar ->
-      ev "TChar" []
   | TCharacter ->
       ev "TCharacter" []
   | TBool ->
@@ -463,10 +455,6 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TID" []
   | TDate ->
       ev "TDate" []
-  | TTitle ->
-      ev "TTitle" []
-  | TUrl ->
-      ev "TUrl" []
   | TBelongsTo s ->
       ev "TBelongsTo" [string s]
   | THasMany s ->
@@ -485,6 +473,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TResult" []
   | TUserType (name, version) ->
       ev "TUserType" [string name; int version]
+  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
+      raise (Js.Exn.raiseError "Deprecated type")
 
 
 and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =

@@ -117,9 +117,6 @@ val of_form_encoding : string -> Types.RuntimeT.dval
  * and can be longer than a byte. *)
 val to_char : Types.RuntimeT.dval -> string option
 
-(* If a DChar, returns a char. *)
-val to_char_deprecated : Types.RuntimeT.dval -> char option
-
 val to_int : Types.RuntimeT.dval -> int option
 
 (* Converts a Dark String to an OCaml string. Raises an Exception if not a

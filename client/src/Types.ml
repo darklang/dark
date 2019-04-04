@@ -65,7 +65,7 @@ and box = pos * size
 and tipe =
   | TInt
   | TStr
-  | TChar
+  | TDeprecated1
   | TCharacter
   | TBool
   | TFloat
@@ -80,8 +80,8 @@ and tipe =
   | TDB
   | TID
   | TDate
-  | TTitle
-  | TUrl
+  | TDeprecated2
+  | TDeprecated3
   | TPassword
   | TUuid
   | TOption
@@ -312,7 +312,6 @@ and dval =
   | DFloat of float
   | DBool of bool
   | DNull
-  | DChar of char
   | DCharacter of string
   | DStr of string
   | DList of dval list
@@ -325,8 +324,6 @@ and dval =
   | DDB of string
   | DID of string
   | DDate of string
-  | DTitle of string
-  | DUrl of string
   | DPassword of string
   | DUuid of string
   | DOption of optionT
