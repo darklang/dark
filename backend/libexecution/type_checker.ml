@@ -77,6 +77,13 @@ let error err = Error [err]
 let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
     (unit, Error.t list) Result.t =
   match (expected, value) with
+  (* Any should be removed, but we currently allow it as a param tipe
+   * in user functions, so we should allow it here.
+   *
+   * Potentially needs to be removed before we use this type checker for DBs?
+   *   - Could always have a type checking context that allows/disallows any *)
+  | TAny, _ ->
+      Ok ()
   | TInt, DInt _ ->
       Ok ()
   | TFloat, DFloat _ ->

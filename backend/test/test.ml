@@ -2276,6 +2276,17 @@ let t_basic_typecheck_works_unhappy () =
     (Type_checker.check_function_call ~user_tipes fn args |> Result.is_error)
 
 
+let t_typecheck_any () =
+  let args = DvalMap.of_alist_exn [("v", DInt 5)] in
+  let fn = Libs.get_fn_exn ~user_fns:[] "toString" in
+  let user_tipes = [] in
+  AT.check
+    AT.bool
+    "Typechecking 'Any' succeeds"
+    true
+    (Type_checker.check_function_call ~user_tipes fn args |> Result.is_ok)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2470,7 +2481,9 @@ let suite =
     , t_basic_typecheck_works_happy )
   ; ( "Basic typechecking works in unhappy case"
     , `Quick
-    , t_basic_typecheck_works_unhappy ) ]
+    , t_basic_typecheck_works_unhappy )
+  ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
+  ]
 
 
 let () =
