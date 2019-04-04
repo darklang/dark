@@ -163,12 +163,14 @@ let save_toplevel_oplist
   in
   let tipe_str =
     match tipe with
-    | `DB ->
+    | Toplevel.TLDB ->
         "db"
-    | `Handler ->
+    | Toplevel.TLHandler ->
         "handler"
-    | `User_function ->
+    | Toplevel.TLUserFunction ->
         "user_function"
+    | Toplevel.TLUserTipe ->
+        "user_tipe"
   in
   Db.run
     ~name:"save per tlid oplist"
