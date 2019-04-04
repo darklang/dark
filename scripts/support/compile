@@ -109,6 +109,7 @@ def backend_build():
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
+                  , "bin/roundtrip_stored_events.exe"
                   , "@analysis.js"
                   ])
 
