@@ -9,6 +9,13 @@ type tldata =
   | DB of RuntimeT.DbT.db
 [@@deriving eq, show, yojson]
 
+type tl_tipe =
+  | TLHandler
+  | TLDB
+  | TLUserFunction
+  | TLUserTipe
+[@@deriving eq, show]
+
 type toplevel =
   { tlid : id
   ; pos : pos
