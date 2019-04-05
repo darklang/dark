@@ -34,6 +34,7 @@ let () =
           rtDval "string" (DStr "incredibly this was broken") ;
           rtDval "null" DNull ;
           rtDval "id" (DID "1232345346456") ;
+          rtDval "title" (DTitle "some title") ;
           rtDval "errorrail" (DErrorRail (DInt 5)) ;
           rtDval "db" (DDB "Visitors") ;
           rtDval "list" (DList [DDB "Visitors"; DInt 4]) ;
