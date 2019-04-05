@@ -197,7 +197,8 @@ and referral =
 
 and tlReference =
   | OutReferenceDB of tlid * dBName * dBColumn list * id
-  | OutReferenceHandler of tlid * string * string option * string * id
+  | OutReferenceHandler of tlid * string * string * string option * id
+  (* OutReferenceHandler tlid space name method expr-id *)
 
 (* ---------------------- *)
 (* Toplevels *)
