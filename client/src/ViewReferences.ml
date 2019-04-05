@@ -19,8 +19,8 @@ let dbColsView (cols : dBColumn list) : msg Html.html =
   Html.div [Html.class' "cols"] (List.filterMap ~f:colView cols)
 
 
-let dbView (tlid : tlid) (name : string) (cols : dBColumn list) :
-    msg Html.html =
+let dbView (tlid : tlid) (name : string) (cols : dBColumn list) : msg Html.html
+    =
   Html.div
     [ Html.class' "ref-block db"
     ; ViewUtils.eventNoPropagation
@@ -41,19 +41,11 @@ let eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
     ; Html.div [Html.class' "spec"] [Html.text name] ]
 
 
-let idOfReference (r : tlReference) : id =
-  match r with
-  | OutReferenceDB (_, _, _, id) ->
-      id
-  | OutReferenceHandler (_, _, _, _, id) ->
-      id
-
-
 let referenceViews (refs : tlReference list) : msg Html.html =
   let topOffset =
     match List.head refs with
     | Some r ->
-        let id = idOfReference r in
+        let id = AST.idOfReference r in
         let el = Native.Ext.querySelector (".id-" ^ showID id) in
         (match el with Some e -> Native.Ext.offsetTop e | None -> 0)
     | None ->

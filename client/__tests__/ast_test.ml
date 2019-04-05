@@ -145,7 +145,7 @@ let () =
           |> toEqual true ) ;
       test "tryEmitNames emit call with no args return empty list" (fun () ->
           expect (tryEmitNames (Prelude.gid ()) []) |> toEqual None ) ) ;
-  test "getReferrals" (fun () ->
+  test "pdToReferrals" (fun () ->
       let pointers =
         [ PExpr
             (B.newF
@@ -161,6 +161,6 @@ let () =
                   (B.newF "DB::getAll", [B.newF (Variable "Books")], NoRail)))
         ; PExpr (B.newF (FnCall (B.newF "Date::now", [], NoRail))) ]
       in
-      let refs = getReferrals pointers in
+      let refs = pdToReferrals pointers in
       expect (List.length refs) |> toEqual 2 ) ;
   ()
