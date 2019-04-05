@@ -255,9 +255,9 @@ module NewTracePush = struct
   let decode =
     let open Tea.Json.Decoder in
     let open Native.Decoder in
-    let tlid = map (fun id -> TLID id) wireIdentifier in
     let traceID = map (fun id -> (id : traceID)) string in
-    field "detail" (pair tlid traceID)
+    let tlids = list (map (fun id -> TLID id) wireIdentifier) in
+    field "detail" (pair traceID tlids)
 
 
   let listen ~key tagger =

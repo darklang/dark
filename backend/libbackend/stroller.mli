@@ -4,7 +4,11 @@ val push :
   execution_id:Types.id -> canvas_id:Uuidm.t -> event:string -> string -> unit
 
 val push_new_trace_id :
-  execution_id:Types.id -> canvas_id:Uuidm.t -> Types.tlid -> Uuidm.t -> unit
+     execution_id:Types.id
+  -> canvas_id:Uuidm.t
+  -> Uuidm.t
+  -> Types.tlid list
+  -> unit
 
 val push_new_404 :
      execution_id:Types.id

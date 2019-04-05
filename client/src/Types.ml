@@ -763,7 +763,7 @@ and msg =
   | GetUnlockedDBsRPCCallback of
       (getUnlockedDBsRPCResult, httpError) Tea.Result.t
       [@printer opaque "GetUnlockedDBsRPCCallback"]
-  | NewTracePush of (tlid * traceID)
+  | NewTracePush of (traceID * tlid list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
   | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t

@@ -300,16 +300,19 @@ let execute_ops (ops : Op.op list) : dval =
     test_execution_data ops
   in
   let h = !c.handlers |> TL.handlers |> List.hd_exn in
-  Execution.execute_handler
-    h
-    ~tlid
-    ~execution_id
-    ~dbs
-    ~user_fns
-    ~user_tipes
-    ~account_id
-    ~canvas_id
-    ~input_vars:[]
+  let result, _ =
+    Execution.execute_handler
+      h
+      ~tlid
+      ~execution_id
+      ~dbs
+      ~user_fns
+      ~user_tipes
+      ~account_id
+      ~canvas_id
+      ~input_vars:[]
+  in
+  result
 
 
 (* already provided in execute_handler *)
@@ -325,7 +328,8 @@ let exec_handler ?(ops = []) (prog : string) : dval =
 
 let exec_ast ?(canvas_name = "test") (prog : string) : dval =
   let c, state, input_vars = test_execution_data ~canvas_name [] in
-  Ast.execute_ast input_vars state (ast_for prog)
+  let result, _ = Ast.execute_ast input_vars state (ast_for prog) in
+  result
 
 
 let exec_userfn (prog : string) : dval =
