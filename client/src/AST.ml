@@ -1101,8 +1101,8 @@ let tryEmitNames (id : id) (exprs : expr list) : referral option =
   | [_; F (_, Value space); F (_, Value name)] ->
       Some
         (REmit
-           ( Util.transformToStringEntry space
-           , Util.transformToStringEntry name
+           ( Util.removeQuotes space
+           , Util.removeQuotes name
            , id ))
   | _ ->
       None
@@ -1129,4 +1129,4 @@ let getReferrals (pointers : pointerData list) : referral list =
              None )
 
 
-let inspectAST (ast : expr) : referral list = getReferrals (allData ast)
+let getASTReferences (ast : expr) : referral list = getReferrals (allData ast)

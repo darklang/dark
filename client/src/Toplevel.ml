@@ -587,7 +587,7 @@ let getReferences (tl : toplevel) (toplevels : toplevel list) :
   in
   match tl.data with
   | TLHandler h ->
-      AST.inspectAST h.ast
+      AST.getASTReferences h.ast
       |> List.filterMap ~f:findReference
       |> List.uniqueBy ~f:getTLID
   | TLDB _ ->
