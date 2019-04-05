@@ -1085,6 +1085,22 @@ let variablesIn (ast : expr) : avDict =
 
 (* INTROSPECTION *)
 
+let tlidStrOfReference (r : tlReference) : string =
+  match r with
+  | OutReferenceDB (TLID tlid, _, _, _) ->
+      tlid
+  | OutReferenceHandler (TLID tlid, _, _, _, _) ->
+      tlid
+
+
+let idOfReference (r : tlReference) : id =
+  match r with
+  | OutReferenceDB (_, _, _, id) ->
+      id
+  | OutReferenceHandler (_, _, _, _, id) ->
+      id
+
+
 let tryDBNames (id : id) (exprs : expr list) : referral option =
   let matchVarname e =
     match e with
@@ -1099,16 +1115,12 @@ let tryDBNames (id : id) (exprs : expr list) : referral option =
 let tryEmitNames (id : id) (exprs : expr list) : referral option =
   match exprs with
   | [_; F (_, Value space); F (_, Value name)] ->
-      Some
-        (REmit
-           ( Util.removeQuotes space
-           , Util.removeQuotes name
-           , id ))
+      Some (REmit (Util.removeQuotes space, Util.removeQuotes name, id))
   | _ ->
       None
 
 
-let getReferrals (pointers : pointerData list) : referral list =
+let pdToReferrals (pointers : pointerData list) : referral list =
   let checkFnNames bname exprs =
     match bname with
     | F (id, "emit") ->
@@ -1129,4 +1141,4 @@ let getReferrals (pointers : pointerData list) : referral list =
              None )
 
 
-let getASTReferences (ast : expr) : referral list = getReferrals (allData ast)
+let getASTReferences (ast : expr) : referral list = pdToReferrals (allData ast)
