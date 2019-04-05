@@ -234,6 +234,7 @@ and tipe j : tipe =
   variants
     [ ("TInt", dv0 TInt)
     ; ("TStr", dv0 TStr)
+    ; ("TChar", dv0 TChar)
     ; ("TBool", dv0 TBool)
     ; ("TFloat", dv0 TFloat)
     ; ("TObj", dv0 TObj)
@@ -247,6 +248,8 @@ and tipe j : tipe =
     ; ("TDB", dv0 TDB)
     ; ("TID", dv0 TID)
     ; ("TDate", dv0 TDate)
+    ; ("TTitle", dv0 TTitle)
+    ; ("TUrl", dv0 TUrl)
     ; ("TPassword", dv0 TPassword)
     ; ("TUuid", dv0 TUuid)
     ; ("TOption", dv0 TOption)
@@ -395,7 +398,7 @@ and typeOfLiteralString (s : string) : tipe =
 and parseDvalLiteral (str : string) : dval option =
   match String.toList str with
   | ['\''; c; '\''] ->
-      Some (DCharacter (String.fromList [c]))
+      Some (DChar c)
   | '"' :: rest ->
       if List.last rest = Some '"'
       then
@@ -456,6 +459,8 @@ and dval j : dval =
     ; ("DDB", dv1 (fun x -> DDB x) string)
     ; ("DID", dv1 (fun x -> DID x) string)
     ; ("DDate", dv1 (fun x -> DDate x) string)
+    ; ("DTitle", dv1 (fun x -> DTitle x) string)
+    ; ("DUrl", dv1 (fun x -> DUrl x) string)
     ; ("DPassword", dv1 (fun x -> DPassword x) string)
     ; ("DUuid", dv1 (fun x -> DUuid x) string)
     ; ("DOption", dv1 (fun x -> DOption x) optionT)
