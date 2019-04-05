@@ -62,7 +62,7 @@ let referenceViews (refs : tlReference list) : msg Html.html =
     match r with
     | OutReferenceDB (tlid, name, cols, _) ->
         dbView tlid name cols
-    | OutReferenceHandler (tlid, space, _, name, _) ->
+    | OutReferenceHandler (tlid, space, name, _, _) ->
         eventView tlid space name
   in
   Html.div

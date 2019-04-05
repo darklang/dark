@@ -581,7 +581,7 @@ let getReferences (tl : toplevel) (toplevels : toplevel list) :
         findDBNamed name toplevels |> Option.andThen ~f:foundDB
     | REmit (space, name, id) ->
         let foundEH h =
-          Some (OutReferenceHandler (h.tlid, space, None, name, id))
+          Some (OutReferenceHandler (h.tlid, space, name, None, id))
         in
         findEventNamed space name toplevels |> Option.andThen ~f:foundEH
   in
