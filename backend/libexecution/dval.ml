@@ -28,6 +28,8 @@ let rec tipe_to_string t : string =
       "Bool"
   | TNull ->
       "Nothing"
+  | TChar ->
+      "Char"
   | TCharacter ->
       "Character"
   | TStr ->
@@ -50,6 +52,10 @@ let rec tipe_to_string t : string =
       "ID"
   | TDate ->
       "Date"
+  | TTitle ->
+      "Title"
+  | TUrl ->
+      "Url"
   | TBelongsTo s ->
       s
   | THasMany s ->
@@ -68,8 +74,6 @@ let rec tipe_to_string t : string =
       "Result"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
-      Exception.internal "Deprecated type"
 
 
 let rec tipe_of_string str : tipe =
@@ -88,7 +92,9 @@ let rec tipe_of_string str : tipe =
       TBool
   | "nothing" ->
       TNull
-  | "character" | "char" ->
+  | "char" ->
+      TChar
+  | "character" ->
       TCharacter
   | "str" ->
       TStr
@@ -113,9 +119,9 @@ let rec tipe_of_string str : tipe =
   | "date" ->
       TDate
   | "title" ->
-      Exception.internal "Deprecated type"
+      TTitle
   | "url" ->
-      Exception.internal "Deprecated type"
+      TUrl
   | "password" ->
       TPassword
   | "uuid" ->
@@ -191,6 +197,8 @@ let rec tipe_of (dv : dval) : tipe =
       TBool
   | DNull ->
       TNull
+  | DChar _ ->
+      TChar
   | DCharacter _ ->
       TCharacter
   | DStr _ ->
@@ -213,6 +221,10 @@ let rec tipe_of (dv : dval) : tipe =
       TID
   | DDate _ ->
       TDate
+  | DTitle _ ->
+      TTitle
+  | DUrl _ ->
+      TUrl
   | DPassword _ ->
       TPassword
   | DUuid _ ->
@@ -351,18 +363,20 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
     | "id" ->
         DID (Util.uuid_of_string v)
     | "title" ->
-        Exception.internal "Deprecated type"
+        DTitle v
     | "url" ->
-        Exception.internal "Deprecated type"
+        DUrl v
     | "error" ->
         DError v
+    | "char" ->
+        DChar (Char.of_string v)
     | "password" ->
         v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" ->
         DDB v
     | "uuid" ->
         DUuid (Uuidm.of_string v |> Option.value_exn)
-    | "char" | "character" ->
+    | "character" ->
         DCharacter (Unicode_string.Character.unsafe_of_string v)
     | _ ->
         DObj (unsafe_dvalmap_of_yojson json) )
@@ -413,6 +427,8 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       |> fun x -> `Assoc x
   | DBlock _ | DIncomplete ->
       wrap_user_type `Null
+  | DChar c ->
+      wrap_user_str (Char.to_string c)
   | DCharacter c ->
       wrap_user_str (Unicode_string.Character.to_string c)
   | DError msg ->
@@ -424,6 +440,10 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       wrap_user_str dbname
   | DID id ->
       wrap_user_str (Uuidm.to_string id)
+  | DUrl url ->
+      wrap_user_str url
+  | DTitle title ->
+      wrap_user_str title
   | DDate date ->
       wrap_user_str (Util.isostring_of_date date)
   | DPassword hashed ->
@@ -527,7 +547,7 @@ let rec to_enduser_readable_text_v0 dval =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
     match dv with
-    | DStr _ | DID _ | DUuid _ | DCharacter _ ->
+    | DStr _ | DID _ | DTitle _ | DUrl _ | DUuid _ | DCharacter _ ->
         "\"" ^ reprfn dv ^ "\""
     | _ ->
         reprfn dv
@@ -543,6 +563,8 @@ let rec to_enduser_readable_text_v0 dval =
         Unicode_string.to_string s
     | DFloat f ->
         string_of_float f
+    | DChar c ->
+        Char.to_string c
     | DCharacter c ->
         Unicode_string.Character.to_string c
     | DNull ->
@@ -551,6 +573,10 @@ let rec to_enduser_readable_text_v0 dval =
         Uuidm.to_string id
     | DDate d ->
         Util.isostring_of_date d
+    | DTitle t ->
+        t
+    | DUrl url ->
+        url
     | DUuid uuid ->
         Uuidm.to_string uuid
     | DDB dbname ->
@@ -600,6 +626,8 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         "<password>"
     | DStr s ->
         "\"" ^ Unicode_string.to_string s ^ "\""
+    | DChar c ->
+        "'" ^ Char.to_string c ^ "'"
     | DCharacter c ->
         "'" ^ Unicode_string.Character.to_string c ^ "'"
     | DInt i ->
@@ -622,6 +650,10 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         wrap (Uuidm.to_string id)
     | DDate d ->
         wrap (Util.isostring_of_date d)
+    | DTitle t ->
+        wrap t
+    | DUrl u ->
+        wrap u
     | DDB name ->
         wrap name
     | DUuid uuid ->
@@ -683,6 +715,8 @@ let to_pretty_machine_json_v1 dval =
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete ->
         `Null
+    | DChar c ->
+        `String (Char.to_string c)
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
     | DError msg ->
@@ -693,6 +727,10 @@ let to_pretty_machine_json_v1 dval =
         `String dbname
     | DID id ->
         `String (Uuidm.to_string id)
+    | DUrl url ->
+        `String url
+    | DTitle title ->
+        `String title
     | DDate date ->
         `String (Util.isostring_of_date date)
     | DPassword hashed ->
@@ -730,6 +768,8 @@ let rec show dv =
       Unicode_string.to_string s
   | DFloat f ->
       string_of_float f
+  | DChar c ->
+      Char.to_string c
   | DCharacter c ->
       Unicode_string.Character.to_string c
   | DNull ->
@@ -738,6 +778,10 @@ let rec show dv =
       Uuidm.to_string id
   | DDate d ->
       Util.isostring_of_date d
+  | DTitle t ->
+      t
+  | DUrl url ->
+      url
   | DUuid uuid ->
       Uuidm.to_string uuid
   | DDB dbname ->
@@ -819,6 +863,10 @@ let to_char dv : string option =
       None
 
 
+let to_char_deprecated dv : char option =
+  match dv with DChar c -> Some c | _ -> None
+
+
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
@@ -861,6 +909,8 @@ let rec to_url_string_exn (dv : dval) : string =
       Unicode_string.to_string s
   | DFloat f ->
       string_of_float f
+  | DChar c ->
+      Char.to_string c
   | DCharacter c ->
       Unicode_string.Character.to_string c
   | DNull ->
@@ -869,6 +919,10 @@ let rec to_url_string_exn (dv : dval) : string =
       Uuidm.to_string id
   | DDate d ->
       Util.isostring_of_date d
+  | DTitle t ->
+      t
+  | DUrl url ->
+      url
   | DDB dbname ->
       dbname
   | DErrorRail d ->
@@ -970,6 +1024,8 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       "null"
   | DStr s ->
       "\"" ^ Unicode_string.to_string s ^ "\""
+  | DChar c ->
+      "'" ^ Char.to_string c ^ "'"
   | DCharacter c ->
       "'" ^ Unicode_string.Character.to_string c ^ "'"
   | DIncomplete ->
@@ -982,6 +1038,10 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       "<id: " ^ Uuidm.to_string id ^ ">"
   | DDate d ->
       "<date: " ^ Util.isostring_of_date d ^ ">"
+  | DTitle t ->
+      "<title: " ^ t ^ ">"
+  | DUrl url ->
+      "<url: " ^ url ^ ">"
   | DPassword _ ->
       "<password: <password>>"
   | DUuid id ->
