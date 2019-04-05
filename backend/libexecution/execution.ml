@@ -97,7 +97,7 @@ let execute_handler
     ~canvas_id
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
-    (h : HandlerT.handler) : dval =
+    (h : HandlerT.handler) : dval * tlid list =
   let vars = dbs_as_input_vars dbs @ input_vars in
   let state : exec_state =
     { tlid
@@ -113,16 +113,17 @@ let execute_handler
     ; store_fn_result
     ; store_fn_arguments }
   in
-  let result = Ast.execute_ast vars state h.ast in
+  let result, tlids = Ast.execute_ast vars state h.ast in
   match result with
   | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
-      DResp (Response (404, []), Dval.dstr_of_string_exn "Not found")
+      (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"), tlids)
   | DErrorRail _ ->
-      DResp
-        ( Response (500, [])
-        , Dval.dstr_of_string_exn "Invalid conversion from errorrail" )
+      ( DResp
+          ( Response (500, [])
+          , Dval.dstr_of_string_exn "Invalid conversion from errorrail" )
+      , tlids )
   | dv ->
-      dv
+      (dv, tlids)
 
 
 let call_function
@@ -184,7 +185,7 @@ let analyse_ast
     ; store_fn_result = store_no_results
     ; store_fn_arguments = store_no_arguments }
   in
-  let _, traced_values =
+  let _, traced_values, _ =
     Ast.execute_saving_intermediates state ~input_vars ast
   in
   {live_values = traced_values}

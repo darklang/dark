@@ -1161,8 +1161,11 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
         ; SetUnlockedDBs unlockedDBs ]
-  | NewTracePush (tlid, traceID) ->
-      UpdateTraces (StrDict.fromList [(deTLID tlid, [(traceID, None)])])
+  | NewTracePush (traceID, tlids) ->
+      let traces =
+        List.map ~f:(fun tlid -> (deTLID tlid, [(traceID, None)])) tlids
+      in
+      UpdateTraces (StrDict.fromList traces)
   | New404Push f404 ->
       Append404s [f404]
   | NewStaticDeployPush asset ->

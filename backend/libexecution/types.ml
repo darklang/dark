@@ -42,6 +42,8 @@ type host = string [@@deriving eq, compare, show, bin_io]
 
 type tlid = id [@@deriving eq, compare, show, yojson, bin_io]
 
+module TLIDTable = IDTable
+
 type 'a or_blank =
   | Blank of id
   | Filled of id * 'a

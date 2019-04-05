@@ -39,7 +39,9 @@ let push
     ~(event : string)
     (payload : string) =
   let canvas_id_str = Uuidm.to_string canvas_id in
-  let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
+  let log_params =
+    [("canvas_id", canvas_id_str); ("event", event); ("payload", payload)]
+  in
   match Config.stroller_port with
   | None ->
       Log.infO "stroller not configured, skipping push" ~params:log_params
@@ -77,9 +79,9 @@ let push
 let push_new_trace_id
     ~(execution_id : Types.id)
     ~(canvas_id : Uuidm.t)
-    (tlid : Types.tlid)
-    (trace_id : Uuidm.t) =
-  let payload = Analysis.to_new_trace_frontend (tlid, trace_id) in
+    (trace_id : Uuidm.t)
+    (tlids : Types.tlid list) =
+  let payload = Analysis.to_new_trace_frontend (trace_id, tlids) in
   push ~execution_id ~canvas_id ~event:"new_trace" payload
 
 

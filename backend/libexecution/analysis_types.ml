@@ -57,3 +57,5 @@ type trace = traceid * trace_data option [@@deriving yojson]
 type tlid_traces = tlid * trace list [@@deriving to_yojson]
 
 type tlid_traceid = tlid * traceid [@@deriving to_yojson]
+
+type traceid_tlids = traceid * tlid list [@@deriving to_yojson]
