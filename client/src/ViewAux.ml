@@ -2,7 +2,7 @@ open Tc
 open Prelude
 open Types
 
-let _dbColsView (cols : dBColumn list) : msg Html.html =
+let dbColsView (cols : dBColumn list) : msg Html.html =
   let colView col =
     match col with
     | F (_, nm), F (_, ty) ->
@@ -19,7 +19,7 @@ let _dbColsView (cols : dBColumn list) : msg Html.html =
   Html.div [Html.class' "cols"] (List.filterMap ~f:colView cols)
 
 
-let _dbView (tlid : tlid) (name : string) (cols : dBColumn list) :
+let dbView (tlid : tlid) (name : string) (cols : dBColumn list) :
     msg Html.html =
   Html.div
     [ Html.class' "ref-block db"
@@ -27,10 +27,10 @@ let _dbView (tlid : tlid) (name : string) (cols : dBColumn list) :
         ~key:("ref-db-link" ^ showTLID tlid)
         "click"
         (fun _ -> GoTo (FocusedDB tlid)) ]
-    [Html.span [Html.class' "dbtitle"] [Html.text name]; _dbColsView cols]
+    [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
 
-let _eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
+let eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
   Html.div
     [ Html.class' "ref-block emit"
     ; ViewUtils.eventNoPropagation
@@ -41,7 +41,7 @@ let _eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
     ; Html.div [Html.class' "spec"] [Html.text name] ]
 
 
-let _idOfReference (r : tlReference) : id =
+let idOfReference (r : tlReference) : id =
   match r with
   | OutReferenceDB (_, _, _, id) ->
       id
@@ -53,7 +53,7 @@ let referenceViews (refs : tlReference list) : msg Html.html =
   let topOffset =
     match List.head refs with
     | Some r ->
-        let id = _idOfReference r in
+        let id = idOfReference r in
         let el = Native.Ext.querySelector (".id-" ^ showID id) in
         (match el with Some e -> Native.Ext.offsetTop e | None -> 0)
     | None ->
@@ -61,9 +61,9 @@ let referenceViews (refs : tlReference list) : msg Html.html =
   and renderView r =
     match r with
     | OutReferenceDB (tlid, name, cols, _) ->
-        _dbView tlid name cols
+        dbView tlid name cols
     | OutReferenceHandler (tlid, space, _, name, _) ->
-        _eventView tlid space name
+        eventView tlid space name
   in
   Html.div
     [ Html.class' "references"
