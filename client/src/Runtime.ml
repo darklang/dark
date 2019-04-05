@@ -19,6 +19,8 @@ let rec tipe2str (t : tipe) : string =
       "Bool"
   | TNull ->
       "Null"
+  | TChar ->
+      "Char"
   | TCharacter ->
       "Character"
   | TStr ->
@@ -41,6 +43,10 @@ let rec tipe2str (t : tipe) : string =
       "ID"
   | TDate ->
       "Date"
+  | TTitle ->
+      "Title"
+  | TUrl ->
+      "Url"
   | TOption ->
       "Option"
   | TPassword ->
@@ -59,8 +65,6 @@ let rec tipe2str (t : tipe) : string =
       "[" ^ tipe2str a ^ "]"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
-      raise (Js.Exn.raiseError "Deprecated type")
 
 
 let str2tipe (t : string) : tipe =
@@ -124,8 +128,8 @@ let str2tipe (t : string) : tipe =
       TBool
   | "null" ->
       TNull
-  | "character" | "char" ->
-      TCharacter
+  | "char" ->
+      TChar
   | "str" ->
       TStr
   | "string" ->
@@ -177,6 +181,8 @@ let typeOf (dv : dval) : tipe =
       TBool
   | DNull ->
       TNull
+  | DChar _ ->
+      TChar
   | DCharacter _ ->
       TCharacter
   | DStr _ ->
@@ -199,6 +205,10 @@ let typeOf (dv : dval) : tipe =
       TID
   | DDate _ ->
       TDate
+  | DTitle _ ->
+      TTitle
+  | DUrl _ ->
+      TUrl
   | DOption _ ->
       TOption
   | DErrorRail _ ->
@@ -220,6 +230,8 @@ let isLiteral (dv : dval) : bool =
   | DBool _ ->
       true
   | DNull ->
+      true
+  | DChar _ ->
       true
   | DCharacter _ ->
       true
@@ -260,6 +272,8 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "true"
   | DBool false ->
       "false"
+  | DChar c ->
+      "'" ^ String.fromList [c] ^ "'"
   | DCharacter c ->
       "'" ^ c ^ "'"
   | DNull ->
@@ -267,6 +281,10 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DID s ->
       wrap s
   | DDate s ->
+      wrap s
+  | DTitle s ->
+      wrap s
+  | DUrl s ->
       wrap s
   | DDB s ->
       wrap s

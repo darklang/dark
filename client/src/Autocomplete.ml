@@ -657,6 +657,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACParamTipe TDate
           ; ACParamTipe TObj
           ; ACParamTipe TBlock
+          ; ACParamTipe TChar
           ; ACParamTipe TPassword
           ; ACParamTipe TUuid
           ; ACParamTipe TList ]
