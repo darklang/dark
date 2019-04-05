@@ -535,7 +535,7 @@ let asPage (tl : toplevel) : page =
 
 
 let findDBNamed (name : string) (toplevels : toplevel list) : dB option =
-  let isNamed db =
+  let matchName db =
     match db.dbName with
     | F (_, dbname) ->
         if dbname = name then Some db else None
@@ -544,13 +544,13 @@ let findDBNamed (name : string) (toplevels : toplevel list) : dB option =
   in
   toplevels
   |> List.filterMap ~f:(fun tl ->
-         match tl.data with TLDB db -> isNamed db | _ -> None )
+         match tl.data with TLDB db -> matchName db | _ -> None )
   |> List.head
 
 
 let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
     : handler option =
-  let isNamed h =
+  let matchName h =
     match (h.spec.module_, h.spec.name) with
     | F (_, smodule), F (_, sname) ->
         if smodule = space && sname = name then Some h else None
@@ -559,7 +559,7 @@ let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
   in
   toplevels
   |> List.filterMap ~f:(fun tl ->
-         match tl.data with TLHandler h -> isNamed h | _ -> None )
+         match tl.data with TLHandler h -> matchName h | _ -> None )
   |> List.head
 
 
