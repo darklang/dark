@@ -232,7 +232,6 @@ let sample_dvals =
   ; ("true", DBool true)
   ; ("false", DBool false)
   ; ("null", DNull)
-  ; ("char", DChar 'c')
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
   ; ("list", DList [DDB "Visitors"; DInt 4])
   ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
@@ -255,8 +254,6 @@ let sample_dvals =
   ; ("db", DDB "Visitors")
   ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
-  ; ("title", DTitle "some title")
-  ; ("url", DUrl "https://darklang.com")
   ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("option", DOption OptNothing)
@@ -549,8 +546,9 @@ let t_lambda_with_foreach () =
     "lambda_with_foreach"
     (Dval.dstr_of_string_exn "SOME STRING")
     (exec_ast
-       "(String::foreach 'some string'
-          (\\var -> (Char::toUppercase var)))")
+       "(String::join
+       (List::foreach (String::toList_v1 'some string') (\\var ->
+(String::toUppercase (String::fromChar_v1 var)))) '')")
 
 
 module SE = Stored_event
@@ -814,13 +812,13 @@ let t_internal_roundtrippable_doesnt_care_about_order () =
     "internal_roundtrippable doesn't care about key order"
     (Dval.of_internal_roundtrippable_v0
        "{
-         \"type\": \"url\",
-         \"value\": \"https://example.com\"
+         \"type\": \"weird\",
+         \"value\": \"x\"
         }")
     (Dval.of_internal_roundtrippable_v0
        "{
-         \"value\": \"https://example.com\",
-         \"type\": \"url\"
+         \"value\": \"x\",
+         \"type\": \"weird\"
         }")
 
 
