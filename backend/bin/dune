@@ -46,6 +46,16 @@
   (package dark)
 )
 
+(executable
+  (name roundtrip_stored_events)
+  (public_name roundtrip_stored_events)
+  (modules roundtrip_stored_events)
+  (flags (-warn-error +A))
+  (libraries libbackend libexecution libcommon)
+  (preprocess (pps lwt.ppx))
+  (package dark)
+)
+
 (alias
   (name analysis.js)
   (deps (file ../jsanalysis/jsanalysis.bc.js) (universe))
