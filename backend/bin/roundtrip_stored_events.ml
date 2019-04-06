@@ -60,4 +60,22 @@ let () =
  JOIN canvases ON canvas_id = canvases.id"
         ~params:[]
     |> List.filter_map ~f:(validate_row "function_results_v2") ) ;
+  ignore
+    ( Db.fetch ~name:"get all canvases" "SELECT name from canvases" ~params:[]
+    |> List.map ~f:(function
+           | [h] ->
+             ( try
+                 ignore (Canvas.load_all h [] : Canvas.canvas ref) ;
+                 Log.infO "successful canvas load" ~params:[("host", h)]
+               with e ->
+                 Log.erroR
+                   "failed canvas load"
+                   ~params:
+                     [ ("host", h)
+                     ; ("exn", Exception.to_string e)
+                     ; ( "bt"
+                       , Base.Backtrace.to_string
+                           (Backtrace.Exn.most_recent ()) ) ] )
+           | _ ->
+               Exception.internal "wrong # of fields in db resultset" ) ) ;
   ()
