@@ -31,23 +31,32 @@ type canvas =
 (* Toplevel *)
 (* ------------------------- *)
 
-let upsert_db tlid pos data c =
-  {c with dbs = IDMap.set c.dbs tlid {tlid; pos; data}}
+let set_db tlid pos data c =
+  { c with
+    dbs = IDMap.set c.dbs tlid {tlid; pos; data}
+  ; deleted_dbs = IDMap.remove c.deleted_dbs tlid }
 
 
-let upsert_handler tlid pos data c =
-  {c with handlers = IDMap.set c.handlers tlid {tlid; pos; data}}
+let set_handler tlid pos data c =
+  { c with
+    handlers = IDMap.set c.handlers tlid {tlid; pos; data}
+  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let upsert_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
-  {c with user_functions = IDMap.set c.user_functions user_fn.tlid user_fn}
+let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
+  { c with
+    user_functions = IDMap.set c.user_functions user_fn.tlid user_fn
+  ; deleted_user_functions = IDMap.remove c.deleted_user_functions user_fn.tlid
+  }
 
 
-let upsert_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
-  {c with user_tipes = IDMap.set c.user_tipes user_tipe.tlid user_tipe}
+let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
+  { c with
+    user_tipes = IDMap.set c.user_tipes user_tipe.tlid user_tipe
+  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
 
 
-let remove_function (tlid : tlid) (c : canvas) : canvas =
+let delete_function (tlid : tlid) (c : canvas) : canvas =
   match IDMap.find c.user_functions tlid with
   | None ->
       c
@@ -58,13 +67,13 @@ let remove_function (tlid : tlid) (c : canvas) : canvas =
           IDMap.set c.deleted_user_functions tlid user_fn }
 
 
-let remove_function_forever (tlid : tlid) (c : canvas) : canvas =
+let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_functions = IDMap.remove c.user_functions tlid
   ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid }
 
 
-let remove_tipe (tlid : tlid) (c : canvas) : canvas =
+let delete_tipe (tlid : tlid) (c : canvas) : canvas =
   match IDMap.find c.user_tipes tlid with
   | None ->
       c
@@ -74,13 +83,13 @@ let remove_tipe (tlid : tlid) (c : canvas) : canvas =
       ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe }
 
 
-let remove_tipe_forever (tlid : tlid) (c : canvas) : canvas =
+let delete_tipe_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_tipes = IDMap.remove c.user_tipes tlid
   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid }
 
 
-let remove_tl_forever (tlid : tlid) (c : canvas) : canvas =
+let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     dbs = IDMap.remove c.dbs tlid
   ; handlers = IDMap.remove c.handlers tlid
@@ -88,7 +97,7 @@ let remove_tl_forever (tlid : tlid) (c : canvas) : canvas =
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
+let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
   let db = IDMap.find c.dbs tlid in
   let handler = IDMap.find c.handlers tlid in
   { c with
@@ -140,7 +149,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
     |>
     match op with
     | SetHandler (tlid, pos, handler) ->
-        upsert_handler tlid pos (TL.Handler handler)
+        set_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
         if is_new
         then (
@@ -149,7 +158,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
               if Ast.blank_to_string db.name = name
               then Exception.client "Duplicate DB name" ) ) ;
         let db = User_db.create name tlid in
-        upsert_db tlid pos (TL.DB db)
+        set_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
         apply_to_db ~f:(User_db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
@@ -193,13 +202,13 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
     | SetExpr (tlid, id, e) ->
         apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid ->
-        remove_toplevel tlid
+        delete_toplevel tlid
     | MoveTL (tlid, pos) ->
         move_toplevel tlid pos
     | SetFunction user_fn ->
-        upsert_function user_fn
+        set_function user_fn
     | DeleteFunction tlid ->
-        remove_function tlid
+        delete_function tlid
     | TLSavepoint _ ->
         ident
     | UndoTL _ | RedoTL _ ->
@@ -212,17 +221,17 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
             if Ast.blank_to_string db.name = name
             then Exception.client "Duplicate DB name" ) ;
         let db = User_db.create2 name tlid id in
-        upsert_db tlid pos (TL.DB db)
+        set_db tlid pos (TL.DB db)
     | DeleteTLForever tlid ->
-        remove_tl_forever tlid
+        delete_tl_forever tlid
     | DeleteFunctionForever tlid ->
-        remove_function_forever tlid
+        delete_function_forever tlid
     | SetType user_tipe ->
-        upsert_tipe user_tipe
+        set_tipe user_tipe
     | DeleteType tlid ->
-        remove_tipe tlid
+        delete_tipe tlid
     | DeleteTypeForever tlid ->
-        remove_tipe_forever tlid
+        delete_tipe_forever tlid
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
