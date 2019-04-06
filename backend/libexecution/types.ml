@@ -36,7 +36,52 @@ let id_of_yojson (json : Yojson.Safe.json) : (id, string) result =
 let id_to_yojson (i : Int63.t) : Yojson.Safe.json = `Intlit (Int63.to_string i)
 
 module IDTable = Int63.Table
-module IDMap = Int63.Map
+
+module IDMap = struct
+  module T = struct
+    include Map.Make (Int63)
+  end
+
+  include T
+
+  let to_yojson fn map : Yojson.Safe.json =
+    map
+    |> T.to_alist
+    |> List.map ~f:(fun (k, v) -> (string_of_id k, fn v))
+    |> fun l -> `Assoc l
+
+
+  let pp
+      (valueFormatter : Format.formatter -> 'value -> unit)
+      (fmt : Format.formatter)
+      (map : 'value t) =
+    Format.pp_print_string fmt "{ " ;
+    Map.iteri map (fun ~key ~data ->
+        Format.pp_print_string fmt (string_of_id key) ;
+        Format.pp_print_string fmt ": " ;
+        valueFormatter fmt data ;
+        Format.pp_print_string fmt ",  " ) ;
+    Format.pp_print_string fmt "}" ;
+    ()
+
+
+  let of_yojson fn json =
+    match json with
+    | `Assoc l ->
+        l
+        |> List.map ~f:(fun (k, v) ->
+               Result.map (fn v) ~f:(fun v -> (id_of_string k, v)) )
+        |> Result.combine_errors
+        |> Result.map_error ~f:(String.concat ~sep:", ")
+        |> Result.bind ~f:(fun l ->
+               match T.of_alist l with
+               | `Duplicate_key k ->
+                   Error ("duplicate key: " ^ string_of_id k)
+               | `Ok m ->
+                   Ok m )
+    | _ ->
+        Error "Expected an object"
+end
 
 type host = string [@@deriving eq, compare, show, bin_io]
 
