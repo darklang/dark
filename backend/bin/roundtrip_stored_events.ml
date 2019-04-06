@@ -46,6 +46,14 @@ let () =
     |> List.filter_map ~f:(validate_row "stored_events_v2") ) ;
   ignore
     ( Db.fetch
+        ~name:"get function_arguments"
+        "SELECT canvases.name, arguments_json, trace_id
+ FROM function_arguments
+ JOIN canvases ON canvas_id = canvases.id"
+        ~params:[]
+    |> List.filter_map ~f:(validate_row "function_arguments") ) ;
+  ignore
+    ( Db.fetch
         ~name:"get function_results"
         "SELECT canvases.name, value, trace_id
  FROM function_results_v2
