@@ -1,6 +1,7 @@
 open Core_kernel
 open Libcommon
 open Libexecution
+open Types
 module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
@@ -33,6 +34,7 @@ let dequeue_and_process execution_id :
               in
               let h =
                 !c.handlers
+                |> IDMap.data
                 |> List.filter_map ~f:TL.as_handler
                 |> List.filter ~f:(Handler.matches_event_desc desc)
                 |> List.hd
@@ -69,8 +71,8 @@ let dequeue_and_process execution_id :
                       ~tlid:h.tlid
                       ~input_vars:[("event", event.value)]
                       ~dbs:(TL.dbs !c.dbs)
-                      ~user_tipes:!c.user_tipes
-                      ~user_fns:!c.user_functions
+                      ~user_tipes:(!c.user_tipes |> IDMap.data)
+                      ~user_fns:(!c.user_functions |> IDMap.data)
                       ~account_id:!c.owner
                       ~canvas_id
                   in

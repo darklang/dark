@@ -117,6 +117,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
     |> List.iter ~f:(fun (endp, c) ->
            let crons =
              !c.handlers
+             |> Types.IDMap.data
              |> List.filter_map ~f:Toplevel.as_handler
              |> List.filter ~f:Handler.is_complete
              |> List.filter ~f:Handler.is_cron
