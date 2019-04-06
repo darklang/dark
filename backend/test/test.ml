@@ -279,8 +279,8 @@ let test_execution_data ?(canvas_name = "test") ops :
     { tlid
     ; account_id = !c.owner
     ; canvas_id = !c.id
-    ; user_fns = !c.user_functions
-    ; user_tipes = !c.user_tipes
+    ; user_fns = IDMap.data !c.user_functions
+    ; user_tipes = IDMap.data !c.user_tipes
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
@@ -490,7 +490,7 @@ let t_http_oplist_loads_user_tipes () =
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
     "user tipes"
     [tipe]
-    !c2.user_tipes
+    (IDMap.data !c2.user_tipes)
 
 
 let date_migration_has_correct_formats () =
@@ -2314,6 +2314,39 @@ let t_typecheck_any () =
     (Type_checker.check_function_call ~user_tipes fn args |> Result.is_ok)
 
 
+let set_after_delete () =
+  (* handlers *)
+  clear_test_data () ;
+  let h1 = handler (ast_for "(+ 5 3)") in
+  let h2 = handler (ast_for "(+ 5 2)") in
+  let op1 = Op.SetHandler (tlid, pos, h1) in
+  let op2 = Op.DeleteTL tlid in
+  let op3 = Op.SetHandler (tlid, pos, h2) in
+  check_dval "first handler is right" (execute_ops [op1]) (DInt 8) ;
+  AT.check
+    AT.int
+    "deleted not in handlers"
+    (!(ops2c "test" [op1; op2]).handlers |> IDMap.length)
+    0 ;
+  AT.check
+    AT.int
+    "delete in deleted"
+    (!(ops2c "test" [op1; op2]).deleted_handlers |> IDMap.length)
+    1 ;
+  AT.check
+    AT.int
+    "deleted back in handlers"
+    (!(ops2c "test" [op1; op2; op3]).handlers |> IDMap.length)
+    1 ;
+  AT.check
+    AT.int
+    "delete no longer in deleted "
+    (!(ops2c "test" [op1; op2; op3]).deleted_handlers |> IDMap.length)
+    0 ;
+  check_dval "second handler is right" (execute_ops [op1; op2; op3]) (DInt 7) ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2512,7 +2545,8 @@ let suite =
   ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
   ; ( "Loading handler via HTTP router loads user tipes"
     , `Quick
-    , t_http_oplist_loads_user_tipes ) ]
+    , t_http_oplist_loads_user_tipes )
+  ; ("set after delete doesn't crash", `Quick, set_after_delete) ]
 
 
 let () =
