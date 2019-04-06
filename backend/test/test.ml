@@ -2315,6 +2315,8 @@ let t_typecheck_any () =
 
 
 let set_after_delete () =
+  let check_empty msg tls = AT.check AT.int msg (IDMap.length tls) 0 in
+  let check_single msg tls = AT.check AT.int msg (IDMap.length tls) 1 in
   (* handlers *)
   clear_test_data () ;
   let h1 = handler (ast_for "(+ 5 3)") in
@@ -2323,27 +2325,28 @@ let set_after_delete () =
   let op2 = Op.DeleteTL tlid in
   let op3 = Op.SetHandler (tlid, pos, h2) in
   check_dval "first handler is right" (execute_ops [op1]) (DInt 8) ;
-  AT.check
-    AT.int
-    "deleted not in handlers"
-    (!(ops2c "test" [op1; op2]).handlers |> IDMap.length)
-    0 ;
-  AT.check
-    AT.int
-    "delete in deleted"
-    (!(ops2c "test" [op1; op2]).deleted_handlers |> IDMap.length)
-    1 ;
-  AT.check
-    AT.int
-    "deleted back in handlers"
-    (!(ops2c "test" [op1; op2; op3]).handlers |> IDMap.length)
-    1 ;
-  AT.check
-    AT.int
-    "delete no longer in deleted "
-    (!(ops2c "test" [op1; op2; op3]).deleted_handlers |> IDMap.length)
-    0 ;
+  check_empty "deleted not in handlers" !(ops2c "test" [op1; op2]).handlers ;
+  check_single "delete in deleted" !(ops2c "test" [op1; op2]).deleted_handlers ;
+  check_single "deleted in handlers" !(ops2c "test" [op1; op2; op3]).handlers ;
+  check_empty
+    "deleted not in deleted "
+    !(ops2c "test" [op1; op2; op3]).deleted_handlers ;
   check_dval "second handler is right" (execute_ops [op1; op2; op3]) (DInt 7) ;
+  (* same thing for functions *)
+  clear_test_data () ;
+  let h1 = user_fn "testfn" [] (ast_for "(+ 5 3)") in
+  let h2 = user_fn "testfn" [] (ast_for "(+ 5 2)") in
+  let op1 = Op.SetFunction h1 in
+  let op2 = Op.DeleteFunction tlid in
+  let op3 = Op.SetFunction h2 in
+  check_empty "deleted not in fns" !(ops2c "test" [op1; op2]).user_functions ;
+  check_single
+    "delete in deleted"
+    !(ops2c "test" [op1; op2]).deleted_user_functions ;
+  check_single "deleted in fns" !(ops2c "test" [op1; op2; op3]).user_functions ;
+  check_empty
+    "deleted not in deleted "
+    !(ops2c "test" [op1; op2; op3]).deleted_user_functions ;
   ()
 
 
