@@ -32,18 +32,24 @@ type canvas =
 (* ------------------------- *)
 
 let set_db tlid pos data c =
+  (* if the db had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
     dbs = IDMap.set c.dbs tlid {tlid; pos; data}
   ; deleted_dbs = IDMap.remove c.deleted_dbs tlid }
 
 
 let set_handler tlid pos data c =
+  (* if the handler had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
     handlers = IDMap.set c.handlers tlid {tlid; pos; data}
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
 let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
+  (* if the fn had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
     user_functions = IDMap.set c.user_functions user_fn.tlid user_fn
   ; deleted_user_functions = IDMap.remove c.deleted_user_functions user_fn.tlid
@@ -51,6 +57,8 @@ let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
 
 
 let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
+  (* if the tipe had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
     user_tipes = IDMap.set c.user_tipes user_tipe.tlid user_tipe
   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
