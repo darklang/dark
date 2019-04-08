@@ -15,3 +15,6 @@ val load_for_analysis :
   -> (Analysis_types.input_vars * Types.RuntimeT.time) option
 
 val load_traceids : canvas_id:Uuidm.t -> Types.tlid -> Uuidm.t list
+
+(* GC old function arguments *)
+val trim_arguments : unit -> int

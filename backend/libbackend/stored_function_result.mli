@@ -15,7 +15,4 @@ val load :
   -> Types.tlid
   -> Analysis_types.function_result list
 
-(* Trim the events for an entire canvas, removing events from before the time,
- * unless listed in keep.
- *)
 val trim_results : unit -> int
