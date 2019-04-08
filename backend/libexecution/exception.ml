@@ -23,6 +23,18 @@ let reraise e =
   Caml.Printexc.raise_with_backtrace e bt
 
 
+let reraise_as_pageable e =
+  let bt = get_backtrace () in
+  let wrapped_e =
+    match e with
+    | Libcommon.Pageable.PageableExn _ ->
+        e
+    | _ ->
+        Libcommon.Pageable.PageableExn e
+  in
+  Caml.Printexc.raise_with_backtrace wrapped_e bt
+
+
 type captured = backtrace * exn
 
 (* -------------------- *)
