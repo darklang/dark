@@ -22,7 +22,7 @@ type toplevel =
   ; data : tldata }
 [@@deriving eq, show, yojson]
 
-type toplevel_list = toplevel list [@@deriving eq, show, yojson]
+type toplevels = toplevel IDMap.t [@@deriving eq, show, yojson]
 
 let as_handler (tl : toplevel) : handler option =
   match tl.data with Handler h -> Some h | _ -> None
@@ -32,16 +32,16 @@ let as_db (tl : toplevel) : RuntimeT.DbT.db option =
   match tl.data with DB db -> Some db | _ -> None
 
 
-let http_handlers (tls : toplevel_list) : handler list =
-  tls |> List.filter_map ~f:as_handler |> List.filter ~f:Handler.is_http
+let handlers (tls : toplevels) : handler list =
+  tls |> IDMap.data |> List.filter_map ~f:as_handler
 
 
-let handlers (tls : toplevel_list) : handler list =
-  List.filter_map ~f:as_handler tls
+let http_handlers (tls : toplevels) : handler list =
+  tls |> handlers |> List.filter ~f:Handler.is_http
 
 
-let dbs (tls : toplevel_list) : RuntimeT.DbT.db list =
-  List.filter_map ~f:as_db tls
+let dbs (tls : toplevels) : RuntimeT.DbT.db list =
+  tls |> IDMap.data |> List.filter_map ~f:as_db
 
 
 let set_expr (id : id) (expr : RuntimeT.expr) (tl : toplevel) : toplevel =

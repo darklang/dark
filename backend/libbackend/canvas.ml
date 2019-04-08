@@ -16,112 +16,109 @@ type canvas =
   ; owner : Uuidm.t
   ; id : Uuidm.t
   ; ops : (tlid * Op.oplist) list
-  ; handlers : TL.toplevel_list
-  ; dbs : TL.toplevel_list
-  ; deleted_toplevels : TL.toplevel_list
-  ; user_functions : RTT.user_fn list
-  ; deleted_user_functions : RTT.user_fn list
   ; cors_setting : cors_setting option
-  ; user_tipes : RTT.user_tipe list
-  ; deleted_user_tipes : RTT.user_tipe list }
+  ; handlers : TL.toplevels
+  ; dbs : TL.toplevels
+  ; user_functions : RTT.user_fn IDMap.t
+  ; user_tipes : RTT.user_tipe IDMap.t
+  ; deleted_handlers : TL.toplevels
+  ; deleted_dbs : TL.toplevels
+  ; deleted_user_functions : RTT.user_fn IDMap.t
+  ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
 
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
-let upsert_tl
-    (tlid : tlid) (pos : pos) (data : TL.tldata) (tls : TL.toplevel_list) :
-    TL.toplevel_list =
-  let tl : TL.toplevel = {tlid; pos; data} in
-  tls |> List.filter ~f:(fun x -> x.tlid <> tl.tlid) |> ( @ ) [tl]
 
-
-let upsert_db tlid pos data c = {c with dbs = upsert_tl tlid pos data c.dbs}
-
-let upsert_handler tlid pos data c =
-  {c with handlers = upsert_tl tlid pos data c.handlers}
-
-
-let upsert_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
-  let fns =
-    List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions
-  in
-  {c with user_functions = fns @ [user_fn]}
-
-
-let upsert_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
-  let fns = List.filter ~f:(fun x -> x.tlid <> user_tipe.tlid) c.user_tipes in
-  {c with user_tipes = fns @ [user_tipe]}
-
-
-let remove_function (tlid : tlid) (c : canvas) : canvas =
-  let deletedFn =
-    c.user_functions |> List.find ~f:(fun x -> x.tlid = tlid) |> Option.to_list
-  in
-  let fns = List.filter ~f:(fun x -> x.tlid <> tlid) c.user_functions in
+let set_db tlid pos data c =
+  (* if the db had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
-    user_functions = fns
-  ; deleted_user_functions = c.deleted_user_functions @ deletedFn }
+    dbs = IDMap.set c.dbs tlid {tlid; pos; data}
+  ; deleted_dbs = IDMap.remove c.deleted_dbs tlid }
 
 
-let remove_function_forever (tlid : tlid) (c : canvas) : canvas =
-  let f (uf : RTT.user_fn) = uf.tlid <> tlid in
+let set_handler tlid pos data c =
+  (* if the handler had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
-    user_functions = List.filter ~f c.user_functions
-  ; deleted_user_functions = List.filter ~f c.deleted_user_functions }
+    handlers = IDMap.set c.handlers tlid {tlid; pos; data}
+  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let remove_tipe (tlid : tlid) (c : canvas) : canvas =
-  let deletedTipe =
-    c.user_tipes |> List.find ~f:(fun x -> x.tlid = tlid) |> Option.to_list
-  in
-  let tipes = List.filter ~f:(fun x -> x.tlid <> tlid) c.user_tipes in
+let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
+  (* if the fn had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
-    user_tipes = tipes; deleted_user_tipes = c.deleted_user_tipes @ deletedTipe
+    user_functions = IDMap.set c.user_functions user_fn.tlid user_fn
+  ; deleted_user_functions = IDMap.remove c.deleted_user_functions user_fn.tlid
   }
 
 
-let remove_tipe_forever (tlid : tlid) (c : canvas) : canvas =
-  let f (ut : RTT.user_tipe) = ut.tlid <> tlid in
+let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
+  (* if the tipe had been deleted, remove it from the deleted set. This handles
+   * a data race where a Set comes in after a Delete. *)
   { c with
-    user_tipes = List.filter ~f c.user_tipes
-  ; deleted_user_tipes = List.filter ~f c.deleted_user_tipes }
+    user_tipes = IDMap.set c.user_tipes user_tipe.tlid user_tipe
+  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
 
 
-let remove_tl_forever (tlid : tlid) (c : canvas) : canvas =
-  let f (tl : Toplevel.toplevel) = tl.tlid <> tlid in
+let delete_function (tlid : tlid) (c : canvas) : canvas =
+  match IDMap.find c.user_functions tlid with
+  | None ->
+      c
+  | Some user_fn ->
+      { c with
+        user_functions = IDMap.remove c.user_functions tlid
+      ; deleted_user_functions =
+          IDMap.set c.deleted_user_functions tlid user_fn }
+
+
+let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
-    dbs = List.filter ~f c.dbs
-  ; handlers = List.filter ~f c.handlers
-  ; deleted_toplevels = List.filter ~f c.deleted_toplevels }
+    user_functions = IDMap.remove c.user_functions tlid
+  ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid }
 
 
-let remove_toplevel (tlid : tlid) (c : canvas) : canvas =
-  let oldh, handlers =
-    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.handlers
-  in
-  let olddb, dbs = List.partition_tf ~f:(fun x -> x.tlid = tlid) c.dbs in
-  let olddel, deleted =
-    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted_toplevels
-  in
-  (* It's possible to delete something twice. Or more I guess. In that
-   * case, only keep the latest deleted toplevel. *)
-  let removed =
-    oldh @ olddb @ olddel
-    |> List.hd
-    |> Option.value_map ~f:(fun x -> [x]) ~default:[]
-  in
-  {c with handlers; dbs; deleted_toplevels = deleted @ removed}
+let delete_tipe (tlid : tlid) (c : canvas) : canvas =
+  match IDMap.find c.user_tipes tlid with
+  | None ->
+      c
+  | Some user_tipe ->
+      { c with
+        user_tipes = IDMap.remove c.user_tipes tlid
+      ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe }
+
+
+let delete_tipe_forever (tlid : tlid) (c : canvas) : canvas =
+  { c with
+    user_tipes = IDMap.remove c.user_tipes tlid
+  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid }
+
+
+let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
+  { c with
+    dbs = IDMap.remove c.dbs tlid
+  ; handlers = IDMap.remove c.handlers tlid
+  ; deleted_dbs = IDMap.remove c.deleted_dbs tlid
+  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
+
+
+let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
+  let db = IDMap.find c.dbs tlid in
+  let handler = IDMap.find c.handlers tlid in
+  { c with
+    dbs = IDMap.remove c.dbs tlid
+  ; handlers = IDMap.remove c.handlers tlid
+  ; deleted_dbs = IDMap.change c.deleted_dbs tlid ~f:(fun _ -> db)
+  ; deleted_handlers =
+      IDMap.change c.deleted_handlers tlid ~f:(fun _ -> handler) }
 
 
 let apply_to_toplevel
-    ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (tls : TL.toplevel_list) =
-  match List.find ~f:(fun t -> t.tlid = tlid) tls with
-  | Some tl ->
-      let newtl = f tl in
-      upsert_tl newtl.tlid newtl.pos newtl.data tls
-  | None ->
-      tls
+    ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (tls : TL.toplevels) =
+  IDMap.change tls tlid ~f:(Option.map ~f)
 
 
 let apply_to_all_toplevels
@@ -160,7 +157,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
     |>
     match op with
     | SetHandler (tlid, pos, handler) ->
-        upsert_handler tlid pos (TL.Handler handler)
+        set_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
         if is_new
         then (
@@ -169,7 +166,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
               if Ast.blank_to_string db.name = name
               then Exception.client "Duplicate DB name" ) ) ;
         let db = User_db.create name tlid in
-        upsert_db tlid pos (TL.DB db)
+        set_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
         apply_to_db ~f:(User_db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
@@ -213,13 +210,13 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
     | SetExpr (tlid, id, e) ->
         apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid ->
-        remove_toplevel tlid
+        delete_toplevel tlid
     | MoveTL (tlid, pos) ->
         move_toplevel tlid pos
     | SetFunction user_fn ->
-        upsert_function user_fn
+        set_function user_fn
     | DeleteFunction tlid ->
-        remove_function tlid
+        delete_function tlid
     | TLSavepoint _ ->
         ident
     | UndoTL _ | RedoTL _ ->
@@ -232,17 +229,17 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
             if Ast.blank_to_string db.name = name
             then Exception.client "Duplicate DB name" ) ;
         let db = User_db.create2 name tlid id in
-        upsert_db tlid pos (TL.DB db)
+        set_db tlid pos (TL.DB db)
     | DeleteTLForever tlid ->
-        remove_tl_forever tlid
+        delete_tl_forever tlid
     | DeleteFunctionForever tlid ->
-        remove_function_forever tlid
+        delete_function_forever tlid
     | SetType user_tipe ->
-        upsert_tipe user_tipe
+        set_tipe user_tipe
     | DeleteType tlid ->
-        remove_tipe tlid
+        delete_tipe tlid
     | DeleteTypeForever tlid ->
-        remove_tipe_forever tlid
+        delete_tipe_forever tlid
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
@@ -301,14 +298,15 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; owner
       ; id = canvas_id
       ; ops = []
-      ; handlers = []
-      ; dbs = []
-      ; deleted_toplevels = []
-      ; user_functions = []
-      ; deleted_user_functions = []
       ; cors_setting = cors
-      ; user_tipes = []
-      ; deleted_user_tipes = [] }
+      ; handlers = IDMap.empty
+      ; dbs = IDMap.empty
+      ; user_functions = IDMap.empty
+      ; user_tipes = IDMap.empty
+      ; deleted_handlers = IDMap.empty
+      ; deleted_dbs = IDMap.empty
+      ; deleted_user_functions = IDMap.empty
+      ; deleted_user_tipes = IDMap.empty }
   in
   add_ops c [] ops ;
   c
@@ -381,14 +379,15 @@ let load_from
       ; owner
       ; id = canvas_id
       ; ops = []
-      ; handlers = []
-      ; dbs = []
-      ; user_functions = []
-      ; deleted_toplevels = []
-      ; deleted_user_functions = []
       ; cors_setting = cors
-      ; user_tipes = []
-      ; deleted_user_tipes = [] }
+      ; handlers = IDMap.empty
+      ; dbs = IDMap.empty
+      ; user_functions = IDMap.empty
+      ; user_tipes = IDMap.empty
+      ; deleted_handlers = IDMap.empty
+      ; deleted_dbs = IDMap.empty
+      ; deleted_user_functions = IDMap.empty
+      ; deleted_user_tipes = IDMap.empty }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops ;
   c
@@ -431,19 +430,24 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
   in
   let routes = IDMap.of_alist_exn hmeta in
   let tipes_list =
-    List.map c.handlers ~f:(fun h -> (h.tlid, TL.TLHandler))
-    @ List.map c.user_functions ~f:(fun f -> (f.tlid, TL.TLUserFunction))
-    @ List.map c.deleted_user_functions ~f:(fun f -> (f.tlid, TL.TLUserFunction)
-      )
-    @ List.map c.user_tipes ~f:(fun t -> (t.tlid, TL.TLUserTipe))
-    @ List.map c.deleted_user_tipes ~f:(fun t -> (t.tlid, TL.TLUserTipe))
-    @ List.map c.dbs ~f:(fun d -> (d.tlid, TL.TLDB))
-    @ List.map c.deleted_toplevels ~f:(fun t ->
-          match t.data with
-          | Handler _ ->
-              (t.tlid, TL.TLHandler)
-          | DB _ ->
-              (t.tlid, TL.TLDB) )
+    (c.handlers |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)))
+    @ (c.dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
+    @ ( c.user_functions
+      |> IDMap.keys
+      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
+    @ ( c.user_tipes
+      |> IDMap.keys
+      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
+    @ ( c.deleted_handlers
+      |> IDMap.keys
+      |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
+    @ (c.deleted_dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
+    @ ( c.deleted_user_functions
+      |> IDMap.keys
+      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
+    @ ( c.deleted_user_tipes
+      |> IDMap.keys
+      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
   in
   let tipes = IDMap.of_alist_exn tipes_list in
   (* Use ops rather than just set of toplevels, because toplevels may
@@ -585,18 +589,31 @@ let cleanup_old_traces () : float =
 
 
 let to_string (host : string) : string =
+  (* TODO: user_tipes *)
   let c = load_all host [] in
-  let handlers = List.map ~f:TL.to_string !c.handlers in
-  let user_fns = List.map ~f:TL.user_fn_to_string !c.user_functions in
-  let dbs = List.map ~f:TL.to_string !c.dbs in
-  let deleted = List.map ~f:TL.to_string !c.deleted_toplevels in
+  let handlers = !c.handlers |> IDMap.data |> List.map ~f:TL.to_string in
+  let dbs = !c.dbs |> IDMap.data |> List.map ~f:TL.to_string in
+  let user_fns =
+    !c.user_functions |> IDMap.data |> List.map ~f:TL.user_fn_to_string
+  in
+  let deleted_handlers =
+    !c.handlers |> IDMap.data |> List.map ~f:TL.to_string
+  in
+  let deleted_dbs = !c.dbs |> IDMap.data |> List.map ~f:TL.to_string in
+  let deleted_user_functions =
+    !c.deleted_user_functions |> IDMap.data |> List.map ~f:TL.user_fn_to_string
+  in
   String.concat
     ~sep:"\n\n\n"
     ( [" ------------- Handlers ------------- "]
     @ handlers
-    @ [" ------------- User functions ------------- "]
-    @ user_fns
     @ [" ------------- DBs ------------- "]
     @ dbs
-    @ [" ------------- Deleted ------------- "]
-    @ deleted )
+    @ [" ------------- Functions ------------- "]
+    @ user_fns
+    @ [" ------------- Deleted Handlers ------------- "]
+    @ deleted_handlers
+    @ [" ------------- Deleted DBs ------------- "]
+    @ deleted_dbs
+    @ [" ------------- Deleted Functions ------------- "]
+    @ deleted_user_functions )

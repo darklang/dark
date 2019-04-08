@@ -4,6 +4,7 @@ open Libexecution
 open Libexecution.Lib
 open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
+open Types
 module Unicode = Libexecution.Unicode_string
 
 (* Apply this to a name, function tuple to wrap that function
@@ -79,6 +80,7 @@ let replacements =
         | _, [DStr host] ->
             let c = Canvas.load_all (Unicode_string.to_string host) [] in
             !c.handlers
+            |> IDMap.data
             |> List.map ~f:Libexecution.Toplevel.as_handler
             |> List.map ~f:(fun h -> Option.value_exn h)
             |> List.map ~f:(fun h ->
@@ -101,6 +103,7 @@ let replacements =
               in
               let handler =
                 !c.handlers
+                |> IDMap.data
                 |> List.map ~f:Toplevel.as_handler
                 |> List.map ~f:(fun h -> Option.value_exn h)
                 |> List.find_exn ~f:(fun h -> h.tlid = Types.id_of_string tlid)
@@ -275,6 +278,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             in
             let db =
               !c.dbs
+              |> IDMap.data
               |> List.filter_map ~f:Libexecution.Toplevel.as_db
               |> List.find ~f:(fun d ->
                      Libexecution.Types.string_of_id d.tlid = tlid )
@@ -356,6 +360,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             in
             let desc =
               !canvas.handlers
+              |> IDMap.data
               |> List.filter_map ~f:Toplevel.as_handler
               |> List.filter ~f:(fun h -> h.tlid = tlid)
               |> List.hd
