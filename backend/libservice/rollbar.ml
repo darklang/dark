@@ -27,6 +27,14 @@ let error_to_payload
     (bt : Caml.Printexc.raw_backtrace)
     (ctx : err_ctx)
     (execution_id : string) : Yojson.Safe.json =
+  let e, pageable =
+    (* unwrap PageableExn if it is present *)
+    match e with
+    | Pageable.PageableExn inner_e ->
+        (inner_e, true)
+    | _ as e ->
+        (e, false)
+  in
   let message =
     let interior =
       [ ("body", `String (pp e))
@@ -52,6 +60,7 @@ let error_to_payload
   let env = `String Config.rollbar_environment in
   let language = `String "OCaml" in
   let framework = `String "Cohttp" in
+  let level = if pageable then `String "critical" else `String "error" in
   let payload =
     match ctx with
     | Remote request_data ->
@@ -67,6 +76,7 @@ let error_to_payload
           |> fun r -> `Assoc r
         in
         [ ("body", message)
+        ; ("level", level)
         ; ("environment", env)
         ; ("language", language)
         ; ("framework", framework)
@@ -75,6 +85,7 @@ let error_to_payload
         ; ("request", request) ]
     | EventQueue | CronChecker ->
         [ ("body", message)
+        ; ("level", level)
         ; ("environment", env)
         ; ("language", language)
         ; ("framework", framework)
@@ -82,6 +93,7 @@ let error_to_payload
         ; ("context", context) ]
     | Push event ->
         [ ("body", message)
+        ; ("level", level)
         ; ("environment", env)
         ; ("language", language)
         ; ("framework", framework)
@@ -90,6 +102,7 @@ let error_to_payload
         ; ("push_event", `String event) ]
     | Other str ->
         [ ("body", message)
+        ; ("level", level)
         ; ("environment", env)
         ; ("language", language)
         ; ("framework", framework)
