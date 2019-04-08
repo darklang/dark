@@ -73,10 +73,40 @@ data:
         containerName: bwd-ctr
         dataset: kubernetes-bwd-ocaml
         parser: json
+        processors:
+        - request_shape:
+            field: request
+            patterns:
+            - /a/:canvas
+            - /api/:canvas/save_test
+            - /api/:canvas/rpc
+            - /api/:canvas/add_op
+            - /api/:canvas/initial_load
+            - /api/:canvas/execute_function
+            - /api/:canvas/get_trace_data
+            - /api/:canvas/get_unlocked_dbs
+            - /api/:canvas/delete_404
+            - /api/:canvas/static_assets
+            - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
       - labelSelector: "app=qw-worker"
         containerName: qw-ctr
         dataset: kubernetes-bwd-ocaml
         parser: json
+        processors:
+        - request_shape:
+            field: request
+            patterns:
+            - /a/:canvas
+            - /api/:canvas/save_test
+            - /api/:canvas/rpc
+            - /api/:canvas/add_op
+            - /api/:canvas/initial_load
+            - /api/:canvas/execute_function
+            - /api/:canvas/get_trace_data
+            - /api/:canvas/get_unlocked_dbs
+            - /api/:canvas/delete_404
+            - /api/:canvas/static_assets
+            - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
       - labelSelector: "app=bwd-app"
         containerName: http-proxy
         dataset: kubernetes-bwd-nginx
