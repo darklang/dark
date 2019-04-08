@@ -385,8 +385,8 @@ let user_page_handler
           ~execution_id
           ~account_id:!c.owner
           ~canvas_id
-          ~user_fns:!c.user_functions
-          ~user_tipes:!c.user_tipes
+          ~user_fns:(Types.IDMap.data !c.user_functions)
+          ~user_tipes:(Types.IDMap.data !c.user_tipes)
           ~tlid:page.tlid
           ~dbs:(TL.dbs !c.dbs)
           ~input_vars:([("request", PReq.to_dval input)] @ bound)
@@ -584,6 +584,7 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
         in
         let uftraces =
           !c.user_functions
+          |> Types.IDMap.data
           |> List.map ~f:(fun uf ->
                  Analysis.traceids_for_user_fn !c uf
                  |> List.map ~f:(fun traceid -> (uf.tlid, traceid)) )
@@ -650,6 +651,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     let t3, mht =
       time "3-handler-analyses" (fun _ ->
           !c.handlers
+          |> Types.IDMap.data
           |> List.hd
           |> Option.bind ~f:TL.as_handler
           |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id) )
@@ -657,6 +659,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     let t4, mft =
       time "4-user-fn-analyses" (fun _ ->
           !c.user_functions
+          |> Types.IDMap.data
           |> List.find ~f:(fun f -> tlid = f.tlid)
           |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id) )
     in

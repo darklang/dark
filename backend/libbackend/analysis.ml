@@ -150,8 +150,8 @@ let call_function
       ~execution_id
       ~trace_id
       ~dbs:(TL.dbs c.dbs)
-      ~user_fns:c.user_functions
-      ~user_tipes:c.user_tipes
+      ~user_fns:(c.user_functions |> IDMap.data)
+      ~user_tipes:(c.user_tipes |> IDMap.data)
       ~account_id:c.owner
       ~canvas_id:c.id
       ~caller_id
@@ -215,8 +215,8 @@ let to_new_static_deploy_frontend (asset : SA.static_deploy) : string =
 
 (* A subset of responses to be merged in *)
 type add_op_rpc_result =
-  { toplevels : TL.toplevel_list (* replace *)
-  ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
+  { toplevels : TL.toplevel list (* replace *)
+  ; deleted_toplevels : TL.toplevel list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
   ; deleted_user_functions : RTT.user_fn list
   ; user_tipes : RTT.user_tipe list
@@ -225,20 +225,21 @@ type add_op_rpc_result =
 [@@deriving to_yojson]
 
 let to_add_op_rpc_result (c : canvas) : string =
-  { toplevels = c.dbs @ c.handlers
-  ; deleted_toplevels = c.deleted_toplevels
-  ; user_functions = c.user_functions
-  ; deleted_user_functions = c.deleted_user_functions
-  ; user_tipes = c.user_tipes
-  ; deleted_user_tipes = c.deleted_user_tipes }
+  { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
+  ; deleted_toplevels =
+      IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
+  ; user_functions = IDMap.data c.user_functions
+  ; deleted_user_functions = IDMap.data c.deleted_user_functions
+  ; user_tipes = IDMap.data c.user_tipes
+  ; deleted_user_tipes = IDMap.data c.deleted_user_tipes }
   |> add_op_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
 (* Initial load *)
 type initial_load_rpc_result =
-  { toplevels : TL.toplevel_list
-  ; deleted_toplevels : TL.toplevel_list
+  { toplevels : TL.toplevel list
+  ; deleted_toplevels : TL.toplevel list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
   ; unlocked_dbs : tlid list
@@ -255,16 +256,17 @@ let to_initial_load_rpc_result
     (traces : tlid_traceid list)
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list) : string =
-  { toplevels = c.dbs @ c.handlers
-  ; deleted_toplevels = c.deleted_toplevels
-  ; user_functions = c.user_functions
-  ; deleted_user_functions = c.deleted_user_functions
+  { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
+  ; deleted_toplevels =
+      IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
+  ; user_functions = IDMap.data c.user_functions
+  ; deleted_user_functions = IDMap.data c.deleted_user_functions
+  ; user_tipes = IDMap.data c.user_tipes
+  ; deleted_user_tipes = IDMap.data c.deleted_user_tipes
   ; unlocked_dbs
   ; fofs
   ; traces
-  ; assets
-  ; user_tipes = c.user_tipes
-  ; deleted_user_tipes = c.deleted_user_tipes }
+  ; assets }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
