@@ -369,28 +369,30 @@ let load_from
     (newops : Op.op list)
     ~(f : host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists) :
     canvas ref =
-  let owner = Account.for_host host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
-  let cors = fetch_cors_setting canvas_id in
-  let oldops = f ~host ~canvas_id () in
-  let c =
-    ref
-      { host
-      ; owner
-      ; id = canvas_id
-      ; ops = []
-      ; cors_setting = cors
-      ; handlers = IDMap.empty
-      ; dbs = IDMap.empty
-      ; user_functions = IDMap.empty
-      ; user_tipes = IDMap.empty
-      ; deleted_handlers = IDMap.empty
-      ; deleted_dbs = IDMap.empty
-      ; deleted_user_functions = IDMap.empty
-      ; deleted_user_tipes = IDMap.empty }
-  in
-  add_ops c (Op.tlid_oplists2oplist oldops) newops ;
-  c
+  try
+    let owner = Account.for_host host in
+    let canvas_id = Serialize.fetch_canvas_id owner host in
+    let cors = fetch_cors_setting canvas_id in
+    let oldops = f ~host ~canvas_id () in
+    let c =
+      ref
+        { host
+        ; owner
+        ; id = canvas_id
+        ; ops = []
+        ; cors_setting = cors
+        ; handlers = IDMap.empty
+        ; dbs = IDMap.empty
+        ; user_functions = IDMap.empty
+        ; user_tipes = IDMap.empty
+        ; deleted_handlers = IDMap.empty
+        ; deleted_dbs = IDMap.empty
+        ; deleted_user_functions = IDMap.empty
+        ; deleted_user_tipes = IDMap.empty }
+    in
+    add_ops c (Op.tlid_oplists2oplist oldops) newops ;
+    c
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let load_all host (newops : Op.op list) : canvas ref =
@@ -413,70 +415,76 @@ let load_for_event (event : Event_queue.t) =
 
 
 let serialize_only (tlids : tlid list) (c : canvas) : unit =
-  let munge_name module_ n =
-    if Ast.blank_to_option module_ = Some "HTTP"
-    then Http.route_to_postgres_pattern n
-    else n
-  in
-  let handler_metadata (h : RTT.HandlerT.handler) =
-    ( h.tlid
-    , ( Ast.blank_to_option h.spec.name
-        |> Option.map ~f:(munge_name h.spec.module_)
-      , Ast.blank_to_option h.spec.module_
-      , Ast.blank_to_option h.spec.modifier ) )
-  in
-  let hmeta =
-    c.handlers |> Toplevel.handlers |> List.map ~f:handler_metadata
-  in
-  let routes = IDMap.of_alist_exn hmeta in
-  let tipes_list =
-    (c.handlers |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)))
-    @ (c.dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
-    @ ( c.user_functions
-      |> IDMap.keys
-      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
-    @ ( c.user_tipes
-      |> IDMap.keys
-      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
-    @ ( c.deleted_handlers
+  try
+    let munge_name module_ n =
+      if Ast.blank_to_option module_ = Some "HTTP"
+      then Http.route_to_postgres_pattern n
+      else n
+    in
+    let handler_metadata (h : RTT.HandlerT.handler) =
+      ( h.tlid
+      , ( Ast.blank_to_option h.spec.name
+          |> Option.map ~f:(munge_name h.spec.module_)
+        , Ast.blank_to_option h.spec.module_
+        , Ast.blank_to_option h.spec.modifier ) )
+    in
+    let hmeta =
+      c.handlers |> Toplevel.handlers |> List.map ~f:handler_metadata
+    in
+    let routes = IDMap.of_alist_exn hmeta in
+    let tipes_list =
+      ( c.handlers
       |> IDMap.keys
       |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
-    @ (c.deleted_dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
-    @ ( c.deleted_user_functions
-      |> IDMap.keys
-      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
-    @ ( c.deleted_user_tipes
-      |> IDMap.keys
-      |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
-  in
-  let tipes = IDMap.of_alist_exn tipes_list in
-  (* Use ops rather than just set of toplevels, because toplevels may
+      @ (c.dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
+      @ ( c.user_functions
+        |> IDMap.keys
+        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
+      @ ( c.user_tipes
+        |> IDMap.keys
+        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
+      @ ( c.deleted_handlers
+        |> IDMap.keys
+        |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
+      @ ( c.deleted_dbs
+        |> IDMap.keys
+        |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)) )
+      @ ( c.deleted_user_functions
+        |> IDMap.keys
+        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
+      @ ( c.deleted_user_tipes
+        |> IDMap.keys
+        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
+    in
+    let tipes = IDMap.of_alist_exn tipes_list in
+    (* Use ops rather than just set of toplevels, because toplevels may
    * have been deleted or undone, and therefore not appear, but it's
    * important to record them. *)
-  List.iter c.ops ~f:(fun (tlid, oplist) ->
-      (* Only save oplists that have been used. *)
-      if List.mem ~equal:( = ) tlids tlid
-      then
-        let name, module_, modifier =
-          IDMap.find routes tlid |> Option.value ~default:(None, None, None)
-        in
-        let tipe =
-          IDMap.find tipes tlid
-          (* If the user calls Undo enough, we might not know
+    List.iter c.ops ~f:(fun (tlid, oplist) ->
+        (* Only save oplists that have been used. *)
+        if List.mem ~equal:( = ) tlids tlid
+        then
+          let name, module_, modifier =
+            IDMap.find routes tlid |> Option.value ~default:(None, None, None)
+          in
+          let tipe =
+            IDMap.find tipes tlid
+            (* If the user calls Undo enough, we might not know
                     * the tipe here. In that case, set to handler cause
                     * it won't be used anyway *)
-          |> Option.value ~default:TL.TLHandler
-        in
-        Serialize.save_toplevel_oplist
-          oplist
-          ~tlid
-          ~canvas_id:c.id
-          ~account_id:c.owner
-          ~name
-          ~module_
-          ~modifier
-          ~tipe
-      else () )
+            |> Option.value ~default:TL.TLHandler
+          in
+          Serialize.save_toplevel_oplist
+            oplist
+            ~tlid
+            ~canvas_id:c.id
+            ~account_id:c.owner
+            ~name
+            ~module_
+            ~modifier
+            ~tipe
+        else () )
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let save_tlids (c : canvas) (tlids : tlid list) : unit = serialize_only tlids c
