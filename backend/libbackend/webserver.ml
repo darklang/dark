@@ -927,41 +927,49 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
   | Ok (Some session) ->
       let username = Auth.Session.username_for session in
       let csrf_token = Auth.Session.csrf_token_for session in
-      if path = "/logout"
-      then (
-        Auth.Session.clear Auth.Session.backend session ;%lwt
-        let headers =
-          Header.of_list
-            ( username_header username
-            :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
-        in
-        let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
-        S.respond_redirect ~headers ~uri () )
-      else
-        let headers = [username_header username] in
-        over_headers_promise
-          ~f:(fun h -> Header.add_list h headers)
-          (handler ~session ~csrf_token req)
+      Log.add_log_annotations
+        [("username", `String username)]
+        (fun _ ->
+          if path = "/logout"
+          then (
+            Auth.Session.clear Auth.Session.backend session ;%lwt
+            let headers =
+              Header.of_list
+                ( username_header username
+                :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
+            in
+            let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
+            S.respond_redirect ~headers ~uri () )
+          else
+            let headers = [username_header username] in
+            over_headers_promise
+              ~f:(fun h -> Header.add_list h headers)
+              (handler ~session ~csrf_token req) )
   | _ ->
     ( match Header.get_authorization headers with
     | Some (`Basic (username, password)) ->
         if Account.authenticate ~username ~password
         then
-          let%lwt session = Auth.Session.new_for_username username in
-          let https_only_cookie = req |> CRequest.uri |> should_use_https in
-          let headers =
-            username_header username
-            :: Auth.Session.to_cookie_hdrs
-                 ~http_only:true
-                 ~secure:https_only_cookie
-                 ~path:"/"
-                 Auth.Session.cookie_key
-                 session
-          in
-          let csrf_token = Auth.Session.csrf_token_for session in
-          over_headers_promise
-            ~f:(fun h -> Header.add_list h headers)
-            (handler ~session ~csrf_token req)
+          Log.add_log_annotations
+            [("username", `String username)]
+            (fun _ ->
+              let%lwt session = Auth.Session.new_for_username username in
+              let https_only_cookie =
+                req |> CRequest.uri |> should_use_https
+              in
+              let headers =
+                username_header username
+                :: Auth.Session.to_cookie_hdrs
+                     ~http_only:true
+                     ~secure:https_only_cookie
+                     ~path:"/"
+                     Auth.Session.cookie_key
+                     session
+              in
+              let csrf_token = Auth.Session.csrf_token_for session in
+              over_headers_promise
+                ~f:(fun h -> Header.add_list h headers)
+                (handler ~session ~csrf_token req) )
         else respond ~execution_id `Unauthorized "Bad credentials"
     | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
@@ -1016,7 +1024,9 @@ let admin_ui_handler
     then
       match Account.owner ~auth_domain with
       | Some owner ->
-          f (Serialize.fetch_canvas_id owner canvasname)
+          Log.add_log_annotations
+            [("canvas", `String canvas)]
+            (fun _ -> f (Serialize.fetch_canvas_id owner canvasname))
       | None ->
           respond
             ~execution_id
@@ -1056,7 +1066,7 @@ let admin_api_handler
     if Account.can_edit_canvas
          ~auth_domain:(Account.auth_domain_for canvas)
          ~username
-    then f ()
+    then Log.add_log_annotations [("canvas", `String canvas)] f
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   match (verb, path) with
@@ -1131,15 +1141,18 @@ let admin_handler
         (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
         req
   | "a" :: canvasname :: _ ->
-      admin_ui_handler
-        ~execution_id
-        ~path
-        ~stopper
-        ~body
-        ~username
-        ~canvasname
-        ~csrf_token
-        req
+      Log.add_log_annotations
+        [("canvas", `String canvasname)]
+        (fun _ ->
+          admin_ui_handler
+            ~execution_id
+            ~path
+            ~stopper
+            ~body
+            ~username
+            ~canvasname
+            ~csrf_token
+            req )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
@@ -1293,8 +1306,7 @@ let k8s_handler req ~execution_id ~stopper =
 
 let server () =
   let stop, stopper = Lwt.wait () in
-  let callback (ch, conn) req body =
-    let execution_id = Util.create_id () in
+  let callback (ch, conn) req body execution_id =
     let uri = CRequest.uri req in
     let ip = get_ip_address ch in
     let handle_error ~(include_internals : bool) (e : exn) =
@@ -1366,7 +1378,10 @@ let server () =
           (* figure out what handler to dispatch to... *)
           ( match route_host req with
           | Some (Canvas canvas) ->
-              user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+              Log.add_log_annotations
+                [("canvas", `String canvas)]
+                (fun _ ->
+                  user_page_handler ~execution_id ~canvas ~ip ~uri ~body req )
           | Some Static ->
               static_handler uri
           | Some Admin ->
@@ -1392,7 +1407,18 @@ let server () =
   in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
-    callback conn req body_string
+    let execution_id = Util.create_id () in
+    let request_path = Uri.path_and_query (CRequest.uri req) in
+    Log.add_log_annotations
+      (* TODO we could remove execution_id, uri, method from some log calls now
+       * *)
+      [ ("execution_id", `String (Types.string_of_id execution_id))
+      ; ("request", `String request_path)
+      ; ( "http_method"
+        , `String (Cohttp.Code.string_of_method (CRequest.meth req)) )
+      ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
+      ]
+      (fun _ -> callback conn req body_string execution_id)
   in
   S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback:cbwb ())
 
