@@ -12,7 +12,7 @@ let usage () : unit =
   exit 1
 
 
-let validate_row (table : string) (values : string list) : string option =
+let validate_row (table : string) (values : string list) : unit =
   match values with
   | [canvas_name; value; trace_id] ->
       let params =
@@ -20,12 +20,10 @@ let validate_row (table : string) (values : string list) : string option =
       in
       ( try
           let _ : RTT.dval = Dval.of_internal_roundtrippable_v0 value in
-          Log.infO "successful roundtrip" ~params ;
-          None
+          Log.infO "successful roundtrip" ~params
         with _ ->
           let params = ("value", value) :: params in
-          Log.erroR "Failed to roundtrip stored event" ~params ;
-          Some trace_id )
+          Log.erroR "Failed to roundtrip stored event" ~params )
   | _ ->
       Exception.internal "Impossible: wrong # of cols"
 
@@ -36,46 +34,42 @@ let () =
       ()
   | 2, [_; "-h"] | _ ->
       usage () ) ;
-  ignore
-    ( Db.fetch
-        ~name:"get stored_events"
-        "SELECT canvases.name, value, trace_id
+  Db.fetch
+    ~name:"get stored_events"
+    "SELECT canvases.name, value, trace_id
  FROM stored_events_v2
  JOIN canvases ON canvas_id = canvases.id"
-        ~params:[]
-    |> List.filter_map ~f:(validate_row "stored_events_v2") ) ;
-  ignore
-    ( Db.fetch
-        ~name:"get function_arguments"
-        "SELECT canvases.name, arguments_json, trace_id
+    ~params:[]
+  |> List.iter ~f:(validate_row "stored_events_v2") ;
+  Db.fetch
+    ~name:"get function_arguments"
+    "SELECT canvases.name, arguments_json, trace_id
  FROM function_arguments
  JOIN canvases ON canvas_id = canvases.id"
-        ~params:[]
-    |> List.filter_map ~f:(validate_row "function_arguments") ) ;
-  ignore
-    ( Db.fetch
-        ~name:"get function_results"
-        "SELECT canvases.name, value, trace_id
+    ~params:[]
+  |> List.iter ~f:(validate_row "function_arguments") ;
+  Db.fetch
+    ~name:"get function_results"
+    "SELECT canvases.name, value, trace_id
  FROM function_results_v2
  JOIN canvases ON canvas_id = canvases.id"
-        ~params:[]
-    |> List.filter_map ~f:(validate_row "function_results_v2") ) ;
-  ignore
-    ( Db.fetch ~name:"get all canvases" "SELECT name from canvases" ~params:[]
-    |> List.map ~f:(function
-           | [h] ->
-             ( try
-                 ignore (Canvas.load_all h [] : Canvas.canvas ref) ;
-                 Log.infO "successful canvas load" ~params:[("host", h)]
-               with e ->
-                 Log.erroR
-                   "failed canvas load"
-                   ~params:
-                     [ ("host", h)
-                     ; ("exn", Exception.to_string e)
-                     ; ( "bt"
-                       , Base.Backtrace.to_string
-                           (Backtrace.Exn.most_recent ()) ) ] )
-           | _ ->
-               Exception.internal "wrong # of fields in db resultset" ) ) ;
+    ~params:[]
+  |> List.iter ~f:(validate_row "function_results_v2") ;
+  Db.fetch ~name:"get all canvases" "SELECT name from canvases" ~params:[]
+  |> List.iter ~f:(function
+         | [h] ->
+           ( try
+               ignore (Canvas.load_all h [] : Canvas.canvas ref) ;
+               Log.infO "successful canvas load" ~params:[("host", h)]
+             with e ->
+               Log.erroR
+                 "failed canvas load"
+                 ~params:
+                   [ ("host", h)
+                   ; ("exn", Exception.to_string e)
+                   ; ( "bt"
+                     , Base.Backtrace.to_string (Backtrace.Exn.most_recent ())
+                     ) ] )
+         | _ ->
+             Exception.internal "wrong # of fields in db resultset" ) ;
   ()
