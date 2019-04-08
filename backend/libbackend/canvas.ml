@@ -576,14 +576,19 @@ let cleanup_old_traces () : float =
   let function_results_start = Unix.gettimeofday () in
   let trimmed_results = Stored_function_result.trim_results () in
   let function_results_time = runtime_since function_results_start in
+  let function_arguments_start = Unix.gettimeofday () in
+  let trimmed_arguments = Stored_function_arguments.trim_arguments () in
+  let function_arguments_time = runtime_since function_arguments_start in
   let total_time = runtime_since start in
   Log.infO
     "cleanup_old_traces"
     ~jsonparams:
       [ ("trimmed_results", `Int trimmed_results)
       ; ("trimmed_events", `Int trimmed_events)
+      ; ("trimmed_arguments", `Int trimmed_arguments)
       ; ("stored_events_time", `Float stored_events_time)
       ; ("function_results_time", `Float function_results_time)
+      ; ("function_arguments_time", `Float function_arguments_time)
       ; ("total_time", `Float total_time) ] ;
   total_time
 

@@ -55,3 +55,23 @@ let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
          | _ ->
              Exception.internal
                "Bad DB format for stored_functions.load_for_analysis" )
+
+
+(* This is identical to Stored_function_result.trim_results except for the table
+ * name, see that function for comments *)
+let trim_arguments () : int =
+  Db.delete
+    ~name:"stored_function_argument.trim_arguments"
+    "DELETE FROM function_arguments
+    WHERE trace_id IN (
+      SELECT trace_id FROM (
+        SELECT row_number()
+        OVER (PARTITION BY canvas_id, tlid ORDER BY timestamp
+desc) as rownum, t.trace_id
+        FROM function_arguments t
+        WHERE timestamp < (NOW() - interval '1 week')
+        LIMIT 10000) as u
+      WHERE rownum > 10
+      LIMIT 10000
+    )"
+    ~params:[]
