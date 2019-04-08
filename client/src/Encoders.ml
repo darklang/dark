@@ -605,6 +605,19 @@ let handlerProp (p : Types.handlerProp) : Js.Json.t =
     ; ("handlerState", handlerState p.handlerState) ]
 
 
+let tlReference (r : Types.tlReference) : Js.Json.t =
+  let ev = variant in
+  match r with
+  | OutReferenceDB (tlid_, name_, cols, id_) ->
+      ev "OutReferenceDB" [tlid tlid_; string name_; colList cols; id id_]
+  | OutReferenceEvent (tlid_, space_, name_, id_) ->
+      ev "OutReferenceEvent" [tlid tlid_; string space_; string name_; id id_]
+
+
+let tlReferences (refs : Types.tlReference list) : Js.Json.t =
+  list tlReference refs
+
+
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
   object_
     [ ("timersEnabled", bool se.timersEnabled)
@@ -613,7 +626,8 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("tlCursors", tcStrDict traceID se.tlCursors)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
-    ; ("canvasPos", pos se.canvasPos) ]
+    ; ("canvasPos", pos se.canvasPos)
+    ; ("tlReferences", tcStrDict tlReferences se.tlReferences) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

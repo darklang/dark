@@ -60,6 +60,27 @@ and handlerProp j : handlerProp =
   ; handlerState = field "handlerState" handlerState j }
 
 
+and tlRefType j : tlReference =
+  j
+  |> variants
+       [ ( "OutReferenceDB"
+         , variant4
+             (fun a b c d -> OutReferenceDB (a, b, c, d))
+             tlid
+             string
+             dbColList
+             id )
+       ; ( "OutReferenceEvent"
+         , variant4
+             (fun a b c d -> OutReferenceEvent (a, b, c, d))
+             tlid
+             string
+             string
+             id ) ]
+
+
+and tlReferences j : tlReference list = list tlRefType j
+
 and serializableEditor (j : Js.Json.t) : serializableEditor =
   (* always make these optional so that we don't crash the page when we *)
   (* change the structure *)
@@ -79,7 +100,10 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; handlerProps =
       ( try orNull (field "handlerProps" (dict handlerProp)) StrDict.empty j
         with _ -> StrDict.empty )
-  ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j }
+  ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j
+  ; tlReferences =
+      ( try orNull (field "tlReferences" (dict tlReferences)) StrDict.empty j
+        with _ -> StrDict.empty ) }
 
 
 and cursorState j =

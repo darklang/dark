@@ -197,9 +197,9 @@ and referral =
 
 and tlReference =
   | OutReferenceDB of tlid * dBName * dBColumn list * id
-  | OutReferenceHandler of tlid * string * string * string option * id
+  | OutReferenceEvent of tlid * string * string * id
 
-(* OutReferenceHandler tlid space name method expr-id *)
+(* OutReferenceEvent tlid space name method expr-id *)
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -703,7 +703,7 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of toplevel list * bool
+  | SetToplevels of toplevel list * bool * bool
   | UpdateToplevels of toplevel list * bool
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
@@ -926,7 +926,8 @@ and model =
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list }
+  ; deletedUserTipes : userTipe list
+  ; tlReferences : tlReference list StrDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -936,5 +937,6 @@ and serializableEditor =
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp StrDict.t
-  ; canvasPos : pos }
+  ; canvasPos : pos
+  ; tlReferences : tlReference list StrDict.t }
 [@@deriving show {with_path = false}]
