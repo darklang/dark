@@ -1089,7 +1089,7 @@ let tlidStrOfReference (r : tlReference) : string =
   match r with
   | OutReferenceDB (TLID tlid, _, _, _) ->
       tlid
-  | OutReferenceHandler (TLID tlid, _, _, _, _) ->
+  | OutReferenceEvent (TLID tlid, _, _, _) ->
       tlid
 
 
@@ -1097,7 +1097,7 @@ let idOfReference (r : tlReference) : id =
   match r with
   | OutReferenceDB (_, _, _, id) ->
       id
-  | OutReferenceHandler (_, _, _, _, id) ->
+  | OutReferenceEvent (_, _, _, id) ->
       id
 
 

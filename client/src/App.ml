@@ -509,7 +509,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (tls, updateCurrent) ->
+    | SetToplevels (tls, updateCurrent, updateRefs) ->
         let m2 = {m with toplevels = tls} in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -520,17 +520,31 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getTL m tlid in
-                ( match tl.data with
-                | TLDB _ ->
-                    TL.upsert m2 tl
-                | TLHandler _ ->
-                    TL.upsert m2 tl
-                | TLTipe _ ->
-                    m2
-                | TLFunc _ ->
-                    m2 )
+                let m_ =
+                  match tl.data with
+                  | TLDB _ ->
+                      TL.upsert m2 tl
+                  | TLHandler _ ->
+                      TL.upsert m2 tl
+                  | TLTipe _ ->
+                      m2
+                  | TLFunc _ ->
+                      m2
+                in
+                if updateRefs
+                then
+                  let r = TL.getReferences tl tls in
+                  { m_ with
+                    tlReferences =
+                      StrDict.insert
+                        ~key:(showTLID tlid)
+                        ~value:r
+                        m_.tlReferences }
+                else m_
           | None ->
-              m2
+              if updateCurrent && updateRefs
+              then {m2 with tlReferences = ViewUtils.createTLReferences tls}
+              else m2
         in
         let m4 =
           { m3 with
@@ -543,7 +557,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = TL.upsertAll m tls in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (m.toplevels, updateCurrent))
+          (SetToplevels (m.toplevels, updateCurrent, true))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels dtls ->
         let m2 =
@@ -896,7 +910,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (m2.toplevels, true)
+          [ SetToplevels (m2.toplevels, true, false)
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1133,7 +1147,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.toplevels, true)
+        [ SetToplevels (r.toplevels, true, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)

@@ -106,7 +106,12 @@ let createVS (m : model) (tl : toplevel) : viewState =
           None )
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
-  ; refs = (if selected then Toplevel.getReferences tl m.toplevels else []) }
+  ; refs =
+      ( if selected
+      then
+        StrDict.get ~key:(showTLID tl.id) m.tlReferences
+        |> Option.withDefault ~default:[]
+      else [] ) }
 
 
 let fontAwesome (name : string) : msg Html.html =
@@ -366,6 +371,16 @@ let createHandlerProp (tls : toplevel list) : handlerProp StrDict.t =
              insertProps tl.id props
          | _ ->
              props )
+       ~init:StrDict.empty
+
+
+let createTLReferences (tls : toplevel list) : tlReference list StrDict.t =
+  tls
+  |> List.foldl
+       ~f:(fun tl refs ->
+         let r = Toplevel.getReferences tl tls in
+         Debug.loG ("REF " ^ showTLID tl.id) r ;
+         StrDict.insert ~key:(showTLID tl.id) ~value:r refs )
        ~init:StrDict.empty
 
 

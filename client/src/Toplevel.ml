@@ -574,7 +574,7 @@ let getReferences (tl : toplevel) (toplevels : toplevel list) :
     | REmit (space, name, id) ->
         findEventNamed space name toplevels
         |> Option.andThen ~f:(fun h ->
-               Some (OutReferenceHandler (h.tlid, space, name, None, id)) )
+               Some (OutReferenceEvent (h.tlid, space, name, id)) )
   in
   match tl.data with
   | TLHandler h ->

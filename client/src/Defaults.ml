@@ -24,7 +24,8 @@ let defaultEditor : serializableEditor =
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; handlerProps = StrDict.empty
-  ; canvasPos = origin }
+  ; canvasPos = origin
+  ; tlReferences = StrDict.empty }
 
 
 let defaultCanvasProps : canvasProps =
@@ -88,4 +89,5 @@ let defaultModel : model =
   ; handlerProps = StrDict.empty
   ; staticDeploys = []
   ; userTipes = []
-  ; deletedUserTipes = [] }
+  ; deletedUserTipes = []
+  ; tlReferences = StrDict.empty }
