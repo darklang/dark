@@ -116,5 +116,22 @@ let order_and_filter_wildcards (pages : RT.HandlerT.handler list) :
         |> List.rev
       in
       (* ordered_wildcards is ordered most-specific to least-specific, so pluck the
-       * first and convert it back to a list to fit the API *)
-      ordered_wildcards |> List.hd |> Option.to_list
+       * most specific and return it along with all others of its specificity *)
+      match ordered_wildcards with
+      | [] ->
+          []
+      | [a] ->
+          [a]
+      | a :: rest ->
+          let same_specificity =
+            List.filter
+              ~f:(fun b ->
+                let comparison =
+                  compare_route_specificity
+                    (Handler.event_name_for_exn a)
+                    (Handler.event_name_for_exn b)
+                in
+                comparison = 0 )
+              rest
+          in
+          a :: same_specificity
