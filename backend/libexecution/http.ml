@@ -71,16 +71,32 @@ let bind_route_variables_exn ~(route : string) (request_path : string) :
   |> List.filter_map ~f:(fun x -> x)
 
 
-(* The specificity ordering is defined as the ordering between the
- * number of `/`-delimited * segments in the route.
- *
- * ie. `/` < `/:a` = `/:b` < `/:a/:b` = `/:aa/:bb` < `/:a/:b/:c` etc.
- *
- *)
-let compare_route_specificity (left : string) (right : string) : int =
-  let left_count = List.length (split_uri_path left) in
-  let right_count = List.length (split_uri_path right) in
-  Int.compare left_count right_count
+(* From left-to-right segment-wise, we say that concrete is more specific
+ * than wild is more specific than empty *)
+let rec compare_route_specificity (left : string list) (right : string list) :
+    int =
+  let is_wild s = String.is_prefix ~prefix:":" s in
+  let is_concrete s = not (is_wild s) in
+  match (left, right) with
+  | [], [] ->
+      0
+  | _l, [] ->
+      1
+  | [], _r ->
+      -1
+  | l :: _, r :: _ when is_concrete l && is_wild r ->
+      1
+  | l :: _, r :: _ when is_wild l && is_concrete r ->
+      -1
+  | _ :: ls, _ :: rs ->
+      compare_route_specificity ls rs
+
+
+let compare_page_route_specificity
+    (left : RT.HandlerT.handler) (right : RT.HandlerT.handler) : int =
+  compare_route_specificity
+    (left |> Handler.event_name_for_exn |> split_uri_path)
+    (right |> Handler.event_name_for_exn |> split_uri_path)
 
 
 let order_and_filter_wildcards (pages : RT.HandlerT.handler list) :
@@ -89,49 +105,30 @@ let order_and_filter_wildcards (pages : RT.HandlerT.handler list) :
   then (* do nothing if we have at-most 1 match *)
     pages
   else
-    (* partition out wildcards *)
-    let wildcards, concrete =
-      List.partition_tf
-        ~f:(fun h -> has_route_variables (Handler.event_name_for_exn h))
-        pages
+    let ordered_pages =
+      pages
+      |> List.sort ~compare:(fun left right ->
+             compare_page_route_specificity left right )
+      (* we intentionally sort in least specific to most specific order
+        * then reverse because the lists are small. we could do it in
+        * a single pass by negating the comparison function, but that might
+        * obfuscate what we're trying to do here
+        *)
+      |> List.rev
     in
-    if List.length concrete > 0
-    then (* if we have concrete route matches, just return them *)
-      concrete
-    else
-      (* else, we _only_ have wildcard matches, and we should return at-most one of them.
-       * we should choose which one to match based on a specificity algorithm
-       * *)
-      let ordered_wildcards =
-        wildcards
-        |> List.sort ~compare:(fun left right ->
-               compare_route_specificity
-                 (Handler.event_name_for_exn left)
-                 (Handler.event_name_for_exn right) )
-        (* we intentionally sort in least specific to most specific order
-         * then reverse because the lists are small. we could do it in
-         * a single pass by negating the comparison function, but that might
-         * obfuscate what we're trying to do here
-         *)
-        |> List.rev
-      in
-      (* ordered_wildcards is ordered most-specific to least-specific, so pluck the
-       * most specific and return it along with all others of its specificity *)
-      match ordered_wildcards with
-      | [] ->
-          []
-      | [a] ->
-          [a]
-      | a :: rest ->
-          let same_specificity =
-            List.filter
-              ~f:(fun b ->
-                let comparison =
-                  compare_route_specificity
-                    (Handler.event_name_for_exn a)
-                    (Handler.event_name_for_exn b)
-                in
-                comparison = 0 )
-              rest
-          in
-          a :: same_specificity
+    (* ordered_pages is ordered most-specific to least-specific, so pluck the
+      * most specific and return it along with all others of its specificity *)
+    match ordered_pages with
+    | [] ->
+        []
+    | [a] ->
+        [a]
+    | a :: rest ->
+        let same_specificity =
+          List.filter
+            ~f:(fun b ->
+              let comparison = compare_page_route_specificity a b in
+              comparison = 0 )
+            rest
+        in
+        a :: same_specificity
