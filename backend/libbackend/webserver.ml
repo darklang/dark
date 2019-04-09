@@ -318,13 +318,8 @@ let user_page_handler
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
   let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
-  let pages = !c.handlers |> TL.http_handlers in
   let pages =
-    if List.length pages > 1
-    then
-      List.filter pages ~f:(fun h ->
-          not (Http.has_route_variables (Handler.event_name_for_exn h)) )
-    else pages
+    !c.handlers |> TL.http_handlers |> Http.order_and_filter_wildcards
   in
   let trace_id = Util.create_uuid () in
   let canvas_id = !c.id in

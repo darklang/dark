@@ -69,3 +69,52 @@ let bind_route_variables_exn ~(route : string) (request_path : string) :
       | Some var ->
           Some (var, Dval.dstr_of_string_exn a) )
   |> List.filter_map ~f:(fun x -> x)
+
+
+(* The specificity ordering is defined as the ordering between the
+ * number of `/`-delimited * segments in the route.
+ *
+ * ie. `/` < `/:a` = `/:b` < `/:a/:b` = `/:aa/:bb` < `/:a/:b/:c` etc.
+ *
+ *)
+let compare_route_specificity (left : string) (right : string) : int =
+  let left_count = List.length (split_uri_path left) in
+  let right_count = List.length (split_uri_path right) in
+  Int.compare left_count right_count
+
+
+let order_and_filter_wildcards (pages : RT.HandlerT.handler list) :
+    RT.HandlerT.handler list =
+  if List.length pages <= 1
+  then (* do nothing if we have at-most 1 match *)
+    pages
+  else
+    (* partition out wildcards *)
+    let wildcards, concrete =
+      List.partition_tf
+        ~f:(fun h -> has_route_variables (Handler.event_name_for_exn h))
+        pages
+    in
+    if List.length concrete > 0
+    then (* if we have concrete route matches, just return them *)
+      concrete
+    else
+      (* else, we _only_ have wildcard matches, and we should return at-most one of them.
+       * we should choose which one to match based on a specificity algorithm
+       * *)
+      let ordered_wildcards =
+        wildcards
+        |> List.sort ~compare:(fun left right ->
+               compare_route_specificity
+                 (Handler.event_name_for_exn left)
+                 (Handler.event_name_for_exn right) )
+        (* we intentionally sort in least specific to most specific order
+         * then reverse because the lists are small. we could do it in
+         * a single pass by negating the comparison function, but that might
+         * obfuscate what we're trying to do here
+         *)
+        |> List.rev
+      in
+      (* ordered_wildcards is ordered most-specific to least-specific, so pluck the
+       * first and convert it back to a list to fit the API *)
+      ordered_wildcards |> List.hd |> Option.to_list
