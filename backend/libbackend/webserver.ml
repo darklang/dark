@@ -458,6 +458,16 @@ let static_assets_upload_handler
               (Multipart.file_stream file)
               ""
           in
+          (* Replace DARK_STATIC_ASSETS_BASE_URL with the deployed URL. This
+           * will allow users to create SPAs with a sentinel value in them to
+           * converts to the absolute url. In React, you would do this with
+           * PUBLIC_URL. *)
+          let body =
+            String.substr_replace_all
+              body
+              ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
+              ~with_:sa.url
+          in
           Static_assets.upload_to_bucket filename body canvas deploy_hash
         in
         Lwt.return (files |> List.map ~f:processfile)
