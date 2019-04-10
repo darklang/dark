@@ -122,6 +122,10 @@ let fncall (a, b) = f (FnCall (a, b))
 
 let tlid = Int63.of_int 7
 
+let tlid2 = Int63.of_int 35
+
+let tlid3 = Int63.of_int 70
+
 let tipe_id = Int63.of_int 9
 
 let dbid = Int63.of_int 89
@@ -172,12 +176,13 @@ let http_request_path = "/some/vars/and/such"
 
 let http_route = "/some/:vars/:and/such"
 
-let http_route_handler ?(route = http_route) () : HandlerT.handler =
+let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
+    HandlerT.handler =
   { tlid
   ; ast = f (Value "5")
   ; spec =
       { module_ = f "HTTP"
-      ; name = f http_route
+      ; name = f route
       ; modifier = f "GET"
       ; types = {input = b (); output = b ()} } }
 
@@ -2350,6 +2355,65 @@ let set_after_delete () =
   ()
 
 
+let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
+
+let t_concrete_over_wild () =
+  let wild = http_route_handler ~route:"/:foo" () in
+  let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
+  let ordered = Http.order_and_filter_wildcards [concrete; wild] in
+  AT.check (AT.list testable_handler) "concrete over wild" [concrete] ordered
+
+
+let t_wild_over_nothing () =
+  let wild = http_route_handler ~route:"/a/:foo" () in
+  let nothing = http_route_handler ~tlid:tlid2 ~route:"/a" () in
+  let ordered = Http.order_and_filter_wildcards [wild; nothing] in
+  AT.check (AT.list testable_handler) "wild over nothing" [wild] ordered
+
+
+let t_differing_wildcards () =
+  let single = http_route_handler ~route:"/:first" () in
+  let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
+  let ordered = Http.order_and_filter_wildcards [single; double] in
+  AT.check (AT.list testable_handler) "wild over nothing" [double] ordered
+
+
+let t_lengthy_abcdef_wildcard () =
+  let more = http_route_handler ~route:"/:a/b/c/d/:e/:f" () in
+  let earlier = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c/:d/e/f" () in
+  let ordered = Http.order_and_filter_wildcards [more; earlier] in
+  AT.check (AT.list testable_handler) "wild over nothing" [more] ordered
+
+
+let t_same_length_abc_diff_wildcards () =
+  let a = http_route_handler ~route:"/a/:b/:c" () in
+  let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
+  let ordered = Http.order_and_filter_wildcards [a; b] in
+  AT.check (AT.list testable_handler) "wild over nothing" [a] ordered
+
+
+let t_same_length_abc_same_wildcards () =
+  let a = http_route_handler ~route:"/:a/b/c" () in
+  let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
+  let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
+  let ordered = Http.order_and_filter_wildcards [a; b; c] in
+  AT.check (AT.list testable_handler) "wild over nothing" [c] ordered
+
+
+(* note this test depends on the current reverse ordering, even though there's
+ * no reason to guarantee the reversal for routes of the same specificity. *)
+let t_same_specificity_are_returned () =
+  let single = http_route_handler ~route:"/:first" () in
+  let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
+  let double2 = http_route_handler ~tlid:tlid3 ~route:"/:foo/:bar" () in
+  let ordered = Http.order_and_filter_wildcards [single; double; double2] in
+  AT.check
+    (AT.list testable_handler)
+    "wild over nothing"
+    [double2; double]
+    ordered
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2549,7 +2613,19 @@ let suite =
   ; ( "Loading handler via HTTP router loads user tipes"
     , `Quick
     , t_http_oplist_loads_user_tipes )
-  ; ("set after delete doesn't crash", `Quick, set_after_delete) ]
+  ; ("set after delete doesn't crash", `Quick, set_after_delete)
+  ; ("concrete is more specific than wild", `Quick, t_concrete_over_wild)
+  ; ("wild is more specific than nothing", `Quick, t_wild_over_nothing)
+  ; ("differing size wildcard routes", `Quick, t_differing_wildcards)
+  ; ("lengthy a/b/c/d/e/f wildcard", `Quick, t_lengthy_abcdef_wildcard)
+  ; ( "same length a/b/c with different # wildcards "
+    , `Quick
+    , t_same_length_abc_diff_wildcards )
+  ; ( "same length a/b/c with same # wildcards "
+    , `Quick
+    , t_same_length_abc_same_wildcards )
+  ; ("same specificity are returned", `Quick, t_same_specificity_are_returned)
+  ]
 
 
 let () =
