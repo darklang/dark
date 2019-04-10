@@ -110,14 +110,14 @@ let order_and_filter_wildcards (pages : RT.HandlerT.handler list) :
       |> List.sort ~compare:(fun left right ->
              compare_page_route_specificity left right )
       (* we intentionally sort in least specific to most specific order
-        * then reverse because the lists are small. we could do it in
-        * a single pass by negating the comparison function, but that might
-        * obfuscate what we're trying to do here
-        *)
+       * then reverse because the lists are small. we could do it in
+       * a single pass by negating the comparison function, but that might
+       * obfuscate what we're trying to do here
+       *)
       |> List.rev
     in
     (* ordered_pages is ordered most-specific to least-specific, so pluck the
-      * most specific and return it along with all others of its specificity *)
+     * most specific and return it along with all others of its specificity *)
     match ordered_pages with
     | [] ->
         []
