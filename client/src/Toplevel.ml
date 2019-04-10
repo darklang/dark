@@ -588,4 +588,13 @@ let getReferences (tl : toplevel) (toplevels : toplevel list) :
   | TLTipe _ ->
       []
 
+
 (* To DB, Func, Tipe be handled in future tix *)
+
+let initReferences (tls : toplevel list) : tlReference list StrDict.t =
+  List.foldl
+    ~f:(fun tl refs ->
+      let r = getReferences tl tls in
+      StrDict.insert ~key:(showTLID tl.id) ~value:r refs )
+    ~init:StrDict.empty
+    tls

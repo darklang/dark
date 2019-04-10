@@ -374,16 +374,6 @@ let createHandlerProp (tls : toplevel list) : handlerProp StrDict.t =
        ~init:StrDict.empty
 
 
-let createTLReferences (tls : toplevel list) : tlReference list StrDict.t =
-  tls
-  |> List.foldl
-       ~f:(fun tl refs ->
-         let r = Toplevel.getReferences tl tls in
-         Debug.loG ("REF " ^ showTLID tl.id) r ;
-         StrDict.insert ~key:(showTLID tl.id) ~value:r refs )
-       ~init:StrDict.empty
-
-
 let isHandlerLocked (vs : viewState) : bool =
   match vs.handlerProp with
   | Some p ->
