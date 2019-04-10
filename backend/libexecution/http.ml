@@ -99,8 +99,14 @@ let compare_page_route_specificity
     (right |> Handler.event_name_for_exn |> split_uri_path)
 
 
-let order_and_filter_wildcards (pages : RT.HandlerT.handler list) :
-    RT.HandlerT.handler list =
+(* Takes a list of handlers that match a request's path, and filters the list
+ * down to the list of handlers that match the request most specifically
+ *
+ * It looks purely at the handler's definition for its specificity relation.
+ *
+ * *)
+let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list)
+    : RT.HandlerT.handler list =
   let ordered_pages =
     pages
     |> List.sort ~compare:(fun left right ->
