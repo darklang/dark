@@ -542,8 +542,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                         m_.tlReferences }
                 else m_
           | None ->
-              if updateCurrent && updateRefs
-              then {m2 with tlReferences = ViewUtils.createTLReferences tls}
+              if updateRefs
+              then {m2 with tlReferences = TL.initReferences tls}
               else m2
         in
         let m4 =
