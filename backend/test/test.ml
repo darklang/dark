@@ -2360,35 +2360,39 @@ let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
 let t_concrete_over_wild () =
   let wild = http_route_handler ~route:"/:foo" () in
   let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
-  let ordered = Http.order_and_filter_wildcards [concrete; wild] in
+  let ordered =
+    Http.filter_matching_handlers_by_specificity [concrete; wild]
+  in
   AT.check (AT.list testable_handler) "concrete over wild" [concrete] ordered
 
 
 let t_wild_over_nothing () =
   let wild = http_route_handler ~route:"/a/:foo" () in
   let nothing = http_route_handler ~tlid:tlid2 ~route:"/a" () in
-  let ordered = Http.order_and_filter_wildcards [wild; nothing] in
+  let ordered = Http.filter_matching_handlers_by_specificity [wild; nothing] in
   AT.check (AT.list testable_handler) "wild over nothing" [wild] ordered
 
 
 let t_differing_wildcards () =
   let single = http_route_handler ~route:"/:first" () in
   let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
-  let ordered = Http.order_and_filter_wildcards [single; double] in
+  let ordered =
+    Http.filter_matching_handlers_by_specificity [single; double]
+  in
   AT.check (AT.list testable_handler) "wild over nothing" [double] ordered
 
 
 let t_lengthy_abcdef_wildcard () =
   let more = http_route_handler ~route:"/:a/b/c/d/:e/:f" () in
   let earlier = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c/:d/e/f" () in
-  let ordered = Http.order_and_filter_wildcards [more; earlier] in
+  let ordered = Http.filter_matching_handlers_by_specificity [more; earlier] in
   AT.check (AT.list testable_handler) "wild over nothing" [more] ordered
 
 
 let t_same_length_abc_diff_wildcards () =
   let a = http_route_handler ~route:"/a/:b/:c" () in
   let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
-  let ordered = Http.order_and_filter_wildcards [a; b] in
+  let ordered = Http.filter_matching_handlers_by_specificity [a; b] in
   AT.check (AT.list testable_handler) "wild over nothing" [a] ordered
 
 
@@ -2396,7 +2400,7 @@ let t_same_length_abc_same_wildcards () =
   let a = http_route_handler ~route:"/:a/b/c" () in
   let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
   let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
-  let ordered = Http.order_and_filter_wildcards [a; b; c] in
+  let ordered = Http.filter_matching_handlers_by_specificity [a; b; c] in
   AT.check (AT.list testable_handler) "wild over nothing" [c] ordered
 
 
@@ -2406,7 +2410,9 @@ let t_same_specificity_are_returned () =
   let single = http_route_handler ~route:"/:first" () in
   let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
   let double2 = http_route_handler ~tlid:tlid3 ~route:"/:foo/:bar" () in
-  let ordered = Http.order_and_filter_wildcards [single; double; double2] in
+  let ordered =
+    Http.filter_matching_handlers_by_specificity [single; double; double2]
+  in
   AT.check
     (AT.list testable_handler)
     "wild over nothing"

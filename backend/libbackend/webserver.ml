@@ -319,7 +319,9 @@ let user_page_handler
   let query = req |> CRequest.uri |> Uri.query in
   let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
   let pages =
-    !c.handlers |> TL.http_handlers |> Http.order_and_filter_wildcards
+    !c.handlers
+    |> TL.http_handlers
+    |> Http.filter_matching_handlers_by_specificity
   in
   let trace_id = Util.create_uuid () in
   let canvas_id = !c.id in
