@@ -112,10 +112,15 @@ let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list)
     |> List.sort ~compare:(fun left right ->
            compare_page_route_specificity left right )
     (* we intentionally sort in least specific to most specific order
-       * then reverse because the lists are small. we could do it in
-       * a single pass by negating the comparison function, but that might
-       * obfuscate what we're trying to do here
-       *)
+     * because it's much easier to define orderings from 'least-to-most'.
+     *
+     * as we want the most specific, we then reverse this list.
+     *
+     * we could do invert the relationship (ie. change the 1's to -1's and vice versa
+     * in our comparison function) but my brain really didn't like that and found
+     * it confusing.
+     *
+     *)
     |> List.rev
   in
   (* ordered_pages is ordered most-specific to least-specific, so pluck the
