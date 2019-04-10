@@ -2379,21 +2379,21 @@ let t_differing_wildcards () =
   let ordered =
     Http.filter_matching_handlers_by_specificity [single; double]
   in
-  AT.check (AT.list testable_handler) "wild over nothing" [double] ordered
+  AT.check (AT.list testable_handler) "differing wildcards" [double] ordered
 
 
 let t_lengthy_abcdef_wildcard () =
   let more = http_route_handler ~route:"/:a/b/c/d/:e/:f" () in
   let earlier = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c/:d/e/f" () in
   let ordered = Http.filter_matching_handlers_by_specificity [more; earlier] in
-  AT.check (AT.list testable_handler) "wild over nothing" [more] ordered
+  AT.check (AT.list testable_handler) "lengthy abcdef wildcard" [more] ordered
 
 
 let t_same_length_abc_diff_wildcards () =
   let a = http_route_handler ~route:"/a/:b/:c" () in
   let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
   let ordered = Http.filter_matching_handlers_by_specificity [a; b] in
-  AT.check (AT.list testable_handler) "wild over nothing" [a] ordered
+  AT.check (AT.list testable_handler) "same length abc route with diff # wildcards" [a] ordered
 
 
 let t_same_length_abc_same_wildcards () =
@@ -2401,7 +2401,7 @@ let t_same_length_abc_same_wildcards () =
   let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
   let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
   let ordered = Http.filter_matching_handlers_by_specificity [a; b; c] in
-  AT.check (AT.list testable_handler) "wild over nothing" [c] ordered
+  AT.check (AT.list testable_handler) "same length abc routes with same # wildcards" [c] ordered
 
 
 (* note this test depends on the current reverse ordering, even though there's
@@ -2415,7 +2415,7 @@ let t_same_specificity_are_returned () =
   in
   AT.check
     (AT.list testable_handler)
-    "wild over nothing"
+    "multiple specificity are returned"
     [double2; double]
     ordered
 
