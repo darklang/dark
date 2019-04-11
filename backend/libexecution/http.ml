@@ -91,6 +91,8 @@ let bind_route_variables_exn ~(route : string) (request_path : string) :
     (bind_route_variables ~route request_path)
 
 
+(* We say that a `path` matches a `route` iff. we could successfully run the
+ * binding algorithm across it *)
 let request_path_matches_route ~(route : string) (request_path : string) : bool
     =
   Option.is_some (bind_route_variables ~route request_path)
