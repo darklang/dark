@@ -260,14 +260,6 @@ let result_to_response
     | Some h ->
         Header.add_unless_exists headers "Access-Control-Allow-Origin" h
   in
-  let json_formatter =
-    (* This was kept in as part of the fallback of the "pretty json" migration.
-     * It can be removed later, if no-one complains. *)
-    if Header.get (CRequest.headers req) "x-dark-json-format-version"
-       = Some "0"
-    then Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
-    else Dval.to_pretty_machine_json_v1
-  in
   match result with
   | RTT.DIncomplete ->
       respond
@@ -294,12 +286,12 @@ let result_to_response
         then
           Dval.to_enduser_readable_html_v0 value
           (* this is the case where a content-type _was_ set, but is not handled. An unset content-type defaults to application/json *)
-        else json_formatter value
+        else Dval.to_pretty_machine_json_v1 value
       in
       let status = Cohttp.Code.status_of_code code in
       respond ~resp_headers ~execution_id status body
   | _ ->
-      let body = json_formatter result in
+      let body = Dval.to_pretty_machine_json_v1 result in
       (* for demonstrations sake, let's return 200 Okay when
      * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in
