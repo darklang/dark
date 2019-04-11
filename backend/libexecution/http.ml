@@ -32,14 +32,7 @@ let route_variable (route_segment : string) : string option =
 
 
 let route_variables (route : string) : string list =
-  route
-  |> split_uri_path
-  |> List.filter ~f:(fun x -> route_variable x <> None)
-  |> List.map ~f:(String.chop_prefix_exn ~prefix:":")
-
-
-let has_route_variables (route : string) : bool =
-  List.length (route_variables route) > 0
+  route |> split_uri_path |> List.filter_map ~f:route_variable
 
 
 let bind_route_variables ~(route : string) (request_path : string) :
