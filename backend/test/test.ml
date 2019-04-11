@@ -2022,8 +2022,8 @@ let t_route_variables_work () =
   AT.check
     (AT.list (AT.pair AT.string at_dval))
     "Variables are bound as expected"
-    [ ("userid", Dval.dstr_of_string_exn "myid")
-    ; ("cardid", Dval.dstr_of_string_exn "0") ]
+    [ ("cardid", Dval.dstr_of_string_exn "0")
+    ; ("userid", Dval.dstr_of_string_exn "myid") ]
     (Http.bind_route_variables_exn
        "/user/myid/card/0"
        ~route:"/user/:userid/card/:cardid") ;
@@ -2447,6 +2447,68 @@ let t_mismatch_filtering_leaves_root () =
     filtered
 
 
+let t_route_equals_path () =
+  let route = "/a/:b/c" in
+  let path = "/a/pickmeup/c" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "route binds to path when they're same length"
+    true
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup")] = bound)
+
+
+let t_route_lt_path_with_wildcard () =
+  let route = "/a/:b" in
+  let path = "/a/pickmeup/c/d" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "len(route) < len(path) with a trailing wildcard should succeed in binding all of the remaining path bits"
+    true
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup/c/d")] = bound)
+
+
+let t_route_lt_path_without_wildcard () =
+  let route = "/:a/b" in
+  let path = "/a/pickmeup/c" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "len(route) < len(path) without trailing wildcards should fail binding"
+    true
+    (None = bound)
+
+
+let t_route_gt_path () =
+  let route = "/a/b/c/d" in
+  let path = "/a/pickmeup/c" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "len(route) > len(path) should fail binding"
+    true
+    (None = bound)
+
+
+let t_route_eq_path_mismatch_concrete () =
+  let route = "/a/:b/c/d" in
+  let path = "/a/b/c/e" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "binding fails due to mismatch in concrete elems"
+    true
+    (None = bound)
+
+
+let t_route_eq_path_match_concrete () =
+  let route = "/a/b/c/d" in
+  let path = "/a/b/c/d" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check AT.bool "empty binding succeeds" true (Some [] = bound)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2661,7 +2723,17 @@ let suite =
   ; ("route /:a results in 404 for /", `Quick, t_mismatch_is_filtered)
   ; ( "root handler is not filtered out"
     , `Quick
-    , t_mismatch_filtering_leaves_root ) ]
+    , t_mismatch_filtering_leaves_root )
+  ; ("route = path", `Quick, t_route_equals_path)
+  ; ("route < path", `Quick, t_route_lt_path_with_wildcard)
+  ; ("route < path not wildcard", `Quick, t_route_lt_path_without_wildcard)
+  ; ("route > path", `Quick, t_route_gt_path)
+  ; ( "route = path but concrete mismatch"
+    , `Quick
+    , t_route_eq_path_mismatch_concrete )
+  ; ( "route = path solely concrete match"
+    , `Quick
+    , t_route_eq_path_match_concrete ) ]
 
 
 let () =
