@@ -2393,7 +2393,11 @@ let t_same_length_abc_diff_wildcards () =
   let a = http_route_handler ~route:"/a/:b/:c" () in
   let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
   let ordered = Http.filter_matching_handlers_by_specificity [a; b] in
-  AT.check (AT.list testable_handler) "same length abc route with diff # wildcards" [a] ordered
+  AT.check
+    (AT.list testable_handler)
+    "same length abc route with diff # wildcards"
+    [a]
+    ordered
 
 
 let t_same_length_abc_same_wildcards () =
@@ -2401,7 +2405,11 @@ let t_same_length_abc_same_wildcards () =
   let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
   let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
   let ordered = Http.filter_matching_handlers_by_specificity [a; b; c] in
-  AT.check (AT.list testable_handler) "same length abc routes with same # wildcards" [c] ordered
+  AT.check
+    (AT.list testable_handler)
+    "same length abc routes with same # wildcards"
+    [c]
+    ordered
 
 
 (* note this test depends on the current reverse ordering, even though there's
@@ -2418,6 +2426,25 @@ let t_same_specificity_are_returned () =
     "multiple specificity are returned"
     [double2; double]
     ordered
+
+
+let t_mismatch_is_filtered () =
+  let single = http_route_handler ~route:"/:first" () in
+  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single] in
+  AT.check (AT.list testable_handler) "mismatch is filtered out" [] filtered
+
+
+let t_mismatch_filtering_leaves_root () =
+  let single = http_route_handler ~route:"/:first" () in
+  let root = http_route_handler ~tlid:tlid2 ~route:"/" () in
+  let filtered =
+    Http.filter_invalid_handler_matches ~path:"/" [single; root]
+  in
+  AT.check
+    (AT.list testable_handler)
+    "mismatch is filtered out but root is left"
+    [root]
+    filtered
 
 
 (* ------------------- *)
@@ -2631,7 +2658,10 @@ let suite =
     , `Quick
     , t_same_length_abc_same_wildcards )
   ; ("same specificity are returned", `Quick, t_same_specificity_are_returned)
-  ]
+  ; ("route /:a results in 404 for /", `Quick, t_mismatch_is_filtered)
+  ; ( "root handler is not filtered out"
+    , `Quick
+    , t_mismatch_filtering_leaves_root ) ]
 
 
 let () =

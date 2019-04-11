@@ -71,6 +71,20 @@ let bind_route_variables_exn ~(route : string) (request_path : string) :
   |> List.filter_map ~f:(fun x -> x)
 
 
+(* Postgres matches the provided path `/` with handler `/:a` due to
+  * `/` matching `/%%` via LIKE logic`. This cleans this edge case from the
+  * set.
+  * *)
+let filter_invalid_handler_matches
+    ~(path : string) (handlers : RT.HandlerT.handler list) :
+    RT.HandlerT.handler list =
+  List.filter
+    ~f:(fun h ->
+      let route = Handler.event_name_for_exn h in
+      request_path_matches_route ~route path )
+    handlers
+
+
 (* From left-to-right segment-wise, we say that concrete is more specific
  * than wild is more specific than empty *)
 let rec compare_route_specificity (left : string list) (right : string list) :
