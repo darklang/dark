@@ -41,7 +41,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
   in
-  let refs = ViewReferences.referenceViews vs.refs in
+  let refs = ViewIntrospect.referenceViews vs.refs in
   let events =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tl.id)

@@ -553,11 +553,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
-    | UpdateToplevels (tls, updateCurrent) ->
+    | UpdateToplevels (tls, updateCurrent, updateRefs) ->
         let m = TL.upsertAll m tls in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (m.toplevels, updateCurrent, true))
+          (SetToplevels (m.toplevels, updateCurrent, updateRefs))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels dtls ->
         let m2 =
@@ -1105,11 +1105,12 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, _, Ok r) ->
+  | AddOpRPCCallback (focus, oparams, Ok r) ->
+      let shouldUpdateRefs = Introspect.shouldUpdateReferences oparams.ops in
       if focus = FocusNoChange
       then
         Many
-          [ UpdateToplevels (r.toplevels, false)
+          [ UpdateToplevels (r.toplevels, false, shouldUpdateRefs)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
           ; SetTypes (r.userTipes, r.deletedUserTipes, false)
@@ -1120,7 +1121,7 @@ let update_ (msg : msg) (m : model) : modification =
         let m4 = {m3 with userTipes = r.userTipes} in
         let newState = processFocus m4 focus in
         Many
-          [ UpdateToplevels (r.toplevels, true)
+          [ UpdateToplevels (r.toplevels, true, shouldUpdateRefs)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
           ; SetTypes (r.userTipes, r.deletedUserTipes, true)

@@ -700,7 +700,7 @@ and modification =
   | Deselect
   | RemoveToplevel of toplevel
   | SetToplevels of toplevel list * bool * bool
-  | UpdateToplevels of toplevel list * bool
+  | UpdateToplevels of toplevel list * bool * bool
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
