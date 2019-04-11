@@ -191,15 +191,11 @@ and pointerOwner =
   | POAst
   | PODb
 
-and referral =
-  | RDBName of dBName * id
-  | REmit of string * string * id
-
 and tlReference =
   | OutReferenceDB of tlid * dBName * dBColumn list * id
   | OutReferenceEvent of tlid * string * string * id
 
-(* OutReferenceEvent tlid space name method expr-id *)
+(* OutReferenceEvent tlid space name expr-id *)
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -937,6 +933,5 @@ and serializableEditor =
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp StrDict.t
-  ; canvasPos : pos
-  ; tlReferences : tlReference list StrDict.t }
+  ; canvasPos : pos }
 [@@deriving show {with_path = false}]

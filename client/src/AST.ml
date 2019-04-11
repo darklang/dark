@@ -1100,6 +1100,7 @@ let idOfReference (r : tlReference) : id =
   | OutReferenceEvent (_, _, _, id) ->
       id
 
+(*
 
 let tryDBNames (id : id) (exprs : expr list) : referral option =
   let matchVarname e =
@@ -1141,4 +1142,4 @@ let pdToReferrals (pointers : pointerData list) : referral list =
              None )
 
 
-let getASTReferences (ast : expr) : referral list = pdToReferrals (allData ast)
+let getASTReferences (ast : expr) : referral list = pdToReferrals (allData ast) *)

@@ -24,8 +24,7 @@ let defaultEditor : serializableEditor =
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; handlerProps = StrDict.empty
-  ; canvasPos = origin
-  ; tlReferences = StrDict.empty }
+  ; canvasPos = origin }
 
 
 let defaultCanvasProps : canvasProps =
