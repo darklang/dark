@@ -31,19 +31,6 @@ let route_variable (route_segment : string) : string option =
   else None
 
 
-let request_path_matches_route ~(route : string) (request_path : string) : bool
-    =
-  (* Routes are stored in two ways, either in postgres using %% for variables,
-   * or in handlers, which use :varname for variables. This needs to handle
-   * both. *)
-  let split_request_path = split_uri_path request_path in
-  let split_route = split_uri_path route in
-  let same_length = List.length split_request_path = List.length split_route in
-  same_length
-  && List.for_all2_exn split_request_path split_route ~f:(fun a r ->
-         r = "%" || a = r || route_variable r <> None )
-
-
 let route_variables (route : string) : string list =
   route
   |> split_uri_path
@@ -55,20 +42,65 @@ let has_route_variables (route : string) : bool =
   List.length (route_variables route) > 0
 
 
-(* assumes route and request match *)
+let bind_route_variables ~(route : string) (request_path : string) :
+    (string * RT.dval) list option =
+  let do_binding route path =
+    (* assumes route length = path length *)
+    List.zip_exn route path
+    |> List.fold ~init:(Some []) ~f:(fun acc (r, p) ->
+           Option.bind acc ~f:(fun acc ->
+               match route_variable r with
+               | Some rv ->
+                   Some ((rv, Dval.dstr_of_string_exn p) :: acc)
+               | None ->
+                   (* Concretized match, or we were passed a Postgres wildcard
+                    * and should treat this as a match
+                    *
+                    * Otherwise, this route/path do not match and should fail
+                    * *)
+                   if r = p || r = "%" then Some acc else None ) )
+  in
+  let split_route = split_uri_path route in
+  let split_path = split_uri_path request_path in
+  match Int.compare (List.length split_path) (List.length split_route) with
+  | -1 ->
+      (* Route *must* be the <= the length of path *)
+      None
+  | 0 ->
+      (* If the route/path are the same length we can zip a binding down *)
+      do_binding split_route split_path
+  | 1 ->
+      (* If the route is shorter than the path, AND the last segment of the route is
+       * wild then we'll munge the path's extra segments into a single string such that
+       * the lengths match and we can do a zip binding *)
+      let last_route_segment = List.last_exn split_route in
+      if Option.is_some (route_variable last_route_segment)
+         || last_route_segment = "%"
+      then
+        let munged_path =
+          let before, after =
+            List.split_n split_path (List.length split_route - 1)
+          in
+          let after_str = String.concat ~sep:"/" after in
+          List.append before [after_str]
+        in
+        do_binding split_route munged_path
+      else None
+  | _ ->
+      Exception.internal
+        "Built-in OCaml `Int.compare` returned something that's not {-1, 0, 1} -- can we page someone in France?"
+
+
 let bind_route_variables_exn ~(route : string) (request_path : string) :
     (string * RT.dval) list =
-  if not (request_path_matches_route ~route request_path)
-  then Exception.internal "request/route mismatch" ;
-  let split_request_path = split_uri_path request_path in
-  let split_route = split_uri_path route in
-  List.map2_exn split_request_path split_route ~f:(fun a r ->
-      match route_variable r with
-      | None ->
-          None
-      | Some var ->
-          Some (var, Dval.dstr_of_string_exn a) )
-  |> List.filter_map ~f:(fun x -> x)
+  Option.value_exn
+    ~message:"request/route mismatch"
+    (bind_route_variables ~route request_path)
+
+
+let request_path_matches_route ~(route : string) (request_path : string) : bool
+    =
+  Option.is_some (bind_route_variables ~route request_path)
 
 
 (* Postgres matches the provided path `/` with handler `/:a` due to
