@@ -45,7 +45,7 @@ let referenceViews (refs : tlReference list) : msg Html.html =
   let topOffset =
     match List.head refs with
     | Some r ->
-        let id = AST.idOfReference r in
+        let id = Introspect.idOfReference r in
         let el = Native.Ext.querySelector (".id-" ^ showID id) in
         (match el with Some e -> Native.Ext.offsetTop e | None -> 0)
     | None ->

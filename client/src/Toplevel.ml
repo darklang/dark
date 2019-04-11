@@ -602,7 +602,7 @@ let matchReferences
                         Some (OutReferenceEvent (tlid, space, name, id)) )
              | _ ->
                  None )
-      |> List.uniqueBy ~f:AST.tlidStrOfReference
+      |> List.uniqueBy ~f:Introspect.tlidStrOfReference
   | TLDB _ ->
       []
   | TLFunc _ ->
