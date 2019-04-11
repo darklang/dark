@@ -36,7 +36,7 @@ and item =
 
 let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
     msg Html.html =
-  let event = ViewUtils.eventNoDefault ~key "click" (fun _ -> handler) in
+  let event = ViewUtils.eventNeither ~key "click" (fun _ -> handler) in
   Html.a [event; Html.class' "button-link"] [content]
 
 
