@@ -214,7 +214,7 @@ RUN opam install -y \
   cohttp-lwt-unix.1.0.2 \
   ocurl.0.8.2 \
   alcotest.0.8.3 \
-  merlin.3.1.0 \
+  merlin.3.2.2 \
   ocp-indent.1.6.1 \
   landmarks.1.1 \
   cstruct.3.2.1 \
