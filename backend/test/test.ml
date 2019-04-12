@@ -2482,7 +2482,7 @@ let t_route_lt_path_without_wildcard () =
 
 let t_route_gt_path () =
   let route = "/a/b/c/d" in
-  let path = "/a/pickmeup/c" in
+  let path = "/a/b/c" in
   let bound = Http.bind_route_variables ~route path in
   AT.check
     AT.bool
