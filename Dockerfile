@@ -214,7 +214,7 @@ RUN opam install -y \
   cohttp-lwt-unix.1.0.2 \
   ocurl.0.8.2 \
   alcotest.0.8.3 \
-  merlin.3.1.0 \
+  merlin.3.2.2 \
   ocp-indent.1.6.1 \
   landmarks.1.1 \
   cstruct.3.2.1 \
@@ -232,7 +232,7 @@ RUN opam install -y \
   js_of_ocaml-lwt.3.2.0 \
   sodium.0.6.0 \
   utop \
-  ocamlformat \
+  ocamlformat.0.8 \
   uuseg.11.0.0 \
   uunf.11.0.0 \
   multipart-form-data.0.1.0 \
@@ -316,7 +316,9 @@ RUN opam update && opam install -y tablecloth-native.0.0.5
 
 # node 11.11 introduced a bug that cased all Jest tests to fail.
 # It is fixed in 11.12, so for now we force our containers to update to 11.12
-RUN sudo apt update && sudo apt install nodejs=11.13.0-1nodesource1
+#
+# And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
+RUN sudo apt update && sudo apt install nodejs=11.14.0-1nodesource1
 
 RUN sudo apt install -y pv
 
