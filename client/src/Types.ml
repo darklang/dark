@@ -191,10 +191,11 @@ and pointerOwner =
   | POAst
   | PODb
 
-and referral =
-  | RDBName of dBName
-  | RUFName of string
-  | REmit of string * string
+and tlReference =
+  | OutReferenceDB of tlid * dBName * dBColumn list * id
+  | OutReferenceEvent of tlid * string * string * id
+
+(* OutReferenceEvent tlid space name expr-id *)
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -698,8 +699,8 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of toplevel list * bool
-  | UpdateToplevels of toplevel list * bool
+  | SetToplevels of toplevel list * bool * bool
+  | UpdateToplevels of toplevel list * bool * bool
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
@@ -826,6 +827,7 @@ and msg =
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
+  | GoTo of page
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -920,7 +922,8 @@ and model =
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list }
+  ; deletedUserTipes : userTipe list
+  ; tlReferences : tlReference list StrDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =

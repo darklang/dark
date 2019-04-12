@@ -83,6 +83,8 @@ module Ext = struct
 
   external windowHeight : Dom.window -> int = "innerHeight" [@@bs.get]
 
+  external offsetTop : Dom.element -> int = "offsetTop" [@@bs.get]
+
   let windowSize : int * int = (windowWidth window, windowHeight window)
 end
 

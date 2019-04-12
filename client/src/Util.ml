@@ -52,3 +52,9 @@ let transformToStringEntry (s_ : string) : string =
 let transformFromStringEntry (s : string) : string =
   let s2 = s |> Regex.replace ~re:(Regex.regex "\"") ~repl:"\\\"" in
   "\"" ^ s2 ^ "\""
+
+
+let removeQuotes (s : string) : string =
+  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+  then s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+  else s
