@@ -316,7 +316,9 @@ RUN opam update && opam install -y tablecloth-native.0.0.5
 
 # node 11.11 introduced a bug that cased all Jest tests to fail.
 # It is fixed in 11.12, so for now we force our containers to update to 11.12
-RUN sudo apt update && sudo apt install nodejs=11.13.0-1nodesource1
+#
+# And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
+RUN sudo apt update && sudo apt install nodejs=11.14.0-1nodesource1
 
 RUN sudo apt install -y pv
 
