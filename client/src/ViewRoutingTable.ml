@@ -34,22 +34,10 @@ and item =
   | Category of category
   | Entry of entry
 
-let buttonLink
-    ~(key : string)
-    (content : msg Html.html)
-    (handler : msg)
-    (page : page option) : msg Html.html =
-  let href =
-    page |> Option.map ~f:(fun p -> Html.href (Url.urlFor p)) |> Option.toList
-  in
-  let event =
-    match page with
-    | None ->
-        ViewUtils.eventNoDefault ~key "click" (fun _ -> handler)
-    | Some _ ->
-        ViewUtils.eventNoPropagation ~key "click" (fun _ -> handler)
-  in
-  Html.a ([event; Html.class' "button-link"] @ href) [content]
+let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
+    msg Html.html =
+  let event = ViewUtils.eventNeither ~key "click" (fun _ -> handler) in
+  Html.a [event; Html.class' "button-link"] [content]
 
 
 let httpCategory (_m : model) (tls : toplevel list) : category =
@@ -387,18 +375,14 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let minuslink =
     match e.minusButton with
     | Some msg ->
-        [ buttonLink
-            ~key:("entry-" ^ showTLID e.tlid)
-            (fontAwesome "times")
-            msg
-            None ]
+        [buttonLink ~key:("entry-" ^ showTLID e.tlid) (fontAwesome "times") msg]
     | None ->
         iconspacer
   in
   let pluslink =
     match e.plusButton with
     | Some msg ->
-        [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg None]
+        [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg]
     | None ->
         iconspacer
   in
@@ -499,8 +483,7 @@ and category2html (m : model) (c : category) : msg Html.html =
           [ buttonLink
               ~key:("plus-" ^ c.classname)
               (fontAwesome "plus-circle")
-              msg
-              None ]
+              msg ]
       | None ->
           []
     in

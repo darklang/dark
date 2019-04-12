@@ -123,6 +123,16 @@ let decodeTransEvent (fn : string -> 'a) j : 'a =
   fn (JSD.field "propertyName" JSD.string j)
 
 
+let eventNeither
+    ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    event
+    {stopPropagation = true; preventDefault = true}
+    (Decoders.wrapDecoder (decodeClickEvent constructor))
+
+
 let eventNoPropagation
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
