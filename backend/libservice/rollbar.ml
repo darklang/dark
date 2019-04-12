@@ -128,6 +128,10 @@ let create_request
   let headers = ["Content-Type: application/json"] in
   let open Curl in
   let responsebuffer = Buffer.create 16384 in
+  let responsefn str : int =
+    Buffer.add_string responsebuffer str ;
+    String.length str
+  in
   let c = init () in
   set_url c Config.rollbar_url ;
   set_followlocation c false ;
@@ -135,6 +139,7 @@ let create_request
   set_connecttimeout c 5 ;
   set_timeout c 10 ;
   set_httpheader c headers ;
+  set_writefunction c responsefn ;
   set_post c true ;
   set_postfields c body ;
   set_postfieldsize c (String.length body) ;
