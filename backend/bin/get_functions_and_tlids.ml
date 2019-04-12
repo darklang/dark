@@ -139,9 +139,17 @@ let () =
     (let hosts = Serialize.current_hosts () in
      hosts
      |> List.map ~f:(fun host ->
-            let canvas = Canvas.load_all host [] in
+            let canvas =
+              try Some (Canvas.load_all host [])
+              with Pageable.PageableExn e ->
+                Log.erroR
+                  "Can't load canvas"
+                  ~params:[("host", host); ("exn", Exception.exn_to_string e)] ;
+                None
+            in
             canvas
-            |> process_canvas
+            |> Option.map ~f:process_canvas
+            |> Option.value ~default:[]
             |> List.filter ~f:(fun fn ->
                    List.mem ~equal:( = ) fnNames fn.fnname )
             |> List.map ~f:(fun fn ->
