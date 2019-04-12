@@ -150,14 +150,29 @@ let create_request
 let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.json) (e : exn) : unit =
   let rollbar_link_of_curl_buffer (r : Buffer.t) : string option =
     let body =
-      try Some (Yojson.Safe.from_string (Buffer.contents r)) with e -> None
+      try Some (Yojson.Safe.from_string (Buffer.contents r)) with e ->
+        (* shouldn't happen *)
+        Log.erroR "no body from rollbar response" ;
+        None
     in
     body
     |> Option.bind ~f:(fun body ->
-           body
-           |> Yojson.Safe.Util.member "result"
-           |> Yojson.Safe.Util.member "uuid"
-           |> Yojson.Safe.Util.to_string_option )
+           try
+             body
+             |> Yojson.Safe.Util.member "result"
+             |> Yojson.Safe.Util.member "uuid"
+             |> Yojson.Safe.Util.to_string_option
+           with e ->
+             let message =
+               body
+               |> Yojson.Safe.Util.member "message"
+               |> Yojson.Safe.Util.to_string_option
+               |> Option.value ~default:""
+             in
+             Log.erroR
+               "rollbar response had no .result.uuid"
+               ~params:[("message", message)] ;
+             None )
     |> Option.bind ~f:(fun uuid ->
            Some ("https://rollbar.com/item/uuid/?uuid=" ^ uuid) )
   in
