@@ -2509,6 +2509,16 @@ let t_route_eq_path_match_concrete () =
   AT.check AT.bool "empty binding succeeds" true (Some [] = bound)
 
 
+let t_route_non_prefix_colon_does_not_denote_variable () =
+  (* as the colon does not denote a variable, this is actually a malformed
+   * route as `:` is reserved in the URL alphabet and thus we could never
+   * receive a path that matches it *)
+  let route = "/letters:var" in
+  let path = "/lettersextra" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check AT.bool "binding fails due to concrete mismatch" true (None = bound)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2733,7 +2743,10 @@ let suite =
     , t_route_eq_path_mismatch_concrete )
   ; ( "route = path solely concrete match"
     , `Quick
-    , t_route_eq_path_match_concrete ) ]
+    , t_route_eq_path_match_concrete )
+  ; ( "apparent route variable that's not a prefix does not match"
+    , `Quick
+    , t_route_non_prefix_colon_does_not_denote_variable ) ]
 
 
 let () =
