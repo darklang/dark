@@ -454,7 +454,9 @@ module RuntimeT = struct
 
   type tipe_map = tipe String.Map.t
 
-  type input_vars = (string * dval) list
+  type string_dval_pair = string * dval [@@deriving show, eq]
+
+  type input_vars = string_dval_pair list
 
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type param =
