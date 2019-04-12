@@ -122,6 +122,10 @@ let fncall (a, b) = f (FnCall (a, b))
 
 let tlid = Int63.of_int 7
 
+let tlid2 = Int63.of_int 35
+
+let tlid3 = Int63.of_int 70
+
 let tipe_id = Int63.of_int 9
 
 let dbid = Int63.of_int 89
@@ -172,12 +176,13 @@ let http_request_path = "/some/vars/and/such"
 
 let http_route = "/some/:vars/:and/such"
 
-let http_route_handler ?(route = http_route) () : HandlerT.handler =
+let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
+    HandlerT.handler =
   { tlid
   ; ast = f (Value "5")
   ; spec =
       { module_ = f "HTTP"
-      ; name = f http_route
+      ; name = f route
       ; modifier = f "GET"
       ; types = {input = b (); output = b ()} } }
 
@@ -2017,8 +2022,8 @@ let t_route_variables_work () =
   AT.check
     (AT.list (AT.pair AT.string at_dval))
     "Variables are bound as expected"
-    [ ("userid", Dval.dstr_of_string_exn "myid")
-    ; ("cardid", Dval.dstr_of_string_exn "0") ]
+    [ ("cardid", Dval.dstr_of_string_exn "0")
+    ; ("userid", Dval.dstr_of_string_exn "myid") ]
     (Http.bind_route_variables_exn
        "/user/myid/card/0"
        ~route:"/user/:userid/card/:cardid") ;
@@ -2350,6 +2355,170 @@ let set_after_delete () =
   ()
 
 
+let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
+
+let t_concrete_over_wild () =
+  let wild = http_route_handler ~route:"/:foo" () in
+  let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
+  let ordered =
+    Http.filter_matching_handlers_by_specificity [concrete; wild]
+  in
+  AT.check (AT.list testable_handler) "concrete over wild" [concrete] ordered
+
+
+let t_wild_over_nothing () =
+  let wild = http_route_handler ~route:"/a/:foo" () in
+  let nothing = http_route_handler ~tlid:tlid2 ~route:"/a" () in
+  let ordered = Http.filter_matching_handlers_by_specificity [wild; nothing] in
+  AT.check (AT.list testable_handler) "wild over nothing" [wild] ordered
+
+
+let t_differing_wildcards () =
+  let single = http_route_handler ~route:"/:first" () in
+  let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
+  let ordered =
+    Http.filter_matching_handlers_by_specificity [single; double]
+  in
+  AT.check (AT.list testable_handler) "differing wildcards" [double] ordered
+
+
+let t_lengthy_abcdef_wildcard () =
+  let more = http_route_handler ~route:"/:a/b/c/d/:e/:f" () in
+  let earlier = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c/:d/e/f" () in
+  let ordered = Http.filter_matching_handlers_by_specificity [more; earlier] in
+  AT.check (AT.list testable_handler) "lengthy abcdef wildcard" [more] ordered
+
+
+let t_same_length_abc_diff_wildcards () =
+  let a = http_route_handler ~route:"/a/:b/:c" () in
+  let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
+  let ordered = Http.filter_matching_handlers_by_specificity [a; b] in
+  AT.check
+    (AT.list testable_handler)
+    "same length abc route with diff # wildcards"
+    [a]
+    ordered
+
+
+let t_same_length_abc_same_wildcards () =
+  let a = http_route_handler ~route:"/:a/b/c" () in
+  let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
+  let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
+  let ordered = Http.filter_matching_handlers_by_specificity [a; b; c] in
+  AT.check
+    (AT.list testable_handler)
+    "same length abc routes with same # wildcards"
+    [c]
+    ordered
+
+
+(* note this test depends on the current reverse ordering, even though there's
+ * no reason to guarantee the reversal for routes of the same specificity. *)
+let t_same_specificity_are_returned () =
+  let single = http_route_handler ~route:"/:first" () in
+  let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
+  let double2 = http_route_handler ~tlid:tlid3 ~route:"/:foo/:bar" () in
+  let ordered =
+    Http.filter_matching_handlers_by_specificity [single; double; double2]
+  in
+  AT.check
+    (AT.list testable_handler)
+    "multiple specificity are returned"
+    [double2; double]
+    ordered
+
+
+let t_mismatch_is_filtered () =
+  let single = http_route_handler ~route:"/:first" () in
+  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single] in
+  AT.check (AT.list testable_handler) "mismatch is filtered out" [] filtered
+
+
+let t_mismatch_filtering_leaves_root () =
+  let single = http_route_handler ~route:"/:first" () in
+  let root = http_route_handler ~tlid:tlid2 ~route:"/" () in
+  let filtered =
+    Http.filter_invalid_handler_matches ~path:"/" [single; root]
+  in
+  AT.check
+    (AT.list testable_handler)
+    "mismatch is filtered out but root is left"
+    [root]
+    filtered
+
+
+let t_route_equals_path () =
+  let route = "/a/:b/c" in
+  let path = "/a/pickmeup/c" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "route binds to path when they're same length"
+    true
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup")] = bound)
+
+
+let t_route_lt_path_with_wildcard () =
+  let route = "/a/:b" in
+  let path = "/a/pickmeup/c/d" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "len(route) < len(path) with a trailing wildcard should succeed in binding all of the remaining path bits"
+    true
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup/c/d")] = bound)
+
+
+let t_route_lt_path_without_wildcard () =
+  let route = "/:a/b" in
+  let path = "/a/b/c" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "len(route) < len(path) without trailing wildcards should fail binding"
+    true
+    (None = bound)
+
+
+let t_route_gt_path () =
+  let route = "/a/b/c/d" in
+  let path = "/a/b/c" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "len(route) > len(path) should fail binding"
+    true
+    (None = bound)
+
+
+let t_route_eq_path_mismatch_concrete () =
+  let route = "/a/:b/c/d" in
+  let path = "/a/b/c/e" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check
+    AT.bool
+    "binding fails due to mismatch in concrete elems"
+    true
+    (None = bound)
+
+
+let t_route_eq_path_match_concrete () =
+  let route = "/a/b/c/d" in
+  let path = "/a/b/c/d" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check AT.bool "empty binding succeeds" true (Some [] = bound)
+
+
+let t_route_non_prefix_colon_does_not_denote_variable () =
+  (* as the colon does not denote a variable, this is actually a malformed
+   * route as `:` is reserved in the URL alphabet and thus we could never
+   * receive a path that matches it *)
+  let route = "/letters:var" in
+  let path = "/lettersextra" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check AT.bool "binding fails due to concrete mismatch" true (None = bound)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2549,7 +2718,35 @@ let suite =
   ; ( "Loading handler via HTTP router loads user tipes"
     , `Quick
     , t_http_oplist_loads_user_tipes )
-  ; ("set after delete doesn't crash", `Quick, set_after_delete) ]
+  ; ("set after delete doesn't crash", `Quick, set_after_delete)
+  ; ("concrete is more specific than wild", `Quick, t_concrete_over_wild)
+  ; ("wild is more specific than nothing", `Quick, t_wild_over_nothing)
+  ; ("differing size wildcard routes", `Quick, t_differing_wildcards)
+  ; ("lengthy a/b/c/d/e/f wildcard", `Quick, t_lengthy_abcdef_wildcard)
+  ; ( "same length a/b/c with different # wildcards "
+    , `Quick
+    , t_same_length_abc_diff_wildcards )
+  ; ( "same length a/b/c with same # wildcards "
+    , `Quick
+    , t_same_length_abc_same_wildcards )
+  ; ("same specificity are returned", `Quick, t_same_specificity_are_returned)
+  ; ("route /:a results in 404 for /", `Quick, t_mismatch_is_filtered)
+  ; ( "root handler is not filtered out"
+    , `Quick
+    , t_mismatch_filtering_leaves_root )
+  ; ("route = path", `Quick, t_route_equals_path)
+  ; ("route < path", `Quick, t_route_lt_path_with_wildcard)
+  ; ("route < path not wildcard", `Quick, t_route_lt_path_without_wildcard)
+  ; ("route > path", `Quick, t_route_gt_path)
+  ; ( "route = path but concrete mismatch"
+    , `Quick
+    , t_route_eq_path_mismatch_concrete )
+  ; ( "route = path solely concrete match"
+    , `Quick
+    , t_route_eq_path_match_concrete )
+  ; ( "apparent route variable that's not a prefix does not match"
+    , `Quick
+    , t_route_non_prefix_colon_does_not_denote_variable ) ]
 
 
 let () =
