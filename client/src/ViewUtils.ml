@@ -25,9 +25,11 @@ type viewState =
   ; featureFlags : flagsVS
   ; handlerProp : handlerProp option
   ; canvasName : string
-  ; userContentHost : string }
+  ; userContentHost : string
+  ; refs : tlReference list }
 
 let createVS (m : model) (tl : toplevel) : viewState =
+  let selected = Some tl.id = tlidOf m.cursorState in
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid = tl.id
@@ -103,7 +105,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ ->
           None )
   ; canvasName = m.canvasName
-  ; userContentHost = m.userContentHost }
+  ; userContentHost = m.userContentHost
+  ; refs =
+      ( if selected
+      then
+        StrDict.get ~key:(showTLID tl.id) m.tlReferences
+        |> Option.withDefault ~default:[]
+      else [] ) }
 
 
 let fontAwesome (name : string) : msg Html.html =

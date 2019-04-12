@@ -10,6 +10,8 @@ type predecessor = pointerData option
 
 type successor = pointerData option
 
+type dbReference = tlid * dBColumn list
+
 (* ------------------------- *)
 (* Toplevel manipulation *)
 (* ------------------------- *)
@@ -534,25 +536,91 @@ let asPage (tl : toplevel) : page =
       FocusedType tl.id
 
 
-let findDBNamed (name : string) (toplevels : toplevel list) : toplevel option =
-  let isNamed db =
-    match db.dbName with F (_, dbname) -> dbname = name | Blank _ -> false
-  in
-  toplevels
-  |> List.find ~f:(fun tl ->
-         match tl.data with TLDB db -> isNamed db | _ -> false )
+let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
+    =
+  let space_ = match space with F (_, s) -> s | Blank _ -> "_" in
+  let name_ = match name with F (_, n) -> n | Blank _ -> "_" in
+  space_ ^ ":" ^ name_
 
 
-let findEventNamed (space : string) (name : string) (toplevels : toplevel list)
-    : toplevel option =
-  let isNamed h =
-    let spec = h.spec in
-    match (spec.module_, spec.name) with
-    | F (_, smodule), F (_, sname) ->
-        smodule = space && sname = name
-    | _ ->
-        true
-  in
-  toplevels
-  |> List.find ~f:(fun tl ->
-         match tl.data with TLHandler h -> isNamed h | _ -> false )
+let dbsByName (toplevels : toplevel list) : dbReference StrDict.t =
+  List.foldl
+    ~f:(fun tl res ->
+      match tl.data with
+      | TLDB db ->
+        ( match db.dbName with
+        | F (_, name) ->
+            StrDict.insert ~key:name ~value:(tl.id, db.cols) res
+        | Blank _ ->
+            res )
+      | _ ->
+          res )
+    ~init:StrDict.empty
+    toplevels
+
+
+let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
+  List.foldl
+    ~f:(fun tl res ->
+      match tl.data with
+      | TLHandler h ->
+          let name = keyForHandlerSpec h.spec.module_ h.spec.name in
+          if name <> "" then StrDict.insert ~key:name ~value:tl.id res else res
+      | _ ->
+          res )
+    ~init:StrDict.empty
+    toplevels
+
+
+let matchReferences
+    (tl : toplevel)
+    (databases : dbReference StrDict.t)
+    (handlers : tlid StrDict.t) : tlReference list =
+  match tl.data with
+  | TLHandler h ->
+      AST.allData h.ast
+      |> List.filterMap ~f:(fun pd ->
+             match pd with
+             | PExpr (F (id, Variable name)) ->
+                 StrDict.get ~key:name databases
+                 |> Option.andThen ~f:(fun (tlid, cols) ->
+                        Some (OutReferenceDB (tlid, name, cols, id)) )
+             | PExpr
+                 (F
+                   ( id
+                   , FnCall
+                       ( F (_, "emit")
+                       , [_; F (sid, Value space_); F (nid, Value name_)]
+                       , _ ) )) ->
+                 let name = Util.removeQuotes name_ in
+                 let space = Util.removeQuotes space_ in
+                 let key =
+                   keyForHandlerSpec (F (sid, space)) (F (nid, name))
+                 in
+                 StrDict.get ~key handlers
+                 |> Option.andThen ~f:(fun tlid ->
+                        Some (OutReferenceEvent (tlid, space, name, id)) )
+             | _ ->
+                 None )
+      |> List.uniqueBy ~f:Introspect.tlidStrOfReference
+  | TLDB _ ->
+      []
+  | TLFunc _ ->
+      []
+  | TLTipe _ ->
+      []
+
+
+let getReferences (tl : toplevel) (tls : toplevel list) : tlReference list =
+  matchReferences tl (dbsByName tls) (handlersByName tls)
+
+
+let initReferences (tls : toplevel list) : tlReference list StrDict.t =
+  let databases = dbsByName tls in
+  let handlers = handlersByName tls in
+  List.foldl
+    ~f:(fun tl refs ->
+      let r = matchReferences tl databases handlers in
+      StrDict.insert ~key:(showTLID tl.id) ~value:r refs )
+    ~init:StrDict.empty
+    tls
