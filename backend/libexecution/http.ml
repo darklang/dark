@@ -180,3 +180,11 @@ let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list)
           rest
       in
       a :: same_specificity
+
+
+let filter_matching_handlers
+    ~(path : string) (pages : RT.HandlerT.handler list) :
+    RT.HandlerT.handler list =
+  pages
+  |> filter_invalid_handler_matches ~path
+  |> filter_matching_handlers_by_specificity
