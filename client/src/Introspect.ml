@@ -21,12 +21,34 @@ let shouldUpdateReferences (ops : op list) =
   List.any
     ~f:(fun op ->
       match op with
-      | SetHandler _ ->
+      | SetHandler _ | SetExpr _ | SetFunction _ ->
           true
-      | SetExpr _ ->
-          true
-      | SetFunction _ ->
-          true
-      | _ ->
+      | CreateDB _
+      | AddDBCol _
+      | SetDBColName _
+      | SetDBColType _
+      | DeleteTL _
+      | MoveTL _
+      | TLSavepoint _
+      | UndoTL _
+      | RedoTL _
+      | DeleteFunction _
+      | ChangeDBColName _
+      | ChangeDBColType _
+      | DeprecatedInitDbm _
+      | CreateDBMigration _
+      | AddDBColToDBMigration _
+      | SetDBColNameInDBMigration _
+      | SetDBColTypeInDBMigration _
+      | DeleteColInDBMigration _
+      | AbandonDBMigration _
+      | DeleteDBCol _
+      | RenameDBname _
+      | CreateDBWithBlankOr _
+      | DeleteTLForever _
+      | DeleteFunctionForever _
+      | SetType _
+      | DeleteType _
+      | DeleteTypeForever _ ->
           false )
     ops
