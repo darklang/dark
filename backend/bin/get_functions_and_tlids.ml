@@ -89,6 +89,7 @@ let process_canvas (canvas : Canvas.canvas ref) : fn list =
   in
   let handlers =
     !(canvas : Canvas.canvas ref).handlers
+    |> IDMap.data
     |> List.filter_map ~f:Toplevel.as_handler
   in
   handlers
