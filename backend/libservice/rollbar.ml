@@ -191,11 +191,10 @@ let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.json) (e : exn) : unit =
         ("rollbar", `String link) :: payload
   in
   let payload =
-    match e with
-    | Pageable.PageableExn _ ->
-        ("is_pageable", `Bool true) :: payload
-    | _ ->
-        payload
+    let is_pageable =
+      match e with Pageable.PageableExn _ -> true | _ -> false
+    in
+    ("is_pageable", `Bool is_pageable) :: payload
   in
   Log.erroR "rollbar" ~jsonparams:payload
 
