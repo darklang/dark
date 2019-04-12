@@ -321,12 +321,7 @@ let user_page_handler
   let pages =
     !c.handlers
     |> TL.http_handlers
-    (* Postgres matches the provided path `/` with handler `/:a` due to
-     * `/` matching `/%%` via LIKE logic`. This cleans this edge case from the
-     * set *)
-    |> Http.filter_invalid_handler_matches
-         ~path:(sanitize_uri_path (Uri.path uri))
-    |> Http.filter_matching_handlers_by_specificity
+    |> Http.filter_matching_handlers ~path:(sanitize_uri_path (Uri.path uri))
   in
   let trace_id = Util.create_uuid () in
   let canvas_id = !c.id in
