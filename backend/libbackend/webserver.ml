@@ -1221,6 +1221,7 @@ let server () =
         let real_err =
           try
             match e with
+            | Pageable.PageableExn (Exception.DarkException e)
             | Exception.DarkException e ->
                 e
                 |> Exception.exception_data_to_yojson

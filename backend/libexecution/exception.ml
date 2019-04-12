@@ -100,8 +100,10 @@ type exception_data =
 
 exception DarkException of exception_data [@@deriving show]
 
-let to_string exc =
+let rec to_string exc =
   match exc with
+  | Libcommon.Pageable.PageableExn e ->
+      to_string e
   | DarkException e ->
       e |> exception_data_to_yojson |> Yojson.Safe.pretty_to_string
   | e ->
@@ -149,8 +151,10 @@ let storage = raise_ DarkStorage
 
 let enduser = raise_ EndUser
 
-let exn_to_string (e : exn) : string =
+let rec exn_to_string (e : exn) : string =
   match e with
+  | Libcommon.Pageable.PageableExn e ->
+      exn_to_string e
   | DarkException e ->
       "Dark " ^ show_exception_tipe e.tipe ^ " Err: " ^ e.short
   | Yojson.Json_error msg ->
@@ -159,5 +163,11 @@ let exn_to_string (e : exn) : string =
       "Unknown Err: " ^ Exn.to_string e
 
 
-let exn_to_info (e : exn) : Yojson.Safe.json =
-  match e with DarkException e -> exception_data_to_yojson e | _ -> `Null
+let rec exn_to_info (e : exn) : Yojson.Safe.json =
+  match e with
+  | DarkException e ->
+      exception_data_to_yojson e
+  | Libcommon.Pageable.PageableExn e ->
+      exn_to_info e
+  | _ ->
+      `Null
