@@ -232,7 +232,7 @@ RUN opam install -y \
   js_of_ocaml-lwt.3.2.0 \
   sodium.0.6.0 \
   utop \
-  ocamlformat \
+  ocamlformat.0.8 \
   uuseg.11.0.0 \
   uunf.11.0.0 \
   multipart-form-data.0.1.0 \
