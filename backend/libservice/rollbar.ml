@@ -118,14 +118,20 @@ let create_request
     (e : exn)
     (bt : Caml.Printexc.raw_backtrace)
     (ctx : err_ctx)
-    (execution_id : string) : Curl.t =
+    (execution_id : string) : Curl.t * Buffer.t * Yojson.Safe.json =
+  let payload = error_to_payload ~pp ~inspect e bt ctx execution_id in
   let body =
     [ ("access_token", `String Config.rollbar_server_access_token)
-    ; ("data", error_to_payload ~pp ~inspect e bt ctx execution_id) ]
+    ; ("data", payload) ]
     |> fun b -> `Assoc b |> Yojson.Safe.to_string
   in
   let headers = ["Content-Type: application/json"] in
   let open Curl in
+  let responsebuffer = Buffer.create 16384 in
+  let responsefn str : int =
+    Buffer.add_string responsebuffer str ;
+    String.length str
+  in
   let c = init () in
   set_url c Config.rollbar_url ;
   set_followlocation c false ;
@@ -133,10 +139,65 @@ let create_request
   set_connecttimeout c 5 ;
   set_timeout c 10 ;
   set_httpheader c headers ;
+  set_writefunction c responsefn ;
   set_post c true ;
   set_postfields c body ;
   set_postfieldsize c (String.length body) ;
-  c
+  (c, responsebuffer, payload)
+
+
+(* given a response buffer containing a .result.uuid and a payload, log it *)
+let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.json) (e : exn) : unit =
+  let rollbar_link_of_curl_buffer (r : Buffer.t) : string option =
+    let body =
+      try Some (Yojson.Safe.from_string (Buffer.contents r)) with e ->
+        (* shouldn't happen *)
+        Log.erroR "no body from rollbar response" ;
+        None
+    in
+    body
+    |> Option.bind ~f:(fun body ->
+           try
+             body
+             |> Yojson.Safe.Util.member "result"
+             |> Yojson.Safe.Util.member "uuid"
+             |> Yojson.Safe.Util.to_string_option
+           with e ->
+             let message =
+               body
+               |> Yojson.Safe.Util.member "message"
+               |> Yojson.Safe.Util.to_string_option
+               |> Option.value ~default:""
+             in
+             Log.erroR
+               "rollbar response had no .result.uuid"
+               ~params:[("message", message)] ;
+             None )
+    |> Option.bind ~f:(fun uuid ->
+           Some ("https://rollbar.com/item/uuid/?uuid=" ^ uuid) )
+  in
+  let payload =
+    match payload with
+    | `Assoc tuples ->
+        tuples
+    | _ ->
+        [("error", `String "unexpected payload format")]
+  in
+  let payload =
+    match rollbar_link_of_curl_buffer r with
+    | None ->
+        payload
+    | Some link ->
+        ("rollbar", `String link) :: payload
+  in
+  let payload =
+    match e with
+    | Pageable.PageableExn _ ->
+        ("is_pageable", `Bool true) :: payload
+    | _ ->
+        payload
+  in
+  Log.erroR "rollbar" ~jsonparams:payload
 
 
 let code_to_result (code : int) : result =
@@ -160,11 +221,12 @@ let report_lwt
         if not Config.rollbar_enabled
         then return `Disabled
         else
-          let c = create_request ~pp ~inspect e bt ctx execution_id in
+          let c, r, p = create_request ~pp ~inspect e bt ctx execution_id in
           ( try%lwt
                   Curl_lwt.perform c
                   >|= function
                   | CURLE_OK ->
+                      log_rollbar r p e ;
                       `Success
                   | other ->
                       Log.erroR
@@ -197,9 +259,10 @@ let report
     if not Config.rollbar_enabled
     then `Disabled
     else
-      let c = create_request ~pp ~inspect e bt ctx execution_id in
+      let c, r, p = create_request ~pp ~inspect e bt ctx execution_id in
       Curl.perform c ;
       let result = c |> Curl.get_responsecode |> code_to_result in
+      log_rollbar r p e ;
       Curl.cleanup c ;
       result
   with err ->
