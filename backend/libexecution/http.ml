@@ -1,4 +1,5 @@
 open Core_kernel
+open Libcommon
 module RT = Types.RuntimeT
 
 (* Names are confusing, so to be clear:
@@ -66,9 +67,20 @@ let bind_route_variables ~(route : string) (request_path : string) :
       (* If the route is shorter than the path, AND the last segment of the route is
        * wild then we'll munge the path's extra segments into a single string such that
        * the lengths match and we can do a zip binding *)
-      let last_route_segment = List.last_exn split_route in
-      if Option.is_some (route_variable last_route_segment)
-         || last_route_segment = "%"
+      Log.infO
+        "ROUTE"
+        ~params:
+          [ ("split_path", Log.dump split_path)
+          ; ("path", request_path)
+          ; ("route", route)
+          ; ("empty list", Log.dump [])
+          ; ("split_route", Log.dump split_route) ] ;
+      (* route '/' has split_route [], so we need List.last here, not
+      * List.last_exn *)
+      (* saw this bug with route '/', path '/favicon.ico' *)
+      let last_route_segment = List.last split_route in
+      if Option.is_some (last_route_segment |> Option.bind ~f:route_variable)
+         || Option.value ~default:"" last_route_segment = "%"
       then
         let munged_path =
           let before, after =
