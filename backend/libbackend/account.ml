@@ -314,7 +314,13 @@ let upsert_useful_canvases () : unit =
     { username = "sample"
     ; password = ""
     ; email = "nouser@example.com"
-    ; name = "Sample Owner" }
+    ; name = "Sample Owner" } ;
+  upsert_admin
+    { username = "korede"
+    ; password =
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "korede@darklang.com"
+    ; name = "Korede" }
 
 
 let init () : unit =
