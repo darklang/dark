@@ -2519,6 +2519,13 @@ let t_route_non_prefix_colon_does_not_denote_variable () =
   AT.check AT.bool "binding fails due to concrete mismatch" true (None = bound)
 
 
+let t_path_gt_route_does_not_crash () =
+  let route = "/" in
+  let path = "/a/b/c/d" in
+  let bound = Http.bind_route_variables ~route path in
+  AT.check AT.bool "binding fails without crash" true (None = bound)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2746,7 +2753,10 @@ let suite =
     , t_route_eq_path_match_concrete )
   ; ( "apparent route variable that's not a prefix does not match"
     , `Quick
-    , t_route_non_prefix_colon_does_not_denote_variable ) ]
+    , t_route_non_prefix_colon_does_not_denote_variable )
+  ; ( "path > route with root handler does not crash"
+    , `Quick
+    , t_path_gt_route_does_not_crash ) ]
 
 
 let () =
