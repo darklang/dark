@@ -2535,7 +2535,11 @@ let t_path_gt_route_does_not_crash () =
   let route = "/" in
   let path = "/a/b/c/d" in
   let bound = Http.bind_route_variables ~route path in
-  AT.check AT.bool "binding fails without crash" true (None = bound)
+  AT.check
+    (AT.option (AT.list testable_string_dval_pair))
+    "binding fails without crash"
+    None
+    bound
 
 
 (* ------------------- *)
