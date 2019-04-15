@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+# Auth: logs.py needs gcloud access (to the pubsub subscription).
+# To get this locally, run docker with
+# `-v $HOME/.config/gcloud:/root/.config/gcloud`
+#
+# honeytail needs an API key. This is the env var HONEYCOMB_WRITEKEY.
+#
+# NB: HONEYCOMB_WRITEKEY must be a real key even in debug mode; honeytail makes
+# an API request to validate it honeycomb. PR opened:
+# https://github.com/honeycombio/honeytail/pull/132
+#
+# Optional env vars: DATASET (defaults to bwd-postgres) and DEBUG
+
+# For testing, you can run with DEBUG=1, and data will not be sent to honeycomb
+# (--debug sets the log level, --debug_stdout says to write events to stdout
+# instead of sending to honecomb)
+if [[ "${DEBUG:-}" != "" ]]; then
+    DEBUG_STDOUT=--debug_stdout
+    DEBUG=--debug
+fi
+
+python logs.py \
+    | ./honeytail \
+    ${DEBUG_STDOUT:-} \
+    ${DEBUG:-} \
+    -k="$HONEYCOMB_WRITEKEY" \
+    --dataset="${DATASET:-bwd-postgres}" \
+    --parser=postgresql \
+    --postgresql.log_line_prefix='[%t]: [%p]: [%l-1] db=%d,user=%u' \
+    -f -
