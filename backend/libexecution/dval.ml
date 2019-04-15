@@ -178,11 +178,11 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "datastore" ->
       Exception.internal "todo"
   | "date" ->
-      Exception.internal "todo"
+      TDbList TDate
   | "title" ->
-      Exception.internal "todo"
+      TDbList TTitle
   | "url" ->
-      Exception.internal "todo"
+      TDbList TUrl
   | table ->
       THasMany list_tipe
 

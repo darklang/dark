@@ -631,15 +631,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           [ACEventSpace "HTTP"; ACEventSpace "CRON"]
       | DBColType ->
           let builtins =
-            [ "String"
-            ; "Int"
-            ; "Boolean"
-            ; "Float"
-            ; "Title"
-            ; "Url"
-            ; "Date"
-            ; "Password"
-            ; "UUID" ]
+            ["String"; "Int"; "Boolean"; "Float"; "Title"; "Date"; "UUID"]
           in
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
