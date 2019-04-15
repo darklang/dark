@@ -2447,15 +2447,19 @@ let t_mismatch_filtering_leaves_root () =
     filtered
 
 
+let testable_string_dval_pair =
+  AT.testable pp_string_dval_pair equal_string_dval_pair
+
+
 let t_route_equals_path () =
   let route = "/a/:b/c" in
   let path = "/a/pickmeup/c" in
   let bound = Http.bind_route_variables ~route path in
   AT.check
-    AT.bool
+    (AT.option (AT.list testable_string_dval_pair))
     "route binds to path when they're same length"
-    true
-    (Some [("b", Dval.dstr_of_string_exn "pickmeup")] = bound)
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup")])
+    bound
 
 
 let t_route_lt_path_with_wildcard () =
@@ -2463,10 +2467,10 @@ let t_route_lt_path_with_wildcard () =
   let path = "/a/pickmeup/c/d" in
   let bound = Http.bind_route_variables ~route path in
   AT.check
-    AT.bool
+    (AT.option (AT.list testable_string_dval_pair))
     "len(route) < len(path) with a trailing wildcard should succeed in binding all of the remaining path bits"
-    true
-    (Some [("b", Dval.dstr_of_string_exn "pickmeup/c/d")] = bound)
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup/c/d")])
+    bound
 
 
 let t_route_lt_path_without_wildcard () =
@@ -2474,10 +2478,10 @@ let t_route_lt_path_without_wildcard () =
   let path = "/a/b/c" in
   let bound = Http.bind_route_variables ~route path in
   AT.check
-    AT.bool
+    (AT.option (AT.list testable_string_dval_pair))
     "len(route) < len(path) without trailing wildcards should fail binding"
-    true
-    (None = bound)
+    None
+    bound
 
 
 let t_route_gt_path () =
@@ -2485,10 +2489,10 @@ let t_route_gt_path () =
   let path = "/a/b/c" in
   let bound = Http.bind_route_variables ~route path in
   AT.check
-    AT.bool
+    (AT.option (AT.list testable_string_dval_pair))
     "len(route) > len(path) should fail binding"
-    true
-    (None = bound)
+    None
+    bound
 
 
 let t_route_eq_path_mismatch_concrete () =
@@ -2496,17 +2500,21 @@ let t_route_eq_path_mismatch_concrete () =
   let path = "/a/b/c/e" in
   let bound = Http.bind_route_variables ~route path in
   AT.check
-    AT.bool
+    (AT.option (AT.list testable_string_dval_pair))
     "binding fails due to mismatch in concrete elems"
-    true
-    (None = bound)
+    None
+    bound
 
 
 let t_route_eq_path_match_concrete () =
   let route = "/a/b/c/d" in
   let path = "/a/b/c/d" in
   let bound = Http.bind_route_variables ~route path in
-  AT.check AT.bool "empty binding succeeds" true (Some [] = bound)
+  AT.check
+    (AT.option (AT.list testable_string_dval_pair))
+    "empty binding succeeds"
+    (Some [])
+    bound
 
 
 let t_route_non_prefix_colon_does_not_denote_variable () =
@@ -2516,7 +2524,11 @@ let t_route_non_prefix_colon_does_not_denote_variable () =
   let route = "/letters:var" in
   let path = "/lettersextra" in
   let bound = Http.bind_route_variables ~route path in
-  AT.check AT.bool "binding fails due to concrete mismatch" true (None = bound)
+  AT.check
+    (AT.option (AT.list testable_string_dval_pair))
+    "binding fails due to concrete mismatch"
+    None
+    bound
 
 
 let t_path_gt_route_does_not_crash () =
