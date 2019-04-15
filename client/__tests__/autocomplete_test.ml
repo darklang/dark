@@ -119,6 +119,17 @@ let enteringHandler ?(module_ : string option = None) () : model =
   defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~module_ ()] ()
 
 
+let enteringEventNameHandler ?(module_ : string option = None) () : model =
+  let handler = aHandler ~module_ () in
+  let id =
+    handler
+    |> TL.asHandler
+    |> deOption "should have created a handler"
+    |> fun h -> B.toID h.spec.name
+  in
+  defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[handler] ()
+
+
 let creatingOmni : model =
   { Defaults.defaultModel with
     cursorState = Entering (Creating {x = 0; y = 0})
@@ -384,6 +395,16 @@ let () =
               let m = enteringFunction ~dbs:[aDB ~tlid:(TLID "db") ()] () in
               expect
                 (acFor m |> setQuery m "" |> itemPresent (ACVariable "MyDB"))
+              |> toEqual true ) ;
+          test
+            "autocomplete does not have slash when handler is not HTTP"
+            (fun () ->
+              let m = enteringEventNameHandler ~module_:(Some "HANDLER") () in
+              expect
+                ( acFor m
+                |> setQuery m ""
+                |> itemPresent (ACEventName "/")
+                |> not )
               |> toEqual true ) ) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
