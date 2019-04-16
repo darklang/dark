@@ -750,6 +750,7 @@ and modification =
   | TweakModel of (model -> model)
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
+  | InitIntrospect of toplevel list
 
 (* ------------------- *)
 (* Msgs *)
