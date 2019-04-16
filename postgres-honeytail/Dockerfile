@@ -12,6 +12,7 @@ RUN wget -q -O honeytail https://honeycomb.io/download/honeytail/linux/1.733 \
       && chmod 755 ./honeytail
 
 ADD logs.py .
+ADD test_logs.py .
 ADD run.sh .
 RUN chmod +x run.sh
 
