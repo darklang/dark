@@ -3,4 +3,6 @@
 
 set -euo pipefail
 
-gcloud sql connect dark-west --user=postgres
+./scripts/gcp-authorize-kubectl
+PGPASSWORD=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.password' | base64 -d) \
+  exec ./scripts/support/gcp-psql.exp
