@@ -509,7 +509,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (tls, updateCurrent, updateRefs) ->
+    | SetToplevels (tls, updateCurrent) ->
         let m2 = {m with toplevels = tls} in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -520,26 +520,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getTL m tlid in
-                let m_ =
-                  match tl.data with
-                  | TLDB _ ->
-                      TL.upsert m2 tl
-                  | TLHandler _ ->
-                      TL.upsert m2 tl
-                  | TLTipe _ ->
-                      m2
-                  | TLFunc _ ->
-                      m2
-                in
-                if updateRefs
-                then
-                  let r = Introspect.getReferences tl tls in
-                  { m_ with
-                    tlReferences =
-                      r @ m_.tlReferences
-                      |> List.uniqueBy ~f:(fun (TLID fromtl, TLID totl, _) ->
-                             fromtl ^ totl ) }
-                else m_
+                (match tl.data with
+                | TLDB _ ->
+                    TL.upsert m2 tl
+                | TLHandler _ ->
+                    TL.upsert m2 tl
+                | TLTipe _ ->
+                    m2
+                | TLFunc _ ->
+                    m2
+                )
           | None ->
               m2
         in
@@ -550,11 +540,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
-    | UpdateToplevels (tls, updateCurrent, updateRefs) ->
+    | UpdateToplevels (tls, updateCurrent) ->
         let m = TL.upsertAll m tls in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (m.toplevels, updateCurrent, updateRefs))
+          (SetToplevels (m.toplevels, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels dtls ->
         let m2 =
@@ -918,7 +908,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (m2.toplevels, true, false)
+          [ SetToplevels (m2.toplevels, true)
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1111,12 +1101,11 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, oparams, Ok r) ->
-      let shouldUpdateRefs = Introspect.shouldUpdateReferences oparams.ops in
+  | AddOpRPCCallback (focus, _, Ok r) ->
       if focus = FocusNoChange
       then
         Many
-          [ UpdateToplevels (r.toplevels, false, shouldUpdateRefs)
+          [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
           ; SetTypes (r.userTipes, r.deletedUserTipes, false)
@@ -1127,7 +1116,7 @@ let update_ (msg : msg) (m : model) : modification =
         let m4 = {m3 with userTipes = r.userTipes} in
         let newState = processFocus m4 focus in
         Many
-          [ UpdateToplevels (r.toplevels, true, shouldUpdateRefs)
+          [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
           ; SetTypes (r.userTipes, r.deletedUserTipes, true)
@@ -1155,7 +1144,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.toplevels, true, true)
+        [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)

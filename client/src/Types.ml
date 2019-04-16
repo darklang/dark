@@ -712,8 +712,8 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of toplevel list * bool * bool
-  | UpdateToplevels of toplevel list * bool * bool
+  | SetToplevels of toplevel list * bool
+  | UpdateToplevels of toplevel list * bool
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
@@ -751,6 +751,7 @@ and modification =
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
+
 
 (* ------------------- *)
 (* Msgs *)
