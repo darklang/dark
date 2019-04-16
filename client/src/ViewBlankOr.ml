@@ -358,9 +358,9 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
   | TypeName ->
       "type name"
   | TypeFieldName ->
-      "type field name"
+      "field name"
   | TypeFieldTipe ->
-      "type field type"
+      "field type"
 
 
 let viewBlankOr
