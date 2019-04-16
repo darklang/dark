@@ -126,7 +126,7 @@ let execute_handler
       (dv, tlids)
 
 
-let call_function
+let execute_function
     ~tlid
     ~execution_id
     ~trace_id
