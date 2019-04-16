@@ -189,17 +189,16 @@ let getReferences (tl : toplevel) (tls : toplevel list) : usage list =
   matchReferences tl (dbsByName tls) (handlersByName tls)
 
 
-let initReferences ?prev:(init = []) (tls : toplevel list) : usage list =
+let initReferences (tls : toplevel list) : usage list =
   let databases = dbsByName tls in
   let handlers = handlersByName tls in
   List.foldl
     ~f:(fun tl refs -> refs @ matchReferences tl databases handlers)
-    ~init
+    ~init:[]
     tls
 
 
-let initTLMeta ~(init : tlMeta StrDict.t) (toplevels : toplevel list) :
-    tlMeta StrDict.t =
+let initTLMeta (toplevels : toplevel list) : tlMeta StrDict.t =
   List.foldl
     ~f:(fun tl meta ->
       let key = showTLID tl.id in
@@ -221,9 +220,8 @@ let initTLMeta ~(init : tlMeta StrDict.t) (toplevels : toplevel list) :
       | TLFunc f ->
           let fnName = B.deBlank "fnName as string" f.ufMetadata.ufmName in
           let value = FunctionMeta (fnName, f.ufMetadata.ufmParameters) in
-          Debug.loG "fn meta" value ;
           StrDict.insert ~key ~value meta
       | TLTipe _ ->
           meta )
-    ~init
+    ~init:StrDict.empty
     toplevels

@@ -541,12 +541,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                              fromtl ^ totl ) }
                 else m_
           | None ->
-              if updateRefs
-              then
-                { m2 with
-                  tlReferences = Introspect.initReferences tls
-                ; tlMeta = Introspect.initTLMeta ~init:StrDict.empty tls }
-              else m2
+              m2
         in
         let m4 =
           { m3 with
@@ -659,14 +654,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 | TLTipe _ | TLDB _ | TLHandler _ ->
                     m2 )
           | None ->
-              let asTLs = List.map ~f:TL.ufToTL m2.userFunctions in
-              let references =
-                Introspect.initReferences
-                  ~prev:m2.tlReferences
-                  (asTLs @ m2.toplevels)
-              in
-              let meta = Introspect.initTLMeta ~init:m2.tlMeta asTLs in
-              {m2 with tlReferences = references; tlMeta = meta}
+              m2
         in
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
@@ -810,6 +798,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Cmd.none )
     | TriggerCronRPC tlid ->
         (m, RPC.triggerCron m {tcpTLID = tlid})
+    | InitIntrospect tls ->
+        let newM =
+          { m with
+            tlReferences = Introspect.initReferences tls
+          ; tlMeta = Introspect.initTLMeta tls }
+        in
+        (newM, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -1148,6 +1143,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; handlerProps = ViewUtils.createHandlerProp r.toplevels }
       in
       let newState = processFocus pfM focus in
+      let allTLs = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, None) in
@@ -1170,7 +1166,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; ClearError
         ; extraMod
         ; newState
-        ; UpdateTraces traces ]
+        ; UpdateTraces traces
+        ; InitIntrospect allTLs ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
