@@ -484,6 +484,20 @@ let externalLink
       []
 
 
+let cronTriggerButton (vs : viewState) (spec : handlerSpec) =
+  match spec.module_ with
+  | F (_, "CRON") ->
+      [ ViewUtils.toggleIconButton
+          ~name:"cron-trigger"
+          ~activeIcon:"play"
+          ~inactiveIcon:"play"
+          ~msg:(fun _ -> IgnoreMsg)
+          ~active:true
+          ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool true) ]
+  | _ ->
+      []
+
+
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -532,7 +546,9 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
         ~active:isExpand
         ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
     in
-    Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])
+    Html.div
+      [Html.class' "actions"]
+      (testGet @ cronTriggerButton vs spec @ [lock; expandCollapse])
   in
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
