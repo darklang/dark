@@ -521,7 +521,7 @@ and addOpRPCResult =
 
 and dvalArgsHash = string
 
-and executeFunctionRPCResult = dval * dvalArgsHash
+and executeFunctionRPCResult = dval * dvalArgsHash * tlid list
 
 and triggerCronRPCResult = traceID * tlid list
 

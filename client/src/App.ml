@@ -1164,7 +1164,12 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateTraces traces ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
-  | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
+  | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids)) ->
+      let traces =
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
+          tlids
+      in
       Many
         [ UpdateTraceFunctionResult
             ( params.efpTLID
@@ -1173,7 +1178,9 @@ let update_ (msg : msg) (m : model) : modification =
             , params.efpFnName
             , hash
             , dval )
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
+        ; UpdateTraces (StrDict.fromList traces) ]
   | TriggerCronRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->

@@ -142,8 +142,7 @@ let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
 (* ------------------------- *)
 let call_function
     (c : canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
-  (* TODO: Should we return a trace for the userfn? *)
-  let result =
+  let result, touched_tlids =
     Execution.call_function
       fnname
       ~tlid
@@ -163,7 +162,7 @@ let call_function
     result
     ~canvas_id:c.id
     ~trace_id ;
-  result
+  (result, touched_tlids)
 
 
 (* --------------------- *)
@@ -274,10 +273,11 @@ let to_initial_load_rpc_result
 (* Execute function *)
 type execute_function_rpc_result =
   { result : RTT.dval
-  ; hash : string }
+  ; hash : string
+  ; touched_tlids : tlid list }
 [@@deriving to_yojson]
 
-let to_execute_function_rpc_result hash dv : string =
-  {result = dv; hash}
+let to_execute_function_rpc_result hash touched_tlids dv : string =
+  {result = dv; hash; touched_tlids}
   |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true

@@ -60,7 +60,7 @@ val call_function :
   -> caller_id:Types.id
   -> args:Types.RuntimeT.dval list
   -> string
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.dval * Types.tlid list
 
 (* ----------------- *)
 (* Analysis *)
