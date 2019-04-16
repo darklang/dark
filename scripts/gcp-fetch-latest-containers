@@ -34,6 +34,7 @@ QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
 CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
 STROLLER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:latest"
 TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
+POSTGRES_HONEYTAIL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}postgres-honeytail:latest"
 
 docker-credential-gcr configure-docker
 docker pull $IMAGE_LATEST
@@ -41,3 +42,4 @@ docker pull $QW_IMAGE_LATEST
 docker pull $CRON_IMAGE_LATEST
 docker pull $STROLLER_IMAGE_LATEST
 docker pull $TUNNEL_IMAGE_LATEST
+docker pull $POSTGRES_HONEYTAIL_IMAGE_LATEST
