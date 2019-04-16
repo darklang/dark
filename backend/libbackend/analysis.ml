@@ -142,27 +142,21 @@ let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
 (* ------------------------- *)
 let execute_function
     (c : canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
-  let result, touched_tlids =
-    Execution.execute_function
-      fnname
-      ~tlid
-      ~execution_id
-      ~trace_id
-      ~dbs:(TL.dbs c.dbs)
-      ~user_fns:(c.user_functions |> IDMap.data)
-      ~user_tipes:(c.user_tipes |> IDMap.data)
-      ~account_id:c.owner
-      ~canvas_id:c.id
-      ~caller_id
-      ~args
-  in
-  Stored_function_result.store
-    (tlid, fnname, caller_id)
-    args
-    result
+  Execution.execute_function
+    ~tlid
+    ~execution_id
+    ~trace_id
+    ~dbs:(TL.dbs c.dbs)
+    ~user_fns:(c.user_functions |> IDMap.data)
+    ~user_tipes:(c.user_tipes |> IDMap.data)
+    ~account_id:c.owner
     ~canvas_id:c.id
-    ~trace_id ;
-  (result, touched_tlids)
+    ~caller_id
+    ~args
+    ~store_fn_arguments:
+      (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
+    ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
+    fnname
 
 
 (* --------------------- *)
