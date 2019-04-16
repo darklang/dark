@@ -616,7 +616,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t3, (result, tlids) =
     time "3-execute" (fun _ ->
-        Analysis.call_function
+        Analysis.execute_function
           !c
           params.fnname
           ~execution_id

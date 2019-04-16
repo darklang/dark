@@ -48,7 +48,7 @@ val execute_handler :
   -> Types.RuntimeT.HandlerT.handler
   -> Types.RuntimeT.dval * Types.tlid list
 
-val call_function :
+val execute_function :
      tlid:Types.tlid
   -> execution_id:Types.tlid
   -> trace_id:Uuidm.t

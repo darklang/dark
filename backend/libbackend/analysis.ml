@@ -140,10 +140,10 @@ let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
 (* ------------------------- *)
 (* function execution *)
 (* ------------------------- *)
-let call_function
+let execute_function
     (c : canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
   let result, touched_tlids =
-    Execution.call_function
+    Execution.execute_function
       fnname
       ~tlid
       ~execution_id
