@@ -63,6 +63,9 @@ do
     --tunnel-image-id=*)
       TUNNEL_IMAGE_ID="${i/--tunnel-image-id=/''}"
       ;;
+    --postgres-honeytail-image-id=*)
+      POSTGRES_HONEYTAIL_IMAGE_ID="${i/--postgres-honeytail-image-id=/''}"
+      ;;
     --prefix=*)
       PREFIX="${i/--prefix=/''}-"
       ;;
@@ -160,6 +163,9 @@ fi
 if [[ ! -v TUNNEL_IMAGE_ID ]]; then
   TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 fi
+if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
+  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}postgres-honeytail -q | head -n 1)"
+fi
 
 # get creds
 gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
@@ -195,6 +201,11 @@ sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 
+
+sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  scripts/support/kubernetes/postgres-honeytail-deployment.yaml.template > scripts/support/kubernetes/postgres-honeytail-deployment.yaml
+
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/cronchecker/cc-network-policy.yaml
@@ -210,6 +221,7 @@ kubectl apply -f scripts/support/kubernetes/queueworker/qw-network-policy.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/isolate-tunnel.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-service.yaml
+kubectl apply -f scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 
 #########################
 # Tell everyone else what's going on

@@ -23,7 +23,8 @@ fi
 
 # In-cluster gcloud auth
 if [[ "${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}" != "" ]]; then
-    export GCLOUD_APPLICATION_CREDENTIALS=<(echo $GOOGLE_APPLICATION_CREDENTIALS_JSON)
+    echo $GOOGLE_APPLICATION_CREDENTIALS_JSON > service-account.key
+    export GOOGLE_APPLICATION_CREDENTIALS=service-account.key
 fi
 
 python logs.py \
