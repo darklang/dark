@@ -7,33 +7,17 @@ import subprocess
 import sys
 import os
 
-# Get google project_id from env if set, fall back to gcloud config if not
-project_id = os.getenv("PROJECT_ID")
-if project_id == "":
-    project_id = subprocess.Popen(['gcloud', 'config', 'get-value', 'project'],
-                                  stdout=subprocess.PIPE
-                                  ).communicate()[0].strip()
-    if project_id == "":
-        print("ERROR: project_id couldn't be found")
-        sys.exit(1)
-
-subscription_name = os.getenv("SUBSCRIPTION_NAME")
-if subscription_name == "":
-    print("ERROR: SUBSCRIPTION_NAME not set")
-    sys.exit(1)
-
-subscriber = pubsub_v1.SubscriberClient()
-# The `subscription_path` method creates a fully qualified identifier
-# in the form `projects/{project_id}/subscriptions/{subscription_name}`
-subscription_path = subscriber.subscription_path(
-    project_id, subscription_name)
-
 LOG_LINE_PREFIX_RE = re.compile(
     "^\\[[0-9]*\\]: \\[[0-9]*-1\\] db=[^,]*,user=[^ ]* ")
 
 
 def callback(message):
-    j = json.loads(message.data)
+    print(process_message(message.data))
+    message.ack()
+
+
+def process_message(data):
+    j = json.loads(data)
 
     # log_line_prefix can't be changed in CloudSQL, so we're going to add our
     # own timestamps and fake it. *facepalm*
@@ -64,14 +48,36 @@ def callback(message):
     else:
         logline = j["textPayload"]
 
-    print(logline)
-    message.ack()
+    return logline
 
 
-subscriber.subscribe(subscription_path, callback=callback)
+if __name__ == "__main__":
+    # Get google project_id from env if set, fall back to gcloud config if not
+    project_id = os.getenv("PROJECT_ID")
+    if not project_id:
+        project_id = subprocess.Popen(
+                ['gcloud', 'config', 'get-value', 'project'],
+                stdout=subprocess.PIPE
+                ).communicate()[0].strip()
+        if not project_id:
+            print("ERROR: project_id couldn't be found")
+            sys.exit(1)
 
-# The subscriber is non-blocking. We must keep the main thread from
-# exiting to allow it to process messages asynchronously in the background.
-print('Listening for messages on {}'.format(subscription_path))
-while True:
-    time.sleep(10)
+    subscription_name = os.getenv("SUBSCRIPTION_NAME")
+    if not subscription_name:
+        print("ERROR: SUBSCRIPTION_NAME not set")
+        sys.exit(1)
+
+    subscriber = pubsub_v1.SubscriberClient()
+    # The `subscription_path` method creates a fully qualified identifier
+    # in the form `projects/{project_id}/subscriptions/{subscription_name}`
+    subscription_path = subscriber.subscription_path(
+        project_id, subscription_name)
+    print('Subscribing to messages on {}'.format(subscription_path))
+    subscriber.subscribe(subscription_path, callback=callback)
+
+    # The subscriber is non-blocking. We must keep the main thread from
+    # exiting to allow it to process messages asynchronously in the background.
+    print('Listening for messages on {}'.format(subscription_path))
+    while True:
+        time.sleep(10)
