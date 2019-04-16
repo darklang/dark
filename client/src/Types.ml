@@ -734,6 +734,7 @@ and modification =
   | ExecutingFunctionComplete of (tlid * id) list
   | MoveCanvasTo of pos
   | UpdateTraces of traces
+  | WipeTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
   | AppendStaticDeploy of staticDeploy list
