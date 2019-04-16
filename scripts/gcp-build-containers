@@ -116,6 +116,6 @@ docker build scripts/support -t "${PREFIX}tunnel:latest" -f scripts/support/tunn
 #################################
 ## postgres-honeytail
 #################################
-cd scripts/support/postgres-honeytail \
+cd postgres-honeytail \
   && docker build -t "${PREFIX}postgres-honeytail:latest" . \
   && cd -
