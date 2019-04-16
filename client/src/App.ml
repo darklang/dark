@@ -533,20 +533,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 in
                 if updateRefs
                 then
-                  let r = TL.getReferences tl tls in
+                  let r = Introspect.getReferences tl tls in
                   { m_ with
                     tlReferences =
-                        r @ m_.tlReferences
-                        |> List.uniqueBy ~f: (fun (TLID fromtl, TLID totl, _) -> fromtl ^ totl)
-                    }
+                      r @ m_.tlReferences
+                      |> List.uniqueBy ~f:(fun (TLID fromtl, TLID totl, _) ->
+                             fromtl ^ totl ) }
                 else m_
           | None ->
               if updateRefs
               then
-              {m2 with 
-                tlReferences = TL.initReferences tls
-                ; tlMeta = TL.initTLMeta ~init:StrDict.empty tls
-            }
+                { m2 with
+                  tlReferences = Introspect.initReferences tls
+                ; tlMeta = Introspect.initTLMeta ~init:StrDict.empty tls }
               else m2
         in
         let m4 =
@@ -660,13 +659,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 | TLTipe _ | TLDB _ | TLHandler _ ->
                     m2 )
           | None ->
-            let asTLs = (List.map ~f:TL.ufToTL m2.userFunctions) in
-            let references = TL.initReferences ~prev:m2.tlReferences (asTLs @ m2.toplevels) in
-            let meta = TL.initTLMeta ~init:m2.tlMeta asTLs in
-            { m2 with
-                tlReferences = references
-                ; tlMeta = meta
-            }
+              let asTLs = List.map ~f:TL.ufToTL m2.userFunctions in
+              let references =
+                Introspect.initReferences
+                  ~prev:m2.tlReferences
+                  (asTLs @ m2.toplevels)
+              in
+              let meta = Introspect.initTLMeta ~init:m2.tlMeta asTLs in
+              {m2 with tlReferences = references; tlMeta = meta}
         in
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
