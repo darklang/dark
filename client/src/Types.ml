@@ -191,11 +191,20 @@ and pointerOwner =
   | POAst
   | PODb
 
+and usage = tlid * tlid * id option
+
 and tlReference =
   | OutReferenceDB of tlid * dBName * dBColumn list * id
   | OutReferenceEvent of tlid * string * string * id
+  | InReferenceHandler of tlid * string * string * string option
+  | InReferenceFunction of tlid * string * userFunctionParameter list
 
-(* OutReferenceEvent tlid space name expr-id *)
+
+and tlMeta =
+  | DBMeta of dBName * dBColumn list
+  | HandlerMeta of string * string * string option
+  | FunctionMeta of fnName * userFunctionParameter list
+
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -931,7 +940,8 @@ and model =
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
-  ; tlReferences : tlReference list StrDict.t }
+  ; tlReferences : usage list
+  ; tlMeta : tlMeta StrDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =
