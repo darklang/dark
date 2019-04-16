@@ -29,4 +29,4 @@ val execute_fn :
   -> string
   -> Types.id
   -> Types.RuntimeT.dval list
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.dval * Types.tlid list

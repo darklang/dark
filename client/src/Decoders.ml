@@ -378,7 +378,9 @@ and initialLoadRPCResult j : initialLoadRPCResult =
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
-  (field "result" dval j, field "hash" string j)
+  ( field "result" dval j
+  , field "hash" string j
+  , field "touched_tlids" (list tlid) j )
 
 
 and triggerCronRPCResult j : triggerCronRPCResult =
