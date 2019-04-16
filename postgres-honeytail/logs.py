@@ -3,10 +3,24 @@ import time
 from google.cloud import pubsub_v1
 import json
 import re
+import subprocess
+import sys
+import os
 
-# TODO: could be config values
-project_id = "balmy-ground-195100"
-subscription_name = "postgres-logs-dark-west-honeycomb"
+# Get google project_id from env if set, fall back to gcloud config if not
+project_id = os.getenv("PROJECT_ID")
+if project_id == "":
+    project_id = subprocess.Popen(['gcloud', 'config', 'get-value', 'project'],
+                                  stdout=subprocess.PIPE
+                                  ).communicate()[0].strip()
+    if project_id == "":
+        print("ERROR: project_id couldn't be found")
+        sys.exit(1)
+
+subscription_name = os.getenv("SUBSCRIPTION_NAME")
+if subscription_name == "":
+    print("ERROR: SUBSCRIPTION_NAME not set")
+    sys.exit(1)
 
 subscriber = pubsub_v1.SubscriberClient()
 # The `subscription_path` method creates a fully qualified identifier
