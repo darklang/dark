@@ -465,7 +465,9 @@ let isDynamicItem (item : autocompleteItem) : bool =
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let toDynamicItems (m : model) target (q : string) : autocompleteItem list =
+let toDynamicItems
+    (space : handlerSpace option) (target : target option) (q : string) :
+    autocompleteItem list =
   match target with
   | None ->
       (* omnicompletion *)
@@ -486,12 +488,6 @@ let toDynamicItems (m : model) target (q : string) : autocompleteItem list =
   | Some (_, PEventSpace _) ->
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
-      let space =
-        target
-        |> Option.map ~f:Tuple2.first
-        |> Option.andThen ~f:(TL.get m)
-        |> Option.andThen ~f:TL.spaceOf
-      in
       if q == ""
       then if space == Some HSHTTP then [ACEventName "/"] else []
       else [ACEventName (cleanEventName q)]
@@ -506,7 +502,13 @@ let withDynamicItems
     (target : target option)
     (query : string)
     (acis : autocompleteItem list) : autocompleteItem list =
-  let new_ = toDynamicItems m target query in
+  let space =
+    target
+    |> Option.map ~f:Tuple2.first
+    |> Option.andThen ~f:(TL.get m)
+    |> Option.andThen ~f:TL.spaceOf
+  in
+  let new_ = toDynamicItems space target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   withoutDynamic @ new_
 
