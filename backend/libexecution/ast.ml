@@ -595,7 +595,9 @@ and exec_fn
           in
           state.store_fn_arguments tlid args ;
           engine.trace_tlid tlid ;
-          exec ~engine ~state args_with_dbs body
+          let result = exec ~engine ~state args_with_dbs body in
+          state.store_fn_result sfr_desc arglist result ;
+          result
       | Error errs ->
           let error_msgs =
             errs

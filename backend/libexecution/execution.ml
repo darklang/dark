@@ -137,6 +137,8 @@ let execute_function
     ~canvas_id
     ~caller_id
     ~args
+    ?(store_fn_result = store_no_results)
+    ?(store_fn_arguments = store_no_arguments)
     fnname =
   let state : exec_state =
     { tlid
@@ -149,8 +151,8 @@ let execute_function
     ; fail_fn = None
     ; load_fn_result = load_no_results
     ; load_fn_arguments = load_no_arguments
-    ; store_fn_result = store_no_results
-    ; store_fn_arguments = store_no_arguments }
+    ; store_fn_result
+    ; store_fn_arguments }
   in
   Ast.execute_fn state fnname caller_id args
 

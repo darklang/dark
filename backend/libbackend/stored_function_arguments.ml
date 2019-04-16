@@ -20,12 +20,14 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
     (Analysis_types.input_vars * RTT.time) option =
   Db.fetch
     ~name:"stored_function_arguments.load_for_analysis"
-    "SELECT arguments_json, timestamp
-     FROM function_arguments
-     WHERE canvas_id = $1
-       AND tlid = $2
-       AND trace_id = $3
-     LIMIT 1"
+    "SELECT arguments_json, timestamp FROM (
+      SELECT DISTINCT ON (trace_id) *
+      FROM function_arguments
+      WHERE canvas_id = $1 AND tlid = $2 AND trace_id = $3
+      ORDER BY trace_id, timestamp DESC
+      ) AS q
+      ORDER BY timestamp DESC
+      LIMIT 1"
     ~params:[Db.Uuid canvas_id; Db.ID tlid; Db.Uuid trace_id]
   |> List.hd
   |> Option.map ~f:(function
@@ -42,12 +44,14 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
 let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
   Db.fetch
     ~name:"stored_function_arguments.load_traceids"
-    "SELECT trace_id
-     FROM function_arguments
-     WHERE canvas_id = $1
-       AND tlid = $2
-     ORDER BY timestamp DESC
-       LIMIT 10"
+    "SELECT trace_id FROM (
+      SELECT DISTINCT ON (trace_id) *
+      FROM function_arguments
+      WHERE canvas_id = $1 AND tlid = $2
+      ORDER BY trace_id, timestamp DESC
+      ) AS q
+      ORDER BY timestamp DESC
+      LIMIT 10"
     ~params:[Db.Uuid canvas_id; Db.ID tlid]
   |> List.map ~f:(function
          | [trace_id] ->
