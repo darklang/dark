@@ -193,18 +193,18 @@ and pointerOwner =
 
 and usage = tlid * tlid * id option
 
-and tlReference =
-  | OutReferenceDB of tlid * dBName * dBColumn list * id
-  | OutReferenceEvent of tlid * string * string * id
-  | InReferenceHandler of tlid * string * string * string option
-  | InReferenceFunction of tlid * string * userFunctionParameter list
-
-
 and tlMeta =
   | DBMeta of dBName * dBColumn list
   | HandlerMeta of string * string * string option
   | FunctionMeta of fnName * userFunctionParameter list
 
+and usedIn =
+  | InHandler of tlid * string * string * string option
+  | InFunction of tlid * string * userFunctionParameter list
+
+and refersTo =
+  | ToDB of tlid * dBName * dBColumn list * id
+  | ToEvent of tlid * string * string * id
 
 (* ---------------------- *)
 (* Toplevels *)
