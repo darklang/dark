@@ -21,6 +21,11 @@ if [[ "${DEBUG:-}" != "" ]]; then
     DEBUG=--debug
 fi
 
+# In-cluster gcloud auth
+if [[ "${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}" != "" ]]; then
+    export GCLOUD_APPLICATION_CREDENTIALS=<(echo $GOOGLE_APPLICATION_CREDENTIALS_JSON)
+fi
+
 python logs.py \
     | ./honeytail \
     ${DEBUG_STDOUT:-} \
