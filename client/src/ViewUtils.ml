@@ -29,7 +29,7 @@ type viewState =
   ; refs : tlReference list }
 
 let createVS (m : model) (tl : toplevel) : viewState =
-  let selected = Some tl.id = tlidOf m.cursorState in
+  (* let selected = Some tl.id = tlidOf m.cursorState in *)
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid = tl.id
@@ -107,11 +107,15 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
   ; refs =
-      ( if selected
-      then
-        StrDict.get ~key:(showTLID tl.id) m.tlReferences
-        |> Option.withDefault ~default:[]
-      else [] ) }
+      match m.currentPage with
+      | FocusedHandler tlid_ when tlid_ = tl.id -> 
+        Introspect.findOutUsages tl.id m.tlReferences
+        |> Introspect.matchOutMeta m.tlMeta
+      | FocusedDB tlid_ when tlid_ = tl.id ->
+        Introspect.findInUsages tl.id m.tlReferences
+        |> Introspect.matchInMeta m.tlMeta
+      | _ -> []
+  }
 
 
 let fontAwesome (name : string) : msg Html.html =

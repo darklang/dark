@@ -536,21 +536,15 @@ let asPage (tl : toplevel) : page =
       FocusedType tl.id
 
 
-let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
-    =
-  let space_ = match space with F (_, s) -> s | Blank _ -> "_" in
-  let name_ = match name with F (_, n) -> n | Blank _ -> "_" in
-  space_ ^ ":" ^ name_
 
-
-let dbsByName (toplevels : toplevel list) : dbReference StrDict.t =
+let dbsByName (toplevels : toplevel list) : tlid StrDict.t =
   List.foldl
     ~f:(fun tl res ->
       match tl.data with
       | TLDB db ->
         ( match db.dbName with
         | F (_, name) ->
-            StrDict.insert ~key:name ~value:(tl.id, db.cols) res
+            StrDict.insert ~key:name ~value:tl.id res
         | Blank _ ->
             res )
       | _ ->
@@ -564,7 +558,7 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
     ~f:(fun tl res ->
       match tl.data with
       | TLHandler h ->
-          let name = keyForHandlerSpec h.spec.module_ h.spec.name in
+          let name = Introspect.keyForHandlerSpec h.spec.module_ h.spec.name in
           if name <> "" then StrDict.insert ~key:name ~value:tl.id res else res
       | _ ->
           res )
@@ -574,53 +568,61 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
 
 let matchReferences
     (tl : toplevel)
-    (databases : dbReference StrDict.t)
-    (handlers : tlid StrDict.t) : tlReference list =
+    (databases : tlid StrDict.t)
+    (handlers : tlid StrDict.t) : usage list =
+  let findUsagesInAST pd = Introspect.findUsagesInAST tl.id databases handlers pd in
   match tl.data with
   | TLHandler h ->
-      AST.allData h.ast
-      |> List.filterMap ~f:(fun pd ->
-             match pd with
-             | PExpr (F (id, Variable name)) ->
-                 StrDict.get ~key:name databases
-                 |> Option.andThen ~f:(fun (tlid, cols) ->
-                        Some (OutReferenceDB (tlid, name, cols, id)) )
-             | PExpr
-                 (F
-                   ( id
-                   , FnCall
-                       ( F (_, "emit")
-                       , [_; F (sid, Value space_); F (nid, Value name_)]
-                       , _ ) )) ->
-                 let name = Util.removeQuotes name_ in
-                 let space = Util.removeQuotes space_ in
-                 let key =
-                   keyForHandlerSpec (F (sid, space)) (F (nid, name))
-                 in
-                 StrDict.get ~key handlers
-                 |> Option.andThen ~f:(fun tlid ->
-                        Some (OutReferenceEvent (tlid, space, name, id)) )
-             | _ ->
-                 None )
-      |> List.uniqueBy ~f:Introspect.tlidStrOfReference
+    findUsagesInAST (AST.allData h.ast)
   | TLDB _ ->
       []
-  | TLFunc _ ->
-      []
+  | TLFunc f ->
+    let fnast = AST.allData f.ufAST in
+    Debug.loG "fn ast" (Belt.List.toArray fnast);
+    let usages = findUsagesInAST fnast in
+    Debug.loG "fn refs" usages;
+    usages
   | TLTipe _ ->
       []
 
 
-let getReferences (tl : toplevel) (tls : toplevel list) : tlReference list =
+let getReferences (tl : toplevel) (tls : toplevel list) : usage list =
   matchReferences tl (dbsByName tls) (handlersByName tls)
 
 
-let initReferences (tls : toplevel list) : tlReference list StrDict.t =
+let initReferences ?prev:(init=[]) (tls : toplevel list) : usage list =
   let databases = dbsByName tls in
   let handlers = handlersByName tls in
   List.foldl
     ~f:(fun tl refs ->
-      let r = matchReferences tl databases handlers in
-      StrDict.insert ~key:(showTLID tl.id) ~value:r refs )
-    ~init:StrDict.empty
+      refs @ (matchReferences tl databases handlers)
+      )
+    ~init
     tls
+
+let initTLMeta ~(init: tlMeta StrDict.t) (toplevels : toplevel list) : tlMeta StrDict.t =
+  List.foldl
+    ~f:(fun tl meta ->
+      let key = showTLID tl.id in
+      match tl.data with
+      | TLHandler h ->
+        (match (h.spec.module_, h.spec.name) with
+          | (F (_, space), F (_, name)) ->
+            let modifier = B.toMaybe h.spec.modifier in
+            StrDict.insert ~key ~value:(HandlerMeta (space, name, modifier)) meta
+          | _ -> meta
+
+        )
+      | TLDB dB ->
+        let dbname = B.deBlank "dBName as string" dB.dbName in
+        let value = DBMeta (dbname, dB.cols) in
+        StrDict.insert ~key ~value meta
+      | TLFunc f ->
+        let fnName = B.deBlank "fnName as string" f.ufMetadata.ufmName in
+        let value = FunctionMeta (fnName, f.ufMetadata.ufmParameters) in
+        Debug.loG "fn meta" value;
+        StrDict.insert ~key ~value meta
+      | TLTipe _ -> meta 
+    )
+    ~init
+    toplevels

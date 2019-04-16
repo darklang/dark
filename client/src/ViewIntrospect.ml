@@ -40,22 +40,52 @@ let eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
     [ Html.div [Html.class' "spec"] [Html.text space]
     ; Html.div [Html.class' "spec"] [Html.text name] ]
 
+let handlerView (tlid : tlid) (space : string) (name : string) (modifier : string option) : msg Html.html =
+  let modifier_ =
+    match modifier with
+    | Some m ->
+      [Html.div [Html.class' "spec"] [Html.text m]]
+    | None ->
+      []
+  in
+  Html.div
+    [ Html.class' "ref-block handler"
+    ; ViewUtils.eventNoPropagation
+        ~key:("ref-handler-link" ^ showTLID tlid)
+        "click"
+        (fun _ -> GoTo (FocusedHandler tlid)) ]
+    ([ Html.div [Html.class' "spec"] [Html.text space]
+    ; Html.div [Html.class' "spec"] [Html.text name]
+    ] @ modifier_)
+
+let fnView (tlid : tlid) (name : string) : msg Html.html =
+  Html.div
+    [ Html.class' "ref-block fn"
+    ; ViewUtils.eventNoPropagation
+        ~key:("ref-fn-link" ^ showTLID tlid)
+        "click"
+        (fun _ -> GoTo (FocusedFn tlid)) ]
+    [Html.span [Html.class' "fnname"] [Html.text name]]
+
 
 let referenceViews (refs : tlReference list) : msg Html.html =
   let topOffset =
-    match List.head refs with
-    | Some r ->
-        let id = Introspect.idOfReference r in
-        let el = Native.Ext.querySelector (".id-" ^ showID id) in
-        (match el with Some e -> Native.Ext.offsetTop e | None -> 0)
-    | None ->
-        0
+    List.head refs
+    |> Option.andThen ~f:(fun r -> Introspect.idOfReference r)
+    |> Option.andThen ~f:(fun id -> Native.Ext.querySelector (".id-" ^ showID id) )
+    |> Option.andThen ~f:(fun e -> Some (Native.Ext.offsetTop e))
+    |> Option.withDefault ~default:0
   and renderView r =
     match r with
     | OutReferenceDB (tlid, name, cols, _) ->
         dbView tlid name cols
     | OutReferenceEvent (tlid, space, name, _) ->
         eventView tlid space name
+    | InReferenceHandler (tlid, space, name, modifier) ->
+        handlerView tlid space name modifier
+    | InReferenceFunction (tlid, name, _) ->
+        fnView tlid name
+
   in
   Html.div
     [ Html.class' "references"

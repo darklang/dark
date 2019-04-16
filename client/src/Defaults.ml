@@ -89,4 +89,5 @@ let defaultModel : model =
   ; staticDeploys = []
   ; userTipes = []
   ; deletedUserTipes = []
-  ; tlReferences = StrDict.empty }
+  ; tlReferences = []
+  ; tlMeta = StrDict.empty }
