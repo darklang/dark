@@ -684,11 +684,6 @@ let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
   (result, Hashtbl.keys tlid_store)
 
 
-let execute_userfn
-    (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:real_engine_no_tracing ~state
-
-
 let execute_fn
     (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
   call_fn name id args false ~engine:real_engine_no_tracing ~state
