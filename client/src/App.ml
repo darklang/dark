@@ -579,33 +579,22 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          StrDict.merge m.traces traces ~f:(fun _tlid oldList newList ->
-              match (oldList, newList) with
-              | None, None ->
-                  None
-              | Some o, None ->
-                  Some o
-              | None, Some n ->
-                  Some n
-              | Some o, Some n ->
-                  (* merge the lists, updating the trace in the same position
-                   * if present, and adding it to the front otherwise. *)
-                  Some
-                    (List.foldl n ~init:o ~f:(fun (newID, newData) list ->
-                         let found = ref false in
-                         let updated =
-                           List.map list ~f:(fun (oldID, oldData) ->
-                               if oldID = newID
-                               then (
-                                 found := true ;
-                                 if newData <> None
-                                 then (newID, newData)
-                                 else (oldID, oldData) )
-                               else (oldID, oldData) )
-                         in
-                         if !found (* deref, not "not" *)
-                         then updated
-                         else (newID, newData) :: list )) )
+          Analysis.mergeTraces
+            ~onConflict:(fun (oldID, oldData) (newID, newData) ->
+              if newData <> None then (newID, newData) else (oldID, oldData) )
+            m.traces
+            traces
+        in
+        let m = {m with traces = newTraces} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd])
+    | WipeTraces traces ->
+        let newTraces =
+          Analysis.mergeTraces
+            ~onConflict:(fun _old (newID, _) -> (newID, None))
+            m.traces
+            traces
         in
         let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -1179,8 +1168,7 @@ let update_ (msg : msg) (m : model) : modification =
             , hash
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; UpdateTraces (StrDict.fromList traces) ]
+        ; WipeTraces (StrDict.fromList traces) ]
   | TriggerCronRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
