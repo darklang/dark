@@ -781,8 +781,7 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
-  | TriggerCronRPCCallback of
-      triggerCronRPCParams * (triggerCronRPCResult, httpError) Tea.Result.t
+  | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
