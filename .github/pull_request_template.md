@@ -13,7 +13,7 @@ Reviewer checklist:
   - [ ] I pulled the branch and tested out the feature.
 - User facing:
   - [ ] No existing stdlib function has had its behaviour changed.
-  - [ ] No existing JSON format has been changed.
+  - [ ] Existing granduser HTTP responses are unchanged
   - [ ] To the best of my knowledge, all existing Dark code and canvases should continue to work.
   - [ ] New user concepts are documented (in the User Manual?) and consistently named.
 - Engineering:
