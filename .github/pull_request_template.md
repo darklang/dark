@@ -14,7 +14,7 @@ Reviewer checklist:
 - User facing:
   - [ ] No existing stdlib function has had its behaviour changed.
   - [ ] Existing granduser HTTP responses are unchanged
-  - [ ] To the best of my knowledge, all existing Dark code and canvases should continue to work.
+  - [ ] All existing canvases should continue to work
   - [ ] New user concepts are documented (in the User Manual?) and consistently named.
 - Engineering:
   - [ ] Tests are included where appropriate (especially if this is a regression fix!)
