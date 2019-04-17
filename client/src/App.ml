@@ -1174,7 +1174,7 @@ let update_ (msg : msg) (m : model) : modification =
             , hash
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
-  | TriggerCronRPCCallback (_params, Ok (_traceID, _tlids)) ->
+  | TriggerCronRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
@@ -1234,8 +1234,8 @@ let update_ (msg : msg) (m : model) : modification =
         , false
         , err
         , Encoders.executeFunctionRPCParams params )
-  | TriggerCronRPCCallback (_, Error err) ->
-      DisplayError ("Error: " ^ Tea_http.string_of_error err)
+  | TriggerCronRPCCallback (Error err) ->
+      DisplayAndReportHttpError ("TriggerCron", false, err, Js.Json.null)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("InitialLoad", false, err, Js.Json.null)
   | GetUnlockedDBsRPCCallback (Error err) ->

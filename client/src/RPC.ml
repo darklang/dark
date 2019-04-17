@@ -82,7 +82,7 @@ let triggerCron (m : model) (params : triggerCronRPCParams) : msg Tea.Cmd.t =
       url
       (Encoders.triggerCronRPCParams params)
   in
-  Tea.Http.send (fun x -> TriggerCronRPCCallback (params, x)) request
+  Tea.Http.send (fun _ -> TriggerCronRPCCallback (Ok ())) request
 
 
 let getUnlockedDBs (m : model) : msg Tea.Cmd.t =
