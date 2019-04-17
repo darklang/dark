@@ -34,6 +34,7 @@ let () =
       ()
   | 2, [_; "-h"] | _ ->
       usage () ) ;
+  Log.infO "Next: get_stored_events";
   Db.fetch
     ~name:"get stored_events"
     "SELECT canvases.name, value, trace_id
@@ -41,6 +42,7 @@ let () =
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
   |> List.iter ~f:(validate_row "stored_events_v2") ;
+  Log.infO "Next: get_function_arguments";
   Db.fetch
     ~name:"get function_arguments"
     "SELECT canvases.name, arguments_json, trace_id
@@ -48,6 +50,7 @@ let () =
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
   |> List.iter ~f:(validate_row "function_arguments") ;
+  Log.infO "Next: get_function_results";
   Db.fetch
     ~name:"get function_results"
     "SELECT canvases.name, value, trace_id
@@ -55,6 +58,7 @@ let () =
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
   |> List.iter ~f:(validate_row "function_results_v2") ;
+  Log.infO "Next: get_all_canvases";
   Db.fetch ~name:"get all canvases" "SELECT name from canvases" ~params:[]
   |> List.iter ~f:(function
          | [h] ->
