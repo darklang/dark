@@ -490,7 +490,7 @@ let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
   | F (_, "CRON") ->
       [ Html.div
           [ Html.classList [("cron-trigger", true)]
-          ; eventNoPropagation
+          ; ViewUtils.eventNoPropagation
               ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
               "click"
               (fun _ -> TriggerCron vs.tl.id) ]
