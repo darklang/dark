@@ -799,6 +799,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Viewport.centerCanvasOn (TL.getTL m tlid) m.canvasProps
               ; panAnimation = true } }
         , Cmd.none )
+    | TriggerCronRPC tlid ->
+        (m, RPC.triggerCron m {tcpTLID = tlid})
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -904,8 +906,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
   | TriggerCron tlid ->
-      Js.log tlid ;
-      NoChange
+      TriggerCronRPC tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->

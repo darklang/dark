@@ -724,6 +724,7 @@ and modification =
   | Many of modification list
   | Drag of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
+  | TriggerCronRPC of tlid
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
