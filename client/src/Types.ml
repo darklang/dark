@@ -191,30 +191,39 @@ and pointerOwner =
   | POAst
   | PODb
 
-and usage = tlid * tlid * id option
-
-and tlMeta =
-  | DBMeta of dBName * dBColumn list
-  | HandlerMeta of string * string * string option
-  | FunctionMeta of fnName * userFunctionParameter list
-
-and usedIn =
-  | InHandler of tlid * string * string * string option
-  | InFunction of tlid * string * userFunctionParameter list
-
-and refersTo =
-  | ToDB of tlid * dBName * dBColumn list * id
-  | ToEvent of tlid * string * string * id
-
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
+and handlerModule = string
+
+and handlerName = string
+
+and handlierModifier = string
+
+and inTLID = tlid
+
+and toTLID = tlid
+
+and usage = inTLID * toTLID * id option
+
+and tlMeta =
+  | DBMeta of dBName * dBColumn list
+  | HandlerMeta of handlerModule * handlerName * handlierModifier option
+  | FunctionMeta of fnName * userFunctionParameter list
+
+and usedIn =
+  | InHandler of inTLID * handlerModule * handlerName * handlierModifier option
+  | InFunction of inTLID * fnName * userFunctionParameter list
+
+and refersTo =
+  | ToDB of toTLID * dBName * dBColumn list * id
+  | ToEvent of toTLID * handlerModule * handlerName * id
 
 (* handlers *)
 and handlerSpec =
-  { module_ : string blankOr
-  ; name : string blankOr
-  ; modifier : string blankOr }
+  { module_ : handlerModule blankOr
+  ; name : handlerName blankOr
+  ; modifier : handlierModifier blankOr }
 
 and handlerSpace =
   | HSHTTP
