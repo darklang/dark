@@ -8,7 +8,7 @@
 
 Reviewer checklist:
 - Product:
-  - [ ] This PR matches the stated goal and the Trello ticket.
+  - [ ] PR matches stated goal and Trello ticket
   - [ ] The reasons for out-of-scope product changes have been addressed by the submitter.
   - [ ] I pulled the branch and tested out the feature.
 - User facing:
