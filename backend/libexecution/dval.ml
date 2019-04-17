@@ -113,9 +113,9 @@ let rec tipe_of_string str : tipe =
   | "date" ->
       TDate
   | "title" ->
-      TStr
+      Exception.internal "Deprecated type"
   | "url" ->
-      TStr
+      Exception.internal "Deprecated type"
   | "password" ->
       TPassword
   | "uuid" ->
