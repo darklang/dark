@@ -15,7 +15,7 @@ Reviewer checklist:
   - [ ] No existing stdlib function has had its behaviour changed.
   - [ ] Existing granduser HTTP responses are unchanged
   - [ ] All existing canvases should continue to work
-  - [ ] New user concepts are documented (in the User Manual?) and consistently named.
+  - [ ] New features are documented in the User Manual or Trello filed
 - Engineering:
   - [ ] Tests are included where appropriate (especially if this is a regression fix!)
   - [ ] Functions and variables are well-named and self-documenting.
