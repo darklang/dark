@@ -790,7 +790,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | InitIntrospect tls ->
         let newM =
           { m with
-            tlReferences = Introspect.initReferences tls
+            tlUsages = Introspect.initReferences tls
           ; tlMeta = Introspect.initTLMeta tls }
         in
         (newM, Cmd.none)
@@ -809,7 +809,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with tlMeta = mergedMeta}, Cmd.none)
     | UpdateTLUsage usages ->
-        ( {m with tlReferences = Introspect.replaceUsages m.tlReferences usages}
+        ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
         , Cmd.none )
     | TweakModel fn ->
         (fn m, Cmd.none)

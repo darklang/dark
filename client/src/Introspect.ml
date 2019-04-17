@@ -160,7 +160,7 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
   |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
-let findOutUsages (tlid : tlid) (usages : usage list) : codeRef list =
+let findToUsages (tlid : tlid) (usages : usage list) : codeRef list =
   usages
   |> List.filterMap ~f:(fun (tlid_, otlid, mid) ->
          if tlid = tlid_
@@ -168,7 +168,7 @@ let findOutUsages (tlid : tlid) (usages : usage list) : codeRef list =
          else None )
 
 
-let matchOutMeta (meta : tlMeta StrDict.t) (r : codeRef list) : refersTo list =
+let matchToMeta (meta : tlMeta StrDict.t) (r : codeRef list) : refersTo list =
   r
   |> List.filterMap ~f:(fun (tlid_, id) ->
          let tlid = Prelude.showTLID tlid_ in
@@ -184,7 +184,7 @@ let matchOutMeta (meta : tlMeta StrDict.t) (r : codeRef list) : refersTo list =
 
 
 let allTo (tlid : tlid) (m : model) : refersTo list =
-  findOutUsages tlid m.tlReferences |> matchOutMeta m.tlMeta
+  findToUsages tlid m.tlUsages |> matchToMeta m.tlMeta
 
 
 let findInUsages (tlid : tlid) (usages : usage list) : tlid list =
@@ -209,7 +209,7 @@ let matchInMeta (meta : tlMeta StrDict.t) (r : tlid list) : usedIn list =
 
 
 let allIn (tlid : tlid) (m : model) : usedIn list =
-  findInUsages tlid m.tlReferences |> matchInMeta m.tlMeta
+  findInUsages tlid m.tlUsages |> matchInMeta m.tlMeta
 
 
 let replaceUsages (oldUsages : usage list) (newUsages : usage list) :
