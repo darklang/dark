@@ -52,8 +52,10 @@ let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
 
 
 let viewTipeField
-    (vs : viewState) (t : userTipe) (fieldCount : int) (field : userRecordField) :
-    msg Html.html =
+    (vs : viewState)
+    (t : userTipe)
+    (fieldCount : int)
+    (field : userRecordField) : msg Html.html =
   let button =
     if fieldCount > 1 then viewKillFieldBtn t field else Vdom.noNode
   in
