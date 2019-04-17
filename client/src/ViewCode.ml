@@ -484,18 +484,19 @@ let externalLink
       []
 
 
-let cronTriggerButton (vs : viewState) (spec : handlerSpec) =
+let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
+    msg Html.html list =
   match spec.module_ with
   | F (_, "CRON") ->
-      [ ViewUtils.toggleIconButton
-          ~name:"cron-trigger"
-          ~activeIcon:"play"
-          ~inactiveIcon:"play"
-          ~msg:(fun _ -> IgnoreMsg)
-          ~active:true
-          ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool true) ]
+      [ Html.div
+          [ Html.classList [("cron-trigger", true)]
+          ; eventNoPropagation
+              ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
+              "click"
+              (fun _ -> TriggerCron vs.tl.id) ]
+          [fontAwesome "play"] ]
   | _ ->
-      []
+      [Vdom.noNode]
 
 
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =

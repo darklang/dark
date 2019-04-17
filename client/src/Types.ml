@@ -801,6 +801,7 @@ and msg =
   | TraceClick of tlid * traceID * mouseEvent
   | TraceMouseEnter of tlid * traceID * mouseEvent
   | TraceMouseLeave of tlid * traceID * mouseEvent
+  | TriggerCron of tlid
   | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction
