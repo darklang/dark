@@ -2,19 +2,23 @@
 - [ ] Describe the goals, problem and solution ([PR guide](https://docs.google.com/document/d/1IeQdEh7ROhNV6Z2mJdu35E6r8XtFOkOhyhIeAvm8amE/edit))
 - [ ] Make sure info from this description is also in comments
 - [ ] Include before/after screenshots/gif if applicable
-- [ ] Add intended followups as trellos 
+- [ ] Add intended followups as trellos
 - [ ] If risky, discuss your reversion strategy
 - [ ] If this is fixing a regression, add a test
 
 Reviewer checklist:
 - Product:
-  - [ ] Does this match the goal of the PR or trello?
-  - [ ] Does this add or change product features not discussed in the goals?
+  - [ ] This PR matches the stated goal and the Trello ticket.
+  - [ ] The reasons for out-of-scope product changes have been addressed by the submitter.
+  - [ ] I pulled the branch and tested out the feature.
 - User facing:
-  - [ ] Could this cause a silent change in behaviour of user programs, eg an output format or function behaviour?
-  - [ ] Is there consistent naming of new user concepts?
-- Engineering: 
-  - [ ] If this was a regression, is there a test?
-  - [ ] Would comments help future understanding somewhere?
-  - [ ] Double check any change related to the serialization format.
+  - [ ] No existing stdlib function has had its behaviour changed.
+  - [ ] No existing JSON format has been changed.
+  - [ ] To the best of my knowledge, all existing Dark code and canvases should continue to work.
+  - [ ] New user concepts are documented (in the User Manual?) and consistently named.
+- Engineering:
+  - [ ] Tests are included where appropriate (especially if this is a regression fix!)
+  - [ ] Functions and variables are well-named and self-documenting.
+  - [ ] Comments are present when appropriate and are understandable.
+  - [ ] Serialization format changes look good and have been double-checked and tested against local prodclone.
 
