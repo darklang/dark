@@ -751,7 +751,8 @@ and modification =
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
-
+  | UpdateTLMeta of tlMeta StrDict.t
+  | UpdateTLUsage of usage list
 
 (* ------------------- *)
 (* Msgs *)
