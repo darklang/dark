@@ -17,7 +17,7 @@ Reviewer checklist:
   - [ ] All existing canvases should continue to work
   - [ ] New features are documented in the User Manual or Trello filed
 - Engineering:
-  - [ ] Tests are included where appropriate (especially if this is a regression fix!)
+  - [ ] Tests are included or unnecessary (required for regressions)
   - [ ] Functions and variables are well-named and self-documenting.
   - [ ] Comments are present when appropriate and are understandable.
   - [ ] Serialization format changes look good and have been double-checked and tested against local prodclone.
