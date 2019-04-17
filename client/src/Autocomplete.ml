@@ -465,7 +465,9 @@ let isDynamicItem (item : autocompleteItem) : bool =
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let toDynamicItems target (q : string) : autocompleteItem list =
+let toDynamicItems
+    (space : handlerSpace option) (target : target option) (q : string) :
+    autocompleteItem list =
   match target with
   | None ->
       (* omnicompletion *)
@@ -486,7 +488,9 @@ let toDynamicItems target (q : string) : autocompleteItem list =
   | Some (_, PEventSpace _) ->
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
-      if q == "" then [ACEventName "/"] else [ACEventName (cleanEventName q)]
+      if q == ""
+      then if space == Some HSHTTP then [ACEventName "/"] else []
+      else [ACEventName (cleanEventName q)]
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
@@ -494,9 +498,17 @@ let toDynamicItems target (q : string) : autocompleteItem list =
 
 
 let withDynamicItems
-    (target : target option) (query : string) (acis : autocompleteItem list) :
-    autocompleteItem list =
-  let new_ = toDynamicItems target query in
+    (m : model)
+    (target : target option)
+    (query : string)
+    (acis : autocompleteItem list) : autocompleteItem list =
+  let space =
+    target
+    |> Option.map ~f:Tuple2.first
+    |> Option.andThen ~f:(TL.get m)
+    |> Option.andThen ~f:TL.spaceOf
+  in
+  let new_ = toDynamicItems space target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   withoutDynamic @ new_
 
@@ -753,7 +765,7 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   let fudgedCompletions =
     if old.isCommandMode
     then List.filter ~f:isStaticItem old.allCompletions
-    else withDynamicItems old.target query old.allCompletions
+    else withDynamicItems m old.target query old.allCompletions
   in
   let newCompletions, invalidCompletions =
     filter m old fudgedCompletions query
