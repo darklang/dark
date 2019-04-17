@@ -520,7 +520,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getTL m tlid in
-                (match tl.data with
+                ( match tl.data with
                 | TLDB _ ->
                     TL.upsert m2 tl
                 | TLHandler _ ->
@@ -528,8 +528,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 | TLTipe _ ->
                     m2
                 | TLFunc _ ->
-                    m2
-                )
+                    m2 )
           | None ->
               m2
         in
@@ -795,6 +794,23 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; tlMeta = Introspect.initTLMeta tls }
         in
         (newM, Cmd.none)
+    | UpdateTLMeta newMeta ->
+        let mergedMeta =
+          StrDict.merge m.tlMeta newMeta ~f:(fun _tlid _old _new ->
+              match (_old, _new) with
+              | None, None ->
+                  None
+              | Some o, None ->
+                  Some o
+              | None, Some n ->
+                  Some n
+              | Some _, Some n ->
+                  Some n )
+        in
+        ({m with tlMeta = mergedMeta}, Cmd.none)
+    | UpdateTLUsage usages ->
+        ( {m with tlReferences = Introspect.replaceUsages m.tlReferences usages}
+        , Cmd.none )
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -1101,7 +1117,10 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, _, Ok r) ->
+  | AddOpRPCCallback (focus, o, Ok r) ->
+      let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+      let metaMod = Introspect.metaMod o.ops alltls in
+      let usageMod = Introspect.usageMod o.ops alltls in
       if focus = FocusNoChange
       then
         Many
@@ -1109,7 +1128,9 @@ let update_ (msg : msg) (m : model) : modification =
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
           ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-          ; MakeCmd (Entry.focusEntry m) ]
+          ; MakeCmd (Entry.focusEntry m)
+          ; metaMod
+          ; usageMod ]
       else
         let m2 = TL.upsertAll m r.toplevels in
         let m3 = {m2 with userFunctions = r.userFunctions} in
@@ -1122,7 +1143,9 @@ let update_ (msg : msg) (m : model) : modification =
           ; SetTypes (r.userTipes, r.deletedUserTipes, true)
           ; AutocompleteMod ACReset
           ; ClearError
-          ; newState ]
+          ; newState
+          ; metaMod
+          ; usageMod ]
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =

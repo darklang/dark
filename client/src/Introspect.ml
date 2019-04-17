@@ -81,41 +81,83 @@ let idOfRefersTo (r : refersTo) : id =
   match r with ToDB (_, _, _, id) -> id | ToEvent (_, _, _, id) -> id
 
 
-let shouldUpdateReferences (ops : op list) =
-  List.any
-    ~f:(fun op ->
-      match op with
-      | SetHandler _ | SetExpr _ | SetFunction _ ->
-          true
-      | CreateDB _
-      | AddDBCol _
-      | SetDBColName _
-      | SetDBColType _
-      | DeleteTL _
-      | MoveTL _
-      | TLSavepoint _
-      | UndoTL _
-      | RedoTL _
-      | DeleteFunction _
-      | ChangeDBColName _
-      | ChangeDBColType _
-      | DeprecatedInitDbm _
-      | CreateDBMigration _
-      | AddDBColToDBMigration _
-      | SetDBColNameInDBMigration _
-      | SetDBColTypeInDBMigration _
-      | DeleteColInDBMigration _
-      | AbandonDBMigration _
-      | DeleteDBCol _
-      | RenameDBname _
-      | CreateDBWithBlankOr _
-      | DeleteTLForever _
-      | DeleteFunctionForever _
-      | SetType _
-      | DeleteType _
-      | DeleteTypeForever _ ->
-          false )
-    ops
+let tlidsToUpdateMeta (ops : op list) : tlid list =
+  ops
+  |> List.filterMap ~f:(fun op ->
+         match op with
+         | SetHandler (tlid, _, _)
+         | AddDBCol (tlid, _, _)
+         | SetDBColName (tlid, _, _)
+         | SetDBColType (tlid, _, _)
+         | DeleteDBCol (tlid, _)
+         | RenameDBname (tlid, _) ->
+             Some tlid
+         | SetFunction f ->
+             Some f.ufTLID
+         | SetExpr _
+         | CreateDB _
+         | DeleteTL _
+         | MoveTL _
+         | TLSavepoint _
+         | UndoTL _
+         | RedoTL _
+         | DeleteFunction _
+         | ChangeDBColName _
+         | ChangeDBColType _
+         | DeprecatedInitDbm _
+         | CreateDBMigration _
+         | AddDBColToDBMigration _
+         | SetDBColNameInDBMigration _
+         | SetDBColTypeInDBMigration _
+         | DeleteColInDBMigration _
+         | AbandonDBMigration _
+         | CreateDBWithBlankOr _
+         | DeleteTLForever _
+         | DeleteFunctionForever _
+         | SetType _
+         | DeleteType _
+         | DeleteTypeForever _ ->
+             None )
+  |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
+
+
+let tlidsToUpdateUsage (ops : op list) : tlid list =
+  ops
+  |> List.filterMap ~f:(fun op ->
+         match op with
+         | SetHandler (tlid, _, _) | SetExpr (tlid, _, _) ->
+             Some tlid
+         | SetFunction f ->
+             Some f.ufTLID
+         | CreateDB _
+         | DeleteTL _
+         | MoveTL _
+         | TLSavepoint _
+         | UndoTL _
+         | RedoTL _
+         | DeleteFunction _
+         | ChangeDBColName _
+         | ChangeDBColType _
+         | DeprecatedInitDbm _
+         | CreateDBMigration _
+         | AddDBColToDBMigration _
+         | SetDBColNameInDBMigration _
+         | SetDBColTypeInDBMigration _
+         | DeleteColInDBMigration _
+         | AbandonDBMigration _
+         | CreateDBWithBlankOr _
+         | DeleteTLForever _
+         | DeleteFunctionForever _
+         | SetType _
+         | DeleteType _
+         | AddDBCol _
+         | DeleteTypeForever _
+         | SetDBColType _
+         | DeleteDBCol _
+         | RenameDBname _
+         | SetDBColName _ ->
+             None )
+  |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
 let findOutUsages (tlid : tlid) (usages : usage list) : codeRef list =
@@ -170,6 +212,20 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
   findInUsages tlid m.tlReferences |> matchInMeta m.tlMeta
 
 
+let replaceUsages (oldUsages : usage list) (newUsages : usage list) :
+    usage list =
+  let tlids =
+    newUsages
+    |> List.uniqueBy ~f:(fun (TLID tlid, _, _) -> tlid)
+    |> List.map ~f:(fun (tlid, _, _) -> tlid)
+  in
+  let usagesToKeep =
+    oldUsages
+    |> List.filter ~f:(fun (tlid, _, _) -> not (List.member ~value:tlid tlids))
+  in
+  usagesToKeep @ newUsages
+
+
 let matchReferences
     (tl : toplevel) (databases : tlid StrDict.t) (handlers : tlid StrDict.t) :
     usage list =
@@ -189,6 +245,21 @@ let getReferences (tl : toplevel) (tls : toplevel list) : usage list =
   matchReferences tl (dbsByName tls) (handlersByName tls)
 
 
+let usageMod (ops : op list) (toplevels : toplevel list) : modification =
+  let databases = dbsByName toplevels in
+  let handlers = handlersByName toplevels in
+  let tlidsToUpdate = tlidsToUpdateUsage ops in
+  let use =
+    toplevels
+    |> List.filterMap ~f:(fun tl ->
+           if List.member ~value:tl.id tlidsToUpdate then Some tl else None )
+    |> List.foldl
+         ~f:(fun tl refs -> refs @ matchReferences tl databases handlers)
+         ~init:[]
+  in
+  if List.isEmpty use then NoChange else UpdateTLUsage use
+
+
 let initReferences (tls : toplevel list) : usage list =
   let databases = dbsByName tls in
   let handlers = handlersByName tls in
@@ -198,30 +269,38 @@ let initReferences (tls : toplevel list) : usage list =
     tls
 
 
-let initTLMeta (toplevels : toplevel list) : tlMeta StrDict.t =
-  List.foldl
-    ~f:(fun tl meta ->
-      let key = showTLID tl.id in
-      match tl.data with
-      | TLHandler h ->
-        ( match (h.spec.module_, h.spec.name) with
-        | F (_, space), F (_, name) ->
-            let modifier = B.toMaybe h.spec.modifier in
-            StrDict.insert
-              ~key
-              ~value:(HandlerMeta (space, name, modifier))
-              meta
-        | _ ->
-            meta )
-      | TLDB dB ->
-          let dbname = B.deBlank "dBName as string" dB.dbName in
-          let value = DBMeta (dbname, dB.cols) in
-          StrDict.insert ~key ~value meta
-      | TLFunc f ->
-          let fnName = B.deBlank "fnName as string" f.ufMetadata.ufmName in
-          let value = FunctionMeta (fnName, f.ufMetadata.ufmParameters) in
-          StrDict.insert ~key ~value meta
-      | TLTipe _ ->
-          meta )
-    ~init:StrDict.empty
+let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
+  let key = showTLID tl.id in
+  match tl.data with
+  | TLHandler h ->
+    ( match (h.spec.module_, h.spec.name) with
+    | F (_, space), F (_, name) ->
+        let modifier = B.toMaybe h.spec.modifier in
+        StrDict.insert ~key ~value:(HandlerMeta (space, name, modifier)) meta
+    | _ ->
+        meta )
+  | TLDB dB ->
+      let dbname = B.deBlank "dBName as string" dB.dbName in
+      let value = DBMeta (dbname, dB.cols) in
+      StrDict.insert ~key ~value meta
+  | TLFunc f ->
+      let fnName = B.deBlank "fnName as string" f.ufMetadata.ufmName in
+      let value = FunctionMeta (fnName, f.ufMetadata.ufmParameters) in
+      StrDict.insert ~key ~value meta
+  | TLTipe _ ->
+      meta
+
+
+let metaMod (ops : op list) (toplevels : toplevel list) : modification =
+  let tlidsToUpdate = tlidsToUpdateMeta ops in
+  let withMeta =
     toplevels
+    |> List.filterMap ~f:(fun tl ->
+           if List.member ~value:tl.id tlidsToUpdate then Some tl else None )
+    |> List.foldl ~f:updateMeta ~init:StrDict.empty
+  in
+  if withMeta = StrDict.empty then NoChange else UpdateTLMeta withMeta
+
+
+let initTLMeta (toplevels : toplevel list) : tlMeta StrDict.t =
+  List.foldl ~f:updateMeta ~init:StrDict.empty toplevels
