@@ -12,7 +12,7 @@ Reviewer checklist:
   - [ ] Out-of-scope product changes have been explained
   - [ ] I pulled the branch and tested out the feature.
 - User facing:
-  - [ ] No existing stdlib function has had its behaviour changed.
+  - [ ] Existing stdlib and language semantics are unchanged.
   - [ ] Existing granduser HTTP responses are unchanged
   - [ ] All existing canvases should continue to work
   - [ ] New features are documented in the User Manual or Trello filed
