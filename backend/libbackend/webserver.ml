@@ -682,11 +682,7 @@ let trigger_cron ~(execution_id : Types.id) (host : string) body :
               trace_id
               (handler.tlid :: touched_tlids) )
   in
-  let response = `List [`List []; `List []] |> Yojson.Safe.to_string in
-  (* let t4, response =
-    time "4-to-frontend" (fun _ ->
-        Analysis.to_trigger_cron_rpc_result (Dval.hash params.args) result ) *)
-  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK response
+  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK ""
 
 
 let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
