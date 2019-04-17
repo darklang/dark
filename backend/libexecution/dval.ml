@@ -174,9 +174,9 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "date" ->
       TDbList TDate
   | "title" ->
-      TDbList TTitle
+      TDbList TStr
   | "url" ->
-      TDbList TUrl
+      TDbList TStr
   | table ->
       THasMany list_tipe
 
