@@ -903,6 +903,9 @@ let update_ (msg : msg) (m : model) : modification =
       Many (traceCmd @ [SetHover (tlid, ID traceID)])
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
+  | TriggerCron tlid ->
+      Js.log tlid ;
+      NoChange
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
