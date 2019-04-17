@@ -42,4 +42,5 @@ spec:
                   key: key
             - name: SUBSCRIPTION_NAME
               value: postgres-logs-dark-west-honeycomb
-            
+            - name: PROJECT_ID
+              value: balmy-ground-195100

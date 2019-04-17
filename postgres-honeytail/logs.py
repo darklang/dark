@@ -55,13 +55,8 @@ if __name__ == "__main__":
     # Get google project_id from env if set, fall back to gcloud config if not
     project_id = os.getenv("PROJECT_ID")
     if not project_id:
-        project_id = subprocess.Popen(
-                ['gcloud', 'config', 'get-value', 'project'],
-                stdout=subprocess.PIPE
-                ).communicate()[0].strip()
-        if not project_id:
-            print("ERROR: project_id couldn't be found")
-            sys.exit(1)
+        print("ERROR: project_id couldn't be found")
+        sys.exit(1)
 
     subscription_name = os.getenv("SUBSCRIPTION_NAME")
     if not subscription_name:
