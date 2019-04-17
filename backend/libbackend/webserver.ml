@@ -14,6 +14,7 @@ module C = Canvas
 module Exception = Libexecution.Exception
 module Util = Libexecution.Util
 module Dval = Libexecution.Dval
+module DvalMap = Libexecution.Types.RuntimeT.DvalMap
 module PReq = Libexecution.Parsed_request
 module Types = Libexecution.Types
 module Http = Libexecution.Http
@@ -636,6 +637,58 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
     response
 
 
+let trigger_cron ~(execution_id : Types.id) (host : string) body :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  let t1, params =
+    time "1-read-api-params" (fun _ -> Api.to_trigger_cron_rpc_params body)
+  in
+  let t2, c =
+    time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
+  in
+  let t3, () =
+    time "3-execute" (fun _ ->
+        let handler_and_desc =
+          Map.find !c.handlers params.tlid
+          |> Option.bind ~f:TL.as_handler
+          |> Option.bind ~f:(fun h ->
+                 Handler.event_desc_for h |> Option.map ~f:(fun d -> (h, d)) )
+        in
+        match handler_and_desc with
+        | None ->
+            ()
+        | Some (handler, desc) ->
+            let canvas_id = !c.id in
+            let trace_id = Util.create_uuid () in
+            ignore (Stored_event.store_event ~trace_id ~canvas_id desc DNull) ;
+            let result, touched_tlids =
+              Libexecution.Execution.execute_handler
+                handler
+                ~execution_id
+                ~tlid:params.tlid
+                ~input_vars:[]
+                ~dbs:(TL.dbs !c.dbs)
+                ~user_tipes:(!c.user_tipes |> Map.data)
+                ~user_fns:(!c.user_functions |> Map.data)
+                ~account_id:!c.owner
+                ~canvas_id
+                ~store_fn_arguments:
+                  (Stored_function_arguments.store ~canvas_id ~trace_id)
+                ~store_fn_result:
+                  (Stored_function_result.store ~canvas_id ~trace_id)
+            in
+            Stroller.push_new_trace_id
+              ~execution_id
+              ~canvas_id
+              trace_id
+              (handler.tlid :: touched_tlids) )
+  in
+  let response = `List [`List []; `List []] |> Yojson.Safe.to_string in
+  (* let t4, response =
+    time "4-to-frontend" (fun _ ->
+        Analysis.to_trigger_cron_rpc_result (Dval.hash params.args) result ) *)
+  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK response
+
+
 let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
@@ -995,6 +1048,9 @@ let admin_api_handler
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (execute_function ~execution_id canvas body) )
+  | `POST, ["api"; canvas; "trigger_cron"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (trigger_cron ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_trace_data"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (get_trace_data ~execution_id canvas body) )
