@@ -409,11 +409,12 @@ body #app * {
   
   display: flex;
   flex-direction: column;
+
 }
 
 .used-in {
   position: absolute;
-  left: -200px;
+  left: -300px;
   display: flex;
   flex-direction: column;
 }
@@ -452,25 +453,25 @@ body #app * {
     }
   }
 
-  &.emit {
+  &.emit, &.handler {
     display: flex;
     flex-direction: row;
-    .spec {
-      display: inline-block;
-      
-      margin-left: 4ch;
-      padding-bottom: 2px;
-      padding-top: 0;
-      padding-left: 1ch;
-      padding-right: 1ch;
+    border-bottom: 1px solid @orange;
+  }
 
-      border-bottom: 1px solid @orange;
-      
-      color: @orange;
+  .spec {
+    display: inline-block;
+    
+    margin-left: 4ch;
+    padding-bottom: 2px;
+    padding-top: 0;
+    padding-left: 1ch;
+    padding-right: 1ch;
+    
+    color: @orange;
 
-      &:first-child {
-        margin-left: 0;
-      }
+    &:first-child {
+      margin-left: 0;
     }
   }
 }
