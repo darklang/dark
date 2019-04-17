@@ -474,6 +474,8 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
+and triggerCronRPCParams = {tcpTLID : tlid}
+
 and getTraceDataRPCParams =
   { gtdrpTlid : tlid
   ; gtdrpTraceID : traceID }
@@ -520,6 +522,8 @@ and addOpRPCResult =
 and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
+
+and triggerCronRPCResult = traceID * tlid list
 
 and unlockedDBs = StrSet.t
 
@@ -776,6 +780,9 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
+  | TriggerCronRPCCallback of
+      triggerCronRPCParams * (triggerCronRPCResult, httpError) Tea.Result.t
+      [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest

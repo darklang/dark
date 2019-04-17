@@ -381,6 +381,10 @@ and executeFunctionRPCResult j : executeFunctionRPCResult =
   (field "result" dval j, field "hash" string j)
 
 
+and triggerCronRPCResult j : triggerCronRPCResult =
+  (field "trace_id" string j, field "tlid" (list tlid) j)
+
+
 and saveTestRPCResult j : saveTestRPCResult = string j
 
 (* -------------------------- *)
