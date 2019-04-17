@@ -74,7 +74,7 @@ let fnView (tlid : tlid) (name : string) : msg Html.html =
     [Html.span [Html.class' "fnname"] [Html.text name]]
 
 
-let referenceViews (refs : refersTo list) : msg Html.html =
+let refersToViews (refs : refersTo list) : msg Html.html =
   let topOffset =
     List.head refs
     |> Option.andThen ~f:(fun r ->
@@ -90,7 +90,7 @@ let referenceViews (refs : refersTo list) : msg Html.html =
         eventView tlid space name
   in
   Html.div
-    [ Html.class' "references"
+    [ Html.class' "usages"
     ; Html.styles [("top", string_of_int (topOffset - 16) ^ "px")] ]
     (List.map ~f:renderView refs)
 

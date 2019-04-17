@@ -943,7 +943,7 @@ and model =
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
-  ; tlReferences : usage list
+  ; tlUsages : usage list
   ; tlMeta : tlMeta StrDict.t }
 
 (* Values that we serialize *)
