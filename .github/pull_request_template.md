@@ -9,7 +9,7 @@
 Reviewer checklist:
 - Product:
   - [ ] PR matches stated goal and Trello ticket
-  - [ ] The reasons for out-of-scope product changes have been addressed by the submitter.
+  - [ ] Out-of-scope product changes have been explained
   - [ ] I pulled the branch and tested out the feature.
 - User facing:
   - [ ] No existing stdlib function has had its behaviour changed.
