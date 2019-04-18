@@ -342,7 +342,8 @@ let exec_userfn (prog : string) : dval =
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
-  Ast.execute_userfn state name execution_id []
+  let result, _ = Ast.execute_fn state name execution_id [] in
+  result
 
 
 (* ----------------------- *)

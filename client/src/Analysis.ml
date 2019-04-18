@@ -295,6 +295,35 @@ let contextFromModel (m : model) : traceFetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
+let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
+    traces =
+  StrDict.merge oldTraces newTraces ~f:(fun _tlid oldList newList ->
+      match (oldList, newList) with
+      | None, None ->
+          None
+      | Some o, None ->
+          Some o
+      | None, Some n ->
+          Some n
+      | Some o, Some n ->
+          (* merge the lists, updating the trace in the same position
+              * if present, and adding it to the front otherwise. *)
+          Some
+            (List.foldl n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
+                 let found = ref false in
+                 let updated =
+                   List.map acc ~f:(fun ((oldID, oldData) as old) ->
+                       if oldID = newID
+                       then (
+                         found := true ;
+                         onConflict old new_ )
+                       else (oldID, oldData) )
+                 in
+                 if !found (* deref, not "not" *)
+                 then updated
+                 else (newID, newData) :: acc )) )
+
+
 let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
   let should =
     (* DBs + Types dont have traces *)

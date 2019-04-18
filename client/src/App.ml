@@ -579,33 +579,30 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          StrDict.merge m.traces traces ~f:(fun _tlid oldList newList ->
-              match (oldList, newList) with
-              | None, None ->
-                  None
-              | Some o, None ->
-                  Some o
-              | None, Some n ->
-                  Some n
-              | Some o, Some n ->
-                  (* merge the lists, updating the trace in the same position
-                   * if present, and adding it to the front otherwise. *)
-                  Some
-                    (List.foldl n ~init:o ~f:(fun (newID, newData) list ->
-                         let found = ref false in
-                         let updated =
-                           List.map list ~f:(fun (oldID, oldData) ->
-                               if oldID = newID
-                               then (
-                                 found := true ;
-                                 if newData <> None
-                                 then (newID, newData)
-                                 else (oldID, oldData) )
-                               else (oldID, oldData) )
-                         in
-                         if !found (* deref, not "not" *)
-                         then updated
-                         else (newID, newData) :: list )) )
+          Analysis.mergeTraces
+            ~onConflict:(fun (oldID, oldData) (newID, newData) ->
+              if newData <> None then (newID, newData) else (oldID, oldData) )
+            m.traces
+            traces
+        in
+        let m = {m with traces = newTraces} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd])
+    | OverrideTraces traces ->
+        (* OverrideTraces takes a set of traces and merges it with the model, but if
+         * the (tlid, traceID) pair occurs in both, the result will have its data
+         * blown away.
+         *
+         * Use OverrideTraces when a set of traceIDs has been received by the client but
+         * some/all of them might represent _mutated_ traces. (ie. a trace where if
+         * you re-fetch the trace data you'd get a different set of input values or
+         * stored function results *)
+        let newTraces =
+          Analysis.mergeTraces
+            ~onConflict:(fun _old (newID, _) -> (newID, None))
+            m.traces
+            traces
         in
         let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -942,7 +939,6 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1164,7 +1160,12 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateTraces traces ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
-  | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
+  | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids)) ->
+      let traces =
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
+          tlids
+      in
       Many
         [ UpdateTraceFunctionResult
             ( params.efpTLID
@@ -1173,7 +1174,8 @@ let update_ (msg : msg) (m : model) : modification =
             , params.efpFnName
             , hash
             , dval )
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
+        ; OverrideTraces (StrDict.fromList traces) ]
   | TriggerCronRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->

@@ -48,7 +48,7 @@ val execute_handler :
   -> Types.RuntimeT.HandlerT.handler
   -> Types.RuntimeT.dval * Types.tlid list
 
-val call_function :
+val execute_function :
      tlid:Types.tlid
   -> execution_id:Types.tlid
   -> trace_id:Uuidm.t
@@ -59,8 +59,10 @@ val call_function :
   -> canvas_id:Uuidm.t
   -> caller_id:Types.id
   -> args:Types.RuntimeT.dval list
+  -> ?store_fn_result:Types.RuntimeT.store_fn_result_type
+  -> ?store_fn_arguments:Types.RuntimeT.store_fn_arguments_type
   -> string
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.dval * Types.tlid list
 
 (* ----------------- *)
 (* Analysis *)

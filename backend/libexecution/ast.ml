@@ -595,7 +595,9 @@ and exec_fn
           in
           state.store_fn_arguments tlid args ;
           engine.trace_tlid tlid ;
-          exec ~engine ~state args_with_dbs body
+          let result = exec ~engine ~state args_with_dbs body in
+          state.store_fn_result sfr_desc arglist result ;
+          result
       | Error errs ->
           let error_msgs =
             errs
@@ -655,16 +657,6 @@ let execute_saving_intermediates
 (* Execution *)
 (* -------------------- *)
 
-(* no value tracing when running in prod *)
-let real_engine_no_tracing : engine =
-  let empty_trace _ _ _ = () in
-  let empty_tlid _ = () in
-  { trace = empty_trace
-  ; trace_blank = empty_trace
-  ; trace_tlid = empty_tlid
-  ; ctx = Real }
-
-
 (* execute for real, tracing executed toplevels *)
 let server_execution_engine tlid_store : engine =
   let empty_trace _ _ _ = () in
@@ -684,11 +676,10 @@ let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
   (result, Hashtbl.keys tlid_store)
 
 
-let execute_userfn
-    (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:real_engine_no_tracing ~state
-
-
 let execute_fn
-    (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:real_engine_no_tracing ~state
+    (state : exec_state) (name : string) (id : id) (args : dval list) :
+    dval * tlid list =
+  let tlid_store = TLIDTable.create () in
+  let engine = server_execution_engine tlid_store in
+  let result = call_fn name id args false ~engine ~state in
+  (result, Hashtbl.keys tlid_store)
