@@ -17,6 +17,7 @@ spec:
     spec:
       containers:
         - image: "gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail:{POSTGRES_HONEYTAIL_IMAGE}"
+          name: postgres-honeytail-ctr
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
