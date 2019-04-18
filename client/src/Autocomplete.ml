@@ -624,7 +624,6 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             [ ACHTTPModifier "GET"
             ; ACHTTPModifier "POST"
             ; ACHTTPModifier "PUT"
-            ; ACHTTPModifier "HEAD"
             ; ACHTTPModifier "DELETE"
             ; ACHTTPModifier "PATCH" ]
         | Some HSCron ->
