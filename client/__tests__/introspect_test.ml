@@ -60,9 +60,8 @@ let () =
       test "findUsagesInAST" (fun () ->
           let handlers = handlersByName toplevels in
           let databases = dbsByName toplevels in
-          let pointers = AST.allData h2data.ast in
           let usages =
-            match findUsagesInAST h2tlid databases handlers pointers with
+            match findUsagesInAST h2tlid databases handlers h2data.ast with
             | [(tlid, toTLID, _)] ->
                 tlid = h2tlid && toTLID = dbtlid
             | _ ->

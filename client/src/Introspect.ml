@@ -3,8 +3,6 @@ open Types
 open Prelude
 module B = Blank
 
-type codeRef = tlid * id
-
 let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
     =
   let space_ = match space with F (_, s) -> s | Blank _ -> "_" in
@@ -39,34 +37,6 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
           res )
     ~init:StrDict.empty
     toplevels
-
-
-let findUsagesInAST
-    (tlid_ : tlid)
-    (databases : tlid StrDict.t)
-    (handlers : tlid StrDict.t)
-    (pointers : pointerData list) : usage list =
-  pointers
-  |> List.filterMap ~f:(fun pd ->
-         match pd with
-         | PExpr (F (id, Variable name)) ->
-             StrDict.get ~key:name databases
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
-         | PExpr
-             (F
-               ( id
-               , FnCall
-                   ( F (_, "emit")
-                   , [_; F (sid, Value space_); F (nid, Value name_)]
-                   , _ ) )) ->
-             let name = Util.removeQuotes name_ in
-             let space = Util.removeQuotes space_ in
-             let key = keyForHandlerSpec (F (sid, space)) (F (nid, name)) in
-             StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
-         | _ ->
-             None )
-  |> List.uniqueBy ~f:(fun (_, TLID tlid, _) -> tlid)
 
 
 let tlidStrOfRefersTo (r : refersTo) : string =
@@ -160,56 +130,47 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
   |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
-let findToUsages (tlid : tlid) (usages : usage list) : codeRef list =
-  usages
+let allTo (tlid : tlid) (m : model) : refersTo list =
+  let asRefersTo tlid_ id m =
+    match m with
+    | DBMeta (dBName, col) ->
+        Some (ToDB (tlid_, dBName, col, id))
+    | HandlerMeta (space, name, _) ->
+        Some (ToEvent (tlid_, space, name, id))
+    | FunctionMeta _ ->
+        None
+  and meta = m.tlMeta in
+  m.tlUsages
+  (* Filter for all outgoing references in given toplevel *)
   |> List.filterMap ~f:(fun (tlid_, otlid, mid) ->
          if tlid = tlid_
          then match mid with Some id -> Some (otlid, id) | None -> None
          else None )
-
-
-let matchToMeta (meta : tlMeta StrDict.t) (r : codeRef list) : refersTo list =
-  r
+  (* Match all outgoing references with their relevant display meta data *)
   |> List.filterMap ~f:(fun (tlid_, id) ->
          let tlid = Prelude.showTLID tlid_ in
-         StrDict.get ~key:tlid meta
-         |> Option.andThen ~f:(fun m ->
-                match m with
-                | DBMeta (dBName, col) ->
-                    Some (ToDB (tlid_, dBName, col, id))
-                | HandlerMeta (space, name, _) ->
-                    Some (ToEvent (tlid_, space, name, id))
-                | FunctionMeta _ ->
-                    None ) )
-
-
-let allTo (tlid : tlid) (m : model) : refersTo list =
-  findToUsages tlid m.tlUsages |> matchToMeta m.tlMeta
-
-
-let findInUsages (tlid : tlid) (usages : usage list) : tlid list =
-  usages
-  |> List.filterMap ~f:(fun (intlid, outtlid, _) ->
-         if outtlid = tlid then Some intlid else None )
-
-
-let matchInMeta (meta : tlMeta StrDict.t) (r : tlid list) : usedIn list =
-  r
-  |> List.filterMap ~f:(fun tlid_ ->
-         let tlid = Prelude.showTLID tlid_ in
-         StrDict.get ~key:tlid meta
-         |> Option.andThen ~f:(fun m ->
-                match m with
-                | HandlerMeta (space, name, modifier) ->
-                    Some (InHandler (tlid_, space, name, modifier))
-                | FunctionMeta (name, params) ->
-                    Some (InFunction (tlid_, name, params))
-                | _ ->
-                    None ) )
+         StrDict.get ~key:tlid meta |> Option.andThen ~f:(asRefersTo tlid_ id)
+     )
 
 
 let allIn (tlid : tlid) (m : model) : usedIn list =
-  findInUsages tlid m.tlUsages |> matchInMeta m.tlMeta
+  let asUsedIn tlid_ m =
+    match m with
+    | HandlerMeta (space, name, modifier) ->
+        Some (InHandler (tlid_, space, name, modifier))
+    | FunctionMeta (name, params) ->
+        Some (InFunction (tlid_, name, params))
+    | _ ->
+        None
+  and meta = m.tlMeta in
+  m.tlUsages
+  (* Filter for all places where given tl is used  *)
+  |> List.filterMap ~f:(fun (intlid, outtlid, _) ->
+         if outtlid = tlid then Some intlid else None )
+  (* Match all used in references with their relevant display meta data *)
+  |> List.filterMap ~f:(fun tlid_ ->
+         let tlid = Prelude.showTLID tlid_ in
+         StrDict.get ~key:tlid meta |> Option.andThen ~f:(asUsedIn tlid_) )
 
 
 let replaceUsages (oldUsages : usage list) (newUsages : usage list) :
@@ -226,23 +187,46 @@ let replaceUsages (oldUsages : usage list) (newUsages : usage list) :
   usagesToKeep @ newUsages
 
 
-let matchReferences
+let findUsagesInAST
+    (tlid_ : tlid)
+    (databases : tlid StrDict.t)
+    (handlers : tlid StrDict.t)
+    (ast : expr) : usage list =
+  AST.allData ast
+  |> List.filterMap ~f:(fun pd ->
+         match pd with
+         | PExpr (F (id, Variable name)) ->
+             StrDict.get ~key:name databases
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
+         | PExpr
+             (F
+               ( id
+               , FnCall
+                   ( F (_, "emit")
+                   , [_; F (sid, Value space_); F (nid, Value name_)]
+                   , _ ) )) ->
+             let name = Util.removeQuotes name_ in
+             let space = Util.removeQuotes space_ in
+             let key = keyForHandlerSpec (F (sid, space)) (F (nid, name)) in
+             StrDict.get ~key handlers
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
+         | _ ->
+             None )
+  |> List.uniqueBy ~f:(fun (_, TLID tlid, _) -> tlid)
+
+
+let getUsageFor
     (tl : toplevel) (databases : tlid StrDict.t) (handlers : tlid StrDict.t) :
     usage list =
-  let usageInAST pd = findUsagesInAST tl.id databases handlers pd in
   match tl.data with
   | TLHandler h ->
-      usageInAST (AST.allData h.ast)
+      findUsagesInAST tl.id databases handlers h.ast
   | TLDB _ ->
       []
   | TLFunc f ->
-      usageInAST (AST.allData f.ufAST)
+      findUsagesInAST tl.id databases handlers f.ufAST
   | TLTipe _ ->
       []
-
-
-let getReferences (tl : toplevel) (tls : toplevel list) : usage list =
-  matchReferences tl (dbsByName tls) (handlersByName tls)
 
 
 let usageMod (ops : op list) (toplevels : toplevel list) : modification =
@@ -254,17 +238,17 @@ let usageMod (ops : op list) (toplevels : toplevel list) : modification =
     |> List.filterMap ~f:(fun tl ->
            if List.member ~value:tl.id tlidsToUpdate then Some tl else None )
     |> List.foldl
-         ~f:(fun tl refs -> refs @ matchReferences tl databases handlers)
+         ~f:(fun tl refs -> refs @ getUsageFor tl databases handlers)
          ~init:[]
   in
   if List.isEmpty use then NoChange else UpdateTLUsage use
 
 
-let initReferences (tls : toplevel list) : usage list =
+let initUsages (tls : toplevel list) : usage list =
   let databases = dbsByName tls in
   let handlers = handlersByName tls in
   List.foldl
-    ~f:(fun tl refs -> refs @ matchReferences tl databases handlers)
+    ~f:(fun tl refs -> refs @ getUsageFor tl databases handlers)
     ~init:[]
     tls
 
