@@ -18,6 +18,8 @@ let store ~canvas_id ~trace_id tlid args =
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
     (Analysis_types.input_vars * RTT.time) option =
+  (* We need to alias the subquery (here aliased as `q`) because Postgres
+   * requires inner SELECTs to be aliased. *)
   Db.fetch
     ~name:"stored_function_arguments.load_for_analysis"
     "SELECT arguments_json, timestamp FROM (
@@ -42,6 +44,8 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
 
 
 let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
+  (* We need to alias the subquery (here aliased as `q`) because Postgres
+   * requires inner SELECTs to be aliased. *)
   Db.fetch
     ~name:"stored_function_arguments.load_traceids"
     "SELECT trace_id FROM (
