@@ -590,6 +590,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
     | WipeTraces traces ->
+        (* WipeTraces takes a set of traces and merges it with the model, but if
+         * the (tlid, traceID) pair occurs in both, the result will have its data
+         * blown away.
+         *
+         * Use WipeTraces when a set of traceIDs has been received by the client but
+         * some/all of them might represent _mutated_ traces. (ie. a trace where if
+         * you re-fetch the trace data you'd get a different set of input values or
+         * stored function results *)
         let newTraces =
           Analysis.mergeTraces
             ~onConflict:(fun _old (newID, _) -> (newID, None))
