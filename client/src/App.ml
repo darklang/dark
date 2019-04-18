@@ -790,7 +790,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | InitIntrospect tls ->
         let newM =
           { m with
-            tlUsages = Introspect.initReferences tls
+            tlUsages = Introspect.initUsages tls
           ; tlMeta = Introspect.initTLMeta tls }
         in
         (newM, Cmd.none)
