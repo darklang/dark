@@ -637,7 +637,8 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     in
     let tlids = List.filter_map ~f:Op.tlidOf params.ops in
     let t2, c =
-      time "2-load-saved-ops" (fun _ -> C.load_only ~tlids host params.ops)
+      time "2-load-saved-ops" (fun _ ->
+          C.load_only_tlids ~tlids host params.ops )
     in
     let t3, result =
       time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
@@ -707,7 +708,8 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
     time "1-read-api-ops" (fun _ -> Api.to_execute_function_rpc_params body)
   in
   let t2, c =
-    time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
+    time "2-load-saved-ops" (fun _ ->
+        C.load_with_context ~tlids:[params.tlid] host [] )
   in
   let t3, (result, tlids) =
     time "3-execute" (fun _ ->
@@ -740,7 +742,8 @@ let trigger_cron ~(execution_id : Types.id) (host : string) body :
     time "1-read-api-params" (fun _ -> Api.to_trigger_cron_rpc_params body)
   in
   let t2, c =
-    time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
+    time "2-load-saved-ops" (fun _ ->
+        C.load_with_context ~tlids:[params.tlid] host [] )
   in
   let t3, () =
     time "3-execute" (fun _ ->
@@ -791,7 +794,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     let tlid = params.tlid in
     let trace_id = params.trace_id in
     let t2, c =
-      time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[tlid] host [])
+      time "2-load-saved-ops" (fun _ -> C.load_only_tlids ~tlids:[tlid] host [])
     in
     let t3, mht =
       time "3-handler-analyses" (fun _ ->
@@ -825,9 +828,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
 let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
     : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, c =
-      time "1-load-saved-ops" (fun _ -> C.load_only ~tlids:[] host [])
-    in
+    let t1, c = time "1-load-saved-ops" (fun _ -> C.load_all_dbs host []) in
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
     in

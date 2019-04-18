@@ -96,7 +96,7 @@ let replacements =
               let open Libexecution in
               let tlid = Unicode_string.to_string tlid in
               let c =
-                Canvas.load_only
+                Canvas.load_only_tlids
                   (Unicode_string.to_string host)
                   ~tlids:[Types.id_of_string tlid]
                   []
@@ -207,9 +207,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         in
         function
         | _, [DStr host] ->
-            let canvas =
-              Canvas.load_only ~tlids:[] (Unicode.to_string host) []
-            in
+            let canvas = Canvas.load_without_tls (Unicode.to_string host) in
             !canvas.cors_setting |> cors_setting_to_dval
         | args ->
             fail args )
@@ -243,9 +241,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
           | Error e ->
               e |> Dval.dstr_of_string_exn |> ResError |> DResult
           | Ok settings ->
-              let canvas =
-                Canvas.load_only ~tlids:[] (Unicode.to_string host) []
-              in
+              let canvas = Canvas.load_without_tls (Unicode.to_string host) in
               Canvas.update_cors_setting canvas settings ;
               s |> DOption |> ResOk |> DResult )
         | args ->
@@ -274,7 +270,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             let tlid = Unicode_string.to_string tlid in
             let canvas_name = Unicode_string.to_string canvas_name in
             let c =
-              Canvas.load_only ~tlids:[Types.id_of_string tlid] canvas_name []
+              Canvas.load_only_tlids
+                ~tlids:[Types.id_of_string tlid]
+                canvas_name
+                []
             in
             let db =
               !c.dbs
@@ -358,7 +357,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
               Types.id_of_string (Unicode_string.to_string tlid_str)
             in
             let canvas : Canvas.canvas ref =
-              Canvas.load_only ~tlids:[tlid] (Unicode_string.to_string host) []
+              Canvas.load_only_tlids
+                ~tlids:[tlid]
+                (Unicode_string.to_string host)
+                []
             in
             let desc =
               !canvas.handlers

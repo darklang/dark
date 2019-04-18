@@ -93,7 +93,7 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
 
 let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   Db.fetch
-    ~name:"load_per_tlid_oplists"
+    ~name:"load_all_from_db"
     "SELECT data FROM toplevel_oplists
      WHERE canvas_id = $1"
     ~params:[Uuid canvas_id]
@@ -101,20 +101,52 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   |> strs2tlid_oplists
 
 
-let load_only_for_tlids
+let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
+    : Op.tlid_oplists =
+  let tlid_params =
+    tlids
+    |> List.map ~f:Types.string_of_id
+    |> String.concat ~sep:", "
+    |> Log.inspect "tlid_params"
+  in
+  (* TODO: sql injection here *)
+  Db.fetch
+    ~name:"load_only_tlids"
+    ( "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND tlid = ANY('{"
+    ^ tlid_params
+    ^ "}'::bigint[])" )
+    ~params:[Db.Uuid canvas_id]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
+let load_with_context
     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
     Op.tlid_oplists =
   let tlid_params =
     tlids |> List.map ~f:Types.string_of_id |> String.concat ~sep:", "
   in
   Db.fetch
-    ~name:"load_only_for_tilds"
+    ~name:"load_with_context"
     ( "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
         AND (tlid = ANY('{"
     ^ tlid_params
     ^ "}'::bigint[])
              OR tipe <> 'handler'::toplevel_type)" )
+    ~params:[Db.Uuid canvas_id]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
+let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
+  Db.fetch
+    ~name:"load_all_dbs"
+    "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND tipe = 'db'::toplevel_type"
     ~params:[Db.Uuid canvas_id]
     ~result:BinaryResult
   |> strs2tlid_oplists
@@ -139,6 +171,7 @@ let load_for_http
 
 
 let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
+  (* TODO: doesn't this need dbs and user_functions? *)
   Db.fetch
     ~name:"load_for_cron"
     "SELECT data FROM toplevel_oplists
