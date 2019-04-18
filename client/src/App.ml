@@ -589,12 +589,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
-    | WipeTraces traces ->
-        (* WipeTraces takes a set of traces and merges it with the model, but if
+    | OverrideTraces traces ->
+        (* OverrideTraces takes a set of traces and merges it with the model, but if
          * the (tlid, traceID) pair occurs in both, the result will have its data
          * blown away.
          *
-         * Use WipeTraces when a set of traceIDs has been received by the client but
+         * Use OverrideTraces when a set of traceIDs has been received by the client but
          * some/all of them might represent _mutated_ traces. (ie. a trace where if
          * you re-fetch the trace data you'd get a different set of input values or
          * stored function results *)
@@ -939,7 +939,7 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
+
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1176,7 +1176,7 @@ let update_ (msg : msg) (m : model) : modification =
             , hash
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; WipeTraces (StrDict.fromList traces) ]
+        ; OverrideTraces (StrDict.fromList traces) ]
   | TriggerCronRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
