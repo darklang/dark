@@ -21,7 +21,7 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
   Db.fetch
     ~name:"stored_function_arguments.load_for_analysis"
     "SELECT arguments_json, timestamp FROM (
-      SELECT DISTINCT ON (trace_id) *
+      SELECT DISTINCT ON (trace_id) trace_id, timestamp, arguments_json
       FROM function_arguments
       WHERE canvas_id = $1 AND tlid = $2 AND trace_id = $3
       ORDER BY trace_id, timestamp DESC
@@ -45,7 +45,7 @@ let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
   Db.fetch
     ~name:"stored_function_arguments.load_traceids"
     "SELECT trace_id FROM (
-      SELECT DISTINCT ON (trace_id) *
+      SELECT DISTINCT ON (trace_id) trace_id, timestamp
       FROM function_arguments
       WHERE canvas_id = $1 AND tlid = $2
       ORDER BY trace_id, timestamp DESC
