@@ -364,6 +364,10 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
+and triggerCronRPCParams (params : Types.triggerCronRPCParams) : Js.Json.t =
+  object_ [("tlid", tlid params.tcpTLID)]
+
+
 and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
   object_
     [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]

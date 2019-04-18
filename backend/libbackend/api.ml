@@ -20,6 +20,8 @@ type execute_function_rpc_params =
   ; fnname : string }
 [@@deriving yojson]
 
+type trigger_cron_rpc_params = {tlid : tlid} [@@deriving yojson]
+
 type route_params =
   { space : string
   ; path : string
@@ -46,6 +48,13 @@ let to_execute_function_rpc_params (payload : string) :
   payload
   |> Yojson.Safe.from_string
   |> execute_function_rpc_params_of_yojson
+  |> Result.ok_or_failwith
+
+
+let to_trigger_cron_rpc_params (payload : string) : trigger_cron_rpc_params =
+  payload
+  |> Yojson.Safe.from_string
+  |> trigger_cron_rpc_params_of_yojson
   |> Result.ok_or_failwith
 
 

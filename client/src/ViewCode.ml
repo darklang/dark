@@ -484,6 +484,25 @@ let externalLink
       []
 
 
+let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
+    msg Html.html list =
+  match (spec.module_, spec.name, spec.modifier) with
+  (* Hide button if spec is not filled out because trace id 
+   is needed to recover cron traces on refresh. *)
+  | F (_, "CRON"), F (_, ""), F (_, "") ->
+      [Vdom.noNode]
+  | F (_, "CRON"), F _, F _ ->
+      [ Html.div
+          [ Html.classList [("cron-trigger", true)]
+          ; ViewUtils.eventNoPropagation
+              ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
+              "click"
+              (fun _ -> TriggerCron vs.tl.id) ]
+          [fontAwesome "play"] ]
+  | _, _, _ ->
+      [Vdom.noNode]
+
+
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -532,7 +551,9 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
         ~active:isExpand
         ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
     in
-    Html.div [Html.class' "actions"] (testGet @ [lock; expandCollapse])
+    Html.div
+      [Html.class' "actions"]
+      (testGet @ cronTriggerButton vs spec @ [lock; expandCollapse])
   in
   [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 

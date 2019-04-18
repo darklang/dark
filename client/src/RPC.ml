@@ -71,6 +71,20 @@ let executeFunction (m : model) (params : executeFunctionRPCParams) :
   Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
 
 
+let triggerCron (m : model) (params : triggerCronRPCParams) : msg Tea.Cmd.t =
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_handler"]
+  in
+  let request =
+    postJson
+      Decoders.triggerCronRPCResult
+      m.csrfToken
+      url
+      (Encoders.triggerCronRPCParams params)
+  in
+  Tea.Http.send (fun _ -> TriggerCronRPCCallback (Ok ())) request
+
+
 let getUnlockedDBs (m : model) : msg Tea.Cmd.t =
   let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/get_unlocked_dbs" in
   let request =
