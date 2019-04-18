@@ -223,6 +223,19 @@ jobs:
       - store_test_results:
           path: artifacts/rundir/test_results
 
+  build-postgres-honeytail:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - restore_cache:
+          keys:
+            - v6-postgres-honeytail-{{ checksum "today-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "minus1-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "minus2-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "minus3-timestamp" }}
+      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail . && docker run -t dark-gcp-postgres-honeytail python test_logs.py
+
   build-client:
     executor: my-executor
     steps:
@@ -340,6 +353,7 @@ jobs:
           docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
           docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
           docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+          docker images gcr.io/balmy-ground-195100/postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
           root: "."
           paths: [ gcr-image-ids ]
@@ -362,6 +376,7 @@ jobs:
             --cron-image-id=`  cat gcr-image-ids/cron`   \
             --stroller-image-id=`cat gcr-image-ids/stroller` \
             --tunnel-image-id=`cat gcr-image-ids/tunnel`
+            --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
 
 
 workflows:
@@ -372,6 +387,7 @@ workflows:
       - build-backend
       - build-client
       - build-stroller
+      - build-postgres-honeytail
 
       # expensive tests
       - integration-tests:
@@ -388,6 +404,7 @@ workflows:
             - build-backend
             - build-client
             - build-stroller
+            - build-postgres-honeytail
 
       # actual deploy
       - deploy:

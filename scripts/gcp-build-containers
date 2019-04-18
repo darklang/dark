@@ -112,3 +112,10 @@ docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX
 docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-cron:latest" "$CDIR"
 
 docker build scripts/support -t "${PREFIX}tunnel:latest" -f scripts/support/tunnel.dockerfile
+
+#################################
+## postgres-honeytail
+#################################
+cd postgres-honeytail \
+  && docker build -t "${PREFIX}postgres-honeytail:latest" . \
+  && cd -

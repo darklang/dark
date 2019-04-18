@@ -21,3 +21,5 @@ builtwithdark.yaml
 cronchecker.yaml
 queueworker.yaml
 tunnel.yaml
+
+*.pyc

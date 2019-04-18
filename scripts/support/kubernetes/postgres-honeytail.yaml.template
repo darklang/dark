@@ -1,0 +1,46 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: postgres-honeytail-deployment
+  annotations:
+    kubernetes.io/change-cause: 'circle=manual-deploy ; orig-time: Fri Mar 15 22:33:18 UTC 2019'
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: postgres-honeytail
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres-honeytail
+    spec:
+      containers:
+        - image: "gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail:{POSTGRES_HONEYTAIL_IMAGE}"
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "500m"
+            limits:
+              memory: "1000Mi"
+              cpu: "500m"
+          env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
+            - name: GOOGLE_APPLICATION_CREDENTIALS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: dark-static-assets
+                  key: balmy-ground-195100-d9b0f3de3013.json
+            - name: HONEYCOMB_WRITEKEY
+              valueFrom:
+                secretKeyRef:
+                  name: honeycomb-writekey
+                  key: key
+            - name: SUBSCRIPTION_NAME
+              value: postgres-logs-dark-west-honeycomb
+            - name: PROJECT_ID
+              value: balmy-ground-195100
