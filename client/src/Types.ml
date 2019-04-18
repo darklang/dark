@@ -474,6 +474,8 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
+and triggerCronRPCParams = {tcpTLID : tlid}
+
 and getTraceDataRPCParams =
   { gtdrpTlid : tlid
   ; gtdrpTraceID : traceID }
@@ -520,6 +522,8 @@ and addOpRPCResult =
 and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash
+
+and triggerCronRPCResult = traceID * tlid list
 
 and unlockedDBs = StrSet.t
 
@@ -720,6 +724,7 @@ and modification =
   | Many of modification list
   | Drag of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
+  | TriggerCronRPC of tlid
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
@@ -776,6 +781,8 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
+  | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
+      [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
@@ -801,6 +808,7 @@ and msg =
   | TraceClick of tlid * traceID * mouseEvent
   | TraceMouseEnter of tlid * traceID * mouseEvent
   | TraceMouseLeave of tlid * traceID * mouseEvent
+  | TriggerCron of tlid
   | CreateRouteHandler of string option
   | CreateFunction
   | ExtractFunction

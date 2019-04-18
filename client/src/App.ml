@@ -799,6 +799,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Viewport.centerCanvasOn (TL.getTL m tlid) m.canvasProps
               ; panAnimation = true } }
         , Cmd.none )
+    | TriggerCronRPC tlid ->
+        (m, RPC.triggerCron m {tcpTLID = tlid})
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -903,6 +905,8 @@ let update_ (msg : msg) (m : model) : modification =
       Many (traceCmd @ [SetHover (tlid, ID traceID)])
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
+  | TriggerCron tlid ->
+      TriggerCronRPC tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -1170,6 +1174,8 @@ let update_ (msg : msg) (m : model) : modification =
             , hash
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
+  | TriggerCronRPCCallback (Ok ()) ->
+      NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
@@ -1228,6 +1234,8 @@ let update_ (msg : msg) (m : model) : modification =
         , false
         , err
         , Encoders.executeFunctionRPCParams params )
+  | TriggerCronRPCCallback (Error err) ->
+      DisplayAndReportHttpError ("TriggerCron", false, err, Js.Json.null)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError ("InitialLoad", false, err, Js.Json.null)
   | GetUnlockedDBsRPCCallback (Error err) ->
