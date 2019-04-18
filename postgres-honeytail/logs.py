@@ -5,7 +5,6 @@ import json
 import re
 import sys
 import os
-from future.utils import raise_from
 
 LOG_LINE_PREFIX_RE = re.compile(
     "^\\[[0-9]*\\]: \\[[0-9]*-1\\] db=[^,]*,user=[^ ]* ")
@@ -25,7 +24,7 @@ def process_message(data):
         j = json.loads(data)
     except json.decoder.JSONDecodeError as e:
         msg = "Error, could not load json from message: '{}'".format(data)
-        raise_from(msg, e)
+        raise msg from e
         return ""
 
     # log_line_prefix can't be changed in CloudSQL, so we're going to add our
