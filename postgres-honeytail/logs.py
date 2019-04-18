@@ -3,9 +3,9 @@ import time
 from google.cloud import pubsub_v1
 import json
 import re
-import subprocess
 import sys
 import os
+from future.utils import raise_from
 
 LOG_LINE_PREFIX_RE = re.compile(
     "^\\[[0-9]*\\]: \\[[0-9]*-1\\] db=[^,]*,user=[^ ]* ")
@@ -17,7 +17,16 @@ def callback(message):
 
 
 def process_message(data):
-    j = json.loads(data)
+    # If data is empty, we can't process it, don't try
+    if not data or data == "":
+        return ""
+
+    try:
+        j = json.loads(data)
+    except json.decoder.JSONDecodeError as e:
+        msg = "Error, could not load json from message: '{}'".format(data)
+        raise_from(msg, e)
+        return ""
 
     # log_line_prefix can't be changed in CloudSQL, so we're going to add our
     # own timestamps and fake it. *facepalm*
