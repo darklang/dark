@@ -164,7 +164,7 @@ if [[ ! -v TUNNEL_IMAGE_ID ]]; then
   TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 fi
 if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
-  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}postgres-honeytail -q | head -n 1)"
+  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-postgres-honeytail -q | head -n 1)"
 fi
 
 # get creds
