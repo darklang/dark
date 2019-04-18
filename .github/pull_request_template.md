@@ -19,6 +19,7 @@ Reviewer checklist:
 - Engineering:
   - [ ] Tests are included or unnecessary (required for regressions)
   - [ ] Functions and variables are well-named and self-documenting.
-  - [ ] Comments are present when appropriate and are understandable.
+  - [ ] Comments have been added for all explanations in PR review comment.
   - [ ] Serialization format changes look good and have been double-checked and tested against local prodclone.
+  - [ ] Unneeded code has been removed.
 
