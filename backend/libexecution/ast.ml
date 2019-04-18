@@ -657,16 +657,6 @@ let execute_saving_intermediates
 (* Execution *)
 (* -------------------- *)
 
-(* no value tracing when running in prod *)
-let real_engine_no_tracing : engine =
-  let empty_trace _ _ _ = () in
-  let empty_tlid _ = () in
-  { trace = empty_trace
-  ; trace_blank = empty_trace
-  ; trace_tlid = empty_tlid
-  ; ctx = Real }
-
-
 (* execute for real, tracing executed toplevels *)
 let server_execution_engine tlid_store : engine =
   let empty_trace _ _ _ = () in
