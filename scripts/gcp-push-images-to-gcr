@@ -26,7 +26,7 @@ QW_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-qw" -q | head -n 1)
 CRON_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-cron" -q | head -n 1)
 STROLLER_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-stroller" -q | head -n 1)
 TUNNEL_IMAGE_ID="$(docker images "${PREFIX}tunnel" -q | head -n 1)"
-STROLLER_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-postgres-honeytail" -q | head -n 1)
+POSTGRES_HONEYTAIL_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-postgres-honeytail" -q | head -n 1)
 
 # get the image tag corresponding to the latest local image id
 IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp:$IMAGE_ID"
