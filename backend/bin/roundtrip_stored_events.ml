@@ -34,46 +34,49 @@ let () =
       ()
   | 2, [_; "-h"] | _ ->
       usage () ) ;
-  Log.infO "Next: get_stored_events";
-  Db.fetch
+  Log.infO "Next: get_stored_events" ;
+  Db.iter_with_cursor
     ~name:"get stored_events"
     "SELECT canvases.name, value, trace_id
  FROM stored_events_v2
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
-  |> List.iter ~f:(validate_row "stored_events_v2") ;
-  Log.infO "Next: get_function_arguments";
-  Db.fetch
+    ~f:(validate_row "stored_events_v2") ;
+  Log.infO "Next: get_function_arguments" ;
+  Db.iter_with_cursor
     ~name:"get function_arguments"
     "SELECT canvases.name, arguments_json, trace_id
  FROM function_arguments
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
-  |> List.iter ~f:(validate_row "function_arguments") ;
-  Log.infO "Next: get_function_results";
-  Db.fetch
+    ~f:(validate_row "function_arguments") ;
+  Log.infO "Next: get_function_results" ;
+  Db.iter_with_cursor
     ~name:"get function_results"
     "SELECT canvases.name, value, trace_id
  FROM function_results_v2
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
-  |> List.iter ~f:(validate_row "function_results_v2") ;
-  Log.infO "Next: get_all_canvases";
-  Db.fetch ~name:"get all canvases" "SELECT name from canvases" ~params:[]
-  |> List.iter ~f:(function
-         | [h] ->
-           ( try
-               ignore (Canvas.load_all h [] : Canvas.canvas ref) ;
-               Log.infO "successful canvas load" ~params:[("host", h)]
-             with e ->
-               Log.erroR
-                 "failed canvas load"
-                 ~params:
-                   [ ("host", h)
-                   ; ("exn", Exception.to_string e)
-                   ; ( "bt"
-                     , Base.Backtrace.to_string (Backtrace.Exn.most_recent ())
-                     ) ] )
-         | _ ->
-             Exception.internal "wrong # of fields in db resultset" ) ;
+    ~f:(validate_row "function_results_v2") ;
+  Log.infO "Next: get_all_canvases" ;
+  Db.iter_with_cursor
+    ~name:"get all canvases"
+    "SELECT name from canvases"
+    ~params:[]
+    ~f:(function
+      | [h] ->
+        ( try
+            ignore (Canvas.load_all h [] : Canvas.canvas ref) ;
+            Log.infO "successful canvas load" ~params:[("host", h)]
+          with e ->
+            Log.erroR
+              "failed canvas load"
+              ~params:
+                [ ("host", h)
+                ; ("exn", Exception.to_string e)
+                ; ( "bt"
+                  , Base.Backtrace.to_string (Backtrace.Exn.most_recent ()) )
+                ] )
+      | _ ->
+          Exception.internal "wrong # of fields in db resultset" ) ;
   ()
