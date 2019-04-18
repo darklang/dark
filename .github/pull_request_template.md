@@ -2,19 +2,24 @@
 - [ ] Describe the goals, problem and solution ([PR guide](https://docs.google.com/document/d/1IeQdEh7ROhNV6Z2mJdu35E6r8XtFOkOhyhIeAvm8amE/edit))
 - [ ] Make sure info from this description is also in comments
 - [ ] Include before/after screenshots/gif if applicable
-- [ ] Add intended followups as trellos 
+- [ ] Add intended followups as trellos
 - [ ] If risky, discuss your reversion strategy
 - [ ] If this is fixing a regression, add a test
 
 Reviewer checklist:
 - Product:
-  - [ ] Does this match the goal of the PR or trello?
-  - [ ] Does this add or change product features not discussed in the goals?
+  - [ ] PR matches stated goal and Trello ticket
+  - [ ] Out-of-scope product changes have been explained
+  - [ ] I pulled the branch and tested out the feature.
 - User facing:
-  - [ ] Could this cause a silent change in behaviour of user programs, eg an output format or function behaviour?
-  - [ ] Is there consistent naming of new user concepts?
-- Engineering: 
-  - [ ] If this was a regression, is there a test?
-  - [ ] Would comments help future understanding somewhere?
-  - [ ] Double check any change related to the serialization format.
+  - [ ] Existing stdlib and language semantics are unchanged.
+  - [ ] Existing granduser HTTP responses are unchanged
+  - [ ] All existing canvases should continue to work
+  - [ ] New features are documented in the User Manual or Trello filed
+- Engineering:
+  - [ ] Tests are included or unnecessary (required for regressions)
+  - [ ] Functions and variables are well-named and self-documenting.
+  - [ ] Comments have been added for all explanations in PR review comment.
+  - [ ] Serialization format changes look good and have been double-checked and tested against local prodclone.
+  - [ ] Unneeded code has been removed.
 
