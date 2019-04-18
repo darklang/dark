@@ -487,6 +487,8 @@ let externalLink
 let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
   match (spec.module_, spec.name, spec.modifier) with
+  (* Hide button if spec is not filled out because trace id 
+   is needed to recover cron traces on refresh. *)
   | F (_, "CRON"), F (_, ""), F (_, "") ->
       [Vdom.noNode]
   | F (_, "CRON"), F _, F _ ->

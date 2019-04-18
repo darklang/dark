@@ -648,8 +648,8 @@ let trigger_cron ~(execution_id : Types.id) (host : string) body :
   let t3, () =
     time "3-execute" (fun _ ->
         let handler_and_desc =
-          Map.find !c.handlers params.tlid
-          |> Option.bind ~f:TL.as_handler
+          Map.find_exn !c.handlers params.tlid
+          |> TL.as_handler
           |> Option.bind ~f:(fun h ->
                  Handler.event_desc_for h |> Option.map ~f:(fun d -> (h, d)) )
         in

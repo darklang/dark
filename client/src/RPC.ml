@@ -73,7 +73,7 @@ let executeFunction (m : model) (params : executeFunctionRPCParams) :
 
 let triggerCron (m : model) (params : triggerCronRPCParams) : msg Tea.Cmd.t =
   let url =
-    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_cron"]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_handler"]
   in
   let request =
     postJson
