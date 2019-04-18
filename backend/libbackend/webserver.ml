@@ -453,10 +453,22 @@ let static_assets_upload_handler
            * converts to the absolute url. In React, you would do this with
            * PUBLIC_URL. *)
           let body =
-            String.substr_replace_all
-              body
-              ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
-              ~with_:sa.url
+            let filetype = Magic_mime.lookup filename in
+            let is_valid_text body =
+              body |> Libexecution.Unicode_string.of_string |> Option.is_some
+            in
+            (* Other mime type prefixes are video, image, audio,
+             * chemical, model, x-conference and can be ignored without
+             * the expensive conversion check *)
+            if String.is_prefix ~prefix:"text" filetype
+               || String.is_prefix ~prefix:"application" filetype
+                  && is_valid_text body
+            then
+              String.substr_replace_all
+                body
+                ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
+                ~with_:sa.url
+            else body
           in
           Static_assets.upload_to_bucket filename body canvas deploy_hash
         in
