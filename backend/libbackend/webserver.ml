@@ -460,16 +460,25 @@ let static_assets_upload_handler
             (* Other mime type prefixes are video, image, audio,
              * chemical, model, x-conference and can be ignored without
              * the expensive conversion check *)
-            if String.is_prefix ~prefix:"text" filetype
-               || String.is_prefix ~prefix:"application" filetype
-                  && is_valid_text body
+            if String.is_prefix ~prefix:"video" filetype
+               || String.is_prefix ~prefix:"image" filetype
+               || String.is_prefix ~prefix:"audio" filetype
+               || String.is_prefix ~prefix:"chemical" filetype
+               || String.is_prefix ~prefix:"model" filetype
+               || String.is_prefix ~prefix:"x-conference" filetype
+            then body
+            else if String.is_prefix ~prefix:"text" filetype
+                    || is_valid_text body
+                    (* application/ or unknown and valid UTF-8*)
             then
               String.substr_replace_all
                 body
                 ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
                 ~with_:sa.url
-            else body
+            else (* application/* or unknown and _not_ valid UTF-8 *)
+              body
           in
+          Log.infO ~data:(String.length body |> string_of_int) "size" ;
           Static_assets.upload_to_bucket filename body canvas deploy_hash
         in
         Lwt.return (files |> List.map ~f:processfile)
