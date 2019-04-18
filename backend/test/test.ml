@@ -2156,6 +2156,7 @@ let t_result_to_response_works () =
          Canvas.update_cors_setting c cors_setting ;
          dval
          |> Webserver.result_to_response ~c ~execution_id ~req
+         |> Webserver.respond_or_redirect
          |> Lwt_main.run
          |> fst
          |> check )
