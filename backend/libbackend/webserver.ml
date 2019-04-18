@@ -90,14 +90,6 @@ let new_redirect_params ?(headers : Cohttp.Header.t option) ~(uri : Uri.t) :
   Redirect {uri; headers}
 
 
-(*let default_response_params =
-  Respond
-    { resp_headers = Header.init ()
-    ; execution_id =  
-    ; status = [`Code 200]
-    ; body = "" }
-    *)
-
 let respond_or_redirect (params : response_params) =
   match params with
   | Redirect {uri; headers} ->
@@ -1402,7 +1394,7 @@ let server () =
           | Some (Canvas canvas) ->
               let verb = req |> CRequest.meth in
               ( match verb with
-              (* transform HEAD req method to GET*)
+              (* transform HEAD req method to GET, discards body in response*)
               | `HEAD ->
                   user_page_handler
                     ~execution_id
