@@ -521,7 +521,7 @@ and addOpRPCResult =
 
 and dvalArgsHash = string
 
-and executeFunctionRPCResult = dval * dvalArgsHash
+and executeFunctionRPCResult = dval * dvalArgsHash * tlid list
 
 and triggerCronRPCResult = traceID * tlid list
 
@@ -734,6 +734,7 @@ and modification =
   | ExecutingFunctionComplete of (tlid * id) list
   | MoveCanvasTo of pos
   | UpdateTraces of traces
+  | OverrideTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
   | AppendStaticDeploy of staticDeploy list

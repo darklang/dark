@@ -140,30 +140,23 @@ let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
 (* ------------------------- *)
 (* function execution *)
 (* ------------------------- *)
-let call_function
+let execute_function
     (c : canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
-  (* TODO: Should we return a trace for the userfn? *)
-  let result =
-    Execution.call_function
-      fnname
-      ~tlid
-      ~execution_id
-      ~trace_id
-      ~dbs:(TL.dbs c.dbs)
-      ~user_fns:(c.user_functions |> IDMap.data)
-      ~user_tipes:(c.user_tipes |> IDMap.data)
-      ~account_id:c.owner
-      ~canvas_id:c.id
-      ~caller_id
-      ~args
-  in
-  Stored_function_result.store
-    (tlid, fnname, caller_id)
-    args
-    result
+  Execution.execute_function
+    ~tlid
+    ~execution_id
+    ~trace_id
+    ~dbs:(TL.dbs c.dbs)
+    ~user_fns:(c.user_functions |> IDMap.data)
+    ~user_tipes:(c.user_tipes |> IDMap.data)
+    ~account_id:c.owner
     ~canvas_id:c.id
-    ~trace_id ;
-  result
+    ~caller_id
+    ~args
+    ~store_fn_arguments:
+      (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
+    ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
+    fnname
 
 
 (* --------------------- *)
@@ -274,10 +267,11 @@ let to_initial_load_rpc_result
 (* Execute function *)
 type execute_function_rpc_result =
   { result : RTT.dval
-  ; hash : string }
+  ; hash : string
+  ; touched_tlids : tlid list }
 [@@deriving to_yojson]
 
-let to_execute_function_rpc_result hash dv : string =
-  {result = dv; hash}
+let to_execute_function_rpc_result hash touched_tlids dv : string =
+  {result = dv; hash; touched_tlids}
   |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true

@@ -614,9 +614,9 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   let t2, c =
     time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
   in
-  let t3, result =
+  let t3, (result, tlids) =
     time "3-execute" (fun _ ->
-        Analysis.call_function
+        Analysis.execute_function
           !c
           params.fnname
           ~execution_id
@@ -627,8 +627,10 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t4, response =
     time "4-to-frontend" (fun _ ->
-        Analysis.to_execute_function_rpc_result (Dval.hash params.args) result
-    )
+        Analysis.to_execute_function_rpc_result
+          (Dval.hash params.args)
+          tlids
+          result )
   in
   respond
     ~execution_id
