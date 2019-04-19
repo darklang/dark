@@ -41,7 +41,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
   in
-  let refs = ViewIntrospect.referenceViews vs.refs in
+  let refs = ViewIntrospect.refersToViews vs.toReferences in
+  let uses = ViewIntrospect.usedInViews vs.inReferences in
   let events =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tl.id)
@@ -156,7 +157,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     Html.div
       (* -- see comment in css *)
       [Html.classList boxClasses]
-      [Html.div (Html.class' class_ :: events) (body @ data @ top @ [refs])]
+      [ Html.div
+          (Html.class' class_ :: events)
+          (body @ data @ top @ [uses; refs]) ]
   in
   ViewUtils.placeHtml pos html
 
