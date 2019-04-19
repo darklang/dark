@@ -30,7 +30,6 @@ type viewState =
   ; toReferences : refersTo list }
 
 let createVS (m : model) (tl : toplevel) : viewState =
-  (* let selected = Some tl.id = tlidOf m.cursorState in *)
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid = tl.id

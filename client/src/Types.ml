@@ -194,11 +194,11 @@ and pointerOwner =
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
-and handlerModule = string
+and handlerSpaceName = string
 
 and handlerName = string
 
-and handlierModifier = string
+and handlerModifer = string
 
 and inTLID = tlid
 
@@ -208,22 +208,23 @@ and usage = inTLID * toTLID * id option
 
 and tlMeta =
   | DBMeta of dBName * dBColumn list
-  | HandlerMeta of handlerModule * handlerName * handlierModifier option
+  | HandlerMeta of handlerSpaceName * handlerName * handlerModifer option
   | FunctionMeta of fnName * userFunctionParameter list
 
 and usedIn =
-  | InHandler of inTLID * handlerModule * handlerName * handlierModifier option
+  | InHandler of
+      inTLID * handlerSpaceName * handlerName * handlerModifer option
   | InFunction of inTLID * fnName * userFunctionParameter list
 
 and refersTo =
   | ToDB of toTLID * dBName * dBColumn list * id
-  | ToEvent of toTLID * handlerModule * handlerName * id
+  | ToEvent of toTLID * handlerSpaceName * handlerName * id
 
 (* handlers *)
 and handlerSpec =
-  { module_ : handlerModule blankOr
+  { module_ : handlerSpaceName blankOr
   ; name : handlerName blankOr
-  ; modifier : handlierModifier blankOr }
+  ; modifier : handlerModifer blankOr }
 
 and handlerSpace =
   | HSHTTP
