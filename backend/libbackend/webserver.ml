@@ -69,7 +69,7 @@ let request_to_rollbar (body : string) (req : CRequest.t) :
   ; http_method = req |> CRequest.meth |> Cohttp.Code.string_of_method }
 
 
-type response_params =
+type response_or_redirect_params =
   | Respond of
       { resp_headers : Header.t
       ; execution_id : Types.id
@@ -81,16 +81,16 @@ let new_respond_params
     ?(resp_headers = Header.init ())
     ~(execution_id : Types.id)
     status
-    (body : string) : response_params =
+    (body : string) : response_or_redirect_params =
   Respond {resp_headers; execution_id; status; body}
 
 
 let new_redirect_params ?(headers : Cohttp.Header.t option) ~(uri : Uri.t) :
-    response_params =
+    response_or_redirect_params =
   Redirect {uri; headers}
 
 
-let respond_or_redirect (params : response_params) =
+let respond_or_redirect (params : response_or_redirect_params) =
   match params with
   | Redirect {uri; headers} ->
       S.respond_redirect ?headers ~uri ()
@@ -114,12 +114,18 @@ let respond_or_redirect (params : response_params) =
       S.respond_string ~status ~body ~headers:resp_headers ()
 
 
-let respond_or_redirect_empty_body (params : response_params) =
+let respond_or_redirect_empty_body (params : response_or_redirect_params) =
   match params with
   | Redirect _ ->
       respond_or_redirect params
   | Respond r ->
-      respond_or_redirect (Respond {r with body = ""})
+      let headers =
+        Header.add
+          r.resp_headers
+          "Content-Length"
+          (Log.dump (String.length r.body))
+      in
+      respond_or_redirect (Respond {r with body = ""; resp_headers = headers})
 
 
 let respond
@@ -127,12 +133,7 @@ let respond
     ~(execution_id : Types.id)
     status
     (body : string) =
-  respond_or_redirect
-    (new_respond_params
-       ?resp_headers:(Some resp_headers)
-       ~execution_id
-       status
-       body)
+  respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
 let should_use_https uri =
@@ -270,11 +271,11 @@ let options_handler
         ; ("Access-Control-Allow-Origin", origin)
         ; ("Access-Control-Allow-Headers", allow_headers) ]
   in
-  new_respond_params
-    ~resp_headers:(Cohttp.Header.of_list resp_headers)
-    ~execution_id
-    `OK
-    ""
+  Respond
+    { resp_headers = Cohttp.Header.of_list resp_headers
+    ; execution_id
+    ; status = `OK
+    ; body = "" }
 
 
 let result_to_response
@@ -308,12 +309,13 @@ let result_to_response
   in
   match result with
   | RTT.DIncomplete ->
-      new_respond_params
-        ~execution_id
-        `Internal_server_error
-        "Program error: program was incomplete"
+      Respond
+        { resp_headers = Header.init ()
+        ; execution_id
+        ; status = `Internal_server_error
+        ; body = "Program error: program was incomplete" }
   | RTT.DResp (Redirect url, value) ->
-      new_redirect_params ?headers:None ~uri:(Uri.of_string url)
+      Redirect {headers = None; uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
       let resp_headers =
         maybe_infer_headers (Header.of_list resp_headers) value
@@ -335,13 +337,13 @@ let result_to_response
         else Dval.to_pretty_machine_json_v1 value
       in
       let status = Cohttp.Code.status_of_code code in
-      new_respond_params ~resp_headers ~execution_id status body
+      Respond {resp_headers; execution_id; status; body}
   | _ ->
       let body = Dval.to_pretty_machine_json_v1 result in
       (* for demonstrations sake, let's return 200 Okay when
      * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in
-      new_respond_params ~resp_headers ~execution_id `OK body
+      Respond {resp_headers; execution_id; status = `OK; body}
 
 
 let user_page_handler
@@ -380,19 +382,19 @@ let user_page_handler
         ~canvas_id
         ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
       let resp_headers = Cohttp.Header.of_list [cors] in
-      new_respond_params
-        ~resp_headers
-        ~execution_id
-        `Not_found
-        "404 Not Found: No route matches"
+      Respond
+        { resp_headers
+        ; execution_id
+        ; status = `Not_found
+        ; body = "404 Not Found: No route matches" }
   | a :: b :: _ ->
       let resp_headers = Cohttp.Header.of_list [cors] in
-      new_respond_params
-        `Internal_server_error
-        ~resp_headers
-        ~execution_id
-        ( "500 Internal Server Error: More than one handler for route: "
-        ^ Uri.path uri )
+     Respond {
+        resp_headers
+        ; execution_id
+        ; status = `Internal_server_error
+        ; body = ( "500 Internal Server Error: More than one handler for route: "
+        ^ Uri.path uri )}
   | [page] ->
       let input = PReq.from_request headers query body in
       ( match (Handler.module_for page, Handler.modifier_for page) with
