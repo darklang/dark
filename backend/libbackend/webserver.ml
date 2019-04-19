@@ -315,7 +315,7 @@ let result_to_response
         ; status = `Internal_server_error
         ; body = "Program error: program was incomplete" }
   | RTT.DResp (Redirect url, value) ->
-      Redirect {headers = Headers.init (); uri = Uri.of_string url}
+      Redirect {headers = Some (Header.init ()); uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
       let resp_headers =
         maybe_infer_headers (Header.of_list resp_headers) value
@@ -1302,7 +1302,7 @@ let k8s_handler req ~execution_id ~stopper =
       respond ~execution_id `Not_found ""
 
 
-let req_method_is_head (req : CRequest.t) = CRequest.meth req == `HEAD
+let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
 
 let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
   let verb = req |> CRequest.meth in
