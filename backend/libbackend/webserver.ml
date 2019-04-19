@@ -99,7 +99,7 @@ let respond_or_redirect (params : response_or_redirect_params) =
         Header.add
           resp_headers
           "X-Darklang-Execution-ID"
-          (Log.dump execution_id)
+          (Types.string_of_id execution_id)
       in
       Log.infO
         "response"
@@ -123,7 +123,7 @@ let respond_or_redirect_empty_body (params : response_or_redirect_params) =
         Header.add
           r.resp_headers
           "Content-Length"
-          (Log.dump (String.length r.body))
+          (string_of_int (String.length r.body))
       in
       respond_or_redirect (Respond {r with body = ""; resp_headers = headers})
 
@@ -315,7 +315,7 @@ let result_to_response
         ; status = `Internal_server_error
         ; body = "Program error: program was incomplete" }
   | RTT.DResp (Redirect url, value) ->
-      Redirect {headers = None; uri = Uri.of_string url}
+      Redirect {headers = Headers.init (); uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
       let resp_headers =
         maybe_infer_headers (Header.of_list resp_headers) value
@@ -389,12 +389,13 @@ let user_page_handler
         ; body = "404 Not Found: No route matches" }
   | a :: b :: _ ->
       let resp_headers = Cohttp.Header.of_list [cors] in
-     Respond {
-        resp_headers
+      Respond
+        { resp_headers
         ; execution_id
         ; status = `Internal_server_error
-        ; body = ( "500 Internal Server Error: More than one handler for route: "
-        ^ Uri.path uri )}
+        ; body =
+            "500 Internal Server Error: More than one handler for route: "
+            ^ Uri.path uri }
   | [page] ->
       let input = PReq.from_request headers query body in
       ( match (Handler.module_for page, Handler.modifier_for page) with
@@ -1301,16 +1302,14 @@ let k8s_handler req ~execution_id ~stopper =
       respond ~execution_id `Not_found ""
 
 
-let req_method_is_head (req : CRequest.t) =
-  match CRequest.meth req with `HEAD -> true | _ -> false
-
+let req_method_is_head (req : CRequest.t) = CRequest.meth req == `HEAD
 
 let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
   let verb = req |> CRequest.meth in
   match verb with
   (* transform HEAD req method to GET*)
   | `HEAD ->
-      CRequest.make (* GET is default ?methodGargument*)
+      CRequest.make (* GET is default ?methodArgument*)
         ?version:(Some req.version)
         ?encoding:(Some req.encoding)
         ?headers:(Some req.headers)
