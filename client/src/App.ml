@@ -796,8 +796,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (newM, Cmd.none)
     | UpdateTLMeta newMeta ->
         let mergedMeta =
-          StrDict.merge m.tlMeta newMeta ~f:(fun _tlid _old _new ->
-              match (_old, _new) with
+          StrDict.merge m.tlMeta newMeta ~f:(fun _tlid oldMeta newMeta ->
+              match (oldMeta, newMeta) with
               | None, None ->
                   None
               | Some o, None ->

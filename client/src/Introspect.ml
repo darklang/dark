@@ -139,7 +139,8 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
         Some (ToEvent (tlid_, space, name, id))
     | FunctionMeta _ ->
         None
-  and meta = m.tlMeta in
+  in
+  let meta = m.tlMeta in
   m.tlUsages
   (* Filter for all outgoing references in given toplevel *)
   |> List.filterMap ~f:(fun (tlid_, otlid, mid) ->
@@ -162,7 +163,8 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
         Some (InFunction (tlid_, name, params))
     | _ ->
         None
-  and meta = m.tlMeta in
+  in
+  let meta = m.tlMeta in
   m.tlUsages
   (* Filter for all places where given tl is used  *)
   |> List.filterMap ~f:(fun (intlid, outtlid, _) ->
