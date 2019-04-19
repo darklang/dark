@@ -228,7 +228,13 @@ let execute
       | Postgresql.Error pge ->
           Postgresql.string_of_error pge
       | Exception.DarkException de ->
-          Log.erroR ~bt "Caught DarkException in DB, reraising" ;
+          Log.erroR
+            ~bt
+            "Caught DarkException in DB, reraising"
+            ~params:
+              [ ( "exn"
+                , Exception.exception_data_to_yojson de
+                  |> Yojson.Safe.to_string ) ] ;
           Caml.Printexc.raise_with_backtrace e bt
       | e ->
           Exception.exn_to_string e
@@ -240,14 +246,19 @@ let execute
  * https://github.com/mmottl/postgresql-ocaml/blob/master/examples/cursor.ml *)
 (* we could make this accumulate the results of the function, but ... for
        * now, iter is enough *)
-let iter_with_cursor ~name ~params ~(f : string list -> unit) (sql : string) :
-    unit =
+let iter_with_cursor
+    ~name
+    ~params
+    ?(result = TextResult)
+    ~(f : string list -> unit)
+    (sql : string) : unit =
   let start = Unix.gettimeofday () in
   let time () =
     let finish = Unix.gettimeofday () in
     (finish -. start) *. 1000.0
   in
   let subject = Some name in
+  let binary_result = result = BinaryResult in
   ( try
       let cursor_name = "my_cursor" in
       let binary_params =
@@ -263,7 +274,10 @@ let iter_with_cursor ~name ~params ~(f : string list -> unit) (sql : string) :
            ("DECLARE " ^ cursor_name ^ " CURSOR FOR " ^ sql)) ;
       let rec loop () =
         let res =
-          conn#exec ~expect:[PG.Tuples_ok] ("FETCH IN " ^ cursor_name)
+          conn#exec
+            ~binary_result
+            ~expect:[PG.Tuples_ok]
+            ("FETCH IN " ^ cursor_name)
         in
         if res#ntuples <> 0
         then (

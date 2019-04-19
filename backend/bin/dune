@@ -56,6 +56,16 @@
   (package dark)
 )
 
+(executable
+  (name migration_to_deprecate_old_types)
+  (public_name migration_to_deprecate_old_types)
+  (modules migration_to_deprecate_old_types)
+  (flags (-warn-error +A))
+  (libraries libbackend libexecution libcommon)
+  (preprocess (pps lwt.ppx))
+  (package dark)
+)
+
 (alias
   (name analysis.js)
   (deps (file ../jsanalysis/jsanalysis.bc.js) (universe))
