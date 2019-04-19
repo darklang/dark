@@ -64,14 +64,25 @@ let handlerView
     @ modifier_ )
 
 
-let fnView (tlid : tlid) (name : string) : msg Html.html =
+let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
+    : msg Html.html =
+  let header =
+    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#666"]
+    ; Html.span [Html.class' "fnname"] [Html.text name] ]
+  in
+  let paramView p =
+    let name = Blank.deBlank "param name" p.ufpName in
+    let ptype = Blank.deBlank "param type" p.ufpTipe |> Runtime.tipe2str in
+    Html.div [Html.class' "fnparam"] [Html.text (name ^ ":" ^ ptype)]
+  in
   Html.div
     [ Html.class' "ref-block fn"
     ; ViewUtils.eventNoPropagation
         ~key:("ref-fn-link" ^ showTLID tlid)
         "click"
         (fun _ -> GoTo (FocusedFn tlid)) ]
-    [Html.span [Html.class' "fnname"] [Html.text name]]
+    [ Html.div [Html.class' "fnheader"] header
+    ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
 
 let refersToViews (refs : refersTo list) : msg Html.html =
@@ -100,7 +111,7 @@ let usedInViews (uses : usedIn list) : msg Html.html =
     match r with
     | InHandler (tlid, space, name, modifier) ->
         handlerView tlid space name modifier
-    | InFunction (tlid, name, _) ->
-        fnView tlid name
+    | InFunction (tlid, name, params) ->
+        fnView tlid name params
   in
   Html.div [Html.class' "used-in"] (List.map ~f:renderView uses)
