@@ -478,7 +478,6 @@ let static_assets_upload_handler
             else (* application/* or unknown and _not_ valid UTF-8 *)
               body
           in
-          Log.infO ~data:(String.length body |> string_of_int) "size" ;
           Static_assets.upload_to_bucket filename body canvas deploy_hash
         in
         Lwt.return (files |> List.map ~f:processfile)
