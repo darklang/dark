@@ -18,7 +18,7 @@ spec:
       containers:
         - image: "gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail:{POSTGRES_HONEYTAIL_IMAGE}"
           name: postgres-honeytail-ctr
-          # This pod is a 'Burstable, ref:
+          # This pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
