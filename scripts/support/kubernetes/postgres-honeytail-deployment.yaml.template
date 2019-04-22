@@ -18,16 +18,15 @@ spec:
       containers:
         - image: "gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail:{POSTGRES_HONEYTAIL_IMAGE}"
           name: postgres-honeytail-ctr
-          # Resource limits + requests are intentionally the same, to ensure
-          # this pod is a 'Guaranteed' pod, ref:
+          # This pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "500m"
+              memory: "128Mi"
+              cpu: "75m"
             limits:
-              memory: "1000Mi"
-              cpu: "500m"
+              memory: "256Mi"
+              cpu: "150m"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
