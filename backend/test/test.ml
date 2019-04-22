@@ -478,7 +478,8 @@ let t_http_oplist_roundtrip () =
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid] !c1 ;
-  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
+  let owner = Account.for_host_exn host in
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host owner in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
@@ -491,7 +492,8 @@ let t_http_oplist_loads_user_tipes () =
   in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
-  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
+  let owner = Account.for_host_exn host in
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host owner in
   AT.check
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
     "user tipes"
