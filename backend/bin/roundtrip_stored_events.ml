@@ -34,7 +34,6 @@ let () =
       ()
   | 2, [_; "-h"] | _ ->
       usage () ) ;
-  (*
   Log.infO "Next: get_stored_events" ;
   Db.iter_with_cursor
     ~name:"get stored_events"
@@ -59,7 +58,6 @@ let () =
  JOIN canvases ON canvas_id = canvases.id"
     ~params:[]
     ~f:(validate_row "function_results_v2") ;
-     *)
   Log.infO "Next: get_all_canvases" ;
   Db.iter_with_cursor
     ~name:"get all canvases"
