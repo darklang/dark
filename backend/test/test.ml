@@ -2562,7 +2562,7 @@ let suite =
     , `Quick
     , t_inserting_object_to_missing_col_gives_good_error )
   ; ("Stdlib fns work", `Quick, t_stdlib_works)
-  ; ( "Multiple copied of same name don't crash"
+  ; ( "Multiple copies of same name don't crash"
     , `Quick
     , t_multiple_copies_of_same_name )
   ; ("Feature flags work", `Quick, t_feature_flags_work)
