@@ -71,9 +71,22 @@ let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   let paramView p =
-    let name = Blank.deBlank "param name" p.ufpName in
-    let ptype = Blank.deBlank "param type" p.ufpTipe |> Runtime.tipe2str in
-    Html.div [Html.class' "fnparam"] [Html.text (name ^ ":" ^ ptype)]
+    let name =
+      Html.span
+        [Html.classList [("has-blanks", Blank.isBlank p.ufpName)]]
+        [Html.text (Blank.valueWithDefault "no name" p.ufpName)]
+    in
+    let ptype =
+      Html.span
+        [Html.classList [("has-blanks", Blank.isBlank p.ufpTipe)]]
+        [ Html.text
+            ( match p.ufpTipe with
+            | F (_, v) ->
+                Runtime.tipe2str v
+            | Blank _ ->
+                "no type" ) ]
+    in
+    Html.div [Html.class' "fnparam"] [name; Html.text ":"; ptype]
   in
   Html.div
     [ Html.class' "ref-block fn"
