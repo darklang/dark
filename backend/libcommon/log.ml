@@ -17,10 +17,10 @@ type level =
   | `All ]
 
 let logkey : (string * Yojson.Safe.json) list Lwt.key ref =
+  (* This key doesn't need to be unique across threads - it's thread-local. The
+   * key there so you could have, say, a logkey and an other-variable-key *)
   ref (Lwt.new_key ())
 
-
-(* TODO second pass, try for set_logkey? *)
 
 let loglevel : level ref = ref `All
 
