@@ -235,12 +235,12 @@ RUN opam install -y \
   ocamlformat.0.8 \
   uuseg.11.0.0 \
   uunf.11.0.0 \
-  multipart-form-data.0.1.0 \
   magic-mime.1.1.1 \
   ezgzip.0.2.1 \
   && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
   && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
-  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0
+  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
+  && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master
 
 # To use PPXes in bucklescript, we need to install them from opam
 RUN opam switch create 4.02.3
