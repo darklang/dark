@@ -310,86 +310,101 @@ let user_page_handler
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
-  let pages =
-    !c.handlers
-    |> TL.http_handlers
-    |> Http.filter_matching_handlers ~path:(sanitize_uri_path (Uri.path uri))
-  in
-  let trace_id = Util.create_uuid () in
-  let canvas_id = !c.id in
-  match pages with
-  | [] when String.Caseless.equal verb "OPTIONS" ->
-      options_handler ~execution_id !c req
-  | [] ->
-      let fof_timestamp =
-        PReq.from_request headers query body
-        |> PReq.to_dval
-        |> Stored_event.store_event
-             ~trace_id
-             ~canvas_id
-             ("HTTP", Uri.path uri, verb)
-      in
-      Stroller.push_new_404
-        ~execution_id
-        ~canvas_id
-        ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
+  let owner = Account.for_host canvas in
+  match owner with
+  | None ->
+      (* Account doesn't exist! Don't store the event or do any loading *)
       let resp_headers = Cohttp.Header.of_list [cors] in
       respond
         ~resp_headers
         ~execution_id
         `Not_found
         "404 Not Found: No route matches"
-  | a :: b :: _ ->
-      let resp_headers = Cohttp.Header.of_list [cors] in
-      respond
-        `Internal_server_error
-        ~resp_headers
-        ~execution_id
-        ( "500 Internal Server Error: More than one handler for route: "
-        ^ Uri.path uri )
-  | [page] ->
-      let input = PReq.from_request headers query body in
-      ( match (Handler.module_for page, Handler.modifier_for page) with
-      | Some m, Some mo ->
-          (* Store the event with the input path not the event name, because we
-         * want to be able to
-         *    a) use this event if this particular handler changes
-         *    b) use the input url params in the analysis for this handler
-        *)
-          let desc = (m, Uri.path uri, mo) in
-          ignore
-            (Stored_event.store_event
-               ~trace_id
-               ~canvas_id
-               desc
-               (PReq.to_dval input))
-      | _ ->
-          () ) ;
-      let bound =
-        Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+  | Some owner ->
+      let c =
+        C.load_http canvas owner ~verb ~path:(sanitize_uri_path (Uri.path uri))
       in
-      let result, touched_tlids =
-        Libexecution.Execution.execute_handler
-          page
-          ~execution_id
-          ~account_id:!c.owner
-          ~canvas_id
-          ~user_fns:(Types.IDMap.data !c.user_functions)
-          ~user_tipes:(Types.IDMap.data !c.user_tipes)
-          ~tlid:page.tlid
-          ~dbs:(TL.dbs !c.dbs)
-          ~input_vars:([("request", PReq.to_dval input)] @ bound)
-          ~store_fn_arguments:
-            (Stored_function_arguments.store ~canvas_id ~trace_id)
-          ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
+      let pages =
+        !c.handlers
+        |> TL.http_handlers
+        |> Http.filter_matching_handlers
+             ~path:(sanitize_uri_path (Uri.path uri))
       in
-      Stroller.push_new_trace_id
-        ~execution_id
-        ~canvas_id
-        trace_id
-        (page.tlid :: touched_tlids) ;
-      result_to_response ~c ~execution_id ~req result
+      let trace_id = Util.create_uuid () in
+      let canvas_id = !c.id in
+      ( match pages with
+      | [] when String.Caseless.equal verb "OPTIONS" ->
+          options_handler ~execution_id !c req
+      | [] ->
+          let fof_timestamp =
+            PReq.from_request headers query body
+            |> PReq.to_dval
+            |> Stored_event.store_event
+                 ~trace_id
+                 ~canvas_id
+                 ("HTTP", Uri.path uri, verb)
+          in
+          Stroller.push_new_404
+            ~execution_id
+            ~canvas_id
+            ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
+          let resp_headers = Cohttp.Header.of_list [cors] in
+          respond
+            ~resp_headers
+            ~execution_id
+            `Not_found
+            "404 Not Found: No route matches"
+      | a :: b :: _ ->
+          let resp_headers = Cohttp.Header.of_list [cors] in
+          respond
+            `Internal_server_error
+            ~resp_headers
+            ~execution_id
+            ( "500 Internal Server Error: More than one handler for route: "
+            ^ Uri.path uri )
+      | [page] ->
+          let input = PReq.from_request headers query body in
+          ( match (Handler.module_for page, Handler.modifier_for page) with
+          | Some m, Some mo ->
+              (* Store the event with the input path not the event name, because we
+          * want to be able to
+          *    a) use this event if this particular handler changes
+          *    b) use the input url params in the analysis for this handler
+          *)
+              let desc = (m, Uri.path uri, mo) in
+              ignore
+                (Stored_event.store_event
+                   ~trace_id
+                   ~canvas_id
+                   desc
+                   (PReq.to_dval input))
+          | _ ->
+              () ) ;
+          let bound =
+            Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+          in
+          let result, touched_tlids =
+            Libexecution.Execution.execute_handler
+              page
+              ~execution_id
+              ~account_id:!c.owner
+              ~canvas_id
+              ~user_fns:(Types.IDMap.data !c.user_functions)
+              ~user_tipes:(Types.IDMap.data !c.user_tipes)
+              ~tlid:page.tlid
+              ~dbs:(TL.dbs !c.dbs)
+              ~input_vars:([("request", PReq.to_dval input)] @ bound)
+              ~store_fn_arguments:
+                (Stored_function_arguments.store ~canvas_id ~trace_id)
+              ~store_fn_result:
+                (Stored_function_result.store ~canvas_id ~trace_id)
+          in
+          Stroller.push_new_trace_id
+            ~execution_id
+            ~canvas_id
+            trace_id
+            (page.tlid :: touched_tlids) ;
+          result_to_response ~c ~execution_id ~req result )
 
 
 (* -------------------------------------------- *)
@@ -769,7 +784,7 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
   try
     let t1, cid =
       time "1-get-canvas-id" (fun _ ->
-          let owner = Account.for_host host in
+          let owner = Account.for_host_exn host in
           Serialize.fetch_canvas_id owner host )
     in
     let t2, p = time "2-to-route-params" (fun _ -> Api.to_route_params body) in
