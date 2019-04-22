@@ -32,6 +32,7 @@ let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.json =
     ; ("url", `String sd.url)
     ; ( "last_update"
       , `String
+          (* Js.Date.parse expects ISO-8601 formatted string *)
           (Core.Time.to_string_iso8601_basic
              sd.last_update
              ~zone:Core.Time.Zone.utc) )
