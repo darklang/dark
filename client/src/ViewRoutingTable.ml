@@ -401,7 +401,9 @@ let deploy2html (d : staticDeploy) : msg Html.html =
   in
   Html.div
     [Html.class' "simple-route deploy"]
-    [ Html.span [Html.class' "datetime"] [Html.text d.lastUpdate]
+    [ Html.span
+        [Html.class' "datetime"]
+        [Html.text (Js.Date.toUTCString d.lastUpdate)]
     ; Html.a
         [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
         [Html.text d.deployHash]

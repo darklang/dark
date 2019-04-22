@@ -23,9 +23,21 @@ type static_asset_error =
 type static_deploy =
   { deploy_hash : string
   ; url : string
-  ; last_update : string
+  ; last_update : Time.t
   ; status : deploy_status }
-[@@deriving show, yojson]
+
+let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.json =
+  `Assoc
+    [ ("deploy_hash", `String sd.deploy_hash)
+    ; ("url", `String sd.url)
+    ; ( "last_update"
+      , `String
+          (* Js.Date.parse expects ISO-8601 formatted string *)
+          (Core.Time.to_string_iso8601_basic
+             sd.last_update
+             ~zone:Core.Time.Zone.utc) )
+    ; ("status", deploy_status_to_yojson sd.status) ]
+
 
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
@@ -163,6 +175,7 @@ let start_static_asset_deploy
       ~params:
         [Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
     |> List.hd_exn
+    |> Db.date_of_sqlstring
   in
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
@@ -206,6 +219,7 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
       WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING live_at"
       ~params:[Uuid canvas_id; String deploy_hash]
     |> List.hd_exn
+    |> Db.date_of_sqlstring
   in
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
@@ -222,9 +236,11 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
   |> List.map ~f:(function
          | [deploy_hash; created_at; live_at] ->
              let isLive = live_at <> "" in
-             { deploy_hash
-             ; url = url canvas_id deploy_hash `Short
-             ; last_update = (if isLive then live_at else created_at)
-             ; status = (if isLive then Deployed else Deploying) }
+             let last_update =
+               Db.date_of_sqlstring (if isLive then live_at else created_at)
+             in
+             let status = if isLive then Deployed else Deploying in
+             let url = url canvas_id deploy_hash `Short in
+             {deploy_hash; url; last_update; status}
          | _ ->
              Exception.internal "Bad DB format for static assets deploys" )
