@@ -75,7 +75,10 @@ let respond
     status
     (body : string) =
   let resp_headers =
-    Header.add resp_headers "X-Darklang-Execution-ID" (Log.dump execution_id)
+    Header.add
+      resp_headers
+      "X-Darklang-Execution-ID"
+      (Types.string_of_id execution_id)
   in
   Log.infO
     "response"
@@ -83,10 +86,9 @@ let respond
       [ ("status", `Int (Cohttp.Code.code_of_status status))
       ; ("body_bytes", `Int (String.length body)) ]
     ~params:
-      [ ("execution_id", Int63.to_string execution_id)
-        (* TODO ismith: maybe a ,-sep list of headers, and then a selection of
+      [ (* TODO ismith: maybe a ,-sep list of headers, and then a selection of
          * whitelisted headers? Needs to be flattened. *)
-      ; ("headers", Log.dump resp_headers) ] ;
+        ("headers", Log.dump resp_headers) ] ;
   S.respond_string ~status ~body ~headers:resp_headers ()
 
 
@@ -542,10 +544,10 @@ let static_assets_upload_handler
           >>= (function
           | err_strs ->
               Log.erroR
-                ( "Failed to deploy static assets to "
-                ^ Canvas.name_for_id canvas
-                ^ ": "
-                ^ String.concat ~sep:";" err_strs ) ;
+                "Failed to deploy static assets to "
+                ~params:
+                  [ ("canvas", Canvas.name_for_id canvas)
+                  ; ("errs", String.concat ~sep:";" err_strs) ] ;
               Static_assets.delete_static_asset_deploy
                 canvas
                 branch
@@ -1297,8 +1299,7 @@ let k8s_handler req ~execution_id ~stopper =
       else (
         Log.infO
           "shutdown"
-          ~data:"Received redundant shutdown request - already shutting down"
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+          ~data:"Received redundant shutdown request - already shutting down" ;
         respond ~execution_id `OK "Terminated" )
   | _ ->
       respond ~execution_id `Not_found ""
@@ -1339,10 +1340,7 @@ let server () =
           (* ^ (Exception.get_backtrace () *)
           (*             |> Exception.backtrace_to_string) *)
         in
-        Log.erroR
-          real_err
-          ~bt
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+        Log.erroR real_err ~bt ;
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
             respond ~execution_id `Bad_request e.short
@@ -1359,13 +1357,7 @@ let server () =
         respond ~execution_id `Internal_server_error "unhandled error"
     in
     try
-      Log.infO
-        "request"
-        ~params:
-          [ ("ip", ip)
-          ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
-          ; ("uri", Uri.to_string uri)
-          ; ("execution_id", Types.string_of_id execution_id) ] ;
+      Log.infO "request" ;
       (* first: if this isn't https and should be, redirect *)
       match redirect_to (with_x_forwarded_proto req) with
       | Some x ->
@@ -1409,14 +1401,16 @@ let server () =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
     let execution_id = Util.create_id () in
     let request_path = Uri.path_and_query (CRequest.uri req) in
+    let ch, _ = conn in
+    let ip =get_ip_address ch in
     Log.add_log_annotations
-      (* TODO we could remove execution_id, uri, method from some log calls now
-       * *)
       [ ("execution_id", `String (Types.string_of_id execution_id))
       ; ("request", `String request_path)
-      ; ( "http_method"
+      ; ( "method"
         , `String (Cohttp.Code.string_of_method (CRequest.meth req)) )
       ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
+        ; ("uri", `String (Uri.to_string (CRequest.uri req)))
+      ; ("ip", `String ip)
       ]
       (fun _ -> callback conn req body_string execution_id)
   in
