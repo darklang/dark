@@ -20,7 +20,7 @@ module AT = Alcotest
 (* Misc fns *)
 (* ------------------- *)
 let clear_test_data () : unit =
-  let owner = Account.for_host "test" in
+  let owner = Account.for_host_exn "test" in
   let canvas = Serialize.fetch_canvas_id owner "test" in
   Db.run
     ~params:[Uuid canvas]
@@ -454,7 +454,7 @@ let t_derror_roundtrip () =
 let t_db_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-db_oplist_roundtrip" in
-  let owner = Account.for_host host in
+  let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let oplist =
     [Op.UndoTL tlid; Op.RedoTL tlid; Op.UndoTL tlid; Op.RedoTL tlid]

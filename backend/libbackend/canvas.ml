@@ -289,7 +289,7 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
 
 
 let init (host : string) (ops : Op.op list) : canvas ref =
-  let owner = Account.for_host host in
+  let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let cors = fetch_cors_setting canvas_id in
   let c =
@@ -366,11 +366,11 @@ let url_for (id : Uuidm.t) : string =
 
 let load_from
     (host : string)
+    (owner : Uuidm.t)
     (newops : Op.op list)
     ~(f : host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists) :
     canvas ref =
   try
-    let owner = Account.for_host host in
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
     let oldops = f ~host ~canvas_id () in
@@ -396,18 +396,23 @@ let load_from
 
 
 let load_all host (newops : Op.op list) : canvas ref =
-  load_from ~f:Serialize.load_all_from_db host newops
+  let owner = Account.for_host_exn host in
+  load_from ~f:Serialize.load_all_from_db host owner newops
 
 
 let load_only ~tlids host (newops : Op.op list) : canvas ref =
-  load_from ~f:(Serialize.load_only_for_tlids ~tlids) host newops
+  let owner = Account.for_host_exn host in
+  load_from ~f:(Serialize.load_only_for_tlids ~tlids) host owner newops
 
 
-let load_http ~verb ~path host : canvas ref =
-  load_from ~f:(Serialize.load_for_http ~path ~verb) host []
+let load_http ~verb ~path host owner : canvas ref =
+  load_from ~f:(Serialize.load_for_http ~path ~verb) host owner []
 
 
-let load_cron host : canvas ref = load_from ~f:Serialize.load_for_cron host []
+let load_cron host : canvas ref =
+  let owner = Account.for_host_exn host in
+  load_from ~f:Serialize.load_for_cron host owner []
+
 
 let load_for_event (event : Event_queue.t) =
   (* TODO: slim down by event description once we can do that *)
@@ -499,9 +504,11 @@ let save_all (c : canvas) : unit =
 (* ------------------------- *)
 
 let load_and_resave_from_test_file (host : string) : unit =
+  let owner = Account.for_host_exn host in
   let c =
     load_from
       host
+      owner
       []
       ~f:(Serialize.load_json_from_disk ~root:Testdata ~preprocess:ident)
   in

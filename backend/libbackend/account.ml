@@ -199,10 +199,13 @@ let auth_domain_for host : string =
   match String.split host '-' with d :: _ -> d | _ -> host
 
 
-let for_host (host : string) : Uuidm.t =
+let for_host (host : string) : Uuidm.t option =
+  host |> auth_domain_for |> owner
+
+
+let for_host_exn (host : string) : Uuidm.t =
   host
-  |> auth_domain_for
-  |> owner
+  |> for_host
   |> fun o -> Option.value_exn ~message:("No owner found for host " ^ host) o
 
 
