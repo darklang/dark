@@ -641,11 +641,7 @@ let analysis_engine value_store tlid_store : engine =
 let execute_saving_intermediates
     ~(input_vars : input_vars) (state : exec_state) (ast : expr) :
     dval * dval_store * tlid list =
-  Log.infO
-    "Executing for intermediates"
-    ~params:
-      [ ("tlid", show_tlid state.tlid)
-      ; ("execution_id", Log.dump state.execution_id) ] ;
+  Log.infO "Executing for intermediates" ;
   let value_store = IDTable.create () in
   let tlid_store = TLIDTable.create () in
   let engine = analysis_engine value_store tlid_store in
@@ -667,11 +663,7 @@ let server_execution_engine tlid_store : engine =
 let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
   let tlid_store = TLIDTable.create () in
   let engine = server_execution_engine tlid_store in
-  Log.infO
-    "Executing for real"
-    ~params:
-      [ ("tlid", show_tlid state.tlid)
-      ; ("execution_id", Log.dump state.execution_id) ] ;
+  Log.infO "Executing for real" ;
   let result = exec ~engine ~state (input_vars2symtable input_vars) expr in
   (result, Hashtbl.keys tlid_store)
 

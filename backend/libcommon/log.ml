@@ -1,4 +1,5 @@
 open Core_kernel
+open Lwt
 
 (* ----------------- *)
 (* levels *)
@@ -14,6 +15,12 @@ type level =
   | `Success
   | `Debug
   | `All ]
+
+let logkey : (string * Yojson.Safe.json) list Lwt.key ref =
+  (* This key doesn't need to be unique across threads - it's thread-local. The
+   * key there so you could have, say, a logkey and an other-variable-key *)
+  ref (Lwt.new_key ())
+
 
 let loglevel : level ref = ref `All
 
@@ -234,13 +241,21 @@ let pP
       let data_param =
         match data with None -> [] | Some data -> [("data", `String data)]
       in
+      let thread_params =
+        match Lwt.get !logkey with
+        | Some annotations ->
+            annotations
+        | None ->
+            []
+      in
       let params =
-        [ ("name", `String name)
-        (* operation time *)
-        (* timestamp *)
-        (* slow request *)
-        (* ip address *)
-         ]
+        thread_params
+        @ [ ("name", `String name)
+          (* operation time *)
+          (* timestamp *)
+          (* slow request *)
+          (* ip address *)
+           ]
         @ data_param
         @ jsonparams
         @ List.map params (fun (k, v) -> (k, `String v))
@@ -283,6 +298,17 @@ let log_exception
     ~bt:backtrace
     name
     ~params:[("exception", pp e); ("execution_id", trace_id)]
+
+
+(* Add to the current set of thread-local log annotations. *)
+(* We make no attempt whatsoever to deal with dupe keys, except to put new ones
+ * later in the ordering *)
+let add_log_annotations (annotations : (string * Yojson.Safe.json) list) :
+    (unit -> 'a) -> 'a =
+  let existing =
+    match Lwt.get !logkey with None -> [] | Some annotations -> annotations
+  in
+  Lwt.with_value !logkey (Some (existing @ annotations))
 
 
 (* ----------------- *)

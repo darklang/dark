@@ -1,5 +1,6 @@
 open Core_kernel
 open Lwt
+open Libcommon
 
 let shutdown = ref false
 
@@ -62,4 +63,8 @@ let () =
               (Libexecution.Types.string_of_id execution_id) ) ;
         if not !shutdown then (queue_worker [@tailcall]) () else Lwt.return ()
   in
-  Lwt_main.run (queue_worker ())
+  Lwt_main.run
+    (Log.add_log_annotations
+       [ ( "execution_id"
+         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+       (fun _ -> queue_worker ()))
