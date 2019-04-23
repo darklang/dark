@@ -2534,13 +2534,13 @@ let t_head_and_get_requests_are_coalesced () =
        let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
        resp
        |> Resp.headers
-       |> (fun x ->
-            match Header.get x "Content-Length" with
+       |> (fun headers ->
+            match Header.get headers "Content-Length" with
             | None ->
                 0
-            | Some y ->
-                int_of_string y )
-       |> fun x -> return (code, (x, body_string)))
+            | Some h ->
+                int_of_string h )
+       |> fun content_length -> return (code, (content_length, body_string)))
   in
   let expected_body = "\"test_body\"" in
   let expected_content_length = String.length expected_body in
