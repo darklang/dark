@@ -370,12 +370,6 @@ let user_page_handler
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
   let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
-  (* Log.infO
-    "user_page_handler:filter_matching_handlers"
-    ~params:
-      [ ( "c.handlers"
-        , Types.IDMap.fold ~f:(fun x -> TL.to_string x ^ ", ") !c.handlers )
-      ] ; *)
   let pages =
     !c.handlers
     |> TL.http_handlers
