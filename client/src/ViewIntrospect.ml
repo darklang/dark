@@ -28,7 +28,15 @@ let dbView (tlid : tlid) (name : string) (cols : dBColumn list) : msg Html.html
     ; ViewUtils.eventNoPropagation
         ~key:("ref-db-link" ^ showTLID tlid)
         "click"
-        (fun _ -> GoTo (FocusedDB tlid)) ]
+        (fun _ -> GoTo (FocusedDB tlid))
+    ; ViewUtils.eventNoPropagation
+        ~key:("ref-db-hover-in" ^ showTLID tlid)
+        "mouseenter"
+        (fun _ -> ToggleHighlight (tlid, Some name))
+    ; ViewUtils.eventNoPropagation
+        ~key:("ref-db-hover-out" ^ showTLID tlid)
+        "mouseleave"
+        (fun _ -> ToggleHighlight (tlid, None)) ]
     [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
 
