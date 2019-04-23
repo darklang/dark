@@ -75,7 +75,7 @@ type response_or_redirect_params =
       ; execution_id : Types.id
       ; status : Cohttp.Code.status_code
       ; body : string }
-  | Redirect of {uri : Uri.t; headers : Cohttp.Header.t option}
+  | Redirect of {uri : Uri.t; headers : Header.t option}
 
 let new_respond_params
     ?(resp_headers = Header.init ())
@@ -101,6 +101,18 @@ let respond_or_redirect (params : response_or_redirect_params) =
           "X-Darklang-Execution-ID"
           (Types.string_of_id execution_id)
       in
+      (* add Content-Length if missing, e.g. when function is called directly 
+       * and not from `respond_or_redirect_empty_body`
+       *)
+      let resp_headers =
+        if Header.get resp_headers "Content-Length" = None
+        then
+          Header.add
+            resp_headers
+            "Content-Length"
+            (string_of_int (String.length body))
+        else resp_headers
+      in
       Log.infO
         "response"
         ~jsonparams:
@@ -125,7 +137,7 @@ let respond_or_redirect_empty_body (params : response_or_redirect_params) =
           "Content-Length"
           (string_of_int (String.length r.body))
       in
-      respond_or_redirect (Respond {r with body = ""; resp_headers = headers})
+      respond_or_redirect (Respond {r with resp_headers = headers})
 
 
 let respond
@@ -358,6 +370,12 @@ let user_page_handler
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
   let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
+  (* Log.infO
+    "user_page_handler:filter_matching_handlers"
+    ~params:
+      [ ( "c.handlers"
+        , Types.IDMap.fold ~f:(fun x -> TL.to_string x ^ ", ") !c.handlers )
+      ] ; *)
   let pages =
     !c.handlers
     |> TL.http_handlers
@@ -1309,7 +1327,7 @@ let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
   match verb with
   (* transform HEAD req method to GET*)
   | `HEAD ->
-      CRequest.make (* GET is default ?methodArgument*)
+      CRequest.make (* GET is default value to ?meth argument*)
         ?version:(Some req.version)
         ?encoding:(Some req.encoding)
         ?headers:(Some req.headers)
@@ -1318,122 +1336,133 @@ let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
       req
 
 
+let canvas_handler
+    ~(execution_id : Types.id)
+    ~(canvas : string)
+    ~(ip : string)
+    ~(uri : Uri.t)
+    ~(body : string)
+    (req : CRequest.t) =
+  let verb = req |> CRequest.meth in
+  match verb with
+  (* transform HEAD req method to GET, discards body in response*)
+  | `HEAD ->
+      user_page_handler
+        ~execution_id
+        ~canvas
+        ~ip
+        ~uri
+        ~body
+        (coalesce_head_to_get req)
+      |> respond_or_redirect_empty_body
+  | _ ->
+      user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+      |> respond_or_redirect
+
+
+let callback (ch, conn) req body stopper =
+  let execution_id = Util.create_id () in
+  let uri = CRequest.uri req in
+  let ip = get_ip_address ch in
+  let handle_error ~(include_internals : bool) (e : exn) =
+    try
+      let bt = Exception.get_backtrace () in
+      let%lwt _ =
+        Rollbar.report_lwt
+          e
+          bt
+          (Remote (request_to_rollbar body req))
+          (Types.show_id execution_id)
+      in
+      let real_err =
+        try
+          match e with
+          | Pageable.PageableExn (Exception.DarkException e)
+          | Exception.DarkException e ->
+              e
+              |> Exception.exception_data_to_yojson
+              |> Yojson.Safe.pretty_to_string
+          | Yojson.Json_error msg ->
+              "Not a valid JSON value: '" ^ msg ^ "'"
+          | _ ->
+              "Dark Internal Error: " ^ Exn.to_string e
+        with _ -> "UNHANDLED ERROR: real_err"
+      in
+      let real_err =
+        real_err
+        (* Commented out because API handlers need to be JSON decoded *)
+        (* ^ (Exception.get_backtrace () *)
+        (*             |> Exception.backtrace_to_string) *)
+      in
+      Log.erroR
+        real_err
+        ~bt
+        ~params:[("execution_id", Types.string_of_id execution_id)] ;
+      match e with
+      | Exception.DarkException e when e.tipe = EndUser ->
+          respond ~execution_id `Bad_request e.short
+      | _ ->
+          let body =
+            if include_internals || Config.show_stacktrace
+            then real_err
+            else "Dark Internal Error"
+          in
+          respond ~execution_id `Internal_server_error body
+    with e ->
+      let bt = Exception.get_backtrace () in
+      Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
+      respond ~execution_id `Internal_server_error "unhandled error"
+  in
+  try
+    Log.infO
+      "request"
+      ~params:
+        [ ("ip", ip)
+        ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
+        ; ("uri", Uri.to_string uri)
+        ; ("execution_id", Types.string_of_id execution_id) ] ;
+    (* first: if this isn't https and should be, redirect *)
+    match redirect_to (with_x_forwarded_proto req) with
+    | Some x ->
+        S.respond_redirect ~uri:x ()
+    | None ->
+      ( match Uri.to_string uri with
+      | "/sitemap.xml" | "/favicon.ico" ->
+          respond ~execution_id `OK ""
+      | _ ->
+        (* figure out what handler to dispatch to... *)
+        ( match route_host req with
+        | Some (Canvas canvas) ->
+            canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
+        | Some Static ->
+            static_handler uri
+        | Some Admin ->
+          ( try
+              authenticate_then_handle
+                ~execution_id
+                (fun ~session ~csrf_token r ->
+                  try
+                    admin_handler
+                      ~execution_id
+                      ~uri
+                      ~body
+                      ~stopper
+                      ~session
+                      ~csrf_token
+                      r
+                  with e -> handle_error ~include_internals:true e )
+                req
+            with e -> handle_error ~include_internals:false e )
+        | None ->
+            k8s_handler req ~execution_id ~stopper ) )
+  with e -> handle_error ~include_internals:false e
+
+
 let server () =
   let stop, stopper = Lwt.wait () in
-  let callback (ch, conn) req body =
-    let execution_id = Util.create_id () in
-    let uri = CRequest.uri req in
-    let ip = get_ip_address ch in
-    let handle_error ~(include_internals : bool) (e : exn) =
-      try
-        let bt = Exception.get_backtrace () in
-        let%lwt _ =
-          Rollbar.report_lwt
-            e
-            bt
-            (Remote (request_to_rollbar body req))
-            (Types.show_id execution_id)
-        in
-        let real_err =
-          try
-            match e with
-            | Pageable.PageableExn (Exception.DarkException e)
-            | Exception.DarkException e ->
-                e
-                |> Exception.exception_data_to_yojson
-                |> Yojson.Safe.pretty_to_string
-            | Yojson.Json_error msg ->
-                "Not a valid JSON value: '" ^ msg ^ "'"
-            | _ ->
-                "Dark Internal Error: " ^ Exn.to_string e
-          with _ -> "UNHANDLED ERROR: real_err"
-        in
-        let real_err =
-          real_err
-          (* Commented out because API handlers need to be JSON decoded *)
-          (* ^ (Exception.get_backtrace () *)
-          (*             |> Exception.backtrace_to_string) *)
-        in
-        Log.erroR
-          real_err
-          ~bt
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
-        match e with
-        | Exception.DarkException e when e.tipe = EndUser ->
-            respond ~execution_id `Bad_request e.short
-        | _ ->
-            let body =
-              if include_internals || Config.show_stacktrace
-              then real_err
-              else "Dark Internal Error"
-            in
-            respond ~execution_id `Internal_server_error body
-      with e ->
-        let bt = Exception.get_backtrace () in
-        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-        respond ~execution_id `Internal_server_error "unhandled error"
-    in
-    try
-      Log.infO
-        "request"
-        ~params:
-          [ ("ip", ip)
-          ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
-          ; ("uri", Uri.to_string uri)
-          ; ("execution_id", Types.string_of_id execution_id) ] ;
-      (* first: if this isn't https and should be, redirect *)
-      match redirect_to (with_x_forwarded_proto req) with
-      | Some x ->
-          S.respond_redirect ~uri:x ()
-      | None ->
-        ( match Uri.to_string uri with
-        | "/sitemap.xml" | "/favicon.ico" ->
-            respond ~execution_id `OK ""
-        | _ ->
-          (* figure out what handler to dispatch to... *)
-          ( match route_host req with
-          | Some (Canvas canvas) ->
-              let verb = req |> CRequest.meth in
-              ( match verb with
-              (* transform HEAD req method to GET, discards body in response*)
-              | `HEAD ->
-                  user_page_handler
-                    ~execution_id
-                    ~canvas
-                    ~ip
-                    ~uri
-                    ~body
-                    (coalesce_head_to_get req)
-                  |> respond_or_redirect_empty_body
-              | _ ->
-                  user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
-                  |> respond_or_redirect )
-          | Some Static ->
-              static_handler uri
-          | Some Admin ->
-            ( try
-                authenticate_then_handle
-                  ~execution_id
-                  (fun ~session ~csrf_token r ->
-                    try
-                      admin_handler
-                        ~execution_id
-                        ~uri
-                        ~body
-                        ~stopper
-                        ~session
-                        ~csrf_token
-                        r
-                    with e -> handle_error ~include_internals:true e )
-                  req
-              with e -> handle_error ~include_internals:false e )
-          | None ->
-              k8s_handler req ~execution_id ~stopper ) )
-    with e -> handle_error ~include_internals:false e
-  in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
-    callback conn req body_string
+    callback conn req body_string stopper
   in
   S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback:cbwb ())
 
