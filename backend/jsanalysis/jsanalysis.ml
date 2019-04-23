@@ -104,22 +104,27 @@ let perform_analysis
     ~(trace_data : Analysis_types.trace_data)
     ast =
   let dbs : DbT.db list = List.map ~f:convert_db dbs in
+  let execution_id = Types.id_of_int 1 in
   let input_vars = trace_data.input in
-  ( trace_id
-  , Execution.analyse_ast
-      ast
-      ~tlid
-      ~execution_id:(Types.id_of_int 1)
-      ~account_id:(Util.create_uuid ())
-      ~canvas_id:(Util.create_uuid ())
-      ~input_vars
-      ~dbs
-      ~user_fns
-      ~user_tipes
-      ~load_fn_result:(load_from_trace trace_data.function_results)
-      ~load_fn_arguments:Execution.load_no_arguments )
-  |> analysis_envelope_to_yojson
-  |> Yojson.Safe.to_string
+  Log.add_log_annotations
+    [ ("execution_id", `String (Types.string_of_id execution_id))
+    ; ("tlid", `String (Types.string_of_id tlid)) ]
+    (fun _ ->
+      ( trace_id
+      , Execution.analyse_ast
+          ast
+          ~tlid
+          ~execution_id
+          ~account_id:(Util.create_uuid ())
+          ~canvas_id:(Util.create_uuid ())
+          ~input_vars
+          ~dbs
+          ~user_fns
+          ~user_tipes
+          ~load_fn_result:(load_from_trace trace_data.function_results)
+          ~load_fn_arguments:Execution.load_no_arguments )
+      |> analysis_envelope_to_yojson
+      |> Yojson.Safe.to_string )
 
 
 let perform_handler_analysis (str : string) : string =

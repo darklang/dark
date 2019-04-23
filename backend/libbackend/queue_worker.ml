@@ -8,19 +8,13 @@ module TL = Toplevel
 
 let dequeue_and_process execution_id :
     (RTT.dval option, Exception.captured) Result.t =
-  Log.infO
-    "queue_worker"
-    ~data:"Worker starting"
-    ~params:[("execution_id", Log.dump execution_id)] ;
+  Log.infO "queue_worker" ~data:"Worker starting" ;
   Event_queue.with_transaction (fun transaction ->
       try
         let event = Event_queue.dequeue transaction in
         match event with
         | None ->
-            Log.infO
-              "queue_worker"
-              ~data:"No events in queue"
-              ~params:[("execution_id", Log.dump execution_id)] ;
+            Log.infO "queue_worker" ~data:"No events in queue" ;
             Ok None
         | Some event ->
           ( try
@@ -44,10 +38,7 @@ let dequeue_and_process execution_id :
                   Log.infO
                     "queue_worker"
                     ~data:"No handler for event"
-                    ~params:
-                      [ ("execution_id", Log.dump execution_id)
-                      ; ("host", host)
-                      ; ("event", Log.dump desc) ] ;
+                    ~params:[("host", host); ("event", Log.dump desc)] ;
                   let space, name, modifier = desc in
                   Stroller.push_new_404
                     ~execution_id
@@ -60,10 +51,9 @@ let dequeue_and_process execution_id :
                     "queue_worker"
                     ~data:"Executing handler for event"
                     ~params:
-                      [ ("execution_id", Log.dump execution_id)
-                      ; ("event", Log.dump desc)
+                      [ ("event", Log.dump desc)
                       ; ("host", host)
-                      ; ("handler_id", Log.dump h.tlid) ] ;
+                      ; ("handler_id", Types.string_of_id h.tlid) ] ;
                   let result, touched_tlids =
                     Execution.execute_handler
                       h
@@ -85,10 +75,9 @@ let dequeue_and_process execution_id :
                     "queue_worker"
                     ~data:"Successful execution"
                     ~params:
-                      [ ("execution_id", Log.dump execution_id)
-                      ; ("host", host)
+                      [ ("host", host)
                       ; ("event", Log.dump desc)
-                      ; ("handler_id", Log.dump h.tlid)
+                      ; ("handler_id", Types.string_of_id h.tlid)
                       ; ("result", Dval.show result) ] ;
                   Event_queue.finish transaction event ;
                   Ok (Some result)
@@ -110,9 +99,6 @@ let run execution_id : (RTT.dval option, Exception.captured) Result.t =
        Libservice.Config.postgres_settings.dbname
        "prodclone"
   then (
-    Log.erroR
-      "queue_worker"
-      ~data:"Pointing at prodclone; will not dequeue"
-      ~params:[("execution_id", Log.dump execution_id)] ;
+    Log.erroR "queue_worker" ~data:"Pointing at prodclone; will not dequeue" ;
     Ok None )
   else dequeue_and_process execution_id
