@@ -1401,17 +1401,21 @@ let server () =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
     let execution_id = Util.create_id () in
     let request_path = Uri.path_and_query (CRequest.uri req) in
-    let ch, _ = conn in
-    let ip =get_ip_address ch in
+    (* use the x-forwarded-for ip, falling back to the raw ip in the request *)
+    let ip =
+      let ch, _ = conn in
+      Header.get (CRequest.headers req) "X-forwarded-for"
+      |> Option.bind ~f:(fun str -> str |> String.split ~on:';' |> List.hd)
+      |> Option.map ~f:String.strip
+      |> Option.value ~default:(get_ip_address ch)
+    in
     Log.add_log_annotations
       [ ("execution_id", `String (Types.string_of_id execution_id))
       ; ("request", `String request_path)
-      ; ( "method"
-        , `String (Cohttp.Code.string_of_method (CRequest.meth req)) )
+      ; ("method", `String (Cohttp.Code.string_of_method (CRequest.meth req)))
       ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
-        ; ("uri", `String (Uri.to_string (CRequest.uri req)))
-      ; ("ip", `String ip)
-      ]
+      ; ("uri", `String (Uri.to_string (CRequest.uri req)))
+      ; ("ip", `String ip) ]
       (fun _ -> callback conn req body_string execution_id)
   in
   S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback:cbwb ())
