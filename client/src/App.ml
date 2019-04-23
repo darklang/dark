@@ -1432,18 +1432,13 @@ let update_ (msg : msg) (m : model) : modification =
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | ToggleHighlight (tlid, name) ->
-      Debug.loG "TOGGLE HIGHLIGHT " name ;
       let new_props x =
-        let res =
-          match x with
-          | None ->
-              Some
-                {Defaults.defaultHandlerProp with hoveringVariableName = name}
-          | Some v ->
-              Some {v with hoveringVariableName = name}
-        in
-        Debug.loG "new_props result" res ;
-        res
+        match x with
+        | None ->
+            Some
+            {Defaults.defaultHandlerProp with hoveringVariableName = name}
+        | Some v ->
+            Some {v with hoveringVariableName = name}
       in
       TweakModel
         (fun m ->

@@ -438,7 +438,12 @@ body #app * {
   
   &:hover {
     cursor: pointer;
-    background-color: @black2;
+    color: @yellow;
+    border-color: @yellow;
+
+    .cols .col .name, .cols .col .type {
+      color: @yellow;
+    }
   }
 
   &.db {
