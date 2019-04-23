@@ -301,7 +301,9 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; ( "DarkInternal::oplistInfo"
       , function
         | _, [DStr host; DStr tlid_str] ->
-            let account = Account.for_host (Unicode_string.to_string host) in
+            let account =
+              Account.for_host_exn (Unicode_string.to_string host)
+            in
             let canvas_id =
               Serialize.fetch_canvas_id account (Unicode_string.to_string host)
             in
