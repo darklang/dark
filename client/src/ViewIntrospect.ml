@@ -21,7 +21,7 @@ let dbColsView (cols : dBColumn list) : msg Html.html =
   Html.div [Html.class' "cols"] (List.filterMap ~f:colView cols)
 
 
-let dbView (tlid : tlid) (name : string) (cols : dBColumn list) : msg Html.html
+let dbView (originTLID : tlid) (tlid : tlid) (name : string) (cols : dBColumn list) : msg Html.html
     =
   Html.div
     [ Html.class' "ref-block db"
@@ -30,13 +30,13 @@ let dbView (tlid : tlid) (name : string) (cols : dBColumn list) : msg Html.html
         "click"
         (fun _ -> GoTo (FocusedDB tlid))
     ; ViewUtils.eventNoPropagation
-        ~key:("ref-db-hover-in" ^ showTLID tlid)
+        ~key:("ref-db-hover-in" ^ showTLID originTLID)
         "mouseenter"
-        (fun _ -> ToggleHighlight (tlid, Some name))
+        (fun _ -> ToggleHighlight (originTLID, Some name))
     ; ViewUtils.eventNoPropagation
-        ~key:("ref-db-hover-out" ^ showTLID tlid)
+        ~key:("ref-db-hover-out" ^ showTLID originTLID)
         "mouseleave"
-        (fun _ -> ToggleHighlight (tlid, None)) ]
+        (fun _ -> ToggleHighlight (originTLID, None)) ]
     [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
 
@@ -106,7 +106,7 @@ let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
 
-let refersToViews (refs : refersTo list) : msg Html.html =
+let refersToViews (tlid : tlid) (refs : refersTo list) : msg Html.html =
   let topOffset =
     List.head refs
     |> Option.andThen ~f:(fun r ->
@@ -116,10 +116,10 @@ let refersToViews (refs : refersTo list) : msg Html.html =
     |> Option.withDefault ~default:0
   and renderView r =
     match r with
-    | ToDB (tlid, name, cols, _) ->
-        dbView tlid name cols
-    | ToEvent (tlid, space, name, _) ->
-        eventView tlid space name
+    | ToDB (dbid, name, cols, _) ->
+        dbView tlid dbid name cols
+    | ToEvent (eid, space, name, _) ->
+        eventView eid space name
   in
   Html.div
     [ Html.class' "usages"

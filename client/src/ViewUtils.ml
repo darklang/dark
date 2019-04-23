@@ -27,14 +27,62 @@ type viewState =
   ; canvasName : string
   ; userContentHost : string
   ; inReferences : usedIn list
-  ; toReferences : refersTo list }
+  ; toReferences : refersTo list
+  ; usageBlankOrs : id list }
+
+let blankOrsFromCursorState (tl: toplevel) (cs : cursorState) : id list =
+  match unwrapCursorState cs with
+  | Entering (Filling (_, id)) ->
+    ( match Toplevel.find tl id with
+    | Some (PVarBind (F (_, var))) as pd ->
+      ( match Toplevel.getParentOf tl (deOption "impossible" pd) with
+      | Some (PExpr e) ->
+        ( match e with
+        | F (_, Let (_, _, body)) ->
+            AST.uses var body |> List.map ~f:Blank.toID
+        | F (_, Lambda (_, body)) ->
+            AST.uses var body |> List.map ~f:Blank.toID
+        | _ ->
+            [] )
+      | _ ->
+          [] )
+    | Some (PPattern (F (_, _)) as pd) ->
+        let parent = Toplevel.getParentOf tl pd in
+        let caseContainingPattern (p, _) =
+          Pattern.extractById p (Pointer.toID pd) |> Option.isSome
+        in
+        let relatedVariableIds (p, body) =
+          Pattern.variableNames p
+          |> List.map ~f:(fun var ->
+                AST.uses var body |> List.map ~f:Blank.toID )
+          |> List.concat
+        in
+        ( match parent with
+        | Some (PExpr (F (_, Match (_, cases)))) ->
+            cases
+            |> List.filter ~f:caseContainingPattern
+            |> List.map ~f:relatedVariableIds
+            |> List.concat
+        | _ ->
+            [] )
+    | _ ->
+        [] )
+  | _ ->
+      []
+
+let blankOrsFromHovering (tl : toplevel) (hp : handlerProp option) : id list =
+  match tl.data with
+  | TLHandler h ->
+    let body = h.ast in
+    hp |> Option.andThen ~f:(fun p -> p.hoveringVariableName )
+    |> Option.andThen ~f:(fun v -> Some ( (AST.uses v body) |> List.map ~f:Blank.toID ) )
+    |> Option.withDefault ~default: []
+  | _ -> []
 
 let createVS (m : model) (tl : toplevel) : viewState =
   let hp =
-    Debug.loG "tl.data" tl.data ;
     match tl.data with
     | TLHandler _ ->
-        Debug.loG "m.handlerProps" m.handlerProps ;
         StrDict.get ~key:(showTLID tl.id) m.handlerProps
     | _ ->
         None
@@ -61,66 +109,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
   ; traces = Analysis.getTraces m tl.id
   ; analyses = m.analyses
-  ; relatedBlankOrs =
-      (let rs =
-         match unwrapCursorState m.cursorState with
-         | Entering (Filling (_, id)) ->
-           ( match Toplevel.find tl id with
-           | Some (PVarBind (F (_, var))) as pd ->
-             ( match Toplevel.getParentOf tl (deOption "impossible" pd) with
-             | Some (PExpr e) ->
-               ( match e with
-               | F (_, Let (_, _, body)) ->
-                   AST.uses var body |> List.map ~f:Blank.toID
-               | F (_, Lambda (_, body)) ->
-                   AST.uses var body |> List.map ~f:Blank.toID
-               | _ ->
-                   [] )
-             | _ ->
-                 [] )
-           | Some (PPattern (F (_, _)) as pd) ->
-               let parent = Toplevel.getParentOf tl pd in
-               let caseContainingPattern (p, _) =
-                 Pattern.extractById p (Pointer.toID pd) |> Option.isSome
-               in
-               let relatedVariableIds (p, body) =
-                 Pattern.variableNames p
-                 |> List.map ~f:(fun var ->
-                        AST.uses var body |> List.map ~f:Blank.toID )
-                 |> List.concat
-               in
-               ( match parent with
-               | Some (PExpr (F (_, Match (_, cases)))) ->
-                   cases
-                   |> List.filter ~f:caseContainingPattern
-                   |> List.map ~f:relatedVariableIds
-                   |> List.concat
-               | _ ->
-                   [] )
-           | _ ->
-               [] )
-         | _ ->
-             []
-       in
-       let body =
-         match tl.data with TLHandler h -> h.ast | _ -> Blank.new_ ()
-       in
-       let x =
-         match hp with
-         | None ->
-             Debug.loG "outer_none" hp ;
-             []
-         | Some h ->
-           ( match h.hoveringVariableName with
-           | None ->
-               Debug.loG "inner_none" hp ;
-               []
-           | Some v ->
-               let ast = AST.uses v body in
-               Debug.loG "inner_some" ast ;
-               ast |> List.map ~f:Blank.toID )
-       in
-       x @ rs)
+  ; relatedBlankOrs = (blankOrsFromCursorState tl m.cursorState)
   ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
@@ -142,8 +131,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedHandler tlid_ when tlid_ = tl.id ->
           Introspect.allTo tlid_ m
       | _ ->
-          [] ) }
-
+          [] ) 
+  ; usageBlankOrs = (blankOrsFromHovering tl hp)
+  }
 
 let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []

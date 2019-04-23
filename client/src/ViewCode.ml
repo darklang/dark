@@ -156,7 +156,9 @@ and viewNExpr
         ; Html.text value
         ; Html.div [Html.class' "quote quote-end"] [] ]
   | Variable name ->
-      if List.member ~value:id vs.relatedBlankOrs
+      if List.member ~value:id vs.usageBlankOrs
+      then a (ent :: wc "variable" :: wc "related-change" :: all) name
+      else if List.member ~value:id vs.relatedBlankOrs
       then a (ent :: wc "variable" :: wc "related-change" :: all) vs.ac.value
       else a (ent :: wc "variable" :: all) name
   | Let (lhs, rhs, body) ->
