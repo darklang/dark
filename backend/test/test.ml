@@ -2516,12 +2516,12 @@ let t_head_and_get_requests_are_coalesced () =
     C.save_all !canvas ;
     canvas
   in
-  let respond_to_head_from_get (req : Req.t) : int * int =
+  let respond_to_head_from_get (req : Req.t) : int * (int * string) =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let test_id = Types.id_of_int 1234 in
        let canvas = setup_canvas () in
-       let%lwt resp, _ =
+       let%lwt resp, body =
          Webserver.canvas_handler
            ~execution_id:test_id
            ~canvas:!canvas.host
@@ -2531,6 +2531,7 @@ let t_head_and_get_requests_are_coalesced () =
            req
        in
        let code = resp |> Resp.status |> Code.code_of_status in
+       let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
        resp
        |> Resp.headers
        |> (fun x ->
@@ -2539,12 +2540,12 @@ let t_head_and_get_requests_are_coalesced () =
                 0
             | Some y ->
                 int_of_string y )
-       |> fun x -> return (code, x))
+       |> fun x -> return (code, (x, body_string)))
   in
   let expected_body = "\"test_body\"" in
   let expected_content_length = String.length expected_body in
   AT.check
-    (AT.list (AT.pair AT.int AT.int))
+    (AT.list (AT.pair AT.int (AT.pair AT.int AT.string)))
     "canvas_handler returns same content-length for HEAD and GET requests"
     (List.map
        ~f:respond_to_head_from_get
@@ -2559,7 +2560,8 @@ let t_head_and_get_requests_are_coalesced () =
            (Uri.of_string
               ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
        ])
-    [(200, expected_content_length); (200, expected_content_length)]
+    [ (200, (expected_content_length, expected_body))
+    ; (200, (expected_content_length, "")) ]
 
 
 let t_route_eq_path_match_concrete () =
