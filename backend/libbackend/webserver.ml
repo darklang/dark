@@ -308,7 +308,7 @@ let user_page_handler
     ~(uri : Uri.t)
     ~(body : string)
     (req : CRequest.t) =
-  Log.infO "user_page_handler" ~params:[("uri", Uri.to_string uri)] ;
+  Log.infO "user_page_handler" ;
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
@@ -1414,7 +1414,6 @@ let server () =
       ; ("request", `String request_path)
       ; ("method", `String (Cohttp.Code.string_of_method (CRequest.meth req)))
       ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
-      ; ("uri", `String (Uri.to_string (CRequest.uri req)))
       ; ("ip", `String ip) ]
       (fun _ -> callback conn req body_string execution_id)
   in
