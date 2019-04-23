@@ -1431,6 +1431,26 @@ let update_ (msg : msg) (m : model) : modification =
           {m with canvasProps = {m.canvasProps with panAnimation = false}} )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
+  | ToggleHighlight (tlid, name) ->
+      Debug.loG "TOGGLE HIGHLIGHT " name ;
+      let new_props x =
+        let res =
+          match x with
+          | None ->
+              Some
+                {Defaults.defaultHandlerProp with hoveringVariableName = name}
+          | Some v ->
+              Some {v with hoveringVariableName = name}
+        in
+        Debug.loG "new_props result" res ;
+        res
+      in
+      TweakModel
+        (fun m ->
+          { m with
+            handlerProps =
+              StrDict.update ~key:(showTLID tlid) ~f:new_props m.handlerProps
+          } )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
