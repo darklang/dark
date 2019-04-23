@@ -243,12 +243,14 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       | DeleteTypeForever tlid ->
           delete_tipe_forever tlid
   with e ->
+    (* Log here so we have context, but then re-raise *)
     Log.erroR
       "apply_op failure"
       ~params:
         [ ("host", !c.host)
         ; ("op", Op.show_op op)
-        ; ("exn", Exception.to_string e) ]
+        ; ("exn", Exception.to_string e) ] ;
+    Exception.reraise e
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
