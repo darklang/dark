@@ -137,7 +137,7 @@ let respond_or_redirect_empty_body (params : response_or_redirect_params) =
           "Content-Length"
           (string_of_int (String.length r.body))
       in
-      respond_or_redirect (Respond {r with resp_headers = headers})
+      respond_or_redirect (Respond {r with body = ""; resp_headers = headers})
 
 
 let respond
