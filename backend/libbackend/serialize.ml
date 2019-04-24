@@ -159,7 +159,8 @@ let load_for_http
 
 
 let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
-  (* TODO: doesn't this need dbs and user_functions? *)
+  (* CRONs (atm at least) dont have access to DBs and other vars by design.
+   * Maybe we'll change that later. *)
   Db.fetch
     ~name:"load_for_cron"
     "SELECT data FROM toplevel_oplists
