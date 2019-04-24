@@ -193,7 +193,7 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     |> StrDict.get ~key:id
     |> Option.withDefault ~default:[]
   in
-  let dbs = TL.allDBNames m.toplevels in
+  let glob = TL.allGloballyScopedVarnames m.toplevels in
   match tl.data with
   | TLHandler h ->
       let extras =
@@ -213,13 +213,13 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
         | _ ->
             ["request"; "event"]
       in
-      varsFor h.ast @ dbs @ extras
+      varsFor h.ast @ glob @ extras
   | TLFunc fn ->
       let params =
         fn.ufMetadata.ufmParameters
         |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
       in
-      varsFor fn.ufAST @ dbs @ params
+      varsFor fn.ufAST @ glob @ params
   | TLDB _ | TLTipe _ ->
       []
 
