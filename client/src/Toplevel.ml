@@ -524,6 +524,10 @@ let allDBNames (toplevels : toplevel list) : string list =
              None )
 
 
+let allGloballyScopedVarnames (toplevels : toplevel list) : string list =
+  allDBNames toplevels
+
+
 let asPage (tl : toplevel) : page =
   match tl.data with
   | TLHandler _ ->
