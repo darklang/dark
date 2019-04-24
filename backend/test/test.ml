@@ -20,7 +20,7 @@ module AT = Alcotest
 (* Misc fns *)
 (* ------------------- *)
 let clear_test_data () : unit =
-  let owner = Account.for_host "test" in
+  let owner = Account.for_host_exn "test" in
   let canvas = Serialize.fetch_canvas_id owner "test" in
   Db.run
     ~params:[Uuid canvas]
@@ -342,7 +342,8 @@ let exec_userfn (prog : string) : dval =
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
-  Ast.execute_userfn state name execution_id []
+  let result, _ = Ast.execute_fn state name execution_id [] in
+  result
 
 
 (* ----------------------- *)
@@ -453,7 +454,7 @@ let t_derror_roundtrip () =
 let t_db_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-db_oplist_roundtrip" in
-  let owner = Account.for_host host in
+  let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let oplist =
     [Op.UndoTL tlid; Op.RedoTL tlid; Op.UndoTL tlid; Op.RedoTL tlid]
@@ -477,7 +478,8 @@ let t_http_oplist_roundtrip () =
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid] !c1 ;
-  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
+  let owner = Account.for_host_exn host in
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host owner in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
@@ -490,7 +492,8 @@ let t_http_oplist_loads_user_tipes () =
   in
   let c1 = Canvas.init host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
-  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host in
+  let owner = Account.for_host_exn host in
+  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host owner in
   AT.check
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
     "user tipes"

@@ -1,5 +1,6 @@
 open Core_kernel
 open Lwt
+open Libcommon
 
 let shutdown = ref false
 
@@ -21,18 +22,13 @@ let () =
         try%lwt
               Libcommon.Log.infO
                 "cron_checker"
-                ~data:"Spinning up health check service"
-                ~params:
-                  [ ( "execution_id"
-                    , Libexecution.Types.string_of_id execution_id ) ] ;
+                ~data:"Spinning up health check service" ;
               Libservice.Health_check.run ~shutdown ~execution_id
         with e ->
           Libcommon.Log.erroR
             "cron_checker"
             ~data:"Health check service threw error"
-            ~params:
-              [ ("execution_id", Libexecution.Types.string_of_id execution_id)
-              ; ("exn", Libcommon.Log.dump e) ] ;
+            ~params:[("exn", Libcommon.Log.dump e)] ;
           let bt = Libexecution.Exception.get_backtrace () in
           Lwt.async (fun () ->
               Libbackend.Rollbar.report_lwt
@@ -51,9 +47,7 @@ let () =
         Libcommon.Log.erroR
           "cron_checker"
           ~data:"Uncaught error"
-          ~params:
-            [ ("execution_id", Libexecution.Types.string_of_id execution_id)
-            ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
+          ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
         Lwt.async (fun () ->
             Libbackend.Rollbar.report_lwt
               e
@@ -62,4 +56,8 @@ let () =
               (Libexecution.Types.string_of_id execution_id) ) ;
         if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
   in
-  Lwt_main.run (cron_checker ())
+  Lwt_main.run
+    (Log.add_log_annotations
+       [ ( "execution_id"
+         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+       (fun _ -> cron_checker ()))

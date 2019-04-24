@@ -298,10 +298,12 @@ and deployStatus j : deployStatus =
   j |> variants sumtypes
 
 
+and jsDate j : Js.Date.t = Js.Date.fromString (string j)
+
 and sDeploy j : staticDeploy =
   { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
-  ; lastUpdate = field "last_update" string j
+  ; lastUpdate = field "last_update" jsDate j
   ; status = field "status" deployStatus j }
 
 
@@ -378,7 +380,9 @@ and initialLoadRPCResult j : initialLoadRPCResult =
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
-  (field "result" dval j, field "hash" string j)
+  ( field "result" dval j
+  , field "hash" string j
+  , field "touched_tlids" (list tlid) j )
 
 
 and triggerCronRPCResult j : triggerCronRPCResult =

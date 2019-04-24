@@ -16,6 +16,8 @@ type level =
 
 val loglevel : level ref
 
+val logkey : (string * Yojson.Safe.json) list Lwt.key ref
+
 val set_level : level -> unit
 
 val level_to_string : level -> string
@@ -105,3 +107,6 @@ val log_exception :
   -> string
   -> exn
   -> unit
+
+val add_log_annotations :
+  (string * Yojson.Safe.json) list -> (unit -> 'a) -> 'a

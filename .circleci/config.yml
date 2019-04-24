@@ -375,7 +375,7 @@ jobs:
             --qw-image-id=`    cat gcr-image-ids/qw`     \
             --cron-image-id=`  cat gcr-image-ids/cron`   \
             --stroller-image-id=`cat gcr-image-ids/stroller` \
-            --tunnel-image-id=`cat gcr-image-ids/tunnel`
+            --tunnel-image-id=`cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
 
 
