@@ -47,9 +47,9 @@
 )
 
 (executable
-  (name roundtrip_stored_events)
-  (public_name roundtrip_stored_events)
-  (modules roundtrip_stored_events)
+  (name validate_data_loads)
+  (public_name validate_data_loads)
+  (modules validate_data_loads)
   (flags (-warn-error +A))
   (libraries libbackend libexecution libcommon)
   (preprocess (pps lwt.ppx))
