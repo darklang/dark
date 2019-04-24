@@ -148,7 +148,6 @@ let respond
   respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
-
 let should_use_https uri =
   let parts =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
@@ -380,35 +379,9 @@ let user_page_handler
         ; execution_id
         ; status = `Not_found
         ; body = "404 Not Found: No route matches" }
-  | a :: b :: _ ->
-      let resp_headers = Cohttp.Header.of_list [cors] in
-      Respond
-        { resp_headers
-        ; execution_id
-        ; status = `Internal_server_error
-        ; body =
-            "500 Internal Server Error: More than one handler for route: "
-            ^ Uri.path uri }
-  | [page] ->
-      let input = PReq.from_request headers query body in
-      ( match (Handler.module_for page, Handler.modifier_for page) with
-      | Some m, Some mo ->
-          (* Store the event with the input path not the event name, because we
-         * want to be able to
-         *    a) use this event if this particular handler changes
-         *    b) use the input url params in the analysis for this handler
-        *)
-          let desc = (m, Uri.path uri, mo) in
-          ignore
-            (Stored_event.store_event
-               ~trace_id
-               ~canvas_id
-               desc
-               (PReq.to_dval input))
-      | _ ->
-          () ) ;
-      let bound =
-        Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+  | Some owner ->
+      let c =
+        C.load_http canvas owner ~verb ~path:(sanitize_uri_path (Uri.path uri))
       in
       let pages =
         !c.handlers
@@ -435,28 +408,29 @@ let user_page_handler
             ~canvas_id
             ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
           let resp_headers = Cohttp.Header.of_list [cors] in
-          respond
-            ~resp_headers
-            ~execution_id
-            `Not_found
-            "404 Not Found: No route matches"
+          Respond
+            { resp_headers
+            ; execution_id
+            ; status = `Not_found
+            ; body = "404 Not Found: No route matches" }
       | a :: b :: _ ->
           let resp_headers = Cohttp.Header.of_list [cors] in
-          respond
-            `Internal_server_error
-            ~resp_headers
-            ~execution_id
-            ( "500 Internal Server Error: More than one handler for route: "
-            ^ Uri.path uri )
+          Respond
+            { resp_headers
+            ; execution_id
+            ; status = `Internal_server_error
+            ; body =
+                "500 Internal Server Error: More than one handler for route: "
+                ^ Uri.path uri }
       | [page] ->
           let input = PReq.from_request headers query body in
           ( match (Handler.module_for page, Handler.modifier_for page) with
           | Some m, Some mo ->
               (* Store the event with the input path not the event name, because we
-          * want to be able to
-          *    a) use this event if this particular handler changes
-          *    b) use the input url params in the analysis for this handler
-          *)
+            * want to be able to
+            *    a) use this event if this particular handler changes
+            *    b) use the input url params in the analysis for this handler
+            *)
               let desc = (m, Uri.path uri, mo) in
               ignore
                 (Stored_event.store_event
@@ -1389,7 +1363,7 @@ let k8s_handler req ~execution_id ~stopper =
       respond ~execution_id `Not_found ""
 
 
-g let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
+let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
 
 let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
   let verb = req |> CRequest.meth in
@@ -1429,105 +1403,104 @@ let canvas_handler
       |> respond_or_redirect
 
 
-let callback (ch, conn) req body execution_id =
-  let uri = CRequest.uri req in
-  let ip = get_ip_address ch in
-  let handle_error ~(include_internals : bool) (e : exn) =
-    try
-      let bt = Exception.get_backtrace () in
-      let%lwt _ =
-        Rollbar.report_lwt
-          e
-          bt
-          (Remote (request_to_rollbar body req))
-          (Types.show_id execution_id)
-      in
-      let real_err =
-        try
-          match e with
-          | Pageable.PageableExn (Exception.DarkException e)
-          | Exception.DarkException e ->
-              e
-              |> Exception.exception_data_to_yojson
-              |> Yojson.Safe.pretty_to_string
-          | Yojson.Json_error msg ->
-              "Not a valid JSON value: '" ^ msg ^ "'"
-          | _ ->
-              "Dark Internal Error: " ^ Exn.to_string e
-        with _ -> "UNHANDLED ERROR: real_err"
-      in
-      let real_err =
-        real_err
-        (* Commented out because API handlers need to be JSON decoded *)
-        (* ^ (Exception.get_backtrace () *)
-        (*             |> Exception.backtrace_to_string) *)
-      in
-      Log.erroR
-        real_err
-        ~bt
-        ~params:[("execution_id", Types.string_of_id execution_id)] ;
-      match e with
-      | Exception.DarkException e when e.tipe = EndUser ->
-          respond ~execution_id `Bad_request e.short
-      | _ ->
-          let body =
-            if include_internals || Config.show_stacktrace
-            then real_err
-            else "Dark Internal Error"
-          in
-          respond ~execution_id `Internal_server_error body
-    with e ->
-      let bt = Exception.get_backtrace () in
-      Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-      respond ~execution_id `Internal_server_error "unhandled error"
-  in
-  try
-    Log.infO
-      "request"
-      ~params:
-        [ ("ip", ip)
-        ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
-        ; ("uri", Uri.to_string uri)
-        ; ("execution_id", Types.string_of_id execution_id) ] ;
-    (* first: if this isn't https and should be, redirect *)
-    match redirect_to (with_x_forwarded_proto req) with
-    | Some x ->
-        S.respond_redirect ~uri:x ()
-    | None ->
-      ( match Uri.to_string uri with
-      | "/sitemap.xml" | "/favicon.ico" ->
-          respond ~execution_id `OK ""
-      | _ ->
-        (* figure out what handler to dispatch to... *)
-        ( match route_host req with
-        | Some (Canvas canvas) ->
-            canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
-        | Some Static ->
-            static_handler uri
-        | Some Admin ->
-          ( try
-              authenticate_then_handle
-                ~execution_id
-                (fun ~session ~csrf_token r ->
-                  try
-                    admin_handler
-                      ~execution_id
-                      ~uri
-                      ~body
-                      ~stopper
-                      ~session
-                      ~csrf_token
-                      r
-                  with e -> handle_error ~include_internals:true e )
-                req
-            with e -> handle_error ~include_internals:false e )
-        | None ->
-            k8s_handler req ~execution_id ~stopper ) )
-  with e -> handle_error ~include_internals:false e
-
-
 let server () =
   let stop, stopper = Lwt.wait () in
+  let callback (ch, conn) req body execution_id =
+    let uri = CRequest.uri req in
+    let ip = get_ip_address ch in
+    let handle_error ~(include_internals : bool) (e : exn) =
+      try
+        let bt = Exception.get_backtrace () in
+        let%lwt _ =
+          Rollbar.report_lwt
+            e
+            bt
+            (Remote (request_to_rollbar body req))
+            (Types.show_id execution_id)
+        in
+        let real_err =
+          try
+            match e with
+            | Pageable.PageableExn (Exception.DarkException e)
+            | Exception.DarkException e ->
+                e
+                |> Exception.exception_data_to_yojson
+                |> Yojson.Safe.pretty_to_string
+            | Yojson.Json_error msg ->
+                "Not a valid JSON value: '" ^ msg ^ "'"
+            | _ ->
+                "Dark Internal Error: " ^ Exn.to_string e
+          with _ -> "UNHANDLED ERROR: real_err"
+        in
+        let real_err =
+          real_err
+          (* Commented out because API handlers need to be JSON decoded *)
+          (* ^ (Exception.get_backtrace () *)
+          (*             |> Exception.backtrace_to_string) *)
+        in
+        Log.erroR
+          real_err
+          ~bt
+          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+        match e with
+        | Exception.DarkException e when e.tipe = EndUser ->
+            respond ~execution_id `Bad_request e.short
+        | _ ->
+            let body =
+              if include_internals || Config.show_stacktrace
+              then real_err
+              else "Dark Internal Error"
+            in
+            respond ~execution_id `Internal_server_error body
+      with e ->
+        let bt = Exception.get_backtrace () in
+        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
+        respond ~execution_id `Internal_server_error "unhandled error"
+    in
+    try
+      Log.infO
+        "request"
+        ~params:
+          [ ("ip", ip)
+          ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
+          ; ("uri", Uri.to_string uri)
+          ; ("execution_id", Types.string_of_id execution_id) ] ;
+      (* first: if this isn't https and should be, redirect *)
+      match redirect_to (with_x_forwarded_proto req) with
+      | Some x ->
+          S.respond_redirect ~uri:x ()
+      | None ->
+        ( match Uri.to_string uri with
+        | "/sitemap.xml" | "/favicon.ico" ->
+            respond ~execution_id `OK ""
+        | _ ->
+          (* figure out what handler to dispatch to... *)
+          ( match route_host req with
+          | Some (Canvas canvas) ->
+              canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
+          | Some Static ->
+              static_handler uri
+          | Some Admin ->
+            ( try
+                authenticate_then_handle
+                  ~execution_id
+                  (fun ~session ~csrf_token r ->
+                    try
+                      admin_handler
+                        ~execution_id
+                        ~uri
+                        ~body
+                        ~stopper
+                        ~session
+                        ~csrf_token
+                        r
+                    with e -> handle_error ~include_internals:true e )
+                  req
+              with e -> handle_error ~include_internals:false e )
+          | None ->
+              k8s_handler req ~execution_id ~stopper ) )
+    with e -> handle_error ~include_internals:false e
+  in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
     let execution_id = Util.create_id () in
