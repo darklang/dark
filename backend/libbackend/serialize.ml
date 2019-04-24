@@ -103,21 +103,13 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
 
 let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
     : Op.tlid_oplists =
-  let tlid_params =
-    tlids
-    |> List.map ~f:Types.string_of_id
-    |> String.concat ~sep:", "
-    |> Log.inspect "tlid_params"
-  in
-  (* TODO: sql injection here *)
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_only_tlids"
-    ( "SELECT data FROM toplevel_oplists
+    "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
-        AND tlid = ANY('{"
-    ^ tlid_params
-    ^ "}'::bigint[])" )
-    ~params:[Db.Uuid canvas_id]
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -125,18 +117,14 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
 let load_with_context
     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
     Op.tlid_oplists =
-  let tlid_params =
-    tlids |> List.map ~f:Types.string_of_id |> String.concat ~sep:", "
-  in
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_with_context"
-    ( "SELECT data FROM toplevel_oplists
+    "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
-        AND (tlid = ANY('{"
-    ^ tlid_params
-    ^ "}'::bigint[])
-             OR tipe <> 'handler'::toplevel_type)" )
-    ~params:[Db.Uuid canvas_id]
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])
+             OR tipe <> 'handler'::toplevel_type)"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
