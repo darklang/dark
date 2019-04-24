@@ -5,6 +5,12 @@ module RTT = Libexecution.Types.RuntimeT
 open Libbackend
 open Libcommon
 
+(* Validate that data can be loaded from:
+ * - stored events
+ * - function arguments
+ * - function results
+ * - canvases (and thus toplevel_oplists) *)
+
 let usage () : unit =
   Format.printf
     "Usage: %s\n\n  Use DARK_CONFIG_DB_DBNAME=prodclone to check prodclone."
