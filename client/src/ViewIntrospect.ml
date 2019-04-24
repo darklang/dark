@@ -21,8 +21,9 @@ let dbColsView (cols : dBColumn list) : msg Html.html =
   Html.div [Html.class' "cols"] (List.filterMap ~f:colView cols)
 
 
-let dbView (originTLID : tlid) (tlid : tlid) (name : string) (cols : dBColumn list) : msg Html.html
-    =
+let dbView
+    (originTLID : tlid) (tlid : tlid) (name : string) (cols : dBColumn list) :
+    msg Html.html =
   Html.div
     [ Html.class' "ref-block db"
     ; ViewUtils.eventNoPropagation

@@ -30,7 +30,7 @@ type viewState =
   ; toReferences : refersTo list
   ; usageBlankOrs : id list }
 
-let blankOrsFromCursorState (tl: toplevel) (cs : cursorState) : id list =
+let blankOrsFromCursorState (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
   | Entering (Filling (_, id)) ->
     ( match Toplevel.find tl id with
@@ -54,7 +54,7 @@ let blankOrsFromCursorState (tl: toplevel) (cs : cursorState) : id list =
         let relatedVariableIds (p, body) =
           Pattern.variableNames p
           |> List.map ~f:(fun var ->
-                AST.uses var body |> List.map ~f:Blank.toID )
+                 AST.uses var body |> List.map ~f:Blank.toID )
           |> List.concat
         in
         ( match parent with
@@ -70,14 +70,19 @@ let blankOrsFromCursorState (tl: toplevel) (cs : cursorState) : id list =
   | _ ->
       []
 
+
 let blankOrsFromHovering (tl : toplevel) (hp : handlerProp option) : id list =
   match tl.data with
   | TLHandler h ->
-    let body = h.ast in
-    hp |> Option.andThen ~f:(fun p -> p.hoveringVariableName )
-    |> Option.andThen ~f:(fun v -> Some ( (AST.uses v body) |> List.map ~f:Blank.toID ) )
-    |> Option.withDefault ~default: []
-  | _ -> []
+      let body = h.ast in
+      hp
+      |> Option.andThen ~f:(fun p -> p.hoveringVariableName)
+      |> Option.andThen ~f:(fun v ->
+             Some (AST.uses v body |> List.map ~f:Blank.toID) )
+      |> Option.withDefault ~default:[]
+  | _ ->
+      []
+
 
 let createVS (m : model) (tl : toplevel) : viewState =
   let hp =
@@ -109,7 +114,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
   ; traces = Analysis.getTraces m tl.id
   ; analyses = m.analyses
-  ; relatedBlankOrs = (blankOrsFromCursorState tl m.cursorState)
+  ; relatedBlankOrs = blankOrsFromCursorState tl m.cursorState
   ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
@@ -131,9 +136,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedHandler tlid_ when tlid_ = tl.id ->
           Introspect.allTo tlid_ m
       | _ ->
-          [] ) 
-  ; usageBlankOrs = (blankOrsFromHovering tl hp)
-  }
+          [] )
+  ; usageBlankOrs = blankOrsFromHovering tl hp }
+
 
 let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
