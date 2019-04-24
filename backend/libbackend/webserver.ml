@@ -69,27 +69,83 @@ let request_to_rollbar (body : string) (req : CRequest.t) :
   ; http_method = req |> CRequest.meth |> Cohttp.Code.string_of_method }
 
 
+type response_or_redirect_params =
+  | Respond of
+      { resp_headers : Header.t
+      ; execution_id : Types.id
+      ; status : Cohttp.Code.status_code
+      ; body : string }
+  | Redirect of {uri : Uri.t; headers : Header.t option}
+
+let new_respond_params
+    ?(resp_headers = Header.init ())
+    ~(execution_id : Types.id)
+    status
+    (body : string) : response_or_redirect_params =
+  Respond {resp_headers; execution_id; status; body}
+
+
+let new_redirect_params ?(headers : Cohttp.Header.t option) ~(uri : Uri.t) :
+    response_or_redirect_params =
+  Redirect {uri; headers}
+
+
+let respond_or_redirect (params : response_or_redirect_params) =
+  match params with
+  | Redirect {uri; headers} ->
+      S.respond_redirect ?headers ~uri ()
+  | Respond {resp_headers; execution_id; status; body} ->
+      let resp_headers =
+        Header.add
+          resp_headers
+          "X-Darklang-Execution-ID"
+          (Types.string_of_id execution_id)
+      in
+      (* add Content-Length if missing, e.g. when function is called directly 
+       * and not from `respond_or_redirect_empty_body`
+       *)
+      let resp_headers =
+        if Header.get resp_headers "Content-Length" = None
+        then
+          Header.add
+            resp_headers
+            "Content-Length"
+            (string_of_int (String.length body))
+        else resp_headers
+      in
+      Log.infO
+        "response"
+        ~jsonparams:
+          [ ("status", `Int (Cohttp.Code.code_of_status status))
+          ; ("body_bytes", `Int (String.length body)) ]
+        ~params:
+          [ ("execution_id", Int63.to_string execution_id)
+            (* TODO ismith: maybe a ,-sep list of headers, and then a selection of
+        * whitelisted headers? Needs to be flattened. *)
+          ; ("headers", Log.dump resp_headers) ] ;
+      S.respond_string ~status ~body ~headers:resp_headers ()
+
+
+let respond_or_redirect_empty_body (params : response_or_redirect_params) =
+  match params with
+  | Redirect _ ->
+      respond_or_redirect params
+  | Respond r ->
+      let headers =
+        Header.add
+          r.resp_headers
+          "Content-Length"
+          (string_of_int (String.length r.body))
+      in
+      respond_or_redirect (Respond {r with body = ""; resp_headers = headers})
+
+
 let respond
     ?(resp_headers = Header.init ())
     ~(execution_id : Types.id)
     status
     (body : string) =
-  let resp_headers =
-    Header.add
-      resp_headers
-      "X-Darklang-Execution-ID"
-      (Types.string_of_id execution_id)
-  in
-  Log.infO
-    "response"
-    ~jsonparams:
-      [ ("status", `Int (Cohttp.Code.code_of_status status))
-      ; ("body_bytes", `Int (String.length body)) ]
-    ~params:
-      [ (* TODO ismith: maybe a ,-sep list of headers, and then a selection of
-         * whitelisted headers? Needs to be flattened. *)
-        ("headers", Log.dump resp_headers) ] ;
-  S.respond_string ~status ~body ~headers:resp_headers ()
+  respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
 let should_use_https uri =
@@ -227,11 +283,11 @@ let options_handler
         ; ("Access-Control-Allow-Origin", origin)
         ; ("Access-Control-Allow-Headers", allow_headers) ]
   in
-  respond
-    ~resp_headers:(Cohttp.Header.of_list resp_headers)
-    ~execution_id
-    `OK
-    ""
+  Respond
+    { resp_headers = Cohttp.Header.of_list resp_headers
+    ; execution_id
+    ; status = `OK
+    ; body = "" }
 
 
 let result_to_response
@@ -265,12 +321,13 @@ let result_to_response
   in
   match result with
   | RTT.DIncomplete ->
-      respond
-        ~execution_id
-        `Internal_server_error
-        "Program error: program was incomplete"
+      Respond
+        { resp_headers = Header.init ()
+        ; execution_id
+        ; status = `Internal_server_error
+        ; body = "Program error: program was incomplete" }
   | RTT.DResp (Redirect url, value) ->
-      S.respond_redirect (Uri.of_string url) ()
+      Redirect {headers = Some (Header.init ()); uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
       let resp_headers =
         maybe_infer_headers (Header.of_list resp_headers) value
@@ -292,13 +349,13 @@ let result_to_response
         else Dval.to_pretty_machine_json_v1 value
       in
       let status = Cohttp.Code.status_of_code code in
-      respond ~resp_headers ~execution_id status body
+      Respond {resp_headers; execution_id; status; body}
   | _ ->
       let body = Dval.to_pretty_machine_json_v1 result in
       (* for demonstrations sake, let's return 200 Okay when
      * no HTTP response object is returned *)
       let resp_headers = maybe_infer_headers (Header.init ()) result in
-      respond ~resp_headers ~execution_id `OK body
+      Respond {resp_headers; execution_id; status = `OK; body}
 
 
 let user_page_handler
@@ -317,11 +374,11 @@ let user_page_handler
   | None ->
       (* Account doesn't exist! Don't store the event or do any loading *)
       let resp_headers = Cohttp.Header.of_list [cors] in
-      respond
-        ~resp_headers
-        ~execution_id
-        `Not_found
-        "404 Not Found: No route matches"
+      Respond
+        { resp_headers
+        ; execution_id
+        ; status = `Not_found
+        ; body = "404 Not Found: No route matches" }
   | Some owner ->
       let c =
         C.load_http canvas owner ~verb ~path:(sanitize_uri_path (Uri.path uri))
@@ -351,28 +408,29 @@ let user_page_handler
             ~canvas_id
             ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
           let resp_headers = Cohttp.Header.of_list [cors] in
-          respond
-            ~resp_headers
-            ~execution_id
-            `Not_found
-            "404 Not Found: No route matches"
+          Respond
+            { resp_headers
+            ; execution_id
+            ; status = `Not_found
+            ; body = "404 Not Found: No route matches" }
       | a :: b :: _ ->
           let resp_headers = Cohttp.Header.of_list [cors] in
-          respond
-            `Internal_server_error
-            ~resp_headers
-            ~execution_id
-            ( "500 Internal Server Error: More than one handler for route: "
-            ^ Uri.path uri )
+          Respond
+            { resp_headers
+            ; execution_id
+            ; status = `Internal_server_error
+            ; body =
+                "500 Internal Server Error: More than one handler for route: "
+                ^ Uri.path uri }
       | [page] ->
           let input = PReq.from_request headers query body in
           ( match (Handler.module_for page, Handler.modifier_for page) with
           | Some m, Some mo ->
               (* Store the event with the input path not the event name, because we
-          * want to be able to
-          *    a) use this event if this particular handler changes
-          *    b) use the input url params in the analysis for this handler
-          *)
+            * want to be able to
+            *    a) use this event if this particular handler changes
+            *    b) use the input url params in the analysis for this handler
+            *)
               let desc = (m, Uri.path uri, mo) in
               ignore
                 (Stored_event.store_event
@@ -1305,6 +1363,46 @@ let k8s_handler req ~execution_id ~stopper =
       respond ~execution_id `Not_found ""
 
 
+let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
+
+let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
+  let verb = req |> CRequest.meth in
+  match verb with
+  (* transform HEAD req method to GET*)
+  | `HEAD ->
+      CRequest.make (* GET is default value to ?meth argument*)
+        ?version:(Some req.version)
+        ?encoding:(Some req.encoding)
+        ?headers:(Some req.headers)
+        (CRequest.uri req)
+  | _ ->
+      req
+
+
+let canvas_handler
+    ~(execution_id : Types.id)
+    ~(canvas : string)
+    ~(ip : string)
+    ~(uri : Uri.t)
+    ~(body : string)
+    (req : CRequest.t) =
+  let verb = req |> CRequest.meth in
+  match verb with
+  (* transform HEAD req method to GET, discards body in response*)
+  | `HEAD ->
+      user_page_handler
+        ~execution_id
+        ~canvas
+        ~ip
+        ~uri
+        ~body
+        (coalesce_head_to_get req)
+      |> respond_or_redirect_empty_body
+  | _ ->
+      user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+      |> respond_or_redirect
+
+
 let server () =
   let stop, stopper = Lwt.wait () in
   let callback (ch, conn) req body execution_id =
@@ -1340,7 +1438,10 @@ let server () =
           (* ^ (Exception.get_backtrace () *)
           (*             |> Exception.backtrace_to_string) *)
         in
-        Log.erroR real_err ~bt ;
+        Log.erroR
+          real_err
+          ~bt
+          ~params:[("execution_id", Types.string_of_id execution_id)] ;
         match e with
         | Exception.DarkException e when e.tipe = EndUser ->
             respond ~execution_id `Bad_request e.short
@@ -1357,7 +1458,13 @@ let server () =
         respond ~execution_id `Internal_server_error "unhandled error"
     in
     try
-      Log.infO "request" ;
+      Log.infO
+        "request"
+        ~params:
+          [ ("ip", ip)
+          ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
+          ; ("uri", Uri.to_string uri)
+          ; ("execution_id", Types.string_of_id execution_id) ] ;
       (* first: if this isn't https and should be, redirect *)
       match redirect_to (with_x_forwarded_proto req) with
       | Some x ->
@@ -1370,10 +1477,7 @@ let server () =
           (* figure out what handler to dispatch to... *)
           ( match route_host req with
           | Some (Canvas canvas) ->
-              Log.add_log_annotations
-                [("canvas", `String canvas)]
-                (fun _ ->
-                  user_page_handler ~execution_id ~canvas ~ip ~uri ~body req )
+              canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
           | Some Static ->
               static_handler uri
           | Some Admin ->
