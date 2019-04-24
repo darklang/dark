@@ -33,8 +33,6 @@ module PrettyResponseJsonV0 = struct
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete ->
         wrap_user_type `Null
-    | DChar c ->
-        wrap_user_str (Char.to_string c)
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)
     | DError msg ->
@@ -46,10 +44,6 @@ module PrettyResponseJsonV0 = struct
         wrap_user_str dbname
     | DID id ->
         wrap_user_str (Uuidm.to_string id)
-    | DUrl url ->
-        wrap_user_str url
-    | DTitle title ->
-        wrap_user_str title
     | DDate date ->
         wrap_user_str (Util.isostring_of_date date)
     | DPassword hashed ->
@@ -96,8 +90,6 @@ module PrettyRequestJsonV0 = struct
         Unicode_string.to_string s
     | DFloat f ->
         string_of_float f
-    | DChar c ->
-        Char.to_string c
     | DCharacter c ->
         Unicode_string.Character.to_string c
     | DNull ->
@@ -106,10 +98,6 @@ module PrettyRequestJsonV0 = struct
         Uuidm.to_string id
     | DDate d ->
         Util.isostring_of_date d
-    | DTitle t ->
-        t
-    | DUrl url ->
-        url
     | DDB dbname ->
         dbname
     | DError msg ->
@@ -124,8 +112,6 @@ module PrettyRequestJsonV0 = struct
     match dv with
     | DStr s ->
         "\"" ^ Unicode_string.to_string s ^ "\""
-    | DChar _ ->
-        "'" ^ as_string dv ^ "'"
     | DCharacter c ->
         "'" ^ Unicode_string.Character.to_string c ^ "'"
     | _ ->
@@ -134,7 +120,7 @@ module PrettyRequestJsonV0 = struct
 
   let is_primitive (dv : dval) : bool =
     match dv with
-    | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DCharacter _ | DStr _ ->
+    | DInt _ | DFloat _ | DBool _ | DNull | DCharacter _ | DStr _ ->
         true
     | _ ->
         false
@@ -147,8 +133,6 @@ module PrettyRequestJsonV0 = struct
     | DError _
     | DID _
     | DDate _
-    | DTitle _
-    | DUrl _
     | DPassword _
     | DDB _
     | DUuid _ ->

@@ -152,94 +152,105 @@ let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
 (* ------------------------- *)
 
 let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
-  c :=
-    !c
-    |>
-    match op with
-    | SetHandler (tlid, pos, handler) ->
-        set_handler tlid pos (TL.Handler handler)
-    | CreateDB (tlid, pos, name) ->
-        if is_new
-        then (
-          if name = "" then Exception.client "DB must have a name" ;
+  try
+    c :=
+      !c
+      |>
+      match op with
+      | SetHandler (tlid, pos, handler) ->
+          set_handler tlid pos (TL.Handler handler)
+      | CreateDB (tlid, pos, name) ->
+          if is_new
+          then (
+            if name = "" then Exception.client "DB must have a name" ;
+            List.iter (TL.dbs !c.dbs) ~f:(fun db ->
+                if Ast.blank_to_string db.name = name
+                then Exception.client "Duplicate DB name" ) ) ;
+          let db = User_db.create name tlid in
+          set_db tlid pos (TL.DB db)
+      | AddDBCol (tlid, colid, typeid) ->
+          apply_to_db ~f:(User_db.add_col colid typeid) tlid
+      | SetDBColName (tlid, id, name) ->
+          apply_to_db ~f:(User_db.set_col_name id name) tlid
+      | ChangeDBColName (tlid, id, name) ->
+          apply_to_db ~f:(User_db.change_col_name id name) tlid
+      | SetDBColType (tlid, id, tipe) ->
+          apply_to_db
+            ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe))
+            tlid
+      | ChangeDBColType (tlid, id, tipe) ->
+          apply_to_db
+            ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe))
+            tlid
+      | DeleteDBCol (tlid, id) ->
+          apply_to_db ~f:(User_db.delete_col id) tlid
+      | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
+          ident
+      | CreateDBMigration (tlid, rbid, rfid, cols) ->
+          let typed_cols =
+            List.map cols ~f:(fun (n, t) ->
+                match t with
+                | Filled (id, ts) ->
+                    (n, Filled (id, Dval.tipe_of_string ts))
+                | Blank id as b ->
+                    (n, b) )
+          in
+          apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
+      | AddDBColToDBMigration (tlid, colid, typeid) ->
+          apply_to_db ~f:(User_db.add_col_to_migration colid typeid) tlid
+      | SetDBColNameInDBMigration (tlid, id, name) ->
+          apply_to_db ~f:(User_db.set_col_name_in_migration id name) tlid
+      | SetDBColTypeInDBMigration (tlid, id, tipe) ->
+          apply_to_db
+            ~f:
+              (User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe))
+            tlid
+      | AbandonDBMigration tlid ->
+          apply_to_db ~f:User_db.abandon_migration tlid
+      | DeleteColInDBMigration (tlid, id) ->
+          apply_to_db ~f:(User_db.delete_col_in_migration id) tlid
+      | SetExpr (tlid, id, e) ->
+          apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
+      | DeleteTL tlid ->
+          delete_toplevel tlid
+      | MoveTL (tlid, pos) ->
+          move_toplevel tlid pos
+      | SetFunction user_fn ->
+          set_function user_fn
+      | DeleteFunction tlid ->
+          delete_function tlid
+      | TLSavepoint _ ->
+          ident
+      | UndoTL _ | RedoTL _ ->
+          Exception.internal
+            ("This should have been preprocessed out! " ^ Op.show_op op)
+      | RenameDBname (tlid, name) ->
+          apply_to_db ~f:(User_db.rename_db name) tlid
+      | CreateDBWithBlankOr (tlid, pos, id, name) ->
           List.iter (TL.dbs !c.dbs) ~f:(fun db ->
               if Ast.blank_to_string db.name = name
-              then Exception.client "Duplicate DB name" ) ) ;
-        let db = User_db.create name tlid in
-        set_db tlid pos (TL.DB db)
-    | AddDBCol (tlid, colid, typeid) ->
-        apply_to_db ~f:(User_db.add_col colid typeid) tlid
-    | SetDBColName (tlid, id, name) ->
-        apply_to_db ~f:(User_db.set_col_name id name) tlid
-    | ChangeDBColName (tlid, id, name) ->
-        apply_to_db ~f:(User_db.change_col_name id name) tlid
-    | SetDBColType (tlid, id, tipe) ->
-        apply_to_db
-          ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe))
-          tlid
-    | ChangeDBColType (tlid, id, tipe) ->
-        apply_to_db
-          ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe))
-          tlid
-    | DeleteDBCol (tlid, id) ->
-        apply_to_db ~f:(User_db.delete_col id) tlid
-    | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
-        ident
-    | CreateDBMigration (tlid, rbid, rfid, cols) ->
-        let typed_cols =
-          List.map cols ~f:(fun (n, t) ->
-              match t with
-              | Filled (id, ts) ->
-                  (n, Filled (id, Dval.tipe_of_string ts))
-              | Blank id as b ->
-                  (n, b) )
-        in
-        apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
-    | AddDBColToDBMigration (tlid, colid, typeid) ->
-        apply_to_db ~f:(User_db.add_col_to_migration colid typeid) tlid
-    | SetDBColNameInDBMigration (tlid, id, name) ->
-        apply_to_db ~f:(User_db.set_col_name_in_migration id name) tlid
-    | SetDBColTypeInDBMigration (tlid, id, tipe) ->
-        apply_to_db
-          ~f:(User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe))
-          tlid
-    | AbandonDBMigration tlid ->
-        apply_to_db ~f:User_db.abandon_migration tlid
-    | DeleteColInDBMigration (tlid, id) ->
-        apply_to_db ~f:(User_db.delete_col_in_migration id) tlid
-    | SetExpr (tlid, id, e) ->
-        apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
-    | DeleteTL tlid ->
-        delete_toplevel tlid
-    | MoveTL (tlid, pos) ->
-        move_toplevel tlid pos
-    | SetFunction user_fn ->
-        set_function user_fn
-    | DeleteFunction tlid ->
-        delete_function tlid
-    | TLSavepoint _ ->
-        ident
-    | UndoTL _ | RedoTL _ ->
-        Exception.internal
-          ("This should have been preprocessed out! " ^ Op.show_op op)
-    | RenameDBname (tlid, name) ->
-        apply_to_db ~f:(User_db.rename_db name) tlid
-    | CreateDBWithBlankOr (tlid, pos, id, name) ->
-        List.iter (TL.dbs !c.dbs) ~f:(fun db ->
-            if Ast.blank_to_string db.name = name
-            then Exception.client "Duplicate DB name" ) ;
-        let db = User_db.create2 name tlid id in
-        set_db tlid pos (TL.DB db)
-    | DeleteTLForever tlid ->
-        delete_tl_forever tlid
-    | DeleteFunctionForever tlid ->
-        delete_function_forever tlid
-    | SetType user_tipe ->
-        set_tipe user_tipe
-    | DeleteType tlid ->
-        delete_tipe tlid
-    | DeleteTypeForever tlid ->
-        delete_tipe_forever tlid
+              then Exception.client "Duplicate DB name" ) ;
+          let db = User_db.create2 name tlid id in
+          set_db tlid pos (TL.DB db)
+      | DeleteTLForever tlid ->
+          delete_tl_forever tlid
+      | DeleteFunctionForever tlid ->
+          delete_function_forever tlid
+      | SetType user_tipe ->
+          set_tipe user_tipe
+      | DeleteType tlid ->
+          delete_tipe tlid
+      | DeleteTypeForever tlid ->
+          delete_tipe_forever tlid
+  with e ->
+    (* Log here so we have context, but then re-raise *)
+    Log.erroR
+      "apply_op failure"
+      ~params:
+        [ ("host", !c.host)
+        ; ("op", Op.show_op op)
+        ; ("exn", Exception.to_string e) ] ;
+    Exception.reraise e
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit

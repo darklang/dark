@@ -110,6 +110,8 @@ def backend_build():
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
                   , "bin/get_functions_and_tlids.exe"
+                  , "bin/validate_data_loads.exe"
+                  , "bin/migration_to_deprecate_old_types.exe"
                   , "@analysis.js"
                   ])
 

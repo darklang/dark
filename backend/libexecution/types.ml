@@ -104,7 +104,7 @@ type tipe_ =
   | TFloat
   | TBool
   | TNull
-  | TChar
+  | TDeprecated1
   | TStr
   | TList
   | TObj
@@ -115,8 +115,8 @@ type tipe_ =
   | TDB
   | TID
   | TDate
-  | TTitle
-  | TUrl
+  | TDeprecated2
+  | TDeprecated3
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
@@ -419,7 +419,6 @@ module RuntimeT = struct
     | DFloat of float
     | DBool of bool
     | DNull
-    | DChar of char
     | DStr of Unicode_string.t
     (* compound types *)
     | DList of dval list
@@ -434,8 +433,6 @@ module RuntimeT = struct
     | DDB of string
     | DID of uuid
     | DDate of time
-    | DTitle of string
-    | DUrl of string
     | DPassword of PasswordBytes.t
     | DUuid of uuid
     | DOption of optionT
