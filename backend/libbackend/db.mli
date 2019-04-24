@@ -72,6 +72,14 @@ val fetch_one_option :
   -> string
   -> string list option
 
+val iter_with_cursor :
+     name:string
+  -> params:param list
+  -> ?result:result
+  -> f:(string list -> unit)
+  -> string
+  -> unit
+
 val exists :
   params:param list -> name:string -> ?subject:string -> string -> bool
 

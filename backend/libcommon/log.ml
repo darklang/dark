@@ -265,7 +265,7 @@ let pP
           print_json_log ~bt ~decorate:true ~level params
       | `Json ->
           print_json_log ~bt ~decorate:false ~level params
-  with e -> Caml.print_endline "UNHANDLED ERROR: log.pP"
+  with e -> Caml.print_endline ("UNHANDLED ERROR: log.pP: " ^ Exn.to_string e)
 
 
 let inspecT ?(f = dump) (name : string) (x : 'a) : unit =

@@ -228,12 +228,100 @@ let execute
       | Postgresql.Error pge ->
           Postgresql.string_of_error pge
       | Exception.DarkException de ->
-          Log.erroR ~bt "Caught DarkException in DB, reraising" ;
+          Log.erroR
+            ~bt
+            "Caught DarkException in DB, reraising"
+            ~params:
+              [ ( "exn"
+                , Exception.exception_data_to_yojson de
+                  |> Yojson.Safe.to_string ) ] ;
           Caml.Printexc.raise_with_backtrace e bt
       | e ->
           Exception.exn_to_string e
     in
     Exception.storage msg ~bt ~info:[("time", time () |> string_of_float)]
+
+
+(* largely cribbed from
+ * https://github.com/mmottl/postgresql-ocaml/blob/master/examples/cursor.ml *)
+(* we could make this accumulate the results of the function, but ... for
+       * now, iter is enough *)
+let iter_with_cursor
+    ~name
+    ~params
+    ?(result = TextResult)
+    ~(f : string list -> unit)
+    (sql : string) : unit =
+  let start = Unix.gettimeofday () in
+  let time () =
+    let finish = Unix.gettimeofday () in
+    (finish -. start) *. 1000.0
+  in
+  let subject = Some name in
+  let binary_result = result = BinaryResult in
+  ( try
+      let cursor_name = "my_cursor" in
+      let binary_params =
+        params |> List.map ~f:to_binary_bool |> Array.of_list
+      in
+      let string_params = params |> List.map ~f:to_sql |> Array.of_list in
+      ignore (conn#exec ~expect:[PG.Command_ok] "BEGIN") ;
+      ignore
+        (conn#exec
+           ~expect:[PG.Command_ok]
+           ~binary_params
+           ~params:string_params
+           ("DECLARE " ^ cursor_name ^ " CURSOR FOR " ^ sql)) ;
+      let rec loop () =
+        let res =
+          conn#exec
+            ~binary_result
+            ~expect:[PG.Tuples_ok]
+            ("FETCH IN " ^ cursor_name)
+        in
+        if res#ntuples <> 0
+        then (
+          let lst = res#get_tuple_lst 0 in
+          f lst ;
+          loop () )
+      in
+      loop () ;
+      ignore (conn#exec ~expect:[PG.Command_ok] "CLOSE my_cursor") ;
+      ignore (conn#exec ~expect:[PG.Command_ok] "END") ;
+      let subject_log =
+        match subject with Some str -> [("subject", str)] | None -> []
+      in
+      Log.succesS name ~params:([("op", "iter_with_cursor")] @ subject_log)
+    with e ->
+      let bt = Exception.get_backtrace () in
+      let log_string =
+        params |> List.map ~f:to_log |> String.concat ~sep:", "
+      in
+      Log.erroR
+        name
+        ~params:
+          [("op", "iter_with_cursor"); ("params", log_string); ("query", sql)] ;
+      let msg =
+        match e with
+        | Postgresql.Error (Unexpected_status (_, msg, _)) ->
+            msg
+        | Postgresql.Error pge ->
+            Postgresql.string_of_error pge
+        | Exception.DarkException de ->
+            Log.erroR ~bt "Caught DarkException in DB, reraising" ;
+            Caml.Printexc.raise_with_backtrace e bt
+        | e ->
+            Exception.exn_to_string e
+      in
+      Log.erroR
+        msg
+        ~bt
+        ~params:[("msg", msg); ("time", time () |> string_of_float)] ;
+      Exception.storage
+        "iter_with_cursor"
+        ~bt
+        ~info:[("msg", msg); ("time", time () |> string_of_float)] ) ;
+  ()
 
 
 (* ------------------------- *)
