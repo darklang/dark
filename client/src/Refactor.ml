@@ -151,7 +151,11 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
     match p with
     | PExpr body ->
         let name = generateFnName () in
-        let freeVars = AST.freeVariables body in
+        let dbs = TL.allDBNames m.toplevels in
+        let freeVars =
+          AST.freeVariables body
+          |> List.filter ~f:(fun (_id, v) -> not (List.member ~value:v dbs))
+        in
         let paramExprs =
           List.map ~f:(fun (_, name_) -> F (gid (), Variable name_)) freeVars
         in
