@@ -24,7 +24,7 @@ let toString (se : serializableEditor) : string =
 
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
-  (* let finalHandlerStates props =
+  let finalHandlerStates props =
     props
     |> StrDict.map ~f:(fun v ->
            { v with
@@ -40,14 +40,14 @@ let editor2model (e : serializableEditor) : model =
                    HandlerCollapsed
                | HandlerExpanding ->
                    HandlerExpanded ) } )
-  in *)
+  in
   { m with
     timersEnabled = e.timersEnabled
   ; cursorState = e.cursorState |> stripDragging
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlCursors = e.tlCursors
   ; featureFlags = e.featureFlags
-  ; handlerProps = e.handlerProps
+  ; handlerProps = finalHandlerStates e.handlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos} }
 
 
