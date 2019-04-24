@@ -1432,20 +1432,7 @@ let update_ (msg : msg) (m : model) : modification =
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | ToggleHighlight (tlid, name) ->
-      let new_props x =
-        match x with
-        | None ->
-            Some
-            {Defaults.defaultHandlerProp with hoveringVariableName = name}
-        | Some v ->
-            Some {v with hoveringVariableName = name}
-      in
-      TweakModel
-        (fun m ->
-          { m with
-            handlerProps =
-              StrDict.update ~key:(showTLID tlid) ~f:new_props m.handlerProps
-          } )
+      Introspect.toggleHighlight tlid name
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
