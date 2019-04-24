@@ -266,13 +266,20 @@ let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
     | _ ->
         meta )
   | TLDB dB ->
-      let dbname = B.deBlank "dBName as string" dB.dbName in
-      let value = DBMeta (dbname, dB.cols) in
-      StrDict.insert ~key ~value meta
+    (*let dbname = B.valueWithDefault "dBName as string" dB.dbName in *)
+    ( match dB.dbName with
+    | F (_, dbname) ->
+        let value = DBMeta (dbname, dB.cols) in
+        StrDict.insert ~key ~value meta
+    | Blank _ ->
+        meta )
   | TLFunc f ->
-      let fnName = B.deBlank "fnName as string" f.ufMetadata.ufmName in
-      let value = FunctionMeta (fnName, f.ufMetadata.ufmParameters) in
-      StrDict.insert ~key ~value meta
+    ( match f.ufMetadata.ufmName with
+    | F (_, name) ->
+        let value = FunctionMeta (name, f.ufMetadata.ufmParameters) in
+        StrDict.insert ~key ~value meta
+    | Blank _ ->
+        meta )
   | TLTipe _ ->
       meta
 
