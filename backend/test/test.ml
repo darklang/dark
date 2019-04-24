@@ -2159,6 +2159,7 @@ let t_result_to_response_works () =
          Canvas.update_cors_setting c cors_setting ;
          dval
          |> Webserver.result_to_response ~c ~execution_id ~req
+         |> Webserver.respond_or_redirect
          |> Lwt_main.run
          |> fst
          |> check )
@@ -2509,6 +2510,63 @@ let t_route_eq_path_mismatch_concrete () =
     bound
 
 
+let t_head_and_get_requests_are_coalesced () =
+  let test_name = "head-and-get-requests-are-coalsced" in
+  let setup_canvas () =
+    let n1 = hop (http_handler (ast_for "'test_body'")) in
+    let canvas = ops2c ("test-" ^ test_name) [n1] in
+    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
+    C.save_all !canvas ;
+    canvas
+  in
+  let respond_to_head_from_get (req : Req.t) : int * (int * string) =
+    Lwt_main.run
+      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let test_id = Types.id_of_int 1234 in
+       let canvas = setup_canvas () in
+       let%lwt resp, body =
+         Webserver.canvas_handler
+           ~execution_id:test_id
+           ~canvas:!canvas.host
+           ~ip:""
+           ~uri:(req |> Req.uri)
+           ~body:""
+           req
+       in
+       let code = resp |> Resp.status |> Code.code_of_status in
+       let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
+       resp
+       |> Resp.headers
+       |> (fun headers ->
+            match Header.get headers "Content-Length" with
+            | None ->
+                0
+            | Some h ->
+                int_of_string h )
+       |> fun content_length -> return (code, (content_length, body_string)))
+  in
+  let expected_body = "\"test_body\"" in
+  let expected_content_length = String.length expected_body in
+  AT.check
+    (AT.list (AT.pair AT.int (AT.pair AT.int AT.string)))
+    "canvas_handler returns same content-length for HEAD and GET requests"
+    (List.map
+       ~f:respond_to_head_from_get
+       (* valid basic auth login on darklang.com *)
+       [ Req.make
+           ?meth:(Some `GET)
+           (Uri.of_string
+              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
+         (* valid basic auth login on localhost *)
+       ; Req.make
+           ?meth:(Some `HEAD)
+           (Uri.of_string
+              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
+       ])
+    [ (200, (expected_content_length, expected_body))
+    ; (200, (expected_content_length, "")) ]
+
+
 let t_route_eq_path_match_concrete () =
   let route = "/a/b/c/d" in
   let path = "/a/b/c/d" in
@@ -2767,6 +2825,9 @@ let suite =
   ; ( "route = path but concrete mismatch"
     , `Quick
     , t_route_eq_path_mismatch_concrete )
+  ; ( "head and get requests are coalsced"
+    , `Quick
+    , t_head_and_get_requests_are_coalesced )
   ; ( "route = path solely concrete match"
     , `Quick
     , t_route_eq_path_match_concrete )
