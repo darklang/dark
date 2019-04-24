@@ -595,7 +595,9 @@ and exec_fn
           in
           state.store_fn_arguments tlid args ;
           engine.trace_tlid tlid ;
-          exec ~engine ~state args_with_dbs body
+          let result = exec ~engine ~state args_with_dbs body in
+          state.store_fn_result sfr_desc arglist result ;
+          result
       | Error errs ->
           let error_msgs =
             errs
@@ -639,11 +641,7 @@ let analysis_engine value_store tlid_store : engine =
 let execute_saving_intermediates
     ~(input_vars : input_vars) (state : exec_state) (ast : expr) :
     dval * dval_store * tlid list =
-  Log.infO
-    "Executing for intermediates"
-    ~params:
-      [ ("tlid", show_tlid state.tlid)
-      ; ("execution_id", Log.dump state.execution_id) ] ;
+  Log.infO "Executing for intermediates" ;
   let value_store = IDTable.create () in
   let tlid_store = TLIDTable.create () in
   let engine = analysis_engine value_store tlid_store in
@@ -655,16 +653,6 @@ let execute_saving_intermediates
 (* Execution *)
 (* -------------------- *)
 
-(* no value tracing when running in prod *)
-let real_engine_no_tracing : engine =
-  let empty_trace _ _ _ = () in
-  let empty_tlid _ = () in
-  { trace = empty_trace
-  ; trace_blank = empty_trace
-  ; trace_tlid = empty_tlid
-  ; ctx = Real }
-
-
 (* execute for real, tracing executed toplevels *)
 let server_execution_engine tlid_store : engine =
   let empty_trace _ _ _ = () in
@@ -675,20 +663,15 @@ let server_execution_engine tlid_store : engine =
 let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
   let tlid_store = TLIDTable.create () in
   let engine = server_execution_engine tlid_store in
-  Log.infO
-    "Executing for real"
-    ~params:
-      [ ("tlid", show_tlid state.tlid)
-      ; ("execution_id", Log.dump state.execution_id) ] ;
+  Log.infO "Executing for real" ;
   let result = exec ~engine ~state (input_vars2symtable input_vars) expr in
   (result, Hashtbl.keys tlid_store)
 
 
-let execute_userfn
-    (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:real_engine_no_tracing ~state
-
-
 let execute_fn
-    (state : exec_state) (name : string) (id : id) (args : dval list) : dval =
-  call_fn name id args false ~engine:real_engine_no_tracing ~state
+    (state : exec_state) (name : string) (id : id) (args : dval list) :
+    dval * tlid list =
+  let tlid_store = TLIDTable.create () in
+  let engine = server_execution_engine tlid_store in
+  let result = call_fn name id args false ~engine ~state in
+  (result, Hashtbl.keys tlid_store)

@@ -191,21 +191,40 @@ and pointerOwner =
   | POAst
   | PODb
 
-and tlReference =
-  | OutReferenceDB of tlid * dBName * dBColumn list * id
-  | OutReferenceEvent of tlid * string * string * id
-
-(* OutReferenceEvent tlid space name expr-id *)
-
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
+and handlerSpaceName = string
+
+and handlerName = string
+
+and handlerModifer = string
+
+and inTLID = tlid
+
+and toTLID = tlid
+
+and usage = inTLID * toTLID * id option
+
+and tlMeta =
+  | DBMeta of dBName * dBColumn list
+  | HandlerMeta of handlerSpaceName * handlerName * handlerModifer option
+  | FunctionMeta of fnName * userFunctionParameter list
+
+and usedIn =
+  | InHandler of
+      inTLID * handlerSpaceName * handlerName * handlerModifer option
+  | InFunction of inTLID * fnName * userFunctionParameter list
+
+and refersTo =
+  | ToDB of toTLID * dBName * dBColumn list * id
+  | ToEvent of toTLID * handlerSpaceName * handlerName * id
 
 (* handlers *)
 and handlerSpec =
-  { module_ : string blankOr
-  ; name : string blankOr
-  ; modifier : string blankOr }
+  { module_ : handlerSpaceName blankOr
+  ; name : handlerName blankOr
+  ; modifier : handlerModifer blankOr }
 
 and handlerSpace =
   | HSHTTP
@@ -418,7 +437,7 @@ and deployStatus =
 and staticDeploy =
   { deployHash : string
   ; url : string
-  ; lastUpdate : string
+  ; lastUpdate : Js.Date.t [@opaque]
   ; status : deployStatus }
 
 (* ------------------- *)
@@ -521,7 +540,7 @@ and addOpRPCResult =
 
 and dvalArgsHash = string
 
-and executeFunctionRPCResult = dval * dvalArgsHash
+and executeFunctionRPCResult = dval * dvalArgsHash * tlid list
 
 and triggerCronRPCResult = traceID * tlid list
 
@@ -703,8 +722,8 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of toplevel list * bool * bool
-  | UpdateToplevels of toplevel list * bool * bool
+  | SetToplevels of toplevel list * bool
+  | UpdateToplevels of toplevel list * bool
   | SetDeletedToplevels of toplevel list
   | UpdateDeletedToplevels of toplevel list
   | UpdateAnalysis of traceID * analysisResults
@@ -734,6 +753,7 @@ and modification =
   | ExecutingFunctionComplete of (tlid * id) list
   | MoveCanvasTo of pos
   | UpdateTraces of traces
+  | OverrideTraces of traces
   | UpdateTraceFunctionResult of
       tlid * traceID * id * fnName * dvalArgsHash * dval
   | AppendStaticDeploy of staticDeploy list
@@ -741,6 +761,9 @@ and modification =
   | TweakModel of (model -> model)
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
+  | InitIntrospect of toplevel list
+  | UpdateTLMeta of tlMeta StrDict.t
+  | UpdateTLUsage of usage list
 
 (* ------------------- *)
 (* Msgs *)
@@ -931,7 +954,8 @@ and model =
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
-  ; tlReferences : tlReference list StrDict.t }
+  ; tlUsages : usage list
+  ; tlMeta : tlMeta StrDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =

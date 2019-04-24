@@ -148,6 +148,7 @@ let respond
   respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
+
 let should_use_https uri =
   let parts =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
@@ -365,34 +366,14 @@ let user_page_handler
     ~(uri : Uri.t)
     ~(body : string)
     (req : CRequest.t) =
-  Log.infO "user_page_handler" ~params:[("uri", Uri.to_string uri)] ;
+  Log.infO "user_page_handler" ;
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  let c = C.load_http canvas ~verb ~path:(sanitize_uri_path (Uri.path uri)) in
-  let pages =
-    !c.handlers
-    |> TL.http_handlers
-    |> Http.filter_matching_handlers ~path:(sanitize_uri_path (Uri.path uri))
-  in
-  let trace_id = Util.create_uuid () in
-  let canvas_id = !c.id in
-  match pages with
-  | [] when String.Caseless.equal verb "OPTIONS" ->
-      options_handler ~execution_id !c req
-  | [] ->
-      let fof_timestamp =
-        PReq.from_request headers query body
-        |> PReq.to_dval
-        |> Stored_event.store_event
-             ~trace_id
-             ~canvas_id
-             ("HTTP", Uri.path uri, verb)
-      in
-      Stroller.push_new_404
-        ~execution_id
-        ~canvas_id
-        ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
+  let owner = Account.for_host canvas in
+  match owner with
+  | None ->
+      (* Account doesn't exist! Don't store the event or do any loading *)
       let resp_headers = Cohttp.Header.of_list [cors] in
       Respond
         { resp_headers
@@ -429,27 +410,87 @@ let user_page_handler
       let bound =
         Libexecution.Execution.http_route_input_vars page (Uri.path uri)
       in
-      let result, touched_tlids =
-        Libexecution.Execution.execute_handler
-          page
-          ~execution_id
-          ~account_id:!c.owner
-          ~canvas_id
-          ~user_fns:(Types.IDMap.data !c.user_functions)
-          ~user_tipes:(Types.IDMap.data !c.user_tipes)
-          ~tlid:page.tlid
-          ~dbs:(TL.dbs !c.dbs)
-          ~input_vars:([("request", PReq.to_dval input)] @ bound)
-          ~store_fn_arguments:
-            (Stored_function_arguments.store ~canvas_id ~trace_id)
-          ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
+      let pages =
+        !c.handlers
+        |> TL.http_handlers
+        |> Http.filter_matching_handlers
+             ~path:(sanitize_uri_path (Uri.path uri))
       in
-      Stroller.push_new_trace_id
-        ~execution_id
-        ~canvas_id
-        trace_id
-        (page.tlid :: touched_tlids) ;
-      result_to_response ~c ~execution_id ~req result
+      let trace_id = Util.create_uuid () in
+      let canvas_id = !c.id in
+      ( match pages with
+      | [] when String.Caseless.equal verb "OPTIONS" ->
+          options_handler ~execution_id !c req
+      | [] ->
+          let fof_timestamp =
+            PReq.from_request headers query body
+            |> PReq.to_dval
+            |> Stored_event.store_event
+                 ~trace_id
+                 ~canvas_id
+                 ("HTTP", Uri.path uri, verb)
+          in
+          Stroller.push_new_404
+            ~execution_id
+            ~canvas_id
+            ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
+          let resp_headers = Cohttp.Header.of_list [cors] in
+          respond
+            ~resp_headers
+            ~execution_id
+            `Not_found
+            "404 Not Found: No route matches"
+      | a :: b :: _ ->
+          let resp_headers = Cohttp.Header.of_list [cors] in
+          respond
+            `Internal_server_error
+            ~resp_headers
+            ~execution_id
+            ( "500 Internal Server Error: More than one handler for route: "
+            ^ Uri.path uri )
+      | [page] ->
+          let input = PReq.from_request headers query body in
+          ( match (Handler.module_for page, Handler.modifier_for page) with
+          | Some m, Some mo ->
+              (* Store the event with the input path not the event name, because we
+          * want to be able to
+          *    a) use this event if this particular handler changes
+          *    b) use the input url params in the analysis for this handler
+          *)
+              let desc = (m, Uri.path uri, mo) in
+              ignore
+                (Stored_event.store_event
+                   ~trace_id
+                   ~canvas_id
+                   desc
+                   (PReq.to_dval input))
+          | _ ->
+              () ) ;
+          let bound =
+            Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+          in
+          let result, touched_tlids =
+            Libexecution.Execution.execute_handler
+              page
+              ~execution_id
+              ~account_id:!c.owner
+              ~canvas_id
+              ~user_fns:(Types.IDMap.data !c.user_functions)
+              ~user_tipes:(Types.IDMap.data !c.user_tipes)
+              ~tlid:page.tlid
+              ~dbs:(TL.dbs !c.dbs)
+              ~input_vars:([("request", PReq.to_dval input)] @ bound)
+              ~store_fn_arguments:
+                (Stored_function_arguments.store ~canvas_id ~trace_id)
+              ~store_fn_result:
+                (Stored_function_result.store ~canvas_id ~trace_id)
+          in
+          Stroller.push_new_trace_id
+            ~execution_id
+            ~canvas_id
+            trace_id
+            (page.tlid :: touched_tlids) ;
+          result_to_response ~c ~execution_id ~req result )
 
 
 (* -------------------------------------------- *)
@@ -513,10 +554,30 @@ let static_assets_upload_handler
            * converts to the absolute url. In React, you would do this with
            * PUBLIC_URL. *)
           let body =
-            String.substr_replace_all
+            let filetype = Magic_mime.lookup filename in
+            let is_valid_text body =
+              body |> Libexecution.Unicode_string.of_string |> Option.is_some
+            in
+            (* Other mime type prefixes are video, image, audio,
+             * chemical, model, x-conference and can be ignored without
+             * the expensive conversion check *)
+            if String.is_prefix ~prefix:"video" filetype
+               || String.is_prefix ~prefix:"image" filetype
+               || String.is_prefix ~prefix:"audio" filetype
+               || String.is_prefix ~prefix:"chemical" filetype
+               || String.is_prefix ~prefix:"model" filetype
+               || String.is_prefix ~prefix:"x-conference" filetype
+            then body
+            else if String.is_prefix ~prefix:"text" filetype
+                    || is_valid_text body
+                    (* application/ or unknown and valid UTF-8*)
+            then
+              String.substr_replace_all
+                body
+                ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
+                ~with_:sa.url
+            else (* application/* or unknown and _not_ valid UTF-8 *)
               body
-              ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
-              ~with_:sa.url
           in
           Static_assets.upload_to_bucket filename body canvas deploy_hash
         in
@@ -567,10 +628,10 @@ let static_assets_upload_handler
           >>= (function
           | err_strs ->
               Log.erroR
-                ( "Failed to deploy static assets to "
-                ^ Canvas.name_for_id canvas
-                ^ ": "
-                ^ String.concat ~sep:";" err_strs ) ;
+                "Failed to deploy static assets to "
+                ~params:
+                  [ ("canvas", Canvas.name_for_id canvas)
+                  ; ("errs", String.concat ~sep:";" err_strs) ] ;
               Static_assets.delete_static_asset_deploy
                 canvas
                 branch
@@ -674,9 +735,9 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   let t2, c =
     time "2-load-saved-ops" (fun _ -> C.load_only ~tlids:[params.tlid] host [])
   in
-  let t3, result =
+  let t3, (result, tlids) =
     time "3-execute" (fun _ ->
-        Analysis.call_function
+        Analysis.execute_function
           !c
           params.fnname
           ~execution_id
@@ -687,8 +748,10 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t4, response =
     time "4-to-frontend" (fun _ ->
-        Analysis.to_execute_function_rpc_result (Dval.hash params.args) result
-    )
+        Analysis.to_execute_function_rpc_result
+          (Dval.hash params.args)
+          tlids
+          result )
   in
   respond
     ~execution_id
@@ -807,7 +870,7 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
   try
     let t1, cid =
       time "1-get-canvas-id" (fun _ ->
-          let owner = Account.for_host host in
+          let owner = Account.for_host_exn host in
           Serialize.fetch_canvas_id owner host )
     in
     let t2, p = time "2-to-route-params" (fun _ -> Api.to_route_params body) in
@@ -950,41 +1013,49 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
   | Ok (Some session) ->
       let username = Auth.Session.username_for session in
       let csrf_token = Auth.Session.csrf_token_for session in
-      if path = "/logout"
-      then (
-        Auth.Session.clear Auth.Session.backend session ;%lwt
-        let headers =
-          Header.of_list
-            ( username_header username
-            :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
-        in
-        let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
-        S.respond_redirect ~headers ~uri () )
-      else
-        let headers = [username_header username] in
-        over_headers_promise
-          ~f:(fun h -> Header.add_list h headers)
-          (handler ~session ~csrf_token req)
+      Log.add_log_annotations
+        [("username", `String username)]
+        (fun _ ->
+          if path = "/logout"
+          then (
+            Auth.Session.clear Auth.Session.backend session ;%lwt
+            let headers =
+              Header.of_list
+                ( username_header username
+                :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
+            in
+            let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
+            S.respond_redirect ~headers ~uri () )
+          else
+            let headers = [username_header username] in
+            over_headers_promise
+              ~f:(fun h -> Header.add_list h headers)
+              (handler ~session ~csrf_token req) )
   | _ ->
     ( match Header.get_authorization headers with
     | Some (`Basic (username, password)) ->
         if Account.authenticate ~username ~password
         then
-          let%lwt session = Auth.Session.new_for_username username in
-          let https_only_cookie = req |> CRequest.uri |> should_use_https in
-          let headers =
-            username_header username
-            :: Auth.Session.to_cookie_hdrs
-                 ~http_only:true
-                 ~secure:https_only_cookie
-                 ~path:"/"
-                 Auth.Session.cookie_key
-                 session
-          in
-          let csrf_token = Auth.Session.csrf_token_for session in
-          over_headers_promise
-            ~f:(fun h -> Header.add_list h headers)
-            (handler ~session ~csrf_token req)
+          Log.add_log_annotations
+            [("username", `String username)]
+            (fun _ ->
+              let%lwt session = Auth.Session.new_for_username username in
+              let https_only_cookie =
+                req |> CRequest.uri |> should_use_https
+              in
+              let headers =
+                username_header username
+                :: Auth.Session.to_cookie_hdrs
+                     ~http_only:true
+                     ~secure:https_only_cookie
+                     ~path:"/"
+                     Auth.Session.cookie_key
+                     session
+              in
+              let csrf_token = Auth.Session.csrf_token_for session in
+              over_headers_promise
+                ~f:(fun h -> Header.add_list h headers)
+                (handler ~session ~csrf_token req) )
         else respond ~execution_id `Unauthorized "Bad credentials"
     | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
@@ -1039,7 +1110,9 @@ let admin_ui_handler
     then
       match Account.owner ~auth_domain with
       | Some owner ->
-          f (Serialize.fetch_canvas_id owner canvasname)
+          Log.add_log_annotations
+            [("canvas", `String canvas)]
+            (fun _ -> f (Serialize.fetch_canvas_id owner canvasname))
       | None ->
           respond
             ~execution_id
@@ -1079,7 +1152,7 @@ let admin_api_handler
     if Account.can_edit_canvas
          ~auth_domain:(Account.auth_domain_for canvas)
          ~username
-    then f ()
+    then Log.add_log_annotations [("canvas", `String canvas)] f
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   match (verb, path) with
@@ -1154,15 +1227,18 @@ let admin_handler
         (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
         req
   | "a" :: canvasname :: _ ->
-      admin_ui_handler
-        ~execution_id
-        ~path
-        ~stopper
-        ~body
-        ~username
-        ~canvasname
-        ~csrf_token
-        req
+      Log.add_log_annotations
+        [("canvas", `String canvasname)]
+        (fun _ ->
+          admin_ui_handler
+            ~execution_id
+            ~path
+            ~stopper
+            ~body
+            ~username
+            ~canvasname
+            ~csrf_token
+            req )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
@@ -1307,14 +1383,13 @@ let k8s_handler req ~execution_id ~stopper =
       else (
         Log.infO
           "shutdown"
-          ~data:"Received redundant shutdown request - already shutting down"
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
+          ~data:"Received redundant shutdown request - already shutting down" ;
         respond ~execution_id `OK "Terminated" )
   | _ ->
       respond ~execution_id `Not_found ""
 
 
-let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
+g let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
 
 let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
   let verb = req |> CRequest.meth in
@@ -1354,8 +1429,7 @@ let canvas_handler
       |> respond_or_redirect
 
 
-let callback (ch, conn) req body stopper =
-  let execution_id = Util.create_id () in
+let callback (ch, conn) req body execution_id =
   let uri = CRequest.uri req in
   let ip = get_ip_address ch in
   let handle_error ~(include_internals : bool) (e : exn) =
@@ -1456,7 +1530,23 @@ let server () =
   let stop, stopper = Lwt.wait () in
   let cbwb conn req req_body =
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
-    callback conn req body_string stopper
+    let execution_id = Util.create_id () in
+    let request_path = Uri.path_and_query (CRequest.uri req) in
+    (* use the x-forwarded-for ip, falling back to the raw ip in the request *)
+    let ip =
+      let ch, _ = conn in
+      Header.get (CRequest.headers req) "X-forwarded-for"
+      |> Option.bind ~f:(fun str -> str |> String.split ~on:';' |> List.hd)
+      |> Option.map ~f:String.strip
+      |> Option.value ~default:(get_ip_address ch)
+    in
+    Log.add_log_annotations
+      [ ("execution_id", `String (Types.string_of_id execution_id))
+      ; ("request", `String request_path)
+      ; ("method", `String (Cohttp.Code.string_of_method (CRequest.meth req)))
+      ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
+      ; ("ip", `String ip) ]
+      (fun _ -> callback conn req body_string execution_id)
   in
   S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback:cbwb ())
 

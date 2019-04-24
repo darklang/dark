@@ -31,7 +31,10 @@ val can_edit_canvas : auth_domain:string -> username:string -> bool
 val auth_domain_for : string -> string
 
 (* Get the owner of a host *)
-val for_host : string -> Uuidm.t
+val for_host : string -> Uuidm.t option
+
+(* Get the owner of a host *)
+val for_host_exn : string -> Uuidm.t
 
 (* Add (or update) a user *)
 val upsert_user :

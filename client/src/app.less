@@ -403,10 +403,19 @@ body #app * {
   }
 }
 
-.references {
+.usages {
   position: absolute;
   left: calc(~"100% + 30px");
   
+  display: flex;
+  flex-direction: column;
+
+}
+
+.used-in {
+  position: absolute;
+  left: calc(~"100% + 30px");
+
   display: flex;
   flex-direction: column;
 }
@@ -445,25 +454,50 @@ body #app * {
     }
   }
 
-  &.emit {
+  &.emit, &.handler {
     display: flex;
     flex-direction: row;
-    .spec {
-      display: inline-block;
-      
-      margin-left: 4ch;
-      padding-bottom: 2px;
-      padding-top: 0;
-      padding-left: 1ch;
-      padding-right: 1ch;
+    border-bottom: 1px solid @orange;
+  }
 
-      border-bottom: 1px solid @orange;
-      
-      color: @orange;
+  .spec {
+    display: inline-block;
+    
+    margin-left: 4ch;
+    padding-bottom: 2px;
+    padding-top: 0;
+    padding-left: 1ch;
+    padding-right: 1ch;
+    
+    color: @orange;
 
-      &:first-child {
-        margin-left: 0;
-      }
+    &:first-child {
+      margin-left: 0;
+    }
+  }
+
+  .fnicon, .fnname {
+    display: inline-block;
+  }
+
+  .fnname {
+    color: @white3;
+  }
+
+  .fnheader, .fnparams {
+    display: block;
+    width: 100%;
+  }
+
+  .fnparam {
+    display: inline-block;
+    color: @grey2;
+    font-size: @code-font-size * 0.8;
+    margin: 0 12px;
+
+    .has-blanks {
+      color: lighten(@red, 12%);
+      font-style: italic;
     }
   }
 }

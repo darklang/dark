@@ -509,7 +509,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (tls, updateCurrent, updateRefs) ->
+    | SetToplevels (tls, updateCurrent) ->
         let m2 = {m with toplevels = tls} in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -520,31 +520,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getTL m tlid in
-                let m_ =
-                  match tl.data with
-                  | TLDB _ ->
-                      TL.upsert m2 tl
-                  | TLHandler _ ->
-                      TL.upsert m2 tl
-                  | TLTipe _ ->
-                      m2
-                  | TLFunc _ ->
-                      m2
-                in
-                if updateRefs
-                then
-                  let r = TL.getReferences tl tls in
-                  { m_ with
-                    tlReferences =
-                      StrDict.insert
-                        ~key:(showTLID tlid)
-                        ~value:r
-                        m_.tlReferences }
-                else m_
+                ( match tl.data with
+                | TLDB _ ->
+                    TL.upsert m2 tl
+                | TLHandler _ ->
+                    TL.upsert m2 tl
+                | TLTipe _ ->
+                    m2
+                | TLFunc _ ->
+                    m2 )
           | None ->
-              if updateRefs
-              then {m2 with tlReferences = TL.initReferences tls}
-              else m2
+              m2
         in
         let m4 =
           { m3 with
@@ -553,11 +539,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
-    | UpdateToplevels (tls, updateCurrent, updateRefs) ->
+    | UpdateToplevels (tls, updateCurrent) ->
         let m = TL.upsertAll m tls in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (m.toplevels, updateCurrent, updateRefs))
+          (SetToplevels (m.toplevels, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels dtls ->
         let m2 =
@@ -579,33 +565,30 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateTraces traces ->
         let newTraces =
-          StrDict.merge m.traces traces ~f:(fun _tlid oldList newList ->
-              match (oldList, newList) with
-              | None, None ->
-                  None
-              | Some o, None ->
-                  Some o
-              | None, Some n ->
-                  Some n
-              | Some o, Some n ->
-                  (* merge the lists, updating the trace in the same position
-                   * if present, and adding it to the front otherwise. *)
-                  Some
-                    (List.foldl n ~init:o ~f:(fun (newID, newData) list ->
-                         let found = ref false in
-                         let updated =
-                           List.map list ~f:(fun (oldID, oldData) ->
-                               if oldID = newID
-                               then (
-                                 found := true ;
-                                 if newData <> None
-                                 then (newID, newData)
-                                 else (oldID, oldData) )
-                               else (oldID, oldData) )
-                         in
-                         if !found (* deref, not "not" *)
-                         then updated
-                         else (newID, newData) :: list )) )
+          Analysis.mergeTraces
+            ~onConflict:(fun (oldID, oldData) (newID, newData) ->
+              if newData <> None then (newID, newData) else (oldID, oldData) )
+            m.traces
+            traces
+        in
+        let m = {m with traces = newTraces} in
+        let m, afCmd = Analysis.analyzeFocused m in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (m, Cmd.batch [afCmd; acCmd])
+    | OverrideTraces traces ->
+        (* OverrideTraces takes a set of traces and merges it with the model, but if
+         * the (tlid, traceID) pair occurs in both, the result will have its data
+         * blown away.
+         *
+         * Use OverrideTraces when a set of traceIDs has been received by the client but
+         * some/all of them might represent _mutated_ traces. (ie. a trace where if
+         * you re-fetch the trace data you'd get a different set of input values or
+         * stored function results *)
+        let newTraces =
+          Analysis.mergeTraces
+            ~onConflict:(fun _old (newID, _) -> (newID, None))
+            m.traces
+            traces
         in
         let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -801,6 +784,30 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Cmd.none )
     | TriggerCronRPC tlid ->
         (m, RPC.triggerCron m {tcpTLID = tlid})
+    | InitIntrospect tls ->
+        let newM =
+          { m with
+            tlUsages = Introspect.initUsages tls
+          ; tlMeta = Introspect.initTLMeta tls }
+        in
+        (newM, Cmd.none)
+    | UpdateTLMeta newMeta ->
+        let mergedMeta =
+          StrDict.merge m.tlMeta newMeta ~f:(fun _tlid oldMeta newMeta ->
+              match (oldMeta, newMeta) with
+              | None, None ->
+                  None
+              | Some o, None ->
+                  Some o
+              | None, Some n ->
+                  Some n
+              | Some _, Some n ->
+                  Some n )
+        in
+        ({m with tlMeta = mergedMeta}, Cmd.none)
+    | UpdateTLUsage usages ->
+        ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
+        , Cmd.none )
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -914,7 +921,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (m2.toplevels, true, false)
+          [ SetToplevels (m2.toplevels, true)
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -942,7 +949,6 @@ let update_ (msg : msg) (m : model) : modification =
               let tl = TL.getTL m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              
               (* the SetCursorState here isn't always necessary *)
               (* because in the happy case we'll also receive *)
               (* a ToplevelClick event, but it seems that sometimes *)
@@ -1107,29 +1113,35 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, oparams, Ok r) ->
-      let shouldUpdateRefs = Introspect.shouldUpdateReferences oparams.ops in
+  | AddOpRPCCallback (focus, o, Ok r) ->
+      let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+      let metaMod = Introspect.metaMod o.ops alltls in
+      let usageMod = Introspect.usageMod o.ops alltls in
       if focus = FocusNoChange
       then
         Many
-          [ UpdateToplevels (r.toplevels, false, shouldUpdateRefs)
+          [ UpdateToplevels (r.toplevels, false)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
           ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-          ; MakeCmd (Entry.focusEntry m) ]
+          ; MakeCmd (Entry.focusEntry m)
+          ; metaMod
+          ; usageMod ]
       else
         let m2 = TL.upsertAll m r.toplevels in
         let m3 = {m2 with userFunctions = r.userFunctions} in
         let m4 = {m3 with userTipes = r.userTipes} in
         let newState = processFocus m4 focus in
         Many
-          [ UpdateToplevels (r.toplevels, true, shouldUpdateRefs)
+          [ UpdateToplevels (r.toplevels, true)
           ; UpdateDeletedToplevels r.deletedToplevels
           ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
           ; SetTypes (r.userTipes, r.deletedUserTipes, true)
           ; AutocompleteMod ACReset
           ; ClearError
-          ; newState ]
+          ; newState
+          ; metaMod
+          ; usageMod ]
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1139,6 +1151,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; handlerProps = ViewUtils.createHandlerProp r.toplevels }
       in
       let newState = processFocus pfM focus in
+      let allTLs = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, None) in
@@ -1150,7 +1163,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.toplevels, true, true)
+        [ SetToplevels (r.toplevels, true)
         ; SetDeletedToplevels r.deletedToplevels
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
@@ -1161,10 +1174,16 @@ let update_ (msg : msg) (m : model) : modification =
         ; ClearError
         ; extraMod
         ; newState
-        ; UpdateTraces traces ]
+        ; UpdateTraces traces
+        ; InitIntrospect allTLs ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
-  | ExecuteFunctionRPCCallback (params, Ok (dval, hash)) ->
+  | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids)) ->
+      let traces =
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
+          tlids
+      in
       Many
         [ UpdateTraceFunctionResult
             ( params.efpTLID
@@ -1173,7 +1192,8 @@ let update_ (msg : msg) (m : model) : modification =
             , params.efpFnName
             , hash
             , dval )
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)] ]
+        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
+        ; OverrideTraces (StrDict.fromList traces) ]
   | TriggerCronRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->

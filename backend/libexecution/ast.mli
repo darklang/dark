@@ -18,13 +18,6 @@ val execute_ast :
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.dval * Types.tlid list
 
-val execute_userfn :
-     Types.RuntimeT.exec_state
-  -> string
-  -> Types.id
-  -> Types.RuntimeT.dval list
-  -> Types.RuntimeT.dval
-
 val execute_saving_intermediates :
      input_vars:Types.RuntimeT.input_vars
   -> Types.RuntimeT.exec_state
@@ -36,4 +29,4 @@ val execute_fn :
   -> string
   -> Types.id
   -> Types.RuntimeT.dval list
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.dval * Types.tlid list
