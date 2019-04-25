@@ -782,6 +782,8 @@ let fn_page_returns_to_lastpos (m : model) : testResult =
 
 let fn_page_to_handler_pos (_m : model) : testResult = pass
 
+let load_with_unnamed_function (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -900,5 +902,7 @@ let trigger (test_name : string) : integrationTestState =
         fn_page_to_handler_pos
     | "autocomplete_visible_height" ->
         autocomplete_visible_height
+    | "load_with_unnamed_function" ->
+        load_with_unnamed_function
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
