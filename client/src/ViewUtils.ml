@@ -28,9 +28,9 @@ type viewState =
   ; userContentHost : string
   ; inReferences : usedIn list
   ; toReferences : refersTo list
-  ; usageBlankOrs : id list }
+  ; usagesOfHoveredReference : id list }
 
-let variableUsageOfEditingLet (tl : toplevel) (cs : cursorState) : id list =
+let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
   | Entering (Filling (_, id)) ->
     ( match Toplevel.find tl id with
@@ -71,7 +71,7 @@ let variableUsageOfEditingLet (tl : toplevel) (cs : cursorState) : id list =
       []
 
 
-let variableUsageOfHoveringRefersTo (tl : toplevel) (hp : handlerProp option) :
+let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
     id list =
   match tl.data with
   | TLHandler h ->
@@ -115,7 +115,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
   ; traces = Analysis.getTraces m tl.id
   ; analyses = m.analyses
-  ; relatedBlankOrs = variableUsageOfEditingLet tl m.cursorState
+  ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
   ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
@@ -138,7 +138,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
           Introspect.allTo tlid_ m
       | _ ->
           [] )
-  ; usageBlankOrs = variableUsageOfHoveringRefersTo tl hp }
+  ; usagesOfHoveredReference = usagesOfHoveredReference tl hp }
 
 
 let fontAwesome (name : string) : msg Html.html =
