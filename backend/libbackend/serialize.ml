@@ -93,7 +93,7 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
 
 let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   Db.fetch
-    ~name:"load_per_tlid_oplists"
+    ~name:"load_all_from_db"
     "SELECT data FROM toplevel_oplists
      WHERE canvas_id = $1"
     ~params:[Uuid canvas_id]
@@ -101,20 +101,40 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   |> strs2tlid_oplists
 
 
-let load_only_for_tlids
+let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
+    : Op.tlid_oplists =
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
+  Db.fetch
+    ~name:"load_only_tlids"
+    "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
+let load_with_context
     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
     Op.tlid_oplists =
-  let tlid_params =
-    tlids |> List.map ~f:Types.string_of_id |> String.concat ~sep:", "
-  in
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
-    ~name:"load_only_for_tilds"
-    ( "SELECT data FROM toplevel_oplists
+    ~name:"load_with_context"
+    "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
-        AND (tlid = ANY('{"
-    ^ tlid_params
-    ^ "}'::bigint[])
-             OR tipe <> 'handler'::toplevel_type)" )
+        AND tlid = ANY (string_to_array($2, $3)::bigint[])
+         OR tipe <> 'handler'::toplevel_type"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
+let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
+  Db.fetch
+    ~name:"load_all_dbs"
+    "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND tipe = 'db'::toplevel_type"
     ~params:[Db.Uuid canvas_id]
     ~result:BinaryResult
   |> strs2tlid_oplists
@@ -139,6 +159,8 @@ let load_for_http
 
 
 let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
+  (* CRONs (atm at least) dont have access to DBs and other vars by design.
+   * Maybe we'll change that later. *)
   Db.fetch
     ~name:"load_for_cron"
     "SELECT data FROM toplevel_oplists

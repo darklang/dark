@@ -411,13 +411,29 @@ let load_all host (newops : Op.op list) : canvas ref =
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-let load_only ~tlids host (newops : Op.op list) : canvas ref =
+let load_only_tlids ~tlids host (newops : Op.op list) : canvas ref =
   let owner = Account.for_host_exn host in
-  load_from ~f:(Serialize.load_only_for_tlids ~tlids) host owner newops
+  load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
+
+
+let load_all_dbs host (newops : Op.op list) : canvas ref =
+  let owner = Account.for_host_exn host in
+  load_from ~f:Serialize.load_all_dbs host owner newops
+
+
+let load_with_context ~tlids host (newops : Op.op list) : canvas ref =
+  let owner = Account.for_host_exn host in
+  load_from ~f:(Serialize.load_with_context ~tlids) host owner newops
 
 
 let load_http ~verb ~path host owner : canvas ref =
+  let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_for_http ~path ~verb) host owner []
+
+
+let load_without_tls host : canvas ref =
+  let owner = Account.for_host_exn host in
+  load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
 let load_cron host : canvas ref =
