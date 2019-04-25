@@ -1,0 +1,28 @@
+[
+  [ "TLSavepoint", 2296485551 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 2296485551,
+      "metadata": {
+        "name": [ "Blank", 12399029 ],
+        "parameters": [],
+        "return_type": [ "Filled", 4137008247, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [
+        "Filled",
+        1894833988,
+        [
+          "FnCall",
+          "+",
+          [
+            [ "Filled", 1001241551, [ "Value", "5" ] ],
+            [ "Filled", 540981105, [ "Value", "5" ] ]
+          ]
+        ]
+      ]
+    }
+  ]
+]

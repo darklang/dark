@@ -1022,3 +1022,9 @@ test('autocomplete_visible_height', async t => {
     .typeText("#entry-box", "r")
     .expect(Selector('li.autocomplete-item.valid').nth(5).visible).ok();
 });
+
+test('load_with_unnamed_function', async t => {
+  await t
+    .pressKey("enter")
+    .expect(entryBoxAvailable()).ok()
+});
