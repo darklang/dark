@@ -292,7 +292,7 @@ let initTLMeta (toplevels : toplevel list) : tlMeta StrDict.t =
   List.foldl ~f:updateMeta ~init:StrDict.empty toplevels
 
 
-let toggleHighlight (tlid : tlid) (name : varName option) : modification =
+let setHoveringVarName (tlid : tlid) (name : varName option) : modification =
   let new_props x =
     match x with
     | None ->

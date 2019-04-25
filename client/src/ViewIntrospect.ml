@@ -33,11 +33,11 @@ let dbView
     ; ViewUtils.eventNoPropagation
         ~key:("ref-db-hover-in" ^ showTLID originTLID)
         "mouseenter"
-        (fun _ -> ToggleHighlight (originTLID, Some name))
+        (fun _ -> SetHoveringVarName (originTLID, Some name))
     ; ViewUtils.eventNoPropagation
         ~key:("ref-db-hover-out" ^ showTLID originTLID)
         "mouseleave"
-        (fun _ -> ToggleHighlight (originTLID, None)) ]
+        (fun _ -> SetHoveringVarName (originTLID, None)) ]
     [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
 
