@@ -1431,8 +1431,8 @@ let update_ (msg : msg) (m : model) : modification =
           {m with canvasProps = {m.canvasProps with panAnimation = false}} )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
-  | ToggleHighlight (tlid, name) ->
-      Introspect.toggleHighlight tlid name
+  | SetHoveringVarName (tlid, name) ->
+      Introspect.setHoveringVarName tlid name
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

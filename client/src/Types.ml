@@ -859,7 +859,7 @@ and msg =
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
-  | ToggleHighlight of tlid * string option
+  | SetHoveringVarName of tlid * string option
 
 (* ----------------------------- *)
 (* AB tests *)
