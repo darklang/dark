@@ -169,9 +169,14 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
           {w = Native.Ext.clientWidth e; h = Native.Ext.clientHeight e}
         in
         let windowSize = m.canvasProps.viewportSize in
-        if Viewport.isEnclosed
-             (m.canvasProps.offset, windowSize)
-             (tl.pos, tsize)
+        let sidebarWidth =
+          let sidebar = Native.Ext.querySelector "#sidebar-left" in
+          match sidebar with Some e -> Native.Ext.clientWidth e | None -> 320
+        in
+        let outerOffset =
+          {m.canvasProps.offset with x = m.canvasProps.offset.x + sidebarWidth}
+        in
+        if Viewport.isEnclosed (outerOffset, windowSize) (tl.pos, tsize)
         then m.canvasProps.offset
         else Viewport.centerCanvasOn tl m.canvasProps
     | None ->
