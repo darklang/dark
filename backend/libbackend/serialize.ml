@@ -122,8 +122,8 @@ let load_with_context
     ~name:"load_with_context"
     "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
-      AND tlid = ANY (string_to_array($2, $3)::bigint[])
-             OR tipe <> 'handler'::toplevel_type)"
+        AND tlid = ANY (string_to_array($2, $3)::bigint[])
+         OR tipe <> 'handler'::toplevel_type"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2tlid_oplists
