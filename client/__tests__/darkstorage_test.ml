@@ -43,5 +43,6 @@ let () =
           in
           let mergedList = [newDeploy; d2; d1] in
           expect (Ds.appendDeploy [newDeploy] originalList)
-          |> toEqual mergedList ) ) ;
+          |> toEqual mergedList ) ;
+      () ) ;
   ()
