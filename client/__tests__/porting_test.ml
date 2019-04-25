@@ -28,6 +28,6 @@ let () =
         (fun () -> expect (String.dropRight ~count:3 "foo") |> toEqual "" ) ;
       test
         "it returns the empty string when told to drop a number > length"
-        (fun () -> expect (String.dropRight ~count:5555 "foo") |> toEqual "" )
-  ) ;
+        (fun () -> expect (String.dropRight ~count:5555 "foo") |> toEqual "" ) ;
+      () ) ;
   ()

@@ -113,5 +113,6 @@ let () =
              let l = B.newF (Let (B.newF "v", deep, B.new_ ())) in
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
              usesRail expr)
-          |> toEqual false ) ) ;
+          |> toEqual false ) ;
+      () ) ;
   ()

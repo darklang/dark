@@ -162,7 +162,8 @@ let () =
                   defaultModel ~cursorState:(fillingCS ()) ()
                   |> fun x -> acFor x )
               |> not_
-              |> toThrow ) ) ;
+              |> toThrow ) ;
+          () ) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
@@ -405,7 +406,8 @@ let () =
                 |> setQuery m ""
                 |> itemPresent (ACEventName "/")
                 |> not )
-              |> toEqual true ) ) ;
+              |> toEqual true ) ;
+          () ) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
           test "entering a DB name that used to be invalid works" (fun () ->
@@ -548,5 +550,7 @@ let () =
                 |> setQuery m "myfunction"
                 |> itemPresent (ACOmniAction (NewFunction (Some "myfunction")))
                 )
-              |> toEqual true ) ) ) ;
+              |> toEqual true ) ;
+          () ) ;
+      () ) ;
   ()

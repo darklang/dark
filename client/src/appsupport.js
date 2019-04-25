@@ -71,6 +71,59 @@ if (pusherConfig.enabled) {
 }
 
 // ---------------------------
+// Fluid
+// ---------------------------
+// https://stackoverflow.com/a/41034697/104021
+function isChildOfEditor(node) {
+  while (node !== null) {
+    if (node.id === "editor") {
+      return true;
+    }
+    node = node.parentNode;
+  }
+
+  return false;
+};
+
+function getCursorPosition() {
+  var selection = window.getSelection();
+  if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
+
+  count = selection.focusOffset;
+  node = selection.focusNode.parentNode;
+  while (node.previousSibling) {
+    node = node.previousSibling;
+    count += node.textContent.length;
+  }
+  return count;
+};
+
+function setCursorPosition(pos) {
+  editor = document.getElementById("editor");
+  if (!editor) throw "no editor";
+  if (pos < 0) pos = 0;
+  if (pos > editor.textContent.length)
+    pos = editor.textContent.length;
+  for (var i = 0; i < editor.childNodes.length; i++) {
+    let node = editor.childNodes[i];
+    let length = node.textContent.length;
+    if (pos <= length) {
+      let range = document.createRange();
+      range.setStart(node.childNodes[0], pos);
+      range.setEnd(node.childNodes[0], pos);
+      range.collapse(true);
+      selection = document.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      node.focus();
+      return;
+    } else {
+      pos -= length;
+    }
+  }
+};
+
+// ---------------------------
 // Analysis
 // ---------------------------
 
