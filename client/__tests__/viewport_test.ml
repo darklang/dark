@@ -17,5 +17,6 @@ let () =
       test "box partially in viewport should return true" (fun () ->
           let viewport = ({x = 0; y = 0}, {w = 800; h = 600}) in
           let box = ({x = 700; y = 20}, {w = 500; h = 250}) in
-          expect (isEnclosed viewport box) |> toBe true ) ) ;
+          expect (isEnclosed viewport box) |> toBe true ) ;
+      () ) ;
   ()

@@ -69,5 +69,6 @@ let () =
             }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
-          expect ops |> toEqual [] ) ) ;
+          expect ops |> toEqual [] ) ;
+      () ) ;
   ()
