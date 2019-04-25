@@ -595,9 +595,6 @@ let eToStructure (e : expr) : string =
 type msg =
   | KeyPress of K.keyEvent
   | MouseClick
-  | ResetButton
-  | LocationChange of Web.Location.location
-  | SaveEditor
   | NoEvent
 
 type model =
@@ -1832,7 +1829,7 @@ let updateKey (key : K.key) (m : model) : model =
 let update (m : model) (msg : msg) =
   let m = {m with error = None; oldPos = m.newPos} in
   match msg with
-  | LocationChange _ | NoEvent ->
+  | NoEvent ->
       (m, Cmd.none)
   | MouseClick ->
     ( match getCursorPosition () with
@@ -1840,12 +1837,6 @@ let update (m : model) (msg : msg) =
         ({m with newPos}, Cmd.none)
     | None ->
         ({m with error = Some "found no pos"}, Cmd.none) )
-  | ResetButton ->
-      (emptyM, Cmd.none)
-  | SaveEditor ->
-      let state = Encoders.expr m.expr |> Json.stringify in
-      Dom.Storage.setItem "fluidproto2-program" state Dom.Storage.localStorage ;
-      (m, Cmd.none)
   | KeyPress {key} ->
       let m = {m with lastKey = key; actions = []} in
       let newM = updateKey key m in
@@ -1903,11 +1894,6 @@ let view (m : model) : msg Html.html =
           |> List.dropRight ~count:1
           |> List.map ~f:Html.text ) ) ]
   in
-  let reset =
-    Html.button
-      [Html.onCB "click" "resetButton" (function _ -> Some ResetButton)]
-      [Html.text "Reset"]
-  in
   let posDiv =
     let oldGrid = gridFor ~pos:m.oldPos tokens in
     let newGrid = gridFor ~pos:m.newPos tokens in
@@ -1963,7 +1949,7 @@ let view (m : model) : msg Html.html =
     ; Html.br []
     ; Html.text ("next: " ^ n) ]
   in
-  let status = List.concat [posDiv; tokenDiv; actions; [reset]] in
+  let status = List.concat [posDiv; tokenDiv; actions] in
   let editor =
     let event ~(key : string) (event : string) : msg Vdom.property =
       let decodeNothing =
@@ -1988,47 +1974,26 @@ let view (m : model) : msg Html.html =
   in
   Html.div [Attrs.id "app"] (editor :: status)
 
-
 (* -------------------- *)
 (* Scaffolidng *)
 (* -------------------- *)
 
-let registerGlobalDirect name tagger =
-  let open Vdom in
-  let enableCall callbacks_base =
-    let callbacks = ref callbacks_base in
-    let fn ev = Some (tagger (Obj.magic ev)) in
-    let handler = EventHandlerCallback (name, fn) in
-    let elem = Web_node.document_node in
-    let cache = eventHandler_Register callbacks elem name handler in
-    fun () -> ignore (eventHandler_Unregister elem name cache)
-  in
-  Tea_sub.registration name enableCall
+(* let registerGlobalDirect name tagger = *)
+(*   let open Vdom in *)
+(*   let enableCall callbacks_base = *)
+(*     let callbacks = ref callbacks_base in *)
+(*     let fn ev = Some (tagger (Obj.magic ev)) in *)
+(*     let handler = EventHandlerCallback (name, fn) in *)
+(*     let elem = Web_node.document_node in *)
+(*     let cache = eventHandler_Register callbacks elem name handler in *)
+(*     fun () -> ignore (eventHandler_Unregister elem name cache) *)
+(*   in *)
+(*   Tea_sub.registration name enableCall *)
+(*  *)
 
-
-let init (_flagString : string) (_location : Web.Location.location) =
-  Random.init 0 ;
-  let expr =
-    match
-      Dom.Storage.getItem "fluidproto2-program" Dom.Storage.localStorage
-    with
-    | None ->
-        startingExpr
-    | Some str ->
-        Decoders.expr (Json.parseOrRaise str)
-  in
-  ({emptyM with expr}, Cmd.none)
-
-
-let subscriptions (_m : model) : msg Tea.Sub.t =
-  let keySubs = [Keyboard.downs (fun x -> KeyPress x)] in
-  let mouseSubs = [Mouse.ups (fun _ -> MouseClick)] in
-  let events = [registerGlobalDirect "SaveEditor" (fun _ -> SaveEditor)] in
-  Tea.Sub.batch (List.concat [keySubs; mouseSubs; events])
-
-
-let main =
-  let program : (string, model, msg) Tea.Navigation.navigationProgram =
-    {init; view; update; subscriptions; shutdown = (fun _ -> Cmd.none)}
-  in
-  Tea.Navigation.navigationProgram (fun x -> LocationChange x) program
+(* let subscriptions (_m : model) : msg Tea.Sub.t = *)
+(*   let keySubs = [Keyboard.downs (fun x -> KeyPress x)] in *)
+(*   let mouseSubs = [Mouse.ups (fun _ -> MouseClick)] in *)
+(*   let events = [registerGlobalDirect "SaveEditor" (fun _ -> SaveEditor)] in *)
+(*   Tea.Sub.batch (List.concat [keySubs; mouseSubs; events]) *)
+(*  *)
