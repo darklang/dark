@@ -266,7 +266,6 @@ let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
     | _ ->
         meta )
   | TLDB dB ->
-    (*let dbname = B.valueWithDefault "dBName as string" dB.dbName in *)
     ( match dB.dbName with
     | F (_, dbname) ->
         let value = DBMeta (dbname, dB.cols) in
