@@ -10,12 +10,18 @@ let toVariantTest (s : string * bool) : variantTest option =
   | _, false ->
       None
   | test, _ ->
-    (match String.toLower test with "stub" -> Some StubVariant | _ -> None)
+    ( match String.toLower test with
+    | "stub" ->
+        Some StubVariant
+    | "fluid" ->
+        Some FluidVariant
+    | _ ->
+        None )
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with StubVariant -> "stub"
+    match vt with StubVariant -> "stub" | FluidVariant -> "fluid"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)
