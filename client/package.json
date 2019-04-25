@@ -5,7 +5,7 @@
   "private": true,
   "author": "",
   "devDependencies": {
-    "@glennsl/bs-jest": "^0.4.7",
+    "@glennsl/bs-jest": "^0.4.8",
     "browserify": "^16.1.1",
     "browserify-incremental": "^3.1.1",
     "bs-platform": "4.0.18",
@@ -17,7 +17,7 @@
     "@glennsl/bs-json": "3.0.0",
     "bs-fetch": "^0.3.1",
     "bs-uuid": "^0.3.1",
-    "bs-webapi": "^0.13.0",
+    "bs-webapi": "^0.13.4",
     "bucklescript-tea": "darklang/bucklescript-tea#master",
     "clipboard-copy": "^2.0.1",
     "domready": "^1.0.8",
