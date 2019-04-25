@@ -183,6 +183,15 @@ let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.json) (e : exn) : unit =
     | _ ->
         [("error", `String "unexpected payload format")]
   in
+  (* rollbar payload includes a request object, but this overwrites the
+     * request path data (key "request") set in webserver.ml, which is in a
+     * format that honeycomb knows how to deal with. So the key for rollbar's
+     * request data to request_obj *)
+  let payload =
+    payload
+    |> List.map ~f:(fun (k, v) ->
+           match k with "request" -> ("request_obj", v) | _ -> (k, v) )
+  in
   let payload =
     match rollbar_link_of_curl_buffer r with
     | None ->
