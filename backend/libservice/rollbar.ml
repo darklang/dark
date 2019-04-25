@@ -20,6 +20,32 @@ type err_ctx =
   | Push of string
   | Other of string
 
+(* "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
+ *)
+(* The escaping on this is a bit overkill - it'll do a layer of url-escaping
+ * beyond the example above, which we don't need - but the link works *)
+let honeycomb_link_of_execution_id (execution_id : string) : string =
+  let (query : Yojson.Safe.json) =
+    `Assoc
+      [ ( "filters"
+        , `List
+            [ `Assoc
+                [ ("column", `String "execution_id")
+                ; ("op", `String "=")
+                ; ("value", `String execution_id) ] ] )
+      ; ("limit", `Int 100)
+      ; ("time_range", `Int 604800) ]
+    (* 604800 is 7 days *)
+  in
+  Uri.make
+    ~scheme:"https"
+    ~host:"ui.honeycomb.io"
+    ~path:"/dark/datasets/kubernetes-bwd-ocaml"
+    ~query:[("query", [query |> Yojson.Safe.to_string])]
+    ()
+  |> Uri.to_string
+
+
 let error_to_payload
     ~pp
     ~inspect
@@ -39,6 +65,7 @@ let error_to_payload
     let interior =
       [ ("body", `String (pp e))
       ; ("raw_trace", `String (Caml.Printexc.raw_backtrace_to_string bt))
+      ; ("honeycomb", `String (honeycomb_link_of_execution_id execution_id))
       ; ("raw_info", inspect e) ]
       |> fun b -> `Assoc b
     in
