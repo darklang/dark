@@ -862,7 +862,9 @@ and msg =
 (* AB tests *)
 (* ----------------------------- *)
 (* just a stub *)
-and variantTest = StubVariant
+and variantTest =
+  | StubVariant
+  | FluidVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
