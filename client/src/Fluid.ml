@@ -88,6 +88,8 @@ type ast = expr
 
 let gid () = string_of_int (Random.int (4096 * 1024) |> abs)
 
+let fromExpr (_ : Types.expr) : expr = EBlank (gid ())
+
 let eid expr : id =
   match expr with
   | EInteger (id, _)
@@ -594,32 +596,7 @@ let eToStructure (e : expr) : string =
 (* TEA *)
 (* -------------------- *)
 
-type msg =
-  | KeyPress of K.keyEvent
-  | MouseClick
-  | NoEvent
-
-type state =
-  { error : string option
-  ; actions : string list
-  ; oldPos : int
-  ; newPos : int
-  ; upDownCol :
-      int option
-      (* When moving up or down, and going through whitespace, track the column
-       * so we can go back to it *)
-  ; acPos : int option
-  ; lastKey : K.key }
-
-let emptyState =
-  { actions = []
-  ; error = None
-  ; oldPos = 0
-  ; newPos = 0
-  ; upDownCol = None
-  ; acPos = Some 0
-  ; lastKey = K.Escape }
-
+type state = Types.fluidState
 
 (* -------------------- *)
 (* Direct canvas interaction *)
@@ -1832,18 +1809,17 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   (newAST, newState)
 
 
-let update (ast : ast) (s : state) (msg : msg) : (ast * state) * msg Cmd.t =
+let update (ast : ast) (s : state) (msg : Types.msg) :
+    (ast * state) * Types.msg Cmd.t =
   let s = {s with error = None; oldPos = s.newPos} in
   match msg with
-  | NoEvent ->
-      ((ast, s), Cmd.none)
-  | MouseClick ->
+  | FluidMouseClick ->
     ( match getCursorPosition () with
     | Some newPos ->
         ((ast, {s with newPos}), Cmd.none)
     | None ->
         ((ast, {s with error = Some "found no pos"}), Cmd.none) )
-  | KeyPress {key} ->
+  | FluidKeyPress {key} ->
       let s = {s with lastKey = key; actions = []} in
       let newAST, newState = updateKey key ast s in
       (* These might be the same token *)
@@ -1853,12 +1829,15 @@ let update (ast : ast) (s : state) (msg : msg) : (ast * state) * msg Cmd.t =
         else Cmd.none
       in
       ((newAST, newState), cmd)
+  | _ ->
+      ((ast, s), Cmd.none)
 
 
 (* -------------------- *)
 (* View *)
 (* -------------------- *)
-let toHtml (ast : ast) (s : state) (l : tokenInfo list) : msg Html.html list =
+let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
+    Types.msg Html.html list =
   List.map l ~f:(fun ti ->
       let dropdown () =
         Html.div
@@ -1888,7 +1867,30 @@ let toHtml (ast : ast) (s : state) (l : tokenInfo list) : msg Html.html list =
       if isAutocompleting ti s then element [dropdown ()] else element [] )
 
 
-let view (ast : ast) (s : state) : msg Html.html =
+let viewAST (ast : ast) (s : state) : Types.msg Html.html =
+  let event ~(key : string) (event : string) : Types.msg Vdom.property =
+    let decodeNothing =
+      let open Tea.Json.Decoder in
+      succeed Types.IgnoreMsg
+    in
+    Html.onWithOptions
+      ~key
+      event
+      {stopPropagation = false; preventDefault = true}
+      decodeNothing
+  in
+  Html.div
+    [ Attrs.id editorID
+    ; Vdom.prop "contentEditable" "true"
+    ; Attrs.autofocus true
+    ; Attrs.spellcheck false
+    ; event ~key:"keydown" "keydown"
+    (* ; event ~key:"keyup" "keyup" *)
+     ]
+    (ast |> toTokens |> toHtml ast s)
+
+
+let view (ast : ast) (s : state) : Types.msg Html.html =
   let tokens = toTokens ast in
   let actions =
     [ Html.div
@@ -1956,28 +1958,7 @@ let view (ast : ast) (s : state) : msg Html.html =
     ; Html.text ("next: " ^ n) ]
   in
   let status = List.concat [posDiv; tokenDiv; actions] in
-  let editor =
-    let event ~(key : string) (event : string) : msg Vdom.property =
-      let decodeNothing =
-        let open Tea.Json.Decoder in
-        succeed NoEvent
-      in
-      Html.onWithOptions
-        ~key
-        event
-        {stopPropagation = false; preventDefault = true}
-        decodeNothing
-    in
-    Html.div
-      [ Attrs.id editorID
-      ; Vdom.prop "contentEditable" "true"
-      ; Attrs.autofocus true
-      ; Attrs.spellcheck false
-      ; event ~key:"keydown" "keydown"
-      (* ; event ~key:"keyup" "keyup" *)
-       ]
-      (ast |> toTokens |> toHtml ast s)
-  in
+  let editor = viewAST ast s in
   Html.div [Attrs.id "app"] (editor :: status)
 
 (* -------------------- *)
