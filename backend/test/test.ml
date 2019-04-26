@@ -2639,6 +2639,9 @@ let t_load_for_context_only_loads_relevant_data () =
       ~tlids:[tlid]
       ()
     |> Op.tlid_oplists2oplist
+    |> List.sort ~compare:(fun tl1 tl2 ->
+           compare (Op.tlidOf tl1) (Op.tlidOf tl2) )
+    |> List.rev
   in
   check_oplist "only loads relevant data from same canvas" shared_oplist ops
 
