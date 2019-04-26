@@ -96,6 +96,19 @@ let rec fromExpr (expr : Types.expr) : expr =
     ( match nExpr with
     | Let (name, rhs, body) ->
         ELet (id, varToName name, fromExpr rhs, fromExpr body)
+    | Variable varname ->
+        EVariable (id, varname)
+    | If (cond, thenExpr, elseExpr) ->
+        EIf (id, fromExpr cond, fromExpr thenExpr, fromExpr elseExpr)
+    | ListLiteral exprs ->
+        EList (id, List.map ~f:fromExpr exprs)
+    | ObjectLiteral pairs ->
+        ERecord
+          (id, List.map pairs ~f:(fun (k, v) -> (varToName k, fromExpr v)))
+    | FieldAccess (expr, field) ->
+        EFieldAccess (id, fromExpr expr, varToName field)
+    | FnCall (name, exprs, _str) ->
+        EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
     | _ ->
         EPartial (id, "TODO") )
 
