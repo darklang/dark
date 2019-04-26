@@ -82,7 +82,7 @@ let viewMigraFuncs
         [Html.class' "fn-title"]
         [ Html.span [] [Html.text (fnName ^ " : ")]
         ; Html.span [Html.class' "varname"] [Html.text varName] ]
-    ; ViewCode.viewExpr 0 vs [] expr ]
+    ; ViewCode.view vs expr ]
 
 
 let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :

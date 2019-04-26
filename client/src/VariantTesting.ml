@@ -5,6 +5,10 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
+let isFluid (vts : variantTest list) : bool =
+  List.member ~value:FluidVariant vts
+
+
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false ->

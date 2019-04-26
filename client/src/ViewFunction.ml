@@ -102,4 +102,4 @@ let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [Html.class' "user-fn-toplevel"]
     [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
-    ; Html.div [Html.class' "ast"] [ViewCode.viewExpr 0 vs [] fn.ufAST] ]
+    ; Html.div [Html.class' "ast"] [ViewCode.view vs fn.ufAST] ]
