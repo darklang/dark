@@ -21,39 +21,49 @@ module AT = Alcotest
 (* ------------------- *)
 let clear_test_data () : unit =
   let owner = Account.for_host_exn "test" in
-  let canvas = Serialize.fetch_canvas_id owner "test" in
+  let canvas_ids =
+    Db.fetch
+      ~params:[Uuid owner]
+      ~name:"lol"
+      "SELECT canvas_id
+       FROM canvases
+       WHERE account_id = $1"
+    |> List.map ~f:(fun cid ->
+           cid |> List.hd_exn |> Uuidm.of_string |> Option.value_exn )
+    |> List.map ~f:(fun cid -> Db.Uuid cid)
+  in
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_events_test_data"
-    "DELETE FROM events where canvas_id = $1" ;
+    "DELETE FROM events where canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_stored_events_test_data"
-    "DELETE FROM stored_events_v2 where canvas_id = $1" ;
+    "DELETE FROM stored_events_v2 where canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_function_results_test_data"
-    "DELETE FROM function_results_v2 where canvas_id = $1" ;
+    "DELETE FROM function_results_v2 where canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_user_data_test_data"
-    "DELETE FROM user_data where canvas_id = $1" ;
+    "DELETE FROM user_data where canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_cron_records_test_data"
-    "DELETE FROM cron_records where canvas_id = $1" ;
+    "DELETE FROM cron_records where canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_toplevel_oplists_test_data"
-    "DELETE FROM toplevel_oplists WHERE canvas_id = $1" ;
+    "DELETE FROM toplevel_oplists WHERE canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_function_arguments"
-    "DELETE FROM function_arguments WHERE canvas_id = $1" ;
+    "DELETE FROM function_arguments WHERE canvas_id IN ($1)" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids]
     ~name:"clear_canvases_test_data"
-    "DELETE FROM canvases where id = $1" ;
+    "DELETE FROM canvases where id IN ($1)" ;
   ()
 
 
