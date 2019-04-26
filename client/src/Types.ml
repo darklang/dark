@@ -856,6 +856,7 @@ and msg =
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
+  | SetHoveringVarName of tlid * string option
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -888,7 +889,8 @@ and handlerState =
 
 and handlerProp =
   { handlerLock : bool
-  ; handlerState : handlerState }
+  ; handlerState : handlerState
+  ; hoveringVariableName : varName option }
 
 and tlCursors = traceID StrDict.t
 

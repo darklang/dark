@@ -27,9 +27,72 @@ type viewState =
   ; canvasName : string
   ; userContentHost : string
   ; inReferences : usedIn list
-  ; toReferences : refersTo list }
+  ; toReferences : refersTo list
+  ; usagesOfHoveredReference : id list }
+
+let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
+  match unwrapCursorState cs with
+  | Entering (Filling (_, id)) ->
+    ( match Toplevel.find tl id with
+    | Some (PVarBind (F (_, var))) as pd ->
+      ( match Toplevel.getParentOf tl (deOption "impossible" pd) with
+      | Some (PExpr e) ->
+        ( match e with
+        | F (_, Let (_, _, body)) ->
+            AST.uses var body |> List.map ~f:Blank.toID
+        | F (_, Lambda (_, body)) ->
+            AST.uses var body |> List.map ~f:Blank.toID
+        | _ ->
+            [] )
+      | _ ->
+          [] )
+    | Some (PPattern (F (_, _)) as pd) ->
+        let parent = Toplevel.getParentOf tl pd in
+        let caseContainingPattern (p, _) =
+          Pattern.extractById p (Pointer.toID pd) |> Option.isSome
+        in
+        let relatedVariableIds (p, body) =
+          Pattern.variableNames p
+          |> List.map ~f:(fun var ->
+                 AST.uses var body |> List.map ~f:Blank.toID )
+          |> List.concat
+        in
+        ( match parent with
+        | Some (PExpr (F (_, Match (_, cases)))) ->
+            cases
+            |> List.filter ~f:caseContainingPattern
+            |> List.map ~f:relatedVariableIds
+            |> List.concat
+        | _ ->
+            [] )
+    | _ ->
+        [] )
+  | _ ->
+      []
+
+
+let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
+    id list =
+  match tl.data with
+  | TLHandler h ->
+      let body = h.ast in
+      hp
+      |> Option.andThen ~f:(fun p -> p.hoveringVariableName)
+      |> Option.andThen ~f:(fun v ->
+             Some (AST.uses v body |> List.map ~f:Blank.toID) )
+      |> Option.withDefault ~default:[]
+  | _ ->
+      []
+
 
 let createVS (m : model) (tl : toplevel) : viewState =
+  let hp =
+    match tl.data with
+    | TLHandler _ ->
+        StrDict.get ~key:(showTLID tl.id) m.handlerProps
+    | _ ->
+        None
+  in
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid = tl.id
@@ -52,45 +115,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
   ; traces = Analysis.getTraces m tl.id
   ; analyses = m.analyses
-  ; relatedBlankOrs =
-      ( match unwrapCursorState m.cursorState with
-      | Entering (Filling (_, id)) ->
-        ( match Toplevel.find tl id with
-        | Some (PVarBind (F (_, var))) as pd ->
-          ( match Toplevel.getParentOf tl (deOption "impossible" pd) with
-          | Some (PExpr e) ->
-            ( match e with
-            | F (_, Let (_, _, body)) ->
-                AST.uses var body |> List.map ~f:Blank.toID
-            | F (_, Lambda (_, body)) ->
-                AST.uses var body |> List.map ~f:Blank.toID
-            | _ ->
-                [] )
-          | _ ->
-              [] )
-        | Some (PPattern (F (_, _)) as pd) ->
-            let parent = Toplevel.getParentOf tl pd in
-            let caseContainingPattern (p, _) =
-              Pattern.extractById p (Pointer.toID pd) |> Option.isSome
-            in
-            let relatedVariableIds (p, body) =
-              Pattern.variableNames p
-              |> List.map ~f:(fun var ->
-                     AST.uses var body |> List.map ~f:Blank.toID )
-              |> List.concat
-            in
-            ( match parent with
-            | Some (PExpr (F (_, Match (_, cases)))) ->
-                cases
-                |> List.filter ~f:caseContainingPattern
-                |> List.map ~f:relatedVariableIds
-                |> List.concat
-            | _ ->
-                [] )
-        | _ ->
-            [] )
-      | _ ->
-          [] )
+  ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
   ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
@@ -98,12 +123,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
-  ; handlerProp =
-      ( match tl.data with
-      | TLHandler _ ->
-          StrDict.get ~key:(showTLID tl.id) m.handlerProps
-      | _ ->
-          None )
+  ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
   ; inReferences =
@@ -117,7 +137,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedHandler tlid_ when tlid_ = tl.id ->
           Introspect.allTo tlid_ m
       | _ ->
-          [] ) }
+          [] )
+  ; usagesOfHoveredReference = usagesOfHoveredReference tl hp }
 
 
 let fontAwesome (name : string) : msg Html.html =

@@ -296,3 +296,18 @@ let metaMod (ops : op list) (toplevels : toplevel list) : modification =
 
 let initTLMeta (toplevels : toplevel list) : tlMeta StrDict.t =
   List.foldl ~f:updateMeta ~init:StrDict.empty toplevels
+
+
+let setHoveringVarName (tlid : tlid) (name : varName option) : modification =
+  let new_props x =
+    match x with
+    | None ->
+        Some {Defaults.defaultHandlerProp with hoveringVariableName = name}
+    | Some v ->
+        Some {v with hoveringVariableName = name}
+  in
+  TweakModel
+    (fun m ->
+      { m with
+        handlerProps =
+          StrDict.update ~key:(showTLID tlid) ~f:new_props m.handlerProps } )
