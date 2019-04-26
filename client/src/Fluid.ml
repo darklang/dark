@@ -573,9 +573,10 @@ type state = Types.fluidState
 (* -------------------- *)
 
 external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
-  [@@bs.val]
+  [@@bs.val] [@@bs.scope "window"]
 
-external jsSetCursorPosition : int -> unit = "setCursorPosition" [@@bs.val]
+external jsSetCursorPosition : int -> unit = "setCursorPosition"
+  [@@bs.val] [@@bs.scope "window"]
 
 let getCursorPosition () : int option =
   jsGetCursorPosition () |> Js.Nullable.toOption

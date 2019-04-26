@@ -123,6 +123,9 @@ function setCursorPosition(pos) {
   }
 };
 
+window.getCursorPosition = getCursorPosition;
+window.setCursorPosition = setCursorPosition;
+
 // ---------------------------
 // Analysis
 // ---------------------------
