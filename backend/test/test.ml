@@ -25,45 +25,44 @@ let clear_test_data () : unit =
     Db.fetch
       ~params:[Uuid owner]
       ~name:"lol"
-      "SELECT canvas_id
+      "SELECT id
        FROM canvases
        WHERE account_id = $1"
-    |> List.map ~f:(fun cid ->
-           cid |> List.hd_exn |> Uuidm.of_string |> Option.value_exn )
-    |> List.map ~f:(fun cid -> Db.Uuid cid)
+    |> List.filter_map ~f:(fun cid -> cid |> List.hd_exn |> Uuidm.of_string)
+    |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
   in
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_events_test_data"
-    "DELETE FROM events where canvas_id IN ($1)" ;
+    "DELETE FROM events where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_stored_events_test_data"
-    "DELETE FROM stored_events_v2 where canvas_id IN ($1)" ;
+    "DELETE FROM stored_events_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_results_test_data"
-    "DELETE FROM function_results_v2 where canvas_id IN ($1)" ;
+    "DELETE FROM function_results_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_user_data_test_data"
-    "DELETE FROM user_data where canvas_id IN ($1)" ;
+    "DELETE FROM user_data where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_cron_records_test_data"
-    "DELETE FROM cron_records where canvas_id IN ($1)" ;
+    "DELETE FROM cron_records where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_toplevel_oplists_test_data"
-    "DELETE FROM toplevel_oplists WHERE canvas_id IN ($1)" ;
+    "DELETE FROM toplevel_oplists WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_arguments"
-    "DELETE FROM function_arguments WHERE canvas_id IN ($1)" ;
+    "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_canvases_test_data"
-    "DELETE FROM canvases where id IN ($1)" ;
+    "DELETE FROM canvases where id = ANY (string_to_array ($1, $2)::uuid[])" ;
   ()
 
 
