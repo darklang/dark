@@ -161,7 +161,7 @@ let execution_id = Int63.of_int 6542
 
 let ast_for = Expr_dsl.ast_for
 
-let handler ast : HandlerT.handler =
+let handler ?(tlid = tlid) ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -171,7 +171,7 @@ let handler ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let http_handler ast : HandlerT.handler =
+let http_handler ?(tlid = tlid) ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -2612,25 +2612,32 @@ let t_path_gt_route_does_not_crash () =
 
 let t_load_for_context_only_loads_relevant_data () =
   clear_test_data () ;
-  let host1 = "test-load_for_context_one" in
-  let host2 = "test-load_for_context_two" in
-  let h1 = handler (ast_for "(+ 5 3)") in
-  let h2 = http_handler (ast_for "(+ 5 2)") in
-  let owner = Account.for_host_exn host1 in
-  let canvas_id = Serialize.fetch_canvas_id owner host1 in
+  let sharedh = handler (ast_for "(+ 5 3)") in
   let shared_oplist =
-    [Op.CreateDB (dbid, pos, "MyDB"); Op.SetHandler (tlid, pos, h1)]
+    [Op.CreateDB (dbid, pos, "MyDB"); Op.SetHandler (tlid, pos, sharedh)]
   in
+  (* c1 *)
+  let host1 = "test-load_for_context_one" in
+  let h = http_handler ~tlid:tlid2 (ast_for "(+ 5 2)") in
   let c1 =
-    Canvas.init host1 (Op.SetHandler (tlid2, pos, h2) :: shared_oplist)
+    Canvas.init host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist)
   in
   Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
+  (* c2 *)
+  let host2 = "test-load_for_context_two" in
   let c2 =
     Canvas.init host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
   in
-  Canvas.serialize_only [dbid; dbid2; tlid] !c2 ;
+  Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
+  (* test *)
+  let owner = Account.for_host_exn host1 in
+  let canvas_id1 = Serialize.fetch_canvas_id owner host1 in
   let ops =
-    Serialize.load_with_context ~host:host1 ~canvas_id ~tlids:[tlid] ()
+    Serialize.load_with_context
+      ~host:host1
+      ~canvas_id:canvas_id1
+      ~tlids:[tlid]
+      ()
     |> Op.tlid_oplists2oplist
   in
   check_oplist "only loads relevant data from same canvas" shared_oplist ops
