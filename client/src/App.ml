@@ -1462,7 +1462,13 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
-  let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
+  let keySubs =
+    [Keyboard.downs (fun x -> GlobalKeyPress x)]
+    @
+    if VariantTesting.isFluid m.tests
+    then [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+    else []
+  in
   let resizes =
     [ Native.Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
           WindowResize (w, h) )
