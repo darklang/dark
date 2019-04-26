@@ -105,16 +105,15 @@ landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profil
 def backend_build():
   start = time.time()
   global profile
-  exes = " ".join([ "bin/server.exe"
-                  , "bin/queue_worker.exe"
-                  , "bin/cron_checker.exe"
-                  , "bin/add_user.exe"
-                  , "bin/get_functions_and_tlids.exe"
-                  , "bin/validate_data_loads.exe"
-                  , "bin/migration_to_deprecate_old_types.exe"
-                  , "@analysis.js"
-                  ])
-
+  # Get all the ml files in backend/bin, and build executables
+  # This is less technically correct than "parse the sexp in backend/bin/dune",
+  # but it is also much simpler.
+  exes = ["bin/" + x.replace(".ml", ".exe")
+          for x
+          in os.listdir("backend/bin")
+          if x.endswith(".ml")]
+  exes.append("@analysis.js")
+  exes = " ".join(exes)
   if os.environ.get("CI"):
       compilation_profile = "release"
   else:
