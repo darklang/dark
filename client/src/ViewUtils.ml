@@ -28,7 +28,8 @@ type viewState =
   ; userContentHost : string
   ; inReferences : usedIn list
   ; toReferences : refersTo list
-  ; usagesOfHoveredReference : id list }
+  ; usagesOfHoveredReference : id list
+  ; fluidState : Fluid.state }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -138,7 +139,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
           Introspect.allTo tlid_ m
       | _ ->
           [] )
-  ; usagesOfHoveredReference = usagesOfHoveredReference tl hp }
+  ; usagesOfHoveredReference = usagesOfHoveredReference tl hp
+  ; fluidState = m.fluidState }
 
 
 let fontAwesome (name : string) : msg Html.html =

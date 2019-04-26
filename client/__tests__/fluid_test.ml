@@ -85,7 +85,7 @@ let () =
     in
     let extra = if wrap then 10 else 0 in
     let pos = pos + extra in
-    let s = {Fluid.emptyState with oldPos = pos; newPos = pos} in
+    let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
     let newAST, newState =
       List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey k ast s)
     in
@@ -469,7 +469,7 @@ let () =
   describe "Movement" (fun () ->
       let tokens = toTokens complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
-      let s = Fluid.emptyState in
+      let s = Defaults.defaultFluidState in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2} ) ;

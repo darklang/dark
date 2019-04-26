@@ -1433,6 +1433,10 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (Url.navigateTo page)
   | SetHoveringVarName (tlid, name) ->
       Introspect.setHoveringVarName tlid name
+  | FluidKeyPress _ ->
+      NoChange
+  | FluidMouseClick ->
+      NoChange
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
