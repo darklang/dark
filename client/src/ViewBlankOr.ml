@@ -287,9 +287,8 @@ let getLiveValue (lvs : lvDict) (ID id : id) : dval option =
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
     string =
   let paramPlaceholder =
-    vs.tl
-    |> TL.asHandler
-    |> Option.map ~f:(fun x -> x.ast)
+    (match vs.tl.data with
+    | TLHandler h -> Some h.ast | TLFunc f -> Some f.ufAST | TLDB _ | TLTipe _ -> None )
     |> Option.andThen ~f:(fun ast ->
            match AST.getParamIndex ast id with
            | Some (name, index) ->
