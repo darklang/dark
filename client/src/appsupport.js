@@ -99,7 +99,7 @@ function getCursorPosition() {
 };
 
 function setCursorPosition(pos) {
-  editor = document.getElementById("editor");
+  editor = document.querySelector(".selected #editor");
   if (!editor) throw "no editor";
   if (pos < 0) pos = 0;
   if (pos > editor.textContent.length)
