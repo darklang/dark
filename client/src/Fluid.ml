@@ -109,6 +109,24 @@ let rec fromExpr (expr : Types.expr) : expr =
         EFieldAccess (id, fromExpr expr, varToName field)
     | FnCall (name, exprs, _str) ->
         EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
+    | Value str ->
+        let asInt =
+          try Some (EInteger (id, int_of_string str)) with _ -> None
+        in
+        let asString =
+          if String.startsWith ~prefix:"\"" str
+             && String.endsWith ~suffix:"\"" str
+          then
+            Some
+              (EString
+                 ( id
+                 , str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+                 ))
+          else None
+        in
+        asInt
+        |> Option.or_ asString
+        |> Option.withDefault ~default:(EPartial (id, "TODO Value"))
     | _ ->
         EPartial (id, "TODO") )
 
