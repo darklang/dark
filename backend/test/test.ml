@@ -2601,6 +2601,32 @@ let t_path_gt_route_does_not_crash () =
     bound
 
 
+let t_load_for_context_only_loads_relevant_data () =
+  clear_test_data () ;
+  let host1 = "test-load_for_context_one" in
+  let host2 = "test-load_for_context_two" in
+  let h1 = handler (ast_for "(+ 5 3)") in
+  let h2 = http_handler (ast_for "(+ 5 2)") in
+  let owner = Account.for_host_exn host1 in
+  let canvas_id = Serialize.fetch_canvas_id owner host1 in
+  let shared_oplist =
+    [Op.CreateDB (dbid, pos, "MyDB"); Op.SetHandler (tlid, pos, h1)]
+  in
+  let c1 =
+    Canvas.init host1 (Op.SetHandler (tlid2, pos, h2) :: shared_oplist)
+  in
+  Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
+  let c2 =
+    Canvas.init host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
+  in
+  Canvas.serialize_only [dbid; dbid2; tlid] !c2 ;
+  let ops =
+    Serialize.load_with_context ~host:host1 ~canvas_id ~tlids:[tlid] ()
+    |> Op.tlid_oplists2oplist
+  in
+  check_oplist "only loads relevant data from same canvas" shared_oplist ops
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2834,7 +2860,10 @@ let suite =
     , t_route_non_prefix_colon_does_not_denote_variable )
   ; ( "path > route with root handler does not crash"
     , `Quick
-    , t_path_gt_route_does_not_crash ) ]
+    , t_path_gt_route_does_not_crash )
+  ; ( "Canvas.load_for_context loads only that tlid and relevant context"
+    , `Quick
+    , t_load_for_context_only_loads_relevant_data ) ]
 
 
 let () =
