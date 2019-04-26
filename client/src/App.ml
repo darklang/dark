@@ -427,8 +427,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
         handleRPC (RPC.opsParams ops) focus
-    | RPCFull (params, focus) ->
-        handleRPC params focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | NoChange ->

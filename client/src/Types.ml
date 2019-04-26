@@ -731,7 +731,6 @@ and modification =
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | RPCFull of (addOpRPCParams * focus)
   | RPC of (op list * focus)
   | GetUnlockedDBsRPC
   | NoChange
