@@ -36,7 +36,9 @@ let defaultCanvasProps : canvasProps =
 
 
 let defaultHandlerProp : handlerProp =
-  {handlerLock = false; handlerState = HandlerExpanded}
+  { handlerLock = false
+  ; handlerState = HandlerExpanded
+  ; hoveringVariableName = None }
 
 
 let defaultModel : model =

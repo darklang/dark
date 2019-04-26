@@ -57,7 +57,8 @@ and handlerState j : handlerState =
 
 and handlerProp j : handlerProp =
   { handlerLock = field "handlerLock" bool j
-  ; handlerState = field "handlerState" handlerState j }
+  ; handlerState = field "handlerState" handlerState j
+  ; hoveringVariableName = field "hoveringVariableName" (optional string) j }
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =

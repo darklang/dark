@@ -156,7 +156,9 @@ and viewNExpr
         ; Html.text value
         ; Html.div [Html.class' "quote quote-end"] [] ]
   | Variable name ->
-      if List.member ~value:id vs.relatedBlankOrs
+      if List.member ~value:id vs.usagesOfHoveredReference
+      then a (ent :: wc "variable" :: wc "related-change" :: all) name
+      else if List.member ~value:id vs.relatedBlankOrs
       then a (ent :: wc "variable" :: wc "related-change" :: all) vs.ac.value
       else a (ent :: wc "variable" :: all) name
   | Let (lhs, rhs, body) ->
@@ -487,7 +489,7 @@ let externalLink
 let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
   match (spec.module_, spec.name, spec.modifier) with
-  (* Hide button if spec is not filled out because trace id 
+  (* Hide button if spec is not filled out because trace id
    is needed to recover cron traces on refresh. *)
   | F (_, "CRON"), F (_, ""), F (_, "") ->
       [Vdom.noNode]
