@@ -355,15 +355,20 @@ let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
   getChildrenOf tl id |> List.head
 
 
-let rootOf (tl : toplevel) : pointerData option =
+let rootExpr (tl : toplevel) : expr option =
   (* TODO SpecTypePointerDataRefactor *)
   match tl.data with
   | TLHandler h ->
-      Some (PExpr h.ast)
+      Some h.ast
   | TLFunc f ->
-      Some (PExpr f.ufAST)
+      Some f.ufAST
   | TLDB _ | TLTipe _ ->
       None
+
+
+let rootOf (tl : toplevel) : pointerData option =
+  (* TODO SpecTypePointerDataRefactor *)
+  rootExpr tl |> Option.map ~f:(fun expr -> PExpr expr)
 
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :

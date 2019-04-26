@@ -88,7 +88,7 @@ type ast = expr
 
 let gid () = string_of_int (Random.int (4096 * 1024) |> abs)
 
-let fromExpr (_ : Types.expr) : expr = EBlank (gid ())
+let fromExpr (_ : Types.expr) : expr = EPartial (gid (), "TODO")
 
 let eid expr : id =
   match expr with
