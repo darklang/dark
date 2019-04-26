@@ -72,29 +72,27 @@ let () =
   in
   let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), F "f") in
   let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), B) in
-  let process ~(wrap : bool) (keys : K.key list) (pos : int) (expr : expr) :
+  let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
       string * int =
     (* we wrap it so that there's something before and after the expr (esp
      * after it), which catches more bugs that ending the text area
      * immediately. Unfortunately, it doesn't work for well nested exprs, like
      * ifs. *)
-    let expr =
+    let ast =
       if wrap
-      then ELet (gid (), F "var", expr, EVariable (gid (), "var"))
-      else expr
+      then ELet (gid (), F "var", ast, EVariable (gid (), "var"))
+      else ast
     in
     let extra = if wrap then 10 else 0 in
     let pos = pos + extra in
-    let m = {Fluid.emptyM with expr; oldPos = pos; newPos = pos} in
-    let newM = List.foldl keys ~init:m ~f:(fun k m -> updateKey k m) in
-    let result =
-      match newM.expr with
-      | ELet (_, _, expr, _) when wrap ->
-          expr
-      | expr ->
-          expr
+    let s = {Fluid.emptyState with oldPos = pos; newPos = pos} in
+    let newAST, newState =
+      List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey k ast s)
     in
-    (eToString result, max 0 (newM.newPos - extra))
+    let result =
+      match newAST with ELet (_, _, expr, _) when wrap -> expr | expr -> expr
+    in
+    (eToString result, max 0 (newState.newPos - extra))
   in
   let delete ?(wrap = true) (pos : int) (expr : expr) : string * int =
     process ~wrap [K.Delete] pos expr
@@ -471,7 +469,8 @@ let () =
   describe "Movement" (fun () ->
       let tokens = toTokens complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
-      let m = {Fluid.emptyM with expr = complexExpr} in
+      let s = Fluid.emptyState in
+      let ast = complexExpr in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2} ) ;
       test "gridFor - 2" (fun () ->
@@ -506,19 +505,19 @@ let () =
         ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
       (* length *)
       test "up from first row is zero" (fun () ->
-          expect (m |> doUp ~pos:5 |> fun m -> m.newPos) |> toEqual 0 ) ;
+          expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0 ) ;
       test "down from first row is end of last row" (fun () ->
-          expect (m |> doDown ~pos:168 |> fun m -> m.newPos) |> toEqual 174 ) ;
+          expect (doDown ~pos:168 ast s |> fun s -> s.newPos) |> toEqual 174 ) ;
       (* end of short row *)
       test "up into shorter row goes to end of row" (fun () ->
-          expect (m |> doUp ~pos:172 |> fun m -> m.newPos) |> toEqual 156 ) ;
+          expect (doUp ~pos:172 ast s |> fun m -> m.newPos) |> toEqual 156 ) ;
       test "down into shorter row goes to end of row" (fun () ->
-          expect (m |> doDown ~pos:143 |> fun m -> m.newPos) |> toEqual 156 ) ;
+          expect (doDown ~pos:143 ast s |> fun m -> m.newPos) |> toEqual 156 ) ;
       (* start of indented row *)
       test "up into indented row goes to first token" (fun () ->
-          expect (m |> doUp ~pos:152 |> fun m -> m.newPos) |> toEqual 130 ) ;
+          expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130 ) ;
       test "down into indented row goes to first token" (fun () ->
-          expect (m |> doDown ~pos:109 |> fun m -> m.newPos) |> toEqual 114 ) ;
+          expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114 ) ;
       t
         "enter at the end of a line goes to start of next line"
         nonEmptyLet
@@ -547,21 +546,19 @@ let () =
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
           expect
-            ( m
-            |> moveTo 143
-            |> updateKey K.Up
-            |> updateKey K.Up
-            |> updateKey K.Up
-            |> fun m -> m.newPos )
+            ( moveTo 143 s
+            |> (fun s -> updateKey K.Up ast s)
+            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> fun (_, s) -> s.newPos )
           |> toEqual 13 ) ;
       test "down goes through the autocomplete" (fun () ->
           expect
-            ( m
-            |> moveTo 14
-            |> updateKey K.Down
-            |> updateKey K.Down
-            |> updateKey K.Down
-            |> fun m -> m.newPos )
+            ( moveTo 14 s
+            |> (fun s -> updateKey K.Down ast s)
+            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> fun (_, s) -> s.newPos )
           |> toEqual 144 ) ;
       () ) ;
   describe "Tabs" (fun () ->
