@@ -21,39 +21,48 @@ module AT = Alcotest
 (* ------------------- *)
 let clear_test_data () : unit =
   let owner = Account.for_host_exn "test" in
-  let canvas = Serialize.fetch_canvas_id owner "test" in
+  let canvas_ids =
+    Db.fetch
+      ~params:[Uuid owner]
+      ~name:"lol"
+      "SELECT id
+       FROM canvases
+       WHERE account_id = $1"
+    |> List.filter_map ~f:(fun cid -> cid |> List.hd_exn |> Uuidm.of_string)
+    |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
+  in
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_events_test_data"
-    "DELETE FROM events where canvas_id = $1" ;
+    "DELETE FROM events where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_stored_events_test_data"
-    "DELETE FROM stored_events_v2 where canvas_id = $1" ;
+    "DELETE FROM stored_events_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_results_test_data"
-    "DELETE FROM function_results_v2 where canvas_id = $1" ;
+    "DELETE FROM function_results_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_user_data_test_data"
-    "DELETE FROM user_data where canvas_id = $1" ;
+    "DELETE FROM user_data where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_cron_records_test_data"
-    "DELETE FROM cron_records where canvas_id = $1" ;
+    "DELETE FROM cron_records where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_toplevel_oplists_test_data"
-    "DELETE FROM toplevel_oplists WHERE canvas_id = $1" ;
+    "DELETE FROM toplevel_oplists WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_arguments"
-    "DELETE FROM function_arguments WHERE canvas_id = $1" ;
+    "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[Uuid canvas]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_canvases_test_data"
-    "DELETE FROM canvases where id = $1" ;
+    "DELETE FROM canvases where id = ANY (string_to_array ($1, $2)::uuid[])" ;
   ()
 
 
@@ -152,7 +161,7 @@ let execution_id = Int63.of_int 6542
 
 let ast_for = Expr_dsl.ast_for
 
-let handler ast : HandlerT.handler =
+let handler ?(tlid = tlid) ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -162,7 +171,7 @@ let handler ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let http_handler ast : HandlerT.handler =
+let http_handler ?(tlid = tlid) ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -2601,6 +2610,42 @@ let t_path_gt_route_does_not_crash () =
     bound
 
 
+let t_load_for_context_only_loads_relevant_data () =
+  clear_test_data () ;
+  let sharedh = handler (ast_for "(+ 5 3)") in
+  let shared_oplist =
+    [Op.CreateDB (dbid, pos, "MyDB"); Op.SetHandler (tlid, pos, sharedh)]
+  in
+  (* c1 *)
+  let host1 = "test-load_for_context_one" in
+  let h = http_handler ~tlid:tlid2 (ast_for "(+ 5 2)") in
+  let c1 =
+    Canvas.init host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist)
+  in
+  Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
+  (* c2 *)
+  let host2 = "test-load_for_context_two" in
+  let c2 =
+    Canvas.init host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
+  in
+  Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
+  (* test *)
+  let owner = Account.for_host_exn host1 in
+  let canvas_id1 = Serialize.fetch_canvas_id owner host1 in
+  let ops =
+    Serialize.load_with_context
+      ~host:host1
+      ~canvas_id:canvas_id1
+      ~tlids:[tlid]
+      ()
+    |> Op.tlid_oplists2oplist
+    |> List.sort ~compare:(fun tl1 tl2 ->
+           compare (Op.tlidOf tl1) (Op.tlidOf tl2) )
+    |> List.rev
+  in
+  check_oplist "only loads relevant data from same canvas" shared_oplist ops
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2834,7 +2879,10 @@ let suite =
     , t_route_non_prefix_colon_does_not_denote_variable )
   ; ( "path > route with root handler does not crash"
     , `Quick
-    , t_path_gt_route_does_not_crash ) ]
+    , t_path_gt_route_does_not_crash )
+  ; ( "Canvas.load_for_context loads only that tlid and relevant context"
+    , `Quick
+    , t_load_for_context_only_loads_relevant_data ) ]
 
 
 let () =
