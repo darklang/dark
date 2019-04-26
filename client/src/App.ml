@@ -1433,10 +1433,21 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (Url.navigateTo page)
   | SetHoveringVarName (tlid, name) ->
       Introspect.setHoveringVarName tlid name
-  | FluidKeyPress _ ->
-      NoChange
-  | FluidMouseClick ->
-      NoChange
+  | FluidKeyPress _ | FluidMouseClick ->
+      let expr =
+        tlidOf m.cursorState
+        |> Option.andThen ~f:(TL.get m)
+        |> Option.andThen ~f:TL.rootExpr
+        |> Option.map ~f:Fluid.fromExpr
+      in
+      ( match expr with
+      | None ->
+          NoChange
+      | Some expr ->
+          let (_newAST, newState), cmd = Fluid.update expr m.fluidState msg in
+          Many
+            [TweakModel (fun m -> {m with fluidState = newState}); MakeCmd cmd]
+      )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
