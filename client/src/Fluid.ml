@@ -55,9 +55,7 @@ let fail str = raise (FExc str)
 
 type id = string
 
-type name =
-  | B
-  | F of string
+type name = string
 
 type expr =
   | EInteger of id * int
@@ -88,7 +86,19 @@ type ast = expr
 
 let gid () = string_of_int (Random.int (4096 * 1024) |> abs)
 
-let fromExpr (_ : Types.expr) : expr = EPartial (gid (), "TODO")
+let rec fromExpr (expr : Types.expr) : expr =
+  let open Types in
+  let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
+  match expr with
+  | Blank (ID id) ->
+      EBlank id
+  | F (ID id, nExpr) ->
+    ( match nExpr with
+    | Let (name, rhs, body) ->
+        ELet (id, varToName name, fromExpr rhs, fromExpr body)
+    | _ ->
+        EPartial (id, "TODO") )
+
 
 let eid expr : id =
   match expr with
@@ -115,31 +125,31 @@ let complexExpr =
     ( gid ()
     , EBinOp
         ( gid ()
-        , F "||"
+        , "||"
         , EBinOp
             ( gid ()
-            , F "=="
+            , "=="
             , EFieldAccess
                 ( gid ()
                 , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), F "headers")
-                , F "origin" )
+                    (gid (), EVariable (gid (), "request"), "headers")
+                , "origin" )
             , EString (gid (), "https://usealtitude.com") )
         , EBinOp
             ( gid ()
-            , F "=="
+            , "=="
             , EFieldAccess
                 ( gid ()
                 , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), F "headers")
-                , F "origin" )
+                    (gid (), EVariable (gid (), "request"), "headers")
+                , "origin" )
             , EString (gid (), "https://localhost:3000") ) )
     , ELet
         ( gid ()
-        , B
+        , ""
         , newB ()
-        , EFnCall (gid (), F "Http::Forbidden", [EInteger (gid (), 403)]) )
-    , EFnCall (gid (), F "Http::Forbidden", []) )
+        , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)]) )
+    , EFnCall (gid (), "Http::Forbidden", []) )
 
 
 let startingExpr = complexExpr
@@ -447,7 +457,6 @@ let show_tokenInfo (ti : tokenInfo) =
 
 
 let rec toTokens' (e : ast) : token list =
-  let nameToString b = match b with B -> "" | F name -> name in
   let nested b = TIndentToHere (toTokens' b) in
   match e with
   | EInteger (id, i) ->
@@ -458,7 +467,7 @@ let rec toTokens' (e : ast) : token list =
       [TPartial (id, str)]
   | ELet (id, lhs, rhs, next) ->
       [ TLetKeyword id
-      ; TLetLHS (id, nameToString lhs)
+      ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
       ; TNewline
@@ -479,20 +488,19 @@ let rec toTokens' (e : ast) : token list =
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, lexpr, rexpr) ->
-      let opT = match op with B -> TBlank id | F name -> TBinOp (id, name) in
-      [nested lexpr; TSep; opT; TSep; nested rexpr]
+      [nested lexpr; TSep; TBinOp (id, op); TSep; nested rexpr]
   | EFieldAccess (id, expr, fieldname) ->
-      [nested expr; TFieldOp id; TFieldName (id, nameToString fieldname)]
+      [nested expr; TFieldOp id; TFieldName (id, fieldname)]
   | EVariable (id, name) ->
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
       let tnames =
-        List.map names ~f:(fun name -> TLambdaVar (id, nameToString name))
+        List.map names ~f:(fun name -> TLambdaVar (id, name))
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, exprs) ->
-      [TFnName (id, nameToString fnName)]
+      [TFnName (id, fnName)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EList (id, exprs) ->
       let ts =
@@ -512,7 +520,7 @@ let rec toTokens' (e : ast) : token list =
               [ TNewline
               ; TIndentToHere
                   [ TIndent 2
-                  ; TRecordField (id, i, nameToString fname)
+                  ; TRecordField (id, i, fname)
                   ; TSep
                   ; TRecordSep (id, i)
                   ; TSep
@@ -692,9 +700,9 @@ let acExpr (entry : acEntry) : expr * int =
   match entry with
   | ACFunction (name, count) ->
       let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
-      (EFnCall (gid (), F name, args), String.length name + 1)
+      (EFnCall (gid (), name, args), String.length name + 1)
   | ACLet ->
-      (ELet (gid (), B, newB (), newB ()), 4)
+      (ELet (gid (), "", newB (), newB ()), 4)
   | ACIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | ACVariable name ->
@@ -974,7 +982,7 @@ let isEmpty (e : expr) : bool =
       true
   | ERecord (_, l) ->
       l
-      |> List.filter ~f:(fun (k, v) -> k = B && not (isBlank v))
+      |> List.filter ~f:(fun (k, v) -> k = "" && not (isBlank v))
       |> List.isEmpty
   | EList (_, l) ->
       l |> List.filter ~f:(not << isBlank) |> List.isEmpty
@@ -1069,13 +1077,13 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 
 let exprToFieldAccess (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, B))
+  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, ""))
 
 
 let removeEmptyExpr (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | ELet (_, B, EBlank _, body) ->
+      | ELet (_, "", EBlank _, body) ->
           body
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           newB ()
@@ -1101,18 +1109,12 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
       | EPartial (id, _) ->
           if str = "" then EBlank id else EPartial (id, str)
       | EFieldAccess (id, expr, _) ->
-          if str = ""
-          then EFieldAccess (id, expr, B)
-          else EFieldAccess (id, expr, F str)
+          EFieldAccess (id, expr, str)
       | ELet (id, _, rhs, next) ->
-          if str = ""
-          then ELet (id, B, rhs, next)
-          else ELet (id, F str, rhs, next)
+          ELet (id, str, rhs, next)
       | ELambda (id, vars, expr) ->
           let rest = List.tail vars |> Option.withDefault ~default:[] in
-          if str = ""
-          then ELambda (id, B :: rest, expr)
-          else ELambda (id, F str :: rest, expr)
+          ELambda (id, str :: rest, expr)
       | _ ->
           fail "not a string type" )
 
@@ -1122,7 +1124,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
       match e with
       | ERecord (id, fields) ->
           let fields =
-            List.updateAt fields ~index ~f:(fun (_, expr) -> (F str, expr))
+            List.updateAt fields ~index ~f:(fun (_, expr) -> (str, expr))
           in
           ERecord (id, fields)
       | _ ->
@@ -1183,7 +1185,7 @@ let addRecordRowToFront (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
-          ERecord (id, (B, newB ()) :: fields)
+          ERecord (id, ("", newB ()) :: fields)
       | _ ->
           fail "Not a record" )
 
@@ -1194,7 +1196,7 @@ let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
       ast
   | Some c ->
       wrap id ast ~f:(fun expr ->
-          EBinOp (gid (), F (String.fromChar c), expr, newB ()) )
+          EBinOp (gid (), String.fromChar c, expr, newB ()) )
 
 
 let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
@@ -1329,7 +1331,7 @@ let acCompleteField (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
       (ast, s)
   | Some entry ->
       let newExpr, length = acExpr entry in
-      let newExpr = EFieldAccess (gid (), newExpr, B) in
+      let newExpr = EFieldAccess (gid (), newExpr, "") in
       let length = length + 1 in
       let newState = moveTo (ti.startPos + length) {s with acPos = None} in
       let newAST = replaceExpr ~newExpr (tid ti.token) ast in
@@ -1547,7 +1549,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else if letter = '{'
     then ERecord (newID, [])
     else if letter = '\\'
-    then ELambda (newID, [B], EBlank (gid ()))
+    then ELambda (newID, [""], EBlank (gid ()))
     else if letter = ','
     then EBlank newID (* new separators *)
     else if isNumber letterStr
