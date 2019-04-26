@@ -472,6 +472,12 @@ and viewNExpr
             [titleBar; blockCondition; expressions] ]
 
 
+let view (vs : viewState) (e : expr) =
+  if VariantTesting.isFluid vs.testVariants
+  then viewExpr 0 vs [] e
+  else viewExpr 0 vs [] e
+
+
 let externalLink
     (spec : handlerSpec) (canvasName : string) (contentHost : string) =
   match (spec.modifier, spec.name) with
