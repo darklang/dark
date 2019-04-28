@@ -475,7 +475,7 @@ and viewNExpr
 let view (vs : viewState) (e : expr) =
   if VariantTesting.isFluid vs.testVariants
   then Fluid.viewAST (Fluid.fromExpr e) vs.fluidState
-  else viewExpr 0 vs [] e
+  else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
 
 
 let externalLink
@@ -617,7 +617,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let ast =
     Html.div
       attrs
-      [ Html.div [Html.class' "ast"] [view vs h.ast]
+      [ view vs h.ast
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]
   in

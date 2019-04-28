@@ -629,7 +629,7 @@ let getCursorPosition () : int option =
 
 let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 
-let editorID = "editor"
+let editorID = "fluid-editor"
 
 let setPos offset =
   Tea.Cmd.call (fun _ ->
