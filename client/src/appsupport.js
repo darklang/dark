@@ -99,7 +99,7 @@ function getCursorPosition() {
 };
 
 function setCursorPosition(pos) {
-  editor = document.querySelector(".selected #editor");
+  editor = document.querySelector(".selected #fluid-editor");
   if (!editor) throw "no editor";
   if (pos < 0) pos = 0;
   if (pos > editor.textContent.length)

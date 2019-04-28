@@ -1068,6 +1068,114 @@ body #app * {
   }
 }
 
+//*************
+// Fluid
+//*************
+#fluid-editor {
+  /* Colors from tomorrow night:
+  https://github.com/chriskempson/tomorrow-theme */
+  @black : #1d1f21;
+  @background: #2d2d2d;
+  @blanks: lighten(@background, 8%);
+  @currentline: #282a2e;
+  @selection: #373b41;
+  @foreground: #c5c8c6;
+  @comment: #969896;
+  @red: #cc6666 ;
+  @orange: #de935f ;
+  @yellow: #f0c674;
+  @green: #b5bd68;
+  @aqua:#8abeb7 ;
+  @blue: #81a2be ;
+  @purple: #b294bb;
+
+  background-color: @background;
+  color: @foreground;
+  caret-color: @foreground;
+  height: 80ch;
+  width: 110ch;
+  font-size: 12pt;
+  &:focus {
+    outline-width: 0;
+  }
+  padding: 0.5ch;
+
+  font-family: monaco, monospace;
+
+  .newline {
+    display: block;
+  }
+  .indent {
+    white-space: pre;
+  }
+  .string {
+    white-space: pre;
+    color: @green;
+  }
+
+  .sep, .blank, .empty {
+    // The cursor disappears when the element it should appear in has no size. To
+    // make it have size, we need all of this.
+    // https://stackoverflow.com/questions/25897883/
+    display: inline-block;
+    white-space: pre;
+    margin-left: 1px;
+  }
+  // Part of the same problem, making space for it.
+  .lambda-keyword { margin-right: 0.11px; }
+  .blank {
+    background-color: @blanks;
+  }
+  .empty {
+    color: green;
+    background-color: @blanks;
+  }
+  .keyword {
+    color: @purple;
+  }
+  .fn-name {
+    color: @orange;
+  }
+  .partial {
+    color: @red;
+  }
+
+  // <Position autocomplete as a dropdown>
+  .entry {
+    position: relative;
+    // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
+  }
+  #dropdown {
+    position: absolute;
+    left: -1ch;
+    box-shadow: 1px 1px 1px black;
+    ul {
+      margin: 0;
+      padding-inline-start: 0;
+      background-color: @blanks;
+      color: @foreground;
+      .selected {
+        background-color: @selection;
+        color: darken(white, 5%);
+      }
+    }
+  }
+  // </ Position autocomplete as a dropdown>
+
+  #dropdown {
+    // Don't show text under it.
+    z-index: 1000;
+    ul {
+      li {
+        list-style-type: none; // remove bullet points
+        padding: 0 1ch;
+      }
+    }
+  }
+}
+
+
+
 
 
 //*************
