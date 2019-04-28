@@ -1871,7 +1871,8 @@ let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
         let idclasses = [("id-" ^ tid ti.token, true)] in
         Html.span
           (* ~key:(tid ti.token ^ toName ti.token) *)
-          [Attrs.classList (("entry", true) :: (tokenName, true) :: idclasses)]
+          [ Attrs.classList
+              (("fluid-entry", true) :: (tokenName, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
       if isAutocompleting ti s then element [dropdown ()] else element [] )
