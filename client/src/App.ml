@@ -1432,20 +1432,40 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHoveringVarName (tlid, name) ->
       Introspect.setHoveringVarName tlid name
   | FluidKeyPress _ | FluidMouseClick ->
-      let expr =
-        tlidOf m.cursorState
-        |> Option.andThen ~f:(TL.get m)
-        |> Option.andThen ~f:TL.rootExpr
-        |> Option.map ~f:Fluid.fromExpr
-      in
-      ( match expr with
+      let tl = tlidOf m.cursorState |> Option.andThen ~f:(TL.get m) in
+      ( match tl with
       | None ->
           NoChange
-      | Some expr ->
-          let (_newAST, newState), cmd = Fluid.update expr m.fluidState msg in
-          Many
-            [TweakModel (fun m -> {m with fluidState = newState}); MakeCmd cmd]
-      )
+      | Some tl ->
+          let fexpr = TL.rootExpr tl |> Option.map ~f:Fluid.fromExpr in
+          ( match fexpr with
+          | None ->
+              NoChange
+          | Some oldAST ->
+              let (newAST, newState), cmd =
+                Fluid.update oldAST m.fluidState msg
+              in
+              let astMod =
+                if oldAST = newAST
+                then NoChange
+                else
+                  let ast = Fluid.toExpr newAST in
+                  match tl.data with
+                  | TLHandler h ->
+                      RPC
+                        ( [SetHandler (tl.id, tl.pos, {h with ast})]
+                        , FocusNothing )
+                  | TLFunc f ->
+                      RPC ([SetFunction {f with ufAST = ast}], FocusNothing)
+                  | TLTipe _ ->
+                      impossible ("no ast in DBs", tl.data)
+                  | TLDB _ ->
+                      impossible ("no ast in DBs", tl.data)
+              in
+              Many
+                [ TweakModel (fun m -> {m with fluidState = newState})
+                ; MakeCmd cmd
+                ; astMod ] ) )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
