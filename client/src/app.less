@@ -1102,18 +1102,18 @@ body #app * {
 
   font-family: monaco, monospace;
 
-  .newline {
+  .fluid-newline {
     display: block;
   }
-  .indent {
+  .fluid-indent {
     white-space: pre;
   }
-  .string {
+  .fluid-string {
     white-space: pre;
     color: @green;
   }
 
-  .sep, .blank, .empty {
+  .fluid-sep, .fluid-blank, .fluid-empty {
     // The cursor disappears when the element it should appear in has no size. To
     // make it have size, we need all of this.
     // https://stackoverflow.com/questions/25897883/
@@ -1122,21 +1122,21 @@ body #app * {
     margin-left: 1px;
   }
   // Part of the same problem, making space for it.
-  .lambda-keyword { margin-right: 0.11px; }
-  .blank {
+  .fluid-lambda-keyword { margin-right: 0.11px; }
+  .fluid-blank {
     background-color: @blanks;
   }
-  .empty {
+  .fluid-empty {
     color: green;
     background-color: @blanks;
   }
-  .keyword {
+  .fluid-keyword {
     color: @purple;
   }
-  .fn-name {
+  .fluid-fn-name {
     color: @orange;
   }
-  .partial {
+  .fluid-partial {
     color: @red;
   }
 
@@ -1145,7 +1145,7 @@ body #app * {
     position: relative;
     // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
   }
-  #dropdown {
+  #fluid-dropdown {
     position: absolute;
     left: -1ch;
     box-shadow: 1px 1px 1px black;
@@ -1154,7 +1154,7 @@ body #app * {
       padding-inline-start: 0;
       background-color: @blanks;
       color: @foreground;
-      .selected {
+      .fluid-selected {
         background-color: @selection;
         color: darken(white, 5%);
       }
@@ -1162,7 +1162,7 @@ body #app * {
   }
   // </ Position autocomplete as a dropdown>
 
-  #dropdown {
+  #fluid-dropdown {
     // Don't show text under it.
     z-index: 1000;
     ul {

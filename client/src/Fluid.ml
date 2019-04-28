@@ -340,75 +340,75 @@ let toTestText (t : token) : string =
 let toName (t : token) : string =
   match t with
   | TInteger _ ->
-      "integer"
+      "fluid-integer"
   | TString (_, _) ->
-      "string"
+      "fluid-string"
   | TBlank _ ->
-      "blank"
+      "fluid-blank"
   | TPartial _ ->
-      "partial"
+      "fluid-partial"
   | TLetKeyword _ ->
-      "let let-keyword keyword"
+      "fluid-let fluid-let-keyword fluid-keyword"
   | TLetAssignment _ ->
-      "let let-assignment"
+      "fluid-let fluid-let-assignment"
   | TLetLHS (_, "") ->
-      "let let-lhs empty"
+      "fluid-let fluid-let-lhs fluid-empty"
   | TLetLHS _ ->
-      "let let-lhs"
+      "fluid-let fluid-let-lhs"
   | TSep ->
-      "sep"
+      "fluid-sep"
   | TIndented _ ->
-      "indented"
+      "fluid-indented"
   | TIndentToHere _ ->
-      "indented-at-place"
+      "fluid-indented-at-place"
   | TIndent _ ->
-      "indent"
+      "fluid-indent"
   | TNewline ->
-      "newline"
+      "fluid-newline"
   | TIfKeyword _ ->
-      "if if-keyword keyword"
+      "fluid-if fluid-if-keyword fluid-keyword"
   | TIfThenKeyword _ ->
-      "if-then-keyword keyword"
+      "fluid-if-then-keyword fluid-keyword"
   | TIfElseKeyword _ ->
-      "if-else-keyword keyword"
+      "fluid-if-else-keyword fluid-keyword"
   | TBinOp (_, _) ->
-      "binop"
+      "fluid-binop"
   | TFieldOp _ ->
-      "field field-op"
+      "fluid-field fluid-field-op"
   | TFieldName (_, "") ->
-      "field field-name empty"
+      "fluid-field fluid-field-name fluid-empty"
   | TFieldName (_, _) ->
-      "field field-name"
+      "fluid-field fluid-field-name"
   | TVariable (_, _) ->
-      "variable"
+      "fluid-variable"
   | TFnName (_, _) ->
-      "fn fn-name"
+      "fluid-fn fluid-fn-name"
   | TLambdaVar (_, "") ->
-      "lambda lambda-var empty"
+      "fluid-lambda fluid-lambda-var fluid-empty"
   | TLambdaVar (_, _) ->
-      "lambda lambda-var"
+      "fluid-lambda fluid-lambda-var"
   | TLambdaSymbol _ ->
-      "lambda lambda-keyword keyword"
+      "fluid-lambda fluid-lambda-keyword fluid-keyword"
   | TLambdaArrow _ ->
-      "lambda lambda-arrow"
+      "fluid-lambda fluid-lambda-arrow"
   | TLambdaSep _ ->
-      "lambda lambda-sep"
+      "fluid-lambda fluid-lambda-sep"
   | TListOpen _ ->
-      "list list-open"
+      "fluid-list fluid-list-open"
   | TListClose _ ->
-      "list list-close"
+      "fluid-list fluid-list-close"
   | TListSep _ ->
-      "list list-sep"
+      "fluid-list fluid-list-sep"
   | TRecordOpen _ ->
-      "record record-open"
+      "fluid-record fluid-record-open"
   | TRecordClose _ ->
-      "record record-close"
+      "fluid-record fluid-record-close"
   | TRecordField (_, _, "") ->
-      "record record-field empty"
+      "fluid-record fluid-record-field fluid-empty"
   | TRecordField _ ->
-      "record record-field"
+      "fluid-record fluid-record-field"
   | TRecordSep _ ->
-      "record record-sep"
+      "fluid-record fluid-record-sep"
 
 
 let tid (t : token) : id =
@@ -1851,7 +1851,7 @@ let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
   List.map l ~f:(fun ti ->
       let dropdown () =
         Html.div
-          [Attrs.id "dropdown"]
+          [Attrs.id "fluid-dropdown"]
           [ Html.ul
               []
               ( acItems ast
@@ -1859,7 +1859,7 @@ let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
               |> List.indexedMap ~f:(fun i entry ->
                      let class' =
                        if Some i = s.acPos
-                       then [Attrs.class' "selected"]
+                       then [Attrs.class' "fluid-selected"]
                        else []
                      in
                      let attrs = class' in
