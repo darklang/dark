@@ -131,6 +131,51 @@ let rec fromExpr (expr : Types.expr) : expr =
         EPartial (id, "TODO") )
 
 
+let rec toExpr (expr : expr) : Types.expr =
+  match expr with
+  | EInteger (id, num) ->
+      F (ID id, Value (string_of_int num))
+  | EString (id, str) ->
+      F (ID id, Value ("\"" ^ str ^ "\""))
+  | EVariable (id, var) ->
+      F (ID id, Variable var)
+  | EFieldAccess (id, obj, fieldname) ->
+      (* TODO: the id *)
+      F (ID id, FieldAccess (toExpr obj, F (ID (gid ()), fieldname)))
+  | EFnCall (id, name, args) ->
+      (* TODO sendToRail *)
+      F (ID id, FnCall (F (ID (gid ()), name), List.map ~f:toExpr args, NoRail))
+  | EBinOp (id, name, arg1, arg2) ->
+      (* TODO sendToRail *)
+      F
+        ( ID id
+        , FnCall (F (ID (gid ()), name), [toExpr arg1; toExpr arg2], NoRail) )
+  | ELambda (id, vars, body) ->
+      (* TODO: IDs *)
+      F
+        ( ID id
+        , Lambda
+            ( List.map vars ~f:(fun var -> Types.F (ID (gid ()), var))
+            , toExpr body ) )
+  | EBlank id ->
+      Blank (ID id)
+  | ELet (id, lhs, rhs, body) ->
+      (* TODO: ID *)
+      F (ID id, Let (F (ID (gid ()), lhs), toExpr rhs, toExpr body))
+  | EIf (id, cond, thenExpr, elseExpr) ->
+      F (ID id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
+  | EPartial (id, _) ->
+      Blank (ID id)
+  | EList (id, exprs) ->
+      F (ID id, ListLiteral (List.map ~f:toExpr exprs))
+  | ERecord (id, pairs) ->
+      F
+        ( ID id
+        , ObjectLiteral
+            (List.map pairs ~f:(fun (k, v) ->
+                 (Types.F (ID (gid ()), k), toExpr v) )) )
+
+
 let eid expr : id =
   match expr with
   | EInteger (id, _)
