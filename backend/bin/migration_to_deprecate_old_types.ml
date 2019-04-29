@@ -17,9 +17,28 @@ let usage () : unit =
  * roundtrip_stored_event.exe. (Specifically, the load_all part - no need to
  * check stored_events, function_arguments, function_results, we just care about
  * canvases right now) *)
-let transform_op (op : Op.op) : Op.op =
+let transform_op (op : Op.op) ~(params : (string * string) list) : Op.op =
   let transform_string old =
-    match old with "Title" | "Url" -> "String" | _ -> old
+    let new_str =
+      match String.lowercase old with
+      | "title" | "url" ->
+          "string"
+      | _ ->
+        (* If it's a tipe we can't parse, make it either id or [id] *)
+        ( try
+            ignore (Libexecution.Dval.tipe_of_string old) ;
+            old
+          with e ->
+            if String.is_prefix old "[" && String.is_suffix old "]"
+            then "[id]"
+            else "id" )
+    in
+    if old <> new_str
+    then
+      Log.infO
+        "transform_string"
+        ~params:(params @ [("old", old); ("new", new_str)]) ;
+    new_str
   in
   let transform_string_or_blank (old : string Types.or_blank) =
     match old with
@@ -28,25 +47,38 @@ let transform_op (op : Op.op) : Op.op =
     | Filled (id, str) ->
         Filled (id, transform_string str)
   in
-  match op with
-  | SetDBColType (tlid, id, tipe) ->
-      SetDBColType (tlid, id, transform_string tipe)
-  | ChangeDBColType (tlid, id, tipe) ->
-      ChangeDBColType (tlid, id, transform_string tipe)
-  | CreateDBMigration (tlid, rbid, rfid, oldCols) ->
-      let newCols =
-        oldCols
-        |> List.map ~f:(fun (fromCol, toCol) ->
-               ( transform_string_or_blank fromCol
-               , transform_string_or_blank toCol ) )
-      in
-      CreateDBMigration (tlid, rbid, rfid, newCols)
-  | CreateDBWithBlankOr (tlid, pos, id, name) ->
-      op
-      (* not actually impl'ing this; this popped up as an error in the
+  let new_op =
+    match op with
+    | SetDBColType (tlid, id, tipe) ->
+        (* Dunno why I need to specify Op here ... *)
+        Op.SetDBColType (tlid, id, transform_string tipe)
+    | ChangeDBColType (tlid, id, tipe) ->
+        ChangeDBColType (tlid, id, transform_string tipe)
+    | CreateDBMigration (tlid, rbid, rfid, oldCols) ->
+        let newCols =
+          oldCols
+          |> List.map ~f:(fun (name, tipe) ->
+                 (* Note: a previous version transformed both col name and tipe; we
+               * just want to transform the col name *)
+                 (name, transform_string_or_blank tipe) )
+        in
+        CreateDBMigration (tlid, rbid, rfid, newCols)
+    | CreateDBWithBlankOr (tlid, pos, id, name) ->
+        op
+        (* not actually impl'ing this; this popped up as an error in the
           roundtrip script on ellen-cto because of the Duplicate DB Name bug *)
-  | _ ->
-      op
+    | _ ->
+        op
+  in
+  if new_op <> op
+  then
+    Log.infO
+      "transform_op"
+      ~params:
+        ( params
+        @ [ ("new", new_op |> Op.op_to_yojson |> Yojson.Safe.to_string)
+          ; ("old", op |> Op.op_to_yojson |> Yojson.Safe.to_string) ] ) ;
+  new_op
 
 
 (* given a row, deserialize the oplist, transform the ops, and if there's a
@@ -87,7 +119,13 @@ let migrate_oplist_row (row : string list) : unit =
       "successful deserialize"
       ~params:[("host", host); ("canvas_id", canvas_id); ("tlid", tlid)] ;
     let newData =
-      old_oplist |> List.map ~f:transform_op |> Op.oplist_to_string
+      old_oplist
+      |> List.map
+           ~f:
+             (transform_op
+                ~params:
+                  [("host", host); ("canvas_id", canvas_id); ("tlid", tlid)])
+      |> Op.oplist_to_string
       (* compare and upsert *)
     in
     if data <> newData
