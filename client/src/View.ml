@@ -293,6 +293,10 @@ let view (m : model) : msg Html.html =
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
-  let fluidStatus = Fluid.viewStatus (Fluid.fromExpr ast) m.fluidState in
-  let content = [routing; body; fluidStatus] @ footer in
+  let fluidStatus =
+    if VariantTesting.isFluid m.tests
+    then [Fluid.viewStatus (Fluid.fromExpr ast) m.fluidState]
+    else []
+  in
+  let content = [routing; body] @ fluidStatus @ footer in
   Html.div attributes content
