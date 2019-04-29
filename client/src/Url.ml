@@ -7,7 +7,11 @@ module TL = Toplevel
 
 let hashUrlParams (params : (string * string) list) : string =
   let merged = List.map ~f:(fun (k, v) -> k ^ "=" ^ v) params in
-  "#" ^ String.join ~sep:"&" merged
+  if merged = []
+  then
+    (* the space here is important - https://stackoverflow.com/a/49373716/104021 *)
+    " "
+  else "#" ^ String.join ~sep:"&" merged
 
 
 let urlFor (page : page) : string =
