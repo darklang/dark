@@ -2002,14 +2002,21 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   let actions =
     [ Html.div
         []
-        ( [Html.text "actions: "]
+        ( [Html.text "Actions: "]
         @ ( s.actions
           |> List.map ~f:(fun action -> [action; ", "])
           |> List.concat
           |> List.dropRight ~count:1
           |> List.map ~f:Html.text ) ) ]
   in
-  let status = List.concat [posDiv; tokenDiv; actions] in
+  let error =
+    [ Html.div
+        []
+        [ Html.text
+            ( Option.map s.error ~f:(fun e -> "Errors: " ^ e)
+            |> Option.withDefault ~default:"none" ) ] ]
+  in
+  let status = List.concat [posDiv; tokenDiv; actions; error] in
   Html.div [Attrs.id "fluid-status"] status
 
 (* -------------------- *)
