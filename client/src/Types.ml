@@ -731,7 +731,6 @@ and modification =
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | RPCFull of (addOpRPCParams * focus)
   | RPC of (op list * focus)
   | GetUnlockedDBsRPC
   | NoChange
@@ -780,6 +779,8 @@ and msg =
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
+  | FluidKeyPress of FluidKeyboard.keyEvent
+  | FluidMouseClick
   | AutocompleteClick of string
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpRPCResult, httpError) Tea.Result.t
@@ -862,7 +863,9 @@ and msg =
 (* AB tests *)
 (* ----------------------------- *)
 (* just a stub *)
-and variantTest = StubVariant
+and variantTest =
+  | StubVariant
+  | FluidVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -906,6 +909,18 @@ and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
+
+and fluidState =
+  { error : string option
+  ; actions : string list
+  ; oldPos : int
+  ; newPos : int
+  ; upDownCol :
+      int option
+      (* When moving up or down, and going through whitespace, track
+       * the column so we can go back to it *)
+  ; acPos : int option
+  ; lastKey : FluidKeyboard.key }
 
 and model =
   { error : darkError
@@ -954,7 +969,8 @@ and model =
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
   ; tlUsages : usage list
-  ; tlMeta : tlMeta StrDict.t }
+  ; tlMeta : tlMeta StrDict.t
+  ; fluidState : fluidState }
 
 (* Values that we serialize *)
 and serializableEditor =

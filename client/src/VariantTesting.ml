@@ -5,17 +5,27 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
+let isFluid (vts : variantTest list) : bool =
+  List.member ~value:FluidVariant vts
+
+
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false ->
       None
   | test, _ ->
-    (match String.toLower test with "stub" -> Some StubVariant | _ -> None)
+    ( match String.toLower test with
+    | "stub" ->
+        Some StubVariant
+    | "fluidv2" ->
+        Some FluidVariant
+    | _ ->
+        None )
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with StubVariant -> "stub"
+    match vt with StubVariant -> "stub" | FluidVariant -> "fluid"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)
