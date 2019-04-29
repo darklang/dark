@@ -1,6 +1,6 @@
 # How the integration tests work
 
-##### (Updated Dec 27, 2018)
+##### (Updated May 1, 2019)
 
 ## Running
 
@@ -51,27 +51,26 @@ actually means "Can't connect to the server".
 
 ## Writing a new test
 
-Unfortunately in our setup integration test files are scattered across the code base. There are multiple steps and changes you have to make to write a new integration test.
+Our integration test files are scattered across the code base. There are multiple steps and changes you have to make to write a new integration test.
 
 
-1. If your test require preloaded data (are you starting with a non-empty canvas), you will need to add a file inside **backend/test_appdata**. File names follow the format of `test-{your_test_name}.json`. You may copy from other setup files that have similiar initial conditions as your new test.  
+1. If your test required contents on the canvas, add a file in `backend/test_appdata`. File names follow the format of `test-{your_test_name}.json`. To start these files off, either copy from existing files, or press **Save Test** in the button-bar in Dark.  
 
 
-2. Add a new function to **integration-tests/test.js** (ES6 syntax will work). 
+2. Add a new function to `integration-tests/test.js`. 
 ```
 test('{your_test_name}', async t => {
-  // UI assertions go here
+  // UI interactions and assertions go here
 });
 ```  
 
 
-3. For the test to run you must write a function and call it inside **client/IntegrationTest.ml**.
+3. To complete the test, write a validation function in `client/IntegrationTest.ml`.
 ```
 let {your_test_name} (m : model) : testResult = 
     (* Model assertions go here; common ones include checking the AST or looking for allowed/disallowed states *)
     (*  `fail ~f:('a -> string) 'a` - f is a function that takes an object and returns a string for test output *)    
 ```  
-
 
 4. Lastly to verify your newly written test works without running all the other tests, run the script with `--pattern={your_test_name}`
 
