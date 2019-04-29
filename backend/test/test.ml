@@ -1471,89 +1471,6 @@ let t_db_get_all_with_keys_works () =
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
-let t_db_deprecated_belongs_to_works () =
-  clear_test_data () ;
-  let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.CreateDB (dbid2, pos, "SecondDB")
-    ; Op.AddDBCol (dbid2, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid2, colnameid2, "y")
-    ; Op.SetDBColType (dbid2, coltypeid2, "Int")
-    ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
-    ; Op.SetDBColName (dbid, colnameid3, "relation")
-    ; Op.SetDBColType (dbid, coltypeid3, "SecondDB") ]
-  in
-  let ast =
-    "(let oldin (DB::insert (obj (x 'foo') (relation (obj (y 4)))) MyDB)
-               (List::head (DB::fetchAll MyDB)))"
-  in
-  let result = exec_handler ~ops ast in
-  AT.check
-    AT.int
-    "Deprecated BelongsTo works"
-    0
-    ( match result with
-    | DObj o ->
-      ( match (DvalMap.find o "x", DvalMap.find o "relation") with
-      | Some (DStr s), Some (DObj inner)
-        when Unicode_string.equal s (Unicode_string.of_string_exn "foo") ->
-        (match DvalMap.find inner "y" with Some (DInt 4) -> 0 | _ -> 1)
-      | _ ->
-          1 )
-    | _ ->
-        1 )
-
-
-let t_db_deprecated_has_many_works () =
-  clear_test_data () ;
-  let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.CreateDB (dbid2, pos, "SecondDB")
-    ; Op.AddDBCol (dbid2, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid2, colnameid2, "y")
-    ; Op.SetDBColType (dbid2, coltypeid2, "Int")
-    ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
-    ; Op.SetDBColName (dbid, colnameid3, "relations")
-    ; Op.SetDBColType (dbid, coltypeid3, "[SecondDB]") ]
-  in
-  let ast =
-    "(let oldin (DB::insert (obj (x 'foo') (relations ((obj (y 4)) (obj (y 6))))) MyDB)
-               (List::head (DB::fetchAll MyDB)))"
-  in
-  let result = exec_handler ~ops ast in
-  AT.check
-    AT.int
-    "Deprecated HasMany works"
-    0
-    ( match result with
-    | DObj o ->
-      ( match (DvalMap.find o "x", DvalMap.find o "relations") with
-      | Some (DStr s), Some (DList inners)
-        when Unicode_string.equal s (Unicode_string.of_string_exn "foo") ->
-        ( match inners with
-        | [DObj fst; DObj snd] ->
-          ( try
-              let sorted_list =
-                List.sort
-                  ~compare:compare_dval
-                  [DvalMap.find_exn fst "y"; DvalMap.find_exn snd "y"]
-              in
-              match sorted_list with [DInt 4; DInt 6] -> 0 | _ -> 1
-            with e -> 1 )
-        | _ ->
-            1 )
-      | _ ->
-          1 )
-    | _ ->
-        1 )
-
-
 let t_db_deprecated_fetch_by_works () =
   clear_test_data () ;
   let ops =
@@ -2732,8 +2649,6 @@ let suite =
   ; ("New query function works", `Quick, t_db_new_query_v2_works)
   ; ("DB::set_v1 upserts", `Quick, t_db_set_does_upsert)
   ; ("DB::getAllWithKeys_v1 works", `Quick, t_db_get_all_with_keys_works)
-  ; ("Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works)
-  ; ("Deprecated HasMany works", `Quick, t_db_deprecated_has_many_works)
   ; ("Deprecated fetchBy works", `Quick, t_db_deprecated_fetch_by_works)
   ; ( "Deprecated fetchBy works with an id"
     , `Quick
