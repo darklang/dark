@@ -292,5 +292,7 @@ let view (m : model) : msg Html.html =
   let footer = [ViewScaffold.viewError m.error; ViewScaffold.viewButtons m] in
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in
-  let content = [routing; body] @ footer in
+  let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
+  let fluidStatus = Fluid.viewStatus (Fluid.fromExpr ast) m.fluidState in
+  let content = [routing; body; fluidStatus] @ footer in
   Html.div attributes content

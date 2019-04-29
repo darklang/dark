@@ -337,78 +337,119 @@ let toTestText (t : token) : string =
       if isBlank t then "***" else toText t
 
 
-let toName (t : token) : string =
+let toTypeName (t : token) : string =
   match t with
   | TInteger _ ->
-      "fluid-integer"
+      "integer"
   | TString (_, _) ->
-      "fluid-string"
+      "string"
   | TBlank _ ->
-      "fluid-blank"
+      "blank"
   | TPartial _ ->
-      "fluid-partial"
+      "partial"
   | TLetKeyword _ ->
-      "fluid-let fluid-let-keyword fluid-keyword"
+      "let-keyword"
   | TLetAssignment _ ->
-      "fluid-let fluid-let-assignment"
-  | TLetLHS (_, "") ->
-      "fluid-let fluid-let-lhs fluid-empty"
+      "let-assignment"
   | TLetLHS _ ->
-      "fluid-let fluid-let-lhs"
+      "let-lhs"
   | TSep ->
-      "fluid-sep"
+      "sep"
   | TIndented _ ->
-      "fluid-indented"
+      "indented"
   | TIndentToHere _ ->
-      "fluid-indented-at-place"
+      "indent-to-here"
   | TIndent _ ->
-      "fluid-indent"
+      "indent"
   | TNewline ->
-      "fluid-newline"
+      "newline"
   | TIfKeyword _ ->
-      "fluid-if fluid-if-keyword fluid-keyword"
+      "if-keyword"
   | TIfThenKeyword _ ->
-      "fluid-if-then-keyword fluid-keyword"
+      "if-then-keyword"
   | TIfElseKeyword _ ->
-      "fluid-if-else-keyword fluid-keyword"
-  | TBinOp (_, _) ->
-      "fluid-binop"
+      "if-else-keyword"
+  | TBinOp _ ->
+      "binop"
   | TFieldOp _ ->
-      "fluid-field fluid-field-op"
-  | TFieldName (_, "") ->
-      "fluid-field fluid-field-name fluid-empty"
-  | TFieldName (_, _) ->
-      "fluid-field fluid-field-name"
-  | TVariable (_, _) ->
-      "fluid-variable"
+      "field-op"
+  | TFieldName _ ->
+      "field-name"
+  | TVariable _ ->
+      "variable"
   | TFnName (_, _) ->
-      "fluid-fn fluid-fn-name"
-  | TLambdaVar (_, "") ->
-      "fluid-lambda fluid-lambda-var fluid-empty"
+      "fn-name"
   | TLambdaVar (_, _) ->
-      "fluid-lambda fluid-lambda-var"
+      "lambda-var"
   | TLambdaSymbol _ ->
-      "fluid-lambda fluid-lambda-keyword fluid-keyword"
+      "lambda-symbol"
   | TLambdaArrow _ ->
-      "fluid-lambda fluid-lambda-arrow"
+      "lambda-arrow"
   | TLambdaSep _ ->
-      "fluid-lambda fluid-lambda-sep"
+      "lambda-sep"
   | TListOpen _ ->
-      "fluid-list fluid-list-open"
+      "list-open"
   | TListClose _ ->
-      "fluid-list fluid-list-close"
+      "list-close"
   | TListSep _ ->
-      "fluid-list fluid-list-sep"
+      "list-sep"
   | TRecordOpen _ ->
-      "fluid-record fluid-record-open"
+      "record-open"
   | TRecordClose _ ->
-      "fluid-record fluid-record-close"
-  | TRecordField (_, _, "") ->
-      "fluid-record fluid-record-field fluid-empty"
+      "record-close"
   | TRecordField _ ->
-      "fluid-record fluid-record-field"
+      "record-field"
   | TRecordSep _ ->
-      "fluid-record fluid-record-sep"
+      "record-sep"
+
+
+let toCategoryName (t : token) : string =
+  match t with
+  | TInteger _ | TString _ ->
+      "literal"
+  | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ ->
+      ""
+  | TFnName _ | TBinOp _ ->
+      "function"
+  | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
+      "let"
+  | TIndented _ | TIndentToHere _ | TIndent _ ->
+      "indent"
+  | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
+      "if"
+  | TFieldOp _ | TFieldName _ ->
+      "field"
+  | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaSep _ ->
+      "lambda"
+  | TListOpen _ | TListClose _ | TListSep _ ->
+      "list"
+  | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
+      "record"
+
+
+let toCssClasses (t : token) : string =
+  let keyword =
+    match t with
+    | TLetKeyword _ | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
+        "fluid-keyword"
+    | _ ->
+        ""
+  in
+  let empty =
+    match t with
+    | TLetLHS (_, "")
+    | TFieldName (_, "")
+    | TLambdaVar (_, "")
+    | TRecordField (_, _, "") ->
+        "fluid-empty"
+    | _ ->
+        ""
+  in
+  String.trim (keyword ^ " " ^ empty)
+  ^ " fluid-"
+  ^ toCategoryName t
+  ^ " fluid-"
+  ^ toTypeName t
 
 
 let tid (t : token) : id =
@@ -454,13 +495,13 @@ type tokenInfo =
 
 let show_tokenInfo (ti : tokenInfo) =
   Printf.sprintf
-    "start: %d, end: %d, len: %d, id: %s, %s (%s)"
+    "(%d, %d), '%s', %s (%s)"
     ti.startPos
     ti.endPos
-    ti.length
+    (* ti.length *)
     (toText ti.token)
     (tid ti.token)
-    (toName ti.token)
+    (toTypeName ti.token)
 
 
 let rec toTokens' (e : ast) : token list =
@@ -603,7 +644,8 @@ let eDebug (e : expr) : string =
 let eToStructure (e : expr) : string =
   e
   |> toTokens
-  |> List.map ~f:(fun ti -> "<" ^ toName ti.token ^ ":" ^ toText ti.token ^ ">")
+  |> List.map ~f:(fun ti ->
+         "<" ^ toTypeName ti.token ^ ":" ^ toText ti.token ^ ">" )
   |> String.join ~sep:""
 
 
@@ -1867,12 +1909,11 @@ let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
       in
       let element nested =
         let content = toText ti.token in
-        let tokenName = toName ti.token in
+        let classes = toCssClasses ti.token in
         let idclasses = [("id-" ^ tid ti.token, true)] in
         Html.span
-          (* ~key:(tid ti.token ^ toName ti.token) *)
           [ Attrs.classList
-              (("fluid-entry", true) :: (tokenName, true) :: idclasses) ]
+              (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
       if isAutocompleting ti s then element [dropdown ()] else element [] )
@@ -1901,18 +1942,8 @@ let viewAST (ast : ast) (s : state) : Types.msg Html.html =
     (ast |> toTokens |> toHtml ast s)
 
 
-let view (ast : ast) (s : state) : Types.msg Html.html =
+let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   let tokens = toTokens ast in
-  let actions =
-    [ Html.div
-        []
-        ( [Html.text "actions: "]
-        @ ( s.actions
-          |> List.map ~f:(fun action -> [action; ", "])
-          |> List.concat
-          |> List.dropRight ~count:1
-          |> List.map ~f:Html.text ) ) ]
-  in
   let posDiv =
     let oldGrid = gridFor ~pos:s.oldPos tokens in
     let newGrid = gridFor ~pos:s.newPos tokens in
@@ -1945,7 +1976,7 @@ let view (ast : ast) (s : state) : Types.msg Html.html =
             ^ ", "
             ^ ( K.toChar s.lastKey
               |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"unknown" ) ) ] ]
+              |> Option.withDefault ~default:"" ) ) ] ]
   in
   let tokenDiv =
     let prev, current, next = getTokensAtPosition tokens ~pos:s.newPos in
@@ -1968,9 +1999,18 @@ let view (ast : ast) (s : state) : Types.msg Html.html =
     ; Html.br []
     ; Html.text ("next: " ^ n) ]
   in
+  let actions =
+    [ Html.div
+        []
+        ( [Html.text "actions: "]
+        @ ( s.actions
+          |> List.map ~f:(fun action -> [action; ", "])
+          |> List.concat
+          |> List.dropRight ~count:1
+          |> List.map ~f:Html.text ) ) ]
+  in
   let status = List.concat [posDiv; tokenDiv; actions] in
-  let editor = viewAST ast s in
-  Html.div [Attrs.id "app"] (editor :: status)
+  Html.div [Attrs.id "fluid-status"] status
 
 (* -------------------- *)
 (* Scaffolidng *)
