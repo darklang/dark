@@ -29,11 +29,10 @@ let fetch_by_field ~state fieldname fieldvalue db =
             ( "Expected an ID or a String at 'id' but got: "
             ^ (x |> Dval.tipe_of |> Dval.tipe_to_string) )
     in
-    User_db.get_many ~state ~magic:true db [skey]
+    User_db.get_many ~state db [skey]
   else
     User_db.query_by_one
       ~state
-      ~magic:true
       db
       (Unicode_string.to_string fieldname)
       fieldvalue
@@ -47,13 +46,7 @@ let replacements =
             let db = find_db state.dbs dbname in
             let key = Util.create_uuid () in
             ignore
-              (User_db.set
-                 ~state
-                 ~magic:true
-                 ~upsert:false
-                 db
-                 (Uuidm.to_string key)
-                 value) ;
+              (User_db.set ~state ~upsert:false db (Uuidm.to_string key) value) ;
             DObj (Map.set value "id" (DID key))
         | args ->
             fail args) )
@@ -124,7 +117,7 @@ let replacements =
         | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
             obj
-            |> User_db.query ~state ~magic:true db
+            |> User_db.query ~state db
             |> User_db.coerce_dlist_of_kv_pairs_to_legacy_object
         | args ->
             fail args) )
@@ -133,7 +126,7 @@ let replacements =
         (function
         | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            let result = User_db.query ~state ~magic:true db obj in
+            let result = User_db.query ~state db obj in
             ( match result with
             | DList (x :: xs) ->
               ( match x with
@@ -151,7 +144,7 @@ let replacements =
         (function
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
-            let result = User_db.get_all ~state ~magic:true db in
+            let result = User_db.get_all ~state db in
             User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
         | args ->
             fail args) )

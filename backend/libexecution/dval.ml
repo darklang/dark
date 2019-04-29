@@ -50,10 +50,6 @@ let rec tipe_to_string t : string =
       "ID"
   | TDate ->
       "Date"
-  | TBelongsTo s ->
-      s
-  | THasMany s ->
-      "[" ^ s ^ "]"
   | TDbList tipe ->
       "[" ^ tipe_to_string tipe ^ "]"
   | TPassword ->
@@ -68,7 +64,11 @@ let rec tipe_to_string t : string =
       "Result"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
+  | TDeprecated1
+  | TDeprecated2
+  | TDeprecated3
+  | TDeprecated4 _
+  | TDeprecated5 _ ->
       Exception.internal "Deprecated type"
 
 
@@ -134,7 +134,7 @@ let rec tipe_of_string str : tipe =
         |> fun s ->
         String.drop_prefix s 1
         |> fun s -> String.drop_suffix s 1 |> parse_list_tipe
-      else TBelongsTo str
+      else Exception.internal ("Unhandled tipe_of_string: " ^ str)
 
 
 and parse_list_tipe (list_tipe : string) : tipe =
@@ -177,8 +177,8 @@ and parse_list_tipe (list_tipe : string) : tipe =
       TDbList TStr
   | "url" ->
       TDbList TStr
-  | table ->
-      THasMany list_tipe
+  | _ ->
+      Exception.internal ("Unhandled parse_list_tipe: " ^ list_tipe)
 
 
 let rec tipe_of (dv : dval) : tipe =
