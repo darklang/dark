@@ -62,6 +62,6 @@ let () =
             ; toReferences = []
             ; usagesOfHoveredReference = [] }
           in
-          expect (placeHolderFor vs id FnName) |> toBe "function name" ) ;
+          expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;
       () ) ;
   ()
