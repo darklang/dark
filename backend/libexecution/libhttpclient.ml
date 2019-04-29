@@ -189,7 +189,7 @@ let fns : Lib.shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = true }
@@ -198,7 +198,7 @@ let fns : Lib.shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
@@ -207,7 +207,7 @@ let fns : Lib.shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
@@ -216,7 +216,7 @@ let fns : Lib.shortfn list =
     ; p = params_no_body
     ; r = TResult
     ; d =
-        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
@@ -228,7 +228,7 @@ let fns : Lib.shortfn list =
     ; p = params_no_body
     ; r = TObj
     ; d =
-        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
@@ -237,7 +237,7 @@ let fns : Lib.shortfn list =
     ; p = params_no_body
     ; r = TObj
     ; d =
-        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
@@ -246,7 +246,7 @@ let fns : Lib.shortfn list =
     ; p = params_no_body
     ; r = TObj
     ; d =
-        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
@@ -255,7 +255,7 @@ let fns : Lib.shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is also a response Obj if not successful"
     ; f = NotClientAvailable
     ; ps = false
     ; dep = false }
