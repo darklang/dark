@@ -35,13 +35,13 @@ let send_request uri verb json_fn body query headers =
     | _ ->
         json_fn body
   in
-  let result, headers = Httpclient.http_call uri query verb headers body in
+  let body, code, headers, error = Httpclient.http_call_with_code uri query verb headers body in
   let parsed_result =
     if has_form_header headers
-    then Dval.of_form_encoding result
+    then Dval.of_form_encoding body
     else if has_json_header headers
-    then Dval.of_unknown_json_v0 result
-    else Dval.dstr_of_string_exn result
+    then Dval.of_unknown_json_v0 body
+    else Dval.dstr_of_string_exn body
   in
   let parsed_headers =
     headers
@@ -56,7 +56,9 @@ let send_request uri verb json_fn body query headers =
   Dval.to_dobj_exn
     [ ("body", parsed_result)
     ; ("headers", parsed_headers)
-    ; ("raw", Dval.dstr_of_string_exn result) ]
+    ; ("raw", Dval.dstr_of_string_exn body) 
+    ; ("code", DInt code)
+    ; ("error", Dval.dstr_of_string_exn error)]
 
 
 let encode_basic_auth u p =
@@ -114,7 +116,7 @@ let call_no_body verb json_fn =
 (* This isn't great, but we throw a lot of exceptions below this point
  * in the callstack and it'd be a lot of churn to rewrite that to propagate Results,
  * especially given it probably needs a rewrite anyway *)
-let wrapped_call verb json_fn =
+let wrapped_call_exn verb json_fn =
   InProcess
     (function
     | _, [DStr uri; body; query; headers] ->
@@ -138,14 +140,13 @@ let wrapped_call verb json_fn =
 
 
 (* Some verbs dont have HTTP bodies *)
-let wrapped_call_no_body verb json_fn =
+let wrapped_call_no_body_exn verb json_fn =
   InProcess
     (function
     | _, [DStr uri; query; headers] ->
-      ( try
+      (try
           DResult
-            (ResOk
-               (send_request
+            (ResOk (send_request
                   (Unicode_string.to_string uri)
                   verb
                   json_fn
@@ -157,6 +158,67 @@ let wrapped_call_no_body verb json_fn =
           DResult (ResError (Dval.dstr_of_string_exn ed.short))
       | e ->
           raise e )
+    | args ->
+        fail args)
+
+let wrapped_call verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; body; query; headers] as args ->
+      let result_dobj = (send_request
+                  (Unicode_string.to_string uri)
+                  verb
+                  json_fn
+                  body
+                  query
+                  headers) in
+      (match result_dobj with
+      | DObj result -> ( try
+          (let code_dint = (DvalMap.find result "code") in
+           match code_dint with
+           | Some(DInt code) when (code > 199 || code > 299) ->
+             DResult
+               (ResOk result_dobj)
+           | _ ->
+             DResult
+               (ResError result_dobj))
+          with
+        | Exception.DarkException ed ->
+            DResult (ResError (Dval.dstr_of_string_exn ed.short))
+        | e ->
+            raise e )
+      | _ -> fail args)
+    | args ->
+        fail args)
+
+(* Some verbs dont have HTTP bodies *)
+let wrapped_call_no_body verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; query; headers] as args ->
+      let result_dobj = (send_request
+                  (Unicode_string.to_string uri)
+                  verb
+                  json_fn
+                  (Dval.dstr_of_string_exn "")
+                  query
+                  headers) in
+      (match result_dobj with
+      | DObj result -> ( try
+          (let code_dint = (DvalMap.find result "code") in
+           match code_dint with
+           | Some(DInt code) when (code > 199 || code > 299) ->
+             DResult
+               (ResOk result_dobj)
+           | _ ->
+             DResult
+               (ResError result_dobj))
+          with
+        | Exception.DarkException ed ->
+            DResult (ResError (Dval.dstr_of_string_exn ed.short))
+        | e ->
+            raise e )
+      | _ -> fail args)
     | args ->
         fail args)
 
@@ -199,18 +261,32 @@ let replacements =
   ; ( "HttpClient::patch_v1"
     , call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::post_v2"
-    , wrapped_call Httpclient.POST Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_exn Httpclient.POST Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::put_v2"
-    , wrapped_call Httpclient.PUT Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_exn Httpclient.PUT Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::get_v2"
-    , wrapped_call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn Httpclient.GET Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::delete_v2"
-    , wrapped_call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::options_v2"
-    , wrapped_call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::head_v2"
-    , wrapped_call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::patch_v2"
+    , wrapped_call_exn Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::post_v3"
+    , wrapped_call Httpclient.POST Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::put_v3"
+    , wrapped_call Httpclient.PUT Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::get_v3"
+    , wrapped_call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::delete_v3"
+    , wrapped_call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::options_v3"
+    , wrapped_call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::head_v3"
+    , wrapped_call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
+  ; ( "HttpClient::patch_v3"
     , wrapped_call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::basicAuth"
     , InProcess
