@@ -427,8 +427,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
         handleRPC (RPC.opsParams ops) focus
-    | RPCFull (params, focus) ->
-        handleRPC params focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | NoChange ->
@@ -957,7 +955,8 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               Many
                 [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange) ]
+                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange)
+                ; Fluid.update m FluidMouseClick ]
             else SetCursorState origCursorState
         | _ ->
             NoChange
@@ -1003,17 +1002,25 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelDoubleClick tlid ->
       CenterCanvasOn tlid
   | ToplevelClick (targetTLID, _) ->
-    ( match m.cursorState with
-    | Dragging (_, _, _, origCursorState) ->
-        SetCursorState origCursorState
-    | Selecting (_, _) ->
-        Select (targetTLID, None)
-    | SelectingCommand (_, _) ->
-        Select (targetTLID, None)
-    | Deselected ->
-        Select (targetTLID, None)
-    | Entering _ ->
-        Select (targetTLID, None) )
+      let click =
+        match m.cursorState with
+        | Dragging (_, _, _, origCursorState) ->
+            SetCursorState origCursorState
+        | Selecting (_, _) ->
+            Select (targetTLID, None)
+        | SelectingCommand (_, _) ->
+            Select (targetTLID, None)
+        | Deselected ->
+            Select (targetTLID, None)
+        | Entering _ ->
+            Select (targetTLID, None)
+      in
+      let fluid =
+        if VariantTesting.isFluid m.tests
+        then Fluid.update m FluidMouseClick
+        else NoChange
+      in
+      Many [click; fluid]
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1433,6 +1440,8 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (Url.navigateTo page)
   | SetHoveringVarName (tlid, name) ->
       Introspect.setHoveringVarName tlid name
+  | FluidKeyPress _ | FluidMouseClick ->
+      Fluid.update m msg
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
@@ -1447,7 +1456,13 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
-  let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
+  let keySubs =
+    [Keyboard.downs (fun x -> GlobalKeyPress x)]
+    @
+    if VariantTesting.isFluid m.tests
+    then [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+    else []
+  in
   let resizes =
     [ Native.Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
           WindowResize (w, h) )

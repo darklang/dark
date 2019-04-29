@@ -472,6 +472,12 @@ and viewNExpr
             [titleBar; blockCondition; expressions] ]
 
 
+let view (vs : viewState) (e : expr) =
+  if VariantTesting.isFluid vs.testVariants
+  then Fluid.viewAST (Fluid.fromExpr e) vs.fluidState
+  else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
+
+
 let externalLink
     (spec : handlerSpec) (canvasName : string) (contentHost : string) =
   match (spec.modifier, spec.name) with
@@ -611,7 +617,7 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let ast =
     Html.div
       attrs
-      [ Html.div [Html.class' "ast"] [viewExpr 0 vs [] h.ast]
+      [ view vs h.ast
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]
   in

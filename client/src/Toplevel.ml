@@ -355,15 +355,20 @@ let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
   getChildrenOf tl id |> List.head
 
 
-let rootOf (tl : toplevel) : pointerData option =
+let rootExpr (tl : toplevel) : expr option =
   (* TODO SpecTypePointerDataRefactor *)
   match tl.data with
   | TLHandler h ->
-      Some (PExpr h.ast)
+      Some h.ast
   | TLFunc f ->
-      Some (PExpr f.ufAST)
+      Some f.ufAST
   | TLDB _ | TLTipe _ ->
       None
+
+
+let rootOf (tl : toplevel) : pointerData option =
+  (* TODO SpecTypePointerDataRefactor *)
+  rootExpr tl |> Option.map ~f:(fun expr -> PExpr expr)
 
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -538,3 +543,27 @@ let asPage (tl : toplevel) : page =
       FocusedFn tl.id
   | TLTipe _ ->
       FocusedType tl.id
+
+
+let selected (m : model) : toplevel option =
+  m.cursorState |> tlidOf |> Option.andThen ~f:(get m)
+
+
+let selectedAST (m : model) : expr option =
+  selected m |> Option.andThen ~f:rootExpr
+
+
+let setSelectedAST (m : model) (ast : expr) : modification =
+  match selected m with
+  | None ->
+      NoChange
+  | Some tl ->
+    ( match tl.data with
+    | TLHandler h ->
+        RPC ([SetHandler (tl.id, tl.pos, {h with ast})], FocusNothing)
+    | TLFunc f ->
+        RPC ([SetFunction {f with ufAST = ast}], FocusNothing)
+    | TLTipe _ ->
+        impossible ("no ast in DBs", tl.data)
+    | TLDB _ ->
+        impossible ("no ast in DBs", tl.data) )

@@ -27,6 +27,16 @@ let defaultEditor : serializableEditor =
   ; canvasPos = origin }
 
 
+let defaultFluidState : fluidState =
+  { actions = []
+  ; error = None
+  ; oldPos = 0
+  ; newPos = 0
+  ; upDownCol = None
+  ; acPos = Some 0
+  ; lastKey = FluidKeyboard.Escape }
+
+
 let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
@@ -92,4 +102,5 @@ let defaultModel : model =
   ; userTipes = []
   ; deletedUserTipes = []
   ; tlUsages = []
-  ; tlMeta = StrDict.empty }
+  ; tlMeta = StrDict.empty
+  ; fluidState = defaultFluidState }

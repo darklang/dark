@@ -76,7 +76,7 @@ if (pusherConfig.enabled) {
 // https://stackoverflow.com/a/41034697/104021
 function isChildOfEditor(node) {
   while (node !== null) {
-    if (node.id === "editor") {
+    if (node.id === "fluid-editor") {
       return true;
     }
     node = node.parentNode;
@@ -99,7 +99,7 @@ function getCursorPosition() {
 };
 
 function setCursorPosition(pos) {
-  editor = document.getElementById("editor");
+  editor = document.querySelector(".selected #fluid-editor");
   if (!editor) throw "no editor";
   if (pos < 0) pos = 0;
   if (pos > editor.textContent.length)
@@ -122,6 +122,9 @@ function setCursorPosition(pos) {
     }
   }
 };
+
+window.getCursorPosition = getCursorPosition;
+window.setCursorPosition = setCursorPosition;
 
 // ---------------------------
 // Analysis
