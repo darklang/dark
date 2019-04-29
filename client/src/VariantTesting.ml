@@ -17,7 +17,7 @@ let toVariantTest (s : string * bool) : variantTest option =
     ( match String.toLower test with
     | "stub" ->
         Some StubVariant
-    | "fluid" ->
+    | "fluidv2" ->
         Some FluidVariant
     | _ ->
         None )
