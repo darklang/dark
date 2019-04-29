@@ -551,3 +551,19 @@ let selected (m : model) : toplevel option =
 
 let selectedAST (m : model) : expr option =
   selected m |> Option.andThen ~f:rootExpr
+
+
+let setSelectedAST (m : model) (ast : expr) : modification =
+  match selected m with
+  | None ->
+      NoChange
+  | Some tl ->
+    ( match tl.data with
+    | TLHandler h ->
+        RPC ([SetHandler (tl.id, tl.pos, {h with ast})], FocusNothing)
+    | TLFunc f ->
+        RPC ([SetFunction {f with ufAST = ast}], FocusNothing)
+    | TLTipe _ ->
+        impossible ("no ast in DBs", tl.data)
+    | TLDB _ ->
+        impossible ("no ast in DBs", tl.data) )

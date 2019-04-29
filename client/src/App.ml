@@ -955,7 +955,8 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               Many
                 [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange) ]
+                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange)
+                ; Fluid.update m FluidMouseClick ]
             else SetCursorState origCursorState
         | _ ->
             NoChange
@@ -1001,17 +1002,25 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelDoubleClick tlid ->
       CenterCanvasOn tlid
   | ToplevelClick (targetTLID, _) ->
-    ( match m.cursorState with
-    | Dragging (_, _, _, origCursorState) ->
-        SetCursorState origCursorState
-    | Selecting (_, _) ->
-        Select (targetTLID, None)
-    | SelectingCommand (_, _) ->
-        Select (targetTLID, None)
-    | Deselected ->
-        Select (targetTLID, None)
-    | Entering _ ->
-        Select (targetTLID, None) )
+      let click =
+        match m.cursorState with
+        | Dragging (_, _, _, origCursorState) ->
+            SetCursorState origCursorState
+        | Selecting (_, _) ->
+            Select (targetTLID, None)
+        | SelectingCommand (_, _) ->
+            Select (targetTLID, None)
+        | Deselected ->
+            Select (targetTLID, None)
+        | Entering _ ->
+            Select (targetTLID, None)
+      in
+      let fluid =
+        if VariantTesting.isFluid m.tests
+        then Fluid.update m FluidMouseClick
+        else NoChange
+      in
+      Many [click; fluid]
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1432,40 +1441,7 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHoveringVarName (tlid, name) ->
       Introspect.setHoveringVarName tlid name
   | FluidKeyPress _ | FluidMouseClick ->
-      let tl = tlidOf m.cursorState |> Option.andThen ~f:(TL.get m) in
-      ( match tl with
-      | None ->
-          NoChange
-      | Some tl ->
-          let fexpr = TL.rootExpr tl |> Option.map ~f:Fluid.fromExpr in
-          ( match fexpr with
-          | None ->
-              NoChange
-          | Some oldAST ->
-              let (newAST, newState), cmd =
-                Fluid.update oldAST m.fluidState msg
-              in
-              let astMod =
-                if oldAST = newAST
-                then NoChange
-                else
-                  let ast = Fluid.toExpr newAST in
-                  match tl.data with
-                  | TLHandler h ->
-                      RPC
-                        ( [SetHandler (tl.id, tl.pos, {h with ast})]
-                        , FocusNothing )
-                  | TLFunc f ->
-                      RPC ([SetFunction {f with ufAST = ast}], FocusNothing)
-                  | TLTipe _ ->
-                      impossible ("no ast in DBs", tl.data)
-                  | TLDB _ ->
-                      impossible ("no ast in DBs", tl.data)
-              in
-              Many
-                [ TweakModel (fun m -> {m with fluidState = newState})
-                ; MakeCmd cmd
-                ; astMod ] ) )
+      Fluid.update m msg
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

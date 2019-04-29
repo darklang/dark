@@ -1861,28 +1861,43 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   (newAST, newState)
 
 
-let update (ast : ast) (s : state) (msg : Types.msg) :
-    (ast * state) * Types.msg Cmd.t =
-  let s = {s with error = None; oldPos = s.newPos} in
-  match msg with
-  | FluidMouseClick ->
-    ( match getCursorPosition () with
-    | Some newPos ->
-        ((ast, {s with newPos}), Cmd.none)
-    | None ->
-        ((ast, {s with error = Some "found no pos"}), Cmd.none) )
-  | FluidKeyPress {key} ->
-      let s = {s with lastKey = key; actions = []} in
-      let newAST, newState = updateKey key ast s in
-      (* These might be the same token *)
-      let cmd =
-        if newAST <> ast || newState.oldPos <> newState.newPos
-        then setPos newState.newPos
-        else Cmd.none
+let update (m : Types.model) (msg : Types.msg) : Types.modification =
+  match Toplevel.selectedAST m |> Option.map ~f:fromExpr with
+  | None ->
+      Types.NoChange
+  | Some ast ->
+      let newAST, newState, cmd =
+        let s = m.fluidState in
+        let s = {s with error = None; oldPos = s.newPos} in
+        match msg with
+        | FluidMouseClick ->
+          ( match getCursorPosition () with
+          | Some newPos ->
+              (ast, {s with newPos}, Cmd.none)
+          | None ->
+              (ast, {s with error = Some "found no pos"}, Cmd.none) )
+        | FluidKeyPress {key} ->
+            let s = {s with lastKey = key; actions = []} in
+            let newAST, newState = updateKey key ast s in
+            (* These might be the same token *)
+            let cmd =
+              if newAST <> ast || newState.oldPos <> newState.newPos
+              then setPos newState.newPos
+              else Cmd.none
+            in
+            (newAST, newState, cmd)
+        | _ ->
+            (ast, s, Cmd.none)
       in
-      ((newAST, newState), cmd)
-  | _ ->
-      ((ast, s), Cmd.none)
+      let astMod =
+        if ast <> newAST
+        then Toplevel.setSelectedAST m (toExpr newAST)
+        else Types.NoChange
+      in
+      Types.Many
+        [ Types.TweakModel (fun m -> {m with fluidState = newState})
+        ; Types.MakeCmd cmd
+        ; astMod ]
 
 
 (* -------------------- *)
