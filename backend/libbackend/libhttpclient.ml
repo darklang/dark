@@ -25,7 +25,7 @@ let has_json_header (headers : headers) : bool =
 
 
 (* TODO: integrate with dark_request *)
-let send_request uri verb json_fn body query headers =
+let send_request uri verb json_fn body query headers http_call_func =
   let query = Dval.dval_to_query query in
   let headers = Dval.to_string_pairs_exn headers in
   let body =
@@ -36,7 +36,7 @@ let send_request uri verb json_fn body query headers =
         json_fn body
   in
   let body, code, headers, error =
-    Httpclient.http_call_with_code uri query verb headers body
+    http_call_func uri query verb headers body
   in
   let parsed_result =
     if has_form_header headers
@@ -95,6 +95,7 @@ let call verb json_fn =
           body
           query
           headers
+          Httpclient.http_call_2XX_only
     | args ->
         fail args)
 
@@ -111,6 +112,7 @@ let call_no_body verb json_fn =
           (Dval.dstr_of_string_exn "")
           query
           headers
+          Httpclient.http_call_2XX_only
     | args ->
         fail args)
 
@@ -131,7 +133,8 @@ let wrapped_call_exn verb json_fn =
                   json_fn
                   body
                   query
-                  headers))
+                  headers
+                  Httpclient.http_call_2XX_only))
         with
       | Exception.DarkException ed ->
           DResult (ResError (Dval.dstr_of_string_exn ed.short))
@@ -155,7 +158,8 @@ let wrapped_call_no_body_exn verb json_fn =
                   json_fn
                   (Dval.dstr_of_string_exn "")
                   query
-                  headers))
+                  headers
+                  Httpclient.http_call_2XX_only))
         with
       | Exception.DarkException ed ->
           DResult (ResError (Dval.dstr_of_string_exn ed.short))
@@ -177,6 +181,7 @@ let wrapped_call verb json_fn =
             body
             query
             headers
+            Httpclient.http_call
         in
         ( match result_dobj with
         | DObj result ->
@@ -211,6 +216,7 @@ let wrapped_call_no_body verb json_fn =
             (Dval.dstr_of_string_exn "")
             query
             headers
+            Httpclient.http_call
         in
         ( match result_dobj with
         | DObj result ->

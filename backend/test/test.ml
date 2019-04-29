@@ -1030,14 +1030,14 @@ let t_curl_file_urls () =
     (AT.option AT.string)
     "aaa"
     (* Before we limited the protocols for curl, .info.error was "",
-       since Httpclient.http_call checked for a 2xx HTTP code. But the file
+       since Httpclient.http_call_2XX_only checked for a 2xx HTTP code. But the file
        contents ended up in the error message. Now we've restricted the URL
        protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
        is even sent. *)
     (Some "Unsupported protocol")
     ( try
         ignore
-          (Httpclient.http_call
+          (Httpclient.http_call_2XX_only
              "file://localhost/etc/passwd"
              []
              Httpclient.GET

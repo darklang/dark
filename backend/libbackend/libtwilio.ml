@@ -48,5 +48,6 @@ let replacements =
               body
               (DObj DvalMap.empty)
               headers
+              Httpclient.http_call_2XX_only
         | args ->
             fail args) ) ]

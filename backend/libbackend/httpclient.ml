@@ -84,7 +84,7 @@ let recode_latin1 (src : string) =
   Buffer.contents recodebuf
 
 
-let http_call_with_code
+let http_call
     (url : string)
     (query_params : (string * string list) list)
     (verb : verb)
@@ -205,14 +205,14 @@ let http_call_with_code
   (body, code, !result_headers, error)
 
 
-let http_call
+let http_call_2XX_only
     (url : string)
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * (string * string) list =
+    (body : string) : string * int * (string * string) list * string =
   let resp_body, code, resp_headers, error =
-    http_call_with_code url query_params verb headers body
+    http_call url query_params verb headers body
   in
   if code < 200 || code > 299
   then
@@ -225,7 +225,7 @@ let http_call
     Exception.user
       ~info
       ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
-  else (resp_body, resp_headers)
+  else (resp_body, code, resp_headers, error)
 
 
 let call
@@ -237,7 +237,7 @@ let call
     "HTTP"
     ~params:[("verb", show_verb verb); ("url", url)]
     ~jsonparams:[("body", `Int (body |> String.length))] ;
-  let results, _ = http_call url [] verb headers body in
+  let results, _, _, _ = http_call_2XX_only url [] verb headers body in
   results
 
 
