@@ -9,7 +9,7 @@ let () =
   describe "placeholdersDisplayed" (fun () ->
       test "shows placeholders in user functions" (fun () ->
           let id = gid () in
-          let ast = Blank.newF (FnCall (F (id, "Int::add_v0"), [], NoRail)) in
+          let ast = Blank.newF (FnCall (F (gid (), "Int::add_v0"), [ Blank id; Blank.new_ () ], NoRail)) in
           let tlFunc =
             TLFunc
               { ufAST = ast
