@@ -15,7 +15,7 @@ let replacements =
         | state, [DObj value; DDB dbname] ->
             let key = Uuidm.v `V4 |> Uuidm.to_string in
             let db = find_db state.dbs dbname in
-            ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
+            ignore (User_db.set ~state ~upsert:true db key value) ;
             Dval.dstr_of_string_exn key
         | args ->
             fail args) )
@@ -25,7 +25,7 @@ let replacements =
         | state, [DObj value; DStr key; DDB dbname] ->
             let db = find_db state.dbs dbname in
             let key = Unicode_string.to_string key in
-            ignore (User_db.set ~state ~magic:false ~upsert:true db key value) ;
+            ignore (User_db.set ~state ~upsert:true db key value) ;
             DObj value
         | args ->
             fail args) )
@@ -36,7 +36,7 @@ let replacements =
           ( try
               let key = Unicode_string.to_string key in
               let db = find_db state.dbs dbname in
-              DOption (OptJust (User_db.get ~state ~magic:false db key))
+              DOption (OptJust (User_db.get ~state db key))
             with
           | Exception.DarkException e when e.tipe = Exception.DarkStorage ->
               DOption OptNothing
@@ -59,7 +59,7 @@ let replacements =
                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                 keys
             in
-            User_db.get_many ~state ~magic:false db skeys
+            User_db.get_many ~state db skeys
         | args ->
             fail args) )
   ; ( "DB::delete_v1"
@@ -86,7 +86,7 @@ let replacements =
         (function
         | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.query ~state ~magic:false db obj
+            User_db.query ~state db obj
         | args ->
             fail args) )
   ; ( "DB::query_v2"
@@ -95,7 +95,7 @@ let replacements =
         | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              User_db.query ~state ~magic:false db obj
+              User_db.query ~state db obj
             in
             ( match results with
             | DList xs ->
@@ -115,7 +115,7 @@ let replacements =
         (function
         | state, [(DObj _ as obj); DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.query ~state ~magic:false db obj
+            User_db.query ~state db obj
         | args ->
             fail args) )
   ; ( "DB::queryOne_v1"
@@ -124,7 +124,7 @@ let replacements =
         | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              User_db.query ~state ~magic:false db obj
+              User_db.query ~state db obj
             in
             ( match results with
             | DList [res] ->
@@ -144,7 +144,7 @@ let replacements =
         | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              User_db.query ~state ~magic:false db obj
+              User_db.query ~state db obj
             in
             ( match results with
             | DList [res] ->
@@ -158,7 +158,7 @@ let replacements =
         (function
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.get_all ~state ~magic:false db
+            User_db.get_all ~state db
         | args ->
             fail args) )
   ; ( "DB::getAll_v2"
@@ -167,7 +167,7 @@ let replacements =
         | state, [DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state ~magic:false db
+              User_db.get_all ~state db
             in
             ( match results with
             | DList xs ->
@@ -187,7 +187,7 @@ let replacements =
         (function
         | state, [DDB dbname] ->
             let db = find_db state.dbs dbname in
-            User_db.get_all ~state ~magic:false db
+            User_db.get_all ~state db
         | args ->
             fail args) )
   ; ( "DB::count"

@@ -119,8 +119,8 @@ type tipe_ =
   | TDeprecated2
   | TDeprecated3
   (* Storage related hackery *)
-  | TBelongsTo of string
-  | THasMany of string
+  | TDeprecated4 of string
+  | TDeprecated5 of string
   | TDbList of tipe_
   | TPassword
   | TUuid
