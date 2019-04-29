@@ -76,7 +76,7 @@ if (pusherConfig.enabled) {
 // https://stackoverflow.com/a/41034697/104021
 function isChildOfEditor(node) {
   while (node !== null) {
-    if (node.id === "editor") {
+    if (node.id === "fluid-editor") {
       return true;
     }
     node = node.parentNode;
