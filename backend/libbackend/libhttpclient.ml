@@ -35,7 +35,9 @@ let send_request uri verb json_fn body query headers =
     | _ ->
         json_fn body
   in
-  let body, code, headers, error = Httpclient.http_call_with_code uri query verb headers body in
+  let body, code, headers, error =
+    Httpclient.http_call_with_code uri query verb headers body
+  in
   let parsed_result =
     if has_form_header headers
     then Dval.of_form_encoding body
@@ -56,9 +58,9 @@ let send_request uri verb json_fn body query headers =
   Dval.to_dobj_exn
     [ ("body", parsed_result)
     ; ("headers", parsed_headers)
-    ; ("raw", Dval.dstr_of_string_exn body) 
+    ; ("raw", Dval.dstr_of_string_exn body)
     ; ("code", DInt code)
-    ; ("error", Dval.dstr_of_string_exn error)]
+    ; ("error", Dval.dstr_of_string_exn error) ]
 
 
 let encode_basic_auth u p =
@@ -144,9 +146,10 @@ let wrapped_call_no_body_exn verb json_fn =
   InProcess
     (function
     | _, [DStr uri; query; headers] ->
-      (try
+      ( try
           DResult
-            (ResOk (send_request
+            (ResOk
+               (send_request
                   (Unicode_string.to_string uri)
                   verb
                   json_fn
@@ -161,64 +164,70 @@ let wrapped_call_no_body_exn verb json_fn =
     | args ->
         fail args)
 
+
 let wrapped_call verb json_fn =
   InProcess
     (function
-    | _, [DStr uri; body; query; headers] as args ->
-      let result_dobj = (send_request
-                  (Unicode_string.to_string uri)
-                  verb
-                  json_fn
-                  body
-                  query
-                  headers) in
-      (match result_dobj with
-      | DObj result -> ( try
-          (let code_dint = (DvalMap.find result "code") in
-           match code_dint with
-           | Some(DInt code) when (code > 199 || code > 299) ->
-             DResult
-               (ResOk result_dobj)
-           | _ ->
-             DResult
-               (ResError result_dobj))
-          with
-        | Exception.DarkException ed ->
-            DResult (ResError (Dval.dstr_of_string_exn ed.short))
-        | e ->
-            raise e )
-      | _ -> fail args)
+    | (_, [DStr uri; body; query; headers]) as args ->
+        let result_dobj =
+          send_request
+            (Unicode_string.to_string uri)
+            verb
+            json_fn
+            body
+            query
+            headers
+        in
+        ( match result_dobj with
+        | DObj result ->
+          ( try
+              let code_dint = DvalMap.find result "code" in
+              match code_dint with
+              | Some (DInt code) when code > 199 || code > 299 ->
+                  DResult (ResOk result_dobj)
+              | _ ->
+                  DResult (ResError result_dobj)
+            with
+          | Exception.DarkException ed ->
+              DResult (ResError (Dval.dstr_of_string_exn ed.short))
+          | e ->
+              raise e )
+        | _ ->
+            fail args )
     | args ->
         fail args)
+
 
 (* Some verbs dont have HTTP bodies *)
 let wrapped_call_no_body verb json_fn =
   InProcess
     (function
-    | _, [DStr uri; query; headers] as args ->
-      let result_dobj = (send_request
-                  (Unicode_string.to_string uri)
-                  verb
-                  json_fn
-                  (Dval.dstr_of_string_exn "")
-                  query
-                  headers) in
-      (match result_dobj with
-      | DObj result -> ( try
-          (let code_dint = (DvalMap.find result "code") in
-           match code_dint with
-           | Some(DInt code) when (code > 199 || code > 299) ->
-             DResult
-               (ResOk result_dobj)
-           | _ ->
-             DResult
-               (ResError result_dobj))
-          with
-        | Exception.DarkException ed ->
-            DResult (ResError (Dval.dstr_of_string_exn ed.short))
-        | e ->
-            raise e )
-      | _ -> fail args)
+    | (_, [DStr uri; query; headers]) as args ->
+        let result_dobj =
+          send_request
+            (Unicode_string.to_string uri)
+            verb
+            json_fn
+            (Dval.dstr_of_string_exn "")
+            query
+            headers
+        in
+        ( match result_dobj with
+        | DObj result ->
+          ( try
+              let code_dint = DvalMap.find result "code" in
+              match code_dint with
+              | Some (DInt code) when code > 199 || code > 299 ->
+                  DResult (ResOk result_dobj)
+              | _ ->
+                  DResult (ResError result_dobj)
+            with
+          | Exception.DarkException ed ->
+              DResult (ResError (Dval.dstr_of_string_exn ed.short))
+          | e ->
+              raise e )
+        | _ ->
+            fail args )
     | args ->
         fail args)
 
@@ -267,11 +276,15 @@ let replacements =
   ; ( "HttpClient::get_v2"
     , wrapped_call_no_body_exn Httpclient.GET Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::delete_v2"
-    , wrapped_call_no_body_exn Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    )
   ; ( "HttpClient::options_v2"
-    , wrapped_call_no_body_exn Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn
+        Httpclient.OPTIONS
+        Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::head_v2"
-    , wrapped_call_no_body_exn Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
+    , wrapped_call_no_body_exn Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    )
   ; ( "HttpClient::patch_v2"
     , wrapped_call_exn Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
   ; ( "HttpClient::post_v3"
