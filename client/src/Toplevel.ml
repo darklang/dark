@@ -543,3 +543,11 @@ let asPage (tl : toplevel) : page =
       FocusedFn tl.id
   | TLTipe _ ->
       FocusedType tl.id
+
+
+let selected (m : model) : toplevel option =
+  m.cursorState |> tlidOf |> Option.andThen ~f:(get m)
+
+
+let selectedAST (m : model) : expr option =
+  selected m |> Option.andThen ~f:rootExpr
