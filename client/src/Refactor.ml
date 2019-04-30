@@ -529,7 +529,8 @@ let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
       ~init:ast
       usedInExprs
   in
-  m.toplevels
+  let toplevels = m.toplevels @ List.map ~f:TL.ufToTL m.userFunctions in
+  toplevels
   |> List.filterMap ~f:(fun tl ->
          match tl.data with
          | TLHandler h ->
