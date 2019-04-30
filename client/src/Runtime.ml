@@ -243,6 +243,27 @@ let isValidStringLiteral (str : string) : bool =
   |> fun (lastCharSlash, valid) -> valid && not lastCharSlash
 
 
+let convertLiteralStringToDisplay (str : string) : string =
+  (* Convert special chars to use two backslashes *)
+  str
+  |> Regex.replace ~re:[%re "/\\n/"] ~repl:"\\n"
+  |> Regex.replace ~re:[%re "/\\r/"] ~repl:"\\r"
+  |> Regex.replace ~re:[%re "/\\t/"] ~repl:"\\t"
+  (* this is an ocaml double slash, which the compiled js interprets as a
+   * single slash *)
+  |> Regex.replace ~re:(Regex.regex "\\\\") ~repl:"\\\\"
+
+
+let convertDisplayStringToLiteral (str : string) : string =
+  (* Convert escaped version into special chars *)
+  str
+  |> Regex.replace ~re:[%re "/\\\\n/"] ~repl:"\n"
+  |> Regex.replace ~re:[%re "/\\\\r/"] ~repl:"\r"
+  |> Regex.replace ~re:[%re "/\\\\t/"] ~repl:"\t"
+  (* 8 ocaml slashes becomes 4 js slashes, becomes 2 js slashes *)
+  |> Regex.replace ~re:(Regex.regex "\\\\\\\\") ~repl:"\\"
+
+
 let isComplete (dv : dval) : bool =
   match dv with DError _ -> false | DIncomplete -> false | _ -> true
 
