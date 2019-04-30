@@ -65,7 +65,7 @@ let () =
             ; inReferences = []
             ; toReferences = []
             ; usagesOfHoveredReference = []
-            ; fluidState = Defaults.defaultFluidState}
+            ; fluidState = Defaults.defaultFluidState }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;
       () ) ;
