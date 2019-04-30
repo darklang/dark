@@ -229,6 +229,20 @@ let isLiteral (dv : dval) : bool =
       false
 
 
+let isValidStringLiteral (str : string) : bool =
+  str
+  |> String.toList
+  |> List.foldl ~init:(false, true) ~f:(fun c (sawSlash, valid) ->
+         (* Bucklescript actually stores chars are strings, and comparisons
+          * against literal chars don't work. wtf. *)
+         if not valid
+         then (false, false)
+         else if sawSlash
+         then (false, List.member ~value:c (Obj.magic ["t"; "r"; "n"; "\\"]))
+         else (c = Obj.magic "\\", true) )
+  |> fun (lastCharSlash, valid) -> valid && not lastCharSlash
+
+
 let isComplete (dv : dval) : bool =
   match dv with DError _ -> false | DIncomplete -> false | _ -> true
 
