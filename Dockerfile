@@ -190,12 +190,12 @@ ENV FORCE_OCAML_BUILD 5
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
-RUN opam init --comp 4.07.0 --auto-setup --disable-sandboxing
-ENV PATH "/home/dark/.opam/4.07.0/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.07.0/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/4.07.0/man:"
-ENV PERL5LIB "/home/dark/.opam/4.07.0/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.07.0/lib/toplevel"
+RUN opam init --comp 4.06.1 --auto-setup --disable-sandboxing
+ENV PATH "/home/dark/.opam/4.06.1/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.1/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/4.06.1/man:"
+ENV PERL5LIB "/home/dark/.opam/4.06.1/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.1/lib/toplevel"
 ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
@@ -243,12 +243,10 @@ RUN opam install -y \
   && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master
 
 # To use PPXes in bucklescript, we need to install them from opam
-RUN opam switch create 4.02.3
 RUN eval $(opam env) \
   && opam install -y \
     ppx_deriving_yojson \
     ppx_deriving
-RUN opam switch 4.07.0
 
 ############################
 # Shellcheck
@@ -318,7 +316,8 @@ RUN opam update && opam install -y tablecloth-native.0.0.5
 # It is fixed in 11.12, so for now we force our containers to update to 11.12
 #
 # And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
-RUN sudo apt update && sudo apt install nodejs=11.14.0-1nodesource1
+# And then 11.14
+RUN sudo apt update && sudo apt install nodejs=11.15.0-1nodesource1
 
 RUN sudo apt install -y pv
 
