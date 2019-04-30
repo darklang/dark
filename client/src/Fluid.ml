@@ -37,12 +37,12 @@ let removeCharAt str offset : string =
     ^ String.slice ~from:(offset + 1) ~to_:(String.length str) str
 
 
-let isNumber (str : string) = Js.Re.test str [%re "/[0-9]+/"]
+let isNumber (str : string) = Js.Re.test_ [%re "/[0-9]+/"] str
 
-let isIdentifierChar (str : string) = Js.Re.test str [%re "/[_a-zA-Z0-9]+/"]
+let isIdentifierChar (str : string) = Js.Re.test_ [%re "/[_a-zA-Z0-9]+/"] str
 
 let isFnNameChar str =
-  Js.Re.test str [%re "/[_:a-zA-Z0-9]/"] && String.length str = 1
+  Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
 
 
 exception FExc of string
