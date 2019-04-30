@@ -313,7 +313,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.paramTypeValidator "type field type"
   | PPattern currentPattern ->
       let validPattern value =
-        Decoders.isLiteralString value
+        (Decoders.isLiteralString value && Runtime.isValidStringLiteral value)
         || v AC.varnamePatternValidator "variable pattern" = None
         || v AC.constructorPatternValidator "constructor pattern" = None
       in
