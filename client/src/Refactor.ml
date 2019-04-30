@@ -67,13 +67,23 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
       NoChange
 
 
-let toggleOnRail (_ : model) (tl : toplevel) (p : pointerData) : modification =
+let toggleOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
   let new_ =
     match p with
     | PExpr (F (id, FnCall (name, exprs, Rail))) ->
         PExpr (F (id, FnCall (name, exprs, NoRail)))
-    | PExpr (F (id, FnCall (name, exprs, NoRail))) ->
-        PExpr (F (id, FnCall (name, exprs, Rail)))
+    | PExpr (F (id, FnCall (F (nid, name), exprs, NoRail))) ->
+        (* Only allow toggling onto rail iff:
+          *   - function name is filled in
+          *   - we can determine that it returns a TOption/TResult
+          *)
+        List.find ~f:(fun fn -> fn.fnName = name) m.complete.functions
+        |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+        |> Option.map ~f:(fun t ->
+               if t = TOption || t = TResult
+               then PExpr (F (id, FnCall (F (nid, name), exprs, Rail)))
+               else p )
+        |> Option.withDefault ~default:p
     | _ ->
         p
   in
