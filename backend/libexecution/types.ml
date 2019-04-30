@@ -114,7 +114,7 @@ type tipe_ =
   | TBlock
   | TResp
   | TDB
-  | TID
+  | TDeprecated6
   | TDate
   | TDeprecated2
   | TDeprecated3
@@ -432,7 +432,6 @@ module RuntimeT = struct
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of string
-    | DID of uuid
     | DDate of time
     | DPassword of PasswordBytes.t
     | DUuid of uuid

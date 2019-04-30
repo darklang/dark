@@ -33,13 +33,7 @@ let find_db_exn (tables : db list) (table_name : string) : db =
 let coerce_key_value_pair_to_legacy_object pair =
   match pair with
   | [DStr s; DObj o] ->
-      let id =
-        match Uuidm.of_string (Unicode_string.to_string s) with
-        | Some id ->
-            DID id
-        | None ->
-            DStr s
-      in
+      let id = DStr s in
       DObj (Map.set ~key:"id" ~data:id o)
   | err ->
       Exception.internal
@@ -88,8 +82,6 @@ let cols_for (db : db) : (string * tipe) list =
 
 let dv_to_id col (dv : dval) : Uuidm.t =
   match dv with
-  | DID id ->
-      id
   | DStr str ->
       (* This is what you get for accidentally
                      implementating a dynamic language *)
@@ -98,11 +90,11 @@ let dv_to_id col (dv : dval) : Uuidm.t =
         | Some id ->
             id
         | None ->
-            Exception.user (type_error_msg col TID dv)
+            Exception.user (type_error_msg col TStr dv)
       in
       uuid
   | _ ->
-      Exception.user (type_error_msg col TID dv)
+      Exception.user (type_error_msg col TStr dv)
 
 
 let rec query ~state db query_obj : dval =
@@ -193,8 +185,6 @@ and type_check_and_map_dependents
     DvalMap.mapi
       ~f:(fun ~key ~data ->
         match (TipeMap.find_exn cols key, data) with
-        | TID, DID _ ->
-            data
         | TInt, DInt _ ->
             data
         | TFloat, DFloat _ ->
@@ -251,7 +241,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
     ~belongs_to:(fun table dv ->
       let dep_table = find_db_exn state.dbs table in
       match dv with
-      | DID _ | DStr _ ->
+      | DStr _ ->
         (* TODO: temporary, need to add this to coerce not found
             * dependents to null. We should probably propagate the
             * deletion to the owning records, but this is very much a
@@ -269,7 +259,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
           (* allow nulls for now *)
           DNull
       | err ->
-          Exception.user (type_error_msg table TID err) )
+          Exception.user (type_error_msg table TStr err) )
     ~has_many:(fun table ids ->
       let dep_table = find_db_exn state.dbs table in
       let skeys =
@@ -284,6 +274,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
     obj
 
 
+(* TODO remove this with old deprecated magic db code *)
 and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
@@ -298,7 +289,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
             let key = Util.create_uuid () in
             ignore
               (set ~state ~upsert:false dep_table (key |> Uuidm.to_string) m) ;
-            DID key )
+            DStr (key |> Uuidm.to_string |> Unicode_string.of_string_exn) )
       | DNull ->
           (* allow nulls for now *)
           DNull
@@ -323,7 +314,8 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
                         dep_table
                         (key |> Uuidm.to_string)
                         m) ;
-                   DID key )
+                   DStr (key |> Uuidm.to_string |> Unicode_string.of_string_exn)
+               )
              | err ->
                  Exception.user (type_error_msg table TObj err) )
       |> DList )
