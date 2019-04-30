@@ -29,6 +29,7 @@ let () =
           let vs : ViewUtils.viewState =
             { tl
             ; cursorState = Deselected
+            ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()
             ; hovering = None
             ; ac =
