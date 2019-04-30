@@ -261,7 +261,6 @@ let sample_dvals =
   ; ( "httpresponse"
     , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
   ; ("db", DDB "Visitors")
-  ; ("id", DID (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
   ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
@@ -1369,52 +1368,6 @@ let t_admin_handler_api () =
        ; ("test", "/api/test_admin/initial_load", "") ])
     [200; 401]
 
-
-let t_db_write_deprecated_read_new () =
-  clear_test_data () ;
-  let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
-  in
-  (* DID and DUUID deliberately do not unify, but we don't want to break
-   * the contract that the old DB functions return DID, so we have to stringify *)
-  let ast =
-    "(let old (DB::insert (obj (x 'foo')) MyDB)
-              (let stringified_id (toString (. old id))
-               (let new (`DB::get_v1 stringified_id MyDB)
-                (let mutated_new (assoc new 'id' stringified_id)
-                 (let mutated_old (assoc old 'id' stringified_id)
-                  (== mutated_new mutated_old))))))"
-  in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
-
-
-let t_db_read_deprecated_write_new_duuid () =
-  clear_test_data () ;
-  let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
-  in
-  let ast =
-    "(let new_write (DB::set_v1 (obj (x 'foo')) (toString (Uuid::generate)) MyDB)
-               (let old_read (DB::fetchOneBy 'foo' 'x' MyDB)
-                 (let mutated_old_read (dissoc old_read 'id')
-                   ((== new_write mutated_old_read) (. old_read id)))))"
-  in
-  let result = exec_handler ~ops ast in
-  AT.check
-    AT.int
-    "Deprecated reads from an object with a new write give expected value and right type"
-    0
-    ( match result with
-    | DList [DBool true; a] when Dval.tipe_of a = TID ->
-        0
-    | _ ->
-        1 )
 
 
 let t_db_new_query_v2_works () =
@@ -2642,10 +2595,6 @@ let suite =
     , t_check_csrf_then_handle )
   ; ("UI routes in admin_handler work ", `Quick, t_admin_handler_ui)
   ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
-  ; ("New DB code can read old writes", `Quick, t_db_write_deprecated_read_new)
-  ; ( "Old DB code can read new writes with UUID key"
-    , `Quick
-    , t_db_read_deprecated_write_new_duuid )
   ; ("New query function works", `Quick, t_db_new_query_v2_works)
   ; ("DB::set_v1 upserts", `Quick, t_db_set_does_upsert)
   ; ("DB::getAllWithKeys_v1 works", `Quick, t_db_get_all_with_keys_works)

@@ -20,8 +20,6 @@ let fetch_by_field ~state fieldname fieldvalue db =
   then
     let skey =
       match fieldvalue with
-      | DID id ->
-          Uuidm.to_string id
       | DStr s ->
           Unicode_string.to_string s
       | x ->
@@ -43,28 +41,14 @@ let replacements =
     , InProcess
         (function
         | state, [DObj value; DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            let key = Util.create_uuid () in
-            ignore
-              (User_db.set ~state ~upsert:false db (Uuidm.to_string key) value) ;
-            DObj (Map.set value "id" (DID key))
+            Exception.user "DB::insert is deprecated"
         | args ->
             fail args) )
   ; ( "DB::delete"
     , InProcess
         (function
         | state, [DObj vals; DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            let key =
-              match Map.find_exn vals "id" with
-              | DID id ->
-                  Uuidm.to_string id
-              | _ ->
-                  Exception.internal
-                    "expected a UUID` at magic `id` field in deprecated delete"
-            in
-            User_db.delete state db key ;
-            DNull
+            Exception.user "DB::delete is deprecated"
         | args ->
             fail args) )
   ; ( "DB::deleteAll"
