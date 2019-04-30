@@ -20,18 +20,14 @@ let usage () : unit =
 let transform_op (op : Op.op) ~(params : (string * string) list) : Op.op =
   let transform_string old =
     let new_str =
-      match String.lowercase old with
-      | "title" | "url" ->
-          "string"
-      | _ ->
-        (* If it's a tipe we can't parse, make it either id or [id] *)
-        ( try
-            ignore (Libexecution.Dval.tipe_of_string old) ;
-            old
-          with e ->
-            if String.is_prefix old "[" && String.is_suffix old "]"
-            then "[id]"
-            else "id" )
+      (* If it's a tipe we can't parse, make it either id or [id] *)
+      try
+        ignore (Libexecution.Dval.tipe_of_string old) ;
+        old
+      with e ->
+        if String.is_prefix old "[" && String.is_suffix old "]"
+        then "[id]"
+        else "id"
     in
     if old <> new_str
     then
@@ -59,7 +55,7 @@ let transform_op (op : Op.op) ~(params : (string * string) list) : Op.op =
           oldCols
           |> List.map ~f:(fun (name, tipe) ->
                  (* Note: a previous version transformed both col name and tipe; we
-               * just want to transform the col name *)
+               * just want to transform the tipe *)
                  (name, transform_string_or_blank tipe) )
         in
         CreateDBMigration (tlid, rbid, rfid, newCols)
