@@ -107,6 +107,17 @@ fi
 # Lock before doing a deploy (don't forget to unlock!)
 #############################
 
+cleanup_deploy_lock() {
+  trap '' EXIT # some shells will call EXIT after the INT handler
+  if [[ "${DEPLOY_LOCK_BUCKET}" != "" && "${THIS_DEPLOY_LOCKFILE}" != "" ]];
+  then
+    echo "Removing deploy lock: ${DEPLOY_LOCK_BUCKET}/deploy-lock-${THIS_DEPLOY_LOCKFILE}"
+    gsutil rm "${DEPLOY_LOCK_BUCKET}/deploy-lock-${THIS_DEPLOY_LOCKFILE}"
+  fi
+
+  exit 1
+}
+
 deploy_lock_claimed=""
 
 while [[ "${deploy_lock_claimed}" != "true" ]]; do
@@ -128,6 +139,9 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
     if [[ "${max_deploy_lock}" == "" ]]; then
       echo date > "deploy-lock-${THIS_DEPLOY_LOCKFILE}"
       gsutil cp "deploy-lock-${THIS_DEPLOY_LOCKFILE}" "${DEPLOY_LOCK_BUCKET}"
+      # Make sure we remove the lockfile if this script exits early for some reason
+      trap cleanup_deploy_lock INT QUIT TERM
+
       deploy_lock_claimed="true"
     # if the biggest # is greater than ours, then exit instead of deploying
     # NB: "manual-deploy" is greater than any numeric string, so it will always
