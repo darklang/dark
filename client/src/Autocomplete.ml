@@ -351,6 +351,10 @@ let keynameValidator = ".+"
 
 let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
 
+(* NB: disallowing inital-capitals also defends against having a collision
+ * between a function param name and a db name *)
+let paramNameValidator = "[a-z][a-zA-Z0-9_]*"
+
 let typeNameValidator = dbNameValidator
 
 let paramTypeValidator = "[A-Za-z0-9_]*"

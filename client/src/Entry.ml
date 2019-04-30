@@ -302,7 +302,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PConstructorName _ ->
       v AC.constructorNameValidator "constructor name"
   | PParamName _ ->
-      None
+      v AC.paramNameValidator "param name"
   | PParamTipe _ ->
       v AC.paramTypeValidator "param type"
   | PTypeName _ ->
