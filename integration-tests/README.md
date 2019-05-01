@@ -1,25 +1,22 @@
 # How the integration tests work
 
-##### (Updated Dec 27, 2018)
+##### (Updated May 1, 2019)
 
 ## Running
 
 Integration tests can be run in three forms:
 
 ### On your machine
-If you want to watch the integration tests, run it on your machine:
+If you want to watch the integration tests, run it on your machine:  
+ `./integration-tests/run.sh`  
 
-- `./integration-tests/run.sh`
-
-You need testcafe installed on your machine:
-
-- `npm install -g testcafe`
+You need testcafe installed on your machine:  
+ `npm install -g testcafe`  
 
 ### In debug mode
 
-If you want to use the testcafe debugger, run the tests in debug mode:
-
-- `./integration-tests/run.sh --debug`
+If you want to use the testcafe debugger, run the tests in debug mode:  
+ `./integration-tests/run.sh --debug`  
 
 When Chrome loads, use the buttons at the bottom to step through execution. You can see what step you're on in your terminal. You can run the chrome debugger and inspect, watch what's happening in the console, etc.
 
@@ -29,7 +26,7 @@ https://devexpress.github.io/testcafe/documentation/recipes/debug-in-chrome-dev-
 
 ## In the container
 
-- `./scripts/run-in-docker ./integration-tests/run.sh`
+`./scripts/run-in-docker ./integration-tests/run.sh`  
 
 This runs Chrome in xvfb, so it will not appear on your screen. Unlike other modes, this will run 4 tests at once.
 
@@ -52,7 +49,30 @@ actually means "Can't connect to the server".
   have clicks that have other effects
 - Expectations fail when the element is offscreen. Often moving the element to the left (esp in the JSON test_appdata file) will solve it.
 
+## Writing a new test
 
+Our integration test files are scattered across the code base. There are multiple steps and changes you have to make to write a new integration test.
+
+
+1. If your test required contents on the canvas, add a file in `backend/test_appdata`. File names follow the format of `test-{your_test_name}.json`. To start these files off, either copy from existing files, or press **Save Test** in the button-bar in Dark.  
+
+
+2. Add a new function to `integration-tests/test.js`. 
+```
+test('{your_test_name}', async t => {
+  // UI interactions and assertions go here
+});
+```  
+
+
+3. To complete the test, write a validation function in `client/IntegrationTest.ml`.
+```
+let {your_test_name} (m : model) : testResult = 
+    (* Model assertions go here; common ones include checking the AST or looking for allowed/disallowed states *)
+    (*  `fail ~f:('a -> string) 'a` - f is a function that takes an object and returns a string for test output *)    
+```  
+
+4. Lastly to verify your newly written test works without running all the other tests, run the script with `--pattern={your_test_name}`
 
 ## How it works:
 
