@@ -334,7 +334,7 @@ and approxNWidth (ne : nExpr) : int =
 
 let splitFnName (fnName : fnName) : string option * string * string =
   let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
-  let mResult = Js.Re.exec fnName pattern in
+  let mResult = Js.Re.exec_ pattern fnName in
   match mResult with
   | Some result ->
       let captures =
