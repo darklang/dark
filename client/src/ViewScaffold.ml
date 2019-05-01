@@ -113,8 +113,7 @@ let viewButtons (m : model) : msg Html.html =
       [Html.class' "specialButton"]
       [ Html.text
           ( "Tests: ["
-          ^ Js.Array.toString
-              (Array.of_list (List.map ~f:show_variantTest m.tests))
+          ^ (m.tests |> List.map ~f:show_variantTest |> String.join ~sep:", ")
           ^ "]" ) ]
   in
   let environment =

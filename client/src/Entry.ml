@@ -8,6 +8,7 @@ module B = Blank
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
+module Regex = Util.Regex
 
 let createFindSpace (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
@@ -189,7 +190,7 @@ let replaceExpr
   let id = B.toID old_ in
   let old, new_ =
     (* assign thread to variable *)
-    if Util.reExactly "=[a-zA-Z].*" value
+    if Regex.exactly ~re:"=[a-zA-Z].*" value
     then
       match AST.threadAncestors id ast with
       (* turn the current thread into a let-assignment to this *)
@@ -246,7 +247,7 @@ let parsePattern (str : string) : pattern option =
         else None
       else if Decoders.isLiteralRepr str
       then Some (B.newF (PLiteral str))
-      else if Util.reExactly variablePattern str
+      else if Regex.exactly ~re:variablePattern str
       then Some (B.newF (PVariable str))
       else None
 
@@ -266,7 +267,7 @@ let getAstFromTopLevel tl =
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
     string option =
   let v pattern name =
-    if Util.reExactly pattern value
+    if Regex.exactly ~re:pattern value
     then None
     else Some (name ^ " must match /" ^ pattern ^ "/")
   in

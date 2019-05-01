@@ -6,6 +6,7 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module B = Blank
+module Regex = Util.Regex
 
 (* ---------------------------- *)
 (* Focus *)
@@ -365,7 +366,7 @@ let typeNameValidator = dbNameValidator
 let paramTypeValidator = "[A-Za-z0-9_]*"
 
 let assertValid pattern value : string =
-  if Util.reExactly pattern value
+  if Regex.exactly ~re:pattern value
   then value
   else Debug.crash ("Failed validator: " ^ pattern ^ ", " ^ value)
 
@@ -380,7 +381,7 @@ let rec stripCharsFromFront (disallowed : string) (s : string) : string =
       s
   | Some (c, rest) ->
       let needle = String.fromChar c in
-      if Util.reContains ~re:disallowed needle
+      if Regex.contains ~re:(Regex.regex disallowed) needle
       then stripCharsFromFront disallowed rest
       else s
 
