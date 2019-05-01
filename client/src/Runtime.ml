@@ -238,30 +238,49 @@ let isValidStringLiteral (str : string) : bool =
          if not valid
          then (false, false)
          else if sawSlash
-         then (false, List.member ~value:c (Obj.magic ["t"; "r"; "n"; "\\"]))
+         then
+           (false, List.member ~value:c (Obj.magic ["t"; "r"; "n"; "\\"; "\""]))
          else (c = Obj.magic "\\", true) )
   |> fun (lastCharSlash, valid) -> valid && not lastCharSlash
 
 
-let convertLiteralStringToDisplay (str : string) : string =
-  (* Convert special chars to use two backslashes *)
-  str
-  |> Regex.replace ~re:[%re "/\\n/"] ~repl:"\\n"
-  |> Regex.replace ~re:[%re "/\\r/"] ~repl:"\\r"
-  |> Regex.replace ~re:[%re "/\\t/"] ~repl:"\\t"
-  (* this is an ocaml double slash, which the compiled js interprets as a
-   * single slash *)
-  |> Regex.replace ~re:(Regex.regex "\\\\") ~repl:"\\\\"
+let isStringLiteral (s : string) : bool =
+  String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+
+
+let stripQuotes (s : string) : string =
+  s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+
+
+let addQuotes (s : string) : string = "\"" ^ s ^ "\""
+
+let convertLiteralToDisplayString (s : string) : string =
+  let conversion str =
+    (* Convert special chars to use two backslashes (literal strings hold the
+   * correct bytes for \n, etc), while the view/display version holds a
+   * backslash and a character *)
+    str
+    (* 4 re slashes, become 2 in the js source, and 1 in the js runtime *)
+    |> Regex.replace ~re:[%re "/\\\\/g"] ~repl:"\\\\"
+    |> Regex.replace ~re:[%re "/\\n/g"] ~repl:"\\n"
+    |> Regex.replace ~re:[%re "/\\r/g"] ~repl:"\\r"
+    |> Regex.replace ~re:[%re "/\\t/g"] ~repl:"\\t"
+    |> Regex.replace ~re:[%re "/\\\"/g"] ~repl:"\\\""
+  in
+  if isStringLiteral s
+  then s |> stripQuotes |> conversion |> addQuotes
+  else conversion s
 
 
 let convertDisplayStringToLiteral (str : string) : string =
   (* Convert escaped version into special chars *)
   str
-  |> Regex.replace ~re:[%re "/\\\\n/"] ~repl:"\n"
-  |> Regex.replace ~re:[%re "/\\\\r/"] ~repl:"\r"
-  |> Regex.replace ~re:[%re "/\\\\t/"] ~repl:"\t"
-  (* 8 ocaml slashes becomes 4 js slashes, becomes 2 js slashes *)
-  |> Regex.replace ~re:(Regex.regex "\\\\\\\\") ~repl:"\\"
+  (* 8 re slashes, become 4 in the js source, and 2 in the js runtime *)
+  |> Regex.replace ~re:[%re "/\\\\\\\\/g"] ~repl:"\\"
+  |> Regex.replace ~re:[%re "/\\\\n/g"] ~repl:"\n"
+  |> Regex.replace ~re:[%re "/\\\\r/g"] ~repl:"\r"
+  |> Regex.replace ~re:[%re "/\\\\t/g"] ~repl:"\t"
+  |> Regex.replace ~re:[%re "/\\\\\"/g"] ~repl:"\""
 
 
 let isComplete (dv : dval) : bool =

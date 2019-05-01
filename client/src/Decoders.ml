@@ -392,12 +392,22 @@ and saveTestRPCResult j : saveTestRPCResult = string j
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)
 (* ------------------------- *)
-and isLiteralString (s : string) : bool =
-  match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
+and isLiteralRepr (s : string) : bool =
+  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+  then true
+  else
+    match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
 
 
-and typeOfLiteralString (s : string) : tipe =
-  match parseDvalLiteral s with None -> TIncomplete | Some dv -> RT.typeOf dv
+and typeOfLiteral (s : string) : tipe =
+  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+  then TStr
+  else
+    match parseDvalLiteral s with
+    | None ->
+        TIncomplete
+    | Some dv ->
+        RT.typeOf dv
 
 
 (* Ported directly from Dval.parse in the backend *)

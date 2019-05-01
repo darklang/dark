@@ -139,12 +139,11 @@ and viewNExpr
   match e with
   | Value v ->
       let cssClass =
-        v |> Decoders.typeOfLiteralString |> show_tipe |> String.toLower
+        v |> Decoders.typeOfLiteral |> show_tipe |> String.toLower
       in
       let value =
-        (* TODO: remove *)
-        if Decoders.typeOfLiteralString v = TStr
-        then Util.transformToStringEntry v
+        if Runtime.isStringLiteral v
+        then v |> Runtime.stripQuotes |> Runtime.convertLiteralToDisplayString
         else v
       in
       let tooWide = if vs.tooWide then [wc "short-strings"] else [] in

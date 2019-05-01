@@ -825,8 +825,7 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
      canonicalize it first. *)
   let str = Regex.replace ~re:(Regex.regex "\\.*$") ~repl:"" baseStr in
   let intOrString =
-    String.startsWith ~prefix:"\"" str
-    || Decoders.typeOfLiteralString str = TInt
+    String.startsWith ~prefix:"\"" str || Decoders.typeOfLiteral str = TInt
   in
   match m.cursorState with
   | Entering (Creating _) ->
