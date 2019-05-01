@@ -6,11 +6,10 @@ let registerGlobal name key tagger decoder =
     let callbacks = ref callbacks_base in
     let fn ev =
       let open Tea_json.Decoder in
-      let open Tea_result in
       match decodeEvent decoder ev with
-      | Error err ->
+      | Tea_result.Error err ->
           Some (Types.EventDecoderError (name, key, err))
-      | Ok pos ->
+      | Tea_result.Ok pos ->
           Some (tagger pos)
     in
     let handler = EventHandlerCallback (key, fn) in

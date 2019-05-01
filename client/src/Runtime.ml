@@ -314,7 +314,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DInt i ->
       string_of_int i
   | DFloat f ->
-      string_of_float f
+      Js.Float.toString f
   | DStr s ->
       "\"" ^ s ^ "\""
   | DBool true ->
