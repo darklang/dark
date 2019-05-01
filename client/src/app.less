@@ -1087,7 +1087,8 @@ body #app * {
   /* Colors from tomorrow night:
   https://github.com/chriskempson/tomorrow-theme */
   @black : #1d1f21;
-  @background: #2d2d2d;
+  @background: transparent;
+  @selected-background: #2d2d2d;
   @blanks: lighten(@background, 8%);
   @currentline: #282a2e;
   @selection: #373b41;
@@ -1102,6 +1103,10 @@ body #app * {
   @purple: #b294bb;
 
   background-color: @background;
+
+  .selected {
+    background-color: @selected-background;
+  }
   color: @foreground;
   caret-color: @foreground;
   font-size: 13.33px;
