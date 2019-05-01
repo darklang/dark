@@ -1897,8 +1897,8 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       in
       Types.Many
         [ Types.TweakModel (fun m -> {m with fluidState = newState})
-        ; Types.MakeCmd cmd
-        ; astMod ]
+        ; astMod
+        ; Types.MakeCmd cmd ]
 
 
 (* -------------------- *)
