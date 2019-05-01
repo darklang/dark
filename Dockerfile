@@ -242,12 +242,6 @@ RUN opam install -y \
   && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
   && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master
 
-# To use PPXes in bucklescript, we need to install them from opam
-RUN eval $(opam env) \
-  && opam install -y \
-    ppx_deriving_yojson \
-    ppx_deriving
-
 ############################
 # Shellcheck
 # Ubuntu has a very old version
