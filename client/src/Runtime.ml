@@ -245,7 +245,9 @@ let isValidStringLiteral (str : string) : bool =
 
 
 let isStringLiteral (s : string) : bool =
-  String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+  String.length s >= 2
+  && String.endsWith ~suffix:"\"" s
+  && String.startsWith ~prefix:"\"" s
 
 
 let stripQuotes (s : string) : string =
