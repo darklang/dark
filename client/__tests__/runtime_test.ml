@@ -13,7 +13,7 @@ let () =
   describe "validStringLiteral" (fun () ->
       let t name subject expected =
         test name (fun () ->
-            expect (isValidStringLiteral subject) |> toEqual expected )
+            expect (isValidDisplayString subject) |> toEqual expected )
       in
       t "newline" "\\n" true ;
       t "carriage return" "\\t" true ;
