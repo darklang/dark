@@ -37,7 +37,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     | StringEntryShortWidth ->
         40
   in
-  let value = Util.transformToStringEntry ac.value in
+  let value = ac.value |> Runtime.stripQuotes in
   let longestLineLength =
     value
     |> String.split ~on:"\n"
@@ -61,8 +61,10 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
   let input =
     Html.textarea
       [ Attributes.id Defaults.entryID
-      ; Events.onInput
-          ((fun x -> EntryInputMsg x) << Util.transformFromStringEntry)
+      ; Events.onInput (fun x ->
+            (* DisplayString can hold things that literals can't (eg naked
+             * backslashes), so don't convert back to literal yet *)
+            EntryInputMsg (Runtime.addQuotes x) )
       ; defaultPasteHandler
       ; Attributes.value value
       ; Attributes.spellcheck false (* Stop other events firing *)

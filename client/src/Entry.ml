@@ -154,8 +154,8 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
       Some (F (eid, Lambda ([B.newF "var"], b2)))
   | ACKeyword KMatch ->
       Some (F (eid, Match (b1, [(b2, b3)])))
-  | ACLiteral litstr ->
-      Some (F (eid, Value litstr))
+  | ACLiteral str ->
+      Some (F (eid, Value str))
   | ACFunction fn ->
       Some (createFunction fn)
   | ACVariable varname ->
@@ -238,7 +238,13 @@ let parsePattern (str : string) : pattern option =
       Some (B.newF (PConstructor ("Error", [B.new_ ()])))
   | _ ->
       let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
-      if Decoders.isLiteralString str
+      if Runtime.isStringLiteral str
+      then
+        if Runtime.isValidDisplayString str
+        then
+          Some (B.newF (PLiteral (Runtime.convertDisplayStringToLiteral str)))
+        else None
+      else if Decoders.isLiteralRepr str
       then Some (B.newF (PLiteral str))
       else if Util.reExactly variablePattern str
       then Some (B.newF (PVariable str))
@@ -313,7 +319,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.paramTypeValidator "type field type"
   | PPattern currentPattern ->
       let validPattern value =
-        Decoders.isLiteralString value
+        Decoders.isLiteralRepr value
         || v AC.varnamePatternValidator "variable pattern" = None
         || v AC.constructorPatternValidator "constructor pattern" = None
       in
