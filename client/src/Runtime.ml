@@ -229,7 +229,7 @@ let isLiteral (dv : dval) : bool =
       false
 
 
-let isValidStringLiteral (str : string) : bool =
+let isValidDisplayString (str : string) : bool =
   str
   |> String.toList
   |> List.foldl ~init:(false, true) ~f:(fun c (sawSlash, valid) ->
@@ -274,15 +274,20 @@ let convertLiteralToDisplayString (s : string) : string =
   else conversion s
 
 
-let convertDisplayStringToLiteral (str : string) : string =
-  (* Convert escaped version into special chars *)
-  str
-  (* 8 re slashes, become 4 in the js source, and 2 in the js runtime *)
-  |> Regex.replace ~re:[%re "/\\\\\\\\/g"] ~repl:"\\"
-  |> Regex.replace ~re:[%re "/\\\\n/g"] ~repl:"\n"
-  |> Regex.replace ~re:[%re "/\\\\r/g"] ~repl:"\r"
-  |> Regex.replace ~re:[%re "/\\\\t/g"] ~repl:"\t"
-  |> Regex.replace ~re:[%re "/\\\\\"/g"] ~repl:"\""
+let convertDisplayStringToLiteral (s : string) : string =
+  let conversion str =
+    (* Convert escaped version into special chars *)
+    str
+    (* 8 re slashes, become 4 in the js source, and 2 in the js runtime *)
+    |> Regex.replace ~re:[%re "/\\\\\\\\/g"] ~repl:"\\"
+    |> Regex.replace ~re:[%re "/\\\\n/g"] ~repl:"\n"
+    |> Regex.replace ~re:[%re "/\\\\r/g"] ~repl:"\r"
+    |> Regex.replace ~re:[%re "/\\\\t/g"] ~repl:"\t"
+    |> Regex.replace ~re:[%re "/\\\\\"/g"] ~repl:"\""
+  in
+  if isStringLiteral s
+  then s |> stripQuotes |> conversion |> addQuotes |> Debug.log "done"
+  else conversion s
 
 
 let isComplete (dv : dval) : bool =

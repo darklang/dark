@@ -281,7 +281,7 @@ let matchesTypes
 let qLiteral (s : string) : autocompleteItem option =
   if Runtime.isStringLiteral s
   then
-    if Runtime.isValidStringLiteral s
+    if Runtime.isValidDisplayString s
     then Some (ACLiteral (Runtime.convertDisplayStringToLiteral s))
     else None
   else if Decoders.isLiteralRepr s

@@ -155,12 +155,7 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
   | ACKeyword KMatch ->
       Some (F (eid, Match (b1, [(b2, b3)])))
   | ACLiteral str ->
-      if Runtime.isStringLiteral str
-      then
-        if Runtime.isValidStringLiteral str
-        then Some (F (eid, Value str))
-        else None
-      else Some (F (eid, Value str))
+      Some (F (eid, Value str))
   | ACFunction fn ->
       Some (createFunction fn)
   | ACVariable varname ->
@@ -244,7 +239,11 @@ let parsePattern (str : string) : pattern option =
   | _ ->
       let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
       if Runtime.isStringLiteral str
-      then Some (B.newF (PLiteral (Runtime.convertDisplayStringToLiteral str)))
+      then
+        if Runtime.isValidDisplayString str
+        then
+          Some (B.newF (PLiteral (Runtime.convertDisplayStringToLiteral str)))
+        else None
       else if Decoders.isLiteralRepr str
       then Some (B.newF (PLiteral str))
       else if Util.reExactly variablePattern str
