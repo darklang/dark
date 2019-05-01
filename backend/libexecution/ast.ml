@@ -211,14 +211,15 @@ let rec exec
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
     | Filled (_, ObjectLiteral pairs) ->
         pairs
-        |> List.filter_map ~f:(function
-               | Filled (_, k), v ->
+        |> List.filter_map ~f:(fun (k, v) ->
+               match (k, v) with
+               | Filled (_, keyname), v ->
                    let expr = exe st v in
-                   ( match expr with
-                   | DIncomplete ->
-                       None (* ignore unfinished subexpr *)
-                   | _ ->
-                       Some (k, expr) )
+                   trace_blank k expr st ;
+                   if expr = DIncomplete
+                   then (* ignore unfinished subexpr *)
+                     None
+                   else Some (keyname, expr)
                | _, v ->
                    ignore (exe st v) ;
                    None )
