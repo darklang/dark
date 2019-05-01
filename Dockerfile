@@ -190,12 +190,16 @@ ENV FORCE_OCAML_BUILD 5
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
-RUN opam init --comp ocaml.4.06.1 --auto-setup --disable-sandboxing
-ENV PATH "/home/dark/.opam/ocaml.4.06.1/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/ocaml.4.06.1/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/ocaml.4.06.1/man:"
-ENV PERL5LIB "/home/dark/.opam/ocaml.4.06.1/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/ocaml.4.06.1/lib/toplevel"
+
+ENV OCAML_SWITCH ocaml.4.06.1
+# env vars below here replace `eval $(opam env)` in dotfiles; by doing it here,
+# we avoid having to source .bashrc before every command
+RUN opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing
+ENV PATH "/home/dark/.opam/${OCAML_SWITCH}/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
+ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
 ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
