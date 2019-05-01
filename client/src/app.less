@@ -1089,7 +1089,7 @@ body #app * {
   @black : #1d1f21;
   @background: transparent;
   @selected-background: #2d2d2d;
-  @blanks: lighten(@background, 8%);
+  @blanks: lighten(@selected-background, 8%);
   @currentline: #282a2e;
   @selection: #373b41;
   @foreground: #c5c8c6;
@@ -1101,6 +1101,11 @@ body #app * {
   @aqua:#8abeb7 ;
   @blue: #81a2be ;
   @purple: #b294bb;
+
+  @dropdown-background: lighten(@selected-background, 10%);
+  @dropdown-selected-background: lighten(@selected-background, 20%);
+  @dropdown-foreground: lighten(@foreground, 10%);
+  @dropdown-selected-foreground: @foreground;
 
   background-color: @background;
 
@@ -1168,10 +1173,9 @@ body #app * {
     ul {
       margin: 0;
       padding-inline-start: 0;
-      background-color: @blanks;
-      color: @foreground;
+      color: @dropdown-selected-foreground;
       .fluid-selected {
-        background-color: @selection;
+        background-color: @dropdown-selected-background;
         color: darken(white, 5%);
       }
     }
@@ -1180,6 +1184,8 @@ body #app * {
 
   #fluid-dropdown {
     // Don't show text under it.
+    background-color: @dropdown-background;
+    color: @dropdown-foreground;
     z-index: 1000;
     ul {
       li {
