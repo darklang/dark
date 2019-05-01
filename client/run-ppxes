@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-eval "$(opam env --switch=ocaml.4.06.1 --set-switch)"
+eval "$(opam env --switch=ocaml-base-compiler.4.06.1 --set-switch)"
 
 dir=$(ocamlfind query ppx_deriving)
 
