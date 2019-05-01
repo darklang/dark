@@ -37,7 +37,9 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
-  if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
+  if VariantTesting.isFluid m.tests
+  then NoChange
+  else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
   then
     match tlidOf m.cursorState with
     | Some tlid ->
