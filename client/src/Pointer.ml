@@ -263,7 +263,9 @@ let toContent (pd : pointerData) : string option =
   | PExpr e ->
     ( match e with
     | F (_, Value s) ->
-        Some s
+        if Runtime.isStringLiteral s
+        then Some (Runtime.convertLiteralToDisplayString s)
+        else Some s
     | F (_, Variable v) ->
         Some v
     | F (_, FnCall (F (_, name), [], _)) ->

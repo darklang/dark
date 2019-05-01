@@ -22,23 +22,28 @@ let () =
       t "escaped quote" "\\\"" true ;
       t "naked backslash" "\\" false ;
       t "invalid backslashed char" "\\6" false ;
+      t "many" "\\n\\t\\r\\\\\\\"" true ;
       () ) ;
   describe "convertLiteralStringToDisplay" (fun () ->
       let t name subject expected =
         test name (fun () ->
-            expect (convertLiteralStringToDisplay subject) |> toEqual expected
+            expect (convertLiteralToDisplayString subject) |> toEqual expected
         )
       in
-      t "newline" "\\n" "\\\\n" ;
-      t "newline2" "asd\\nqwe" "asd\\\\nqwe" ;
-      t "carriage return" "\\t" "\\\\t" ;
-      t "carriage return2" "asd\\tqwe" "asd\\\\tqwe" ;
-      t "tab" "\\r" "\\\\r" ;
-      t "tab2" "asd\\rqwe" "asd\\\\rqwe" ;
+      t "newline" "\n" "\\n" ;
+      t "newline2" "asd\nqwe" "asd\\nqwe" ;
+      t "carriage return" "\t" "\\t" ;
+      t "carriage return2" "asd\tqwe" "asd\\tqwe" ;
+      t "tab" "\r" "\\r" ;
+      t "tab2" "asd\rqwe" "asd\\rqwe" ;
       t "escaped backslash" "\\" "\\\\" ;
       t "escaped backslash2" "asd\\qwe" "asd\\\\qwe" ;
       t "escaped quote" "\"" "\\\"" ;
       t "escaped quote2" "asd\"qwe" "asd\\\"qwe" ;
+      t
+        "many"
+        "asd\n\t\r\n\t\r\n\t\r\"\"\"qwe"
+        "asd\\n\\t\\r\\n\\t\\r\\n\\t\\r\\\"\\\"\\\"qwe" ;
       () ) ;
   describe "convertDisplayStringToLiteral " (fun () ->
       let t name subject expected =
@@ -54,5 +59,7 @@ let () =
       t "tab2 " "asd\\rqwe" "asd\rqwe" ;
       t "escaped backslash" "\\\\" "\\" ;
       t "escaped backslash2" "asd\\\\qwe" "asd\\qwe" ;
+      t "escaped quote" "\\\"" "\"" ;
+      t "escaped quote2" "asd\\\"qwe" "asd\"qwe" ;
       () ) ;
   ()
