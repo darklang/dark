@@ -256,6 +256,8 @@ let stripQuotes (s : string) : string =
 
 let addQuotes (s : string) : string = "\"" ^ s ^ "\""
 
+module Regex = Util.Regex
+
 let convertLiteralToDisplayString (s : string) : string =
   let conversion str =
     (* Convert special chars to use two backslashes (literal strings hold the
@@ -345,7 +347,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "302 " ^ url ^ nl ^ toRepr_ indent dv_
   | DResp (Response (code, hs), dv_) ->
       let headers =
-        objToString (List.map ~f:(Tuple2.mapSecond (fun s -> DStr s)) hs)
+        objToString (List.map ~f:(Tuple2.mapSecond ~f:(fun s -> DStr s)) hs)
       in
       string_of_int code ^ " " ^ headers ^ nl ^ toRepr dv_
   | DOption OptNothing ->

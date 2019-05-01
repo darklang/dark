@@ -4,6 +4,7 @@ module Caml = struct
   module String = String
   module List = List
   module Char = Char
+  module Array = Array
 end
 
 (* This allows us override submodules. See
@@ -52,12 +53,4 @@ module List = struct
   let range (start : int) (end_ : int) : 'a list =
     let length = end_ - start in
     if length < 0 then [] else Belt.List.makeBy length (fun i -> i + start)
-end
-
-module Tuple3 = struct
-  let first (x, _, _) = x
-
-  let second (_, x, _) = x
-
-  let third (_, _, x) = x
 end

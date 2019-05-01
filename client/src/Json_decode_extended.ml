@@ -9,7 +9,7 @@ let index i decode json =
   if Js.Array.isArray json
   then
     let source : Js.Json.t array = Obj.magic (json : Js.Json.t) in
-    decode (Array.unsafe_get source i)
+    decode (Caml.Array.unsafe_get source i)
   else raise (DecodeError ("Expected array, got " ^ _stringify json))
 
 

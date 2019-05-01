@@ -206,8 +206,8 @@ module Decoder = struct
             if Js_array.length arr == 2
             then
               match
-                ( decodeValue decodeA (Array.unsafe_get arr 0)
-                , decodeValue decodeB (Array.unsafe_get arr 1) )
+                ( decodeValue decodeA (Caml.Array.unsafe_get arr 0)
+                , decodeValue decodeB (Caml.Array.unsafe_get arr 1) )
               with
               | Ok a, Ok b ->
                   Ok (a, b)
@@ -231,9 +231,9 @@ module Decoder = struct
             if Js_array.length arr == 3
             then
               match
-                ( decodeValue decodeA (Array.unsafe_get arr 0)
-                , decodeValue decodeB (Array.unsafe_get arr 1)
-                , decodeValue decodeC (Array.unsafe_get arr 2) )
+                ( decodeValue decodeA (Caml.Array.unsafe_get arr 0)
+                , decodeValue decodeB (Caml.Array.unsafe_get arr 1)
+                , decodeValue decodeC (Caml.Array.unsafe_get arr 2) )
               with
               | Ok a, Ok b, Ok c ->
                   Ok (a, b, c)
@@ -259,10 +259,10 @@ module Decoder = struct
             if Js_array.length arr == 4
             then
               match
-                ( decodeValue decodeA (Array.unsafe_get arr 0)
-                , decodeValue decodeB (Array.unsafe_get arr 1)
-                , decodeValue decodeC (Array.unsafe_get arr 2)
-                , decodeValue decodeD (Array.unsafe_get arr 3) )
+                ( decodeValue decodeA (Caml.Array.unsafe_get arr 0)
+                , decodeValue decodeB (Caml.Array.unsafe_get arr 1)
+                , decodeValue decodeC (Caml.Array.unsafe_get arr 2)
+                , decodeValue decodeD (Caml.Array.unsafe_get arr 3) )
               with
               | Ok a, Ok b, Ok c, Ok d ->
                   Ok (a, b, c, d)
