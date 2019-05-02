@@ -588,9 +588,16 @@ let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
     |> Option.andThen ~f:(paramTipeForTarget m)
     |> Option.withDefault ~default:TAny
   in
+  let isVarDBName v =
+    List.member ~value:v (TL.allDBNames m.toplevels)
+  in
   match item with
   | ACFunction fn ->
       matchesTypes isThreadMemberVal paramTipe a.targetDval fn
+  | ACVariable var ->
+      if isVarDBName var
+      then match paramTipe with TDB -> true | _ -> false
+      else true
   | _ ->
       true
 
