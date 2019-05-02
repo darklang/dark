@@ -5865,10 +5865,10 @@ table-parser@^0.1.3:
   dependencies:
     connected-domain "^1.0.0"
 
-tablecloth-bucklescript@0.0.5:
-  version "0.0.5"
-  resolved "https://registry.yarnpkg.com/tablecloth-bucklescript/-/tablecloth-bucklescript-0.0.5.tgz#1402dd5d54d91d69c71617e20fdf539c97c4c58b"
-  integrity sha512-tIpRw9jADSI7N4xRtIRf/RpchYmXO64kKCFCdiJoPfUSJdlt+781uP5hXefvklqBHvD4KhFycYMVeIGsc/HRWg==
+tablecloth-bucklescript@0.0.6:
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/tablecloth-bucklescript/-/tablecloth-bucklescript-0.0.6.tgz#92b27c4e46ceec47008728367eccd7d5016b3914"
+  integrity sha512-rfwtTya+tfPByxsfH0i1GACppzv098wKNGa4YEG9t9m+hpj0T/qpyjA1iOngN9w1iBJaIs4pSUNEAgLf7jWAmw==
 
 tar@^4:
   version "4.4.8"

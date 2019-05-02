@@ -308,7 +308,7 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-RUN opam update && opam install -y tablecloth-native.0.0.5
+RUN opam update && opam install -y tablecloth-native.0.0.6
 
 # node 11.11 introduced a bug that cased all Jest tests to fail.
 # It is fixed in 11.12, so for now we force our containers to update to 11.12
