@@ -588,24 +588,26 @@ let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
     |> Option.andThen ~f:(paramTipeForTarget m)
     |> Option.withDefault ~default:TAny
   in
-  let isVarDBName v =
-    List.member ~value:v (TL.allDBNames m.toplevels)
-  in
+  let isVarDBName v = List.member ~value:v (TL.allDBNames m.toplevels) in
   match item with
   | ACFunction fn ->
       matchesTypes isThreadMemberVal paramTipe a.targetDval fn
   | ACVariable var ->
-      if isVarDBName var then match paramTipe with TDB -> true | _ -> false
-      else if var = "request" then match paramTipe with TObj -> true | _ -> false
+      if isVarDBName var
+      then match paramTipe with TDB -> true | _ -> false
+      else if var = "request"
+      then match paramTipe with TObj -> true | _ -> false
       else true
   | ACKeyword _ ->
     (match paramTipe with TAny -> true | _ -> false)
   | ACConstructorName name ->
-    (match paramTipe with
-    | TOption -> name = "Just" || name = "Nothing"
-    | TResult -> name = "Ok" || name = "Error"
-    | _ -> false
-    )
+    ( match paramTipe with
+    | TOption ->
+        name = "Just" || name = "Nothing"
+    | TResult ->
+        name = "Ok" || name = "Error"
+    | _ ->
+        false )
   | _ ->
       true
 
