@@ -445,7 +445,10 @@ let rec exec
               obj
           | x ->
               DError
-                "Attempting to access of a field of something that isn't an object"
+                ( "Attempting to access of a field of something that isn't an
+object but is a "
+                ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)
+                ^ "" )
         in
         trace_blank field result st ;
         result

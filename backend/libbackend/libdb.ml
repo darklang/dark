@@ -37,119 +37,14 @@ let fetch_by_field ~state fieldname fieldvalue db =
 
 
 let replacements =
-  [ ( "DB::insert"
-    , InProcess
-        (function
-        | state, [DObj value; DDB dbname] ->
-            Exception.user "DB::insert is deprecated"
-        | args ->
-            fail args) )
-  ; ( "DB::delete"
-    , InProcess
-        (function
-        | state, [DObj vals; DDB dbname] ->
-            Exception.user "DB::delete is deprecated"
-        | args ->
-            fail args) )
-  ; ( "DB::deleteAll"
-    , InProcess
-        (function
-        | state, [DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            User_db.delete_all state db ;
-            DNull
-        | args ->
-            fail args) )
-  ; ( "DB::update"
-    , InProcess
-        (function
-        | state, [DObj vals; DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            User_db.update state db vals ;
-            DObj vals
-        | args ->
-            fail args) )
-  ; ( "DB::fetchBy"
-    , InProcess
-        (function
-        | state, [value; DStr field; DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            let result = fetch_by_field ~state field value db in
-            User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
-        | args ->
-            fail args) )
-  ; ( "DB::fetchOneBy"
-    , InProcess
-        (function
-        | state, [value; DStr field; DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            let result = fetch_by_field ~state field value db in
-            ( match result with
-            | DList (x :: xs) ->
-              ( match x with
-              | DList pair ->
-                  User_db.coerce_key_value_pair_to_legacy_object pair
-              | _ ->
-                  Exception.internal "bad fetch" )
-            | _ ->
-                DNull )
-        | args ->
-            fail args) )
-  ; ( "DB::fetchByMany"
-    , InProcess
-        (function
-        | state, [(DObj _ as obj); DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            obj
-            |> User_db.query ~state db
-            |> User_db.coerce_dlist_of_kv_pairs_to_legacy_object
-        | args ->
-            fail args) )
-  ; ( "DB::fetchOneByMany"
-    , InProcess
-        (function
-        | state, [(DObj _ as obj); DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            let result = User_db.query ~state db obj in
-            ( match result with
-            | DList (x :: xs) ->
-              ( match x with
-              | DList pair ->
-                  User_db.coerce_key_value_pair_to_legacy_object pair
-              | _ ->
-                  Exception.internal "bad fetch" )
-            (* TODO(ian): Maybe/Option *)
-            | _ ->
-                DNull )
-        | args ->
-            fail args) )
-  ; ( "DB::fetchAll"
-    , InProcess
-        (function
-        | state, [DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            let result = User_db.get_all ~state db in
-            User_db.coerce_dlist_of_kv_pairs_to_legacy_object result
-        | args ->
-            fail args) )
-  ; ( "DB::keys"
-    , InProcess
-        (function
-        | state, [DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            User_db.cols_for db
-            |> List.map ~f:(fun (k, v) -> Dval.dstr_of_string_exn k)
-            |> DList
-        | args ->
-            fail args) )
-  ; ( "DB::schema"
-    , InProcess
-        (function
-        | state, [DDB dbname] ->
-            let db = find_db state.dbs dbname in
-            User_db.cols_for db
-            |> List.map ~f:(fun (k, v) ->
-                   (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)) )
-            |> Dval.to_dobj_exn
-        | args ->
-            fail args) ) ]
+  [ ("DB::insert", InProcess (fun _ -> Exception.user "DB::insert is DEPRECATED"))
+  ; ("DB::delete", InProcess (fun _ -> Exception.user "DB::delete is DEPRECATED"))
+  ; ("DB::deleteAll", InProcess (fun _ -> Exception.user "DB::deleteAll is DEPRECATED"))
+  ; ("DB::update", InProcess (fun _ -> Exception.user "DB::update is DEPRECATED"))
+  ; ("DB::fetchBy", InProcess (fun _ -> Exception.user "DB::fetchBy is DEPRECATED"))
+  ; ("DB::fetchOneBy", InProcess (fun _ -> Exception.user "DB::fetchOneBy is DEPRECATED"))
+  ; ("DB::fetchByMany", InProcess (fun _ -> Exception.user "DB::fetchByMany is DEPRECATED"))
+  ; ("DB::fetchOneByMany", InProcess (fun _ -> Exception.user "DB::fetchOneByMany is DEPRECATED"))
+  ; ("DB::fetchAll", InProcess (fun _ -> Exception.user "DB::fetchAll is DEPRECATED"))
+  ; ("DB::keys", InProcess (fun _ -> Exception.user "DB::keys is DEPRECATED"))
+  ; ("DB::schema", InProcess (fun _ -> Exception.user "DB::schema is DEPRECATED")) ]
