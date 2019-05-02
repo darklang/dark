@@ -62,6 +62,8 @@ let rec tipe_to_string t : string =
       "Result"
   | TUserType (name, _) ->
       name
+  | TBytes ->
+      "Bytes"
   | TDeprecated1
   | TDeprecated2
   | TDeprecated3
@@ -216,6 +218,8 @@ let rec tipe_of (dv : dval) : tipe =
       TErrorRail
   | DResult _ ->
       TResult
+  | DBytes _ ->
+      TBytes
 
 
 (* Users should not be aware of this *)
@@ -361,6 +365,8 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
       DOption (OptJust (unsafe_dval_of_yojson dv))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson dv)
+  | `Assoc [("type", `String "bytes"); ("value", dv)] ->
+      DBytes (dv |> Yojson.Safe.to_string |> B64.decode)
   | `Assoc _ ->
       DObj (unsafe_dvalmap_of_yojson json)
 
@@ -437,6 +443,8 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
         wrap_constructed_type
           (`String "Error")
           [unsafe_dval_to_yojson ~redact dv] )
+  | DBytes bytes ->
+      wrap_user_str (B64.encode bytes)
 
 
 (* ------------------------- *)
@@ -569,6 +577,8 @@ let rec to_enduser_readable_text_v0 dval =
         reprfn d
     | DOption OptNothing ->
         "Nothing"
+    | DBytes bytes ->
+        "<Bytes: length=" ^ String.length bytes ^ ">"
   in
   reprfn dval
 
@@ -641,6 +651,8 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         "Error " ^ to_repr_ indent dv
     | DErrorRail dv ->
         "ErrorRail: " ^ to_repr_ indent dv
+    | DBytes bytes ->
+        wrap bytes
   in
   to_repr_ 0 dv
 
@@ -692,6 +704,8 @@ let to_pretty_machine_json_v1 dval =
           recurse dv
       | ResError dv ->
           `Assoc [("Error", recurse dv)] )
+    | DBytes bytes ->
+        `String bytes
   in
   recurse dval |> Yojson.Safe.pretty_to_string
 
@@ -750,6 +764,8 @@ let rec show dv =
       "Just " ^ show d
   | DOption OptNothing ->
       "Nothing"
+  | DBytes bytes ->
+      "<Bytes: lenght=" ^ String.length bytes ^ ">"
 
 
 let parse_literal (str : string) : dval option =
@@ -874,6 +890,8 @@ let rec to_url_string_exn (dv : dval) : string =
       "error=" ^ to_url_string_exn v
   | DResult (ResOk v) ->
       to_url_string_exn v
+  | DBytes bytes ->
+      bytes
 
 
 (* ------------------------- *)
@@ -1007,6 +1025,8 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       "ResultOk " ^ to_hashable_repr ~indent dv
   | DResult (ResError dv) ->
       "ResultError " ^ to_hashable_repr ~indent dv
+  | DBytes bytes ->
+      "<bytes: length=" ^ String.length bytes ^ ">"
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the

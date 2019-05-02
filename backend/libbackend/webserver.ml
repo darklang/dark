@@ -337,16 +337,20 @@ let result_to_response
         |> Option.value ~default:"application/json"
       in
       let body =
-        (* TODO: only pretty print for a webbrowser *)
-        if String.is_prefix ~prefix:"text/plain" content_type
-        then Dval.to_enduser_readable_text_v0 value
-        else if String.is_prefix ~prefix:"application/xml" content_type
-        then Dval.to_enduser_readable_text_v0 value
-        else if String.is_prefix ~prefix:"text/html" content_type
-        then
-          Dval.to_enduser_readable_html_v0 value
-          (* this is the case where a content-type _was_ set, but is not handled. An unset content-type defaults to application/json *)
-        else Dval.to_pretty_machine_json_v1 value
+        match value with
+        | DBytes body ->
+            body
+        | _ ->
+            (* TODO: only pretty print for a webbrowser *)
+            if String.is_prefix ~prefix:"text/plain" content_type
+            then Dval.to_enduser_readable_text_v0 value
+            else if String.is_prefix ~prefix:"application/xml" content_type
+            then Dval.to_enduser_readable_text_v0 value
+            else if String.is_prefix ~prefix:"text/html" content_type
+            then
+              Dval.to_enduser_readable_html_v0 value
+              (* this is the case where a content-type _was_ set, but is not handled. An unset content-type defaults to application/json *)
+            else Dval.to_pretty_machine_json_v1 value
       in
       let status = Cohttp.Code.status_of_code code in
       Respond {resp_headers; execution_id; status; body}
