@@ -6,14 +6,83 @@ module B = Blank
 module D = Defaults
 module R = Refactor
 
-let handler1 =
-  { ast = F (ID "ast1", Variable "request")
-  ; spec =
-      {module_ = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"}
-  ; tlid = TLID "handler1" }
-
-
 let () =
+  describe "toggleOnRail" (fun () ->
+      let f1 =
+        { fnName = "Result::resulty"
+        ; fnParameters = []
+        ; fnDescription = ""
+        ; fnReturnTipe = TResult
+        ; fnPreviewExecutionSafe = true
+        ; fnDeprecated = false
+        ; fnInfix = false }
+      in
+      let f2 =
+        { fnName = "Int::notResulty"
+        ; fnParameters = []
+        ; fnDescription = ""
+        ; fnReturnTipe = TInt
+        ; fnPreviewExecutionSafe = true
+        ; fnDeprecated = false
+        ; fnInfix = false }
+      in
+      let model tls =
+        {D.defaultModel with builtInFunctions = [f1; f2]; toplevels = tls}
+      in
+      let handlerWithPointer fnName fnRail =
+        let ast = F (ID "ast1", FnCall (B.newF fnName, [], fnRail)) in
+        ( { id = TLID "handler1"
+          ; pos = {x = 0; y = 0}
+          ; data =
+              TLHandler
+                { ast
+                ; spec =
+                    { module_ = B.newF "HTTP"
+                    ; name = B.newF "/src"
+                    ; modifier = B.newF "POST" }
+                ; tlid = TLID "handler1" } }
+        , PExpr ast )
+      in
+      let init fnName fnRail =
+        let tl, pd = handlerWithPointer fnName fnRail in
+        let m = model [tl] in
+        (m, tl, pd)
+      in
+      test "toggles any fncall off rail" (fun () ->
+          let m, tl, pd = init "Int::notResulty" Rail in
+          let op = Refactor.toggleOnRail m tl pd in
+          let res =
+            match op with
+            | RPC ([SetHandler (_, _, h)], _) ->
+              ( match h.ast with
+              | F (_, FnCall (F (_, "Int::notResulty"), [], NoRail)) ->
+                  true
+              | _ ->
+                  false )
+            | _ ->
+                false
+          in
+          expect res |> toEqual true ) ;
+      test "toggles error-rail-y function onto rail" (fun () ->
+          let m, tl, pd = init "Result::resulty" NoRail in
+          let op = Refactor.toggleOnRail m tl pd in
+          let res =
+            match op with
+            | RPC ([SetHandler (_, _, h)], _) ->
+              ( match h.ast with
+              | F (_, FnCall (F (_, "Result::resulty"), [], Rail)) ->
+                  true
+              | _ ->
+                  false )
+            | _ ->
+                false
+          in
+          expect res |> toEqual true ) ;
+      test "does not toggle non-error-rail-y function onto rail" (fun () ->
+          let m, tl, pd = init "Int::notResulty" NoRail in
+          let op = Refactor.toggleOnRail m tl pd in
+          let res = match op with NoChange -> true | _ -> false in
+          expect res |> toEqual true ) ) ;
   describe "renameDBReferences" (fun () ->
       let db0 =
         { dbTLID = TLID "db0"
