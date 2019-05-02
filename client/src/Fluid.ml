@@ -60,6 +60,7 @@ type name = string
 
 type expr =
   | EInteger of id * int
+  | EBool of id * bool
   | EString of id * string
   | EBlank of id
   | ELet of id * name * expr * expr
@@ -80,7 +81,7 @@ type ast = expr
 (* thread *)
 (* constructor *)
 (* send to rail *)
-(* bool, character, float, null *)
+(* character, float, null *)
 (* extra params in lambdas *)
 (* remove B/F *)
 (* feature flags (may punt) *)
@@ -111,6 +112,13 @@ let rec fromExpr (expr : Types.expr) : expr =
     | FnCall (name, exprs, _str) ->
         EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
     | Value str ->
+        let asBool =
+          if str = "true"
+          then Some (EBool (id, true))
+          else if str = "false"
+          then Some (EBool (id, false))
+          else None
+        in
         let asInt =
           try Some (EInteger (id, int_of_string str)) with _ -> None
         in
@@ -127,6 +135,7 @@ let rec fromExpr (expr : Types.expr) : expr =
         in
         asInt
         |> Option.or_ asString
+        |> Option.or_ asBool
         |> Option.withDefault ~default:(EPartial (id, "TODO Value"))
     | _ ->
         EPartial (id, "TODO") )
@@ -138,6 +147,9 @@ let rec toExpr (expr : expr) : Types.expr =
       F (ID id, Value (string_of_int num))
   | EString (id, str) ->
       F (ID id, Value ("\"" ^ str ^ "\""))
+  | EBool (id, b) ->
+      let str = if b then "true" else "false" in
+      F (ID id, Value str)
   | EVariable (id, var) ->
       F (ID id, Variable var)
   | EFieldAccess (id, obj, fieldname) ->
@@ -181,6 +193,7 @@ let eid expr : id =
   match expr with
   | EInteger (id, _)
   | EString (id, _)
+  | EBool (id, _)
   | EVariable (id, _)
   | EFieldAccess (id, _, _)
   | EFnCall (id, _, _)
@@ -204,6 +217,8 @@ type token =
   | TInteger of id * string
   | TString of id * string
   | TBlank of id
+  | TTrue of id
+  | TFalse of id
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
   | TPartial of id * string
@@ -266,6 +281,10 @@ let toText (t : token) : string =
       failIfEmpty i
   | TString (_, str) ->
       "\"" ^ str ^ "\""
+  | TTrue _ ->
+      "true"
+  | TFalse _ ->
+      "false"
   | TBlank _ ->
       "   "
   | TPartial (_, str) ->
@@ -344,6 +363,10 @@ let toTypeName (t : token) : string =
       "integer"
   | TString (_, _) ->
       "string"
+  | TTrue _ ->
+      "true"
+  | TFalse _ ->
+      "false"
   | TBlank _ ->
       "blank"
   | TPartial _ ->
@@ -410,6 +433,8 @@ let toCategoryName (t : token) : string =
       "literal"
   | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ ->
       ""
+  | TTrue _ | TFalse _ ->
+      "boolean"
   | TFnName _ | TBinOp _ ->
       "function"
   | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
@@ -456,6 +481,8 @@ let toCssClasses (t : token) : string =
 let tid (t : token) : id =
   match t with
   | TInteger (id, _)
+  | TTrue id
+  | TFalse id
   | TBlank id
   | TPartial (id, _)
   | TLetKeyword id
@@ -510,6 +537,8 @@ let rec toTokens' (e : ast) : token list =
   match e with
   | EInteger (id, i) ->
       [TInteger (id, string_of_int i)]
+  | EBool (id, b) ->
+      if b then [TTrue id] else [TFalse id]
   | EBlank id ->
       [TBlank id]
   | EPartial (id, str) ->
@@ -692,6 +721,8 @@ type acEntry =
   | ACLet
   | ACIf
   | ACVariable of string
+  | ACTrue
+  | ACFalse
 
 let acEntryIsVariable e = match e with ACVariable _ -> true | _ -> false
 
@@ -705,6 +736,10 @@ let acEntryToString (entry : acEntry) =
       "let "
   | ACIf ->
       "if "
+  | ACFalse ->
+      "false"
+  | ACTrue ->
+      "true"
 
 
 let functions =
@@ -729,7 +764,10 @@ let acItems expr =
            | _ ->
                None )
   in
-  [ACVariable "request"; ACVariable "Users"] @ vars @ [ACLet; ACIf] @ functions
+  [ACVariable "request"; ACVariable "Users"]
+  @ vars
+  @ [ACLet; ACIf; ACTrue; ACFalse]
+  @ functions
 
 
 let acMatches (str : string) (entry : acEntry) =
@@ -758,6 +796,10 @@ let acExpr (entry : acEntry) : expr * int =
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | ACVariable name ->
       (EVariable (gid (), name), String.length name)
+  | ACTrue ->
+      (EBool (gid (), true), 4)
+  | ACFalse ->
+      (EBool (gid (), false), 5)
 
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
@@ -791,6 +833,8 @@ let isTextToken token : bool =
   | TPartial _
   | TRecordField _
   | TString _
+  | TTrue _
+  | TFalse _
   | TLambdaVar _ ->
       true
   | TListOpen _
@@ -845,6 +889,8 @@ let isAtom (token : token) : bool =
   | TListSep _
   | TInteger _
   | TString _
+  | TTrue _
+  | TFalse _
   | TRecordOpen _
   | TRecordClose _
   | TRecordSep _
@@ -1005,7 +1051,7 @@ let rec findExpr (id : id) (expr : expr) : expr option =
   then Some expr
   else
     match expr with
-    | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ ->
+    | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ | EBool _ ->
         None
     | ELet (_, _, rhs, next) ->
         fe rhs |> Option.orElse (fe next)
@@ -1053,7 +1099,8 @@ let findParent (id : id) (ast : ast) : expr option =
     then parent
     else
       match expr with
-      | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ ->
+      | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ | EBool _
+        ->
           None
       | ELet (_, _, rhs, next) ->
           fp rhs |> Option.orElse (fp next)
@@ -1080,7 +1127,7 @@ let findParent (id : id) (ast : ast) : expr option =
 (* f needs to call recurse or it won't go far *)
 let recurse ~(f : expr -> expr) (expr : expr) : expr =
   match expr with
-  | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ ->
+  | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ | EBool _ ->
       expr
   | ELet (id, name, rhs, next) ->
       ELet (id, name, f rhs, f next)
@@ -1198,6 +1245,14 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TLambdaVar (id, str)
   | TFieldName (id, str) ->
       replaceString (f str) id ast
+  | TTrue id ->
+      let str = f "true" in
+      let newExpr = EPartial (gid (), str) in
+      replaceExpr id ~newExpr ast
+  | TFalse id ->
+      let str = f "false" in
+      let newExpr = EPartial (gid (), str) in
+      replaceExpr id ~newExpr ast
   | _ ->
       fail "not supported by replaceToken"
 
@@ -1436,6 +1491,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TString _
   | TRecordField _
   | TInteger _
+  | TTrue _
+  | TFalse _
   | TVariable _
   | TPartial _
   | TFieldName _
@@ -1489,6 +1546,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
   | TRecordField _
   | TInteger _
+  | TTrue _
+  | TFalse _
   | TVariable _
   | TPartial _
   | TFieldName _
@@ -1525,6 +1584,8 @@ let doRight
   | TIndentToHere _
   | TInteger _
   | TString _
+  | TTrue _
+  | TFalse _
   | TFieldOp _
   | TFieldName _
   | TVariable _
@@ -1643,6 +1704,8 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TInteger _
   | TString _
   | TLetLHS _
+  | TTrue _
+  | TFalse _
   | TLambdaVar _ ->
       let f str = String.insertAt ~index:offset ~insert:letterStr str in
       (replaceStringToken ~f ti.token ast, moveOneRight pos s)
