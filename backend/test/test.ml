@@ -408,7 +408,7 @@ let t_inserting_object_to_missing_col_gives_good_error () =
   check_error_contains
     "error is expected"
     (exec_handler
-       "(DB::insert (obj (col (obj))) TestDB)"
+       "(DB::add_v0 (obj (col (obj))) TestDB)"
        ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
     "Found but did not expect: [col]"
 
@@ -545,8 +545,8 @@ let t_case_insensitive_db_roundtrip () =
   in
   let ast =
     "(let _
-            (DB::insert (obj (cOlUmNnAmE 'some value')) TestUnicode)
-            (DB::fetchAll TestUnicode))"
+            (DB::add_v0 (obj (cOlUmNnAmE 'some value')) TestUnicode)
+            (DB::getAll_v2 TestUnicode))"
   in
   match exec_handler ~ops ast with
   | DList [DObj v] ->
@@ -873,8 +873,8 @@ let t_password_hash_db_roundtrip () =
   in
   let ast =
     "(let pw (Password::hash 'password')
-               (let _ (DB::insert (obj (password pw)) Passwords)
-                 (let fetched (. (List::head (DB::fetchAll Passwords)) password)
+               (let _ (DB::add_v0 (obj (password pw)) Passwords)
+                 (let fetched (. (List::head (DB::getAll_v2 Passwords)) password)
                    (pw fetched))))"
   in
   AT.check
@@ -1062,8 +1062,8 @@ let t_uuid_db_roundtrip () =
   in
   let ast =
     "(let i (Uuid::generate)
-               (let _ (DB::add (obj (uu i)) Ids)
-                 (let fetched (. (List::head (DB::fetchAll Ids)) uu)
+               (let _ (DB::add_v0 (obj (uu i)) Ids)
+                 (let fetched (. (List::head (DB::getAll_v2 Ids)) uu)
                    (i fetched))))"
   in
   AT.check
