@@ -286,7 +286,9 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.varnameValidator "variable name"
   | PEventName _ ->
       if TL.isHTTPHandler tl
-      then v AC.httpNameValidator "route name"
+      then
+        v AC.httpNameValidator "route name"
+        |> Option.or_else (AC.validateHttpNameValidVarnames value)
       else v AC.eventNameValidator "event name"
   | PEventModifier _ ->
       if TL.isHTTPHandler tl
