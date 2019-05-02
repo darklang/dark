@@ -250,10 +250,9 @@ RUN opam install -y \
   magic-mime.1.1.1 \
   ezgzip.0.2.1 \
   tablecloth-native.0.0.6 \
-  && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
-  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
-  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
-  && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master
+  && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master \
+  && opam pin -y gcloud git+https://github.com/AestheticIntegration/ocaml-gcloud.git#afffedb
+# Note: ocaml-gcloud#afffedb above is just "head of master at the current point in time"
 
 ############################
 # Shellcheck
