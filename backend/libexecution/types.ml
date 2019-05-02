@@ -130,6 +130,7 @@ type tipe_ =
   | TResult
   (* name * version *)
   | TUserType of string * int
+  | TBytes
 [@@deriving eq, compare, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -438,6 +439,7 @@ module RuntimeT = struct
     | DOption of optionT
     | DCharacter of Unicode_string.Character.t
     | DResult of resultT
+    | DBytes of string
   [@@deriving show, eq, yojson, compare]
 
   type dval_list = dval list
