@@ -380,7 +380,7 @@ let validateHttpNameValidVarnames (httpName : string) =
     |> List.map ~f:(fun x -> String.dropLeft ~count:1 x)
   in
   if route_variables httpName
-     |> List.all ~f:(fun v -> Util.reExactly varnameValidator v)
+     |> List.all ~f:(fun v -> Regex.exactly ~re:varnameValidator v)
   then None
   else Some ("route variables must match /" ^ varnameValidator ^ "/")
 
