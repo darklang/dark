@@ -600,6 +600,12 @@ let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
       else true
   | ACKeyword _ ->
     (match paramTipe with TAny -> true | _ -> false)
+  | ACConstructorName name ->
+    (match paramTipe with
+    | TOption -> name = "Just" || name = "Nothing"
+    | TResult -> name = "Ok" || name = "Error"
+    | _ -> false
+    )
   | _ ->
       true
 
