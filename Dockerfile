@@ -105,6 +105,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       tmux \
       libssl-dev=1.0.2g-1ubuntu13.6 \
       zlib1g-dev \
+      pv \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -135,6 +136,13 @@ ENV LC_ALL en_US.UTF-8
 # Frontend
 ############################
 USER root
+# node 11.11 introduced a bug that cased all Jest tests to fail.
+# It is fixed in 11.12, so for now we force our containers to update to 11.12
+#
+# And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
+# And then 11.14
+RUN sudo apt update && sudo apt install nodejs=11.15.0-1nodesource1
+
 RUN npm install -g yarn@1.12.3
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
@@ -241,6 +249,7 @@ RUN opam install -y \
   uunf.11.0.0 \
   magic-mime.1.1.1 \
   ezgzip.0.2.1 \
+  tablecloth-native.0.0.6 \
   && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
   && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
   && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
@@ -308,16 +317,7 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-RUN opam update && opam install -y tablecloth-native.0.0.6
 
-# node 11.11 introduced a bug that cased all Jest tests to fail.
-# It is fixed in 11.12, so for now we force our containers to update to 11.12
-#
-# And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
-# And then 11.14
-RUN sudo apt update && sudo apt install nodejs=11.15.0-1nodesource1
-
-RUN sudo apt install -y pv
 
 ############################
 # Finish
