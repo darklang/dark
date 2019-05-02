@@ -461,6 +461,9 @@ let () =
                 |> not )
               |> toEqual true ) ;
           () ) ;
+      describe "matcher" (fun () -> 
+        test "matches DB name" (fun () -> expect (true) |> toEqual true );
+      () );
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
           test "entering a DB name that used to be invalid works" (fun () ->
