@@ -1683,9 +1683,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatWhole (id, str) ->
-      (replaceFloatWhole (f str) id ast, left s)
+      (replaceFloatWhole (f str) id ast, s)
   | TFloatFraction (id, str) ->
-      (replaceFloatFraction (f str) id ast, left s)
+      (replaceFloatFraction (f str) id ast, s)
 
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
