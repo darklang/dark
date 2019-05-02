@@ -199,7 +199,7 @@ RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
 
-ENV OCAML_SWITCH ocaml.4.06.1
+ENV OCAML_SWITCH ocaml-base-compiler.4.06.1
 # env vars below here replace `eval $(opam env)` in dotfiles; by doing it here,
 # we avoid having to source .bashrc before every command
 RUN opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing
