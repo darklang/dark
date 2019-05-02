@@ -2,6 +2,7 @@ open Tc
 open Types
 open Prelude
 module Svg = Tea.Svg
+module Regex = Util.Regex
 
 type viewState =
   { tl : toplevel

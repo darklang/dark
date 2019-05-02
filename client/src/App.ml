@@ -13,6 +13,7 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
+module Regex = Util.Regex
 
 let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =

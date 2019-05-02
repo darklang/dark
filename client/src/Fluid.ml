@@ -2,6 +2,7 @@
 open Tc
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
+module Regex = Util.Regex
 
 (* Tea *)
 module Cmd = Tea.Cmd

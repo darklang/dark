@@ -13,6 +13,7 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
+module Regex = Util.Regex
 
 (* Figure out from the string and the state whether this '.' means field
    access. *)
