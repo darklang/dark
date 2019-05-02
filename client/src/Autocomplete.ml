@@ -595,9 +595,11 @@ let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
   | ACFunction fn ->
       matchesTypes isThreadMemberVal paramTipe a.targetDval fn
   | ACVariable var ->
-      if isVarDBName var
-      then match paramTipe with TDB -> true | _ -> false
+      if isVarDBName var then match paramTipe with TDB -> true | _ -> false
+      else if var = "request" then match paramTipe with TObj -> true | _ -> false
       else true
+  | ACKeyword _ ->
+    (match paramTipe with TAny -> true | _ -> false)
   | _ ->
       true
 
