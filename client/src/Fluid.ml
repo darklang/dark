@@ -73,6 +73,7 @@ type expr =
   | EPartial of id * string
   | EList of id * expr list
   | ERecord of id * (name * expr) list
+  | EOldExpr of Types.expr
 
 type ast = expr
 
@@ -136,9 +137,9 @@ let rec fromExpr (expr : Types.expr) : expr =
         asInt
         |> Option.or_ asString
         |> Option.or_ asBool
-        |> Option.withDefault ~default:(EPartial (id, "TODO Value"))
+        |> Option.withDefault ~default:(EOldExpr expr)
     | _ ->
-        EPartial (id, "TODO") )
+        EOldExpr expr )
 
 
 let rec toExpr (expr : expr) : Types.expr =
@@ -187,10 +188,14 @@ let rec toExpr (expr : expr) : Types.expr =
         , ObjectLiteral
             (List.map pairs ~f:(fun (k, v) ->
                  (Types.F (ID (gid ()), k), toExpr v) )) )
+  | EOldExpr expr ->
+      expr
 
 
 let eid expr : id =
   match expr with
+  | EOldExpr expr ->
+      Blank.toID expr |> Prelude.deID
   | EInteger (id, _)
   | EString (id, _)
   | EBool (id, _)
@@ -606,6 +611,8 @@ let rec toTokens' (e : ast) : token list =
           |> List.concat
         ; [TNewline; TRecordClose id] ]
         |> List.concat
+  | EOldExpr expr ->
+      [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
@@ -1068,6 +1075,8 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         |> List.head
     | EFnCall (_, _, exprs) | EList (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
+    | EOldExpr _ ->
+        None
 
 
 let isEmpty (e : expr) : bool =
@@ -1117,6 +1126,8 @@ let findParent (id : id) (ast : ast) : expr option =
           |> List.head
       | EFnCall (_, _, exprs) | EList (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
+      | EOldExpr _ ->
+          None
   in
   findParent' ~parent:None id ast
 
@@ -1145,6 +1156,8 @@ let recurse ~(f : expr -> expr) (expr : expr) : expr =
       EList (id, List.map ~f exprs)
   | ERecord (id, fields) ->
       ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+  | EOldExpr _ ->
+      expr
 
 
 let wrap ~(f : expr -> expr) (id : id) (ast : ast) : ast =
