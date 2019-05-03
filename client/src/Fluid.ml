@@ -46,6 +46,12 @@ let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
 
 
+let safe_int_of_string (s : string) : int =
+  (* 2,147,483,647 *)
+  try String.left ~count:10 s |> int_of_string with _ ->
+    String.left ~count:9 s |> int_of_string
+
+
 exception FExc of string
 
 let fail str = raise (FExc str)
@@ -62,6 +68,7 @@ type expr =
   | EInteger of id * int
   | EBool of id * bool
   | EString of id * string
+  | EFloat of id * string * string
   | EBlank of id
   | ELet of id * name * expr * expr
   | EIf of id * expr * expr * expr
@@ -73,6 +80,7 @@ type expr =
   | EPartial of id * string
   | EList of id * expr list
   | ERecord of id * (name * expr) list
+  | EOldExpr of Types.expr
 
 type ast = expr
 
@@ -136,17 +144,19 @@ let rec fromExpr (expr : Types.expr) : expr =
         asInt
         |> Option.or_ asString
         |> Option.or_ asBool
-        |> Option.withDefault ~default:(EPartial (id, "TODO Value"))
+        |> Option.withDefault ~default:(EOldExpr expr)
     | _ ->
-        EPartial (id, "TODO") )
+        EOldExpr expr )
 
 
 let rec toExpr (expr : expr) : Types.expr =
   match expr with
   | EInteger (id, num) ->
-      F (ID id, Value (string_of_int num))
+      F (ID id, Value (Int.toString num))
   | EString (id, str) ->
       F (ID id, Value ("\"" ^ str ^ "\""))
+  | EFloat (id, whole, fraction) ->
+      F (ID id, Value (whole ^ "." ^ fraction))
   | EBool (id, b) ->
       let str = if b then "true" else "false" in
       F (ID id, Value str)
@@ -187,13 +197,18 @@ let rec toExpr (expr : expr) : Types.expr =
         , ObjectLiteral
             (List.map pairs ~f:(fun (k, v) ->
                  (Types.F (ID (gid ()), k), toExpr v) )) )
+  | EOldExpr expr ->
+      expr
 
 
 let eid expr : id =
   match expr with
+  | EOldExpr expr ->
+      Blank.toID expr |> Prelude.deID
   | EInteger (id, _)
   | EString (id, _)
   | EBool (id, _)
+  | EFloat (id, _, _)
   | EVariable (id, _)
   | EFieldAccess (id, _, _)
   | EFnCall (id, _, _)
@@ -219,6 +234,9 @@ type token =
   | TBlank of id
   | TTrue of id
   | TFalse of id
+  | TFloatWhole of id * string
+  | TFloatPoint of id
+  | TFloatFraction of id * string
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
   | TPartial of id * string
@@ -279,6 +297,12 @@ let toText (t : token) : string =
   match t with
   | TInteger (_, i) ->
       failIfEmpty i
+  | TFloatWhole (_, w) ->
+      failIfEmpty w
+  | TFloatPoint _ ->
+      "."
+  | TFloatFraction (_, f) ->
+      f
   | TString (_, str) ->
       "\"" ^ str ^ "\""
   | TTrue _ ->
@@ -361,6 +385,12 @@ let toTypeName (t : token) : string =
   match t with
   | TInteger _ ->
       "integer"
+  | TFloatWhole _ ->
+      "float-whole"
+  | TFloatPoint _ ->
+      "float-point"
+  | TFloatFraction _ ->
+      "float-fraction"
   | TString (_, _) ->
       "string"
   | TTrue _ ->
@@ -433,6 +463,8 @@ let toCategoryName (t : token) : string =
       "literal"
   | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ ->
       ""
+  | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
+      "float"
   | TTrue _ | TFalse _ ->
       "boolean"
   | TFnName _ | TBinOp _ ->
@@ -481,6 +513,9 @@ let toCssClasses (t : token) : string =
 let tid (t : token) : id =
   match t with
   | TInteger (id, _)
+  | TFloatWhole (id, _)
+  | TFloatPoint id
+  | TFloatFraction (id, _)
   | TTrue id
   | TFalse id
   | TBlank id
@@ -539,6 +574,8 @@ let rec toTokens' (e : ast) : token list =
       [TInteger (id, string_of_int i)]
   | EBool (id, b) ->
       if b then [TTrue id] else [TFalse id]
+  | EFloat (id, whole, fraction) ->
+      [TFloatWhole (id, whole); TFloatPoint id; TFloatFraction (id, fraction)]
   | EBlank id ->
       [TBlank id]
   | EPartial (id, str) ->
@@ -606,6 +643,8 @@ let rec toTokens' (e : ast) : token list =
           |> List.concat
         ; [TNewline; TRecordClose id] ]
         |> List.concat
+  | EOldExpr expr ->
+      [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
@@ -835,7 +874,10 @@ let isTextToken token : bool =
   | TString _
   | TTrue _
   | TFalse _
-  | TLambdaVar _ ->
+  | TLambdaVar _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFraction _ ->
       true
   | TListOpen _
   | TListClose _
@@ -888,6 +930,9 @@ let isAtom (token : token) : bool =
   | TListClose _
   | TListSep _
   | TInteger _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFraction _
   | TString _
   | TTrue _
   | TFalse _
@@ -1051,7 +1096,13 @@ let rec findExpr (id : id) (expr : expr) : expr option =
   then Some expr
   else
     match expr with
-    | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ | EBool _ ->
+    | EInteger _
+    | EBlank _
+    | EString _
+    | EVariable _
+    | EPartial _
+    | EBool _
+    | EFloat _ ->
         None
     | ELet (_, _, rhs, next) ->
         fe rhs |> Option.orElse (fe next)
@@ -1068,6 +1119,8 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         |> List.head
     | EFnCall (_, _, exprs) | EList (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
+    | EOldExpr _ ->
+        None
 
 
 let isEmpty (e : expr) : bool =
@@ -1099,8 +1152,13 @@ let findParent (id : id) (ast : ast) : expr option =
     then parent
     else
       match expr with
-      | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ | EBool _
-        ->
+      | EInteger _
+      | EBlank _
+      | EString _
+      | EVariable _
+      | EPartial _
+      | EBool _
+      | EFloat _ ->
           None
       | ELet (_, _, rhs, next) ->
           fp rhs |> Option.orElse (fp next)
@@ -1117,6 +1175,8 @@ let findParent (id : id) (ast : ast) : expr option =
           |> List.head
       | EFnCall (_, _, exprs) | EList (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
+      | EOldExpr _ ->
+          None
   in
   findParent' ~parent:None id ast
 
@@ -1127,7 +1187,13 @@ let findParent (id : id) (ast : ast) : expr option =
 (* f needs to call recurse or it won't go far *)
 let recurse ~(f : expr -> expr) (expr : expr) : expr =
   match expr with
-  | EInteger _ | EBlank _ | EString _ | EVariable _ | EPartial _ | EBool _ ->
+  | EInteger _
+  | EBlank _
+  | EString _
+  | EVariable _
+  | EPartial _
+  | EBool _
+  | EFloat _ ->
       expr
   | ELet (id, name, rhs, next) ->
       ELet (id, name, f rhs, f next)
@@ -1145,6 +1211,8 @@ let recurse ~(f : expr -> expr) (expr : expr) : expr =
       EList (id, List.map ~f exprs)
   | ERecord (id, fields) ->
       ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+  | EOldExpr _ ->
+      expr
 
 
 let wrap ~(f : expr -> expr) (id : id) (ast : ast) : ast =
@@ -1198,7 +1266,7 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           if str = ""
           then EBlank id
           else
-            let value = try int_of_string str with _ -> 0 in
+            let value = try safe_int_of_string str with _ -> 0 in
             EInteger (id, value)
       | EString (id, _) ->
           EString (id, str)
@@ -1257,6 +1325,34 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       fail "not supported by replaceToken"
 
 
+let replaceFloatWhole (str : string) (id : id) (ast : ast) : expr =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | EFloat (id, _, fraction) ->
+          EFloat (id, str, fraction)
+      | _ ->
+          fail "not a float" )
+
+
+let replaceFloatFraction (str : string) (id : id) (ast : ast) : expr =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | EFloat (id, whole, _) ->
+          EFloat (id, whole, str)
+      | _ ->
+          fail "not a float" )
+
+
+let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) : expr
+    =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | EFloat (id, whole, fraction) ->
+          EFloat (id, whole, letter ^ fraction)
+      | _ ->
+          fail "not a float" )
+
+
 let insertInList ~(index : int) ~(newExpr : expr) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
@@ -1303,6 +1399,27 @@ let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
   | Some c ->
       wrap id ast ~f:(fun expr ->
           EBinOp (gid (), String.fromChar c, expr, newB ()) )
+
+
+let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | EInteger (_, i) ->
+          let str = Int.toString i in
+          let whole, fraction = String.splitAt ~index:offset str in
+          EFloat (gid (), whole, fraction)
+      | _ ->
+          fail "Not an int" )
+
+
+let removePointFromFloat (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | EFloat (_, whole, fraction) ->
+          let i = safe_int_of_string (whole ^ fraction) in
+          EInteger (gid (), i)
+      | _ ->
+          fail "Not an int" )
 
 
 let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
@@ -1488,6 +1605,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, left s)
   | TFieldOp id ->
       (removeField id ast, left s)
+  | TFloatPoint id ->
+      (removePointFromFloat id ast, left s)
   | TString _
   | TRecordField _
   | TInteger _
@@ -1500,6 +1619,12 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
+  | TFloatWhole (id, str) ->
+      let str = removeCharAt str offset in
+      (replaceFloatWhole str id ast, left s)
+  | TFloatFraction (id, str) ->
+      let str = removeCharAt str offset in
+      (replaceFloatFraction str id ast, left s)
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -1508,6 +1633,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft pos s in
   let offset = pos - ti.startPos in
   let newID = gid () in
+  let f str = removeCharAt str offset in
   match ti.token with
   | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
       (ast, s)
@@ -1534,6 +1660,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TFieldOp id ->
       (removeField id ast, s)
+  | TFloatPoint id ->
+      (removePointFromFloat id ast, s)
   | TString (id, str) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
@@ -1553,8 +1681,11 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFieldName _
   | TLetLHS _
   | TLambdaVar _ ->
-      let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, s)
+  | TFloatWhole (id, str) ->
+      (replaceFloatWhole (f str) id ast, s)
+  | TFloatFraction (id, str) ->
+      (replaceFloatFraction (f str) id ast, s)
 
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
@@ -1583,6 +1714,9 @@ let doRight
   | TIndented _
   | TIndentToHere _
   | TInteger _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFraction _
   | TString _
   | TTrue _
   | TFalse _
@@ -1652,6 +1786,8 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | _ ->
         pos - ti.startPos
   in
+  let right = moveOneRight pos s in
+  let f str = String.insertAt ~index:offset ~insert:letterStr str in
   let newID = gid () in
   let newExpr =
     if letter = '"'
@@ -1665,13 +1801,13 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else if letter = ','
     then EBlank newID (* new separators *)
     else if isNumber letterStr
-    then EInteger (newID, letterStr |> int_of_string)
+    then EInteger (newID, letterStr |> safe_int_of_string)
     else EPartial (newID, letterStr)
   in
   match ti.token with
   | (TFieldName (id, _) | TVariable (id, _))
     when pos = ti.endPos && letter = '.' ->
-      (exprToFieldAccess id ast, moveOneRight pos s)
+      (exprToFieldAccess id ast, right)
   (* replace blank *)
   | TBlank id ->
       (replaceExpr id ~newExpr ast, moveTo (ti.startPos + 1) s)
@@ -1682,6 +1818,14 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TString _ when offset < 0 ->
       (ast, s)
   | TInteger _ when not (isNumber letterStr) ->
+      (ast, s)
+  | TInteger _ when '0' = letter && offset = 0 ->
+      (ast, s)
+  | TFloatWhole _ when not (isNumber letterStr) ->
+      (ast, s)
+  | TFloatWhole _ when '0' = letter && offset = 0 ->
+      (ast, s)
+  | TFloatFraction _ when not (isNumber letterStr) ->
       (ast, s)
   | TVariable _ when not (isIdentifierChar letterStr) ->
       (ast, s)
@@ -1695,20 +1839,29 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   (* Do the insert *)
   | TLetLHS (_, "") ->
-      let f str = String.insertAt ~index:offset ~insert:letterStr str in
       (replaceStringToken ~f ti.token ast, moveTo (ti.startPos + 1) s)
   | TRecordField _
   | TFieldName _
   | TVariable _
   | TPartial _
-  | TInteger _
   | TString _
   | TLetLHS _
   | TTrue _
   | TFalse _
   | TLambdaVar _ ->
-      let f str = String.insertAt ~index:offset ~insert:letterStr str in
-      (replaceStringToken ~f ti.token ast, moveOneRight pos s)
+      (replaceStringToken ~f ti.token ast, right)
+  | TInteger (_, i) ->
+      let newLength =
+        f i |> safe_int_of_string |> string_of_int |> String.length
+      in
+      let move = if newLength > offset then right else s in
+      (replaceStringToken ~f ti.token ast, move)
+  | TFloatWhole (id, str) ->
+      (replaceFloatWhole (f str) id ast, right)
+  | TFloatFraction (id, str) ->
+      (replaceFloatFraction (f str) id ast, right)
+  | TFloatPoint id ->
+      (insertAtFrontOfFloatFraction letterStr id ast, right)
   (* do nothing *)
   | TNewline
   | TIfKeyword _
@@ -1862,6 +2015,10 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Period, L (TFieldName _, toTheLeft), _
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
+    (* Int to float *)
+    | K.Period, L (TInteger (id, _), ti), _ ->
+        let offset = pos - ti.startPos in
+        (convertIntToFloat offset id ast, moveOneRight pos s)
     (* Binop specific *)
     | K.Percent, L (_, toTheLeft), _
     | K.Minus, L (_, toTheLeft), _

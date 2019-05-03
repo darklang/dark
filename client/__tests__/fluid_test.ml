@@ -41,6 +41,9 @@ let () =
   let emptyStr = EString (gid (), "") in
   let oneCharStr = EString (gid (), "c") in
   let anInt = EInteger (gid (), 12345) in
+  let aHugeInt = EInteger (gid (), 2000000000) in
+  let aFloat = EFloat (gid (), "123", "456") in
+  let aHugeFloat = EFloat (gid (), "123456789", "123456789") in
   let trueBool = EBool (gid (), true) in
   (* let falseBool = EBool (gid (), false) in *)
   let five = EInteger (gid (), 5) in
@@ -174,7 +177,8 @@ let () =
       t "backspace space in string" aStr (backspace 6) ("\"somestring\"", 5) ;
       t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
       () ) ;
-  describe "Numbers" (fun () ->
+  describe "Integers" (fun () ->
+      t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
       t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ;
       t "insert start of number" anInt (insert '5' 0) ("512345", 1) ;
       t "delete start of number" anInt (delete 0) ("2345", 0) ;
@@ -182,6 +186,39 @@ let () =
       t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
       t "delete end of number" anInt (delete 5) ("12345", 5) ;
       t "backspace end of number" anInt (backspace 5) ("1234", 4) ;
+      t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ;
+      t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ;
+      t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ;
+      () ) ;
+  describe "Floats" (fun () ->
+      t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
+      t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
+      t "insert . converts to float - staert" anInt (insert '.' 0) ("12345", 0) ;
+      t "insert zero in whole - start" aFloat (insert '0' 0) ("123.456", 0) ;
+      t "insert int in whole - start" aFloat (insert '9' 0) ("9123.456", 1) ;
+      t "insert int in whole - middle" aFloat (insert '0' 1) ("1023.456", 2) ;
+      t "insert int in whole - end" aFloat (insert '0' 3) ("1230.456", 4) ;
+      t "insert int in fraction - start" aFloat (insert '0' 4) ("123.0456", 5) ;
+      t "insert int in fraction - middle" aFloat (insert '0' 6) ("123.4506", 7) ;
+      t "insert int in fraction - end" aFloat (insert '0' 7) ("123.4560", 8) ;
+      t "insert non-int in whole" aFloat (insert 'c' 2) ("123.456", 2) ;
+      t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
+      t "delete dot" aFloat (delete 3) ("123456", 3) ;
+      t "delete dot at scale" aHugeFloat (delete 9) ("1234567891", 9) ;
+      t "backspace dot" aFloat (backspace 4) ("123456", 3) ;
+      t "backspace dot at scale" aHugeFloat (backspace 10) ("1234567891", 9) ;
+      t "delete start of whole" aFloat (delete 0) ("23.456", 0) ;
+      t "delete middle of whole" aFloat (delete 1) ("13.456", 1) ;
+      t "delete end of whole" aFloat (delete 2) ("12.456", 2) ;
+      t "delete start of fraction" aFloat (delete 4) ("123.56", 4) ;
+      t "delete middle of fraction" aFloat (delete 5) ("123.46", 5) ;
+      t "delete end of fraction" aFloat (delete 6) ("123.45", 6) ;
+      t "backspace start of whole" aFloat (backspace 1) ("23.456", 0) ;
+      t "backspace middle of whole" aFloat (backspace 2) ("13.456", 1) ;
+      t "backspace end of whole" aFloat (backspace 3) ("12.456", 2) ;
+      t "backspace start of fraction" aFloat (backspace 5) ("123.56", 4) ;
+      t "backspace middle of fraction" aFloat (backspace 6) ("123.46", 5) ;
+      t "backspace end of fraction" aFloat (backspace 7) ("123.45", 6) ;
       () ) ;
   describe "Bools" (fun () ->
       t "insert start of bool" trueBool (insert 'c' 0) ("ctrue", 1) ;
