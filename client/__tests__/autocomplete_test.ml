@@ -42,6 +42,8 @@ let defaultTLID = gtlid ()
 
 let defaultID = gid ()
 
+let defaultID2 = gid ()
+
 let defaultExpr = Blank defaultID
 
 let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
@@ -90,14 +92,15 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
   ; ufAST = expr }
 
 
-let aDB ?(tlid = defaultTLID) () : toplevel =
+let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
+    : toplevel =
   { id = tlid
   ; pos = {x = 0; y = 0}
   ; data =
       TLDB
         { dbTLID = tlid
         ; dbName = B.newF "MyDB"
-        ; cols = []
+        ; cols = [(Blank fieldid, Blank typeid)]
         ; version = 0
         ; oldMigrations = []
         ; activeMigration = None } }
@@ -112,6 +115,30 @@ let enteringFunction
     ~handlers
     ~userTipes
     ~userFunctions:(aFunction () :: userFunctions)
+    ()
+
+
+let enteringDBField
+    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
+    model =
+  defaultModel
+    ~cursorState:(fillingCS ())
+    ~dbs:([aDB ()] @ dbs)
+    ~handlers
+    ~userTipes
+    ~userFunctions
+    ()
+
+
+let enteringDBType
+    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
+    model =
+  defaultModel
+    ~cursorState:(fillingCS ())
+    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
+    ~handlers
+    ~userTipes
+    ~userFunctions
     ()
 
 
@@ -405,6 +432,14 @@ let () =
                 ( acFor m
                 |> setQuery m ""
                 |> itemPresent (ACEventName "/")
+                |> not )
+              |> toEqual true ) ;
+          test "autocomplete supports password type" (fun () ->
+              let m = enteringDBType () in
+              expect
+                ( acFor m
+                |> setQuery m "Pass"
+                |> itemPresent (ACDBColType "Password")
                 |> not )
               |> toEqual true ) ;
           () ) ;
