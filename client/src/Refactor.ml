@@ -222,13 +222,17 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     in
     let origName, calls =
       match old_.ufMetadata.ufmName with
-      | Blank _ ->
+      | Partial _ | Blank _ ->
           (None, [])
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))
     in
     let newName =
-      match new_.ufMetadata.ufmName with Blank _ -> None | F (_, n) -> Some n
+      match new_.ufMetadata.ufmName with
+      | Partial _ | Blank _ ->
+          None
+      | F (_, n) ->
+          Some n
     in
     match (origName, newName) with
     | Some _, Some r ->
@@ -273,7 +277,7 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
         if name = fnName
         then true
         else List.any ~f:(isFunctionInExpr fnName) list
-    | FnCall (Blank _, _, _) ->
+    | FnCall (Blank _, _, _) | FnCall (Partial _, _, _) ->
         Debug.crash "blank in fncall"
     | Constructor (_, args) ->
         List.any ~f:(isFunctionInExpr fnName) args
@@ -318,13 +322,17 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     in
     let origName, uses =
       match oldTipe.utName with
-      | Blank _ ->
+      | Partial _ | Blank _ ->
           (None, [])
       | F (_, n) ->
           (Some n, Functions.usesOfTipe n oldTipe.utVersion fn)
     in
     let newName =
-      match newTipe.utName with Blank _ -> None | F (_, n) -> Some n
+      match newTipe.utName with
+      | Partial _ | Blank _ ->
+          None
+      | F (_, n) ->
+          Some n
     in
     match (origName, newName) with
     | Some _, Some newName ->
@@ -425,7 +433,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     in
     let origName, calls =
       match old.ufMetadata.ufmName with
-      | Blank _ ->
+      | Partial _ | Blank _ ->
           (None, [])
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))

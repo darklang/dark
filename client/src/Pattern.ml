@@ -8,7 +8,7 @@ module P = Pointer
 
 let rec allData (p : pattern) : pointerData list =
   match p with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       [PPattern p]
   | F (_, PLiteral _) ->
       [PPattern p]
@@ -49,7 +49,7 @@ let rec hasVariableNamed (name : varName) (p : pattern) : bool =
 
 let rec variableNames (p : pattern) : varName list =
   match p with
-  | Blank _ | F (_, PLiteral _) ->
+  | Partial _ | Blank _ | F (_, PLiteral _) ->
       []
   | F (_, PVariable name) ->
       [name]

@@ -388,7 +388,7 @@ let viewBlankOr
     match bo with
     | F (id, fill) ->
         drawFilled id fill
-    | Blank id ->
+    | Partial (id, _) | Blank id ->
         drawBlank id
   in
   match vs.cursorState with

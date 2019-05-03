@@ -11,7 +11,7 @@ module P = Pointer
 (* ------------------------- *)
 let traverse (fn : expr -> expr) (expr : expr) : expr =
   match expr with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       expr
   | F (id, nexpr) ->
       F
@@ -60,7 +60,7 @@ let rec allData (expr : expr) : pointerData list =
   [e2ld expr]
   @
   match expr with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       []
   | F (_, nexpr) ->
     ( match nexpr with
@@ -114,14 +114,14 @@ let findExn (id : id) (expr : expr) : pointerData =
 let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
     match newbind with
-    | Blank _ ->
+    | Partial _ | Blank _ ->
         false
     | F (_, potential) ->
         if potential = var then true else false
   in
   let u = uses var in
   match expr with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       []
   | F (_, nexpr) ->
     ( match nexpr with
@@ -275,7 +275,7 @@ let rec replace_
                  | Some currentPattern ->
                      let newBody =
                        match (currentPattern, newPattern) with
-                       | Blank _, _ | F (_, PLiteral _), _ ->
+                       | Partial _, _ | Blank _, _ | F (_, PLiteral _), _ ->
                            e
                        | F (_, PVariable c), F (_, PVariable n) ->
                            renameVariable c n e
@@ -309,7 +309,7 @@ let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
 let children (expr : expr) : pointerData list =
   let ces exprs = List.map ~f:(fun e -> PExpr e) exprs in
   match expr with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       []
   | F (_, nexpr) ->
     ( match nexpr with
@@ -358,7 +358,7 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
   then children expr
   else
     match expr with
-    | Blank _ ->
+    | Partial _ | Blank _ ->
         []
     | F (_, nexpr) ->
       ( match nexpr with
@@ -406,7 +406,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
   then Some haystack
   else
     match haystack with
-    | Blank _ ->
+    | Partial _ | Blank _ ->
         None
     | F (_, nexpr) ->
       ( match nexpr with
@@ -481,7 +481,7 @@ let rec listThreadBlanks (expr : expr) : id list =
     | Match (matchExpr, cases) ->
         r matchExpr @ (cases |> List.map ~f:Tuple2.second |> rList)
   in
-  match expr with Blank _ -> [] | F (_, f) -> rn f
+  match expr with Partial _ | Blank _ -> [] | F (_, f) -> rn f
 
 
 let rec closeThreads (expr : expr) : expr =
@@ -736,7 +736,7 @@ let rec wrapInThread (id : id) (expr : expr) : expr =
         expr
     | F (_, _) ->
         B.newF (Thread [expr; B.new_ ()])
-    | Blank _ ->
+    | Partial _ | Blank _ ->
         (* decide based on the displayed value, so flatten *)
         B.newF (Thread [expr])
   else traverse (wrapInThread id) expr
@@ -818,7 +818,7 @@ let ancestors (id : id) (expr : expr) : expr list =
     then walk
     else
       match exp with
-      | Blank _ ->
+      | Partial _ | Blank _ ->
           []
       | F (_, nexpr) ->
         ( match nexpr with
@@ -936,16 +936,20 @@ let rec clone (expr : expr) : expr =
 
 let isDefinitionOf (var : varName) (exp : expr) : bool =
   match exp with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       false
   | F (_, e) ->
     ( match e with
     | Let (b, _, _) ->
-      (match b with Blank _ -> false | F (_, vb) -> vb = var)
+      (match b with Partial _ | Blank _ -> false | F (_, vb) -> vb = var)
     | Lambda (vars, _) ->
         vars
         |> List.any ~f:(fun v ->
-               match v with Blank _ -> false | F (_, vb) -> vb = var )
+               match v with
+               | Partial _ | Blank _ ->
+                   false
+               | F (_, vb) ->
+                   vb = var )
     | _ ->
         false )
 
@@ -958,7 +962,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            match n with
            | PExpr boe ->
              ( match boe with
-             | Blank _ ->
+             | Partial _ | Blank _ ->
                  None
              | F (_, e) ->
                ( match e with
@@ -984,7 +988,7 @@ let freeVariables (ast : expr) : (id * varName) list =
          match n with
          | PExpr boe ->
            ( match boe with
-           | Blank _ ->
+           | Partial _ | Blank _ ->
                None
            | F (id, e) ->
              ( match e with
@@ -1011,7 +1015,7 @@ let rec sym_exec
   let sexe = sym_exec ~trace in
   ignore
     ( match expr with
-    | Blank _ ->
+    | Partial _ | Blank _ ->
         ()
     | F (_, Value _) ->
         ()
@@ -1023,7 +1027,7 @@ let rec sym_exec
           | F (_, name) ->
               sexe st rhs ;
               SymSet.add st ~value:name
-          | Blank _ ->
+          | Partial _ | Blank _ ->
               st
         in
         sexe bound body
@@ -1051,7 +1055,7 @@ let rec sym_exec
     | F (_, Match (matchExpr, cases)) ->
         let rec variables_in_pattern p =
           match p with
-          | Blank _ ->
+          | Partial _ | Blank _ ->
               []
           | F (_, PLiteral _) ->
               []

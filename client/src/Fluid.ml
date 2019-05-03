@@ -98,10 +98,14 @@ let gid () = string_of_int (Random.int (4096 * 1024) |> abs)
 
 let rec fromExpr (expr : Types.expr) : expr =
   let open Types in
-  let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
+  let varToName var =
+    match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
+  in
   match expr with
   | Blank (ID id) ->
       EBlank id
+  | Partial (ID id, v) ->
+      EPartial (id, v)
   | F (ID id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
@@ -187,8 +191,8 @@ let rec toExpr (expr : expr) : Types.expr =
       F (ID id, Let (F (ID (gid ()), lhs), toExpr rhs, toExpr body))
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (ID id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
-  | EPartial (id, _) ->
-      Blank (ID id)
+  | EPartial (id, str) ->
+      Partial (ID id, str)
   | EList (id, exprs) ->
       F (ID id, ListLiteral (List.map ~f:toExpr exprs))
   | ERecord (id, pairs) ->

@@ -23,7 +23,8 @@ let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
 let blankOr d =
   variants
     [ ("Filled", variant2 (fun id v -> F (id, v)) id d)
-    ; ("Blank", variant1 (fun id -> Blank id) id) ]
+    ; ("Blank", variant1 (fun id -> Blank id) id)
+    ; ("Partial", variant2 (fun id v -> Partial (id, v)) id string) ]
 
 
 let rec pointerData j : pointerData =

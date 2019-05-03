@@ -9,23 +9,29 @@ module RT = Runtime
 (* Convert blanks *)
 (* -------------------- *)
 let blank_to_id (bo : 'a or_blank) : id =
-  match bo with Filled (id, _) -> id | Blank id -> id
+  match bo with Filled (id, _) -> id | Partial (id, _) | Blank id -> id
 
 
 let rec blank_to_option (bo : 'a or_blank) : 'a option =
-  match bo with Blank _ -> None | Filled (_, a) -> Some a
+  match bo with Partial _ | Blank _ -> None | Filled (_, a) -> Some a
 
 
 let is_blank (bo : 'a or_blank) : bool =
-  match bo with Filled _ -> false | Blank _ -> true
+  match bo with Filled _ -> false | Partial _ | Blank _ -> true
 
 
 let blank_map ~(f : 'a -> 'b) (bo : 'a or_blank) : 'b or_blank =
-  match bo with Filled (id, a) -> Filled (id, f a) | Blank id -> Blank id
+  match bo with
+  | Filled (id, a) ->
+      Filled (id, f a)
+  | Partial (id, v) ->
+      Partial (id, v)
+  | Blank id ->
+      Blank id
 
 
 let blank_to_string (bo : string or_blank) : string =
-  match bo with Filled (_, a) -> a | Blank _ -> "___"
+  match bo with Filled (_, a) -> a | Partial _ | Blank _ -> "___"
 
 
 (* -------------------- *)
@@ -33,6 +39,8 @@ let blank_to_string (bo : string or_blank) : string =
 (* -------------------- *)
 let rec pattern2expr p : expr =
   match p with
+  | Partial (id, v) ->
+      Partial (id, v)
   | Blank id ->
       Blank id
   | Filled (id, PLiteral p) ->
@@ -50,7 +58,7 @@ let rec pattern2expr p : expr =
 (* Co-recursive. See example below. *)
 let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
   match expr with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       expr
   | Filled (id, nexpr) ->
       Filled
@@ -89,7 +97,7 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
 (* Example usage of traverse. See also AST.ml *)
 let rec example_traversal expr =
   match expr with
-  | Blank _ ->
+  | Partial _ | Blank _ ->
       Filled (Util.create_id (), Value "\"example\"")
   | expr ->
       traverse ~f:example_traversal expr
@@ -164,7 +172,7 @@ let rec exec
           call name id (param :: List.map ~f:(exe st) exprs) send_to_rail
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
-      | Blank _ ->
+      | Partial _ | Blank _ ->
           param
       | _ ->
           ignore (exe st exp) ;
@@ -179,6 +187,8 @@ let rec exec
     match expr with
     | Blank id ->
         DIncomplete
+    | Partial _ ->
+        DIncomplete
     | Filled (_, Let (lhs, rhs, body)) ->
         let data = exe st rhs in
         ( match data with
@@ -190,7 +200,7 @@ let rec exec
               match lhs with
               | Filled (_, name) ->
                   DvalMap.set ~key:name ~data st
-              | Blank _ ->
+              | Partial _ | Blank _ ->
                   st
             in
             exe bound body )
@@ -200,7 +210,7 @@ let rec exec
     | Filled (_, ListLiteral exprs) ->
         exprs
         |> List.filter_map ~f:(function
-               | Blank _ ->
+               | Partial _ | Blank _ ->
                    None
                | v ->
                  ( match exe st v with
@@ -425,7 +435,7 @@ let rec exec
           match obj with
           | DObj o ->
             ( match field with
-            | Blank _ ->
+            | Partial _ | Blank _ ->
                 DIncomplete
             | Filled (_, f) ->
               (match Map.find o f with Some v -> v | None -> DNull) )
@@ -588,7 +598,7 @@ and exec_fn
                      match db.name with
                      | Filled (_, name) ->
                          Some (name, DDB name)
-                     | Blank _ ->
+                     | Partial _ | Blank _ ->
                          None )
               |> DvalMap.of_alist_exn
             in

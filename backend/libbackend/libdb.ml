@@ -8,7 +8,7 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
   dbs
   |> List.filter ~f:(fun db ->
          match db.name with
-         | Blank _ ->
+         | Partial _ | Blank _ ->
              false
          | Filled (_, dbname) ->
              dbname = name )
