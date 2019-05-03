@@ -371,6 +371,20 @@ let assertValid pattern value : string =
   else Debug.crash ("Failed validator: " ^ pattern ^ ", " ^ value)
 
 
+let validateHttpNameValidVarnames (httpName : string) =
+  let route_variables (route : string) : string list =
+    route
+    |> String.split ~on:"/"
+    |> List.filter ~f:(fun x -> String.length x > 0)
+    |> List.filter ~f:(fun x -> String.startsWith ~prefix:":" x)
+    |> List.map ~f:(fun x -> String.dropLeft ~count:1 x)
+  in
+  if route_variables httpName
+     |> List.all ~f:(fun v -> Regex.exactly ~re:varnameValidator v)
+  then None
+  else Some ("route variables must match /" ^ varnameValidator ^ "/")
+
+
 (* ------------------------------------ *)
 (* Omniactions *)
 (* ------------------------------------ *)

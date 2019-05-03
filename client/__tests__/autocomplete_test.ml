@@ -191,6 +191,24 @@ let () =
               |> not_
               |> toThrow ) ;
           () ) ;
+      describe "validate httpName varnames" (fun () ->
+          let module_ = Some "HTTP" in
+          let tl = aHandler ~module_ () in
+          let pd = PEventName (Types.F (ID "0", "foo")) in
+          test "/foo/bar is valid, no variables" (fun () ->
+              let value = "/foo/bar" in
+              expect (Entry.validate tl pd value) |> toEqual None ) ;
+          test "/:some/:variableNames/:here_1 is valid" (fun () ->
+              let value = "/:some/:variableNames/:here_1" in
+              expect (Entry.validate tl pd value) |> toEqual None ) ;
+          test
+            "/:here-1 is not valid, no hyphens allowed in varnames"
+            (fun () ->
+              let value = "/:here-1" in
+              expect (Entry.validate tl pd value)
+              |> toEqual
+                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/") )
+      ) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
