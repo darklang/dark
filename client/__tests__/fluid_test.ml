@@ -41,6 +41,8 @@ let () =
   let emptyStr = EString (gid (), "") in
   let oneCharStr = EString (gid (), "c") in
   let anInt = EInteger (gid (), 12345) in
+  let trueBool = EBool (gid (), true) in
+  (* let falseBool = EBool (gid (), false) in *)
   let five = EInteger (gid (), 5) in
   let fiftySix = EInteger (gid (), 56) in
   let seventyEight = EInteger (gid (), 78) in
@@ -180,6 +182,17 @@ let () =
       t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
       t "delete end of number" anInt (delete 5) ("12345", 5) ;
       t "backspace end of number" anInt (backspace 5) ("1234", 4) ;
+      () ) ;
+  describe "Bools" (fun () ->
+      t "insert start of bool" trueBool (insert 'c' 0) ("ctrue", 1) ;
+      t "delete start of bool" trueBool (delete 0) ("rue", 0) ;
+      t "backspace start of bool" trueBool (backspace 0) ("true", 0) ;
+      t "insert end of bool" trueBool (insert '0' 4) ("true0", 5) ;
+      t "delete end of bool" trueBool (delete 4) ("true", 4) ;
+      t "backspace end of bool" trueBool (backspace 4) ("tru", 3) ;
+      t "insert middle of bool" trueBool (insert '0' 2) ("tr0ue", 3) ;
+      t "delete middle of bool" trueBool (delete 2) ("tre", 2) ;
+      t "backspace middle of bool" trueBool (backspace 2) ("tue", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;
