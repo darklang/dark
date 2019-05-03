@@ -20,6 +20,8 @@ let blankOr (encoder : 'a -> Js.Json.t) (v : 'a Types.blankOr) =
   match v with
   | F (i, s) ->
       variant "Filled" [id i; encoder s]
+  | Partial (i, str) ->
+      variant "Partial" [id i; string str]
   | Blank i ->
       variant "Blank" [id i]
 
@@ -500,7 +502,7 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
       if r = Rail
       then ev "FnCallSendToRail" [string n; list e exprs]
       else ev "FnCall" [string n; list e exprs]
-  | FnCall (Blank _, _, _) ->
+  | FnCall (Partial _, _, _) | FnCall (Blank _, _, _) ->
       Debug.crash "fnCall hack used"
   | Let (lhs, rhs, body) ->
       ev "Let" [blankOr string lhs; e rhs; e body]

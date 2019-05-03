@@ -189,7 +189,7 @@ let isBlank (pd : pointerData) : bool =
 let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
   let bf s =
     match s with
-    | Blank _ ->
+    | Blank _ | Partial _ ->
       (match f "" with "" -> s | other -> Blank.newF other)
     | F (id, str) ->
         F (id, f str)

@@ -614,7 +614,9 @@ let create2 (name : string) (tlid : tlid) (name_id : id) : db =
 
 
 let rename_db (n : string) (db : db) : db =
-  let id = match db.name with Blank i -> i | Filled (i, _) -> i in
+  let id =
+    match db.name with Partial (i, _) | Blank i -> i | Filled (i, _) -> i
+  in
   {db with name = Filled (id, n)}
 
 
