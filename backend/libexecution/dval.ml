@@ -449,7 +449,6 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       bytes |> RawBytes.to_string |> B64.encode |> wrap_user_str
 
 
-
 (* ------------------------- *)
 (* String representations *)
 (* ------------------------- *)
@@ -895,7 +894,6 @@ let rec to_url_string_exn (dv : dval) : string =
       to_url_string_exn v
   | DBytes bytes ->
       bytes |> RawBytes.to_string |> B64.encode
-
 
 
 (* ------------------------- *)
