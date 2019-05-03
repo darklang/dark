@@ -577,22 +577,16 @@ let tlDestinations (m : model) : autocompleteItem list =
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
 
-let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
-  let isThreadMemberVal =
-    Option.map ~f:(isThreadMember m) a.target
-    |> Option.withDefault ~default:false
-  in
-  let paramTipe =
-    a.target
-    |> Option.andThen ~f:(paramTipeForTarget m)
-    |> Option.withDefault ~default:TAny
-  in
-  let isVarDBName v = List.member ~value:v (TL.allDBNames m.toplevels) in
+let matcher
+    (paramTipe : tipe)
+    (dbnames : string list)
+    (matchTypesOfFn : tipe -> function_ -> bool)
+    (item : autocompleteItem) =
   match item with
   | ACFunction fn ->
-      matchesTypes isThreadMemberVal paramTipe a.targetDval fn
+      matchTypesOfFn paramTipe fn
   | ACVariable var ->
-      if isVarDBName var
+      if List.member ~value:var dbnames
       then match paramTipe with TDB -> true | _ -> false
       else if var = "request"
       then match paramTipe with TObj | TAny -> true | _ -> false
@@ -796,7 +790,18 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.partition ~f:(matcher m a) allMatches
+  let dbnames = TL.allDBNames m.toplevels in
+  let isThreadMemberVal =
+    Option.map ~f:(isThreadMember m) a.target
+    |> Option.withDefault ~default:false
+  in
+  let paramTipe =
+    a.target
+    |> Option.andThen ~f:(paramTipeForTarget m)
+    |> Option.withDefault ~default:TAny
+  in
+  let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt a.targetDval in
+  List.partition ~f:(matcher paramTipe dbnames matchTypesOfFn) allMatches
 
 
 let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
