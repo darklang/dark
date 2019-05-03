@@ -142,12 +142,11 @@ UTF-8 safe"))
         (function
         | state, [DStr file] ->
             let url =
-              "https://avatars1.githubusercontent.com/u/32852373?s=280&v=4"
-              (*url_for
+              url_for
                 state.canvas_id
                 (latest_deploy_hash state.canvas_id)
                 `Short
-                (Unicode_string.to_string file)*)
+                (Unicode_string.to_string file)
             in
             let body, code, headers, _error =
               Httpclient.http_call_with_code url [] Httpclient.GET [] ""
