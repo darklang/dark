@@ -133,6 +133,11 @@ let isHandler (tl : toplevel) : bool =
 let handlers (tls : toplevel list) : handler list =
   List.filterMap ~f:asHandler tls
 
+let getAST (tl : toplevel) : expr option =
+  match tl.data with
+  | TLHandler h -> Some h.ast
+  | TLFunc f -> Some f.ufAST
+  | _ -> None
 
 let dbs (tls : toplevel list) : dB list = List.filterMap ~f:asDB tls
 
