@@ -652,7 +652,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     | DErrorRail dv ->
         "ErrorRail: " ^ to_repr_ indent dv
     | DBytes bytes ->
-        wrap bytes
+        "<Bytes: length=" ^ string_of_int (String.length bytes) ^ ">"
   in
   to_repr_ 0 dv
 
@@ -765,7 +765,7 @@ let rec show dv =
   | DOption OptNothing ->
       "Nothing"
   | DBytes bytes ->
-      "<Bytes: lenght=" ^ string_of_int (String.length bytes) ^ ">"
+      "<Bytes: length=" ^ string_of_int (String.length bytes) ^ ">"
 
 
 let parse_literal (str : string) : dval option =
