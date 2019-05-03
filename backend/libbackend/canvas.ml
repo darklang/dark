@@ -192,7 +192,9 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
                 match t with
                 | Filled (id, ts) ->
                     (n, Filled (id, Dval.tipe_of_string ts))
-                | Blank id as b ->
+                | Partial _ as b ->
+                    (n, b)
+                | Blank _ as b ->
                     (n, b) )
           in
           apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid

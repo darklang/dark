@@ -21,7 +21,7 @@ let dbs_as_input_vars (dbs : DbT.db list) : (string * dval) list =
       match db.name with
       | Filled (_, name) ->
           Some (name, DDB name)
-      | Blank _ ->
+      | Partial _ | Blank _ ->
           None )
 
 

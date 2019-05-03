@@ -218,7 +218,7 @@ let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 let widthInCh (w : int) : msg Vdom.property = w |> inCh |> Html.style "width"
 
 let blankOrLength ~(f : 'a -> int) (b : 'a blankOr) : int =
-  match b with Blank _ -> 6 | F (_, value) -> f value
+  match b with Partial _ | Blank _ -> 6 | F (_, value) -> f value
 
 
 let strBlankOrLength (b : string blankOr) : int =
@@ -233,7 +233,7 @@ let visualStringLength (string : string) : int =
 
 
 let rec approxWidth (e : expr) : int =
-  match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
+  match e with Partial _ | Blank _ -> 6 | F (_, ne) -> approxNWidth ne
 
 
 and approxNWidth (ne : nExpr) : int =
