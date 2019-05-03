@@ -560,9 +560,9 @@ let setSelectedAST (m : model) (ast : expr) : modification =
   | Some tl ->
     ( match tl.data with
     | TLHandler h ->
-        RPC ([SetHandler (tl.id, tl.pos, {h with ast})], FocusNothing)
+        RPC ([SetHandler (tl.id, tl.pos, {h with ast})], FocusNoChange)
     | TLFunc f ->
-        RPC ([SetFunction {f with ufAST = ast}], FocusNothing)
+        RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
     | TLTipe _ ->
         impossible ("no ast in DBs", tl.data)
     | TLDB _ ->
