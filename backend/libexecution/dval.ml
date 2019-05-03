@@ -578,7 +578,7 @@ let rec to_enduser_readable_text_v0 dval =
     | DOption OptNothing ->
         "Nothing"
     | DBytes bytes ->
-        "<Bytes: length=" ^ String.length bytes ^ ">"
+        "<Bytes: length=" ^ string_of_int (String.length bytes) ^ ">"
   in
   reprfn dval
 
@@ -765,7 +765,7 @@ let rec show dv =
   | DOption OptNothing ->
       "Nothing"
   | DBytes bytes ->
-      "<Bytes: lenght=" ^ String.length bytes ^ ">"
+      "<Bytes: lenght=" ^ string_of_int (String.length bytes) ^ ">"
 
 
 let parse_literal (str : string) : dval option =
@@ -1026,7 +1026,7 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
   | DResult (ResError dv) ->
       "ResultError " ^ to_hashable_repr ~indent dv
   | DBytes bytes ->
-      "<bytes: length=" ^ String.length bytes ^ ">"
+      "<bytes: length=" ^ string_of_int (String.length bytes) ^ ">"
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
