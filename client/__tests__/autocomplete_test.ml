@@ -22,7 +22,8 @@ let sampleFunctions : function_ list =
   ; ("HTTP::head", TAny)
   ; ("HTTP::get", TAny)
   ; ("HTTP::options", TAny)
-  ; ("Some::deprecated", TAny) ]
+  ; ("Some::deprecated", TAny)
+  ; ("DB::deleteAll", TDB) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -397,7 +398,7 @@ let () =
               expect (acFor m |> setQuery m "Ok" |> highlighted)
               |> toEqual (Some (ACConstructorName "Ok")) ) ;
           test "Error works" (fun () ->
-              expect (acFor m |> setQuery m "Err" |> highlighted)
+              expect (acFor m |> setQuery m "Error" |> highlighted)
               |> toEqual (Some (ACConstructorName "Error")) ) ;
           test "true works" (fun () ->
               expect (acFor m |> setQuery m "tr" |> highlighted)
@@ -438,9 +439,24 @@ let () =
                  ])
               |> toEqual [true; true] ) ;
           test "functions have DB names in the autocomplete" (fun () ->
-              let m = enteringFunction ~dbs:[aDB ~tlid:(TLID "db") ()] () in
+              let blankid = ID "123" in
+              let dbNameBlank = Blank blankid in
+              let fntlid = TLID "fn123" in
+              let fn = aFunction 
+                ~tlid: fntlid
+                ~expr:(B.newF (FnCall (B.newF "DB::deleteAll", [dbNameBlank], NoRail)) ) ()
+              in
+              let m =
+                defaultModel
+                ~cursorState:(fillingCS ~tlid:fntlid ~id:blankid ())
+                ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                ~userFunctions: [fn] ()
+              in
+              let target = Some (fntlid, PExpr dbNameBlank ) in
+              let ac = acFor ~target:target m in
+              let newM = { m with complete = ac } in
               expect
-                (acFor m |> setQuery m "" |> itemPresent (ACVariable "MyDB"))
+                (setQuery newM "" ac |> itemPresent (ACVariable "MyDB"))
               |> toEqual true ) ;
           test
             "autocomplete does not have slash when handler is not HTTP"

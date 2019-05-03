@@ -247,8 +247,7 @@ let isThreadMember (m : model) ((tlid, pd) : target) =
 
 let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
   TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
-  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast (P.toID pd))
   |> Option.andThen ~f:(fun (name, index) ->
          m.complete.functions
@@ -596,7 +595,7 @@ let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
       if isVarDBName var
       then match paramTipe with TDB -> true | _ -> false
       else if var = "request"
-      then match paramTipe with TObj -> true | _ -> false
+      then match paramTipe with TObj | TAny -> true | _ -> false
       else true
   | ACKeyword _ ->
     (match paramTipe with TAny -> true | _ -> false)
