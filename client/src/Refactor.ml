@@ -67,13 +67,30 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
       NoChange
 
 
-let toggleOnRail (_ : model) (tl : toplevel) (p : pointerData) : modification =
+let toggleOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
   let new_ =
     match p with
     | PExpr (F (id, FnCall (name, exprs, Rail))) ->
         PExpr (F (id, FnCall (name, exprs, NoRail)))
-    | PExpr (F (id, FnCall (name, exprs, NoRail))) ->
-        PExpr (F (id, FnCall (name, exprs, Rail)))
+    | PExpr (F (id, FnCall (F (nid, name), exprs, NoRail))) ->
+        (* We don't want to use m.complete.functions as the autocomplete
+         * filters out deprecated functions *)
+        let allFunctions =
+          let ufs =
+            m.userFunctions
+            |> List.map ~f:(fun uf -> uf.ufMetadata)
+            |> List.filterMap ~f:Functions.ufmToF
+          in
+          m.builtInFunctions @ ufs
+        in
+        (* Only toggle onto rail iff. return tipe is TOption or TResult *)
+        List.find ~f:(fun fn -> fn.fnName = name) allFunctions
+        |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+        |> Option.map ~f:(fun t ->
+               if t = TOption || t = TResult
+               then PExpr (F (id, FnCall (F (nid, name), exprs, Rail)))
+               else p )
+        |> Option.withDefault ~default:p
     | _ ->
         p
   in
