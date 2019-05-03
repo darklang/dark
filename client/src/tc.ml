@@ -16,6 +16,8 @@ include (
     (*  and module IntSet := Tablecloth.IntSet *)
     (*  and module StrDict := Tablecloth.StrDict *)
     with module Option := Tablecloth.Option
+    with module Int := Tablecloth.Int
+    with module String := Tablecloth.String
     (*  and module Result := Tablecloth.Result *)
      and module List := Tablecloth.List )
 
@@ -53,4 +55,24 @@ module List = struct
   let range (start : int) (end_ : int) : 'a list =
     let length = end_ - start in
     if length < 0 then [] else Belt.List.makeBy length (fun i -> i + start)
+end
+
+module Float = struct
+  let toString (f : float) : string = Js.Float.toString f
+end
+
+module Int = struct
+  include Tablecloth.Int
+
+  let toString (i : int) : string = Js.Int.toString i
+end
+
+module String = struct
+  include Tablecloth.String
+
+  let splitAt ~(index : int) (s : string) : string * string =
+    (slice ~from:0 ~to_:index s, slice ~from:index ~to_:(length s) s)
+
+
+  let left ~(count : int) (s : string) : string = slice ~from:0 ~to_:count s
 end
