@@ -38,6 +38,8 @@ and id = ID of string
 
 and 'a blankOr =
   | Blank of id
+  (* A partial is only used by Fluid *)
+  | Partial of id * string
   | F of id * 'a
 
 (* There are two coordinate systems. Pos is an absolute position in the *)

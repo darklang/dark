@@ -23,8 +23,8 @@ let transform_op (op : Op.op) : Op.op =
   in
   let transform_string_or_blank (old : string Types.or_blank) =
     match old with
-    | Blank _ as o ->
-        o
+    | Partial _ | Blank _ ->
+        old
     | Filled (id, str) ->
         Filled (id, transform_string str)
   in
