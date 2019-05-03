@@ -442,21 +442,25 @@ let () =
               let blankid = ID "123" in
               let dbNameBlank = Blank blankid in
               let fntlid = TLID "fn123" in
-              let fn = aFunction 
-                ~tlid: fntlid
-                ~expr:(B.newF (FnCall (B.newF "DB::deleteAll", [dbNameBlank], NoRail)) ) ()
+              let fn =
+                aFunction
+                  ~tlid:fntlid
+                  ~expr:
+                    (B.newF
+                       (FnCall (B.newF "DB::deleteAll", [dbNameBlank], NoRail)))
+                  ()
               in
               let m =
                 defaultModel
-                ~cursorState:(fillingCS ~tlid:fntlid ~id:blankid ())
-                ~dbs:[aDB ~tlid:(TLID "db123") ()]
-                ~userFunctions: [fn] ()
+                  ~cursorState:(fillingCS ~tlid:fntlid ~id:blankid ())
+                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                  ~userFunctions:[fn]
+                  ()
               in
-              let target = Some (fntlid, PExpr dbNameBlank ) in
-              let ac = acFor ~target:target m in
-              let newM = { m with complete = ac } in
-              expect
-                (setQuery newM "" ac |> itemPresent (ACVariable "MyDB"))
+              let target = Some (fntlid, PExpr dbNameBlank) in
+              let ac = acFor ~target m in
+              let newM = {m with complete = ac} in
+              expect (setQuery newM "" ac |> itemPresent (ACVariable "MyDB"))
               |> toEqual true ) ;
           test
             "autocomplete does not have slash when handler is not HTTP"
@@ -477,9 +481,25 @@ let () =
                 |> not )
               |> toEqual true ) ;
           () ) ;
-      describe "matcher" (fun () -> 
-        test "matches DB name" (fun () -> expect (true) |> toEqual true );
-      () );
+      describe "filter" (fun () ->
+          test "DB name is invalid in root expr" (fun () ->
+              let m =
+                defaultModel
+                  ~cursorState:(fillingCS ())
+                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                  ()
+              in
+              let ac = acFor m in
+              let _valid, invalid = filter m ac [ACVariable "MyDB"] "" in
+              expect (List.member ~value:(ACVariable "MyDB") invalid)
+              |> toEqual true ) ;
+          test "request variable is valid in root expr" (fun () ->
+              let m = enteringHandler () in
+              let ac = acFor m in
+              let valid, _invalid = filter m ac [ACVariable "request"] "" in
+              expect (List.member ~value:(ACVariable "request") valid)
+              |> toEqual true ) ;
+          () ) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
           test "entering a DB name that used to be invalid works" (fun () ->
