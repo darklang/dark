@@ -1026,7 +1026,7 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
   | DResult (ResError dv) ->
       "ResultError " ^ to_hashable_repr ~indent dv
   | DBytes bytes ->
-      "<bytes: length=" ^ string_of_int (String.length bytes) ^ ">"
+      "<bytes: " ^ bytes ^ ">"
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
