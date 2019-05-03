@@ -134,6 +134,17 @@ let rec fromExpr (expr : Types.expr) : expr =
         let asInt =
           try Some (EInteger (id, int_of_string str)) with _ -> None
         in
+        let asFloat =
+          try
+            (* for the exception *)
+            ignore (float_of_string str) ;
+            match String.split ~on:"." str with
+            | [whole; fraction] ->
+                Some (EFloat (id, whole, fraction))
+            | _ ->
+                None
+          with _ -> None
+        in
         let asString =
           if String.startsWith ~prefix:"\"" str
              && String.endsWith ~suffix:"\"" str
@@ -148,6 +159,7 @@ let rec fromExpr (expr : Types.expr) : expr =
         asInt
         |> Option.or_ asString
         |> Option.or_ asBool
+        |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
     | _ ->
         EOldExpr expr )
@@ -202,6 +214,7 @@ let rec toExpr (expr : expr) : Types.expr =
             (List.map pairs ~f:(fun (k, v) ->
                  (Types.F (ID (gid ()), k), toExpr v) )) )
   | EOldExpr expr ->
+      Js.log2 "old expr" (Types.show_expr expr) ;
       expr
 
 
