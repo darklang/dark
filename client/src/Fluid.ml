@@ -596,7 +596,11 @@ let rec toTokens' (e : ast) : token list =
   | EBool (id, b) ->
       if b then [TTrue id] else [TFalse id]
   | EFloat (id, whole, fraction) ->
-      [TFloatWhole (id, whole); TFloatPoint id; TFloatFraction (id, fraction)]
+      let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
+      let fraction =
+        if fraction = "" then [] else [TFloatFraction (id, fraction)]
+      in
+      whole @ [TFloatPoint id] @ fraction
   | EBlank id ->
       [TBlank id]
   | EPartial (id, str) ->
