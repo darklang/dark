@@ -818,27 +818,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   (newm, Cmd.batch [cmd; newcmd])
 
 
-(* Figure out from the string and the state whether this '.' means field
-   access. *)
-let isFieldAccessDot (m : model) (baseStr : string) : bool =
-  (* We know from the fact that this function is called that there has
-     been a '.' entered. However, it might not be in baseStr, so
-     canonicalize it first. *)
-  let str = Regex.replace ~re:(Regex.regex "\\.*$") ~repl:"" baseStr in
-  let intOrString =
-    String.startsWith ~prefix:"\"" str || Decoders.typeOfLiteral str = TInt
-  in
-  match m.cursorState with
-  | Entering (Creating _) ->
-      not intOrString
-  | Entering (Filling (tlid, id)) ->
-      let tl = TL.getTL m tlid in
-      let pd = TL.findExn tl id in
-      (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString
-  | _ ->
-      false
-
-
 let toggleTimers (m : model) : model =
   {m with timersEnabled = not m.timersEnabled}
 
@@ -859,7 +838,7 @@ let update_ (msg : msg) (m : model) : modification =
       KeyPress.handler event m
   | EntryInputMsg target ->
       let query = if target = "\"" then "\"\"" else target in
-      if String.endsWith ~suffix:"." query && isFieldAccessDot m query
+      if String.endsWith ~suffix:"." query && KeyPress.isFieldAccessDot m query
       then NoChange
       else
         Many
