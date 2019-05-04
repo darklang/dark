@@ -60,9 +60,9 @@ let fail str = raise (FExc str)
 (* Expressions *)
 (* -------------------- *)
 
-type id = string
+type id = string [@@deriving show]
 
-type name = string
+type name = string [@@deriving show]
 
 type expr =
   | EInteger of id * int
@@ -81,6 +81,7 @@ type expr =
   | EList of id * expr list
   | ERecord of id * (name * expr) list
   | EOldExpr of Types.expr
+[@@deriving show]
 
 type ast = expr
 
@@ -166,6 +167,8 @@ let rec fromExpr (expr : Types.expr) : expr =
 
 
 let rec toExpr (expr : expr) : Types.expr =
+  (* TODO: remove any new generation (gid ()) from this fn, save the old
+   * ones instead *)
   match expr with
   | EInteger (id, num) ->
       F (ID id, Value (Int.toString num))
@@ -288,6 +291,7 @@ type token =
   | TRecordField of id * int * string
   | TRecordSep of id * int
   | TRecordClose of id
+[@@deriving show]
 
 let isBlank t =
   match t with
@@ -1299,7 +1303,7 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           let rest = List.tail vars |> Option.withDefault ~default:[] in
           ELambda (id, str :: rest, expr)
       | _ ->
-          fail "not a string type" )
+          fail ("not a string type: " ^ show_expr e) )
 
 
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
