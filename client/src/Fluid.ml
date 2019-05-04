@@ -60,9 +60,9 @@ let fail str = raise (FExc str)
 (* Expressions *)
 (* -------------------- *)
 
-type id = string
+type id = string [@@deriving show]
 
-type name = string
+type name = string [@@deriving show]
 
 type expr =
   | EInteger of id * int
@@ -81,6 +81,7 @@ type expr =
   | EList of id * expr list
   | ERecord of id * (name * expr) list
   | EOldExpr of Types.expr
+[@@deriving show]
 
 type ast = expr
 
@@ -94,7 +95,7 @@ type ast = expr
 (* remove B/F *)
 (* feature flags (may punt) *)
 
-let gid () = string_of_int (Random.int (4096 * 1024) |> abs)
+let gid () = string_of_int (Native.Random.random ())
 
 let rec fromExpr (expr : Types.expr) : expr =
   let open Types in
@@ -134,6 +135,17 @@ let rec fromExpr (expr : Types.expr) : expr =
         let asInt =
           try Some (EInteger (id, int_of_string str)) with _ -> None
         in
+        let asFloat =
+          try
+            (* for the exception *)
+            ignore (float_of_string str) ;
+            match String.split ~on:"." str with
+            | [whole; fraction] ->
+                Some (EFloat (id, whole, fraction))
+            | _ ->
+                None
+          with _ -> None
+        in
         let asString =
           if String.startsWith ~prefix:"\"" str
              && String.endsWith ~suffix:"\"" str
@@ -148,12 +160,15 @@ let rec fromExpr (expr : Types.expr) : expr =
         asInt
         |> Option.or_ asString
         |> Option.or_ asBool
+        |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
     | _ ->
         EOldExpr expr )
 
 
 let rec toExpr (expr : expr) : Types.expr =
+  (* TODO: remove any new generation (gid ()) from this fn, save the old
+   * ones instead *)
   match expr with
   | EInteger (id, num) ->
       F (ID id, Value (Int.toString num))
@@ -275,6 +290,7 @@ type token =
   | TRecordField of id * int * string
   | TRecordSep of id * int
   | TRecordClose of id
+[@@deriving show]
 
 let isBlank t =
   match t with
@@ -579,7 +595,11 @@ let rec toTokens' (e : ast) : token list =
   | EBool (id, b) ->
       if b then [TTrue id] else [TFalse id]
   | EFloat (id, whole, fraction) ->
-      [TFloatWhole (id, whole); TFloatPoint id; TFloatFraction (id, fraction)]
+      let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
+      let fraction =
+        if fraction = "" then [] else [TFloatFraction (id, fraction)]
+      in
+      whole @ [TFloatPoint id] @ fraction
   | EBlank id ->
       [TBlank id]
   | EPartial (id, str) ->
@@ -1286,7 +1306,7 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           let rest = List.tail vars |> Option.withDefault ~default:[] in
           ELambda (id, str :: rest, expr)
       | _ ->
-          fail "not a string type" )
+          fail ("not a string type: " ^ show_expr e) )
 
 
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =

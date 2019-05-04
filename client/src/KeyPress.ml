@@ -420,7 +420,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 NoChange )
           | Key.Unknown _ ->
-              if event.key = Some "." && isFieldAccessDot m m.complete.value
+              if event.key = Some "."
+                 && isFieldAccessDot m m.complete.value
+                 && not (VariantTesting.isFluid m.tests)
               then
                 let c = m.complete in
                 (* big hack to for Entry.submit to see field access *)
