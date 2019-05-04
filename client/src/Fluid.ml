@@ -217,7 +217,6 @@ let rec toExpr (expr : expr) : Types.expr =
             (List.map pairs ~f:(fun (k, v) ->
                  (Types.F (ID (gid ()), k), toExpr v) )) )
   | EOldExpr expr ->
-      Js.log2 "old expr" (Types.show_expr expr) ;
       expr
 
 
