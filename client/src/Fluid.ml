@@ -94,7 +94,7 @@ type ast = expr
 (* remove B/F *)
 (* feature flags (may punt) *)
 
-let gid () = string_of_int (Random.int (4096 * 1024) |> abs)
+let gid () = string_of_int (Native.Random.random ())
 
 let rec fromExpr (expr : Types.expr) : expr =
   let open Types in
