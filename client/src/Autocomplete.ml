@@ -247,7 +247,7 @@ let isThreadMember (m : model) ((tlid, pd) : target) =
 
 let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
   TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
+  |> Option.andThen ~f:TL.astOf
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast (P.toID pd))
   |> Option.andThen ~f:(fun (name, index) ->
          m.complete.functions
@@ -578,23 +578,23 @@ let tlDestinations (m : model) : autocompleteItem list =
 
 
 let matcher
-    (paramTipe : tipe)
+    (tipeConstraintOnTarget : tipe)
     (dbnames : string list)
     (matchTypesOfFn : tipe -> function_ -> bool)
     (item : autocompleteItem) =
   match item with
   | ACFunction fn ->
-      matchTypesOfFn paramTipe fn
+      matchTypesOfFn tipeConstraintOnTarget fn
   | ACVariable var ->
       if List.member ~value:var dbnames
-      then match paramTipe with TDB -> true | _ -> false
+      then match tipeConstraintOnTarget with TDB -> true | _ -> false
       else if var = "request"
-      then match paramTipe with TObj | TAny -> true | _ -> false
+      then match tipeConstraintOnTarget with TObj | TAny -> true | _ -> false
       else true
   | ACKeyword _ ->
-    (match paramTipe with TAny -> true | _ -> false)
+    (match tipeConstraintOnTarget with TAny -> true | _ -> false)
   | ACConstructorName name ->
-    ( match paramTipe with
+    ( match tipeConstraintOnTarget with
     | TOption ->
         name = "Just" || name = "Nothing"
     | TResult ->
@@ -795,13 +795,15 @@ let filter
     Option.map ~f:(isThreadMember m) a.target
     |> Option.withDefault ~default:false
   in
-  let paramTipe =
+  let tipeConstraintOnTarget =
     a.target
     |> Option.andThen ~f:(paramTipeForTarget m)
     |> Option.withDefault ~default:TAny
   in
   let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt a.targetDval in
-  List.partition ~f:(matcher paramTipe dbnames matchTypesOfFn) allMatches
+  List.partition
+    ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
+    allMatches
 
 
 let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =

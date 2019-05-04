@@ -482,7 +482,7 @@ let () =
               |> toEqual true ) ;
           () ) ;
       describe "filter" (fun () ->
-          test "DB name is invalid in root expr" (fun () ->
+          test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ())
