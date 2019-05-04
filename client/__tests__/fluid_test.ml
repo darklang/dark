@@ -40,10 +40,12 @@ let () =
   let aStr = EString (gid (), "some string") in
   let emptyStr = EString (gid (), "") in
   let oneCharStr = EString (gid (), "c") in
+  let aShortInt = EInteger (gid (), 1) in
   let anInt = EInteger (gid (), 12345) in
   let aHugeInt = EInteger (gid (), 2000000000) in
   let aFloat = EFloat (gid (), "123", "456") in
   let aHugeFloat = EFloat (gid (), "123456789", "123456789") in
+  let aPartialFloat = EFloat (gid (), "1", "") in
   let trueBool = EBool (gid (), true) in
   (* let falseBool = EBool (gid (), false) in *)
   let five = EInteger (gid (), 5) in
@@ -179,6 +181,7 @@ let () =
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
+      t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
       t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ;
       t "insert start of number" anInt (insert '5' 0) ("512345", 1) ;
       t "delete start of number" anInt (delete 0) ("2345", 0) ;
@@ -193,7 +196,8 @@ let () =
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
       t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
-      t "insert . converts to float - staert" anInt (insert '.' 0) ("12345", 0) ;
+      t "insert . converts to float - start" anInt (insert '.' 0) ("12345", 0) ;
+      t "insert . converts to float - short" aShortInt (insert '.' 1) ("1.", 2) ;
       t "insert zero in whole - start" aFloat (insert '0' 0) ("123.456", 0) ;
       t "insert int in whole - start" aFloat (insert '9' 0) ("9123.456", 1) ;
       t "insert int in whole - middle" aFloat (insert '0' 1) ("1023.456", 2) ;
@@ -213,12 +217,25 @@ let () =
       t "delete start of fraction" aFloat (delete 4) ("123.56", 4) ;
       t "delete middle of fraction" aFloat (delete 5) ("123.46", 5) ;
       t "delete end of fraction" aFloat (delete 6) ("123.45", 6) ;
+      t "delete dot converts to int" aFloat (delete 3) ("123456", 3) ;
+      t
+        "delete dot converts to int, no fraction"
+        aPartialFloat
+        (delete 1)
+        ("1", 1) ;
       t "backspace start of whole" aFloat (backspace 1) ("23.456", 0) ;
       t "backspace middle of whole" aFloat (backspace 2) ("13.456", 1) ;
       t "backspace end of whole" aFloat (backspace 3) ("12.456", 2) ;
       t "backspace start of fraction" aFloat (backspace 5) ("123.56", 4) ;
       t "backspace middle of fraction" aFloat (backspace 6) ("123.46", 5) ;
       t "backspace end of fraction" aFloat (backspace 7) ("123.45", 6) ;
+      t "backspace dot converts to int" aFloat (backspace 4) ("123456", 3) ;
+      t
+        "backspace dot converts to int, no fraction"
+        aPartialFloat
+        (backspace 2)
+        ("1", 1) ;
+      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
       () ) ;
   describe "Bools" (fun () ->
       t "insert start of bool" trueBool (insert 'c' 0) ("ctrue", 1) ;
@@ -449,8 +466,8 @@ let () =
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
       let emptyRow = ERecord (gid (), [("", blank)]) in
-      (* let single = ERecord (gid (), [( "field", fiftySix)]) in *)
-      (* let multi = EList (gid (), [fiftySix; seventyEight]) in *)
+      let single = ERecord (gid (), [("f1", fiftySix)]) in
+      let multi = ERecord (gid (), [("f1", fiftySix); ("f2", seventyEight)]) in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
       t "create record" blank (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t
@@ -495,6 +512,16 @@ let () =
         (backspace ~wrap:false 4)
         (* TODO: shouldn't need to wrap *)
         ("{}", 1) ;
+      t
+        "appending to int in expr works"
+        single
+        (insert ~wrap:false '1' 11)
+        ("{\n  f1 : 561\n}", 12) ;
+      t
+        "appending to int in expr works"
+        multi
+        (insert ~wrap:false '1' 21)
+        ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
