@@ -80,6 +80,7 @@ type expr =
   | EPartial of id * string
   | EList of id * expr list
   | ERecord of id * (name * expr) list
+  | EThread of id * expr list
   | EOldExpr of Types.expr
 [@@deriving show]
 
@@ -124,6 +125,8 @@ let rec fromExpr (expr : Types.expr) : expr =
         EFieldAccess (id, fromExpr expr, varToName field)
     | FnCall (name, exprs, _str) ->
         EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
+    | Thread exprs ->
+        EThread (id, List.map ~f:fromExpr exprs)
     | Value str ->
         let asBool =
           if str = "true"
@@ -216,6 +219,8 @@ let rec toExpr (expr : expr) : Types.expr =
         , ObjectLiteral
             (List.map pairs ~f:(fun (k, v) ->
                  (Types.F (ID (gid ()), k), toExpr v) )) )
+  | EThread (id, exprs) ->
+      F (ID id, Thread (List.map ~f:toExpr exprs))
   | EOldExpr expr ->
       expr
 
@@ -238,6 +243,7 @@ let eid expr : id =
   | EPartial (id, _)
   | EList (id, _)
   | ERecord (id, _)
+  | EThread (id, _)
   | EBinOp (id, _, _, _) ->
       id
 
@@ -667,6 +673,8 @@ let rec toTokens' (e : ast) : token list =
           |> List.concat
         ; [TNewline; TRecordClose id] ]
         |> List.concat
+  | EThread (id, _exprs) ->
+      [TPartial (id, "TODO: thread")]
   | EOldExpr expr ->
       [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
 
@@ -1141,7 +1149,7 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         |> List.map ~f:Tuple2.second
         |> List.filterMap ~f:fe
         |> List.head
-    | EFnCall (_, _, exprs) | EList (_, exprs) ->
+    | EFnCall (_, _, exprs) | EList (_, exprs) | EThread (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
         None
@@ -1197,7 +1205,7 @@ let findParent (id : id) (ast : ast) : expr option =
           |> List.map ~f:Tuple2.second
           |> List.filterMap ~f:fp
           |> List.head
-      | EFnCall (_, _, exprs) | EList (_, exprs) ->
+      | EFnCall (_, _, exprs) | EList (_, exprs) | EThread (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
           None
@@ -1235,6 +1243,8 @@ let recurse ~(f : expr -> expr) (expr : expr) : expr =
       EList (id, List.map ~f exprs)
   | ERecord (id, fields) ->
       ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+  | EThread (id, exprs) ->
+      EThread (id, List.map ~f exprs)
   | EOldExpr _ ->
       expr
 
