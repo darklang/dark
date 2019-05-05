@@ -165,7 +165,7 @@ let rec fromExpr (expr : Types.expr) : expr =
         |> Option.or_ asBool
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
-    | _ ->
+    | FeatureFlag _ | Match _ | Constructor _ | Lambda _ ->
         EOldExpr expr )
 
 
@@ -1065,7 +1065,7 @@ let gridFor ~(pos : int) (tokens : tokenInfo list) : gridPos =
       if ti.token = TNewline
       then {row = ti.startRow + 1; col = 0}
       else {row = ti.startRow; col = ti.startCol + (pos - ti.startPos)}
-  | _ ->
+  | None ->
       {row = 0; col = 0}
 
 
