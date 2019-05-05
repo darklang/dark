@@ -88,12 +88,9 @@ type ast = expr
 
 (* TODO: Stuff to add *)
 (* match/patterns *)
-(* thread *)
 (* constructor *)
 (* send to rail *)
-(* character, float, null *)
-(* extra params in lambdas *)
-(* remove B/F *)
+(* character, null *)
 (* feature flags (may punt) *)
 
 let gid () = string_of_int (Native.Random.random ())
