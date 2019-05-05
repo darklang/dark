@@ -317,7 +317,7 @@ let isAutocompletable (t : token) : bool =
 
 let toText (t : token) : string =
   let failIfEmpty name =
-    if name = "" then fail "shouldn't be empty" else name
+    if name = "" then fail ("shouldn't be empty^: " ^ show_token t) else name
   in
   let blankIfEmpty name = if name = "" then "   " else name in
   match t with
