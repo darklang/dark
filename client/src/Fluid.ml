@@ -80,6 +80,7 @@ type expr =
   | EPartial of id * string
   | EList of id * expr list
   | ERecord of id * (name * expr) list
+  | EThread of id * expr list
   | EOldExpr of Types.expr
 [@@deriving show]
 
@@ -124,6 +125,8 @@ let rec fromExpr (expr : Types.expr) : expr =
         EFieldAccess (id, fromExpr expr, varToName field)
     | FnCall (name, exprs, _str) ->
         EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
+    | Thread exprs ->
+        EThread (id, List.map ~f:fromExpr exprs)
     | Value str ->
         let asBool =
           if str = "true"
@@ -162,7 +165,7 @@ let rec fromExpr (expr : Types.expr) : expr =
         |> Option.or_ asBool
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
-    | _ ->
+    | FeatureFlag _ | Match _ | Constructor _ | Lambda _ ->
         EOldExpr expr )
 
 
@@ -216,6 +219,8 @@ let rec toExpr (expr : expr) : Types.expr =
         , ObjectLiteral
             (List.map pairs ~f:(fun (k, v) ->
                  (Types.F (ID (gid ()), k), toExpr v) )) )
+  | EThread (id, exprs) ->
+      F (ID id, Thread (List.map ~f:toExpr exprs))
   | EOldExpr expr ->
       expr
 
@@ -238,6 +243,7 @@ let eid expr : id =
   | EPartial (id, _)
   | EList (id, _)
   | ERecord (id, _)
+  | EThread (id, _)
   | EBinOp (id, _, _, _) ->
       id
 
@@ -286,6 +292,7 @@ type token =
   | TListOpen of id
   | TListClose of id
   | TListSep of id
+  | TThreadPipe of id * int
   | TRecordOpen of id
   | TRecordField of id * int * string
   | TRecordSep of id * int
@@ -311,7 +318,7 @@ let isAutocompletable (t : token) : bool =
 
 let toText (t : token) : string =
   let failIfEmpty name =
-    if name = "" then fail "shouldn't be empty" else name
+    if name = "" then fail ("shouldn't be empty^: " ^ show_token t) else name
   in
   let blankIfEmpty name = if name = "" then "   " else name in
   match t with
@@ -389,6 +396,8 @@ let toText (t : token) : string =
       blankIfEmpty name
   | TRecordSep _ ->
       ":"
+  | TThreadPipe _ ->
+      "|>"
 
 
 let toTestText (t : token) : string =
@@ -475,6 +484,8 @@ let toTypeName (t : token) : string =
       "record-field"
   | TRecordSep _ ->
       "record-sep"
+  | TThreadPipe _ ->
+      "thread-pipe"
 
 
 let toCategoryName (t : token) : string =
@@ -501,6 +512,8 @@ let toCategoryName (t : token) : string =
       "lambda"
   | TListOpen _ | TListClose _ | TListSep _ ->
       "list"
+  | TThreadPipe _ ->
+      "thread"
   | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
       "record"
 
@@ -559,6 +572,7 @@ let tid (t : token) : id =
   | TListOpen id
   | TListClose id
   | TListSep id
+  | TThreadPipe (id, _)
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _)
@@ -667,6 +681,22 @@ let rec toTokens' (e : ast) : token list =
           |> List.concat
         ; [TNewline; TRecordClose id] ]
         |> List.concat
+  | EThread (id, exprs) ->
+    ( match exprs with
+    | [] ->
+        Js.log2 "Empty thread found" (show_expr e) ;
+        []
+    | [single] ->
+        Js.log2 "Thread with single entry found" (show_expr single) ;
+        [nested single]
+    | head :: tail ->
+        [ nested head
+        ; TNewline
+        ; TIndentToHere
+            ( tail
+            |> List.indexedMap ~f:(fun i e ->
+                   [TIndentToHere [TThreadPipe (id, i); nested e]] )
+            |> List.concat ) ] )
   | EOldExpr expr ->
       [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
 
@@ -922,6 +952,7 @@ let isTextToken token : bool =
   | TIndent _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TThreadPipe _
   | TLambdaArrow _ ->
       false
 
@@ -948,6 +979,7 @@ let isAtom (token : token) : bool =
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TLetKeyword _
+  | TThreadPipe _
   | TLambdaArrow _ ->
       true
   | TListOpen _
@@ -1057,7 +1089,7 @@ let gridFor ~(pos : int) (tokens : tokenInfo list) : gridPos =
       if ti.token = TNewline
       then {row = ti.startRow + 1; col = 0}
       else {row = ti.startRow; col = ti.startCol + (pos - ti.startPos)}
-  | _ ->
+  | None ->
       {row = 0; col = 0}
 
 
@@ -1141,7 +1173,7 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         |> List.map ~f:Tuple2.second
         |> List.filterMap ~f:fe
         |> List.head
-    | EFnCall (_, _, exprs) | EList (_, exprs) ->
+    | EFnCall (_, _, exprs) | EList (_, exprs) | EThread (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
         None
@@ -1197,7 +1229,7 @@ let findParent (id : id) (ast : ast) : expr option =
           |> List.map ~f:Tuple2.second
           |> List.filterMap ~f:fp
           |> List.head
-      | EFnCall (_, _, exprs) | EList (_, exprs) ->
+      | EFnCall (_, _, exprs) | EList (_, exprs) | EThread (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
           None
@@ -1235,6 +1267,8 @@ let recurse ~(f : expr -> expr) (expr : expr) : expr =
       EList (id, List.map ~f exprs)
   | ERecord (id, fields) ->
       ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+  | EThread (id, exprs) ->
+      EThread (id, List.map ~f exprs)
   | EOldExpr _ ->
       expr
 
@@ -1625,6 +1659,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordSep _
   | TSep
+  | TThreadPipe _
   | TLambdaSep _ ->
       (ast, left s)
   | TFieldOp id ->
@@ -1680,6 +1715,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordSep _
   | TSep
+  | TThreadPipe _
   | TLambdaSep _ ->
       (ast, s)
   | TFieldOp id ->
@@ -1762,6 +1798,7 @@ let doRight
   | TRecordSep _
   | TPartial _
   | TRecordField _
+  | TThreadPipe _
   | TLambdaVar _
   | TLambdaSymbol _
   | TLambdaSep _ ->
@@ -1905,6 +1942,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordClose _
   | TRecordSep _
+  | TThreadPipe _
   | TLambdaSymbol _
   | TLambdaArrow _
   | TLambdaSep _ ->
