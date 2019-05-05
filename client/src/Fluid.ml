@@ -873,7 +873,7 @@ let acMatches (str : string) (entry : acEntry) =
 
 
 let acSelected (str : string) (ast : ast) (s : state) : acEntry option =
-  match s.acPos with
+  match s.ac.index with
   | None ->
       None
   | Some index ->
@@ -901,7 +901,7 @@ let acExpr (entry : acEntry) : expr * int =
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   isAutocompletable ti.token
   && s.upDownCol = None
-  && s.acPos <> None
+  && s.ac.index <> None
   && s.newPos <= ti.endPos
   && s.newPos >= ti.startPos
 
@@ -1563,28 +1563,32 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   {s with newPos; upDownCol = None}
 
 
+let acSetPos (i : int) (s : state) : state =
+  {s with ac = {s.ac with index = Some i}; upDownCol = None}
+
+
+let acMoveToStart (s : state) : state = {s with ac = {s.ac with index = Some 0}}
+
+let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
+
 let acMoveUp (s : state) : state =
   let s = recordAction "acMoveUp" s in
-  let acPos =
-    match s.acPos with
-    | None ->
-        Some 0
-    | Some current ->
-        Some (max 0 (current - 1))
+  let pos =
+    match s.ac.index with None -> 0 | Some current -> max 0 (current - 1)
   in
-  {s with acPos; upDownCol = None}
+  acSetPos pos s
 
 
 let acMoveDown (ast : ast) (s : state) : state =
   let s = recordAction "acMoveDown" s in
-  let acPos =
-    match s.acPos with
+  let pos =
+    match s.ac.index with
     | None ->
-        Some 0
+        0
     | Some current ->
-        Some (min (current + 1) (List.length (acItems ast) - 1))
+        min (current + 1) (List.length (acItems ast) - 1)
   in
-  {s with acPos; upDownCol = None}
+  acSetPos pos s
 
 
 let report (e : string) (s : state) =
@@ -1605,7 +1609,7 @@ let acEnter (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
       let newExpr, length = acExpr entry in
       let id = tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
-      let newState = moveTo (ti.startPos + length) {s with acPos = None} in
+      let newState = moveTo (ti.startPos + length) (acClear s) in
       (newAST, newState)
 
 
@@ -1618,7 +1622,7 @@ let acCompleteField (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
       let newExpr, length = acExpr entry in
       let newExpr = EFieldAccess (gid (), newExpr, "") in
       let length = length + 1 in
-      let newState = moveTo (ti.startPos + length) {s with acPos = None} in
+      let newState = moveTo (ti.startPos + length) (acClear s) in
       let newAST = replaceExpr ~newExpr (tid ti.token) ast in
       (newAST, newState)
 
@@ -2007,9 +2011,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
     | K.Escape, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, {s with acPos = None})
+        (ast, acClear s)
     | K.Escape, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, {s with acPos = None})
+        (ast, acClear s)
     | K.Up, _, R (_, ti) when isAutocompleting ti s ->
         (ast, acMoveUp s)
     | K.Up, L (_, ti), _ when isAutocompleting ti s ->
@@ -2137,11 +2141,11 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     in
     match (oldTextToken, newTextToken) with
     | Some tOld, Some tNew when tOld <> tNew ->
-        {newState with acPos = Some 0}
+        acMoveToStart newState
     | None, Some _ ->
-        {newState with acPos = Some 0}
+        acMoveToStart newState
     | _, None ->
-        {newState with acPos = None}
+        acClear newState
     | _ ->
         newState
   in
@@ -2202,7 +2206,7 @@ let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
               |> List.filter ~f:(acMatches (toText ti.token))
               |> List.indexedMap ~f:(fun i entry ->
                      let class' =
-                       if Some i = s.acPos
+                       if Some i = s.ac.index
                        then [Attrs.class' "fluid-selected"]
                        else []
                      in
@@ -2267,7 +2271,7 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         []
         [ Html.text "acPos: "
         ; Html.text
-            ( s.acPos
+            ( s.ac.index
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
     ; Html.div

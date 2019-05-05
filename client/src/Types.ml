@@ -913,6 +913,20 @@ and integrationTestState =
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
 
+(* Fluid *)
+and fluidTarget = tlid * id
+
+and fluidAutocompleteState =
+  { functions : function_ list
+  ; admin : bool
+  ; completions : autocompleteItem list
+  ; invalidCompletions : autocompleteItem list
+  ; allCompletions : autocompleteItem list
+  ; index : int option
+  ; target : fluidTarget option
+  ; targetDval : dval option
+  ; isCommandMode : bool }
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -922,8 +936,8 @@ and fluidState =
       int option
       (* When moving up or down, and going through whitespace, track
        * the column so we can go back to it *)
-  ; acPos : int option
-  ; lastKey : FluidKeyboard.key }
+  ; lastKey : FluidKeyboard.key
+  ; ac : fluidAutocompleteState }
 
 and model =
   { error : darkError
