@@ -72,11 +72,11 @@ type expr =
   | EBlank of id
   | ELet of id * name * expr * expr
   | EIf of id * expr * expr * expr
-  | EBinOp of id * name * expr * expr
+  | EBinOp of id * name * expr * expr * Types.sendToRail
   | ELambda of id * name list * expr
   | EFieldAccess of id * expr * name
   | EVariable of id * string
-  | EFnCall of id * name * expr list
+  | EFnCall of id * name * expr list * Types.sendToRail
   | EPartial of id * string
   | EList of id * expr list
   | ERecord of id * (name * expr) list
@@ -120,8 +120,9 @@ let rec fromExpr (expr : Types.expr) : expr =
           (id, List.map pairs ~f:(fun (k, v) -> (varToName k, fromExpr v)))
     | FieldAccess (expr, field) ->
         EFieldAccess (id, fromExpr expr, varToName field)
-    | FnCall (name, exprs, _str) ->
-        EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
+    | FnCall (name, exprs, ster) ->
+        (* TODO: look at attrs to see if it's a binop *)
+        EFnCall (id, varToName name, List.map ~f:fromExpr exprs, ster)
     | Thread exprs ->
         EThread (id, List.map ~f:fromExpr exprs)
     | Lambda (varnames, exprs) ->
@@ -186,14 +187,12 @@ let rec toExpr (expr : expr) : Types.expr =
   | EFieldAccess (id, obj, fieldname) ->
       (* TODO: the id *)
       F (ID id, FieldAccess (toExpr obj, F (ID (gid ()), fieldname)))
-  | EFnCall (id, name, args) ->
-      (* TODO sendToRail *)
-      F (ID id, FnCall (F (ID (gid ()), name), List.map ~f:toExpr args, NoRail))
-  | EBinOp (id, name, arg1, arg2) ->
-      (* TODO sendToRail *)
+  | EFnCall (id, name, args, ster) ->
+      F (ID id, FnCall (F (ID (gid ()), name), List.map ~f:toExpr args, ster))
+  | EBinOp (id, name, arg1, arg2, ster) ->
       F
         ( ID id
-        , FnCall (F (ID (gid ()), name), [toExpr arg1; toExpr arg2], NoRail) )
+        , FnCall (F (ID (gid ()), name), [toExpr arg1; toExpr arg2], ster) )
   | ELambda (id, vars, body) ->
       (* TODO: IDs *)
       F
@@ -234,7 +233,7 @@ let eid expr : id =
   | EFloat (id, _, _)
   | EVariable (id, _)
   | EFieldAccess (id, _, _)
-  | EFnCall (id, _, _)
+  | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
   | ELet (id, _, _, _)
@@ -243,7 +242,7 @@ let eid expr : id =
   | EList (id, _)
   | ERecord (id, _)
   | EThread (id, _)
-  | EBinOp (id, _, _, _) ->
+  | EBinOp (id, _, _, _, _) ->
       id
 
 
@@ -643,7 +642,7 @@ let rec toTokens' (e : ast) : token list =
       ; TNewline
       ; TIndent 2
       ; nested else' ]
-  | EBinOp (id, op, lexpr, rexpr) ->
+  | EBinOp (id, op, lexpr, rexpr, _ster) ->
       [nested lexpr; TSep; TBinOp (id, op); TSep; nested rexpr]
   | EFieldAccess (id, expr, fieldname) ->
       [nested expr; TFieldOp id; TFieldName (id, fieldname)]
@@ -655,7 +654,7 @@ let rec toTokens' (e : ast) : token list =
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, exprs) ->
+  | EFnCall (id, fnName, exprs, _ster) ->
       [TFnName (id, fnName)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EList (id, exprs) ->
@@ -885,7 +884,8 @@ let acExpr (entry : acEntry) : expr * int =
   match entry with
   | ACFunction (name, count) ->
       let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
-      (EFnCall (gid (), name, args), String.length name + 1)
+      (* TODO: look at type to figure out error rail *)
+      (EFnCall (gid (), name, args, NoRail), String.length name + 1)
   | ACLet ->
       (ELet (gid (), "", newB (), newB ()), 4)
   | ACIf ->
@@ -1167,7 +1167,7 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         fe rhs |> Option.orElse (fe next)
     | EIf (_, cond, ifexpr, elseexpr) ->
         fe cond |> Option.orElse (fe ifexpr) |> Option.orElse (fe elseexpr)
-    | EBinOp (_, _, lexpr, rexpr) ->
+    | EBinOp (_, _, lexpr, rexpr, _) ->
         fe lexpr |> Option.orElse (fe rexpr)
     | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
         fe expr
@@ -1176,7 +1176,7 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         |> List.map ~f:Tuple2.second
         |> List.filterMap ~f:fe
         |> List.head
-    | EFnCall (_, _, exprs) | EList (_, exprs) | EThread (_, exprs) ->
+    | EFnCall (_, _, exprs, _) | EList (_, exprs) | EThread (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
         None
@@ -1223,7 +1223,7 @@ let findParent (id : id) (ast : ast) : expr option =
           fp rhs |> Option.orElse (fp next)
       | EIf (_, cond, ifexpr, elseexpr) ->
           fp cond |> Option.orElse (fp ifexpr) |> Option.orElse (fp elseexpr)
-      | EBinOp (_, _, lexpr, rexpr) ->
+      | EBinOp (_, _, lexpr, rexpr, _) ->
           fp lexpr |> Option.orElse (fp rexpr)
       | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
           fp expr
@@ -1232,7 +1232,7 @@ let findParent (id : id) (ast : ast) : expr option =
           |> List.map ~f:Tuple2.second
           |> List.filterMap ~f:fp
           |> List.head
-      | EFnCall (_, _, exprs) | EList (_, exprs) | EThread (_, exprs) ->
+      | EFnCall (_, _, exprs, _) | EList (_, exprs) | EThread (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
           None
@@ -1258,12 +1258,12 @@ let recurse ~(f : expr -> expr) (expr : expr) : expr =
       ELet (id, name, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) ->
       EIf (id, f cond, f ifexpr, f elseexpr)
-  | EBinOp (id, op, lexpr, rexpr) ->
-      EBinOp (id, op, f lexpr, f rexpr)
+  | EBinOp (id, op, lexpr, rexpr, ster) ->
+      EBinOp (id, op, f lexpr, f rexpr, ster)
   | EFieldAccess (id, expr, fieldname) ->
       EFieldAccess (id, f expr, fieldname)
-  | EFnCall (id, name, exprs) ->
-      EFnCall (id, name, List.map ~f exprs)
+  | EFnCall (id, name, exprs, ster) ->
+      EFnCall (id, name, List.map ~f exprs, ster)
   | ELambda (id, names, expr) ->
       ELambda (id, names, f expr)
   | EList (id, exprs) ->
@@ -1454,12 +1454,13 @@ let addRecordRowToFront (id : id) (ast : ast) : ast =
 
 
 let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
+  (* TODO: does it go on the error rail? *)
   match char with
   | None ->
       ast
   | Some c ->
       wrap id ast ~f:(fun expr ->
-          EBinOp (gid (), String.fromChar c, expr, newB ()) )
+          EBinOp (gid (), String.fromChar c, expr, newB (), NoRail) )
 
 
 let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
