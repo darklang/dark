@@ -319,15 +319,19 @@ let isAutocompletable (t : token) : bool =
 
 
 let toText (t : token) : string =
-  let failIfEmpty name =
-    if name = "" then fail ("shouldn't be empty^: " ^ show_token t) else name
+  let shouldntBeEmpty name =
+    if name = ""
+    then (
+      Js.log2 "shouldn't be empty" (show_token t) ;
+      "   " )
+    else name
   in
-  let blankIfEmpty name = if name = "" then "   " else name in
+  let canBeEmpty name = if name = "" then "   " else name in
   match t with
   | TInteger (_, i) ->
-      failIfEmpty i
+      shouldntBeEmpty i
   | TFloatWhole (_, w) ->
-      failIfEmpty w
+      shouldntBeEmpty w
   | TFloatPoint _ ->
       "."
   | TFloatFraction (_, f) ->
@@ -341,7 +345,7 @@ let toText (t : token) : string =
   | TBlank _ ->
       "   "
   | TPartial (_, str) ->
-      failIfEmpty str
+      canBeEmpty str
   | TSep ->
       " "
   | TNewline ->
@@ -351,7 +355,7 @@ let toText (t : token) : string =
   | TLetAssignment _ ->
       " = "
   | TLetLHS (_, name) ->
-      blankIfEmpty name
+      canBeEmpty name
   | TIfKeyword _ ->
       "if "
   | TIfThenKeyword _ ->
@@ -359,17 +363,17 @@ let toText (t : token) : string =
   | TIfElseKeyword _ ->
       "else"
   | TBinOp (_, op) ->
-      failIfEmpty op
+      shouldntBeEmpty op
   | TFieldOp _ ->
       "."
   | TFieldName (_, name) ->
-      blankIfEmpty name
+      canBeEmpty name
   | TVariable (_, name) ->
-      failIfEmpty name
+      canBeEmpty name
   | TFnName (_, name) ->
-      failIfEmpty name
+      shouldntBeEmpty name
   | TLambdaVar (_, name) ->
-      blankIfEmpty name
+      canBeEmpty name
   | TLambdaSymbol _ ->
       "\\"
   | TLambdaSep _ ->
@@ -377,7 +381,7 @@ let toText (t : token) : string =
   | TLambdaArrow _ ->
       " -> "
   | TIndent indent ->
-      failIfEmpty (Caml.String.make indent ' ')
+      shouldntBeEmpty (Caml.String.make indent ' ')
   (* We dont want this to be transparent, so have these make their presence
    * known *)
   | TIndented _ ->
@@ -395,7 +399,7 @@ let toText (t : token) : string =
   | TRecordClose _ ->
       "}"
   | TRecordField (_, _, name) ->
-      blankIfEmpty name
+      canBeEmpty name
   | TRecordSep _ ->
       ":"
   | TThreadPipe _ ->
