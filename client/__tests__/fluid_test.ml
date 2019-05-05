@@ -18,7 +18,8 @@ let complexExpr =
                 , EFieldAccess
                     (gid (), EVariable (gid (), "request"), "headers")
                 , "origin" )
-            , EString (gid (), "https://usealtitude.com") )
+            , EString (gid (), "https://usealtitude.com")
+            , NoRail )
         , EBinOp
             ( gid ()
             , "=="
@@ -27,13 +28,16 @@ let complexExpr =
                 , EFieldAccess
                     (gid (), EVariable (gid (), "request"), "headers")
                 , "origin" )
-            , EString (gid (), "https://localhost:3000") ) )
+            , EString (gid (), "https://localhost:3000")
+            , NoRail )
+        , NoRail )
     , ELet
         ( gid ()
         , ""
         , newB ()
-        , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)]) )
-    , EFnCall (gid (), "Http::Forbidden", []) )
+        , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)], NoRail)
+        )
+    , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
 let () =
@@ -69,7 +73,7 @@ let () =
   in
   let aLambda = ELambda (gid (), [""], blank) in
   let nonEmptyLambda = ELambda (gid (), [""], five) in
-  let aFnCall = EFnCall (gid (), "List::range", [five; blank]) in
+  let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
   let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), "field") in
   let aNestedField =
     EFieldAccess
