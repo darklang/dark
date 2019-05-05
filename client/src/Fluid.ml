@@ -695,7 +695,7 @@ let rec toTokens' (e : ast) : token list =
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
-                   [TIndentToHere [TThreadPipe (id, i); TSep; nested e]] )
+                   [TIndentToHere [TThreadPipe (id, i); nested e]] )
             |> List.concat ) ] )
   | EOldExpr expr ->
       [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
