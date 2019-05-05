@@ -127,6 +127,8 @@ let rec fromExpr (expr : Types.expr) : expr =
         EFnCall (id, varToName name, List.map ~f:fromExpr exprs)
     | Thread exprs ->
         EThread (id, List.map ~f:fromExpr exprs)
+    | Lambda (varnames, exprs) ->
+        ELambda (id, List.map ~f:varToName varnames, fromExpr exprs)
     | Value str ->
         let asBool =
           if str = "true"
@@ -165,7 +167,7 @@ let rec fromExpr (expr : Types.expr) : expr =
         |> Option.or_ asBool
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
-    | FeatureFlag _ | Match _ | Constructor _ | Lambda _ ->
+    | FeatureFlag _ | Match _ | Constructor _ ->
         EOldExpr expr )
 
 
