@@ -292,6 +292,7 @@ type token =
   | TListOpen of id
   | TListClose of id
   | TListSep of id
+  | TThreadPipe of id * int
   | TRecordOpen of id
   | TRecordField of id * int * string
   | TRecordSep of id * int
@@ -395,6 +396,8 @@ let toText (t : token) : string =
       blankIfEmpty name
   | TRecordSep _ ->
       ":"
+  | TThreadPipe _ ->
+      "|>"
 
 
 let toTestText (t : token) : string =
@@ -481,6 +484,8 @@ let toTypeName (t : token) : string =
       "record-field"
   | TRecordSep _ ->
       "record-sep"
+  | TThreadPipe _ ->
+      "thread-pipe"
 
 
 let toCategoryName (t : token) : string =
@@ -507,6 +512,8 @@ let toCategoryName (t : token) : string =
       "lambda"
   | TListOpen _ | TListClose _ | TListSep _ ->
       "list"
+  | TThreadPipe _ ->
+      "thread"
   | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
       "record"
 
@@ -565,6 +572,7 @@ let tid (t : token) : id =
   | TListOpen id
   | TListClose id
   | TListSep id
+  | TThreadPipe (id, _)
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _)
@@ -673,8 +681,22 @@ let rec toTokens' (e : ast) : token list =
           |> List.concat
         ; [TNewline; TRecordClose id] ]
         |> List.concat
-  | EThread (id, _exprs) ->
-      [TPartial (id, "TODO: thread")]
+  | EThread (id, exprs) ->
+    ( match exprs with
+    | [] ->
+        Js.log2 "Empty thread found" (show_expr e) ;
+        []
+    | [single] ->
+        Js.log2 "Thread with single entry found" (show_expr single) ;
+        [nested single]
+    | head :: tail ->
+        [ nested head
+        ; TNewline
+        ; TIndentToHere
+            ( tail
+            |> List.indexedMap ~f:(fun i e ->
+                   [TIndentToHere [TThreadPipe (id, i); TSep; nested e]] )
+            |> List.concat ) ] )
   | EOldExpr expr ->
       [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
 
@@ -930,6 +952,7 @@ let isTextToken token : bool =
   | TIndent _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TThreadPipe _
   | TLambdaArrow _ ->
       false
 
@@ -956,6 +979,7 @@ let isAtom (token : token) : bool =
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TLetKeyword _
+  | TThreadPipe _
   | TLambdaArrow _ ->
       true
   | TListOpen _
@@ -1635,6 +1659,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordSep _
   | TSep
+  | TThreadPipe _
   | TLambdaSep _ ->
       (ast, left s)
   | TFieldOp id ->
@@ -1690,6 +1715,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordSep _
   | TSep
+  | TThreadPipe _
   | TLambdaSep _ ->
       (ast, s)
   | TFieldOp id ->
@@ -1772,6 +1798,7 @@ let doRight
   | TRecordSep _
   | TPartial _
   | TRecordField _
+  | TThreadPipe _
   | TLambdaVar _
   | TLambdaSymbol _
   | TLambdaSep _ ->
@@ -1915,6 +1942,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordClose _
   | TRecordSep _
+  | TThreadPipe _
   | TLambdaSymbol _
   | TLambdaArrow _
   | TLambdaSep _ ->
