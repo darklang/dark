@@ -917,15 +917,27 @@ and integrationTestState =
 and fluidTarget = tlid * id
 
 and fluidAutocompleteState =
-  { functions : function_ list
+  { (* ------------------------------- *)
+    (* state *)
+    (* ------------------------------- *)
+    functions : function_ list
+  ; index : int option
+  ; target :
+      fluidTarget option
+      (* ------------------------------- *)
+      (* Cached inputs *)
+      (* ------------------------------- *)
   ; admin : bool
+  ; isCommandMode : bool
+  ; targetDval : dval option
+  ; query :
+      string
+      (* ------------------------------- *)
+      (* Cached results *)
+      (* ------------------------------- *)
   ; completions : autocompleteItem list
   ; invalidCompletions : autocompleteItem list
-  ; allCompletions : autocompleteItem list
-  ; index : int option
-  ; target : fluidTarget option
-  ; targetDval : dval option
-  ; isCommandMode : bool }
+  ; allCompletions : autocompleteItem list }
 
 and fluidState =
   { error : string option

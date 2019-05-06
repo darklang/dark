@@ -41,7 +41,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; environment
     ; csrfToken }
   in
-  let m = {m with fluidState = Fluid.initAC m.fluidState complete} in
+  let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
   then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
