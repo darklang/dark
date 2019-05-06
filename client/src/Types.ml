@@ -350,7 +350,7 @@ and dval =
   | DUuid of string
   | DOption of optionT
   | DResult of resultT
-  | DBytes of string
+  | DBytes of bytes
 
 (* ----------------------------- *)
 (* Mouse *)

@@ -95,7 +95,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
           | ResError dv ->
               ev "ResError" [dval dv] ) ]
   | DBytes bin ->
-      ev "DBytes" [string bin]
+      ev "DBytes" [string (bin |> Bytes.to_string |> Webapi.Base64.atob)]
 
 
 let rec pointerData (pd : Types.pointerData) : Js.Json.t =
