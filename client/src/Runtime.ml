@@ -301,7 +301,7 @@ let isTrue (dv : dval) : bool = dv = DBool true
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
   let wrapBytes value =
-    "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ (String.length value |> string_of_int)^ ">"
+    "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ (Bytes.length value |> string_of_int)^ ">"
   in
   let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in
   let nl = "\n" ^ String.repeat ~count:oldIndent " " in
