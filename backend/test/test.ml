@@ -439,7 +439,7 @@ let t_stdlib_works () =
   check_dval
     "getAt2"
     (exec_ast "(List::getAt (1 2 3 4) 4)")
-    (DOption (OptNothing)) ;
+    (DOption OptNothing) ;
   ()
 
 
