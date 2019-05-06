@@ -597,6 +597,8 @@ let matcher
         name = "Just" || name = "Nothing"
     | TResult ->
         name = "Ok" || name = "Error"
+    | TAny ->
+        name = "Just" || name = "Nothing" || name = "Ok" || name = "Error"
     | _ ->
         false )
   | _ ->
