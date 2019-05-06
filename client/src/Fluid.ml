@@ -15,6 +15,7 @@ end
 
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
+module AC = FluidAutocomplete
 
 (* -------------------- *)
 (* Utils *)
@@ -811,91 +812,38 @@ let setPos offset =
 (* Autocomplete *)
 (* -------------------- *)
 
-type acEntry =
-  | ACFunction of string * int
-  | ACLet
-  | ACIf
-  | ACVariable of string
-  | ACTrue
-  | ACFalse
-
-let acEntryIsVariable e = match e with ACVariable _ -> true | _ -> false
-
-let acEntryToString (entry : acEntry) =
+let acToExpr (entry : Types.autocompleteItem) : expr * int =
   match entry with
-  | ACFunction (name, _) ->
-      name
-  | ACVariable name ->
-      name
-  | ACLet ->
-      "let "
-  | ACIf ->
-      "if "
-  | ACFalse ->
-      "false"
-  | ACTrue ->
-      "true"
-
-
-let functions =
-  [ ACFunction ("Http::Forbidden", 0)
-  ; ACFunction ("String::reverse", 1)
-  ; ACFunction ("List::insert", 2)
-  ; ACFunction ("List::range", 2)
-  ; ACFunction ("List::map", 2)
-  ; ACFunction ("DB::set", 3) ]
-
-
-let acItems expr =
-  let vars =
-    expr
-    |> toTokens
-    |> List.filterMap ~f:(fun ti ->
-           match ti.token with
-           | TLetLHS (_, x) ->
-               Some (ACVariable x)
-           | TLambdaVar (_, x) ->
-               Some (ACVariable x)
-           | _ ->
-               None )
-  in
-  [ACVariable "request"; ACVariable "Users"]
-  @ vars
-  @ [ACLet; ACIf; ACTrue; ACFalse]
-  @ functions
-
-
-let acMatches (str : string) (entry : acEntry) =
-  let str = String.trim str in
-  String.contains
-    ~substring:(String.toLower str)
-    (entry |> acEntryToString |> String.toLower)
-
-
-let acSelected (str : string) (ast : ast) (s : state) : acEntry option =
-  match s.ac.index with
-  | None ->
-      None
-  | Some index ->
-      acItems ast |> List.filter ~f:(acMatches str) |> List.getAt ~index
-
-
-let acExpr (entry : acEntry) : expr * int =
-  match entry with
-  | ACFunction (name, count) ->
+  | ACFunction fn ->
+      let count = List.length fn.fnParameters in
+      let name = fn.fnName in
+      let r =
+        if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+        then Types.Rail
+        else Types.NoRail
+      in
       let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
-      (* TODO: look at type to figure out error rail *)
-      (EFnCall (gid (), name, args, NoRail), String.length name + 1)
-  | ACLet ->
+      (EFnCall (gid (), name, args, r), String.length name + 1)
+  | ACKeyword KLet ->
       (ELet (gid (), "", newB (), newB ()), 4)
-  | ACIf ->
+  | ACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | ACVariable name ->
       (EVariable (gid (), name), String.length name)
-  | ACTrue ->
+  | ACLiteral "true" ->
       (EBool (gid (), true), 4)
-  | ACFalse ->
+  | ACLiteral "false" ->
       (EBool (gid (), false), 5)
+  | _ ->
+      let str =
+        "TODO: autocomplete result for " ^ Types.show_autocompleteItem entry
+      in
+      (EPartial (gid (), str), String.length str)
+
+
+let initAC (state : state) (functions : Types.function_ list) =
+  let ac = {state.ac with functions} in
+  {state with ac}
 
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
@@ -1579,14 +1527,14 @@ let acMoveUp (s : state) : state =
   acSetPos pos s
 
 
-let acMoveDown (ast : ast) (s : state) : state =
+let acMoveDown (s : state) : state =
   let s = recordAction "acMoveDown" s in
   let pos =
     match s.ac.index with
     | None ->
         0
     | Some current ->
-        min (current + 1) (List.length (acItems ast) - 1)
+        min (current + 1) (List.length (AC.allCompletions s.ac) - 1)
   in
   acSetPos pos s
 
@@ -1596,30 +1544,28 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
-let acEnter (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
-    ast * state =
+let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction "acEnter" s in
-  match acSelected str ast s with
+  match AC.highlighted s.ac with
   | None ->
       (ast, s)
   | Some entry ->
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, length = acExpr entry in
+      let newExpr, length = acToExpr entry in
       let id = tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
       let newState = moveTo (ti.startPos + length) (acClear s) in
       (newAST, newState)
 
 
-let acCompleteField (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
-    ast * state =
-  match acSelected str ast s with
+let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  match AC.highlighted s.ac with
   | None ->
       (ast, s)
   | Some entry ->
-      let newExpr, length = acExpr entry in
+      let newExpr, length = acToExpr entry in
       let newExpr = EFieldAccess (gid (), newExpr, "") in
       let length = length + 1 in
       let newState = moveTo (ti.startPos + length) (acClear s) in
@@ -2019,30 +1965,30 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Up, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveUp s)
     | K.Down, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, acMoveDown ast s)
+        (ast, acMoveDown s)
     | K.Down, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, acMoveDown ast s)
+        (ast, acMoveDown s)
     (* Autocomplete finish *)
-    | K.Enter, L (TPartial (_, str), ti), _
-    | K.Enter, _, R (TPartial (_, str), ti)
-    | K.Space, L (TPartial (_, str), ti), _
-    | K.Space, _, R (TPartial (_, str), ti)
-    | K.Tab, L (TPartial (_, str), ti), _
-    | K.Tab, _, R (TPartial (_, str), ti) ->
-        acEnter ti str ast s
+    | K.Enter, L (TPartial (_, _), ti), _
+    | K.Enter, _, R (TPartial (_, _), ti)
+    | K.Space, L (TPartial (_, _), ti), _
+    | K.Space, _, R (TPartial (_, _), ti)
+    | K.Tab, L (TPartial (_, _), ti), _
+    | K.Tab, _, R (TPartial (_, _), ti)
     | K.Enter, L (TBlank _, ti), _
     | K.Enter, _, R (TBlank _, ti)
     | K.Space, L (TBlank _, ti), _
     | K.Space, _, R (TBlank _, ti)
     | K.Tab, L (TBlank _, ti), _
     | K.Tab, _, R (TBlank _, ti) ->
-        acEnter ti "" ast s
+        acEnter ti ast s
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
-    | K.Period, L (TPartial (_, str), ti), _
-      when Option.map ~f:acEntryIsVariable (acSelected str ast s) = Some true
-      ->
-        acCompleteField ti str ast s
+    (* TODO: reenable *)
+    (* | K.Period, L (TPartial (_, str), ti), _ *)
+    (*   when Option.map ~f:acEntryIsVariable (acSelected str ast s) = Some true *)
+    (*   -> *)
+    (*     acCompleteField ti str ast s *)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
@@ -2194,25 +2140,41 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
 (* -------------------- *)
 (* View *)
 (* -------------------- *)
-let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
-    Types.msg Html.html list =
+let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
+    =
+  let toList acis class' index =
+    List.indexedMap
+      ~f:(fun i item ->
+        let highlighted = index = i in
+        let name = Autocomplete.asName item in
+        Html.li
+          [ Attrs.classList
+              [ ("autocomplete-item", true)
+              ; ("fluid-selected", highlighted)
+              ; (class', true) ]
+          ; ViewUtils.nothingMouseEvent "mouseup"
+          ; ViewEntry.defaultPasteHandler
+          ; ViewUtils.nothingMouseEvent "mousedown"
+          ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
+                AutocompleteClick name ) ]
+          [ Html.text name
+          ; Html.span
+              [Html.class' "types"]
+              [Html.text <| Autocomplete.asTypeString item] ] )
+      acis
+  in
+  let index = ac.index |> Option.withDefault ~default:(-1) in
+  let invalidIndex = index - List.length ac.completions in
+  let autocompleteList =
+    toList ac.completions "valid" index
+    @ toList ac.invalidCompletions "invalid" invalidIndex
+  in
+  Html.ul [Attrs.id "fluid-dropdown"] autocompleteList
+
+
+let toHtml (s : state) (l : tokenInfo list) : Types.msg Html.html list =
   List.map l ~f:(fun ti ->
-      let dropdown () =
-        Html.div
-          [Attrs.id "fluid-dropdown"]
-          [ Html.ul
-              []
-              ( acItems ast
-              |> List.filter ~f:(acMatches (toText ti.token))
-              |> List.indexedMap ~f:(fun i entry ->
-                     let class' =
-                       if Some i = s.ac.index
-                       then [Attrs.class' "fluid-selected"]
-                       else []
-                     in
-                     let attrs = class' in
-                     Html.li attrs [Html.text (acEntryToString entry)] ) ) ]
-      in
+      let dropdown () = viewAutocomplete s.ac in
       let element nested =
         let content = toText ti.token in
         let classes = toCssClasses ti.token in
@@ -2245,7 +2207,7 @@ let viewAST (ast : ast) (s : state) : Types.msg Html.html =
     ; event ~key:"keydown" "keydown"
     (* ; event ~key:"keyup" "keyup" *)
      ]
-    (ast |> toTokens |> toHtml ast s)
+    (ast |> toTokens |> toHtml s)
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
