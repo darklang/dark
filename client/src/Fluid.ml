@@ -799,7 +799,7 @@ let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 
 let editorID = "fluid-editor"
 
-let setPos offset =
+let setBrowserPos offset =
   Tea.Cmd.call (fun _ ->
       (* We need to set this in the new frame, as updating sets the cursor to
        * the start of the DOM node. *)
@@ -841,10 +841,7 @@ let acToExpr (entry : Types.autocompleteItem) : expr * int =
       (EPartial (gid (), str), String.length str)
 
 
-let initAC (state : state) (functions : Types.function_ list) =
-  let ac = {state.ac with functions} in
-  {state with ac}
-
+let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   isAutocompletable ti.token
@@ -852,6 +849,11 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   && s.ac.index <> None
   && s.newPos <= ti.endPos
   && s.newPos >= ti.startPos
+
+
+let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
+  let upDownCol = if resetUD then None else s.upDownCol in
+  {s with newPos = pos; upDownCol}
 
 
 (* -------------------- *)
@@ -1446,37 +1448,37 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
   let newPos = getNextWS (toTokens ast) in
-  {s with newPos; upDownCol = None}
+  setPosition ~resetUD:true s newPos
 
 
 let moveToEnd (ti : tokenInfo) (s : state) : state =
   let s = recordAction "moveToEnd" s in
-  {s with newPos = ti.endPos - 1; upDownCol = None}
+  setPosition ~resetUD:true s (ti.endPos - 1)
 
 
 let moveToStart (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~pos:ti.startPos "moveToStart" s in
-  {s with newPos = ti.startPos; upDownCol = None}
+  setPosition ~resetUD:true s ti.startPos
 
 
 let moveToAfter (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~pos:ti.endPos "moveToAfter" s in
-  {s with newPos = ti.endPos; upDownCol = None}
+  setPosition ~resetUD:true s ti.endPos
 
 
 let moveOneLeft (pos : int) (s : state) : state =
   let s = recordAction ~pos "moveOneLeft" s in
-  {s with newPos = max 0 (pos - 1); upDownCol = None}
+  setPosition ~resetUD:true s (max 0 (pos - 1))
 
 
 let moveOneRight (pos : int) (s : state) : state =
   let s = recordAction ~pos "moveOneRight" s in
-  {s with newPos = pos + 1; upDownCol = None}
+  setPosition ~resetUD:true s (pos + 1)
 
 
 let moveTo (newPos : int) (s : state) : state =
   let s = recordAction ~pos:newPos "moveTo" s in
-  {s with newPos}
+  setPosition s newPos
 
 
 (* TODO: rewrite nextBlank like prevBlank *)
@@ -1494,7 +1496,7 @@ let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
         else getNextBlank pos' rest
   in
   let newPos = getNextBlank pos tokens in
-  {s with newPos; upDownCol = None}
+  setPosition ~resetUD:true s newPos
 
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
@@ -1508,10 +1510,10 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
         if ti.endPos < pos' then ti.startPos else getPrevBlank pos' rest
   in
   let newPos = getPrevBlank pos (List.reverse tokens) in
-  {s with newPos; upDownCol = None}
+  setPosition ~resetUD:true s newPos
 
 
-let acSetPos (i : int) (s : state) : state =
+let acSetIndex (i : int) (s : state) : state =
   {s with ac = {s.ac with index = Some i}; upDownCol = None}
 
 
@@ -1521,22 +1523,22 @@ let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
 
 let acMoveUp (s : state) : state =
   let s = recordAction "acMoveUp" s in
-  let pos =
+  let index =
     match s.ac.index with None -> 0 | Some current -> max 0 (current - 1)
   in
-  acSetPos pos s
+  acSetIndex index s
 
 
 let acMoveDown (s : state) : state =
   let s = recordAction "acMoveDown" s in
-  let pos =
+  let index =
     match s.ac.index with
     | None ->
         0
     | Some current ->
         min (current + 1) (List.length (AC.allCompletions s.ac) - 1)
   in
-  acSetPos pos s
+  acSetIndex index s
 
 
 let report (e : string) (s : state) =
@@ -2110,7 +2112,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
         | FluidMouseClick ->
           ( match getCursorPosition () with
           | Some newPos ->
-              (ast, {s with newPos}, Cmd.none)
+              (ast, setPosition s newPos, Cmd.none)
           | None ->
               (ast, {s with error = Some "found no pos"}, Cmd.none) )
         | FluidKeyPress {key} ->
@@ -2119,7 +2121,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             (* These might be the same token *)
             let cmd =
               if newAST <> ast || newState.oldPos <> newState.newPos
-              then setPos newState.newPos
+              then setBrowserPos newState.newPos
               else Cmd.none
             in
             (newAST, newState, cmd)
