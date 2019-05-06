@@ -140,8 +140,6 @@ body #app * {
   }
 }
 
-@axis-style: dotted 1px @grey3;
-
 #canvas {
   position: absolute;
   top: 0;
@@ -150,27 +148,6 @@ body #app * {
   min-height: 100%;
   min-width: 100%;
   overflow: visible;
-
-  &::before { //y-axis
-    content: "";
-    display: block;
-    position: absolute;
-    height: 2 * @ridiculously-large;
-    top: -1 * @ridiculously-large;
-    left: 50%;
-    border-left: @axis-style;
-  }
-
-  &::after { // x-axis
-    content: "";
-    display: block;
-    position: absolute;
-    width: 2 * @ridiculously-large;
-    top: 50%;
-    left: -1 * @ridiculously-large;
-    border-top: @axis-style;
-  }
-
   .node {
     position: absolute;
   }
