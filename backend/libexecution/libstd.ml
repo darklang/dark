@@ -1578,6 +1578,23 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+    ; { pns = ["List::getAt"]
+    ; ins = []
+    ; p = [par "l" TList; par "index" TInt]
+    ; r = TOption
+    ; d =
+        "Returns `Just item` at `index` in list `l` if `index` is less than the length of the list otherwise returns `Nothing`"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l; DInt index] ->
+              List.nth l index
+              |> Option.map ~f:(fun a -> (DOption (OptJust a)))
+              |> Option.value ~default:(DOption (OptNothing))
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; (* ====================================== *)
     (* Date *)
     (* ====================================== *)
