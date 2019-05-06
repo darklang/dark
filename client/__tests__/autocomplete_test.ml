@@ -23,7 +23,9 @@ let sampleFunctions : function_ list =
   ; ("HTTP::get", TAny)
   ; ("HTTP::options", TAny)
   ; ("Some::deprecated", TAny)
-  ; ("DB::deleteAll", TDB) ]
+  ; ("DB::deleteAll", TDB)
+  ; ("Option::withDefault", TOption)
+  ; ("Result::catchError", TResult) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -365,7 +367,7 @@ let () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "withL"
+                |> setQuery m "withLo"
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
@@ -492,6 +494,70 @@ let () =
               let ac = acFor m in
               let _valid, invalid = filter m ac [ACVariable "MyDB"] "" in
               expect (List.member ~value:(ACVariable "MyDB") invalid)
+              |> toEqual true ) ;
+          let consAC =
+            [ ACConstructorName "Just"
+            ; ACConstructorName "Nothing"
+            ; ACConstructorName "Ok"
+            ; ACConstructorName "Error" ]
+          in
+          test "Only Just and Nothing are allowed in Option-blankOr" (fun () ->
+              let param1id = ID "123" in
+              let expr =
+                B.newF
+                  (FnCall
+                     ( B.newF "Option::withDefault"
+                     , [Blank param1id; Blank.new_ ()]
+                     , NoRail ))
+              in
+              let m =
+                defaultModel
+                  ~handlers:[aHandler ~expr ()]
+                  ~cursorState:(fillingCS ~id:param1id ())
+                  ()
+              in
+              let target = Some (defaultTLID, PExpr (Blank param1id)) in
+              let ac = acFor ~target m in
+              let newM = {m with complete = ac} in
+              let valid, _invalid = filter newM ac consAC "" in
+              expect
+                ( List.length valid = 2
+                && List.member ~value:(ACConstructorName "Just") valid
+                && List.member ~value:(ACConstructorName "Nothing") valid )
+              |> toEqual true ) ;
+          test "Only Ok and Error are allowed in Result-blankOr" (fun () ->
+              let param1id = ID "123" in
+              let expr =
+                B.newF
+                  (FnCall
+                     ( B.newF "Result::catchError"
+                     , [Blank param1id; Blank.new_ ()]
+                     , NoRail ))
+              in
+              let m =
+                defaultModel
+                  ~handlers:[aHandler ~expr ()]
+                  ~cursorState:(fillingCS ~id:param1id ())
+                  ()
+              in
+              let target = Some (defaultTLID, PExpr (Blank param1id)) in
+              let ac = acFor ~target m in
+              let newM = {m with complete = ac} in
+              let valid, _invalid = filter newM ac consAC "" in
+              expect
+                ( List.length valid = 2
+                && List.member ~value:(ACConstructorName "Ok") valid
+                && List.member ~value:(ACConstructorName "Error") valid )
+              |> toEqual true ) ;
+          test "Constructors are also available in Any blankOr" (fun () ->
+              let m = enteringHandler () in
+              let ac = acFor m in
+              let valid, _invalid = filter m ac consAC "" in
+              expect
+                ( List.member ~value:(ACConstructorName "Ok") valid
+                && List.member ~value:(ACConstructorName "Error") valid
+                && List.member ~value:(ACConstructorName "Just") valid
+                && List.member ~value:(ACConstructorName "Nothing") valid )
               |> toEqual true ) ;
           () ) ;
       describe "omnibox completion" (fun () ->
