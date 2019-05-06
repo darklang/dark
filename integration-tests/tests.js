@@ -989,7 +989,7 @@ test('return_to_architecture_on_deselect', async t => {
 })
 
 test('fn_page_returns_to_lastpos', async t => {
-  await t.navigateTo('#handler=123')
+  await t.navigateTo('#handler=123&center=true')
     .expect(available('.tl-123')).ok({ timeout : 1000 });
 
   const archOffset = await Selector('#canvas').getStyleProperty('transform');
