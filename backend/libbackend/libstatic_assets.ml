@@ -167,7 +167,7 @@ UTF-8 safe"))
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
-            DResult (ResOk (DResp (Response (code, headers), DBytes (body |> Bytes.of_string))))
+            DResult (ResOk (DResp (Response (code, headers), DBytes (body |> RawBytes.of_string))))
             (*( match body with
             | Some dv ->
                 DResult (ResOk (DResp (Response (code, headers), dv)))
