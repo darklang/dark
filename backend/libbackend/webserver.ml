@@ -339,7 +339,7 @@ let result_to_response
       let body =
         match value with
         | DBytes body ->
-            body
+            Bytes.to_string body
         | _ ->
             (* TODO: only pretty print for a webbrowser *)
             if String.is_prefix ~prefix:"text/plain" content_type
