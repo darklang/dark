@@ -589,8 +589,6 @@ let matcher
       if List.member ~value:var dbnames
       then match tipeConstraintOnTarget with TDB -> true | _ -> false
       else true
-  | ACKeyword _ ->
-    (match tipeConstraintOnTarget with TAny -> true | _ -> false)
   | ACConstructorName name ->
     ( match tipeConstraintOnTarget with
     | TOption ->
@@ -598,7 +596,7 @@ let matcher
     | TResult ->
         name = "Ok" || name = "Error"
     | TAny ->
-        name = "Just" || name = "Nothing" || name = "Ok" || name = "Error"
+        true
     | _ ->
         false )
   | _ ->
