@@ -684,11 +684,13 @@ and clipboardCutEvent = jsEvent
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
+and centerPage = bool
+
 and page =
   | Architecture
   | FocusedFn of tlid
-  | FocusedHandler of tlid
-  | FocusedDB of tlid
+  | FocusedHandler of tlid * centerPage
+  | FocusedDB of tlid * centerPage
   | FocusedType of tlid
 
 and focus =
