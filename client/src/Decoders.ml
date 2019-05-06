@@ -478,7 +478,12 @@ and dval j : dval =
     ; ("DUuid", dv1 (fun x -> DUuid x) string)
     ; ("DOption", dv1 (fun x -> DOption x) optionT)
     ; ("DResult", dv1 (fun x -> DResult x) resultT)
-    ; ("DBytes", dv1 (fun x -> let x = x |> Webapi.Base64.btoa |> Bytes.of_string in DBytes x) string) ]
+    ; ( "DBytes"
+      , dv1
+          (fun x ->
+            let x = x |> Webapi.Base64.btoa |> Bytes.of_string in
+            DBytes x )
+          string ) ]
     j
 
 
