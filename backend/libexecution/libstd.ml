@@ -178,7 +178,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Object::toJSON"]
     ; ins = []
     ; p = [par "obj" TObj]
