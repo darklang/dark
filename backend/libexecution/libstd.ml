@@ -1578,7 +1578,7 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
-    ; { pns = ["List::getAt"]
+  ; { pns = ["List::getAt"]
     ; ins = []
     ; p = [par "l" TList; par "index" TInt]
     ; r = TOption
@@ -1589,8 +1589,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DList l; DInt index] ->
               List.nth l index
-              |> Option.map ~f:(fun a -> (DOption (OptJust a)))
-              |> Option.value ~default:(DOption (OptNothing))
+              |> Option.map ~f:(fun a -> DOption (OptJust a))
+              |> Option.value ~default:(DOption OptNothing)
           | args ->
               fail args)
     ; ps = true
