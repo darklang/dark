@@ -493,12 +493,6 @@ let () =
               let _valid, invalid = filter m ac [ACVariable "MyDB"] "" in
               expect (List.member ~value:(ACVariable "MyDB") invalid)
               |> toEqual true ) ;
-          test "request variable is valid in root expr" (fun () ->
-              let m = enteringHandler () in
-              let ac = acFor m in
-              let valid, _invalid = filter m ac [ACVariable "request"] "" in
-              expect (List.member ~value:(ACVariable "request") valid)
-              |> toEqual true ) ;
           () ) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in

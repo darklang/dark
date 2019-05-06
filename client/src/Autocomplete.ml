@@ -588,8 +588,6 @@ let matcher
   | ACVariable var ->
       if List.member ~value:var dbnames
       then match tipeConstraintOnTarget with TDB -> true | _ -> false
-      else if var = "request"
-      then match tipeConstraintOnTarget with TObj | TAny -> true | _ -> false
       else true
   | ACKeyword _ ->
     (match tipeConstraintOnTarget with TAny -> true | _ -> false)
