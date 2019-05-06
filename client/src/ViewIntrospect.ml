@@ -29,7 +29,7 @@ let dbView
     ; ViewUtils.eventNoPropagation
         ~key:("ref-db-link" ^ showTLID tlid)
         "click"
-        (fun _ -> GoTo (FocusedDB tlid))
+        (fun _ -> GoTo (FocusedDB (tlid, true)))
     ; ViewUtils.eventNoPropagation
         ~key:("ref-db-hover-in" ^ showTLID originTLID)
         "mouseenter"
@@ -47,7 +47,7 @@ let eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
     ; ViewUtils.eventNoPropagation
         ~key:("ref-emit-link" ^ showTLID tlid)
         "click"
-        (fun _ -> GoTo (FocusedHandler tlid)) ]
+        (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
     [ Html.div [Html.class' "spec"] [Html.text space]
     ; Html.div [Html.class' "spec"] [Html.text name] ]
 
@@ -67,7 +67,7 @@ let handlerView
     ; ViewUtils.eventNoPropagation
         ~key:("ref-handler-link" ^ showTLID tlid)
         "click"
-        (fun _ -> GoTo (FocusedHandler tlid)) ]
+        (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
     ( [ Html.div [Html.class' "spec"] [Html.text space]
       ; Html.div [Html.class' "spec"] [Html.text name] ]
     @ modifier_ )

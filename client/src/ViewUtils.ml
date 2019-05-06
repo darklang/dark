@@ -130,13 +130,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; userContentHost = m.userContentHost
   ; inReferences =
       ( match m.currentPage with
-      | FocusedDB tlid_ when tlid_ = tl.id ->
+      | FocusedDB (tlid_, _) when tlid_ = tl.id ->
           Introspect.allIn tlid_ m
       | _ ->
           [] )
   ; toReferences =
       ( match m.currentPage with
-      | FocusedHandler tlid_ when tlid_ = tl.id ->
+      | FocusedHandler (tlid_, _) when tlid_ = tl.id ->
           Introspect.allTo tlid_ m
       | _ ->
           [] )

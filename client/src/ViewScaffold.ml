@@ -81,9 +81,9 @@ let viewButtons (m : model) : msg Html.html =
         "Architecture"
     | FocusedFn tlid ->
         Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
-    | FocusedHandler tlid ->
+    | FocusedHandler (tlid, _) ->
         Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
-    | FocusedDB tlid ->
+    | FocusedDB (tlid, _) ->
         Printf.sprintf "DB (TLID %s)" (deTLID tlid)
     | FocusedType tlid ->
         Printf.sprintf "Type (TLID %s)" (deTLID tlid)
