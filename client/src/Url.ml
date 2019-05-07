@@ -21,10 +21,10 @@ let urlFor (page : page) : string =
         []
     | FocusedFn tlid ->
         [("fn", deTLID tlid)]
-    | FocusedHandler (tlid, center) ->
-        [("handler", deTLID tlid); ("center", string_of_bool center)]
-    | FocusedDB (tlid, center) ->
-        [("db", deTLID tlid); ("center", string_of_bool center)]
+    | FocusedHandler (tlid, _) ->
+        [("handler", deTLID tlid)]
+    | FocusedDB (tlid, _) ->
+        [("db", deTLID tlid)]
     | FocusedType tlid ->
         [("type", deTLID tlid)]
   in
@@ -59,28 +59,14 @@ let parseLocation (loc : Web.Location.location) : page option =
   let handler () =
     match StrDict.get ~key:"handler" unstructured with
     | Some sid ->
-        let center =
-          match StrDict.get ~key:"center" unstructured with
-          | Some "true" ->
-              true
-          | _ ->
-              false
-        in
-        Some (FocusedHandler (TLID sid, center))
+        Some (FocusedHandler (TLID sid, true))
     | _ ->
         None
   in
   let db () =
     match StrDict.get ~key:"db" unstructured with
     | Some sid ->
-        let center =
-          match StrDict.get ~key:"center" unstructured with
-          | Some "true" ->
-              true
-          | _ ->
-              false
-        in
-        Some (FocusedDB (TLID sid, center))
+        Some (FocusedDB (TLID sid, true))
     | _ ->
         None
   in
