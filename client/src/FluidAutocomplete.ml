@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 
 (* Dark *)
 module P = Pointer
@@ -10,7 +11,7 @@ module Regex = Util.Regex
 
 type autocomplete = fluidAutocompleteState
 
-type target = fluidTarget
+type tokenInfo = fluidTokenInfo
 
 (* ---------------------------- *)
 (* Focus *)
@@ -216,18 +217,15 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
 
-let dvalForTarget (m : model) ((tlid, id) : target) : dval option =
-  let ast =
-    TL.get m tlid
-    |> Option.andThen ~f:TL.asHandler
-    |> Option.map ~f:(fun x -> x.ast)
-  in
+let dvalForTarget (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+  let ast = tl |> TL.asHandler |> Option.map ~f:(fun x -> x.ast) in
   match ast with
   | Some ast ->
+      let id = tid ti.token in
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
-      |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tlid)
+      |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tl.id)
       (* don't filter on incomplete values *)
       |> Option.andThen ~f:(fun dv_ ->
              if dv_ = DIncomplete then None else Some dv_ )
@@ -235,9 +233,9 @@ let dvalForTarget (m : model) ((tlid, id) : target) : dval option =
       None
 
 
-let isThreadMember (m : model) ((tlid, id) : target) =
-  TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
+let isThreadMember (tl : toplevel) (ti : tokenInfo) =
+  let id = tid ti.token in
+  TL.asHandler tl
   |> Option.map ~f:(fun x -> x.ast)
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
   |> Option.map ~f:(fun e ->
@@ -245,17 +243,19 @@ let isThreadMember (m : model) ((tlid, id) : target) =
   |> Option.withDefault ~default:false
 
 
-let paramTipeForTarget (m : model) ((tlid, id) : target) : tipe option =
-  TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
+let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
+    tipe =
+  let id = tid ti.token in
+  TL.asHandler tl
   |> Option.map ~f:(fun x -> x.ast)
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
   |> Option.andThen ~f:(fun (name, index) ->
-         m.complete.functions
+         a.functions
          |> List.find ~f:(fun f -> name = f.fnName)
          |> Option.map ~f:(fun x -> x.fnParameters)
          |> Option.andThen ~f:(List.getAt ~index)
          |> Option.map ~f:(fun x -> x.paramTipe) )
+  |> Option.withDefault ~default:TAny
 
 
 let matchesTypes
@@ -490,21 +490,13 @@ let isDynamicItem (item : autocompleteItem) : bool =
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
 let toDynamicItems
-    (_space : handlerSpace option) (target : target option) (q : string) :
-    autocompleteItem list =
-  match target with
+    (_space : handlerSpace option)
+    (_targetTL : toplevel option)
+    (_targetTI : tokenInfo option)
+    (_q : string) : autocompleteItem list =
+  match None with
   | None ->
-      (* omnicompletion *)
-      let omnis =
-        if q = ""
-        then
-          (qHTTPHandler q :: Option.values [qNewDB q])
-          @ [qFunction q; qHandler q]
-        else
-          [qHTTPHandler q; qFunction q; qHandler q]
-          @ Option.values [qNewDB q; qEventSpace q]
-      in
-      List.map ~f:(fun o -> ACOmniAction o) omnis
+      []
   (* | Some (_, PExpr _) -> *)
   (*     Option.values [qLiteral q] *)
   (* | Some (_, PField _) -> *)
@@ -522,17 +514,12 @@ let toDynamicItems
 
 
 let withDynamicItems
-    (m : model)
-    (target : target option)
+    (targetTL : toplevel option)
+    (targetTI : tokenInfo option)
     (query : string)
     (acis : autocompleteItem list) : autocompleteItem list =
-  let space =
-    target
-    |> Option.map ~f:Tuple2.first
-    |> Option.andThen ~f:(TL.get m)
-    |> Option.andThen ~f:TL.spaceOf
-  in
-  let new_ = toDynamicItems space target query in
+  let space = Option.andThen ~f:TL.spaceOf targetTL in
+  let new_ = toDynamicItems space targetTL targetTI query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   withoutDynamic @ new_
 
@@ -578,18 +565,16 @@ let tlDestinations (m : model) : autocompleteItem list =
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
 
-let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
-  let isThreadMemberVal =
-    Option.map ~f:(isThreadMember m) a.target
-    |> Option.withDefault ~default:false
-  in
-  let paramTipe =
-    a.target
-    |> Option.andThen ~f:(paramTipeForTarget m)
-    |> Option.withDefault ~default:TAny
-  in
+let matcher (a : autocomplete) (item : autocompleteItem) =
   match item with
   | ACFunction fn ->
+      let isThreadMemberVal, paramTipe =
+        match (a.targetTL, a.targetTI) with
+        | Some tl, Some ti ->
+            (isThreadMember tl ti, paramTipeForTarget a tl ti)
+        | _ ->
+            (false, TAny)
+      in
       matchesTypes isThreadMemberVal paramTipe a.targetDval fn
   | _ ->
       true
@@ -599,21 +584,15 @@ let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
 (* Create the list *)
 (* ------------------------------------ *)
 let generate (m : model) (a : autocomplete) : autocomplete =
-  let _space =
-    a.target
-    |> Option.map ~f:Tuple2.first
-    |> Option.andThen ~f:(TL.get m)
-    |> Option.andThen ~f:TL.spaceOf
+  let _space = a.targetTL |> Option.map ~f:TL.spaceOf in
+  let varnames, dval =
+    match (a.targetTL, a.targetTI) with
+    | Some tl, Some ti ->
+        let id = tid ti.token in
+        (Analysis.getCurrentAvailableVarnames m tl id, dvalForTarget m tl ti)
+    | _ ->
+        ([], None)
   in
-  let varnames =
-    a.target
-    |> Option.andThen ~f:(fun (tlid, id) ->
-           TL.get m tlid |> Option.map ~f:(fun tl -> (tl, id)) )
-    |> Option.map ~f:(fun (tl, id) ->
-           Analysis.getCurrentAvailableVarnames m tl id )
-    |> Option.withDefault ~default:[]
-  in
-  let dval = Option.andThen ~f:(dvalForTarget m) a.target in
   let fields =
     []
     (*     match dval with *)
@@ -723,18 +702,12 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     varnames @ constructors @ keywords @ functions
     (* else [] *)
   in
-  let items =
-    if a.isCommandMode
-    then List.map ~f:(fun x -> ACCommand x) Commands.commands
-    else if a.target = None
-    then tlDestinations m
-    else extras @ exprs @ fields
-  in
+  let items = extras @ exprs @ fields in
   {a with allCompletions = items; targetDval = dval}
 
 
 let filter
-    (m : model)
+    (_m : model)
     (a : autocomplete)
     (list : autocompleteItem list)
     (query : string) : autocompleteItem list * autocompleteItem list =
@@ -783,7 +756,7 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.partition ~f:(matcher m a) allMatches
+  List.partition ~f:(matcher a) allMatches
 
 
 let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
@@ -791,7 +764,7 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   let fudgedCompletions =
     if old.isCommandMode
     then List.filter ~f:isStaticItem old.allCompletions
-    else withDynamicItems m old.target query old.allCompletions
+    else withDynamicItems old.targetTL old.targetTI query old.allCompletions
   in
   let newCompletions, invalidCompletions =
     filter m old fudgedCompletions query
@@ -831,8 +804,9 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   {old with index; completions = newCompletions; invalidCompletions}
 
 
-(* let regenerate (m : model) (a : autocomplete) : autocomplete = *)
-(*   generate m a |> refilter m a.value *)
+let regenerate (m : model) (str : string) (a : autocomplete) : autocomplete =
+  generate m a |> refilter m str
+
 
 (* ---------------------------- *)
 (* Autocomplete state *)
@@ -849,10 +823,8 @@ let reset (m : model) : autocomplete =
            (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
   in
   let functions = functions @ userFunctionMetadata in
-  {Defaults.defaultModel.fluidState.ac with functions}
+  {Defaults.defaultModel.fluidState.ac with functions} |> regenerate m ""
 
-
-(* |> regenerate m *)
 
 let init m = reset m
 
@@ -946,12 +918,15 @@ let documentationForItem (aci : autocompleteItem) : string option =
       None
 
 
-let setTarget (_m : model) (t : target option) (a : autocomplete) :
+let setTargetTL (m : model) (tl : toplevel option) (a : autocomplete) :
     autocomplete =
-  {a with target = t}
+  {a with targetTL = tl} |> regenerate m a.query
 
 
-(* |> regenerate m *)
+let setTargetTI (m : model) (ti : tokenInfo option) (a : autocomplete) :
+    autocomplete =
+  {a with targetTI = ti} |> regenerate m a.query
+
 
 (* ------------------------------------ *)
 (* Commands *)

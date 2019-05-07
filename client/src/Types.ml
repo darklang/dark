@@ -914,7 +914,79 @@ and integrationTestState =
   | NoIntegrationTest
 
 (* Fluid *)
-and fluidTarget = tlid * id
+and fluidName = string
+
+and fluidExpr =
+  | EInteger of id * int
+  | EBool of id * bool
+  | EString of id * string
+  | EFloat of id * string * string
+  | EBlank of id
+  | ELet of id * fluidName * fluidExpr * fluidExpr
+  | EIf of id * fluidExpr * fluidExpr * fluidExpr
+  | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
+  | ELambda of id * fluidName list * fluidExpr
+  | EFieldAccess of id * fluidExpr * fluidName
+  | EVariable of id * string
+  | EFnCall of id * fluidName * fluidExpr list * sendToRail
+  | EPartial of id * string
+  | EList of id * fluidExpr list
+  | ERecord of id * (fluidName * fluidExpr) list
+  | EThread of id * fluidExpr list
+  | EOldExpr of expr
+
+and fluidToken =
+  | TInteger of id * string
+  | TString of id * string
+  | TBlank of id
+  | TTrue of id
+  | TFalse of id
+  | TFloatWhole of id * string
+  | TFloatPoint of id
+  | TFloatFraction of id * string
+  (* If you're filling in an expr, but havent finished it. Not used for
+   * non-expr names. *)
+  | TPartial of id * string
+  | TSep
+  | TNewline
+  (* All newlines in the nested tokens start indented to this position. *)
+  | TIndentToHere of fluidToken list
+  (* Increase the level of indentation for all these tokens. *)
+  | TIndented of fluidToken list
+  (* TIndentToHere and TIndented are preprocessed to the right indentation
+   * and turned into TIndents *)
+  | TIndent of int
+  | TLetKeyword of id
+  | TLetLHS of id * string
+  | TLetAssignment of id
+  | TIfKeyword of id
+  | TIfThenKeyword of id
+  | TIfElseKeyword of id
+  | TBinOp of id * string
+  | TFieldOp of id
+  | TFieldName of id * string
+  | TVariable of id * string
+  | TFnName of id * string
+  | TLambdaSep of id
+  | TLambdaArrow of id
+  | TLambdaSymbol of id
+  | TLambdaVar of id * string
+  | TListOpen of id
+  | TListClose of id
+  | TListSep of id
+  | TThreadPipe of id * int
+  | TRecordOpen of id
+  | TRecordField of id * int * string
+  | TRecordSep of id * int
+  | TRecordClose of id
+
+and fluidTokenInfo =
+  { startRow : int
+  ; startCol : int
+  ; startPos : int
+  ; endPos : int
+  ; length : int
+  ; token : fluidToken }
 
 and fluidAutocompleteState =
   { (* ------------------------------- *)
@@ -922,8 +994,9 @@ and fluidAutocompleteState =
     (* ------------------------------- *)
     functions : function_ list
   ; index : int option
-  ; target :
-      fluidTarget option
+  ; targetTL : toplevel option
+  ; targetTI :
+      fluidTokenInfo option
       (* ------------------------------- *)
       (* Cached inputs *)
       (* ------------------------------- *)
