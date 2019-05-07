@@ -46,14 +46,8 @@ let rec tipe_to_string t : string =
       "Response"
   | TDB ->
       "Datastore"
-  | TID ->
-      "ID"
   | TDate ->
       "Date"
-  | TBelongsTo s ->
-      s
-  | THasMany s ->
-      "[" ^ s ^ "]"
   | TDbList tipe ->
       "[" ^ tipe_to_string tipe ^ "]"
   | TPassword ->
@@ -68,7 +62,12 @@ let rec tipe_to_string t : string =
       "Result"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
+  | TDeprecated1
+  | TDeprecated2
+  | TDeprecated3
+  | TDeprecated4 _
+  | TDeprecated5 _
+  | TDeprecated6 ->
       Exception.internal "Deprecated type"
 
 
@@ -108,8 +107,6 @@ let rec tipe_of_string str : tipe =
       TResp
   | "datastore" ->
       TDB
-  | "id" ->
-      TID
   | "date" ->
       TDate
   | "title" ->
@@ -134,7 +131,7 @@ let rec tipe_of_string str : tipe =
         |> fun s ->
         String.drop_prefix s 1
         |> fun s -> String.drop_suffix s 1 |> parse_list_tipe
-      else TBelongsTo str
+      else Exception.internal ("Unhandled tipe_of_string: " ^ str)
 
 
 and parse_list_tipe (list_tipe : string) : tipe =
@@ -155,8 +152,6 @@ and parse_list_tipe (list_tipe : string) : tipe =
       TDbList TBool
   | "password" ->
       TDbList TPassword
-  | "id" ->
-      TDbList TID
   | "uuid" ->
       TDbList TUuid
   | "obj" ->
@@ -177,8 +172,8 @@ and parse_list_tipe (list_tipe : string) : tipe =
       TDbList TStr
   | "url" ->
       TDbList TStr
-  | table ->
-      THasMany list_tipe
+  | _ ->
+      Exception.internal ("Unhandled parse_list_tipe: " ^ list_tipe)
 
 
 let rec tipe_of (dv : dval) : tipe =
@@ -209,8 +204,6 @@ let rec tipe_of (dv : dval) : tipe =
       TResp
   | DDB _ ->
       TDB
-  | DID _ ->
-      TID
   | DDate _ ->
       TDate
   | DPassword _ ->
@@ -348,8 +341,6 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
     ( match tipe with
     | "date" ->
         DDate (Util.date_of_isostring v)
-    | "id" ->
-        DID (Util.uuid_of_string v)
     | "title" ->
         Exception.internal "Deprecated type"
     | "url" ->
@@ -422,8 +413,6 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
         (`List [dhttp_to_yojson h; unsafe_dval_to_yojson ~redact hdv])
   | DDB dbname ->
       wrap_user_str dbname
-  | DID id ->
-      wrap_user_str (Uuidm.to_string id)
   | DDate date ->
       wrap_user_str (Util.isostring_of_date date)
   | DPassword hashed ->
@@ -527,7 +516,7 @@ let rec to_enduser_readable_text_v0 dval =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
     match dv with
-    | DStr _ | DID _ | DUuid _ | DCharacter _ ->
+    | DStr _ | DUuid _ | DCharacter _ ->
         "\"" ^ reprfn dv ^ "\""
     | _ ->
         reprfn dv
@@ -547,8 +536,6 @@ let rec to_enduser_readable_text_v0 dval =
         Unicode_string.Character.to_string c
     | DNull ->
         "null"
-    | DID id ->
-        Uuidm.to_string id
     | DDate d ->
         Util.isostring_of_date d
     | DUuid uuid ->
@@ -618,8 +605,6 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         justtipe
     | DError msg ->
         wrap msg
-    | DID id ->
-        wrap (Uuidm.to_string id)
     | DDate d ->
         wrap (Util.isostring_of_date d)
     | DDB name ->
@@ -691,8 +676,6 @@ let to_pretty_machine_json_v1 dval =
         recurse hdv
     | DDB dbname ->
         `String dbname
-    | DID id ->
-        `String (Uuidm.to_string id)
     | DDate date ->
         `String (Util.isostring_of_date date)
     | DPassword hashed ->
@@ -734,8 +717,6 @@ let rec show dv =
       Unicode_string.Character.to_string c
   | DNull ->
       "null"
-  | DID id ->
-      Uuidm.to_string id
   | DDate d ->
       Util.isostring_of_date d
   | DUuid uuid ->
@@ -865,8 +846,6 @@ let rec to_url_string_exn (dv : dval) : string =
       Unicode_string.Character.to_string c
   | DNull ->
       "null"
-  | DID id ->
-      Uuidm.to_string id
   | DDate d ->
       Util.isostring_of_date d
   | DDB dbname ->
@@ -978,8 +957,6 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       "<block: <block>>"
   | DError msg ->
       "<error: " ^ msg ^ ">"
-  | DID id ->
-      "<id: " ^ Uuidm.to_string id ^ ">"
   | DDate d ->
       "<date: " ^ Util.isostring_of_date d ^ ">"
   | DPassword _ ->
