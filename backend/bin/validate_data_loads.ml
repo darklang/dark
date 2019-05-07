@@ -85,48 +85,4 @@ let () =
                 ] )
       | _ ->
           Exception.internal "wrong # of fields in db resultset" ) ;
-  Log.infO "Next: get_all_user_data" ;
-  Db.iter_with_cursor
-    ~name:"get all canvases"
-    "SELECT name FROM canvases"
-    ~params:[]
-    ~f:(function
-      | [host] ->
-          let c = Canvas.load_all host [] in
-          let dbs = !c.dbs |> Toplevel.dbs in
-          dbs
-          |> List.iter ~f:(fun (db : Libexecution.Types.RuntimeT.DbT.db) ->
-                 let dbname =
-                   match db.name with
-                   | Filled (id, str) | Partial (id, str) ->
-                       str
-                   | Blank _ ->
-                       "no name"
-                 in
-                 let state : Libexecution.Types.RuntimeT.exec_state =
-                   { tlid = db.tlid
-                   ; account_id = !c.owner
-                   ; canvas_id = !c.id
-                   ; user_fns = []
-                   ; user_tipes = []
-                   ; dbs
-                   ; execution_id = Types.id_of_int 0
-                   ; fail_fn = None
-                   ; load_fn_result = (fun _ _ -> None)
-                   ; load_fn_arguments = (fun _ -> [])
-                   ; store_fn_result = (fun _ _ _ -> ())
-                   ; store_fn_arguments = (fun _ _ -> ()) }
-                 in
-                 try
-                   ignore (Libbackend.User_db.get_all ~state db) ;
-                   Log.infO "user data" ~params:[("db", dbname); ("host", host)]
-                 with e ->
-                   Log.erroR
-                     "failed to load user_data"
-                     ~params:
-                       [ ("db", dbname)
-                       ; ("host", host)
-                       ; ("exn", Exception.to_string e) ] )
-      | _ ->
-          Exception.internal "bad db result" ) ;
   ()
