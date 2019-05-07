@@ -652,7 +652,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     | DErrorRail dv ->
         "ErrorRail: " ^ to_repr_ indent dv
     | DBytes bytes ->
-        "<Bytes: length=" ^ string_of_int (RawBytes.length bytes) ^ ">"
+        bytes |> RawBytes.to_string |> B64.encode
   in
   to_repr_ 0 dv
 
@@ -1026,7 +1026,7 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
   | DResult (ResError dv) ->
       "ResultError " ^ to_hashable_repr ~indent dv
   | DBytes bytes ->
-      bytes |> RawBytes.to_string |> B64.encode
+      bytes |> RawBytes.to_string
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
