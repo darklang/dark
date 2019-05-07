@@ -18,7 +18,7 @@
         3768863952,
         [
           "FnCall",
-          "DB::insert",
+          "DB::add_v0",
           [
             [
               "Filled",
