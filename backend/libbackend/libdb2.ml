@@ -83,8 +83,12 @@ let replacements =
             fail args) )
   ; ( "DB::query_v1"
     , InProcess
-        (fun _ -> Exception.user "DB::query_v1 is DB::query_v1 is DEPRECATED")
-    )
+        (function
+        | state, [(DObj _ as obj); DDB dbname] ->
+            let db = find_db state.dbs dbname in
+            User_db.query ~state db obj
+        | args ->
+            fail args) )
   ; ( "DB::query_v2"
     , InProcess
         (function
@@ -150,7 +154,13 @@ let replacements =
         | args ->
             fail args) )
   ; ( "DB::getAll_v1"
-    , InProcess (fun _ -> Exception.user "DB::getAll_v1 is DEPRECATED") )
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
+            let db = find_db state.dbs dbname in
+            User_db.get_all ~state db
+        | args ->
+            fail args) )
   ; ( "DB::getAll_v2"
     , InProcess
         (function
