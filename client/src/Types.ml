@@ -80,7 +80,7 @@ and tipe =
   | TError
   | TResp
   | TDB
-  | TDeprecated4
+  | TID
   | TDate
   | TDeprecated2
   | TDeprecated3
@@ -344,6 +344,7 @@ and dval =
   | DErrorRail of dval
   | DResp of dhttp * dval
   | DDB of string
+  | DID of string
   | DDate of string
   | DPassword of string
   | DUuid of string

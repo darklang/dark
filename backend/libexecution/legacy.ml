@@ -42,6 +42,8 @@ module PrettyResponseJsonV0 = struct
           (`List [dhttp_to_yojson h; unsafe_dval_to_yojson ~redact hdv])
     | DDB dbname ->
         wrap_user_str dbname
+    | DID id ->
+        wrap_user_str (Uuidm.to_string id)
     | DDate date ->
         wrap_user_str (Util.isostring_of_date date)
     | DPassword hashed ->
@@ -92,6 +94,8 @@ module PrettyRequestJsonV0 = struct
         Unicode_string.Character.to_string c
     | DNull ->
         "null"
+    | DID id ->
+        Uuidm.to_string id
     | DDate d ->
         Util.isostring_of_date d
     | DDB dbname ->
@@ -127,6 +131,7 @@ module PrettyRequestJsonV0 = struct
     | DBlock _
     | DIncomplete
     | DError _
+    | DID _
     | DDate _
     | DPassword _
     | DDB _
