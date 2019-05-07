@@ -148,7 +148,7 @@ let str2tipe (t : string) : tipe =
       TOption
   | "result" ->
       TResult
-  | "binary" ->
+  | "bytes" ->
       TBytes
   | "password" ->
       TPassword
@@ -300,13 +300,6 @@ let isTrue (dv : dval) : bool = dv = DBool true
  * be recopied from to_developer_repr *)
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
-  let wrapBytes value =
-    "<"
-    ^ (dv |> typeOf |> tipe2str)
-    ^ ": "
-    ^ (Bytes.length value |> string_of_int)
-    ^ ">"
-  in
   let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in
   let nl = "\n" ^ String.repeat ~count:oldIndent " " in
   let inl = "\n" ^ String.repeat ~count:(oldIndent + 2) " " in
@@ -379,7 +372,11 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DObj o ->
       objToString (StrDict.toList o)
   | DBytes s ->
-      wrapBytes s
+      "<"
+      ^ (dv |> typeOf |> tipe2str)
+      ^ ": "
+      ^ (Bytes.length s |> string_of_int)
+      ^ ">"
 
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv
