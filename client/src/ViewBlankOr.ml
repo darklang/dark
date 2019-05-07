@@ -378,7 +378,9 @@ let viewBlankOr
     div
       vs
       ([WithClass "blank"] @ c @ wID id)
-      [Html.text (placeHolderFor vs id pt)]
+      [ Html.div
+          [Html.class' "blank-entry"]
+          [Html.text (placeHolderFor vs id pt)] ]
   in
   let drawFilled id fill =
     let configs = wID id @ c in
