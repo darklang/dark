@@ -153,13 +153,21 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
+  let liveValue =
+    match unwrapCursorState m.cursorState with
+    | Selecting (_, Some _id) ->
+        true
+    | _ ->
+        false
+  in
   let html =
     Html.div
       (* -- see comment in css *)
       [Html.classList boxClasses]
       [ Html.div
-          (Html.class' class_ :: events)
-          (body @ data @ top @ [uses; refs]) ]
+          [Html.classList [("use-wrapper", true); ("fade", liveValue)]]
+          [uses; refs]
+      ; Html.div (Html.class' class_ :: events) (body @ data @ top) ]
   in
   ViewUtils.placeHtml pos html
 
