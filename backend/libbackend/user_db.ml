@@ -33,7 +33,13 @@ let find_db_exn (tables : db list) (table_name : string) : db =
 let coerce_key_value_pair_to_legacy_object pair =
   match pair with
   | [DStr s; DObj o] ->
-      let id = DStr s in
+      let id =
+        match Uuidm.of_string (Unicode_string.to_string s) with
+        | Some id ->
+            DID id
+        | None ->
+            DStr s
+      in
       DObj (Map.set ~key:"id" ~data:id o)
   | err ->
       Exception.internal
@@ -82,6 +88,8 @@ let cols_for (db : db) : (string * tipe) list =
 
 let dv_to_id col (dv : dval) : Uuidm.t =
   match dv with
+  | DID id ->
+      id
   | DStr str ->
       (* This is what you get for accidentally
                      implementating a dynamic language *)
@@ -90,14 +98,14 @@ let dv_to_id col (dv : dval) : Uuidm.t =
         | Some id ->
             id
         | None ->
-            Exception.user (type_error_msg col TStr dv)
+            Exception.user (type_error_msg col TID dv)
       in
       uuid
   | _ ->
-      Exception.user (type_error_msg col TStr dv)
+      Exception.user (type_error_msg col TID dv)
 
 
-let rec query ~state db query_obj : dval =
+let rec query ~state ~magic db query_obj : dval =
   let sql =
     "SELECT key, data
      FROM user_data
@@ -120,19 +128,19 @@ let rec query ~state db query_obj : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj ~state db [data]]
+             DList [Dval.dstr_of_string_exn key; to_obj ~state ~magic db [data]]
          | _ ->
              Exception.internal "bad format received in fetch_all" )
   |> DList
 
 
-and query_by_one ~state db (col : string) (dv : dval) : dval =
-  query ~state db (DObj (DvalMap.singleton col dv))
+and query_by_one ~state ~magic db (col : string) (dv : dval) : dval =
+  query ~state ~magic db (DObj (DvalMap.singleton col dv))
 
 
 and (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-    to_obj ~state db (db_strings : string list) : dval =
+    to_obj ~state ~magic db (db_strings : string list) : dval =
   match db_strings with
   | [obj] ->
       let p_obj =
@@ -168,14 +176,16 @@ and (* PG returns lists of strings. This converts them to types using the
       in
       let merged = Util.merge_left p_obj default_keys in
       (* </HACK> *)
-      let type_checked = type_check_and_fetch_dependents ~state db merged in
+      let type_checked =
+        type_check_and_fetch_dependents ~state ~magic db merged
+      in
       DObj type_checked
   | _ ->
       Exception.internal "Got bad format from db fetch"
 
 
 and type_check_and_map_dependents
-    ~belongs_to ~has_many ~state (db : db) (obj : dval_map) : dval_map =
+    ~belongs_to ~has_many ~state ~magic (db : db) (obj : dval_map) : dval_map =
   let cols = cols_for db |> TipeMap.of_alist_exn in
   let tipe_keys = cols |> TipeMap.keys |> String.Set.of_list in
   let obj_keys = obj |> DvalMap.keys |> String.Set.of_list in
@@ -185,6 +195,8 @@ and type_check_and_map_dependents
     DvalMap.mapi
       ~f:(fun ~key ~data ->
         match (TipeMap.find_exn cols key, data) with
+        | TID, DID _ ->
+            data
         | TInt, DInt _ ->
             data
         | TFloat, DFloat _ ->
@@ -203,6 +215,26 @@ and type_check_and_map_dependents
             data
         | TUuid, DUuid _ ->
             data
+        | TBelongsTo table, any_dval when magic = true ->
+            (* the belongs_to function needs to type check any_dval *)
+            belongs_to table any_dval
+        | TBelongsTo table, DID i when magic = false ->
+            Dval.dstr_of_string_exn (Uuidm.to_string i)
+        | TBelongsTo table, DStr _ when magic = false ->
+            data
+        | THasMany table, DList any_list when magic = true ->
+            (* the has_many function needs to type check any_list *)
+            has_many table any_list
+        | THasMany table, DList any_list when magic = false ->
+            any_list
+            |> List.map ~f:(function
+                   | DID i ->
+                       Dval.dstr_of_string_exn (Uuidm.to_string i)
+                   | DStr _ as d ->
+                       d
+                   | err ->
+                       Exception.user (type_error_msg key TID err) )
+            |> DList
         | _, DNull ->
             data (* allow nulls for now *)
         | expected_type, value_of_actual_type ->
@@ -236,12 +268,12 @@ and type_check_and_map_dependents
           "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
-and type_check_and_fetch_dependents ~state db obj : dval_map =
+and type_check_and_fetch_dependents ~state ~magic db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
       let dep_table = find_db_exn state.dbs table in
       match dv with
-      | DStr _ ->
+      | DID _ | DStr _ ->
         (* TODO: temporary, need to add this to coerce not found
             * dependents to null. We should probably propagate the
             * deletion to the owning records, but this is very much a
@@ -249,7 +281,11 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             * than child->parent. child->parent seems hard with our
             * single-table, json blob approach though *)
         ( try
-            get ~state dep_table (dv |> dv_to_id "key" |> Uuidm.to_string)
+            get
+              ~state
+              ~magic:true
+              dep_table
+              (dv |> dv_to_id "key" |> Uuidm.to_string)
           with
         | Exception.DarkException e as original ->
           (match e.tipe with DarkStorage -> DNull | _ -> raise original)
@@ -259,7 +295,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
           (* allow nulls for now *)
           DNull
       | err ->
-          Exception.user (type_error_msg table TStr err) )
+          Exception.user (type_error_msg table TID err) )
     ~has_many:(fun table ids ->
       let dep_table = find_db_exn state.dbs table in
       let skeys =
@@ -267,15 +303,15 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
           ~f:(fun i -> i |> dv_to_id "has_many key" |> Uuidm.to_string)
           ids
       in
-      let result = get_many ~state dep_table skeys in
+      let result = get_many ~state ~magic:true dep_table skeys in
       coerce_dlist_of_kv_pairs_to_legacy_object result )
     ~state
+    ~magic
     db
     obj
 
 
-(* TODO remove this with old deprecated magic db code *)
-and type_check_and_upsert_dependents ~state db obj : dval_map =
+and type_check_and_upsert_dependents ~state ~magic db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
       let dep_table = find_db_exn state.dbs table in
@@ -288,8 +324,14 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
         | None ->
             let key = Util.create_uuid () in
             ignore
-              (set ~state ~upsert:false dep_table (key |> Uuidm.to_string) m) ;
-            DStr (key |> Uuidm.to_string |> Unicode_string.of_string_exn) )
+              (set
+                 ~state
+                 ~magic:true
+                 ~upsert:false
+                 dep_table
+                 (key |> Uuidm.to_string)
+                 m) ;
+            DID key )
       | DNull ->
           (* allow nulls for now *)
           DNull
@@ -310,23 +352,25 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
                    ignore
                      (set
                         ~state
+                        ~magic:true
                         ~upsert:false
                         dep_table
                         (key |> Uuidm.to_string)
                         m) ;
-                   DStr (key |> Uuidm.to_string |> Unicode_string.of_string_exn)
-               )
+                   DID key )
              | err ->
                  Exception.user (type_error_msg table TObj err) )
       |> DList )
     ~state
+    ~magic
     db
     obj
 
 
-and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
+and set ~state ~magic ~upsert (db : db) (key : string) (vals : dval_map) :
+    Uuidm.t =
   let id = Util.create_uuid () in
-  let merged = type_check_and_upsert_dependents ~state db vals in
+  let merged = type_check_and_upsert_dependents ~state ~magic db vals in
   let query =
     "INSERT INTO user_data
      (id, account_id, canvas_id, table_tlid, user_version, dark_version, key, data)
@@ -359,7 +403,9 @@ and update ~state db (vals : dval_map) =
     DvalMap.find_exn vals "id" |> dv_to_id (Ast.blank_to_string db.name)
   in
   let removed = Map.remove vals "id" in
-  let merged = type_check_and_upsert_dependents ~state db removed in
+  let merged =
+    type_check_and_upsert_dependents ~state ~magic:true db removed
+  in
   Db.run
     ~name:"user_update"
     "UPDATE user_data
@@ -380,7 +426,7 @@ and update ~state db (vals : dval_map) =
       ; Int current_dark_version ]
 
 
-and get ~state (db : db) (key : string) : dval =
+and get ~state ~magic (db : db) (key : string) : dval =
   Db.fetch_one
     ~name:"get"
     "SELECT data
@@ -398,10 +444,10 @@ and get ~state (db : db) (key : string) : dval =
       ; Int db.version
       ; Int current_dark_version
       ; String key ]
-  |> to_obj ~state db
+  |> to_obj ~state ~magic db
 
 
-and get_many ~state (db : db) (keys : string list) : dval =
+and get_many ~state ~magic (db : db) (keys : string list) : dval =
   Db.fetch
     ~name:"get_many"
     "SELECT key, data
@@ -424,13 +470,13 @@ and get_many ~state (db : db) (keys : string list) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj ~state db [data]]
+             DList [Dval.dstr_of_string_exn key; to_obj ~state ~magic db [data]]
          | _ ->
              Exception.internal "bad format received in get_many" )
   |> DList
 
 
-let get_all ~state (db : db) : dval =
+let get_all ~state ~magic (db : db) : dval =
   Db.fetch
     ~name:"get_all"
     "SELECT key, data
@@ -450,7 +496,7 @@ let get_all ~state (db : db) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj ~state db [data]]
+             DList [Dval.dstr_of_string_exn key; to_obj ~state ~magic db [data]]
          | _ ->
              Exception.internal "bad format received in get_all" )
   |> DList
