@@ -1565,14 +1565,23 @@ body #app * {
       }
 
       &.invalid {
-        .name, .types {
-          text-decoration: line-through solid;
-        }
         background: @grey1;
         color: @grey3;
         &.highlighted {
           background: lighten(@darkblue, 50%);
           color: black;
+
+          .moduleseparator {
+            color: black;
+          }
+        }
+
+        .name, .types, .module, .moduleseparator {
+          text-decoration: line-through solid;
+        }
+
+        .moduleseparator {
+          color: @grey3;
         }
       }
     }
