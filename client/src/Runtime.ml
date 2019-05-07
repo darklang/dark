@@ -37,8 +37,6 @@ let rec tipe2str (t : tipe) : string =
       "Response"
   | TDB ->
       "Datastore"
-  | TID ->
-      "ID"
   | TDate ->
       "Date"
   | TOption ->
@@ -59,7 +57,7 @@ let rec tipe2str (t : tipe) : string =
       "[" ^ tipe2str a ^ "]"
   | TUserType (name, _) ->
       name
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 ->
+  | TDeprecated1 | TDeprecated2 | TDeprecated3 | TDeprecated4 ->
       raise (Js.Exn.raiseError "Deprecated type")
 
 
@@ -82,8 +80,6 @@ let str2tipe (t : string) : tipe =
         TBool
     | "password" ->
         TPassword
-    | "id" ->
-        TID
     | "uuid" ->
         TUuid
     | "option" ->
@@ -152,8 +148,6 @@ let str2tipe (t : string) : tipe =
       TResult
   | "password" ->
       TPassword
-  | "id" ->
-      TID
   | "uuid" ->
       TUuid
   | other ->
@@ -195,8 +189,6 @@ let typeOf (dv : dval) : tipe =
       TResp
   | DDB _ ->
       TDB
-  | DID _ ->
-      TID
   | DDate _ ->
       TDate
   | DOption _ ->
@@ -327,8 +319,6 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       "'" ^ c ^ "'"
   | DNull ->
       "null"
-  | DID s ->
-      wrap s
   | DDate s ->
       wrap s
   | DDB s ->
