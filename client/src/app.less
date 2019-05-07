@@ -290,6 +290,17 @@ body #app * {
     min-width: 8ch;
     .blank-box-style;
     .blank-text-style;
+
+    &.arg-on-new-line{
+      padding-left: 0ch;
+      margin-left: 0px;
+      text-align: start;
+      font-size: @code-font-size;
+      .blank-entry{
+        .blank-text-style;
+        width: 100%;
+      }
+    }
   }
 
   .blankOr.selected {
@@ -1407,11 +1418,19 @@ body #app * {
       box-sizing: border-box;
     }
 
-    .arg-on-new-line > .param-name {
-      width: auto;
-      position: absolute;
-      color: @grey2;
-      font-size: 0.85rem;
+    .arg-on-new-line {
+
+      &.blank > .param-name {
+        font-style: normal;
+      }
+
+      & > .param-name {
+        width: auto;
+        position: absolute;
+        color: @grey2;
+        font-size: 0.85rem;
+      }
+
     }
 
     .tstr {
