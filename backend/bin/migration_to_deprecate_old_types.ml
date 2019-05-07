@@ -26,8 +26,8 @@ let transform_op (op : Op.op) ~(params : (string * string) list) : Op.op =
         old
       with e ->
         if String.is_prefix old "[" && String.is_suffix old "]"
-        then "[id]"
-        else "id"
+        then "[string]"
+        else "string"
     in
     if old <> new_str
     then

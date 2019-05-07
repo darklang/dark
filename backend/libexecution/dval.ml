@@ -107,8 +107,6 @@ let rec tipe_of_string str : tipe =
       TResp
   | "datastore" ->
       TDB
-  | "id" ->
-      TStr
   | "date" ->
       TDate
   | "title" ->
@@ -154,8 +152,6 @@ and parse_list_tipe (list_tipe : string) : tipe =
       TDbList TBool
   | "password" ->
       TDbList TPassword
-  | "id" ->
-      TDbList TStr
   | "uuid" ->
       TDbList TUuid
   | "obj" ->
