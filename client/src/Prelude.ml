@@ -21,6 +21,45 @@ let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
 
 let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
 
+let tid (t : fluidToken) : id =
+  match t with
+  | TInteger (id, _)
+  | TFloatWhole (id, _)
+  | TFloatPoint id
+  | TFloatFraction (id, _)
+  | TTrue id
+  | TFalse id
+  | TBlank id
+  | TPartial (id, _)
+  | TLetKeyword id
+  | TLetAssignment id
+  | TLetLHS (id, _)
+  | TString (id, _)
+  | TIfKeyword id
+  | TIfThenKeyword id
+  | TIfElseKeyword id
+  | TBinOp (id, _)
+  | TFieldOp id
+  | TFieldName (id, _)
+  | TVariable (id, _)
+  | TFnName (id, _)
+  | TLambdaVar (id, _)
+  | TLambdaArrow id
+  | TLambdaSymbol id
+  | TLambdaSep id
+  | TListOpen id
+  | TListClose id
+  | TListSep id
+  | TThreadPipe (id, _)
+  | TRecordOpen id
+  | TRecordClose id
+  | TRecordField (id, _, _)
+  | TRecordSep (id, _) ->
+      id
+  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+      ID "no-id"
+
+
 (* -------------------------------------- *)
 (* CursorState *)
 (* -------------------------------------- *)

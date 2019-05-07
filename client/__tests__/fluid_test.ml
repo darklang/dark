@@ -1,6 +1,8 @@
 open Jest
 open Expect
 open Tc
+open Types
+open Prelude
 open Fluid
 module K = FluidKeyboard
 
@@ -83,6 +85,7 @@ let () =
   in
   let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), "f") in
   let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), "") in
+  let m = Defaults.defaultModel in
   let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
       string * int =
     (* we wrap it so that there's something before and after the expr (esp
@@ -98,34 +101,34 @@ let () =
     let pos = pos + extra in
     let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
     let newAST, newState =
-      List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey k ast s)
+      List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
     in
     let result =
       match newAST with ELet (_, _, expr, _) when wrap -> expr | expr -> expr
     in
     (eToString result, max 0 (newState.newPos - extra))
   in
-  let delete ?(wrap = true) (pos : int) (expr : expr) : string * int =
+  let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Delete] pos expr
   in
-  let backspace ?(wrap = true) (pos : int) (expr : expr) : string * int =
+  let backspace ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Backspace] pos expr
   in
-  let tab ?(wrap = true) (pos : int) (expr : expr) : string * int =
+  let tab ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Tab] pos expr
   in
-  let shiftTab ?(wrap = true) (pos : int) (expr : expr) : string * int =
+  let shiftTab ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.ShiftTab] pos expr
   in
-  let press ?(wrap = true) (key : K.key) (pos : int) (expr : expr) :
+  let press ?(wrap = true) (key : K.key) (pos : int) (expr : fluidExpr) :
       string * int =
     process ~wrap [key] pos expr
   in
-  let presses ?(wrap = true) (keys : K.key list) (pos : int) (expr : expr) :
-      string * int =
+  let presses ?(wrap = true) (keys : K.key list) (pos : int) (expr : fluidExpr)
+      : string * int =
     process ~wrap keys pos expr
   in
-  let insert ?(wrap = true) (char : char) (pos : int) (expr : expr) :
+  let insert ?(wrap = true) (char : char) (pos : int) (expr : fluidExpr) :
       string * int =
     let key = K.fromChar char in
     process ~wrap [key] pos expr
@@ -133,8 +136,8 @@ let () =
   let b = "___" in
   let t
       (name : string)
-      (initial : expr)
-      (fn : expr -> string * int)
+      (initial : fluidExpr)
+      (fn : fluidExpr -> string * int)
       (expected : string * int) =
     test
       ( name
@@ -628,17 +631,17 @@ let () =
       test "up goes through the autocomplete" (fun () ->
           expect
             ( moveTo 143 s
-            |> (fun s -> updateKey K.Up ast s)
-            |> (fun (ast, s) -> updateKey K.Up ast s)
-            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> (fun s -> updateKey m K.Up ast s)
+            |> (fun (ast, s) -> updateKey m K.Up ast s)
+            |> (fun (ast, s) -> updateKey m K.Up ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 13 ) ;
       test "down goes through the autocomplete" (fun () ->
           expect
             ( moveTo 14 s
-            |> (fun s -> updateKey K.Down ast s)
-            |> (fun (ast, s) -> updateKey K.Down ast s)
-            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> (fun s -> updateKey m K.Down ast s)
+            |> (fun (ast, s) -> updateKey m K.Down ast s)
+            |> (fun (ast, s) -> updateKey m K.Down ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 144 ) ;
       () ) ;
