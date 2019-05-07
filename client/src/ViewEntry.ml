@@ -101,7 +101,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           | ACFunction _ ->
               viewFnName false name
           | _ ->
-              Html.text name
+              Html.span [Html.class' "name"] [Html.text name]
         in
         Html.li
           [ Attributes.classList

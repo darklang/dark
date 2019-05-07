@@ -247,8 +247,7 @@ let isThreadMember (m : model) ((tlid, pd) : target) =
 
 let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
   TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
-  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:TL.astOf
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast (P.toID pd))
   |> Option.andThen ~f:(fun (name, index) ->
          m.complete.functions
@@ -578,19 +577,28 @@ let tlDestinations (m : model) : autocompleteItem list =
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
 
-let matcher (m : model) (a : autocomplete) (item : autocompleteItem) =
-  let isThreadMemberVal =
-    Option.map ~f:(isThreadMember m) a.target
-    |> Option.withDefault ~default:false
-  in
-  let paramTipe =
-    a.target
-    |> Option.andThen ~f:(paramTipeForTarget m)
-    |> Option.withDefault ~default:TAny
-  in
+let matcher
+    (tipeConstraintOnTarget : tipe)
+    (dbnames : string list)
+    (matchTypesOfFn : tipe -> function_ -> bool)
+    (item : autocompleteItem) =
   match item with
   | ACFunction fn ->
-      matchesTypes isThreadMemberVal paramTipe a.targetDval fn
+      matchTypesOfFn tipeConstraintOnTarget fn
+  | ACVariable var ->
+      if List.member ~value:var dbnames
+      then match tipeConstraintOnTarget with TDB -> true | _ -> false
+      else true
+  | ACConstructorName name ->
+    ( match tipeConstraintOnTarget with
+    | TOption ->
+        name = "Just" || name = "Nothing"
+    | TResult ->
+        name = "Ok" || name = "Error"
+    | TAny ->
+        true
+    | _ ->
+        false )
   | _ ->
       true
 
@@ -780,7 +788,20 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.partition ~f:(matcher m a) allMatches
+  let dbnames = TL.allDBNames m.toplevels in
+  let isThreadMemberVal =
+    Option.map ~f:(isThreadMember m) a.target
+    |> Option.withDefault ~default:false
+  in
+  let tipeConstraintOnTarget =
+    a.target
+    |> Option.andThen ~f:(paramTipeForTarget m)
+    |> Option.withDefault ~default:TAny
+  in
+  let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt a.targetDval in
+  List.partition
+    ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
+    allMatches
 
 
 let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
