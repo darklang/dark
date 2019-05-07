@@ -98,7 +98,7 @@ let () =
           |> List.iter ~f:(fun (db : Libexecution.Types.RuntimeT.DbT.db) ->
                  let dbname =
                    match db.name with
-                   | Filled (id, str) ->
+                   | Filled (id, str) | Partial (id, str) ->
                        str
                    | Blank _ ->
                        "no name"
