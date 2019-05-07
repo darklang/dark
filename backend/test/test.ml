@@ -432,6 +432,14 @@ let t_stdlib_works () =
     "base64decode"
     (exec_ast "(String::base64Decode 'random string')")
     "Not a valid base64 string" ;
+  check_dval
+    "getAt1"
+    (exec_ast "(List::getAt (1 2 3 4) 0)")
+    (DOption (OptJust (DInt 1))) ;
+  check_dval
+    "getAt2"
+    (exec_ast "(List::getAt (1 2 3 4) 4)")
+    (DOption OptNothing) ;
   ()
 
 
