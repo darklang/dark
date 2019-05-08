@@ -11,6 +11,8 @@ module Regex = Util.Regex
 
 type autocomplete = fluidAutocompleteState
 
+type autocompleteItem = fluidAutocompleteItem
+
 type tokenInfo = fluidTokenInfo
 
 (* ---------------------------- *)
@@ -37,49 +39,17 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACFunction {fnName} ->
+  | FACFunction {fnName} ->
       fnName
-  | ACField name ->
+  | FACField name ->
       name
-  | ACVariable name ->
+  | FACVariable name ->
       name
-  | ACCommand command ->
-      ":" ^ command.commandName
-  | ACLiteral lit ->
+  | FACLiteral lit ->
       lit
-  | ACOmniAction ac ->
-    ( match ac with
-    | NewDB maybeName ->
-      ( match maybeName with
-      | Some name ->
-          "New DB named " ^ name
-      | None ->
-          "New DB" )
-    | NewHandler maybeName ->
-      ( match maybeName with
-      | Some name ->
-          "New event handler named " ^ name
-      | None ->
-          "New event handler" )
-    | NewFunction maybeName ->
-      ( match maybeName with
-      | Some name ->
-          "New function named " ^ name
-      | None ->
-          "New function" )
-    | NewHTTPHandler maybeName ->
-      ( match maybeName with
-      | Some name ->
-          "New HTTP handler named " ^ name
-      | None ->
-          "New HTTP handler" )
-    | NewEventSpace name ->
-        "New handler in the " ^ name ^ " space"
-    | Goto (_, _, desc) ->
-        desc )
-  | ACConstructorName name ->
+  | FACConstructorName name ->
       name
-  | ACKeyword k ->
+  | FACKeyword k ->
     ( match k with
     | KLet ->
         "let"
@@ -89,41 +59,21 @@ let asName (aci : autocompleteItem) : string =
         "lambda"
     | KMatch ->
         "match" )
-  | ACHTTPModifier name ->
-      name
-  | ACEventName name ->
-      name
-  | ACCronTiming timing ->
-      timing
-  | ACEventSpace space ->
-      space
-  | ACDBColType tipe ->
-      tipe
-  | ACParamTipe tipe ->
-      RT.tipe2str tipe
-  | ACDBName name ->
-      name
-  | ACExtra _ ->
-      ""
-  | ACTypeFieldTipe tipe ->
-      RT.tipe2str tipe
 
 
 let asTypeString (item : autocompleteItem) : string =
   match item with
-  | ACFunction f ->
+  | FACFunction f ->
       f.fnParameters
       |> List.map ~f:(fun x -> x.paramTipe)
       |> List.map ~f:RT.tipe2str
       |> String.join ~sep:", "
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
-  | ACField _ ->
+  | FACField _ ->
       "field"
-  | ACVariable _ ->
+  | FACVariable _ ->
       "variable"
-  | ACCommand _ ->
-      ""
-  | ACConstructorName name ->
+  | FACConstructorName name ->
       if name = "Just"
       then "(any) -> option"
       else if name = "Nothing"
@@ -131,7 +81,7 @@ let asTypeString (item : autocompleteItem) : string =
       else if name = "Ok" || name = "Error"
       then "(any) -> result"
       else ""
-  | ACLiteral lit ->
+  | FACLiteral lit ->
       let tipe =
         lit
         |> Decoders.parseDvalLiteral
@@ -140,32 +90,8 @@ let asTypeString (item : autocompleteItem) : string =
         |> RT.tipe2str
       in
       tipe ^ " literal"
-  | ACOmniAction _ ->
-      ""
-  | ACKeyword _ ->
+  | FACKeyword _ ->
       "keyword"
-  | ACHTTPModifier _ ->
-      "method"
-  | ACEventName _ ->
-      "event name"
-  | ACCronTiming _ ->
-      "interval"
-  | ACEventSpace _ ->
-      "event space"
-  | ACDBColType _ ->
-      "type"
-  | ACParamTipe _ ->
-      "param type"
-  | ACDBName _ ->
-      "name"
-  | ACExtra _ ->
-      ""
-  | ACTypeFieldTipe tipe ->
-    ( match tipe with
-    | TUserType (_, v) ->
-        "version " ^ string_of_int v
-    | _ ->
-        "builtin" )
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -283,18 +209,18 @@ let qLiteral (s : string) : autocompleteItem option =
   if Runtime.isStringLiteral s
   then
     if Runtime.isValidDisplayString s
-    then Some (ACLiteral (Runtime.convertDisplayStringToLiteral s))
+    then Some (FACLiteral (Runtime.convertDisplayStringToLiteral s))
     else None
   else if Decoders.isLiteralRepr s
-  then Some (ACLiteral s)
+  then Some (FACLiteral s)
   else if String.length s > 0
   then
     if String.startsWith ~prefix:(String.toLower s) "false"
-    then Some (ACLiteral "false")
+    then Some (FACLiteral "false")
     else if String.startsWith ~prefix:(String.toLower s) "true"
-    then Some (ACLiteral "true")
+    then Some (FACLiteral "true")
     else if String.startsWith ~prefix:(String.toLower s) "null"
-    then Some (ACLiteral "null")
+    then Some (FACLiteral "null")
     else None
   else None
 
@@ -470,21 +396,7 @@ let qEventSpace (s : string) : omniAction option =
 
 
 let isDynamicItem (item : autocompleteItem) : bool =
-  match item with
-  | ACLiteral _ ->
-      true
-  | ACOmniAction (Goto _) ->
-      false
-  | ACOmniAction _ ->
-      true
-  | ACEventSpace _ ->
-      false (* false because we want the static items to be first *)
-  | ACEventName _ ->
-      true
-  | ACDBName _ ->
-      true
-  | _ ->
-      false
+  match item with FACLiteral _ -> true | _ -> false
 
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
@@ -546,28 +458,9 @@ let tlGotoName (tl : toplevel) : string =
       Debug.crash "cannot happen"
 
 
-let tlDestinations (m : model) : autocompleteItem list =
-  let tls =
-    m.toplevels
-    |> List.sortBy ~f:tlGotoName
-    |> List.map ~f:(fun tl -> Goto (TL.asPage tl, tl.id, tlGotoName tl))
-  in
-  let ufs =
-    List.filterMap
-      ~f:(fun fn ->
-        match fn.ufMetadata.ufmName with
-        | Partial _ | Blank _ ->
-            None
-        | F (_, name) ->
-            Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name)) )
-      m.userFunctions
-  in
-  List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
-
-
 let matcher (a : autocomplete) (item : autocompleteItem) =
   match item with
-  | ACFunction fn ->
+  | FACFunction fn ->
       let isThreadMemberVal, paramTipe =
         match (a.targetTL, a.targetTI) with
         | Some tl, Some ti ->
@@ -611,12 +504,12 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   (* functions *)
   let funcList = a.functions in
   (* let funcList = if isExpression then a.functions else [] in *)
-  let functions = List.map ~f:(fun x -> ACFunction x) funcList in
+  let functions = List.map ~f:(fun x -> FACFunction x) funcList in
   let constructors =
-    [ ACConstructorName "Just"
-    ; ACConstructorName "Nothing"
-    ; ACConstructorName "Ok"
-    ; ACConstructorName "Error" ]
+    [ FACConstructorName "Just"
+    ; FACConstructorName "Nothing"
+    ; FACConstructorName "Ok"
+    ; FACConstructorName "Error" ]
   in
   let extras =
     []
@@ -624,61 +517,6 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     (* | Some (_, p) -> *)
     (*   ( match P.typeOf p with *)
     (*   (* autocomplete HTTP verbs if the handler is in the HTTP event space *) *)
-    (*   | EventModifier -> *)
-    (*     ( match space with *)
-    (*     | Some HSHTTP -> *)
-    (*         [ ACHTTPModifier "GET" *)
-    (*         ; ACHTTPModifier "POST" *)
-    (*         ; ACHTTPModifier "PUT" *)
-    (*         ; ACHTTPModifier "DELETE" *)
-    (*         ; ACHTTPModifier "PATCH" ] *)
-    (*     | Some HSCron -> *)
-    (*         [ ACCronTiming "Daily" *)
-    (*         ; ACCronTiming "Weekly" *)
-    (*         ; ACCronTiming "Fortnightly" *)
-    (*         ; ACCronTiming "Every 1hr" *)
-    (*         ; ACCronTiming "Every 12hrs" *)
-    (*         ; ACCronTiming "Every 1min" ] *)
-    (*     | Some HSOther -> *)
-    (*         [] *)
-    (*     | Some HSEmpty -> *)
-    (*         [] *)
-    (*     | None -> *)
-    (*         [] ) *)
-    (*   | EventSpace -> *)
-    (*       [ACEventSpace "HTTP"; ACEventSpace "CRON"] *)
-    (*   | DBColType -> *)
-    (*       let builtins = *)
-    (*         ["String"; "Int"; "Boolean"; "Float"; "Password"; "Date"; "UUID"] *)
-    (*       in *)
-    (*       let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in *)
-    (*       List.map ~f:(fun x -> ACDBColType x) (builtins @ compound) *)
-    (*   | ParamTipe -> *)
-    (*       let userTypes = *)
-    (*         m.userTipes *)
-    (*         |> List.filterMap ~f:UserTypes.toTUserType *)
-    (*         |> List.map ~f:(fun t -> ACParamTipe t) *)
-    (*       in *)
-    (*       [ ACParamTipe TAny *)
-    (*       ; ACParamTipe TStr *)
-    (*       ; ACParamTipe TInt *)
-    (*       ; ACParamTipe TBool *)
-    (*       ; ACParamTipe TFloat *)
-    (*       ; ACParamTipe TDate *)
-    (*       ; ACParamTipe TObj *)
-    (*       ; ACParamTipe TBlock *)
-    (*       ; ACParamTipe TPassword *)
-    (*       ; ACParamTipe TUuid *)
-    (*       ; ACParamTipe TList ] *)
-    (*       @ userTypes *)
-    (*   | TypeFieldTipe -> *)
-    (*       [ ACTypeFieldTipe TStr *)
-    (*       ; ACTypeFieldTipe TInt *)
-    (*       ; ACTypeFieldTipe TBool *)
-    (*       ; ACTypeFieldTipe TFloat *)
-    (*       ; ACTypeFieldTipe TDate *)
-    (*       ; ACTypeFieldTipe TPassword *)
-    (*       ; ACTypeFieldTipe TUuid ] *)
     (*   | Pattern -> *)
     (*     ( match dval with *)
     (*     | Some dv when RT.typeOf dv = TResult -> *)
@@ -695,9 +533,9 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let exprs =
     (* if isExpression *)
     (* then *)
-    let varnames = List.map ~f:(fun x -> ACVariable x) varnames in
+    let varnames = List.map ~f:(fun x -> FACVariable x) varnames in
     let keywords =
-      List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
+      List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch]
     in
     varnames @ constructors @ keywords @ functions
     (* else [] *)
@@ -715,14 +553,6 @@ let filter
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
-  in
-  (* HACK: dont show Gotos when the query is "" *)
-  let list =
-    List.filter list ~f:(function
-        | ACOmniAction (Goto _) ->
-            query <> ""
-        | _ ->
-            true )
   in
   (* split into different lists *)
   let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
@@ -854,7 +684,7 @@ let selectUp (a : autocomplete) : autocomplete =
 
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
-  | ACFunction f ->
+  | FACFunction f ->
       let desc =
         if String.length f.fnDescription <> 0
         then f.fnDescription
@@ -862,60 +692,34 @@ let documentationForItem (aci : autocompleteItem) : string option =
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
       Some desc
-  | ACCommand c ->
-      Some (c.doc ^ " (" ^ c.shortcut ^ ")")
-  | ACConstructorName "Just" ->
+  | FACConstructorName "Just" ->
       Some "An Option containing a value"
-  | ACConstructorName "Nothing" ->
+  | FACConstructorName "Nothing" ->
       Some "An Option representing Nothing"
-  | ACConstructorName "Ok" ->
+  | FACConstructorName "Ok" ->
       Some "A successful Result containing a value"
-  | ACConstructorName "Error" ->
+  | FACConstructorName "Error" ->
       Some "A Result representing a failure"
-  | ACConstructorName name ->
+  | FACConstructorName name ->
       Some ("TODO: this should never occur: the constructor " ^ name)
-  | ACField fieldname ->
+  | FACField fieldname ->
       Some ("The '" ^ fieldname ^ "' field of the object")
-  | ACVariable var ->
+  | FACVariable var ->
       if String.isCapitalized var
       then Some ("The database '" ^ var ^ "'")
       else Some ("The variable '" ^ var ^ "'")
-  | ACLiteral lit ->
+  | FACLiteral lit ->
       Some ("The literal value '" ^ lit ^ "'")
-  | ACKeyword KLet ->
+  | FACKeyword KLet ->
       Some "A `let` expression allows you assign a variable to an expression"
-  | ACKeyword KIf ->
+  | FACKeyword KIf ->
       Some "An `if` expression allows you to branch on a boolean condition"
-  | ACKeyword KLambda ->
+  | FACKeyword KLambda ->
       Some
         "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
-  | ACKeyword KMatch ->
+  | FACKeyword KMatch ->
       Some
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
-  | ACOmniAction _ ->
-      None
-  | ACHTTPModifier verb ->
-      Some ("Make this handler match the " ^ verb ^ " HTTP verb")
-  | ACCronTiming timing ->
-      Some ("Request this handler to trigger " ^ timing)
-  | ACEventSpace "HTTP" ->
-      Some "This handler will respond to HTTP requests"
-  | ACEventSpace "CRON" ->
-      Some "This handler will periodically trigger"
-  | ACEventSpace name ->
-      Some ("This handler will respond when events are emitted to " ^ name)
-  | ACEventName name ->
-      Some ("Respond to events or HTTP requests named " ^ name)
-  | ACDBName name ->
-      Some ("Set the DB's name to " ^ name)
-  | ACDBColType tipe ->
-      Some ("This field will be a " ^ tipe)
-  | ACParamTipe tipe ->
-      Some ("This parameter will be a " ^ RT.tipe2str tipe)
-  | ACTypeFieldTipe tipe ->
-      Some ("This parameter will be a " ^ RT.tipe2str tipe)
-  | ACExtra _ ->
-      None
 
 
 let setTargetTL (m : model) (tl : toplevel option) (a : autocomplete) :
