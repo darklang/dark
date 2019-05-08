@@ -224,176 +224,6 @@ let qLiteral (s : string) : autocompleteItem option =
   else None
 
 
-(* ------------------------------------ *)
-(* Validators *)
-(* ------------------------------------ *)
-
-(*
-  urls
-  From https://www.w3.org/Addressing/URL/5_URI_BNF.html
-  path = void | xpalphas [ / path ]
-  xalpha = alpha | digit | safe | extra | escape
-  xalphas = xalpha [ xalphas ]
-  xpalpha = xalpha | +
-  xpalphas = xpalpha [ xpalpha ]
-  alpha = [a-zA-Z]
-  digit = [0-9]
-  safe = $ | - | _ | @ | . | &
-  extra = ! | * | <doublequote> | ' | ( | ) | ,
-  reserved = = | ; | / | # | ? | : | space
-  escape = % hex hex
-*)
-(* let urlPathSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/]" *)
-(* let nonUrlPathSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/]" *)
-(* let urlPathValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/]+" *)
-
-(* allow : for parameter names. TODO: do better job parsing here *)
-let eventNameSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]"
-
-let nonEventNameSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
-
-let httpNameValidator = "/[-a-zA-Z0-9$_@.&!*\"'(),%/:]*"
-
-let eventNameValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]+"
-
-let varnameValidator = "[a-z_][a-zA-Z0-9_]*"
-
-let varnamePatternValidator = varnameValidator
-
-let constructorPatternValidator = "[A-Z_][a-zA-Z0-9_]*"
-
-let constructorNameValidator = "Just|Nothing|Ok|Error"
-
-let dbColTypeValidator = "\\[?[A-Z]\\w+\\]?"
-
-let dbColNameValidator = "\\w+"
-
-let dbNameValidator = "[A-Z][a-zA-Z0-9_]*"
-
-let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
-
-let httpVerbValidator = "[A-Z]+"
-
-let eventSpaceValidator = "[A-Z0-9_]+"
-
-let fieldNameValidator = ".+"
-
-let keynameValidator = ".+"
-
-let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
-
-(* NB: disallowing inital-capitals also defends against having a collision
- * between a function param name and a db name *)
-let paramNameValidator = "[a-z][a-zA-Z0-9_]*"
-
-let typeNameValidator = dbNameValidator
-
-let paramTypeValidator = "[A-Za-z0-9_]*"
-
-let assertValid pattern value : string =
-  if Regex.exactly ~re:pattern value
-  then value
-  else Debug.crash ("Failed validator: " ^ pattern ^ ", " ^ value)
-
-
-let validateHttpNameValidVarnames (httpName : string) =
-  let route_variables (route : string) : string list =
-    route
-    |> String.split ~on:"/"
-    |> List.filter ~f:(fun x -> String.length x > 0)
-    |> List.filter ~f:(fun x -> String.startsWith ~prefix:":" x)
-    |> List.map ~f:(fun x -> String.dropLeft ~count:1 x)
-  in
-  if route_variables httpName
-     |> List.all ~f:(fun v -> Regex.exactly ~re:varnameValidator v)
-  then None
-  else Some ("route variables must match /" ^ varnameValidator ^ "/")
-
-
-(* ------------------------------------ *)
-(* Omniactions *)
-(* ------------------------------------ *)
-
-let rec stripCharsFromFront (disallowed : string) (s : string) : string =
-  match String.uncons s with
-  | None ->
-      s
-  | Some (c, rest) ->
-      let needle = String.fromChar c in
-      if Regex.contains ~re:(Regex.regex disallowed) needle
-      then stripCharsFromFront disallowed rest
-      else s
-
-
-let stripChars (disallowed : string) (s : string) : string =
-  Regex.replace ~re:(Regex.regex disallowed) ~repl:"" s
-
-
-let removeExtraSlashes (s : string) : string =
-  let s = Regex.replace ~re:(Regex.regex "/+") ~repl:"/" s in
-  let s =
-    if s <> "/" && String.endsWith ~suffix:"/" s
-    then String.dropRight ~count:1 s
-    else s
-  in
-  s
-
-
-let cleanEventName (s : string) : string =
-  s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
-
-
-let cleanDBName (s : string) : string =
-  s
-  |> stripChars "[^a-zA-Z0-9_]"
-  |> stripCharsFromFront "[^a-zA-Z]"
-  |> String.capitalize
-
-
-let qNewDB (s : string) : omniAction option =
-  let name = cleanDBName s in
-  if name = ""
-  then Some (NewDB None)
-  else
-    let validName = assertValid dbNameValidator name in
-    Some (NewDB (Some validName))
-
-
-let qFunction (s : string) : omniAction =
-  let name =
-    s
-    |> stripChars "[^a-zA-Z0-9_]"
-    |> stripCharsFromFront "[^a-zA-Z]"
-    |> String.uncapitalize
-  in
-  if name = ""
-  then NewFunction None
-  else NewFunction (Some (assertValid fnNameValidator name))
-
-
-let qHandler (s : string) : omniAction =
-  let name = s |> cleanEventName |> String.uncapitalize in
-  if name = ""
-  then NewHandler None
-  else NewHandler (Some (assertValid eventNameValidator name))
-
-
-let qHTTPHandler (s : string) : omniAction =
-  let name = cleanEventName s in
-  if name = ""
-  then NewHTTPHandler None
-  else if String.startsWith ~prefix:"/" name
-  then NewHTTPHandler (Some (assertValid httpNameValidator name))
-  else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
-
-
-let qEventSpace (s : string) : omniAction option =
-  let name = s |> String.toUpper |> stripChars "[^A-Z0-9_]" in
-  if name = ""
-  then None
-  else Some (NewEventSpace (assertValid eventSpaceValidator name))
-
-
 let isDynamicItem (item : autocompleteItem) : bool =
   match item with FACLiteral _ -> true | _ -> false
 
@@ -401,10 +231,8 @@ let isDynamicItem (item : autocompleteItem) : bool =
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
 let toDynamicItems
-    (_space : handlerSpace option)
-    (_targetTL : toplevel option)
-    (_targetTI : tokenInfo option)
-    (_q : string) : autocompleteItem list =
+    (_targetTL : toplevel option) (_targetTI : tokenInfo option) (_q : string)
+    : autocompleteItem list =
   match None with
   | None ->
       []
@@ -412,14 +240,6 @@ let toDynamicItems
   (*     Option.values [qLiteral q] *)
   (* | Some (_, PField _) -> *)
   (*     [ACField q] *)
-  (* | Some (_, PEventSpace _) -> *)
-  (*     if q == "" then [] else [ACEventSpace (String.toUpper q)] *)
-  (* | Some (_, PEventName _) -> *)
-  (*     if q == "" *)
-  (*     then if space == Some HSHTTP then [ACEventName "/"] else [] *)
-  (*     else [ACEventName (cleanEventName q)] *)
-  (* | Some (_, PDBName _) -> *)
-  (*     if q == "" then [] else [ACDBName (cleanDBName q)] *)
   | _ ->
       []
 
@@ -429,32 +249,9 @@ let withDynamicItems
     (targetTI : tokenInfo option)
     (query : string)
     (acis : autocompleteItem list) : autocompleteItem list =
-  let space = Option.andThen ~f:TL.spaceOf targetTL in
-  let new_ = toDynamicItems space targetTL targetTI query in
+  let new_ = toDynamicItems targetTL targetTI query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   withoutDynamic @ new_
-
-
-let fnGotoName (name : string) : string = "Just to function: " ^ name
-
-let tlGotoName (tl : toplevel) : string =
-  match tl.data with
-  | TLHandler h ->
-      "Jump to handler: "
-      ^ (h.spec.module_ |> B.toMaybe |> Option.withDefault ~default:"Undefined")
-      ^ "::"
-      ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
-      ^ " - "
-      ^ ( h.spec.modifier
-        |> B.toMaybe
-        |> Option.withDefault ~default:"Undefined" )
-  | TLDB db ->
-      "Jump to DB: "
-      ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
-  | TLFunc _ ->
-      Debug.crash "cannot happen"
-  | TLTipe _ ->
-      Debug.crash "cannot happen"
 
 
 let matcher (a : autocomplete) (item : autocompleteItem) =
@@ -476,7 +273,6 @@ let matcher (a : autocomplete) (item : autocompleteItem) =
 (* Create the list *)
 (* ------------------------------------ *)
 let generate (m : model) (a : autocomplete) : autocomplete =
-  let _space = a.targetTL |> Option.map ~f:TL.spaceOf in
   let varnames, dval =
     match (a.targetTL, a.targetTI) with
     | Some tl, Some ti ->
