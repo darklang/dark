@@ -1818,7 +1818,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
     toList ac.completions "valid" index
     @ toList ac.invalidCompletions "invalid" invalidIndex
   in
-  Html.ul [Attrs.id "fluid-dropdown"] autocompleteList
+  Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
 
 let toHtml (s : state) (l : tokenInfo list) : Types.msg Html.html list =
