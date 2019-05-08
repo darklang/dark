@@ -212,6 +212,6 @@ UTF-8 safe"))
               (ResOk
                  (DResp
                     ( Response (code, headers)
-                    , DBytes (body |> B64.decode |> RawBytes.of_string) )))
+                    , DBytes (body |> RawBytes.of_string) )))
         | args ->
             Libexecution.Lib.fail args) ) ]

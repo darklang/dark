@@ -1829,7 +1829,7 @@ let fns : Lib.shortfn list =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f = NotClientAvailable
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["StaticAssets::serveLatest_v1"]
     ; ins = []
     ; p = [par "file" TStr]
