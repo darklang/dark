@@ -250,7 +250,7 @@ let fns : Lib.shortfn list =
     ; ins = ["*"]
     ; p = [par "a" TInt; par "b" TInt]
     ; r = TInt
-    ; d = "Multiples two integers"
+    ; d = "Multiplies two integers"
     ; f =
         InProcess
           (function _, [DInt a; DInt b] -> DInt (a * b) | args -> fail args)
