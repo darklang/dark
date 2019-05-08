@@ -17,9 +17,24 @@ let usage () : unit =
  * roundtrip_stored_event.exe. (Specifically, the load_all part - no need to
  * check stored_events, function_arguments, function_results, we just care about
  * canvases right now) *)
-let transform_op (op : Op.op) : Op.op =
+let transform_op (op : Op.op) ~(params : (string * string) list) : Op.op =
   let transform_string old =
-    match old with "Title" | "Url" -> "String" | _ -> old
+    let new_str =
+      (* If it's a tipe we can't parse, make it either id or [id] *)
+      try
+        ignore (Libexecution.Dval.tipe_of_string old) ;
+        old
+      with e ->
+        if String.is_prefix old "[" && String.is_suffix old "]"
+        then "[string]"
+        else "string"
+    in
+    if old <> new_str
+    then
+      Log.infO
+        "transform_string"
+        ~params:(params @ [("old", old); ("new", new_str)]) ;
+    new_str
   in
   let transform_string_or_blank (old : string Types.or_blank) =
     match old with
@@ -28,25 +43,38 @@ let transform_op (op : Op.op) : Op.op =
     | Filled (id, str) ->
         Filled (id, transform_string str)
   in
-  match op with
-  | SetDBColType (tlid, id, tipe) ->
-      SetDBColType (tlid, id, transform_string tipe)
-  | ChangeDBColType (tlid, id, tipe) ->
-      ChangeDBColType (tlid, id, transform_string tipe)
-  | CreateDBMigration (tlid, rbid, rfid, oldCols) ->
-      let newCols =
-        oldCols
-        |> List.map ~f:(fun (fromCol, toCol) ->
-               ( transform_string_or_blank fromCol
-               , transform_string_or_blank toCol ) )
-      in
-      CreateDBMigration (tlid, rbid, rfid, newCols)
-  | CreateDBWithBlankOr (tlid, pos, id, name) ->
-      op
-      (* not actually impl'ing this; this popped up as an error in the
+  let new_op =
+    match op with
+    | SetDBColType (tlid, id, tipe) ->
+        (* Dunno why I need to specify Op here ... *)
+        Op.SetDBColType (tlid, id, transform_string tipe)
+    | ChangeDBColType (tlid, id, tipe) ->
+        ChangeDBColType (tlid, id, transform_string tipe)
+    | CreateDBMigration (tlid, rbid, rfid, oldCols) ->
+        let newCols =
+          oldCols
+          |> List.map ~f:(fun (name, tipe) ->
+                 (* Note: a previous version transformed both col name and tipe; we
+               * just want to transform the tipe *)
+                 (name, transform_string_or_blank tipe) )
+        in
+        CreateDBMigration (tlid, rbid, rfid, newCols)
+    | CreateDBWithBlankOr (tlid, pos, id, name) ->
+        op
+        (* not actually impl'ing this; this popped up as an error in the
           roundtrip script on ellen-cto because of the Duplicate DB Name bug *)
-  | _ ->
-      op
+    | _ ->
+        op
+  in
+  if new_op <> op
+  then
+    Log.infO
+      "transform_op"
+      ~params:
+        ( params
+        @ [ ("new", new_op |> Op.op_to_yojson |> Yojson.Safe.to_string)
+          ; ("old", op |> Op.op_to_yojson |> Yojson.Safe.to_string) ] ) ;
+  new_op
 
 
 (* given a row, deserialize the oplist, transform the ops, and if there's a
@@ -87,7 +115,13 @@ let migrate_oplist_row (row : string list) : unit =
       "successful deserialize"
       ~params:[("host", host); ("canvas_id", canvas_id); ("tlid", tlid)] ;
     let newData =
-      old_oplist |> List.map ~f:transform_op |> Op.oplist_to_string
+      old_oplist
+      |> List.map
+           ~f:
+             (transform_op
+                ~params:
+                  [("host", host); ("canvas_id", canvas_id); ("tlid", tlid)])
+      |> Op.oplist_to_string
       (* compare and upsert *)
     in
     if data <> newData
@@ -126,4 +160,48 @@ let () =
      FROM toplevel_oplists
      JOIN canvases ON canvases.id = canvas_id"
     ~f:migrate_oplist_row ;
+  Db.iter_with_cursor
+    ~name:"migrate id to string"
+    ~params:[]
+    "SELECT user_data.key, data FROM user_data CROSS JOIN LATERAL jsonb_each(data) sub WHERE
+value @> '{\"type\": \"id\"}'"
+    ~f:(function
+      | [key; data] ->
+          let parsed_data = data |> Yojson.Safe.from_string in
+          (* if a pair has an id value = `{"type": "id", ...}` - then make it a
+           * string instead *)
+          let transform_pair (pair : string * Yojson.Safe.json) :
+              string * Yojson.Safe.json =
+            let key, value = pair in
+            let new_value =
+              match value with
+              | `Assoc [("type", `String "id"); ("value", `String value)] ->
+                  `String value
+              | _ ->
+                  value
+            in
+            (key, new_value)
+          in
+          let transformed_data =
+            match parsed_data with
+            | `Assoc pairs ->
+                `Assoc (pairs |> List.map ~f:transform_pair)
+            | _ ->
+                parsed_data
+          in
+          if parsed_data <> transformed_data
+          then Log.infO "update_id_to_string" ~params:[("key", key)] ;
+          Db.run
+            ~name:"update ids in user_data to be strings"
+            ~params:
+              [ Db.Uuid
+                  ( key
+                  |> Uuidm.of_string
+                  |> (Option.value_exn : Uuidm.t option -> Uuidm.t) )
+              ; Db.String data
+              ; Db.String (transformed_data |> Yojson.Safe.to_string) ]
+            (* AND data = $2 to guard against race conditions *)
+            "UPDATE user_data SET data = $3 WHERE key = $1 AND data = $2"
+      | _ ->
+          Exception.internal "Bad db result" ) ;
   ()
