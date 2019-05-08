@@ -110,6 +110,27 @@ let replacements =
                 Exception.internal "bad format from User_db.query" )
         | args ->
             fail args) )
+  ; ( "DB::query_v3"
+    , InProcess
+        (function
+        | state, [(DObj _ as obj); DDB dbname] ->
+            let results =
+              let db = find_db state.dbs dbname in
+              User_db.query ~state ~magic:false db obj
+            in
+            ( match results with
+            | DList xs ->
+                xs
+                |> List.map ~f:(function
+                       | DList [x; y] ->
+                           y
+                       | _ ->
+                           Exception.internal "bad format from User_db.query" )
+                |> Dval.to_list
+            | _ ->
+                Exception.internal "bad format from User_db.query" )
+        | args ->
+            fail args) )
   ; ( "DB::queryWithKey_v1"
     , InProcess
         (function
@@ -178,6 +199,27 @@ let replacements =
                        | _ ->
                            Exception.internal "bad format from User_db.query" )
                 |> DList
+            | _ ->
+                Exception.internal "bad format from User_db.query" )
+        | args ->
+            fail args) )
+  ; ( "DB::getAll_v3"
+    , InProcess
+        (function
+        | state, [DDB dbname] ->
+            let results =
+              let db = find_db state.dbs dbname in
+              User_db.get_all ~state ~magic:false db
+            in
+            ( match results with
+            | DList xs ->
+                xs
+                |> List.map ~f:(function
+                       | DList [x; y] ->
+                           y
+                       | _ ->
+                           Exception.internal "bad format from User_db.query" )
+                |> Dval.to_list
             | _ ->
                 Exception.internal "bad format from User_db.query" )
         | args ->
