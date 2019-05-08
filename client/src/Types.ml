@@ -1010,9 +1010,8 @@ and fluidAutocompleteState =
       (* ------------------------------- *)
   ; admin : bool
   ; isCommandMode : bool
-  ; targetDval : dval option
-  ; query :
-      string
+  ; targetDval :
+      dval option
       (* ------------------------------- *)
       (* Cached results *)
       (* ------------------------------- *)

@@ -1,6 +1,5 @@
 open Tc
 open Types
-open Prelude
 
 (* Dark *)
 module P = Pointer
@@ -147,7 +146,7 @@ let dvalForTarget (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let ast = tl |> TL.asHandler |> Option.map ~f:(fun x -> x.ast) in
   match ast with
   | Some ast ->
-      let id = tid ti.token in
+      let id = FluidToken.tid ti.token in
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
@@ -160,7 +159,7 @@ let dvalForTarget (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
 
 
 let isThreadMember (tl : toplevel) (ti : tokenInfo) =
-  let id = tid ti.token in
+  let id = FluidToken.tid ti.token in
   TL.asHandler tl
   |> Option.map ~f:(fun x -> x.ast)
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
@@ -171,7 +170,7 @@ let isThreadMember (tl : toplevel) (ti : tokenInfo) =
 
 let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
     tipe =
-  let id = tid ti.token in
+  let id = FluidToken.tid ti.token in
   TL.asHandler tl
   |> Option.map ~f:(fun x -> x.ast)
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
@@ -481,7 +480,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let varnames, dval =
     match (a.targetTL, a.targetTI) with
     | Some tl, Some ti ->
-        let id = tid ti.token in
+        let id = FluidToken.tid ti.token in
         (Analysis.getCurrentAvailableVarnames m tl id, dvalForTarget m tl ti)
     | _ ->
         ([], None)
@@ -589,8 +588,15 @@ let filter
   List.partition ~f:(matcher a) allMatches
 
 
-let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
+let refilter (m : model) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
+  let query =
+    match old.targetTI with
+    | Some ti ->
+        FluidToken.toText ti.token
+    | None ->
+        ""
+  in
   let fudgedCompletions =
     if old.isCommandMode
     then List.filter ~f:isStaticItem old.allCompletions
@@ -634,8 +640,8 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   {old with index; completions = newCompletions; invalidCompletions}
 
 
-let regenerate (m : model) (str : string) (a : autocomplete) : autocomplete =
-  generate m a |> refilter m str
+let regenerate (m : model) (a : autocomplete) : autocomplete =
+  generate m a |> refilter m
 
 
 (* ---------------------------- *)
@@ -653,7 +659,7 @@ let reset (m : model) : autocomplete =
            (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
   in
   let functions = functions @ userFunctionMetadata in
-  {Defaults.defaultModel.fluidState.ac with functions} |> regenerate m ""
+  {Defaults.defaultModel.fluidState.ac with functions} |> regenerate m
 
 
 let init m = reset m
@@ -724,12 +730,12 @@ let documentationForItem (aci : autocompleteItem) : string option =
 
 let setTargetTL (m : model) (tl : toplevel option) (a : autocomplete) :
     autocomplete =
-  {a with targetTL = tl} |> regenerate m a.query
+  {a with targetTL = tl} |> regenerate m
 
 
 let setTargetTI (m : model) (ti : tokenInfo option) (a : autocomplete) :
     autocomplete =
-  {a with targetTI = ti} |> regenerate m a.query
+  {a with targetTI = ti} |> regenerate m
 
 
 (* ------------------------------------ *)
