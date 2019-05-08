@@ -988,6 +988,14 @@ and fluidTokenInfo =
   ; length : int
   ; token : fluidToken }
 
+and fluidAutocompleteItem =
+  | FACFunction of function_
+  | FACConstructorName of string
+  | FACField of string
+  | FACVariable of varName
+  | FACLiteral of literal
+  | FACKeyword of keyword
+
 and fluidAutocompleteState =
   { (* ------------------------------- *)
     (* state *)
@@ -1008,9 +1016,9 @@ and fluidAutocompleteState =
       (* ------------------------------- *)
       (* Cached results *)
       (* ------------------------------- *)
-  ; completions : autocompleteItem list
-  ; invalidCompletions : autocompleteItem list
-  ; allCompletions : autocompleteItem list }
+  ; completions : fluidAutocompleteItem list
+  ; invalidCompletions : fluidAutocompleteItem list
+  ; allCompletions : fluidAutocompleteItem list }
 
 and fluidState =
   { error : string option

@@ -699,9 +699,9 @@ let setBrowserPos offset =
 (* Autocomplete *)
 (* -------------------- *)
 
-let acToExpr (entry : Types.autocompleteItem) : fluidExpr * int =
+let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   match entry with
-  | ACFunction fn ->
+  | FACFunction fn ->
       let count = List.length fn.fnParameters in
       let name = fn.fnName in
       let r =
@@ -711,19 +711,20 @@ let acToExpr (entry : Types.autocompleteItem) : fluidExpr * int =
       in
       let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
       (EFnCall (gid (), name, args, r), String.length name + 1)
-  | ACKeyword KLet ->
+  | FACKeyword KLet ->
       (ELet (gid (), "", newB (), newB ()), 4)
-  | ACKeyword KIf ->
+  | FACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
-  | ACVariable name ->
+  | FACVariable name ->
       (EVariable (gid (), name), String.length name)
-  | ACLiteral "true" ->
+  | FACLiteral "true" ->
       (EBool (gid (), true), 4)
-  | ACLiteral "false" ->
+  | FACLiteral "false" ->
       (EBool (gid (), false), 5)
   | _ ->
       let str =
-        "TODO: autocomplete result for " ^ Types.show_autocompleteItem entry
+        "TODO: autocomplete result for "
+        ^ Types.show_fluidAutocompleteItem entry
       in
       (EPartial (gid (), str), String.length str)
 
@@ -2040,7 +2041,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
     List.indexedMap
       ~f:(fun i item ->
         let highlighted = index = i in
-        let name = Autocomplete.asName item in
+        let name = AC.asName item in
         Html.li
           [ Attrs.classList
               [ ("autocomplete-item", true)
@@ -2052,9 +2053,8 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick name ) ]
           [ Html.text name
-          ; Html.span
-              [Html.class' "types"]
-              [Html.text <| Autocomplete.asTypeString item] ] )
+          ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
+          ] )
       acis
   in
   let index = ac.index |> Option.withDefault ~default:(-1) in
