@@ -253,6 +253,18 @@ let unwrap_from_errorrail (dv : dval) =
 
 let exception_to_dval exc = DError (Exception.to_string exc)
 
+(* Anytime we create a dlist with the except of list literals,
+ we need to make sure that there are no incomplete or error rail 
+ values within the list *)
+let is_fake_cf (dv : dval) =
+  match dv with DErrorRail _ | DIncomplete -> true | _ -> false
+
+
+let to_list (l : dval list) : dval =
+  let found = List.find l ~f:is_fake_cf in
+  match found with Some v -> v | None -> DList l
+
+
 (* ------------------------- *)
 (* Obj Functions *)
 (* ------------------------- *)
@@ -303,7 +315,8 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
   | `String s ->
       dstr_of_string_exn s
   | `List l ->
-      DList (List.map ~f:unsafe_dval_of_yojson l)
+      (* We shouldnt have saved dlist that have incompletes or error rails but we might have *)
+      to_list (List.map ~f:unsafe_dval_of_yojson l)
   | `Variant v ->
       Exception.internal "We dont use variants"
   | `Intlit v ->
