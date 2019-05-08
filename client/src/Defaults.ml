@@ -41,7 +41,6 @@ let defaultFluidState : fluidState =
       ; targetTI = None
       ; admin = false
       ; isCommandMode = false
-      ; query = ""
       ; targetDval = None
       ; completions = []
       ; invalidCompletions = []
