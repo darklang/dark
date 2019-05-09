@@ -456,6 +456,8 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (ELet (gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
+  | FACKeyword KLambda ->
+      (ELambda (gid (), [""], newB ()), 1)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
