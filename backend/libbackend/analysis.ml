@@ -22,6 +22,15 @@ let unlocked (c : canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 
+type db_stat =
+  { count : int
+  ; example : RTT.dval }
+[@@deriving eq, show, yojson]
+
+type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
+
+let db_stats (c : canvas) (tlids : tlid list) : db_stat_map = IDMap.empty
+
 let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
@@ -183,6 +192,10 @@ let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
   {unlocked_dbs}
   |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
+
+
+let to_db_stats_rpc_result (stats : db_stat_map) : string =
+  stats |> db_stat_map_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
 type new_trace_push = traceid_tlids [@@deriving to_yojson]
