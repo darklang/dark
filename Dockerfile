@@ -1,7 +1,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 ENV FORCE_BUILD 1
 
