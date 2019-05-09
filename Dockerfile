@@ -107,7 +107,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       xvfb \
       ffmpeg \
       tmux \
-      libssl-dev \
+      libssl1.0-dev \
       zlib1g-dev \
       pv \
       && apt clean \
