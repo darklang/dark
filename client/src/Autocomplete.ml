@@ -672,7 +672,11 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         | None ->
             [] )
       | EventSpace ->
-          [ACEventSpace "HTTP"; ACEventSpace "CRON"]
+          let otherSpaces =
+            TL.customEventSpaceNames m.toplevels
+            |> List.map ~f:(fun x -> ACEventSpace x)
+          in
+          [ACEventSpace "HTTP"; ACEventSpace "CRON"] @ otherSpaces
       | DBColType ->
           let builtins =
             ["String"; "Int"; "Boolean"; "Float"; "Password"; "Date"; "UUID"]
