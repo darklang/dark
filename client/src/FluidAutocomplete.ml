@@ -96,6 +96,14 @@ let asTypeString (item : autocompleteItem) : string =
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 
 (* ---------------------------- *)
+(* Utils *)
+(* ---------------------------- *)
+
+let isVariable (aci : autocompleteItem) : bool =
+  match aci with FACVariable _ -> true | _ -> false
+
+
+(* ---------------------------- *)
 (* External: utils *)
 (* ---------------------------- *)
 let findFunction (a : autocomplete) (name : string) : function_ option =
