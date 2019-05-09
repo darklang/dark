@@ -56,7 +56,7 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (FocusedHandler tl.id)
+            ; destination = Some (FocusedHandler (tl.id, true))
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -80,7 +80,7 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (FocusedHandler tl.id)
+            ; destination = Some (FocusedHandler (tl.id, true))
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -113,7 +113,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; tlid = db.dbTLID
           ; uses = Some uses
-          ; destination = Some (FocusedDB db.dbTLID)
+          ; destination = Some (FocusedDB (db.dbTLID, true))
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; externalLink = None
@@ -143,7 +143,7 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; tlid = h.tlid
-            ; destination = Some (FocusedHandler tl.id)
+            ; destination = Some (FocusedHandler (tl.id, true))
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
@@ -188,7 +188,7 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                     |> Option.withDefault ~default:missingEventRouteDesc
                 ; uses = None
                 ; tlid = h.tlid
-                ; destination = Some (FocusedHandler tl.id)
+                ; destination = Some (FocusedHandler (tl.id, true))
                 ; minusButton = Some (ToplevelDelete tl.id)
                 ; killAction = Some (ToplevelDeleteForever tl.id)
                 ; plusButton = None
