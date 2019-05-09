@@ -547,12 +547,12 @@ let allGloballyScopedVarnames (toplevels : toplevel list) : string list =
   allDBNames toplevels
 
 
-let asPage (tl : toplevel) : page =
+let asPage (tl : toplevel) (center : bool) : page =
   match tl.data with
   | TLHandler _ ->
-      FocusedHandler tl.id
+      FocusedHandler (tl.id, center)
   | TLDB _ ->
-      FocusedDB tl.id
+      FocusedDB (tl.id, center)
   | TLFunc _ ->
       FocusedFn tl.id
   | TLTipe _ ->

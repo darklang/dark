@@ -21,9 +21,9 @@ let urlFor (page : page) : string =
         []
     | FocusedFn tlid ->
         [("fn", deTLID tlid)]
-    | FocusedHandler tlid ->
+    | FocusedHandler (tlid, _) ->
         [("handler", deTLID tlid)]
-    | FocusedDB tlid ->
+    | FocusedDB (tlid, _) ->
         [("db", deTLID tlid)]
     | FocusedType tlid ->
         [("type", deTLID tlid)]
@@ -59,14 +59,14 @@ let parseLocation (loc : Web.Location.location) : page option =
   let handler () =
     match StrDict.get ~key:"handler" unstructured with
     | Some sid ->
-        Some (FocusedHandler (TLID sid))
+        Some (FocusedHandler (TLID sid, true))
     | _ ->
         None
   in
   let db () =
     match StrDict.get ~key:"db" unstructured with
     | Some sid ->
-        Some (FocusedDB (TLID sid))
+        Some (FocusedDB (TLID sid, true))
     | _ ->
         None
   in
@@ -93,18 +93,18 @@ let changeLocation (m : model) (loc : Web.Location.location) : modification =
         DisplayError "No function with this id"
     | _ ->
         SetPage (FocusedFn id) )
-  | Some (FocusedHandler id) ->
+  | Some (FocusedHandler (id, center)) ->
     ( match TL.get m id with
     | None ->
         DisplayError "No toplevel with this id"
     | _ ->
-        SetPage (FocusedHandler id) )
-  | Some (FocusedDB id) ->
+        SetPage (FocusedHandler (id, center)) )
+  | Some (FocusedDB (id, center)) ->
     ( match TL.get m id with
     | None ->
         DisplayError "No DB with this id"
     | _ ->
-        SetPage (FocusedDB id) )
+        SetPage (FocusedDB (id, center)) )
   | Some (FocusedType id) ->
     ( match TL.get m id with
     | None ->
@@ -165,26 +165,17 @@ let isDebugging = queryParamSet "debugger"
 let isIntegrationTest = queryParamSet "integration-test"
 
 let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
+  let center =
+    match page with
+    | FocusedHandler (_, center) | FocusedDB (_, center) ->
+        center
+    | _ ->
+        false
+  in
   let offset =
-    let telem = Native.Ext.querySelector (".toplevel.tl-" ^ showTLID tl.id) in
-    match telem with
-    | Some e ->
-        let tsize =
-          {w = Native.Ext.clientWidth e; h = Native.Ext.clientHeight e}
-        in
-        let windowSize = m.canvasProps.viewportSize in
-        let sidebarWidth =
-          let sidebar = Native.Ext.querySelector "#sidebar-left" in
-          match sidebar with Some e -> Native.Ext.clientWidth e | None -> 320
-        in
-        let outerOffset =
-          {m.canvasProps.offset with x = m.canvasProps.offset.x + sidebarWidth}
-        in
-        if Viewport.isEnclosed (outerOffset, windowSize) (tl.pos, tsize)
-        then m.canvasProps.offset
-        else Viewport.centerCanvasOn tl m.canvasProps
-    | None ->
-        m.canvasProps.offset
+    if center
+    then Viewport.centerCanvasOn tl m.canvasProps
+    else m.canvasProps.offset
   in
   let panAnimation = offset <> m.canvasProps.offset in
   let boId =
@@ -236,10 +227,10 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Deselected }
-  | FocusedFn _, FocusedHandler tlid
-  | FocusedFn _, FocusedDB tlid
-  | FocusedType _, FocusedHandler tlid
-  | FocusedType _, FocusedDB tlid ->
+  | FocusedFn _, FocusedHandler (tlid, _)
+  | FocusedFn _, FocusedDB (tlid, _)
+  | FocusedType _, FocusedHandler (tlid, _)
+  | FocusedType _, FocusedDB (tlid, _) ->
       (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
@@ -250,16 +241,17 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; canvasProps =
           { m.canvasProps with
             offset = Viewport.toCenteredOn tl.pos; lastOffset = None } }
-  | Architecture, FocusedHandler tlid | Architecture, FocusedDB tlid ->
+  | Architecture, FocusedHandler (tlid, _) | Architecture, FocusedDB (tlid, _)
+    ->
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
   *)
       let tl = TL.getTL m tlid in
       calculatePanOffset m tl newPage
-  | FocusedHandler otlid, FocusedHandler tlid
-  | FocusedHandler otlid, FocusedDB tlid
-  | FocusedDB otlid, FocusedHandler tlid
-  | FocusedDB otlid, FocusedDB tlid ->
+  | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
+  | FocusedHandler (otlid, _), FocusedDB (tlid, _)
+  | FocusedDB (otlid, _), FocusedHandler (tlid, _)
+  | FocusedDB (otlid, _), FocusedDB (tlid, _) ->
       (* Going from focused db/handler to another focused db/handler
   * Check it is a different tl;
   * figure out if you can stay where you are or animate pan to toplevel pos
@@ -299,6 +291,6 @@ let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
   if fromArch || changedFocused
   then
     let tl = TL.getTL m tlid in
-    let page = TL.asPage tl in
+    let page = TL.asPage tl false in
     [navigateTo page]
   else []
