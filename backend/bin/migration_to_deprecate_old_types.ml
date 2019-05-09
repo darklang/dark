@@ -154,17 +154,10 @@ let () =
   | 2, [_; "-h"] | _ ->
       usage () ) ;
   Db.iter_with_cursor
-    ~name:"migrate oplist"
-    ~params:[]
-    "SELECT canvases.name, canvas_id, tlid
-     FROM toplevel_oplists
-     JOIN canvases ON canvases.id = canvas_id"
-    ~f:migrate_oplist_row ;
-  Db.iter_with_cursor
     ~name:"migrate id to string"
     ~params:[]
     "SELECT user_data.key, data FROM user_data CROSS JOIN LATERAL jsonb_each(data) sub WHERE
-value @> '{\"type\": \"id\"}'"
+value @> '{\"type\": \"id\"}' LIMIT 100"
     ~f:(function
       | [key; data] ->
           let parsed_data = data |> Yojson.Safe.from_string in
