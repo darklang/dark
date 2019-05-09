@@ -1195,6 +1195,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 
 
 let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let s = recordAction "acCompleteField" s in
   match AC.highlighted s.ac with
   | None ->
       (ast, s)
@@ -1623,11 +1624,9 @@ let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
         acEnter ti ast s
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
-    (* TODO: reenable *)
-    (* | K.Period, L (TPartial (_, str), ti), _ *)
-    (*   when Option.map ~f:acEntryIsVariable (acSelected str ast s) = Some true *)
-    (*   -> *)
-    (*     acCompleteField ti str ast s *)
+    | K.Period, L (TPartial _, ti), _
+      when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+        acCompleteField ti ast s
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)

@@ -42,6 +42,19 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
+let tl ast =
+  { id = TLID "7"
+  ; pos = {x = 0; y = 0}
+  ; data =
+      TLHandler
+        { ast = toExpr ast
+        ; tlid = TLID "7"
+        ; spec =
+            { module_ = Blank.newF "HTTP"
+            ; name = Blank.newF "/test"
+            ; modifier = Blank.newF "GET" } } }
+
+
 let () =
   let aStr = EString (gid (), "some string") in
   let emptyStr = EString (gid (), "") in
@@ -94,12 +107,17 @@ let () =
      * ifs. *)
     let ast =
       if wrap
-      then ELet (gid (), "var", ast, EVariable (gid (), "var"))
+      then ELet (gid (), "request", ast, EVariable (gid (), "request"))
       else ast
     in
-    let extra = if wrap then 10 else 0 in
+    let extra = if wrap then 14 else 0 in
     let pos = pos + extra in
     let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
+    (* TODO: This is the wrong token to focus on. We may want to use the edge
+     * to decide. *)
+    let ti, _, _ = Fluid.getTokensAtPosition ~pos (toTokens ast) in
+    let ac = s.ac |> AC.setTargetTL m (Some (tl ast)) |> AC.setTargetTI m ti in
+    let s = {s with ac} in
     let newAST, newState =
       List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
     in
