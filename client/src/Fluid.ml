@@ -65,7 +65,7 @@ let fail str = raise (FExc str)
 (* Expressions *)
 (* -------------------- *)
 
-type ast = fluidExpr
+type ast = fluidExpr [@@deriving show]
 
 (* TODO: Stuff to add *)
 (* match/patterns *)

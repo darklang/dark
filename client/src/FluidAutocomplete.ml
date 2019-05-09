@@ -8,11 +8,11 @@ module TL = Toplevel
 module B = Blank
 module Regex = Util.Regex
 
-type autocomplete = fluidAutocompleteState
+type autocomplete = fluidAutocompleteState [@@deriving show]
 
-type autocompleteItem = fluidAutocompleteItem
+type autocompleteItem = fluidAutocompleteItem [@@deriving show]
 
-type tokenInfo = fluidTokenInfo
+type tokenInfo = fluidTokenInfo [@@deriving show]
 
 (* ---------------------------- *)
 (* Focus *)
