@@ -124,21 +124,38 @@ let upload_to_bucket
         ^ (Config.static_assets_bucket |> Option.value_exn)
         ^ "/o" )
       ~query:
-        [ ("uploadType", ["media"])
+        [ ("uploadType", ["multipart"])
         ; ("contentEncoding", ["gzip"])
         ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename])
         ]
   in
   let ct = Magic_mime.lookup filename in
-  let body = body |> Ezgzip.compress |> Cohttp_lwt.Body.of_string in
+  let body_string = body |> Ezgzip.compress in
+  let boundary = "metadata_boundary" in
+  let body =
+    ("\n--" ^ boundary)
+    ^ ("\nContent-type:" ^ ct)
+    ^ body_string
+    ^ ("\n--" ^ boundary)
+    ^ "\nContent-type: application/json; charset=UTF-8"
+    ^ "{ \"cacheControl\": \"immutable, max-age=604800\" }"
+    ^ ("\n--" ^ boundary)
+    ^ ""
+  in
   let headers =
     oauth2_token ()
     >|= fun token ->
     Cohttp.Header.of_list
-      [("Authorization", "Bearer " ^ token); ("Content-type", ct)]
+      [ ("Authorization", "Bearer " ^ token)
+      ; ("Content-type", "multipart/related; boundary=" ^ boundary)
+      ; ("Content-length", String.length body |> string_of_int) ]
   in
   headers
-  >|= (fun headers -> Cohttp_lwt_unix.Client.post uri ~headers ~body)
+  >|= (fun headers ->
+        Cohttp_lwt_unix.Client.post
+          uri
+          ~headers
+          ~body:(body |> Cohttp_lwt.Body.of_string) )
   >>= fun x ->
   Lwt.bind x (fun (resp, _) ->
       match resp.status with
