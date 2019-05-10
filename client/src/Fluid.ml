@@ -1,8 +1,11 @@
 (* open Webapi.Dom *)
 open Tc
+open Types
+open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
 module Regex = Util.Regex
+module TL = Toplevel
 
 (* Tea *)
 module Cmd = Tea.Cmd
@@ -15,6 +18,8 @@ end
 
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
+module AC = FluidAutocomplete
+module Token = FluidToken
 
 (* -------------------- *)
 (* Utils *)
@@ -60,31 +65,7 @@ let fail str = raise (FExc str)
 (* Expressions *)
 (* -------------------- *)
 
-type id = string [@@deriving show]
-
-type name = string [@@deriving show]
-
-type expr =
-  | EInteger of id * int
-  | EBool of id * bool
-  | EString of id * string
-  | EFloat of id * string * string
-  | EBlank of id
-  | ELet of id * name * expr * expr
-  | EIf of id * expr * expr * expr
-  | EBinOp of id * name * expr * expr * Types.sendToRail
-  | ELambda of id * name list * expr
-  | EFieldAccess of id * expr * name
-  | EVariable of id * string
-  | EFnCall of id * name * expr list * Types.sendToRail
-  | EPartial of id * string
-  | EList of id * expr list
-  | ERecord of id * (name * expr) list
-  | EThread of id * expr list
-  | EOldExpr of Types.expr
-[@@deriving show]
-
-type ast = expr
+type ast = fluidExpr [@@deriving show]
 
 (* TODO: Stuff to add *)
 (* match/patterns *)
@@ -93,19 +74,17 @@ type ast = expr
 (* character, null *)
 (* feature flags (may punt) *)
 
-let gid () = string_of_int (Native.Random.random ())
-
-let rec fromExpr (expr : Types.expr) : expr =
+let rec fromExpr (expr : Types.expr) : fluidExpr =
   let open Types in
   let varToName var =
     match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
   in
   match expr with
-  | Blank (ID id) ->
+  | Blank id ->
       EBlank id
-  | Partial (ID id, v) ->
+  | Partial (id, v) ->
       EPartial (id, v)
-  | F (ID id, nExpr) ->
+  | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
         ELet (id, varToName name, fromExpr rhs, fromExpr body)
@@ -169,56 +148,54 @@ let rec fromExpr (expr : Types.expr) : expr =
         EOldExpr expr )
 
 
-let rec toExpr (expr : expr) : Types.expr =
+let rec toExpr (expr : fluidExpr) : Types.expr =
   (* TODO: remove any new generation (gid ()) from this fn, save the old
    * ones instead *)
   match expr with
   | EInteger (id, num) ->
-      F (ID id, Value (Int.toString num))
+      F (id, Value (Int.toString num))
   | EString (id, str) ->
-      F (ID id, Value ("\"" ^ str ^ "\""))
+      F (id, Value ("\"" ^ str ^ "\""))
   | EFloat (id, whole, fraction) ->
-      F (ID id, Value (whole ^ "." ^ fraction))
+      F (id, Value (whole ^ "." ^ fraction))
   | EBool (id, b) ->
       let str = if b then "true" else "false" in
-      F (ID id, Value str)
+      F (id, Value str)
   | EVariable (id, var) ->
-      F (ID id, Variable var)
+      F (id, Variable var)
   | EFieldAccess (id, obj, fieldname) ->
       (* TODO: the id *)
-      F (ID id, FieldAccess (toExpr obj, F (ID (gid ()), fieldname)))
+      F (id, FieldAccess (toExpr obj, F (gid (), fieldname)))
   | EFnCall (id, name, args, ster) ->
-      F (ID id, FnCall (F (ID (gid ()), name), List.map ~f:toExpr args, ster))
+      F (id, FnCall (F (gid (), name), List.map ~f:toExpr args, ster))
   | EBinOp (id, name, arg1, arg2, ster) ->
-      F
-        ( ID id
-        , FnCall (F (ID (gid ()), name), [toExpr arg1; toExpr arg2], ster) )
+      F (id, FnCall (F (gid (), name), [toExpr arg1; toExpr arg2], ster))
   | ELambda (id, vars, body) ->
       (* TODO: IDs *)
       F
-        ( ID id
+        ( id
         , Lambda
-            ( List.map vars ~f:(fun var -> Types.F (ID (gid ()), var))
-            , toExpr body ) )
+            (List.map vars ~f:(fun var -> Types.F (gid (), var)), toExpr body)
+        )
   | EBlank id ->
-      Blank (ID id)
+      Blank id
   | ELet (id, lhs, rhs, body) ->
       (* TODO: ID *)
-      F (ID id, Let (F (ID (gid ()), lhs), toExpr rhs, toExpr body))
+      F (id, Let (F (gid (), lhs), toExpr rhs, toExpr body))
   | EIf (id, cond, thenExpr, elseExpr) ->
-      F (ID id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
+      F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str) ->
-      Partial (ID id, str)
+      Partial (id, str)
   | EList (id, exprs) ->
-      F (ID id, ListLiteral (List.map ~f:toExpr exprs))
+      F (id, ListLiteral (List.map ~f:toExpr exprs))
   | ERecord (id, pairs) ->
       F
-        ( ID id
+        ( id
         , ObjectLiteral
-            (List.map pairs ~f:(fun (k, v) ->
-                 (Types.F (ID (gid ()), k), toExpr v) )) )
+            (List.map pairs ~f:(fun (k, v) -> (Types.F (gid (), k), toExpr v)))
+        )
   | EThread (id, exprs) ->
-      F (ID id, Thread (List.map ~f:toExpr exprs))
+      F (id, Thread (List.map ~f:toExpr exprs))
   | EOldExpr expr ->
       expr
 
@@ -226,7 +203,7 @@ let rec toExpr (expr : expr) : Types.expr =
 let eid expr : id =
   match expr with
   | EOldExpr expr ->
-      Blank.toID expr |> Prelude.deID
+      Blank.toID expr
   | EInteger (id, _)
   | EString (id, _)
   | EBool (id, _)
@@ -251,357 +228,9 @@ let newB () = EBlank (gid ())
 (* -------------------- *)
 (* Tokens *)
 (* -------------------- *)
-type token =
-  | TInteger of id * string
-  | TString of id * string
-  | TBlank of id
-  | TTrue of id
-  | TFalse of id
-  | TFloatWhole of id * string
-  | TFloatPoint of id
-  | TFloatFraction of id * string
-  (* If you're filling in an expr, but havent finished it. Not used for
-   * non-expr names. *)
-  | TPartial of id * string
-  | TSep
-  | TNewline
-  (* All newlines in the nested tokens start indented to this position. *)
-  | TIndentToHere of token list
-  (* Increase the level of indentation for all these tokens. *)
-  | TIndented of token list
-  (* TIndentToHere and TIndented are preprocessed to the right indentation
-   * and turned into TIndents *)
-  | TIndent of int
-  | TLetKeyword of id
-  | TLetLHS of id * string
-  | TLetAssignment of id
-  | TIfKeyword of id
-  | TIfThenKeyword of id
-  | TIfElseKeyword of id
-  | TBinOp of id * string
-  | TFieldOp of id
-  | TFieldName of id * string
-  | TVariable of id * string
-  | TFnName of id * string
-  | TLambdaSep of id
-  | TLambdaArrow of id
-  | TLambdaSymbol of id
-  | TLambdaVar of id * string
-  | TListOpen of id
-  | TListClose of id
-  | TListSep of id
-  | TThreadPipe of id * int
-  | TRecordOpen of id
-  | TRecordField of id * int * string
-  | TRecordSep of id * int
-  | TRecordClose of id
-[@@deriving show]
+type token = Types.fluidToken
 
-let isBlank t =
-  match t with
-  | TBlank _
-  | TRecordField (_, _, "")
-  | TFieldName (_, "")
-  | TLetLHS (_, "")
-  | TLambdaVar (_, "")
-  | TPartial _ ->
-      true
-  | _ ->
-      false
-
-
-let isAutocompletable (t : token) : bool =
-  match t with TBlank _ | TPartial _ -> true | _ -> false
-
-
-let toText (t : token) : string =
-  let shouldntBeEmpty name =
-    if name = ""
-    then (
-      Js.log2 "shouldn't be empty" (show_token t) ;
-      "   " )
-    else name
-  in
-  let canBeEmpty name = if name = "" then "   " else name in
-  match t with
-  | TInteger (_, i) ->
-      shouldntBeEmpty i
-  | TFloatWhole (_, w) ->
-      shouldntBeEmpty w
-  | TFloatPoint _ ->
-      "."
-  | TFloatFraction (_, f) ->
-      f
-  | TString (_, str) ->
-      "\"" ^ str ^ "\""
-  | TTrue _ ->
-      "true"
-  | TFalse _ ->
-      "false"
-  | TBlank _ ->
-      "   "
-  | TPartial (_, str) ->
-      canBeEmpty str
-  | TSep ->
-      " "
-  | TNewline ->
-      "\n"
-  | TLetKeyword _ ->
-      "let "
-  | TLetAssignment _ ->
-      " = "
-  | TLetLHS (_, name) ->
-      canBeEmpty name
-  | TIfKeyword _ ->
-      "if "
-  | TIfThenKeyword _ ->
-      "then"
-  | TIfElseKeyword _ ->
-      "else"
-  | TBinOp (_, op) ->
-      shouldntBeEmpty op
-  | TFieldOp _ ->
-      "."
-  | TFieldName (_, name) ->
-      canBeEmpty name
-  | TVariable (_, name) ->
-      canBeEmpty name
-  | TFnName (_, name) ->
-      shouldntBeEmpty name
-  | TLambdaVar (_, name) ->
-      canBeEmpty name
-  | TLambdaSymbol _ ->
-      "\\"
-  | TLambdaSep _ ->
-      " "
-  | TLambdaArrow _ ->
-      " -> "
-  | TIndent indent ->
-      shouldntBeEmpty (Caml.String.make indent ' ')
-  (* We dont want this to be transparent, so have these make their presence
-   * known *)
-  | TIndented _ ->
-      "TIndented"
-  | TIndentToHere _ ->
-      "TIndentToHere"
-  | TListOpen _ ->
-      "["
-  | TListClose _ ->
-      "]"
-  | TListSep _ ->
-      ","
-  | TRecordOpen _ ->
-      "{"
-  | TRecordClose _ ->
-      "}"
-  | TRecordField (_, _, name) ->
-      canBeEmpty name
-  | TRecordSep _ ->
-      ":"
-  | TThreadPipe _ ->
-      "|>"
-
-
-let toTestText (t : token) : string =
-  match t with
-  | TBlank _ ->
-      "___"
-  | TPartial (_, str) ->
-      str
-  | _ ->
-      if isBlank t then "***" else toText t
-
-
-let toTypeName (t : token) : string =
-  match t with
-  | TInteger _ ->
-      "integer"
-  | TFloatWhole _ ->
-      "float-whole"
-  | TFloatPoint _ ->
-      "float-point"
-  | TFloatFraction _ ->
-      "float-fraction"
-  | TString (_, _) ->
-      "string"
-  | TTrue _ ->
-      "true"
-  | TFalse _ ->
-      "false"
-  | TBlank _ ->
-      "blank"
-  | TPartial _ ->
-      "partial"
-  | TLetKeyword _ ->
-      "let-keyword"
-  | TLetAssignment _ ->
-      "let-assignment"
-  | TLetLHS _ ->
-      "let-lhs"
-  | TSep ->
-      "sep"
-  | TIndented _ ->
-      "indented"
-  | TIndentToHere _ ->
-      "indent-to-here"
-  | TIndent _ ->
-      "indent"
-  | TNewline ->
-      "newline"
-  | TIfKeyword _ ->
-      "if-keyword"
-  | TIfThenKeyword _ ->
-      "if-then-keyword"
-  | TIfElseKeyword _ ->
-      "if-else-keyword"
-  | TBinOp _ ->
-      "binop"
-  | TFieldOp _ ->
-      "field-op"
-  | TFieldName _ ->
-      "field-name"
-  | TVariable _ ->
-      "variable"
-  | TFnName (_, _) ->
-      "fn-name"
-  | TLambdaVar (_, _) ->
-      "lambda-var"
-  | TLambdaSymbol _ ->
-      "lambda-symbol"
-  | TLambdaArrow _ ->
-      "lambda-arrow"
-  | TLambdaSep _ ->
-      "lambda-sep"
-  | TListOpen _ ->
-      "list-open"
-  | TListClose _ ->
-      "list-close"
-  | TListSep _ ->
-      "list-sep"
-  | TRecordOpen _ ->
-      "record-open"
-  | TRecordClose _ ->
-      "record-close"
-  | TRecordField _ ->
-      "record-field"
-  | TRecordSep _ ->
-      "record-sep"
-  | TThreadPipe _ ->
-      "thread-pipe"
-
-
-let toCategoryName (t : token) : string =
-  match t with
-  | TInteger _ | TString _ ->
-      "literal"
-  | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ ->
-      ""
-  | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
-      "float"
-  | TTrue _ | TFalse _ ->
-      "boolean"
-  | TFnName _ | TBinOp _ ->
-      "function"
-  | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
-      "let"
-  | TIndented _ | TIndentToHere _ | TIndent _ ->
-      "indent"
-  | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
-      "if"
-  | TFieldOp _ | TFieldName _ ->
-      "field"
-  | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaSep _ ->
-      "lambda"
-  | TListOpen _ | TListClose _ | TListSep _ ->
-      "list"
-  | TThreadPipe _ ->
-      "thread"
-  | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
-      "record"
-
-
-let toCssClasses (t : token) : string =
-  let keyword =
-    match t with
-    | TLetKeyword _ | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
-        "fluid-keyword"
-    | _ ->
-        ""
-  in
-  let empty =
-    match t with
-    | TLetLHS (_, "")
-    | TFieldName (_, "")
-    | TLambdaVar (_, "")
-    | TRecordField (_, _, "") ->
-        "fluid-empty"
-    | _ ->
-        ""
-  in
-  String.trim (keyword ^ " " ^ empty)
-  ^ " fluid-"
-  ^ toCategoryName t
-  ^ " fluid-"
-  ^ toTypeName t
-
-
-let tid (t : token) : id =
-  match t with
-  | TInteger (id, _)
-  | TFloatWhole (id, _)
-  | TFloatPoint id
-  | TFloatFraction (id, _)
-  | TTrue id
-  | TFalse id
-  | TBlank id
-  | TPartial (id, _)
-  | TLetKeyword id
-  | TLetAssignment id
-  | TLetLHS (id, _)
-  | TString (id, _)
-  | TIfKeyword id
-  | TIfThenKeyword id
-  | TIfElseKeyword id
-  | TBinOp (id, _)
-  | TFieldOp id
-  | TFieldName (id, _)
-  | TVariable (id, _)
-  | TFnName (id, _)
-  | TLambdaVar (id, _)
-  | TLambdaArrow id
-  | TLambdaSymbol id
-  | TLambdaSep id
-  | TListOpen id
-  | TListClose id
-  | TListSep id
-  | TThreadPipe (id, _)
-  | TRecordOpen id
-  | TRecordClose id
-  | TRecordField (id, _, _)
-  | TRecordSep (id, _) ->
-      id
-  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-      "no-id"
-
-
-type tokenInfo =
-  { startRow : int
-  ; startCol : int
-  ; startPos : int
-  ; endPos : int
-  ; length : int
-  ; token : token }
-
-let show_tokenInfo (ti : tokenInfo) =
-  Printf.sprintf
-    "(%d, %d), '%s', %s (%s)"
-    ti.startPos
-    ti.endPos
-    (* ti.length *)
-    (toText ti.token)
-    (tid ti.token)
-    (toTypeName ti.token)
-
+type tokenInfo = Types.fluidTokenInfo
 
 let rec toTokens' (e : ast) : token list =
   let nested b = TIndentToHere (toTokens' b) in
@@ -686,10 +315,10 @@ let rec toTokens' (e : ast) : token list =
   | EThread (id, exprs) ->
     ( match exprs with
     | [] ->
-        Js.log2 "Empty thread found" (show_expr e) ;
+        Js.log2 "Empty thread found" (show_fluidExpr e) ;
         []
     | [single] ->
-        Js.log2 "Thread with single entry found" (show_expr single) ;
+        Js.log2 "Thread with single entry found" (show_fluidExpr single) ;
         [nested single]
     | head :: tail ->
         [ nested head
@@ -700,14 +329,14 @@ let rec toTokens' (e : ast) : token list =
                    [TIndentToHere [TThreadPipe (id, i); nested e]] )
             |> List.concat ) ] )
   | EOldExpr expr ->
-      [TPartial (Prelude.deID (Blank.toID expr), "TODO: oldExpr")]
+      [TPartial (Blank.toID expr, "TODO: oldExpr")]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
 let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
   let startingX = x in
   List.foldl startingTokens ~init:(x, []) ~f:(fun t (x, old) ->
-      let text = toText t in
+      let text = Token.toText t in
       let len = String.length text in
       match t with
       | TIndented tokens ->
@@ -731,7 +360,7 @@ let infoize ~(pos : int) tokens : tokenInfo list =
     | [] ->
         []
     | token :: rest ->
-        let length = String.length (toText token) in
+        let length = String.length (Token.toText token) in
         let ti =
           { token
           ; startRow = !row
@@ -758,19 +387,19 @@ let toTokens (e : ast) : tokenInfo list =
 let eToString (e : ast) : string =
   e
   |> toTokens
-  |> List.map ~f:(fun ti -> toTestText ti.token)
+  |> List.map ~f:(fun ti -> Token.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let eDebug (e : expr) : string =
+let eDebug (e : fluidExpr) : string =
   e |> eToString |> Regex.replace ~re:(Regex.regex " ") ~repl:"."
 
 
-let eToStructure (e : expr) : string =
+let eToStructure (e : fluidExpr) : string =
   e
   |> toTokens
   |> List.map ~f:(fun ti ->
-         "<" ^ toTypeName ti.token ^ ":" ^ toText ti.token ^ ">" )
+         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
   |> String.join ~sep:""
 
 
@@ -798,7 +427,7 @@ let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 
 let editorID = "fluid-editor"
 
-let setPos offset =
+let setBrowserPos offset =
   Tea.Cmd.call (fun _ ->
       (* We need to set this in the new frame, as updating sets the cursor to
        * the start of the DOM node. *)
@@ -811,99 +440,51 @@ let setPos offset =
 (* Autocomplete *)
 (* -------------------- *)
 
-type acEntry =
-  | ACFunction of string * int
-  | ACLet
-  | ACIf
-  | ACVariable of string
-  | ACTrue
-  | ACFalse
-
-let acEntryIsVariable e = match e with ACVariable _ -> true | _ -> false
-
-let acEntryToString (entry : acEntry) =
+let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   match entry with
-  | ACFunction (name, _) ->
-      name
-  | ACVariable name ->
-      name
-  | ACLet ->
-      "let "
-  | ACIf ->
-      "if "
-  | ACFalse ->
-      "false"
-  | ACTrue ->
-      "true"
-
-
-let functions =
-  [ ACFunction ("Http::Forbidden", 0)
-  ; ACFunction ("String::reverse", 1)
-  ; ACFunction ("List::insert", 2)
-  ; ACFunction ("List::range", 2)
-  ; ACFunction ("List::map", 2)
-  ; ACFunction ("DB::set", 3) ]
-
-
-let acItems expr =
-  let vars =
-    expr
-    |> toTokens
-    |> List.filterMap ~f:(fun ti ->
-           match ti.token with
-           | TLetLHS (_, x) ->
-               Some (ACVariable x)
-           | TLambdaVar (_, x) ->
-               Some (ACVariable x)
-           | _ ->
-               None )
-  in
-  [ACVariable "request"; ACVariable "Users"]
-  @ vars
-  @ [ACLet; ACIf; ACTrue; ACFalse]
-  @ functions
-
-
-let acMatches (str : string) (entry : acEntry) =
-  let str = String.trim str in
-  String.contains
-    ~substring:(String.toLower str)
-    (entry |> acEntryToString |> String.toLower)
-
-
-let acSelected (str : string) (ast : ast) (s : state) : acEntry option =
-  match s.acPos with
-  | None ->
-      None
-  | Some index ->
-      acItems ast |> List.filter ~f:(acMatches str) |> List.getAt ~index
-
-
-let acExpr (entry : acEntry) : expr * int =
-  match entry with
-  | ACFunction (name, count) ->
+  | FACFunction fn ->
+      let count = List.length fn.fnParameters in
+      let name = fn.fnName in
+      let r =
+        if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+        then Types.Rail
+        else Types.NoRail
+      in
       let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
-      (* TODO: look at type to figure out error rail *)
-      (EFnCall (gid (), name, args, NoRail), String.length name + 1)
-  | ACLet ->
+      (EFnCall (gid (), name, args, r), String.length name + 1)
+  | FACKeyword KLet ->
       (ELet (gid (), "", newB (), newB ()), 4)
-  | ACIf ->
+  | FACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
-  | ACVariable name ->
+  | FACKeyword KLambda ->
+      (ELambda (gid (), [""], newB ()), 1)
+  | FACVariable name ->
       (EVariable (gid (), name), String.length name)
-  | ACTrue ->
+  | FACLiteral "true" ->
       (EBool (gid (), true), 4)
-  | ACFalse ->
+  | FACLiteral "false" ->
       (EBool (gid (), false), 5)
+  | _ ->
+      let str =
+        "TODO: autocomplete result for "
+        ^ Types.show_fluidAutocompleteItem entry
+      in
+      (EPartial (gid (), str), String.length str)
 
+
+let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
-  isAutocompletable ti.token
+  Token.isAutocompletable ti.token
   && s.upDownCol = None
-  && s.acPos <> None
+  && s.ac.index <> None
   && s.newPos <= ti.endPos
   && s.newPos >= ti.startPos
+
+
+let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
+  let upDownCol = if resetUD then None else s.upDownCol in
+  {s with newPos = pos; upDownCol}
 
 
 (* -------------------- *)
@@ -1020,7 +601,7 @@ let isAtom (token : token) : bool =
 
 
 let length (tokens : token list) : int =
-  tokens |> List.map ~f:toText |> List.map ~f:String.length |> List.sum
+  tokens |> List.map ~f:Token.toText |> List.map ~f:String.length |> List.sum
 
 
 (* Returns the token to the left and to the right. Ignores indent tokens *)
@@ -1149,7 +730,7 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
 (* ------------- *)
 (* Getting expressions *)
 (* ------------- *)
-let rec findExpr (id : id) (expr : expr) : expr option =
+let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
   let fe = findExpr id in
   if eid expr = id
   then Some expr
@@ -1182,7 +763,7 @@ let rec findExpr (id : id) (expr : expr) : expr option =
         None
 
 
-let isEmpty (e : expr) : bool =
+let isEmpty (e : fluidExpr) : bool =
   let isBlank e = match e with EBlank _ -> true | _ -> false in
   match e with
   | EBlank _ ->
@@ -1203,9 +784,9 @@ let exprIsEmpty (id : id) (ast : ast) : bool =
   match findExpr id ast with Some e -> isEmpty e | _ -> false
 
 
-let findParent (id : id) (ast : ast) : expr option =
-  let rec findParent' ~(parent : expr option) (id : id) (expr : expr) :
-      expr option =
+let findParent (id : id) (ast : ast) : fluidExpr option =
+  let rec findParent' ~(parent : fluidExpr option) (id : id) (expr : fluidExpr)
+      : fluidExpr option =
     let fp = findParent' ~parent:(Some expr) id in
     if eid expr = id
     then parent
@@ -1244,7 +825,7 @@ let findParent (id : id) (ast : ast) : expr option =
 (* Replacing expressions *)
 (* ------------- *)
 (* f needs to call recurse or it won't go far *)
-let recurse ~(f : expr -> expr) (expr : expr) : expr =
+let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   match expr with
   | EInteger _
   | EBlank _
@@ -1276,12 +857,12 @@ let recurse ~(f : expr -> expr) (expr : expr) : expr =
       expr
 
 
-let wrap ~(f : expr -> expr) (id : id) (ast : ast) : ast =
+let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   let rec run e = if id = eid e then f e else recurse ~f:run e in
   run ast
 
 
-let replaceExpr ~(newExpr : expr) (id : id) (ast : ast) : ast =
+let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun _ -> newExpr)
 
 
@@ -1343,7 +924,7 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           let rest = List.tail vars |> Option.withDefault ~default:[] in
           ELambda (id, str :: rest, expr)
       | _ ->
-          fail ("not a string type: " ^ show_expr e) )
+          fail ("not a string type: " ^ show_fluidExpr e) )
 
 
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
@@ -1361,7 +942,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
-    expr =
+    fluidExpr =
   match token with
   | TString (id, str) ->
       replaceExpr id ~newExpr:(EString (gid (), f str)) ast
@@ -1386,7 +967,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       fail "not supported by replaceToken"
 
 
-let replaceFloatWhole (str : string) (id : id) (ast : ast) : expr =
+let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
   wrap id ast ~f:(fun expr ->
       match expr with
       | EFloat (id, _, fraction) ->
@@ -1395,7 +976,7 @@ let replaceFloatWhole (str : string) (id : id) (ast : ast) : expr =
           fail "not a float" )
 
 
-let replaceFloatFraction (str : string) (id : id) (ast : ast) : expr =
+let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
   wrap id ast ~f:(fun expr ->
       match expr with
       | EFloat (id, whole, _) ->
@@ -1404,8 +985,8 @@ let replaceFloatFraction (str : string) (id : id) (ast : ast) : expr =
           fail "not a float" )
 
 
-let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) : expr
-    =
+let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
+    fluidExpr =
   wrap id ast ~f:(fun expr ->
       match expr with
       | EFloat (id, whole, fraction) ->
@@ -1414,7 +995,8 @@ let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) : expr
           fail "not a float" )
 
 
-let insertInList ~(index : int) ~(newExpr : expr) (id : id) (ast : ast) : ast =
+let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
+    ast =
   wrap id ast ~f:(fun expr ->
       match expr with
       | EList (id, exprs) ->
@@ -1498,37 +1080,37 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
   let newPos = getNextWS (toTokens ast) in
-  {s with newPos; upDownCol = None}
+  setPosition ~resetUD:true s newPos
 
 
 let moveToEnd (ti : tokenInfo) (s : state) : state =
   let s = recordAction "moveToEnd" s in
-  {s with newPos = ti.endPos - 1; upDownCol = None}
+  setPosition ~resetUD:true s (ti.endPos - 1)
 
 
 let moveToStart (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~pos:ti.startPos "moveToStart" s in
-  {s with newPos = ti.startPos; upDownCol = None}
+  setPosition ~resetUD:true s ti.startPos
 
 
 let moveToAfter (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~pos:ti.endPos "moveToAfter" s in
-  {s with newPos = ti.endPos; upDownCol = None}
+  setPosition ~resetUD:true s ti.endPos
 
 
 let moveOneLeft (pos : int) (s : state) : state =
   let s = recordAction ~pos "moveOneLeft" s in
-  {s with newPos = max 0 (pos - 1); upDownCol = None}
+  setPosition ~resetUD:true s (max 0 (pos - 1))
 
 
 let moveOneRight (pos : int) (s : state) : state =
   let s = recordAction ~pos "moveOneRight" s in
-  {s with newPos = pos + 1; upDownCol = None}
+  setPosition ~resetUD:true s (pos + 1)
 
 
 let moveTo (newPos : int) (s : state) : state =
   let s = recordAction ~pos:newPos "moveTo" s in
-  {s with newPos}
+  setPosition s newPos
 
 
 (* TODO: rewrite nextBlank like prevBlank *)
@@ -1541,17 +1123,19 @@ let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
         (* Wrap, unless we've already wrapped *)
         if pos' = -1 then 0 else getNextBlank (-1) tokens
     | ti :: rest ->
-        if isBlank ti.token && ti.startPos > pos'
+        if Token.isBlank ti.token && ti.startPos > pos'
         then ti.startPos
         else getNextBlank pos' rest
   in
   let newPos = getNextBlank pos tokens in
-  {s with newPos; upDownCol = None}
+  setPosition ~resetUD:true s newPos
 
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens = toTokens ast |> List.filter ~f:(fun ti -> isBlank ti.token) in
+  let tokens =
+    toTokens ast |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
+  in
   let rec getPrevBlank pos' tokens' =
     match tokens' with
     | [] ->
@@ -1560,31 +1144,35 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
         if ti.endPos < pos' then ti.startPos else getPrevBlank pos' rest
   in
   let newPos = getPrevBlank pos (List.reverse tokens) in
-  {s with newPos; upDownCol = None}
+  setPosition ~resetUD:true s newPos
 
+
+let acSetIndex (i : int) (s : state) : state =
+  {s with ac = {s.ac with index = Some i}; upDownCol = None}
+
+
+let acMoveToStart (s : state) : state = {s with ac = {s.ac with index = Some 0}}
+
+let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
 
 let acMoveUp (s : state) : state =
   let s = recordAction "acMoveUp" s in
-  let acPos =
-    match s.acPos with
-    | None ->
-        Some 0
-    | Some current ->
-        Some (max 0 (current - 1))
+  let index =
+    match s.ac.index with None -> 0 | Some current -> max 0 (current - 1)
   in
-  {s with acPos; upDownCol = None}
+  acSetIndex index s
 
 
-let acMoveDown (ast : ast) (s : state) : state =
+let acMoveDown (s : state) : state =
   let s = recordAction "acMoveDown" s in
-  let acPos =
-    match s.acPos with
+  let index =
+    match s.ac.index with
     | None ->
-        Some 0
+        0
     | Some current ->
-        Some (min (current + 1) (List.length (acItems ast) - 1))
+        min (current + 1) (List.length (AC.allCompletions s.ac) - 1)
   in
-  {s with acPos; upDownCol = None}
+  acSetIndex index s
 
 
 let report (e : string) (s : state) =
@@ -1592,34 +1180,33 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
-let acEnter (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
-    ast * state =
+let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction "acEnter" s in
-  match acSelected str ast s with
+  match AC.highlighted s.ac with
   | None ->
       (ast, s)
   | Some entry ->
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, length = acExpr entry in
-      let id = tid ti.token in
+      let newExpr, length = acToExpr entry in
+      let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
-      let newState = moveTo (ti.startPos + length) {s with acPos = None} in
+      let newState = moveTo (ti.startPos + length) (acClear s) in
       (newAST, newState)
 
 
-let acCompleteField (ti : tokenInfo) (str : string) (ast : ast) (s : state) :
-    ast * state =
-  match acSelected str ast s with
+let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let s = recordAction "acCompleteField" s in
+  match AC.highlighted s.ac with
   | None ->
       (ast, s)
   | Some entry ->
-      let newExpr, length = acExpr entry in
+      let newExpr, length = acToExpr entry in
       let newExpr = EFieldAccess (gid (), newExpr, "") in
       let length = length + 1 in
-      let newState = moveTo (ti.startPos + length) {s with acPos = None} in
-      let newAST = replaceExpr ~newExpr (tid ti.token) ast in
+      let newState = moveTo (ti.startPos + length) (acClear s) in
+      let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)
 
 
@@ -1639,7 +1226,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
       (ast, moveToStart ti s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
-      let newAST = removeEmptyExpr (tid ti.token) ast in
+      let newAST = removeEmptyExpr (Token.tid ti.token) ast in
       if newAST = ast then (ast, s) else (newAST, moveToStart ti s)
   | TString (id, "") ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
@@ -1701,7 +1288,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
-      (removeEmptyExpr (tid ti.token) ast, s)
+      (removeEmptyExpr (Token.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
   | TBinOp _
@@ -1963,7 +1550,8 @@ let doInsert
       doInsert' ~pos letter ti ast s
 
 
-let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
+let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
+    ast * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
   let tokens = toTokens ast in
@@ -1992,53 +1580,55 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         doDelete ~pos ti ast s
     (* Tab to next blank *)
     | K.Tab, _, R (_, ti)
-      when exprIsEmpty (tid ti.token) ast || not (isAutocompleting ti s) ->
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
         (ast, moveToNextBlank ~pos ast s)
     | K.Tab, L (_, ti), _
-      when exprIsEmpty (tid ti.token) ast || not (isAutocompleting ti s) ->
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
         (ast, moveToNextBlank ~pos ast s)
     | K.ShiftTab, _, R (_, ti)
-      when exprIsEmpty (tid ti.token) ast || not (isAutocompleting ti s) ->
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
         (ast, moveToPrevBlank ~pos ast s)
     | K.ShiftTab, L (_, ti), _
-      when exprIsEmpty (tid ti.token) ast || not (isAutocompleting ti s) ->
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
         (ast, moveToPrevBlank ~pos ast s)
     (* Autocomplete menu *)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
     | K.Escape, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, {s with acPos = None})
+        (ast, acClear s)
     | K.Escape, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, {s with acPos = None})
+        (ast, acClear s)
     | K.Up, _, R (_, ti) when isAutocompleting ti s ->
         (ast, acMoveUp s)
     | K.Up, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveUp s)
     | K.Down, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, acMoveDown ast s)
+        (ast, acMoveDown s)
     | K.Down, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, acMoveDown ast s)
+        (ast, acMoveDown s)
     (* Autocomplete finish *)
-    | K.Enter, L (TPartial (_, str), ti), _
-    | K.Enter, _, R (TPartial (_, str), ti)
-    | K.Space, L (TPartial (_, str), ti), _
-    | K.Space, _, R (TPartial (_, str), ti)
-    | K.Tab, L (TPartial (_, str), ti), _
-    | K.Tab, _, R (TPartial (_, str), ti) ->
-        acEnter ti str ast s
+    | K.Enter, L (TPartial (_, _), ti), _
+    | K.Enter, _, R (TPartial (_, _), ti)
+    | K.Space, L (TPartial (_, _), ti), _
+    | K.Space, _, R (TPartial (_, _), ti)
+    | K.Tab, L (TPartial (_, _), ti), _
+    | K.Tab, _, R (TPartial (_, _), ti)
     | K.Enter, L (TBlank _, ti), _
     | K.Enter, _, R (TBlank _, ti)
     | K.Space, L (TBlank _, ti), _
     | K.Space, _, R (TBlank _, ti)
     | K.Tab, L (TBlank _, ti), _
     | K.Tab, _, R (TBlank _, ti) ->
-        acEnter ti "" ast s
+        acEnter ti ast s
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
-    | K.Period, L (TPartial (_, str), ti), _
-      when Option.map ~f:acEntryIsVariable (acSelected str ast s) = Some true
-      ->
-        acCompleteField ti str ast s
+    | K.Period, L (TPartial _, ti), _
+      when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+        acCompleteField ti ast s
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
@@ -2059,7 +1649,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         doInsert ~pos keyChar toTheLeft ast s
     | K.Comma, L (t, ti), _ ->
         if onEdge
-        then (addBlankToList (tid t) ast, moveOneRight ti.endPos s)
+        then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos keyChar ti ast s
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
@@ -2092,7 +1682,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Multiply, L (_, toTheLeft), _
     | K.ForwardSlash, L (_, toTheLeft), _
       when onEdge ->
-        (convertToBinOp keyChar (tid toTheLeft.token) ast, s)
+        (convertToBinOp keyChar (Token.tid toTheLeft.token) ast, s)
     (* End of line *)
     | K.Enter, _, R (TNewline, _) ->
         (ast, moveOneRight pos s)
@@ -2114,34 +1704,38 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   in
   (* Fix up autocomplete *)
   let newState =
-    let oldTextToken =
+    let oldTextTokenInfo =
       match (toTheLeft, toTheRight) with
-      | _, R (t, _) when isTextToken t && isAutocompletable t ->
-          Some t
-      | L (t, _), _ when isTextToken t && isAutocompletable t ->
-          Some t
+      | _, R (_, ti)
+        when isTextToken ti.token && Token.isAutocompletable ti.token ->
+          Some ti
+      | L (_, ti), _
+        when isTextToken ti.token && Token.isAutocompletable ti.token ->
+          Some ti
       | _ ->
           None
     in
     let newLeft, newRight, _ =
       getNeighbours ~pos:newState.newPos (toTokens newAST)
     in
-    let newTextToken =
+    let newTextTokenInfo =
       match (newLeft, newRight) with
-      | _, R (t, _) when isTextToken t && isAutocompletable t ->
-          Some t
-      | L (t, _), _ when isTextToken t && isAutocompletable t ->
-          Some t
+      | _, R (_, ti)
+        when isTextToken ti.token && Token.isAutocompletable ti.token ->
+          Some ti
+      | L (_, ti), _
+        when isTextToken ti.token && Token.isAutocompletable ti.token ->
+          Some ti
       | _ ->
           None
     in
-    match (oldTextToken, newTextToken) with
-    | Some tOld, Some tNew when tOld <> tNew ->
-        {newState with acPos = Some 0}
-    | None, Some _ ->
-        {newState with acPos = Some 0}
+    match (oldTextTokenInfo, newTextTokenInfo) with
+    | Some tOld, Some tNew when tOld.token <> tNew.token ->
+        {newState with ac = AC.setTargetTI m (Some tNew) newState.ac}
+    | None, Some tNew ->
+        {newState with ac = AC.setTargetTI m (Some tNew) newState.ac}
     | _, None ->
-        {newState with acPos = None}
+        {newState with ac = AC.reset m}
     | _ ->
         newState
   in
@@ -2149,27 +1743,30 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
 
 
 let update (m : Types.model) (msg : Types.msg) : Types.modification =
-  match Toplevel.selectedAST m |> Option.map ~f:fromExpr with
+  match Toplevel.selected m with
   | None ->
       Types.NoChange
-  | Some ast ->
+  | Some tl ->
+      let ast = TL.rootExpr tl |> deOption "Fluid.update" |> fromExpr in
       let newAST, newState, cmd =
-        let s = m.fluidState in
+        let s =
+          {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
+        in
         let s = {s with error = None; oldPos = s.newPos} in
         match msg with
         | FluidMouseClick ->
           ( match getCursorPosition () with
           | Some newPos ->
-              (ast, {s with newPos}, Cmd.none)
+              (ast, setPosition s newPos, Cmd.none)
           | None ->
               (ast, {s with error = Some "found no pos"}, Cmd.none) )
         | FluidKeyPress {key} ->
             let s = {s with lastKey = key; actions = []} in
-            let newAST, newState = updateKey key ast s in
+            let newAST, newState = updateKey m key ast s in
             (* These might be the same token *)
             let cmd =
               if newAST <> ast || newState.oldPos <> newState.newPos
-              then setPos newState.newPos
+              then setBrowserPos newState.newPos
               else Cmd.none
             in
             (newAST, newState, cmd)
@@ -2190,29 +1787,48 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
 (* -------------------- *)
 (* View *)
 (* -------------------- *)
-let toHtml (ast : ast) (s : state) (l : tokenInfo list) :
-    Types.msg Html.html list =
+let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
+    =
+  let toList acis class' index =
+    List.indexedMap
+      ~f:(fun i item ->
+        let highlighted = index = i in
+        let name = AC.asName item in
+        Html.li
+          [ Attrs.classList
+              [ ("autocomplete-item", true)
+              ; ("fluid-selected", highlighted)
+              ; (class', true) ]
+          ; ViewUtils.nothingMouseEvent "mouseup"
+          ; ViewEntry.defaultPasteHandler
+          ; ViewUtils.nothingMouseEvent "mousedown"
+          ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
+                AutocompleteClick name ) ]
+          [ Html.text name
+          ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
+          ] )
+      acis
+  in
+  let index = ac.index |> Option.withDefault ~default:(-1) in
+  let invalidIndex = index - List.length ac.completions in
+  Js.log2 "ti" (Option.map ~f:Token.show_tokenInfo ac.targetTI) ;
+  Js.log2 "TL" (Option.map ~f:(fun tl -> tl.id) ac.targetTL) ;
+  Js.log2 "completions" ac.completions ;
+  Js.log2 "invalid" ac.invalidCompletions ;
+  let autocompleteList =
+    toList ac.completions "valid" index
+    @ toList ac.invalidCompletions "invalid" invalidIndex
+  in
+  Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
+
+
+let toHtml (s : state) (l : tokenInfo list) : Types.msg Html.html list =
   List.map l ~f:(fun ti ->
-      let dropdown () =
-        Html.div
-          [Attrs.id "fluid-dropdown"]
-          [ Html.ul
-              []
-              ( acItems ast
-              |> List.filter ~f:(acMatches (toText ti.token))
-              |> List.indexedMap ~f:(fun i entry ->
-                     let class' =
-                       if Some i = s.acPos
-                       then [Attrs.class' "fluid-selected"]
-                       else []
-                     in
-                     let attrs = class' in
-                     Html.li attrs [Html.text (acEntryToString entry)] ) ) ]
-      in
+      let dropdown () = viewAutocomplete s.ac in
       let element nested =
-        let content = toText ti.token in
-        let classes = toCssClasses ti.token in
-        let idclasses = [("id-" ^ tid ti.token, true)] in
+        let content = Token.toText ti.token in
+        let classes = Token.toCssClasses ti.token in
+        let idclasses = [("id-" ^ deID (Token.tid ti.token), true)] in
         Html.span
           [ Attrs.classList
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
@@ -2241,7 +1857,7 @@ let viewAST (ast : ast) (s : state) : Types.msg Html.html =
     ; event ~key:"keydown" "keydown"
     (* ; event ~key:"keyup" "keyup" *)
      ]
-    (ast |> toTokens |> toHtml ast s)
+    (ast |> toTokens |> toHtml s)
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
@@ -2267,7 +1883,7 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         []
         [ Html.text "acPos: "
         ; Html.text
-            ( s.acPos
+            ( s.ac.index
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
     ; Html.div
@@ -2283,17 +1899,17 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   let tokenDiv =
     let prev, current, next = getTokensAtPosition tokens ~pos:s.newPos in
     let p =
-      match prev with Some prev -> show_tokenInfo prev | None -> "none"
+      match prev with Some prev -> Token.show_tokenInfo prev | None -> "none"
     in
     let c =
       match current with
       | Some current ->
-          show_tokenInfo current
+          Token.show_tokenInfo current
       | None ->
           "none"
     in
     let n =
-      match next with Some next -> show_tokenInfo next | None -> "none"
+      match next with Some next -> Token.show_tokenInfo next | None -> "none"
     in
     [ Html.text ("prev: " ^ p)
     ; Html.br []
