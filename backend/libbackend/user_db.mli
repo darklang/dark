@@ -26,6 +26,12 @@ val delete : state:exec_state -> DbT.db -> string -> unit
 
 val delete_all : state:exec_state -> DbT.db -> unit
 
+(* Stats fns *)
+
+val stats_count : account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> int
+
+val stats_pluck : account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> dval
+
 (* Deprecated: only used in legacy in deprecated libdb *)
 val update : state:exec_state -> DbT.db -> dval_map -> unit
 
