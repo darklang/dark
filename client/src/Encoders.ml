@@ -369,6 +369,10 @@ and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
     [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
 
 
+and dbStatsRPCParams (params : Types.dbStatsRPCParams) : Js.Json.t =
+  object_ [("tlids", list tlid params.dbStatsTlids)]
+
+
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
     : Js.Json.t =
   object_

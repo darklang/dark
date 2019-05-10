@@ -274,14 +274,13 @@ module New404Push = struct
 end
 
 (* Request analysis *)
-
 module RequestAnalysis = struct
   external send : performAnalysisParams -> unit = "requestAnalysis"
     [@@bs.val] [@@bs.scope "window", "Dark", "analysis"]
 end
 
-module RequestTraces = struct
-  external send : traceFetchContext * getTraceDataRPCParams -> unit = "fetch"
+module Fetcher = struct
+  external request : fetchContext * fetchRequest -> unit = "fetch"
     [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
 end
 
@@ -291,8 +290,17 @@ external origin : string = "origin"
 external prefix : string = "testcafeInjectedPrefix"
   [@@bs.val] [@@bs.scope "window"]
 
-let contextFromModel (m : model) : traceFetchContext =
+let contextFromModel (m : model) : fetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
+
+
+let updateDBStats m (TLID tlid) =
+  Sync.attempt
+    ~key:("update-db-stats-" ^ tlid)
+    m
+    (Tea_cmd.call (fun _ ->
+         Fetcher.request
+           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]}) ))
 
 
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
@@ -338,9 +346,9 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
       ~key:("tracefetch-" ^ traceID)
       m
       (Tea_cmd.call (fun _ ->
-           RequestTraces.send
-             (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID})
-       ))
+           Fetcher.request
+             ( contextFromModel m
+             , TraceFetch {gtdrpTlid = tlid; gtdrpTraceID = traceID} ) ))
   else (m, Cmd.none)
 
 
