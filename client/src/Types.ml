@@ -1008,8 +1008,6 @@ and fluidAutocompleteState =
       (* ------------------------------- *)
       (* Cached inputs *)
       (* ------------------------------- *)
-  ; admin : bool
-  ; isCommandMode : bool
   ; targetDval :
       dval option
       (* ------------------------------- *)

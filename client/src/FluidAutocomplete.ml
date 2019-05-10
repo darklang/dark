@@ -402,9 +402,7 @@ let refilter (m : model) (old : autocomplete) : autocomplete =
         ""
   in
   let fudgedCompletions =
-    if old.isCommandMode
-    then List.filter ~f:isStaticItem old.allCompletions
-    else withDynamicItems old.targetTL old.targetTI query old.allCompletions
+    withDynamicItems old.targetTL old.targetTI query old.allCompletions
   in
   let newCompletions, invalidCompletions =
     filter m old fudgedCompletions query
@@ -540,10 +538,3 @@ let setTargetTL (m : model) (tl : toplevel option) (a : autocomplete) :
 let setTargetTI (m : model) (ti : tokenInfo option) (a : autocomplete) :
     autocomplete =
   {a with targetTI = ti} |> regenerate m
-
-
-(* ------------------------------------ *)
-(* Commands *)
-(* ------------------------------------ *)
-let enableCommandMode (a : autocomplete) : autocomplete =
-  {a with isCommandMode = true}
