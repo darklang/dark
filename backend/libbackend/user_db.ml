@@ -428,8 +428,49 @@ let delete_all ~state (db : db) =
 
 
 (* ------------------------- *)
-(* locked/unlocked (not _locking_) *)
+(* stats/locked/unlocked (not _locking_) *)
 (* ------------------------- *)
+let stats_pluck ~account_id ~canvas_id (db : db) : dval =
+  Db.fetch_one
+    ~name:"stats_pluck"
+    "SELECT data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     ORDER BY created_at DESC
+     LIMIT 1"
+    ~params:
+      [ ID db.tlid
+      ; Uuid account_id
+      ; Uuid canvas_id
+      ; Int db.version
+      ; Int current_dark_version ]
+  |> to_obj db
+
+
+let stats_count ~account_id ~canvas_id (db : db) : int =
+  Db.fetch
+    ~name:"stats_count"
+    "SELECT count(*)
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5"
+    ~params:
+      [ ID db.tlid
+      ; Uuid account_id
+      ; Uuid canvas_id
+      ; Int db.version
+      ; Int current_dark_version ]
+  |> List.hd_exn
+  |> List.hd_exn
+  |> int_of_string
+
 
 let unlocked canvas_id account_id (dbs : db list) : db list =
   match dbs with
