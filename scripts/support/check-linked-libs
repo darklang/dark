@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if (ldd $1 | grep not.found); then
+  echo "Missing libraries!"
+  exit 1
+fi

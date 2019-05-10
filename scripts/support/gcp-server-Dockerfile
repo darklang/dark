@@ -43,4 +43,6 @@ COPY . /home/dark
 ARG GIT_COMMIT
 ENV GIT_COMMIT ${GIT_COMMIT}
 
+RUN ./check-linked-libs bin/server.exe
+
 CMD "./gcp-run-server"
