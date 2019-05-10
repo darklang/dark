@@ -40,4 +40,6 @@ COPY . /home/dark
 ARG GIT_COMMIT
 ENV GIT_COMMIT ${GIT_COMMIT}
 
+RUN ./check-linked-libs bin/dark-stroller
+
 CMD "bin/dark-stroller"

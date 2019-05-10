@@ -25,6 +25,7 @@ DIR=$(mktemp -d --suffix _gcp-builddir)
 cp scripts/support/gcp-server-Dockerfile "$DIR/Dockerfile"
 
 cp -f scripts/support/gcp-run-server "$DIR/"
+cp -f scripts/support/check-linked-libs "$DIR/"
 cp -Rf backend/templates "$DIR/"
 cp -Rf scripts "$DIR/"
 
@@ -51,6 +52,7 @@ NDIR=$(mktemp -d --suffix _gcp-qw-builddir)
 cp scripts/support/gcp-queueworker-Dockerfile "$NDIR/Dockerfile"
 
 cp -f scripts/support/gcp-run-queueworker "$NDIR/"
+cp -f scripts/support/check-linked-libs "$NDIR/"
 cp -Rf backend/templates "$NDIR/"
 cp -Rf scripts "$NDIR/"
 
@@ -77,6 +79,7 @@ CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
 cp scripts/support/gcp-cronchecker-Dockerfile "$CDIR/Dockerfile"
 
 cp -f scripts/support/gcp-run-cronchecker "$CDIR/"
+cp -f scripts/support/check-linked-libs "$CDIR/"
 cp -Rf backend/templates "$CDIR/"
 cp -Rf scripts "$CDIR/"
 
@@ -102,6 +105,7 @@ cp scripts/support/gcp-stroller-Dockerfile "$SDIR/Dockerfile"
 
 mkdir -p "$SDIR/bin"
 cp -f stroller/target/release/dark-stroller "$SDIR/bin/"
+cp -f scripts/support/check-linked-libs "$SDIR/"
 
 docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-stroller:latest" "$SDIR"
 
