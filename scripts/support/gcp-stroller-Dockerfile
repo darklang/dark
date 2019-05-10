@@ -16,7 +16,7 @@ RUN apt-get update \
       libcurl4-gnutls-dev \
       locales \
       sudo \
-      libssl1.0-dev \
+      libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
