@@ -157,6 +157,9 @@ jobs:
             rm -Rf cargo
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
+      - run-background-container
+      - wait-for-container
+      - run: scripts/gcp-build-containers --skip-ocaml
       - run:
           name: Copy out generated files and caches
           command: |
@@ -197,6 +200,9 @@ jobs:
       - run: touch backend/static/appsupport.js
       - copy-into-container
       - run: scripts/builder --compile-backend --test
+      - run-background-container
+      - wait-for-container
+      - run: scripts/gcp-build-containers --skip-stroller
       - run:
           name: Copy out generated files and caches
           command: |
@@ -332,21 +338,6 @@ jobs:
 
 
 
-  build-for-prod:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - copy-into-container
-      - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
-
-
-
   push-to-gcp:
     executor: my-executor
     steps:
@@ -411,16 +402,6 @@ workflows:
           requires:
             - build-backend
             - build-client
-
-      # checks that prod containers build & have appropriate libraries
-      - build-for-prod:
-          filters:
-            branches:
-              ignore: master
-          requires:
-            - build-backend
-            - build-client
-            - build-stroller
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
