@@ -168,14 +168,14 @@ and (* PG returns lists of strings. This converts them to types using the
       in
       let merged = Util.merge_left p_obj default_keys in
       (* </HACK> *)
-      let type_checked = type_check_and_fetch_dependents ~state db merged in
+      let type_checked = type_check ~state db merged in
       DObj type_checked
   | _ ->
       Exception.internal "Got bad format from db fetch"
 
 
-and type_check_and_map_dependents
-    ~belongs_to ~has_many ~state (db : db) (obj : dval_map) : dval_map =
+(* TODO: Unify with Type_checker.ml *)
+and type_check ~state (db : db) (obj : dval_map) : dval_map =
   let cols = cols_for db |> TipeMap.of_alist_exn in
   let tipe_keys = cols |> TipeMap.keys |> String.Set.of_list in
   let obj_keys = obj |> DvalMap.keys |> String.Set.of_list in
@@ -236,97 +236,9 @@ and type_check_and_map_dependents
           "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
-and type_check_and_fetch_dependents ~state db obj : dval_map =
-  type_check_and_map_dependents
-    ~belongs_to:(fun table dv ->
-      let dep_table = find_db_exn state.dbs table in
-      match dv with
-      | DStr _ ->
-        (* TODO: temporary, need to add this to coerce not found
-            * dependents to null. We should probably propagate the
-            * deletion to the owning records, but this is very much a
-            * symptom of modelling relationships parent->child rather
-            * than child->parent. child->parent seems hard with our
-            * single-table, json blob approach though *)
-        ( try
-            get ~state dep_table (dv |> dv_to_id "key" |> Uuidm.to_string)
-          with
-        | Exception.DarkException e as original ->
-          (match e.tipe with DarkStorage -> DNull | _ -> raise original)
-        | other ->
-            raise other )
-      | DNull ->
-          (* allow nulls for now *)
-          DNull
-      | err ->
-          Exception.user (type_error_msg table TStr err) )
-    ~has_many:(fun table ids ->
-      let dep_table = find_db_exn state.dbs table in
-      let skeys =
-        List.map
-          ~f:(fun i -> i |> dv_to_id "has_many key" |> Uuidm.to_string)
-          ids
-      in
-      let result = get_many ~state dep_table skeys in
-      coerce_dlist_of_kv_pairs_to_legacy_object result )
-    ~state
-    db
-    obj
-
-
-(* TODO remove this with old deprecated magic db code *)
-and type_check_and_upsert_dependents ~state db obj : dval_map =
-  type_check_and_map_dependents
-    ~belongs_to:(fun table dv ->
-      let dep_table = find_db_exn state.dbs table in
-      match dv with
-      | DObj m ->
-        ( match DvalMap.find m "id" with
-        | Some existing ->
-            update ~state dep_table m ;
-            existing
-        | None ->
-            let key = Util.create_uuid () in
-            ignore
-              (set ~state ~upsert:false dep_table (key |> Uuidm.to_string) m) ;
-            DStr (key |> Uuidm.to_string |> Unicode_string.of_string_exn) )
-      | DNull ->
-          (* allow nulls for now *)
-          DNull
-      | err ->
-          Exception.user (type_error_msg table TObj err) )
-    ~has_many:(fun table dlist ->
-      let dep_table = find_db_exn state.dbs table in
-      dlist
-      |> List.map ~f:(fun o ->
-             match o with
-             | DObj m ->
-               ( match DvalMap.find m "id" with
-               | Some existing ->
-                   update ~state dep_table m ;
-                   existing
-               | None ->
-                   let key = Util.create_uuid () in
-                   ignore
-                     (set
-                        ~state
-                        ~upsert:false
-                        dep_table
-                        (key |> Uuidm.to_string)
-                        m) ;
-                   DStr (key |> Uuidm.to_string |> Unicode_string.of_string_exn)
-               )
-             | err ->
-                 Exception.user (type_error_msg table TObj err) )
-      |> DList )
-    ~state
-    db
-    obj
-
-
 and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
   let id = Util.create_uuid () in
-  let merged = type_check_and_upsert_dependents ~state db vals in
+  let merged = type_check ~state db vals in
   let query =
     "INSERT INTO user_data
      (id, account_id, canvas_id, table_tlid, user_version, dark_version, key, data)
@@ -359,7 +271,7 @@ and update ~state db (vals : dval_map) =
     DvalMap.find_exn vals "id" |> dv_to_id (Ast.blank_to_string db.name)
   in
   let removed = Map.remove vals "id" in
-  let merged = type_check_and_upsert_dependents ~state db removed in
+  let merged = type_check ~state db removed in
   Db.run
     ~name:"user_update"
     "UPDATE user_data
