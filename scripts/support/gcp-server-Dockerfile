@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:17.10
 
 RUN apt-get update && \
     apt-get install \
@@ -14,9 +14,9 @@ RUN apt-get update \
       --no-install-recommends \
       -y \
       libcurl4-gnutls-dev \
-      locales \
-      libpq-dev \
-      libev-dev \
+      locales=2.26-0ubuntu2.1 \
+      libpq-dev=9.6.9-0ubuntu0.17.10 \
+      libev-dev=1:4.22-1 \
       sudo \
       libsodium-dev \
     && rm -rf /var/lib/apt/lists/*
