@@ -363,6 +363,14 @@ and getTraceDataRPCResult j : getTraceDataRPCResult =
   {trace = field "trace" trace j}
 
 
+and dbStats j : dbStats =
+  {count = field "count" int j; example = field "example" dval j}
+
+
+and dbStatsStore j : dbStatsStore = dict dbStats j
+
+and dbStatsRPCResult j = dbStatsStore j
+
 and initialLoadRPCResult j : initialLoadRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j

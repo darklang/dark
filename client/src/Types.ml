@@ -400,13 +400,19 @@ and functionResult =
   ; argHash : string
   ; value : dval }
 
+and fetchRequest =
+  | TraceFetch of getTraceDataRPCParams
+  | DbStatsFetch of dbStatsRPCParams
+
 (* traces / traceFetcher *)
 and traceFetchResult =
   | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
   | TraceFetchFailure of getTraceDataRPCParams * string * string
   | TraceFetchMissing of getTraceDataRPCParams
+  | DbStatsFetchSuccess of dbStatsRPCParams * dbStatsRPCResult
+  | DbStatsFetchFailure of dbStatsRPCParams * string * string
 
-and traceFetchContext =
+and fetchContext =
   { canvasName : string
   ; csrfToken : string
   ; origin : string
@@ -439,6 +445,12 @@ and staticDeploy =
   ; url : string
   ; lastUpdate : Js.Date.t [@opaque]
   ; status : deployStatus }
+
+and dbStats =
+  { count : int
+  ; example : dval }
+
+and dbStatsStore = dbStats StrDict.t
 
 (* ------------------- *)
 (* ops *)
@@ -499,6 +511,8 @@ and getTraceDataRPCParams =
   { gtdrpTlid : tlid
   ; gtdrpTraceID : traceID }
 
+and dbStatsRPCParams = {dbStatsTlids : tlid list}
+
 and performHandlerAnalysisParams =
   { handler : handler
   ; traceID : traceID
@@ -549,6 +563,8 @@ and unlockedDBs = StrSet.t
 and getUnlockedDBsRPCResult = unlockedDBs
 
 and getTraceDataRPCResult = {trace : trace}
+
+and dbStatsRPCResult = dbStatsStore
 
 and initialLoadRPCResult =
   { toplevels : toplevel list
@@ -765,6 +781,8 @@ and modification =
   | InitIntrospect of toplevel list
   | UpdateTLMeta of tlMeta StrDict.t
   | UpdateTLUsage of usage list
+  | UpdateDBStatsRPC of tlid
+  | UpdateDBStats of dbStatsStore
 
 (* ------------------- *)
 (* Msgs *)
@@ -1079,7 +1097,8 @@ and model =
   ; deletedUserTipes : userTipe list
   ; tlUsages : usage list
   ; tlMeta : tlMeta StrDict.t
-  ; fluidState : fluidState }
+  ; fluidState : fluidState
+  ; dbStats : dbStatsStore }
 
 (* Values that we serialize *)
 and serializableEditor =
