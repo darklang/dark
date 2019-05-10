@@ -510,12 +510,10 @@ and call_fn
   | Some er ->
       er
   | None ->
-      let result =
-        exec_fn ~engine ~state name id fn args |> Dval.unwrap_from_errorrail
-      in
+      let result = exec_fn ~engine ~state name id fn args in
       if send_to_rail
       then
-        match result with
+        match Dval.unwrap_from_errorrail result with
         | DOption (OptJust v) ->
             v
         | DResult (ResOk v) ->
@@ -618,7 +616,7 @@ and exec_fn
           engine.trace_tlid tlid ;
           let result = exec ~engine ~state args_with_dbs body in
           state.store_fn_result sfr_desc arglist result ;
-          result
+          Dval.unwrap_from_errorrail result
       | Error errs ->
           let error_msgs =
             errs

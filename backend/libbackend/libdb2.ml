@@ -116,7 +116,7 @@ let replacements =
         | state, [(DObj _ as obj); DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              User_db.query ~state ~magic:false db obj
+              User_db.query ~state db obj
             in
             ( match results with
             | DList xs ->
@@ -209,7 +209,7 @@ let replacements =
         | state, [DDB dbname] ->
             let results =
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state ~magic:false db
+              User_db.get_all ~state db
             in
             ( match results with
             | DList xs ->
