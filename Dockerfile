@@ -1,7 +1,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 ENV FORCE_BUILD 1
 
@@ -19,7 +19,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       apt-transport-https \
       ca-certificates \
       lsb-core \
-      less
+      less \
+      gpg \
+      gpg-agent
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
@@ -28,7 +30,9 @@ RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 
-# RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+# We want postgres 9.6, but it is not in ubuntu 18.04
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+
 RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
 
 # Testcafe needs node >= 11
@@ -58,26 +62,25 @@ RUN DEBIAN_FRONTEND=noninteractive \
     apt install \
       --no-install-recommends \
       -y \
-      software-properties-common=0.96.24.17 \
-      python3.6=3.6.3-1ubuntu1 \
-      make=4.1-9.1 \
-      m4=1.4.18-1 \
-      rsync=3.1.2-2ubuntu0.2 \
-      git=1:2.14.1-1ubuntu4 \
-      wget=1.19.1-3ubuntu1.2 \
-      sudo=1.8.20p2-1ubuntu1 \
-      locales=2.26-0ubuntu2.1 \
-      expect=5.45-8 \
+      software-properties-common \
+      python3.6 \
+      make \
+      m4 \
+      rsync \
+      git \
+      wget \
+      sudo \
+      locales \
+      expect \
       tcl8.6 \
-      libev-dev=1:4.22-1 \
-      libgmp-dev=2:6.1.2+dfsg-1 \
-      pkg-config=0.29.1-0ubuntu2 \
+      libev-dev \
+      libgmp-dev \
+      pkg-config \
       libcurl4-gnutls-dev \
-      python-software-properties=0.96.24.17 \
-      libpq-dev=9.6.9-0ubuntu0.17.10 \
-      postgresql-9.6=9.6.9-0ubuntu0.17.10 \
-      postgresql-client-9.6=9.6.9-0ubuntu0.17.10 \
-      postgresql-contrib-9.6=9.6.9-0ubuntu0.17.10 \
+      libpq-dev \
+      postgresql-9.6 \
+      postgresql-client-9.6 \
+      postgresql-contrib-9.6 \
       chromium-browser \
       firefox \
       gnupg \
@@ -95,6 +98,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       ruby \
       kubectl \
       python3-pip \
+      python-pip \
       libsodium-dev \
       gcc \
       python-dev \
@@ -103,7 +107,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       xvfb \
       ffmpeg \
       tmux \
-      libssl-dev=1.0.2g-1ubuntu13.6 \
+      libssl-dev \
+      libssl-ocaml-dev \
       zlib1g-dev \
       pv \
       && apt clean \
@@ -183,10 +188,6 @@ RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/rele
 RUN docker-credential-gcr config --token-source="gcloud"
 
 # crcmod for gsutil
-# apt install is done above
-# RUN sudo apt update && sudo apt install -y gcc python-dev python-setuptools
-RUN easy_install -U pip
-RUN pip uninstall crcmod
 RUN pip install -U crcmod
 
 
@@ -278,7 +279,7 @@ USER root
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION=1.32.0
+    RUST_VERSION=1.34.1
 
 RUN dpkgArch="$(dpkg --print-architecture)"; \
     case "${dpkgArch##*-}" in \

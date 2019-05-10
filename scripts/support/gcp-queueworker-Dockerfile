@@ -1,4 +1,4 @@
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 RUN apt-get update && \
     apt-get install \
@@ -14,11 +14,13 @@ RUN apt-get update \
       --no-install-recommends \
       -y \
       libcurl4-gnutls-dev \
-      locales=2.26-0ubuntu2.1 \
-      libpq-dev=9.6.9-0ubuntu0.17.10 \
-      libev-dev=1:4.22-1 \
+      locales \
+      libpq-dev \
+      libev-dev \
       sudo \
       libsodium-dev \
+      libssl-dev \
+      libssl-ocaml-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -41,5 +43,7 @@ COPY . /home/dark
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT ${GIT_COMMIT}
+
+RUN ./check-linked-libs bin/queue_worker.exe
 
 CMD "./gcp-run-queueworker"
