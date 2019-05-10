@@ -19,6 +19,23 @@ let enterable = ViewBlankOr.Enterable
 
 let dbName2String (name : dBName blankOr) : dBName = B.valueWithDefault "" name
 
+let viewDBData (vs : viewState) (db : dB) : msg Html.html =
+  let (TLID key) = db.dbTLID in
+  match StrDict.get ~key vs.dbStats with
+  | Some stats ->
+      Html.div
+        [Html.class' "db dbdata"]
+        [ Html.div
+            [Html.class' "dbcount"]
+            [Html.text ("# Entries: " ^ string_of_int stats.count)]
+        ; Html.hr [] []
+        ; Html.div
+            [Html.class' "dbexample"]
+            [Html.text (Runtime.toRepr stats.example)] ]
+  | _ ->
+      Vdom.noNode
+
+
 let viewDBName (vs : viewState) (db : dB) : msg Html.html =
   let nameField =
     if vs.dbLocked
@@ -145,6 +162,7 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
     else db.cols
   in
   let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
+  let data = viewDBData vs db in
   let migrationView =
     match db.activeMigration with
     | Some migra ->
@@ -154,4 +172,6 @@ let viewDB (vs : viewState) (db : dB) : msg Html.html list =
     | None ->
         []
   in
-  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)] @ migrationView
+  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)]
+  @ migrationView
+  @ [data]
