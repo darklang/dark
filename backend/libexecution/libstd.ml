@@ -1542,7 +1542,7 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = true }
-  ; { pns = ["List::filter_v2"]
+  ; { pns = ["List::filter_v1"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
     ; r = TList
@@ -1551,14 +1551,22 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DList l; DBlock fn] ->
+              let fakecf = ref None in
               let f (dv : dval) : bool =
+                let run = !fakecf = None in
+                run
+                &&
                 match fn [dv] with
                 | DBool b ->
                     b
+                | (DIncomplete | DErrorRail _) as dv ->
+                    fakecf := Some dv ;
+                    false
                 | v ->
                     RT.error "Expecting fn to return bool" ~result:v ~actual:dv
               in
-              Dval.to_list (List.filter ~f l)
+              let result = List.filter ~f l in
+              (match !fakecf with None -> DList result | Some v -> v)
           | args ->
               fail args)
     ; ps = true
