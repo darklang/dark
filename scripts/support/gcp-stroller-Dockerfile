@@ -17,6 +17,7 @@ RUN apt-get update \
       locales \
       sudo \
       libssl-dev \
+      libssl-ocaml-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales

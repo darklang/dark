@@ -20,6 +20,7 @@ RUN apt-get update \
       sudo \
       libsodium-dev \
       libssl-dev \
+      libssl-ocaml-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
