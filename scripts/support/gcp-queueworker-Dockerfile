@@ -19,6 +19,7 @@ RUN apt-get update \
       libev-dev \
       sudo \
       libsodium-dev \
+      libssl1.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
