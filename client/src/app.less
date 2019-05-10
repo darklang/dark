@@ -413,13 +413,13 @@ body #app * {
 
   margin: 8px 0;
   padding: 4px 8px;
-  
+
   border: @grey1 1px solid;
   background-color: @black1;
 
   color: @white1;
   font-size: @code-font-size;
-  
+
   &:hover {
     cursor: pointer;
     color: @yellow;
@@ -451,13 +451,13 @@ body #app * {
 
   .spec {
     display: inline-block;
-    
+
     margin-left: 4ch;
     padding-bottom: 2px;
     padding-top: 0;
     padding-left: 1ch;
     padding-right: 1ch;
-    
+
     color: @orange;
 
     &:first-child {
@@ -672,6 +672,27 @@ body #app * {
         cursor: pointer;
       }
     }
+  }
+  &.dbdata {
+      display: block;
+      position: absolute;
+      right: calc(~"100% + 30px");
+      font-style: normal;
+
+
+      padding: 4px;
+      width: max-content;
+      max-width: 250px;
+
+      white-space: pre-wrap;
+      word-break: break-all;
+      word-wrap: break-word;
+      font-size: @code-font-size * 0.85;
+      color: @grey3;
+
+      background-color: @black2;
+      outline: 0.4px @grey2 dotted;
+
   }
 
   &.migration-view {
@@ -1398,7 +1419,7 @@ body #app * {
   .fncall {
 
     &.prefix > .arg-on-new-line {
-      
+
       .layout-block;
       box-sizing: border-box;
       margin-left: 2ch;

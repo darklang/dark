@@ -17,6 +17,7 @@ type viewState =
   ; currentResults : analysisResults (* for current selected cursor/trace *)
   ; traces : trace list
   ; analyses : analyses
+  ; dbStats : dbStatsStore
   ; ufns : userFunction list
   ; fns : function_ list
   ; relatedBlankOrs : id list
@@ -119,6 +120,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
   ; traces = Analysis.getTraces m tl.id
   ; analyses = m.analyses
+  ; dbStats = m.dbStats
   ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
   ; tooWide = false
   ; executingFunctions =
