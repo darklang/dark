@@ -1,4 +1,4 @@
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 RUN apt-get update && \
     apt-get install \
@@ -14,9 +14,10 @@ RUN apt-get update \
       --no-install-recommends \
       -y \
       libcurl4-gnutls-dev \
-      locales=2.26-0ubuntu2.1 \
-      libssl-dev=1.0.2g-1ubuntu13.6 \
+      locales \
       sudo \
+      libssl-dev \
+      libssl-ocaml-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -39,5 +40,7 @@ COPY . /home/dark
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT ${GIT_COMMIT}
+
+RUN ./check-linked-libs bin/dark-stroller
 
 CMD "bin/dark-stroller"
