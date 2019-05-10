@@ -18,6 +18,7 @@ type viewState =
   ; traces : trace list
   ; analyses : analyses
   ; ufns : userFunction list
+  ; fns : function_ list
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
@@ -114,6 +115,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; handlerSpace = Toplevel.spaceOf tl |> Option.withDefault ~default:HSOther
   ; dbLocked = DB.isLocked m tl.id
   ; ufns = m.userFunctions
+  ; fns = m.builtInFunctions
   ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
   ; traces = Analysis.getTraces m tl.id
   ; analyses = m.analyses
