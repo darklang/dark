@@ -374,7 +374,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DBytes s ->
       "<"
       ^ (dv |> typeOf |> tipe2str)
-      ^ ": "
+      ^ ": length="
       ^ (Bytes.length s |> string_of_int)
       ^ ">"
 
