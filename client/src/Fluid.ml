@@ -25,16 +25,6 @@ module Token = FluidToken
 (* Utils *)
 (* -------------------- *)
 
-let debugf ~(f : 'a -> 'b) (name : string) (value : 'a) : 'a =
-  Js.log2 name (f value) ;
-  value
-
-
-let debug (name : string) (value : 'a) : 'a =
-  Js.log2 name value ;
-  value
-
-
 let removeCharAt str offset : string =
   if offset < 0
   then str
@@ -1819,10 +1809,6 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
   in
   let index = ac.index |> Option.withDefault ~default:(-1) in
   let invalidIndex = index - List.length ac.completions in
-  Js.log2 "ti" (Option.map ~f:Token.show_tokenInfo ac.targetTI) ;
-  Js.log2 "TL" (Option.map ~f:(fun tl -> tl.id) ac.targetTL) ;
-  Js.log2 "completions" ac.completions ;
-  Js.log2 "invalid" ac.invalidCompletions ;
   let autocompleteList =
     toList ac.completions "valid" index
     @ toList ac.invalidCompletions "invalid" invalidIndex
