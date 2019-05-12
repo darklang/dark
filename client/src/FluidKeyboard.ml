@@ -700,7 +700,6 @@ type keyEvent =
 [@@deriving show]
 
 let keyEvent j =
-  Js.log2 "keyEvent" j ;
   let open Json.Decode in
   let shift = field "shiftKey" bool j in
   { key = field "keyCode" int j |> fromKeyboardCode shift
