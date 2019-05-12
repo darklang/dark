@@ -176,6 +176,17 @@ let toOp (tl : toplevel) : op list =
       impossible "This isn't how database ops work"
 
 
+let customEventSpaceNames (toplevels : toplevel list) : string list =
+  let otherSpaces =
+    toplevels
+    |> List.filter ~f:isCustomEventSpaceHandler
+    |> List.filterMap ~f:(fun tl ->
+           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.module_)
+       )
+  in
+  otherSpaces
+
+
 (* ------------------------- *)
 (* Generic *)
 (* ------------------------- *)
