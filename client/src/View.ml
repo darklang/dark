@@ -153,13 +153,21 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
+  let hasFf =
+    let ast = TL.astOf tl in
+    let allData =
+      match ast with Some expr -> AST.allData expr | None -> []
+    in
+    List.any ~f:(fun x -> match x with PFFMsg _ -> true | _ -> false) allData
+  in
   let html =
     Html.div
       (* -- see comment in css *)
       [Html.classList boxClasses]
-      [ Html.div
-          (Html.class' class_ :: events)
-          (body @ data @ top @ [uses; refs]) ]
+      [ Html.div (Html.class' class_ :: events) (body @ data @ top)
+      ; Html.div
+          [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
+          [uses; refs] ]
   in
   ViewUtils.placeHtml pos html
 
