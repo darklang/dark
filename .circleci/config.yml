@@ -20,6 +20,15 @@ commands:
             docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
 
   ##########################
+  # Check the worktree
+  ##########################
+  assert-clean-worktree:
+    steps:
+      - run:
+          name: Assert the worktree is clean
+          command: "bash -c '[[ -z $(git status -s) ]]'"
+
+  ##########################
   # Artifacts
   ##########################
   extract-and-save-artifacts:
@@ -160,6 +169,7 @@ jobs:
       - run-background-container
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml
+      - assert-clean-worktree 
       - run:
           name: Copy out generated files and caches
           command: |
@@ -203,6 +213,7 @@ jobs:
     # - run-background-container
     # - wait-for-container
     # - run: scripts/gcp-build-containers --skip-stroller
+      - assert-clean-worktree 
       - run:
           name: Copy out generated files and caches
           command: |
@@ -260,6 +271,7 @@ jobs:
       - run: scripts/builder --compile-client --test
       - run-background-container
       - wait-for-container
+      - assert-clean-worktree 
       - run: scripts/support/shellchecker # run here cause its the fastest
       - run:
           name: Copy out generated files and caches
@@ -333,6 +345,7 @@ jobs:
             # remove last char
             PATTERN=${PATTERN%?}
             scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+      - assert-clean-worktree 
 
       - extract-and-save-artifacts
 
