@@ -362,7 +362,7 @@ setTimeout(function(){
 
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
-  let fetcherjs = fetcher("/tracefetcher.js");
+  let fetcherjs = fetcher("/fetcher.js");
   (async function () {
     var strings = [
       rollbarConfigSetup,

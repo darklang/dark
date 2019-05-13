@@ -32,9 +32,9 @@
     "build:bsb": "bsb -make-world",
     "build:js": "browserifyinc --cachefile lib/browserify-cache.json lib/js/src/App.bs.js --standalone app -o ../backend/static/app.js",
     "build:appsupport": "browserifyinc --cachefile lib/browserify-cache.json src/appsupport.js --standalone appsupport -o ../backend/static/appsupport.js",
-    "build:tracefetcher": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/TraceFetcher.bs.js --standalone tracefetcher -o ../backend/static/tracefetcher.js",
+    "build:fetcher": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/Fetcher.bs.js --standalone fetcher -o ../backend/static/fetcher.js",
     "build:analysiswrapper": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o ../backend/static/analysiswrapper.js",
-    "build": "run-s build:bsb build:js build:appsupport build:tracefetcher build:analysiswrapper",
+    "build": "run-s build:bsb build:js build:appsupport build:fetcher build:analysiswrapper",
     "test": "jest"
   }
 }
