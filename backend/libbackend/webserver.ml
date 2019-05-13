@@ -1180,7 +1180,7 @@ let admin_api_handler
   | `POST, ["api"; canvas; "get_trace_data"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (get_trace_data ~execution_id canvas body) )
-  | `POST, ["api"; canvas; "db_stats"] ->
+  | `POST, ["api"; canvas; "get_db_stats"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (db_stats ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
