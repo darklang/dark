@@ -1550,7 +1550,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
     ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
           NewStaticDeployPush s )
-    ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
+    ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
           ReceiveTraces s ) ]
   in
   let clipboardSubs =
