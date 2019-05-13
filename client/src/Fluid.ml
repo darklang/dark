@@ -113,6 +113,8 @@ let rec fromExpr (fns : function_ list) (expr : Types.expr) : fluidExpr =
           then Some (EBool (id, true))
           else if str = "false"
           then Some (EBool (id, false))
+          else if str = "null"
+          then Some (ENull id)
           else None
         in
         let asInt =
@@ -162,6 +164,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | EBool (id, b) ->
       let str = if b then "true" else "false" in
       F (id, Value str)
+  | ENull id ->
+      F (id, Value "null")
   | EVariable (id, var) ->
       F (id, Variable var)
   | EFieldAccess (id, obj, fieldname) ->
@@ -208,6 +212,7 @@ let eid expr : id =
   | EInteger (id, _)
   | EString (id, _)
   | EBool (id, _)
+  | ENull id
   | EFloat (id, _, _)
   | EVariable (id, _)
   | EFieldAccess (id, _, _)
@@ -240,6 +245,8 @@ let rec toTokens' (e : ast) : token list =
       [TInteger (id, string_of_int i)]
   | EBool (id, b) ->
       if b then [TTrue id] else [TFalse id]
+  | ENull id ->
+      [TNullToken id]
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
@@ -465,6 +472,8 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (EBool (gid (), true), 4)
   | FACLiteral "false" ->
       (EBool (gid (), false), 5)
+  | FACLiteral "null" ->
+      (ENull (gid ()), 4)
   | _ ->
       let str =
         "TODO: autocomplete result for "
@@ -513,6 +522,7 @@ let isTextToken token : bool =
   | TString _
   | TTrue _
   | TFalse _
+  | TNullToken _
   | TLambdaVar _
   | TFloatWhole _
   | TFloatPoint _
@@ -577,6 +587,7 @@ let isAtom (token : token) : bool =
   | TString _
   | TTrue _
   | TFalse _
+  | TNullToken _
   | TRecordOpen _
   | TRecordClose _
   | TRecordSep _
@@ -743,6 +754,7 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
     | EVariable _
     | EPartial _
     | EBool _
+    | ENull _
     | EFloat _ ->
         None
     | ELet (_, _, rhs, next) ->
@@ -799,6 +811,7 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
       | EVariable _
       | EPartial _
       | EBool _
+      | ENull _
       | EFloat _ ->
           None
       | ELet (_, _, rhs, next) ->
@@ -834,6 +847,7 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | EVariable _
   | EPartial _
   | EBool _
+  | ENull _
   | EFloat _ ->
       expr
   | ELet (id, name, rhs, next) ->
@@ -962,6 +976,10 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceExpr id ~newExpr ast
   | TFalse id ->
       let str = f "false" in
+      let newExpr = EPartial (gid (), str) in
+      replaceExpr id ~newExpr ast
+  | TNullToken id ->
+      let str = f "null" in
       let newExpr = EPartial (gid (), str) in
       replaceExpr id ~newExpr ast
   | _ ->
@@ -1263,6 +1281,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TInteger _
   | TTrue _
   | TFalse _
+  | TNullToken _
   | TVariable _
   | TPartial _
   | TFieldName _
@@ -1328,6 +1347,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TInteger _
   | TTrue _
   | TFalse _
+  | TNullToken _
   | TVariable _
   | TPartial _
   | TFieldName _
@@ -1372,6 +1392,7 @@ let doRight
   | TString _
   | TTrue _
   | TFalse _
+  | TNullToken _
   | TFieldOp _
   | TFieldName _
   | TVariable _
@@ -1501,6 +1522,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetLHS _
   | TTrue _
   | TFalse _
+  | TNullToken _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
   | TInteger (_, i) ->
