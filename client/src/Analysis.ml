@@ -239,8 +239,8 @@ module ReceiveAnalysis = struct
     Native.registerGlobal "receiveAnalysis" key tagger decode
 end
 
-module ReceiveTraces = struct
-  let decode : (Js.Json.t, traceFetchResult) Tea.Json.Decoder.t =
+module ReceiveFetch = struct
+  let decode : (Js.Json.t, fetchResult) Tea.Json.Decoder.t =
     let open Tea.Json.Decoder in
     map
       (fun msg -> msg)
@@ -248,7 +248,7 @@ module ReceiveTraces = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "receiveTraces" key tagger decode
+    Native.registerGlobal "receiveFetch" key tagger decode
 end
 
 module NewTracePush = struct
@@ -274,15 +274,14 @@ module New404Push = struct
 end
 
 (* Request analysis *)
-
 module RequestAnalysis = struct
   external send : performAnalysisParams -> unit = "requestAnalysis"
     [@@bs.val] [@@bs.scope "window", "Dark", "analysis"]
 end
 
-module RequestTraces = struct
-  external send : traceFetchContext * getTraceDataRPCParams -> unit = "fetch"
-    [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
+module Fetcher = struct
+  external request : fetchContext * fetchRequest -> unit = "fetch"
+    [@@bs.val] [@@bs.scope "window", "Dark", "fetcher"]
 end
 
 external origin : string = "origin"
@@ -291,8 +290,17 @@ external origin : string = "origin"
 external prefix : string = "testcafeInjectedPrefix"
   [@@bs.val] [@@bs.scope "window"]
 
-let contextFromModel (m : model) : traceFetchContext =
+let contextFromModel (m : model) : fetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
+
+
+let updateDBStats m (TLID tlid) =
+  Sync.attempt
+    ~key:("update-db-stats-" ^ tlid)
+    m
+    (Tea_cmd.call (fun _ ->
+         Fetcher.request
+           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]}) ))
 
 
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
@@ -338,9 +346,9 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
       ~key:("tracefetch-" ^ traceID)
       m
       (Tea_cmd.call (fun _ ->
-           RequestTraces.send
-             (contextFromModel m, {gtdrpTlid = tlid; gtdrpTraceID = traceID})
-       ))
+           Fetcher.request
+             ( contextFromModel m
+             , TraceFetch {gtdrpTlid = tlid; gtdrpTraceID = traceID} ) ))
   else (m, Cmd.none)
 
 

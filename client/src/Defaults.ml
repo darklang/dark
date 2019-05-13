@@ -111,4 +111,5 @@ let defaultModel : model =
   ; deletedUserTipes = []
   ; tlUsages = []
   ; tlMeta = StrDict.empty
-  ; fluidState = defaultFluidState }
+  ; fluidState = defaultFluidState
+  ; dbStats = StrDict.empty }

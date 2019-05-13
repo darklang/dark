@@ -249,11 +249,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-client-{{ checksum "client/package.json" }}
-            - v6-client-{{ checksum "today-timestamp" }}
-            - v6-client-{{ checksum "minus1-timestamp" }}
-            - v6-client-{{ checksum "minus2-timestamp" }}
-            - v6-client-{{ checksum "minus3-timestamp" }}
+            - v8-client-{{ checksum "client/package.json" }}
+            - v8-client-{{ checksum "today-timestamp" }}
+            - v8-client-{{ checksum "minus1-timestamp" }}
+            - v8-client-{{ checksum "minus2-timestamp" }}
+            - v8-client-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
@@ -270,11 +270,11 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
-          key: v6-client-{{ checksum "client/package.json" }}
+          key: v8-client-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
           paths: [ "client/node_modules" ]
-          key: v6-client-{{ checksum "today-timestamp" }}
+          key: v8-client-{{ checksum "today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -282,7 +282,7 @@ jobs:
             - backend/static/app.css
             - backend/static/app.js
             - backend/static/appsupport.js
-            - backend/static/tracefetcher.js
+            - backend/static/fetcher.js
             - backend/static/analysiswrapper.js
       - run:
           name: Copy out artifacts
@@ -308,11 +308,11 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v6-client-{{ checksum "client/package.json" }}
-            - v6-client-{{ checksum "today-timestamp" }}
-            - v6-client-{{ checksum "minus1-timestamp" }}
-            - v6-client-{{ checksum "minus2-timestamp" }}
-            - v6-client-{{ checksum "minus3-timestamp" }}
+            - v8-client-{{ checksum "client/package.json" }}
+            - v8-client-{{ checksum "today-timestamp" }}
+            - v8-client-{{ checksum "minus1-timestamp" }}
+            - v8-client-{{ checksum "minus2-timestamp" }}
+            - v8-client-{{ checksum "minus3-timestamp" }}
       - copy-into-container
       - run-background-container
 

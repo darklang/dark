@@ -101,7 +101,7 @@ let respond_or_redirect (params : response_or_redirect_params) =
           "X-Darklang-Execution-ID"
           (Types.string_of_id execution_id)
       in
-      (* add Content-Length if missing, e.g. when function is called directly 
+      (* add Content-Length if missing, e.g. when function is called directly
        * and not from `respond_or_redirect_empty_body`
        *)
       let resp_headers =
@@ -830,6 +830,23 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
   with e -> raise e
 
 
+let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, params =
+      time "1-read-api-tlids" (fun _ -> Api.to_db_stats_rpc_params body)
+    in
+    let t2, c = time "2-load-saved-ops" (fun _ -> C.load_all_dbs host []) in
+    let t3, stats =
+      time "3-analyze-db-stats" (fun _ -> Analysis.db_stats !c params.tlids)
+    in
+    let t4, result =
+      time "4-to-frontend" (fun _ -> Analysis.to_db_stats_rpc_result stats)
+    in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> raise e
+
+
 let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
     : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
@@ -1163,6 +1180,9 @@ let admin_api_handler
   | `POST, ["api"; canvas; "get_trace_data"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (get_trace_data ~execution_id canvas body) )
+  | `POST, ["api"; canvas; "get_db_stats"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_json_headers (db_stats ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (get_unlocked_dbs ~execution_id canvas body) )
