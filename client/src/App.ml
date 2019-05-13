@@ -1226,13 +1226,13 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
-  | ReceiveTraces (TraceFetchFailure (params, url, error)) ->
+  | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
         ]
-  | ReceiveTraces (TraceFetchSuccess (params, result)) ->
+  | ReceiveFetch (TraceFetchSuccess (params, result)) ->
       let traces =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
       in
@@ -1240,7 +1240,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; UpdateTraces traces ]
-  | ReceiveTraces (TraceFetchMissing params) ->
+  | ReceiveFetch (TraceFetchMissing params) ->
       (* We'll force it so no need to update syncState *)
       let _, cmd =
         Analysis.requestTrace
@@ -1250,7 +1250,7 @@ let update_ (msg : msg) (m : model) : modification =
           params.gtdrpTraceID
       in
       MakeCmd cmd
-  | ReceiveTraces (DbStatsFetchFailure (params, url, error)) ->
+  | ReceiveFetch (DbStatsFetchFailure (params, url, error)) ->
       let key =
         params.dbStatsTlids
         |> List.map ~f:(fun (TLID tlid) -> tlid)
@@ -1260,7 +1260,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
         ; DisplayAndReportError
             ("Error fetching db stats", Some url, Some error) ]
-  | ReceiveTraces (DbStatsFetchMissing params) ->
+  | ReceiveFetch (DbStatsFetchMissing params) ->
       let key =
         params.dbStatsTlids
         |> List.map ~f:(fun (TLID tlid) -> tlid)
@@ -1268,7 +1268,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))]
-  | ReceiveTraces (DbStatsFetchSuccess (params, result)) ->
+  | ReceiveFetch (DbStatsFetchSuccess (params, result)) ->
       let key =
         params.dbStatsTlids
         |> List.map ~f:(fun (TLID tlid) -> tlid)
@@ -1551,7 +1551,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
           NewStaticDeployPush s )
     ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
-          ReceiveTraces s ) ]
+          ReceiveFetch s ) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
