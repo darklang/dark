@@ -131,13 +131,13 @@ window.setCursorPosition = setCursorPosition;
 // ---------------------------
 
 window.Dark = {
-  traceFetcher: {
+  fetcher: {
     fetch : function(params) {
       if (!window.fetcherWorker) {
         console.log("FetchWorker not loaded yet");
         setTimeout(function () {
           console.log("Trying FetchWorker again");
-          window.Dark.traceFetcher.fetch(params);
+          window.Dark.fetcher.fetch(params);
         }, 100);
         return
       }

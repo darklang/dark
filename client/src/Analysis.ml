@@ -281,7 +281,7 @@ end
 
 module Fetcher = struct
   external request : fetchContext * fetchRequest -> unit = "fetch"
-    [@@bs.val] [@@bs.scope "window", "Dark", "traceFetcher"]
+    [@@bs.val] [@@bs.scope "window", "Dark", "fetcher"]
 end
 
 external origin : string = "origin"
