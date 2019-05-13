@@ -239,7 +239,7 @@ module ReceiveAnalysis = struct
     Native.registerGlobal "receiveAnalysis" key tagger decode
 end
 
-module ReceiveTraces = struct
+module ReceiveFetch = struct
   let decode : (Js.Json.t, fetchResult) Tea.Json.Decoder.t =
     let open Tea.Json.Decoder in
     map
@@ -248,7 +248,7 @@ module ReceiveTraces = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "receiveTraces" key tagger decode
+    Native.registerGlobal "receiveFetch" key tagger decode
 end
 
 module NewTracePush = struct

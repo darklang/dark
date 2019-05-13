@@ -145,7 +145,7 @@ window.Dark = {
       window.fetcherWorker.postMessage(params);
 
       window.fetcherWorker.onmessage = function (e) {
-        var event = new CustomEvent('receiveTraces', { "detail" : e.data });
+        var event = new CustomEvent('receiveFetch', { "detail" : e.data });
         document.dispatchEvent(event);
       }
     }
