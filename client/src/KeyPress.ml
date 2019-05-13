@@ -36,34 +36,39 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
       false
 
 
-let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
-  if VariantTesting.isFluid m.tests
-  then NoChange
-  else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
-  then
-    match tlidOf m.cursorState with
-    | Some tlid ->
-        let undo =
-          if event.shiftKey
-          then RPC ([RedoTL tlid], FocusSame)
-          else RPC ([UndoTL tlid], FocusSame)
-        in
-        ( match TL.getTL m tlid |> TL.asDB with
-        | Some _ ->
-            (* We could do it on the server but it's really hard
+let undo_redo (m : model) (redo : bool) : modification =
+  match tlidOf m.cursorState with
+  | Some tlid ->
+      let undo =
+        if redo
+        then RPC ([RedoTL tlid], FocusSame)
+        else RPC ([UndoTL tlid], FocusSame)
+      in
+      ( match TL.getTL m tlid |> TL.asDB with
+      | Some _ ->
+          (* We could do it on the server but it's really hard
                  atm. To do it on the server, efficiently, we'd create
                  a canvas with almost all the ops, check if the tlid
                  is a DB, then recreate the canvas with all the ops
                  (such that preprocess with the DB works). That way we
                  load from disk/db once, but still check server side.
               *)
-            if DB.isLocked m tlid
-            then DisplayError "Cannot undo/redo in locked DBs"
-            else undo
-        | None ->
-            undo )
-    | None ->
-        NoChange
+          if DB.isLocked m tlid
+          then DisplayError "Cannot undo/redo in locked DBs"
+          else undo
+      | None ->
+          undo )
+  | None ->
+      NoChange
+
+
+let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
+  if VariantTesting.isFluid m.tests
+  then NoChange
+  else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
+  then undo_redo m event.shiftKey
+  else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
+  then undo_redo m event.shiftKey
   else
     match m.cursorState with
     | Selecting (tlid, mId) ->
