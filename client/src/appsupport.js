@@ -53,8 +53,8 @@ window.onerror = function (msg, url, lineno, colno, error) {
 window.onunhandledrejection = function (e) {
   window.lastRejection = e;
   window.Rollbar.error("Unhandled promise rejection", e.type, e.reason);
-  console.error("Unhandled promise rejection", e.type, e.reason, e);
-  displayError("Unhandled promise rejection: " + e.type + ", " + e.reason);
+  console.error("Unhandled promise rejecton", e.type, e.reason, e);
+  displayError("Unhandled promise rejecton: " + e.type + ", " + e.reason);
 };
 
 // ---------------------------
