@@ -25,16 +25,6 @@ module Token = FluidToken
 (* Utils *)
 (* -------------------- *)
 
-let debugf ~(f : 'a -> 'b) (name : string) (value : 'a) : 'a =
-  Js.log2 name (f value) ;
-  value
-
-
-let debug (name : string) (value : 'a) : 'a =
-  Js.log2 name value ;
-  value
-
-
 let removeCharAt str offset : string =
   if offset < 0
   then str
@@ -1743,45 +1733,53 @@ let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
 
 
 let update (m : Types.model) (msg : Types.msg) : Types.modification =
-  match Toplevel.selected m with
-  | None ->
-      Types.NoChange
-  | Some tl ->
-      let ast = TL.rootExpr tl |> deOption "Fluid.update" |> fromExpr in
-      let newAST, newState, cmd =
-        let s =
-          {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
+  match msg with
+  | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
+    when (metaKey || ctrlKey) && key = K.Letter 'z' ->
+      KeyPress.undo_redo m shiftKey
+  | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
+    when (metaKey || ctrlKey) && key = K.Letter 'z' ->
+      KeyPress.undo_redo m shiftKey
+  | _ ->
+    ( match Toplevel.selected m with
+    | None ->
+        Types.NoChange
+    | Some tl ->
+        let ast = TL.rootExpr tl |> deOption "Fluid.update" |> fromExpr in
+        let newAST, newState, cmd =
+          let s =
+            {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
+          in
+          let s = {s with error = None; oldPos = s.newPos} in
+          match msg with
+          | FluidMouseClick ->
+            ( match getCursorPosition () with
+            | Some newPos ->
+                (ast, setPosition s newPos, Cmd.none)
+            | None ->
+                (ast, {s with error = Some "found no pos"}, Cmd.none) )
+          | FluidKeyPress {key} ->
+              let s = {s with lastKey = key; actions = []} in
+              let newAST, newState = updateKey m key ast s in
+              (* These might be the same token *)
+              let cmd =
+                if newAST <> ast || newState.oldPos <> newState.newPos
+                then setBrowserPos newState.newPos
+                else Cmd.none
+              in
+              (newAST, newState, cmd)
+          | _ ->
+              (ast, s, Cmd.none)
         in
-        let s = {s with error = None; oldPos = s.newPos} in
-        match msg with
-        | FluidMouseClick ->
-          ( match getCursorPosition () with
-          | Some newPos ->
-              (ast, setPosition s newPos, Cmd.none)
-          | None ->
-              (ast, {s with error = Some "found no pos"}, Cmd.none) )
-        | FluidKeyPress {key} ->
-            let s = {s with lastKey = key; actions = []} in
-            let newAST, newState = updateKey m key ast s in
-            (* These might be the same token *)
-            let cmd =
-              if newAST <> ast || newState.oldPos <> newState.newPos
-              then setBrowserPos newState.newPos
-              else Cmd.none
-            in
-            (newAST, newState, cmd)
-        | _ ->
-            (ast, s, Cmd.none)
-      in
-      let astMod =
-        if ast <> newAST
-        then Toplevel.setSelectedAST m (toExpr newAST)
-        else Types.NoChange
-      in
-      Types.Many
-        [ Types.TweakModel (fun m -> {m with fluidState = newState})
-        ; astMod
-        ; Types.MakeCmd cmd ]
+        let astMod =
+          if ast <> newAST
+          then Toplevel.setSelectedAST m (toExpr newAST)
+          else Types.NoChange
+        in
+        Types.Many
+          [ Types.TweakModel (fun m -> {m with fluidState = newState})
+          ; astMod
+          ; Types.MakeCmd cmd ] )
 
 
 (* -------------------- *)
@@ -1811,10 +1809,6 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
   in
   let index = ac.index |> Option.withDefault ~default:(-1) in
   let invalidIndex = index - List.length ac.completions in
-  Js.log2 "ti" (Option.map ~f:Token.show_tokenInfo ac.targetTI) ;
-  Js.log2 "TL" (Option.map ~f:(fun tl -> tl.id) ac.targetTL) ;
-  Js.log2 "completions" ac.completions ;
-  Js.log2 "invalid" ac.invalidCompletions ;
   let autocompleteList =
     toList ac.completions "valid" index
     @ toList ac.invalidCompletions "invalid" invalidIndex
