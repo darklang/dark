@@ -39,6 +39,13 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   cp -Rf scripts "$DIR/"
 
   mkdir -p "$DIR/bin"
+  set -x
+  ls
+  ls backend/
+  ls backend/_build/
+  ls backend/_build/default/
+  ls backend/_build/default/bin/
+  set +x
   cp -f backend/_build/default/bin/server.exe "$DIR/bin/"
 
   mkdir -p "$DIR/webroot"
