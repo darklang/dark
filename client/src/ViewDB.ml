@@ -20,9 +20,8 @@ let enterable = ViewBlankOr.Enterable
 let dbName2String (name : dBName blankOr) : dBName = B.valueWithDefault "" name
 
 let viewDBData (vs : viewState) (db : dB) : msg Html.html =
-  let (TLID key) = db.dbTLID in
-  match StrDict.get ~key vs.dbStats with
-  | Some stats ->
+  match StrDict.get ~key:(deTLID db.dbTLID) vs.dbStats with
+  | Some stats when tlidOf vs.cursorState = Some db.dbTLID ->
       let exampleHtml =
         match stats.example with
         | Some example ->
