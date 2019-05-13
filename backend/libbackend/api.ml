@@ -7,6 +7,8 @@ type oplist = Op.op list [@@deriving yojson]
 
 type add_op_rpc_params = {ops : oplist} [@@deriving yojson]
 
+type db_stats_rpc_params = {tlids : tlid list} [@@deriving yojson]
+
 type get_trace_data_rpc_params =
   { tlid : tlid
   ; trace_id : traceid }
@@ -32,6 +34,13 @@ let to_add_op_rpc_params (payload : string) : add_op_rpc_params =
   payload
   |> Yojson.Safe.from_string
   |> add_op_rpc_params_of_yojson
+  |> Result.ok_or_failwith
+
+
+let to_db_stats_rpc_params (payload : string) : db_stats_rpc_params =
+  payload
+  |> Yojson.Safe.from_string
+  |> db_stats_rpc_params_of_yojson
   |> Result.ok_or_failwith
 
 

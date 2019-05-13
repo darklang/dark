@@ -131,13 +131,13 @@ window.setCursorPosition = setCursorPosition;
 // ---------------------------
 
 window.Dark = {
-  traceFetcher: {
+  fetcher: {
     fetch : function(params) {
       if (!window.fetcherWorker) {
         console.log("FetchWorker not loaded yet");
         setTimeout(function () {
           console.log("Trying FetchWorker again");
-          window.Dark.traceFetcher.fetch(params);
+          window.Dark.fetcher.fetch(params);
         }, 100);
         return
       }
@@ -145,7 +145,7 @@ window.Dark = {
       window.fetcherWorker.postMessage(params);
 
       window.fetcherWorker.onmessage = function (e) {
-        var event = new CustomEvent('receiveTraces', { "detail" : e.data });
+        var event = new CustomEvent('receiveFetch', { "detail" : e.data });
         document.dispatchEvent(event);
       }
     }
@@ -362,7 +362,7 @@ setTimeout(function(){
 
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
-  let fetcherjs = fetcher("/tracefetcher.js");
+  let fetcherjs = fetcher("/fetcher.js");
   (async function () {
     var strings = [
       rollbarConfigSetup,

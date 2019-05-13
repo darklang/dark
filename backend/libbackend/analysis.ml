@@ -22,6 +22,29 @@ let unlocked (c : canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 
+type db_stat =
+  { count : int
+  ; example : RTT.dval option }
+[@@deriving eq, show, yojson]
+
+type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
+
+let db_stats (c : canvas) (tlids : tlid list) : db_stat_map =
+  List.fold
+    ~init:IDMap.empty
+    ~f:(fun map tlid ->
+      let db = IDMap.find c.dbs tlid |> Option.bind ~f:TL.as_db in
+      match (db, IDMap.find map tlid) with
+      | Some db, None ->
+          let account_id, canvas_id = (c.owner, c.id) in
+          let count = User_db.stats_count ~account_id ~canvas_id db in
+          let example = User_db.stats_pluck ~account_id ~canvas_id db in
+          IDMap.add_exn ~data:{count; example} ~key:tlid map
+      | _ ->
+          map )
+    tlids
+
+
 let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
@@ -183,6 +206,10 @@ let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
   {unlocked_dbs}
   |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
+
+
+let to_db_stats_rpc_result (stats : db_stat_map) : string =
+  stats |> db_stat_map_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
 type new_trace_push = traceid_tlids [@@deriving to_yojson]

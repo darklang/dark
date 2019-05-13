@@ -54,6 +54,7 @@ let () =
             ; traces = []
             ; analyses = StrDict.empty
             ; fns = []
+            ; dbStats = StrDict.empty
             ; ufns = []
             ; relatedBlankOrs = []
             ; tooWide = false

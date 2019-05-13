@@ -431,6 +431,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         handleRPC (RPC.opsParams ops) focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
+    | UpdateDBStatsRPC tlid ->
+        Analysis.updateDBStats m tlid
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -563,6 +565,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | UpdateAnalysis (id, analysis) ->
         let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
         processAutocompleteMods m2 [ACRegenerate]
+    | UpdateDBStats statsStore ->
+        let newStore =
+          StrDict.merge
+            ~f:(fun _k v1 v2 ->
+              match (v1, v2) with
+              | None, None ->
+                  None
+              | Some l, None ->
+                  Some l
+              | None, Some r ->
+                  Some r
+              | Some _, Some r ->
+                  Some r )
+            m.dbStats
+            statsStore
+        in
+        let m = {m with dbStats = newStore} in
+        (m, Cmd.none)
     | UpdateTraces traces ->
         let newTraces =
           Analysis.mergeTraces
@@ -1206,13 +1226,13 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
-  | ReceiveTraces (TraceFetchFailure (params, url, error)) ->
+  | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
         ]
-  | ReceiveTraces (TraceFetchSuccess (params, result)) ->
+  | ReceiveFetch (TraceFetchSuccess (params, result)) ->
       let traces =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
       in
@@ -1220,7 +1240,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; UpdateTraces traces ]
-  | ReceiveTraces (TraceFetchMissing params) ->
+  | ReceiveFetch (TraceFetchMissing params) ->
       (* We'll force it so no need to update syncState *)
       let _, cmd =
         Analysis.requestTrace
@@ -1230,6 +1250,26 @@ let update_ (msg : msg) (m : model) : modification =
           params.gtdrpTraceID
       in
       MakeCmd cmd
+  | ReceiveFetch (DbStatsFetchFailure (params, url, error)) ->
+      let key =
+        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
+      in
+      Many
+        [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
+        ; DisplayAndReportError
+            ("Error fetching db stats", Some url, Some error) ]
+  | ReceiveFetch (DbStatsFetchMissing params) ->
+      let key =
+        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
+      in
+      TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
+  | ReceiveFetch (DbStatsFetchSuccess (params, result)) ->
+      let key =
+        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
+      in
+      Many
+        [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
+        ; UpdateDBStats result ]
   | AddOpRPCCallback (_, params, Error err) ->
       DisplayAndReportHttpError
         ("RPC", false, err, Encoders.addOpRPCParams params)
@@ -1262,7 +1302,15 @@ let update_ (msg : msg) (m : model) : modification =
   | LocationChange loc ->
       Url.changeLocation m loc
   | TimerFire (action, _) ->
-    (match action with RefreshAnalysis -> GetUnlockedDBsRPC | _ -> NoChange)
+    ( match action with
+    | RefreshAnalysis ->
+      ( match Toplevel.selected m with
+      | Some tl when Toplevel.isDB tl ->
+          Many [UpdateDBStatsRPC tl.id; GetUnlockedDBsRPC]
+      | _ ->
+          GetUnlockedDBsRPC )
+    | _ ->
+        NoChange )
   | IgnoreMsg ->
       (* Many times we have to receive a Msg and we don't actually do anything.
        * To lower to conceptual load, we send an IgnoreMsg, rather than a
@@ -1495,8 +1543,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
     ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
           NewStaticDeployPush s )
-    ; Analysis.ReceiveTraces.listen ~key:"receive_traces" (fun s ->
-          ReceiveTraces s ) ]
+    ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
+          ReceiveFetch s ) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
