@@ -1258,8 +1258,16 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
-        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
-        ]
+        ; DisplayAndReportError
+            ("Error fetching db stats", Some url, Some error) ]
+  | ReceiveTraces (DbStatsFetchMissing params) ->
+      let key =
+        params.dbStatsTlids
+        |> List.map ~f:(fun (TLID tlid) -> tlid)
+        |> String.join ~sep:","
+      in
+      Many
+        [TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))]
   | ReceiveTraces (DbStatsFetchSuccess (params, result)) ->
       let key =
         params.dbStatsTlids

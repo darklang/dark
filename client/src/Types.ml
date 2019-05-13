@@ -411,6 +411,7 @@ and traceFetchResult =
   | TraceFetchMissing of getTraceDataRPCParams
   | DbStatsFetchSuccess of dbStatsRPCParams * dbStatsRPCResult
   | DbStatsFetchFailure of dbStatsRPCParams * string * string
+  | DbStatsFetchMissing of dbStatsRPCParams
 
 and fetchContext =
   { canvasName : string

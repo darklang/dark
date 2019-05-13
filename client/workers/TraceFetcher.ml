@@ -94,7 +94,7 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
       fetch_
         ~decoder:Decoders.dbStatsRPCResult
         ~on_success:(fun r -> DbStatsFetchSuccess (dbsParams, r))
-        ~on_missing:(fun r -> DbStatsFetchFailure (dbsParams, url, r))
+        ~on_missing:(fun _ -> DbStatsFetchMissing dbsParams)
         ~on_failure:(fun r -> DbStatsFetchFailure (dbsParams, url, r))
         url
         context
