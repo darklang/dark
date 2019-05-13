@@ -89,7 +89,7 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
         ^ context.origin
         ^ "/api/"
         ^ context.canvasName
-        ^ "/db_stats"
+        ^ "/get_db_stats"
       in
       fetch_
         ~decoder:Decoders.dbStatsRPCResult
