@@ -106,5 +106,5 @@ let push_new_event
     ~(execution_id : Types.id)
     ~(canvas_id : Uuidm.t)
     ~(event : string)
-    ~(payload : string) =
+    (payload : string) =
   push ~execution_id ~canvas_id ~event payload
