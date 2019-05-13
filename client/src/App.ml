@@ -1252,9 +1252,7 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd cmd
   | ReceiveFetch (DbStatsFetchFailure (params, url, error)) ->
       let key =
-        params.dbStatsTlids
-        |> List.map ~f:(fun (TLID tlid) -> tlid)
-        |> String.join ~sep:","
+        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
@@ -1262,16 +1260,12 @@ let update_ (msg : msg) (m : model) : modification =
             ("Error fetching db stats", Some url, Some error) ]
   | ReceiveFetch (DbStatsFetchMissing params) ->
       let key =
-        params.dbStatsTlids
-        |> List.map ~f:(fun (TLID tlid) -> tlid)
-        |> String.join ~sep:","
+        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
       TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
   | ReceiveFetch (DbStatsFetchSuccess (params, result)) ->
       let key =
-        params.dbStatsTlids
-        |> List.map ~f:(fun (TLID tlid) -> tlid)
-        |> String.join ~sep:","
+        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
