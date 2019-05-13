@@ -430,8 +430,8 @@ let delete_all ~state (db : db) =
 (* ------------------------- *)
 (* stats/locked/unlocked (not _locking_) *)
 (* ------------------------- *)
-let stats_pluck ~account_id ~canvas_id (db : db) : dval =
-  Db.fetch_one
+let stats_pluck ~account_id ~canvas_id (db : db) : dval option =
+  Db.fetch
     ~name:"stats_pluck"
     "SELECT data
      FROM user_data
@@ -448,7 +448,8 @@ let stats_pluck ~account_id ~canvas_id (db : db) : dval =
       ; Uuid canvas_id
       ; Int db.version
       ; Int current_dark_version ]
-  |> to_obj db
+  |> List.hd
+  |> Option.map ~f:(to_obj db)
 
 
 let stats_count ~account_id ~canvas_id (db : db) : int =

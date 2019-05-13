@@ -23,15 +23,22 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
   let (TLID key) = db.dbTLID in
   match StrDict.get ~key vs.dbStats with
   | Some stats ->
+      let exampleHtml =
+        match stats.example with
+        | Some example ->
+            [ Html.hr [] []
+            ; Html.div
+                [Html.class' "dbexample"]
+                [Html.text (Runtime.toRepr example)] ]
+        | None ->
+            [Vdom.noNode; Vdom.noNode]
+      in
       Html.div
         [Html.class' "db dbdata"]
         [ Html.div
             [Html.class' "dbcount"]
-            [Html.text ("# Entries: " ^ string_of_int stats.count)]
-        ; Html.hr [] []
-        ; Html.div
-            [Html.class' "dbexample"]
-            [Html.text (Runtime.toRepr stats.example)] ]
+            ( [Html.text ("# Entries: " ^ string_of_int stats.count)]
+            @ exampleHtml ) ]
   | _ ->
       Vdom.noNode
 

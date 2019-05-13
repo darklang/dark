@@ -24,7 +24,7 @@ let unlocked (c : canvas) : tlid list =
 
 type db_stat =
   { count : int
-  ; example : RTT.dval }
+  ; example : RTT.dval option }
 [@@deriving eq, show, yojson]
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]

@@ -449,7 +449,7 @@ and staticDeploy =
 
 and dbStats =
   { count : int
-  ; example : dval }
+  ; example : dval option }
 
 and dbStatsStore = dbStats StrDict.t
 
