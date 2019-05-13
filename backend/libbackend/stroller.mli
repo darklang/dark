@@ -22,4 +22,11 @@ val push_new_static_deploy :
   -> Static_assets.static_deploy
   -> unit
 
+val push_new_event :
+     execution_id:Types.id
+  -> canvas_id:Uuidm.t
+  -> event:string
+  -> payload:string
+  -> unit
+
 val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string] Lwt.t

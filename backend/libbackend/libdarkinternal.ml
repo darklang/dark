@@ -388,4 +388,27 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 in
                 DOption (OptJust event_list) )
         | args ->
+            fail args )
+    ; ( "DarkInternal::pushStrollerEvent"
+      , function
+        | exec_state, [DStr canvas_id; DStr event; DObj payload] ->
+            let payload =
+              payload |> DObj |> Dval.to_internal_roundtrippable_v0
+            in
+            ( try
+                Stroller.push_new_event
+                  ~execution_id:exec_state.execution_id
+                  ~canvas_id:
+                    ( canvas_id
+                    |> Unicode_string.to_string
+                    |> Uuidm.of_string
+                    |> Option.value_exn )
+                  ~event:(event |> Unicode_string.to_string)
+                  ~payload ;
+                DResult (ResOk DNull)
+              with e ->
+                DResult
+                  (ResError
+                     (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
+        | args ->
             fail args ) ]
