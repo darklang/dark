@@ -1266,8 +1266,7 @@ let update_ (msg : msg) (m : model) : modification =
         |> List.map ~f:(fun (TLID tlid) -> tlid)
         |> String.join ~sep:","
       in
-      Many
-        [TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))]
+      TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
   | ReceiveFetch (DbStatsFetchSuccess (params, result)) ->
       let key =
         params.dbStatsTlids
