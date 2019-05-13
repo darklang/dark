@@ -53,6 +53,7 @@ let () =
             ; currentResults = {liveValues = StrDict.empty}
             ; traces = []
             ; analyses = StrDict.empty
+            ; fns = []
             ; ufns = []
             ; relatedBlankOrs = []
             ; tooWide = false
