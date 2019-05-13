@@ -384,7 +384,7 @@ let submitACItem
       let pd = TL.findExn tl id in
       let result = validate tl pd stringValue in
       if result <> None
-      then DisplayAndReportError (deOption "checked above" result, None, None)
+      then DisplayError (deOption "checked above" result)
       else
         let maybeH = TL.asHandler tl in
         let db = TL.asDB tl in
