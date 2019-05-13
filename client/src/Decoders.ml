@@ -364,7 +364,7 @@ and getTraceDataRPCResult j : getTraceDataRPCResult =
 
 
 and dbStats j : dbStats =
-  {count = field "count" int j; example = field "example" dval j}
+  {count = field "count" int j; example = field "example" (optional dval) j}
 
 
 and dbStatsStore j : dbStatsStore = dict dbStats j
