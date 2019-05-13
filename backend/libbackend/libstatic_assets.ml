@@ -209,12 +209,11 @@ UTF-8 safe"))
         (function
         | state, [DStr file] ->
             let url =
-              "https://avatars1.githubusercontent.com/u/32852373?s=280&v=4"
-              (*url_for
+              url_for
                 state.canvas_id
                 (latest_deploy_hash state.canvas_id)
                 `Short
-                (Unicode_string.to_string file)*)
+                (Unicode_string.to_string file)
             in
             let body, code, headers, _error =
               Httpclient.http_call_with_code url [] Httpclient.GET [] ""
@@ -235,15 +234,11 @@ UTF-8 safe"))
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
-            DResult (ResOk (DResp (Response (code, headers), DBytes body)))
-            (*( match body with
-            | Some dv ->
-                DResult (ResOk (DResp (Response (code, headers), dv)))
-            | None ->
-                DResult
-                  (ResError
-                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe"))
-            )*)
+            DResult
+              (ResOk
+                 (DResp
+                    ( Response (code, headers)
+                    , DBytes (body |> RawBytes.of_string) )))
         | args ->
             Libexecution.Lib.fail args) )
   ; ( "StaticAssets::serveLatest_v1"
