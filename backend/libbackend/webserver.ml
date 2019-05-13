@@ -1471,35 +1471,46 @@ let server () =
       | Some x ->
           S.respond_redirect ~uri:x ()
       | None ->
-        ( match Uri.to_string uri with
-        | "/sitemap.xml" | "/favicon.ico" ->
-            respond ~execution_id `OK ""
+        ( match
+            ( CRequest.meth req
+            , Cohttp.Header.get (CRequest.headers req) "content-type" )
+          with
+        | `POST, Some s when String.lowercase s = "text/ping" ->
+            (* I'm a teapot! We don't support text/ping:
+           * https://dev.w3.org/html5/pf-summary/structured-client-side-storage.html#hyperlink-auditing *)
+            (* Impl'd here since it doesn't matter which canvas we hit, or if it
+           * exists at all *)
+            respond ~execution_id (Cohttp.Code.status_of_code 418) ""
         | _ ->
-          (* figure out what handler to dispatch to... *)
-          ( match route_host req with
-          | Some (Canvas canvas) ->
-              canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
-          | Some Static ->
-              static_handler uri
-          | Some Admin ->
-            ( try
-                authenticate_then_handle
-                  ~execution_id
-                  (fun ~session ~csrf_token r ->
-                    try
-                      admin_handler
-                        ~execution_id
-                        ~uri
-                        ~body
-                        ~stopper
-                        ~session
-                        ~csrf_token
-                        r
-                    with e -> handle_error ~include_internals:true e )
-                  req
-              with e -> handle_error ~include_internals:false e )
-          | None ->
-              k8s_handler req ~execution_id ~stopper ) )
+          ( match Uri.to_string uri with
+          | "/sitemap.xml" | "/favicon.ico" ->
+              respond ~execution_id `OK ""
+          | _ ->
+            (* figure out what handler to dispatch to... *)
+            ( match route_host req with
+            | Some (Canvas canvas) ->
+                canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
+            | Some Static ->
+                static_handler uri
+            | Some Admin ->
+              ( try
+                  authenticate_then_handle
+                    ~execution_id
+                    (fun ~session ~csrf_token r ->
+                      try
+                        admin_handler
+                          ~execution_id
+                          ~uri
+                          ~body
+                          ~stopper
+                          ~session
+                          ~csrf_token
+                          r
+                      with e -> handle_error ~include_internals:true e )
+                    req
+                with e -> handle_error ~include_internals:false e )
+            | None ->
+                k8s_handler req ~execution_id ~stopper ) ) )
     with e -> handle_error ~include_internals:false e
   in
   let cbwb conn req req_body =
