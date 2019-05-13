@@ -1682,8 +1682,11 @@ let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
     | K.Plus, L (_, toTheLeft), _
     | K.Multiply, L (_, toTheLeft), _
     | K.ForwardSlash, L (_, toTheLeft), _
+    | K.LessThan, L (_, toTheLeft), _
+    | K.GreaterThan, L (_, toTheLeft), _
       when onEdge ->
-        (convertToBinOp keyChar (Token.tid toTheLeft.token) ast, s)
+        ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
+        , s |> moveTo (pos + 3) )
     (* End of line *)
     | K.Enter, _, R (TNewline, _) ->
         (ast, moveOneRight pos s)
