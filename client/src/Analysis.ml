@@ -240,7 +240,7 @@ module ReceiveAnalysis = struct
 end
 
 module ReceiveTraces = struct
-  let decode : (Js.Json.t, traceFetchResult) Tea.Json.Decoder.t =
+  let decode : (Js.Json.t, fetchResult) Tea.Json.Decoder.t =
     let open Tea.Json.Decoder in
     map
       (fun msg -> msg)

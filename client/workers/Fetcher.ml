@@ -10,7 +10,7 @@ external self : self = "self" [@@bs.val]
 
 external onmessage : self -> (event -> unit) -> unit = "" [@@bs.set]
 
-type pushResult = Types.traceFetchResult
+type pushResult = Types.fetchResult
 
 external postMessage : self -> pushResult -> unit = "postMessage" [@@bs.send]
 

@@ -404,8 +404,8 @@ and fetchRequest =
   | TraceFetch of getTraceDataRPCParams
   | DbStatsFetch of dbStatsRPCParams
 
-(* traces / traceFetcher *)
-and traceFetchResult =
+(* traces/db_stats fetching *)
+and fetchResult =
   | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
   | TraceFetchFailure of getTraceDataRPCParams * string * string
   | TraceFetchMissing of getTraceDataRPCParams
@@ -865,7 +865,7 @@ and msg =
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
-  | ReceiveTraces of traceFetchResult
+  | ReceiveTraces of fetchResult
   | EnablePanning of bool
   | ShowErrorDetails of bool
   | StartMigration of tlid
