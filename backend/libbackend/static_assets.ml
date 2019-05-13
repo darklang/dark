@@ -130,17 +130,31 @@ let upload_to_bucket
         ]
   in
   let ct = Magic_mime.lookup filename in
+  let cl = String.length body |> string_of_int in
   let body_string = body |> Ezgzip.compress in
   let boundary = "metadata_boundary" in
   let body =
-    ("\n--" ^ boundary)
-    ^ ("\nContent-type:" ^ ct)
-    ^ body_string
-    ^ ("\n--" ^ boundary)
-    ^ "\nContent-type: application/json; charset=UTF-8"
-    ^ "{ \"cacheControl\": \"immutable, max-age=604800\" }"
-    ^ ("\n--" ^ boundary)
-    ^ ""
+    Printf.sprintf
+      {| 
+--%s
+Content-type: %s,
+%s
+--%s
+Content-type: application/json; charset=UTF-8
+{
+  "cacheControl": "immutable, max-age=604800",
+  "contentType": %s,
+  "size": %s,
+}
+--%s--
+      |}
+      boundary
+      ct
+      body_string
+      boundary
+      ct
+      cl
+      boundary
   in
   let headers =
     oauth2_token ()
@@ -148,7 +162,7 @@ let upload_to_bucket
     Cohttp.Header.of_list
       [ ("Authorization", "Bearer " ^ token)
       ; ("Content-type", "multipart/related; boundary=" ^ boundary)
-      ; ("Content-length", String.length body |> string_of_int) ]
+      ; ("Content-length", cl) ]
   in
   headers
   >|= (fun headers ->
