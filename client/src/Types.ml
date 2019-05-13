@@ -865,7 +865,7 @@ and msg =
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
-  | ReceiveTraces of fetchResult
+  | ReceiveFetch of fetchResult
   | EnablePanning of bool
   | ShowErrorDetails of bool
   | StartMigration of tlid
