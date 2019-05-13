@@ -94,6 +94,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
               ev "ResOk" [dval dv]
           | ResError dv ->
               ev "ResError" [dval dv] ) ]
+  | DBytes bin ->
+      ev "DBytes" [string (bin |> Bytes.to_string |> Webapi.Base64.atob)]
 
 
 let rec pointerData (pd : Types.pointerData) : Js.Json.t =
@@ -475,6 +477,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TResult" []
   | TUserType (name, version) ->
       ev "TUserType" [string name; int version]
+  | TBytes ->
+      ev "TBytes" []
   | TDeprecated1 | TDeprecated2 | TDeprecated3 | TDeprecated4 ->
       raise (Js.Exn.raiseError "Deprecated type")
 

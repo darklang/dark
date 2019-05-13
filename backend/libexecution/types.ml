@@ -130,6 +130,7 @@ type tipe_ =
   | TResult
   (* name * version *)
   | TUserType of string * int
+  | TBytes
 [@@deriving eq, compare, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -304,7 +305,24 @@ module RuntimeT = struct
         Error "Invalid time"
 
 
-  (* Bytes *)
+  (* 
+   * Raw Bytes, with (to|of)_yojson.
+   * Extends native Bytes with yojson un/marshaling functions
+   * *)
+  module RawBytes = struct
+    include Bytes
+
+    let to_yojson bytes = `String (bytes |> Bytes.to_string |> B64.encode)
+
+    let of_yojson json =
+      match json with
+      | `String s ->
+          Ok (s |> B64.decode |> Bytes.of_string)
+      | _ ->
+          Error "Expected a string"
+  end
+
+  (* Password Bytes, with (to|of)_yojson, but redacted *)
   module PasswordBytes = struct
     include Bytes
 
@@ -438,6 +456,7 @@ module RuntimeT = struct
     | DOption of optionT
     | DCharacter of Unicode_string.Character.t
     | DResult of resultT
+    | DBytes of RawBytes.t
   [@@deriving show, eq, yojson, compare]
 
   type dval_list = dval list

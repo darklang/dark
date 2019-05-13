@@ -57,6 +57,8 @@ let rec tipe2str (t : tipe) : string =
       "[" ^ tipe2str a ^ "]"
   | TUserType (name, _) ->
       name
+  | TBytes ->
+      "Bytes"
   | TDeprecated1 | TDeprecated2 | TDeprecated3 | TDeprecated4 ->
       raise (Js.Exn.raiseError "Deprecated type")
 
@@ -146,6 +148,8 @@ let str2tipe (t : string) : tipe =
       TOption
   | "result" ->
       TResult
+  | "bytes" ->
+      TBytes
   | "password" ->
       TPassword
   | "uuid" ->
@@ -201,6 +205,8 @@ let typeOf (dv : dval) : tipe =
       TUuid
   | DResult _ ->
       TResult
+  | DBytes _ ->
+      TBytes
 
 
 let isLiteral (dv : dval) : bool =
@@ -365,6 +371,12 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         "[ " ^ String.join ~sep:", " (List.map ~f:(toRepr_ indent) l) ^ " ]" )
   | DObj o ->
       objToString (StrDict.toList o)
+  | DBytes s ->
+      "<"
+      ^ (dv |> typeOf |> tipe2str)
+      ^ ": length="
+      ^ (Bytes.length s |> string_of_int)
+      ^ ">"
 
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv

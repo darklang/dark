@@ -68,6 +68,8 @@ module PrettyResponseJsonV0 = struct
           wrap_constructed_type
             (`String "Error")
             [unsafe_dval_to_yojson ~redact dv] )
+    | DBytes bytes ->
+        wrap_user_str (RawBytes.to_string bytes)
 
 
   let to_pretty_response_json_v0 dval =

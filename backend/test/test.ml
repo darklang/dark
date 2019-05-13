@@ -271,7 +271,13 @@ let sample_dvals =
   ; ( "result2"
     , DResult
         (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
-    ) ]
+    )
+  ; ("bytes", DBytes ("JyIoXCg=" |> B64.decode |> RawBytes.of_string))
+  ; ( "bytes2"
+    , DBytes
+        (* use image bytes here to test for any weird bytes forms *)
+        (RawBytes.of_string
+           (File.readfile ~root:Testdata "sample_image_bytes.png")) ) ]
 
 
 (* ------------------- *)
