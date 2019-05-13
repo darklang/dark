@@ -249,11 +249,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-client-{{ checksum "client/package.json" }}
-            - v6-client-{{ checksum "today-timestamp" }}
-            - v6-client-{{ checksum "minus1-timestamp" }}
-            - v6-client-{{ checksum "minus2-timestamp" }}
-            - v6-client-{{ checksum "minus3-timestamp" }}
+            - v7-client-{{ checksum "client/package.json" }}
+            - v7-client-{{ checksum "today-timestamp" }}
+            - v7-client-{{ checksum "minus1-timestamp" }}
+            - v7-client-{{ checksum "minus2-timestamp" }}
+            - v7-client-{{ checksum "minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
