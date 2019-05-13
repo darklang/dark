@@ -64,11 +64,12 @@ type ast = fluidExpr [@@deriving show]
 (* character, null *)
 (* feature flags (may punt) *)
 
-let rec fromExpr (expr : Types.expr) : fluidExpr =
+let rec fromExpr (fns : function_ list) (expr : Types.expr) : fluidExpr =
   let open Types in
   let varToName var =
     match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
   in
+  let fromExpr = fromExpr fns in
   match expr with
   | Blank id ->
       EBlank id
@@ -89,9 +90,19 @@ let rec fromExpr (expr : Types.expr) : fluidExpr =
           (id, List.map pairs ~f:(fun (k, v) -> (varToName k, fromExpr v)))
     | FieldAccess (expr, field) ->
         EFieldAccess (id, fromExpr expr, varToName field)
-    | FnCall (name, exprs, ster) ->
-        (* TODO: look at attrs to see if it's a binop *)
-        EFnCall (id, varToName name, List.map ~f:fromExpr exprs, ster)
+    | FnCall (name, args, ster) ->
+        let args = List.map ~f:fromExpr args in
+        let fnCall = EFnCall (id, varToName name, args, ster) in
+        let fn = List.find fns ~f:(fun fn -> fn.fnName = varToName name) in
+        ( match fn with
+        | Some fn when fn.fnInfix ->
+          ( match args with
+          | [a; b] ->
+              EBinOp (id, varToName name, a, b, ster)
+          | _ ->
+              fnCall )
+        | _ ->
+            fnCall )
     | Thread exprs ->
         EThread (id, List.map ~f:fromExpr exprs)
     | Lambda (varnames, exprs) ->
@@ -1745,7 +1756,11 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
     | None ->
         Types.NoChange
     | Some tl ->
-        let ast = TL.rootExpr tl |> deOption "Fluid.update" |> fromExpr in
+        let ast =
+          TL.rootExpr tl
+          |> deOption "Fluid.update"
+          |> fromExpr m.builtInFunctions
+        in
         let newAST, newState, cmd =
           let s =
             {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
