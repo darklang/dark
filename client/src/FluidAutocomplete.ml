@@ -233,7 +233,17 @@ let qLiteral (s : string) : autocompleteItem option =
 
 
 let isDynamicItem (item : autocompleteItem) : bool =
-  match item with FACLiteral _ -> true | _ -> false
+  match item with
+  | FACLiteral "true" ->
+      false
+  | FACLiteral "null" ->
+      false
+  | FACLiteral "false" ->
+      false
+  | FACLiteral _ ->
+      true
+  | _ ->
+      false
 
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
@@ -340,7 +350,10 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     let keywords =
       List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch]
     in
-    varnames @ constructors @ keywords @ functions
+    let literals =
+      List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
+    in
+    varnames @ constructors @ keywords @ literals @ functions
     (* else [] *)
   in
   let items = extras @ exprs @ fields in
