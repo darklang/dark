@@ -72,7 +72,7 @@ def client_build():
       return result
 
   start = time.time()
-  build = "cd client && unbuffer yarn run-s build:bsb build:js build:tracefetcher build:analysiswrapper"
+  build = "cd client && unbuffer yarn run-s build:bsb build:js build:fetcher build:analysiswrapper"
   result = run_frontend(start, build)
   return result
 
