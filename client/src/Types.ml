@@ -93,6 +93,7 @@ and tipe =
   | THasMany of string
   | TDbList of tipe
   | TUserType of string * int
+  | TBytes
 
 (* ---------------------- *)
 (* Exprs and AST types *)
@@ -349,6 +350,7 @@ and dval =
   | DUuid of string
   | DOption of optionT
   | DResult of resultT
+  | DBytes of bytes
 
 (* ----------------------------- *)
 (* Mouse *)

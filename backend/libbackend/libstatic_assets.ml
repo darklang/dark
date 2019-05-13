@@ -177,4 +177,41 @@ UTF-8 safe"))
                      (Dval.dstr_of_string_exn "Response was not UTF-8 safe"))
             )
         | args ->
+            Libexecution.Lib.fail args) )
+  ; ( "StaticAssets::serveLatest_v1"
+    , InProcess
+        (function
+        | state, [DStr file] ->
+            let url =
+              url_for
+                state.canvas_id
+                (latest_deploy_hash state.canvas_id)
+                `Short
+                (Unicode_string.to_string file)
+            in
+            let body, code, headers, _error =
+              Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+            in
+            let headers =
+              headers
+              |> List.map (fun (k, v) -> (k, String.trim v))
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Content-Length") )
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) -> not (String.trim k = ""))
+              |> List.filter (fun (k, v) -> not (String.trim v = ""))
+            in
+            DResult
+              (ResOk
+                 (DResp
+                    ( Response (code, headers)
+                    , DBytes (body |> RawBytes.of_string) )))
+        | args ->
             Libexecution.Lib.fail args) ) ]
