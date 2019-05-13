@@ -367,8 +367,6 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
       DOption (OptJust (unsafe_dval_of_yojson dv))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson dv)
-  | `Assoc [("type", `String "bytes"); ("value", dv)] ->
-      DBytes (dv |> Yojson.Safe.to_string |> B64.decode)
   | `Assoc _ ->
       DObj (unsafe_dvalmap_of_yojson json)
 
