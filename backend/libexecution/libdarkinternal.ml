@@ -186,4 +186,12 @@ let fns : Lib.shortfn list =
         "Returns Just most recent stored events for the tlid if it is a handleror Nothing if it is not"
     ; f = NotClientAvailable
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::pushStrollerEvent"]
+    ; ins = []
+    ; p = [par "canvas_id" TStr; par "event" TStr; par "payload" TObj]
+    ; r = TResult
+    ; d = "Pushes an event to Stroller"
+    ; f = NotClientAvailable
+    ; ps = false
     ; dep = false } ]

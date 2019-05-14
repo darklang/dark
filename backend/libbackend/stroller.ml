@@ -99,3 +99,12 @@ let push_new_static_deploy
     (asset : Static_assets.static_deploy) =
   let payload = Analysis.to_new_static_deploy_frontend asset in
   push ~execution_id ~canvas_id ~event:"new_static_deploy" payload
+
+
+(* For exposure as a DarkInternal function *)
+let push_new_event
+    ~(execution_id : Types.id)
+    ~(canvas_id : Uuidm.t)
+    ~(event : string)
+    (payload : string) =
+  push ~execution_id ~canvas_id ~event payload
