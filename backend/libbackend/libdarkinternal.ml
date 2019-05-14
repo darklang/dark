@@ -485,4 +485,24 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
               ~username
             |> DBool
         | args ->
+            fail args )
+    ; ( "DarkInternal::usernameToUserInfo"
+      , function
+        | _, [DStr username] ->
+            let username = Unicode_string.to_string username in
+            ( match Account.get_user username with
+            | None ->
+                DOption OptNothing
+            | Some user_info ->
+                let dval_map =
+                  user_info
+                  |> Account.user_info_to_yojson
+                  |> Yojson.Safe.Util.to_assoc
+                  |> List.map ~f:(fun (k, v) ->
+                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
+                     )
+                  |> DvalMap.of_alist_exn
+                in
+                DOption (OptJust (DObj dval_map)) )
+        | args ->
             fail args ) ]
