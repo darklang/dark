@@ -408,4 +408,58 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 (ResError (e |> Exception.to_string |> Dval.dstr_of_string_exn))
           )
         | args ->
+            fail args )
+    ; ( "DarkInternal::logPP"
+      , function
+        | _, [DStr level; DStr name; DObj log] ->
+            let name = name |> Unicode_string.to_string in
+            (* Logs are important; if we get a level we can't parse, fall back to
+             * `Info and also error log *)
+            let levelStr = level |> Unicode_string.to_string in
+            let level =
+              levelStr
+              |> Log.string_to_level_opt
+              |> function
+              | Some level ->
+                  level
+              | None ->
+                  Log.erroR
+                    "DarkInternal::logPP no match"
+                    ~params:[("input_level", levelStr); ("log_name", name)] ;
+                  `Info
+            in
+            (* We could just leave the dval vals as strings and use ~params, but
+             * then we can't do numeric things (MAX, AVG, >, etc) with these
+             * logs *)
+            let jsonparams =
+              log
+              |> DvalMap.to_yojson (fun v ->
+                     v
+                     |> Dval.to_pretty_machine_json_v1
+                     |> Yojson.Safe.from_string )
+              |> function
+              | `Assoc jsonparams ->
+                  jsonparams
+              | _ ->
+                  Exception.internal "Can't happen, bad log call"
+            in
+            let log =
+              log
+              |> DvalMap.add
+                   ~key:"level"
+                   ~data:
+                     (level |> Log.level_to_string |> Dval.dstr_of_string_exn)
+              |> function
+              | `Ok log ->
+                  log
+              | `Duplicate ->
+                  log
+                  |> DvalMap.add
+                       ~key:"name"
+                       ~data:(Dval.dstr_of_string_exn name)
+                  |> (function `Ok log -> log | `Duplicate -> log)
+            in
+            Log.pP ~level name ~jsonparams ;
+            DObj log
+        | args ->
             fail args ) ]
