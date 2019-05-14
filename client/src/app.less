@@ -392,6 +392,9 @@ body #app * {
   }
 }
 .use-wrapper{
+  background: transparent;
+  margin-left: 10px;
+  
   &.fade{
     opacity: 0.3;
   }
@@ -399,8 +402,7 @@ body #app * {
   .usages, .used-in  {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding-right: 10px;
+    align-items: flex-start;
   }
 }
 
@@ -420,6 +422,11 @@ body #app * {
   color: @white1;
   font-size: @code-font-size;
 
+  &:first-child {
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+  
   &:hover {
     cursor: pointer;
     color: @yellow;
@@ -1812,9 +1819,9 @@ body #app * {
 //
 
 .sidebar-box {
-  background: @black1;
   position: relative;
   display: flex;
+  align-items: flex-start;
 }
 
 .documentation-box {
