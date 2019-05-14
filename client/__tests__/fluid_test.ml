@@ -67,6 +67,7 @@ let () =
   let aPartialFloat = EFloat (gid (), "1", "") in
   let trueBool = EBool (gid (), true) in
   (* let falseBool = EBool (gid (), false) in *)
+  let aNull = ENull (gid ()) in
   let five = EInteger (gid (), 5) in
   let fiftySix = EInteger (gid (), 56) in
   let seventyEight = EInteger (gid (), 78) in
@@ -272,6 +273,17 @@ let () =
       t "insert middle of bool" trueBool (insert '0' 2) ("tr0ue", 3) ;
       t "delete middle of bool" trueBool (delete 2) ("tre", 2) ;
       t "backspace middle of bool" trueBool (backspace 2) ("tue", 1) ;
+      () ) ;
+  describe "Nulls" (fun () ->
+      t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
+      t "delete start of null" aNull (delete 0) ("ull", 0) ;
+      t "backspace start of null" aNull (backspace 0) ("null", 0) ;
+      t "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
+      t "delete end of null" aNull (delete 4) ("null", 4) ;
+      t "backspace end of null" aNull (backspace 4) ("nul", 3) ;
+      t "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
+      t "delete middle of null" aNull (delete 2) ("nul", 2) ;
+      t "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;

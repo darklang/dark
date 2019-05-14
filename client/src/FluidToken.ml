@@ -14,6 +14,7 @@ let tid (t : token) : id =
   | TFloatFraction (id, _)
   | TTrue id
   | TFalse id
+  | TNullToken id
   | TBlank id
   | TPartial (id, _)
   | TLetKeyword id
@@ -86,6 +87,8 @@ let toText (t : token) : string =
       "true"
   | TFalse _ ->
       "false"
+  | TNullToken _ ->
+      "null"
   | TBlank _ ->
       "   "
   | TPartial (_, str) ->
@@ -176,6 +179,8 @@ let toTypeName (t : token) : string =
       "true"
   | TFalse _ ->
       "false"
+  | TNullToken _ ->
+      "null"
   | TBlank _ ->
       "blank"
   | TPartial _ ->
@@ -248,6 +253,8 @@ let toCategoryName (t : token) : string =
       "float"
   | TTrue _ | TFalse _ ->
       "boolean"
+  | TNullToken _ ->
+      "null"
   | TFnName _ | TBinOp _ ->
       "function"
   | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
