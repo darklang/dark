@@ -578,7 +578,7 @@ let rec to_enduser_readable_text_v0 dval =
     | DOption OptNothing ->
         "Nothing"
     | DBytes bytes ->
-        "<Bytes: length=" ^ string_of_int (RawBytes.length bytes) ^ ">"
+        Bytes.to_string bytes
   in
   reprfn dval
 
