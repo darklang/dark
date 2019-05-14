@@ -1057,6 +1057,16 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState }
 
+(* Avatars *)
+and avatar =
+  { fullName : string option
+  ; email : string
+  ; username : string
+  ; active : bool
+  (* Possibly the timestamp of last active *) }
+
+and avatarsList = avatar list
+
 and model =
   { error : darkError
   ; lastMsg : msg
@@ -1106,7 +1116,8 @@ and model =
   ; tlUsages : usage list
   ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState
-  ; dbStats : dbStatsStore }
+  ; dbStats : dbStatsStore 
+  ; avatarsList : avatarsList }
 
 (* Values that we serialize *)
 and serializableEditor =

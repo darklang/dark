@@ -28,10 +28,30 @@ let avatarUrl (email : string) (name : string option) : string =
   ^ Js_global.encodeURI (fallback name)
 
 
-let avatarDiv (username : string) : msg Html.html =
+let avatarDiv (avatar : avatar) : msg Html.html =
   (* TODO name and email from state *)
-  let name : string option = None in
-  let email : string = username in
+  let name : string option = avatar.fullName in
+  let email : string = avatar.email in
+  let username : string = avatar.username in
+  let class_ =
+    String.concat " " ["avatar"; (if avatar.active then "" else "inactive")]
+  in
   Html.div
-    []
+    [Html.class' class_]
     [Html.img [Html.src (avatarUrl email name); Vdom.prop "alt" username] []]
+
+
+let avatarsView (avatars : avatarsList) (tl : bool) : msg Html.html =
+  let class_ = String.concat " " ["avatars"; (if tl then "active" else "")] in
+  let renderAvatar (a : avatar) = avatarDiv a in
+  let avatars = List.map renderAvatar avatars in
+  Html.div [Html.class' class_] avatars
+
+
+(* let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in *)
+
+let allAvatarsView (avatars : avatarsList) : msg Html.html =
+  let renderAvatar (a : avatar) = avatarDiv a in
+  let header = Html.p [] [Html.text "Active users"] in
+  let avatars = List.map renderAvatar avatars in
+  Html.div [Html.class' "all-avatars"] (header :: avatars)

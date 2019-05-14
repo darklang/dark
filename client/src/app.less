@@ -399,11 +399,64 @@ body #app * {
     opacity: 0.3;
   }
 
+<<<<<<< HEAD
   .usages, .used-in  {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
   }
+=======
+.usages {
+  position: absolute;
+  left: calc(~"100% + 30px");
+  
+  display: flex;
+  flex-direction: column;
+
+}
+.avatars{
+  position: absolute;
+  left: calc(~"100% + 30px");
+  
+  display: flex;
+  flex-direction: column;
+  
+}
+
+.avatar{
+ &.inactive{
+   opacity: 0.5;
+ }
+ img{
+   width: 50px
+ }
+}
+
+.all-avatars{
+  width: 75px;
+  max-height: calc(100% - 50px);
+  overflow-y: scroll;
+  position: fixed;
+  top: 0;
+  right: 0;
+  background-color: @black2;
+  margin: 5px;
+  padding: 5px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  p{
+    text-align: center
+  }
+}
+
+.used-in {
+  position: absolute;
+  left: calc(~"100% + 30px");
+
+  display: flex;
+  flex-direction: column;
+>>>>>>> rendering avatar presence with empty data for now
 }
 
 .ref-block {
@@ -510,6 +563,7 @@ body #app * {
   top: 0;
   left: 0;
 }
+
 
 .viewing-table {
   background-color: @black2;
