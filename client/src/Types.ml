@@ -1062,8 +1062,8 @@ and avatar =
   { fullName : string option
   ; email : string
   ; username : string
-  ; active : bool
-  (* Possibly the timestamp of last active *) }
+  ; activeTimestamp : int
+  }
 
 and avatarsList = avatar list
 
