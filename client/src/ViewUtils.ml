@@ -32,7 +32,12 @@ type viewState =
   ; inReferences : usedIn list
   ; toReferences : refersTo list
   ; usagesOfHoveredReference : id list
+<<<<<<< HEAD
   ; fluidState : Types.fluidState }
+=======
+  ; fluidState : Fluid.state
+  ; avatarsList : avatarsList }
+>>>>>>> rendering avatar presence with empty data for now
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -145,7 +150,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ ->
           [] )
   ; usagesOfHoveredReference = usagesOfHoveredReference tl hp
-  ; fluidState = m.fluidState }
+  ; fluidState = m.fluidState
+  ; avatarsList =
+      ( match m.currentPage with
+      | FocusedHandler tlid_ when tlid_ = tl.id ->
+          Introspect.activeAvatars m
+      | _ ->
+          [] ) }
 
 
 let fontAwesome (name : string) : msg Html.html =

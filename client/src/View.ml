@@ -61,6 +61,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         "dblclick"
         (fun _ -> ToplevelDoubleClick vs.tl.id) ]
   in
+  let avatars = Avatar.avatarsView vs.avatarsList false in
   let selected = Some tl.id = tlidOf m.cursorState in
   let boxClasses =
     let dragging =
@@ -164,10 +165,16 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     Html.div
       (* -- see comment in css *)
       [Html.classList boxClasses]
+<<<<<<< HEAD
       [ Html.div (Html.class' class_ :: events) (body @ data @ top)
       ; Html.div
           [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
           [uses; refs] ]
+=======
+      [ Html.div
+          (Html.class' class_ :: events)
+          (body @ data @ top @ [uses; refs; avatars]) ]
+>>>>>>> rendering avatar presence with empty data for now
   in
   ViewUtils.placeHtml pos html
 
@@ -300,11 +307,12 @@ let view (m : model) : msg Html.html =
   let footer = [ViewScaffold.viewError m.error; ViewScaffold.viewButtons m] in
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in
+  let activeAvatars = Avatar.allAvatarsView m.avatarsList in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if VariantTesting.isFluid m.tests
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
-  let content = [routing; body] @ fluidStatus @ footer in
+  let content = [routing; body; activeAvatars] @ fluidStatus @ footer in
   Html.div attributes content

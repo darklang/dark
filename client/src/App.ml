@@ -39,7 +39,8 @@ let init (flagString : string) (location : Web.Location.location) =
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
-    ; csrfToken }
+    ; csrfToken
+    ; avatarsList = [] }
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
