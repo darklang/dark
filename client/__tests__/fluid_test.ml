@@ -116,7 +116,7 @@ let () =
     let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
     (* TODO: This is the wrong token to focus on. We may want to use the edge
      * to decide. *)
-    let ti, _, _ = Fluid.getTokensAtPosition ~pos (toTokens ast) in
+    let ti, _, _ = Fluid.getTokensAtPosition ~pos (toTokens s ast) in
     let ac = s.ac |> AC.setTargetTL m (Some (tl ast)) |> AC.setTargetTI m ti in
     let s = {s with ac} in
     let newAST, newState =
@@ -125,7 +125,7 @@ let () =
     let result =
       match newAST with ELet (_, _, expr, _) when wrap -> expr | expr -> expr
     in
-    (eToString result, max 0 (newState.newPos - extra))
+    (eToString s result, max 0 (newState.newPos - extra))
   in
   let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Delete] pos expr
@@ -161,7 +161,8 @@ let () =
     test
       ( name
       ^ " - `"
-      ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+      ^ ( eToString Defaults.defaultFluidState initial
+        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () -> expect (fn initial) |> toEqual expected)
   in
@@ -581,7 +582,7 @@ let () =
       (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)
       () ) ;
   describe "Movement" (fun () ->
-      let tokens = toTokens complexExpr in
+      let tokens = toTokens m.fluidState complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let s = Defaults.defaultFluidState in
       let ast = complexExpr in

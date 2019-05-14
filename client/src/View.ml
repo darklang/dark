@@ -303,7 +303,7 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if VariantTesting.isFluid m.tests
-    then [Fluid.viewStatus (Fluid.fromExpr m.builtInFunctions ast) m.fluidState]
+    then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
   let content = [routing; body] @ fluidStatus @ footer in

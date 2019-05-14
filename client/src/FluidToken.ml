@@ -16,6 +16,7 @@ let tid (t : token) : id =
   | TFalse id
   | TNullToken id
   | TBlank id
+  | TPlaceholder (_, id)
   | TPartial (id, _)
   | TLetKeyword id
   | TLetAssignment id
@@ -49,6 +50,7 @@ let tid (t : token) : id =
 let isBlank t =
   match t with
   | TBlank _
+  | TPlaceholder _
   | TRecordField (_, _, "")
   | TFieldName (_, "")
   | TLetLHS (_, "")
@@ -60,7 +62,7 @@ let isBlank t =
 
 
 let isAutocompletable (t : token) : bool =
-  match t with TBlank _ | TPartial _ -> true | _ -> false
+  match t with TBlank _ | TPlaceholder _ | TPartial _ -> true | _ -> false
 
 
 let toText (t : token) : string =
@@ -91,6 +93,8 @@ let toText (t : token) : string =
       "null"
   | TBlank _ ->
       "   "
+  | TPlaceholder ((name, tipe), _) ->
+      " " ^ name ^ " : " ^ tipe ^ " "
   | TPartial (_, str) ->
       canBeEmpty str
   | TSep ->
@@ -183,6 +187,8 @@ let toTypeName (t : token) : string =
       "null"
   | TBlank _ ->
       "blank"
+  | TPlaceholder _ ->
+      "placeholder"
   | TPartial _ ->
       "partial"
   | TLetKeyword _ ->
@@ -247,7 +253,7 @@ let toCategoryName (t : token) : string =
   match t with
   | TInteger _ | TString _ ->
       "literal"
-  | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ ->
+  | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ | TPlaceholder _ ->
       ""
   | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
       "float"
