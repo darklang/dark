@@ -203,4 +203,12 @@ let fns : Lib.shortfn list =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
     ; f = NotClientAvailable
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::sessionKeyToUsername"]
+    ; ins = []
+    ; p = [par "sessionKey" TStr]
+    ; r = TResult
+    ; d = "Looks up the username for a session_key"
+    ; f = NotClientAvailable
+    ; ps = false
     ; dep = false } ]

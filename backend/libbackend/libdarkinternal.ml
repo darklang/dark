@@ -462,4 +462,16 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             Log.pP ~level name ~jsonparams ;
             DObj log
         | args ->
+            fail args )
+    ; ( "DarkInternal::sessionKeyToUsername"
+      , function
+        | _, [DStr sessionKey] ->
+            let sessionKey = sessionKey |> Unicode_string.to_string in
+            ( match Auth.Session.username_of_key sessionKey with
+            | None ->
+                DResult
+                  (ResError (Dval.dstr_of_string_exn "No session for cookie"))
+            | Some username ->
+                DResult (ResOk (Dval.dstr_of_string_exn username)) )
+        | args ->
             fail args ) ]
