@@ -485,7 +485,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         then Types.Rail
         else Types.NoRail
       in
-      let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
+      let args = List.initialize count (fun _ -> EBlank (gid ())) in
       (EFnCall (gid (), name, args, r), String.length name + 1)
   | FACKeyword KLet ->
       (ELet (gid (), "", newB (), newB ()), 4)
@@ -502,7 +502,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACLiteral "null" ->
       (ENull (gid ()), 4)
   | FACConstructorName (name, argCount) ->
-      let argCount = List.initialize ~length:argCount ~f:(fun _ -> EBlank (gid ())) in
+      let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
       (EConstructor (gid (), name, argCount), 1 + String.length name)
   | _ ->
       let str =
