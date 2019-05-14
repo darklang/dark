@@ -177,7 +177,7 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
 
 let activeAvatars (m : model) : avatar list =
   let avatars = m.avatarsList in
-  avatars
+  avatars 
 
 
 let replaceUsages (oldUsages : usage list) (newUsages : usage list) :
