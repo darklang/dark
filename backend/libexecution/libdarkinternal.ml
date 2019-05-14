@@ -194,4 +194,13 @@ let fns : Lib.shortfn list =
     ; d = "Pushes an event to Stroller"
     ; f = NotClientAvailable
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::logPP"]
+    ; ins = []
+    ; p = [par "level" TStr; par "name" TStr; par "log" TObj]
+    ; r = TObj
+    ; d =
+        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
+    ; f = NotClientAvailable
+    ; ps = false
     ; dep = false } ]
