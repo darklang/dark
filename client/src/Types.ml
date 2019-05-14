@@ -957,10 +957,13 @@ and fluidExpr =
   | EThread of id * fluidExpr list
   | EOldExpr of expr
 
+and placeholder = string * string
+
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
   | TBlank of id
+  | TPlaceholder of placeholder * id
   | TTrue of id
   | TFalse of id
   | TNullToken of id
