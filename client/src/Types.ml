@@ -942,6 +942,7 @@ and fluidExpr =
   | EBool of id * bool
   | EString of id * string
   | EFloat of id * string * string
+  | ENull of id
   | EBlank of id
   | ELet of id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
@@ -962,6 +963,7 @@ and fluidToken =
   | TBlank of id
   | TTrue of id
   | TFalse of id
+  | TNullToken of id
   | TFloatWhole of id * string
   | TFloatPoint of id
   | TFloatFraction of id * string
