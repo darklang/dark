@@ -474,4 +474,15 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | Some username ->
                 DResult (ResOk (Dval.dstr_of_string_exn username)) )
         | args ->
+            fail args )
+    ; ( "DarkInternal::canEditCanvas"
+      , function
+        | _, [DStr host; DStr username] ->
+            let host = Unicode_string.to_string host in
+            let username = Unicode_string.to_string username in
+            Account.can_edit_canvas
+              ~auth_domain:(Account.auth_domain_for host)
+              ~username
+            |> DBool
+        | args ->
             fail args ) ]
