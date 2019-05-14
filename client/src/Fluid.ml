@@ -144,9 +144,8 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         |> Option.or_ asBool
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
-    | Constructor (nameBor, exprs) ->
-        let name = match nameBor with F (_, str) -> str | _ -> "" in
-        EConstructor (id, name, List.map ~f:fromExpr exprs)
+    | Constructor (name, exprs) ->
+        EConstructor (id, varToName name, List.map ~f:fromExpr exprs)
     | FeatureFlag _ | Match _ ->
         EOldExpr expr )
 
@@ -502,8 +501,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (EBool (gid (), false), 5)
   | FACLiteral "null" ->
       (ENull (gid ()), 4)
-  | FACConstructorName name ->
-      (EConstructor (gid (), name, [EBlank (gid ())]), String.length name)
+  | FACConstructorName (name, argCount) ->
+      let argCount = List.initialize ~length:argCount ~f:(fun _ -> EBlank (gid ())) in
+      (EConstructor (gid (), name, argCount), 1 + String.length name)
   | _ ->
       let str =
         "TODO: autocomplete result for "
