@@ -590,13 +590,6 @@ let () =
             ("constructor autocomplete works for " ^ con)
             (EPartial (gid (), con))
             (press K.Enter (String.length con))
-            (con ^ blanks, 1 + String.length con) ;
-          t
-            ( "constructor autocomplete for "
-            ^ con
-            ^ " has right number of spaces" )
-            (EPartial (gid (), con))
-            (press K.Enter (String.length con))
             (con ^ blanks, 1 + String.length con) )
       |> ignore ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
