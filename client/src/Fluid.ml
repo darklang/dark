@@ -60,9 +60,49 @@ type ast = fluidExpr [@@deriving show]
 type state = Types.fluidState
 
 let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
-  let open Types in
   let varToName var =
     match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
+  in
+  let parseString str :
+      [> `Bool of bool
+      | `Int of int
+      | `Null
+      | `Float of string * string
+      | `Unknown ] =
+    let asBool =
+      if str = "true"
+      then Some (`Bool true)
+      else if str = "false"
+      then Some (`Bool false)
+      else if str = "null"
+      then Some `Null
+      else None
+    in
+    let asInt = try Some (`Int (int_of_string str)) with _ -> None in
+    let asFloat =
+      try
+        (* for the exception *)
+        ignore (float_of_string str) ;
+        match String.split ~on:"." str with
+        | [whole; fraction] ->
+            Some (`Float (whole, fraction))
+        | _ ->
+            None
+      with _ -> None
+    in
+    let asString =
+      if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
+      then
+        Some
+          (`String
+            (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
+      else None
+    in
+    asInt
+    |> Option.or_ asString
+    |> Option.or_ asBool
+    |> Option.or_ asFloat
+    |> Option.withDefault ~default:`Unknown
   in
   let fromExpr = fromExpr s in
   match expr with
@@ -110,67 +150,91 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
           , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
           , fromExpr exprs )
     | Value str ->
-        let asBool =
-          if str = "true"
-          then Some (EBool (id, true))
-          else if str = "false"
-          then Some (EBool (id, false))
-          else if str = "null"
-          then Some (ENull id)
-          else None
-        in
-        let asInt =
-          try Some (EInteger (id, int_of_string str)) with _ -> None
-        in
-        let asFloat =
-          try
-            (* for the exception *)
-            ignore (float_of_string str) ;
-            match String.split ~on:"." str with
-            | [whole; fraction] ->
-                Some (EFloat (id, whole, fraction))
-            | _ ->
-                None
-          with _ -> None
-        in
-        let asString =
-          if String.startsWith ~prefix:"\"" str
-             && String.endsWith ~suffix:"\"" str
-          then
-            Some
-              (EString
-                 ( id
-                 , str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
-                 ))
-          else None
-        in
-        asInt
-        |> Option.or_ asString
-        |> Option.or_ asBool
-        |> Option.or_ asFloat
-        |> Option.withDefault ~default:(EOldExpr expr)
+      ( match parseString str with
+      | `Bool b ->
+          EBool (id, b)
+      | `Int i ->
+          EInteger (id, i)
+      | `String s ->
+          EString (id, s)
+      | `Null ->
+          ENull id
+      | `Float (whole, fraction) ->
+          EFloat (id, whole, fraction)
+      | `Unknown ->
+          Js.log2 "Getting old Value that we coudln't parse" expr ;
+          EOldExpr expr )
     | Constructor (name, exprs) ->
         EConstructor
           (id, Blank.toID name, varToName name, List.map ~f:fromExpr exprs)
-    | FeatureFlag _ | Match _ ->
+    | Match (mexpr, pairs) ->
+        let rec fromPattern (p : pattern) : fluidPattern =
+          match p with
+          | Blank _ ->
+              FPBlank
+          | Partial (_, name) ->
+              FPPartial name
+          | F (_, np) ->
+            ( match np with
+            | PVariable name ->
+                FPVariable name
+            | PConstructor (name, patterns) ->
+                FPConstructor (name, List.map ~f:fromPattern patterns)
+            | PLiteral str ->
+              ( match parseString str with
+              | `Bool b ->
+                  FPBool b
+              | `Int i ->
+                  FPInteger i
+              | `String s ->
+                  FPString s
+              | `Null ->
+                  FPNull
+              | `Float (whole, fraction) ->
+                  FPFloat (whole, fraction)
+              | `Unknown ->
+                  Js.log2
+                    "Getting old pattern literal that we couldn't parse"
+                    p ;
+                  FPOldPattern p ) )
+        in
+        let pairs =
+          List.map pairs ~f:(fun (p, e) -> (fromPattern p, fromExpr e))
+        in
+        EMatch (id, fromExpr mexpr, pairs)
+    | FeatureFlag _ ->
         EOldExpr expr )
 
 
 let rec toExpr (expr : fluidExpr) : Types.expr =
   (* TODO: remove any new generation (gid ()) from this fn, save the old
    * ones instead *)
+  let toString
+      (v : [> `Bool of bool | `Int of int | `Null | `Float of string * string])
+      : string =
+    match v with
+    | `Int i ->
+        Int.toString i
+    | `String str ->
+        "\"" ^ str ^ "\""
+    | `Bool b ->
+        if b then "true" else "false"
+    | `Null ->
+        "null"
+    | `Float (whole, fraction) ->
+        whole ^ "." ^ fraction
+  in
   match expr with
   | EInteger (id, num) ->
-      F (id, Value (Int.toString num))
+      F (id, Value (toString (`Int num)))
   | EString (id, str) ->
-      F (id, Value ("\"" ^ str ^ "\""))
+      F (id, Value (toString (`String str)))
   | EFloat (id, whole, fraction) ->
-      F (id, Value (whole ^ "." ^ fraction))
+      F (id, Value (toString (`Float (whole, fraction))))
   | EBool (id, b) ->
-      let str = if b then "true" else "false" in
-      F (id, Value str)
+      F (id, Value (toString (`Bool b)))
   | ENull id ->
-      F (id, Value "null")
+      F (id, Value (toString `Null))
   | EVariable (id, var) ->
       F (id, Variable var)
   | EFieldAccess (id, obj, fieldID, fieldname) ->
@@ -213,6 +277,32 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F (id, Thread (List.map ~f:toExpr exprs))
   | EConstructor (id, nameID, name, exprs) ->
       F (id, Constructor (F (nameID, name), List.map ~f:toExpr exprs))
+  | EMatch (id, mexpr, pairs) ->
+      let rec toPattern p =
+        match p with
+        | FPVariable var ->
+            F (gid (), PVariable var)
+        | FPConstructor (name, patterns) ->
+            F (gid (), PConstructor (name, List.map ~f:toPattern patterns))
+        | FPInteger i ->
+            F (gid (), PLiteral (toString (`Int i)))
+        | FPBool b ->
+            F (gid (), PLiteral (toString (`Bool b)))
+        | FPString str ->
+            F (gid (), PLiteral (toString (`String str)))
+        | FPFloat (whole, fraction) ->
+            F (gid (), PLiteral (toString (`Float (whole, fraction))))
+        | FPNull ->
+            F (gid (), PLiteral (toString `Null))
+        | FPBlank ->
+            Blank (gid ())
+        | FPPartial str ->
+            Partial (gid (), str)
+        | FPOldPattern pattern ->
+            pattern
+      in
+      let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
+      F (id, Match (toExpr mexpr, pairs))
   | EOldExpr expr ->
       expr
 
@@ -238,7 +328,8 @@ let eid expr : id =
   | ERecord (id, _)
   | EThread (id, _)
   | EBinOp (id, _, _, _, _)
-  | EConstructor (id, _, _, _) ->
+  | EConstructor (id, _, _, _)
+  | EMatch (id, _, _) ->
       id
 
 
