@@ -950,6 +950,19 @@ and integrationTestState =
 (* Fluid *)
 and fluidName = string
 
+and fluidPattern =
+  | FPVariable of fluidName
+  | FPConstructor of fluidName * fluidPattern list
+  (* TODO: support bool, string, null, float, char *)
+  | FPInteger of int
+  | FPBool of bool
+  | FPString of string
+  | FPFloat of string * string
+  | FPNull
+  | FPBlank
+  | FPPartial of string
+  | FPOldPattern of pattern
+
 and fluidExpr =
   (* Several of these expressions have extra IDs for roundtripping to the old expr *)
   | EInteger of id * int
@@ -975,6 +988,8 @@ and fluidExpr =
   | EThread of id * fluidExpr list
   (* The 2nd ID is extra for the name *)
   | EConstructor of id * id * fluidName * fluidExpr list
+  (* TODO: add ID for fluidPattern *)
+  | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
   | EOldExpr of expr
 
 and placeholder = string * string
