@@ -394,7 +394,7 @@ body #app * {
 .use-wrapper{
   background: transparent;
   margin-left: 10px;
-  
+
   &.fade{
     opacity: 0.3;
   }
@@ -426,7 +426,7 @@ body #app * {
     margin-top: 0;
     margin-bottom: 8px;
   }
-  
+
   &:hover {
     cursor: pointer;
     color: @yellow;
@@ -1186,9 +1186,13 @@ body #app * {
     // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
   }
   #fluid-dropdown {
+    background-color: @dropdown-background;
+    color: @dropdown-foreground;
+    z-index: 1000;
     position: absolute;
     left: -1ch;
     box-shadow: 1px 1px 1px black;
+    width: max-content;
     ul {
       margin: 0;
       padding-inline-start: 0;
@@ -1197,27 +1201,17 @@ body #app * {
         background-color: @dropdown-selected-background;
         color: darken(white, 5%);
       }
-    }
-  }
-  // </ Position autocomplete as a dropdown>
-
-  #fluid-dropdown {
-    // Don't show text under it.
-    background-color: @dropdown-background;
-    color: @dropdown-foreground;
-    z-index: 1000;
-    ul {
       li {
         list-style-type: none; // remove bullet points
         padding: 0 1ch;
 
         .types {
           float: right;
+          margin-left: 4ch;
           text-transform: lowercase;
           font-family: monospace;
-          font-size: 80%;
+          color: darken(@dropdown-foreground, 15%);
         }
-
       }
     }
   }
