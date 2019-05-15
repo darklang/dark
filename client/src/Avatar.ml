@@ -33,9 +33,11 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let name : string option = avatar.fullName in
   let email : string = avatar.email in
   let username : string = avatar.username in
-  let avActiveTimestamp: float = avatar.activeTimestamp in
-  let threeMinsAgo: float =  (Js.Date.now ()) -. 180000.00 in
-  let active: bool = if threeMinsAgo < avActiveTimestamp then true else false in
+  let avActiveTimestamp : float = avatar.activeTimestamp in
+  let threeMinsAgo : float = Js.Date.now () -. 180000.00 in
+  let active : bool =
+    if threeMinsAgo < avActiveTimestamp then true else false
+  in
   let class_ =
     String.concat " " ["avatar"; (if active then "" else "inactive")]
   in
