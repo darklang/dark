@@ -595,6 +595,8 @@ let isAtom (token : token) : bool =
   | TIfElseKeyword _
   | TLetKeyword _
   | TThreadPipe _
+  | TPlaceholder _
+  | TBlank _
   | TLambdaArrow _ ->
       true
   | TListOpen _
@@ -615,8 +617,6 @@ let isAtom (token : token) : bool =
   | TFieldName _
   | TVariable _
   | TFnName _
-  | TBlank _
-  | TPlaceholder _
   | TLetLHS _
   | TLetAssignment _
   | TRecordField _
@@ -1399,6 +1399,8 @@ let doRight
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TLetKeyword _
+  | TPlaceholder _
+  | TBlank _
   | TLambdaArrow _ ->
     ( match next with
     | None ->
@@ -1420,8 +1422,6 @@ let doRight
   | TFieldName _
   | TVariable _
   | TFnName _
-  | TBlank _
-  | TPlaceholder _
   | TLetLHS _
   | TLetAssignment _
   | TBinOp _
