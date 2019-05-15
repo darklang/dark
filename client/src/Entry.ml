@@ -10,7 +10,7 @@ module RT = Runtime
 module TL = Toplevel
 module Regex = Util.Regex
 
-let createFindSpace (m : model) : modification =
+let openOmnibox (m : model) : modification =
   Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
 
