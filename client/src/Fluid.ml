@@ -1424,6 +1424,7 @@ let doRight
   | TIfElseKeyword _
   | TLetKeyword _
   | TPlaceholder _
+  | TBlank _
   | TLambdaArrow _ ->
     ( match next with
     | None ->
@@ -1446,7 +1447,6 @@ let doRight
   | TVariable _
   | TFnName _
   | TConstructorName _
-  | TBlank _
   | TLetLHS _
   | TLetAssignment _
   | TBinOp _
