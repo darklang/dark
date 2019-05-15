@@ -466,7 +466,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Select (tlid, p) ->
         let hashCmd = Url.shouldUpdateHash m tlid in
         let cursorState =
-          if p = None then FluidEntering tlid else Selecting (tlid, p)
+          if p = None && VariantTesting.isFluid m.tests
+          then FluidEntering tlid
+          else Selecting (tlid, p)
         in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
