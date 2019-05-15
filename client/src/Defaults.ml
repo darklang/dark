@@ -112,5 +112,5 @@ let defaultModel : model =
   ; tlUsages = []
   ; tlMeta = StrDict.empty
   ; fluidState = defaultFluidState
-  ; dbStats = StrDict.empty 
+  ; dbStats = StrDict.empty
   ; avatarsList = [] }

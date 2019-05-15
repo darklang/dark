@@ -165,16 +165,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     Html.div
       (* -- see comment in css *)
       [Html.classList boxClasses]
-<<<<<<< HEAD
       [ Html.div (Html.class' class_ :: events) (body @ data @ top)
       ; Html.div
           [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
-          [uses; refs] ]
-=======
-      [ Html.div
-          (Html.class' class_ :: events)
-          (body @ data @ top @ [uses; refs; avatars]) ]
->>>>>>> rendering avatar presence with empty data for now
+          [uses; refs; avatars] ]
   in
   ViewUtils.placeHtml pos html
 
