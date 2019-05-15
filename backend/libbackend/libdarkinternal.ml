@@ -409,7 +409,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
           )
         | args ->
             fail args )
-    ; ( "DarkInternal::logPP"
+    ; ( "DarkInternal::log"
       , function
         | _, [DStr level; DStr name; DObj log] ->
             let name = name |> Unicode_string.to_string in
@@ -424,7 +424,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   level
               | None ->
                   Log.erroR
-                    "DarkInternal::logPP no match"
+                    "DarkInternal::log no match"
                     ~params:[("input_level", levelStr); ("log_name", name)] ;
                   `Info
             in
