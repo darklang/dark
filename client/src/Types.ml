@@ -1018,7 +1018,7 @@ and fluidTokenInfo =
 
 and fluidAutocompleteItem =
   | FACFunction of function_
-  | FACConstructorName of string
+  | FACConstructorName of string * int
   | FACField of string
   | FACVariable of varName
   | FACLiteral of literal
