@@ -27,13 +27,17 @@ let avatarUrl (email : string) (name : string option) : string =
   ^ "?d="
   ^ Js_global.encodeURI (fallback name)
 
-  
-  let avatarDiv (avatar : avatar) : msg Html.html =
+
+let avatarDiv (avatar : avatar) : msg Html.html =
   let name : string option = avatar.fullName in
   let email : string = avatar.email in
   let username : string = avatar.username in
-  let currentTimestamp  = Js.Date.now () in
-  let active: bool = if ((currentTimestamp |> int_of_float) - 180000) > avatar.activeTimestamp then false else true in
+  let currentTimestamp = Js.Date.now () in
+  let active : bool =
+    if (currentTimestamp |> int_of_float) - 180000 > avatar.activeTimestamp
+    then false
+    else true
+  in
   let class_ =
     String.concat " " ["avatar"; (if active then "" else "inactive")]
   in

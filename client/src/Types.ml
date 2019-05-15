@@ -1062,8 +1062,7 @@ and avatar =
   { fullName : string option
   ; email : string
   ; username : string
-  ; activeTimestamp : int
-  }
+  ; activeTimestamp : int }
 
 and avatarsList = avatar list
 
