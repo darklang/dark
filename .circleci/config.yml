@@ -200,9 +200,9 @@ jobs:
       - run: touch backend/static/appsupport.js
       - copy-into-container
       - run: scripts/builder --compile-backend --test
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-stroller
+    # - run-background-container
+    # - wait-for-container
+    # - run: scripts/gcp-build-containers --skip-stroller
       - run:
           name: Copy out generated files and caches
           command: |
