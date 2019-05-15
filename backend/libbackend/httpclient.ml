@@ -147,7 +147,7 @@ let http_call_with_code
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
       (* Seems like redirects can be used to get around the above list... *)
       C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
-      (* Make sure that requested content isn't being gzipped*)
+      (* Make sure that requested content isn't being expanded *)
       C.set_encoding c C.CURL_ENCODING_NONE ;
       (* If we have the tunnel options, proxy Curl through it with socks ... *)
       Option.value_map
