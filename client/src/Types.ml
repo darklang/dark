@@ -1062,7 +1062,7 @@ and avatar =
   { fullName : string option
   ; email : string
   ; username : string
-  ; activeTimestamp : int }
+  ; activeTimestamp : float }
 
 and avatarsList = avatar list
 

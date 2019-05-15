@@ -26,24 +26,6 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
-  let avi1 =
-    { fullName = Some "Sydney Noteboom"
-    ; email = "sydney@darklang.com"
-    ; username = "Snoteboom"
-    ; activeTimestamp = 1557940995 }
-  in
-  let avi2 =
-    { fullName = Some "Ian Smith"
-    ; email = "ismith@metaforgotten.org"
-    ; username = "ismith"
-    ; activeTimestamp = 1557944020 }
-  in
-  let avi3 =
-    { fullName = Some "Noteboom Sydney"
-    ; email = "syd.noteboom@gmail.com"
-    ; username = "notebooms"
-    ; activeTimestamp = 1557950474 }
-  in
   let m =
     { m with
       cursorState =
@@ -58,7 +40,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; userContentHost
     ; environment
     ; csrfToken
-    ; avatarsList = [avi1; avi2; avi3] }
+    ; avatarsList = [] }
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
