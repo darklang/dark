@@ -1149,7 +1149,7 @@ body #app * {
     color: @green;
   }
 
-  .fluid-sep, .fluid-blank, .fluid-empty {
+  .fluid-sep, .fluid-blank, .fluid-empty, .fluid-placeholder {
     // The cursor disappears when the element it should appear in has no size. To
     // make it have size, we need all of this.
     // https://stackoverflow.com/questions/25897883/
@@ -1161,6 +1161,10 @@ body #app * {
   .fluid-lambda-keyword { margin-right: 0.11px; }
   .fluid-blank {
     background-color: @blanks;
+  }
+  .fluid-placeholder {
+      background-color: @blanks;
+      color: @grey3;
   }
   .fluid-empty {
     color: green;

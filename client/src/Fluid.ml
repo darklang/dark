@@ -57,19 +57,14 @@ let fail str = raise (FExc str)
 
 type ast = fluidExpr [@@deriving show]
 
-(* TODO: Stuff to add *)
-(* match/patterns *)
-(* constructor *)
-(* send to rail *)
-(* character, null *)
-(* feature flags (may punt) *)
+type state = Types.fluidState
 
-let rec fromExpr (fns : function_ list) (expr : Types.expr) : fluidExpr =
+let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
   let open Types in
   let varToName var =
     match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
   in
-  let fromExpr = fromExpr fns in
+  let fromExpr = fromExpr s in
   match expr with
   | Blank id ->
       EBlank id
@@ -93,7 +88,9 @@ let rec fromExpr (fns : function_ list) (expr : Types.expr) : fluidExpr =
     | FnCall (name, args, ster) ->
         let args = List.map ~f:fromExpr args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
-        let fn = List.find fns ~f:(fun fn -> fn.fnName = varToName name) in
+        let fn =
+          List.find s.ac.functions ~f:(fun fn -> fn.fnName = varToName name)
+        in
         ( match fn with
         | Some fn when fn.fnInfix ->
           ( match args with
@@ -238,8 +235,29 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-let rec toTokens' (e : ast) : token list =
-  let nested b = TIndentToHere (toTokens' b) in
+let rec toTokens' (s : state) (e : ast) : token list =
+  let nested ?(placeholderFor : (string * int) option = None) b =
+    let tokens =
+      match (b, placeholderFor) with
+      | EBlank id, Some (fnname, pos) ->
+          let name =
+            s.ac.functions
+            |> List.find ~f:(fun f -> f.fnName = fnname)
+            |> Option.andThen ~f:(fun fn ->
+                   List.getAt ~index:pos fn.fnParameters )
+            |> Option.map ~f:(fun p ->
+                   (p.paramName, Runtime.tipe2str p.paramTipe) )
+          in
+          ( match name with
+          | None ->
+              toTokens' s b
+          | Some placeholder ->
+              [TPlaceholder (placeholder, id)] )
+      | _ ->
+          toTokens' s b
+    in
+    TIndentToHere tokens
+  in
   match e with
   | EInteger (id, i) ->
       [TInteger (id, string_of_int i)]
@@ -280,7 +298,11 @@ let rec toTokens' (e : ast) : token list =
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      [nested lexpr; TSep; TBinOp (id, op); TSep; nested rexpr]
+      [ nested ~placeholderFor:(Some (op, 0)) lexpr
+      ; TSep
+      ; TBinOp (id, op)
+      ; TSep
+      ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
   | EFieldAccess (id, expr, fieldname) ->
       [nested expr; TFieldOp id; TFieldName (id, fieldname)]
   | EVariable (id, name) ->
@@ -293,7 +315,10 @@ let rec toTokens' (e : ast) : token list =
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, exprs, _ster) ->
       [TFnName (id, fnName)]
-      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+      @ ( exprs
+        |> List.indexedMap ~f:(fun i e ->
+               [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
+        |> List.concat )
   | EList (id, exprs) ->
       let ts =
         exprs
@@ -388,24 +413,20 @@ let infoize ~(pos : int) tokens : tokenInfo list =
   makeInfo pos tokens
 
 
-let toTokens (e : ast) : tokenInfo list =
-  e |> toTokens' |> reflow ~x:0 |> Tuple2.second |> infoize ~pos:0
+let toTokens (s : state) (e : ast) : tokenInfo list =
+  e |> toTokens' s |> reflow ~x:0 |> Tuple2.second |> infoize ~pos:0
 
 
-let eToString (e : ast) : string =
+let eToString (s : state) (e : ast) : string =
   e
-  |> toTokens
+  |> toTokens s
   |> List.map ~f:(fun ti -> Token.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let eDebug (e : fluidExpr) : string =
-  e |> eToString |> Regex.replace ~re:(Regex.regex " ") ~repl:"."
-
-
-let eToStructure (e : fluidExpr) : string =
+let eToStructure (s : state) (e : fluidExpr) : string =
   e
-  |> toTokens
+  |> toTokens s
   |> List.map ~f:(fun ti ->
          "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
   |> String.join ~sep:""
@@ -414,8 +435,6 @@ let eToStructure (e : fluidExpr) : string =
 (* -------------------- *)
 (* TEA *)
 (* -------------------- *)
-
-type state = Types.fluidState
 
 (* -------------------- *)
 (* Direct canvas interaction *)
@@ -517,6 +536,7 @@ let isTextToken token : bool =
   | TVariable _
   | TFnName _
   | TBlank _
+  | TPlaceholder _
   | TPartial _
   | TRecordField _
   | TString _
@@ -575,6 +595,8 @@ let isAtom (token : token) : bool =
   | TIfElseKeyword _
   | TLetKeyword _
   | TThreadPipe _
+  | TPlaceholder _
+  | TBlank _
   | TLambdaArrow _ ->
       true
   | TListOpen _
@@ -595,7 +617,6 @@ let isAtom (token : token) : bool =
   | TFieldName _
   | TVariable _
   | TFnName _
-  | TBlank _
   | TLetLHS _
   | TLetAssignment _
   | TRecordField _
@@ -1098,7 +1119,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (toTokens ast) in
+  let newPos = getNextWS (toTokens s ast) in
   setPosition ~resetUD:true s newPos
 
 
@@ -1135,7 +1156,7 @@ let moveTo (newPos : int) (s : state) : state =
 (* TODO: rewrite nextBlank like prevBlank *)
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s ast in
   let rec getNextBlank pos' tokens' =
     match tokens' with
     | [] ->
@@ -1153,7 +1174,7 @@ let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
   let tokens =
-    toTokens ast |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
+    toTokens s ast |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
   in
   let rec getPrevBlank pos' tokens' =
     match tokens' with
@@ -1256,6 +1277,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
   | TBinOp _
   | TBlank _
+  | TPlaceholder _
   | TFnName _
   | TIndent _
   | TIndentToHere _
@@ -1313,6 +1335,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceExpr id ~newExpr:(newB ()) ast, s)
   | TBinOp _
   | TBlank _
+  | TPlaceholder _
   | TFnName _
   | TIndent _
   | TIndentToHere _
@@ -1376,6 +1399,8 @@ let doRight
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TLetKeyword _
+  | TPlaceholder _
+  | TBlank _
   | TLambdaArrow _ ->
     ( match next with
     | None ->
@@ -1397,7 +1422,6 @@ let doRight
   | TFieldName _
   | TVariable _
   | TFnName _
-  | TBlank _
   | TLetLHS _
   | TLetAssignment _
   | TBinOp _
@@ -1427,7 +1451,7 @@ let doRight
 
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction "doUp" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   if row = 0
@@ -1439,7 +1463,7 @@ let doUp ~(pos : int) (ast : ast) (s : state) : state =
 
 let doDown ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction "doDown" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
@@ -1483,7 +1507,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     when pos = ti.endPos && letter = '.' ->
       (exprToFieldAccess id ast, right)
   (* replace blank *)
-  | TBlank id ->
+  | TBlank id | TPlaceholder (_, id) ->
       (replaceExpr id ~newExpr ast, moveTo (ti.startPos + 1) s)
   (* lists *)
   | TListOpen id ->
@@ -1577,7 +1601,7 @@ let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
     ast * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
-  let tokens = toTokens ast in
+  let tokens = toTokens s ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
   let onEdge =
@@ -1742,7 +1766,7 @@ let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
           None
     in
     let newLeft, newRight, _ =
-      getNeighbours ~pos:newState.newPos (toTokens newAST)
+      getNeighbours ~pos:newState.newPos (toTokens s newAST)
     in
     let newTextTokenInfo =
       match (newLeft, newRight) with
@@ -1785,7 +1809,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       | None ->
           NoChange
       | Some ast ->
-          let ast = ast |> fromExpr m.builtInFunctions in
+          let ast = ast |> fromExpr m.fluidState in
           let newAST, newState, cmd =
             let s =
               {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
@@ -1891,11 +1915,11 @@ let viewAST (ast : ast) (s : state) : Types.msg Html.html =
     ; event ~key:"keydown" "keydown"
     (* ; event ~key:"keyup" "keyup" *)
      ]
-    (ast |> toTokens |> toHtml s)
+    (ast |> toTokens s |> toHtml s)
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
-  let tokens = toTokens ast in
+  let tokens = toTokens s ast in
   let posDiv =
     let oldGrid = gridFor ~pos:s.oldPos tokens in
     let newGrid = gridFor ~pos:s.newPos tokens in
