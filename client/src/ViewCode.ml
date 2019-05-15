@@ -473,7 +473,7 @@ and viewNExpr
 
 let view (vs : viewState) (e : expr) =
   if VariantTesting.isFluid vs.testVariants
-  then Fluid.viewAST (Fluid.fromExpr vs.fns e) vs.fluidState
+  then Fluid.viewAST (Fluid.fromExpr vs.fluidState e) vs.fluidState
   else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
 
 
