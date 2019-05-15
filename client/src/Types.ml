@@ -1115,7 +1115,7 @@ and model =
   ; tlUsages : usage list
   ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState
-  ; dbStats : dbStatsStore 
+  ; dbStats : dbStatsStore
   ; avatarsList : avatarsList }
 
 (* Values that we serialize *)

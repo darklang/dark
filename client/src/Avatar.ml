@@ -2,6 +2,7 @@ open Prelude
 open Types
 
 let avatarUrl (email : string) (name : string option) : string =
+  let digestedEmail = Digest.to_hex (Digest.string email) in
   let fallback (name : string option) =
     match name with
     | None | Some "" ->
@@ -23,7 +24,7 @@ let avatarUrl (email : string) (name : string option) : string =
   (* TODO: add a s= param to set the size in pixels *)
   "https://www.gravatar.com/avatar/"
   (* Digest.string is Bucklescript's MD5 *)
-  ^ Digest.string email
+  ^ digestedEmail
   ^ "?d="
   ^ Js_global.encodeURI (fallback name)
 
@@ -34,7 +35,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let username : string = avatar.username in
   let currentTimestamp = Js.Date.now () in
   let active : bool =
-    if (currentTimestamp |> int_of_float) - 180000 > avatar.activeTimestamp
+    if currentTimestamp - 180000.00 > (avatar.activeTimestamp |> float_of_int)
     then false
     else true
   in
@@ -55,6 +56,7 @@ let avatarsView (avatars : avatarsList) (tl : bool) : msg Html.html =
 
 let allAvatarsView (avatars : avatarsList) : msg Html.html =
   let renderAvatar (a : avatar) = avatarDiv a in
-  let header = Html.p [] [Html.text "Active users"] in
   let avatars = List.map renderAvatar avatars in
-  Html.div [Html.class' "all-avatars"] (header :: avatars)
+  Html.div
+    [Html.class' "all-avatars"]
+    [Html.div [Html.class' "avatars-wrapper"] avatars]
