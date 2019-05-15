@@ -612,7 +612,7 @@ let () =
         "right skips over indent when in indent"
         emptyIf
         (press ~wrap:false K.Right 12)
-        ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
+        ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
       t
         "left skips over indent when in indent"
         emptyIf
