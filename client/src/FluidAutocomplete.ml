@@ -46,7 +46,7 @@ let asName (aci : autocompleteItem) : string =
       name
   | FACLiteral lit ->
       lit
-  | FACConstructorName name ->
+  | FACConstructorName (name, _) ->
       name
   | FACKeyword k ->
     ( match k with
@@ -72,7 +72,7 @@ let asTypeString (item : autocompleteItem) : string =
       "field"
   | FACVariable _ ->
       "variable"
-  | FACConstructorName name ->
+  | FACConstructorName (name, _) ->
       if name = "Just"
       then "(any) -> option"
       else if name = "Nothing"
@@ -319,10 +319,10 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   (* let funcList = if isExpression then a.functions else [] in *)
   let functions = List.map ~f:(fun x -> FACFunction x) funcList in
   let constructors =
-    [ FACConstructorName "Just"
-    ; FACConstructorName "Nothing"
-    ; FACConstructorName "Ok"
-    ; FACConstructorName "Error" ]
+    [ FACConstructorName ("Just", 1)
+    ; FACConstructorName ("Nothing", 0)
+    ; FACConstructorName ("Ok", 1)
+    ; FACConstructorName ("Error", 1) ]
   in
   let extras =
     []
@@ -513,15 +513,15 @@ let documentationForItem (aci : autocompleteItem) : string option =
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
       Some desc
-  | FACConstructorName "Just" ->
+  | FACConstructorName ("Just", _) ->
       Some "An Option containing a value"
-  | FACConstructorName "Nothing" ->
+  | FACConstructorName ("Nothing", _) ->
       Some "An Option representing Nothing"
-  | FACConstructorName "Ok" ->
+  | FACConstructorName ("Ok", _) ->
       Some "A successful Result containing a value"
-  | FACConstructorName "Error" ->
+  | FACConstructorName ("Error", _) ->
       Some "A Result representing a failure"
-  | FACConstructorName name ->
+  | FACConstructorName (name, _) ->
       Some ("TODO: this should never occur: the constructor " ^ name)
   | FACField fieldname ->
       Some ("The '" ^ fieldname ^ "' field of the object")
