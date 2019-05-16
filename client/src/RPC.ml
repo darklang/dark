@@ -126,3 +126,11 @@ let integration (m : model) (name : string) : msg Tea.Cmd.t =
     (fun x ->
       InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x) )
     request
+
+
+let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
+  let url = "https://presence.darklang.com/" in
+  let request =
+    postJson (fun _ -> ()) m.csrfToken url (Encoders.sendPresenceParams av)
+  in
+  Tea.Http.send (fun _ -> TriggerSendPresenceCallback (Ok ())) request
