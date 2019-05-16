@@ -46,15 +46,13 @@ let init (flagString : string) (location : Web.Location.location) =
     {browserId = "def"; tlid = None; timestamp = Js.Date.now ()}
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
-  let sendPresence = RPC.sendPresence m avMessage in
-  let sendPresenceResult = sendPresence in
-  Debug.loG "sendPresenceResult" sendPresenceResult ;
   if Url.isIntegrationTest
   then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
     ( m
     , Cmd.batch
-        [RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))] )
+        [ RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))
+        ; RPC.sendPresence m avMessage ] )
 
 
 (* End of init *)
