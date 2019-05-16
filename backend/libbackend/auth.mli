@@ -18,4 +18,6 @@ module Session : sig
   val username_for : t -> Account.username
 
   val csrf_token_for : t -> string
+
+  val username_of_key : string -> string option
 end

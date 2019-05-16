@@ -409,6 +409,48 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
           )
         | args ->
             fail args )
+    ; ( "DarkInternal::sessionKeyToUsername"
+      , function
+        | _, [DStr sessionKey] ->
+            let sessionKey = sessionKey |> Unicode_string.to_string in
+            ( match Auth.Session.username_of_key sessionKey with
+            | None ->
+                DOption OptNothing
+            | Some username ->
+                DOption (OptJust (Dval.dstr_of_string_exn username)) )
+        | args ->
+            fail args )
+    ; ( "DarkInternal::canEditCanvas"
+      , function
+        | _, [DStr host; DStr username] ->
+            let host = Unicode_string.to_string host in
+            let username = Unicode_string.to_string username in
+            Account.can_edit_canvas
+              ~auth_domain:(Account.auth_domain_for host)
+              ~username
+            |> DBool
+        | args ->
+            fail args )
+    ; ( "DarkInternal::usernameToUserInfo"
+      , function
+        | _, [DStr username] ->
+            let username = Unicode_string.to_string username in
+            ( match Account.get_user username with
+            | None ->
+                DOption OptNothing
+            | Some user_info ->
+                let dval_map =
+                  user_info
+                  |> Account.user_info_to_yojson
+                  |> Yojson.Safe.Util.to_assoc
+                  |> List.map ~f:(fun (k, v) ->
+                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
+                     )
+                  |> DvalMap.of_alist_exn
+                in
+                DOption (OptJust (DObj dval_map)) )
+        | args ->
+            fail args )
     ; ( "DarkInternal::log"
       , function
         | _, [DStr level; DStr name; DObj log] ->
@@ -461,5 +503,48 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             in
             Log.pP ~level name ~jsonparams ;
             DObj log
+        | args ->
+            fail args )
+    ; ( "DarkInternal::sessionKeyToUsername"
+      , function
+        | _, [DStr sessionKey] ->
+            let sessionKey = sessionKey |> Unicode_string.to_string in
+            ( match Auth.Session.username_of_key sessionKey with
+            | None ->
+                DResult
+                  (ResError (Dval.dstr_of_string_exn "No session for cookie"))
+            | Some username ->
+                DResult (ResOk (Dval.dstr_of_string_exn username)) )
+        | args ->
+            fail args )
+    ; ( "DarkInternal::canEditCanvas"
+      , function
+        | _, [DStr host; DStr username] ->
+            let host = Unicode_string.to_string host in
+            let username = Unicode_string.to_string username in
+            Account.can_edit_canvas
+              ~auth_domain:(Account.auth_domain_for host)
+              ~username
+            |> DBool
+        | args ->
+            fail args )
+    ; ( "DarkInternal::usernameToUserInfo"
+      , function
+        | _, [DStr username] ->
+            let username = Unicode_string.to_string username in
+            ( match Account.get_user username with
+            | None ->
+                DOption OptNothing
+            | Some user_info ->
+                let dval_map =
+                  user_info
+                  |> Account.user_info_to_yojson
+                  |> Yojson.Safe.Util.to_assoc
+                  |> List.map ~f:(fun (k, v) ->
+                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
+                     )
+                  |> DvalMap.of_alist_exn
+                in
+                DOption (OptJust (DObj dval_map)) )
         | args ->
             fail args ) ]
