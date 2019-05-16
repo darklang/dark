@@ -2413,8 +2413,8 @@ let t_path_gt_route_does_not_crash () =
 let t_error_rail_is_propagated_by_functions () =
   check_dval
     "push"
-    (exec_ast "(List::push (1 2 3 4) (`List::head_v1 []))")
-    (DErrorRail (DOption OptNothing)) ;
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::push (1 2 3 4) (`List::head_v1 []))") ;
   check_dval
     "filter with incomplete"
     DIncomplete
@@ -2424,13 +2424,21 @@ let t_error_rail_is_propagated_by_functions () =
     DIncomplete
     (exec_ast "(List::map (1 2 3 4) (\\x -> _))") ;
   check_dval
+    "fold with incomplete"
+    DIncomplete
+    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (+ x _)))") ;
+  check_dval
     "filter with error rail"
     (DErrorRail (DOption OptNothing))
     (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
   check_dval
     "map with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(List::map (1 2 3 4) (\\x -> (`List::head_v1 [])))")
+    (exec_ast "(List::map (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+  check_dval
+    "fold with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (`List::head_v1 [])))")
 
 
 let t_load_for_context_only_loads_relevant_data () =
