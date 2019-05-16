@@ -166,10 +166,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       (* -- see comment in css *)
       [Html.classList boxClasses]
       [ Html.div (Html.class' class_ :: events) (body @ data @ top)
-      ; avatars 
+      ; avatars
       ; Html.div
           [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
-          [uses; refs]]
+          [uses; refs] ]
   in
   ViewUtils.placeHtml pos html
 
