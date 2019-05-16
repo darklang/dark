@@ -43,4 +43,19 @@ module Session = struct
     |> Yojson.Basic.from_string
     |> Yojson.Basic.Util.member "csrf_token"
     |> Yojson.Basic.Util.to_string
+
+
+  let username_of_key (key : string) : string option =
+    Db.fetch_one_option
+      ~name:"username_of_key"
+      "SELECT session_data
+       FROM session
+       WHERE expire_date > NOW() AND session_key = $1"
+      ~params:[Db.String key]
+    |> Option.bind ~f:(fun row -> row |> List.hd)
+    |> Option.map ~f:(fun session_data ->
+           session_data
+           |> Yojson.Basic.from_string
+           |> Yojson.Basic.Util.member "username"
+           |> Yojson.Basic.Util.to_string )
 end
