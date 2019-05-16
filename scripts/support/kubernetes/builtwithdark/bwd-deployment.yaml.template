@@ -169,6 +169,9 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+        - name: base-nginx-conf
+          configMap:
+            name: base-nginx
         - name: nginx-conf
           configMap:
             name: nginx
