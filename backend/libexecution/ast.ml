@@ -363,6 +363,8 @@ let rec exec
         (* TODO: this will error if the number of args and vars arent equal *)
         DBlock
           (fun args ->
+            (* If one of the args is fakeCF, return it instead of executing.
+             * This is the same behaviour as in fn calls. *)
             let fakecf = List.find args ~f:Dval.is_fake_cf in
             match fakecf with
             | Some dv ->
