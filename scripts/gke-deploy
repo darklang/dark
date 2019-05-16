@@ -189,6 +189,9 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 (kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}
 
+(kubectl create configmap base-nginx --from-file=scripts/support/base-nginx.conf -o yaml --dry-run | kubectl replace -f -) \
+  ||  kubectl create configmap base-nginx --from-file=scripts/support/base-nginx.conf
+
 (kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
