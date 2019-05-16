@@ -41,8 +41,10 @@ let tid (t : token) : id =
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _)
-  | TConstructorName (id, _)
-  | TRecordSep (id, _) ->
+  | TRecordSep (id, _)
+  | TMatchSep (id, _)
+  | TMatchKeyword id
+  | TConstructorName (id, _) ->
       id
   | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
       ID "no-id"
@@ -156,6 +158,10 @@ let toText (t : token) : string =
       ":"
   | TConstructorName (_, name) ->
       canBeEmpty name
+  | TMatchKeyword _ ->
+      "match "
+  | TMatchSep _ ->
+      "->"
   | TThreadPipe _ ->
       "|>"
 
@@ -252,6 +258,10 @@ let toTypeName (t : token) : string =
       "constructor-name"
   | TThreadPipe _ ->
       "thread-pipe"
+  | TMatchKeyword _ ->
+      "match-keyword"
+  | TMatchSep _ ->
+      "match-sep"
 
 
 let toCategoryName (t : token) : string =
@@ -286,12 +296,18 @@ let toCategoryName (t : token) : string =
       "constructor"
   | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
       "record"
+  | TMatchKeyword _ | TMatchSep _ ->
+      "match"
 
 
 let toCssClasses (t : token) : string =
   let keyword =
     match t with
-    | TLetKeyword _ | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
+    | TLetKeyword _
+    | TIfKeyword _
+    | TIfThenKeyword _
+    | TIfElseKeyword _
+    | TMatchKeyword _ ->
         "fluid-keyword"
     | _ ->
         ""
