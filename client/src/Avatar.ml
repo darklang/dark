@@ -36,12 +36,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let avActiveTimestamp : float = avatar.activeTimestamp in
   let threeMinsAgo : float = Js.Date.now () -. 180000.00 in
   let active : bool = threeMinsAgo < avActiveTimestamp in
-  let class_ =
-    String.concat " " ["avatar"; (if active then "" else "inactive")]
-  in
-  Html.div
-    [Html.class' class_]
-    [Html.img [Html.src (avatarUrl email name); Vdom.prop "alt" username] []]
+  Html.img [Html.classList [("avatar", true); ("inactive", active)]; Html.src (avatarUrl email name); Vdom.prop "alt" username] []
 
 
 let avatarsView (avatars : avatarsList) : msg Html.html =
