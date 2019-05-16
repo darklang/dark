@@ -2,6 +2,7 @@ open Prelude
 open Types
 
 let avatarUrl (email : string) (name : string option) : string =
+  (* Digest.string is Bucklescript's MD5 *)
   let digestedEmail = Digest.to_hex (Digest.string email) in
   let fallback (name : string option) =
     match name with
@@ -23,7 +24,6 @@ let avatarUrl (email : string) (name : string option) : string =
   in
   (* TODO: add a s= param to set the size in pixels *)
   "https://www.gravatar.com/avatar/"
-  (* Digest.string is Bucklescript's MD5 *)
   ^ digestedEmail
   ^ "?d="
   ^ Js_global.encodeURI (fallback name)
@@ -35,9 +35,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let username : string = avatar.username in
   let avActiveTimestamp : float = avatar.activeTimestamp in
   let threeMinsAgo : float = Js.Date.now () -. 180000.00 in
-  let active : bool =
-    if threeMinsAgo < avActiveTimestamp then true else false
-  in
+  let active : bool = threeMinsAgo < avActiveTimestamp in
   let class_ =
     String.concat " " ["avatar"; (if active then "" else "inactive")]
   in
@@ -46,16 +44,14 @@ let avatarDiv (avatar : avatar) : msg Html.html =
     [Html.img [Html.src (avatarUrl email name); Vdom.prop "alt" username] []]
 
 
-let avatarsView (avatars : avatarsList) (tl : bool) : msg Html.html =
-  let class_ = String.concat " " ["avatars"; (if tl then "active" else "")] in
+let avatarsView (avatars : avatarsList) : msg Html.html =
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map renderAvatar avatars in
-  Html.div [Html.class' class_] avatars
+  Html.div [Html.class' "avatars"] avatars
 
 
 let allAvatarsView (avatars : avatarsList) : msg Html.html =
-  let renderAvatar (a : avatar) = avatarDiv a in
-  let avatars = List.map renderAvatar avatars in
+  let avatars = List.map avatarDiv avatars in
   Html.div
     [Html.class' "all-avatars"]
     [Html.div [Html.class' "avatars-wrapper"] avatars]
