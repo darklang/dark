@@ -144,7 +144,9 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         |> Option.or_ asBool
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
-    | FeatureFlag _ | Match _ | Constructor _ ->
+    | Constructor (name, exprs) ->
+        EConstructor (id, varToName name, List.map ~f:fromExpr exprs)
+    | FeatureFlag _ | Match _ ->
         EOldExpr expr )
 
 
@@ -198,6 +200,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
         )
   | EThread (id, exprs) ->
       F (id, Thread (List.map ~f:toExpr exprs))
+  | EConstructor (id, name, exprs) ->
+      F (id, Constructor (F (gid (), name), List.map ~f:toExpr exprs))
   | EOldExpr expr ->
       expr
 
@@ -222,7 +226,8 @@ let eid expr : id =
   | EList (id, _)
   | ERecord (id, _)
   | EThread (id, _)
-  | EBinOp (id, _, _, _, _) ->
+  | EBinOp (id, _, _, _, _)
+  | EConstructor (id, _, _) ->
       id
 
 
@@ -361,6 +366,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
             |> List.indexedMap ~f:(fun i e ->
                    [TIndentToHere [TThreadPipe (id, i); nested e]] )
             |> List.concat ) ] )
+  | EConstructor (id, name, exprs) ->
+      [TConstructorName (id, name)]
+      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
 
@@ -477,7 +485,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         then Types.Rail
         else Types.NoRail
       in
-      let args = Belt.List.makeBy count (fun _ -> EBlank (gid ())) in
+      let args = List.initialize count (fun _ -> EBlank (gid ())) in
       (EFnCall (gid (), name, args, r), String.length name + 1)
   | FACKeyword KLet ->
       (ELet (gid (), "", newB (), newB ()), 4)
@@ -493,6 +501,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (EBool (gid (), false), 5)
   | FACLiteral "null" ->
       (ENull (gid ()), 4)
+  | FACConstructorName (name, argCount) ->
+      let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
+      (EConstructor (gid (), name, argCount), 1 + String.length name)
   | _ ->
       let str =
         "TODO: autocomplete result for "
@@ -534,6 +545,7 @@ let isTextToken token : bool =
   | TBinOp _
   | TFieldName _
   | TVariable _
+  | TConstructorName _
   | TFnName _
   | TBlank _
   | TPlaceholder _
@@ -629,6 +641,7 @@ let isAtom (token : token) : bool =
   | TPartial _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TConstructorName _
   | TLambdaVar _ ->
       false
 
@@ -791,7 +804,10 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         |> List.map ~f:Tuple2.second
         |> List.filterMap ~f:fe
         |> List.head
-    | EFnCall (_, _, exprs, _) | EList (_, exprs) | EThread (_, exprs) ->
+    | EFnCall (_, _, exprs, _)
+    | EList (_, exprs)
+    | EConstructor (_, _, exprs)
+    | EThread (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
         None
@@ -848,7 +864,10 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           |> List.map ~f:Tuple2.second
           |> List.filterMap ~f:fp
           |> List.head
-      | EFnCall (_, _, exprs, _) | EList (_, exprs) | EThread (_, exprs) ->
+      | EFnCall (_, _, exprs, _)
+      | EList (_, exprs)
+      | EConstructor (_, _, exprs)
+      | EThread (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
           None
@@ -889,6 +908,8 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
   | EThread (id, exprs) ->
       EThread (id, List.map ~f exprs)
+  | EConstructor (id, name, exprs) ->
+      EConstructor (id, name, List.map ~f exprs)
   | EOldExpr _ ->
       expr
 
@@ -1292,6 +1313,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordSep _
   | TSep
   | TThreadPipe _
+  | TConstructorName _
   | TLambdaSep _ ->
       (ast, left s)
   | TFieldOp id ->
@@ -1381,6 +1403,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatWhole (f str) id ast, s)
   | TFloatFraction (id, str) ->
       (replaceFloatFraction (f str) id ast, s)
+  | TConstructorName _ ->
+      (ast, s)
 
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
@@ -1422,6 +1446,7 @@ let doRight
   | TFieldName _
   | TVariable _
   | TFnName _
+  | TConstructorName _
   | TLetLHS _
   | TLetAssignment _
   | TBinOp _
@@ -1583,6 +1608,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TThreadPipe _
   | TLambdaSymbol _
   | TLambdaArrow _
+  | TConstructorName _
   | TLambdaSep _ ->
       (ast, s)
 
