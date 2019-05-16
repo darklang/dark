@@ -474,6 +474,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+  | EMatch (id, _, _) ->
+      [TPartial (id, "TODO: match")]
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
 
@@ -907,6 +909,8 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         fe expr
     | ERecord (_, fields) ->
         fields |> List.map ~f:Tuple3.third |> List.filterMap ~f:fe |> List.head
+    | EMatch (_, _, pairs) ->
+        pairs |> List.map ~f:Tuple2.second |> List.filterMap ~f:fe |> List.head
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
     | EConstructor (_, _, _, exprs)
@@ -962,6 +966,11 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           fp lexpr |> Option.orElse (fp rexpr)
       | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
           fp expr
+      | EMatch (_, _, pairs) ->
+          pairs
+          |> List.map ~f:Tuple2.second
+          |> List.filterMap ~f:fp
+          |> List.head
       | ERecord (_, fields) ->
           fields
           |> List.map ~f:Tuple3.third
@@ -1007,6 +1016,9 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       ELambda (id, names, f expr)
   | EList (id, exprs) ->
       EList (id, List.map ~f exprs)
+  | EMatch (id, mexpr, pairs) ->
+      EMatch
+        (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, fields) ->
       ERecord
         (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
