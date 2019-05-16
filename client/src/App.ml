@@ -31,7 +31,7 @@ let init (flagString : string) (location : Web.Location.location) =
       cursorState =
         Deselected
         (* deselect for now as the selected blank isn't available yet *)
-    ; currentPage = page
+    ; currentPage = Architecture
     ; builtInFunctions = complete
     ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
