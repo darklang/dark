@@ -415,10 +415,9 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             let sessionKey = sessionKey |> Unicode_string.to_string in
             ( match Auth.Session.username_of_key sessionKey with
             | None ->
-                DResult
-                  (ResError (Dval.dstr_of_string_exn "No session for cookie"))
+                DOption OptNothing
             | Some username ->
-                DResult (ResOk (Dval.dstr_of_string_exn username)) )
+                DOption (OptJust (Dval.dstr_of_string_exn username)) )
         | args ->
             fail args )
     ; ( "DarkInternal::canEditCanvas"
