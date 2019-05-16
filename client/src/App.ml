@@ -42,7 +42,13 @@ let init (flagString : string) (location : Web.Location.location) =
     ; csrfToken
     ; avatarsList = [] }
   in
+  let avMessage : avatarModelMessage =
+    {browserId = "def"; tlid = None; timestamp = Js.Date.now ()}
+  in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
+  let sendPresence = RPC.sendPresence m avMessage in
+  let sendPresenceResult = sendPresence in
+  Debug.loG "sendPresenceResult" sendPresenceResult ;
   if Url.isIntegrationTest
   then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
@@ -50,6 +56,8 @@ let init (flagString : string) (location : Web.Location.location) =
     , Cmd.batch
         [RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))] )
 
+
+(* End of init *)
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
   if oldErr.message = Some newErrMsg && not oldErr.showDetails
@@ -1471,6 +1479,11 @@ let update_ (msg : msg) (m : model) : modification =
       Introspect.setHoveringVarName tlid name
   | FluidKeyPress _ | FluidMouseClick ->
       Fluid.update m msg
+  | TriggerSendPresenceCallback (Ok ()) ->
+      NoChange
+  | TriggerSendPresenceCallback (Error err) ->
+      DisplayAndReportHttpError
+        ("TriggerSendPresenceCallback", false, err, Js.Json.null)
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

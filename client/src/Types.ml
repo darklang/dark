@@ -497,6 +497,8 @@ and op =
 (* RPCs *)
 (* ------------------- *)
 (* params *)
+and sendPresenceParams = avatarModelMessage
+
 and addOpRPCParams = {ops : op list}
 
 and executeFunctionRPCParams =
@@ -882,6 +884,8 @@ and msg =
   | CanvasPanAnimationEnd
   | GoTo of page
   | SetHoveringVarName of tlid * string option
+  | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
+      [@printer opaque "TriggerSendPresenceCallback"]
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1065,6 +1069,11 @@ and avatar =
   ; activeTimestamp : float }
 
 and avatarsList = avatar list
+
+and avatarModelMessage =
+  { browserId : string
+  ; tlid : string option
+  ; timestamp : float }
 
 and model =
   { error : darkError
