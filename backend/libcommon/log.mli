@@ -22,6 +22,8 @@ val set_level : level -> unit
 
 val level_to_string : level -> string
 
+val string_to_level_opt : string -> level option
+
 val level_to_color : level -> string
 
 val should_log : level -> bool

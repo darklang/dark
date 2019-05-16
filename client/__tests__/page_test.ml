@@ -3,7 +3,6 @@ open Types
 open Jest
 open Expect
 open Prelude
-open Url
 module B = Blank
 module D = Defaults
 
@@ -32,12 +31,12 @@ let () =
       let tl = aHandler ~pos:{x = 500; y = 500} () in
       test "do not update canvasProps if center=false" (fun () ->
           let page = FocusedHandler (defaultTLID, false) in
-          let newM = calculatePanOffset m tl page in
+          let newM = Page.calculatePanOffset m tl page in
           expect (m.canvasProps.offset = newM.canvasProps.offset) |> toBe true
       ) ;
       test "update canvasProps if center=true" (fun () ->
           let page = FocusedHandler (defaultTLID, true) in
-          let newM = calculatePanOffset m tl page in
+          let newM = Page.calculatePanOffset m tl page in
           expect (m.canvasProps.offset = newM.canvasProps.offset) |> toBe false
       ) ;
       () ) ;

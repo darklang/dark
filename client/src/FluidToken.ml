@@ -41,6 +41,7 @@ let tid (t : token) : id =
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _)
+  | TConstructorName (id, _)
   | TRecordSep (id, _) ->
       id
   | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
@@ -153,6 +154,8 @@ let toText (t : token) : string =
       canBeEmpty name
   | TRecordSep _ ->
       ":"
+  | TConstructorName (_, name) ->
+      canBeEmpty name
   | TThreadPipe _ ->
       "|>"
 
@@ -245,6 +248,8 @@ let toTypeName (t : token) : string =
       "record-field"
   | TRecordSep _ ->
       "record-sep"
+  | TConstructorName _ ->
+      "constructor-name"
   | TThreadPipe _ ->
       "thread-pipe"
 
@@ -277,6 +282,8 @@ let toCategoryName (t : token) : string =
       "list"
   | TThreadPipe _ ->
       "thread"
+  | TConstructorName _ ->
+      "constructor"
   | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
       "record"
 

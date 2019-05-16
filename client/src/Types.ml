@@ -956,6 +956,7 @@ and fluidExpr =
   | EList of id * fluidExpr list
   | ERecord of id * (fluidName * fluidExpr) list
   | EThread of id * fluidExpr list
+  | EConstructor of id * fluidName * fluidExpr list
   | EOldExpr of expr
 
 and placeholder = string * string
@@ -1006,6 +1007,7 @@ and fluidToken =
   | TRecordField of id * int * string
   | TRecordSep of id * int
   | TRecordClose of id
+  | TConstructorName of id * string
 
 and fluidTokenInfo =
   { startRow : int
@@ -1017,7 +1019,7 @@ and fluidTokenInfo =
 
 and fluidAutocompleteItem =
   | FACFunction of function_
-  | FACConstructorName of string
+  | FACConstructorName of string * int
   | FACField of string
   | FACVariable of varName
   | FACLiteral of literal
