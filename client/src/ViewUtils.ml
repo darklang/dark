@@ -150,7 +150,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; avatarsList =
       ( match m.currentPage with
       | FocusedHandler (tlid_, _) when tlid_ = tl.id ->
-          Introspect.activeAvatars m
+          Introspect.presentAvatars m
       | _ ->
           [] ) }
 
