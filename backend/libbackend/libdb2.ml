@@ -197,10 +197,10 @@ let replacements =
                        | DList [x; y] ->
                            y
                        | _ ->
-                           Exception.internal "bad format from User_db.query" )
+                           Exception.internal "bad format from User_db.get_all" )
                 |> DList
             | _ ->
-                Exception.internal "bad format from User_db.query" )
+                Exception.internal "bad format from User_db.get_all" )
         | args ->
             fail args) )
   ; ( "DB::getAll_v3"
