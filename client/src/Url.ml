@@ -169,16 +169,3 @@ let queryParamSet (name : string) : bool =
 let isDebugging = queryParamSet "debugger"
 
 let isIntegrationTest = queryParamSet "integration-test"
-
-let shouldUpdateHash (m : model) (tlid : tlid) : msg Tea_cmd.t list =
-  let prevTLID = tlidOf m.cursorState in
-  let changedFocused =
-    match prevTLID with Some tid -> tlid <> tid | None -> false
-  in
-  let fromArch = m.currentPage = Architecture in
-  if fromArch || changedFocused
-  then
-    let tl = TL.getTL m tlid in
-    let page = TL.asPage tl false in
-    [updateUrl page]
-  else []

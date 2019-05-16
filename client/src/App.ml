@@ -461,21 +461,29 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetPage page ->
         (Page.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
-        let tl = TL.getTL m tlid in
-        let page = TL.asPage tl false in
-        let hashcmd = Url.shouldUpdateHash m tlid in
-        let m = Page.setPage m m.currentPage page in
+        let m, hashcmd =
+          if tlidOf m.cursorState <> Some tlid
+          then
+            let tl = TL.getTL m tlid in
+            let page = TL.asPage tl false in
+            let m = Page.setPage m m.currentPage page in
+            (m, Url.updateUrl page)
+          else (m, Cmd.none)
+        in
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
-        let commands = hashcmd @ closeBlanks m @ [afCmd] in
+        let commands = [hashcmd] @ closeBlanks m @ [afCmd] in
         (m, Cmd.batch commands)
     | Deselect ->
-        let hashcmd = [Url.updateUrl Architecture] in
-        let m = Page.setPage m m.currentPage Architecture in
-        let m, acCmd = processAutocompleteMods m [ACReset] in
-        let m = {m with cursorState = Deselected} in
-        let commands = hashcmd @ closeBlanks m @ [acCmd] in
-        (m, Cmd.batch commands)
+        if m.cursorState <> Deselected
+        then
+          let hashcmd = [Url.updateUrl Architecture] in
+          let m = Page.setPage m m.currentPage Architecture in
+          let m, acCmd = processAutocompleteMods m [ACReset] in
+          let m = {m with cursorState = Deselected} in
+          let commands = hashcmd @ closeBlanks m @ [acCmd] in
+          (m, Cmd.batch commands)
+        else (m, Cmd.none)
     | Enter entry ->
         let target =
           match entry with
