@@ -227,4 +227,13 @@ let fns : Lib.shortfn list =
     ; d = "Gives userinfo {username, name, admin, email} for a username"
     ; f = NotClientAvailable
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::log"]
+    ; ins = []
+    ; p = [par "level" TStr; par "name" TStr; par "log" TObj]
+    ; r = TObj
+    ; d =
+        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
+    ; f = NotClientAvailable
+    ; ps = false
     ; dep = false } ]
