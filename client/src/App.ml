@@ -31,7 +31,7 @@ let init (flagString : string) (location : Web.Location.location) =
       cursorState =
         Deselected
         (* deselect for now as the selected blank isn't available yet *)
-    ; currentPage = page
+    ; currentPage = Architecture
     ; builtInFunctions = complete
     ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
@@ -459,19 +459,31 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
-        (Url.setPage m m.currentPage page, Cmd.none)
+        (Page.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
-        let hashCmd = Url.shouldUpdateHash m tlid in
+        let m, hashcmd =
+          if tlidOf m.cursorState <> Some tlid
+          then
+            let tl = TL.getTL m tlid in
+            let page = TL.asPage tl false in
+            let m = Page.setPage m m.currentPage page in
+            (m, Url.updateUrl page)
+          else (m, Cmd.none)
+        in
         let m = {m with cursorState = Selecting (tlid, p)} in
         let m, afCmd = Analysis.analyzeFocused m in
-        let commands = hashCmd @ closeBlanks m @ [afCmd] in
+        let commands = [hashcmd] @ closeBlanks m @ [afCmd] in
         (m, Cmd.batch commands)
     | Deselect ->
-        let hashCmd = Url.navigateTo Architecture in
-        let m, acCmd = processAutocompleteMods m [ACReset] in
-        let m = {m with cursorState = Deselected} in
-        let commands = hashCmd :: (closeBlanks m @ [acCmd]) in
-        (m, Cmd.batch commands)
+        if m.cursorState <> Deselected
+        then
+          let hashcmd = [Url.updateUrl Architecture] in
+          let m = Page.setPage m m.currentPage Architecture in
+          let m, acCmd = processAutocompleteMods m [ACReset] in
+          let m = {m with cursorState = Deselected} in
+          let commands = hashcmd @ closeBlanks m @ [acCmd] in
+          (m, Cmd.batch commands)
+        else (m, Cmd.none)
     | Enter entry ->
         let target =
           match entry with
