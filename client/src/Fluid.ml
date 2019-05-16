@@ -474,8 +474,19 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
-  | EMatch (id, _, _) ->
-      [TPartial (id, "TODO: match")]
+  | EMatch (id, mexpr, pairs) ->
+      let toPatternToken _p = TPartial (id, "TODO: pattern") in
+      [ [TMatchKeyword id; nested mexpr; TNewline]
+      ; List.indexedMap pairs ~f:(fun i (pattern, expr) ->
+            [ TNewline
+            ; TIndent 2
+            ; toPatternToken pattern
+            ; TSep
+            ; TMatchSep (id, i)
+            ; TSep
+            ; nested expr ] )
+        |> List.concat ]
+      |> List.concat
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
 
@@ -689,6 +700,8 @@ let isTextToken token : bool =
   | TIndent _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TMatchKeyword _
+  | TMatchSep _
   | TThreadPipe _
   | TLambdaArrow _ ->
       false
@@ -716,6 +729,8 @@ let isAtom (token : token) : bool =
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TLetKeyword _
+  | TMatchSep _
+  | TMatchKeyword _
   | TThreadPipe _
   | TPlaceholder _
   | TBlank _
@@ -1477,7 +1492,11 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   in
   let newID = gid () in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TLambdaArrow _
+  | TMatchSep _
+  | TMatchKeyword _ ->
       (ast, moveToStart ti s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
       let newAST = removeEmptyExpr (Token.tid ti.token) ast in
@@ -1542,7 +1561,11 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TLambdaArrow _
+  | TMatchKeyword _
+  | TMatchSep _ ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
       (removeEmptyExpr (Token.tid ti.token) ast, s)
@@ -1618,7 +1641,9 @@ let doRight
   | TLetKeyword _
   | TPlaceholder _
   | TBlank _
-  | TLambdaArrow _ ->
+  | TLambdaArrow _
+  | TMatchSep _
+  | TMatchKeyword _ ->
     ( match next with
     | None ->
         moveToAfter current s
@@ -1802,7 +1827,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSymbol _
   | TLambdaArrow _
   | TConstructorName _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TMatchSep _
+  | TMatchKeyword _ ->
       (ast, s)
 
 

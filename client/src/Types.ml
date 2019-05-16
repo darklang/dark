@@ -1039,6 +1039,8 @@ and fluidToken =
   | TRecordOpen of id
   | TRecordField of id * int * string
   | TRecordSep of id * int
+  | TMatchKeyword of id
+  | TMatchSep of id * int
   | TRecordClose of id
   | TConstructorName of id * string
 
