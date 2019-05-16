@@ -30,10 +30,14 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
   | Sexp.List (Sexp.Atom fnname :: args) when is_fn fnname ->
       f (FnCall (fnname, List.map args ~f:ast_for_))
   (* blocks (\\x -> (List::head [])) *)
-  | Sexp.List [Sexp.Atom fnname; Sexp.Atom "->"; body]
-    when String.is_prefix ~prefix:"\\" fnname ->
-      let var = String.lstrip ~drop:(( = ) '\\') fnname in
+  | Sexp.List [Sexp.Atom var; Sexp.Atom "->"; body]
+    when String.is_prefix ~prefix:"\\" var ->
+      let var = String.lstrip ~drop:(( = ) '\\') var in
       f (Lambda ([f var], ast_for_ body))
+  | Sexp.List [Sexp.Atom var1; Sexp.Atom var2; Sexp.Atom "->"; body]
+    when String.is_prefix ~prefix:"\\" var1 ->
+      let var1 = String.lstrip ~drop:(( = ) '\\') var1 in
+      f (Lambda ([f var1; f var2], ast_for_ body))
   (* let: (let a 1 2) *)
   | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
       f (Let (b_or_f var, ast_for_ value, ast_for_ body))
