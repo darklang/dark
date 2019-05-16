@@ -2410,6 +2410,37 @@ let t_path_gt_route_does_not_crash () =
     bound
 
 
+let t_error_rail_is_propagated_by_functions () =
+  check_dval
+    "push"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::push (1 2 3 4) (`List::head_v1 []))") ;
+  check_dval
+    "filter with incomplete"
+    DIncomplete
+    (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> _))") ;
+  check_dval
+    "map with incomplete"
+    DIncomplete
+    (exec_ast "(List::map (1 2 3 4) (\\x -> _))") ;
+  check_dval
+    "fold with incomplete"
+    DIncomplete
+    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (+ x _)))") ;
+  check_dval
+    "filter with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+  check_dval
+    "map with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::map (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+  check_dval
+    "fold with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (`List::head_v1 [])))")
+
+
 let t_load_for_context_only_loads_relevant_data () =
   clear_test_data () ;
   let sharedh = handler (ast_for "(+ 5 3)") in
@@ -2667,7 +2698,10 @@ let suite =
     , t_path_gt_route_does_not_crash )
   ; ( "Canvas.load_for_context loads only that tlid and relevant context"
     , `Quick
-    , t_load_for_context_only_loads_relevant_data ) ]
+    , t_load_for_context_only_loads_relevant_data )
+  ; ( "Error rail is propagated by functions"
+    , `Quick
+    , t_error_rail_is_propagated_by_functions ) ]
 
 
 let () =
