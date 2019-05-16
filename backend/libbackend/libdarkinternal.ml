@@ -451,7 +451,6 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 DOption (OptJust (DObj dval_map)) )
         | args ->
             fail args )
->>>>>>> merge error
     ; ( "DarkInternal::log"
       , function
         | _, [DStr level; DStr name; DObj log] ->
