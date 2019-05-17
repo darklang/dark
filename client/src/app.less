@@ -406,6 +406,46 @@ body #app * {
     align-items: flex-start;
   }
 }
+.usages {
+  position: absolute;
+  //Change after avatars to shown, quick fix: left 100% - 50px 
+  left: calc(~"100% + 30px");
+
+  display: flex;
+  flex-direction: column;
+
+}
+
+.avatar {
+  padding: 0px 5px;
+  width: 40px;
+  height: 40px;
+ 
+}
+
+.all-avatars{
+  max-height: calc(100% - 50px);
+  overflow-y: scroll;
+  position: fixed;
+  top: 0;
+  right: 0;
+  background-color: @black2;
+  margin: 0px 5px;
+  padding: 5px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  p{
+    text-align: center;
+    margin: 5px 0px;
+  }
+  .inactive{
+    opacity: 0.5;
+  }
+  .avatars-wrapper{
+    display: flex;
+  }
+}
 
 .ref-block {
   display: block;
@@ -511,6 +551,7 @@ body #app * {
   top: 0;
   left: 0;
 }
+
 
 .viewing-table {
   background-color: @black2;
