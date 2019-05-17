@@ -63,9 +63,7 @@ let undo_redo (m : model) (redo : bool) : modification =
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
-  if VariantTesting.isFluid m.tests
-  then NoChange
-  else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
+  if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
   else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
@@ -491,7 +489,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Architecture ->
         ( match event.keyCode with
         | Key.Enter ->
-            Entry.createFindSpace m
+            Entry.openOmnibox m
         | Key.A ->
             if event.ctrlKey then Viewport.pageLeft m else NoChange
         | Key.E ->
@@ -538,6 +536,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | _ ->
           NoChange )
     | Dragging (_, _, _, _) ->
+        NoChange
+    | FluidEntering _ ->
         NoChange
 
 
