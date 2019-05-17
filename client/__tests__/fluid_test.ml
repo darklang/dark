@@ -37,6 +37,7 @@ let complexExpr =
         , NoRail )
     , ELet
         ( gid ()
+        , gid ()
         , ""
         , newB ()
         , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)], NoRail)
@@ -75,12 +76,14 @@ let () =
   let seventyEight = EInteger (gid (), 78) in
   let blank = EBlank (gid ()) in
   let aPartialVar = EPartial (gid (), "req") in
-  let emptyLet = ELet (gid (), "", EBlank (gid ()), EInteger (gid (), 5)) in
+  let emptyLet =
+    ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
+  in
   let nonEmptyLet =
-    ELet (gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
+    ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
   in
   let letWithLhs =
-    ELet (gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
+    ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
   let aVar = EVariable (gid (), "variable") in
   let aShortVar = EVariable (gid (), "v") in
@@ -117,7 +120,7 @@ let () =
      * ifs. *)
     let ast =
       if wrap
-      then ELet (gid (), "request", ast, EVariable (gid (), "request"))
+      then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
       else ast
     in
     let extra = if wrap then 14 else 0 in
@@ -132,7 +135,11 @@ let () =
       List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
     in
     let result =
-      match newAST with ELet (_, _, expr, _) when wrap -> expr | expr -> expr
+      match newAST with
+      | ELet (_, _, _, expr, _) when wrap ->
+          expr
+      | expr ->
+          expr
     in
     (eToString s result, max 0 (newState.newPos - extra))
   in
