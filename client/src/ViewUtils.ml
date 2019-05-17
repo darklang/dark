@@ -32,7 +32,8 @@ type viewState =
   ; inReferences : usedIn list
   ; toReferences : refersTo list
   ; usagesOfHoveredReference : id list
-  ; fluidState : Types.fluidState }
+  ; fluidState : Types.fluidState
+  ; avatarsList : avatarsList }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -145,7 +146,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ ->
           [] )
   ; usagesOfHoveredReference = usagesOfHoveredReference tl hp
-  ; fluidState = m.fluidState }
+  ; fluidState = m.fluidState
+  ; avatarsList =
+      ( match m.currentPage with
+      | FocusedHandler (tlid_, _) when tlid_ = tl.id ->
+          Introspect.presentAvatars m
+      | _ ->
+          [] ) }
 
 
 let fontAwesome (name : string) : msg Html.html =
