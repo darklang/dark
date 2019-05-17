@@ -1685,6 +1685,23 @@ let doInsert
   | Some letter ->
       doInsert' ~pos letter ti ast s
 
+let maybeOpenCmd (m : Types.model) : Types.modification =
+  let getCurrentToken tokens =
+    let _, mCurrent, _ = getTokensAtPosition tokens ~pos:m.fluidState.newPos in
+    mCurrent
+  in
+  Toplevel.selected m
+  |> Option.andThen ~f:(fun tl ->
+         TL.rootExpr tl
+         |> Option.andThen ~f:(fun ast -> Some (fromExpr m.fluidState ast))
+         |> Option.andThen ~f:(fun ast -> Some (toTokens m.fluidState ast))
+         |> Option.withDefault ~default:[]
+         |> getCurrentToken
+         |> Option.andThen ~f:(fun ti ->
+                let id = Token.tid ti.token in
+                Some (FluidCommandsFor (tl.id, id)) ) )
+  |> Option.withDefault ~default:NoChange
+
 
 let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   let pos = s.newPos in
@@ -1896,6 +1913,30 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   (newAST, newState)
 
 
+let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
+  let s = m.fluidState in
+  match keyEvt with
+  | {key} when key = K.Enter ->
+      let cp = s.cp in
+      ( match (cp.cmdOnTL, cp.cmdOnID) with
+      | Some tl, Some id ->
+        ( match FluidCommands.highlighted cp with
+        | Some cmd ->
+            Many [FluidCommands.executeCommand m tl id cmd; FluidCommandsClose]
+        | None ->
+            NoChange )
+      | _ ->
+          NoChange )
+  | {key} when key = K.Up ->
+      let cp = FluidCommands.moveUp s.cp in
+      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+  | {key} when key = K.Down ->
+      let cp = FluidCommands.moveDown s.cp in
+      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+  | _ ->
+      NoChange
+
+
 let update (m : Types.model) (msg : Types.msg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
@@ -1906,6 +1947,10 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
   | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
     when (metaKey || ctrlKey) && key = K.Letter 'z' ->
       KeyPress.undo_redo m shiftKey
+  | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
+      maybeOpenCmd m
+  | FluidKeyPress ke when m.fluidState.cp.show = true ->
+      updateCmds m ke
   | _ ->
     ( match Toplevel.selected m with
     | None ->
@@ -2011,6 +2056,27 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
         ; Attrs.spellcheck false ]
         [Html.text liveValueString; viewCopyButton tlid liveValueString]
 
+let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
+  let viewCommands i item =
+    let highlighted = cp.index = i in
+    let name = FluidCommands.asName item in
+    Html.li
+      [ Attrs.classList
+          [ ("autocomplete-item", true)
+          ; ("fluid-selected", highlighted)
+          ; ("valid", true) ]
+      ; ViewUtils.nothingMouseEvent "mouseup"
+      ; ViewEntry.defaultPasteHandler
+      ; ViewUtils.nothingMouseEvent "mousedown"
+      (* ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
+                AutocompleteClick name ) *)
+       ]
+      [Html.text name]
+  in
+  Html.div
+    [Attrs.id "fluid-dropdown"]
+    [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
+
 
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
   let sentToRail id =
@@ -2041,7 +2107,13 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
   List.map l ~f:(fun ti ->
-      let dropdown () = viewAutocomplete state.ac in
+      let dropdown =
+        if s.cp.show
+        then viewCommandPalette s.cp
+        else if isAutocompleting ti s
+        then viewAutocomplete s.ac
+        else Vdom.noNode
+      in
       let liveValue () = viewLiveValue ~tlid ~currentResults ti in
       let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
@@ -2053,9 +2125,6 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
-      let autocomplete =
-        if isAutocompleting ti state then dropdown () else Vdom.noNode
-      in
       let liveValue =
         if state.newPos <= ti.endPos
            && state.newPos >= ti.startPos
@@ -2065,8 +2134,7 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      [element [autocomplete; liveValue]; errorIndicator] )
-  |> List.flatten
+      element [dropdown; liveValue] @ [errorIndicator] )
 
 
 let viewAST

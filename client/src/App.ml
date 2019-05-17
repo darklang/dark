@@ -848,6 +848,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | UpdateTLUsage usages ->
         ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
         , Cmd.none )
+    | FluidCommandsFor (tlid, id) ->
+        let cp =
+          FluidCommands.commandsFor m.fluidState.cp (TL.getTL m tlid) id
+        in
+        ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
+    | FluidCommandsClose ->
+        let cp = FluidCommands.reset m.fluidState.cp in
+        ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
