@@ -951,16 +951,16 @@ and integrationTestState =
 and fluidName = string
 
 and fluidPattern =
-  | FPVariable of fluidName
-  | FPConstructor of fluidName * fluidPattern list
-  (* TODO: support bool, string, null, float, char *)
-  | FPInteger of int
-  | FPBool of bool
-  | FPString of string
-  | FPFloat of string * string
-  | FPNull
-  | FPBlank
-  | FPPartial of string
+  | FPVariable of id * fluidName
+  | FPConstructor of id * fluidName * fluidPattern list
+  (* TODO: support char *)
+  | FPInteger of id * int
+  | FPBool of id * bool
+  | FPString of id * string
+  | FPFloat of id * string * string
+  | FPNull of id
+  | FPBlank of id
+  | FPPartial of id * string
   | FPOldPattern of pattern
 
 and fluidExpr =
@@ -1040,7 +1040,19 @@ and fluidToken =
   | TRecordField of id * int * string
   | TRecordSep of id * int
   | TMatchKeyword of id
-  | TMatchSep of id * int
+  | TMatchSep of id
+  | TPatternVariable of id * string
+  | TPatternConstructorName of id * string
+  | TPatternInteger of id * string
+  | TPatternString of id * string
+  | TPatternTrue of id
+  | TPatternFalse of id
+  | TPatternNullToken of id
+  | TPatternFloatWhole of id * string
+  | TPatternFloatPoint of id
+  | TPatternFloatFraction of id * string
+  | TPatternBlank of id
+  | TPatternPartial of id * string
   | TRecordClose of id
   | TConstructorName of id * string
 

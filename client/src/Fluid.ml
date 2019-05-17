@@ -170,28 +170,28 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
     | Match (mexpr, pairs) ->
         let rec fromPattern (p : pattern) : fluidPattern =
           match p with
-          | Blank _ ->
-              FPBlank
-          | Partial (_, name) ->
-              FPPartial name
-          | F (_, np) ->
+          | Blank id ->
+              FPBlank id
+          | Partial (id, name) ->
+              FPPartial (id, name)
+          | F (id, np) ->
             ( match np with
             | PVariable name ->
-                FPVariable name
+                FPVariable (id, name)
             | PConstructor (name, patterns) ->
-                FPConstructor (name, List.map ~f:fromPattern patterns)
+                FPConstructor (id, name, List.map ~f:fromPattern patterns)
             | PLiteral str ->
               ( match parseString str with
               | `Bool b ->
-                  FPBool b
+                  FPBool (id, b)
               | `Int i ->
-                  FPInteger i
+                  FPInteger (id, i)
               | `String s ->
-                  FPString s
+                  FPString (id, s)
               | `Null ->
-                  FPNull
+                  FPNull id
               | `Float (whole, fraction) ->
-                  FPFloat (whole, fraction)
+                  FPFloat (id, whole, fraction)
               | `Unknown ->
                   Js.log2
                     "Getting old pattern literal that we couldn't parse"
@@ -280,24 +280,24 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | EMatch (id, mexpr, pairs) ->
       let rec toPattern p =
         match p with
-        | FPVariable var ->
-            F (gid (), PVariable var)
-        | FPConstructor (name, patterns) ->
-            F (gid (), PConstructor (name, List.map ~f:toPattern patterns))
-        | FPInteger i ->
-            F (gid (), PLiteral (toString (`Int i)))
-        | FPBool b ->
-            F (gid (), PLiteral (toString (`Bool b)))
-        | FPString str ->
-            F (gid (), PLiteral (toString (`String str)))
-        | FPFloat (whole, fraction) ->
-            F (gid (), PLiteral (toString (`Float (whole, fraction))))
-        | FPNull ->
-            F (gid (), PLiteral (toString `Null))
-        | FPBlank ->
-            Blank (gid ())
-        | FPPartial str ->
-            Partial (gid (), str)
+        | FPVariable (id, var) ->
+            F (id, PVariable var)
+        | FPConstructor (id, name, patterns) ->
+            F (id, PConstructor (name, List.map ~f:toPattern patterns))
+        | FPInteger (id, i) ->
+            F (id, PLiteral (toString (`Int i)))
+        | FPBool (id, b) ->
+            F (id, PLiteral (toString (`Bool b)))
+        | FPString (id, str) ->
+            F (id, PLiteral (toString (`String str)))
+        | FPFloat (id, whole, fraction) ->
+            F (id, PLiteral (toString (`Float (whole, fraction))))
+        | FPNull id ->
+            F (id, PLiteral (toString `Null))
+        | FPBlank id ->
+            Blank id
+        | FPPartial (id, str) ->
+            Partial (id, str)
         | FPOldPattern pattern ->
             pattern
       in
@@ -331,6 +331,22 @@ let eid expr : id =
   | EConstructor (id, _, _, _)
   | EMatch (id, _, _) ->
       id
+
+
+let pid pattern : id =
+  match pattern with
+  | FPVariable (id, _)
+  | FPConstructor (id, _, _)
+  | FPInteger (id, _)
+  | FPBool (id, _)
+  | FPString (id, _)
+  | FPFloat (id, _, _)
+  | FPNull id
+  | FPBlank id
+  | FPPartial (id, _) ->
+      id
+  | FPOldPattern pattern ->
+      Blank.toID pattern
 
 
 let newB () = EBlank (gid ())
@@ -475,16 +491,37 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
-      let toPatternToken _p = TPartial (id, "TODO: pattern") in
+      let rec toPatternToken p : fluidToken list =
+        match p with
+        | FPVariable (id, name) ->
+            [TPatternVariable (id, name)]
+        | FPConstructor (id, name, args) ->
+            let args = List.map args ~f:(fun a -> TSep :: toPatternToken a) in
+            List.concat ([TPatternConstructorName (id, name)] :: args)
+        | FPInteger (id, i) ->
+            [TPatternInteger (id, string_of_int i)]
+        | FPBool (id, b) ->
+            if b then [TPatternTrue id] else [TPatternFalse id]
+        | FPString (id, s) ->
+            [TPatternString (id, s)]
+        | FPFloat (id, whole, fraction) ->
+            [ TPatternFloatWhole (id, whole)
+            ; TPatternFloatPoint id
+            ; TPatternFloatFraction (id, fraction) ]
+        | FPNull id ->
+            [TPatternNullToken id]
+        | FPBlank id ->
+            [TPatternBlank id]
+        | FPPartial (id, str) ->
+            [TPatternPartial (id, str)]
+        | FPOldPattern op ->
+            [TPatternPartial (Blank.toID op, "TODO: old pattern")]
+      in
       [ [TMatchKeyword id; nested mexpr; TNewline]
-      ; List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-            [ TNewline
-            ; TIndent 2
-            ; toPatternToken pattern
-            ; TSep
-            ; TMatchSep (id, i)
-            ; TSep
-            ; nested expr ] )
+      ; List.map pairs ~f:(fun (pattern, expr) ->
+            [TNewline; TIndent 2]
+            @ toPatternToken pattern
+            @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
       |> List.concat
   | EOldExpr expr ->
@@ -612,7 +649,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACKeyword KLambda ->
       (ELambda (gid (), [(gid (), "")], newB ()), 1)
   | FACKeyword KMatch ->
-      (EMatch (gid (), newB (), [(FPBlank, newB ())]), 6)
+      (EMatch (gid (), newB (), [(FPBlank (gid ()), newB ())]), 6)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -679,7 +716,19 @@ let isTextToken token : bool =
   | TLambdaVar _
   | TFloatWhole _
   | TFloatPoint _
-  | TFloatFraction _ ->
+  | TFloatFraction _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternBlank _
+  | TPatternPartial _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
       true
   | TListOpen _
   | TListClose _
@@ -734,7 +783,9 @@ let isAtom (token : token) : bool =
   | TThreadPipe _
   | TPlaceholder _
   | TBlank _
-  | TLambdaArrow _ ->
+  | TLambdaArrow _
+  | TPatternBlank _
+  | TPatternPartial _ ->
       true
   | TListOpen _
   | TListClose _
@@ -766,8 +817,18 @@ let isAtom (token : token) : bool =
   | TPartial _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TLambdaVar _
   | TConstructorName _
-  | TLambdaVar _ ->
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
       false
 
 
@@ -1551,6 +1612,19 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatFraction (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
+  | TPatternBlank _
+  | TPatternPartial _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
+      (ast, left s)
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -1621,6 +1695,19 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction (f str) id ast, s)
   | TConstructorName _ ->
       (ast, s)
+  | TPatternBlank _
+  | TPatternPartial _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
+      (ast, s)
 
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
@@ -1681,7 +1768,19 @@ let doRight
   | TThreadPipe _
   | TLambdaVar _
   | TLambdaSymbol _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TPatternBlank _
+  | TPatternPartial _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
     ( match next with
     | Some n when pos + 1 >= current.endPos ->
         moveToStart n s
@@ -1722,7 +1821,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   let letterStr = String.fromChar letter in
   let offset =
     match ti.token with
-    | TString _ ->
+    | TString _ | TPatternString _ ->
         pos - ti.startPos - 1
     | _ ->
         pos - ti.startPos
@@ -1762,13 +1861,25 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TInteger _ when '0' = letter && offset = 0 ->
       (ast, s)
+  | TPatternInteger _ when not (isNumber letterStr) ->
+      (ast, s)
+  | TPatternInteger _ when '0' = letter && offset = 0 ->
+      (ast, s)
   | TFloatWhole _ when not (isNumber letterStr) ->
       (ast, s)
   | TFloatWhole _ when '0' = letter && offset = 0 ->
       (ast, s)
   | TFloatFraction _ when not (isNumber letterStr) ->
       (ast, s)
+  | TPatternFloatWhole _ when not (isNumber letterStr) ->
+      (ast, s)
+  | TPatternFloatWhole _ when '0' = letter && offset = 0 ->
+      (ast, s)
+  | TPatternFloatFraction _ when not (isNumber letterStr) ->
+      (ast, s)
   | TVariable _ when not (isIdentifierChar letterStr) ->
+      (ast, s)
+  | TPatternVariable _ when not (isIdentifierChar letterStr) ->
       (ast, s)
   | TLetLHS _ when not (isIdentifierChar letterStr) ->
       (ast, s)
@@ -1829,7 +1940,19 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TConstructorName _
   | TLambdaSep _
   | TMatchSep _
-  | TMatchKeyword _ ->
+  | TMatchKeyword _
+  | TPatternVariable _
+  | TPatternPartial _
+  | TPatternString _
+  | TPatternInteger _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternConstructorName _
+  | TPatternFloatPoint _
+  | TPatternFloatWhole _
+  | TPatternFloatFraction _
+  | TPatternBlank _ ->
       (ast, s)
 
 
