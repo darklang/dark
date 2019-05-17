@@ -519,9 +519,12 @@ let () =
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
-      let emptyRow = ERecord (gid (), [("", blank)]) in
-      let single = ERecord (gid (), [("f1", fiftySix)]) in
-      let multi = ERecord (gid (), [("f1", fiftySix); ("f2", seventyEight)]) in
+      let emptyRow = ERecord (gid (), [(gid (), "", blank)]) in
+      let single = ERecord (gid (), [(gid (), "f1", fiftySix)]) in
+      let multi =
+        ERecord
+          (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)])
+      in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
       t "create record" blank (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t

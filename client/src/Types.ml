@@ -957,7 +957,8 @@ and fluidExpr =
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string
   | EList of id * fluidExpr list
-  | ERecord of id * (fluidName * fluidExpr) list
+  (* The ID in the list is extra for the fieldname *)
+  | ERecord of id * (id * fluidName * fluidExpr) list
   | EThread of id * fluidExpr list
   (* The 2nd ID is extra for the name *)
   | EConstructor of id * id * fluidName * fluidExpr list
