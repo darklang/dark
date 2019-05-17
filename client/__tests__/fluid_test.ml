@@ -89,8 +89,8 @@ let () =
     EIf
       (gid (), EInteger (gid (), 5), EInteger (gid (), 6), EInteger (gid (), 7))
   in
-  let aLambda = ELambda (gid (), [""], blank) in
-  let nonEmptyLambda = ELambda (gid (), [""], five) in
+  let aLambda = ELambda (gid (), [(gid (), "")], blank) in
+  let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")

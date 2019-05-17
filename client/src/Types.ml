@@ -947,7 +947,7 @@ and fluidExpr =
   | ELet of id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  | ELambda of id * fluidName list * fluidExpr
+  | ELambda of id * (id * fluidName) list * fluidExpr
   | EFieldAccess of id * fluidExpr * id * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
