@@ -73,7 +73,7 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
   | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
-        ELet (id, varToName name, fromExpr rhs, fromExpr body)
+        ELet (id, Blank.toID name, varToName name, fromExpr rhs, fromExpr body)
     | Variable varname ->
         EVariable (id, varname)
     | If (cond, thenExpr, elseExpr) ->
@@ -192,9 +192,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
             , toExpr body ) )
   | EBlank id ->
       Blank id
-  | ELet (id, lhs, rhs, body) ->
-      (* TODO: ID *)
-      F (id, Let (F (gid (), lhs), toExpr rhs, toExpr body))
+  | ELet (id, lhsID, lhs, rhs, body) ->
+      F (id, Let (F (lhsID, lhs), toExpr rhs, toExpr body))
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str) ->
@@ -229,7 +228,7 @@ let eid expr : id =
   | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
-  | ELet (id, _, _, _)
+  | ELet (id, _, _, _, _)
   | EIf (id, _, _, _)
   | EPartial (id, _)
   | EList (id, _)
@@ -289,7 +288,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TBlank id]
   | EPartial (id, str) ->
       [TPartial (id, str)]
-  | ELet (id, lhs, rhs, next) ->
+  | ELet (id, _, lhs, rhs, next) ->
       [ TLetKeyword id
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
@@ -497,7 +496,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let args = List.initialize count (fun _ -> EBlank (gid ())) in
       (EFnCall (gid (), name, args, r), String.length name + 1)
   | FACKeyword KLet ->
-      (ELet (gid (), "", newB (), newB ()), 4)
+      (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | FACKeyword KLambda ->
@@ -800,7 +799,7 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
     | ENull _
     | EFloat _ ->
         None
-    | ELet (_, _, rhs, next) ->
+    | ELet (_, _, _, rhs, next) ->
         fe rhs |> Option.orElse (fe next)
     | EIf (_, cond, ifexpr, elseexpr) ->
         fe cond |> Option.orElse (fe ifexpr) |> Option.orElse (fe elseexpr)
@@ -860,7 +859,7 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
       | ENull _
       | EFloat _ ->
           None
-      | ELet (_, _, rhs, next) ->
+      | ELet (_, _, _, rhs, next) ->
           fp rhs |> Option.orElse (fp next)
       | EIf (_, cond, ifexpr, elseexpr) ->
           fp cond |> Option.orElse (fp ifexpr) |> Option.orElse (fp elseexpr)
@@ -899,8 +898,8 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | ENull _
   | EFloat _ ->
       expr
-  | ELet (id, name, rhs, next) ->
-      ELet (id, name, f rhs, f next)
+  | ELet (id, lhsID, name, rhs, next) ->
+      ELet (id, lhsID, name, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) ->
       EIf (id, f cond, f ifexpr, f elseexpr)
   | EBinOp (id, op, lexpr, rexpr, ster) ->
@@ -957,7 +956,7 @@ let exprToFieldAccess (id : id) (ast : ast) : ast =
 let removeEmptyExpr (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | ELet (_, "", EBlank _, body) ->
+      | ELet (_, _, "", EBlank _, body) ->
           body
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           newB ()
@@ -984,8 +983,8 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           if str = "" then EBlank id else EPartial (id, str)
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
-      | ELet (id, _, rhs, next) ->
-          ELet (id, str, rhs, next)
+      | ELet (id, lhsID, _, rhs, next) ->
+          ELet (id, lhsID, str, rhs, next)
       | ELambda (id, vars, expr) ->
           let rest = List.tail vars |> Option.withDefault ~default:[] in
           ELambda (id, (gid (), str) :: rest, expr)
