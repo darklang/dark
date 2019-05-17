@@ -97,10 +97,10 @@ commands:
       - run:
           name: "Setup cache names"
           command: |
-            date +"%F" > today-timestamp
-            date +"%F" -d "today - 1 days" > minus1-timestamp
-            date +"%F" -d "today - 2 days" > minus2-timestamp
-            date +"%F" -d "today - 3 days" > minus3-timestamp
+            date +"%F" > rundir/today-timestamp
+            date +"%F" -d "today - 1 days" > rundir/minus1-timestamp
+            date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
+            date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
 
 
   ##########################
@@ -151,10 +151,10 @@ jobs:
       - restore_cache:
           keys:
             - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v10-stroller-{{ checksum "today-timestamp" }}
-            - v10-stroller-{{ checksum "minus1-timestamp" }}
-            - v10-stroller-{{ checksum "minus2-timestamp" }}
-            - v10-stroller-{{ checksum "minus3-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/today-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/minus1-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/minus2-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - run:
@@ -186,7 +186,7 @@ jobs:
           paths:
             - stroller/target
             - cargo
-          key: v10-stroller-{{ checksum "today-timestamp" }}
+          key: v10-stroller-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -201,10 +201,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-backend-{{ checksum "today-timestamp" }}
-            - v6-backend-{{ checksum "minus1-timestamp" }}
-            - v6-backend-{{ checksum "minus2-timestamp" }}
-            - v6-backend-{{ checksum "minus3-timestamp" }}
+            - v6-backend-{{ checksum "rundir/today-timestamp" }}
+            - v6-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v6-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v6-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
@@ -222,7 +222,7 @@ jobs:
       - save_cache:
           name: "Save daily backend cache"
           paths: [ "backend/_build" ]
-          key: v6-backend-{{ checksum "today-timestamp" }}
+          key: v6-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -247,10 +247,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-postgres-honeytail-{{ checksum "today-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "minus1-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "minus2-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "minus3-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail . && docker run -t dark-gcp-postgres-honeytail python test_logs.py
 
   build-client:
@@ -261,10 +261,10 @@ jobs:
       - restore_cache:
           keys:
             - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "today-timestamp" }}
-            - v8-client-{{ checksum "minus1-timestamp" }}
-            - v8-client-{{ checksum "minus2-timestamp" }}
-            - v8-client-{{ checksum "minus3-timestamp" }}
+            - v8-client-{{ checksum "rundir/today-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
@@ -286,7 +286,7 @@ jobs:
       - save_cache:
           name: "Save daily client cache"
           paths: [ "client/node_modules" ]
-          key: v8-client-{{ checksum "today-timestamp" }}
+          key: v8-client-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -321,10 +321,10 @@ jobs:
       - restore_cache: # get testcafe
           keys:
             - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "today-timestamp" }}
-            - v8-client-{{ checksum "minus1-timestamp" }}
-            - v8-client-{{ checksum "minus2-timestamp" }}
-            - v8-client-{{ checksum "minus3-timestamp" }}
+            - v8-client-{{ checksum "rundir/today-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
       - copy-into-container
       - run-background-container
 
@@ -337,9 +337,9 @@ jobs:
           shell: bash
           command: |
             # get full list of tests
-            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > all-tests
+            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > rundir/all-tests
             # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname all-tests)
+            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
             # concat them into a pattern (note: $TESTS is deliberately unquoted)
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
