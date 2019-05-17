@@ -148,7 +148,8 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
     | Constructor (name, exprs) ->
-        EConstructor (id, varToName name, List.map ~f:fromExpr exprs)
+        EConstructor
+          (id, Blank.toID name, varToName name, List.map ~f:fromExpr exprs)
     | FeatureFlag _ | Match _ ->
         EOldExpr expr )
 
@@ -208,8 +209,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
         )
   | EThread (id, exprs) ->
       F (id, Thread (List.map ~f:toExpr exprs))
-  | EConstructor (id, name, exprs) ->
-      F (id, Constructor (F (gid (), name), List.map ~f:toExpr exprs))
+  | EConstructor (id, nameID, name, exprs) ->
+      F (id, Constructor (F (nameID, name), List.map ~f:toExpr exprs))
   | EOldExpr expr ->
       expr
 
@@ -235,7 +236,7 @@ let eid expr : id =
   | ERecord (id, _)
   | EThread (id, _)
   | EBinOp (id, _, _, _, _)
-  | EConstructor (id, _, _) ->
+  | EConstructor (id, _, _, _) ->
       id
 
 
@@ -374,7 +375,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             |> List.indexedMap ~f:(fun i e ->
                    [TIndentToHere [TThreadPipe (id, i); nested e]] )
             |> List.concat ) ] )
-  | EConstructor (id, name, exprs) ->
+  | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EOldExpr expr ->
@@ -511,7 +512,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (ENull (gid ()), 4)
   | FACConstructorName (name, argCount) ->
       let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
-      (EConstructor (gid (), name, argCount), 1 + String.length name)
+      (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
   | _ ->
       let str =
         "TODO: autocomplete result for "
@@ -814,7 +815,7 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         |> List.head
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
-    | EConstructor (_, _, exprs)
+    | EConstructor (_, _, _, exprs)
     | EThread (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
@@ -874,7 +875,7 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           |> List.head
       | EFnCall (_, _, exprs, _)
       | EList (_, exprs)
-      | EConstructor (_, _, exprs)
+      | EConstructor (_, _, _, exprs)
       | EThread (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
@@ -916,8 +917,8 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
   | EThread (id, exprs) ->
       EThread (id, List.map ~f exprs)
-  | EConstructor (id, name, exprs) ->
-      EConstructor (id, name, List.map ~f exprs)
+  | EConstructor (id, nameID, name, exprs) ->
+      EConstructor (id, nameID, name, List.map ~f exprs)
   | EOldExpr _ ->
       expr
 
