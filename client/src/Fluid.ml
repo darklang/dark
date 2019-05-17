@@ -73,7 +73,7 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
   | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
-        ELet (id, varToName name, fromExpr rhs, fromExpr body)
+        ELet (id, Blank.toID name, varToName name, fromExpr rhs, fromExpr body)
     | Variable varname ->
         EVariable (id, varname)
     | If (cond, thenExpr, elseExpr) ->
@@ -82,9 +82,11 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         EList (id, List.map ~f:fromExpr exprs)
     | ObjectLiteral pairs ->
         ERecord
-          (id, List.map pairs ~f:(fun (k, v) -> (varToName k, fromExpr v)))
+          ( id
+          , List.map pairs ~f:(fun (k, v) ->
+                (Blank.toID k, varToName k, fromExpr v) ) )
     | FieldAccess (expr, field) ->
-        EFieldAccess (id, fromExpr expr, varToName field)
+        EFieldAccess (id, fromExpr expr, Blank.toID field, varToName field)
     | FnCall (name, args, ster) ->
         let args = List.map ~f:fromExpr args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
@@ -103,7 +105,10 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
     | Thread exprs ->
         EThread (id, List.map ~f:fromExpr exprs)
     | Lambda (varnames, exprs) ->
-        ELambda (id, List.map ~f:varToName varnames, fromExpr exprs)
+        ELambda
+          ( id
+          , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
+          , fromExpr exprs )
     | Value str ->
         let asBool =
           if str = "true"
@@ -145,7 +150,8 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         |> Option.or_ asFloat
         |> Option.withDefault ~default:(EOldExpr expr)
     | Constructor (name, exprs) ->
-        EConstructor (id, varToName name, List.map ~f:fromExpr exprs)
+        EConstructor
+          (id, Blank.toID name, varToName name, List.map ~f:fromExpr exprs)
     | FeatureFlag _ | Match _ ->
         EOldExpr expr )
 
@@ -167,25 +173,30 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F (id, Value "null")
   | EVariable (id, var) ->
       F (id, Variable var)
-  | EFieldAccess (id, obj, fieldname) ->
-      (* TODO: the id *)
-      F (id, FieldAccess (toExpr obj, F (gid (), fieldname)))
+  | EFieldAccess (id, obj, fieldID, fieldname) ->
+      F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
-      F (id, FnCall (F (gid (), name), List.map ~f:toExpr args, ster))
+      F
+        ( id
+        , FnCall
+            (F (ID (deID id ^ "_name"), name), List.map ~f:toExpr args, ster)
+        )
   | EBinOp (id, name, arg1, arg2, ster) ->
-      F (id, FnCall (F (gid (), name), [toExpr arg1; toExpr arg2], ster))
+      F
+        ( id
+        , FnCall
+            (F (ID (deID id ^ "_name"), name), [toExpr arg1; toExpr arg2], ster)
+        )
   | ELambda (id, vars, body) ->
-      (* TODO: IDs *)
       F
         ( id
         , Lambda
-            (List.map vars ~f:(fun var -> Types.F (gid (), var)), toExpr body)
-        )
+            ( List.map vars ~f:(fun (vid, var) -> Types.F (vid, var))
+            , toExpr body ) )
   | EBlank id ->
       Blank id
-  | ELet (id, lhs, rhs, body) ->
-      (* TODO: ID *)
-      F (id, Let (F (gid (), lhs), toExpr rhs, toExpr body))
+  | ELet (id, lhsID, lhs, rhs, body) ->
+      F (id, Let (F (lhsID, lhs), toExpr rhs, toExpr body))
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str) ->
@@ -196,12 +207,12 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F
         ( id
         , ObjectLiteral
-            (List.map pairs ~f:(fun (k, v) -> (Types.F (gid (), k), toExpr v)))
+            (List.map pairs ~f:(fun (id, k, v) -> (Types.F (id, k), toExpr v)))
         )
   | EThread (id, exprs) ->
       F (id, Thread (List.map ~f:toExpr exprs))
-  | EConstructor (id, name, exprs) ->
-      F (id, Constructor (F (gid (), name), List.map ~f:toExpr exprs))
+  | EConstructor (id, nameID, name, exprs) ->
+      F (id, Constructor (F (nameID, name), List.map ~f:toExpr exprs))
   | EOldExpr expr ->
       expr
 
@@ -216,18 +227,18 @@ let eid expr : id =
   | ENull id
   | EFloat (id, _, _)
   | EVariable (id, _)
-  | EFieldAccess (id, _, _)
+  | EFieldAccess (id, _, _, _)
   | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
-  | ELet (id, _, _, _)
+  | ELet (id, _, _, _, _)
   | EIf (id, _, _, _)
   | EPartial (id, _)
   | EList (id, _)
   | ERecord (id, _)
   | EThread (id, _)
   | EBinOp (id, _, _, _, _)
-  | EConstructor (id, _, _) ->
+  | EConstructor (id, _, _, _) ->
       id
 
 
@@ -280,7 +291,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TBlank id]
   | EPartial (id, str) ->
       [TPartial (id, str)]
-  | ELet (id, lhs, rhs, next) ->
+  | ELet (id, _, lhs, rhs, next) ->
       [ TLetKeyword id
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
@@ -308,13 +319,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TBinOp (id, op)
       ; TSep
       ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
-  | EFieldAccess (id, expr, fieldname) ->
+  | EFieldAccess (id, expr, _, fieldname) ->
       [nested expr; TFieldOp id; TFieldName (id, fieldname)]
   | EVariable (id, name) ->
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
       let tnames =
-        List.map names ~f:(fun name -> TLambdaVar (id, name))
+        List.map names ~f:(fun (_, name) -> TLambdaVar (id, name))
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
@@ -338,7 +349,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       then [TRecordOpen id; TRecordClose id]
       else
         [ [TRecordOpen id]
-        ; List.mapi fields ~f:(fun i (fname, expr) ->
+        ; List.mapi fields ~f:(fun i (_, fname, expr) ->
               [ TNewline
               ; TIndentToHere
                   [ TIndent 2
@@ -366,7 +377,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             |> List.indexedMap ~f:(fun i e ->
                    [TIndentToHere [TThreadPipe (id, i); nested e]] )
             |> List.concat ) ] )
-  | EConstructor (id, name, exprs) ->
+  | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EOldExpr expr ->
@@ -488,11 +499,11 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let args = List.initialize count (fun _ -> EBlank (gid ())) in
       (EFnCall (gid (), name, args, r), String.length name + 1)
   | FACKeyword KLet ->
-      (ELet (gid (), "", newB (), newB ()), 4)
+      (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | FACKeyword KLambda ->
-      (ELambda (gid (), [""], newB ()), 1)
+      (ELambda (gid (), [(gid (), "")], newB ()), 1)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -503,7 +514,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (ENull (gid ()), 4)
   | FACConstructorName (name, argCount) ->
       let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
-      (EConstructor (gid (), name, argCount), 1 + String.length name)
+      (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
   | _ ->
       let str =
         "TODO: autocomplete result for "
@@ -791,22 +802,19 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
     | ENull _
     | EFloat _ ->
         None
-    | ELet (_, _, rhs, next) ->
+    | ELet (_, _, _, rhs, next) ->
         fe rhs |> Option.orElse (fe next)
     | EIf (_, cond, ifexpr, elseexpr) ->
         fe cond |> Option.orElse (fe ifexpr) |> Option.orElse (fe elseexpr)
     | EBinOp (_, _, lexpr, rexpr, _) ->
         fe lexpr |> Option.orElse (fe rexpr)
-    | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
+    | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
-        fields
-        |> List.map ~f:Tuple2.second
-        |> List.filterMap ~f:fe
-        |> List.head
+        fields |> List.map ~f:Tuple3.third |> List.filterMap ~f:fe |> List.head
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
-    | EConstructor (_, _, exprs)
+    | EConstructor (_, _, _, exprs)
     | EThread (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
@@ -822,7 +830,7 @@ let isEmpty (e : fluidExpr) : bool =
       true
   | ERecord (_, l) ->
       l
-      |> List.filter ~f:(fun (k, v) -> k = "" && not (isBlank v))
+      |> List.filter ~f:(fun (_, k, v) -> k = "" && not (isBlank v))
       |> List.isEmpty
   | EList (_, l) ->
       l |> List.filter ~f:(not << isBlank) |> List.isEmpty
@@ -851,22 +859,22 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
       | ENull _
       | EFloat _ ->
           None
-      | ELet (_, _, rhs, next) ->
+      | ELet (_, _, _, rhs, next) ->
           fp rhs |> Option.orElse (fp next)
       | EIf (_, cond, ifexpr, elseexpr) ->
           fp cond |> Option.orElse (fp ifexpr) |> Option.orElse (fp elseexpr)
       | EBinOp (_, _, lexpr, rexpr, _) ->
           fp lexpr |> Option.orElse (fp rexpr)
-      | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
+      | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
           fp expr
       | ERecord (_, fields) ->
           fields
-          |> List.map ~f:Tuple2.second
+          |> List.map ~f:Tuple3.third
           |> List.filterMap ~f:fp
           |> List.head
       | EFnCall (_, _, exprs, _)
       | EList (_, exprs)
-      | EConstructor (_, _, exprs)
+      | EConstructor (_, _, _, exprs)
       | EThread (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
@@ -890,14 +898,14 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | ENull _
   | EFloat _ ->
       expr
-  | ELet (id, name, rhs, next) ->
-      ELet (id, name, f rhs, f next)
+  | ELet (id, lhsID, name, rhs, next) ->
+      ELet (id, lhsID, name, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) ->
       EIf (id, f cond, f ifexpr, f elseexpr)
   | EBinOp (id, op, lexpr, rexpr, ster) ->
       EBinOp (id, op, f lexpr, f rexpr, ster)
-  | EFieldAccess (id, expr, fieldname) ->
-      EFieldAccess (id, f expr, fieldname)
+  | EFieldAccess (id, expr, fieldID, fieldname) ->
+      EFieldAccess (id, f expr, fieldID, fieldname)
   | EFnCall (id, name, exprs, ster) ->
       EFnCall (id, name, List.map ~f exprs, ster)
   | ELambda (id, names, expr) ->
@@ -905,11 +913,12 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | EList (id, exprs) ->
       EList (id, List.map ~f exprs)
   | ERecord (id, fields) ->
-      ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+      ERecord
+        (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
   | EThread (id, exprs) ->
       EThread (id, List.map ~f exprs)
-  | EConstructor (id, name, exprs) ->
-      EConstructor (id, name, List.map ~f exprs)
+  | EConstructor (id, nameID, name, exprs) ->
+      EConstructor (id, nameID, name, List.map ~f exprs)
   | EOldExpr _ ->
       expr
 
@@ -926,7 +935,7 @@ let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
 let removeField (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (_, faExpr, _) ->
+      | EFieldAccess (_, faExpr, _, _) ->
           faExpr
       | _ ->
           fail "not a fieldAccess" )
@@ -942,13 +951,13 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 
 let exprToFieldAccess (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, ""))
+  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
 
 
 let removeEmptyExpr (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | ELet (_, "", EBlank _, body) ->
+      | ELet (_, _, "", EBlank _, body) ->
           body
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           newB ()
@@ -973,13 +982,13 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           if str = "" then EBlank id else EPartial (id, str)
       | EPartial (id, _) ->
           if str = "" then EBlank id else EPartial (id, str)
-      | EFieldAccess (id, expr, _) ->
-          EFieldAccess (id, expr, str)
-      | ELet (id, _, rhs, next) ->
-          ELet (id, str, rhs, next)
+      | EFieldAccess (id, expr, fieldID, _) ->
+          EFieldAccess (id, expr, fieldID, str)
+      | ELet (id, lhsID, _, rhs, next) ->
+          ELet (id, lhsID, str, rhs, next)
       | ELambda (id, vars, expr) ->
           let rest = List.tail vars |> Option.withDefault ~default:[] in
-          ELambda (id, str :: rest, expr)
+          ELambda (id, (gid (), str) :: rest, expr)
       | _ ->
           fail ("not a string type: " ^ show_fluidExpr e) )
 
@@ -989,7 +998,8 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
       match e with
       | ERecord (id, fields) ->
           let fields =
-            List.updateAt fields ~index ~f:(fun (_, expr) -> (str, expr))
+            List.updateAt fields ~index ~f:(fun (id, _, expr) -> (id, str, expr)
+            )
           in
           ERecord (id, fields)
       | _ ->
@@ -1091,7 +1101,7 @@ let addRecordRowToFront (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
-          ERecord (id, ("", newB ()) :: fields)
+          ERecord (id, (gid (), "", newB ()) :: fields)
       | _ ->
           fail "Not a record" )
 
@@ -1264,7 +1274,7 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       (ast, s)
   | Some entry ->
       let newExpr, length = acToExpr entry in
-      let newExpr = EFieldAccess (gid (), newExpr, "") in
+      let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
       let length = length + 1 in
       let newState = moveTo (ti.startPos + length) (acClear s) in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
@@ -1520,7 +1530,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else if letter = '{'
     then ERecord (newID, [])
     else if letter = '\\'
-    then ELambda (newID, [""], EBlank (gid ()))
+    then ELambda (newID, [(gid (), "")], EBlank (gid ()))
     else if letter = ','
     then EBlank newID (* new separators *)
     else if isNumber letterStr

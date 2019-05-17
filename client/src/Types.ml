@@ -939,24 +939,30 @@ and integrationTestState =
 and fluidName = string
 
 and fluidExpr =
+  (* Several of these expressions have extra IDs for roundtripping to the old expr *)
   | EInteger of id * int
   | EBool of id * bool
   | EString of id * string
   | EFloat of id * string * string
   | ENull of id
   | EBlank of id
-  | ELet of id * fluidName * fluidExpr * fluidExpr
+  (* The 2nd id is extra for the LHS blank. *)
+  | ELet of id * id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  | ELambda of id * fluidName list * fluidExpr
-  | EFieldAccess of id * fluidExpr * fluidName
+  (* the id in the varname list is extra *)
+  | ELambda of id * (id * fluidName) list * fluidExpr
+  (* The 2nd ID is extra for the fieldname blank *)
+  | EFieldAccess of id * fluidExpr * id * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string
   | EList of id * fluidExpr list
-  | ERecord of id * (fluidName * fluidExpr) list
+  (* The ID in the list is extra for the fieldname *)
+  | ERecord of id * (id * fluidName * fluidExpr) list
   | EThread of id * fluidExpr list
-  | EConstructor of id * fluidName * fluidExpr list
+  (* The 2nd ID is extra for the name *)
+  | EConstructor of id * id * fluidName * fluidExpr list
   | EOldExpr of expr
 
 and placeholder = string * string
