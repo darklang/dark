@@ -918,8 +918,8 @@ let admin_ui_html
   let static_host =
     match local with
     (* TODO: if you want access, we can make this more general *)
-    | Some _ ->
-        "darklang-paul.ngrok.io"
+    | Some username ->
+        "darklang-" ^ username ^ ".ngrok.io"
     | _ ->
         Config.static_host
   in
