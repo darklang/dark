@@ -135,25 +135,26 @@ let upload_to_bucket
   let boundary = "metadata_boundary" in
   let body =
     Printf.sprintf
-      {| 
---%s
-Content-type: %s,
-%s
---%s
+      {|--%s
 Content-type: application/json; charset=UTF-8
+
 {
-  "cacheControl": "immutable, max-age=604800",
-  "contentType": %s,
-  "size": %s,
+  "cacheControl": "public, max-age=604800, immutable",
+  "contentType": "%s",
+  "size": %s
 }
---%s--
-      |}
-      boundary
-      ct
-      body_string
+
+--%s
+Content-type: %s
+
+%s
+--%s--|}
       boundary
       ct
       cl
+      boundary
+      ct
+      body_string
       boundary
   in
   let headers =
@@ -162,7 +163,7 @@ Content-type: application/json; charset=UTF-8
     Cohttp.Header.of_list
       [ ("Authorization", "Bearer " ^ token)
       ; ("Content-type", "multipart/related; boundary=" ^ boundary)
-      ; ("Content-length", cl) ]
+      ; ("Content-length", body |> String.length |> string_of_int) ]
   in
   headers
   >|= (fun headers ->
