@@ -18,7 +18,8 @@ let complexExpr =
             , EFieldAccess
                 ( gid ()
                 , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), "headers")
+                    (gid (), EVariable (gid (), "request"), gid (), "headers")
+                , gid ()
                 , "origin" )
             , EString (gid (), "https://usealtitude.com")
             , NoRail )
@@ -28,13 +29,15 @@ let complexExpr =
             , EFieldAccess
                 ( gid ()
                 , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), "headers")
+                    (gid (), EVariable (gid (), "request"), gid (), "headers")
+                , gid ()
                 , "origin" )
             , EString (gid (), "https://localhost:3000")
             , NoRail )
         , NoRail )
     , ELet
         ( gid ()
+        , gid ()
         , ""
         , newB ()
         , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)], NoRail)
@@ -73,12 +76,14 @@ let () =
   let seventyEight = EInteger (gid (), 78) in
   let blank = EBlank (gid ()) in
   let aPartialVar = EPartial (gid (), "req") in
-  let emptyLet = ELet (gid (), "", EBlank (gid ()), EInteger (gid (), 5)) in
+  let emptyLet =
+    ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
+  in
   let nonEmptyLet =
-    ELet (gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
+    ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
   in
   let letWithLhs =
-    ELet (gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
+    ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
   let aVar = EVariable (gid (), "variable") in
   let aShortVar = EVariable (gid (), "v") in
@@ -87,18 +92,25 @@ let () =
     EIf
       (gid (), EInteger (gid (), 5), EInteger (gid (), 6), EInteger (gid (), 7))
   in
-  let aLambda = ELambda (gid (), [""], blank) in
-  let nonEmptyLambda = ELambda (gid (), [""], five) in
+  let aLambda = ELambda (gid (), [(gid (), "")], blank) in
+  let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
-  let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), "field") in
+  let aField =
+    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
+  in
   let aNestedField =
     EFieldAccess
       ( gid ()
-      , EFieldAccess (gid (), EVariable (gid (), "obj"), "field")
+      , EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
+      , gid ()
       , "field2" )
   in
-  let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), "f") in
-  let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), "") in
+  let aShortField =
+    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
+  in
+  let aBlankField =
+    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
+  in
   let m = Defaults.defaultModel in
   let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
       string * int =
@@ -108,7 +120,7 @@ let () =
      * ifs. *)
     let ast =
       if wrap
-      then ELet (gid (), "request", ast, EVariable (gid (), "request"))
+      then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
       else ast
     in
     let extra = if wrap then 14 else 0 in
@@ -123,7 +135,11 @@ let () =
       List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
     in
     let result =
-      match newAST with ELet (_, _, expr, _) when wrap -> expr | expr -> expr
+      match newAST with
+      | ELet (_, _, _, expr, _) when wrap ->
+          expr
+      | expr ->
+          expr
     in
     (eToString s result, max 0 (newState.newPos - extra))
   in
@@ -503,9 +519,12 @@ let () =
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
-      let emptyRow = ERecord (gid (), [("", blank)]) in
-      let single = ERecord (gid (), [("f1", fiftySix)]) in
-      let multi = ERecord (gid (), [("f1", fiftySix); ("f2", seventyEight)]) in
+      let emptyRow = ERecord (gid (), [(gid (), "", blank)]) in
+      let single = ERecord (gid (), [(gid (), "f1", fiftySix)]) in
+      let multi =
+        ERecord
+          (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)])
+      in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
       t "create record" blank (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t
