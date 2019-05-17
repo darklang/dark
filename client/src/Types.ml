@@ -785,6 +785,8 @@ and modification =
   | UpdateTLUsage of usage list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
+  | FluidCommandsFor of tlid * id
+  | FluidCommandsClose
 
 (* ------------------- *)
 (* Msgs *)
@@ -1047,6 +1049,13 @@ and fluidAutocompleteState =
   ; invalidCompletions : fluidAutocompleteItem list
   ; allCompletions : fluidAutocompleteItem list }
 
+and fluidCommandState =
+  { index : int
+  ; show : bool
+  ; commands : command list
+  ; cmdOnTL : toplevel option
+  ; cmdOnID : id option }
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1057,7 +1066,8 @@ and fluidState =
       (* When moving up or down, and going through whitespace, track
        * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
-  ; ac : fluidAutocompleteState }
+  ; ac : fluidAutocompleteState
+  ; cp : fluidCommandState }
 
 (* Avatars *)
 and avatar =
