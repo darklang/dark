@@ -42,9 +42,21 @@ let tid (t : token) : id =
   | TRecordClose id
   | TRecordField (id, _, _)
   | TRecordSep (id, _)
-  | TMatchSep (id, _)
+  | TMatchSep id
   | TMatchKeyword id
-  | TConstructorName (id, _) ->
+  | TConstructorName (id, _)
+  | TPatternBlank id
+  | TPatternPartial (id, _)
+  | TPatternInteger (id, _)
+  | TPatternVariable (id, _)
+  | TPatternConstructorName (id, _)
+  | TPatternString (id, _)
+  | TPatternTrue id
+  | TPatternFalse id
+  | TPatternNullToken id
+  | TPatternFloatWhole (id, _)
+  | TPatternFloatPoint id
+  | TPatternFloatFraction (id, _) ->
       id
   | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
       ID "no-id"
@@ -58,7 +70,9 @@ let isBlank t =
   | TFieldName (_, "")
   | TLetLHS (_, "")
   | TLambdaVar (_, "")
-  | TPartial (_, "") ->
+  | TPartial (_, "")
+  | TPatternPartial (_, "")
+  | TPatternBlank _ ->
       true
   | _ ->
       false
@@ -158,19 +172,43 @@ let toText (t : token) : string =
       ":"
   | TConstructorName (_, name) ->
       canBeEmpty name
+  | TThreadPipe _ ->
+      "|>"
   | TMatchKeyword _ ->
       "match "
   | TMatchSep _ ->
       "->"
-  | TThreadPipe _ ->
-      "|>"
+  | TPatternInteger (_, i) ->
+      shouldntBeEmpty i
+  | TPatternFloatWhole (_, w) ->
+      shouldntBeEmpty w
+  | TPatternFloatPoint _ ->
+      "."
+  | TPatternFloatFraction (_, f) ->
+      f
+  | TPatternString (_, str) ->
+      "\"" ^ str ^ "\""
+  | TPatternTrue _ ->
+      "true"
+  | TPatternFalse _ ->
+      "false"
+  | TPatternNullToken _ ->
+      "null"
+  | TPatternBlank _ ->
+      "   "
+  | TPatternPartial (_, str) ->
+      canBeEmpty str
+  | TPatternVariable (_, name) ->
+      canBeEmpty name
+  | TPatternConstructorName (_, name) ->
+      canBeEmpty name
 
 
 let toTestText (t : token) : string =
   match t with
-  | TBlank _ ->
+  | TPatternBlank _ | TBlank _ ->
       "___"
-  | TPartial (_, str) ->
+  | TPatternPartial (_, str) | TPartial (_, str) ->
       str
   | _ ->
       if isBlank t then "***" else toText t
@@ -262,6 +300,30 @@ let toTypeName (t : token) : string =
       "match-keyword"
   | TMatchSep _ ->
       "match-sep"
+  | TPatternBlank _ ->
+      "pattern-blank"
+  | TPatternPartial _ ->
+      "pattern-partial"
+  | TPatternInteger _ ->
+      "pattern-integer"
+  | TPatternVariable _ ->
+      "pattern-variable"
+  | TPatternConstructorName _ ->
+      "pattern-constructor-name"
+  | TPatternString _ ->
+      "pattern-string"
+  | TPatternTrue _ ->
+      "pattern-true"
+  | TPatternFalse _ ->
+      "pattern-false"
+  | TPatternNullToken _ ->
+      "pattern-null"
+  | TPatternFloatWhole _ ->
+      "pattern-float-whole"
+  | TPatternFloatPoint _ ->
+      "pattern-float-point"
+  | TPatternFloatFraction _ ->
+      "pattern-float-fraction"
 
 
 let toCategoryName (t : token) : string =
@@ -298,6 +360,19 @@ let toCategoryName (t : token) : string =
       "record"
   | TMatchKeyword _ | TMatchSep _ ->
       "match"
+  | TPatternBlank _
+  | TPatternPartial _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
+      "pattern"
 
 
 let toCssClasses (t : token) : string =
@@ -317,6 +392,9 @@ let toCssClasses (t : token) : string =
     | TLetLHS (_, "")
     | TFieldName (_, "")
     | TLambdaVar (_, "")
+    | TPlaceholder _
+    | TPatternBlank _
+    | TBlank _
     | TRecordField (_, _, "") ->
         "fluid-empty"
     | _ ->
