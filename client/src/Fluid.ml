@@ -82,7 +82,9 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         EList (id, List.map ~f:fromExpr exprs)
     | ObjectLiteral pairs ->
         ERecord
-          (id, List.map pairs ~f:(fun (k, v) -> (varToName k, fromExpr v)))
+          ( id
+          , List.map pairs ~f:(fun (k, v) ->
+                (Blank.toID k, varToName k, fromExpr v) ) )
     | FieldAccess (expr, field) ->
         EFieldAccess (id, fromExpr expr, Blank.toID field, varToName field)
     | FnCall (name, args, ster) ->
@@ -205,7 +207,7 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F
         ( id
         , ObjectLiteral
-            (List.map pairs ~f:(fun (k, v) -> (Types.F (gid (), k), toExpr v)))
+            (List.map pairs ~f:(fun (id, k, v) -> (Types.F (id, k), toExpr v)))
         )
   | EThread (id, exprs) ->
       F (id, Thread (List.map ~f:toExpr exprs))
@@ -347,7 +349,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       then [TRecordOpen id; TRecordClose id]
       else
         [ [TRecordOpen id]
-        ; List.mapi fields ~f:(fun i (fname, expr) ->
+        ; List.mapi fields ~f:(fun i (_, fname, expr) ->
               [ TNewline
               ; TIndentToHere
                   [ TIndent 2
@@ -809,10 +811,7 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
     | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
-        fields
-        |> List.map ~f:Tuple2.second
-        |> List.filterMap ~f:fe
-        |> List.head
+        fields |> List.map ~f:Tuple3.third |> List.filterMap ~f:fe |> List.head
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
     | EConstructor (_, _, _, exprs)
@@ -831,7 +830,7 @@ let isEmpty (e : fluidExpr) : bool =
       true
   | ERecord (_, l) ->
       l
-      |> List.filter ~f:(fun (k, v) -> k = "" && not (isBlank v))
+      |> List.filter ~f:(fun (_, k, v) -> k = "" && not (isBlank v))
       |> List.isEmpty
   | EList (_, l) ->
       l |> List.filter ~f:(not << isBlank) |> List.isEmpty
@@ -870,7 +869,7 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           fp expr
       | ERecord (_, fields) ->
           fields
-          |> List.map ~f:Tuple2.second
+          |> List.map ~f:Tuple3.third
           |> List.filterMap ~f:fp
           |> List.head
       | EFnCall (_, _, exprs, _)
@@ -914,7 +913,8 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | EList (id, exprs) ->
       EList (id, List.map ~f exprs)
   | ERecord (id, fields) ->
-      ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+      ERecord
+        (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
   | EThread (id, exprs) ->
       EThread (id, List.map ~f exprs)
   | EConstructor (id, nameID, name, exprs) ->
@@ -998,7 +998,8 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
       match e with
       | ERecord (id, fields) ->
           let fields =
-            List.updateAt fields ~index ~f:(fun (_, expr) -> (str, expr))
+            List.updateAt fields ~index ~f:(fun (id, _, expr) -> (id, str, expr)
+            )
           in
           ERecord (id, fields)
       | _ ->
@@ -1100,7 +1101,7 @@ let addRecordRowToFront (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
-          ERecord (id, ("", newB ()) :: fields)
+          ERecord (id, (gid (), "", newB ()) :: fields)
       | _ ->
           fail "Not a record" )
 
