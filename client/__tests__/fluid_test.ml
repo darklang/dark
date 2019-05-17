@@ -18,7 +18,8 @@ let complexExpr =
             , EFieldAccess
                 ( gid ()
                 , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), "headers")
+                    (gid (), EVariable (gid (), "request"), gid (), "headers")
+                , gid ()
                 , "origin" )
             , EString (gid (), "https://usealtitude.com")
             , NoRail )
@@ -28,7 +29,8 @@ let complexExpr =
             , EFieldAccess
                 ( gid ()
                 , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), "headers")
+                    (gid (), EVariable (gid (), "request"), gid (), "headers")
+                , gid ()
                 , "origin" )
             , EString (gid (), "https://localhost:3000")
             , NoRail )
@@ -90,15 +92,22 @@ let () =
   let aLambda = ELambda (gid (), [""], blank) in
   let nonEmptyLambda = ELambda (gid (), [""], five) in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
-  let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), "field") in
+  let aField =
+    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
+  in
   let aNestedField =
     EFieldAccess
       ( gid ()
-      , EFieldAccess (gid (), EVariable (gid (), "obj"), "field")
+      , EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
+      , gid ()
       , "field2" )
   in
-  let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), "f") in
-  let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), "") in
+  let aShortField =
+    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
+  in
+  let aBlankField =
+    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
+  in
   let m = Defaults.defaultModel in
   let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
       string * int =
