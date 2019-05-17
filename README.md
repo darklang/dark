@@ -277,13 +277,24 @@ Note: this only works for paul at the moment, but can be easily extended to more
 Expose your local assets using ngrok:
 
 - Join the company ngrok account by asking Paul
-- install ngrok: `brew cask install ngrok`
-- authorize your ngrok client: `ngrok auth YOURTOKEN`
-- run your tunnel: `ngrok http 8000 -hostname=darklang-paul.ngrok.io`
+- install ngrok: `brew cask install ngrok` on OS X, or follow instructions at
+  https://ngrok.com/download for Linux. (The snap installer is broken.)
+- authorize your ngrok client: `ngrok authtoken YOURTOKEN` (found at
+  https://dashboard.ngrok.com/auth)
+- run your tunnel: `ngrok http 8000 -hostname=darklang-<username>.ngrok.io`
+- You can simplify this to `ngrok start darklang` by adding to your
+  `~/.ngrok2/ngrok.yml`:
+```yaml
+tunnels:
+  darklang:
+    proto: http
+    addr: 8000
+    subdomain: darklang-<username>
+```
 
-Use the queryparam "localhost-assets" to load static assets from darklang-paul.ngrok.io instead of static.darklang.com.
+Use the queryparam "localhost-assets=<username>" to load static assets from darklang-<username>.ngrok.io instead of static.darklang.com.
 
-You can check if it's going through via the ngrok console, and by tailing the server logs: `tail -f rundir/logs/server.log`.
+You can check if it's going through via the ngrok console (which logs requests), and by tailing the server logs: `tail -f rundir/logs/server.log`.
 
 
 ## Debugging ppx stuff
