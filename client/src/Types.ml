@@ -373,6 +373,7 @@ and hasMoved = bool
 and cursorState =
   | Selecting of tlid * id option
   | Entering of entryCursor
+  | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | SelectingCommand of tlid * id
   | Deselected
