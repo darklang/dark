@@ -23,3 +23,7 @@ queueworker.yaml
 tunnel.yaml
 
 *.pyc
+
+/client/node_modules
+/minus*-timestamp
+/today-timestamp
