@@ -84,7 +84,7 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         ERecord
           (id, List.map pairs ~f:(fun (k, v) -> (varToName k, fromExpr v)))
     | FieldAccess (expr, field) ->
-        EFieldAccess (id, fromExpr expr, varToName field)
+        EFieldAccess (id, fromExpr expr, Blank.toID field, varToName field)
     | FnCall (name, args, ster) ->
         let args = List.map ~f:fromExpr args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
@@ -167,9 +167,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F (id, Value "null")
   | EVariable (id, var) ->
       F (id, Variable var)
-  | EFieldAccess (id, obj, fieldname) ->
-      (* TODO: the id *)
-      F (id, FieldAccess (toExpr obj, F (gid (), fieldname)))
+  | EFieldAccess (id, obj, fieldID, fieldname) ->
+      F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
       F (id, FnCall (F (gid (), name), List.map ~f:toExpr args, ster))
   | EBinOp (id, name, arg1, arg2, ster) ->
@@ -216,7 +215,7 @@ let eid expr : id =
   | ENull id
   | EFloat (id, _, _)
   | EVariable (id, _)
-  | EFieldAccess (id, _, _)
+  | EFieldAccess (id, _, _, _)
   | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
@@ -308,7 +307,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TBinOp (id, op)
       ; TSep
       ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
-  | EFieldAccess (id, expr, fieldname) ->
+  | EFieldAccess (id, expr, _, fieldname) ->
       [nested expr; TFieldOp id; TFieldName (id, fieldname)]
   | EVariable (id, name) ->
       [TVariable (id, name)]
@@ -797,7 +796,7 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         fe cond |> Option.orElse (fe ifexpr) |> Option.orElse (fe elseexpr)
     | EBinOp (_, _, lexpr, rexpr, _) ->
         fe lexpr |> Option.orElse (fe rexpr)
-    | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
+    | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
         fields
@@ -857,7 +856,7 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           fp cond |> Option.orElse (fp ifexpr) |> Option.orElse (fp elseexpr)
       | EBinOp (_, _, lexpr, rexpr, _) ->
           fp lexpr |> Option.orElse (fp rexpr)
-      | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
+      | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
           fp expr
       | ERecord (_, fields) ->
           fields
@@ -896,8 +895,8 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       EIf (id, f cond, f ifexpr, f elseexpr)
   | EBinOp (id, op, lexpr, rexpr, ster) ->
       EBinOp (id, op, f lexpr, f rexpr, ster)
-  | EFieldAccess (id, expr, fieldname) ->
-      EFieldAccess (id, f expr, fieldname)
+  | EFieldAccess (id, expr, fieldID, fieldname) ->
+      EFieldAccess (id, f expr, fieldID, fieldname)
   | EFnCall (id, name, exprs, ster) ->
       EFnCall (id, name, List.map ~f exprs, ster)
   | ELambda (id, names, expr) ->
@@ -926,7 +925,7 @@ let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
 let removeField (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (_, faExpr, _) ->
+      | EFieldAccess (_, faExpr, _, _) ->
           faExpr
       | _ ->
           fail "not a fieldAccess" )
@@ -942,7 +941,7 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 
 let exprToFieldAccess (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, ""))
+  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
 
 
 let removeEmptyExpr (id : id) (ast : ast) : ast =
@@ -973,8 +972,8 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           if str = "" then EBlank id else EPartial (id, str)
       | EPartial (id, _) ->
           if str = "" then EBlank id else EPartial (id, str)
-      | EFieldAccess (id, expr, _) ->
-          EFieldAccess (id, expr, str)
+      | EFieldAccess (id, expr, fieldID, _) ->
+          EFieldAccess (id, expr, fieldID, str)
       | ELet (id, _, rhs, next) ->
           ELet (id, str, rhs, next)
       | ELambda (id, vars, expr) ->
@@ -1264,7 +1263,7 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       (ast, s)
   | Some entry ->
       let newExpr, length = acToExpr entry in
-      let newExpr = EFieldAccess (gid (), newExpr, "") in
+      let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
       let length = length + 1 in
       let newState = moveTo (ti.startPos + length) (acClear s) in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
