@@ -959,7 +959,8 @@ and fluidExpr =
   | EList of id * fluidExpr list
   | ERecord of id * (fluidName * fluidExpr) list
   | EThread of id * fluidExpr list
-  | EConstructor of id * fluidName * fluidExpr list
+  (* The 2nd ID is extra for the name *)
+  | EConstructor of id * id * fluidName * fluidExpr list
   | EOldExpr of expr
 
 and placeholder = string * string
