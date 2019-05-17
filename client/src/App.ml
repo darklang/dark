@@ -39,8 +39,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
-    ; csrfToken
-    ; avatarsList = [] }
+    ; csrfToken }
   in
   let newBrowserId =
     BsUuid.Uuid.V5.create
