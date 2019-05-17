@@ -517,7 +517,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         | FPOldPattern op ->
             [TPatternPartial (Blank.toID op, "TODO: old pattern")]
       in
-      [ [TMatchKeyword id; nested mexpr; TNewline]
+      [ [TMatchKeyword id; nested mexpr]
       ; List.map pairs ~f:(fun (pattern, expr) ->
             [TNewline; TIndent 2]
             @ toPatternToken pattern
@@ -1148,6 +1148,11 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
           newB ()
       | ELambda (_, _, EBlank _) ->
           newB ()
+      | EMatch (_, EBlank _, pairs)
+        when List.all pairs ~f:(fun (p, e) ->
+                 match (p, e) with FPBlank _, EBlank _ -> true | _ -> false )
+        ->
+          newB ()
       | _ ->
           e )
 
@@ -1553,13 +1558,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   in
   let newID = gid () in
   match ti.token with
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TLambdaArrow _
-  | TMatchSep _
-  | TMatchKeyword _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
       (ast, moveToStart ti s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
+  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       let newAST = removeEmptyExpr (Token.tid ti.token) ast in
       if newAST = ast then (ast, s) else (newAST, moveToStart ti s)
   | TString (id, "") ->
@@ -1635,13 +1636,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TLambdaArrow _
-  | TMatchKeyword _
-  | TMatchSep _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
       (ast, s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
+  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (Token.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)

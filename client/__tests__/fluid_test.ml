@@ -80,6 +80,19 @@ let () =
   let emptyLet =
     ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
   in
+  let emptyMatch =
+    EMatch (gid (), EBlank (gid ()), [(FPBlank (gid ()), EBlank (gid ()))])
+  in
+  let emptyMatchWithTwoPatterns =
+    EMatch
+      ( gid ()
+      , EBlank (gid ())
+      , [ (FPBlank (gid ()), EBlank (gid ()))
+        ; (FPBlank (gid ()), EBlank (gid ())) ] )
+  in
+  let matchWithPatterns =
+    EMatch (gid (), EBlank (gid ()), [(FPInteger (gid (), 3), EBlank (gid ()))])
+  in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
   in
@@ -422,6 +435,65 @@ let () =
       t "backspace variable" aShortVar (backspace 1) (b, 0) ;
       t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
       t "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      () ) ;
+  describe "Match" (fun () ->
+      t
+        "move back over match"
+        emptyMatch
+        (press K.Left 6)
+        ("match ___\n  ___ -> ___", 0) ;
+      t
+        "move forward over match"
+        emptyMatch
+        (press K.Right 0)
+        ("match ___\n  ___ -> ___", 6) ;
+      t "backspace over empty match" emptyMatch (backspace 6) ("___", 0) ;
+      t
+        "backspace over empty match with 2 patterns"
+        emptyMatchWithTwoPatterns
+        (backspace 6)
+        ("___", 0) ;
+      t
+        "backspace over match with 2 patterns"
+        matchWithPatterns
+        (backspace 6)
+        ("match ___\n  3 -> ___", 6) ;
+      t "delete over empty match" emptyMatch (delete 0) ("___", 0) ;
+      t
+        "delete over empty match with 2 patterns"
+        emptyMatchWithTwoPatterns
+        (delete 0)
+        ("___", 0) ;
+      t
+        "delete over match with 2 patterns"
+        matchWithPatterns
+        (delete 0)
+        ("match ___\n  3 -> ___", 0) ;
+      (* 
+      t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
+      t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
+      t "backspace letlhs" letWithLhs (backspace 5) ("let *** = 6\n5", 4) ;
+      t "delete letlhs" letWithLhs (delete 4) ("let *** = 6\n5", 4) ;
+      t
+        "equals skips over assignment"
+        emptyLet
+        (presses [K.Letter 'c'; K.Equals] 4)
+        ("let c = ___\n5", 8) ;
+      t
+        "equals skips over assignment 1"
+        emptyLet
+        (press K.Equals 7)
+        ("let *** = ___\n5", 10) ;
+      t
+        "equals skips over assignment 2"
+        emptyLet
+        (press K.Equals 8)
+        ("let *** = ___\n5", 10) ;
+      t
+        "equals skips over assignment 3"
+        emptyLet
+        (press K.Equals 9)
+        ("let *** = ___\n5", 10) ; *)
       () ) ;
   describe "Lets" (fun () ->
       t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
