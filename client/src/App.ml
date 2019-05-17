@@ -42,8 +42,10 @@ let init (flagString : string) (location : Web.Location.location) =
     ; csrfToken
     ; avatarsList = [] }
   in
+  let newBrowserId =  BsUuid.Uuid.V5.create ~name:"browserId" ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")|> BsUuid.Uuid.V5.toString
+  in
   let avMessage : avatarModelMessage =
-    {browserId = "def"; tlid = None; timestamp = Js.Date.now ()}
+    {canvasName = m.canvasName; browserId = newBrowserId; tlid = None; timestamp = Js.Date.now ()}
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
@@ -53,9 +55,7 @@ let init (flagString : string) (location : Web.Location.location) =
     , Cmd.batch
         [ RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))
         ; RPC.sendPresence m avMessage ] )
-
-
-(* End of init *)
+        
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
   if oldErr.message = Some newErrMsg && not oldErr.showDetails
