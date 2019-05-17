@@ -1073,7 +1073,7 @@ and avatarsList = avatar list
 and avatarModelMessage =
   { browserId : string
   ; tlid : string option
-  ; canvasName :  string
+  ; canvasName : string
   ; timestamp : float }
 
 and model =
