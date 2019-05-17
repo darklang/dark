@@ -366,7 +366,8 @@ and triggerCronRPCParams (params : Types.triggerCronRPCParams) : Js.Json.t =
 
 and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
   object_
-    [ ("browserId", string params.browserId)
+    [  ("canvasName", string params.canvasName)
+    ; ("browserId", string params.browserId)
     ; ("tlid", nullable string params.tlid)
     ; ("timestamp", Json_encode_extended.float params.timestamp) ]
 
