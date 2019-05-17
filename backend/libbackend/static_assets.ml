@@ -131,6 +131,11 @@ let upload_to_bucket
   in
   let ct = Magic_mime.lookup filename in
   let cl = String.length body |> string_of_int in
+  (*
+   * Correctly send object metadata using a multi-part upload with both the raw asset and the metadata in JSON.
+   * Multipart uploads: https://cloud.google.com/storage/docs/json_api/v1/how-tos/multipart-upload
+   * Metadata schema:   https://cloud.google.com/storage/docs/json_api/v1/objects#resource
+   * *)
   let body_string = body |> Ezgzip.compress in
   let boundary = "metadata_boundary" in
   let body =
