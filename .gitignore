@@ -24,6 +24,4 @@ tunnel.yaml
 
 # Files that get created on CI. We check that status is clean so need to list these.
 /client/node_modules
-/minus*-timestamp
-/today-timestamp
 /stroller/target
