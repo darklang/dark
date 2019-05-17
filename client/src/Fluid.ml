@@ -103,7 +103,10 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
     | Thread exprs ->
         EThread (id, List.map ~f:fromExpr exprs)
     | Lambda (varnames, exprs) ->
-        ELambda (id, List.map ~f:varToName varnames, fromExpr exprs)
+        ELambda
+          ( id
+          , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
+          , fromExpr exprs )
     | Value str ->
         let asBool =
           if str = "true"
@@ -170,16 +173,23 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | EFieldAccess (id, obj, fieldID, fieldname) ->
       F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
-      F (id, FnCall (F (gid (), name), List.map ~f:toExpr args, ster))
+      F
+        ( id
+        , FnCall
+            (F (ID (deID id ^ "_name"), name), List.map ~f:toExpr args, ster)
+        )
   | EBinOp (id, name, arg1, arg2, ster) ->
-      F (id, FnCall (F (gid (), name), [toExpr arg1; toExpr arg2], ster))
+      F
+        ( id
+        , FnCall
+            (F (ID (deID id ^ "_name"), name), [toExpr arg1; toExpr arg2], ster)
+        )
   | ELambda (id, vars, body) ->
-      (* TODO: IDs *)
       F
         ( id
         , Lambda
-            (List.map vars ~f:(fun var -> Types.F (gid (), var)), toExpr body)
-        )
+            ( List.map vars ~f:(fun (vid, var) -> Types.F (vid, var))
+            , toExpr body ) )
   | EBlank id ->
       Blank id
   | ELet (id, lhs, rhs, body) ->
@@ -313,7 +323,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
       let tnames =
-        List.map names ~f:(fun name -> TLambdaVar (id, name))
+        List.map names ~f:(fun (_, name) -> TLambdaVar (id, name))
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
@@ -491,7 +501,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACKeyword KIf ->
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | FACKeyword KLambda ->
-      (ELambda (gid (), [""], newB ()), 1)
+      (ELambda (gid (), [(gid (), "")], newB ()), 1)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -978,7 +988,7 @@ let replaceString (str : string) (id : id) (ast : ast) : ast =
           ELet (id, str, rhs, next)
       | ELambda (id, vars, expr) ->
           let rest = List.tail vars |> Option.withDefault ~default:[] in
-          ELambda (id, str :: rest, expr)
+          ELambda (id, (gid (), str) :: rest, expr)
       | _ ->
           fail ("not a string type: " ^ show_fluidExpr e) )
 
@@ -1519,7 +1529,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else if letter = '{'
     then ERecord (newID, [])
     else if letter = '\\'
-    then ELambda (newID, [""], EBlank (gid ()))
+    then ELambda (newID, [(gid (), "")], EBlank (gid ()))
     else if letter = ','
     then EBlank newID (* new separators *)
     else if isNumber letterStr
