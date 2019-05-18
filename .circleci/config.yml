@@ -169,7 +169,7 @@ jobs:
       - run-background-container
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml
-      - assert-clean-worktree 
+      - assert-clean-worktree
       - run:
           name: Copy out generated files and caches
           command: |
@@ -213,7 +213,7 @@ jobs:
     # - run-background-container
     # - wait-for-container
     # - run: scripts/gcp-build-containers --skip-stroller
-      - assert-clean-worktree 
+      - assert-clean-worktree
       - run:
           name: Copy out generated files and caches
           command: |
@@ -271,7 +271,7 @@ jobs:
       - run: scripts/builder --compile-client --test
       - run-background-container
       - wait-for-container
-      - assert-clean-worktree 
+      - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - run:
           name: Copy out generated files and caches
@@ -345,7 +345,7 @@ jobs:
             # remove last char
             PATTERN=${PATTERN%?}
             scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
-      - assert-clean-worktree 
+      - assert-clean-worktree
 
       - extract-and-save-artifacts
 
