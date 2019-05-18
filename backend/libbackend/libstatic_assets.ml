@@ -153,6 +153,11 @@ UTF-8 safe"))
                        (Core_kernel.String.is_substring
                           k
                           ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Cache-Control") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
@@ -194,6 +199,11 @@ UTF-8 safe"))
                        (Core_kernel.String.is_substring
                           k
                           ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Cache-Control") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
@@ -231,6 +241,11 @@ UTF-8 safe"))
                        (Core_kernel.String.is_substring
                           k
                           ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Cache-Control") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
@@ -268,6 +283,11 @@ UTF-8 safe"))
                        (Core_kernel.String.is_substring
                           k
                           ~substring:"Transfer-Encoding") )
+              |> List.filter (fun (k, v) ->
+                     not
+                       (Core_kernel.String.is_substring
+                          k
+                          ~substring:"Cache-Control") )
               |> List.filter (fun (k, v) -> not (String.trim k = ""))
               |> List.filter (fun (k, v) -> not (String.trim v = ""))
             in
