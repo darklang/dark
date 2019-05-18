@@ -15,6 +15,7 @@
 /scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 /scripts/support/kubernetes/queueworker/qw-deployment.yaml
 /scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+/scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 
 # Old rendered templates
 builtwithdark.yaml
