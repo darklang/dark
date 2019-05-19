@@ -232,57 +232,28 @@ let qLiteral (s : string) : autocompleteItem option =
   else None
 
 
-let isDynamicItem (item : autocompleteItem) : bool =
-  match item with
-  | FACLiteral "true" ->
-      false
-  | FACLiteral "null" ->
-      false
-  | FACLiteral "false" ->
-      false
-  | FACLiteral _ ->
-      true
-  | _ ->
-      false
-
-
-let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
-
-let toDynamicItems
-    (_targetTL : toplevel option) (_targetTI : tokenInfo option) (_q : string)
-    : autocompleteItem list =
-  match None with
-  | None ->
-      []
-  (* | Some (_, PExpr _) -> *)
-  (*     Option.values [qLiteral q] *)
-  (* | Some (_, PField _) -> *)
-  (*     [ACField q] *)
-  | _ ->
-      []
-
-
-let withDynamicItems
-    (targetTL : toplevel option)
-    (targetTI : tokenInfo option)
-    (query : string)
-    (acis : autocompleteItem list) : autocompleteItem list =
-  let new_ = toDynamicItems targetTL targetTI query in
-  let withoutDynamic = List.filter ~f:isStaticItem acis in
-  withoutDynamic @ new_
-
-
-let matcher (a : autocomplete) (item : autocompleteItem) =
+let matcher
+    (tipeConstraintOnTarget : tipe)
+    (dbnames : string list)
+    (matchTypesOfFn : tipe -> function_ -> bool)
+    (item : autocompleteItem) =
   match item with
   | FACFunction fn ->
-      let isThreadMemberVal, paramTipe =
-        match (a.targetTL, a.targetTI) with
-        | Some tl, Some ti ->
-            (isThreadMember tl ti, paramTipeForTarget a tl ti)
-        | _ ->
-            (false, TAny)
-      in
-      matchesTypes isThreadMemberVal paramTipe a.targetDval fn
+      matchTypesOfFn tipeConstraintOnTarget fn
+  | FACVariable var ->
+      if List.member ~value:var dbnames
+      then match tipeConstraintOnTarget with TDB -> true | _ -> false
+      else true
+  | FACConstructorName (name, _) ->
+    ( match tipeConstraintOnTarget with
+    | TOption ->
+        name = "Just" || name = "Nothing"
+    | TResult ->
+        name = "Ok" || name = "Error"
+    | TAny ->
+        true
+    | _ ->
+        false )
   | _ ->
       true
 
@@ -292,7 +263,7 @@ let matcher (a : autocomplete) (item : autocompleteItem) =
 (* ------------------------------------ *)
 let generate (m : model) (a : autocomplete) : autocomplete =
   let varnames, dval =
-    match (a.targetTL, a.targetTI) with
+    match (a.targetTLID |> Option.andThen ~f:(TL.get m), a.targetTI) with
     | Some tl, Some ti ->
         let id = FluidToken.tid ti.token in
         (Analysis.getCurrentAvailableVarnames m tl id, dvalForTarget m tl ti)
@@ -361,9 +332,9 @@ let generate (m : model) (a : autocomplete) : autocomplete =
 
 
 let filter
-    (_m : model)
+    (m : model)
     (a : autocomplete)
-    (list : autocompleteItem list)
+    (candidates0 : autocompleteItem list)
     (query : string) : autocompleteItem list * autocompleteItem list =
   let lcq = query |> String.toLower in
   let stringify i =
@@ -371,7 +342,6 @@ let filter
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
   in
   (* split into different lists *)
-  let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
   let candidates1, notSubstring =
     List.partition
       ~f:(stringify >> String.toLower >> String.contains ~substring:lcq)
@@ -398,11 +368,21 @@ let filter
       notSubstring
   in
   let allMatches =
-    [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
+    [startsWith; startsWithCI; substring; substringCI; stringMatch]
     |> List.concat
   in
   (* Now split list by type validity *)
-  List.partition ~f:(matcher a) allMatches
+  let dbnames = TL.allDBNames m.toplevels in
+  match (Option.andThen ~f:(TL.get m) a.targetTLID, a.targetTI) with
+  | Some tl, Some ti ->
+      let isThreadMemberVal = isThreadMember tl ti in
+      let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
+      let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt a.targetDval in
+      List.partition
+        ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
+        allMatches
+  | _ ->
+      ([], [])
 
 
 let refilter (m : model) (old : autocomplete) : autocomplete =
@@ -414,11 +394,8 @@ let refilter (m : model) (old : autocomplete) : autocomplete =
     | None ->
         ""
   in
-  let fudgedCompletions =
-    withDynamicItems old.targetTL old.targetTI query old.allCompletions
-  in
   let newCompletions, invalidCompletions =
-    filter m old fudgedCompletions query
+    filter m old old.allCompletions query
   in
   let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
@@ -431,10 +408,8 @@ let refilter (m : model) (old : autocomplete) : autocomplete =
     (* Clear the highlight conditions *)
     if query = ""
        (* when we had previously highlighted something due to any actual match *)
-       && ( (old.index <> None && false)
-          (* TODO: this condition was important old.value <> query *)
-          (* or this condition previously held and nothing has changed *)
-          || old.index = None )
+       (* or this condition previously held and nothing has changed *)
+       && (old.index = None || old.query <> "")
     then None
     else
       (* If an entry is highlighted, and you press another *)
@@ -452,7 +427,7 @@ let refilter (m : model) (old : autocomplete) : autocomplete =
             (* list *)
           else Some 0
   in
-  {old with index; completions = newCompletions; invalidCompletions}
+  {old with index; query; completions = newCompletions; invalidCompletions}
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
@@ -543,9 +518,9 @@ let documentationForItem (aci : autocompleteItem) : string option =
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
 
 
-let setTargetTL (m : model) (tl : toplevel option) (a : autocomplete) :
+let setTargetTLID (m : model) (tlid : tlid option) (a : autocomplete) :
     autocomplete =
-  {a with targetTL = tl} |> regenerate m
+  {a with targetTLID = tlid} |> regenerate m
 
 
 let setTargetTI (m : model) (ti : tokenInfo option) (a : autocomplete) :
