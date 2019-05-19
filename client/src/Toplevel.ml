@@ -81,7 +81,7 @@ let updateByTLID (tls : toplevel list) (tlid : tlid) (f : toplevel -> toplevel)
   tls |> List.map ~f:(fun t -> if t.id <> tlid then t else f t)
 
 
-let update (m : model) (tlid : tlid) (f : toplevel -> toplevel) : model =
+let update (m : model) (tlid : tlid) ~(f : toplevel -> toplevel) : model =
   {m with toplevels = updateByTLID m.toplevels tlid f}
 
 
@@ -91,7 +91,7 @@ let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
 
 
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  update m tlid (moveTL xOffset yOffset)
+  update m tlid ~f:(moveTL xOffset yOffset)
 
 
 let ufToTL (uf : userFunction) : toplevel =
@@ -589,6 +589,22 @@ let setSelectedAST (m : model) (ast : expr) : modification =
     | TLFunc f ->
         RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
     | TLTipe _ ->
-        impossible ("no ast in DBs", tl.data)
+        impossible ("no ast in Tipes", tl.data)
     | TLDB _ ->
         impossible ("no ast in DBs", tl.data) )
+
+
+let withAST (m : model) (tlid : tlid) (ast : expr) : model =
+  update m tlid ~f:(fun tl ->
+      let data =
+        match tl.data with
+        | TLHandler h ->
+            TLHandler {h with ast}
+        | TLFunc f ->
+            TLFunc {f with ufAST = ast}
+        | TLTipe _ ->
+            impossible ("no ast in Tipes", tl.data)
+        | TLDB _ ->
+            impossible ("no ast in DBs", tl.data)
+      in
+      {tl with data} )

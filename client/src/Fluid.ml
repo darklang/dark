@@ -1848,7 +1848,8 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           let ast = ast |> fromExpr m.fluidState in
           let newAST, newState, cmd =
             let s =
-              {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
+              { m.fluidState with
+                ac = {m.fluidState.ac with targetTLID = Some tl.id} }
             in
             let s = {s with error = None; oldPos = s.newPos} in
             match msg with
@@ -1878,7 +1879,21 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           in
           Types.Many
             [ Types.TweakModel (fun m -> {m with fluidState = newState})
+            ; Types.TweakModel
+                (fun m ->
+                  let m = TL.withAST m tl.id (toExpr newAST) in
+                  let tl = TL.getTL m tl.id in
+                  let newAC =
+                    AC.setTargetTLID m (Some tl.id) m.fluidState.ac
+                  in
+                  {m with fluidState = {m.fluidState with ac = newAC}} )
             ; astMod
+            ; Types.TweakModel
+                (fun m ->
+                  { m with
+                    fluidState =
+                      {m.fluidState with ac = AC.regenerate m m.fluidState.ac}
+                  } )
             ; Types.MakeCmd cmd ] ) )
 
 

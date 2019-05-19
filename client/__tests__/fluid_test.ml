@@ -123,13 +123,15 @@ let () =
       then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
       else ast
     in
+    let tl = tl ast in
+    let m = {m with toplevels = [tl]} in
     let extra = if wrap then 14 else 0 in
     let pos = pos + extra in
     let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
     (* TODO: This is the wrong token to focus on. We may want to use the edge
      * to decide. *)
     let ti, _, _ = Fluid.getTokensAtPosition ~pos (toTokens s ast) in
-    let ac = s.ac |> AC.setTargetTL m (Some (tl ast)) |> AC.setTargetTI m ti in
+    let ac = s.ac |> AC.setTargetTLID m (Some tl.id) |> AC.setTargetTI m ti in
     let s = {s with ac} in
     let newAST, newState =
       List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
