@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Not using assert-in-container because this runs a docker container - the nginx
+# container - and so doesn't run inside the dark builder container.
+
 set -euo pipefail
 
 if [ -v CI ]; then
