@@ -34,8 +34,8 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let email : string = avatar.email in
   let username : string = avatar.username in
   let avActiveTimestamp : float = avatar.activeTimestamp in
-  let threeMinsAgo : float = Js.Date.now () -. 180000.00 in
-  let active : bool = threeMinsAgo < avActiveTimestamp in
+  let threeMinsAgo : float = (Js.Date.now () /. 1000.0) -. (3.0 *. 60.0) in
+  let active : bool = threeMinsAgo > avActiveTimestamp in
   Html.img
     [ Html.classList [("avatar", true); ("inactive", active)]
     ; Html.src (avatarUrl email name)
