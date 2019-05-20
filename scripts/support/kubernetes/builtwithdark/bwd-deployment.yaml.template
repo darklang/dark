@@ -157,6 +157,9 @@ spec:
             - name: http-proxy-port
               containerPort: 8000
           volumeMounts:
+            - mountPath: /etc/nginx/nginx.conf
+              name: base-nginx-conf
+              subPath: base-nginx.conf
             - mountPath: /etc/nginx/conf.d
               name: nginx-conf
           lifecycle:
@@ -169,6 +172,9 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+        - name: base-nginx-conf
+          configMap:
+            name: base-nginx
         - name: nginx-conf
           configMap:
             name: nginx
