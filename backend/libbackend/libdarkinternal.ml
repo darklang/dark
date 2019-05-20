@@ -528,6 +528,21 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             |> DBool
         | args ->
             fail args )
+    ; ( "DarkInternal::canvasIdOfCanvasName"
+      , function
+        | _, [DStr host] ->
+            let host = Unicode_string.to_string host in
+            Db.fetch_one_option
+              ~name:"canvas_id_of_canvas_name"
+              "SELECT id FROM canvases WHERE name = $1"
+              ~params:[Db.String host]
+            |> (function
+            | Some [s] ->
+                DOption (OptJust (Dval.dstr_of_string_exn s))
+            | None | _ ->
+                DOption OptNothing)
+        | args ->
+            fail args )
     ; ( "DarkInternal::usernameToUserInfo"
       , function
         | _, [DStr username] ->
