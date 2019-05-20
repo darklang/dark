@@ -47,11 +47,12 @@ let init (flagString : string) (location : Web.Location.location) =
       ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
     |> BsUuid.Uuid.V5.toString
   in
+  let timeStamp = Js.Date.now () /. 10000.0 in
   let avMessage : avatarModelMessage =
     { canvasName = m.canvasName
     ; browserId = newBrowserId
     ; tlid = None
-    ; timestamp = Js.Date.now () }
+    ; timestamp = timeStamp }
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
