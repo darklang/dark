@@ -1916,9 +1916,42 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
 
-let toHtml (s : state) (l : tokenInfo list) : Types.msg Html.html list =
+let viewCopyButton tlid value : msg Html.html =
+  Html.div
+    [ Html.class' "copy-value"
+    ; Html.title "Copy this expression's value to the clipboard"
+    ; ViewUtils.eventNoPropagation
+        "click"
+        ~key:("copylivevalue-" ^ showTLID tlid)
+        (fun _ -> ClipboardCopyLivevalue value) ]
+    [ViewUtils.fontAwesome "copy"]
+
+
+let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
+  match ti.token with
+  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+      Vdom.noNode
+  | _ ->
+      let id = Token.tid ti.token in
+      let liveValueString =
+        StrDict.get ~key:(deID id) currentResults.liveValues
+        |> Option.map ~f:Runtime.toRepr
+        |> Option.withDefault ~default:"<loading>"
+      in
+      Html.div
+        [ Html.class' "live-value"
+        ; Vdom.prop "contentEditable" "true"
+        ; Attrs.autofocus false
+        ; Attrs.spellcheck false ]
+        [Html.text liveValueString; viewCopyButton tlid liveValueString]
+
+
+let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
+    Types.msg Html.html list =
+  let displayedLv = ref false in
   List.map l ~f:(fun ti ->
-      let dropdown () = viewAutocomplete s.ac in
+      let dropdown () = viewAutocomplete state.ac in
+      let liveValue () = viewLiveValue ~tlid ~currentResults ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
@@ -1928,10 +1961,26 @@ let toHtml (s : state) (l : tokenInfo list) : Types.msg Html.html list =
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
-      if isAutocompleting ti s then element [dropdown ()] else element [] )
+      let autocomplete =
+        if isAutocompleting ti state then dropdown () else Vdom.noNode
+      in
+      let liveValue =
+        if state.newPos <= ti.endPos
+           && state.newPos >= ti.startPos
+           && not !displayedLv
+        then (
+          displayedLv := true ;
+          liveValue () )
+        else Vdom.noNode
+      in
+      element [autocomplete; liveValue] )
 
 
-let viewAST (ast : ast) (s : state) : Types.msg Html.html =
+let viewAST
+    ~(tlid : tlid)
+    ~(currentResults : analysisResults)
+    ~(state : state)
+    (ast : ast) : Types.msg Html.html =
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
       let open Tea.Json.Decoder in
@@ -1951,7 +2000,7 @@ let viewAST (ast : ast) (s : state) : Types.msg Html.html =
     ; event ~key:"keydown" "keydown"
     (* ; event ~key:"keyup" "keyup" *)
      ]
-    (ast |> toTokens s |> toHtml s)
+    (ast |> toTokens state |> toHtml ~tlid ~currentResults ~state)
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
