@@ -45,18 +45,18 @@ let tid (t : token) : id =
   | TMatchSep id
   | TMatchKeyword id
   | TConstructorName (id, _)
-  | TPatternBlank id
-  | TPatternPartial (id, _)
-  | TPatternInteger (id, _)
-  | TPatternVariable (id, _)
-  | TPatternConstructorName (id, _)
-  | TPatternString (id, _)
-  | TPatternTrue id
-  | TPatternFalse id
-  | TPatternNullToken id
-  | TPatternFloatWhole (id, _)
-  | TPatternFloatPoint id
-  | TPatternFloatFraction (id, _) ->
+  | TPatternBlank (_, id)
+  | TPatternPartial (_, id, _)
+  | TPatternInteger (_, id, _)
+  | TPatternVariable (_, id, _)
+  | TPatternConstructorName (_, id, _)
+  | TPatternString (_, id, _)
+  | TPatternTrue (_, id)
+  | TPatternFalse (_, id)
+  | TPatternNullToken (_, id)
+  | TPatternFloatWhole (_, id, _)
+  | TPatternFloatPoint (_, id)
+  | TPatternFloatFraction (_, id, _) ->
       id
   | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
       ID "no-id"
@@ -178,15 +178,15 @@ let toText (t : token) : string =
       "match "
   | TMatchSep _ ->
       "->"
-  | TPatternInteger (_, i) ->
+  | TPatternInteger (_, _, i) ->
       shouldntBeEmpty i
-  | TPatternFloatWhole (_, w) ->
+  | TPatternFloatWhole (_, _, w) ->
       shouldntBeEmpty w
   | TPatternFloatPoint _ ->
       "."
-  | TPatternFloatFraction (_, f) ->
+  | TPatternFloatFraction (_, _, f) ->
       f
-  | TPatternString (_, str) ->
+  | TPatternString (_, _, str) ->
       "\"" ^ str ^ "\""
   | TPatternTrue _ ->
       "true"
@@ -196,11 +196,11 @@ let toText (t : token) : string =
       "null"
   | TPatternBlank _ ->
       "   "
-  | TPatternPartial (_, str) ->
+  | TPatternPartial (_, _, str) ->
       canBeEmpty str
-  | TPatternVariable (_, name) ->
+  | TPatternVariable (_, _, name) ->
       canBeEmpty name
-  | TPatternConstructorName (_, name) ->
+  | TPatternConstructorName (_, _, name) ->
       canBeEmpty name
 
 
@@ -208,7 +208,7 @@ let toTestText (t : token) : string =
   match t with
   | TPatternBlank _ | TBlank _ ->
       "___"
-  | TPatternPartial (_, str) | TPartial (_, str) ->
+  | TPatternPartial (_, _, str) | TPartial (_, str) ->
       str
   | _ ->
       if isBlank t then "***" else toText t

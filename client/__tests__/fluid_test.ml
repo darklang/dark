@@ -81,17 +81,21 @@ let () =
     ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
   in
   let emptyMatch =
-    EMatch (gid (), EBlank (gid ()), [(FPBlank (gid ()), EBlank (gid ()))])
+    let mID = gid () in
+    EMatch (mID, EBlank (gid ()), [(FPBlank (mID, gid ()), EBlank (gid ()))])
   in
   let emptyMatchWithTwoPatterns =
+    let mID = gid () in
     EMatch
-      ( gid ()
+      ( mID
       , EBlank (gid ())
-      , [ (FPBlank (gid ()), EBlank (gid ()))
-        ; (FPBlank (gid ()), EBlank (gid ())) ] )
+      , [ (FPBlank (mID, gid ()), EBlank (gid ()))
+        ; (FPBlank (mID, gid ()), EBlank (gid ())) ] )
   in
   let matchWithPatterns =
-    EMatch (gid (), EBlank (gid ()), [(FPInteger (gid (), 3), EBlank (gid ()))])
+    let mID = gid () in
+    EMatch
+      (mID, EBlank (gid ()), [(FPInteger (mID, gid (), 3), EBlank (gid ()))])
   in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))

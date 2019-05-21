@@ -168,35 +168,36 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         EConstructor
           (id, Blank.toID name, varToName name, List.map ~f:fromExpr exprs)
     | Match (mexpr, pairs) ->
+        let mid = id in
         let rec fromPattern (p : pattern) : fluidPattern =
           match p with
           | Blank id ->
-              FPBlank id
+              FPBlank (mid, id)
           | Partial (id, name) ->
-              FPPartial (id, name)
+              FPPartial (mid, id, name)
           | F (id, np) ->
             ( match np with
             | PVariable name ->
-                FPVariable (id, name)
+                FPVariable (mid, id, name)
             | PConstructor (name, patterns) ->
-                FPConstructor (id, name, List.map ~f:fromPattern patterns)
+                FPConstructor (mid, id, name, List.map ~f:fromPattern patterns)
             | PLiteral str ->
               ( match parseString str with
               | `Bool b ->
-                  FPBool (id, b)
+                  FPBool (mid, id, b)
               | `Int i ->
-                  FPInteger (id, i)
+                  FPInteger (mid, id, i)
               | `String s ->
-                  FPString (id, s)
+                  FPString (mid, id, s)
               | `Null ->
-                  FPNull id
+                  FPNull (mid, id)
               | `Float (whole, fraction) ->
-                  FPFloat (id, whole, fraction)
+                  FPFloat (mid, id, whole, fraction)
               | `Unknown ->
                   Js.log2
                     "Getting old pattern literal that we couldn't parse"
                     p ;
-                  FPOldPattern p ) )
+                  FPOldPattern (mid, p) ) )
         in
         let pairs =
           List.map pairs ~f:(fun (p, e) -> (fromPattern p, fromExpr e))
@@ -280,25 +281,25 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | EMatch (id, mexpr, pairs) ->
       let rec toPattern p =
         match p with
-        | FPVariable (id, var) ->
+        | FPVariable (_, id, var) ->
             F (id, PVariable var)
-        | FPConstructor (id, name, patterns) ->
+        | FPConstructor (_, id, name, patterns) ->
             F (id, PConstructor (name, List.map ~f:toPattern patterns))
-        | FPInteger (id, i) ->
+        | FPInteger (_, id, i) ->
             F (id, PLiteral (toString (`Int i)))
-        | FPBool (id, b) ->
+        | FPBool (_, id, b) ->
             F (id, PLiteral (toString (`Bool b)))
-        | FPString (id, str) ->
+        | FPString (_, id, str) ->
             F (id, PLiteral (toString (`String str)))
-        | FPFloat (id, whole, fraction) ->
+        | FPFloat (_, id, whole, fraction) ->
             F (id, PLiteral (toString (`Float (whole, fraction))))
-        | FPNull id ->
+        | FPNull (_, id) ->
             F (id, PLiteral (toString `Null))
-        | FPBlank id ->
+        | FPBlank (_, id) ->
             Blank id
-        | FPPartial (id, str) ->
+        | FPPartial (_, id, str) ->
             Partial (id, str)
-        | FPOldPattern pattern ->
+        | FPOldPattern (_, pattern) ->
             pattern
       in
       let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
@@ -335,18 +336,34 @@ let eid expr : id =
 
 let pid pattern : id =
   match pattern with
-  | FPVariable (id, _)
-  | FPConstructor (id, _, _)
-  | FPInteger (id, _)
-  | FPBool (id, _)
-  | FPString (id, _)
-  | FPFloat (id, _, _)
-  | FPNull id
-  | FPBlank id
-  | FPPartial (id, _) ->
+  | FPVariable (_, id, _)
+  | FPConstructor (_, id, _, _)
+  | FPInteger (_, id, _)
+  | FPBool (_, id, _)
+  | FPString (_, id, _)
+  | FPFloat (_, id, _, _)
+  | FPNull (_, id)
+  | FPBlank (_, id)
+  | FPPartial (_, id, _) ->
       id
-  | FPOldPattern pattern ->
+  | FPOldPattern (_, pattern) ->
       Blank.toID pattern
+
+
+let pmid pattern : id =
+  match pattern with
+  | FPVariable (mid, _, _)
+  | FPConstructor (mid, _, _, _)
+  | FPInteger (mid, _, _)
+  | FPBool (mid, _, _)
+  | FPString (mid, _, _)
+  | FPFloat (mid, _, _, _)
+  | FPNull (mid, _)
+  | FPBlank (mid, _)
+  | FPPartial (mid, _, _) ->
+      mid
+  | FPOldPattern (mid, _) ->
+      mid
 
 
 let newB () = EBlank (gid ())
@@ -360,29 +377,29 @@ type tokenInfo = Types.fluidTokenInfo
 
 let rec patternToToken (p : fluidPattern) : fluidToken list =
   match p with
-  | FPVariable (id, name) ->
-      [TPatternVariable (id, name)]
-  | FPConstructor (id, name, args) ->
+  | FPVariable (mid, id, name) ->
+      [TPatternVariable (mid, id, name)]
+  | FPConstructor (mid, id, name, args) ->
       let args = List.map args ~f:(fun a -> TSep :: patternToToken a) in
-      List.concat ([TPatternConstructorName (id, name)] :: args)
-  | FPInteger (id, i) ->
-      [TPatternInteger (id, string_of_int i)]
-  | FPBool (id, b) ->
-      if b then [TPatternTrue id] else [TPatternFalse id]
-  | FPString (id, s) ->
-      [TPatternString (id, s)]
-  | FPFloat (id, whole, fraction) ->
-      [ TPatternFloatWhole (id, whole)
-      ; TPatternFloatPoint id
-      ; TPatternFloatFraction (id, fraction) ]
-  | FPNull id ->
-      [TPatternNullToken id]
-  | FPBlank id ->
-      [TPatternBlank id]
-  | FPPartial (id, str) ->
-      [TPatternPartial (id, str)]
-  | FPOldPattern op ->
-      [TPatternPartial (Blank.toID op, "TODO: old pattern")]
+      List.concat ([TPatternConstructorName (mid, id, name)] :: args)
+  | FPInteger (mid, id, i) ->
+      [TPatternInteger (mid, id, string_of_int i)]
+  | FPBool (mid, id, b) ->
+      if b then [TPatternTrue (mid, id)] else [TPatternFalse (mid, id)]
+  | FPString (mid, id, s) ->
+      [TPatternString (mid, id, s)]
+  | FPFloat (mid, id, whole, fraction) ->
+      [ TPatternFloatWhole (mid, id, whole)
+      ; TPatternFloatPoint (mid, id)
+      ; TPatternFloatFraction (mid, id, fraction) ]
+  | FPNull (mid, id) ->
+      [TPatternNullToken (mid, id)]
+  | FPBlank (mid, id) ->
+      [TPatternBlank (mid, id)]
+  | FPPartial (mid, id, str) ->
+      [TPatternPartial (mid, id, str)]
+  | FPOldPattern (mid, op) ->
+      [TPatternPartial (mid, Blank.toID op, "TODO: old pattern")]
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
@@ -656,7 +673,8 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACKeyword KLambda ->
       (ELambda (gid (), [(gid (), "")], newB ()), 1)
   | FACKeyword KMatch ->
-      (EMatch (gid (), newB (), [(FPBlank (gid ()), newB ())]), 6)
+      let matchID = gid () in
+      (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -1122,6 +1140,50 @@ let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun _ -> newExpr)
+
+
+let wrapPattern
+    ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
+    : ast =
+  wrap matchID ast ~f:(fun m ->
+      match m with
+      | EMatch (matchID, expr, pairs) ->
+          let newPairs =
+            List.map pairs ~f:(fun (pat, expr) ->
+                if pid pat = patID then (f pat, expr) else (pat, expr) )
+          in
+          EMatch (matchID, expr, newPairs)
+      | _ ->
+          m )
+
+
+let replacePattern
+    ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
+
+
+let replacePatternString (str : string) (matchID : id) (patID : id) (ast : ast)
+    : ast =
+  wrapPattern matchID patID ast ~f:(fun p ->
+      match p with
+      | FPInteger (_, id, _) ->
+          if str = ""
+          then FPBlank (matchID, id)
+          else
+            let value = try safe_int_of_string str with _ -> 0 in
+            FPInteger (matchID, id, value)
+      | FPString (_, id, _) ->
+          FPString (matchID, id, str)
+      | FPVariable (_, id, _) ->
+          if str = ""
+          then FPBlank (matchID, id)
+          else FPPartial (matchID, id, str)
+      | FPPartial (_, id, _) ->
+          if str = ""
+          then FPBlank (matchID, id)
+          else FPPartial (matchID, id, str)
+      | _ ->
+          fail ("not a string type: " ^ show_fluidPattern p) )
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -1919,6 +1981,27 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction (f str) id ast, right)
   | TFloatPoint id ->
       (insertAtFrontOfFloatFraction letterStr id ast, right)
+  | TPatternVariable _
+  | TPatternPartial _
+  | TPatternString _
+  | TPatternInteger _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternConstructorName _
+  | TPatternFloatPoint _
+  | TPatternFloatWhole _
+  | TPatternFloatFraction _ ->
+      (ast, s)
+  | TPatternBlank (mID, pID) ->
+      let newPat =
+        if letter = '"'
+        then FPString (mID, newID, "")
+        else if isNumber letterStr
+        then FPInteger (mID, newID, letterStr |> safe_int_of_string)
+        else FPPartial (mID, newID, letterStr)
+      in
+      (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)
   | TNewline
   | TIfKeyword _
@@ -1944,19 +2027,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TConstructorName _
   | TLambdaSep _
   | TMatchSep _
-  | TMatchKeyword _
-  | TPatternVariable _
-  | TPatternPartial _
-  | TPatternString _
-  | TPatternInteger _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TPatternNullToken _
-  | TPatternConstructorName _
-  | TPatternFloatPoint _
-  | TPatternFloatWhole _
-  | TPatternFloatFraction _
-  | TPatternBlank _ ->
+  | TMatchKeyword _ ->
       (ast, s)
 
 

@@ -35,15 +35,16 @@ let () =
   (* let five = FPInteger (gid (), 5) in *)
   (* let fiftySix = FPInteger (gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
-  let blank = FPBlank (gid ()) in
+  let mID = gid () in
+  let blank = FPBlank (mID, gid ()) in
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   (* let aVar = FPVariable (gid (), "variable") in *)
   (* let aShortVar = FPVariable (gid (), "v") in *)
   let m = Defaults.defaultModel in
   let process (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
-    let ast = EMatch (gid (), EBlank (gid ()), [(pat, EBlank (gid ()))]) in
-    let extra = 13 in
+    let ast = EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
+    let extra = 12 in
     let pos = pos + extra in
     let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
     (* TODO: This is the wrong token to focus on. We may want to use the edge
