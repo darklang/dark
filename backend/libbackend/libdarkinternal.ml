@@ -331,7 +331,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                    ; "modifier"
                    ; "created_at"
                    ; "updated_at" ]
-              |> DvalMap.of_alist_exn
+              |> DvalMap.from_list
             in
             let convert_to_date key obj =
               DvalMap.update obj ~key ~f:(fun v ->
@@ -382,7 +382,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                          ; ("traceid", DUuid traceid)
                          ; ("time", DDate time)
                          ; ("event", data) ]
-                         |> DvalMap.of_alist_exn
+                         |> DvalMap.from_list
                          |> fun o -> DObj o )
                   |> fun l -> DList l
                 in
@@ -446,7 +446,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   |> List.map ~f:(fun (k, v) ->
                          (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
                      )
-                  |> DvalMap.of_alist_exn
+                  |> DvalMap.from_list
                 in
                 DOption (OptJust (DObj dval_map)) )
         | args ->
@@ -558,7 +558,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   |> List.map ~f:(fun (k, v) ->
                          (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
                      )
-                  |> DvalMap.of_alist_exn
+                  |> DvalMap.from_list
                 in
                 DOption (OptJust (DObj dval_map)) )
         | args ->
