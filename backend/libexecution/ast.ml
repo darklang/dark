@@ -508,7 +508,7 @@ and call_fn
   let args =
     fn.parameters
     |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
-    |> DvalMap.of_alist_exn
+    |> DvalMap.from_list_exn
   in
   match find_derrorrail (DvalMap.values args) with
   | Some er ->
@@ -551,7 +551,7 @@ and exec_fn
   let arglist =
     fn.parameters
     |> List.map ~f:(fun (p : param) -> p.name)
-    |> List.map ~f:(DvalMap.find_exn args)
+    |> List.filter_map ~f:(DvalMap.get args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
   if paramsIncomplete arglist
@@ -612,7 +612,7 @@ and exec_fn
                          Some (name, DDB name)
                      | Partial _ | Blank _ ->
                          None )
-              |> DvalMap.of_alist_exn
+              |> DvalMap.from_list
             in
             Util.merge_left db_dvals args
           in

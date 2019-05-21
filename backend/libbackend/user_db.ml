@@ -164,7 +164,7 @@ and (* PG returns lists of strings. This converts them to types using the
       let default_keys =
         cols_for db
         |> List.map ~f:(fun (k, _) -> (k, DNull))
-        |> DvalMap.of_alist_exn
+        |> DvalMap.from_list_exn
       in
       let merged = Util.merge_left p_obj default_keys in
       (* </HACK> *)
