@@ -2040,7 +2040,7 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         ; Html.text (newGrid.row |> string_of_int) ]
     ; Html.div
         []
-        [ Html.text "acPos: "
+        [ Html.text "acIndex: "
         ; Html.text
             ( s.ac.index
             |> Option.map ~f:string_of_int
