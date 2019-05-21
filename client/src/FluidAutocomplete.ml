@@ -33,12 +33,17 @@ let focusItem (i : int) : msg Tea.Cmd.t =
              let liRect = getBoundingClientRect li in
              let liBottom = rectBottom liRect in
              let liTop = rectTop liRect in
-             if cTop < liTop && liBottom < cBottom
-             then ()
-             else
+             let liHeight = rectHeight liRect in
+             if liBottom +. liHeight > cBottom
+             then
                let offset = float_of_int (offsetTop li) in
-               let padding = rectHeight liRect *. 0.75 in
+               let padding = rectHeight cRect -. (liHeight *. 2.0) in
                Element.setScrollTop el (offset -. padding)
+             else if liTop -. liHeight < cTop
+             then
+               let offset = float_of_int (offsetTop li) in
+               Element.setScrollTop el (offset -. liHeight)
+             else ()
          | _, _ ->
              () ))
 
