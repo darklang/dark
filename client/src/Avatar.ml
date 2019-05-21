@@ -30,10 +30,10 @@ let avatarUrl (email : string) (name : string option) : string =
 
 
 let avatarDiv (avatar : avatar) : msg Html.html =
-  let name : string option = avatar.fullName in
+  let name : string option = avatar.fullname in
   let email : string = avatar.email in
   let username : string = avatar.username in
-  let avActiveTimestamp : float = avatar.activeTimestamp in
+  let avActiveTimestamp : float = avatar.serverTime |> float_of_string in
   let threeMinsAgo : float = (Js.Date.now () /. 1000.0) -. (3.0 *. 60.0) in
   let active : bool = threeMinsAgo < avActiveTimestamp in
   Html.img

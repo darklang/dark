@@ -273,6 +273,17 @@ module New404Push = struct
   let listen ~key tagger = Native.registerGlobal "new404Push" key tagger decode
 end
 
+module NewPresence = struct
+  (* SYD:  *)
+  let decode =
+    let open Tea.Json.Decoder in
+    field "detail" (Decoders.wrapDecoder Decoders.presenceMsg)
+
+
+  let listen ~key tagger =
+    Native.registerGlobal "NewPresence" key tagger decode
+end
+
 (* Request analysis *)
 module RequestAnalysis = struct
   external send : performAnalysisParams -> unit = "requestAnalysis"

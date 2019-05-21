@@ -1,6 +1,6 @@
 document.title = window.location.hostname.split('.')[0] + " - Dark";
 
-const mousewheel = function(callback){
+const mousewheel = function (callback) {
   require("domready")(function () {
     require("mouse-wheel")(document.body, callback);
   });
@@ -14,15 +14,15 @@ function stopKeys(event) {
     event.preventDefault();
   }
   if (event.keyCode == 32 // Space
-      && !event.target.parentNode.className.includes("string-container")) {
+    && !event.target.parentNode.className.includes("string-container")) {
     event.preventDefault();
   }
   if (event.keyCode == 13 // Enter
-      && !event.target.parentNode.className.includes("large-string")) {
+    && !event.target.parentNode.className.includes("large-string")) {
     event.preventDefault();
   }
   if (event.keyCode == 38 // Up
-      || event.keyCode == 40) {  // Down
+    || event.keyCode == 40) {  // Down
     if (document.activeElement.tagName.toLowerCase() !== 'textarea')
       event.preventDefault();
   }
@@ -38,8 +38,8 @@ rollbarConfig.payload.person = { id: userId, username: username };
 var Rollbar = rollbar.init(rollbarConfig);
 window.Rollbar = Rollbar;
 
-function displayError (msg){
-  var event = new CustomEvent('displayError', {detail: msg});
+function displayError(msg) {
+  var event = new CustomEvent('displayError', { detail: msg });
   document.dispatchEvent(event);
 }
 
@@ -132,7 +132,7 @@ window.setCursorPosition = setCursorPosition;
 
 window.Dark = {
   fetcher: {
-    fetch : function(params) {
+    fetch: function (params) {
       if (!window.fetcherWorker) {
         console.log("FetchWorker not loaded yet");
         setTimeout(function () {
@@ -145,13 +145,13 @@ window.Dark = {
       window.fetcherWorker.postMessage(params);
 
       window.fetcherWorker.onmessage = function (e) {
-        var event = new CustomEvent('receiveFetch', { "detail" : e.data });
+        var event = new CustomEvent('receiveFetch', { "detail": e.data });
         document.dispatchEvent(event);
       }
     }
   },
   analysis: {
-    requestAnalysis : function (params) {
+    requestAnalysis: function (params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
         setTimeout(function () {
@@ -166,7 +166,7 @@ window.Dark = {
       window.analysisWorker.onmessage = function (e) {
         var result = e.data;
 
-        var event = new CustomEvent('receiveAnalysis', {detail: result});
+        var event = new CustomEvent('receiveAnalysis', { detail: result });
         document.dispatchEvent(event);
       }
     }
@@ -179,7 +179,7 @@ window.Dark = {
         var id = matches[1];
 
         if (typeof id === 'undefined')
-          throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for '+className;
+          throw 'Dark.ast.atomPositions: Cannot match Blank(id) regex for ' + className;
 
         return id;
       };
@@ -187,23 +187,23 @@ window.Dark = {
       var find = function (tl, nested) {
         var atoms = [];
         tl.querySelectorAll(nested ? '.blankOr.nested' : '.blankOr:not(.nested)')
-        .forEach((v,i,l) => {
-          var rect = v.getBoundingClientRect();
-          atoms.push({
-            id: extractId(v),
-            left: "" + (rect.left | 0),
-            right: "" + (rect.right | 0),
-            top: "" + (rect.top | 0),
-            bottom: "" + (rect.bottom | 0)
-          });
-        })
+          .forEach((v, i, l) => {
+            var rect = v.getBoundingClientRect();
+            atoms.push({
+              id: extractId(v),
+              left: "" + (rect.left | 0),
+              right: "" + (rect.right | 0),
+              top: "" + (rect.top | 0),
+              bottom: "" + (rect.bottom | 0)
+            });
+          })
         return atoms;
       }
 
-      var toplevels = document.getElementsByClassName('toplevel tl-'+tlid);
+      var toplevels = document.getElementsByClassName('toplevel tl-' + tlid);
 
       if (toplevels.length == 0)
-        throw 'Dark.ast.atomPositions: Cannot find toplevel: '+tlid;
+        throw 'Dark.ast.atomPositions: Cannot find toplevel: ' + tlid;
 
       var tl = toplevels[0];
 
@@ -215,15 +215,15 @@ window.Dark = {
   }
 }
 
-function windowFocusChange (visible){
-  var event = new CustomEvent('windowFocusChange', {detail: visible});
+function windowFocusChange(visible) {
+  var event = new CustomEvent('windowFocusChange', { detail: visible });
   document.dispatchEvent(event);
 }
 
 
 var pageHidden = false;
 
-function visibilityCheck(){
+function visibilityCheck() {
   var hidden = false;
   if (typeof document.hidden !== 'undefined') {
     hidden = document.hidden;
@@ -241,70 +241,70 @@ function visibilityCheck(){
   }
 }
 
-function addWheelListener(elem){
+function addWheelListener(elem) {
   var prefix = "";
   var _addEventListener;
   var support;
 
   // detect event model
-  if ( window.addEventListener ) {
-      _addEventListener = "addEventListener";
+  if (window.addEventListener) {
+    _addEventListener = "addEventListener";
   } else {
-      _addEventListener = "attachEvent";
-      prefix = "on";
+    _addEventListener = "attachEvent";
+    prefix = "on";
   }
 
   // detect available wheel event
   support = "onwheel" in document.createElement("div") ? "wheel" : // Modern browsers support "wheel"
-            document.onmousewheel !== undefined ? "mousewheel" : // Webkit and IE support at least "mousewheel"
-            "DOMMouseScroll"; // let's assume that remaining browsers are older Firefox
+    document.onmousewheel !== undefined ? "mousewheel" : // Webkit and IE support at least "mousewheel"
+      "DOMMouseScroll"; // let's assume that remaining browsers are older Firefox
 
-  var listener = function( elem, useCapture ) {
-      _addWheelListener( elem, support, useCapture );
+  var listener = function (elem, useCapture) {
+    _addWheelListener(elem, support, useCapture);
 
-      // handle MozMousePixelScroll in older Firefox
-      if( support == "DOMMouseScroll" ) {
-          _addWheelListener( elem, "MozMousePixelScroll", useCapture );
-      }
+    // handle MozMousePixelScroll in older Firefox
+    if (support == "DOMMouseScroll") {
+      _addWheelListener(elem, "MozMousePixelScroll", useCapture);
+    }
   };
 
-  function _addWheelListener( elem, eventName, useCapture ) {
-      elem[ _addEventListener ](prefix + eventName, function( originalEvent ) {
-          !originalEvent && ( originalEvent = window.event );
+  function _addWheelListener(elem, eventName, useCapture) {
+    elem[_addEventListener](prefix + eventName, function (originalEvent) {
+      !originalEvent && (originalEvent = window.event);
 
-          // create a normalized event object
-          var event = {
-              // keep a ref to the original event object
-              originalEvent: originalEvent,
-              target: originalEvent.target || originalEvent.srcElement,
-              type: "wheel",
-              deltaMode: originalEvent.type == "MozMousePixelScroll" ? 0 : 1,
-              deltaX: 0,
-              deltaY: 0,
-              deltaZ: 0,
-              preventDefault: function() {
-                  originalEvent.preventDefault ?
-                      originalEvent.preventDefault() :
-                      originalEvent.returnValue = false;
-              }
-          };
+      // create a normalized event object
+      var event = {
+        // keep a ref to the original event object
+        originalEvent: originalEvent,
+        target: originalEvent.target || originalEvent.srcElement,
+        type: "wheel",
+        deltaMode: originalEvent.type == "MozMousePixelScroll" ? 0 : 1,
+        deltaX: 0,
+        deltaY: 0,
+        deltaZ: 0,
+        preventDefault: function () {
+          originalEvent.preventDefault ?
+            originalEvent.preventDefault() :
+            originalEvent.returnValue = false;
+        }
+      };
 
-          // calculate deltaY (and deltaX) according to the event
-          if ( support == "mousewheel" ) {
-              event.deltaY = - 1/40 * originalEvent.wheelDelta;
-              // Webkit also support wheelDeltaX
-              originalEvent.wheelDeltaX && ( event.deltaX = - 1/40 * originalEvent.wheelDeltaX );
-          } else {
-              event.deltaY = originalEvent.deltaY || originalEvent.detail;
-          }
+      // calculate deltaY (and deltaX) according to the event
+      if (support == "mousewheel") {
+        event.deltaY = - 1 / 40 * originalEvent.wheelDelta;
+        // Webkit also support wheelDeltaX
+        originalEvent.wheelDeltaX && (event.deltaX = - 1 / 40 * originalEvent.wheelDeltaX);
+      } else {
+        event.deltaY = originalEvent.deltaY || originalEvent.detail;
+      }
 
-      }, useCapture || false );
+    }, useCapture || false);
   }
 
   return listener(elem);
 }
 
-setTimeout(function(){
+setTimeout(function () {
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify(
     {
@@ -322,23 +322,23 @@ setTimeout(function(){
     app = app.debugging(document.body, params);
   }
 
-  window.onresize = function(evt){
+  window.onresize = function (evt) {
     const size = {
-      width : window.innerWidth,
+      width: window.innerWidth,
       height: window.innerHeight
     }
     var event = new CustomEvent('windowResize',
-      { detail : size })
+      { detail: size })
     document.dispatchEvent(event)
   };
 
-  window.onload = function(evt){
+  window.onload = function (evt) {
     const size = {
-      width : window.innerWidth,
+      width: window.innerWidth,
       height: window.innerHeight
     }
     var event = new CustomEvent('windowOnload',
-      { detail : size })
+      { detail: size })
     document.dispatchEvent(event)
   };
 
@@ -383,23 +383,27 @@ setTimeout(function(){
   })();
 
 
-  window.onfocus = function(evt){ windowFocusChange(true) };
-  window.onblur = function(evt){ windowFocusChange(false) };
+  window.onfocus = function (evt) { windowFocusChange(true) };
+  window.onblur = function (evt) { windowFocusChange(false) };
   setInterval(visibilityCheck, 2000);
   addWheelListener(document);
 
   if (pusherConfig.enabled) {
     var pusherChannel = pusherConnection.subscribe(`canvas_${canvasId}`);
     pusherChannel.bind('new_trace', data => {
-      var event = new CustomEvent('newTracePush', {detail: data});
+      var event = new CustomEvent('newTracePush', { detail: data });
       document.dispatchEvent(event);
     });
     pusherChannel.bind('new_404', data => {
-      var event = new CustomEvent('new404Push', {detail: data});
+      var event = new CustomEvent('new404Push', { detail: data });
       document.dispatchEvent(event);
     });
     pusherChannel.bind('new_static_deploy', data => {
-      var event = new CustomEvent('newStaticDeploy', {detail: data});
+      var event = new CustomEvent('newStaticDeploy', { detail: data });
+      document.dispatchEvent(event);
+    });
+    pusherChannel.bind('new_presence', data => {
+      var event = new CustomEvent('newPresence', { detail: data });
       document.dispatchEvent(event);
     })
   }
