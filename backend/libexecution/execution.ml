@@ -69,7 +69,7 @@ let sample_input_vars h =
 
 
 let sample_function_input_vars f =
-  f |> input_vars_for_user_fn |> DvalMap.to_alist
+  f |> input_vars_for_user_fn |> DvalMap.to_list
 
 
 (* -------------------- *)

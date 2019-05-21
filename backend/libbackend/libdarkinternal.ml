@@ -333,8 +333,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                    ; "updated_at" ]
               |> DvalMap.of_alist_exn
             in
-            let convert_to_date k obj =
-              DvalMap.change obj k ~f:(fun v ->
+            let convert_to_date key obj =
+              DvalMap.update obj ~key ~f:(fun v ->
                   match v with
                   | Some (DStr s) ->
                       s

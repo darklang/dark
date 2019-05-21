@@ -243,14 +243,14 @@ let sample_dvals =
   ; ("null", DNull)
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
   ; ("list", DList [DDB "Visitors"; DInt 4])
-  ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
+  ; ("obj", DObj (DvalMap.singleton "foo" (DInt 5)))
   ; ( "obj2"
     , DObj
-        (DvalMap.of_alist_exn
+        (DvalMap.from_list
            [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
   ; ( "obj3"
     , DObj
-        (DvalMap.of_alist_exn
+        (DvalMap.from_list
            [ ("type", Dval.dstr_of_string_exn "weird")
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete)
@@ -452,7 +452,7 @@ let t_multiple_copies_of_same_name () =
   check_dval
     "object field names"
     (exec_ast "(obj (col1 1) (col1 2))")
-    (DError "The same key occurs multiple times") ;
+    (DError "Duplicate key: col1") ;
   let ops =
     [Op.CreateDB (dbid, pos, "TestDB"); Op.CreateDB (dbid, pos, "TestDB")]
   in
@@ -559,7 +559,7 @@ let t_case_insensitive_db_roundtrip () =
       AT.(check bool)
         "matched"
         true
-        (List.mem ~equal:( = ) (DvalMap.data v) value)
+        (List.mem ~equal:( = ) (DvalMap.values v) value)
   | other ->
       Log.erroR "error" ~data:(Dval.to_developer_repr_v0 other) ;
       AT.(check bool) "failed" true false
@@ -715,7 +715,7 @@ let t_hmac_signing _ =
   Mock.set_string "ts" ts ;
   Mock.set_string "nonce" nonce ;
   let args =
-    DvalMap.of_alist_exn
+    DvalMap.from_list
       [(k1, Dval.dstr_of_string_exn v1); (k2, Dval.dstr_of_string_exn v2)]
   in
   let expected_header =
@@ -784,7 +784,7 @@ let t_db_add_roundtrip () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DObj (DvalMap.of_alist_exn [("x", DNull)]))
+    (DObj (DvalMap.singleton "x" DNull))
     (exec_handler ~ops ast)
 
 
@@ -809,8 +809,8 @@ let t_nulls_added_to_missing_column () =
     (DList
        [ Dval.dstr_of_string_exn "i"
        ; DObj
-           (DvalMap.of_alist_exn
-              [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)]) ])
+           (DvalMap.from_list [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)])
+       ])
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 
@@ -982,7 +982,7 @@ let t_incomplete_propagation () =
     (exec_ast "(5 6 _)") ;
   check_dval
     "Blanks stripped from objects"
-    (DObj (DvalMap.of_alist_exn [("m", DInt 5); ("n", DInt 6)]))
+    (DObj (DvalMap.from_list [("m", DInt 5); ("n", DInt 6)]))
     (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))") ;
   check_dval
     "incomplete if conds are incomplete"
@@ -1680,7 +1680,7 @@ let t_parsed_request_cookies () =
     |> fun v ->
     match v with
     | DObj o ->
-        DvalMap.find_exn o "cookies"
+        Base.Map.find_exn o "cookies"
     | _ ->
         failwith "didn't end up with 'cookies' in the DObj"
   in
@@ -2098,7 +2098,7 @@ let t_trace_data_json_format_redacts_passwords () =
 
 
 let t_basic_typecheck_works_happy () =
-  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DInt 4)] in
+  let args = DvalMap.from_list [("a", DInt 5); ("b", DInt 4)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -2109,7 +2109,7 @@ let t_basic_typecheck_works_happy () =
 
 
 let t_basic_typecheck_works_unhappy () =
-  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DBool true)] in
+  let args = DvalMap.from_list [("a", DInt 5); ("b", DBool true)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -2120,7 +2120,7 @@ let t_basic_typecheck_works_unhappy () =
 
 
 let t_typecheck_any () =
-  let args = DvalMap.of_alist_exn [("v", DInt 5)] in
+  let args = DvalMap.from_list [("v", DInt 5)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "toString" in
   let user_tipes = [] in
   AT.check
