@@ -487,19 +487,13 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             in
             let log =
               log
-              |> DvalMap.add
+              |> DvalMap.insert_no_override
                    ~key:"level"
-                   ~data:
+                   ~value:
                      (level |> Log.level_to_string |> Dval.dstr_of_string_exn)
-              |> function
-              | `Ok log ->
-                  log
-              | `Duplicate ->
-                  log
-                  |> DvalMap.add
-                       ~key:"name"
-                       ~data:(Dval.dstr_of_string_exn name)
-                  |> (function `Ok log -> log | `Duplicate -> log)
+              |> DvalMap.insert_no_override
+                   ~key:"name"
+                   ~value:(name |> Dval.dstr_of_string_exn)
             in
             Log.pP ~level name ~jsonparams ;
             DObj log

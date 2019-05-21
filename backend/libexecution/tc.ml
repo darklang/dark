@@ -56,6 +56,12 @@ module StrDict = struct
     Base.Map.update dict key ~f:(fun _ -> value)
 
 
+  let insert_no_override ~(key : key) ~(value : 'value) (dict : 'value t) :
+      'value t =
+    Base.Map.change dict key ~f:(fun old ->
+        if old = None then Some value else old )
+
+
   let singleton k v = from_list [(k, v)]
 
   let is_empty = Base.Map.is_empty
