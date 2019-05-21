@@ -373,11 +373,13 @@ let rec exec
                 let filled = List.filter ~f:(Fn.compose not is_blank) vars in
                 List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
                     trace_blank var dv st ) ;
-                let varnames = List.filter_map ~f:blank_to_option vars in
-                let bindings =
-                  Symtable.of_alist_exn (List.zip_exn varnames args)
+                let new_st =
+                  vars
+                  |> List.filter_map ~f:blank_to_option
+                  |> (fun varnames -> List.zip_exn varnames args)
+                  |> Symtable.from_list_exn
+                  |> fun bindings -> Util.merge_left bindings st
                 in
-                let new_st = Util.merge_left bindings st in
                 exe new_st body )
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
