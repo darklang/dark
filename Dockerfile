@@ -230,14 +230,11 @@ RUN opam install -y \
   merlin.3.2.2 \
   ocp-indent.1.6.1 \
   landmarks.1.1 \
-  cstruct.3.2.1 \
-  nocrypto.0.5.4-1 \
+  cstruct.3.1.1 \
+  cstruct-lwt.3.1.1 \
+  lwt_ssl.1.1.2 \
+  ssl.0.5.5 \
   uuidm.0.9.6 \
-  session.0.4.0 \
-  session-cohttp.0.4.0 \
-  session-cohttp-lwt.0.4.0 \
-  session-postgresql.0.4.0 \
-  session-postgresql-lwt.0.4.0 \
   junit_alcotest.2.0 \
   junit.2.0 \
   js_of_ocaml.3.2.0 \
@@ -254,7 +251,13 @@ RUN opam install -y \
   && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
   && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
   && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
-  && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master
+  && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master \
+  && opam install -y \
+  session.0.4.0 \
+  session-cohttp.0.4.0 \
+  session-cohttp-lwt.0.4.0 \
+  session-postgresql.0.4.0 \
+  session-postgresql-lwt.0.4.0
 
 ############################
 # Shellcheck
