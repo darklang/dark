@@ -258,12 +258,6 @@ jobs:
     steps:
       - checkout
       - initialize
-      - restore_cache:
-          keys:
-            - v6-nginx-conf-{{ checksum "rundir/today-timestamp" }}
-            - v6-nginx-conf-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-nginx-conf-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-nginx-conf-{{ checksum "rundir/minus3-timestamp" }}
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
           name: Copy app directory into dev container
