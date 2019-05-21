@@ -262,14 +262,9 @@ jobs:
       - run:
           name: Copy app directory into dev container
           command: |
-            docker create -v /etc/nginx -v /etc/nginx/conf.d --name vols alpine:3.4 /bin/true
-            docker run --name nginx-from -it nginx:1.15.3 /bin/true
-            docker cp nginx-from:/etc/nginx /nginx-from
-            # Can't copy 'the contents of /nginx-from' to /etc/nginx, but all we
-            # really need is mime.types
-            docker cp /nginx-from/mime.types vols:/etc/nginx/mime.types
-            docker cp scripts/support/base-nginx.conf vols:/etc/nginx/nginx.conf
-            docker cp scripts/support/nginx.conf vols:/etc/nginx/conf.d/nginx.conf
+            docker create -v /etc/nginx -v /etc/nginx/conf.d --name nginxvols nginx:1.15.3 /bin/true
+            docker cp scripts/support/base-nginx.conf nginxvols:/etc/nginx/nginx.conf
+            docker cp scripts/support/nginx.conf nginxvols:/etc/nginx/conf.d/nginx.conf
       - run: scripts/support/test-nginx.sh
 
   build-client:

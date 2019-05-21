@@ -7,7 +7,7 @@ set -euo pipefail
 
 if [ -v CI ]; then
   # see "copy in data" in .circleci/config.yml
-  MOUNTS="--volumes-from vols"
+  MOUNTS="--volumes-from nginxvols"
 else
   MOUNTS="-v $(pwd)/scripts/support/base-nginx.conf:/etc/nginx/nginx.conf "
   MOUNTS+="-v $(pwd)/scripts/support/nginx.conf:/etc/nginx/conf.d/nginx.conf"
