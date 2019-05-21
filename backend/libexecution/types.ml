@@ -380,29 +380,10 @@ module RuntimeT = struct
 
   *)
   module DvalMap = struct
-    module T = struct
-      include Map.Make (String)
-    end
-
+    module T = Tc.StrDict
     include T
 
-    let to_yojson fn map =
-      map |> T.map ~f:fn |> T.to_alist |> fun l -> `Assoc l
-
-
-    let pp
-        (valueFormatter : Format.formatter -> 'value -> unit)
-        (fmt : Format.formatter)
-        (map : 'value t) =
-      Format.pp_print_string fmt "{ " ;
-      Map.iteri map (fun ~key ~data ->
-          Format.pp_print_string fmt key ;
-          Format.pp_print_string fmt ": " ;
-          valueFormatter fmt data ;
-          Format.pp_print_string fmt ",  " ) ;
-      Format.pp_print_string fmt "}" ;
-      ()
-
+    let to_yojson fn map = map |> T.map ~f:fn |> T.to_list |> fun l -> `Assoc l
 
     let of_yojson fn json =
       match json with

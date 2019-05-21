@@ -33,9 +33,6 @@ val stats_count : account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> int
 val stats_pluck :
   account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> dval option
 
-(* Deprecated: only used in legacy in deprecated libdb *)
-val update : state:exec_state -> DbT.db -> dval_map -> unit
-
 val coerce_key_value_pair_to_legacy_object : dval list -> dval
 
 val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval

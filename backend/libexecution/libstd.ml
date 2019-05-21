@@ -48,7 +48,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DObj o] -> DList (DvalMap.data o) | args -> fail args)
+          | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Dict::get"]
@@ -61,7 +61,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.find o (Unicode_string.to_string s) with
+            ( match DvalMap.get o (Unicode_string.to_string s) with
             | Some d ->
                 d
             | None ->

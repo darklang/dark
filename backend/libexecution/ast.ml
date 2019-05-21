@@ -199,7 +199,7 @@ let rec exec
             let bound =
               match lhs with
               | Filled (_, name) ->
-                  DvalMap.set ~key:name ~data st
+                  DvalMap.insert ~key:name ~value:data st
               | Partial _ | Blank _ ->
                   st
             in
@@ -241,7 +241,7 @@ let rec exec
         |> find_derrorrail
         |> Option.value ~default:(Dval.to_dobj_exn ps)
     | Filled (_, Variable name) ->
-      ( match Symtable.find st name with
+      ( match Symtable.get st name with
       | None ->
           DError ("There is no variable named: " ^ name)
       | Some other ->
@@ -435,7 +435,7 @@ let rec exec
         | [] ->
             DIncomplete
         | (e, vars) :: _ ->
-            let newVars = DvalMap.of_alist_exn vars in
+            let newVars = DvalMap.from_list vars in
             let newSt = Util.merge_left newVars st in
             exe newSt e )
     | Filled (id, FieldAccess (e, field)) ->
@@ -508,7 +508,7 @@ and call_fn
     |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
     |> DvalMap.of_alist_exn
   in
-  match find_derrorrail (DvalMap.data args) with
+  match find_derrorrail (DvalMap.values args) with
   | Some er ->
       er
   | None ->
