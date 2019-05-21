@@ -393,12 +393,7 @@ module RuntimeT = struct
              )
           |> Result.combine_errors
           |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Result.bind ~f:(fun l ->
-                 match T.of_alist l with
-                 | `Duplicate_key k ->
-                     Error ("duplicate key: " ^ k)
-                 | `Ok m ->
-                     Ok m )
+          |> Result.bind ~f:T.from_list_unique
       | _ ->
           Error "Expected an object"
   end
