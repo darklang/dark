@@ -19,24 +19,26 @@ let focusItem (i : int) : msg Tea.Cmd.t =
     (fun _ -> IgnoreMsg)
     (Tea_task.nativeBinding (fun _ ->
          let open Webapi.Dom in
+         let open Native.Ext in
          let container = Document.getElementById "fluid-dropdown" document in
          let nthChild =
-           Native.Ext.querySelector
+           querySelector
              ("#fluid-dropdown ul li:nth-child(" ^ string_of_int (i + 1) ^ ")")
          in
          match (container, nthChild) with
          | Some el, Some li ->
-             let containerBottom =
-               Native.Ext.getBoundingClientRect el |> Native.Ext.rectBottom
-             in
-             let liBottom =
-               Native.Ext.getBoundingClientRect li |> Native.Ext.rectBottom
-             in
-             if liBottom > containerBottom
-             then
-               let offset = float_of_int (Native.Ext.offsetTop li) in
-               Element.setScrollTop el offset
-             else ()
+             let cRect = getBoundingClientRect el in
+             let cBottom = rectBottom cRect in
+             let cTop = rectTop cRect in
+             let liRect = getBoundingClientRect li in
+             let liBottom = rectBottom liRect in
+             let liTop = rectTop liRect in
+             if cTop < liTop && liBottom < cBottom
+             then ()
+             else
+               let offset = float_of_int (offsetTop li) in
+               let padding = rectHeight liRect *. 0.75 in
+               Element.setScrollTop el (offset -. padding)
          | _, _ ->
              () ))
 
