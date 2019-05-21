@@ -258,17 +258,23 @@ let matcher
       true
 
 
+type query = tlid * tokenInfo
+
+type fullQuery = toplevel * tokenInfo * dval option * string
+
+let toQueryString (ti : tokenInfo) : string =
+  if FluidToken.isBlank ti.token then "" else FluidToken.toText ti.token
+
+
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
-let generate (m : model) (a : autocomplete) : autocomplete =
-  let varnames, dval =
-    match (a.targetTLID |> Option.andThen ~f:(TL.get m), a.targetTI) with
-    | Some tl, Some ti ->
-        let id = FluidToken.tid ti.token in
-        (Analysis.getCurrentAvailableVarnames m tl id, dvalForTarget m tl ti)
-    | _ ->
-        ([], None)
+
+let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
+    autocomplete =
+  let varnames, _dval =
+    let id = FluidToken.tid ti.token in
+    (Analysis.getCurrentAvailableVarnames m tl id, dvalForTarget m tl ti)
   in
   let fields =
     []
@@ -328,15 +334,16 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     (* else [] *)
   in
   let items = extras @ exprs @ fields in
-  {a with allCompletions = items; targetDval = dval}
+  {a with allCompletions = items}
 
 
 let filter
     (m : model)
     (a : autocomplete)
     (candidates0 : autocompleteItem list)
-    (query : string) : autocompleteItem list * autocompleteItem list =
-  let lcq = query |> String.toLower in
+    ((tl, ti, dval, queryString) : fullQuery) :
+    autocompleteItem list * autocompleteItem list =
+  let lcq = queryString |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
@@ -349,7 +356,7 @@ let filter
   in
   let startsWith, candidates2 =
     List.partition
-      ~f:(stringify >> String.startsWith ~prefix:query)
+      ~f:(stringify >> String.startsWith ~prefix:queryString)
       candidates1
   in
   let startsWithCI, candidates3 =
@@ -359,7 +366,7 @@ let filter
   in
   let substring, substringCI =
     List.partition
-      ~f:(stringify >> String.contains ~substring:query)
+      ~f:(stringify >> String.contains ~substring:queryString)
       candidates3
   in
   let stringMatch, _notMatched =
@@ -373,27 +380,19 @@ let filter
   in
   (* Now split list by type validity *)
   let dbnames = TL.allDBNames m.toplevels in
-  match (Option.andThen ~f:(TL.get m) a.targetTLID, a.targetTI) with
-  | Some tl, Some ti ->
-      let isThreadMemberVal = isThreadMember tl ti in
-      let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
-      let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt a.targetDval in
-      List.partition
-        ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
-        allMatches
-  | _ ->
-      ([], [])
+  let isThreadMemberVal = isThreadMember tl ti in
+  let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
+  let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt dval in
+  List.partition
+    ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
+    allMatches
 
 
-let refilter (m : model) (old : autocomplete) : autocomplete =
+let refilter
+    (m : model)
+    ((tl, ti, _, queryString) as query : fullQuery)
+    (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
-  let query =
-    match old.targetTI with
-    | Some ti ->
-        FluidToken.toText ti.token
-    | None ->
-        ""
-  in
   let newCompletions, invalidCompletions =
     filter m old old.allCompletions query
   in
@@ -404,12 +403,15 @@ let refilter (m : model) (old : autocomplete) : autocomplete =
     oldHighlight
     |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
   in
+  let oldQueryString =
+    match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
+  in
   let index =
     (* Clear the highlight conditions *)
-    if query = ""
+    if queryString = ""
        (* when we had previously highlighted something due to any actual match *)
        (* or this condition previously held and nothing has changed *)
-       && (old.index = None || old.query <> "")
+       && (old.index = None || oldQueryString <> "")
     then None
     else
       (* If an entry is highlighted, and you press another *)
@@ -427,11 +429,20 @@ let refilter (m : model) (old : autocomplete) : autocomplete =
             (* list *)
           else Some 0
   in
-  {old with index; query; completions = newCompletions; invalidCompletions}
+  { old with
+    index
+  ; query = Some (tl.id, ti)
+  ; completions = newCompletions
+  ; invalidCompletions }
 
 
-let regenerate (m : model) (a : autocomplete) : autocomplete =
-  generate m a |> refilter m
+let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
+    autocomplete =
+  let tl = TL.getTL m tlid in
+  let queryString = toQueryString ti in
+  let dval = dvalForTarget m tl ti in
+  let query = (tl, ti, dval, queryString) in
+  generate m a query |> refilter m query
 
 
 (* ---------------------------- *)
@@ -449,7 +460,7 @@ let reset (m : model) : autocomplete =
            (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
   in
   let functions = functions @ userFunctionMetadata in
-  {Defaults.defaultModel.fluidState.ac with functions} |> regenerate m
+  {Defaults.defaultModel.fluidState.ac with functions}
 
 
 let init m = reset m
@@ -516,13 +527,3 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | FACKeyword KMatch ->
       Some
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
-
-
-let setTargetTLID (m : model) (tlid : tlid option) (a : autocomplete) :
-    autocomplete =
-  {a with targetTLID = tlid} |> regenerate m
-
-
-let setTargetTI (m : model) (ti : tokenInfo option) (a : autocomplete) :
-    autocomplete =
-  {a with targetTI = ti} |> regenerate m
