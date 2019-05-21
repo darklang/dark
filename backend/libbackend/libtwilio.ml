@@ -21,7 +21,7 @@ let replacements =
               [ ("Authorization", DStr basic_auth_string)
               ; ("Content-Type", Libexecution.Dval.dstr_of_string_exn encoding)
               ]
-              |> DvalMap.of_alist_exn
+              |> DvalMap.from_list
               |> DObj
             in
             let host_url = Canvas.url_for s.canvas_id in
@@ -33,7 +33,7 @@ let replacements =
               ; ( "StatusCallback"
                 , Libexecution.Dval.dstr_of_string_exn
                     (host_url ^ "/twilioCallback") ) ]
-              |> DvalMap.of_alist_exn
+              |> DvalMap.fromList
               |> DObj
             in
             let twilio_uri =
