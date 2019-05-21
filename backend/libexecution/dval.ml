@@ -928,8 +928,8 @@ let query_to_dval (query : (string * string list) list) : dval =
                DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
          in
          (key, dval) )
-  |> DvalMap.of_alist_exn
-  |> fun x -> DObj x
+  |> DvalMap.from_list
+  |> DObj
 
 
 let dval_to_query (dv : dval) : (string * string list) list =
