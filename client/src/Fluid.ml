@@ -533,7 +533,15 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   && s.newPos >= ti.startPos
 
 
+let recordAction ?(pos = -1000) (action : string) (s : state) : state =
+  let action =
+    if pos = -1000 then action else action ^ " " ^ string_of_int pos
+  in
+  {s with actions = s.actions @ [action]}
+
+
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
+  let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
   {s with newPos = pos; upDownCol}
 
@@ -541,13 +549,6 @@ let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
 (* -------------------- *)
 (* Update *)
 (* -------------------- *)
-
-let recordAction ?(pos = -1000) (action : string) (s : state) : state =
-  let action =
-    if pos = -1000 then action else action ^ " " ^ string_of_int pos
-  in
-  {s with actions = s.actions @ [action]}
-
 
 let isTextToken token : bool =
   match token with
