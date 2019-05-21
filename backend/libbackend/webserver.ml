@@ -1040,11 +1040,23 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
               let https_only_cookie =
                 req |> CRequest.uri |> should_use_https
               in
+              let domain =
+                req
+                |> CRequest.headers
+                |> fun h ->
+                Header.get h "host"
+                |> Option.value ~default:"darklang.com"
+                (* Host: darklang.localhost:8000 is properly set in-cookie as
+                   * "darklang.localhost", the cookie domain doesn't want the
+                   * port *)
+                |> String.substr_replace_all ~pattern:":8000" ~with_:""
+              in
               let headers =
                 username_header username
                 :: Auth.Session.to_cookie_hdrs
                      ~http_only:true
                      ~secure:https_only_cookie
+                     ~domain
                      ~path:"/"
                      Auth.Session.cookie_key
                      session
