@@ -704,22 +704,22 @@ let () =
         (presses ~wrap:false [K.Escape; K.Down; K.Down] 5)
         ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
       (* moving through the autocomplete *)
-      (* test "up goes through the autocomplete" (fun () -> *)
-      (*     expect *)
-      (*       ( moveTo 143 s *)
-      (*       |> (fun s -> updateKey m K.Up ast s) *)
-      (*       |> (fun (ast, s) -> updateKey m K.Up ast s) *)
-      (*       |> (fun (ast, s) -> updateKey m K.Up ast s) *)
-      (*       |> fun (_, s) -> s.newPos ) *)
-      (*     |> toEqual 13 ) ; *)
-      (* test "down goes through the autocomplete" (fun () -> *)
-      (*     expect *)
-      (*       ( moveTo 14 s *)
-      (*       |> (fun s -> updateKey m K.Down ast s) *)
-      (*       |> (fun (ast, s) -> updateKey m K.Down ast s) *)
-      (*       |> (fun (ast, s) -> updateKey m K.Down ast s) *)
-      (*       |> fun (_, s) -> s.newPos ) *)
-      (*     |> toEqual 144 ) ; *)
+      test "up goes through the autocomplete" (fun () ->
+          expect
+            ( moveTo 143 s
+            |> (fun s -> updateKey K.Up ast s)
+            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> fun (_, s) -> s.newPos )
+          |> toEqual 13 ) ;
+      test "down goes through the autocomplete" (fun () ->
+          expect
+            ( moveTo 14 s
+            |> (fun s -> updateKey K.Down ast s)
+            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> fun (_, s) -> s.newPos )
+          |> toEqual 144 ) ;
       () ) ;
   describe "Tabs" (fun () ->
       t
