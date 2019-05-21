@@ -14,7 +14,7 @@ module Symtable = DvalMap
 
 type symtable = dval_map
 
-let input_vars2symtable vars = Symtable.of_alist_exn vars
+let input_vars2symtable vars = Symtable.from_list vars
 
 (* -------------------- *)
 (* Dval store - save per-tl analysis results *)
