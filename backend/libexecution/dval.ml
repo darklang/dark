@@ -833,8 +833,11 @@ let to_char dv : string option =
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
-  try DObj (DvalMap.of_alist_exn pairs) with e ->
-    DError "The same key occurs multiple times"
+  match DvalMap.from_list_unique pairs with
+  | Ok ok ->
+      DObj ok
+  | Error err ->
+      DError err
 
 
 let to_string_exn dv : string =
