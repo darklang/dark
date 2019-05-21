@@ -83,6 +83,8 @@ module Ext = struct
 
   external rectBottom : Dom.domRect -> float = "bottom" [@@bs.get]
 
+  external rectHeight : Dom.domRect -> float = "height" [@@bs.get]
+
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
 
