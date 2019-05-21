@@ -290,6 +290,17 @@ and fof j : fourOhFour =
   ; traceID = index 4 traceID j }
 
 
+(* SYDNEY *)
+and presenceMsg j : avatar =
+  { canvasId = field "canvasId" string j
+  ; canvasName = field "canvasName" string j
+  ; serverTime = field "serverTime" string j
+  ; tlid = field "tlid" (optional string) j
+  ; username = field "username" string j
+  ; email = field "email" string j
+  ; fullname = field "fullname" (optional string) j }
+
+
 and deployStatus j : deployStatus =
   let sumtypes =
     [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
