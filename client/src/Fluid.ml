@@ -708,10 +708,10 @@ let getNeighbours ~(pos : int) (tokens : tokenInfo list) :
         L (prev.token, prev)
     | _, Some current ->
         L (current.token, current)
+    | Some prev, None ->
+        (* Last position in the ast *)
+        L (prev.token, prev)
     | None, None ->
-        No
-    | _ ->
-        Js.log "Unexpect toTheLeft node" ;
         No
   in
   (toTheLeft, toTheRight, mNext)
@@ -1823,6 +1823,13 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     | FluidMouseClick ->
       ( match getCursorPosition () with
       | Some newPos ->
+          let lastPos =
+            toTokens s ast
+            |> List.last
+            |> Option.map ~f:(fun ti -> ti.endPos)
+            |> Option.withDefault ~default:0
+          in
+          let newPos = if newPos > lastPos then lastPos else newPos in
           (ast, setPosition s newPos)
       | None ->
           (ast, {s with error = Some "found no pos"}) )
