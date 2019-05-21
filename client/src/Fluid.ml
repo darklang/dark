@@ -358,6 +358,33 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
+let rec patternToToken (p : fluidPattern) : fluidToken list =
+  match p with
+  | FPVariable (id, name) ->
+      [TPatternVariable (id, name)]
+  | FPConstructor (id, name, args) ->
+      let args = List.map args ~f:(fun a -> TSep :: patternToToken a) in
+      List.concat ([TPatternConstructorName (id, name)] :: args)
+  | FPInteger (id, i) ->
+      [TPatternInteger (id, string_of_int i)]
+  | FPBool (id, b) ->
+      if b then [TPatternTrue id] else [TPatternFalse id]
+  | FPString (id, s) ->
+      [TPatternString (id, s)]
+  | FPFloat (id, whole, fraction) ->
+      [ TPatternFloatWhole (id, whole)
+      ; TPatternFloatPoint id
+      ; TPatternFloatFraction (id, fraction) ]
+  | FPNull id ->
+      [TPatternNullToken id]
+  | FPBlank id ->
+      [TPatternBlank id]
+  | FPPartial (id, str) ->
+      [TPatternPartial (id, str)]
+  | FPOldPattern op ->
+      [TPatternPartial (Blank.toID op, "TODO: old pattern")]
+
+
 let rec toTokens' (s : state) (e : ast) : token list =
   let nested ?(placeholderFor : (string * int) option = None) b =
     let tokens =
@@ -491,36 +518,10 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
-      let rec toPatternToken p : fluidToken list =
-        match p with
-        | FPVariable (id, name) ->
-            [TPatternVariable (id, name)]
-        | FPConstructor (id, name, args) ->
-            let args = List.map args ~f:(fun a -> TSep :: toPatternToken a) in
-            List.concat ([TPatternConstructorName (id, name)] :: args)
-        | FPInteger (id, i) ->
-            [TPatternInteger (id, string_of_int i)]
-        | FPBool (id, b) ->
-            if b then [TPatternTrue id] else [TPatternFalse id]
-        | FPString (id, s) ->
-            [TPatternString (id, s)]
-        | FPFloat (id, whole, fraction) ->
-            [ TPatternFloatWhole (id, whole)
-            ; TPatternFloatPoint id
-            ; TPatternFloatFraction (id, fraction) ]
-        | FPNull id ->
-            [TPatternNullToken id]
-        | FPBlank id ->
-            [TPatternBlank id]
-        | FPPartial (id, str) ->
-            [TPatternPartial (id, str)]
-        | FPOldPattern op ->
-            [TPatternPartial (Blank.toID op, "TODO: old pattern")]
-      in
       [ [TMatchKeyword id; nested mexpr]
       ; List.map pairs ~f:(fun (pattern, expr) ->
             [TNewline; TIndent 2]
-            @ toPatternToken pattern
+            @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
       |> List.concat
@@ -596,8 +597,14 @@ let eToStructure (s : state) (e : fluidExpr) : string =
 
 
 (* -------------------- *)
-(* TEA *)
+(* Patterns *)
 (* -------------------- *)
+let pToString (p : fluidPattern) : string =
+  p
+  |> patternToToken
+  |> List.map ~f:(fun t -> Token.toTestText t)
+  |> String.join ~sep:""
+
 
 (* -------------------- *)
 (* Direct canvas interaction *)
