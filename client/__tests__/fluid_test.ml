@@ -469,31 +469,6 @@ let () =
         matchWithPatterns
         (delete 0)
         ("match ___\n  3 -> ___", 0) ;
-      (* 
-      t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
-      t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
-      t "backspace letlhs" letWithLhs (backspace 5) ("let *** = 6\n5", 4) ;
-      t "delete letlhs" letWithLhs (delete 4) ("let *** = 6\n5", 4) ;
-      t
-        "equals skips over assignment"
-        emptyLet
-        (presses [K.Letter 'c'; K.Equals] 4)
-        ("let c = ___\n5", 8) ;
-      t
-        "equals skips over assignment 1"
-        emptyLet
-        (press K.Equals 7)
-        ("let *** = ___\n5", 10) ;
-      t
-        "equals skips over assignment 2"
-        emptyLet
-        (press K.Equals 8)
-        ("let *** = ___\n5", 10) ;
-      t
-        "equals skips over assignment 3"
-        emptyLet
-        (press K.Equals 9)
-        ("let *** = ___\n5", 10) ; *)
       () ) ;
   describe "Lets" (fun () ->
       t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
