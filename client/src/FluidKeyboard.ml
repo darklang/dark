@@ -694,9 +694,7 @@ type keyEvent =
   ; shiftKey : bool
   ; ctrlKey : bool
   ; altKey : bool
-  ; metaKey : bool
-  ; targetSelectionStart : int option
-  ; targetSelectionEnd : int option }
+  ; metaKey : bool }
 [@@deriving show]
 
 let keyEvent j =
@@ -706,11 +704,7 @@ let keyEvent j =
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
-  ; metaKey = field "metaKey" bool j
-  ; targetSelectionStart =
-      field "target" (optional (field "selectionStart" int)) j
-  ; targetSelectionEnd = field "target" (optional (field "selectionEnd" int)) j
-  }
+  ; metaKey = field "metaKey" bool j }
 
 
 let registerGlobal name key tagger =
