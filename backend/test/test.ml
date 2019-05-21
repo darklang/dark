@@ -1253,8 +1253,9 @@ let t_authenticate_then_handle_code_and_cookie () =
            (Uri.of_string "http://darklang.com/a/test")
          (* plain request, no auth *)
        ; Req.make (Uri.of_string "http://test.builtwithdark.com/a/test") ])
-    [ (200, Some "Max-Age=604800; path=/; secure; httponly")
-    ; (200, Some "Max-Age=604800; path=/; httponly")
+    [ ( 200
+      , Some "Max-Age=604800; domain=darklang.com; path=/; secure; httponly" )
+    ; (200, Some "Max-Age=604800; domain=darklang.localhost; path=/; httponly")
     ; (401, None)
     ; (401, None)
     ; (401, None) ]
