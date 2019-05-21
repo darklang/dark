@@ -123,8 +123,6 @@ let () =
       then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
       else ast
     in
-    let tl = tl ast in
-    let m = {m with toplevels = [tl]} in
     let extra = if wrap then 14 else 0 in
     let pos = pos + extra in
     let s =
@@ -132,6 +130,8 @@ let () =
         ac = AC.reset m; oldPos = pos; newPos = pos }
     in
     let newAST, newState =
+      let tl = tl ast in
+      let m = {m with toplevels = [tl]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
