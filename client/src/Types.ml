@@ -1037,14 +1037,9 @@ and fluidAutocompleteState =
     (* ------------------------------- *)
     functions : function_ list
   ; index : int option
-  ; targetTL : toplevel option
-  ; targetTI :
-      fluidTokenInfo option
-      (* ------------------------------- *)
-      (* Cached inputs *)
-      (* ------------------------------- *)
-  ; targetDval :
-      dval option
+  ; query :
+      (* We need to refer back to the previous one *)
+      (tlid * fluidTokenInfo) option
       (* ------------------------------- *)
       (* Cached results *)
       (* ------------------------------- *)

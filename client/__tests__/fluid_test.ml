@@ -125,14 +125,25 @@ let () =
     in
     let extra = if wrap then 14 else 0 in
     let pos = pos + extra in
-    let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
-    (* TODO: This is the wrong token to focus on. We may want to use the edge
-     * to decide. *)
-    let ti, _, _ = Fluid.getTokensAtPosition ~pos (toTokens s ast) in
-    let ac = s.ac |> AC.setTargetTL m (Some (tl ast)) |> AC.setTargetTI m ti in
-    let s = {s with ac} in
+    let s =
+      { Defaults.defaultFluidState with
+        ac = AC.reset m; oldPos = pos; newPos = pos }
+    in
     let newAST, newState =
-      List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
+      let tl = tl ast in
+      let m = {m with toplevels = [tl]} in
+      List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
+          updateMsg
+            m
+            tl.id
+            ast
+            (FluidKeyPress
+               { key
+               ; shiftKey = false
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false })
+            s )
     in
     let result =
       match newAST with
@@ -696,17 +707,17 @@ let () =
       test "up goes through the autocomplete" (fun () ->
           expect
             ( moveTo 143 s
-            |> (fun s -> updateKey m K.Up ast s)
-            |> (fun (ast, s) -> updateKey m K.Up ast s)
-            |> (fun (ast, s) -> updateKey m K.Up ast s)
+            |> (fun s -> updateKey K.Up ast s)
+            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> (fun (ast, s) -> updateKey K.Up ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 13 ) ;
       test "down goes through the autocomplete" (fun () ->
           expect
             ( moveTo 14 s
-            |> (fun s -> updateKey m K.Down ast s)
-            |> (fun (ast, s) -> updateKey m K.Down ast s)
-            |> (fun (ast, s) -> updateKey m K.Down ast s)
+            |> (fun s -> updateKey K.Down ast s)
+            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> (fun (ast, s) -> updateKey K.Down ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 144 ) ;
       () ) ;

@@ -533,7 +533,15 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   && s.newPos >= ti.startPos
 
 
+let recordAction ?(pos = -1000) (action : string) (s : state) : state =
+  let action =
+    if pos = -1000 then action else action ^ " " ^ string_of_int pos
+  in
+  {s with actions = s.actions @ [action]}
+
+
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
+  let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
   {s with newPos = pos; upDownCol}
 
@@ -541,13 +549,6 @@ let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
 (* -------------------- *)
 (* Update *)
 (* -------------------- *)
-
-let recordAction ?(pos = -1000) (action : string) (s : state) : state =
-  let action =
-    if pos = -1000 then action else action ^ " " ^ string_of_int pos
-  in
-  {s with actions = s.actions @ [action]}
-
 
 let isTextToken token : bool =
   match token with
@@ -707,10 +708,10 @@ let getNeighbours ~(pos : int) (tokens : tokenInfo list) :
         L (prev.token, prev)
     | _, Some current ->
         L (current.token, current)
+    | Some prev, None ->
+        (* Last position in the ast *)
+        L (prev.token, prev)
     | None, None ->
-        No
-    | _ ->
-        Js.log "Unexpect toTheLeft node" ;
         No
   in
   (toTheLeft, toTheRight, mNext)
@@ -1633,8 +1634,7 @@ let doInsert
       doInsert' ~pos letter ti ast s
 
 
-let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
-    ast * state =
+let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
   let tokens = toTokens s ast in
@@ -1788,47 +1788,65 @@ let updateKey (m : Types.model) (key : K.key) (ast : ast) (s : state) :
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
   in
-  (* Fix up autocomplete *)
-  let newState =
-    let oldTextTokenInfo =
-      match (toTheLeft, toTheRight) with
-      | _, R (_, ti)
-        when isTextToken ti.token && Token.isAutocompletable ti.token ->
-          Some ti
-      | L (_, ti), _
-        when isTextToken ti.token && Token.isAutocompletable ti.token ->
-          Some ti
-      | _ ->
-          None
-    in
-    let newLeft, newRight, _ =
-      getNeighbours ~pos:newState.newPos (toTokens s newAST)
-    in
-    let newTextTokenInfo =
-      match (newLeft, newRight) with
-      | _, R (_, ti)
-        when isTextToken ti.token && Token.isAutocompletable ti.token ->
-          Some ti
-      | L (_, ti), _
-        when isTextToken ti.token && Token.isAutocompletable ti.token ->
-          Some ti
-      | _ ->
-          None
-    in
-    match (oldTextTokenInfo, newTextTokenInfo) with
-    | Some tOld, Some tNew when tOld.token <> tNew.token ->
-        {newState with ac = AC.setTargetTI m (Some tNew) newState.ac}
-    | None, Some tNew ->
-        {newState with ac = AC.setTargetTI m (Some tNew) newState.ac}
-    | _, None ->
-        {newState with ac = AC.reset m}
+  (newAST, newState)
+
+
+let updateAutocomplete m tlid ast s : fluidState =
+  let tokens = toTokens s ast in
+  let ti =
+    let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
+    match (toTheLeft, toTheRight) with
+    | _, R (_, ti)
+      when isTextToken ti.token && Token.isAutocompletable ti.token ->
+        Some ti
+    | L (_, ti), _
+      when isTextToken ti.token && Token.isAutocompletable ti.token ->
+        Some ti
     | _ ->
-        newState
+        None
   in
+  match ti with
+  | Some ti ->
+      let m = TL.withAST m tlid (toExpr ast) in
+      let newAC = AC.regenerate m s.ac (tlid, ti) in
+      {s with ac = newAC}
+  | None ->
+      s
+
+
+let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
+    ast * fluidState =
+  (* TODO: The state should be updated from the last request, and so this
+   * shouldn't be necessary, but the tests don't work without it *)
+  let s = updateAutocomplete m tlid ast s in
+  let newAST, newState =
+    match msg with
+    | FluidMouseClick ->
+      ( match getCursorPosition () with
+      | Some newPos ->
+          let lastPos =
+            toTokens s ast
+            |> List.last
+            |> Option.map ~f:(fun ti -> ti.endPos)
+            |> Option.withDefault ~default:0
+          in
+          let newPos = if newPos > lastPos then lastPos else newPos in
+          (ast, setPosition s newPos)
+      | None ->
+          (ast, {s with error = Some "found no pos"}) )
+    | FluidKeyPress {key} ->
+        let s = {s with lastKey = key} in
+        updateKey key ast s
+    | _ ->
+        (ast, s)
+  in
+  let newState = updateAutocomplete m tlid newAST newState in
   (newAST, newState)
 
 
 let update (m : Types.model) (msg : Types.msg) : Types.modification =
+  let s = m.fluidState in
+  let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
   | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
     when (metaKey || ctrlKey) && key = K.Letter 'z' ->
@@ -1845,35 +1863,20 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       | None ->
           NoChange
       | Some ast ->
-          let ast = ast |> fromExpr m.fluidState in
-          let newAST, newState, cmd =
-            let s =
-              {m.fluidState with ac = {m.fluidState.ac with targetTL = Some tl}}
-            in
-            let s = {s with error = None; oldPos = s.newPos} in
-            match msg with
-            | FluidMouseClick ->
-              ( match getCursorPosition () with
-              | Some newPos ->
-                  (ast, setPosition s newPos, Cmd.none)
-              | None ->
-                  (ast, {s with error = Some "found no pos"}, Cmd.none) )
-            | FluidKeyPress {key} ->
-                let s = {s with lastKey = key; actions = []} in
-                let newAST, newState = updateKey m key ast s in
-                (* These might be the same token *)
-                let cmd =
-                  if newAST <> ast || newState.oldPos <> newState.newPos
-                  then setBrowserPos newState.newPos
-                  else Cmd.none
-                in
-                (newAST, newState, cmd)
-            | _ ->
-                (ast, s, Cmd.none)
+          let ast = ast |> fromExpr s in
+          let newAST, newState = updateMsg m tl.id ast msg s in
+          let cmd =
+            if newAST <> ast || newState.oldPos <> newState.newPos
+            then setBrowserPos newState.newPos
+            else Cmd.none
           in
           let astMod =
             if ast <> newAST
-            then Toplevel.setSelectedAST m (toExpr newAST)
+            then
+              let asExpr = toExpr newAST in
+              Many
+                [ Types.TweakModel (fun m -> TL.withAST m tl.id asExpr)
+                ; Toplevel.setSelectedAST m asExpr ]
             else Types.NoChange
           in
           Types.Many
@@ -2024,7 +2027,7 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         ; Html.text (newGrid.row |> string_of_int) ]
     ; Html.div
         []
-        [ Html.text "acPos: "
+        [ Html.text "acIndex: "
         ; Html.text
             ( s.ac.index
             |> Option.map ~f:string_of_int
