@@ -160,12 +160,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       | SetHandler (tlid, pos, handler) ->
           set_handler tlid pos (TL.Handler handler)
       | CreateDB (tlid, pos, name) ->
-          if is_new
-          then (
-            if name = "" then Exception.client "DB must have a name" ;
-            List.iter (TL.dbs !c.dbs) ~f:(fun db ->
-                if Ast.blank_to_string db.name = name
-                then Exception.client "Duplicate DB name" ) ) ;
+          if is_new && name = "" then Exception.client "DB must have a name" ;
           let db = User_db.create name tlid in
           set_db tlid pos (TL.DB db)
       | AddDBCol (tlid, colid, typeid) ->
@@ -229,9 +224,6 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       | RenameDBname (tlid, name) ->
           apply_to_db ~f:(User_db.rename_db name) tlid
       | CreateDBWithBlankOr (tlid, pos, id, name) ->
-          List.iter (TL.dbs !c.dbs) ~f:(fun db ->
-              if Ast.blank_to_string db.name = name
-              then Exception.client "Duplicate DB name" ) ;
           let db = User_db.create2 name tlid id in
           set_db tlid pos (TL.DB db)
       | DeleteTLForever tlid ->
@@ -253,6 +245,28 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
         ; ("op", Op.show_op op)
         ; ("exn", Exception.to_string e) ] ;
     Exception.reraise e
+
+
+let verify (c : canvas ref) : (unit, string list) Result.t =
+  let duped_db_names =
+    !c.dbs
+    |> TL.dbs
+    |> List.filter_map ~f:(fun db ->
+           Option.map
+             ~f:(fun name -> (db.tlid, name))
+             (Ast.blank_to_option db.name) )
+    |> List.group ~break:(fun (_, name1) (_, name2) -> name1 <> name2)
+    |> List.filter ~f:(fun g -> List.length g > 1)
+    |> List.map ~f:(fun gs ->
+           let string_of_pair (tlid, name) =
+             Printf.sprintf "(%s, %s)" (string_of_id tlid) name
+           in
+           let string_of_pairs ps =
+             String.concat ~sep:", " (List.map ~f:string_of_pair ps)
+           in
+           Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs) )
+  in
+  match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
