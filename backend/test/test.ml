@@ -2520,9 +2520,29 @@ let t_canvas_verification_no_error () =
     [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
     ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
   in
-  let c = ops2c "test-verify_rename" ops in
+  let c = ops2c "test-verify_okay" ops in
   let test_result = Canvas.verify c in
   AT.check AT.bool "should verify" true (Result.is_ok test_result)
+
+
+let t_canvas_verification_undo_rename_duped_name () =
+  let ops1 =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; Op.TLSavepoint dbid
+    ; Op.DeleteTL dbid
+    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
+  in
+  let c = ops2c "test-verify_undo_1" ops1 in
+  let test_result = Canvas.verify c in
+  AT.check AT.bool "should initially verify" true (Result.is_ok test_result) ;
+  let ops2 = ops1 @ [UndoTL dbid] in
+  let c2 = ops2c "test-verify_undo_2" ops2 in
+  let test_result = Canvas.verify c2 in
+  AT.check
+    AT.bool
+    "should then fail to verify"
+    false
+    (Result.is_ok test_result)
 
 
 (* ------------------- *)
@@ -2761,7 +2781,10 @@ let suite =
     , t_canvas_verification_duplicate_renaming )
   ; ( "Canvas verification returns Ok if no error"
     , `Quick
-    , t_canvas_verification_no_error ) ]
+    , t_canvas_verification_no_error )
+  ; ( "Canvas verification catches inconsistency post undo"
+    , `Quick
+    , t_canvas_verification_undo_rename_duped_name ) ]
 
 
 let () =
