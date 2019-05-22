@@ -155,6 +155,8 @@ let coltypeid3 = Int63.of_int 16
 
 let nameid = Int63.of_int 17
 
+let nameid2 = Int63.of_int 217
+
 let pos = {x = 0; y = 0}
 
 let execution_id = Int63.of_int 6542
@@ -453,10 +455,6 @@ let t_multiple_copies_of_same_name () =
     "object field names"
     (exec_ast "(obj (col1 1) (col1 2))")
     (DError "Duplicate key: col1") ;
-  let ops =
-    [Op.CreateDB (dbid, pos, "TestDB"); Op.CreateDB (dbid, pos, "TestDB")]
-  in
-  check_exception (fun _ -> exec_handler ~ops "_") "db names" ;
   ()
 
 
@@ -2496,6 +2494,37 @@ let t_query_params_with_duplicate_keys () =
   ()
 
 
+let t_canvas_verification_duplicate_creation () =
+  let ops =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
+  in
+  let c = ops2c "test-verify_create" ops in
+  let test_result = Canvas.verify c in
+  AT.check AT.bool "should not verify" false (Result.is_ok test_result)
+
+
+let t_canvas_verification_duplicate_renaming () =
+  let ops =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
+    ; Op.RenameDBname (dbid2, "Books") ]
+  in
+  let c = ops2c "test-verify_rename" ops in
+  let test_result = Canvas.verify c in
+  AT.check AT.bool "should not verify" false (Result.is_ok test_result)
+
+
+let t_canvas_verification_no_error () =
+  let ops =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
+  in
+  let c = ops2c "test-verify_rename" ops in
+  let test_result = Canvas.verify c in
+  AT.check AT.bool "should verify" true (Result.is_ok test_result)
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2723,7 +2752,16 @@ let suite =
     , t_error_rail_is_propagated_by_functions )
   ; ( "Query strings behave properly given multiple duplicate keys"
     , `Quick
-    , t_query_params_with_duplicate_keys ) ]
+    , t_query_params_with_duplicate_keys )
+  ; ( "Canvas verification catches duplicate DB name via creation"
+    , `Quick
+    , t_canvas_verification_duplicate_creation )
+  ; ( "Canvas verification catches duplicate DB name via renaming"
+    , `Quick
+    , t_canvas_verification_duplicate_renaming )
+  ; ( "Canvas verification returns Ok if no error"
+    , `Quick
+    , t_canvas_verification_no_error ) ]
 
 
 let () =
