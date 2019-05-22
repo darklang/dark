@@ -1235,6 +1235,10 @@ body #app * {
     left: -1ch;
     box-shadow: 1px 1px 1px black;
     width: max-content;
+    max-height: 100px;
+    overflow-y: scroll;
+    padding: 0;
+
     ul {
       margin: 0;
       padding-inline-start: 0;
@@ -1246,6 +1250,7 @@ body #app * {
       li {
         list-style-type: none; // remove bullet points
         padding: 0 1ch;
+        height: 16px;
 
         .types {
           float: right;
