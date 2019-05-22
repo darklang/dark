@@ -787,7 +787,7 @@ let isAppendable token : bool =
   match token with
   (* String should really be directly editable, but the extra quote at the end
    makes it not so. *)
-  | TString _ ->
+  | TString _ | TPatternString _ ->
       false
   | _ ->
       isTextToken token
@@ -1668,6 +1668,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatPoint id ->
       (removePointFromFloat id ast, left s)
   | TString _
+  | TPatternString _
   | TRecordField _
   | TInteger _
   | TTrue _
@@ -1780,7 +1781,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
-  | TPatternString _
   | TPatternTrue _
   | TPatternFalse _
   | TPatternNullToken _
@@ -2093,7 +2093,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
      * should convert them to a partial which retains the old object *)
     match (key, toTheLeft, toTheRight) with
     (* Deleting *)
-    | K.Backspace, L (TString _, ti), _ when pos = ti.endPos ->
+    | K.Backspace, L (TPatternString _, ti), _
+    | K.Backspace, L (TString _, ti), _
+      when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordField (_, _, ""), ti) ->
