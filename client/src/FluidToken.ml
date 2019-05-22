@@ -56,7 +56,7 @@ let isBlank t =
   | TFieldName (_, "")
   | TLetLHS (_, "")
   | TLambdaVar (_, "")
-  | TPartial _ ->
+  | TPartial (_, "") ->
       true
   | _ ->
       false
