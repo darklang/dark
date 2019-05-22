@@ -1226,30 +1226,33 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
           e )
 
 
-let replaceString (str : string) (id : id) (ast : ast) : ast =
+let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | EInteger (id, _) ->
-          if str = ""
-          then EBlank id
-          else
-            let value = try safe_int_of_string str with _ -> 0 in
-            EInteger (id, value)
-      | EString (id, _) ->
-          EString (id, str)
-      | EVariable (id, _) ->
-          if str = "" then EBlank id else EPartial (id, str)
-      | EPartial (id, _) ->
-          if str = "" then EBlank id else EPartial (id, str)
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
-      | ELet (id, lhsID, _, rhs, next) ->
-          ELet (id, lhsID, str, rhs, next)
+      | _ ->
+          fail "not a field" )
+
+
+let replaceLamdaVar (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      (* TODO: rename in vars other than the first *)
       | ELambda (id, vars, expr) ->
           let rest = List.tail vars |> Option.withDefault ~default:[] in
           ELambda (id, (gid (), str) :: rest, expr)
       | _ ->
-          fail ("not a string type: " ^ show_fluidExpr e) )
+          fail "not a lamda" )
+
+
+let replaceLetLHS (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELet (id, lhsID, _, rhs, next) ->
+          ELet (id, lhsID, str, rhs, next)
+      | _ ->
+          fail "not a let" )
 
 
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
@@ -1324,13 +1327,35 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceExpr id ~newExpr:(EString (id, f str)) ast
   | TPatternString (mID, id, str) ->
       replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
+  | TPatternInteger (mID, id, str) ->
+      if str = ""
+      then EBlank id
+      else
+        let value = try safe_int_of_string str with _ -> 0 in
+        replacePattern mID id ~newPat:(FPInteger (mID, id, value)) ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
-  | TInteger (id, str)
-  | TVariable (id, str)
-  | TPartial (id, str)
+  | TLetLHS (id, str) ->
+      replaceLetLHS (f str) id ast
+  | TLambdaVar (id, str) ->
+      replaceLamdaVar (f str) id ast
+  | TInteger (id, str) ->
+      let str = f str in
+      if str = ""
+      then EBlank id
+      else
+        let value = try safe_int_of_string str with _ -> 0 in
+        replaceExpr id ~newExpr:(EInteger (id, value)) ast
+  | TVariable (id, str) ->
+      let str = f str in
+      let newExpr = if str = "" then EBlank id else EPartial (id, str) in
+      replaceExpr id ~newExpr ast
+  | TPartial (id, str) ->
+      let str = f str in
+      let newExpr = if str = "" then EBlank id else EPartial (id, str) in
+      replaceExpr id ~newExpr ast
   | TFieldName (id, str) ->
-      replaceString (f str) id ast
+      replaceFieldName (f str) id ast
   | TTrue id ->
       let str = f "true" in
       let newExpr = EPartial (gid (), str) in
@@ -1343,10 +1368,6 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "null" in
       let newExpr = EPartial (gid (), str) in
       replaceExpr id ~newExpr ast
-  | TLetLHS (id, str) | TLambdaVar (id, str) ->
-      let ast = replaceString (f str) id ast in
-      modifyVariableOccurences str ast ~f:(fun occId ast ->
-          replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast )
   | _ ->
       fail "not supported by replaceToken"
 
@@ -1986,7 +2007,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TNullToken _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
-  | TInteger (_, i) ->
+  | TPatternInteger (_, _, i) | TInteger (_, i) ->
       let newLength =
         f i |> safe_int_of_string |> string_of_int |> String.length
       in
@@ -2000,7 +2021,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (insertAtFrontOfFloatFraction letterStr id ast, right)
   | TPatternVariable _
   | TPatternPartial _
-  | TPatternInteger _
   | TPatternTrue _
   | TPatternFalse _
   | TPatternNullToken _
