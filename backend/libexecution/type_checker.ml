@@ -149,7 +149,7 @@ and unify_user_record_with_dval_map
   if same_names
   then
     value
-    |> DvalMap.to_alist
+    |> DvalMap.to_list
     |> List.map ~f:(fun (key, data) ->
            unify ~type_env (TipeMap.find_exn complete_definition key) data )
     |> Result.combine_errors_unit
@@ -164,7 +164,7 @@ let check_function_call
     ~(user_tipes : user_tipe list) (fn : fn) (args : dval_map) :
     (unit, Error.t list) Result.t =
   let type_env = user_tipe_list_to_type_env user_tipes in
-  let args = DvalMap.to_alist args in
+  let args = DvalMap.to_list args in
   let with_params =
     List.map
       ~f:(fun (argname, argval) ->

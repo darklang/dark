@@ -164,7 +164,7 @@ and (* PG returns lists of strings. This converts them to types using the
       let default_keys =
         cols_for db
         |> List.map ~f:(fun (k, _) -> (k, DNull))
-        |> DvalMap.of_alist_exn
+        |> DvalMap.from_list_exn
       in
       let merged = Util.merge_left p_obj default_keys in
       (* </HACK> *)
@@ -183,28 +183,28 @@ and type_check db (obj : dval_map) : dval_map =
   if same_keys
   then
     DvalMap.mapi
-      ~f:(fun ~key ~data ->
-        match (TipeMap.find_exn cols key, data) with
+      ~f:(fun ~key ~value ->
+        match (TipeMap.find_exn cols key, value) with
         | TInt, DInt _ ->
-            data
+            value
         | TFloat, DFloat _ ->
-            data
+            value
         | TStr, DStr _ ->
-            data
+            value
         | TBool, DBool _ ->
-            data
+            value
         | TDate, DDate _ ->
-            data
+            value
         | TList, DList _ ->
-            data
+            value
         | TDbList _, DList _ ->
-            data
+            value
         | TPassword, DPassword _ ->
-            data
+            value
         | TUuid, DUuid _ ->
-            data
+            value
         | _, DNull ->
-            data (* allow nulls for now *)
+            value (* allow nulls for now *)
         | expected_type, value_of_actual_type ->
             Exception.user
               (type_error_msg key expected_type value_of_actual_type) )
@@ -263,33 +263,6 @@ and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
       ; String key
       ; QueryableDvalmap merged ] ;
   id
-
-
-and update ~state db (vals : dval_map) =
-  (* deprecated: unneccessary in new world *)
-  let id =
-    DvalMap.find_exn vals "id" |> dv_to_id (Ast.blank_to_string db.name)
-  in
-  let removed = Map.remove vals "id" in
-  let merged = type_check db removed in
-  Db.run
-    ~name:"user_update"
-    "UPDATE user_data
-     SET data = $1
-     WHERE id = $2
-     AND account_id = $3
-     AND canvas_id = $4
-     AND table_tlid = $5
-     AND user_version = $6
-     AND dark_version = $7"
-    ~params:
-      [ QueryableDvalmap merged
-      ; Uuid id
-      ; Uuid state.account_id
-      ; Uuid state.canvas_id
-      ; ID db.tlid
-      ; Int db.version
-      ; Int current_dark_version ]
 
 
 and get ~state (db : db) (key : string) : dval =

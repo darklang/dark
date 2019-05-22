@@ -48,9 +48,7 @@ let send_request uri verb json_fn body query headers =
     |> List.map ~f:(fun (k, v) ->
            (String.strip k, Dval.dstr_of_string_exn (String.strip v)) )
     |> List.filter ~f:(fun (k, _) -> String.length k > 0)
-    |> DvalMap.of_alist_fold
-         ~init:(Dval.dstr_of_string_exn "")
-         ~f:(fun old neww -> neww )
+    |> DvalMap.from_list
     |> fun dm -> DObj dm
   in
   Dval.to_dobj_exn

@@ -199,7 +199,7 @@ let rec exec
             let bound =
               match lhs with
               | Filled (_, name) ->
-                  DvalMap.set ~key:name ~data st
+                  DvalMap.insert ~key:name ~value:data st
               | Partial _ | Blank _ ->
                   st
             in
@@ -241,7 +241,7 @@ let rec exec
         |> find_derrorrail
         |> Option.value ~default:(Dval.to_dobj_exn ps)
     | Filled (_, Variable name) ->
-      ( match Symtable.find st name with
+      ( match Symtable.get st name with
       | None ->
           DError ("There is no variable named: " ^ name)
       | Some other ->
@@ -373,11 +373,13 @@ let rec exec
                 let filled = List.filter ~f:(Fn.compose not is_blank) vars in
                 List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
                     trace_blank var dv st ) ;
-                let varnames = List.filter_map ~f:blank_to_option vars in
-                let bindings =
-                  Symtable.of_alist_exn (List.zip_exn varnames args)
+                let new_st =
+                  vars
+                  |> List.filter_map ~f:blank_to_option
+                  |> (fun varnames -> List.zip_exn varnames args)
+                  |> Symtable.from_list_exn
+                  |> fun bindings -> Util.merge_left bindings st
                 in
-                let new_st = Util.merge_left bindings st in
                 exe new_st body )
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
@@ -435,7 +437,7 @@ let rec exec
         | [] ->
             DIncomplete
         | (e, vars) :: _ ->
-            let newVars = DvalMap.of_alist_exn vars in
+            let newVars = DvalMap.from_list vars in
             let newSt = Util.merge_left newVars st in
             exe newSt e )
     | Filled (id, FieldAccess (e, field)) ->
@@ -506,9 +508,9 @@ and call_fn
   let args =
     fn.parameters
     |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
-    |> DvalMap.of_alist_exn
+    |> DvalMap.from_list_exn
   in
-  match find_derrorrail (DvalMap.data args) with
+  match find_derrorrail (DvalMap.values args) with
   | Some er ->
       er
   | None ->
@@ -549,7 +551,7 @@ and exec_fn
   let arglist =
     fn.parameters
     |> List.map ~f:(fun (p : param) -> p.name)
-    |> List.map ~f:(DvalMap.find_exn args)
+    |> List.filter_map ~f:(DvalMap.get args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
   if paramsIncomplete arglist
@@ -610,7 +612,7 @@ and exec_fn
                          Some (name, DDB name)
                      | Partial _ | Blank _ ->
                          None )
-              |> DvalMap.of_alist_exn
+              |> DvalMap.from_list
             in
             Util.merge_left db_dvals args
           in

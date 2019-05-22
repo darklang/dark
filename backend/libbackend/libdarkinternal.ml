@@ -331,10 +331,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                    ; "modifier"
                    ; "created_at"
                    ; "updated_at" ]
-              |> DvalMap.of_alist_exn
+              |> DvalMap.from_list
             in
-            let convert_to_date k obj =
-              DvalMap.change obj k ~f:(fun v ->
+            let convert_to_date key obj =
+              DvalMap.update obj ~key ~f:(fun v ->
                   match v with
                   | Some (DStr s) ->
                       s
@@ -382,7 +382,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                          ; ("traceid", DUuid traceid)
                          ; ("time", DDate time)
                          ; ("event", data) ]
-                         |> DvalMap.of_alist_exn
+                         |> DvalMap.from_list
                          |> fun o -> DObj o )
                   |> fun l -> DList l
                 in
@@ -446,7 +446,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   |> List.map ~f:(fun (k, v) ->
                          (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
                      )
-                  |> DvalMap.of_alist_exn
+                  |> DvalMap.from_list
                 in
                 DOption (OptJust (DObj dval_map)) )
         | args ->
@@ -487,19 +487,13 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             in
             let log =
               log
-              |> DvalMap.add
+              |> DvalMap.insert_no_override
                    ~key:"level"
-                   ~data:
+                   ~value:
                      (level |> Log.level_to_string |> Dval.dstr_of_string_exn)
-              |> function
-              | `Ok log ->
-                  log
-              | `Duplicate ->
-                  log
-                  |> DvalMap.add
-                       ~key:"name"
-                       ~data:(Dval.dstr_of_string_exn name)
-                  |> (function `Ok log -> log | `Duplicate -> log)
+              |> DvalMap.insert_no_override
+                   ~key:"name"
+                   ~value:(name |> Dval.dstr_of_string_exn)
             in
             Log.pP ~level name ~jsonparams ;
             DObj log
@@ -558,7 +552,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   |> List.map ~f:(fun (k, v) ->
                          (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
                      )
-                  |> DvalMap.of_alist_exn
+                  |> DvalMap.from_list
                 in
                 DOption (OptJust (DObj dval_map)) )
         | args ->
