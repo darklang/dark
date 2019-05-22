@@ -85,6 +85,14 @@ let () =
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
+  let letWithUsedBinding (bindingName : string) =
+    ELet
+      ( gid ()
+      , gid ()
+      , bindingName
+      , EInteger (gid (), 6)
+      , EVariable (gid (), bindingName) )
+  in
   let aVar = EVariable (gid (), "variable") in
   let aShortVar = EVariable (gid (), "v") in
   let emptyIf = EIf (gid (), newB (), newB (), newB ()) in
@@ -436,6 +444,19 @@ let () =
         emptyLet
         (press K.Equals 9)
         ("let *** = ___\n5", 10) ;
+      let var = "binding" in
+      let changedVar = String.dropRight ~count:1 var in
+      t
+        "backspace changes occurence of binding var"
+        (letWithUsedBinding var)
+        (backspace (4 + String.length var))
+        ("let " ^ changedVar ^ " = 6\n" ^ changedVar, 10) ;
+      let changedVar = var ^ "c" in
+      t
+        "insert changes occurence of binding var"
+        (letWithUsedBinding var)
+        (insert 'c' (4 + String.length var))
+        ("let " ^ changedVar ^ " = 6\n" ^ changedVar, 12) ;
       () ) ;
   describe "Ifs" (fun () ->
       t
