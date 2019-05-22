@@ -1334,6 +1334,10 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       else
         let value = try safe_int_of_string str with _ -> 0 in
         replacePattern mID id ~newPat:(FPInteger (mID, id, value)) ast
+  | TPatternNullToken (mID, id) ->
+      let str = f "null" in
+      let newExpr = FPPartial (mID, gid (), str) in
+      replacePattern mID id ~newPat:newExpr ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
   | TLetLHS (id, str) ->
@@ -1701,6 +1705,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFieldName _
   | TLetLHS _
   | TPatternInteger _
+  | TPatternNullToken _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
@@ -1716,7 +1721,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternConstructorName _
   | TPatternTrue _
   | TPatternFalse _
-  | TPatternNullToken _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
   | TPatternFloatFraction _ ->
@@ -1791,6 +1795,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFieldName _
   | TLetLHS _
   | TPatternInteger _
+  | TPatternNullToken _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatWhole (id, str) ->
@@ -1805,7 +1810,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternConstructorName _
   | TPatternTrue _
   | TPatternFalse _
-  | TPatternNullToken _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
   | TPatternFloatFraction _ ->
@@ -2006,6 +2010,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TTrue _
   | TFalse _
   | TNullToken _
+  | TPatternNullToken _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
   | TPatternInteger (_, _, i) | TInteger (_, i) ->
@@ -2024,7 +2029,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternPartial _
   | TPatternTrue _
   | TPatternFalse _
-  | TPatternNullToken _
   | TPatternConstructorName _
   | TPatternFloatPoint _
   | TPatternFloatWhole _

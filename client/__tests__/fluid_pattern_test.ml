@@ -32,7 +32,7 @@ let () =
   (* let aPartialFloat = FPFloat (gid (), "1", "") in *)
   (* let trueBool = FPBool (gid (), true) in *)
   (* let falseBool = EBool (gid (), false) in *)
-  (* let aNull = FPNull (gid ()) in *)
+  let aNull = FPNull (mID, gid ()) in
   (* let five = FPInteger (gid (), 5) in *)
   (* let fiftySix = FPInteger (gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
@@ -219,18 +219,18 @@ let () =
   (*     t "insert middle of bool" trueBool (insert '0' 2) ("tr0ue", 3) ; *)
   (*     t "delete middle of bool" trueBool (delete 2) ("tre", 2) ; *)
   (*     t "backspace middle of bool" trueBool (backspace 2) ("tue", 1) ; *)
-  (*     () ) ; *)
-  (* describe "Nulls" (fun () -> *)
-  (*     t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ; *)
-  (*     t "delete start of null" aNull (delete 0) ("ull", 0) ; *)
-  (*     t "backspace start of null" aNull (backspace 0) ("null", 0) ; *)
-  (*     t "insert end of null" aNull (insert '0' 4) ("null0", 5) ; *)
-  (*     t "delete end of null" aNull (delete 4) ("null", 4) ; *)
-  (*     t "backspace end of null" aNull (backspace 4) ("nul", 3) ; *)
-  (*     t "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ; *)
-  (*     t "delete middle of null" aNull (delete 2) ("nul", 2) ; *)
-  (*     t "backspace middle of null" aNull (backspace 2) ("nll", 1) ; *)
-  (*     () ) ; *)
+  (* () ) ; *)
+  describe "Nulls" (fun () ->
+      t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
+      t "delete start of null" aNull (delete 0) ("ull", 0) ;
+      t "backspace start of null" aNull (backspace 0) ("null", 0) ;
+      t "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
+      t "delete end of null" aNull (delete 4) ("null", 4) ;
+      t "backspace end of null" aNull (backspace 4) ("nul", 3) ;
+      t "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
+      t "delete middle of null" aNull (delete 2) ("nul", 2) ;
+      t "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
+      () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;
       t "delete middle of blank->blank" blank (delete 3) (b, 3) ;
@@ -246,8 +246,8 @@ let () =
       t "insert partial" blank (insert 't' 0) ("t", 1) ;
       () ) ;
   (* describe "Variables" (fun () -> *)
-  (*     (* dont do insert until we have autocomplete *) *)
-  (*     (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *) *)
+  (* dont do insert until we have autocomplete *)
+  (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
   (*     t "delete middle of variable" aVar (delete 5) ("variale", 5) ; *)
   (*     t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ; *)
   (*     t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ; *)
@@ -257,5 +257,5 @@ let () =
   (*     t "backspace variable" aShortVar (backspace 1) (b, 0) ; *)
   (*     t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ; *)
   (*     t "backspace mid variable" aVar (backspace 6) ("variale", 5) ; *)
-  (*     () ) ; *)
+  (* () ) ; *)
   ()
