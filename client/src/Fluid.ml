@@ -1328,6 +1328,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TPatternString (mID, id, str) ->
       replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
   | TPatternInteger (mID, id, str) ->
+      let str = f str in
       if str = ""
       then EBlank id
       else
@@ -1699,6 +1700,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TFieldName _
   | TLetLHS _
+  | TPatternInteger _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
@@ -1710,7 +1712,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction str id ast, left s)
   | TPatternBlank _
   | TPatternPartial _
-  | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
   | TPatternTrue _
@@ -1789,6 +1790,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TFieldName _
   | TLetLHS _
+  | TPatternInteger _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatWhole (id, str) ->
@@ -1799,7 +1801,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TPatternBlank _
   | TPatternPartial _
-  | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
   | TPatternTrue _
