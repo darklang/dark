@@ -26,7 +26,7 @@ let () =
   let oneCharStr = FPString (mID, gid (), "c") in
   let aShortInt = FPInteger (mID, gid (), 1) in
   let anInt = FPInteger (mID, gid (), 12345) in
-  (* let aHugeInt = FPInteger (gid (), 2000000000) in *)
+  let aHugeInt = FPInteger (mID, gid (), 2000000000) in
   (* let aFloat = FPFloat (gid (), "123", "456") in *)
   (* let aHugeFloat = FPFloat (gid (), "123456789", "123456789") in *)
   (* let aPartialFloat = FPFloat (gid (), "1", "") in *)
@@ -154,16 +154,16 @@ let () =
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
       t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
-      (* t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ; *)
-      (* t "insert start of number" anInt (insert '5' 0) ("512345", 1) ; *)
-      (*     t "delete start of number" anInt (delete 0) ("2345", 0) ; *)
-      (*     t "backspace start of number" anInt (backspace 0) ("12345", 0) ; *)
-      (*     t "insert end of number" anInt (insert '0' 5) ("123450", 6) ; *)
-      (*     t "delete end of number" anInt (delete 5) ("12345", 5) ; *)
-      (*     t "backspace end of number" anInt (backspace 5) ("1234", 4) ; *)
-      (*     t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ; *)
-      (*     t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ; *)
-      (*     t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ; *)
+      t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ;
+      t "insert start of number" anInt (insert '5' 0) ("512345", 1) ;
+      t "delete start of number" anInt (delete 0) ("2345", 0) ;
+      t "backspace start of number" anInt (backspace 0) ("12345", 0) ;
+      t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
+      t "delete end of number" anInt (delete 5) ("12345", 5) ;
+      t "backspace end of number" anInt (backspace 5) ("1234", 4) ;
+      t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ;
+      t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ;
+      t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ;
       () ) ;
   (* describe "Floats" (fun () -> *)
   (*     t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ; *)
