@@ -2189,7 +2189,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, moveOneRight pos s)
     (* Lambda-specific insertions *)
     (* String-specific insertions *)
-    | K.DoubleQuote, _, R (TString _, ti) when pos = ti.endPos - 1 ->
+    | K.DoubleQuote, _, R (TPatternString _, ti)
+    | K.DoubleQuote, _, R (TString _, ti)
+      when pos = ti.endPos - 1 ->
         (* Allow pressing quote to go over the last quote *)
         (ast, moveOneRight pos s)
     (* Field access *)

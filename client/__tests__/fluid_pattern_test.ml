@@ -23,7 +23,7 @@ let () =
   let mID = gid () in
   let aStr = FPString (mID, gid (), "some string") in
   let emptyStr = FPString (mID, gid (), "") in
-  (* let oneCharStr = FPString (gid (), "c") in *)
+  let oneCharStr = FPString (mID, gid (), "c") in
   (* let aShortInt = FPInteger (gid (), 1) in *)
   (* let anInt = FPInteger (gid (), 12345) in *)
   (* let aHugeInt = FPInteger (gid (), 2000000000) in *)
@@ -124,32 +124,32 @@ let () =
         emptyStr
         (backspace 2)
         ("\"\"", 1) ;
-      (* t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ; *)
-      (*     t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ; *)
-      (*     t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ; *)
-      (*     t "delete outside string" aStr (delete 0) ("\"some string\"", 0) ; *)
-      (*     t "backspace outside string" aStr (backspace 0) ("\"some string\"", 0) ; *)
-      (*     t "insert start of string" aStr (insert 'c' 1) ("\"csome string\"", 2) ; *)
-      (*     t "delete start of string" aStr (delete 1) ("\"ome string\"", 1) ; *)
-      (*     t "backspace start of string" aStr (backspace 1) ("\"some string\"", 0) ; *)
-      (*     t "insert end of string" aStr (insert 'c' 12) ("\"some stringc\"", 13) ; *)
-      (*     t "delete end of string" aStr (delete 12) ("\"some string\"", 12) ; *)
-      (*     t "backspace end of string" aStr (backspace 12) ("\"some strin\"", 11) ; *)
-      (*     t *)
-      (*       "insert after end of string" *)
-      (*       aStr *)
-      (*       (insert 'c' 13) *)
-      (*       ("\"some string\"", 13) ; *)
-      (*     t "delete after end of string" aStr (delete 13) ("\"some string\"", 13) ; *)
-      (*     t *)
-      (*       "backspace after end of string" *)
-      (*       aStr *)
-      (*       (backspace 13) *)
-      (*       ("\"some string\"", 12) ; *)
-      (*     t "insert space in string" aStr (insert ' ' 3) ("\"so me string\"", 4) ; *)
-      (*     t "delete space in string" aStr (delete 5) ("\"somestring\"", 5) ; *)
-      (*     t "backspace space in string" aStr (backspace 6) ("\"somestring\"", 5) ; *)
-      (*     t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ; *)
+      t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ;
+      t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ;
+      t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ;
+      t "delete outside string" aStr (delete 0) ("\"some string\"", 0) ;
+      t "backspace outside string" aStr (backspace 0) ("\"some string\"", 0) ;
+      t "insert start of string" aStr (insert 'c' 1) ("\"csome string\"", 2) ;
+      t "delete start of string" aStr (delete 1) ("\"ome string\"", 1) ;
+      t "backspace start of string" aStr (backspace 1) ("\"some string\"", 0) ;
+      t "insert end of string" aStr (insert 'c' 12) ("\"some stringc\"", 13) ;
+      t "delete end of string" aStr (delete 12) ("\"some string\"", 12) ;
+      t "backspace end of string" aStr (backspace 12) ("\"some strin\"", 11) ;
+      t
+        "insert after end of string"
+        aStr
+        (insert 'c' 13)
+        ("\"some string\"", 13) ;
+      t "delete after end of string" aStr (delete 13) ("\"some string\"", 13) ;
+      t
+        "backspace after end of string"
+        aStr
+        (backspace 13)
+        ("\"some string\"", 12) ;
+      t "insert space in string" aStr (insert ' ' 3) ("\"so me string\"", 4) ;
+      t "delete space in string" aStr (delete 5) ("\"somestring\"", 5) ;
+      t "backspace space in string" aStr (backspace 6) ("\"somestring\"", 5) ;
+      t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
       () ) ;
   (* describe "Integers" (fun () -> *)
   (*     t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ; *)
