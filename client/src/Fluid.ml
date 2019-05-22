@@ -1816,7 +1816,8 @@ let updateAutocomplete m tlid ast s : fluidState =
 
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
-  (* TODO: This shouldn't be necessary but the tests don't work without it *)
+  (* TODO: The state should be updated from the last request, and so this
+   * shouldn't be necessary, but the tests don't work without it *)
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
