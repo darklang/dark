@@ -33,7 +33,22 @@ end
 let appendDeploy
     (newDeploys : staticDeploy list) (oldDeploys : staticDeploy list) :
     staticDeploy list =
-  newDeploys @ oldDeploys
-  |> List.sortBy ~f:(fun d -> Js.Date.getTime d.lastUpdate)
-  |> List.reverse
-  |> List.uniqueBy ~f:(fun d -> d.deployHash)
+  let deploys =
+    newDeploys @ oldDeploys
+    (* sorts into reverse order *)
+    |> List.sortBy ~f:(fun d -> Js.Date.getTime d.lastUpdate)
+  in
+  (* We get two messages from the backend for the same hash: Deploying and
+   * Deployed. If we have both, we should only keep Deployed. This does that,
+   * though not perfectly. If there are two consecutive deploys with the same
+   * hash (eg a Deployed and a Deploying), we pick the deployed one. If there
+   * are multiple deploys at the same time, these might overlap. Also this
+   * reverses the list into the correct order. *)
+  List.foldl ~init:[] deploys ~f:(fun d accum ->
+      match accum with
+      | prev :: rest ->
+          if prev.deployHash = d.deployHash
+          then if prev.status = Deployed then prev :: rest else d :: rest
+          else d :: prev :: rest
+      | _ ->
+          d :: accum )
