@@ -1006,6 +1006,45 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           fail "not a record" )
 
 
+(* Slightly modified version of `AST.uses` (pre-fluid code) *)
+let rec getVariableOccurences (str : string) (expr : fluidExpr) :
+    fluidExpr list =
+  let u = getVariableOccurences str in
+  match expr with
+  | EBlank _
+  | EInteger _
+  | EBool _
+  | EString _
+  | EOldExpr _
+  | EFloat _
+  | ENull _ ->
+      []
+  | EPartial (_, potential) | EVariable (_, potential) ->
+      if potential = str then [expr] else []
+  | ELet (_, _, lhs, rhs, body) ->
+      if str = lhs then [] else List.concat [u rhs; u body]
+  | EIf (_, cond, ifbody, elsebody) ->
+      List.concat [u cond; u ifbody; u elsebody]
+  | EFnCall (_, _, exprs, _) ->
+      exprs |> List.map ~f:u |> List.concat
+  | EConstructor (_, _, _, exprs) ->
+      exprs |> List.map ~f:u |> List.concat
+  | ELambda (_, vars, lexpr) ->
+      if List.map ~f:Tuple2.second vars |> List.member ~value:str
+      then []
+      else u lexpr
+  | EThread (_, exprs) ->
+      exprs |> List.map ~f:u |> List.concat
+  | EFieldAccess (_, obj, _, _) ->
+      u obj
+  | EList (_, exprs) ->
+      exprs |> List.map ~f:u |> List.concat
+  | ERecord (_, triples) ->
+      triples |> List.map ~f:Tuple3.third |> List.map ~f:u |> List.concat
+  | EBinOp (_, _, lhs, rhs, _) ->
+      List.concat [u lhs; u rhs]
+
+
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -1018,8 +1057,6 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TInteger (id, str)
   | TVariable (id, str)
   | TPartial (id, str)
-  | TLetLHS (id, str)
-  | TLambdaVar (id, str)
   | TFieldName (id, str) ->
       replaceString (f str) id ast
   | TTrue id ->
@@ -1034,6 +1071,19 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "null" in
       let newExpr = EPartial (gid (), str) in
       replaceExpr id ~newExpr ast
+  | TLetLHS (id, str) | TLambdaVar (id, str) ->
+      let ast = replaceString (f str) id ast in
+      getVariableOccurences str ast
+      |> List.foldl ~init:ast ~f:(fun occExpr ast ->
+             match occExpr with
+             | EVariable (occId, str) | EPartial (occId, str) ->
+                 (* doInsert/doBackspace will convert EVariable to EPartial,
+                    * preserve the expression here instead *)
+                 replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast
+             | _ ->
+                 (* use regular replaceString on expression if not variable or partial *)
+                 let occId = eid occExpr in
+                 replaceString (f str) occId ast )
   | _ ->
       fail "not supported by replaceToken"
 
