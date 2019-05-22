@@ -1620,7 +1620,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
-    | TString _ ->
+    | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
     | _ ->
         pos - ti.startPos - 1
@@ -1634,6 +1634,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       if newAST = ast then (ast, s) else (newAST, moveToStart ti s)
   | TString (id, "") ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
+  | TPatternString (mID, id, "") ->
+      (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TRecordField (id, i, "") when pos = ti.startPos ->
@@ -1687,7 +1689,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
-  | TPatternString _
   | TPatternTrue _
   | TPatternFalse _
   | TPatternNullToken _
@@ -1744,6 +1745,17 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TPatternString (mID, id, str) ->
+      let target s =
+        (* if we're in front of the quotes vs within it *)
+        if offset == 0 then s else left s
+      in
+      if str = ""
+      then
+        (ast |> replacePattern mID id ~newPat:(FPBlank (mID, newID)), target s)
+      else
+        let str = removeCharAt str (offset - 1) in
+        (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
   | TRecordField _
   | TInteger _
   | TTrue _
