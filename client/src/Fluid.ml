@@ -2107,8 +2107,8 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
   List.map l ~f:(fun ti ->
-      let dropdown =
-        if s.cp.show
+      let dropdown () =
+        if s.cp.show && Some (Token.tid ti.token) = s.cp.cmdOnID
         then viewCommandPalette s.cp
         else if isAutocompleting ti s
         then viewAutocomplete s.ac
@@ -2134,8 +2134,7 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      element [dropdown; liveValue] @ [errorIndicator] )
-
+      element ([dropdown; liveValue] @ [errorIndicator] )
 
 let viewAST
     ~(tlid : tlid)
