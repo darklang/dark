@@ -35,6 +35,7 @@
     "build:fetcher": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/Fetcher.bs.js --standalone fetcher -o ../backend/static/fetcher.js",
     "build:analysiswrapper": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o ../backend/static/analysiswrapper.js",
     "build": "run-s build:bsb build:js build:appsupport build:fetcher build:analysiswrapper",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch"
   }
 }
