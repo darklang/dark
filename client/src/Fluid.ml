@@ -1338,6 +1338,10 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "null" in
       let newExpr = FPPartial (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
+  | TPatternTrue (mID, id) ->
+      let str = f "true" in
+      let newExpr = FPPartial (mID, gid (), str) in
+      replacePattern mID id ~newPat:newExpr ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
   | TLetLHS (id, str) ->
@@ -1706,6 +1710,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetLHS _
   | TPatternInteger _
   | TPatternNullToken _
+  | TPatternTrue _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
@@ -1719,7 +1724,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternPartial _
   | TPatternVariable _
   | TPatternConstructorName _
-  | TPatternTrue _
   | TPatternFalse _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
@@ -1796,6 +1800,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetLHS _
   | TPatternInteger _
   | TPatternNullToken _
+  | TPatternTrue _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatWhole (id, str) ->
@@ -1808,7 +1813,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternPartial _
   | TPatternVariable _
   | TPatternConstructorName _
-  | TPatternTrue _
   | TPatternFalse _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
@@ -2011,6 +2015,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFalse _
   | TNullToken _
   | TPatternNullToken _
+  | TPatternTrue _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
   | TPatternInteger (_, _, i) | TInteger (_, i) ->
@@ -2027,7 +2032,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (insertAtFrontOfFloatFraction letterStr id ast, right)
   | TPatternVariable _
   | TPatternPartial _
-  | TPatternTrue _
   | TPatternFalse _
   | TPatternConstructorName _
   | TPatternFloatPoint _
