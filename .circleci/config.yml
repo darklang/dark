@@ -375,6 +375,10 @@ jobs:
       - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers
       - auth-with-gcp
+        # etagsify-appsupport-links runs before push-assets-to-cdn, which means
+        # the appsupport.js file does not have a hash in its filename yet, but
+        # we know what the etags.json mapping is
+      - run: scripts/etagsify-appsupport-links.py
       - run: scripts/run-in-docker scripts/push-assets-to-cdn
       - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
