@@ -1685,6 +1685,7 @@ let doInsert
   | Some letter ->
       doInsert' ~pos letter ti ast s
 
+
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getCurrentToken tokens =
     let _, mCurrent, _ = getTokensAtPosition tokens ~pos:m.fluidState.newPos in
@@ -1929,10 +1930,14 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
           NoChange )
   | {key} when key = K.Up ->
       let cp = FluidCommands.moveUp s.cp in
-      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+      let cmd = Types.MakeCmd (FluidAutocomplete.focusItem cp.index) in
+      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
+      Types.Many [m; cmd]
   | {key} when key = K.Down ->
       let cp = FluidCommands.moveDown s.cp in
-      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+      let cmd = Types.MakeCmd (FluidAutocomplete.focusItem cp.index) in
+      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
+      Types.Many [m; cmd]
   | _ ->
       NoChange
 
@@ -2056,6 +2061,7 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
         ; Attrs.spellcheck false ]
         [Html.text liveValueString; viewCopyButton tlid liveValueString]
 
+
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   let viewCommands i item =
     let highlighted = cp.index = i in
@@ -2078,6 +2084,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
     [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
 
 
+<<<<<<< HEAD
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
   let sentToRail id =
     let dv =
@@ -2103,15 +2110,17 @@ let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
       Vdom.noNode
 
 
+=======
+>>>>>>> fixes from rebase
 let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
   List.map l ~f:(fun ti ->
       let dropdown () =
-        if s.cp.show && Some (Token.tid ti.token) = s.cp.cmdOnID
-        then viewCommandPalette s.cp
-        else if isAutocompleting ti s
-        then viewAutocomplete s.ac
+        if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
+        then viewCommandPalette state.cp
+        else if isAutocompleting ti state
+        then viewAutocomplete state.ac
         else Vdom.noNode
       in
       let liveValue () = viewLiveValue ~tlid ~currentResults ti in
@@ -2134,7 +2143,7 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      element ([dropdown; liveValue] @ [errorIndicator] )
+      element [dropdown; liveValue ; errorIndicator]
 
 let viewAST
     ~(tlid : tlid)
