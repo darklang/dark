@@ -24,8 +24,8 @@ let () =
   let aStr = FPString (mID, gid (), "some string") in
   let emptyStr = FPString (mID, gid (), "") in
   let oneCharStr = FPString (mID, gid (), "c") in
-  (* let aShortInt = FPInteger (gid (), 1) in *)
-  (* let anInt = FPInteger (gid (), 12345) in *)
+  let aShortInt = FPInteger (mID, gid (), 1) in
+  let anInt = FPInteger (mID, gid (), 12345) in
   (* let aHugeInt = FPInteger (gid (), 2000000000) in *)
   (* let aFloat = FPFloat (gid (), "123", "456") in *)
   (* let aHugeFloat = FPFloat (gid (), "123456789", "123456789") in *)
@@ -151,20 +151,20 @@ let () =
       t "backspace space in string" aStr (backspace 6) ("\"somestring\"", 5) ;
       t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
       () ) ;
-  (* describe "Integers" (fun () -> *)
-  (*     t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ; *)
-  (*     t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ; *)
-  (*     t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ; *)
-  (*     t "insert start of number" anInt (insert '5' 0) ("512345", 1) ; *)
-  (*     t "delete start of number" anInt (delete 0) ("2345", 0) ; *)
-  (*     t "backspace start of number" anInt (backspace 0) ("12345", 0) ; *)
-  (*     t "insert end of number" anInt (insert '0' 5) ("123450", 6) ; *)
-  (*     t "delete end of number" anInt (delete 5) ("12345", 5) ; *)
-  (*     t "backspace end of number" anInt (backspace 5) ("1234", 4) ; *)
-  (*     t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ; *)
-  (*     t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ; *)
-  (*     t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ; *)
-  (*     () ) ; *)
+  describe "Integers" (fun () ->
+      t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
+      t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
+      (* t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ; *)
+      (* t "insert start of number" anInt (insert '5' 0) ("512345", 1) ; *)
+      (*     t "delete start of number" anInt (delete 0) ("2345", 0) ; *)
+      (*     t "backspace start of number" anInt (backspace 0) ("12345", 0) ; *)
+      (*     t "insert end of number" anInt (insert '0' 5) ("123450", 6) ; *)
+      (*     t "delete end of number" anInt (delete 5) ("12345", 5) ; *)
+      (*     t "backspace end of number" anInt (backspace 5) ("1234", 4) ; *)
+      (*     t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ; *)
+      (*     t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ; *)
+      (*     t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ; *)
+      () ) ;
   (* describe "Floats" (fun () -> *)
   (*     t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ; *)
   (*     t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ; *)
@@ -208,7 +208,7 @@ let () =
   (*       (backspace 2) *)
   (*       ("1", 1) ; *)
   (*     t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ; *)
-  (*     () ) ; *)
+  (* () ) ; *)
   (* describe "Bools" (fun () -> *)
   (*     t "insert start of bool" trueBool (insert 'c' 0) ("ctrue", 1) ; *)
   (*     t "delete start of bool" trueBool (delete 0) ("rue", 0) ; *)
