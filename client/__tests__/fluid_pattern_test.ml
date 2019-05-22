@@ -113,18 +113,18 @@ let () =
   in
   describe "Strings" (fun () ->
       t "insert mid string" aStr (insert 'c' 3) ("\"socme string\"", 4) ;
-      (*     t "delete mid string" aStr (delete 3) ("\"soe string\"", 3) ; *)
-      (*     t "backspace mid string" aStr (backspace 4) ("\"soe string\"", 3) ; *)
-      (*     t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ; *)
-      (*     t "delete empty string" emptyStr (delete 1) (b, 0) ; *)
-      (*     t "delete empty string from outside" emptyStr (delete 0) (b, 0) ; *)
-      (*     t "backspace empty string" emptyStr (backspace 1) (b, 0) ; *)
-      (*     t *)
-      (*       "backspace empty string from outside goes in" *)
-      (*       emptyStr *)
-      (*       (backspace 2) *)
-      (*       ("\"\"", 1) ; *)
-      (*     t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ; *)
+      t "delete mid string" aStr (delete 3) ("\"soe string\"", 3) ;
+      t "backspace mid string" aStr (backspace 4) ("\"soe string\"", 3) ;
+      t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ;
+      t "delete empty string" emptyStr (delete 1) (b, 0) ;
+      t "delete empty string from outside" emptyStr (delete 0) (b, 0) ;
+      t "backspace empty string" emptyStr (backspace 1) (b, 0) ;
+      t
+        "backspace empty string from outside goes in"
+        emptyStr
+        (backspace 2)
+        ("\"\"", 1) ;
+      (* t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ; *)
       (*     t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ; *)
       (*     t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ; *)
       (*     t "delete outside string" aStr (delete 0) ("\"some string\"", 0) ; *)
