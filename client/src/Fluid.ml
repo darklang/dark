@@ -1916,8 +1916,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
 
 let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
   let s = m.fluidState in
-  match keyEvt with
-  | {key} when key = K.Enter ->
+  let key = keyEvt.key in
+  match key with
+  | K.Enter ->
       let cp = s.cp in
       ( match (cp.cmdOnTL, cp.cmdOnID) with
       | Some tl, Some id ->
@@ -1928,16 +1929,27 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
             NoChange )
       | _ ->
           NoChange )
-  | {key} when key = K.Up ->
+  | K.Up ->
       let cp = FluidCommands.moveUp s.cp in
-      let cmd = Types.MakeCmd (FluidAutocomplete.focusItem cp.index) in
+      let cmd = Types.MakeCmd (FluidCommands.focusItem cp.index) in
       let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
       Types.Many [m; cmd]
-  | {key} when key = K.Down ->
+  | K.Down ->
       let cp = FluidCommands.moveDown s.cp in
-      let cmd = Types.MakeCmd (FluidAutocomplete.focusItem cp.index) in
+      let cmd = Types.MakeCmd (FluidCommands.focusItem cp.index) in
       let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
       Types.Many [m; cmd]
+  | K.Letter c ->
+      let cp = FluidCommands.addFilterChar s.cp c in
+      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+  | K.Minus ->
+      let cp = FluidCommands.addFilterChar s.cp '-' in
+      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+  | K.Backspace ->
+      let cp = FluidCommands.removeFilterChar s.cp in
+      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
+  | K.Escape ->
+      FluidCommandsClose
   | _ ->
       NoChange
 
@@ -2079,9 +2091,19 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
        ]
       [Html.text name]
   in
-  Html.div
-    [Attrs.id "fluid-dropdown"]
-    [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
+  let filterInput =
+    Html.input'
+      [ Attrs.id "cmd-filter"
+      ; Attrs.autofocus true
+      ; Attrs.value (Option.withDefault ~default:"" cp.filter) ]
+      []
+  in
+  let cmdsView =
+    Html.div
+      [Attrs.id "fluid-dropdown"]
+      [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
+  in
+  Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
 
 
 <<<<<<< HEAD

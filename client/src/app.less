@@ -1227,6 +1227,36 @@ body #app * {
     position: relative;
     // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
   }
+
+  /* Will style more later. Cmd palette should look like a smaller version of omnibox
+  since they are essentially both commands just acting upon different things. */
+  .command-palette {
+    background-color: @dropdown-background;
+    border-radius: 2px;
+    position: absolute;
+    left: 0;
+    width: max-content;
+    box-shadow: 1px 1px 1px black;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+
+    #cmd-filter {
+      background: transparent;
+      color: @dropdown-foreground;
+      margin-top: 2px;
+      margin-left: 1ch;
+    }
+
+    #fluid-dropdown {
+      position: relative;
+      left: 0;
+      background-color: transparent;
+      box-shadow: 0 0 0 transparent;
+    }
+  }
+  
   #fluid-dropdown {
     background-color: @dropdown-background;
     color: @dropdown-foreground;
@@ -1238,6 +1268,7 @@ body #app * {
     max-height: 100px;
     overflow-y: scroll;
     padding: 0;
+
 
     ul {
       margin: 0;

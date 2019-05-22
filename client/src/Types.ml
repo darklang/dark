@@ -1054,7 +1054,8 @@ and fluidCommandState =
   ; show : bool
   ; commands : command list
   ; cmdOnTL : toplevel option
-  ; cmdOnID : id option }
+  ; cmdOnID : id option
+  ; filter : string option }
 
 and fluidState =
   { error : string option
