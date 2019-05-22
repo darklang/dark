@@ -2477,6 +2477,24 @@ let t_load_for_context_only_loads_relevant_data () =
   check_oplist "only loads relevant data from same canvas" shared_oplist ops
 
 
+let t_query_params_with_duplicate_keys () =
+  let parsed =
+    Parsed_request.parsed_query_string [("a", ["b"]); ("a", ["c"])]
+  in
+  check_dval
+    "parsed_query_string"
+    (DObj
+       (DvalMap.singleton
+          "queryParams"
+          (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c")))))
+    parsed ;
+  check_dval
+    "query_to_dval"
+    (Dval.query_to_dval [("a", ["b"]); ("a", ["c"])])
+    (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c"))) ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2701,7 +2719,10 @@ let suite =
     , t_load_for_context_only_loads_relevant_data )
   ; ( "Error rail is propagated by functions"
     , `Quick
-    , t_error_rail_is_propagated_by_functions ) ]
+    , t_error_rail_is_propagated_by_functions )
+  ; ( "Query strings behave properly given multiple duplicate keys"
+    , `Quick
+    , t_query_params_with_duplicate_keys ) ]
 
 
 let () =
