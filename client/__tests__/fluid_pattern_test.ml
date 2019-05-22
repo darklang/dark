@@ -20,8 +20,9 @@ let tl ast =
 
 
 let () =
-  (* let aStr = FPString (gid (), "some string") in *)
-  (* let emptyStr = FPString (gid (), "") in *)
+  let mID = gid () in
+  (* let aStr = FPString (mID, gid (), "some string") in *)
+  let emptyStr = FPString (mID, gid (), "") in
   (* let oneCharStr = FPString (gid (), "c") in *)
   (* let aShortInt = FPInteger (gid (), 1) in *)
   (* let anInt = FPInteger (gid (), 12345) in *)
@@ -35,7 +36,6 @@ let () =
   (* let five = FPInteger (gid (), 5) in *)
   (* let fiftySix = FPInteger (gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
-  let mID = gid () in
   let blank = FPBlank (mID, gid ()) in
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   (* let aVar = FPVariable (gid (), "variable") in *)
@@ -75,12 +75,12 @@ let () =
     in
     (pToString result, max 0 (newState.newPos - extra))
   in
-  (* let delete (pos : int) (pat : fluidPattern) : string * int = *)
-  (*   process [K.Delete] pos pat *)
-  (* in *)
-  (* let backspace (pos : int) (pat : fluidPattern) : string * int = *)
-  (*   process [K.Backspace] pos pat *)
-  (* in *)
+  let delete (pos : int) (pat : fluidPattern) : string * int =
+    process [K.Delete] pos pat
+  in
+  let backspace (pos : int) (pat : fluidPattern) : string * int =
+    process [K.Backspace] pos pat
+  in
   (* let tab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.Tab] pos pat *)
   (* in *)
@@ -98,7 +98,7 @@ let () =
     let key = K.fromChar char in
     process [key] pos pat
   in
-  (* let b = "___" in *)
+  let b = "___" in
   let t
       (name : string)
       (initial : fluidPattern)
@@ -232,18 +232,18 @@ let () =
   (*     t "backspace middle of null" aNull (backspace 2) ("nll", 1) ; *)
   (*     () ) ; *)
   describe "Blanks" (fun () ->
-      (* t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ; *)
-      (* t "delete middle of blank->blank" blank (delete 3) (b, 3) ; *)
-      (* t "backspace middle of blank->blank" blank (backspace 3) (b, 2) ; *)
-      (* t "insert blank->string" blank (insert '"' 0) ("\"\"", 1) ; *)
-      (* t "delete blank->string" emptyStr (delete 0) (b, 0) ; *)
+      t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;
+      t "delete middle of blank->blank" blank (delete 3) (b, 3) ;
+      t "backspace middle of blank->blank" blank (backspace 3) (b, 2) ;
+      t "insert blank->string" blank (insert '"' 0) ("\"\"", 1) ;
+      t "delete blank->string" emptyStr (delete 0) (b, 0) ;
       (* t "backspace blank->string" emptyStr (backspace 1) (b, 0) ; *)
       t "insert blank->int" blank (insert '5' 0) ("5", 1) ;
-      (* t "insert blank->int" blank (insert '0' 0) ("0", 1) ; *)
+      t "insert blank->int" blank (insert '0' 0) ("0", 1) ;
       (* t "delete int->blank " five (delete 0) (b, 0) ; *)
       (* t "backspace int->blank " five (backspace 1) (b, 0) ; *)
-      (* t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ; *)
-      (* t "insert partial" blank (insert 't' 0) ("t", 1) ; *)
+      t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
+      t "insert partial" blank (insert 't' 0) ("t", 1) ;
       () ) ;
   (* describe "Variables" (fun () -> *)
   (*     (* dont do insert until we have autocomplete *) *)
