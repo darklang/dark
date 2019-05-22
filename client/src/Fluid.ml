@@ -1076,7 +1076,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       getVariableOccurences str ast
       |> List.foldl ~init:ast ~f:(fun occExpr ast ->
              match occExpr with
-             | EVariable (occId, str) | EPartial (occId, str) ->
+             | EVariable (occId, str) ->
                  (* doInsert/doBackspace will convert EVariable to EPartial,
                     * preserve the expression here instead *)
                  replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast
