@@ -1321,7 +1321,9 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
     fluidExpr =
   match token with
   | TString (id, str) ->
-      replaceExpr id ~newExpr:(EString (gid (), f str)) ast
+      replaceExpr id ~newExpr:(EString (id, f str)) ast
+  | TPatternString (mID, id, str) ->
+      replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
   | TInteger (id, str)
@@ -1935,6 +1937,8 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   (* Ignore invalid situations *)
   | TString _ when offset < 0 ->
       (ast, s)
+  | TPatternString _ when offset < 0 ->
+      (ast, s)
   | TInteger _ when not (isNumber letterStr) ->
       (ast, s)
   | TInteger _ when '0' = letter && offset = 0 ->
@@ -1975,6 +1979,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TVariable _
   | TPartial _
   | TString _
+  | TPatternString _
   | TLetLHS _
   | TTrue _
   | TFalse _
@@ -1995,7 +2000,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (insertAtFrontOfFloatFraction letterStr id ast, right)
   | TPatternVariable _
   | TPatternPartial _
-  | TPatternString _
   | TPatternInteger _
   | TPatternTrue _
   | TPatternFalse _
