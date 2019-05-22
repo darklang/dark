@@ -1866,9 +1866,20 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           let ast = ast |> fromExpr s in
           let newAST, newState = updateMsg m tl.id ast msg s in
           let cmd =
-            if newAST <> ast || newState.oldPos <> newState.newPos
-            then setBrowserPos newState.newPos
-            else Cmd.none
+            let astCmd =
+              if newAST <> ast || newState.oldPos <> newState.newPos
+              then [setBrowserPos newState.newPos]
+              else []
+            in
+            let acCmd =
+              match newState.ac.index with
+              | Some index ->
+                  [FluidAutocomplete.focusItem index]
+              | None ->
+                  []
+            in
+            let commands = acCmd @ astCmd in
+            if List.isEmpty commands then Cmd.none else Cmd.batch commands
           in
           let astMod =
             if ast <> newAST

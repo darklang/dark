@@ -74,6 +74,17 @@ module Ext = struct
 
   external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
 
+  external getBoundingClientRect :
+    Dom.element -> Dom.domRect
+    = "getBoundingClientRect"
+    [@@bs.send]
+
+  external rectTop : Dom.domRect -> float = "top" [@@bs.get]
+
+  external rectBottom : Dom.domRect -> float = "bottom" [@@bs.get]
+
+  external rectHeight : Dom.domRect -> float = "height" [@@bs.get]
+
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
 

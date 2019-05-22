@@ -14,22 +14,37 @@ type autocompleteItem = fluidAutocompleteItem [@@deriving show]
 
 type tokenInfo = fluidTokenInfo [@@deriving show]
 
-(* ---------------------------- *)
-(* Focus *)
-(* ---------------------------- *)
-(* show the prev 5 *)
-(* obvi this should use getClientBoundingBox, but that's tough in Elm *)
-let height (i : int) : int = if i < 4 then 0 else 14 * (i - 4)
-
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
     (fun _ -> IgnoreMsg)
     (Tea_task.nativeBinding (fun _ ->
          let open Webapi.Dom in
-         match Document.getElementById "autocomplete-holder" document with
-         | Some el ->
-             Element.setScrollTop el (i |> height |> float_of_int)
-         | None ->
+         let open Native.Ext in
+         let container = Document.getElementById "fluid-dropdown" document in
+         let nthChild =
+           querySelector
+             ("#fluid-dropdown ul li:nth-child(" ^ string_of_int (i + 1) ^ ")")
+         in
+         match (container, nthChild) with
+         | Some el, Some li ->
+             let cRect = getBoundingClientRect el in
+             let cBottom = rectBottom cRect in
+             let cTop = rectTop cRect in
+             let liRect = getBoundingClientRect li in
+             let liBottom = rectBottom liRect in
+             let liTop = rectTop liRect in
+             let liHeight = rectHeight liRect in
+             if liBottom +. liHeight > cBottom
+             then
+               let offset = float_of_int (offsetTop li) in
+               let padding = rectHeight cRect -. (liHeight *. 2.0) in
+               Element.setScrollTop el (offset -. padding)
+             else if liTop -. liHeight < cTop
+             then
+               let offset = float_of_int (offsetTop li) in
+               Element.setScrollTop el (offset -. liHeight)
+             else ()
+         | _, _ ->
              () ))
 
 
