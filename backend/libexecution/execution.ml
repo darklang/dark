@@ -13,7 +13,7 @@ let input_vars_for_user_fn (ufn : user_fn) : dval_map =
   ufn.metadata.parameters
   |> List.filter_map ~f:ufn_param_to_param
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
-  |> Analysis_types.Symtable.of_alist_exn
+  |> Analysis_types.Symtable.from_list_exn
 
 
 let dbs_as_input_vars (dbs : DbT.db list) : (string * dval) list =
@@ -69,7 +69,7 @@ let sample_input_vars h =
 
 
 let sample_function_input_vars f =
-  f |> input_vars_for_user_fn |> DvalMap.to_alist
+  f |> input_vars_for_user_fn |> DvalMap.to_list
 
 
 (* -------------------- *)

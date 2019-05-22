@@ -71,7 +71,7 @@ let oauth_params (secret : Secret.twitter_secret) url verb (args : dval_map) :
     args
     |> DvalMap.filter ~f:(( <> ) Types.RuntimeT.DNull)
     |> DvalMap.map ~f:(fun v -> Dval.to_url_string_exn v)
-    |> DvalMap.to_alist
+    |> DvalMap.to_list
   in
   let signature =
     sign

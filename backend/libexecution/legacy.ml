@@ -28,7 +28,7 @@ module PrettyResponseJsonV0 = struct
         `List (List.map l (unsafe_dval_to_yojson ~redact))
     | DObj o ->
         o
-        |> DvalMap.to_alist
+        |> DvalMap.to_list
         |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete ->
@@ -196,8 +196,8 @@ module PrettyRequestJsonV0 = struct
           then "{}"
           else
             let strs =
-              DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                  (key ^ ": " ^ to_repr_ indent pp data) :: l )
+              DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
+                  (key ^ ": " ^ to_repr_ indent pp value) :: l )
             in
             "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
       | DOption OptNothing ->

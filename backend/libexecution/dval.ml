@@ -389,7 +389,8 @@ and unsafe_dvalmap_of_yojson (json : Yojson.Safe.json) : dval_map =
   | `Assoc alist ->
       List.fold_left
         alist
-        ~f:(fun m (k, v) -> DvalMap.set m k (unsafe_dval_of_yojson v))
+        ~f:(fun m (k, v) ->
+          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson v) )
         ~init:DvalMap.empty
   | _ ->
       Exception.internal "Not a json object"
@@ -418,7 +419,7 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
       `List (List.map l (unsafe_dval_to_yojson ~redact))
   | DObj o ->
       o
-      |> DvalMap.to_alist
+      |> DvalMap.to_list
       |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
       |> fun x -> `Assoc x
   | DBlock _ | DIncomplete ->
@@ -502,8 +503,8 @@ let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
         then "{}"
         else
           let strs =
-            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                (key ^ ": " ^ recurse data) :: l )
+            DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
+                (key ^ ": " ^ recurse value) :: l )
           in
           "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
     | _ ->
@@ -650,8 +651,8 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         then "{}"
         else
           let strs =
-            DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-                (key ^ ": " ^ to_repr_ indent data) :: l )
+            DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
+                (key ^ ": " ^ to_repr_ indent value) :: l )
           in
           "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
     | DOption OptNothing ->
@@ -688,7 +689,7 @@ let to_pretty_machine_json_v1 dval =
         `List (List.map l recurse)
     | DObj o ->
         o
-        |> DvalMap.to_alist
+        |> DvalMap.to_list
         |> List.map ~f:(fun (k, v) -> (k, recurse v))
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete ->
@@ -832,8 +833,11 @@ let to_char dv : string option =
 let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
-  try DObj (DvalMap.of_alist_exn pairs) with e ->
-    DError "The same key occurs multiple times"
+  match DvalMap.from_list_unique pairs with
+  | Ok ok ->
+      DObj ok
+  | Error err ->
+      DError err
 
 
 let to_string_exn dv : string =
@@ -847,7 +851,7 @@ let to_string_exn dv : string =
 let to_dval_pairs_exn dv : (string * dval) list =
   match dv with
   | DObj obj ->
-      obj |> DvalMap.to_alist
+      DvalMap.to_list obj
   | _ ->
       Exception.user "expecting str" ~actual:(to_developer_repr_v0 dv)
 
@@ -891,8 +895,8 @@ let rec to_url_string_exn (dv : dval) : string =
       "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
   | DObj o ->
       let strs =
-        DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-            (key ^ ": " ^ to_url_string_exn data) :: l )
+        DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
+            (key ^ ": " ^ to_url_string_exn value) :: l )
       in
       "{ " ^ String.concat ~sep:", " strs ^ " }"
   | DOption OptNothing ->
@@ -924,15 +928,15 @@ let query_to_dval (query : (string * string list) list) : dval =
                DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
          in
          (key, dval) )
-  |> DvalMap.of_alist_exn
-  |> fun x -> DObj x
+  |> DvalMap.from_list
+  |> DObj
 
 
 let dval_to_query (dv : dval) : (string * string list) list =
   match dv with
   | DObj kvs ->
       kvs
-      |> DvalMap.to_alist
+      |> DvalMap.to_list
       |> List.map ~f:(fun (k, value) ->
              match value with
              | DNull ->
@@ -1024,8 +1028,8 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
       then "{}"
       else
         let strs =
-          DvalMap.fold o ~init:[] ~f:(fun ~key ~data l ->
-              (key ^ ": " ^ to_hashable_repr ~indent data) :: l )
+          DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
+              (key ^ ": " ^ to_hashable_repr ~indent value) :: l )
         in
         "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
   | DOption OptNothing ->

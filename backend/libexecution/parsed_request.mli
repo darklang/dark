@@ -11,3 +11,7 @@ val from_request : header list -> query_val list -> string -> t
 val to_dval : t -> Types.RuntimeT.dval
 
 val sample_request : t
+
+(* For testing *)
+
+val parsed_query_string : (string * string list) list -> Types.RuntimeT.dval
