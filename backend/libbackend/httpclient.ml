@@ -99,6 +99,7 @@ let http_call_with_code
     |> Uri.with_uri ~query:(Some query_params)
     |> Uri.to_string
   in
+  (* let headers = List.cons ("Accept-Encoding", "gzip") headers in *)
   let headers = headers |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v) in
   let errorbuf = ref "" in
   let responsebuf = Buffer.create 16384 in
@@ -141,14 +142,14 @@ let http_call_with_code
       C.set_followlocation c true ;
       C.set_failonerror c false ;
       C.set_writefunction c responsefn ;
+      (* Make sure that requested content isn't being expanded *)
+      C.set_encoding c C.CURL_ENCODING_NONE ;
       C.set_httpheader c headers ;
       C.set_headerfunction c headerfn ;
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
       (* Seems like redirects can be used to get around the above list... *)
       C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
-      (* Make sure that requested content isn't being expanded *)
-      C.set_encoding c C.CURL_ENCODING_NONE ;
       (* If we have the tunnel options, proxy Curl through it with socks ... *)
       Option.value_map
         ~default:()
@@ -187,6 +188,7 @@ let http_call_with_code
        * straightforward in theory but likely not practice.
        * Alternatively, we could clear the headers ref when we receive a
        * new `ok` header. *)
+      result_headers := List.cons ("Content-Encoding", "gzip") !result_headers ;
       let responsebody =
         if charset !result_headers = `Latin1
         then recode_latin1 (Buffer.contents responsebuf)
@@ -204,6 +206,7 @@ let http_call_with_code
       in
       Exception.user ~info ("Bad HTTP request: " ^ Curl.strerror curl_code)
   in
+  Log.infO "GZIP BODY" ~params:[("body", body)] ;
   (body, code, !result_headers, error)
 
 

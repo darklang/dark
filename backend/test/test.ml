@@ -15,6 +15,7 @@ module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
+module TC = Tablecloth
 
 (* ------------------- *)
 (* Misc fns *)
@@ -445,18 +446,6 @@ let t_stdlib_works () =
     "getAt2"
     (exec_ast "(List::getAt (1 2 3 4) 4)")
     (DOption OptNothing) ;
-  ()
-
-
-let t_multiple_copies_of_same_name () =
-  check_dval
-    "object field names"
-    (exec_ast "(obj (col1 1) (col1 2))")
-    (DError "The same key occurs multiple times") ;
-  let ops =
-    [Op.CreateDB (dbid, pos, "TestDB"); Op.CreateDB (dbid, pos, "TestDB")]
-  in
-  check_exception (fun _ -> exec_handler ~ops "_") "db names" ;
   ()
 
 
@@ -1046,6 +1035,36 @@ let t_curl_file_urls () =
     | _ ->
         None )
 
+
+let t_http_call_doesnt_unzip () =
+  let url = "https://httpbin.org/gzip" in
+  (* let file = File.readfile ~root:Testdata "sample_image_bytes.png" in
+  let body = file |> Ezgzip.compress in *)
+  let respbody, _, respheaders, _ =
+    Httpclient.http_call_with_code
+      url
+      []
+      Httpclient.GET
+      [("Accept", "application/json")]
+      ""
+  in
+  let headers = Cohttp.Header.of_list respheaders in
+  let contentlength =
+    Cohttp.Header.get headers "Content-Length"
+    |> function Some x -> x |> TC.String.trim | _ -> "0"
+  in
+  AT.check
+    AT.string
+    ("body has same length, resp: \n" ^ respbody)
+    contentlength
+    (respbody |> String.length |> string_of_int)
+
+
+(*AT.check
+    AT.int
+    ("body has same length, resp: \n" ^ respbody ^ "\n encoding: " ^ encoding)
+    (body |> String.length)
+    (respbody |> String.length)*)
 
 let t_authenticate_user () =
   AT.check
@@ -1943,6 +1962,18 @@ let t_unicode_string_regex_replace_works_with_emojis () =
     (Unicode_string.regexp_replace ~pattern ~replacement s1)
 
 
+let t_multiple_copies_of_same_name () =
+  check_dval
+    "object field names"
+    (exec_ast "(obj (col1 1) (col1 2))")
+    (DError "The same key occurs multiple times") ;
+  let ops =
+    [Op.CreateDB (dbid, pos, "TestDB"); Op.CreateDB (dbid, pos, "TestDB")]
+  in
+  check_exception (fun _ -> exec_handler ~ops "_") "db names" ;
+  ()
+
+
 let t_result_to_response_works () =
   let req =
     Req.make
@@ -2494,6 +2525,9 @@ let suite =
   ; ( "Account.authenticate_user works when it should"
     , `Quick
     , t_authenticate_user )
+  ; ( "Httpclient.http_call_with_code doesn't unzip body"
+    , `Quick
+    , t_http_call_doesnt_unzip )
   ; ("UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip)
   ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
   ; ("Webserver.should_use_https works", `Quick, t_should_use_https)

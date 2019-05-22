@@ -2,5 +2,5 @@
   (name test)
   (flags (-warn-error +A))
   (preprocess (pps lwt.ppx))
-  (libraries libbackend libcommon alcotest junit junit_alcotest)
+  (libraries libbackend libcommon alcotest junit junit_alcotest tablecloth-native)
 )

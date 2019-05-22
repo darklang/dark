@@ -62,7 +62,7 @@ DARK_CONFIG_PUSHER_CLUSTER=us2
 DARK_CONFIG_BROWSER_RELOAD_ENABLED=y
 DARK_CONFIG_HASH_STATIC_FILENAMES=n
 DARK_GCLOUD_APPLICATION_CREDENTIALS=balmy-ground-195100-d9b0f3de3013.json
-DARK_STATIC_ASSETS_BUCKET=dark-static-assets-dev
+DARK_STATIC_ASSETS_BUCKET=dark-static-assets
 
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
