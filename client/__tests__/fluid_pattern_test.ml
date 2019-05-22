@@ -46,14 +46,25 @@ let () =
     let ast = EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
     let extra = 12 in
     let pos = pos + extra in
-    let s = {Defaults.defaultFluidState with oldPos = pos; newPos = pos} in
-    (* TODO: This is the wrong token to focus on. We may want to use the edge
-     * to decide. *)
-    let ti, _, _ = Fluid.getTokensAtPosition ~pos (toTokens s ast) in
-    let ac = s.ac |> AC.setTargetTL m (Some (tl ast)) |> AC.setTargetTI m ti in
-    let s = {s with ac} in
+    let s =
+      { Defaults.defaultFluidState with
+        ac = AC.reset m; oldPos = pos; newPos = pos }
+    in
     let newAST, newState =
-      List.foldl keys ~init:(ast, s) ~f:(fun k (ast, s) -> updateKey m k ast s)
+      let tl = tl ast in
+      let m = {m with toplevels = [tl]} in
+      List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
+          updateMsg
+            m
+            tl.id
+            ast
+            (FluidKeyPress
+               { key
+               ; shiftKey = false
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false })
+            s )
     in
     let result =
       match newAST with
