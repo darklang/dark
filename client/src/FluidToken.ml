@@ -71,7 +71,7 @@ let isBlank t =
   | TLetLHS (_, "")
   | TLambdaVar (_, "")
   | TPartial (_, "")
-  | TPatternPartial (_, "")
+  | TPatternPartial (_, _, "")
   | TPatternBlank _ ->
       true
   | _ ->
