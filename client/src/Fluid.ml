@@ -1939,15 +1939,6 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
       let cmd = Types.MakeCmd (FluidCommands.focusItem cp.index) in
       let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
       Types.Many [m; cmd]
-  | K.Letter c ->
-      let cp = FluidCommands.addFilterChar s.cp c in
-      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
-  | K.Minus ->
-      let cp = FluidCommands.addFilterChar s.cp '-' in
-      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
-  | K.Backspace ->
-      let cp = FluidCommands.removeFilterChar s.cp in
-      Types.TweakModel (fun m -> {m with fluidState = {s with cp}})
   | K.Escape ->
       FluidCommandsClose
   | _ ->
@@ -2085,17 +2076,15 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
           ; ("valid", true) ]
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewEntry.defaultPasteHandler
-      ; ViewUtils.nothingMouseEvent "mousedown"
-      (* ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                AutocompleteClick name ) *)
-       ]
+      ; ViewUtils.nothingMouseEvent "mousedown" ]
       [Html.text name]
   in
   let filterInput =
     Html.input'
-      [ Attrs.id "cmd-filter"
-      ; Attrs.autofocus true
-      ; Attrs.value (Option.withDefault ~default:"" cp.filter) ]
+      [ Attrs.id FluidCommands.filterInputID
+      ; Attrs.spellcheck false
+      ; Attrs.autocomplete false
+      ; Events.onInput (fun query -> FluidCommandsFilter query) ]
       []
   in
   let cmdsView =
@@ -2172,6 +2161,7 @@ let viewAST
     ~(currentResults : analysisResults)
     ~(state : state)
     (ast : ast) : Types.msg Html.html =
+  let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
       let open Tea.Json.Decoder in
@@ -2180,15 +2170,16 @@ let viewAST
     Html.onWithOptions
       ~key
       event
-      {stopPropagation = false; preventDefault = true}
+      {stopPropagation = false; preventDefault = not cmdOpen}
       decodeNothing
   in
+  let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   Html.div
     [ Attrs.id editorID
     ; Vdom.prop "contentEditable" "true"
     ; Attrs.autofocus true
     ; Attrs.spellcheck false
-    ; event ~key:"keydown" "keydown"
+    ; event ~key:eventKey "keydown"
     (* ; event ~key:"keyup" "keyup" *)
      ]
     (ast |> toTokens state |> toHtml ~tlid ~currentResults ~state)

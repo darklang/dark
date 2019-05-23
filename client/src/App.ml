@@ -850,7 +850,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Cmd.none )
     | FluidCommandsFor (tlid, id) ->
         let cp = FluidCommands.commandsFor (TL.getTL m tlid) id in
-        ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
+        ( {m with fluidState = {m.fluidState with cp}}
+        , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
@@ -1500,6 +1501,11 @@ let update_ (msg : msg) (m : model) : modification =
       Fluid.update m msg
   | FluidMouseClick ->
       impossible "Can never happen"
+  | FluidCommandsFilter query ->
+      TweakModel
+        (fun m ->
+          let cp = FluidCommands.filter query m.fluidState.cp in
+          {m with fluidState = {m.fluidState with cp}} )
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =

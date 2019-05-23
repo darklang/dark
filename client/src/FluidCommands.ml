@@ -1,6 +1,8 @@
 open Tc
 open Types
 
+let filterInputID : string = "cmd-filter"
+
 let reset : fluidCommandState =
   { index = 0
   ; show = false
@@ -76,29 +78,18 @@ let focusItem (i : int) : msg Tea.Cmd.t =
              () ))
 
 
-let filterCommands (query : string option) : command list =
-  match query with
-  | Some v ->
-      let isSubstring c = String.contains ~substring:v c.commandName in
-      List.filter ~f:isSubstring Commands.commands
-  | None ->
-      Commands.commands
-
-
-let addFilterChar (s : fluidCommandState) (c : char) : fluidCommandState =
-  let v = Option.withDefault ~default:"" s.filter ^ String.fromChar c in
-  let filter = Some v in
-  let commands = filterCommands filter in
-  {s with filter; commands; index = 0}
-
-
-let removeFilterChar (s : fluidCommandState) : fluidCommandState =
-  let filter =
-    Option.andThen
-      ~f:(fun s ->
-        let v = String.dropRight ~count:1 s in
-        if String.length v > 0 then Some v else None )
-      s.filter
+let filter (query : string) (s : fluidCommandState) : fluidCommandState =
+  let filter, commands =
+    if String.length query > 0
+    then
+      let isMatched c = String.contains ~substring:query c.commandName in
+      (Some query, List.filter ~f:isMatched Commands.commands)
+    else (None, Commands.commands)
   in
-  let commands = filterCommands filter in
   {s with filter; commands; index = 0}
+
+
+let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
+  if s.show
+  then match s.cmdOnTL with Some tl -> tl.id = tlid | None -> false
+  else false
