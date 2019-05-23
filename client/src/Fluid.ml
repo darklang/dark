@@ -1007,6 +1007,56 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           fail "not a record" )
 
 
+(* Slightly modified version of `AST.uses` (pre-fluid code) *)
+let rec modifyVariableOccurences
+    (str : string) (ast : ast) ~(f : id -> ast -> ast) : ast =
+  let u = modifyVariableOccurences str ~f in
+  match ast with
+  | EBlank _
+  | EInteger _
+  | EBool _
+  | EString _
+  | EOldExpr _
+  | EFloat _
+  | EPartial _
+  | ENull _ ->
+      ast
+  | EVariable (id, potential) ->
+      if potential = str then f id ast else ast
+  | ELet (id, id', lhs, rhs, body) ->
+      if str = lhs (* if variable name is rebound *)
+      then ast
+      else ELet (id, id', lhs, u rhs, u body)
+  | EIf (id, cond, ifbody, elsebody) ->
+      EIf (id, u cond, u ifbody, u elsebody)
+  | EFnCall (id, name, exprs, stor) ->
+      let exprs = exprs |> List.map ~f:u in
+      EFnCall (id, name, exprs, stor)
+  | EConstructor (id, id', name, exprs) ->
+      let exprs = exprs |> List.map ~f:u in
+      EConstructor (id, id', name, exprs)
+  | ELambda (id, vars, lexpr) ->
+      if List.map ~f:Tuple2.second vars |> List.member ~value:str
+         (* if variable name is rebound *)
+      then ast
+      else ELambda (id, vars, u lexpr)
+  | EThread (id, exprs) ->
+      let exprs = exprs |> List.map ~f:u in
+      EThread (id, exprs)
+  | EFieldAccess (id, obj, id', name) ->
+      EFieldAccess (id, u obj, id', name)
+  | EList (id, exprs) ->
+      let exprs = exprs |> List.map ~f:u in
+      EList (id, exprs)
+  | ERecord (id, triples) ->
+      let triples =
+        triples |> List.map ~f:(fun (id, name, expr) -> (id, name, u expr))
+      in
+      ERecord (id, triples)
+  | EBinOp (id, name, lhs, rhs, stor) ->
+      EBinOp (id, name, u lhs, u rhs, stor)
+
+
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -1019,8 +1069,6 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TInteger (id, str)
   | TVariable (id, str)
   | TPartial (id, str)
-  | TLetLHS (id, str)
-  | TLambdaVar (id, str)
   | TFieldName (id, str) ->
       replaceString (f str) id ast
   | TTrue id ->
@@ -1035,6 +1083,10 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "null" in
       let newExpr = EPartial (gid (), str) in
       replaceExpr id ~newExpr ast
+  | TLetLHS (id, str) | TLambdaVar (id, str) ->
+      let ast = replaceString (f str) id ast in
+      modifyVariableOccurences str ast ~f:(fun occId ast ->
+          replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast )
   | _ ->
       fail "not supported by replaceToken"
 
