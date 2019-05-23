@@ -293,7 +293,7 @@ let ops2c (host : string) (ops : Op.op list) :
 let ops2c_exn (host : string) (ops : Op.op list) : C.canvas ref =
   C.init host ops
   |> Result.map_error ~f:(String.concat ~sep:", ")
-  |> Tc.Result.ok_or_internal_exception "Canvas load error"
+  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
 
 
 let test_execution_data ?(canvas_name = "test") ops :
@@ -508,7 +508,7 @@ let t_http_oplist_roundtrip () =
   let c2 =
     Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
     |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Tc.Result.ok_or_internal_exception "Canvas load error"
+    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
@@ -526,7 +526,7 @@ let t_http_oplist_loads_user_tipes () =
   let c2 =
     Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
     |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Tc.Result.ok_or_internal_exception "Canvas load error"
+    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
   AT.check
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))

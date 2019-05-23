@@ -145,7 +145,8 @@ let () =
                 Some
                   ( Canvas.load_all host []
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Tc.Result.ok_or_internal_exception "Canvas load error" )
+                  |> Prelude.Result.ok_or_internal_exception
+                       "Canvas load error" )
               with Pageable.PageableExn e ->
                 Log.erroR
                   "Can't load canvas"
