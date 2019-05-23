@@ -21,7 +21,7 @@ let dequeue_and_process execution_id :
               let c =
                 Canvas.load_for_event event
                 |> Result.map_error ~f:(String.concat ~sep:", ")
-                |> Result.ok_or_failwith
+                |> Tc.Result.ok_or_internal_exception "Canvas load error"
               in
               let host = !c.host in
               let desc = Event_queue.to_event_desc event in

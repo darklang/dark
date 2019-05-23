@@ -293,7 +293,7 @@ let ops2c (host : string) (ops : Op.op list) :
 let ops2c_exn (host : string) (ops : Op.op list) : C.canvas ref =
   C.init host ops
   |> Result.map_error ~f:(String.concat ~sep:", ")
-  |> Result.ok_or_failwith
+  |> Tc.Result.ok_or_internal_exception "Canvas load error"
 
 
 let test_execution_data ?(canvas_name = "test") ops :
@@ -502,17 +502,13 @@ let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
-  let c1 =
-    Canvas.init host oplist
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
-  in
+  let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let owner = Account.for_host_exn host in
   let c2 =
     Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
     |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
+    |> Tc.Result.ok_or_internal_exception "Canvas load error"
   in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
@@ -524,17 +520,13 @@ let t_http_oplist_loads_user_tipes () =
   let oplist =
     [Op.SetHandler (tlid, pos, http_route_handler ()); Op.SetType tipe]
   in
-  let c1 =
-    Canvas.init host oplist
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
-  in
+  let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
   let owner = Account.for_host_exn host in
   let c2 =
     Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
     |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
+    |> Tc.Result.ok_or_internal_exception "Canvas load error"
   in
   AT.check
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
@@ -1882,11 +1874,7 @@ let t_route_variables_work_with_stored_events () =
   clear_test_data () ;
   let host = "test-route_variables_works" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
-  let c =
-    Canvas.init host oplist
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
-  in
+  let c = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", http_request_path, "GET") in
@@ -1923,11 +1911,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
   let request_path = "/api/create-token" in
   (* note hyphen vs undeerscore *)
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
-  let c =
-    Canvas.init host oplist
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
-  in
+  let c = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", request_path, "GET") in
@@ -1991,11 +1975,7 @@ let t_result_to_response_works () =
       ~headers:(Header.of_list [("Origin", "https://google.com")])
       (Uri.of_string "http://test.builtwithdark.com/")
   in
-  let c =
-    Canvas.load_all "test" []
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
-  in
+  let c = ops2c_exn "test" [] in
   ignore
     (List.map
        ~f:(fun (dval, req, cors_setting, check) ->
@@ -2494,18 +2474,12 @@ let t_load_for_context_only_loads_relevant_data () =
   (* c1 *)
   let host1 = "test-load_for_context_one" in
   let h = http_handler ~tlid:tlid2 (ast_for "(+ 5 2)") in
-  let c1 =
-    Canvas.init host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist)
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
-  in
+  let c1 = ops2c_exn host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist) in
   Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
   (* c2 *)
   let host2 = "test-load_for_context_two" in
   let c2 =
-    Canvas.init host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
+    ops2c_exn host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
   in
   Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
   (* test *)
