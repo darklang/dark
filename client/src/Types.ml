@@ -838,7 +838,7 @@ and msg =
   | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
-  | NewPresence of avatar
+  | NewPresencePush of avatar
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
   | SaveTestButton
@@ -1085,7 +1085,7 @@ and fluidState =
 and avatar =
   { canvasId : string
   ; canvasName : string
-  ; serverTime : string
+  ; serverTime : Js.Date.t [@opaque]
   ; tlid : string option
   ; username : string
   ; email : string

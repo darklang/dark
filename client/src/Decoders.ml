@@ -290,17 +290,6 @@ and fof j : fourOhFour =
   ; traceID = index 4 traceID j }
 
 
-(* SYDNEY *)
-and presenceMsg j : avatar =
-  { canvasId = field "canvasId" string j
-  ; canvasName = field "canvasName" string j
-  ; serverTime = field "serverTime" string j
-  ; tlid = field "tlid" (optional string) j
-  ; username = field "username" string j
-  ; email = field "email" string j
-  ; fullname = field "fullname" (optional string) j }
-
-
 and deployStatus j : deployStatus =
   let sumtypes =
     [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
@@ -315,6 +304,18 @@ and sDeploy j : staticDeploy =
   ; url = field "url" string j
   ; lastUpdate = field "last_update" jsDate j
   ; status = field "status" deployStatus j }
+
+
+and serverTime j : Js.Date.t = Js.Date.fromString (field "value" string j)
+
+and presenceMsg j : avatar =
+  { canvasId = field "canvasId" string j
+  ; canvasName = field "canvasName" string j
+  ; tlid = field "tlid" (optional string) j
+  ; username = field "username" string j
+  ; serverTime = field "serverTime" serverTime j
+  ; email = field "email" string j
+  ; fullname = field "name" (optional string) j }
 
 
 and inputValueDict j : inputValueDict =

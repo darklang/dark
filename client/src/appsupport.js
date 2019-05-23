@@ -403,7 +403,7 @@ setTimeout(function () {
       document.dispatchEvent(event);
     });
     pusherChannel.bind('new_presence', data => {
-      var event = new CustomEvent('newPresence', { detail: data });
+      var event = new CustomEvent('newPresencePush', { detail: data });
       document.dispatchEvent(event);
     })
   }
