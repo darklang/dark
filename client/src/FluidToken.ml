@@ -29,7 +29,7 @@ let tid (t : token) : id =
   | TFieldOp id
   | TFieldName (id, _)
   | TVariable (id, _)
-  | TFnName (id, _)
+  | TFnName (id, _, _)
   | TLambdaVar (id, _)
   | TLambdaArrow id
   | TLambdaSymbol id
@@ -122,7 +122,7 @@ let toText (t : token) : string =
       canBeEmpty name
   | TVariable (_, name) ->
       canBeEmpty name
-  | TFnName (_, name) ->
+  | TFnName (_, name, _) ->
       shouldntBeEmpty name
   | TLambdaVar (_, name) ->
       canBeEmpty name
@@ -224,7 +224,7 @@ let toTypeName (t : token) : string =
       "field-name"
   | TVariable _ ->
       "variable"
-  | TFnName (_, _) ->
+  | TFnName (_, _, _) ->
       "fn-name"
   | TLambdaVar (_, _) ->
       "lambda-var"

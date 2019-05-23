@@ -329,8 +329,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, exprs, _ster) ->
-      [TFnName (id, fnName)]
+  | EFnCall (id, fnName, exprs, ster) ->
+      [TFnName (id, fnName, ster)]
       @ ( exprs
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
@@ -1960,12 +1960,26 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
         [Html.text liveValueString; viewCopyButton tlid liveValueString]
 
 
+let viewErrorIndicator ti : Types.msg Html.html =
+  match ti.token with
+  | TFnName (_, _, ster) ->
+      Html.span
+        [Html.class' "error-indicator"]
+        [ Html.span
+            [ Html.class' "error-icon"
+            ; Vdom.prop "data-send-to-rail" (string_of_bool (ster = Rail)) ]
+            [] ]
+  | _ ->
+      Vdom.noNode
+
+
 let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
   List.map l ~f:(fun ti ->
       let dropdown () = viewAutocomplete state.ac in
       let liveValue () = viewLiveValue ~tlid ~currentResults ti in
+      let errorIndicator = viewErrorIndicator ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
@@ -1987,7 +2001,8 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      element [autocomplete; liveValue] )
+      [element [autocomplete; liveValue]; errorIndicator] )
+  |> List.flatten
 
 
 let viewAST
