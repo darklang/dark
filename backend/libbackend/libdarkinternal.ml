@@ -78,7 +78,11 @@ let replacements =
     ; ( "DarkInternal::handlers"
       , function
         | _, [DStr host] ->
-            let c = Canvas.load_all (Unicode_string.to_string host) [] in
+            let c =
+              Canvas.load_all (Unicode_string.to_string host) []
+              |> Result.map_error ~f:(String.concat ~sep:", ")
+              |> Result.ok_or_failwith
+            in
             !c.handlers
             |> IDMap.data
             |> List.map ~f:Libexecution.Toplevel.as_handler
@@ -100,6 +104,8 @@ let replacements =
                   (Unicode_string.to_string host)
                   ~tlids:[Types.id_of_string tlid]
                   []
+                |> Result.map_error ~f:(String.concat ~sep:", ")
+                |> Result.ok_or_failwith
               in
               let handler =
                 !c.handlers
@@ -207,7 +213,11 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         in
         function
         | _, [DStr host] ->
-            let canvas = Canvas.load_without_tls (Unicode.to_string host) in
+            let canvas =
+              Canvas.load_without_tls (Unicode.to_string host)
+              |> Result.map_error ~f:(String.concat ~sep:", ")
+              |> Result.ok_or_failwith
+            in
             !canvas.cors_setting |> cors_setting_to_dval
         | args ->
             fail args )
@@ -241,7 +251,11 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
           | Error e ->
               e |> Dval.dstr_of_string_exn |> ResError |> DResult
           | Ok settings ->
-              let canvas = Canvas.load_without_tls (Unicode.to_string host) in
+              let canvas =
+                Canvas.load_without_tls (Unicode.to_string host)
+                |> Result.map_error ~f:(String.concat ~sep:", ")
+                |> Result.ok_or_failwith
+              in
               Canvas.update_cors_setting canvas settings ;
               s |> DOption |> ResOk |> DResult )
         | args ->
@@ -274,6 +288,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 ~tlids:[Types.id_of_string tlid]
                 canvas_name
                 []
+              |> Result.map_error ~f:(String.concat ~sep:", ")
+              |> Result.ok_or_failwith
             in
             let db =
               !c.dbs
@@ -361,6 +377,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 ~tlids:[tlid]
                 (Unicode_string.to_string host)
                 []
+              |> Result.map_error ~f:(String.concat ~sep:", ")
+              |> Result.ok_or_failwith
             in
             let desc =
               !canvas.handlers

@@ -285,11 +285,20 @@ let sample_dvals =
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
-let ops2c (host : string) (ops : Op.op list) : C.canvas ref = C.init host ops
+let ops2c (host : string) (ops : Op.op list) :
+    (C.canvas ref, string list) Result.t =
+  C.init host ops
+
+
+let ops2c_exn (host : string) (ops : Op.op list) : C.canvas ref =
+  C.init host ops
+  |> Result.map_error ~f:(String.concat ~sep:", ")
+  |> Result.ok_or_failwith
+
 
 let test_execution_data ?(canvas_name = "test") ops :
     C.canvas ref * exec_state * input_vars =
-  let c = ops2c canvas_name ops in
+  let c = ops2c_exn canvas_name ops in
   let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
   let canvas_id = !c.id in
   let trace_id = Util.create_uuid () in
@@ -376,7 +385,7 @@ let t_undo_fns () =
     "undocount"
     3
     (Undo.undo_count
-       (ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u] |> ops)
+       (ops2c_exn "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u] |> ops)
        tlid)
 
 
@@ -493,10 +502,18 @@ let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
-  let c1 = Canvas.init host oplist in
+  let c1 =
+    Canvas.init host oplist
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   Canvas.serialize_only [tlid] !c1 ;
   let owner = Account.for_host_exn host in
-  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host owner in
+  let c2 =
+    Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
@@ -507,10 +524,18 @@ let t_http_oplist_loads_user_tipes () =
   let oplist =
     [Op.SetHandler (tlid, pos, http_route_handler ()); Op.SetType tipe]
   in
-  let c1 = Canvas.init host oplist in
+  let c1 =
+    Canvas.init host oplist
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
   let owner = Account.for_host_exn host in
-  let c2 = Canvas.load_http ~path:http_request_path ~verb:"GET" host owner in
+  let c2 =
+    Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   AT.check
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
     "user tipes"
@@ -649,7 +674,7 @@ let t_stored_event_roundtrip () =
 let t_event_queue_roundtrip () =
   clear_test_data () ;
   let h = daily_cron (ast_for "123") in
-  let c = ops2c "test-event_queue" [hop h] in
+  let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
     "CRON"
@@ -726,7 +751,7 @@ let t_hmac_signing _ =
 let t_cron_sanity () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c "test-cron_works" [hop h] in
+  let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   let should_run = Cron.should_execute !c.id handler in
   AT.check AT.bool "should_run should be true" should_run true ;
@@ -736,7 +761,7 @@ let t_cron_sanity () =
 let t_cron_just_ran () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c "test-cron_works" [hop h] in
+  let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler ;
   let should_run = Cron.should_execute !c.id handler in
@@ -1857,7 +1882,11 @@ let t_route_variables_work_with_stored_events () =
   clear_test_data () ;
   let host = "test-route_variables_works" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
-  let c = Canvas.init host oplist in
+  let c =
+    Canvas.init host oplist
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", http_request_path, "GET") in
@@ -1894,7 +1923,11 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
   let request_path = "/api/create-token" in
   (* note hyphen vs undeerscore *)
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
-  let c = Canvas.init host oplist in
+  let c =
+    Canvas.init host oplist
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", request_path, "GET") in
@@ -1958,7 +1991,11 @@ let t_result_to_response_works () =
       ~headers:(Header.of_list [("Origin", "https://google.com")])
       (Uri.of_string "http://test.builtwithdark.com/")
   in
-  let c = Canvas.load_all "test" [] in
+  let c =
+    Canvas.load_all "test" []
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
   ignore
     (List.map
        ~f:(fun (dval, req, cors_setting, check) ->
@@ -2140,12 +2177,16 @@ let set_after_delete () =
   let op2 = Op.DeleteTL tlid in
   let op3 = Op.SetHandler (tlid, pos, h2) in
   check_dval "first handler is right" (execute_ops [op1]) (DInt 8) ;
-  check_empty "deleted not in handlers" !(ops2c "test" [op1; op2]).handlers ;
-  check_single "delete in deleted" !(ops2c "test" [op1; op2]).deleted_handlers ;
-  check_single "deleted in handlers" !(ops2c "test" [op1; op2; op3]).handlers ;
+  check_empty "deleted not in handlers" !(ops2c_exn "test" [op1; op2]).handlers ;
+  check_single
+    "delete in deleted"
+    !(ops2c_exn "test" [op1; op2]).deleted_handlers ;
+  check_single
+    "deleted in handlers"
+    !(ops2c_exn "test" [op1; op2; op3]).handlers ;
   check_empty
     "deleted not in deleted "
-    !(ops2c "test" [op1; op2; op3]).deleted_handlers ;
+    !(ops2c_exn "test" [op1; op2; op3]).deleted_handlers ;
   check_dval "second handler is right" (execute_ops [op1; op2; op3]) (DInt 7) ;
   (* same thing for functions *)
   clear_test_data () ;
@@ -2154,14 +2195,18 @@ let set_after_delete () =
   let op1 = Op.SetFunction h1 in
   let op2 = Op.DeleteFunction tlid in
   let op3 = Op.SetFunction h2 in
-  check_empty "deleted not in fns" !(ops2c "test" [op1; op2]).user_functions ;
+  check_empty
+    "deleted not in fns"
+    !(ops2c_exn "test" [op1; op2]).user_functions ;
   check_single
     "delete in deleted"
-    !(ops2c "test" [op1; op2]).deleted_user_functions ;
-  check_single "deleted in fns" !(ops2c "test" [op1; op2; op3]).user_functions ;
+    !(ops2c_exn "test" [op1; op2]).deleted_user_functions ;
+  check_single
+    "deleted in fns"
+    !(ops2c_exn "test" [op1; op2; op3]).user_functions ;
   check_empty
     "deleted not in deleted "
-    !(ops2c "test" [op1; op2; op3]).deleted_user_functions ;
+    !(ops2c_exn "test" [op1; op2; op3]).deleted_user_functions ;
   ()
 
 
@@ -2320,7 +2365,7 @@ let t_head_and_get_requests_are_coalesced () =
   let test_name = "head-and-get-requests-are-coalsced" in
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c ("test-" ^ test_name) [n1] in
+    let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
     Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
     C.save_all !canvas ;
     canvas
@@ -2451,12 +2496,16 @@ let t_load_for_context_only_loads_relevant_data () =
   let h = http_handler ~tlid:tlid2 (ast_for "(+ 5 2)") in
   let c1 =
     Canvas.init host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist)
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
   in
   Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
   (* c2 *)
   let host2 = "test-load_for_context_two" in
   let c2 =
     Canvas.init host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Result.ok_or_failwith
   in
   Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
   (* test *)
@@ -2500,8 +2549,7 @@ let t_canvas_verification_duplicate_creation () =
     ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
   in
   let c = ops2c "test-verify_create" ops in
-  let test_result = Canvas.verify c in
-  AT.check AT.bool "should not verify" false (Result.is_ok test_result)
+  AT.check AT.bool "should not verify" false (Result.is_ok c)
 
 
 let t_canvas_verification_duplicate_renaming () =
@@ -2511,8 +2559,7 @@ let t_canvas_verification_duplicate_renaming () =
     ; Op.RenameDBname (dbid2, "Books") ]
   in
   let c = ops2c "test-verify_rename" ops in
-  let test_result = Canvas.verify c in
-  AT.check AT.bool "should not verify" false (Result.is_ok test_result)
+  AT.check AT.bool "should not verify" false (Result.is_ok c)
 
 
 let t_canvas_verification_no_error () =
@@ -2521,8 +2568,7 @@ let t_canvas_verification_no_error () =
     ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
   in
   let c = ops2c "test-verify_okay" ops in
-  let test_result = Canvas.verify c in
-  AT.check AT.bool "should verify" true (Result.is_ok test_result)
+  AT.check AT.bool "should verify" true (Result.is_ok c)
 
 
 let t_canvas_verification_undo_rename_duped_name () =
@@ -2533,16 +2579,10 @@ let t_canvas_verification_undo_rename_duped_name () =
     ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
   in
   let c = ops2c "test-verify_undo_1" ops1 in
-  let test_result = Canvas.verify c in
-  AT.check AT.bool "should initially verify" true (Result.is_ok test_result) ;
+  AT.check AT.bool "should initially verify" true (Result.is_ok c) ;
   let ops2 = ops1 @ [UndoTL dbid] in
   let c2 = ops2c "test-verify_undo_2" ops2 in
-  let test_result = Canvas.verify c2 in
-  AT.check
-    AT.bool
-    "should then fail to verify"
-    false
-    (Result.is_ok test_result)
+  AT.check AT.bool "should then fail to verify" false (Result.is_ok c2)
 
 
 (* ------------------- *)

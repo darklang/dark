@@ -386,7 +386,19 @@ let user_page_handler
         ; body = "404 Not Found: No route matches" }
   | Some owner ->
       let c =
-        C.load_http canvas owner ~verb ~path:(sanitize_uri_path (Uri.path uri))
+        match
+          C.load_http
+            canvas
+            owner
+            ~verb
+            ~path:(sanitize_uri_path (Uri.path uri))
+        with
+        | Ok c ->
+            c
+        | Error errs ->
+            Exception.internal
+              ~info:[("errs", String.concat ~sep:", " errs)]
+              "Canvas loading error"
       in
       let pages =
         !c.handlers
@@ -636,75 +648,93 @@ let static_assets_upload_handler
 
 let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, params =
-      time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
-    in
-    let tlids = List.filter_map ~f:Op.tlidOf params.ops in
-    let t2, c =
-      time "2-load-saved-ops" (fun _ ->
-          C.load_only_tlids ~tlids host params.ops )
-    in
-    let t3, result =
-      time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
-    in
-    let t4, _ =
-      time "4-save-to-disk" (fun _ ->
-          (* work out the result before we save it, incase it has a
-             stackoverflow or other crashing bug *)
-          if Api.causes_any_changes params then C.save_tlids !c tlids else ()
-      )
-    in
-    respond
-      ~resp_headers:(server_timing [t1; t2; t3; t4])
-      ~execution_id
-      `OK
-      result
-  with e -> raise e
+  let t1, params =
+    time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
+  in
+  let tlids = List.filter_map ~f:Op.tlidOf params.ops in
+  let t2, maybe_c =
+    time "2-load-saved-ops" (fun _ -> C.load_only_tlids ~tlids host params.ops)
+  in
+  match maybe_c with
+  | Ok c ->
+      let t3, result =
+        time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
+      in
+      let t4, _ =
+        time "4-save-to-disk" (fun _ ->
+            (* work out the result before we save it, incase it has a
+              stackoverflow or other crashing bug *)
+            if Api.causes_any_changes params then C.save_tlids !c tlids else ()
+        )
+      in
+      respond
+        ~resp_headers:(server_timing [t1; t2; t3; t4])
+        ~execution_id
+        `OK
+        result
+  | Error errs ->
+      let body = String.concat ~sep:", " errs in
+      respond
+        ~resp_headers:(server_timing [t1; t2])
+        ~execution_id
+        `Bad_request
+        body
 
 
 let initial_load ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let t1, c = time "1-load-saved-ops" (fun _ -> C.load_all host []) in
-  let t2, unlocked =
-    time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
-  in
-  let t3, f404s =
-    let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-    time "3-get-404s" (fun _ -> Analysis.get_404s ~since:latest !c)
-  in
-  let t4, traces =
-    time "4-traces" (fun _ ->
-        let htraces =
-          !c.handlers
-          |> TL.handlers
-          |> List.map ~f:(fun h ->
-                 Analysis.traceids_for_handler !c h
-                 |> List.map ~f:(fun traceid -> (h.tlid, traceid)) )
-          |> List.concat
-        in
-        let uftraces =
-          !c.user_functions
-          |> Types.IDMap.data
-          |> List.map ~f:(fun uf ->
-                 Analysis.traceids_for_user_fn !c uf
-                 |> List.map ~f:(fun traceid -> (uf.tlid, traceid)) )
-          |> List.concat
-        in
-        htraces @ uftraces )
-  in
-  let t5, assets =
-    time "5-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-  in
-  let t6, result =
-    time "6-to-frontend" (fun _ ->
-        Analysis.to_initial_load_rpc_result !c f404s traces unlocked assets )
-  in
-  respond
-    ~execution_id
-    ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6])
-    `OK
-    result
+  try
+    let t1, c =
+      time "1-load-saved-ops" (fun _ ->
+          match C.load_all_dbs host [] with
+          | Ok c ->
+              c
+          | Error errs ->
+              Exception.internal
+                ~info:[("errs", String.concat ~sep:", " errs)]
+                "Failed to load canvas" )
+    in
+    let t2, unlocked =
+      time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+    in
+    let t3, f404s =
+      let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+      time "3-get-404s" (fun _ -> Analysis.get_404s ~since:latest !c)
+    in
+    let t4, traces =
+      time "4-traces" (fun _ ->
+          let htraces =
+            !c.handlers
+            |> TL.handlers
+            |> List.map ~f:(fun h ->
+                   Analysis.traceids_for_handler !c h
+                   |> List.map ~f:(fun traceid -> (h.tlid, traceid)) )
+            |> List.concat
+          in
+          let uftraces =
+            !c.user_functions
+            |> Types.IDMap.data
+            |> List.map ~f:(fun uf ->
+                   Analysis.traceids_for_user_fn !c uf
+                   |> List.map ~f:(fun traceid -> (uf.tlid, traceid)) )
+            |> List.concat
+          in
+          htraces @ uftraces )
+    in
+    let t5, assets =
+      time "5-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
+    in
+    let t6, result =
+      time "6-to-frontend" (fun _ ->
+          Analysis.to_initial_load_rpc_result !c f404s traces unlocked assets
+      )
+    in
+    respond
+      ~execution_id
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6])
+      `OK
+      result
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let execute_function ~(execution_id : Types.id) (host : string) body :
@@ -714,7 +744,13 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
-        C.load_with_context ~tlids:[params.tlid] host [] )
+        match C.load_with_context ~tlids:[params.tlid] host [] with
+        | Ok c ->
+            c
+        | Error errs ->
+            Exception.internal
+              ~info:[("errs", String.concat ~sep:", " errs)]
+              "Failed to load canvas" )
   in
   let t3, (result, tlids) =
     time "3-execute" (fun _ ->
@@ -748,7 +784,13 @@ let trigger_cron ~(execution_id : Types.id) (host : string) body :
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
-        C.load_with_context ~tlids:[params.tlid] host [] )
+        match C.load_with_context ~tlids:[params.tlid] host [] with
+        | Ok c ->
+            c
+        | Error errs ->
+            Exception.internal
+              ~info:[("errs", String.concat ~sep:", " errs)]
+              "Failed to load canvas" )
   in
   let t3, () =
     time "3-execute" (fun _ ->
@@ -799,7 +841,14 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     let tlid = params.tlid in
     let trace_id = params.trace_id in
     let t2, c =
-      time "2-load-saved-ops" (fun _ -> C.load_only_tlids ~tlids:[tlid] host [])
+      time "2-load-saved-ops" (fun _ ->
+          match C.load_only_tlids ~tlids:[params.tlid] host [] with
+          | Ok c ->
+              c
+          | Error errs ->
+              Exception.internal
+                ~info:[("errs", String.concat ~sep:", " errs)]
+                "Failed to load canvas" )
     in
     let t3, mht =
       time "3-handler-analyses" (fun _ ->
@@ -836,7 +885,16 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
     let t1, params =
       time "1-read-api-tlids" (fun _ -> Api.to_db_stats_rpc_params body)
     in
-    let t2, c = time "2-load-saved-ops" (fun _ -> C.load_all_dbs host []) in
+    let t2, c =
+      time "2-load-saved-ops" (fun _ ->
+          match C.load_all_dbs host [] with
+          | Ok c ->
+              c
+          | Error errs ->
+              Exception.internal
+                ~info:[("errs", String.concat ~sep:", " errs)]
+                "Failed to load canvas" )
+    in
     let t3, stats =
       time "3-analyze-db-stats" (fun _ -> Analysis.db_stats !c params.tlids)
     in
@@ -850,7 +908,16 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
 let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
     : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, c = time "1-load-saved-ops" (fun _ -> C.load_all_dbs host []) in
+    let t1, c =
+      time "1-load-saved-ops" (fun _ ->
+          match C.load_all_dbs host [] with
+          | Ok c ->
+              c
+          | Error errs ->
+              Exception.internal
+                ~info:[("errs", String.concat ~sep:", " errs)]
+                "Failed to load canvas" )
+    in
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
     in
@@ -974,9 +1041,15 @@ let admin_ui_html
 
 
 let save_test_handler ~(execution_id : Types.id) host =
-  let g = C.load_all host [] in
-  let filename = C.save_test !g in
-  respond ~execution_id `OK ("Saved as: " ^ filename)
+  let c = C.load_all host [] in
+  match c with
+  | Ok c ->
+      let filename = C.save_test !c in
+      respond ~execution_id `OK ("Saved as: " ^ filename)
+  | Error errs ->
+      Exception.internal
+        ~info:[("errs", String.concat ~sep:", " errs)]
+        "Failed to load canvas"
 
 
 let check_csrf_then_handle ~execution_id ~session handler req =
