@@ -1007,10 +1007,10 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec getVariableOccurences (str : string) (expr : fluidExpr) :
-    fluidExpr list =
-  let u = getVariableOccurences str in
-  match expr with
+let rec modifyVaribleOccurences
+    (str : string) (ast : ast) ~(f : id -> ast -> ast) : ast =
+  let u = modifyVaribleOccurences str ~f in
+  match ast with
   | EBlank _
   | EInteger _
   | EBool _
@@ -1019,31 +1019,40 @@ let rec getVariableOccurences (str : string) (expr : fluidExpr) :
   | EFloat _
   | EPartial _
   | ENull _ ->
-      []
-  | EVariable (_, potential) ->
-      if potential = str then [expr] else []
-  | ELet (_, _, lhs, rhs, body) ->
-      if str = lhs then [] else List.concat [u rhs; u body]
-  | EIf (_, cond, ifbody, elsebody) ->
-      List.concat [u cond; u ifbody; u elsebody]
-  | EFnCall (_, _, exprs, _) ->
-      exprs |> List.map ~f:u |> List.concat
-  | EConstructor (_, _, _, exprs) ->
-      exprs |> List.map ~f:u |> List.concat
-  | ELambda (_, vars, lexpr) ->
+      ast
+  | EVariable (id, potential) ->
+      if potential = str then f id ast else ast
+  | ELet (id, id', lhs, rhs, body) ->
+      if str = lhs (* if variable name is rebound *)
+      then ast
+      else ELet (id, id', lhs, u rhs, u body)
+  | EIf (id, cond, ifbody, elsebody) ->
+      EIf (id, u cond, u ifbody, u elsebody)
+  | EFnCall (id, name, exprs, stor) ->
+      let exprs = exprs |> List.map ~f:u in
+      EFnCall (id, name, exprs, stor)
+  | EConstructor (id, id', name, exprs) ->
+      let exprs = exprs |> List.map ~f:u in
+      EConstructor (id, id', name, exprs)
+  | ELambda (id, vars, lexpr) ->
       if List.map ~f:Tuple2.second vars |> List.member ~value:str
-      then []
-      else u lexpr
-  | EThread (_, exprs) ->
-      exprs |> List.map ~f:u |> List.concat
-  | EFieldAccess (_, obj, _, _) ->
-      u obj
-  | EList (_, exprs) ->
-      exprs |> List.map ~f:u |> List.concat
-  | ERecord (_, triples) ->
-      triples |> List.map ~f:Tuple3.third |> List.map ~f:u |> List.concat
-  | EBinOp (_, _, lhs, rhs, _) ->
-      List.concat [u lhs; u rhs]
+      then ast
+      else ELambda (id, vars, u lexpr)
+  | EThread (id, exprs) ->
+      let exprs = exprs |> List.map ~f:u in
+      EThread (id, exprs)
+  | EFieldAccess (id, obj, id', name) ->
+      EFieldAccess (id, u obj, id', name)
+  | EList (id, exprs) ->
+      let exprs = exprs |> List.map ~f:u in
+      EList (id, exprs)
+  | ERecord (id, triples) ->
+      let triples =
+        triples |> List.map ~f:(fun (id, name, expr) -> (id, name, u expr))
+      in
+      ERecord (id, triples)
+  | EBinOp (id, name, lhs, rhs, stor) ->
+      EBinOp (id, name, u lhs, u rhs, stor)
 
 
 (* Supports the various different tokens replacing their string contents.
@@ -1074,13 +1083,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceExpr id ~newExpr ast
   | TLetLHS (id, str) | TLambdaVar (id, str) ->
       let ast = replaceString (f str) id ast in
-      getVariableOccurences str ast
-      |> List.foldl ~init:ast ~f:(fun occExpr ast ->
-             match occExpr with
-             | EVariable (occId, str) ->
-                 replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast
-             | _ ->
-                 fail "not a variable" )
+      modifyVaribleOccurences str ast ~f:(fun occId ast ->
+          replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast )
   | _ ->
       fail "not supported by replaceToken"
 
