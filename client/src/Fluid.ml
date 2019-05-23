@@ -2076,7 +2076,9 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
           ; ("valid", true) ]
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewEntry.defaultPasteHandler
-      ; ViewUtils.nothingMouseEvent "mousedown" ]
+      ; ViewUtils.nothingMouseEvent "mousedown"
+      ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
+            FluidRunCommand item ) ]
       [Html.text name]
   in
   let filterInput =

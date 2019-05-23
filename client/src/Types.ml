@@ -886,6 +886,7 @@ and msg =
   | GoTo of page
   | SetHoveringVarName of tlid * string option
   | FluidCommandsFilter of string
+  | FluidRunCommand of command
 
 (* ----------------------------- *)
 (* AB tests *)
