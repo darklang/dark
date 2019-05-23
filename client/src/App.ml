@@ -768,9 +768,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with f404s = new404s}, Cmd.none)
     | UpdateAvatarList avatarsList ->
-        (* SYDNEY TODO: sort out old avatar data*)
-        let newAvatars = avatarsList @ m.avatarsList in
-        ({m with avatarsList = newAvatars}, Cmd.none)
+        let newAvatarList = avatarsList @ m.avatarsList in
+        ({m with avatarsList = newAvatarList}, Cmd.none)
     | AppendStaticDeploy d ->
         ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
         , Cmd.none )
@@ -1262,10 +1261,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList traces)
   | New404Push f404 ->
       Append404s [f404]
-  | NewPresence avatarsList ->
-      (* SYDNEY TODO: Add info here *)
-      Debug.loG "NewPresence" avatarsList ;
-      UpdateAvatarList [avatarsList]
+  | NewPresencePush avatar ->
+      UpdateAvatarList [avatar]
   | NewStaticDeployPush asset ->
       AppendStaticDeploy [asset]
   | Delete404RPCCallback (f404, Ok ()) ->
@@ -1616,8 +1613,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           NewStaticDeployPush s )
     ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
           ReceiveFetch s )
-    ; Analysis.NewPresence.listen ~key:"new_presence_push" (fun s ->
-          NewPresence s ) ]
+    ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
+          NewPresencePush s ) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
