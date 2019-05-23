@@ -559,7 +559,7 @@ let load_and_resave_from_test_file (host : string) : unit =
       []
       ~f:(Serialize.load_json_from_disk ~root:Testdata ~preprocess:ident)
     |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
+    |> Tc.Result.ok_or_internal_exception "Canvas load error"
   in
   save_all !c
 
@@ -674,7 +674,7 @@ let to_string (host : string) : string =
   let c =
     load_all host []
     |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Result.ok_or_failwith
+    |> Tc.Result.ok_or_internal_exception "Canvas load error"
   in
   let handlers = !c.handlers |> IDMap.data |> List.map ~f:TL.to_string in
   let dbs = !c.dbs |> IDMap.data |> List.map ~f:TL.to_string in

@@ -75,7 +75,7 @@ let () =
             ignore
               ( Canvas.load_all h []
               |> Result.map_error ~f:(String.concat ~sep:", ")
-              |> Result.ok_or_failwith ) ;
+              |> Tc.Result.ok_or_internal_exception "Canvas load error" ) ;
             Log.infO "successful canvas load" ~params:[("host", h)]
           with e ->
             Log.erroR
@@ -98,7 +98,7 @@ let () =
           let c =
             Canvas.load_all host []
             |> Result.map_error ~f:(String.concat ~sep:", ")
-            |> Result.ok_or_failwith
+            |> Tc.Result.ok_or_internal_exception "Canvas load error"
           in
           let dbs = !c.dbs |> Toplevel.dbs in
           dbs
