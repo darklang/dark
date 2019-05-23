@@ -444,19 +444,16 @@ let () =
         emptyLet
         (press K.Equals 9)
         ("let *** = ___\n5", 10) ;
-      let var = "binding" in
-      let changedVar = String.dropRight ~count:1 var in
       t
         "backspace changes occurence of binding var"
-        (letWithUsedBinding var)
-        (backspace (4 + String.length var))
-        ("let " ^ changedVar ^ " = 6\n" ^ changedVar, 10) ;
-      let changedVar = var ^ "c" in
+        (letWithUsedBinding "binding")
+        (backspace 11)
+        ("let bindin = 6\nbindin", 10) ;
       t
         "insert changes occurence of binding var"
-        (letWithUsedBinding var)
-        (insert 'c' (4 + String.length var))
-        ("let " ^ changedVar ^ " = 6\n" ^ changedVar, 12) ;
+        (letWithUsedBinding "binding")
+        (insert 'c' 11)
+        ("let bindingc = 6\nbindingc", 12) ;
       () ) ;
   describe "Ifs" (fun () ->
       t
