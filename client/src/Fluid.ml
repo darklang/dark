@@ -1960,14 +1960,26 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
         [Html.text liveValueString; viewCopyButton tlid liveValueString]
 
 
-let viewErrorIndicator ti : Types.msg Html.html =
+let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
+  let sendToRail id =
+    let dv =
+      StrDict.get ~key:(deID id) currentResults.liveValues
+      |> Option.withDefault ~default:DNull
+    in
+    match dv with
+    | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
+        true
+    | _ ->
+        false
+  in
   match ti.token with
-  | TFnName (_, _, ster) ->
+  | TFnName (id, _, Rail) ->
       Html.span
         [Html.class' "error-indicator"]
         [ Html.span
             [ Html.class' "error-icon"
-            ; Vdom.prop "data-send-to-rail" (string_of_bool (ster = Rail)) ]
+            ; Vdom.prop "data-send-to-rail" (sendToRail id |> string_of_bool)
+            ]
             [] ]
   | _ ->
       Vdom.noNode
@@ -1979,7 +1991,7 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
   List.map l ~f:(fun ti ->
       let dropdown () = viewAutocomplete state.ac in
       let liveValue () = viewLiveValue ~tlid ~currentResults ti in
-      let errorIndicator = viewErrorIndicator ti in
+      let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
