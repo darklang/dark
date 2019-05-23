@@ -118,4 +118,5 @@ let defaultModel : model =
   ; tlMeta = StrDict.empty
   ; fluidState = defaultFluidState
   ; dbStats = StrDict.empty
-  ; avatarsList = [] }
+  ; avatarsList = []
+  ; browserId = "" }

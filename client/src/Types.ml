@@ -1095,7 +1095,7 @@ and avatarsList = avatar list
 
 and avatarModelMessage =
   { browserId : string
-  ; tlid : string option
+  ; tlid : tlid option
   ; canvasName : string
   ; timestamp : float }
 
@@ -1149,7 +1149,8 @@ and model =
   ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
-  ; avatarsList : avatarsList }
+  ; avatarsList : avatarsList
+  ; browserId : string }
 
 (* Values that we serialize *)
 and serializableEditor =

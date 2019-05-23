@@ -31,6 +31,12 @@ let init (flagString : string) (location : Web.Location.location) =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
+  let newBrowserId =
+    BsUuid.Uuid.V5.create
+      ~name:"browserId"
+      ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
+    |> BsUuid.Uuid.V5.toString
+  in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
   let m =
@@ -46,7 +52,8 @@ let init (flagString : string) (location : Web.Location.location) =
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
-    ; csrfToken }
+    ; csrfToken
+    ; browserId = newBrowserId }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
@@ -495,7 +502,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        let commands = [hashcmd] @ closeBlanks m @ [afCmd] in
+        let timeStamp = Js.Date.now () /. 1000.0 in
+        let avMessage : avatarModelMessage =
+          { canvasName = m.canvasName
+          ; browserId = m.browserId
+          ; tlid = Some tlid
+          ; timestamp = timeStamp }
+        in
+        let commands =
+          [hashcmd] @ closeBlanks m @ [afCmd] @ [RPC.sendPresence m avMessage]
+        in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
@@ -504,7 +520,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
-          let commands = hashcmd @ closeBlanks m @ [acCmd] in
+          let timeStamp = Js.Date.now () /. 1000.0 in
+          let avMessage : avatarModelMessage =
+            { canvasName = m.canvasName
+            ; browserId = m.browserId
+            ; tlid = None
+            ; timestamp = timeStamp }
+          in
+          let commands =
+            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage]
+          in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
