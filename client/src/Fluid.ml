@@ -1036,6 +1036,7 @@ let rec modifyVaribleOccurences
       EConstructor (id, id', name, exprs)
   | ELambda (id, vars, lexpr) ->
       if List.map ~f:Tuple2.second vars |> List.member ~value:str
+         (* if variable name is rebound *)
       then ast
       else ELambda (id, vars, u lexpr)
   | EThread (id, exprs) ->
