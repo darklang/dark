@@ -1961,7 +1961,7 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
 
 
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
-  let sendToRail id =
+  let sentToRail id =
     let dv =
       StrDict.get ~key:(deID id) currentResults.liveValues
       |> Option.withDefault ~default:DNull
@@ -1978,7 +1978,7 @@ let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
         [Html.class' "error-indicator"]
         [ Html.span
             [ Html.class' "error-icon"
-            ; Vdom.prop "data-send-to-rail" (sendToRail id |> string_of_bool)
+            ; Vdom.prop "data-sent-to-rail" (sentToRail id |> string_of_bool)
             ]
             [] ]
   | _ ->
