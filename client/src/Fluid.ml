@@ -1007,9 +1007,9 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec modifyVaribleOccurences
+let rec modifyVariableOccurences
     (str : string) (ast : ast) ~(f : id -> ast -> ast) : ast =
-  let u = modifyVaribleOccurences str ~f in
+  let u = modifyVariableOccurences str ~f in
   match ast with
   | EBlank _
   | EInteger _
@@ -1084,7 +1084,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceExpr id ~newExpr ast
   | TLetLHS (id, str) | TLambdaVar (id, str) ->
       let ast = replaceString (f str) id ast in
-      modifyVaribleOccurences str ast ~f:(fun occId ast ->
+      modifyVariableOccurences str ast ~f:(fun occId ast ->
           replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast )
   | _ ->
       fail "not supported by replaceToken"
