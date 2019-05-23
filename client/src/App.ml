@@ -15,6 +15,13 @@ module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
 
+let createBrowserId : string =
+  BsUuid.Uuid.V5.create
+    ~name:"browserId"
+    ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
+  |> BsUuid.Uuid.V5.toString
+
+
 let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
@@ -41,16 +48,10 @@ let init (flagString : string) (location : Web.Location.location) =
     ; environment
     ; csrfToken }
   in
-  let newBrowserId =
-    BsUuid.Uuid.V5.create
-      ~name:"browserId"
-      ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
-    |> BsUuid.Uuid.V5.toString
-  in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
     { canvasName = m.canvasName
-    ; browserId = newBrowserId
+    ; browserId = createBrowserId
     ; tlid = None
     ; timestamp = timeStamp }
   in

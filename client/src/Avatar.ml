@@ -43,13 +43,13 @@ let avatarDiv (avatar : avatar) : msg Html.html =
     []
 
 
-let avatarsView (avatars : avatarsList) : msg Html.html =
+let viewAvatars (avatars : avatarsList) : msg Html.html =
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map renderAvatar avatars in
   Html.div [Html.class' "avatars"] avatars
 
 
-let allAvatarsView (avatars : avatarsList) : msg Html.html =
+let viewAllAvatars (avatars : avatarsList) : msg Html.html =
   let avatars = List.map avatarDiv avatars in
   Html.div
     [Html.class' "all-avatars"]
