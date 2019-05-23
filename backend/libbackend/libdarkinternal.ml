@@ -81,7 +81,7 @@ let replacements =
             let c =
               Canvas.load_all (Unicode_string.to_string host) []
               |> Result.map_error ~f:(String.concat ~sep:", ")
-              |> Tc.Result.ok_or_internal_exception "Canvas load error"
+              |> Prelude.Result.ok_or_internal_exception "Canvas load error"
             in
             !c.handlers
             |> IDMap.data
@@ -105,7 +105,7 @@ let replacements =
                   ~tlids:[Types.id_of_string tlid]
                   []
                 |> Result.map_error ~f:(String.concat ~sep:", ")
-                |> Tc.Result.ok_or_internal_exception "Canvas load error"
+                |> Prelude.Result.ok_or_internal_exception "Canvas load error"
               in
               let handler =
                 !c.handlers
@@ -216,7 +216,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             let canvas =
               Canvas.load_without_tls (Unicode.to_string host)
               |> Result.map_error ~f:(String.concat ~sep:", ")
-              |> Tc.Result.ok_or_internal_exception "Canvas load error"
+              |> Prelude.Result.ok_or_internal_exception "Canvas load error"
             in
             !canvas.cors_setting |> cors_setting_to_dval
         | args ->
@@ -254,7 +254,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
               let canvas =
                 Canvas.load_without_tls (Unicode.to_string host)
                 |> Result.map_error ~f:(String.concat ~sep:", ")
-                |> Tc.Result.ok_or_internal_exception "Canvas load error"
+                |> Prelude.Result.ok_or_internal_exception "Canvas load error"
               in
               Canvas.update_cors_setting canvas settings ;
               s |> DOption |> ResOk |> DResult )
@@ -289,7 +289,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 canvas_name
                 []
               |> Result.map_error ~f:(String.concat ~sep:", ")
-              |> Tc.Result.ok_or_internal_exception "Canvas load error"
+              |> Prelude.Result.ok_or_internal_exception "Canvas load error"
             in
             let db =
               !c.dbs
@@ -378,7 +378,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 (Unicode_string.to_string host)
                 []
               |> Result.map_error ~f:(String.concat ~sep:", ")
-              |> Tc.Result.ok_or_internal_exception "Canvas load error"
+              |> Prelude.Result.ok_or_internal_exception "Canvas load error"
             in
             let desc =
               !canvas.handlers
