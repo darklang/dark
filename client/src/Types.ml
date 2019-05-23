@@ -885,6 +885,7 @@ and msg =
   | CanvasPanAnimationEnd
   | GoTo of page
   | SetHoveringVarName of tlid * string option
+  | FluidCommandsFilter of string
 
 (* ----------------------------- *)
 (* AB tests *)
