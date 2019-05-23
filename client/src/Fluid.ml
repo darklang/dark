@@ -1080,9 +1080,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
              | EVariable (occId, str) ->
                  replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast
              | _ ->
-                 (* use regular replaceString on expression if not variable or partial *)
-                 let occId = eid occExpr in
-                 replaceString (f str) occId ast )
+                 fail "not a variable" )
   | _ ->
       fail "not supported by replaceToken"
 
