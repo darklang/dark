@@ -1017,9 +1017,10 @@ let rec getVariableOccurences (str : string) (expr : fluidExpr) :
   | EString _
   | EOldExpr _
   | EFloat _
+  | EPartial _
   | ENull _ ->
       []
-  | EPartial (_, potential) | EVariable (_, potential) ->
+  | EVariable (_, potential) ->
       if potential = str then [expr] else []
   | ELet (_, _, lhs, rhs, body) ->
       if str = lhs then [] else List.concat [u rhs; u body]
@@ -1077,8 +1078,6 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       |> List.foldl ~init:ast ~f:(fun occExpr ast ->
              match occExpr with
              | EVariable (occId, str) ->
-                 (* doInsert/doBackspace will convert EVariable to EPartial,
-                    * preserve the expression here instead *)
                  replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast
              | _ ->
                  (* use regular replaceString on expression if not variable or partial *)
