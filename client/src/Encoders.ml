@@ -368,7 +368,7 @@ and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
   object_
     [ ("canvasName", string params.canvasName)
     ; ("browserId", string params.browserId)
-    ; ("tlid", nullable string params.tlid)
+    ; ("tlid", nullable tlid params.tlid)
     ; ("timestamp", Json_encode_extended.float params.timestamp) ]
 
 
