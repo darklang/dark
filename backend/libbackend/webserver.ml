@@ -21,6 +21,7 @@ module Http = Libexecution.Http
 module RTT = Types.RuntimeT
 module Handler = Libexecution.Handler
 module TL = Libexecution.Toplevel
+module Tc = Libexecution.Tc
 module Dbconnection = Libservice.Dbconnection
 
 (* ------------------------------- *)
@@ -386,19 +387,9 @@ let user_page_handler
         ; body = "404 Not Found: No route matches" }
   | Some owner ->
       let c =
-        match
-          C.load_http
-            canvas
-            owner
-            ~verb
-            ~path:(sanitize_uri_path (Uri.path uri))
-        with
-        | Ok c ->
-            c
-        | Error errs ->
-            Exception.internal
-              ~info:[("errs", String.concat ~sep:", " errs)]
-              "Canvas loading error"
+        C.load_http canvas owner ~verb ~path:(sanitize_uri_path (Uri.path uri))
+        |> Result.map_error ~f:(String.concat ~sep:", ")
+        |> Tc.Result.ok_or_internal_exception "Canvas loading error"
       in
       let pages =
         !c.handlers
@@ -686,13 +677,9 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
   try
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
-          match C.load_all_dbs host [] with
-          | Ok c ->
-              c
-          | Error errs ->
-              Exception.internal
-                ~info:[("errs", String.concat ~sep:", " errs)]
-                "Failed to load canvas" )
+          C.load_all_dbs host []
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Tc.Result.ok_or_internal_exception "Failed to load canvas" )
     in
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -744,13 +731,9 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
-        match C.load_with_context ~tlids:[params.tlid] host [] with
-        | Ok c ->
-            c
-        | Error errs ->
-            Exception.internal
-              ~info:[("errs", String.concat ~sep:", " errs)]
-              "Failed to load canvas" )
+        C.load_with_context ~tlids:[params.tlid] host []
+        |> Result.map_error ~f:(String.concat ~sep:", ")
+        |> Tc.Result.ok_or_internal_exception "Failed to load canvas" )
   in
   let t3, (result, tlids) =
     time "3-execute" (fun _ ->
@@ -784,13 +767,9 @@ let trigger_cron ~(execution_id : Types.id) (host : string) body :
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
-        match C.load_with_context ~tlids:[params.tlid] host [] with
-        | Ok c ->
-            c
-        | Error errs ->
-            Exception.internal
-              ~info:[("errs", String.concat ~sep:", " errs)]
-              "Failed to load canvas" )
+        C.load_with_context ~tlids:[params.tlid] host []
+        |> Result.map_error ~f:(String.concat ~sep:", ")
+        |> Tc.Result.ok_or_internal_exception "Failed to load canvas" )
   in
   let t3, () =
     time "3-execute" (fun _ ->
@@ -842,13 +821,9 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     let trace_id = params.trace_id in
     let t2, c =
       time "2-load-saved-ops" (fun _ ->
-          match C.load_only_tlids ~tlids:[params.tlid] host [] with
-          | Ok c ->
-              c
-          | Error errs ->
-              Exception.internal
-                ~info:[("errs", String.concat ~sep:", " errs)]
-                "Failed to load canvas" )
+          C.load_only_tlids ~tlids:[params.tlid] host []
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Tc.Result.ok_or_internal_exception "Failed to load canvas" )
     in
     let t3, mht =
       time "3-handler-analyses" (fun _ ->
@@ -887,13 +862,9 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
     in
     let t2, c =
       time "2-load-saved-ops" (fun _ ->
-          match C.load_all_dbs host [] with
-          | Ok c ->
-              c
-          | Error errs ->
-              Exception.internal
-                ~info:[("errs", String.concat ~sep:", " errs)]
-                "Failed to load canvas" )
+          C.load_all_dbs host []
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Tc.Result.ok_or_internal_exception "Failed to load canvas" )
     in
     let t3, stats =
       time "3-analyze-db-stats" (fun _ -> Analysis.db_stats !c params.tlids)
@@ -910,13 +881,9 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
   try
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
-          match C.load_all_dbs host [] with
-          | Ok c ->
-              c
-          | Error errs ->
-              Exception.internal
-                ~info:[("errs", String.concat ~sep:", " errs)]
-                "Failed to load canvas" )
+          C.load_all_dbs host []
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Tc.Result.ok_or_internal_exception "Failed to load canvas" )
     in
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
