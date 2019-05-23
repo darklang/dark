@@ -375,7 +375,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
-                   [TIndentToHere [TThreadPipe (id, i); nested e]] )
+                   [TNewline ; TIndentToHere [TThreadPipe (id, i); nested e]] )
             |> List.concat ) ] )
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
