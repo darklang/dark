@@ -27,6 +27,15 @@ let executeCommand (m : model) (tl : toplevel) (id : id) (cmd : command) :
   cmd.action m tl pd
 
 
+let runCommand (m : model) (cmd : command) : modification =
+  let cp = m.fluidState.cp in
+  match (cp.cmdOnTL, cp.cmdOnID) with
+  | Some tl, Some id ->
+      executeCommand m tl id cmd
+  | _ ->
+      NoChange
+
+
 let highlighted (s : fluidCommandState) : command option =
   List.getAt ~index:s.index s.commands
 

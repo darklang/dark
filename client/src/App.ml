@@ -1506,6 +1506,8 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           let cp = FluidCommands.filter query m.fluidState.cp in
           {m with fluidState = {m.fluidState with cp}} )
+  | FluidRunCommand cmd ->
+      FluidCommands.runCommand m cmd
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
