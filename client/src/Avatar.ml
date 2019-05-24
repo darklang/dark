@@ -15,7 +15,6 @@ let avatarUrl (email : string) (name : string option) : string =
         let initials =
           String.split ~on:" " name
           |> List.map ~f:(fun s -> s |> String.slice ~from:0 ~to_:1)
-          (* |> String.concat "+" *)
           |> String.join ~sep:"+"
         in
         (* TODO: we can set bg/fg color, font size/color/weight, make it
