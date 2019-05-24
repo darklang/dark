@@ -1304,6 +1304,30 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
+let nextFocusableOffset (pos : int) (s : state) (ast : ast) : int =
+  (* checks that there's another input *)
+  let tokens = toTokens s ast |> List.reverse in
+  let initToken = List.head tokens in
+  match initToken with
+  | Some initToken ->
+      tokens
+      |> List.take ~count:(List.length tokens - 1)
+      |> List.foldl ~init:(0, initToken) ~f:(fun ti (offset, next) ->
+             let nextFocusable =
+               match next.token with
+               | TPlaceholder _ | TBlank _ ->
+                   true
+               | _ ->
+                   false
+             in
+             if pos < ti.endPos && nextFocusable
+             then (next.startPos - pos, ti)
+             else (offset, ti) )
+      |> Tuple2.first
+  | None ->
+      0
+
+
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction "acEnter" s in
   match AC.highlighted s.ac with
@@ -1316,7 +1340,12 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newExpr, length = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
-      let newState = moveTo (ti.startPos + length) (acClear s) in
+      let offset = nextFocusableOffset s.newPos s ast in
+      let newState =
+        moveTo
+          (ti.startPos + length + offset (* bump forward to next focusable *))
+          (acClear s)
+      in
       (newAST, newState)
 
 
