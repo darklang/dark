@@ -1914,37 +1914,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   (newAST, newState)
 
 
-let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
-  let s = m.fluidState in
-  let key = keyEvt.key in
-  match key with
-  | K.Enter ->
-      let cp = s.cp in
-      ( match (cp.cmdOnTL, cp.cmdOnID) with
-      | Some tl, Some id ->
-        ( match FluidCommands.highlighted cp with
-        | Some cmd ->
-            Many [FluidCommands.executeCommand m tl id cmd; FluidCommandsClose]
-        | None ->
-            NoChange )
-      | _ ->
-          NoChange )
-  | K.Up ->
-      let cp = FluidCommands.moveUp s.cp in
-      let cmd = Types.MakeCmd (FluidCommands.focusItem cp.index) in
-      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
-      Types.Many [m; cmd]
-  | K.Down ->
-      let cp = FluidCommands.moveDown s.cp in
-      let cmd = Types.MakeCmd (FluidCommands.focusItem cp.index) in
-      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
-      Types.Many [m; cmd]
-  | K.Escape ->
-      FluidCommandsClose
-  | _ ->
-      NoChange
-
-
 let update (m : Types.model) (msg : Types.msg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
@@ -1958,7 +1927,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
   | FluidKeyPress ke when m.fluidState.cp.show = true ->
-      updateCmds m ke
+      FluidCommands.updateCmds m ke
   | _ ->
     ( match Toplevel.selected m with
     | None ->
@@ -2065,38 +2034,6 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
         [Html.text liveValueString; viewCopyButton tlid liveValueString]
 
 
-let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
-  let viewCommands i item =
-    let highlighted = cp.index = i in
-    let name = FluidCommands.asName item in
-    Html.li
-      [ Attrs.classList
-          [ ("autocomplete-item", true)
-          ; ("fluid-selected", highlighted)
-          ; ("valid", true) ]
-      ; ViewUtils.nothingMouseEvent "mouseup"
-      ; ViewEntry.defaultPasteHandler
-      ; ViewUtils.nothingMouseEvent "mousedown"
-      ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
-            FluidRunCommand item ) ]
-      [Html.text name]
-  in
-  let filterInput =
-    Html.input'
-      [ Attrs.id FluidCommands.filterInputID
-      ; Attrs.spellcheck false
-      ; Attrs.autocomplete false
-      ; Events.onInput (fun query -> FluidCommandsFilter query) ]
-      []
-  in
-  let cmdsView =
-    Html.div
-      [Attrs.id "fluid-dropdown"]
-      [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
-  in
-  Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
-
-
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
   let sentToRail id =
     let dv =
@@ -2128,7 +2065,7 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
-        then viewCommandPalette state.cp
+        then FluidCommands.viewCommandPalette state.cp
         else if isAutocompleting ti state
         then viewAutocomplete state.ac
         else Vdom.noNode
