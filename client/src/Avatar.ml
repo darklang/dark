@@ -36,13 +36,10 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let email : string = avatar.email in
   let username : string = avatar.username in
   let avActiveTimestamp : float = avatar.serverTime |> Js.Date.valueOf in
-  let dateNow : Js.Date.t = Js.Date.now () |> Js.Date.fromFloat in
-  let minusThreeMins : float =
-    Js.Date.setMinutes dateNow (Js.Date.getMinutes dateNow -. 3.0)
-  in
-  let active : bool = minusThreeMins > avActiveTimestamp in
+  let minusThreeMins : float = Js.Date.now () -. (3.0 *. 60.0 *. 1000.0) in
+  let inactive : bool = minusThreeMins > avActiveTimestamp in
   Html.img
-    [ Html.classList [("avatar", true); ("inactive", active)]
+    [ Html.classList [("avatar", true); ("inactive", inactive)]
     ; Html.src (avatarUrl email name)
     ; Vdom.prop "alt" username ]
     []

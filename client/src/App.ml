@@ -787,10 +787,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with f404s = new404s}, Cmd.none)
     | ExpireAvatars ->
-        let dateNow : Js.Date.t = Js.Date.now () |> Js.Date.fromFloat in
-        let fiveMinsAgo : float =
-          Js.Date.setMinutes dateNow (Js.Date.getMinutes dateNow -. 5.0)
-        in
+        let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
         let presentAvatars =
           List.filter
             ~f:(fun av -> av.serverTime |> Js.Date.valueOf > fiveMinsAgo)
