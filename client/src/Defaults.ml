@@ -36,13 +36,18 @@ let defaultFluidState : fluidState =
   ; lastKey = FluidKeyboard.Escape
   ; ac =
       { functions = []
-      ; index = Some 0
-      ; targetTL = None
-      ; targetTI = None
-      ; targetDval = None
+      ; index = None
+      ; query = None
       ; completions = []
       ; invalidCompletions = []
-      ; allCompletions = [] } }
+      ; allCompletions = [] }
+  ; cp =
+      { index = 0
+      ; show = false
+      ; commands = []
+      ; cmdOnTL = None
+      ; cmdOnID = None
+      ; filter = None } }
 
 
 let defaultCanvasProps : canvasProps =

@@ -48,7 +48,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DObj o] -> DList (DvalMap.data o) | args -> fail args)
+          | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Dict::get"]
@@ -61,7 +61,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.find o (Unicode_string.to_string s) with
+            ( match DvalMap.get o (Unicode_string.to_string s) with
             | Some d ->
                 d
             | None ->
@@ -1294,7 +1294,9 @@ let fns : Lib.shortfn list =
     ; d = "Add element `val` to front of list `list`"
     ; f =
         InProcess
-          (function _, [DList l; i] -> DList (i :: l) | args -> fail args)
+          (* fake cf handled by call *)
+          (function
+          | _, [DList l; i] -> DList (i :: l) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["List::pushBack"]
@@ -1414,6 +1416,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DList l; init; DBlock fn] ->
+              (* Fake cf should be propagated by the blocks so we dont need to check *)
               let f (dv1 : dval) (dv2 : dval) : dval = fn [dv1; dv2] in
               List.fold ~f ~init l
           | args ->
@@ -1509,7 +1512,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DList l1; DList l2] ->
-              DList (List.append l1 l2)
+              DList (List.append l1 l2) (* no checking for fake cf required *)
           | args ->
               fail args)
     ; ps = true
@@ -1535,6 +1538,35 @@ let fns : Lib.shortfn list =
                     RT.error "Expecting fn to return bool" ~result:v ~actual:dv
               in
               if !incomplete then DIncomplete else DList (List.filter ~f l)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["List::filter_v1"]
+    ; ins = []
+    ; p = [par "l" TList; func ["val"]]
+    ; r = TList
+    ; d = "Return only values in `l` which meet the function's criteria"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l; DBlock fn] ->
+              let fakecf = ref None in
+              let f (dv : dval) : bool =
+                let run = !fakecf = None in
+                run
+                &&
+                match fn [dv] with
+                | DBool b ->
+                    b
+                | (DIncomplete | DErrorRail _) as dv ->
+                    fakecf := Some dv ;
+                    false
+                | v ->
+                    RT.error "Expecting fn to return bool" ~result:v ~actual:dv
+              in
+              let result = List.filter ~f l in
+              (match !fakecf with None -> DList result | Some v -> v)
           | args ->
               fail args)
     ; ps = true
@@ -1574,6 +1606,23 @@ let fns : Lib.shortfn list =
           | _, [DList l; DBlock fn] ->
               let f (dv : dval) : dval = fn [dv] in
               DList (List.map ~f l)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["List::map"]
+    ; ins = []
+    ; p = [par "l" TList; func ["val"]]
+    ; r = TList
+    ; d =
+        "Call `f` on every item in the list, returning a list of the results of
+  those calls"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l; DBlock fn] ->
+              let f (dv : dval) : dval = fn [dv] in
+              Dval.to_list (List.map ~f l)
           | args ->
               fail args)
     ; ps = true

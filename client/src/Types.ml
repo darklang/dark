@@ -373,6 +373,7 @@ and hasMoved = bool
 and cursorState =
   | Selecting of tlid * id option
   | Entering of entryCursor
+  | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | SelectingCommand of tlid * id
   | Deselected
@@ -786,6 +787,8 @@ and modification =
   | UpdateTLUsage of usage list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
+  | FluidCommandsFor of tlid * id
+  | FluidCommandsClose
 
 (* ------------------- *)
 (* Msgs *)
@@ -886,6 +889,8 @@ and msg =
   | SetHoveringVarName of tlid * string option
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
+  | FluidCommandsFilter of string
+  | FluidRunCommand of command
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -942,24 +947,30 @@ and integrationTestState =
 and fluidName = string
 
 and fluidExpr =
+  (* Several of these expressions have extra IDs for roundtripping to the old expr *)
   | EInteger of id * int
   | EBool of id * bool
   | EString of id * string
   | EFloat of id * string * string
   | ENull of id
   | EBlank of id
-  | ELet of id * fluidName * fluidExpr * fluidExpr
+  (* The 2nd id is extra for the LHS blank. *)
+  | ELet of id * id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  | ELambda of id * fluidName list * fluidExpr
-  | EFieldAccess of id * fluidExpr * fluidName
+  (* the id in the varname list is extra *)
+  | ELambda of id * (id * fluidName) list * fluidExpr
+  (* The 2nd ID is extra for the fieldname blank *)
+  | EFieldAccess of id * fluidExpr * id * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string
   | EList of id * fluidExpr list
-  | ERecord of id * (fluidName * fluidExpr) list
+  (* The ID in the list is extra for the fieldname *)
+  | ERecord of id * (id * fluidName * fluidExpr) list
   | EThread of id * fluidExpr list
-  | EConstructor of id * fluidName * fluidExpr list
+  (* The 2nd ID is extra for the name *)
+  | EConstructor of id * id * fluidName * fluidExpr list
   | EOldExpr of expr
 
 and placeholder = string * string
@@ -997,7 +1008,7 @@ and fluidToken =
   | TFieldOp of id
   | TFieldName of id * string
   | TVariable of id * string
-  | TFnName of id * string
+  | TFnName of id * string * sendToRail
   | TLambdaSep of id
   | TLambdaArrow of id
   | TLambdaSymbol of id
@@ -1034,20 +1045,23 @@ and fluidAutocompleteState =
     (* ------------------------------- *)
     functions : function_ list
   ; index : int option
-  ; targetTL : toplevel option
-  ; targetTI :
-      fluidTokenInfo option
-      (* ------------------------------- *)
-      (* Cached inputs *)
-      (* ------------------------------- *)
-  ; targetDval :
-      dval option
+  ; query :
+      (* We need to refer back to the previous one *)
+      (tlid * fluidTokenInfo) option
       (* ------------------------------- *)
       (* Cached results *)
       (* ------------------------------- *)
   ; completions : fluidAutocompleteItem list
   ; invalidCompletions : fluidAutocompleteItem list
   ; allCompletions : fluidAutocompleteItem list }
+
+and fluidCommandState =
+  { index : int
+  ; show : bool
+  ; commands : command list
+  ; cmdOnTL : toplevel option
+  ; cmdOnID : id option
+  ; filter : string option }
 
 and fluidState =
   { error : string option
@@ -1059,7 +1073,8 @@ and fluidState =
       (* When moving up or down, and going through whitespace, track
        * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
-  ; ac : fluidAutocompleteState }
+  ; ac : fluidAutocompleteState
+  ; cp : fluidCommandState }
 
 (* Avatars *)
 and avatar =

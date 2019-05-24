@@ -918,8 +918,8 @@ let admin_ui_html
   let static_host =
     match local with
     (* TODO: if you want access, we can make this more general *)
-    | Some _ ->
-        "darklang-paul.ngrok.io"
+    | Some username ->
+        "darklang-" ^ username ^ ".ngrok.io"
     | _ ->
         Config.static_host
   in
@@ -1040,11 +1040,30 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
               let https_only_cookie =
                 req |> CRequest.uri |> should_use_https
               in
+              (* For why we use 'darklang.com' and not '.darklang.com', see
+               * https://www.mxsasha.eu/blog/2014/03/04/definitive-guide-to-cookie-domains/
+               * tl;dr: with a leading-dot was the specified behavior prior to
+               * RFC6265 (2011), and in theory is still okay because the leading
+               * dot is ignored, but .darklang.localhost doesn't work and
+               * darklang.localhost does, so ... no leading dot works better for
+               * us. *)
+              let domain =
+                req
+                |> CRequest.headers
+                |> fun h ->
+                Header.get h "host"
+                |> Option.value ~default:"darklang.com"
+                (* Host: darklang.localhost:8000 is properly set in-cookie as
+                   * "darklang.localhost", the cookie domain doesn't want the
+                   * port *)
+                |> String.substr_replace_all ~pattern:":8000" ~with_:""
+              in
               let headers =
                 username_header username
                 :: Auth.Session.to_cookie_hdrs
                      ~http_only:true
                      ~secure:https_only_cookie
+                     ~domain
                      ~path:"/"
                      Auth.Session.cookie_key
                      session

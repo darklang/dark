@@ -38,7 +38,7 @@ let init (flagString : string) (location : Web.Location.location) =
       cursorState =
         Deselected
         (* deselect for now as the selected blank isn't available yet *)
-    ; currentPage = page
+    ; currentPage = Architecture
     ; builtInFunctions = complete
     ; complete = AC.init m
     ; tests = VariantTesting.enabledVariantTests
@@ -205,37 +205,40 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   if m.integrationTestState <> NoIntegrationTest
   then Debug.loG "mod update" (show_modification mod_) ;
   let closeBlanks newM =
-    (* close open threads in the previous TL *)
-    m.cursorState
-    |> tlidOf
-    |> Option.andThen ~f:(TL.get m)
-    |> Option.map ~f:(fun tl ->
-           match tl.data with
-           | TLHandler h ->
-               let replacement = AST.closeBlanks h.ast in
-               if replacement = h.ast
-               then []
-               else
-                 let newH = {h with ast = replacement} in
-                 let ops = [SetHandler (tl.id, tl.pos, newH)] in
-                 let params = RPC.opsParams ops in
-                 (* call RPC on the new model *)
-                 [RPC.addOp newM FocusSame params]
-           | TLFunc f ->
-               let replacement = AST.closeBlanks f.ufAST in
-               if replacement = f.ufAST
-               then []
-               else
-                 let newF = {f with ufAST = replacement} in
-                 let ops = [SetFunction newF] in
-                 let params = RPC.opsParams ops in
-                 (* call RPC on the new model *)
-                 [RPC.addOp newM FocusSame params]
-           | TLDB _ | TLTipe _ ->
-               [] )
-    |> Option.withDefault ~default:[]
-    |> fun rpc ->
-    if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
+    if VariantTesting.isFluid m.tests
+    then []
+    else
+      (* close open threads in the previous TL *)
+      m.cursorState
+      |> tlidOf
+      |> Option.andThen ~f:(TL.get m)
+      |> Option.map ~f:(fun tl ->
+             match tl.data with
+             | TLHandler h ->
+                 let replacement = AST.closeBlanks h.ast in
+                 if replacement = h.ast
+                 then []
+                 else
+                   let newH = {h with ast = replacement} in
+                   let ops = [SetHandler (tl.id, tl.pos, newH)] in
+                   let params = RPC.opsParams ops in
+                   (* call RPC on the new model *)
+                   [RPC.addOp newM FocusSame params]
+             | TLFunc f ->
+                 let replacement = AST.closeBlanks f.ufAST in
+                 if replacement = f.ufAST
+                 then []
+                 else
+                   let newF = {f with ufAST = replacement} in
+                   let ops = [SetFunction newF] in
+                   let params = RPC.opsParams ops in
+                   (* call RPC on the new model *)
+                   [RPC.addOp newM FocusSame params]
+             | TLDB _ | TLTipe _ ->
+                 [] )
+      |> Option.withDefault ~default:[]
+      |> fun rpc ->
+      if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
   in
   let newm, newcmd =
     let handleRPC params focus =
@@ -474,19 +477,36 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
-        (Url.setPage m m.currentPage page, Cmd.none)
+        (Page.setPage m m.currentPage page, Cmd.none)
     | Select (tlid, p) ->
-        let hashCmd = Url.shouldUpdateHash m tlid in
-        let m = {m with cursorState = Selecting (tlid, p)} in
+        let cursorState =
+          if p = None && VariantTesting.isFluid m.tests
+          then FluidEntering tlid
+          else Selecting (tlid, p)
+        in
+        let m, hashcmd =
+          if tlidOf m.cursorState <> Some tlid
+          then
+            let tl = TL.getTL m tlid in
+            let page = TL.asPage tl false in
+            let m = Page.setPage m m.currentPage page in
+            (m, Url.updateUrl page)
+          else (m, Cmd.none)
+        in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        let commands = hashCmd @ closeBlanks m @ [afCmd] in
+        let commands = [hashcmd] @ closeBlanks m @ [afCmd] in
         (m, Cmd.batch commands)
     | Deselect ->
-        let hashCmd = Url.navigateTo Architecture in
-        let m, acCmd = processAutocompleteMods m [ACReset] in
-        let m = {m with cursorState = Deselected} in
-        let commands = hashCmd :: (closeBlanks m @ [acCmd]) in
-        (m, Cmd.batch commands)
+        if m.cursorState <> Deselected
+        then
+          let hashcmd = [Url.updateUrl Architecture] in
+          let m = Page.setPage m m.currentPage Architecture in
+          let m, acCmd = processAutocompleteMods m [ACReset] in
+          let m = {m with cursorState = Deselected} in
+          let commands = hashcmd @ closeBlanks m @ [acCmd] in
+          (m, Cmd.batch commands)
+        else (m, Cmd.none)
     | Enter entry ->
         let target =
           match entry with
@@ -843,6 +863,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | UpdateTLUsage usages ->
         ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
         , Cmd.none )
+    | FluidCommandsFor (tlid, id) ->
+        let cp = FluidCommands.commandsFor (TL.getTL m tlid) id in
+        ( {m with fluidState = {m.fluidState with cp}}
+        , Tea_html_cmds.focus FluidCommands.filterInputID )
+    | FluidCommandsClose ->
+        let cp = FluidCommands.reset in
+        ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
@@ -970,8 +997,7 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               Many
                 [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange)
-                ; Fluid.update m FluidMouseClick ]
+                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange) ]
             else SetCursorState origCursorState
         | _ ->
             NoChange
@@ -994,7 +1020,8 @@ let update_ (msg : msg) (m : model) : modification =
         Select (targetTLID, Some targetID)
     | SelectingCommand (_, scID) ->
         if scID = targetID then NoChange else Select (targetTLID, Some targetID)
-    )
+    | FluidEntering _ ->
+        Select (targetTLID, Some targetID) )
   | BlankOrDoubleClick (targetTLID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
@@ -1029,13 +1056,15 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetTLID, None)
         | Entering _ ->
             Select (targetTLID, None)
+        | FluidEntering _ ->
+            Select (targetTLID, None)
       in
       let fluid =
         if VariantTesting.isFluid m.tests
         then Fluid.update m FluidMouseClick
         else NoChange
       in
-      Many [click; fluid]
+      Many [fluid; click]
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1483,13 +1512,22 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (Url.navigateTo page)
   | SetHoveringVarName (tlid, name) ->
       Introspect.setHoveringVarName tlid name
-  | FluidKeyPress _ | FluidMouseClick ->
+  | FluidKeyPress _ ->
       Fluid.update m msg
   | TriggerSendPresenceCallback (Ok ()) ->
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
       DisplayAndReportHttpError
         ("TriggerSendPresenceCallback", false, err, Js.Json.null)
+  | FluidMouseClick ->
+      impossible "Can never happen"
+  | FluidCommandsFilter query ->
+      TweakModel
+        (fun m ->
+          let cp = FluidCommands.filter query m.fluidState.cp in
+          {m with fluidState = {m.fluidState with cp}} )
+  | FluidRunCommand cmd ->
+      FluidCommands.runCommand m cmd
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
@@ -1508,7 +1546,12 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     [Keyboard.downs (fun x -> GlobalKeyPress x)]
     @
     if VariantTesting.isFluid m.tests
-    then [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+    then
+      match m.cursorState with
+      | FluidEntering _ ->
+          [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+      | _ ->
+          []
     else []
   in
   let resizes =

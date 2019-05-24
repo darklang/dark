@@ -7,7 +7,7 @@
 /backend/profile.json
 /backend/static/
 /tags
-
+*.pyc
 /client/yarn-error.log
 
 # Templates for these are in scripts/support/kubernetes/*/*.yaml.template
@@ -15,6 +15,7 @@
 /scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 /scripts/support/kubernetes/queueworker/qw-deployment.yaml
 /scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+/scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 
 # Old rendered templates
 builtwithdark.yaml
@@ -22,4 +23,6 @@ cronchecker.yaml
 queueworker.yaml
 tunnel.yaml
 
-*.pyc
+# Files that get created on CI. We check that status is clean so need to list these.
+/client/node_modules
+/stroller/target

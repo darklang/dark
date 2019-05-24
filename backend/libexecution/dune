@@ -11,6 +11,7 @@
               ; note that libtarget.{ocaml,js} are not included here
               libtarget
               libcommon
+              tablecloth-native
               core_kernel
               uuidm
               base64
