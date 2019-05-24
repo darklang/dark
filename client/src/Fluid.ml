@@ -1686,6 +1686,24 @@ let doInsert
       doInsert' ~pos letter ti ast s
 
 
+let maybeOpenCmd (m : Types.model) : Types.modification =
+  let getCurrentToken tokens =
+    let _, mCurrent, _ = getTokensAtPosition tokens ~pos:m.fluidState.newPos in
+    mCurrent
+  in
+  Toplevel.selected m
+  |> Option.andThen ~f:(fun tl ->
+         TL.rootExpr tl
+         |> Option.andThen ~f:(fun ast -> Some (fromExpr m.fluidState ast))
+         |> Option.andThen ~f:(fun ast -> Some (toTokens m.fluidState ast))
+         |> Option.withDefault ~default:[]
+         |> getCurrentToken
+         |> Option.andThen ~f:(fun ti ->
+                let id = Token.tid ti.token in
+                Some (FluidCommandsFor (tl.id, id)) ) )
+  |> Option.withDefault ~default:NoChange
+
+
 let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
@@ -1906,6 +1924,10 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
   | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
     when (metaKey || ctrlKey) && key = K.Letter 'z' ->
       KeyPress.undo_redo m shiftKey
+  | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
+      maybeOpenCmd m
+  | FluidKeyPress ke when m.fluidState.cp.show = true ->
+      FluidCommands.updateCmds m ke
   | _ ->
     ( match Toplevel.selected m with
     | None ->
@@ -2041,7 +2063,13 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
   List.map l ~f:(fun ti ->
-      let dropdown () = viewAutocomplete state.ac in
+      let dropdown () =
+        if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
+        then FluidCommands.viewCommandPalette state.cp
+        else if isAutocompleting ti state
+        then viewAutocomplete state.ac
+        else Vdom.noNode
+      in
       let liveValue () = viewLiveValue ~tlid ~currentResults ti in
       let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
@@ -2053,9 +2081,6 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
-      let autocomplete =
-        if isAutocompleting ti state then dropdown () else Vdom.noNode
-      in
       let liveValue =
         if state.newPos <= ti.endPos
            && state.newPos >= ti.startPos
@@ -2065,7 +2090,7 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      [element [autocomplete; liveValue]; errorIndicator] )
+      [element [dropdown (); liveValue]; errorIndicator] )
   |> List.flatten
 
 
@@ -2074,6 +2099,7 @@ let viewAST
     ~(currentResults : analysisResults)
     ~(state : state)
     (ast : ast) : Types.msg Html.html =
+  let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
       let open Tea.Json.Decoder in
@@ -2082,15 +2108,16 @@ let viewAST
     Html.onWithOptions
       ~key
       event
-      {stopPropagation = false; preventDefault = true}
+      {stopPropagation = false; preventDefault = not cmdOpen}
       decodeNothing
   in
+  let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   Html.div
     [ Attrs.id editorID
     ; Vdom.prop "contentEditable" "true"
     ; Attrs.autofocus true
     ; Attrs.spellcheck false
-    ; event ~key:"keydown" "keydown"
+    ; event ~key:eventKey "keydown"
     (* ; event ~key:"keyup" "keyup" *)
      ]
     (ast |> toTokens state |> toHtml ~tlid ~currentResults ~state)

@@ -40,7 +40,14 @@ let defaultFluidState : fluidState =
       ; query = None
       ; completions = []
       ; invalidCompletions = []
-      ; allCompletions = [] } }
+      ; allCompletions = [] }
+  ; cp =
+      { index = 0
+      ; show = false
+      ; commands = []
+      ; cmdOnTL = None
+      ; cmdOnID = None
+      ; filter = None } }
 
 
 let defaultCanvasProps : canvasProps =
