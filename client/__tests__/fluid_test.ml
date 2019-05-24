@@ -478,6 +478,73 @@ let () =
             | _ ->
                 false )
           |> toBe true ) ;
+      test "AST with nested threads to token list" (fun () ->
+          let ast =
+            B.newF
+              (Let
+                 ( B.newF "x"
+                 , B.newF
+                     (Thread
+                        [ B.newF (ListLiteral [B.new_ ()])
+                        ; B.newF
+                            (FnCall
+                               ( B.newF "List::append"
+                               , [ B.newF
+                                     (Thread
+                                        [ B.newF
+                                            (ListLiteral
+                                               [B.newF (Value "5"); B.new_ ()])
+                                        ; B.newF
+                                            (FnCall
+                                               ( B.newF "List:append"
+                                               , [ B.newF
+                                                     (ListLiteral
+                                                        [ B.newF (Value "5")
+                                                        ; B.new_ () ]) ]
+                                               , NoRail )) ]) ]
+                               , NoRail )) ])
+                 , B.newF (Variable "x") ))
+          in
+          let tokens =
+            ast
+            |> fromExpr m.fluidState
+            |> toTokens m.fluidState
+            |> List.map ~f:(fun ti -> ti.token)
+          in
+          expect
+            ( match tokens with
+            | [ TLetKeyword _
+              ; TLetLHS _
+              ; TLetAssignment _
+              ; TListOpen _
+              ; TBlank _
+              ; TListClose _
+              ; TNewline
+              ; TIndent _
+              ; TThreadPipe _
+              ; TFnName _
+              ; TSep
+              ; TListOpen _
+              ; TInteger _
+              ; TListSep _
+              ; TBlank _
+              ; TListClose _
+              ; TNewline
+              ; TIndent _
+              ; TThreadPipe _
+              ; TFnName _
+              ; TSep
+              ; TListOpen _
+              ; TInteger _
+              ; TListSep _
+              ; TBlank _
+              ; TListClose _
+              ; TNewline
+              ; TVariable _ ] ->
+                true
+            | _ ->
+                false )
+          |> toBe true ) ;
       () ) ;
   describe "Ifs" (fun () ->
       t
