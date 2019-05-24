@@ -61,7 +61,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         "dblclick"
         (fun _ -> ToplevelDoubleClick vs.tl.id) ]
   in
-  let avatars = Avatar.avatarsView vs.avatarsList in
+  let avatars = Avatar.viewAvatars vs.avatarsList in
   let selected = Some tl.id = tlidOf m.cursorState in
   let boxClasses =
     let dragging =
@@ -302,12 +302,12 @@ let view (m : model) : msg Html.html =
   let footer = [ViewScaffold.viewError m.error; ViewScaffold.viewButtons m] in
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in
-  let avatars = Avatar.allAvatarsView m.avatarsList in
+  let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if VariantTesting.isFluid m.tests
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
-  let content = [routing; body; avatars] @ fluidStatus @ footer in
+  let content = [routing; body; activeAvatars] @ fluidStatus @ footer in
   Html.div attributes content

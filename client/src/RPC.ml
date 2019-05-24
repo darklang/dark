@@ -1,7 +1,12 @@
 open Tc
 open Types
 
-let postJson decoder (csrfToken : string) (url : string) (body : Js.Json.t) =
+let postJson
+    decoder
+    ?(withCredentials = false)
+    (csrfToken : string)
+    (url : string)
+    (body : Js.Json.t) =
   Tea.Http.request
     { method' = "POST"
     ; headers =
@@ -11,7 +16,7 @@ let postJson decoder (csrfToken : string) (url : string) (body : Js.Json.t) =
     ; body = Web.XMLHttpRequest.StringBody (Json.stringify body)
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
     ; timeout = None
-    ; withCredentials = false }
+    ; withCredentials }
 
 
 let postEmptyJson decoder (csrfToken : string) (url : string) =
@@ -126,3 +131,16 @@ let integration (m : model) (name : string) : msg Tea.Cmd.t =
     (fun x ->
       InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x) )
     request
+
+
+let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
+  let url = "https://presence.darklang.com/presence" in
+  let request =
+    postJson
+      ~withCredentials:true
+      (fun _ -> ())
+      m.csrfToken
+      url
+      (Encoders.sendPresenceParams av)
+  in
+  Tea.Http.send (fun _ -> TriggerSendPresenceCallback (Ok ())) request

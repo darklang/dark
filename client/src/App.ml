@@ -15,6 +15,13 @@ module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
 
+let createBrowserId : string =
+  BsUuid.Uuid.V5.create
+    ~name:"browserId"
+    ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
+  |> BsUuid.Uuid.V5.toString
+
+
 let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
@@ -41,13 +48,21 @@ let init (flagString : string) (location : Web.Location.location) =
     ; environment
     ; csrfToken }
   in
+  let timeStamp = Js.Date.now () /. 1000.0 in
+  let avMessage : avatarModelMessage =
+    { canvasName = m.canvasName
+    ; browserId = createBrowserId
+    ; tlid = None
+    ; timestamp = timeStamp }
+  in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
   then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
     ( m
     , Cmd.batch
-        [RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))] )
+        [ RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))
+        ; RPC.sendPresence m avMessage ] )
 
 
 let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
@@ -1499,6 +1514,11 @@ let update_ (msg : msg) (m : model) : modification =
       Introspect.setHoveringVarName tlid name
   | FluidKeyPress _ ->
       Fluid.update m msg
+  | TriggerSendPresenceCallback (Ok ()) ->
+      NoChange
+  | TriggerSendPresenceCallback (Error err) ->
+      DisplayAndReportHttpError
+        ("TriggerSendPresenceCallback", false, err, Js.Json.null)
   | FluidMouseClick ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
