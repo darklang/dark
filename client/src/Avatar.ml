@@ -34,7 +34,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let email : string = avatar.email in
   let username : string = avatar.username in
   let avActiveTimestamp : float = avatar.activeTimestamp in
-  let threeMinsAgo : float = Js.Date.now () -. 180000.00 in
+  let threeMinsAgo : float = (Js.Date.now () /. 1000.0) -. (3.0 *. 60.0) in
   let active : bool = threeMinsAgo < avActiveTimestamp in
   Html.img
     [ Html.classList [("avatar", true); ("inactive", active)]
@@ -43,13 +43,13 @@ let avatarDiv (avatar : avatar) : msg Html.html =
     []
 
 
-let avatarsView (avatars : avatarsList) : msg Html.html =
+let viewAvatars (avatars : avatarsList) : msg Html.html =
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map renderAvatar avatars in
   Html.div [Html.class' "avatars"] avatars
 
 
-let allAvatarsView (avatars : avatarsList) : msg Html.html =
+let viewAllAvatars (avatars : avatarsList) : msg Html.html =
   let avatars = List.map avatarDiv avatars in
   Html.div
     [Html.class' "all-avatars"]

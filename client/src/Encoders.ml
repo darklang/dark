@@ -364,6 +364,14 @@ and triggerCronRPCParams (params : Types.triggerCronRPCParams) : Js.Json.t =
   object_ [("tlid", tlid params.tcpTLID)]
 
 
+and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
+  object_
+    [ ("canvasName", string params.canvasName)
+    ; ("browserId", string params.browserId)
+    ; ("tlid", nullable string params.tlid)
+    ; ("timestamp", Json_encode_extended.float params.timestamp) ]
+
+
 and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
   object_
     [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
