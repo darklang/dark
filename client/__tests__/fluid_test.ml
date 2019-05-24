@@ -4,6 +4,7 @@ open Tc
 open Types
 open Prelude
 open Fluid
+module B = Blank
 module K = FluidKeyboard
 
 let complexExpr =
@@ -447,6 +448,36 @@ let () =
         emptyLet
         (press K.Equals 9)
         ("let *** = ___\n5", 10) ;
+      () ) ;
+  describe "Threads" (fun () ->
+      test "AST to token list" (fun () ->
+          let ast =
+            B.newF
+              (Thread
+                 [ B.newF (Value "live")
+                 ; B.newF (FnCall (B.newF "String::reverse", [], NoRail))
+                 ; B.newF (FnCall (B.newF "String::toUppercase", [], NoRail))
+                 ])
+          in
+          let tokens =
+            ast
+            |> fromExpr m.fluidState
+            |> toTokens m.fluidState
+            |> List.map ~f:(fun ti -> ti.token)
+          in
+          expect
+            ( match tokens with
+            | [ _
+              ; TNewline
+              ; TThreadPipe _
+              ; TFnName _
+              ; TNewline
+              ; TThreadPipe _
+              ; TFnName _ ] ->
+                true
+            | _ ->
+                false )
+          |> toBe true ) ;
       () ) ;
   describe "Ifs" (fun () ->
       t
