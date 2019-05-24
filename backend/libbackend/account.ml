@@ -3,7 +3,7 @@ open Libexecution
 open Types
 module Hash = Sodium.Password_hash.Bytes
 
-type username = string
+type username = string [@@deriving yojson]
 
 type account =
   { username : username
@@ -16,6 +16,7 @@ type user_info =
   ; email : string
   ; name : string
   ; admin : bool }
+[@@deriving yojson]
 
 (************************)
 (* Adding *)

@@ -20,6 +20,15 @@ commands:
             docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
 
   ##########################
+  # Check the worktree
+  ##########################
+  assert-clean-worktree:
+    steps:
+      - run:
+          name: Assert the worktree is clean
+          command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
+
+  ##########################
   # Artifacts
   ##########################
   extract-and-save-artifacts:
@@ -83,15 +92,15 @@ commands:
           name: Install outer container utilities
           # coreutils for gnu date
           command: |
-            apk add --update bash coreutils nginx jq
+            apk add --update bash coreutils jq
 
       - run:
           name: "Setup cache names"
           command: |
-            date +"%F" > today-timestamp
-            date +"%F" -d "today - 1 days" > minus1-timestamp
-            date +"%F" -d "today - 2 days" > minus2-timestamp
-            date +"%F" -d "today - 3 days" > minus3-timestamp
+            date +"%F" > rundir/today-timestamp
+            date +"%F" -d "today - 1 days" > rundir/minus1-timestamp
+            date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
+            date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
 
 
   ##########################
@@ -142,10 +151,10 @@ jobs:
       - restore_cache:
           keys:
             - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v10-stroller-{{ checksum "today-timestamp" }}
-            - v10-stroller-{{ checksum "minus1-timestamp" }}
-            - v10-stroller-{{ checksum "minus2-timestamp" }}
-            - v10-stroller-{{ checksum "minus3-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/today-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/minus1-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/minus2-timestamp" }}
+            - v10-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - run:
@@ -160,6 +169,7 @@ jobs:
       - run-background-container
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml
+      - assert-clean-worktree
       - run:
           name: Copy out generated files and caches
           command: |
@@ -176,7 +186,7 @@ jobs:
           paths:
             - stroller/target
             - cargo
-          key: v10-stroller-{{ checksum "today-timestamp" }}
+          key: v10-stroller-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -191,10 +201,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-backend-{{ checksum "today-timestamp" }}
-            - v6-backend-{{ checksum "minus1-timestamp" }}
-            - v6-backend-{{ checksum "minus2-timestamp" }}
-            - v6-backend-{{ checksum "minus3-timestamp" }}
+            - v6-backend-{{ checksum "rundir/today-timestamp" }}
+            - v6-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v6-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v6-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
@@ -203,6 +213,7 @@ jobs:
     # - run-background-container
     # - wait-for-container
     # - run: scripts/gcp-build-containers --skip-stroller
+      - assert-clean-worktree
       - run:
           name: Copy out generated files and caches
           command: |
@@ -211,7 +222,7 @@ jobs:
       - save_cache:
           name: "Save daily backend cache"
           paths: [ "backend/_build" ]
-          key: v6-backend-{{ checksum "today-timestamp" }}
+          key: v6-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -236,11 +247,25 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-postgres-honeytail-{{ checksum "today-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "minus1-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "minus2-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "minus3-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
+            - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail . && docker run -t dark-gcp-postgres-honeytail python test_logs.py
+
+  check-nginx-conf:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+      - run:
+          name: Copy app directory into dev container
+          command: |
+            docker create -v /etc/nginx -v /etc/nginx/conf.d --name nginxvols nginx:1.15.3 /bin/true
+            docker cp scripts/support/base-nginx.conf nginxvols:/etc/nginx/nginx.conf
+            docker cp scripts/support/nginx.conf nginxvols:/etc/nginx/conf.d/nginx.conf
+      - run: scripts/support/test-nginx.sh
 
   build-client:
     executor: my-executor
@@ -250,16 +275,17 @@ jobs:
       - restore_cache:
           keys:
             - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "today-timestamp" }}
-            - v8-client-{{ checksum "minus1-timestamp" }}
-            - v8-client-{{ checksum "minus2-timestamp" }}
-            - v8-client-{{ checksum "minus3-timestamp" }}
+            - v8-client-{{ checksum "rundir/today-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
       - run: scripts/builder --compile-client --test
       - run-background-container
       - wait-for-container
+      - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - run:
           name: Copy out generated files and caches
@@ -274,7 +300,7 @@ jobs:
       - save_cache:
           name: "Save daily client cache"
           paths: [ "client/node_modules" ]
-          key: v8-client-{{ checksum "today-timestamp" }}
+          key: v8-client-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -309,15 +335,12 @@ jobs:
       - restore_cache: # get testcafe
           keys:
             - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "today-timestamp" }}
-            - v8-client-{{ checksum "minus1-timestamp" }}
-            - v8-client-{{ checksum "minus2-timestamp" }}
-            - v8-client-{{ checksum "minus3-timestamp" }}
+            - v8-client-{{ checksum "rundir/today-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
       - copy-into-container
       - run-background-container
-
-      # run this here so we save a little time waiting for the server to be ready.
-      - run: nginx -t -c $(pwd)/scripts/support/nginx-toplevel.conf -g "pid $(pwd)/rundir/nginx.pid;"
 
       - wait-for-server
       - run:
@@ -325,14 +348,15 @@ jobs:
           shell: bash
           command: |
             # get full list of tests
-            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > all-tests
+            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > rundir/all-tests
             # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname all-tests)
+            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
             # concat them into a pattern (note: $TESTS is deliberately unquoted)
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
             scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+      - assert-clean-worktree
 
       - extract-and-save-artifacts
 
@@ -392,6 +416,7 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
+      - check-nginx-conf
       - build-backend
       - build-client
       - build-stroller
@@ -413,6 +438,7 @@ workflows:
             - build-client
             - build-stroller
             - build-postgres-honeytail
+            - check-nginx-conf
 
       # actual deploy
       - deploy:

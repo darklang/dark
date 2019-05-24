@@ -175,7 +175,7 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
          StrDict.get ~key:tlid meta |> Option.andThen ~f:(asUsedIn tlid_) )
 
 
-let activeAvatars (m : model) : avatar list =
+let presentAvatars (m : model) : avatar list =
   let avatars = m.avatarsList in
   avatars
 

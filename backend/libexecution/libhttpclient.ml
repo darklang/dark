@@ -203,10 +203,9 @@ let fns : Lib.shortfn list =
           (function
           | _, [] ->
               DObj
-                (DvalMap.of_alist_exn
-                   [ ( "Content-Type"
-                     , Dval.dstr_of_string_exn
-                         "application/x-www-form-urlencoded" ) ])
+                (DvalMap.singleton
+                   "Content-Type"
+                   (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
           | args ->
               fail args)
     ; ps = true
@@ -221,10 +220,9 @@ let fns : Lib.shortfn list =
           (function
           | _, [] ->
               DObj
-                (DvalMap.of_alist_exn
-                   [ ( "Content-Type"
-                     , Dval.dstr_of_string_exn
-                         "application/json; charset=utf-8" ) ])
+                (DvalMap.singleton
+                   "Content-Type"
+                   (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
           | args ->
               fail args)
     ; ps = true
@@ -239,9 +237,9 @@ let fns : Lib.shortfn list =
           (function
           | _, [] ->
               DObj
-                (DvalMap.of_alist_exn
-                   [ ( "Content-Type"
-                     , Dval.dstr_of_string_exn "text/plain; charset=utf-8" ) ])
+                (DvalMap.singleton
+                   "Content-Type"
+                   (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
           | args ->
               fail args)
     ; ps = true
@@ -256,9 +254,9 @@ let fns : Lib.shortfn list =
           (function
           | _, [] ->
               DObj
-                (DvalMap.of_alist_exn
-                   [ ( "Content-Type"
-                     , Dval.dstr_of_string_exn "text/html; charset=utf-8" ) ])
+                (DvalMap.singleton
+                   "Content-Type"
+                   (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
           | args ->
               fail args)
     ; ps = true
@@ -286,7 +284,7 @@ let fns : Lib.shortfn list =
                   (Unicode_string.of_string_exn "Bearer ")
                   token
               in
-              DObj (DvalMap.of_alist_exn [("Authorization", DStr auth_string)])
+              DObj (DvalMap.singleton "Authorization" (DStr auth_string))
           | args ->
               fail args)
     ; ps = true

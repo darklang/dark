@@ -243,14 +243,14 @@ let sample_dvals =
   ; ("null", DNull)
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
   ; ("list", DList [DDB "Visitors"; DInt 4])
-  ; ("obj", DObj (DvalMap.of_alist_exn [("foo", DInt 5)]))
+  ; ("obj", DObj (DvalMap.singleton "foo" (DInt 5)))
   ; ( "obj2"
     , DObj
-        (DvalMap.of_alist_exn
+        (DvalMap.from_list
            [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
   ; ( "obj3"
     , DObj
-        (DvalMap.of_alist_exn
+        (DvalMap.from_list
            [ ("type", Dval.dstr_of_string_exn "weird")
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete)
@@ -452,7 +452,7 @@ let t_multiple_copies_of_same_name () =
   check_dval
     "object field names"
     (exec_ast "(obj (col1 1) (col1 2))")
-    (DError "The same key occurs multiple times") ;
+    (DError "Duplicate key: col1") ;
   let ops =
     [Op.CreateDB (dbid, pos, "TestDB"); Op.CreateDB (dbid, pos, "TestDB")]
   in
@@ -559,7 +559,7 @@ let t_case_insensitive_db_roundtrip () =
       AT.(check bool)
         "matched"
         true
-        (List.mem ~equal:( = ) (DvalMap.data v) value)
+        (List.mem ~equal:( = ) (DvalMap.values v) value)
   | other ->
       Log.erroR "error" ~data:(Dval.to_developer_repr_v0 other) ;
       AT.(check bool) "failed" true false
@@ -715,7 +715,7 @@ let t_hmac_signing _ =
   Mock.set_string "ts" ts ;
   Mock.set_string "nonce" nonce ;
   let args =
-    DvalMap.of_alist_exn
+    DvalMap.from_list
       [(k1, Dval.dstr_of_string_exn v1); (k2, Dval.dstr_of_string_exn v2)]
   in
   let expected_header =
@@ -784,7 +784,7 @@ let t_db_add_roundtrip () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DObj (DvalMap.of_alist_exn [("x", DNull)]))
+    (DObj (DvalMap.singleton "x" DNull))
     (exec_handler ~ops ast)
 
 
@@ -809,8 +809,8 @@ let t_nulls_added_to_missing_column () =
     (DList
        [ Dval.dstr_of_string_exn "i"
        ; DObj
-           (DvalMap.of_alist_exn
-              [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)]) ])
+           (DvalMap.from_list [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)])
+       ])
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 
@@ -982,7 +982,7 @@ let t_incomplete_propagation () =
     (exec_ast "(5 6 _)") ;
   check_dval
     "Blanks stripped from objects"
-    (DObj (DvalMap.of_alist_exn [("m", DInt 5); ("n", DInt 6)]))
+    (DObj (DvalMap.from_list [("m", DInt 5); ("n", DInt 6)]))
     (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))") ;
   check_dval
     "incomplete if conds are incomplete"
@@ -1253,8 +1253,9 @@ let t_authenticate_then_handle_code_and_cookie () =
            (Uri.of_string "http://darklang.com/a/test")
          (* plain request, no auth *)
        ; Req.make (Uri.of_string "http://test.builtwithdark.com/a/test") ])
-    [ (200, Some "Max-Age=604800; path=/; secure; httponly")
-    ; (200, Some "Max-Age=604800; path=/; httponly")
+    [ ( 200
+      , Some "Max-Age=604800; domain=darklang.com; path=/; secure; httponly" )
+    ; (200, Some "Max-Age=604800; domain=darklang.localhost; path=/; httponly")
     ; (401, None)
     ; (401, None)
     ; (401, None) ]
@@ -1680,7 +1681,7 @@ let t_parsed_request_cookies () =
     |> fun v ->
     match v with
     | DObj o ->
-        DvalMap.find_exn o "cookies"
+        Base.Map.find_exn o "cookies"
     | _ ->
         failwith "didn't end up with 'cookies' in the DObj"
   in
@@ -2098,7 +2099,7 @@ let t_trace_data_json_format_redacts_passwords () =
 
 
 let t_basic_typecheck_works_happy () =
-  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DInt 4)] in
+  let args = DvalMap.from_list [("a", DInt 5); ("b", DInt 4)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -2109,7 +2110,7 @@ let t_basic_typecheck_works_happy () =
 
 
 let t_basic_typecheck_works_unhappy () =
-  let args = DvalMap.of_alist_exn [("a", DInt 5); ("b", DBool true)] in
+  let args = DvalMap.from_list [("a", DInt 5); ("b", DBool true)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -2120,7 +2121,7 @@ let t_basic_typecheck_works_unhappy () =
 
 
 let t_typecheck_any () =
-  let args = DvalMap.of_alist_exn [("v", DInt 5)] in
+  let args = DvalMap.from_list [("v", DInt 5)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "toString" in
   let user_tipes = [] in
   AT.check
@@ -2410,6 +2411,37 @@ let t_path_gt_route_does_not_crash () =
     bound
 
 
+let t_error_rail_is_propagated_by_functions () =
+  check_dval
+    "push"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::push (1 2 3 4) (`List::head_v1 []))") ;
+  check_dval
+    "filter with incomplete"
+    DIncomplete
+    (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> _))") ;
+  check_dval
+    "map with incomplete"
+    DIncomplete
+    (exec_ast "(List::map (1 2 3 4) (\\x -> _))") ;
+  check_dval
+    "fold with incomplete"
+    DIncomplete
+    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (+ x _)))") ;
+  check_dval
+    "filter with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+  check_dval
+    "map with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::map (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+  check_dval
+    "fold with error rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (`List::head_v1 [])))")
+
+
 let t_load_for_context_only_loads_relevant_data () =
   clear_test_data () ;
   let sharedh = handler (ast_for "(+ 5 3)") in
@@ -2444,6 +2476,24 @@ let t_load_for_context_only_loads_relevant_data () =
     |> List.rev
   in
   check_oplist "only loads relevant data from same canvas" shared_oplist ops
+
+
+let t_query_params_with_duplicate_keys () =
+  let parsed =
+    Parsed_request.parsed_query_string [("a", ["b"]); ("a", ["c"])]
+  in
+  check_dval
+    "parsed_query_string"
+    (DObj
+       (DvalMap.singleton
+          "queryParams"
+          (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c")))))
+    parsed ;
+  check_dval
+    "query_to_dval"
+    (Dval.query_to_dval [("a", ["b"]); ("a", ["c"])])
+    (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c"))) ;
+  ()
 
 
 (* ------------------- *)
@@ -2667,7 +2717,13 @@ let suite =
     , t_path_gt_route_does_not_crash )
   ; ( "Canvas.load_for_context loads only that tlid and relevant context"
     , `Quick
-    , t_load_for_context_only_loads_relevant_data ) ]
+    , t_load_for_context_only_loads_relevant_data )
+  ; ( "Error rail is propagated by functions"
+    , `Quick
+    , t_error_rail_is_propagated_by_functions )
+  ; ( "Query strings behave properly given multiple duplicate keys"
+    , `Quick
+    , t_query_params_with_duplicate_keys ) ]
 
 
 let () =

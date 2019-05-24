@@ -63,3 +63,5 @@ val owner : auth_domain:string -> Uuidm.t option
 val init : unit -> unit
 
 val init_testing : unit -> unit
+
+val user_info_to_yojson : user_info -> Yojson.Safe.json

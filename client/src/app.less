@@ -241,6 +241,7 @@ body #app * {
   min-width: @toplevel-min-width;
   padding: 4px;
   border: @top-border;
+  background: @black1;
 
   &.selected {
     background-color: @selected-toplevel-background;
@@ -394,7 +395,7 @@ body #app * {
 .use-wrapper{
   background: transparent;
   margin-left: 10px;
-  
+
   &.fade{
     opacity: 0.3;
   }
@@ -407,30 +408,22 @@ body #app * {
 }
 .usages {
   position: absolute;
+  //Change after avatars to shown, quick fix: left 100% - 50px
   left: calc(~"100% + 30px");
-  
+
   display: flex;
   flex-direction: column;
 
 }
-.avatars{
-  position: absolute;
-  // left: calc(~"100% + 30px");
-  
-  display: flex;
-  flex-direction: column;
-  
-}
 
-.avatar{
+.avatar {
   padding: 0px 5px;
- img{
-   width: 40px
- }
+  width: 40px;
+  height: 40px;
+
 }
 
 .all-avatars{
-  // width: 75px;
   max-height: calc(100% - 50px);
   overflow-y: scroll;
   position: fixed;
@@ -454,7 +447,6 @@ body #app * {
   }
 }
 
-
 .ref-block {
   display: block;
   box-sizing: content-box;
@@ -475,7 +467,7 @@ body #app * {
     margin-top: 0;
     margin-bottom: 8px;
   }
-  
+
   &:hover {
     cursor: pointer;
     color: @yellow;
@@ -1235,10 +1227,50 @@ body #app * {
     position: relative;
     // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
   }
+
+  /* Will style more later. Cmd palette should look like a smaller version of omnibox
+  since they are essentially both commands just acting upon different things. */
+  .command-palette {
+    background-color: @dropdown-background;
+    border-radius: 2px;
+    position: absolute;
+    left: 0;
+    width: max-content;
+    box-shadow: 1px 1px 1px black;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    z-index: 1000;
+
+    #cmd-filter {
+      background: transparent;
+      color: @dropdown-foreground;
+      margin-top: 2px;
+      margin-left: 1ch;
+    }
+
+    #fluid-dropdown {
+      position: relative;
+      left: 0;
+      background-color: transparent;
+      box-shadow: 0 0 0 transparent;
+    }
+  }
+  
   #fluid-dropdown {
+    background-color: @dropdown-background;
+    color: @dropdown-foreground;
+    z-index: 1000;
     position: absolute;
     left: -1ch;
     box-shadow: 1px 1px 1px black;
+    width: max-content;
+    max-height: 100px;
+    overflow-y: scroll;
+    padding: 0;
+
+
     ul {
       margin: 0;
       padding-inline-start: 0;
@@ -1247,29 +1279,68 @@ body #app * {
         background-color: @dropdown-selected-background;
         color: darken(white, 5%);
       }
-    }
-  }
-  // </ Position autocomplete as a dropdown>
-
-  #fluid-dropdown {
-    // Don't show text under it.
-    background-color: @dropdown-background;
-    color: @dropdown-foreground;
-    z-index: 1000;
-    ul {
       li {
         list-style-type: none; // remove bullet points
         padding: 0 1ch;
+        height: 16px;
 
         .types {
           float: right;
+          margin-left: 4ch;
           text-transform: lowercase;
           font-family: monospace;
-          font-size: 80%;
+          color: darken(@dropdown-foreground, 15%);
         }
-
       }
     }
+  }
+  .live-value {
+    display: block;
+    position: absolute;
+    right: calc(~"100% + 30px");
+    font-style: normal;
+
+
+    padding: 4px;
+    width: max-content;
+    max-width: 250px;
+
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+    font-size: @code-font-size * 0.85;
+    color: @grey3;
+
+    background-color: @black2;
+    outline: 0.4px @grey2 dotted;
+
+    .copy-value {
+      position: absolute;
+      top: -4px;
+      right: -8px;
+
+      opacity: 0.7;
+
+      &:hover {
+        opacity: 0.85;
+      }
+    }
+  }
+
+  .error-indicator {
+    position: absolute;
+    left: calc(100% - 18px);
+  }
+  .error-icon {
+    display: block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid #6b6b6b;
+    background-color: transparent;
+  }
+  .error-icon[data-sent-to-rail="true"] {
+    background-color: #6b6b6b;
   }
 }
 

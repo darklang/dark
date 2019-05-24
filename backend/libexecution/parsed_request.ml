@@ -57,7 +57,7 @@ let parsed_query_string (queryvals : (string * string list) list) =
 let parsed_headers (headers : (string * string) list) =
   headers
   |> List.map ~f:(fun (k, v) -> (k, Dval.dstr_of_string_exn v))
-  |> DvalMap.of_alist_reduce ~f:(fun l r -> r)
+  |> DvalMap.from_list
   |> fun dm -> DObj dm |> fun dv -> Dval.to_dobj_exn [("headers", dv)]
 
 

@@ -48,6 +48,30 @@ let level_to_string (level : level) : string =
       "ALL"
 
 
+let string_to_level_opt (str : string) : level option =
+  match str |> String.strip |> String.uppercase with
+  | "OFF" ->
+      Some `Off
+  | "INSPECT" ->
+      Some `Inspect
+  | "FATAL" ->
+      Some `Fatal
+  | "ERROR" ->
+      Some `Error
+  | "WARN" ->
+      Some `Warn
+  | "INFO" ->
+      Some `Info
+  | "DEBUG" ->
+      Some `Debug
+  | "SUCCESS" ->
+      Some `Success
+  | "ALL" ->
+      Some `All
+  | _ ->
+      None
+
+
 let level_to_color (level : level) : string =
   (* https://misc.flogisoft.com/bash/tip_colors_and_formatting *)
   match level with

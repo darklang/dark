@@ -124,21 +124,58 @@ let upload_to_bucket
         ^ (Config.static_assets_bucket |> Option.value_exn)
         ^ "/o" )
       ~query:
-        [ ("uploadType", ["media"])
+        [ ("uploadType", ["multipart"])
         ; ("contentEncoding", ["gzip"])
         ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename])
         ]
   in
   let ct = Magic_mime.lookup filename in
-  let body = body |> Ezgzip.compress |> Cohttp_lwt.Body.of_string in
+  let cl = String.length body |> string_of_int in
+  (*
+   * Correctly send object metadata using a multi-part upload with both the raw asset and the metadata in JSON.
+   * Multipart uploads: https://cloud.google.com/storage/docs/json_api/v1/how-tos/multipart-upload
+   * Metadata schema:   https://cloud.google.com/storage/docs/json_api/v1/objects#resource
+   * *)
+  let body_string = body |> Ezgzip.compress in
+  let boundary = "metadata_boundary" in
+  let body =
+    Printf.sprintf
+      {|--%s
+Content-type: application/json; charset=UTF-8
+
+{
+  "cacheControl": "public, max-age=604800, immutable",
+  "contentType": "%s",
+  "size": %s
+}
+
+--%s
+Content-type: %s
+
+%s
+--%s--|}
+      boundary
+      ct
+      cl
+      boundary
+      ct
+      body_string
+      boundary
+  in
   let headers =
     oauth2_token ()
     >|= fun token ->
     Cohttp.Header.of_list
-      [("Authorization", "Bearer " ^ token); ("Content-type", ct)]
+      [ ("Authorization", "Bearer " ^ token)
+      ; ("Content-type", "multipart/related; boundary=" ^ boundary)
+      ; ("Content-length", body |> String.length |> string_of_int) ]
   in
   headers
-  >|= (fun headers -> Cohttp_lwt_unix.Client.post uri ~headers ~body)
+  >|= (fun headers ->
+        Cohttp_lwt_unix.Client.post
+          uri
+          ~headers
+          ~body:(body |> Cohttp_lwt.Body.of_string) )
   >>= fun x ->
   Lwt.bind x (fun (resp, _) ->
       match resp.status with

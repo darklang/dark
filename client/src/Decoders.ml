@@ -96,7 +96,8 @@ and cursorState j =
       , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState
       )
     ; ("Deselected", dv0 Deselected)
-    ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id) ]
+    ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
+    ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid) ]
     j
 
 
