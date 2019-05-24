@@ -343,7 +343,7 @@ setTimeout(function(){
   };
 
   async function fetcher(url) {
-    url = "//" + staticUrl + url;
+    url = "//" + staticUrl + (hashReplacements[url] || url);
     return fetch(url)
       .then(resp => {
         if (resp.ok) {
