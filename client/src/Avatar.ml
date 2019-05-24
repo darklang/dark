@@ -40,7 +40,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let minusThreeMins : float =
     Js.Date.setMinutes dateNow (Js.Date.getMinutes dateNow -. 3.0)
   in
-  let active : bool = minusThreeMins < avActiveTimestamp in
+  let active : bool = minusThreeMins > avActiveTimestamp in
   Html.img
     [ Html.classList [("avatar", true); ("inactive", active)]
     ; Html.src (avatarUrl email name)

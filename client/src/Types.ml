@@ -383,6 +383,7 @@ and cursorState =
 (* ------------------- *)
 and timerAction =
   | RefreshAnalysis
+  | RefreshAvatars
   | CheckUrlHashPosition
 
 and lvDict = dval StrDict.t
@@ -790,6 +791,7 @@ and modification =
   | FluidCommandsFor of tlid * id
   | FluidCommandsClose
   | UpdateAvatarList of avatar list
+  | ExpireAvatars
 
 (* ------------------- *)
 (* Msgs *)

@@ -31,12 +31,6 @@ let init (flagString : string) (location : Web.Location.location) =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
-  let newBrowserId =
-    BsUuid.Uuid.V5.create
-      ~name:"browserId"
-      ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
-    |> BsUuid.Uuid.V5.toString
-  in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
   let m =
@@ -53,12 +47,12 @@ let init (flagString : string) (location : Web.Location.location) =
     ; userContentHost
     ; environment
     ; csrfToken
-    ; browserId = newBrowserId }
+    ; browserId = createBrowserId }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
     { canvasName = m.canvasName
-    ; browserId = createBrowserId
+    ; browserId = m.browserId
     ; tlid = None
     ; timestamp = timeStamp }
   in
@@ -792,6 +786,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ f404.traceID )
         in
         ({m with f404s = new404s}, Cmd.none)
+    | ExpireAvatars ->
+        let dateNow : Js.Date.t = Js.Date.now () |> Js.Date.fromFloat in
+        let fiveMinsAgo : float =
+          Js.Date.setMinutes dateNow (Js.Date.getMinutes dateNow -. 5.0)
+        in
+        let presentAvatars =
+          List.filter
+            ~f:(fun av -> av.serverTime |> Js.Date.valueOf > fiveMinsAgo)
+            m.avatarsList
+        in
+        ({m with avatarsList = presentAvatars}, Cmd.none)
     | UpdateAvatarList avatarsList ->
         let newAvatarList = avatarsList @ m.avatarsList in
         ({m with avatarsList = newAvatarList}, Cmd.none)
@@ -1383,6 +1388,8 @@ let update_ (msg : msg) (m : model) : modification =
           Many [UpdateDBStatsRPC tl.id; GetUnlockedDBsRPC]
       | _ ->
           GetUnlockedDBsRPC )
+    | RefreshAvatars ->
+        ExpireAvatars
     | _ ->
         NoChange )
   | IgnoreMsg ->
@@ -1612,6 +1619,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
               ~key:"refresh_analysis"
               Tea.Time.second
               (fun f -> TimerFire (RefreshAnalysis, f) ) ]
+          @ [ Patched_tea_time.every
+                ~key:"refresh_avatars"
+                Tea.Time.second
+                (fun f -> TimerFire (RefreshAvatars, f) ) ]
     else []
   in
   let onError =
