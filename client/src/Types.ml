@@ -383,6 +383,7 @@ and cursorState =
 (* ------------------- *)
 and timerAction =
   | RefreshAnalysis
+  | RefreshAvatars
   | CheckUrlHashPosition
 
 and lvDict = dval StrDict.t
@@ -789,6 +790,8 @@ and modification =
   | UpdateDBStats of dbStatsStore
   | FluidCommandsFor of tlid * id
   | FluidCommandsClose
+  | UpdateAvatarList of avatar list
+  | ExpireAvatars
 
 (* ------------------- *)
 (* Msgs *)
@@ -834,6 +837,7 @@ and msg =
   | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
+  | NewPresencePush of avatar
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
   | SaveTestButton
@@ -1078,16 +1082,19 @@ and fluidState =
 
 (* Avatars *)
 and avatar =
-  { fullName : string option
-  ; email : string
+  { canvasId : string
+  ; canvasName : string
+  ; serverTime : Js.Date.t [@opaque]
+  ; tlid : string option
   ; username : string
-  ; activeTimestamp : float }
+  ; email : string
+  ; fullname : string option }
 
 and avatarsList = avatar list
 
 and avatarModelMessage =
   { browserId : string
-  ; tlid : string option
+  ; tlid : tlid option
   ; canvasName : string
   ; timestamp : float }
 
@@ -1141,7 +1148,8 @@ and model =
   ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
-  ; avatarsList : avatarsList }
+  ; avatarsList : avatarsList
+  ; browserId : string }
 
 (* Values that we serialize *)
 and serializableEditor =

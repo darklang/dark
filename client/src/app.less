@@ -417,10 +417,16 @@ body #app * {
 }
 
 .avatar {
-  padding: 0px 5px;
+  padding: 2px 5px;
   width: 40px;
   height: 40px;
-
+  &.inactive{
+    opacity: 0.5;
+  }
+}
+.avatars {
+  display: flex;
+  flex-direction: column;
 }
 
 .all-avatars{
@@ -438,9 +444,6 @@ body #app * {
   p{
     text-align: center;
     margin: 5px 0px;
-  }
-  .inactive{
-    opacity: 0.5;
   }
   .avatars-wrapper{
     display: flex;
