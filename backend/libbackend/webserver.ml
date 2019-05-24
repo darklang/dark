@@ -677,7 +677,7 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
   try
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
-          C.load_all_dbs host []
+          C.load_all host []
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
     in
