@@ -2097,7 +2097,6 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
 
 
-<<<<<<< HEAD
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
   let sentToRail id =
     let dv =
@@ -2123,8 +2122,6 @@ let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
       Vdom.noNode
 
 
-=======
->>>>>>> fixes from rebase
 let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
@@ -2156,7 +2153,9 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      element [dropdown; liveValue ; errorIndicator]
+      [element [dropdown (); liveValue]; errorIndicator] )
+  |> List.flatten
+
 
 let viewAST
     ~(tlid : tlid)
