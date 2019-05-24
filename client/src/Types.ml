@@ -785,6 +785,8 @@ and modification =
   | UpdateTLUsage of usage list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
+  | FluidCommandsFor of tlid * id
+  | FluidCommandsClose
 
 (* ------------------- *)
 (* Msgs *)
@@ -883,6 +885,8 @@ and msg =
   | CanvasPanAnimationEnd
   | GoTo of page
   | SetHoveringVarName of tlid * string option
+  | FluidCommandsFilter of string
+  | FluidRunCommand of command
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1047,6 +1051,14 @@ and fluidAutocompleteState =
   ; invalidCompletions : fluidAutocompleteItem list
   ; allCompletions : fluidAutocompleteItem list }
 
+and fluidCommandState =
+  { index : int
+  ; show : bool
+  ; commands : command list
+  ; cmdOnTL : toplevel option
+  ; cmdOnID : id option
+  ; filter : string option }
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1057,7 +1069,8 @@ and fluidState =
       (* When moving up or down, and going through whitespace, track
        * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
-  ; ac : fluidAutocompleteState }
+  ; ac : fluidAutocompleteState
+  ; cp : fluidCommandState }
 
 (* Avatars *)
 and avatar =
