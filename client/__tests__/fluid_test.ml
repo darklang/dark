@@ -85,6 +85,15 @@ let () =
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
+  let letWithFnCall =
+    ELet
+      ( gid ()
+      , gid ()
+      , "binding"
+      , EInteger (gid (), 6)
+      , EFnCall (gid (), "Int::add", [EBlank (gid ()); EBlank (gid ())], NoRail)
+      )
+  in
   let letWithUsedBinding (bindingName : string) =
     ELet
       ( gid ()
@@ -620,6 +629,11 @@ let () =
         (EPartial (gid (), "let"))
         (press K.Enter 3)
         ("let *** = ___\n___", 4) ;
+      t
+        "autocomplete moves to next space"
+        letWithFnCall
+        (presses [K.Tab; K.Letter 'b'; K.Enter] 0)
+        ("let binding = 6\nInt::add binding ___", 47) ;
       t
         "variable moves to right place"
         (EPartial (gid (), "req"))
