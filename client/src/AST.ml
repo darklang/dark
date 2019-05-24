@@ -974,6 +974,14 @@ let freeVariables (ast : expr) : (id * varName) list =
                    |> List.map ~f:(fun v -> uses v body)
                    |> List.concat
                    |> fun x -> Some x
+               | Match (_, cases) ->
+                   cases
+                   |> List.map ~f:(fun (pattern, body) ->
+                          let vars = Pattern.variableNames pattern in
+                          List.map ~f:(fun v -> uses v body) vars )
+                   |> List.concat
+                   |> List.concat
+                   |> fun x -> Some x
                | _ ->
                    None ) )
            | _ ->
