@@ -134,7 +134,7 @@ let integration (m : model) (name : string) : msg Tea.Cmd.t =
 
 
 let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
-  let url = "https://presence.darklang.com/" in
+  let url = "https://presence.darklang.com/presence" in
   let request =
     postJson
       ~withCredentials:true
