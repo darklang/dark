@@ -1294,6 +1294,22 @@ body #app * {
       }
     }
   }
+
+  .error-indicator {
+    position: absolute;
+    left: calc(100% - 18px);
+  }
+  .error-icon {
+    display: block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid #6b6b6b;
+    background-color: transparent;
+  }
+  .error-icon[data-sent-to-rail="true"] {
+    background-color: #6b6b6b;
+  }
 }
 
 
