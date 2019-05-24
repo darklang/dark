@@ -1,6 +1,16 @@
 open Tc
 open Types
 
+module Html = struct
+  include Tea.Html
+
+  type 'a html = 'a Vdom.t
+end
+
+module Attrs = Tea.Html2.Attributes
+module Events = Tea.Html2.Events
+module K = FluidKeyboard
+
 let filterInputID : string = "cmd-filter"
 
 let reset : fluidCommandState =
@@ -102,3 +112,66 @@ let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
   if s.show
   then match s.cmdOnTL with Some tl -> tl.id = tlid | None -> false
   else false
+
+
+let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
+  let viewCommands i item =
+    let highlighted = cp.index = i in
+    let name = asName item in
+    Html.li
+      [ Attrs.classList
+          [ ("autocomplete-item", true)
+          ; ("fluid-selected", highlighted)
+          ; ("valid", true) ]
+      ; ViewUtils.nothingMouseEvent "mouseup"
+      ; ViewEntry.defaultPasteHandler
+      ; ViewUtils.nothingMouseEvent "mousedown"
+      ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
+            FluidRunCommand item ) ]
+      [Html.text name]
+  in
+  let filterInput =
+    Html.input'
+      [ Attrs.id filterInputID
+      ; Attrs.spellcheck false
+      ; Attrs.autocomplete false
+      ; Events.onInput (fun query -> FluidCommandsFilter query) ]
+      []
+  in
+  let cmdsView =
+    Html.div
+      [Attrs.id "fluid-dropdown"]
+      [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
+  in
+  Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
+
+
+let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
+  let s = m.fluidState in
+  let key = keyEvt.key in
+  match key with
+  | K.Enter ->
+      let cp = s.cp in
+      ( match (cp.cmdOnTL, cp.cmdOnID) with
+      | Some tl, Some id ->
+        ( match highlighted cp with
+        | Some cmd ->
+            Many [executeCommand m tl id cmd; FluidCommandsClose]
+        | None ->
+            NoChange )
+      | _ ->
+          NoChange )
+  | K.Up ->
+      let cp = moveUp s.cp in
+      let cmd = Types.MakeCmd (focusItem cp.index) in
+      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
+      Types.Many [m; cmd]
+  | K.Down ->
+      let cp = moveDown s.cp in
+      let cmd = Types.MakeCmd (focusItem cp.index) in
+      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
+      Types.Many [m; cmd]
+  | K.Escape ->
+      FluidCommandsClose
+  | _ ->
+      NoChange
