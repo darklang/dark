@@ -795,7 +795,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with avatarsList = presentAvatars}, Cmd.none)
     | UpdateAvatarList avatarsList ->
-        let newAvatarList = avatarsList @ m.avatarsList in
+        let newAvatarList =
+          avatarsList @ m.avatarsList
+          |> List.sort_by ~f:(fun a -> a.serverTime)
+          |> List.reverse
+          (* sort in desc time *)
+          |> List.unique_by ~f:(fun (a : Types.avatar) ->
+                 Option.withDefault ~default:"" a.tlid ^ a.username )
+        in
         ({m with avatarsList = newAvatarList}, Cmd.none)
     | AppendStaticDeploy d ->
         ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
