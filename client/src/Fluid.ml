@@ -329,8 +329,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, exprs, _ster) ->
-      [TFnName (id, fnName)]
+  | EFnCall (id, fnName, exprs, ster) ->
+      [TFnName (id, fnName, ster)]
       @ ( exprs
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
@@ -2012,12 +2012,38 @@ let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
         [Html.text liveValueString; viewCopyButton tlid liveValueString]
 
 
+let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
+  let sentToRail id =
+    let dv =
+      StrDict.get ~key:(deID id) currentResults.liveValues
+      |> Option.withDefault ~default:DNull
+    in
+    match dv with
+    | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
+        true
+    | _ ->
+        false
+  in
+  match ti.token with
+  | TFnName (id, _, Rail) ->
+      Html.span
+        [Html.class' "error-indicator"]
+        [ Html.span
+            [ Html.class' "error-icon"
+            ; Vdom.prop "data-sent-to-rail" (sentToRail id |> string_of_bool)
+            ]
+            [] ]
+  | _ ->
+      Vdom.noNode
+
+
 let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   let displayedLv = ref false in
   List.map l ~f:(fun ti ->
       let dropdown () = viewAutocomplete state.ac in
       let liveValue () = viewLiveValue ~tlid ~currentResults ti in
+      let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
@@ -2039,7 +2065,8 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           liveValue () )
         else Vdom.noNode
       in
-      element [autocomplete; liveValue] )
+      [element [autocomplete; liveValue]; errorIndicator] )
+  |> List.flatten
 
 
 let viewAST

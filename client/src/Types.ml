@@ -1000,7 +1000,7 @@ and fluidToken =
   | TFieldOp of id
   | TFieldName of id * string
   | TVariable of id * string
-  | TFnName of id * string
+  | TFnName of id * string * sendToRail
   | TLambdaSep of id
   | TLambdaArrow of id
   | TLambdaSymbol of id
