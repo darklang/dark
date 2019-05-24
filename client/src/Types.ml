@@ -787,12 +787,9 @@ and modification =
   | UpdateTLUsage of usage list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
-<<<<<<< HEAD
   | FluidCommandsFor of tlid * id
   | FluidCommandsClose
-=======
   | UpdateAvatarList of avatar list
->>>>>>> Merge in old code and start setting up update avatar list
 
 (* ------------------- *)
 (* Msgs *)
