@@ -1,5 +1,6 @@
 import { ClientFunction, Selector } from 'testcafe';
 const child_process = require('child_process');
+const BASE_URL = 'http://darklang.localhost:8000/a/test-';
 
 function startXvfb(testname) {
   if (process.env.IN_DEV_CONTAINER != "true" ) return;
@@ -29,7 +30,7 @@ fixture `Integration Tests`
     const testname = t.testRun.test.name;
     await fixBrowserSize(t);
     startXvfb(testname);
-    const url = "http://darklang.localhost:8000/a/test-" + testname + "?integration-test=true";
+    const url = `${BASE_URL}${testname}?integration-test=true`;
     await t.navigateTo(url);
     await Selector('#finishIntegrationTest').exists;
 
@@ -1027,4 +1028,12 @@ test('load_with_unnamed_function', async t => {
   await t
     .pressKey("enter")
     .expect(entryBoxAvailable()).ok()
+});
+
+test('fluid_nested_threads', async t => {
+  await t.navigateTo(`${BASE_URL}fluid_nested_threads?integration-test=true&fluidv2=1`)
+    .expect(available('#fluid-editor')).ok({ timeout : 1000 })
+
+  await t.expect(Selector('.fluid-newline').count).eql(3)
+  await t.expect(Selector('.fluid-indent').count).eql(2)
 });
