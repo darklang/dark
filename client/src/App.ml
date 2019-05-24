@@ -46,12 +46,13 @@ let init (flagString : string) (location : Web.Location.location) =
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; environment
-    ; csrfToken }
+    ; csrfToken
+    ; browserId = createBrowserId }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
     { canvasName = m.canvasName
-    ; browserId = createBrowserId
+    ; browserId = m.browserId
     ; tlid = None
     ; timestamp = timeStamp }
   in
@@ -495,7 +496,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        let commands = [hashcmd] @ closeBlanks m @ [afCmd] in
+        let timeStamp = Js.Date.now () /. 1000.0 in
+        let avMessage : avatarModelMessage =
+          { canvasName = m.canvasName
+          ; browserId = m.browserId
+          ; tlid = Some tlid
+          ; timestamp = timeStamp }
+        in
+        let commands =
+          [hashcmd] @ closeBlanks m @ [afCmd] @ [RPC.sendPresence m avMessage]
+        in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
@@ -504,7 +514,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
-          let commands = hashcmd @ closeBlanks m @ [acCmd] in
+          let timeStamp = Js.Date.now () /. 1000.0 in
+          let avMessage : avatarModelMessage =
+            { canvasName = m.canvasName
+            ; browserId = m.browserId
+            ; tlid = None
+            ; timestamp = timeStamp }
+          in
+          let commands =
+            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage]
+          in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
@@ -767,6 +786,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ f404.traceID )
         in
         ({m with f404s = new404s}, Cmd.none)
+    | ExpireAvatars ->
+        let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
+        let presentAvatars =
+          List.filter
+            ~f:(fun av -> av.serverTime |> Js.Date.valueOf > fiveMinsAgo)
+            m.avatarsList
+        in
+        ({m with avatarsList = presentAvatars}, Cmd.none)
+    | UpdateAvatarList avatarsList ->
+        let newAvatarList = avatarsList @ m.avatarsList in
+        ({m with avatarsList = newAvatarList}, Cmd.none)
     | AppendStaticDeploy d ->
         ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
         , Cmd.none )
@@ -1258,6 +1288,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList traces)
   | New404Push f404 ->
       Append404s [f404]
+  | NewPresencePush avatar ->
+      UpdateAvatarList [avatar]
   | NewStaticDeployPush asset ->
       AppendStaticDeploy [asset]
   | Delete404RPCCallback (f404, Ok ()) ->
@@ -1353,6 +1385,8 @@ let update_ (msg : msg) (m : model) : modification =
           Many [UpdateDBStatsRPC tl.id; GetUnlockedDBsRPC]
       | _ ->
           GetUnlockedDBsRPC )
+    | RefreshAvatars ->
+        ExpireAvatars
     | _ ->
         NoChange )
   | IgnoreMsg ->
@@ -1582,6 +1616,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
               ~key:"refresh_analysis"
               Tea.Time.second
               (fun f -> TimerFire (RefreshAnalysis, f) ) ]
+          @ [ Patched_tea_time.every
+                ~key:"refresh_avatars"
+                Tea.Time.second
+                (fun f -> TimerFire (RefreshAvatars, f) ) ]
     else []
   in
   let onError =
@@ -1607,7 +1645,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
           NewStaticDeployPush s )
     ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
-          ReceiveFetch s ) ]
+          ReceiveFetch s )
+    ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
+          NewPresencePush s ) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
