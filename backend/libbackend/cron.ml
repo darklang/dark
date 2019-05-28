@@ -100,8 +100,20 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
     current_endpoints
     |> List.filter_map ~f:(fun endp ->
            try
-             Some (endp, Canvas.load_cron endp)
              (* serialization can fail, attempt first *)
+             let c = Canvas.load_cron endp in
+             match c with
+             | Ok c ->
+                 Some (endp, c)
+             | Error errs ->
+                 Log.erroR
+                   "cron_checker"
+                   ~data:"Canvas verification error"
+                   ~params:
+                     [ ("host", endp)
+                     ; ("errs", String.concat ~sep:", " errs)
+                     ; ("execution_id", Types.string_of_id execution_id) ] ;
+                 None
            with e ->
              let bt = Exception.get_backtrace () in
              Log.erroR

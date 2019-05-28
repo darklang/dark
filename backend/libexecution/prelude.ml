@@ -17,8 +17,19 @@ include (
     with module StrDict := Tablecloth.StrDict
     (* with module Option := Tablecloth.Option *)
     (* with module String := Tablecloth.String *)
-    (*  and module Result := Tablecloth.Result *)
+     and module Result := Tablecloth.Result
     (* and module List := Tablecloth.List  *) )
+
+module Result = struct
+  include Tablecloth.Result
+
+  let ok_or_internal_exception (msg : string) (t : (string, 'a) t) : 'a =
+    match t with
+    | Ok a ->
+        a
+    | Error err ->
+        Exception.internal ~info:[("error", err)] msg
+end
 
 module StrDict = struct
   include Tablecloth.StrDict
