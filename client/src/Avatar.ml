@@ -44,7 +44,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
     []
 
 
-let viewAvatars (avatars : avatarsList) (tlid : tlid) : msg Html.html =
+let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
   let avList =
     avatars
     |> List.filter ~f:(fun (av : Types.avatar) ->
@@ -59,7 +59,7 @@ let viewAvatars (avatars : avatarsList) (tlid : tlid) : msg Html.html =
   Html.div [Html.class' "avatars"] avatars
 
 
-let viewAllAvatars (avatars : avatarsList) : msg Html.html =
+let viewAllAvatars (avatars : avatar list) : msg Html.html =
   let avatars = avatars |> List.uniqueBy ~f:(fun avatar -> avatar.username) in
   let avatarView = List.map ~f:avatarDiv avatars in
   Html.div

@@ -33,7 +33,7 @@ type viewState =
   ; toReferences : refersTo list
   ; usagesOfHoveredReference : id list
   ; fluidState : Types.fluidState
-  ; avatarsList : avatarsList }
+  ; avatarsList : avatar list }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
