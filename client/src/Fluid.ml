@@ -1237,20 +1237,21 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
+let rec getNextBlank pos' tokens' =
+  match tokens' with
+  | [] ->
+      (* Wrap, unless we've already wrapped *)
+      if pos' = -1 then 0 else getNextBlank (-1) tokens
+  | ti :: rest ->
+      if Token.isBlank ti.token && ti.startPos > pos'
+      then ti.startPos
+      else getNextBlank pos' rest
+
+
 (* TODO: rewrite nextBlank like prevBlank *)
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
   let tokens = toTokens s ast in
-  let rec getNextBlank pos' tokens' =
-    match tokens' with
-    | [] ->
-        (* Wrap, unless we've already wrapped *)
-        if pos' = -1 then 0 else getNextBlank (-1) tokens
-    | ti :: rest ->
-        if Token.isBlank ti.token && ti.startPos > pos'
-        then ti.startPos
-        else getNextBlank pos' rest
-  in
   let newPos = getNextBlank pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -1304,30 +1305,6 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
-let nextFocusableOffset ~(pos : int) (ast : ast) (s : state) : int =
-  (* checks that there's another input *)
-  let tokens = toTokens s ast |> List.reverse in
-  let initToken = List.head tokens in
-  match initToken with
-  | Some initToken ->
-      tokens
-      |> List.take ~count:(List.length tokens - 1)
-      |> List.foldl ~init:(0, initToken) ~f:(fun ti (offset, next) ->
-             let nextFocusable =
-               match next.token with
-               | TPlaceholder _ | TBlank _ ->
-                   true
-               | _ ->
-                   false
-             in
-             if pos < ti.endPos && nextFocusable
-             then (next.startPos - pos, ti)
-             else (offset, ti) )
-      |> Tuple2.first
-  | None ->
-      0
-
-
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ast * state =
   let s = recordAction "acEnter" s in
@@ -1341,7 +1318,8 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let newExpr, length = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
-      let offset = nextFocusableOffset ~pos:s.newPos newAST s in
+      let tokens = toTokens s newAST in
+      let offset = getNextBlank s.newPos tokens in
       let newState =
         match key with
         | K.Tab ->
