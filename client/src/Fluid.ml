@@ -1304,7 +1304,7 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
-let nextFocusableOffset (pos : int) (s : state) (ast : ast) : int =
+let nextFocusableOffset ~(pos : int) (ast : ast) (s : state) : int =
   (* checks that there's another input *)
   let tokens = toTokens s ast |> List.reverse in
   let initToken = List.head tokens in
@@ -1328,7 +1328,8 @@ let nextFocusableOffset (pos : int) (s : state) (ast : ast) : int =
       0
 
 
-let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
+    ast * state =
   let s = recordAction "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
@@ -1340,11 +1341,22 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newExpr, length = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
-      let offset = nextFocusableOffset s.newPos s ast in
       let newState =
-        moveTo
-          (ti.startPos + length + offset (* bump forward to next focusable *))
-          (acClear s)
+        match key with
+        | K.Tab ->
+            Js.log "pressing tab" ;
+            let offset = nextFocusableOffset ~pos:s.newPos newAST s in
+            moveTo
+              (ti.endPos + offset (* bump forward to next focusable *))
+              (acClear s)
+        | K.Enter ->
+            Js.log "pressing enter" ;
+            moveTo (ti.startPos + length) (acClear s)
+        | K.Space ->
+            Js.log "pressing space" ;
+            moveTo (ti.startPos + length + 1) (acClear s)
+        | _ ->
+            s
       in
       (newAST, newState)
 
@@ -1742,23 +1754,6 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         doBackspace ~pos ti ast s
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
-    (* Tab to next blank *)
-    | K.Tab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.Tab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.ShiftTab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToPrevBlank ~pos ast s)
-    | K.ShiftTab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToPrevBlank ~pos ast s)
     (* Autocomplete menu *)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
@@ -1787,12 +1782,31 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Space, _, R (TBlank _, ti)
     | K.Tab, L (TBlank _, ti), _
     | K.Tab, _, R (TBlank _, ti) ->
-        acEnter ti ast s
+        acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acCompleteField ti ast s
+    (* Tab to next blank *)
+    | K.Tab, _, R (_, ti)
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        Js.log2 "autocompleting?" (isAutocompleting ti s) ;
+        (ast, moveToNextBlank ~pos ast s)
+    | K.Tab, L (_, ti), _
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        Js.log2 "autocompleting?" (isAutocompleting ti s) ;
+        (ast, moveToNextBlank ~pos ast s)
+    | K.ShiftTab, _, R (_, ti)
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        (ast, moveToPrevBlank ~pos ast s)
+    | K.ShiftTab, L (_, ti), _
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        (ast, moveToPrevBlank ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
