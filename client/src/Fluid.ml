@@ -1342,6 +1342,13 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "true" in
       let newExpr = FPPartial (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
+  | TPatternVariable (mID, id, str) ->
+      let str = f str in
+      if str = ""
+      then EBlank id
+      else
+        let newExpr = FPPartial (mID, gid (), str) in
+        replacePattern mID id ~newPat:newExpr ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
   | TLetLHS (id, str) ->
@@ -1711,6 +1718,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternInteger _
   | TPatternNullToken _
   | TPatternTrue _
+  | TPatternVariable _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
@@ -1722,7 +1730,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction str id ast, left s)
   | TPatternBlank _
   | TPatternPartial _
-  | TPatternVariable _
   | TPatternConstructorName _
   | TPatternFalse _
   | TPatternFloatWhole _
@@ -1801,6 +1808,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternInteger _
   | TPatternNullToken _
   | TPatternTrue _
+  | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatWhole (id, str) ->
@@ -1811,7 +1819,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TPatternBlank _
   | TPatternPartial _
-  | TPatternVariable _
   | TPatternConstructorName _
   | TPatternFalse _
   | TPatternFloatWhole _
@@ -2016,6 +2023,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TNullToken _
   | TPatternNullToken _
   | TPatternTrue _
+  | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
   | TPatternInteger (_, _, i) | TInteger (_, i) ->
@@ -2030,7 +2038,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction (f str) id ast, right)
   | TFloatPoint id ->
       (insertAtFrontOfFloatFraction letterStr id ast, right)
-  | TPatternVariable _
   | TPatternPartial _
   | TPatternFalse _
   | TPatternConstructorName _

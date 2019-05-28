@@ -38,8 +38,8 @@ let () =
   (* let seventyEight = FPInteger (gid (), 78) in *)
   let blank = FPBlank (mID, gid ()) in
   (* let aPartialVar = FPPartial (gid (), "req") in *)
-  (* let aVar = FPVariable (gid (), "variable") in *)
-  (* let aShortVar = FPVariable (gid (), "v") in *)
+  let aVar = FPVariable (mID, gid (), "variable") in
+  (* let aShortVar = FPVariable (mID, gid (), "variable") in *)
   let m = Defaults.defaultModel in
   let process (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
@@ -87,9 +87,9 @@ let () =
   (* let shiftTab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.ShiftTab] pos pat *)
   (* in *)
-  (* let press (key : K.key) (pos : int) (pat : fluidPattern) : string * int = *)
-  (*   process [key] pos pat *)
-  (* in *)
+  let press (key : K.key) (pos : int) (pat : fluidPattern) : string * int =
+    process [key] pos pat
+  in
   (* let presses (keys : K.key list) (pos : int) (pat : fluidPattern) : *)
   (*     string * int = *)
   (*   process keys pos pat *)
@@ -245,17 +245,17 @@ let () =
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
       t "insert partial" blank (insert 't' 0) ("t", 1) ;
       () ) ;
-  (* describe "Variables" (fun () -> *)
-  (* dont do insert until we have autocomplete *)
-  (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
-  (*     t "delete middle of variable" aVar (delete 5) ("variale", 5) ; *)
-  (*     t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ; *)
-  (*     t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ; *)
-  (*     t "delete variable" aShortVar (delete 0) (b, 0) ; *)
-  (*     t "delete long variable" aVar (delete 0) ("ariable", 0) ; *)
-  (*     t "delete mid variable" aVar (delete 6) ("variabe", 6) ; *)
-  (*     t "backspace variable" aShortVar (backspace 1) (b, 0) ; *)
-  (*     t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ; *)
-  (*     t "backspace mid variable" aVar (backspace 6) ("variale", 5) ; *)
-  (* () ) ; *)
+  describe "Variables" (fun () ->
+      (* dont do insert until we have autocomplete *)
+      (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
+      t "delete middle of variable" aVar (delete 5) ("variale", 5) ;
+      t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
+      t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
+      (* t "delete variable" aShortVar (delete 0) (b, 0) ; *)
+      t "delete long variable" aVar (delete 0) ("ariable", 0) ;
+      t "delete mid variable" aVar (delete 6) ("variabe", 6) ;
+      (* t "backspace variable" aShortVar (backspace 1) (b, 0) ; *)
+      t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
+      t "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      () ) ;
   ()
