@@ -1237,15 +1237,15 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
-let rec getNextBlank pos' tokens' =
-  match tokens' with
+let rec getNextBlank (pos : int) (tokens : tokenInfo list) =
+  match tokens with
   | [] ->
       (* Wrap, unless we've already wrapped *)
-      if pos' = -1 then 0 else getNextBlank (-1) tokens
+      if pos = -1 then 0 else getNextBlank (-1) tokens
   | ti :: rest ->
-      if Token.isBlank ti.token && ti.startPos > pos'
+      if Token.isBlank ti.token && ti.startPos > pos
       then ti.startPos
-      else getNextBlank pos' rest
+      else getNextBlank pos rest
 
 
 (* TODO: rewrite nextBlank like prevBlank *)
