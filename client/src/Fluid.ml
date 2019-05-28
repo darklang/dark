@@ -528,7 +528,6 @@ let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   Token.isAutocompletable ti.token
   && s.upDownCol = None
-  && s.ac.index <> None
   && s.newPos <= ti.endPos
   && s.newPos >= ti.startPos
 

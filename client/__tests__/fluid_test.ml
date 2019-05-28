@@ -701,26 +701,6 @@ let () =
         nonEmptyLet
         (press K.Enter 11)
         ("let *** = 6\n5", 12) ;
-      t
-        "end of if-then blank goes up properly"
-        emptyIf
-        (presses ~wrap:false [K.Escape; K.Up] 17)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
-      t
-        "end of if-then blank goes up properly, twice"
-        emptyIf
-        (presses ~wrap:false [K.Escape; K.Up; K.Up] 17)
-        ("if ___\nthen\n  ___\nelse\n  ___", 5) ;
-      t
-        "end of if-then blank goes down properly"
-        emptyIf
-        (presses ~wrap:false [K.Escape; K.Down] 5)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
-      t
-        "end of if-then blank goes down properly, twice"
-        emptyIf
-        (presses ~wrap:false [K.Escape; K.Down; K.Down] 5)
-        ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
           expect
