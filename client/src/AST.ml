@@ -955,6 +955,9 @@ let isDefinitionOf (var : varName) (exp : expr) : bool =
 
 
 let freeVariables (ast : expr) : (id * varName) list =
+  (* Find all variable lookups that lookup a variable that
+   * is also _defined_ in this expression. We create a set of
+   * these IDs so we can filter them out later. *)
   let definedAndUsed =
     ast
     |> allData
@@ -966,12 +969,24 @@ let freeVariables (ast : expr) : (id * varName) list =
                  None
              | F (_, e) ->
                ( match e with
+               (* Grab all uses of the `lhs` of a Let in its body *)
                | Let (F (_, lhs), _, body) ->
                    Some (uses lhs body)
+               (* Grab all uses of the `vars` of a Lambda in its body *)
                | Lambda (vars, body) ->
                    vars
                    |> List.filterMap ~f:B.toMaybe
                    |> List.map ~f:(fun v -> uses v body)
+                   |> List.concat
+                   |> fun x -> Some x
+               | Match (_, cases) ->
+                   cases
+                   (* Grab all uses of the variable bindings in a `pattern`
+                    * in the `body` of each match case *)
+                   |> List.map ~f:(fun (pattern, body) ->
+                          let vars = Pattern.variableNames pattern in
+                          List.map ~f:(fun v -> uses v body) vars )
+                   |> List.concat
                    |> List.concat
                    |> fun x -> Some x
                | _ ->
@@ -993,6 +1008,8 @@ let freeVariables (ast : expr) : (id * varName) list =
            | F (id, e) ->
              ( match e with
              | Variable name ->
+                 (* Don't include Variable lookups that we know are looking
+                  * up a variable bound in this expression *)
                  if StrSet.member ~value:(deID id) definedAndUsed
                  then None
                  else Some (id, name)
