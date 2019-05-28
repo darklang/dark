@@ -44,9 +44,18 @@ let avatarDiv (avatar : avatar) : msg Html.html =
     []
 
 
-let viewAvatars (avatars : avatarsList) : msg Html.html =
+let viewAvatars (avatars : avatarsList) (tlid : tlid) : msg Html.html =
+  let avList =
+    avatars
+    |> List.filter ~f:(fun (av : Types.avatar) ->
+           match av.tlid with
+           | None ->
+               false
+           | Some avTlid ->
+               avTlid == (tlid |> deTLID) )
+  in
   let renderAvatar (a : avatar) = avatarDiv a in
-  let avatars = List.map ~f:renderAvatar avatars in
+  let avatars = List.map ~f:renderAvatar avList in
   Html.div [Html.class' "avatars"] avatars
 
 

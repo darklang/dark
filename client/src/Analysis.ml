@@ -276,7 +276,7 @@ end
 module NewPresencePush = struct
   let decode =
     let open Tea.Json.Decoder in
-    field "detail" (Decoders.wrapDecoder Decoders.presenceMsg)
+    field "detail" (list (Decoders.wrapDecoder Decoders.presenceMsg))
 
 
   let listen ~key tagger =
