@@ -630,9 +630,14 @@ let () =
         (press K.Enter 3)
         ("let *** = ___\n___", 4) ;
       t
-        "autocomplete moves to next space"
+        "autocomplete tab moves to next blank"
         letWithFnCall
-        (presses [K.Tab; K.Letter 'b'; K.Enter] 0)
+        (presses [K.Tab; K.Letter 'b'; K.Tab] 0)
+        ("let binding = 6\nInt::add binding ___", 47) ;
+      t
+        "autocomplete space moves forward by 1"
+        letWithFnCall
+        (presses [K.Tab; K.Letter 'b'; K.Space] 0)
         ("let binding = 6\nInt::add binding ___", 47) ;
       t
         "variable moves to right place"
