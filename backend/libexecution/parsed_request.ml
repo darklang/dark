@@ -29,7 +29,8 @@ let body_parser_type headers =
 let parser_fn p (str : string) : dval =
   match p with
   | Json ->
-      Dval.of_unknown_json_v0 str
+    ( try Dval.of_unknown_json_v0 str with e ->
+        Exception.enduser ~actual:str ("Invalid json: " ^ str) )
   | Form ->
       Dval.of_form_encoding str
   | Unknown ->
