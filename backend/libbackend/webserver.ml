@@ -955,21 +955,32 @@ let admin_ui_html
   >|= Util.string_replace "{STATIC}" static_host
   >|= (fun x ->
         if not hash_static_filenames
-        then x
+        then Util.string_replace "{HASH_REPLACEMENTS}" "{}" x
         else
-          x
-          |> fun instr ->
           let etags_str = File.readfile ~root:Webroot "etags.json" in
           let etags_json = Yojson.Safe.from_string etags_str in
-          let etag_assoc_list = to_assoc_list etags_json in
+          let etag_assoc_list =
+            to_assoc_list etags_json
+            |> List.filter ~f:(fun (file, _) ->
+                   not (String.equal "__date" file) )
+            |> List.filter (* Only hash our assets, not vendored assets *)
+                 ~f:(fun (file, _) ->
+                   not (String.is_substring ~substring:"vendor/" file) )
+          in
+          x
+          |> fun instr ->
           etag_assoc_list
-          |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
-          |> List.filter (* Only hash our assets, not vendored assets *)
-               ~f:(fun (file, _) ->
-                 not (String.is_substring ~substring:"vendor/" file) )
           |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
                  (Util.string_replace file (hashed_filename file hash)) acc )
-        )
+          |> fun instr ->
+          Util.string_replace
+            "{HASH_REPLACEMENTS}"
+            ( etag_assoc_list
+            |> List.map ~f:(fun (k, v) ->
+                   ("/" ^ k, `String ("/" ^ hashed_filename k v)) )
+            |> (fun x -> `Assoc x)
+            |> Yojson.Safe.to_string )
+            instr )
   >|= Util.string_replace "{CSRF_TOKEN}" csrf_token
 
 
