@@ -435,20 +435,22 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
       , function
         | _, [DStr username] ->
             let username = Unicode_string.to_string username in
-            ( match Account.get_user username with
-            | None ->
-                DOption OptNothing
-            | Some user_info ->
-                let dval_map =
+            let userinfo =
+              match Account.get_user username with
+              | None ->
+                  Ok (DOption OptNothing)
+              | Some user_info ->
                   user_info
                   |> Account.user_info_to_yojson
-                  |> Yojson.Safe.Util.to_assoc
-                  |> List.map ~f:(fun (k, v) ->
-                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
-                     )
-                  |> DvalMap.from_list
-                in
-                DOption (OptJust (DObj dval_map)) )
+                  |> Dval.of_internal_roundtrippable_json_v0
+            in
+            ( match userinfo with
+            | Ok (DOption OptNothing) ->
+                DOption OptNothing
+            | Error _ ->
+                DOption OptNothing
+            | Ok r ->
+                DOption (OptJust r) )
         | args ->
             fail args )
     ; ( "DarkInternal::log"
@@ -535,25 +537,5 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 DOption (OptJust (Dval.dstr_of_string_exn s))
             | None | _ ->
                 DOption OptNothing)
-        | args ->
-            fail args )
-    ; ( "DarkInternal::usernameToUserInfo"
-      , function
-        | _, [DStr username] ->
-            let username = Unicode_string.to_string username in
-            ( match Account.get_user username with
-            | None ->
-                DOption OptNothing
-            | Some user_info ->
-                let dval_map =
-                  user_info
-                  |> Account.user_info_to_yojson
-                  |> Yojson.Safe.Util.to_assoc
-                  |> List.map ~f:(fun (k, v) ->
-                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
-                     )
-                  |> DvalMap.from_list
-                in
-                DOption (OptJust (DObj dval_map)) )
         | args ->
             fail args ) ]
