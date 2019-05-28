@@ -837,7 +837,7 @@ and msg =
   | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
-  | NewPresencePush of avatar
+  | NewPresencePush of avatarsList
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
   | SaveTestButton
