@@ -13,6 +13,28 @@ let () =
   describe "ast" (fun () ->
       let id1 = ID "5" in
       let id2 = ID "10" in
+      let id3 = ID "11" in
+      let id4 = ID "12" in
+      let id5 = ID "13" in
+      let id6 = ID "14" in
+      let id7 = ID "15" in
+      test "lambda var is not free" (fun () ->
+          expect
+            (freeVariables
+               (F (id1, Lambda ([F (id2, "var")], F (id3, Variable "var")))))
+          |> toEqual [] ) ;
+      test "match pattern is not free" (fun () ->
+          let e =
+            F
+              ( id2
+              , Constructor (F (id3, "Just"), [F (id4, Variable "request")]) )
+          in
+          let pats =
+            [ ( F (id5, PConstructor ("Just", [F (id6, PVariable "anything")]))
+              , F (id7, Variable "anything") ) ]
+          in
+          expect (freeVariables (F (id1, Match (e, pats))))
+          |> toEqual [(id4, "request")] ) ;
       test "isThreadBlank for thread" (fun () ->
           expect (isThreadBlank (F (id1, Thread [Blank id2])) id2)
           |> toEqual true ) ;
