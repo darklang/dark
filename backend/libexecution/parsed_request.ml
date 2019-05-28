@@ -107,11 +107,29 @@ type header = string * string
 
 type query_val = string * string list
 
-let from_request (headers : header list) (query : query_val list) rbody =
+(* If allow_unparsed is true, we fall back to DNull; this allows us to create a
+ * 404 for a request with an unparseable body *)
+let from_request
+    ?(allow_unparseable = false)
+    (headers : header list)
+    (query : query_val list)
+    rbody =
+  let parsed_body =
+    try parsed_body headers rbody with e ->
+      if allow_unparseable then DNull else raise e
+  in
+  let json_body =
+    try json_body headers rbody with e ->
+      if allow_unparseable then DNull else raise e
+  in
+  let form_body =
+    try form_body headers rbody with e ->
+      if allow_unparseable then DNull else raise e
+  in
   let parts =
-    [ parsed_body headers rbody
-    ; json_body headers rbody
-    ; form_body headers rbody
+    [ parsed_body
+    ; json_body
+    ; form_body
     ; parsed_query_string query
     ; parsed_headers headers
     ; unparsed_body rbody

@@ -404,7 +404,7 @@ let user_page_handler
           options_handler ~execution_id !c req
       | [] ->
           let fof_timestamp =
-            PReq.from_request headers query body
+            PReq.from_request headers query body ~allow_unparseable:true
             |> PReq.to_dval
             |> Stored_event.store_event
                  ~trace_id
