@@ -1341,20 +1341,22 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let newExpr, length = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
+      let offset = nextFocusableOffset ~pos:s.newPos newAST s in
       let newState =
         match key with
         | K.Tab ->
-            Js.log "pressing tab" ;
-            let offset = nextFocusableOffset ~pos:s.newPos newAST s in
             moveTo
               (ti.endPos + offset (* bump forward to next focusable *))
               (acClear s)
         | K.Enter ->
-            Js.log "pressing enter" ;
             moveTo (ti.startPos + length) (acClear s)
         | K.Space ->
-            Js.log "pressing space" ;
-            moveTo (ti.startPos + length + 1) (acClear s)
+            let newPos =
+              if ti.endPos + offset > ti.startPos + length + 1
+              then ti.startPos + length + 1
+              else ti.endPos + offset
+            in
+            moveTo newPos (acClear s)
         | _ ->
             s
       in
@@ -1792,12 +1794,10 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Tab, _, R (_, ti)
       when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
       ->
-        Js.log2 "autocompleting?" (isAutocompleting ti s) ;
         (ast, moveToNextBlank ~pos ast s)
     | K.Tab, L (_, ti), _
       when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
       ->
-        Js.log2 "autocompleting?" (isAutocompleting ti s) ;
         (ast, moveToNextBlank ~pos ast s)
     | K.ShiftTab, _, R (_, ti)
       when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
