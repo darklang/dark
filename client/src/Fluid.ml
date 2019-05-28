@@ -1354,6 +1354,10 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "true" in
       let newExpr = FPPartial (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
+  | TPatternFalse (mID, id) ->
+      let str = f "false" in
+      let newExpr = FPPartial (mID, gid (), str) in
+      replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, id, str) ->
       let str = f str in
       if str = ""
@@ -1722,6 +1726,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TInteger _
   | TTrue _
   | TFalse _
+  | TPatternTrue _
+  | TPatternFalse _
   | TNullToken _
   | TVariable _
   | TPartial _
@@ -1729,7 +1735,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetLHS _
   | TPatternInteger _
   | TPatternNullToken _
-  | TPatternTrue _
   | TPatternVariable _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
@@ -1743,7 +1748,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternBlank _
   | TPatternPartial _
   | TPatternConstructorName _
-  | TPatternFalse _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
   | TPatternFloatFraction _ ->
@@ -1820,6 +1824,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternInteger _
   | TPatternNullToken _
   | TPatternTrue _
+  | TPatternFalse _
   | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
@@ -1832,7 +1837,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternBlank _
   | TPatternPartial _
   | TPatternConstructorName _
-  | TPatternFalse _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
   | TPatternFloatFraction _ ->
@@ -2032,9 +2036,10 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetLHS _
   | TTrue _
   | TFalse _
+  | TPatternTrue _
+  | TPatternFalse _
   | TNullToken _
   | TPatternNullToken _
-  | TPatternTrue _
   | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
@@ -2051,7 +2056,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatPoint id ->
       (insertAtFrontOfFloatFraction letterStr id ast, right)
   | TPatternPartial _
-  | TPatternFalse _
   | TPatternConstructorName _
   | TPatternFloatPoint _
   | TPatternFloatWhole _

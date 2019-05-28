@@ -31,7 +31,7 @@ let () =
   (* let aHugeFloat = FPFloat (gid (), "123456789", "123456789") in *)
   (* let aPartialFloat = FPFloat (gid (), "1", "") in *)
   let trueBool = FPBool (mID, gid (), true) in
-  (* let falseBool = EBool (gid (), false) in *)
+  let falseBool = FPBool (mID, gid (), false) in
   let aNull = FPNull (mID, gid ()) in
   (* let five = FPInteger (gid (), 5) in *)
   (* let fiftySix = FPInteger (gid (), 56) in *)
@@ -210,15 +210,24 @@ let () =
   (*     t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ; *)
   (* () ) ; *)
   describe "Bools" (fun () ->
-      t "insert start of bool" trueBool (insert 'c' 0) ("ctrue", 1) ;
-      t "delete start of bool" trueBool (delete 0) ("rue", 0) ;
-      t "backspace start of bool" trueBool (backspace 0) ("true", 0) ;
-      t "insert end of bool" trueBool (insert '0' 4) ("true0", 5) ;
-      t "delete end of bool" trueBool (delete 4) ("true", 4) ;
-      t "backspace end of bool" trueBool (backspace 4) ("tru", 3) ;
-      t "insert middle of bool" trueBool (insert '0' 2) ("tr0ue", 3) ;
-      t "delete middle of bool" trueBool (delete 2) ("tre", 2) ;
-      t "backspace middle of bool" trueBool (backspace 2) ("tue", 1) ;
+      t "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
+      t "delete start of true" trueBool (delete 0) ("rue", 0) ;
+      t "backspace start of true" trueBool (backspace 0) ("true", 0) ;
+      t "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
+      t "delete end of true" trueBool (delete 4) ("true", 4) ;
+      t "backspace end of true" trueBool (backspace 4) ("tru", 3) ;
+      t "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
+      t "delete middle of true" trueBool (delete 2) ("tre", 2) ;
+      t "backspace middle of true" trueBool (backspace 2) ("tue", 1) ;
+      t "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
+      t "delete start of false" falseBool (delete 0) ("alse", 0) ;
+      t "backspace start of false" falseBool (backspace 0) ("false", 0) ;
+      t "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
+      t "delete end of false" falseBool (delete 5) ("false", 5) ;
+      t "backspace end of false" falseBool (backspace 5) ("fals", 4) ;
+      t "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
+      t "delete middle of false" falseBool (delete 2) ("fase", 2) ;
+      t "backspace middle of false" falseBool (backspace 2) ("flse", 1) ;
       () ) ;
   describe "Nulls" (fun () ->
       t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
