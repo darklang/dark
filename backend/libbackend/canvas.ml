@@ -160,12 +160,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       | SetHandler (tlid, pos, handler) ->
           set_handler tlid pos (TL.Handler handler)
       | CreateDB (tlid, pos, name) ->
-          if is_new
-          then (
-            if name = "" then Exception.client "DB must have a name" ;
-            List.iter (TL.dbs !c.dbs) ~f:(fun db ->
-                if Ast.blank_to_string db.name = name
-                then Exception.client "Duplicate DB name" ) ) ;
+          if is_new && name = "" then Exception.client "DB must have a name" ;
           let db = User_db.create name tlid in
           set_db tlid pos (TL.DB db)
       | AddDBCol (tlid, colid, typeid) ->
@@ -229,9 +224,6 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       | RenameDBname (tlid, name) ->
           apply_to_db ~f:(User_db.rename_db name) tlid
       | CreateDBWithBlankOr (tlid, pos, id, name) ->
-          List.iter (TL.dbs !c.dbs) ~f:(fun db ->
-              if Ast.blank_to_string db.name = name
-              then Exception.client "Duplicate DB name" ) ;
           let db = User_db.create2 name tlid id in
           set_db tlid pos (TL.DB db)
       | DeleteTLForever tlid ->
@@ -253,6 +245,28 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
         ; ("op", Op.show_op op)
         ; ("exn", Exception.to_string e) ] ;
     Exception.reraise e
+
+
+let verify (c : canvas ref) : (unit, string list) Result.t =
+  let duped_db_names =
+    !c.dbs
+    |> TL.dbs
+    |> List.filter_map ~f:(fun db ->
+           Option.map
+             ~f:(fun name -> (db.tlid, name))
+             (Ast.blank_to_option db.name) )
+    |> List.group ~break:(fun (_, name1) (_, name2) -> name1 <> name2)
+    |> List.filter ~f:(fun g -> List.length g > 1)
+    |> List.map ~f:(fun gs ->
+           let string_of_pair (tlid, name) =
+             Printf.sprintf "(%s, %s)" (string_of_id tlid) name
+           in
+           let string_of_pairs ps =
+             String.concat ~sep:", " (List.map ~f:string_of_pair ps)
+           in
+           Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs) )
+  in
+  match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
@@ -301,7 +315,8 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
   |> cors_setting_of_db_string
 
 
-let init (host : string) (ops : Op.op list) : canvas ref =
+let init (host : string) (ops : Op.op list) :
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let cors = fetch_cors_setting canvas_id in
@@ -322,7 +337,7 @@ let init (host : string) (ops : Op.op list) : canvas ref =
       ; deleted_user_tipes = IDMap.empty }
   in
   add_ops c [] ops ;
-  c
+  c |> verify |> Result.map ~f:(fun _ -> c)
 
 
 let name_for_id (id : Uuidm.t) : string =
@@ -382,7 +397,7 @@ let load_from
     (owner : Uuidm.t)
     (newops : Op.op list)
     ~(f : host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists) :
-    canvas ref =
+    (canvas ref, string list) Result.t =
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
@@ -404,41 +419,44 @@ let load_from
         ; deleted_user_tipes = IDMap.empty }
     in
     add_ops c (Op.tlid_oplists2oplist oldops) newops ;
-    c
+    c |> verify |> Result.map ~f:(fun _ -> c)
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let load_all host (newops : Op.op list) : canvas ref =
+let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-let load_only_tlids ~tlids host (newops : Op.op list) : canvas ref =
+let load_only_tlids ~tlids host (newops : Op.op list) :
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
 
-let load_all_dbs host (newops : Op.op list) : canvas ref =
+let load_all_dbs host (newops : Op.op list) :
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_dbs host owner newops
 
 
-let load_with_context ~tlids host (newops : Op.op list) : canvas ref =
+let load_with_context ~tlids host (newops : Op.op list) :
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_with_context ~tlids) host owner newops
 
 
-let load_http ~verb ~path host owner : canvas ref =
+let load_http ~verb ~path host owner : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_for_http ~path ~verb) host owner []
 
 
-let load_without_tls host : canvas ref =
+let load_without_tls host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
-let load_cron host : canvas ref =
+let load_cron host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_for_cron host owner []
 
@@ -540,6 +558,8 @@ let load_and_resave_from_test_file (host : string) : unit =
       owner
       []
       ~f:(Serialize.load_json_from_disk ~root:Testdata ~preprocess:ident)
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
   save_all !c
 
@@ -575,9 +595,14 @@ let validate_op host op =
 
 
 let validate_host host =
-  let c = load_all host [] in
-  (* check ops *)
-  List.iter (Op.tlid_oplists2oplist !c.ops) ~f:(validate_op host)
+  match load_all host [] with
+  | Ok c ->
+      (* check ops *)
+      List.iter (Op.tlid_oplists2oplist !c.ops) ~f:(validate_op host)
+  | Error errs ->
+      Exception.internal
+        "Bad canvas state"
+        ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
 
 
 (* just load, don't save -- also don't validate the ops don't
@@ -587,7 +612,14 @@ let validate_host host =
  * in a tier 1 canvas somewhere *)
 let check_tier_one_hosts () : unit =
   let hosts = Serialize.tier_one_hosts () in
-  List.iter ~f:(fun host -> ignore (load_all host [])) hosts
+  List.iter hosts ~f:(fun host ->
+      match load_all host [] with
+      | Ok _ ->
+          ()
+      | Error errs ->
+          Exception.internal
+            ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
+            "Bad canvas state" )
 
 
 let migrate_all_hosts () : unit =
@@ -639,7 +671,11 @@ let cleanup_old_traces () : float =
 
 let to_string (host : string) : string =
   (* TODO: user_tipes *)
-  let c = load_all host [] in
+  let c =
+    load_all host []
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
+  in
   let handlers = !c.handlers |> IDMap.data |> List.map ~f:TL.to_string in
   let dbs = !c.dbs |> IDMap.data |> List.map ~f:TL.to_string in
   let user_fns =

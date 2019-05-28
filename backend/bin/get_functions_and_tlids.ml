@@ -141,7 +141,12 @@ let () =
      hosts
      |> List.map ~f:(fun host ->
             let canvas =
-              try Some (Canvas.load_all host [])
+              try
+                Some
+                  ( Canvas.load_all host []
+                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Prelude.Result.ok_or_internal_exception
+                       "Canvas load error" )
               with Pageable.PageableExn e ->
                 Log.erroR
                   "Can't load canvas"

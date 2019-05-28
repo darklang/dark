@@ -305,7 +305,7 @@ module RuntimeT = struct
         Error "Invalid time"
 
 
-  (* 
+  (*
    * Raw Bytes, with (to|of)_yojson.
    * Extends native Bytes with yojson un/marshaling functions
    * *)
@@ -380,7 +380,7 @@ module RuntimeT = struct
 
   *)
   module DvalMap = struct
-    module T = Tc.StrDict
+    module T = Prelude.StrDict
     include T
 
     let to_yojson fn map = map |> T.map ~f:fn |> T.to_list |> fun l -> `Assoc l
