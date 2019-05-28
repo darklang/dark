@@ -15,6 +15,13 @@ module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
 
+let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
+  let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
+  List.filter
+    ~f:(fun av -> av.serverTime |> Js.Date.valueOf > fiveMinsAgo)
+    avatars
+
+
 let createBrowserId : string =
   BsUuid.Uuid.V5.create
     ~name:"browserId"
@@ -787,16 +794,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with f404s = new404s}, Cmd.none)
     | ExpireAvatars ->
-        let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
-        let presentAvatars =
-          List.filter
-            ~f:(fun av -> av.serverTime |> Js.Date.valueOf > fiveMinsAgo)
-            m.avatarsList
-        in
-        ({m with avatarsList = presentAvatars}, Cmd.none)
+        ({m with avatarsList = m.avatarsList |> expireAvatars}, Cmd.none)
     | UpdateAvatarList avatarsList ->
-        let newAvatarList = avatarsList @ m.avatarsList in
-        ({m with avatarsList = newAvatarList}, Cmd.none)
+        ({m with avatarsList = avatarsList |> expireAvatars}, Cmd.none)
     | AppendStaticDeploy d ->
         ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
         , Cmd.none )
