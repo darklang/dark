@@ -174,10 +174,12 @@ let () =
     in
     let result =
       match newAST with
-      | ELet (_, _, _, expr, _) when wrap ->
+      | expr when not wrap ->
+          expr
+      | ELet (_, _, _, expr, _) ->
           expr
       | expr ->
-          expr
+          impossible ("not wrapped and not a let: " ^ eToString s expr)
     in
     (eToString s result, max 0 (newState.newPos - extra))
   in

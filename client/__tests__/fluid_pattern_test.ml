@@ -33,7 +33,7 @@ let () =
   let trueBool = FPBool (mID, gid (), true) in
   let falseBool = FPBool (mID, gid (), false) in
   let aNull = FPNull (mID, gid ()) in
-  (* let five = FPInteger (gid (), 5) in *)
+  let five = FPInteger (mID, gid (), 5) in
   (* let fiftySix = FPInteger (gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
   let blank = FPBlank (mID, gid ()) in
@@ -71,7 +71,7 @@ let () =
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          impossible "can't match"
+          impossible ("can't match: " ^ eToString s newAST)
     in
     (pToString result, max 0 (newState.newPos - extra))
   in
@@ -249,7 +249,7 @@ let () =
       t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
       t "insert blank->int" blank (insert '5' 0) ("5", 1) ;
       t "insert blank->int" blank (insert '0' 0) ("0", 1) ;
-      (* t "delete int->blank " five (delete 0) (b, 0) ; *)
+      t "delete int->blank " five (delete 0) (b, 0) ;
       (* t "backspace int->blank " five (backspace 1) (b, 0) ; *)
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
       t "insert partial" blank (insert 't' 0) ("t", 1) ;

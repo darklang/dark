@@ -1339,13 +1339,26 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceExpr id ~newExpr:(EString (id, f str)) ast
   | TPatternString (mID, id, str) ->
       replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
+  | TInteger (id, str) ->
+      let str = f str in
+      let newExpr =
+        if str = ""
+        then EBlank id
+        else
+          let value = try safe_int_of_string str with _ -> 0 in
+          EInteger (id, value)
+      in
+      replaceExpr id ~newExpr ast
   | TPatternInteger (mID, id, str) ->
       let str = f str in
-      if str = ""
-      then EBlank id
-      else
-        let value = try safe_int_of_string str with _ -> 0 in
-        replacePattern mID id ~newPat:(FPInteger (mID, id, value)) ast
+      let newPat =
+        if str = ""
+        then FPBlank (mID, id)
+        else
+          let value = try safe_int_of_string str with _ -> 0 in
+          FPInteger (mID, id, value)
+      in
+      replacePattern mID id ~newPat ast
   | TPatternNullToken (mID, id) ->
       let str = f "null" in
       let newExpr = FPPartial (mID, gid (), str) in
@@ -1371,13 +1384,6 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceLetLHS (f str) id ast
   | TLambdaVar (id, str) ->
       replaceLamdaVar (f str) id ast
-  | TInteger (id, str) ->
-      let str = f str in
-      if str = ""
-      then EBlank id
-      else
-        let value = try safe_int_of_string str with _ -> 0 in
-        replaceExpr id ~newExpr:(EInteger (id, value)) ast
   | TVariable (id, str) ->
       let str = f str in
       let newExpr = if str = "" then EBlank id else EPartial (id, str) in
@@ -1814,6 +1820,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
   | TRecordField _
   | TInteger _
+  | TPatternInteger _
   | TTrue _
   | TFalse _
   | TNullToken _
@@ -1821,7 +1828,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TFieldName _
   | TLetLHS _
-  | TPatternInteger _
   | TPatternNullToken _
   | TPatternTrue _
   | TPatternFalse _
