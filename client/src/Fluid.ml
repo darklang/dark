@@ -207,35 +207,60 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         EOldExpr expr )
 
 
+let literalToString
+    (v : [> `Bool of bool | `Int of int | `Null | `Float of string * string]) :
+    string =
+  match v with
+  | `Int i ->
+      Int.toString i
+  | `String str ->
+      "\"" ^ str ^ "\""
+  | `Bool b ->
+      if b then "true" else "false"
+  | `Null ->
+      "null"
+  | `Float (whole, fraction) ->
+      whole ^ "." ^ fraction
+
+
+let rec toPattern (p : fluidPattern) : pattern =
+  match p with
+  | FPVariable (_, id, var) ->
+      F (id, PVariable var)
+  | FPConstructor (_, id, name, patterns) ->
+      F (id, PConstructor (name, List.map ~f:toPattern patterns))
+  | FPInteger (_, id, i) ->
+      F (id, PLiteral (literalToString (`Int i)))
+  | FPBool (_, id, b) ->
+      F (id, PLiteral (literalToString (`Bool b)))
+  | FPString (_, id, str) ->
+      F (id, PLiteral (literalToString (`String str)))
+  | FPFloat (_, id, whole, fraction) ->
+      F (id, PLiteral (literalToString (`Float (whole, fraction))))
+  | FPNull (_, id) ->
+      F (id, PLiteral (literalToString `Null))
+  | FPBlank (_, id) ->
+      Blank id
+  | FPPartial (_, id, str) ->
+      Partial (id, str)
+  | FPOldPattern (_, pattern) ->
+      pattern
+
+
 let rec toExpr (expr : fluidExpr) : Types.expr =
   (* TODO: remove any new generation (gid ()) from this fn, save the old
    * ones instead *)
-  let toString
-      (v : [> `Bool of bool | `Int of int | `Null | `Float of string * string])
-      : string =
-    match v with
-    | `Int i ->
-        Int.toString i
-    | `String str ->
-        "\"" ^ str ^ "\""
-    | `Bool b ->
-        if b then "true" else "false"
-    | `Null ->
-        "null"
-    | `Float (whole, fraction) ->
-        whole ^ "." ^ fraction
-  in
   match expr with
   | EInteger (id, num) ->
-      F (id, Value (toString (`Int num)))
+      F (id, Value (literalToString (`Int num)))
   | EString (id, str) ->
-      F (id, Value (toString (`String str)))
+      F (id, Value (literalToString (`String str)))
   | EFloat (id, whole, fraction) ->
-      F (id, Value (toString (`Float (whole, fraction))))
+      F (id, Value (literalToString (`Float (whole, fraction))))
   | EBool (id, b) ->
-      F (id, Value (toString (`Bool b)))
+      F (id, Value (literalToString (`Bool b)))
   | ENull id ->
-      F (id, Value (toString `Null))
+      F (id, Value (literalToString `Null))
   | EVariable (id, var) ->
       F (id, Variable var)
   | EFieldAccess (id, obj, fieldID, fieldname) ->
@@ -279,29 +304,6 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | EConstructor (id, nameID, name, exprs) ->
       F (id, Constructor (F (nameID, name), List.map ~f:toExpr exprs))
   | EMatch (id, mexpr, pairs) ->
-      let rec toPattern p =
-        match p with
-        | FPVariable (_, id, var) ->
-            F (id, PVariable var)
-        | FPConstructor (_, id, name, patterns) ->
-            F (id, PConstructor (name, List.map ~f:toPattern patterns))
-        | FPInteger (_, id, i) ->
-            F (id, PLiteral (toString (`Int i)))
-        | FPBool (_, id, b) ->
-            F (id, PLiteral (toString (`Bool b)))
-        | FPString (_, id, str) ->
-            F (id, PLiteral (toString (`String str)))
-        | FPFloat (_, id, whole, fraction) ->
-            F (id, PLiteral (toString (`Float (whole, fraction))))
-        | FPNull (_, id) ->
-            F (id, PLiteral (toString `Null))
-        | FPBlank (_, id) ->
-            Blank id
-        | FPPartial (_, id, str) ->
-            Partial (id, str)
-        | FPOldPattern (_, pattern) ->
-            pattern
-      in
       let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
       F (id, Match (toExpr mexpr, pairs))
   | EOldExpr expr ->
@@ -1314,6 +1316,16 @@ let rec modifyVariableOccurences
         triples |> List.map ~f:(fun (id, name, expr) -> (id, name, u expr))
       in
       ERecord (id, triples)
+  | EMatch (id, cond, pairs) ->
+      let pairs =
+        List.map
+          ~f:(fun (pat, expr) ->
+            if Pattern.hasVariableNamed str (toPattern pat)
+            then (pat, expr)
+            else (pat, u expr) )
+          pairs
+      in
+      EMatch (id, u cond, pairs)
   | EBinOp (id, name, lhs, rhs, stor) ->
       EBinOp (id, name, u lhs, u rhs, stor)
 

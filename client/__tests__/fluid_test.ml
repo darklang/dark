@@ -103,13 +103,11 @@ let () =
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
+  let letWithBinding (bindingName : string) (expr : fluidExpr) =
+    ELet (gid (), gid (), bindingName, EInteger (gid (), 6), expr)
+  in
   let letWithUsedBinding (bindingName : string) =
-    ELet
-      ( gid ()
-      , gid ()
-      , bindingName
-      , EInteger (gid (), 6)
-      , EVariable (gid (), bindingName) )
+    letWithBinding bindingName (EVariable (gid (), bindingName))
   in
   let aVar = EVariable (gid (), "variable") in
   let aShortVar = EVariable (gid (), "v") in
@@ -523,6 +521,20 @@ let () =
         (letWithUsedBinding "binding")
         (insert 'c' 11)
         ("let bindingc = 6\nbindingc", 12) ;
+      t
+        "insert changes occurence of binding in match nested expr"
+        (letWithBinding
+           "binding"
+           (EMatch
+              ( gid ()
+              , blank
+              , [ ( FPVariable (gid (), gid (), "binding")
+                  , EVariable (gid (), "binding") )
+                ; (FPInteger (gid (), gid (), 5), EVariable (gid (), "binding"))
+                ] )))
+        (insert 'c' 11)
+        ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc"
+        , 12 ) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
