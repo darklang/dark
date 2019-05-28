@@ -155,6 +155,9 @@ let () =
     in
     (eToString s result, max 0 (newState.newPos - extra))
   in
+  let render ?(wrap = true) (expr : fluidExpr) : string * int =
+    process ~wrap [] 0 expr
+  in
   let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Delete] pos expr
   in
@@ -450,102 +453,24 @@ let () =
         ("let *** = ___\n5", 10) ;
       () ) ;
   describe "Threads" (fun () ->
-      test "AST to token list" (fun () ->
-          let ast =
-            B.newF
-              (Thread
-                 [ B.newF (Value "live")
-                 ; B.newF (FnCall (B.newF "String::reverse", [], NoRail))
-                 ; B.newF (FnCall (B.newF "String::toUppercase", [], NoRail))
-                 ])
-          in
-          let tokens =
-            ast
-            |> fromExpr m.fluidState
-            |> toTokens m.fluidState
-            |> List.map ~f:(fun ti -> ti.token)
-          in
-          expect
-            ( match tokens with
-            | [ _
-              ; TNewline
-              ; TThreadPipe _
-              ; TFnName _
-              ; TNewline
-              ; TThreadPipe _
-              ; TFnName _ ] ->
-                true
-            | _ ->
-                false )
-          |> toBe true ) ;
-      test "AST with nested threads to token list" (fun () ->
-          let ast =
-            B.newF
-              (Let
-                 ( B.newF "x"
-                 , B.newF
-                     (Thread
-                        [ B.newF (ListLiteral [B.new_ ()])
-                        ; B.newF
-                            (FnCall
-                               ( B.newF "List::append"
-                               , [ B.newF
-                                     (Thread
-                                        [ B.newF
-                                            (ListLiteral
-                                               [B.newF (Value "5"); B.new_ ()])
-                                        ; B.newF
-                                            (FnCall
-                                               ( B.newF "List:append"
-                                               , [ B.newF
-                                                     (ListLiteral
-                                                        [ B.newF (Value "5")
-                                                        ; B.new_ () ]) ]
-                                               , NoRail )) ]) ]
-                               , NoRail )) ])
-                 , B.newF (Variable "x") ))
-          in
-          let tokens =
-            ast
-            |> fromExpr m.fluidState
-            |> toTokens m.fluidState
-            |> List.map ~f:(fun ti -> ti.token)
-          in
-          expect
-            ( match tokens with
-            | [ TLetKeyword _
-              ; TLetLHS _
-              ; TLetAssignment _
-              ; TListOpen _
-              ; TBlank _
-              ; TListClose _
-              ; TNewline
-              ; TIndent _
-              ; TThreadPipe _
-              ; TFnName _
-              ; TSep
-              ; TListOpen _
-              ; TInteger _
-              ; TListSep _
-              ; TBlank _
-              ; TListClose _
-              ; TNewline
-              ; TIndent _
-              ; TThreadPipe _
-              ; TFnName _
-              ; TSep
-              ; TListOpen _
-              ; TInteger _
-              ; TListSep _
-              ; TBlank _
-              ; TListClose _
-              ; TNewline
-              ; TVariable _ ] ->
-                true
-            | _ ->
-                false )
-          |> toBe true ) ;
-      () ) ;
+      let threadOn expr fns = EThread (gid (), expr :: fns) in
+      let emptyList = EList (gid (), []) in
+      let aList5 = EList (gid (), [five]) in
+      let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
+      let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
+      t
+        "threads appear on new lines"
+        aThread
+        (render ~wrap:true)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
+      let aNestedThread =
+        threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
+      in
+      t
+        "nested threads will indent"
+        aNestedThread
+        (render ~wrap:true)
+        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"
