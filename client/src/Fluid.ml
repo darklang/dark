@@ -241,8 +241,6 @@ let rec toPattern (p : fluidPattern) : pattern =
       F (id, PLiteral (literalToString `Null))
   | FPBlank (_, id) ->
       Blank id
-  | FPPartial (_, id, str) ->
-      Partial (id, str)
   | FPOldPattern (_, pattern) ->
       pattern
 
@@ -345,8 +343,7 @@ let pid pattern : id =
   | FPString (_, id, _)
   | FPFloat (_, id, _, _)
   | FPNull (_, id)
-  | FPBlank (_, id)
-  | FPPartial (_, id, _) ->
+  | FPBlank (_, id) ->
       id
   | FPOldPattern (_, pattern) ->
       Blank.toID pattern
@@ -361,8 +358,7 @@ let pmid pattern : id =
   | FPString (mid, _, _)
   | FPFloat (mid, _, _, _)
   | FPNull (mid, _)
-  | FPBlank (mid, _)
-  | FPPartial (mid, _, _) ->
+  | FPBlank (mid, _) ->
       mid
   | FPOldPattern (mid, _) ->
       mid
@@ -398,10 +394,8 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
       [TPatternNullToken (mid, id)]
   | FPBlank (mid, id) ->
       [TPatternBlank (mid, id)]
-  | FPPartial (mid, id, str) ->
-      [TPatternPartial (mid, id, str)]
   | FPOldPattern (mid, op) ->
-      [TPatternPartial (mid, Blank.toID op, "TODO: old pattern")]
+      [TPatternString (mid, Blank.toID op, "TODO: old pattern")]
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
@@ -748,7 +742,6 @@ let isTextToken token : bool =
   | TPatternVariable _
   | TPatternConstructorName _
   | TPatternBlank _
-  | TPatternPartial _
   | TPatternString _
   | TPatternTrue _
   | TPatternFalse _
@@ -811,8 +804,7 @@ let isAtom (token : token) : bool =
   | TPlaceholder _
   | TBlank _
   | TLambdaArrow _
-  | TPatternBlank _
-  | TPatternPartial _ ->
+  | TPatternBlank _ ->
       true
   | TListOpen _
   | TListClose _
@@ -1194,28 +1186,31 @@ let replacePattern
   wrapPattern matchID patID ast ~f:(fun _ -> newPat)
 
 
-let replacePatternString (str : string) (matchID : id) (patID : id) (ast : ast)
-    : ast =
-  wrapPattern matchID patID ast ~f:(fun p ->
-      match p with
-      | FPInteger (_, id, _) ->
-          if str = ""
-          then FPBlank (matchID, id)
-          else
-            let value = try safe_int_of_string str with _ -> 0 in
-            FPInteger (matchID, id, value)
-      | FPString (_, id, _) ->
-          FPString (matchID, id, str)
-      | FPVariable (_, id, _) ->
-          if str = ""
-          then FPBlank (matchID, id)
-          else FPPartial (matchID, id, str)
-      | FPPartial (_, id, _) ->
-          if str = ""
-          then FPBlank (matchID, id)
-          else FPPartial (matchID, id, str)
+let replaceVarInPattern
+    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
+  wrap mID ast ~f:(fun e ->
+      match e with
+      | EMatch (mID, cond, cases) ->
+          let rec replaceNameInPattern pat =
+            match pat with
+            | FPVariable (_, id, varName) when varName = oldVarName ->
+                if newVarName = ""
+                then FPBlank (mID, id)
+                else FPVariable (mID, id, newVarName)
+            | FPConstructor (mID, id, name, patterns) ->
+                FPConstructor
+                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
+            | pattern ->
+                pattern
+          in
+          let newCases =
+            List.map cases ~f:(fun (pat, expr) ->
+                ( replaceNameInPattern pat
+                , modifyVariableOccurences oldVarName newVarName expr ) )
+          in
+          EMatch (mID, cond, newCases)
       | _ ->
-          fail ("not a string type: " ^ show_fluidPattern p) )
+          fail "not a let" )
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -1299,31 +1294,6 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
           fail "not a let" )
 
 
-let replaceVarInPattern
-    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
-  wrap mID ast ~f:(fun e ->
-      match e with
-      | EMatch (mID, cond, cases) ->
-          let rec replaceNameInPattern pat =
-            match pat with
-            | FPVariable (_, id, varName) when varName = oldVarName ->
-                FPVariable (mID, id, newVarName)
-            | FPConstructor (mID, id, name, patterns) ->
-                FPConstructor
-                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
-            | pattern ->
-                pattern
-          in
-          let newCases =
-            List.map cases ~f:(fun (pat, expr) ->
-                ( replaceNameInPattern pat
-                , modifyVariableOccurences oldVarName newVarName expr ) )
-          in
-          EMatch (mID, cond, newCases)
-      | _ ->
-          fail "not a let" )
-
-
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
@@ -1368,15 +1338,15 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat ast
   | TPatternNullToken (mID, id) ->
       let str = f "null" in
-      let newExpr = FPPartial (mID, gid (), str) in
+      let newExpr = FPVariable (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
   | TPatternTrue (mID, id) ->
       let str = f "true" in
-      let newExpr = FPPartial (mID, gid (), str) in
+      let newExpr = FPVariable (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
   | TPatternFalse (mID, id) ->
       let str = f "false" in
-      let newExpr = FPPartial (mID, gid (), str) in
+      let newExpr = FPVariable (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str) ->
       replaceVarInPattern mID str (f str) ast
@@ -1754,7 +1724,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TConstructorName _
   | TLambdaSep _
   | TPatternBlank _
-  | TPatternPartial _
   | TPatternConstructorName _ ->
       (ast, left s)
   | TFieldOp id ->
@@ -1877,7 +1846,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TConstructorName _ ->
       (ast, s)
   | TPatternBlank _
-  | TPatternPartial _
   | TPatternConstructorName _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
@@ -1945,7 +1913,6 @@ let doRight
   | TLambdaSymbol _
   | TLambdaSep _
   | TPatternBlank _
-  | TPatternPartial _
   | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
@@ -2097,7 +2064,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction (f str) id ast, right)
   | TFloatPoint id ->
       (insertAtFrontOfFloatFraction letterStr id ast, right)
-  | TPatternPartial _
   | TPatternConstructorName _
   | TPatternFloatPoint _
   | TPatternFloatWhole _

@@ -962,7 +962,6 @@ and fluidPattern =
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
-  | FPPartial of id * id * string
   | FPOldPattern of id * pattern
 
 and fluidExpr =
@@ -1054,7 +1053,6 @@ and fluidToken =
   | TPatternFloatPoint of id * id
   | TPatternFloatFraction of id * id * string
   | TPatternBlank of id * id
-  | TPatternPartial of id * id * string
   | TRecordClose of id
   | TConstructorName of id * string
 

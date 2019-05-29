@@ -46,7 +46,6 @@ let tid (t : token) : id =
   | TMatchKeyword id
   | TConstructorName (id, _)
   | TPatternBlank (_, id)
-  | TPatternPartial (_, id, _)
   | TPatternInteger (_, id, _)
   | TPatternVariable (_, id, _)
   | TPatternConstructorName (_, id, _)
@@ -71,7 +70,6 @@ let isBlank t =
   | TLetLHS (_, "")
   | TLambdaVar (_, _, "")
   | TPartial (_, "")
-  | TPatternPartial (_, _, "")
   | TPatternBlank _ ->
       true
   | _ ->
@@ -196,8 +194,6 @@ let toText (t : token) : string =
       "null"
   | TPatternBlank _ ->
       "   "
-  | TPatternPartial (_, _, str) ->
-      canBeEmpty str
   | TPatternVariable (_, _, name) ->
       canBeEmpty name
   | TPatternConstructorName (_, _, name) ->
@@ -208,8 +204,6 @@ let toTestText (t : token) : string =
   match t with
   | TPatternBlank _ | TBlank _ ->
       "___"
-  | TPatternPartial (_, _, str) | TPartial (_, str) ->
-      str
   | _ ->
       if isBlank t then "***" else toText t
 
@@ -302,8 +296,6 @@ let toTypeName (t : token) : string =
       "match-sep"
   | TPatternBlank _ ->
       "pattern-blank"
-  | TPatternPartial _ ->
-      "pattern-partial"
   | TPatternInteger _ ->
       "pattern-integer"
   | TPatternVariable _ ->
@@ -361,7 +353,6 @@ let toCategoryName (t : token) : string =
   | TMatchKeyword _ | TMatchSep _ ->
       "match"
   | TPatternBlank _
-  | TPatternPartial _
   | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
