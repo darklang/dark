@@ -30,7 +30,10 @@ let viewInput
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
   Html.li
-    ( [Vdom.attribute "" "data-content" (value ^ "\nMade at: " ^ timestamp)]
+    ( [ Vdom.attribute
+          ""
+          "data-content"
+          (value ^ "\nMade at: " ^ timestamp ^ " ago") ]
     @ [classes |> String.join ~sep:" " |> Html.class']
     @ events )
     [Html.text {js|•|js}]
@@ -50,6 +53,9 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     in
     let timestamp =
       Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
+      |> Option.map ~f:(fun tstr ->
+             Js.Date.now () -. Js.Date.parseAsFloat tstr
+             |> Util.humanReadableTimeElapsed )
       |> Option.withDefault ~default:""
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
