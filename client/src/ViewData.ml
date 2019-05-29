@@ -54,8 +54,8 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     let timestamp =
       Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
       |> Option.map ~f:(fun tstr ->
-             Js.Date.now () -. Js.Date.parseAsFloat tstr |> Util.timeDifference
-         )
+             Js.Date.now () -. Js.Date.parseAsFloat tstr
+             |> Util.humanReadableTimeElapsed )
       |> Option.withDefault ~default:""
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
