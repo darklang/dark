@@ -4671,6 +4671,11 @@ parse-unit@^1.0.1:
   resolved "https://registry.yarnpkg.com/parse-unit/-/parse-unit-1.0.1.tgz#7e1bb6d5bef3874c28e392526a2541170291eecf"
   integrity sha1-fhu21b7zh0wo45JSaiVBFwKR7s8=
 
+parse5@2.2.3, parse5@^2.1.5:
+  version "2.2.3"
+  resolved "https://registry.yarnpkg.com/parse5/-/parse5-2.2.3.tgz#0c4fc41c1000c5e6b93d48b03f8083837834e9f6"
+  integrity sha1-DE/EHBAAxea5PUiwP4CDg3g06fY=
+
 parse5@4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/parse5/-/parse5-4.0.0.tgz#6d78656e3da8d78b4ec0b906f7c08ef1dfe3f608"
@@ -4680,11 +4685,6 @@ parse5@^1.5.0:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/parse5/-/parse5-1.5.1.tgz#9b7f3b0de32be78dc2401b17573ccaf0f6f59d94"
   integrity sha1-m387DeMr543CQBsXVzzK8Pb1nZQ=
-
-parse5@^2.1.5:
-  version "2.2.3"
-  resolved "https://registry.yarnpkg.com/parse5/-/parse5-2.2.3.tgz#0c4fc41c1000c5e6b93d48b03f8083837834e9f6"
-  integrity sha1-DE/EHBAAxea5PUiwP4CDg3g06fY=
 
 pascalcase@^0.1.1:
   version "0.1.1"
@@ -5803,10 +5803,10 @@ testcafe-browser-tools@1.6.8:
     read-file-relative "^1.2.0"
     which-promise "^1.0.0"
 
-testcafe-hammerhead@14.6.3:
-  version "14.6.3"
-  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-14.6.3.tgz#61d22650a4fe3b6ee7af721acff5d4f78afcb1af"
-  integrity sha512-vMQGfO7d6Vy0wkyzAdBUQ4Rin7vLqJGrBvgjlvBaj2ec1oH+RX0IlOwCB3HFMA/JljM7BpVD7y97Jq9Ebcgs4g==
+testcafe-hammerhead@14.6.6:
+  version "14.6.6"
+  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-14.6.6.tgz#a8a3e55a9c409513ff3cd5013407515d3aaadc2c"
+  integrity sha512-7c8fkr+uVl9SMd33OoGbSWzdRG8JOgzOhxqUm8RRJBhnoiVzx8tIOnj3zp3dn4yVlfdfWF8K7uD2OafnaLbjSQ==
   dependencies:
     acorn-hammerhead "^0.2.0"
     bowser "1.6.0"
@@ -5823,7 +5823,7 @@ testcafe-hammerhead@14.6.3:
     mustache "^2.1.1"
     nanoid "^0.2.2"
     os-family "^1.0.0"
-    parse5 "^1.5.0"
+    parse5 "2.2.3"
     pify "^2.3.0"
     pinkie "1.0.0"
     read-file-relative "^1.2.0"
@@ -5876,10 +5876,10 @@ testcafe-reporter-xunit@^2.1.0:
   resolved "https://registry.yarnpkg.com/testcafe-reporter-xunit/-/testcafe-reporter-xunit-2.1.0.tgz#e6d66c572ce15af266706af0fd610b2a841dd443"
   integrity sha1-5tZsVyzhWvJmcGrw/WELKoQd1EM=
 
-testcafe@1.1.4:
-  version "1.1.4"
-  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.1.4.tgz#8c03542b3790d91e47af3439f4c77ff67d1d32ad"
-  integrity sha512-2c0erAxmRd8o018e0sQ1SVVyX1JlTXwUHlRIITF3u7bPAe40IFINhPGBA8KhDYwWDSaOUZp4ft6bxDef2g8Zgg==
+testcafe@1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.2.0.tgz#aa47bc9850213eaad7283623029a2e64072f584d"
+  integrity sha512-ea58Pvw8P/9kdZ1A5FOOZrPwV2ZM6v89MJdqNXF3JaQ8l3lr2rREoSET2KznQveBnH4z+xJtfxHlJAhU+B4/ug==
   dependencies:
     "@types/node" "^10.12.19"
     async-exit-hook "^1.1.2"
@@ -5941,7 +5941,7 @@ testcafe@1.1.4:
     source-map-support "^0.5.5"
     strip-bom "^2.0.0"
     testcafe-browser-tools "1.6.8"
-    testcafe-hammerhead "14.6.3"
+    testcafe-hammerhead "14.6.6"
     testcafe-legacy-api "3.1.11"
     testcafe-reporter-json "^2.1.0"
     testcafe-reporter-list "^2.1.0"
