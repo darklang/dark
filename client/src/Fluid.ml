@@ -726,6 +726,7 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   && s.ac.index <> None
   && s.newPos <= ti.endPos
   && s.newPos >= ti.startPos
+  && s.lastKey <> K.Escape
 
 
 let recordAction ?(pos = -1000) (action : string) (s : state) : state =
@@ -1679,6 +1680,8 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
 let acSetIndex (i : int) (s : state) : state =
   {s with ac = {s.ac with index = Some i}; upDownCol = None}
 
+
+let acMoveToStart (s : state) : state = {s with ac = {s.ac with index = Some 0}}
 
 let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
 
