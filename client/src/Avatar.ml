@@ -60,7 +60,14 @@ let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
 
 
 let viewAllAvatars (avatars : avatar list) : msg Html.html =
-  let avatars = avatars |> List.uniqueBy ~f:(fun avatar -> avatar.username) in
+  (* Sort by serverTime desc, then unique by avatar - gets us the most recent
+   * avatar for a given username *)
+  let avatars =
+    avatars
+    |> List.sortBy ~f:(fun avatar -> avatar.serverTime)
+    |> List.reverse
+    |> List.uniqueBy ~f:(fun avatar -> avatar.username)
+  in
   let avatarView = List.map ~f:avatarDiv avatars in
   Html.div
     [Html.class' "all-avatars"]
