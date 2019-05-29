@@ -155,8 +155,8 @@ let () =
     in
     (eToString s result, max 0 (newState.newPos - extra))
   in
-  let render ?(wrap = true) (expr : fluidExpr) : string * int =
-    process ~wrap [] 0 expr
+  let render (expr : fluidExpr) : string * int =
+    process ~wrap:true [] 0 expr
   in
   let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Delete] pos expr
@@ -461,7 +461,7 @@ let () =
       t
         "threads appear on new lines"
         aThread
-        (render ~wrap:true)
+        render
         ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
       let aNestedThread =
         threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
@@ -469,7 +469,7 @@ let () =
       t
         "nested threads will indent"
         aNestedThread
-        (render ~wrap:true)
+        render
         ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ) ;
   describe "Ifs" (fun () ->
       t
