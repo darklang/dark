@@ -59,10 +59,9 @@ def is_script(f):
   filetype = subprocess.check_output(["file", f], encoding="utf-8")
   return "Bourne-Again" in filetype
 
-def less_compile():
+def sass_compile():
   start = time.time()
-  return run_frontend(start, "client/node_modules/.bin/lessc client/src/app.less backend/static/app.css")
-
+  return run_frontend(start, "./client/node_modules/node-sass/bin/node-sass client/src/styles/app.scss > backend/static/app.css")
 
 def client_build():
   if os.environ.get("CI"):
@@ -225,7 +224,7 @@ class Should:
     self.client_build = False
     self.appsupport_build = False
     self.client_test = False
-    self.less_compile = False
+    self.sass_compile = False
     self.reload_browser = False
     self.reload_server = False
     self.reload_stroller = False
@@ -258,8 +257,8 @@ def execute(should):
     should.generate_etags |= success
     should.reload_browser |= success
 
-  if should.less_compile:
-    if not less_compile(): success = False
+  if should.sass_compile:
+    if not sass_compile(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -341,9 +340,8 @@ def mark(should, f):
   elif "client/src/appsupport.js" in f:
     should.appsupport_build = True
 
-  # Other
-  elif ".less" in f:
-    should.less_compile = True
+  elif ".scss" in f:
+    should.sass_compile = True
 
   elif ("scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
