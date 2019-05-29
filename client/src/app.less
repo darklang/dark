@@ -101,6 +101,11 @@ html {
   to { bottom: 70px; }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 body {
   .default;
   height: 100%;
@@ -1607,7 +1612,7 @@ body #app * {
         color: white;
         transition: none;
         i {
-          animation: a 0.75s infinite linear;
+          animation: spin 0.75s infinite linear;
         }
       }
     }
