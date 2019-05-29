@@ -1237,15 +1237,18 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
-let rec getNextBlank (pos : int) (tokens : tokenInfo list) =
-  match tokens with
-  | [] ->
-      (* Wrap, unless we've already wrapped *)
-      if pos = -1 then 0 else getNextBlank (-1) tokens
-  | ti :: rest ->
-      if Token.isBlank ti.token && ti.startPos > pos
-      then ti.startPos
-      else getNextBlank pos rest
+let getNextBlank (pos : int) (tokens : tokenInfo list) : int =
+  let rec f pos tokens' =
+    match tokens' with
+    | [] ->
+        (* Wrap, unless we've already wrapped *)
+        if pos = -1 then 0 else f (-1) tokens
+    | ti :: rest ->
+        if Token.isBlank ti.token && ti.startPos > pos
+        then ti.startPos
+        else f pos rest
+  in
+  f pos tokens
 
 
 (* TODO: rewrite nextBlank like prevBlank *)
@@ -1323,16 +1326,14 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let newState =
         match key with
         | K.Tab ->
-            moveTo
-              (ti.endPos + offset (* bump forward to next focusable *))
-              (acClear s)
+            moveTo offset (acClear s)
         | K.Enter ->
             moveTo (ti.startPos + length) (acClear s)
         | K.Space ->
             let newPos =
-              if ti.endPos + offset > ti.startPos + length + 1
+              if offset > ti.startPos + length + 1
               then ti.startPos + length + 1
-              else ti.endPos + offset
+              else offset
             in
             moveTo newPos (acClear s)
         | _ ->
