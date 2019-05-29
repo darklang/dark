@@ -1033,7 +1033,7 @@ and fluidToken =
   | TLambdaSep of id
   | TLambdaArrow of id
   | TLambdaSymbol of id
-  | TLambdaVar of id * string
+  | TLambdaVar of id * int * string
   | TListOpen of id
   | TListClose of id
   | TListSep of id

@@ -30,7 +30,7 @@ let tid (t : token) : id =
   | TFieldName (id, _)
   | TVariable (id, _)
   | TFnName (id, _, _)
-  | TLambdaVar (id, _)
+  | TLambdaVar (id, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
   | TLambdaSep id
@@ -69,7 +69,7 @@ let isBlank t =
   | TRecordField (_, _, "")
   | TFieldName (_, "")
   | TLetLHS (_, "")
-  | TLambdaVar (_, "")
+  | TLambdaVar (_, _, "")
   | TPartial (_, "")
   | TPatternPartial (_, _, "")
   | TPatternBlank _ ->
@@ -140,12 +140,12 @@ let toText (t : token) : string =
       canBeEmpty name
   | TFnName (_, name, _) ->
       shouldntBeEmpty name
-  | TLambdaVar (_, name) ->
+  | TLambdaVar (_, _, name) ->
       canBeEmpty name
   | TLambdaSymbol _ ->
       "\\"
   | TLambdaSep _ ->
-      " "
+      ", "
   | TLambdaArrow _ ->
       " -> "
   | TIndent indent ->
@@ -270,7 +270,7 @@ let toTypeName (t : token) : string =
       "variable"
   | TFnName (_, _, _) ->
       "fn-name"
-  | TLambdaVar (_, _) ->
+  | TLambdaVar (_, _, _) ->
       "lambda-var"
   | TLambdaSymbol _ ->
       "lambda-symbol"
@@ -391,7 +391,7 @@ let toCssClasses (t : token) : string =
     match t with
     | TLetLHS (_, "")
     | TFieldName (_, "")
-    | TLambdaVar (_, "")
+    | TLambdaVar (_, _, "")
     | TPlaceholder _
     | TPatternBlank _
     | TBlank _

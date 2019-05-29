@@ -478,7 +478,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
       let tnames =
-        List.map names ~f:(fun (_, name) -> TLambdaVar (id, name))
+        List.indexedMap names ~f:(fun i (_, name) -> TLambdaVar (id, i, name))
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
@@ -1135,6 +1135,36 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       expr
 
 
+(* Slightly modified version of `AST.uses` (pre-fluid code) *)
+let rec modifyVariableOccurences
+    (oldVarName : string) (newVarName : string) (ast : ast) : ast =
+  let u = modifyVariableOccurences oldVarName newVarName in
+  match ast with
+  | EVariable (id, varName) ->
+      if varName = oldVarName then EVariable (id, newVarName) else ast
+  | ELet (id, id', lhs, rhs, body) ->
+      if oldVarName = lhs (* if variable name is rebound *)
+      then ast
+      else ELet (id, id', lhs, u rhs, u body)
+  | ELambda (id, vars, lexpr) ->
+      if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
+         (* if variable name is rebound *)
+      then ast
+      else ELambda (id, vars, u lexpr)
+  | EMatch (id, cond, pairs) ->
+      let pairs =
+        List.map
+          ~f:(fun (pat, expr) ->
+            if Pattern.hasVariableNamed oldVarName (toPattern pat)
+            then (pat, expr)
+            else (pat, u expr) )
+          pairs
+      in
+      EMatch (id, u cond, pairs)
+  | _ ->
+      recurse ~f:u ast
+
+
 let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   let rec run e = if id = eid e then f e else recurse ~f:run e in
   run ast
@@ -1237,22 +1267,34 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
           fail "not a field" )
 
 
-let replaceLamdaVar (str : string) (id : id) (ast : ast) : ast =
+let replaceLamdaVar
+    ~(index : int)
+    (oldVarName : string)
+    (newVarName : string)
+    (id : id)
+    (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      (* TODO: rename in vars other than the first *)
       | ELambda (id, vars, expr) ->
-          let rest = List.tail vars |> Option.withDefault ~default:[] in
-          ELambda (id, (gid (), str) :: rest, expr)
+          let vars =
+            List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
+          in
+          ELambda
+            (id, vars, modifyVariableOccurences oldVarName newVarName expr)
       | _ ->
           fail "not a lamda" )
 
 
-let replaceLetLHS (str : string) (id : id) (ast : ast) : ast =
+let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | ELet (id, lhsID, _, rhs, next) ->
-          ELet (id, lhsID, str, rhs, next)
+      | ELet (id, lhsID, oldLHS, rhs, next) ->
+          ELet
+            ( id
+            , lhsID
+            , newLHS
+            , rhs
+            , modifyVariableOccurences oldLHS newLHS next )
       | _ ->
           fail "not a let" )
 
@@ -1268,66 +1310,6 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           ERecord (id, fields)
       | _ ->
           fail "not a record" )
-
-
-(* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec modifyVariableOccurences
-    (str : string) (ast : ast) ~(f : id -> ast -> ast) : ast =
-  let u = modifyVariableOccurences str ~f in
-  match ast with
-  | EBlank _
-  | EInteger _
-  | EBool _
-  | EString _
-  | EOldExpr _
-  | EFloat _
-  | EPartial _
-  | ENull _ ->
-      ast
-  | EVariable (id, potential) ->
-      if potential = str then f id ast else ast
-  | ELet (id, id', lhs, rhs, body) ->
-      if str = lhs (* if variable name is rebound *)
-      then ast
-      else ELet (id, id', lhs, u rhs, u body)
-  | EIf (id, cond, ifbody, elsebody) ->
-      EIf (id, u cond, u ifbody, u elsebody)
-  | EFnCall (id, name, exprs, stor) ->
-      let exprs = exprs |> List.map ~f:u in
-      EFnCall (id, name, exprs, stor)
-  | EConstructor (id, id', name, exprs) ->
-      let exprs = exprs |> List.map ~f:u in
-      EConstructor (id, id', name, exprs)
-  | ELambda (id, vars, lexpr) ->
-      if List.map ~f:Tuple2.second vars |> List.member ~value:str
-         (* if variable name is rebound *)
-      then ast
-      else ELambda (id, vars, u lexpr)
-  | EThread (id, exprs) ->
-      let exprs = exprs |> List.map ~f:u in
-      EThread (id, exprs)
-  | EFieldAccess (id, obj, id', name) ->
-      EFieldAccess (id, u obj, id', name)
-  | EList (id, exprs) ->
-      let exprs = exprs |> List.map ~f:u in
-      EList (id, exprs)
-  | ERecord (id, triples) ->
-      let triples =
-        triples |> List.map ~f:(fun (id, name, expr) -> (id, name, u expr))
-      in
-      ERecord (id, triples)
-  | EMatch (id, cond, pairs) ->
-      let pairs =
-        List.map
-          ~f:(fun (pat, expr) ->
-            if Pattern.hasVariableNamed str (toPattern pat)
-            then (pat, expr)
-            else (pat, u expr) )
-          pairs
-      in
-      EMatch (id, u cond, pairs)
-  | EBinOp (id, name, lhs, rhs, stor) ->
-      EBinOp (id, name, u lhs, u rhs, stor)
 
 
 (* Supports the various different tokens replacing their string contents.
@@ -1382,8 +1364,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceRecordField ~index (f str) id ast
   | TLetLHS (id, str) ->
       replaceLetLHS (f str) id ast
-  | TLambdaVar (id, str) ->
-      replaceLamdaVar (f str) id ast
+  | TLambdaVar (id, index, str) ->
+      replaceLamdaVar ~index str (f str) id ast
   | TVariable (id, str) ->
       let str = f str in
       let newExpr = if str = "" then EBlank id else EPartial (id, str) in

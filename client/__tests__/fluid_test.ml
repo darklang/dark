@@ -118,6 +118,18 @@ let () =
   in
   let aLambda = ELambda (gid (), [(gid (), "")], blank) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
+  let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
+    ELambda (gid (), [(gid (), bindingName)], expr)
+  in
+  let lambdaWithUsedBinding (bindingName : string) =
+    lambdaWithBinding bindingName (EVariable (gid (), bindingName))
+  in
+  let lambdaWithUsed2ndBinding (bindingName : string) =
+    ELambda
+      ( gid ()
+      , [(gid (), "somevar"); (gid (), bindingName)]
+      , EVariable (gid (), bindingName) )
+  in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
@@ -435,6 +447,16 @@ let () =
         nonEmptyLambda
         (delete 0)
         ("\\*** -> 5", 0) ;
+      t
+        "insert changes occurence of binding var"
+        (lambdaWithUsedBinding "binding")
+        (insert 'c' 8)
+        ("\\bindingc -> bindingc", 9) ;
+      t
+        "insert changes occurence of binding 2nd var"
+        (lambdaWithUsed2ndBinding "binding")
+        (insert 'c' 17)
+        ("\\somevar, bindingc -> bindingc", 18) ;
       () ) ;
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
@@ -546,6 +568,22 @@ let () =
         (insert 'c' 11)
         ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc"
         , 12 ) ;
+      t
+        "insert doesn't change occurence of binding in non-shadowed lambda expr"
+        (letWithBinding
+           "binding"
+           (ELambda
+              (gid (), [(gid (), "binding")], EVariable (gid (), "binding"))))
+        (insert 'c' 11)
+        ("let bindingc = 6\n\\binding -> binding", 12) ;
+      t
+        "insert changes occurence of binding in lambda expr"
+        (letWithBinding
+           "binding"
+           (ELambda
+              (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
+        (insert 'c' 11)
+        ("let bindingc = 6\n\\somevar -> bindingc", 12) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
