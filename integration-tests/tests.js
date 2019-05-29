@@ -1029,11 +1029,3 @@ test('load_with_unnamed_function', async t => {
     .pressKey("enter")
     .expect(entryBoxAvailable()).ok()
 });
-
-test('fluid_nested_threads', async t => {
-  await t.navigateTo(`${BASE_URL}fluid_nested_threads?integration-test=true&fluidv2=1`)
-    .expect(available('#fluid-editor')).ok({ timeout : 1000 })
-
-  await t.expect(Selector('.fluid-newline').count).eql(3)
-  await t.expect(Selector('.fluid-indent').count).eql(2)
-});

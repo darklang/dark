@@ -784,8 +784,6 @@ let fn_page_to_handler_pos (_m : model) : testResult = pass
 
 let load_with_unnamed_function (_m : model) : testResult = pass
 
-let fluid_nested_threads (_m : model) : testResult = pass
-
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -906,7 +904,5 @@ let trigger (test_name : string) : integrationTestState =
         autocomplete_visible_height
     | "load_with_unnamed_function" ->
         load_with_unnamed_function
-    | "fluid_nested_threads" ->
-        fluid_nested_threads
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
