@@ -442,7 +442,15 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
               | Some user_info ->
                   user_info
                   |> Account.user_info_to_yojson
-                  |> Dval.of_internal_roundtrippable_json_v0
+                  |> DvalMap.of_yojson (fun x ->
+                         match x with
+                         | `String s ->
+                             Ok (Dval.dstr_of_string_exn s)
+                         | `Bool b ->
+                             Ok (DBool b)
+                         | _ ->
+                             Exception.internal "bad type for user_info" )
+                  |> Result.map ~f:(fun x -> DObj x)
             in
             ( match userinfo with
             | Ok (DOption OptNothing) ->
