@@ -1440,6 +1440,16 @@ let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
           fail "not a float" )
 
 
+let insertAtFrontOfPatternFloatFraction
+    (letter : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, patID, whole, fraction) ->
+          FPFloat (matchID, patID, whole, letter ^ fraction)
+      | _ ->
+          fail "not a float" )
+
+
 let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
     ast =
   wrap id ast ~f:(fun expr ->
@@ -1730,6 +1740,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removeField id ast, left s)
   | TFloatPoint id ->
       (removePointFromFloat id ast, left s)
+  | TPatternFloatPoint (mID, id) ->
+      (removePatternPointFromFloat mID id ast, left s)
   | TString _
   | TPatternString _
   | TRecordField _
@@ -1755,8 +1767,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternFloatFraction (mID, id, str) ->
       let str = removeCharAt str offset in
       (replacePatternFloatFraction str mID id ast, left s)
-  | TPatternFloatPoint (mID, id) ->
-      (removePatternPointFromFloat mID id ast, left s)
   | TFloatWhole (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatWhole str id ast, left s)
@@ -1800,8 +1810,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TFieldOp id ->
       (removeField id ast, s)
-  | TFloatPoint id ->
-      (removePointFromFloat id ast, s)
   | TString (id, str) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
@@ -1839,17 +1847,21 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
+  | TFloatPoint id ->
+      (removePointFromFloat id ast, s)
   | TFloatWhole (id, str) ->
       (replaceFloatWhole (f str) id ast, s)
   | TFloatFraction (id, str) ->
       (replaceFloatFraction (f str) id ast, s)
+  | TPatternFloatPoint (mID, id) ->
+      (removePatternPointFromFloat mID id ast, s)
+  | TPatternFloatFraction (mID, id, str) ->
+      (replacePatternFloatFraction (f str) mID id ast, s)
+  | TPatternFloatWhole (mID, id, str) ->
+      (replacePatternFloatWhole (f str) mID id ast, s)
   | TConstructorName _ ->
       (ast, s)
-  | TPatternBlank _
-  | TPatternConstructorName _
-  | TPatternFloatWhole _
-  | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
+  | TPatternBlank _ | TPatternConstructorName _ ->
       (ast, s)
 
 
@@ -2064,10 +2076,13 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction (f str) id ast, right)
   | TFloatPoint id ->
       (insertAtFrontOfFloatFraction letterStr id ast, right)
-  | TPatternConstructorName _
-  | TPatternFloatPoint _
-  | TPatternFloatWhole _
-  | TPatternFloatFraction _ ->
+  | TPatternFloatWhole (mID, id, str) ->
+      (replacePatternFloatWhole (f str) mID id ast, right)
+  | TPatternFloatFraction (mID, id, str) ->
+      (replacePatternFloatFraction (f str) mID id ast, right)
+  | TPatternFloatPoint (mID, id) ->
+      (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
+  | TPatternConstructorName _ ->
       (ast, s)
   | TPatternBlank (mID, pID) ->
       let newPat =
