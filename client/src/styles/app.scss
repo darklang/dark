@@ -1265,18 +1265,11 @@ https://github.com/chriskempson/tomorrow-theme */
     $black: #1d1f21;
     $background: transparent;
     $selected-background: #2d2d2d;
-    $blanks: lighten($selected-background, 8%);
-    $currentline: #282a2e;
-    $selection: #373b41;
-    $foreground: #c5c8c6;
-    $comment: #969896;
-    $red: #cc6666;
-    $orange: #de935f;
-    $yellow: #f0c674;
-    $green: #b5bd68;
-    $aqua: #8abeb7;
-    $blue: #81a2be;
-    $purple: #b294bb;
+    $blanks: lighten($black1, 8%);
+    $currentline: $grey1;
+    $selection: $grey3;
+    $foreground: $white2;
+    $comment: $grey3;
 
     $dropdown-background: lighten($selected-background, 10%);
     $dropdown-selected-background: lighten($selected-background, 20%);
@@ -1313,7 +1306,7 @@ https://github.com/chriskempson/tomorrow-theme */
 
     .fluid-string {
         white-space: pre;
-        color: $green;
+        color: $string-color;
     }
 
     .fluid-sep,
@@ -1333,6 +1326,12 @@ https://github.com/chriskempson/tomorrow-theme */
         margin-right: 0.11px;
     }
 
+    .fluid-lambda-symbol,
+    .fluid-lambda-var,
+    .fluid-lambda-arrow {
+        color: $orange;
+    }
+
     .fluid-blank {
         background-color: $blanks;
     }
@@ -1343,16 +1342,16 @@ https://github.com/chriskempson/tomorrow-theme */
     }
 
     .fluid-empty {
-        color: green;
+        color: $green;
         background-color: $blanks;
     }
 
     .fluid-keyword {
-        color: $purple;
+        color: $green;
     }
 
     .fluid-fn-name {
-        color: $orange;
+        color: $white2;
     }
 
     .fluid-partial {
@@ -1363,6 +1362,11 @@ https://github.com/chriskempson/tomorrow-theme */
     .fluid-entry {
         position: relative;
         // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
+    }
+
+    .fluid-thread-pipe {
+        color: $blue;
+        font-size: 10px;
     }
 
     /* Will style more later. Cmd palette should look like a smaller version of omnibox
