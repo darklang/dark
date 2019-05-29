@@ -435,30 +435,18 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
       , function
         | _, [DStr username] ->
             let username = Unicode_string.to_string username in
-            let userinfo =
-              match Account.get_user username with
-              | None ->
-                  Ok (DOption OptNothing)
-              | Some user_info ->
-                  user_info
-                  |> Account.user_info_to_yojson
-                  |> DvalMap.of_yojson (fun x ->
-                         match x with
-                         | `String s ->
-                             Ok (Dval.dstr_of_string_exn s)
-                         | `Bool b ->
-                             Ok (DBool b)
-                         | _ ->
-                             Exception.internal "bad type for user_info" )
-                  |> Result.map ~f:(fun x -> DObj x)
-            in
-            ( match userinfo with
-            | Ok (DOption OptNothing) ->
+            ( match Account.get_user username with
+            | None ->
                 DOption OptNothing
-            | Error _ ->
-                DOption OptNothing
-            | Ok r ->
-                DOption (OptJust r) )
+            | Some user_info ->
+                DvalMap.from_list
+                  [ ("username", Dval.dstr_of_string_exn user_info.username)
+                  ; ("email", Dval.dstr_of_string_exn user_info.email)
+                  ; ("name", Dval.dstr_of_string_exn user_info.name)
+                  ; ("admin", DBool user_info.admin) ]
+                |> DObj
+                |> OptJust
+                |> DOption )
         | args ->
             fail args )
     ; ( "DarkInternal::log"
