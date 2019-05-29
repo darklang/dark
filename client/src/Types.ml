@@ -837,7 +837,7 @@ and msg =
   | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerCronRPCCallback"]
   | Delete404RPC of fourOhFour
-  | NewPresencePush of avatar
+  | NewPresencePush of avatar list
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
   | SaveTestButton
@@ -1090,8 +1090,6 @@ and avatar =
   ; email : string
   ; fullname : string option }
 
-and avatarsList = avatar list
-
 and avatarModelMessage =
   { browserId : string
   ; tlid : tlid option
@@ -1148,7 +1146,7 @@ and model =
   ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
-  ; avatarsList : avatarsList
+  ; avatarsList : avatar list
   ; browserId : string }
 
 (* Values that we serialize *)

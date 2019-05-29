@@ -1288,8 +1288,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateTraces (StrDict.fromList traces)
   | New404Push f404 ->
       Append404s [f404]
-  | NewPresencePush avatar ->
-      UpdateAvatarList [avatar]
+  | NewPresencePush avatarsList ->
+      UpdateAvatarList avatarsList
   | NewStaticDeployPush asset ->
       AppendStaticDeploy [asset]
   | Delete404RPCCallback (f404, Ok ()) ->
