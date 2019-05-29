@@ -4,6 +4,7 @@ open Tc
 open Types
 open Prelude
 open Fluid
+module B = Blank
 module K = FluidKeyboard
 
 let complexExpr =
@@ -161,6 +162,9 @@ let () =
           expr
     in
     (eToString s result, max 0 (newState.newPos - extra))
+  in
+  let render (expr : fluidExpr) : string * int =
+    process ~wrap:true [] 0 expr
   in
   let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
     process ~wrap [K.Delete] pos expr
@@ -466,6 +470,25 @@ let () =
         (insert 'c' 11)
         ("let bindingc = 6\nbindingc", 12) ;
       () ) ;
+  describe "Threads" (fun () ->
+      let threadOn expr fns = EThread (gid (), expr :: fns) in
+      let emptyList = EList (gid (), []) in
+      let aList5 = EList (gid (), [five]) in
+      let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
+      let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
+      t
+        "threads appear on new lines"
+        aThread
+        render
+        ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
+      let aNestedThread =
+        threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
+      in
+      t
+        "nested threads will indent"
+        aNestedThread
+        render
+        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"
