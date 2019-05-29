@@ -1401,6 +1401,36 @@ let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
           fail "not a float" )
 
 
+let replacePatternFloatWhole
+    (str : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, patID, _, fraction) ->
+          FPFloat (matchID, patID, str, fraction)
+      | _ ->
+          fail "not a float" )
+
+
+let replacePatternFloatFraction
+    (str : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, patID, whole, _) ->
+          FPFloat (matchID, patID, whole, str)
+      | _ ->
+          fail "not a float" )
+
+
+let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, _, whole, fraction) ->
+          let i = safe_int_of_string (whole ^ fraction) in
+          FPInteger (matchID, gid (), i)
+      | _ ->
+          fail "Not an int" )
+
+
 let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
   wrap id ast ~f:(fun expr ->
       match expr with
@@ -1702,7 +1732,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TSep
   | TThreadPipe _
   | TConstructorName _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TPatternBlank _
+  | TPatternPartial _
+  | TPatternConstructorName _ ->
       (ast, left s)
   | TFieldOp id ->
       (removeField id ast, left s)
@@ -1727,19 +1760,20 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
+  | TPatternFloatWhole (mID, id, str) ->
+      let str = removeCharAt str offset in
+      (replacePatternFloatWhole str mID id ast, left s)
+  | TPatternFloatFraction (mID, id, str) ->
+      let str = removeCharAt str offset in
+      (replacePatternFloatFraction str mID id ast, left s)
+  | TPatternFloatPoint (mID, id) ->
+      (removePatternPointFromFloat mID id ast, left s)
   | TFloatWhole (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatWhole str id ast, left s)
   | TFloatFraction (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
-  | TPatternBlank _
-  | TPatternPartial _
-  | TPatternConstructorName _
-  | TPatternFloatWhole _
-  | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
-      (ast, left s)
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
