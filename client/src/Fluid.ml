@@ -174,7 +174,7 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
           | Blank id ->
               FPBlank (mid, id)
           | Partial (id, name) ->
-              FPPartial (mid, id, name)
+              FPVariable (mid, id, name)
           | F (id, np) ->
             ( match np with
             | PVariable name ->
@@ -1299,6 +1299,31 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
           fail "not a let" )
 
 
+let replaceVarInPattern
+    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
+  wrap mID ast ~f:(fun e ->
+      match e with
+      | EMatch (mID, cond, cases) ->
+          let rec replaceNameInPattern pat =
+            match pat with
+            | FPVariable (_, id, varName) when varName = oldVarName ->
+                FPVariable (mID, id, newVarName)
+            | FPConstructor (mID, id, name, patterns) ->
+                FPConstructor
+                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
+            | pattern ->
+                pattern
+          in
+          let newCases =
+            List.map cases ~f:(fun (pat, expr) ->
+                ( replaceNameInPattern pat
+                , modifyVariableOccurences oldVarName newVarName expr ) )
+          in
+          EMatch (mID, cond, newCases)
+      | _ ->
+          fail "not a let" )
+
+
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
@@ -1353,13 +1378,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "false" in
       let newExpr = FPPartial (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
-  | TPatternVariable (mID, id, str) ->
-      let str = f str in
-      if str = ""
-      then EBlank id
-      else
-        let newExpr = FPPartial (mID, gid (), str) in
-        replacePattern mID id ~newPat:newExpr ast
+  | TPatternVariable (mID, _, str) ->
+      replaceVarInPattern mID str (f str) ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
   | TLetLHS (id, str) ->
@@ -2089,7 +2109,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         then FPString (mID, newID, "")
         else if isNumber letterStr
         then FPInteger (mID, newID, letterStr |> safe_int_of_string)
-        else FPPartial (mID, newID, letterStr)
+        else FPVariable (mID, newID, letterStr)
       in
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)

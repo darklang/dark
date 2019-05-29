@@ -97,6 +97,19 @@ let () =
     EMatch
       (mID, EBlank (gid ()), [(FPInteger (mID, gid (), 3), EBlank (gid ()))])
   in
+  let matchWithBinding (bindingName : string) (expr : fluidExpr) =
+    let mID = gid () in
+    EMatch (mID, blank, [(FPVariable (mID, gid (), bindingName), expr)])
+  in
+  let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
+    let mID = gid () in
+    EMatch
+      ( mID
+      , blank
+      , [ ( FPConstructor
+              (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
+          , expr ) ] )
+  in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
   in
@@ -504,6 +517,16 @@ let () =
         matchWithPatterns
         (delete 0)
         ("match ___\n  3 -> ___", 0) ;
+      t
+        "insert changes occurence of non-shadowed var in case"
+        (matchWithBinding "binding" (EVariable (gid (), "binding")))
+        (insert ~wrap:false 'c' 19)
+        ("match ___\n  bindingc -> bindingc", 20) ;
+      t
+        "insert changes occurence of non-shadowed var in case constructor"
+        (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
+        (insert ~wrap:false 'c' 22)
+        ("match ___\n  Ok bindingc -> bindingc", 23) ;
       () ) ;
   describe "Lets" (fun () ->
       t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
@@ -569,7 +592,7 @@ let () =
         ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc"
         , 12 ) ;
       t
-        "insert doesn't change occurence of binding in non-shadowed lambda expr"
+        "insert doesn't change occurence of binding in shadowed lambda expr"
         (letWithBinding
            "binding"
            (ELambda
