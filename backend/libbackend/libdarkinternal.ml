@@ -477,16 +477,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | None ->
                 DOption OptNothing
             | Some user_info ->
-                let dval_map =
-                  user_info
-                  |> Account.user_info_to_yojson
-                  |> Yojson.Safe.Util.to_assoc
-                  |> List.map ~f:(fun (k, v) ->
-                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
-                     )
-                  |> DvalMap.from_list
-                in
-                DOption (OptJust (DObj dval_map)) )
+                DvalMap.from_list
+                  [ ("username", Dval.dstr_of_string_exn user_info.username)
+                  ; ("email", Dval.dstr_of_string_exn user_info.email)
+                  ; ("name", Dval.dstr_of_string_exn user_info.name)
+                  ; ("admin", DBool user_info.admin) ]
+                |> DObj
+                |> OptJust
+                |> DOption )
         | args ->
             fail args )
     ; ( "DarkInternal::log"
@@ -573,25 +571,5 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 DOption (OptJust (Dval.dstr_of_string_exn s))
             | None | _ ->
                 DOption OptNothing)
-        | args ->
-            fail args )
-    ; ( "DarkInternal::usernameToUserInfo"
-      , function
-        | _, [DStr username] ->
-            let username = Unicode_string.to_string username in
-            ( match Account.get_user username with
-            | None ->
-                DOption OptNothing
-            | Some user_info ->
-                let dval_map =
-                  user_info
-                  |> Account.user_info_to_yojson
-                  |> Yojson.Safe.Util.to_assoc
-                  |> List.map ~f:(fun (k, v) ->
-                         (k, Dval.dstr_of_string_exn (Yojson.Safe.to_string v))
-                     )
-                  |> DvalMap.from_list
-                in
-                DOption (OptJust (DObj dval_map)) )
         | args ->
             fail args ) ]
