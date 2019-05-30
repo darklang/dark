@@ -147,6 +147,10 @@ let () =
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
+  let aFullBinOp =
+    EBinOp
+      (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail)
+  in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -439,14 +443,34 @@ let () =
         aFnCall
         (press K.Space 13)
         ("List::range 5 ___", 14) ;
+      t
+        "backspace on a function name deletes function"
+        aFnCall
+        (press K.Backspace 11)
+        ("___", 0) ;
+      t
+        "delete on a function name deletes function"
+        aFnCall
+        (press K.Delete 3)
+        ("___", 0) ;
       () ) ;
-  (* describe "Binops" (fun () -> *)
-  (*     t *)
-  (*       "add a binop at the end of a var" *)
-  (*       aShortVar *)
-  (*       (press K.Percent 1) *)
-  (*       ("v % ___", 4) ; *)
-  (* () ) ; *)
+  describe "Binops" (fun () ->
+      (* t *)
+      (*   "add a binop at the end of a var" *)
+      (*   aShortVar *)
+      (*   (press K.Percent 1) *)
+      (*   ("v % ___", 4) ; *)
+      t
+        "backspace on a binop deletes function"
+        aFullBinOp
+        (press K.Backspace 8)
+        ("___", 7) ;
+      t
+        "delete on a binop deletes function"
+        aFullBinOp
+        (press K.Delete 6)
+        ("___", 5) ;
+      () ) ;
   describe "Lambdas" (fun () ->
       t "backspace over lambda symbol" aLambda (backspace 1) ("___", 0) ;
       t
