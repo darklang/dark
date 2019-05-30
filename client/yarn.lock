@@ -1648,8 +1648,9 @@ bser@^2.0.0:
     node-int64 "^0.4.0"
 
 bucklescript-tea@darklang/bucklescript-tea#master:
-  version "0.10.1"
-  resolved "https://codeload.github.com/darklang/bucklescript-tea/tar.gz/ff7c5e264685dccb4d44095775964c553cc81da3"
+  version "0.11.1"
+  uid "4144d2543dffd3d090dd9c202d5c0aaa44ca0a66"
+  resolved "https://codeload.github.com/darklang/bucklescript-tea/tar.gz/4144d2543dffd3d090dd9c202d5c0aaa44ca0a66"
 
 buffer-from@^1.0.0:
   version "1.1.1"
