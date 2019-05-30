@@ -726,7 +726,6 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   && s.ac.index <> None
   && s.newPos <= ti.endPos
   && s.newPos >= ti.startPos
-  && s.lastKey <> K.Escape
 
 
 let recordAction ?(pos = -1000) (action : string) (s : state) : state =
