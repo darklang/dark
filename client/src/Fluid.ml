@@ -386,10 +386,16 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
       if b then [TPatternTrue (mid, id)] else [TPatternFalse (mid, id)]
   | FPString (mid, id, s) ->
       [TPatternString (mid, id, s)]
-  | FPFloat (mid, id, whole, fraction) ->
-      [ TPatternFloatWhole (mid, id, whole)
-      ; TPatternFloatPoint (mid, id)
-      ; TPatternFloatFraction (mid, id, fraction) ]
+  | FPFloat (mID, id, whole, fraction) ->
+      let whole =
+        if whole = "" then [] else [TPatternFloatWhole (mID, id, whole)]
+      in
+      let fraction =
+        if fraction = ""
+        then []
+        else [TPatternFloatFraction (mID, id, fraction)]
+      in
+      whole @ [TPatternFloatPoint (mID, id)] @ fraction
   | FPNull (mid, id) ->
       [TPatternNullToken (mid, id)]
   | FPBlank (mid, id) ->
@@ -590,8 +596,23 @@ let infoize ~(pos : int) tokens : tokenInfo list =
   makeInfo pos tokens
 
 
+let validateTokens (tokens : fluidToken list) : fluidToken list =
+  List.iter
+    ~f:(fun t ->
+      if String.length (Token.toText t) == 0
+      then impossible "zero length token"
+      else () )
+    tokens ;
+  tokens
+
+
 let toTokens (s : state) (e : ast) : tokenInfo list =
-  e |> toTokens' s |> reflow ~x:0 |> Tuple2.second |> infoize ~pos:0
+  e
+  |> toTokens' s
+  |> validateTokens
+  |> reflow ~x:0
+  |> Tuple2.second
+  |> infoize ~pos:0
 
 
 let eToString (s : state) (e : ast) : string =

@@ -203,7 +203,11 @@ let () =
       t "backspace middle of fraction" aFloat (backspace 6) ("123.46", 5) ;
       t "backspace end of fraction" aFloat (backspace 7) ("123.45", 6) ;
       t "backspace dot converts to int" aFloat (backspace 4) ("123456", 3) ;
-      (* t "backspace dot converts to int, no fraction" aPartialFloat (backspace 2) ("1", 1) ; *)
+      t
+        "backspace dot converts to int, no fraction"
+        aPartialFloat
+        (backspace 2)
+        ("1", 1) ;
       () ) ;
   describe "Bools" (fun () ->
       t "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
