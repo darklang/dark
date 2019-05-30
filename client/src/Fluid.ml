@@ -1240,20 +1240,24 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
+let getNextBlank (pos : int) (tokens : tokenInfo list) : int =
+  let rec f pos tokens' =
+    match tokens' with
+    | [] ->
+        (* Wrap, unless we've already wrapped *)
+        if pos = -1 then 0 else f (-1) tokens
+    | ti :: rest ->
+        if Token.isBlank ti.token && ti.startPos > pos
+        then ti.startPos
+        else f pos rest
+  in
+  f pos tokens
+
+
 (* TODO: rewrite nextBlank like prevBlank *)
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
   let tokens = toTokens s ast in
-  let rec getNextBlank pos' tokens' =
-    match tokens' with
-    | [] ->
-        (* Wrap, unless we've already wrapped *)
-        if pos' = -1 then 0 else getNextBlank (-1) tokens
-    | ti :: rest ->
-        if Token.isBlank ti.token && ti.startPos > pos'
-        then ti.startPos
-        else getNextBlank pos' rest
-  in
   let newPos = getNextBlank pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -1307,7 +1311,8 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
-let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
+    ast * state =
   let s = recordAction "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
@@ -1319,7 +1324,24 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newExpr, length = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
-      let newState = moveTo (ti.startPos + length) (acClear s) in
+      let tokens = toTokens s newAST in
+      let offset = getNextBlank s.newPos tokens in
+      let newState =
+        match key with
+        | K.Tab ->
+            moveTo offset (acClear s)
+        | K.Enter ->
+            moveTo (ti.startPos + length) (acClear s)
+        | K.Space ->
+            let newPos =
+              if offset > ti.startPos + length + 1
+              then ti.startPos + length + 1
+              else offset
+            in
+            moveTo newPos (acClear s)
+        | _ ->
+            s
+      in
       (newAST, newState)
 
 
@@ -1734,23 +1756,6 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         doBackspace ~pos ti ast s
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
-    (* Tab to next blank *)
-    | K.Tab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.Tab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.ShiftTab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToPrevBlank ~pos ast s)
-    | K.ShiftTab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToPrevBlank ~pos ast s)
     (* Autocomplete menu *)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
@@ -1779,12 +1784,29 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Space, _, R (TBlank _, ti)
     | K.Tab, L (TBlank _, ti), _
     | K.Tab, _, R (TBlank _, ti) ->
-        acEnter ti ast s
+        acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acCompleteField ti ast s
+    (* Tab to next blank *)
+    | K.Tab, _, R (_, ti)
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        (ast, moveToNextBlank ~pos ast s)
+    | K.Tab, L (_, ti), _
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        (ast, moveToNextBlank ~pos ast s)
+    | K.ShiftTab, _, R (_, ti)
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        (ast, moveToPrevBlank ~pos ast s)
+    | K.ShiftTab, L (_, ti), _
+      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
+      ->
+        (ast, moveToPrevBlank ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
