@@ -85,15 +85,6 @@ let () =
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
-  let letWithFnCall =
-    ELet
-      ( gid ()
-      , gid ()
-      , "binding"
-      , EInteger (gid (), 6)
-      , EFnCall (gid (), "Int::add", [EBlank (gid ()); EBlank (gid ())], NoRail)
-      )
-  in
   let letWithUsedBinding (bindingName : string) =
     ELet
       ( gid ()
@@ -112,6 +103,9 @@ let () =
   let aLambda = ELambda (gid (), [(gid (), "")], blank) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
+  let aBinOp =
+    EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
+  in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -631,19 +625,20 @@ let () =
         ("let *** = ___\n___", 4) ;
       t
         "autocomplete space moves forward by 1"
-        letWithFnCall
-        (presses [K.Tab; K.Letter 'b'; K.Space] 0)
-        ("let binding = 6\nInt::add binding ___", 47) ;
+        aBinOp
+        (presses [K.Letter 'r'; K.Space] 0)
+        ("request == ___", 8) ;
       t
         "autocomplete enter moves to end of value"
-        letWithFnCall
-        (presses [K.Tab; K.Letter 'b'; K.Enter] 0)
-        ("let binding = 6\nInt::add binding ___", 46) ;
+        aBinOp
+        (presses [K.Letter 'r'; K.Enter] 0)
+        ("request == ___", 7) ;
+      t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
       t
         "autocomplete tab moves to next blank"
-        letWithFnCall
-        (presses [K.Tab; K.Letter 'b'; K.Tab] 0)
-        ("let binding = 6\nInt::add binding ___", 47) ;
+        aBinOp
+        (presses [K.Letter 'r'; K.Tab] 0)
+        ("request == ___", 11) ;
       t
         "variable moves to right place"
         (EPartial (gid (), "req"))
