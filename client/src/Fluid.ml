@@ -1511,6 +1511,18 @@ let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
           fail "Not an int" )
 
 
+let convertPatternIntToFloat
+    (offset : int) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPInteger (matchID, _, i) ->
+          let str = Int.toString i in
+          let whole, fraction = String.splitAt ~index:offset str in
+          FPFloat (matchID, gid (), whole, fraction)
+      | _ ->
+          fail "Not an int" )
+
+
 let removePointFromFloat (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
@@ -2278,6 +2290,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s)
+    | K.Period, L (TPatternInteger (mID, id, _), ti), _ ->
+        let offset = pos - ti.startPos in
+        (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Binop specific *)
     | K.Percent, L (_, toTheLeft), _
     | K.Minus, L (_, toTheLeft), _
