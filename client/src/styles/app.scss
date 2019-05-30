@@ -144,6 +144,11 @@ $ridiculously-large : 2000%;
     }
 }
 
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 body {
     @include default;
     height: 100%;
@@ -1310,9 +1315,7 @@ https://github.com/chriskempson/tomorrow-theme */
     }
 
     .fluid-sep,
-    .fluid-blank,
-    .fluid-empty,
-    .fluid-placeholder {
+    .fluid-blank {
         // The cursor disappears when the element it should appear in has no size. To
         // make it have size, we need all of this.
         // https://stackoverflow.com/questions/25897883/
@@ -1367,6 +1370,7 @@ https://github.com/chriskempson/tomorrow-theme */
     .fluid-thread-pipe {
         color: $blue;
         font-size: 10px;
+        top: -1px;
     }
 
     /* Will style more later. Cmd palette should look like a smaller version of omnibox
@@ -1691,7 +1695,7 @@ since they are essentially both commands just acting upon different things. */
                 transition: none;
 
                 i {
-                    animation: a 0.75s infinite linear;
+                    animation: spin 0.75s infinite linear;
                 }
             }
         }
