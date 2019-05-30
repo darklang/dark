@@ -1,0 +1,2506 @@
+html {
+    height: 100%;
+}
+
+/* From "default dark" in https://chriskempson.github.io/base16/ */
+$black1: #181818; // toplevel bg
+$black2: #282828; // sidebar bg, entrybox bg, debugging buttons
+$grey1 : #383838; // hovered AST bg
+$grey2 : #585858; // placeholder text
+$grey3 : #b8b8b8;
+$white3: #d8d8d8; // link color
+$white2: #e8e8e8;
+$white1: #f8f8f8; // active link
+$red : #ab4642; // error
+$orange: #dc9656; // routing, lambda functions
+$yellow: #f7ca88; // routing table, database migration
+$green : #a1b56c; // executable buttons, feature flag icons
+$cyan : #86c1b9;
+$blue : #7cafc2; // pipe
+$purple: #ba8baf; // variation used in strings
+$brown : #a16946;
+$darkblue: #2B466F;
+$vagueblue: #182635;
+
+$hovercolor: lighten($darkblue, 10%);
+$autocomplete-highlight-color: $darkblue;
+$selected-blankor-background: $darkblue;
+
+$selected-toplevel-border: $darkblue;
+$selected-toplevel-background: lighten($black1, 5%);
+
+$top-border: lighten($black1, 5%) 2px dotted;
+$blank-underline: 1px dashed $grey2;
+$code-font-size: 13.3333px;
+$string-color: lighten($purple, 10%);
+
+$toplevel-min-width: 360px;
+$ridiculously-large : 2000%;
+
+//*************
+// AST macros
+//*************
+@mixin indent() {
+    margin-left: 16px;
+}
+
+@mixin string-style {
+    color: $string-color;
+    max-width: 120ch;
+    min-height: 16px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+
+    &.short-strings {
+        max-width: 40ch;
+        white-space: pre-wrap;
+        word-break: break-all;
+        word-wrap: break-word;
+    }
+}
+
+.blank-box-style {
+    height: 15px;
+    border-bottom: $blank-underline;
+}
+
+.blank-text-style {
+    color: $grey2;
+    font-style: italic;
+    font-size: 8pt;
+    text-align: center;
+    padding-left: 1ch;
+    padding-right: 1ch;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+@mixin layout-block {
+    display: block;
+}
+
+@mixin layout-inline() {
+    display: inline-block;
+}
+
+@mixin highlighted-indent() {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid $orange;
+}
+
+@mixin precedence($depth) {
+    .precedence-#{$depth} {
+
+        &:not(.mouseovered),
+        &:not(.mouseovered) .entry form #search-container #suggestionBox,
+        &:not(.mouseovered) .string-entry {
+            background-color: fade($grey2, 5% + ($depth * 5%));
+        }
+
+        &.selected {
+            background-color: fade($selected-blankor-background, 70% + ($depth * 5%));
+        }
+    }
+}
+
+/* Body */
+
+::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 7px;
+    background-color: $grey1;
+}
+
+@mixin default() {
+    margin: 0;
+    padding: 0;
+    background-color: $black2;
+    color: $grey3;
+}
+
+@keyframes showErrorPanel {
+    from {
+        bottom: -70px;
+    }
+
+    to {
+        bottom: 0;
+    }
+}
+
+@keyframes hideErrorPanel {
+    from {
+        bottom: 0;
+    }
+
+    to {
+        bottom: 70px;
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+body {
+    @include default;
+    height: 100%;
+}
+
+@mixin default-link {
+    text-decoration: none;
+
+    &:link,
+    &:visited {
+        color: $white1;
+    }
+
+    &:hover,
+    &:active {
+        color: $yellow;
+    }
+}
+
+.default-link {
+    @include default-link;
+}
+
+#app {
+    background: $black1;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    -webkit-touch-callout: none;
+    /* iOS Safari */
+    -webkit-user-select: none;
+    /* Safari */
+    -khtml-user-select: none;
+    /* Konqueror HTML */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* Internet Explorer/Edge */
+    user-select: none;
+    /* Non-prefixed version, currently
+                                supported by Chrome and Opera */
+}
+
+body #app * {
+    &:not(.fa) {
+        // skip fontawesome
+        font-family: 'Fira Code', monospace;
+    }
+}
+
+#canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    min-height: 100%;
+    min-width: 100%;
+    overflow: visible;
+
+    .node {
+        position: absolute;
+    }
+}
+
+#buttons {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: $black2;
+    padding: 4px;
+
+    .specialButton {
+        margin-right: 8px;
+        padding: 4px;
+        color: $orange;
+
+        &:hover,
+        &:active {
+            color: $green;
+            background-color: $grey1;
+        }
+
+        &#integrationTestSignal {
+            display: inline-block;
+        }
+
+        &.environment.prodclone {
+            color: magenta;
+        }
+    }
+
+    .status {
+        float: right;
+        margin-right: 8px;
+
+        &.error {
+            color: lighten($red, 20%);
+
+            a {
+                @include default-link;
+            }
+        }
+    }
+}
+
+.error-panel {
+    width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 20px;
+    padding-bottom: 50px;
+    background-color: $red;
+    color: $white1;
+    position: fixed;
+    left: 0;
+    bottom: -70px;
+
+    animation-duration: 0.5s;
+
+    &.show {
+        bottom: 0;
+        animation-name: showErrorPanel;
+    }
+}
+
+.overlay {
+    position: fixed;
+    top: -1 * $ridiculously-large;
+    left: -1 * $ridiculously-large;
+    display: none;
+    height: 2 * $ridiculously-large;
+    width: 2 * $ridiculously-large;
+    overflow: visible;
+    background-color: rgba(13, 13, 13, 0.6);
+
+    &.show {
+        display: block;
+    }
+}
+
+
+//*************
+// Toplevel
+//*************
+.toplevel {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: max-content;
+    min-width: $toplevel-min-width;
+    padding: 4px;
+    border: $top-border;
+    background: $black1;
+
+    &.selected {
+        background-color: $selected-toplevel-background;
+        outline: 2px $selected-toplevel-border solid;
+    }
+
+    .mouseovered-selectable {
+        outline: 0.5px dotted lighten($darkblue, 35%);
+        transition-delay: 0.4s;
+
+        &.blank {
+            color: $white2;
+            transition-delay: 0.4s;
+        }
+    }
+
+    .mouseovered-enterable {
+        cursor: text;
+    }
+
+    .commandTarget {
+        @extend .selected;
+    }
+
+    .blank {
+        @extend .blank-box-style;
+        @extend .blank-text-style;
+        min-width: 8ch;
+
+        &.arg-on-new-line {
+            padding-left: 0ch;
+            margin-left: 0px;
+            text-align: start;
+            font-size: $code-font-size;
+
+            .blank-entry {
+                @extend .blank-text-style;
+                width: 100%;
+            }
+        }
+    }
+
+    .blankOr.selected {
+        background-color: $selected-blankor-background;
+        color: $white2;
+
+        &.tstr {
+            color: $string-color;
+        }
+
+        &.blank {
+            color: $grey3;
+        }
+    }
+
+    .view-data {
+        cursor: pointer;
+        bottom: 100%;
+        left: 0px;
+        position: absolute;
+        width: 100%;
+
+        .selected-value {
+            background: $black1;
+            color: magenta;
+            display: block;
+            font-size: 0.6333em;
+            max-width: 100%;
+            padding: 4px;
+
+            width: max-content;
+            word-break: break-all;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        ul.request-cursor {
+            bottom: 1em;
+            float: left;
+            list-style-type: none;
+            max-height: calc(#{"1.5em + 1px"});
+            overflow: hidden;
+            width: 100%;
+
+            li {
+                float: left;
+
+                &.mouseovered {
+                    color: $orange;
+
+                    &:before {
+                        content: attr(data-content);
+                        background-color: $grey1;
+
+                        display: block;
+                        position: absolute;
+                        left: -4px;
+                        bottom: calc(#{"-100% + 37px"});
+
+                        height: auto;
+                        width: max-content;
+                        max-width: 100%;
+                        padding: 4px;
+
+                        font-size: 0.7em;
+                        white-space: pre-wrap;
+                        word-break: break-all;
+                        word-wrap: break-word;
+                    }
+                }
+
+                &.active {
+                    border-bottom: 1px solid $orange;
+                }
+
+                &.tipe-Error {
+                    color: $red;
+                }
+
+                &.tipe-Incomplete {
+                    color: $orange;
+                }
+            }
+        }
+    }
+}
+
+.page-handler .toplevel .view-data,
+.page-function .toplevel .view-data {
+    position: absolute;
+    width: max-content;
+    top: 0;
+    left: -20px;
+
+    ul.request-cursor {
+        float: none;
+        max-height: unset;
+        bottom: unset;
+
+        li {
+            float: none;
+            display: block;
+            line-height: 0.8rem;
+
+            &.mouseovered:before {
+                display: block;
+                position: absolute;
+                left: -260px;
+                top: 0;
+
+                height: max-content;
+                min-width: 250px;
+                width: 250px;
+
+                padding: 4px;
+
+                z-index: 600;
+            }
+        }
+    }
+}
+
+.use-wrapper {
+    background: transparent;
+    margin-left: 10px;
+
+    &.fade {
+        opacity: 0.3;
+    }
+
+    .usages,
+    .used-in {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+.usages {
+    position: absolute;
+    //Change after avatars to shown, quick fix: left 100% - 50px
+    left: calc(#{"100% + 30px"});
+
+    display: flex;
+    flex-direction: column;
+
+}
+
+.avatar {
+    padding: 2px 5px;
+    width: 40px;
+    height: 40px;
+
+    &.inactive {
+        opacity: 0.5;
+    }
+}
+
+.avatars {
+    display: flex;
+    flex-direction: column;
+}
+
+.all-avatars {
+    max-height: calc(100% - 50px);
+    overflow-y: scroll;
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: $black2;
+    margin: 0px 5px;
+    padding: 5px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    p {
+        text-align: center;
+        margin: 5px 0px;
+    }
+
+    .avatars-wrapper {
+        display: flex;
+    }
+}
+
+.ref-block {
+    display: block;
+    box-sizing: content-box;
+
+    min-width: 120px;
+    width: max-content;
+
+    margin: 8px 0;
+    padding: 4px 8px;
+
+    border: $grey1 1px solid;
+    background-color: $black1;
+
+    color: $white1;
+    font-size: $code-font-size;
+
+    &:first-child {
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+
+    &:hover {
+        cursor: pointer;
+        color: $yellow;
+        border-color: $yellow;
+
+        .cols .col .name,
+        .cols .col .type {
+            color: $yellow;
+        }
+    }
+
+    &.db {
+        margin: 8px 0;
+
+        .dbtitle {
+            margin: 0 auto;
+            margin-bottom: 0;
+        }
+
+        .cols {
+            color: $grey3;
+        }
+    }
+
+    &.emit,
+    &.handler {
+        display: flex;
+        flex-direction: row;
+        border-bottom: 1px solid $orange;
+    }
+
+    .spec {
+        display: inline-block;
+
+        margin-left: 4ch;
+        padding-bottom: 2px;
+        padding-top: 0;
+        padding-left: 1ch;
+        padding-right: 1ch;
+
+        color: $orange;
+
+        &:first-child {
+            margin-left: 0;
+        }
+    }
+
+    .fnicon,
+    .fnname {
+        display: inline-block;
+    }
+
+    .fnname {
+        color: $white3;
+    }
+
+    .fnheader,
+    .fnparams {
+        display: block;
+        width: 100%;
+    }
+
+    .fnparam {
+        display: inline-block;
+        color: $grey2;
+        font-size: $code-font-size * 0.8;
+        margin: 0 12px;
+
+        .has-blanks {
+            color: lighten($red, 12%);
+            font-style: italic;
+        }
+    }
+}
+
+//*************
+// Routing table
+//*************
+
+#sidebar-left {
+    width: max-content;
+    max-height: calc(#{"100% - 50px"});
+    overflow-y: scroll;
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+
+.viewing-table {
+    background-color: $black2;
+    padding: 8px;
+    position: relative;
+    width: max-content;
+    overflow: visible;
+    min-width: 320px;
+    box-sizing: border-box;
+
+    .routing-section {
+        &.empty .header {
+            &::before {
+                content: "- ";
+                font-weight: bold;
+            }
+        }
+
+        &.deleted>.routing-section {
+            margin-left: 10px;
+        }
+
+        &.deleted.empty div {
+            display: none;
+        }
+
+        .header {
+            width: 100%;
+            color: lighten($yellow, 15%);
+
+            .title {
+                margin-right: 5px;
+                padding-bottom: 6px;
+            }
+
+            .count {
+                font-weight: bold;
+            }
+
+            .verb-link,
+            .button-link {
+                float: right;
+            }
+        }
+
+        .button-link,
+        .external {
+            @include default-link;
+
+            display: inline-block;
+            width: 16px;
+            margin: 0 2px;
+            cursor: pointer;
+            color: $grey3;
+
+            &:link,
+            &:visited {
+                color: $grey3;
+            }
+
+            &:hover {
+                color: $yellow;
+            }
+        }
+
+        .simple-route.handler {
+            display: block;
+            width: calc(#{"100% - 2px"});
+            padding: 2px 0;
+
+            &:hover {
+                background-color: $black1;
+            }
+
+            &.selected a {
+                color: saturate($yellow, 10%) !important;
+            }
+
+            .name {
+                color: $white3;
+            }
+
+            .aux {
+                float: right;
+            }
+
+            .icon-spacer {
+                display: inline-block;
+                width: 16px;
+                margin: 0 2px;
+            }
+        }
+
+    }
+
+    .routing-section.http .simple-route.handler,
+    .routing-section.fof .simple-route.handler,
+    .routing-section.deleted-http .simple-route.handler {
+
+        .verb {
+            width: 60px;
+            color: $grey3;
+            display: inline-block;
+            text-align: right;
+            margin-right: 4px;
+
+            &.verb-link {
+                text-decoration: none;
+            }
+
+            &:hover {
+                color: $yellow;
+            }
+
+            &.no-ext {
+                margin-right: 20px;
+            }
+        }
+
+        .external {
+            font-size: 12px;
+            position: relative;
+            top: -2px;
+        }
+
+    }
+
+    .default-link.unused {
+        color: $grey2;
+    }
+}
+
+.routing-section.deploys .simple-route.deploy {
+    display: block;
+    margin-left: 16px;
+    color: $grey3;
+    font-size: 0.8rem;
+
+    .datetime,
+    .hash {
+        margin-right: 2ch;
+    }
+
+    a.hash {
+        color: $grey3;
+
+        &:hover {
+            color: $yellow;
+        }
+    }
+
+    .status {
+        color: $white1;
+
+        &.success {
+            color: $green;
+        }
+    }
+}
+
+//*************
+// DB
+//*************
+.db {
+    margin: 10px;
+    display: flex;
+    flex-direction: column;
+
+    .delete-col {
+        color: $grey2;
+
+        .fa {
+            &:hover {
+                color: $white1;
+                cursor: pointer;
+            }
+        }
+    }
+
+    &.dbdata {
+        display: block;
+        position: absolute;
+        right: calc(#{"100% + 30px"});
+        font-style: normal;
+
+
+        padding: 4px;
+        width: max-content;
+        max-width: 250px;
+
+        white-space: pre-wrap;
+        word-break: break-all;
+        word-wrap: break-word;
+        font-size: $code-font-size * 0.85;
+        color: $grey3;
+
+        background-color: $black2;
+        outline: 0.4px $grey2 dotted;
+
+    }
+
+    &.migration-view {
+        position: absolute;
+        top: -12px;
+        left: calc(#{"100% + 20px"});
+        min-width: $toplevel-min-width;
+        padding: 24px;
+        border: $top-border;
+        border-color: $yellow;
+        border-width: 1px;
+        background-color: $black1;
+
+        .dbtitle {
+            .version {
+                color: $yellow;
+            }
+        }
+
+        .col {
+
+            &.roll-fn {
+                margin-top: 12px;
+                flex-direction: column;
+
+                .fn-title {
+                    font-size: 0.8rem;
+
+                    .varname {
+                        color: $grey2;
+                    }
+                }
+            }
+
+            &.actions {
+                margin-top: 25px;
+                flex-wrap: nowrap;
+                justify-content: space-around;
+
+                button {
+                    padding: 8px;
+                    font-size: 10px;
+                    background-color: $grey1;
+                    color: $yellow;
+                    border: 1px solid $yellow;
+                    text-transform: uppercase;
+
+                    &:disabled {
+                        color: $grey2;
+                        border-color: $grey2;
+                    }
+                }
+            }
+
+            &.err {
+                margin-top: 25px;
+                font-size: 10px;
+                color: lighten($red, 15%);
+                font-style: italic;
+            }
+        }
+
+
+    }
+
+    .fa-lock,
+    .fa-unlock {
+        position: fixed;
+        margin-left: -20px;
+        margin-top: -22px;
+
+        &.fa-lock {
+            color: $red;
+
+            &:hover {
+                color: $grey3;
+            }
+        }
+
+        &.fa-unlock {
+            color: $green;
+        }
+    }
+
+
+    .dbtitle {
+        background-image: url('/_db.png');
+        background-position: left center;
+        background-repeat: no-repeat;
+        padding-left: 20px;
+        /* Adjust according to image size to push text across. */
+        margin-bottom: 10px;
+        margin: 0 auto;
+
+        /* center the db name */
+        &::before {
+            content: "DB: ";
+            font-weight: bold;
+            font-size: 110%;
+        }
+
+        .dbname {
+            display: inline-block;
+        }
+    }
+
+    .col {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 4px;
+        margin-top: 4px;
+        text-align: left;
+
+        .name,
+        .type {
+            flex: 1;
+            font-size: 10px;
+            height: 15px;
+            margin-left: 4px;
+            margin-right: 4px;
+            padding-left: 1ch;
+            padding-right: 1ch;
+
+            #search-container {
+                font-size: 10px;
+                height: 10px;
+                margin-bottom: -1px;
+                margin-left: -6px;
+                min-width: calc(#{"100% + 12px"});
+                padding-bottom: 5px;
+            }
+
+            &.blank {
+                height: 15px;
+            }
+
+            .entry {
+                background: transparent;
+                // Don't center text-entry, it makes everything weird
+                text-align: left;
+            }
+        }
+
+        .migration-view {
+            position: absolute;
+            width: max-content;
+            left: calc(#{"100% + 6px"});
+            @include default;
+        }
+
+
+    }
+}
+
+.user-type {
+    margin: 10px;
+    display: flex;
+    flex-direction: column;
+
+    .typetitle {
+        padding-bottom: 10px;
+        margin: 0 auto;
+
+        .entry {
+            form {
+                margin-top: 0;
+                position: relative;
+
+                #search-container {
+                    min-width: 0;
+                }
+            }
+        }
+    }
+
+    .field {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 4px;
+        margin-top: 4px;
+
+        .name,
+        .type {
+            flex: 1;
+            font-size: 10px;
+            height: 15px;
+            margin-left: 4px;
+            margin-right: 4px;
+            padding-left: 1ch;
+            padding-right: 1ch;
+
+            &.blank {
+                height: 15px;
+            }
+
+            #search-container {
+                font-size: 10px;
+                height: 10px;
+                margin-bottom: -1px;
+                margin-left: -6px;
+                min-width: calc(#{"100% + 12px"});
+                padding-bottom: 5px;
+            }
+
+            .entry {
+                background: transparent;
+
+                form {
+                    margin-top: 0;
+                    position: relative;
+                }
+            }
+        }
+    }
+}
+
+.user-fn {
+    margin: 10px;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    border-bottom: 1px solid $orange;
+    padding-bottom: 10px;
+
+    .ufn-name {
+        padding-bottom: 10px;
+
+        .entry {
+            form {
+                margin-top: 0;
+                position: relative;
+
+                #search-container {
+                    min-width: 0;
+                }
+            }
+        }
+    }
+
+    .col {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 4px;
+        margin-top: 4px;
+        text-align: center;
+
+        .param-divider {
+            font-size: 10px;
+            height: 15px;
+        }
+
+        .name,
+        .type {
+            flex: 1;
+            font-size: 10px;
+            height: 15px;
+            margin-left: 4px;
+            margin-right: 4px;
+            padding-left: 1ch;
+            padding-right: 1ch;
+
+            #search-container {
+                font-size: 10px;
+                height: 10px;
+                margin-bottom: -1px;
+                margin-left: -6px;
+                min-width: calc(#{"100% + 12px"});
+                padding-bottom: 5px;
+            }
+
+            &.blank {
+                height: 15px;
+            }
+
+            .entry {
+                background: transparent;
+                // Don't center text-entry, it makes everything weird
+                text-align: left;
+
+                form {
+                    margin-top: 0;
+                    position: relative;
+                }
+            }
+        }
+    }
+}
+
+
+//*************
+// Handler
+//*************
+
+.toplevel .spec-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+
+    color: $orange;
+    font-size: 8pt;
+
+    border-bottom: 1px solid $orange;
+    padding-bottom: 4px;
+
+    .name,
+    .modifier,
+    .module {
+        margin: 0;
+    }
+
+    // remove dotted outline after clicking (source: reset-normalize)
+    a:focus {
+        outline: none;
+    }
+
+    .actions {
+        display: inline;
+
+        a,
+        div {
+            display: inline;
+            margin-left: 1ch;
+        }
+
+        .cron-trigger {
+            &:hover {
+                cursor: pointer;
+                color: lighten($orange, 10%);
+            }
+        }
+    }
+
+    .external {
+        color: $orange;
+    }
+
+    .handler-lock {
+        color: $white1;
+
+        &.active {
+            color: $red;
+        }
+    }
+
+    .handler-expand {
+        font-size: 16px;
+        color: $white1;
+    }
+}
+
+.handler-body {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: 0.2s height ease, 0.1s opacity linear 0s;
+
+    &.expand {
+        height: auto;
+        opacity: 1;
+        overflow: visible;
+        transition: 0.2s height ease, 0.1s opacity linear 0.18s;
+    }
+
+    .ast,
+    .rop-rail {
+        display: inline-block;
+        vertical-align: top;
+    }
+
+    .rop-rail {
+        border-left: 1px dotted lighten($grey1, 20%);
+        display: none;
+        margin: 0;
+
+        &.active {
+            display: inline-block;
+            margin-left: 15px;
+            margin-right: 15px;
+            margin-top: 8px;
+        }
+    }
+
+    .ast .error-indicator {
+        position: absolute;
+        left: calc(#{"100% - 18px"});
+    }
+
+    .fncall {
+        .error-icon {
+            display: block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1px solid lighten($grey1, 20%);
+            background-color: transparent;
+        }
+
+        &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
+            background-color: lighten($grey1, 20%);
+        }
+    }
+}
+
+//*************
+// Fluid
+//*************
+
+#fluid-status {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    width: 30ch;
+    z-index: 10000;
+    font-size: 10pt;
+    background: white;
+    color: black;
+}
+
+#fluid-editor {
+    /* Colors from tomorrow night:
+https://github.com/chriskempson/tomorrow-theme */
+    $black: #1d1f21;
+    $background: transparent;
+    $selected-background: #2d2d2d;
+    $blanks: lighten($black1, 8%);
+    $currentline: $grey1;
+    $selection: $grey3;
+    $foreground: $white2;
+    $comment: $grey3;
+
+    $dropdown-background: lighten($selected-background, 10%);
+    $dropdown-selected-background: lighten($selected-background, 20%);
+    $dropdown-foreground: lighten($foreground, 10%);
+    $dropdown-selected-foreground: $foreground;
+
+    background-color: $background;
+
+    .selected {
+        background-color: $selected-background;
+    }
+
+    color: $foreground;
+    caret-color: $foreground;
+    font-size: 13.33px;
+    max-width: 200ch;
+
+    &:focus {
+        outline-width: 0;
+    }
+
+    padding: 0.5ch;
+
+    font-family: monaco,
+    monospace;
+
+    .fluid-newline {
+        display: block;
+    }
+
+    .fluid-indent {
+        white-space: pre;
+    }
+
+    .fluid-string {
+        white-space: pre;
+        color: $string-color;
+    }
+
+    .fluid-sep,
+    .fluid-blank {
+        // The cursor disappears when the element it should appear in has no size. To
+        // make it have size, we need all of this.
+        // https://stackoverflow.com/questions/25897883/
+        display: inline-block;
+        white-space: pre;
+        margin-left: 1px;
+    }
+
+    // Part of the same problem, making space for it.
+    .fluid-lambda-keyword {
+        margin-right: 0.11px;
+    }
+
+    .fluid-lambda-symbol,
+    .fluid-lambda-var,
+    .fluid-lambda-arrow {
+        color: $orange;
+    }
+
+    .fluid-blank {
+        background-color: $blanks;
+    }
+
+    .fluid-placeholder {
+        background-color: $blanks;
+        color: $grey3;
+    }
+
+    .fluid-empty {
+        color: $green;
+        background-color: $blanks;
+    }
+
+    .fluid-keyword {
+        color: $green;
+    }
+
+    .fluid-fn-name {
+        color: $white2;
+    }
+
+    .fluid-partial {
+        color: $red;
+    }
+
+    // <Position autocomplete as a dropdown>
+    .fluid-entry {
+        position: relative;
+        // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
+    }
+
+    .fluid-thread-pipe {
+        color: $blue;
+        font-size: 10px;
+        top: -1px;
+    }
+
+    /* Will style more later. Cmd palette should look like a smaller version of omnibox
+since they are essentially both commands just acting upon different things. */
+    .command-palette {
+        background-color: $dropdown-background;
+        border-radius: 2px;
+        position: absolute;
+        left: 0;
+        width: max-content;
+        box-shadow: 1px 1px 1px black;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        z-index: 1000;
+
+        #cmd-filter {
+            background: transparent;
+            color: $dropdown-foreground;
+            margin-top: 2px;
+            margin-left: 1ch;
+        }
+
+        #fluid-dropdown {
+            position: relative;
+            left: 0;
+            background-color: transparent;
+            box-shadow: 0 0 0 transparent;
+        }
+    }
+
+    #fluid-dropdown {
+        background-color: $dropdown-background;
+        color: $dropdown-foreground;
+        z-index: 1000;
+        position: absolute;
+        left: -1ch;
+        box-shadow: 1px 1px 1px black;
+        width: max-content;
+        max-height: 100px;
+        overflow-y: scroll;
+        padding: 0;
+
+
+        ul {
+            margin: 0;
+            padding-inline-start: 0;
+            color: $dropdown-selected-foreground;
+
+            .fluid-selected {
+                background-color: $dropdown-selected-background;
+                color: darken(white, 5%);
+            }
+
+            li {
+                list-style-type: none; // remove bullet points
+                padding: 0 1ch;
+                height: 16px;
+
+                .types {
+                    float: right;
+                    margin-left: 4ch;
+                    text-transform: lowercase;
+                    font-family: monospace;
+                    color: darken($dropdown-foreground, 15%);
+                }
+            }
+        }
+    }
+
+    .live-value {
+        display: block;
+        position: absolute;
+        right: calc(#{"100% + 30px"});
+        font-style: normal;
+
+
+        padding: 4px;
+        width: max-content;
+        max-width: 250px;
+
+        white-space: pre-wrap;
+        word-break: break-all;
+        word-wrap: break-word;
+        font-size: $code-font-size * 0.85;
+        color: $grey3;
+
+        background-color: $black2;
+        outline: 0.4px $grey2 dotted;
+
+        .copy-value {
+            position: absolute;
+            top: -4px;
+            right: -8px;
+
+            opacity: 0.7;
+
+            &:hover {
+                opacity: 0.85;
+            }
+        }
+    }
+
+    .error-indicator {
+        position: absolute;
+        left: calc(100% - 18px);
+    }
+
+    .error-icon {
+        display: block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1px solid #6b6b6b;
+        background-color: transparent;
+    }
+
+    .error-icon[data-sent-to-rail="true"] {
+        background-color: #6b6b6b;
+    }
+}
+
+
+//*************
+// AST
+//*************
+.ast {
+    font-size: 10pt;
+    padding-right: 8px;
+    padding-left: 8px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+    white-space: pre;
+    width: max-content;
+    @include layout-block;
+
+    div {
+        @include layout-inline;
+        vertical-align: top;
+    }
+
+    .value-error {
+        background-color: fadeout(red, 70%);
+    }
+
+    .letexpr>.letbody {
+        @include layout-block;
+    }
+
+    .lambdaexpr {
+        @include layout-block;
+        @include highlighted-indent;
+    }
+
+    .lambdabinding,
+    .arrow {
+        color: $orange;
+    }
+
+    .value.tstr {
+        @include string-style;
+        border: 0;
+        font-size: $code-font-size;
+        margin: 0;
+
+        .quote {
+            display: inline-block;
+        }
+    }
+
+    .quote {
+        @include string-style;
+        display: none;
+
+        &.quote-start {
+            left: 0;
+            top: 0;
+
+            &:before {
+                content: "\201C";
+            }
+        }
+
+        &.quote-end {
+            bottom: 0;
+            right: 0;
+
+            &:before {
+                content: "\201D";
+            }
+        }
+    }
+
+    .related-change {
+        color: $yellow;
+    }
+
+    .lambdabody {
+        @include layout-block;
+    }
+
+    .ifbody {
+        @include layout-block;
+        @include indent;
+    }
+
+    .elsebody {
+        @include layout-block;
+        @include indent;
+    }
+
+    .objectpair {
+        @include layout-block;
+        @include indent;
+    }
+
+    .objectkey {
+        .entry {
+            // this is awful -- but we need to remove the margin being added to .entry
+            // we should re-organize who adds/removes margins
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+    }
+
+    .matchcase {
+        @include layout-block;
+        @include indent;
+    }
+
+    .atom {
+        margin-left: 4px;
+        margin-right: 4px;
+    }
+
+    .constructorname {
+        margin-right: 4px;
+    }
+
+    .atom.fieldaccessop {
+        margin-left: -4px;
+        margin-right: 0px;
+    }
+
+    .atom.constructor-pattern {
+        margin-left: 0px;
+    }
+
+    .atom.fieldname {
+        margin-left: 0px;
+    }
+
+    .moduleseparator {
+        color: $green;
+    }
+
+    .keyword,
+    .emit {
+        color: $green;
+    }
+
+    .fncall {
+
+        &.prefix>.arg-on-new-line {
+
+            @include layout-block;
+            box-sizing: border-box;
+            margin-left: 2ch;
+        }
+
+        .arg-on-new-line {
+
+            &.blank>.param-name {
+                font-style: normal;
+            }
+
+            &>.param-name {
+                width: auto;
+                position: absolute;
+                color: $grey2;
+                font-size: 0.85rem;
+            }
+
+        }
+
+        .tstr {
+            margin-left: 2px;
+        }
+
+        .execution-button {
+            position: absolute;
+            font-size: 55%;
+            margin-left: -3px;
+            transition: color linear 0.1s;
+
+            &:hover {
+                font-size: 75%;
+                font-weight: strong;
+                margin-top: -2px;
+                cursor: pointer;
+            }
+
+            &.execution-button-unsafe {
+                color: $red;
+            }
+
+            &.execution-button-unavailable {
+                color: grey;
+            }
+
+            &.execution-button-needed {
+                color: green;
+            }
+
+            &.execution-button-repeat {
+                color: green;
+            }
+
+            &.is-executing {
+                color: white;
+                transition: none;
+
+                i {
+                    animation: spin 0.75s infinite linear;
+                }
+            }
+        }
+    }
+
+    @include precedence(1);
+    @include precedence(2);
+    @include precedence(3);
+    @include precedence(4);
+    @include precedence(5);
+    @include precedence(6);
+
+    .threadexpr {
+
+        .threadmember {
+            @include layout-block;
+
+            &:first-child>.thread.pipe {
+                display: none;
+            }
+
+            .thread.pipe {
+                margin-top: 1px;
+                margin-right: 0px;
+                font-size: 70%;
+                color: $blue;
+            }
+        }
+    }
+
+    // useful while working on wideness
+    /* .too-wide { */
+    /*   background-color: $green !important; */
+    /* } */
+}
+
+/********************
+* Entry box
+********************/
+
+// TODO: figure out proper entry box positioning
+// -- this is a demo hack
+.spec-header .entry form {
+    margin-top: 0px;
+    position: relative;
+}
+
+.db .entry form {
+    position: relative;
+    margin-top: 0px;
+}
+
+.ast .entry form {
+    position: relative;
+    margin-top: 0px;
+}
+
+.selecting-command .entry {
+    margin-top: 4px;
+    display: block;
+}
+
+
+.entry {
+    // headers need to be relative to position them. We need to be above
+    // the headers, and position:relative allows us to do it.
+    cursor: default;
+    background: $black2;
+    color: $white3;
+    margin-left: 4px;
+    margin-right: 4px;
+    width: auto;
+
+    /* width: 96px; // keeps autocomplete appearing when Creating */
+    .types {
+        float: right;
+        text-transform: lowercase;
+        font-family: monospace;
+        font-size: 80%;
+    }
+
+    form {
+        // makes the form takes up no space in the DOM, meaning we don't
+        // expand the top-level
+        position: absolute;
+
+        // account for the space of both input boxes
+        margin-top: -12px;
+
+        #search-container {
+            background: $selected-toplevel-background;
+            border: 0;
+            margin: 0;
+            padding: 0;
+            position: relative;
+
+            #entry-box {
+                // as much like the blank box as possible
+                background: transparent;
+                color: transparent;
+                caret-color: $grey3;
+                position: relative;
+                text-align: left;
+                vertical-align: baseline;
+                width: 100%;
+            }
+
+            #suggestionBox {
+                color: rgb(84, 84, 84);
+                left: 0;
+                position: absolute;
+                top: 0;
+                width: 100%;
+            }
+
+            #fluidWidthSpan {
+                color: $grey3;
+                left: 0;
+                position: absolute;
+                top: 0;
+                width: 100%;
+            }
+        }
+    }
+
+    #autocomplete-holder {
+        font-size: 11.3px;
+        max-height: 90px;
+        overflow-y: scroll;
+        position: absolute;
+        text-align: initial;
+        width: $toplevel-min-width - 10px;
+        z-index: 1;
+
+        .autocomplete-item {
+            background: $black2;
+
+            .atom {
+                margin-left: 0;
+            }
+
+            &.highlighted {
+                background: $autocomplete-highlight-color;
+            }
+
+            &.invalid {
+                background: $grey1;
+                color: $grey3;
+
+                &.highlighted {
+                    background: lighten($darkblue, 50%);
+                    color: black;
+
+                    .moduleseparator {
+                        color: black;
+                    }
+                }
+
+                .name,
+                .types,
+                .module,
+                .moduleseparator {
+                    text-decoration: line-through solid;
+                }
+
+                .moduleseparator {
+                    color: $grey3;
+                }
+            }
+        }
+    }
+}
+
+.versioned-function {
+    display: inline-block;
+    vertical-align: baseline;
+
+    .version {
+        font-size: 0.6rem;
+        margin-right: -2px;
+    }
+}
+
+.letvarname,
+.fieldname {
+    &>.entry {
+        margin-left: 0;
+        margin-right: 0;
+    }
+}
+
+.omnibox {
+    $box-width: 400px;
+    $left-margin: 24px;
+
+    // honestly couldnt tell you where this magic number comes from
+    font-size: $code-font-size * 1.5;
+    margin-top: -9px;
+
+    .string-entry {
+        margin-top: -21px;
+    }
+
+    .entry form #search-container {
+        min-width: $box-width;
+        background-color: $grey1;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        padding: 0 $left-margin;
+
+        #fluidWidthSpan {
+            width: 100%;
+            box-sizing: border-box;
+            margin-left: $left-margin;
+
+            &:before {
+                display: inline-block;
+                margin-left: -0.85 * $left-margin;
+                margin-top: -8px;
+
+                content: "\f002";
+                font-family: "Font Awesome 5 Free";
+                font-weight: 900;
+                color: $grey2;
+                font-size: 16px;
+            }
+        }
+    }
+
+    ul#autocomplete-holder {
+        width: 100%;
+        background-color: $black2;
+        box-shadow: 1px 3px 5px 0 #000;
+        overflow-y: visible;
+        list-style-type: none;
+        border-bottom-left-radius: 4px;
+        border-bottom-right-radius: 4px;
+
+        li {
+            font-size: $code-font-size;
+            padding: 2px $left-margin;
+        }
+    }
+}
+
+
+// ---------------------------
+// Strings
+// ---------------------------
+.string-entry {
+    border: 0;
+    font-size: $code-font-size;
+    margin: 0;
+    padding-left: 1ch;
+    padding-right: 1ch;
+    position: relative;
+
+    &::before {
+        content: "“";
+        @include string-style;
+        display: inline-block;
+        left: 0;
+        position: absolute;
+        top: 0;
+        width: 1.5ch;
+    }
+
+    &::after {
+        content: "”";
+        @include string-style;
+        bottom: 0;
+        display: inline-block;
+        position: absolute;
+        right: 0ch;
+    }
+
+    &.big-string-entry {
+        padding-left: 0;
+        padding-right: 0;
+
+        &::before {
+            width: 0;
+        }
+
+        &::after {
+            width: 0;
+        }
+    }
+
+    .string-container {
+        display: block;
+        margin: 0;
+        padding: 0;
+        position: relative;
+        width: 100%;
+    }
+
+    #entry-box {
+        background: transparent;
+        color: transparent;
+        caret-color: $grey3;
+        margin: 0;
+        padding: 0;
+        position: relative;
+        text-align: left;
+        vertical-align: baseline;
+        white-space: pre-wrap;
+        width: 100%;
+        word-break: break-all;
+        word-wrap: break-word;
+    }
+
+    textarea {
+        color: $string-color !important;
+        display: block;
+        overflow: hidden;
+        resize: none;
+    }
+
+    #fluidWidthSpan {
+        @include string-style;
+        left: 0;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
+    }
+}
+
+
+
+// ---------------------------
+// Types
+// ---------------------------
+/*
+.spec-type {
+@include blank-text-style;
+padding: 8px;
+
+& > :not(.header)  {
+    margin-left: 2ch;
+}
+.type-object {
+    @include layout-block;
+    span {
+    @include layout-inline;
+    }
+    margin-left: 2ch;
+    .colon {
+    padding-right: 0.5ch;
+    }
+}
+}
+*/
+
+// This creates an ancestor for the absolutely positioned elements around a handler to be positioned agains
+//
+
+.sidebar-box {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+}
+
+.documentation-box {
+    position: absolute;
+    bottom: calc(#{"100% + 2px"});
+    left: 0;
+    font-size: 11px;
+    padding: 5px 10px;
+    background: darken($black2, 2%);
+    color: $white3;
+    width: calc(#{"100% - 20px"});
+}
+
+.right-button {
+    margin: 0;
+    padding: 0;
+    color: $grey3;
+
+    &:hover {
+        color: lighten($grey3, 15%);
+        cursor: pointer;
+    }
+}
+
+.expr-actions {
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    width: 16px;
+    z-index: 5;
+
+    i.fa {
+        @extend .right-button;
+        display: block;
+    }
+
+    .exfun {
+        opacity: 0.7;
+
+        &:hover {
+            opacity: 0.85;
+        }
+    }
+}
+
+.parameter-btn {
+    font-size: 75%;
+
+    &.allowed {
+        &:hover {
+            color: $green;
+            cursor: pointer;
+        }
+    }
+
+    &.disallowed {
+        color: lighten($grey1, 20%);
+
+        &:hover {
+            &:after {
+                content: attr(title);
+                position: absolute;
+                left: calc(100% + 10px);
+                color: $red;
+                width: max-content;
+            }
+        }
+    }
+
+    &.info {
+        color: lighten($grey1, 20%);
+
+        &:hover {
+            &:after {
+                content: attr(title);
+                position: absolute;
+                left: 0;
+                top: -20px;
+                color: $blue;
+                width: max-content;
+            }
+        }
+    }
+}
+
+.field-btn {
+    @extend .parameter-btn;
+}
+
+.edit-fn {
+    @extend .right-button;
+    position: absolute;
+    right: -16px;
+    bottom: 0;
+
+    &.flagged {
+        right: 0;
+        bottom: -32px;
+    }
+}
+
+.live-value {
+    display: none;
+}
+
+.ast div {
+
+    .live-value {
+        display: none;
+    }
+
+    &.display-livevalue.selected .live-value {
+        display: block;
+        position: absolute;
+        right: calc(#{"100% + 30px"});
+        font-style: normal;
+
+
+        padding: 4px;
+        width: max-content;
+        max-width: 250px;
+
+        white-space: pre-wrap;
+        word-break: break-all;
+        word-wrap: break-word;
+        font-size: $code-font-size * 0.85;
+        color: $grey3;
+
+        background-color: $black2;
+        outline: 0.4px $grey2 dotted;
+
+        .copy-value {
+            position: absolute;
+            top: -4px;
+            right: -8px;
+
+            opacity: 0.7;
+
+            &:hover {
+                opacity: 0.85;
+            }
+        }
+    }
+}
+
+.expr-label {
+    color: $grey2;
+    font-style: italic;
+    font-size: 88%;
+}
+
+$vertical-spacing: 20px;
+$horizontal-padding: 8px;
+$icon-spacing: 6px;
+
+.flagged {
+    .fa-flag {
+        color: $red;
+        font-size: 8px;
+    }
+
+    .feature-flag {
+        position: absolute;
+        left: calc(#{"100% - 32px"});
+        margin-top: -8px;
+        border-style: solid;
+        border-color: $black2;
+        border-width: 0;
+        box-sizing: border-box;
+        z-index: 10;
+
+        i.fa {
+            color: $grey3;
+
+            &:hover {
+                color: $white1;
+            }
+        }
+
+        &.expand {
+            border-width: 1px;
+            left: calc(100% + 10px);
+            background-color: $black1;
+
+            .row {
+                display: block;
+            }
+
+            .row.expressions {
+                display: inline-flex;
+            }
+
+            .row.title-bar {
+                background-color: $black2;
+
+                .actions {
+                    float: right;
+                    margin-right: 0;
+                }
+            }
+
+        }
+
+        .row {
+            display: none;
+            margin-top: $vertical-spacing;
+            min-width: 100%;
+            width: auto;
+            padding: 0 $horizontal-padding;
+            box-sizing: border-box;
+
+            &:first-child {
+                margin-top: 0;
+            }
+
+        }
+
+        .title-bar {
+            display: block;
+            min-width: 150px;
+            width: 100%;
+            background-color: transparent;
+            padding: 4px $horizontal-padding;
+
+            .flag-name {
+                width: 60%;
+            }
+
+            .actions {
+                width: 30%;
+                float: left;
+                text-align: right;
+                margin-right: 2px;
+
+                i.fa {
+                    margin-left: $icon-spacing;
+                }
+
+                i.fa.fa-flag {
+                    font-size: 12px;
+                }
+            }
+        }
+
+        .condition {
+            .expr-label {
+                display: block;
+            }
+        }
+
+        .expressions {
+            min-width: 100%;
+            width: auto;
+            margin-bottom: $vertical-spacing;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-content: stretch;
+
+            .expr-label {
+                padding-left: 4px;
+            }
+
+            .cond-expr {
+                display: inline-block;
+                align-self: flex-start;
+                min-width: 200px;
+                width: max-content;
+                vertical-align: top;
+                box-sizing: border-box;
+
+                .icon {
+                    margin-left: $icon-spacing;
+                }
+
+                .expr-block {
+                    display: block;
+                    width: auto;
+                }
+
+                &:first-child {
+                    border-right: 2px $grey2 solid;
+                    padding-right: 1ch;
+                    margin-right: 1ch;
+                }
+            }
+
+            .expr-actions {
+                display: none;
+            }
+        }
+    }
+
+    .end-ff {
+        position: absolute;
+        left: 165%;
+        margin-top: -9px;
+
+        &.pick-b {
+            color: $green;
+
+            &:hover {
+                color: lighten($green, 15%);
+                cursor: pointer;
+            }
+        }
+
+        &.pick-a {
+            color: $red;
+            margin-left: -20px;
+        }
+    }
+
+    .hidden {
+        background-color: blue;
+    }
+
+    .expr-actions {
+
+        .flag {
+            display: none;
+        }
+    }
+
+    .nested-flag {
+
+        left: 100%;
+        position: absolute;
+        width: 100%;
+
+        &.flag-left {
+            margin-top: -50px;
+        }
+
+        &.flag-right {
+            margin-top: 50px;
+        }
+    }
+
+}
+
+// ---------------------------
+// Z-Index
+// ---------------------------
+// [spec](https://trello.com/c/EDCiXGjq/732-z-indexing-part-2)
+// - buttons => 70
+// - entry box => 60
+// - routing table => 55
+// - dragging node => 50
+// - selected node => 40
+// - unselected node => 20
+
+#buttons {
+    z-index: 70;
+}
+
+.error-panel {
+    z-index: 60;
+}
+
+#sidebar-left {
+    z-index: 55;
+}
+
+#canvas.page-handler,
+#canvas.page-function {
+    left: 320px;
+}
+
+.entry {
+    form {
+        #search-container {
+            #entry-box {
+                min-width: 1px;
+                z-index: 60;
+            }
+        }
+    }
+}
+
+.omnibox .entry {
+
+    #search-container,
+    #autocomplete-holder {
+        z-index: 100;
+    }
+}
+
+.string-entry {
+    #entry-box {
+        z-index: 60;
+    }
+}
+
+.overlay {
+    z-index: 30;
+}
+
+.sidebar-box {
+    z-index: 20;
+
+    &.dragging {
+        z-index: 50;
+    }
+
+    &.selected {
+        z-index: 40;
+    }
+}
+
+.tlref {
+    z-index: 40;
+}
+
+#debug {
+    min-height: 20px;
+    z-index: 100;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    max-height: 500px;
+    max-width: 500px;
+    overflow: scroll;
+
+    nav {
+        max-width: 50%;
+
+        .history {
+            span {
+                &.details {
+                    width: 25px;
+                }
+
+                &.message {
+                    width: calc(#{"100% - 75px"});
+                }
+
+                &.index {
+                    width: 30px;
+                    clear: both;
+                }
+            }
+        }
+    }
+}
