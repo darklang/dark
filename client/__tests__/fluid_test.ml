@@ -104,6 +104,9 @@ let () =
   let aLambda = ELambda (gid (), [(gid (), "")], blank) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
+  let aBinOp =
+    EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
+  in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -643,6 +646,22 @@ let () =
         (EPartial (gid (), "let"))
         (press K.Enter 3)
         ("let *** = ___\n___", 4) ;
+      t
+        "autocomplete space moves forward by 1"
+        aBinOp
+        (presses [K.Letter 'r'; K.Space] 0)
+        ("request == ___", 8) ;
+      t
+        "autocomplete enter moves to end of value"
+        aBinOp
+        (presses [K.Letter 'r'; K.Enter] 0)
+        ("request == ___", 7) ;
+      t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
+      t
+        "autocomplete tab moves to next blank"
+        aBinOp
+        (presses [K.Letter 'r'; K.Tab] 0)
+        ("request == ___", 11) ;
       t
         "variable moves to right place"
         (EPartial (gid (), "req"))
