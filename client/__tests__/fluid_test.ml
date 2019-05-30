@@ -70,7 +70,7 @@ let () =
   let aHugeFloat = EFloat (gid (), "123456789", "123456789") in
   let aPartialFloat = EFloat (gid (), "1", "") in
   let trueBool = EBool (gid (), true) in
-  (* let falseBool = EBool (gid (), false) in *)
+  let falseBool = EBool (gid (), false) in
   let aNull = ENull (gid ()) in
   let five = EInteger (gid (), 5) in
   let fiftySix = EInteger (gid (), 56) in
@@ -80,19 +80,47 @@ let () =
   let emptyLet =
     ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
   in
+  let emptyMatch =
+    let mID = gid () in
+    EMatch (mID, EBlank (gid ()), [(FPBlank (mID, gid ()), EBlank (gid ()))])
+  in
+  let emptyMatchWithTwoPatterns =
+    let mID = gid () in
+    EMatch
+      ( mID
+      , EBlank (gid ())
+      , [ (FPBlank (mID, gid ()), EBlank (gid ()))
+        ; (FPBlank (mID, gid ()), EBlank (gid ())) ] )
+  in
+  let matchWithPatterns =
+    let mID = gid () in
+    EMatch
+      (mID, EBlank (gid ()), [(FPInteger (mID, gid (), 3), EBlank (gid ()))])
+  in
+  let matchWithBinding (bindingName : string) (expr : fluidExpr) =
+    let mID = gid () in
+    EMatch (mID, blank, [(FPVariable (mID, gid (), bindingName), expr)])
+  in
+  let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
+    let mID = gid () in
+    EMatch
+      ( mID
+      , blank
+      , [ ( FPConstructor
+              (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
+          , expr ) ] )
+  in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
   in
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
+  let letWithBinding (bindingName : string) (expr : fluidExpr) =
+    ELet (gid (), gid (), bindingName, EInteger (gid (), 6), expr)
+  in
   let letWithUsedBinding (bindingName : string) =
-    ELet
-      ( gid ()
-      , gid ()
-      , bindingName
-      , EInteger (gid (), 6)
-      , EVariable (gid (), bindingName) )
+    letWithBinding bindingName (EVariable (gid (), bindingName))
   in
   let aVar = EVariable (gid (), "variable") in
   let aShortVar = EVariable (gid (), "v") in
@@ -103,6 +131,18 @@ let () =
   in
   let aLambda = ELambda (gid (), [(gid (), "")], blank) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
+  let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
+    ELambda (gid (), [(gid (), bindingName)], expr)
+  in
+  let lambdaWithUsedBinding (bindingName : string) =
+    lambdaWithBinding bindingName (EVariable (gid (), bindingName))
+  in
+  let lambdaWithUsed2ndBinding (bindingName : string) =
+    ELambda
+      ( gid ()
+      , [(gid (), "somevar"); (gid (), bindingName)]
+      , EVariable (gid (), bindingName) )
+  in
   let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
@@ -159,10 +199,12 @@ let () =
     in
     let result =
       match newAST with
-      | ELet (_, _, _, expr, _) when wrap ->
+      | expr when not wrap ->
+          expr
+      | ELet (_, _, _, expr, _) ->
           expr
       | expr ->
-          expr
+          impossible ("not wrapped and not a let: " ^ eToString s expr)
     in
     (eToString s result, max 0 (newState.newPos - extra))
   in
@@ -307,15 +349,24 @@ let () =
       t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
       () ) ;
   describe "Bools" (fun () ->
-      t "insert start of bool" trueBool (insert 'c' 0) ("ctrue", 1) ;
-      t "delete start of bool" trueBool (delete 0) ("rue", 0) ;
-      t "backspace start of bool" trueBool (backspace 0) ("true", 0) ;
-      t "insert end of bool" trueBool (insert '0' 4) ("true0", 5) ;
-      t "delete end of bool" trueBool (delete 4) ("true", 4) ;
-      t "backspace end of bool" trueBool (backspace 4) ("tru", 3) ;
-      t "insert middle of bool" trueBool (insert '0' 2) ("tr0ue", 3) ;
-      t "delete middle of bool" trueBool (delete 2) ("tre", 2) ;
-      t "backspace middle of bool" trueBool (backspace 2) ("tue", 1) ;
+      t "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
+      t "delete start of true" trueBool (delete 0) ("rue", 0) ;
+      t "backspace start of true" trueBool (backspace 0) ("true", 0) ;
+      t "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
+      t "delete end of true" trueBool (delete 4) ("true", 4) ;
+      t "backspace end of true" trueBool (backspace 4) ("tru", 3) ;
+      t "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
+      t "delete middle of true" trueBool (delete 2) ("tre", 2) ;
+      t "backspace middle of true" trueBool (backspace 2) ("tue", 1) ;
+      t "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
+      t "delete start of false" falseBool (delete 0) ("alse", 0) ;
+      t "backspace start of false" falseBool (backspace 0) ("false", 0) ;
+      t "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
+      t "delete end of false" falseBool (delete 5) ("false", 5) ;
+      t "backspace end of false" falseBool (backspace 5) ("fals", 4) ;
+      t "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
+      t "delete middle of false" falseBool (delete 2) ("fase", 2) ;
+      t "backspace middle of false" falseBool (backspace 2) ("flse", 1) ;
       () ) ;
   describe "Nulls" (fun () ->
       t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
@@ -409,6 +460,16 @@ let () =
         nonEmptyLambda
         (delete 0)
         ("\\*** -> 5", 0) ;
+      t
+        "insert changes occurence of binding var"
+        (lambdaWithUsedBinding "binding")
+        (insert 'c' 8)
+        ("\\bindingc -> bindingc", 9) ;
+      t
+        "insert changes occurence of binding 2nd var"
+        (lambdaWithUsed2ndBinding "binding")
+        (insert 'c' 17)
+        ("\\somevar, bindingc -> bindingc", 18) ;
       () ) ;
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
@@ -422,6 +483,50 @@ let () =
       t "backspace variable" aShortVar (backspace 1) (b, 0) ;
       t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
       t "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      () ) ;
+  describe "Match" (fun () ->
+      t
+        "move back over match"
+        emptyMatch
+        (press K.Left 6)
+        ("match ___\n  ___ -> ___", 0) ;
+      t
+        "move forward over match"
+        emptyMatch
+        (press K.Right 0)
+        ("match ___\n  ___ -> ___", 6) ;
+      t "backspace over empty match" emptyMatch (backspace 6) ("___", 0) ;
+      t
+        "backspace over empty match with 2 patterns"
+        emptyMatchWithTwoPatterns
+        (backspace 6)
+        ("___", 0) ;
+      t
+        "backspace over match with 2 patterns"
+        matchWithPatterns
+        (backspace 6)
+        ("match ___\n  3 -> ___", 6) ;
+      t "delete over empty match" emptyMatch (delete 0) ("___", 0) ;
+      t
+        "delete over empty match with 2 patterns"
+        emptyMatchWithTwoPatterns
+        (delete 0)
+        ("___", 0) ;
+      t
+        "delete over match with 2 patterns"
+        matchWithPatterns
+        (delete 0)
+        ("match ___\n  3 -> ___", 0) ;
+      t
+        "insert changes occurence of non-shadowed var in case"
+        (matchWithBinding "binding" (EVariable (gid (), "binding")))
+        (insert ~wrap:false 'c' 19)
+        ("match ___\n  bindingc -> bindingc", 20) ;
+      t
+        "insert changes occurence of non-shadowed var in case constructor"
+        (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
+        (insert ~wrap:false 'c' 22)
+        ("match ___\n  Ok bindingc -> bindingc", 23) ;
       () ) ;
   describe "Lets" (fun () ->
       t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
@@ -472,6 +577,36 @@ let () =
         (letWithUsedBinding "binding")
         (insert 'c' 11)
         ("let bindingc = 6\nbindingc", 12) ;
+      t
+        "insert changes occurence of binding in match nested expr"
+        (letWithBinding
+           "binding"
+           (EMatch
+              ( gid ()
+              , blank
+              , [ ( FPVariable (gid (), gid (), "binding")
+                  , EVariable (gid (), "binding") )
+                ; (FPInteger (gid (), gid (), 5), EVariable (gid (), "binding"))
+                ] )))
+        (insert 'c' 11)
+        ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc"
+        , 12 ) ;
+      t
+        "insert doesn't change occurence of binding in shadowed lambda expr"
+        (letWithBinding
+           "binding"
+           (ELambda
+              (gid (), [(gid (), "binding")], EVariable (gid (), "binding"))))
+        (insert 'c' 11)
+        ("let bindingc = 6\n\\binding -> binding", 12) ;
+      t
+        "insert changes occurence of binding in lambda expr"
+        (letWithBinding
+           "binding"
+           (ELambda
+              (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
+        (insert 'c' 11)
+        ("let bindingc = 6\n\\somevar -> bindingc", 12) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
