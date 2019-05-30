@@ -60,9 +60,49 @@ type ast = fluidExpr [@@deriving show]
 type state = Types.fluidState
 
 let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
-  let open Types in
   let varToName var =
     match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
+  in
+  let parseString str :
+      [> `Bool of bool
+      | `Int of int
+      | `Null
+      | `Float of string * string
+      | `Unknown ] =
+    let asBool =
+      if str = "true"
+      then Some (`Bool true)
+      else if str = "false"
+      then Some (`Bool false)
+      else if str = "null"
+      then Some `Null
+      else None
+    in
+    let asInt = try Some (`Int (int_of_string str)) with _ -> None in
+    let asFloat =
+      try
+        (* for the exception *)
+        ignore (float_of_string str) ;
+        match String.split ~on:"." str with
+        | [whole; fraction] ->
+            Some (`Float (whole, fraction))
+        | _ ->
+            None
+      with _ -> None
+    in
+    let asString =
+      if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
+      then
+        Some
+          (`String
+            (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
+      else None
+    in
+    asInt
+    |> Option.or_ asString
+    |> Option.or_ asBool
+    |> Option.or_ asFloat
+    |> Option.withDefault ~default:`Unknown
   in
   let fromExpr = fromExpr s in
   match expr with
@@ -110,50 +150,99 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
           , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
           , fromExpr exprs )
     | Value str ->
-        let asBool =
-          if str = "true"
-          then Some (EBool (id, true))
-          else if str = "false"
-          then Some (EBool (id, false))
-          else if str = "null"
-          then Some (ENull id)
-          else None
-        in
-        let asInt =
-          try Some (EInteger (id, int_of_string str)) with _ -> None
-        in
-        let asFloat =
-          try
-            (* for the exception *)
-            ignore (float_of_string str) ;
-            match String.split ~on:"." str with
-            | [whole; fraction] ->
-                Some (EFloat (id, whole, fraction))
-            | _ ->
-                None
-          with _ -> None
-        in
-        let asString =
-          if String.startsWith ~prefix:"\"" str
-             && String.endsWith ~suffix:"\"" str
-          then
-            Some
-              (EString
-                 ( id
-                 , str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
-                 ))
-          else None
-        in
-        asInt
-        |> Option.or_ asString
-        |> Option.or_ asBool
-        |> Option.or_ asFloat
-        |> Option.withDefault ~default:(EOldExpr expr)
+      ( match parseString str with
+      | `Bool b ->
+          EBool (id, b)
+      | `Int i ->
+          EInteger (id, i)
+      | `String s ->
+          EString (id, s)
+      | `Null ->
+          ENull id
+      | `Float (whole, fraction) ->
+          EFloat (id, whole, fraction)
+      | `Unknown ->
+          Js.log2 "Getting old Value that we coudln't parse" expr ;
+          EOldExpr expr )
     | Constructor (name, exprs) ->
         EConstructor
           (id, Blank.toID name, varToName name, List.map ~f:fromExpr exprs)
-    | FeatureFlag _ | Match _ ->
+    | Match (mexpr, pairs) ->
+        let mid = id in
+        let rec fromPattern (p : pattern) : fluidPattern =
+          match p with
+          | Blank id ->
+              FPBlank (mid, id)
+          | Partial (id, name) ->
+              FPVariable (mid, id, name)
+          | F (id, np) ->
+            ( match np with
+            | PVariable name ->
+                FPVariable (mid, id, name)
+            | PConstructor (name, patterns) ->
+                FPConstructor (mid, id, name, List.map ~f:fromPattern patterns)
+            | PLiteral str ->
+              ( match parseString str with
+              | `Bool b ->
+                  FPBool (mid, id, b)
+              | `Int i ->
+                  FPInteger (mid, id, i)
+              | `String s ->
+                  FPString (mid, id, s)
+              | `Null ->
+                  FPNull (mid, id)
+              | `Float (whole, fraction) ->
+                  FPFloat (mid, id, whole, fraction)
+              | `Unknown ->
+                  Js.log2
+                    "Getting old pattern literal that we couldn't parse"
+                    p ;
+                  FPOldPattern (mid, p) ) )
+        in
+        let pairs =
+          List.map pairs ~f:(fun (p, e) -> (fromPattern p, fromExpr e))
+        in
+        EMatch (id, fromExpr mexpr, pairs)
+    | FeatureFlag _ ->
         EOldExpr expr )
+
+
+let literalToString
+    (v : [> `Bool of bool | `Int of int | `Null | `Float of string * string]) :
+    string =
+  match v with
+  | `Int i ->
+      Int.toString i
+  | `String str ->
+      "\"" ^ str ^ "\""
+  | `Bool b ->
+      if b then "true" else "false"
+  | `Null ->
+      "null"
+  | `Float (whole, fraction) ->
+      whole ^ "." ^ fraction
+
+
+let rec toPattern (p : fluidPattern) : pattern =
+  match p with
+  | FPVariable (_, id, var) ->
+      F (id, PVariable var)
+  | FPConstructor (_, id, name, patterns) ->
+      F (id, PConstructor (name, List.map ~f:toPattern patterns))
+  | FPInteger (_, id, i) ->
+      F (id, PLiteral (literalToString (`Int i)))
+  | FPBool (_, id, b) ->
+      F (id, PLiteral (literalToString (`Bool b)))
+  | FPString (_, id, str) ->
+      F (id, PLiteral (literalToString (`String str)))
+  | FPFloat (_, id, whole, fraction) ->
+      F (id, PLiteral (literalToString (`Float (whole, fraction))))
+  | FPNull (_, id) ->
+      F (id, PLiteral (literalToString `Null))
+  | FPBlank (_, id) ->
+      Blank id
+  | FPOldPattern (_, pattern) ->
+      pattern
 
 
 let rec toExpr (expr : fluidExpr) : Types.expr =
@@ -161,16 +250,15 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
    * ones instead *)
   match expr with
   | EInteger (id, num) ->
-      F (id, Value (Int.toString num))
+      F (id, Value (literalToString (`Int num)))
   | EString (id, str) ->
-      F (id, Value ("\"" ^ str ^ "\""))
+      F (id, Value (literalToString (`String str)))
   | EFloat (id, whole, fraction) ->
-      F (id, Value (whole ^ "." ^ fraction))
+      F (id, Value (literalToString (`Float (whole, fraction))))
   | EBool (id, b) ->
-      let str = if b then "true" else "false" in
-      F (id, Value str)
+      F (id, Value (literalToString (`Bool b)))
   | ENull id ->
-      F (id, Value "null")
+      F (id, Value (literalToString `Null))
   | EVariable (id, var) ->
       F (id, Variable var)
   | EFieldAccess (id, obj, fieldID, fieldname) ->
@@ -213,6 +301,9 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F (id, Thread (List.map ~f:toExpr exprs))
   | EConstructor (id, nameID, name, exprs) ->
       F (id, Constructor (F (nameID, name), List.map ~f:toExpr exprs))
+  | EMatch (id, mexpr, pairs) ->
+      let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
+      F (id, Match (toExpr mexpr, pairs))
   | EOldExpr expr ->
       expr
 
@@ -238,8 +329,39 @@ let eid expr : id =
   | ERecord (id, _)
   | EThread (id, _)
   | EBinOp (id, _, _, _, _)
-  | EConstructor (id, _, _, _) ->
+  | EConstructor (id, _, _, _)
+  | EMatch (id, _, _) ->
       id
+
+
+let pid pattern : id =
+  match pattern with
+  | FPVariable (_, id, _)
+  | FPConstructor (_, id, _, _)
+  | FPInteger (_, id, _)
+  | FPBool (_, id, _)
+  | FPString (_, id, _)
+  | FPFloat (_, id, _, _)
+  | FPNull (_, id)
+  | FPBlank (_, id) ->
+      id
+  | FPOldPattern (_, pattern) ->
+      Blank.toID pattern
+
+
+let pmid pattern : id =
+  match pattern with
+  | FPVariable (mid, _, _)
+  | FPConstructor (mid, _, _, _)
+  | FPInteger (mid, _, _)
+  | FPBool (mid, _, _)
+  | FPString (mid, _, _)
+  | FPFloat (mid, _, _, _)
+  | FPNull (mid, _)
+  | FPBlank (mid, _) ->
+      mid
+  | FPOldPattern (mid, _) ->
+      mid
 
 
 let newB () = EBlank (gid ())
@@ -250,6 +372,37 @@ let newB () = EBlank (gid ())
 type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
+
+let rec patternToToken (p : fluidPattern) : fluidToken list =
+  match p with
+  | FPVariable (mid, id, name) ->
+      [TPatternVariable (mid, id, name)]
+  | FPConstructor (mid, id, name, args) ->
+      let args = List.map args ~f:(fun a -> TSep :: patternToToken a) in
+      List.concat ([TPatternConstructorName (mid, id, name)] :: args)
+  | FPInteger (mid, id, i) ->
+      [TPatternInteger (mid, id, string_of_int i)]
+  | FPBool (mid, id, b) ->
+      if b then [TPatternTrue (mid, id)] else [TPatternFalse (mid, id)]
+  | FPString (mid, id, s) ->
+      [TPatternString (mid, id, s)]
+  | FPFloat (mID, id, whole, fraction) ->
+      let whole =
+        if whole = "" then [] else [TPatternFloatWhole (mID, id, whole)]
+      in
+      let fraction =
+        if fraction = ""
+        then []
+        else [TPatternFloatFraction (mID, id, fraction)]
+      in
+      whole @ [TPatternFloatPoint (mID, id)] @ fraction
+  | FPNull (mid, id) ->
+      [TPatternNullToken (mid, id)]
+  | FPBlank (mid, id) ->
+      [TPatternBlank (mid, id)]
+  | FPOldPattern (mid, op) ->
+      [TPatternString (mid, Blank.toID op, "TODO: old pattern")]
+
 
 let rec toTokens' (s : state) (e : ast) : token list =
   let nested ?(placeholderFor : (string * int) option = None) b =
@@ -325,7 +478,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
       let tnames =
-        List.map names ~f:(fun (_, name) -> TLambdaVar (id, name))
+        List.indexedMap names ~f:(fun i (_, name) -> TLambdaVar (id, i, name))
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
@@ -383,6 +536,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+  | EMatch (id, mexpr, pairs) ->
+      [ [TMatchKeyword id; nested mexpr]
+      ; List.map pairs ~f:(fun (pattern, expr) ->
+            [TNewline; TIndent 2]
+            @ patternToToken pattern
+            @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
+        |> List.concat ]
+      |> List.concat
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
 
@@ -435,8 +596,23 @@ let infoize ~(pos : int) tokens : tokenInfo list =
   makeInfo pos tokens
 
 
+let validateTokens (tokens : fluidToken list) : fluidToken list =
+  List.iter
+    ~f:(fun t ->
+      if String.length (Token.toText t) == 0
+      then impossible "zero length token"
+      else () )
+    tokens ;
+  tokens
+
+
 let toTokens (s : state) (e : ast) : tokenInfo list =
-  e |> toTokens' s |> reflow ~x:0 |> Tuple2.second |> infoize ~pos:0
+  e
+  |> toTokens' s
+  |> validateTokens
+  |> reflow ~x:0
+  |> Tuple2.second
+  |> infoize ~pos:0
 
 
 let eToString (s : state) (e : ast) : string =
@@ -455,8 +631,14 @@ let eToStructure (s : state) (e : fluidExpr) : string =
 
 
 (* -------------------- *)
-(* TEA *)
+(* Patterns *)
 (* -------------------- *)
+let pToString (p : fluidPattern) : string =
+  p
+  |> patternToToken
+  |> List.map ~f:(fun t -> Token.toTestText t)
+  |> String.join ~sep:""
+
 
 (* -------------------- *)
 (* Direct canvas interaction *)
@@ -507,6 +689,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (EIf (gid (), newB (), newB (), newB ()), 3)
   | FACKeyword KLambda ->
       (ELambda (gid (), [(gid (), "")], newB ()), 1)
+  | FACKeyword KMatch ->
+      let matchID = gid () in
+      (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -573,7 +758,18 @@ let isTextToken token : bool =
   | TLambdaVar _
   | TFloatWhole _
   | TFloatPoint _
-  | TFloatFraction _ ->
+  | TFloatFraction _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternBlank _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
       true
   | TListOpen _
   | TListClose _
@@ -594,6 +790,8 @@ let isTextToken token : bool =
   | TIndent _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TMatchKeyword _
+  | TMatchSep _
   | TThreadPipe _
   | TLambdaArrow _ ->
       false
@@ -605,7 +803,7 @@ let isAppendable token : bool =
   match token with
   (* String should really be directly editable, but the extra quote at the end
    makes it not so. *)
-  | TString _ ->
+  | TString _ | TPatternString _ ->
       false
   | _ ->
       isTextToken token
@@ -621,10 +819,13 @@ let isAtom (token : token) : bool =
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TLetKeyword _
+  | TMatchSep _
+  | TMatchKeyword _
   | TThreadPipe _
   | TPlaceholder _
   | TBlank _
-  | TLambdaArrow _ ->
+  | TLambdaArrow _
+  | TPatternBlank _ ->
       true
   | TListOpen _
   | TListClose _
@@ -656,8 +857,18 @@ let isAtom (token : token) : bool =
   | TPartial _
   | TLambdaSymbol _
   | TLambdaSep _
+  | TLambdaVar _
   | TConstructorName _
-  | TLambdaVar _ ->
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
       false
 
 
@@ -816,6 +1027,8 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         fe expr
     | ERecord (_, fields) ->
         fields |> List.map ~f:Tuple3.third |> List.filterMap ~f:fe |> List.head
+    | EMatch (_, _, pairs) ->
+        pairs |> List.map ~f:Tuple2.second |> List.filterMap ~f:fe |> List.head
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
     | EConstructor (_, _, _, exprs)
@@ -871,6 +1084,11 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           fp lexpr |> Option.orElse (fp rexpr)
       | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
           fp expr
+      | EMatch (_, _, pairs) ->
+          pairs
+          |> List.map ~f:Tuple2.second
+          |> List.filterMap ~f:fp
+          |> List.head
       | ERecord (_, fields) ->
           fields
           |> List.map ~f:Tuple3.third
@@ -916,6 +1134,9 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       ELambda (id, names, f expr)
   | EList (id, exprs) ->
       EList (id, List.map ~f exprs)
+  | EMatch (id, mexpr, pairs) ->
+      EMatch
+        (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, fields) ->
       ERecord
         (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
@@ -927,6 +1148,36 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       expr
 
 
+(* Slightly modified version of `AST.uses` (pre-fluid code) *)
+let rec modifyVariableOccurences
+    (oldVarName : string) (newVarName : string) (ast : ast) : ast =
+  let u = modifyVariableOccurences oldVarName newVarName in
+  match ast with
+  | EVariable (id, varName) ->
+      if varName = oldVarName then EVariable (id, newVarName) else ast
+  | ELet (id, id', lhs, rhs, body) ->
+      if oldVarName = lhs (* if variable name is rebound *)
+      then ast
+      else ELet (id, id', lhs, u rhs, u body)
+  | ELambda (id, vars, lexpr) ->
+      if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
+         (* if variable name is rebound *)
+      then ast
+      else ELambda (id, vars, u lexpr)
+  | EMatch (id, cond, pairs) ->
+      let pairs =
+        List.map
+          ~f:(fun (pat, expr) ->
+            if Pattern.hasVariableNamed oldVarName (toPattern pat)
+            then (pat, expr)
+            else (pat, u expr) )
+          pairs
+      in
+      EMatch (id, u cond, pairs)
+  | _ ->
+      recurse ~f:u ast
+
+
 let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   let rec run e = if id = eid e then f e else recurse ~f:run e in
   run ast
@@ -934,6 +1185,53 @@ let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun _ -> newExpr)
+
+
+let wrapPattern
+    ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
+    : ast =
+  wrap matchID ast ~f:(fun m ->
+      match m with
+      | EMatch (matchID, expr, pairs) ->
+          let newPairs =
+            List.map pairs ~f:(fun (pat, expr) ->
+                if pid pat = patID then (f pat, expr) else (pat, expr) )
+          in
+          EMatch (matchID, expr, newPairs)
+      | _ ->
+          m )
+
+
+let replacePattern
+    ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
+
+
+let replaceVarInPattern
+    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
+  wrap mID ast ~f:(fun e ->
+      match e with
+      | EMatch (mID, cond, cases) ->
+          let rec replaceNameInPattern pat =
+            match pat with
+            | FPVariable (_, id, varName) when varName = oldVarName ->
+                if newVarName = ""
+                then FPBlank (mID, id)
+                else FPVariable (mID, id, newVarName)
+            | FPConstructor (mID, id, name, patterns) ->
+                FPConstructor
+                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
+            | pattern ->
+                pattern
+          in
+          let newCases =
+            List.map cases ~f:(fun (pat, expr) ->
+                ( replaceNameInPattern pat
+                , modifyVariableOccurences oldVarName newVarName expr ) )
+          in
+          EMatch (mID, cond, newCases)
+      | _ ->
+          fail "not a let" )
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -967,34 +1265,54 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
           newB ()
       | ELambda (_, _, EBlank _) ->
           newB ()
+      | EMatch (_, EBlank _, pairs)
+        when List.all pairs ~f:(fun (p, e) ->
+                 match (p, e) with FPBlank _, EBlank _ -> true | _ -> false )
+        ->
+          newB ()
       | _ ->
           e )
 
 
-let replaceString (str : string) (id : id) (ast : ast) : ast =
+let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
-      | EInteger (id, _) ->
-          if str = ""
-          then EBlank id
-          else
-            let value = try safe_int_of_string str with _ -> 0 in
-            EInteger (id, value)
-      | EString (id, _) ->
-          EString (id, str)
-      | EVariable (id, _) ->
-          if str = "" then EBlank id else EPartial (id, str)
-      | EPartial (id, _) ->
-          if str = "" then EBlank id else EPartial (id, str)
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
-      | ELet (id, lhsID, _, rhs, next) ->
-          ELet (id, lhsID, str, rhs, next)
-      | ELambda (id, vars, expr) ->
-          let rest = List.tail vars |> Option.withDefault ~default:[] in
-          ELambda (id, (gid (), str) :: rest, expr)
       | _ ->
-          fail ("not a string type: " ^ show_fluidExpr e) )
+          fail "not a field" )
+
+
+let replaceLamdaVar
+    ~(index : int)
+    (oldVarName : string)
+    (newVarName : string)
+    (id : id)
+    (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELambda (id, vars, expr) ->
+          let vars =
+            List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
+          in
+          ELambda
+            (id, vars, modifyVariableOccurences oldVarName newVarName expr)
+      | _ ->
+          fail "not a lamda" )
+
+
+let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELet (id, lhsID, oldLHS, rhs, next) ->
+          ELet
+            ( id
+            , lhsID
+            , newLHS
+            , rhs
+            , modifyVariableOccurences oldLHS newLHS next )
+      | _ ->
+          fail "not a let" )
 
 
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
@@ -1010,70 +1328,65 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           fail "not a record" )
 
 
-(* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec modifyVariableOccurences
-    (str : string) (ast : ast) ~(f : id -> ast -> ast) : ast =
-  let u = modifyVariableOccurences str ~f in
-  match ast with
-  | EBlank _
-  | EInteger _
-  | EBool _
-  | EString _
-  | EOldExpr _
-  | EFloat _
-  | EPartial _
-  | ENull _ ->
-      ast
-  | EVariable (id, potential) ->
-      if potential = str then f id ast else ast
-  | ELet (id, id', lhs, rhs, body) ->
-      if str = lhs (* if variable name is rebound *)
-      then ast
-      else ELet (id, id', lhs, u rhs, u body)
-  | EIf (id, cond, ifbody, elsebody) ->
-      EIf (id, u cond, u ifbody, u elsebody)
-  | EFnCall (id, name, exprs, stor) ->
-      let exprs = exprs |> List.map ~f:u in
-      EFnCall (id, name, exprs, stor)
-  | EConstructor (id, id', name, exprs) ->
-      let exprs = exprs |> List.map ~f:u in
-      EConstructor (id, id', name, exprs)
-  | ELambda (id, vars, lexpr) ->
-      if List.map ~f:Tuple2.second vars |> List.member ~value:str
-         (* if variable name is rebound *)
-      then ast
-      else ELambda (id, vars, u lexpr)
-  | EThread (id, exprs) ->
-      let exprs = exprs |> List.map ~f:u in
-      EThread (id, exprs)
-  | EFieldAccess (id, obj, id', name) ->
-      EFieldAccess (id, u obj, id', name)
-  | EList (id, exprs) ->
-      let exprs = exprs |> List.map ~f:u in
-      EList (id, exprs)
-  | ERecord (id, triples) ->
-      let triples =
-        triples |> List.map ~f:(fun (id, name, expr) -> (id, name, u expr))
-      in
-      ERecord (id, triples)
-  | EBinOp (id, name, lhs, rhs, stor) ->
-      EBinOp (id, name, u lhs, u rhs, stor)
-
-
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
     fluidExpr =
   match token with
   | TString (id, str) ->
-      replaceExpr id ~newExpr:(EString (gid (), f str)) ast
+      replaceExpr id ~newExpr:(EString (id, f str)) ast
+  | TPatternString (mID, id, str) ->
+      replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
+  | TInteger (id, str) ->
+      let str = f str in
+      let newExpr =
+        if str = ""
+        then EBlank id
+        else
+          let value = try safe_int_of_string str with _ -> 0 in
+          EInteger (id, value)
+      in
+      replaceExpr id ~newExpr ast
+  | TPatternInteger (mID, id, str) ->
+      let str = f str in
+      let newPat =
+        if str = ""
+        then FPBlank (mID, id)
+        else
+          let value = try safe_int_of_string str with _ -> 0 in
+          FPInteger (mID, id, value)
+      in
+      replacePattern mID id ~newPat ast
+  | TPatternNullToken (mID, id) ->
+      let str = f "null" in
+      let newExpr = FPVariable (mID, gid (), str) in
+      replacePattern mID id ~newPat:newExpr ast
+  | TPatternTrue (mID, id) ->
+      let str = f "true" in
+      let newExpr = FPVariable (mID, gid (), str) in
+      replacePattern mID id ~newPat:newExpr ast
+  | TPatternFalse (mID, id) ->
+      let str = f "false" in
+      let newExpr = FPVariable (mID, gid (), str) in
+      replacePattern mID id ~newPat:newExpr ast
+  | TPatternVariable (mID, _, str) ->
+      replaceVarInPattern mID str (f str) ast
   | TRecordField (id, index, str) ->
       replaceRecordField ~index (f str) id ast
-  | TInteger (id, str)
-  | TVariable (id, str)
-  | TPartial (id, str)
+  | TLetLHS (id, str) ->
+      replaceLetLHS (f str) id ast
+  | TLambdaVar (id, index, str) ->
+      replaceLamdaVar ~index str (f str) id ast
+  | TVariable (id, str) ->
+      let str = f str in
+      let newExpr = if str = "" then EBlank id else EPartial (id, str) in
+      replaceExpr id ~newExpr ast
+  | TPartial (id, str) ->
+      let str = f str in
+      let newExpr = if str = "" then EBlank id else EPartial (id, str) in
+      replaceExpr id ~newExpr ast
   | TFieldName (id, str) ->
-      replaceString (f str) id ast
+      replaceFieldName (f str) id ast
   | TTrue id ->
       let str = f "true" in
       let newExpr = EPartial (gid (), str) in
@@ -1086,10 +1399,6 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let str = f "null" in
       let newExpr = EPartial (gid (), str) in
       replaceExpr id ~newExpr ast
-  | TLetLHS (id, str) | TLambdaVar (id, str) ->
-      let ast = replaceString (f str) id ast in
-      modifyVariableOccurences str ast ~f:(fun occId ast ->
-          replaceExpr occId ~newExpr:(EVariable (occId, f str)) ast )
   | _ ->
       fail "not supported by replaceToken"
 
@@ -1101,6 +1410,36 @@ let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
           EFloat (id, str, fraction)
       | _ ->
           fail "not a float" )
+
+
+let replacePatternFloatWhole
+    (str : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, patID, _, fraction) ->
+          FPFloat (matchID, patID, str, fraction)
+      | _ ->
+          fail "not a float" )
+
+
+let replacePatternFloatFraction
+    (str : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, patID, whole, _) ->
+          FPFloat (matchID, patID, whole, str)
+      | _ ->
+          fail "not a float" )
+
+
+let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, _, whole, fraction) ->
+          let i = safe_int_of_string (whole ^ fraction) in
+          FPInteger (matchID, gid (), i)
+      | _ ->
+          fail "Not an int" )
 
 
 let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
@@ -1118,6 +1457,16 @@ let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
       match expr with
       | EFloat (id, whole, fraction) ->
           EFloat (id, whole, letter ^ fraction)
+      | _ ->
+          fail "not a float" )
+
+
+let insertAtFrontOfPatternFloatFraction
+    (letter : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPFloat (matchID, patID, whole, fraction) ->
+          FPFloat (matchID, patID, whole, letter ^ fraction)
       | _ ->
           fail "not a float" )
 
@@ -1179,6 +1528,18 @@ let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
           let str = Int.toString i in
           let whole, fraction = String.splitAt ~index:offset str in
           EFloat (gid (), whole, fraction)
+      | _ ->
+          fail "Not an int" )
+
+
+let convertPatternIntToFloat
+    (offset : int) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun expr ->
+      match expr with
+      | FPInteger (matchID, _, i) ->
+          let str = Int.toString i in
+          let whole, fraction = String.splitAt ~index:offset str in
+          FPFloat (matchID, gid (), whole, fraction)
       | _ ->
           fail "Not an int" )
 
@@ -1365,20 +1726,22 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
-    | TString _ ->
+    | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
     | _ ->
         pos - ti.startPos - 1
   in
   let newID = gid () in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
       (ast, moveToStart ti s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
+  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       let newAST = removeEmptyExpr (Token.tid ti.token) ast in
       if newAST = ast then (ast, s) else (newAST, moveToStart ti s)
   | TString (id, "") ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
+  | TPatternString (mID, id, "") ->
+      (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TRecordField (id, i, "") when pos = ti.startPos ->
@@ -1402,25 +1765,41 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TSep
   | TThreadPipe _
   | TConstructorName _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TPatternBlank _
+  | TPatternConstructorName _ ->
       (ast, left s)
   | TFieldOp id ->
       (removeField id ast, left s)
   | TFloatPoint id ->
       (removePointFromFloat id ast, left s)
+  | TPatternFloatPoint (mID, id) ->
+      (removePatternPointFromFloat mID id ast, left s)
   | TString _
+  | TPatternString _
   | TRecordField _
   | TInteger _
   | TTrue _
   | TFalse _
+  | TPatternTrue _
+  | TPatternFalse _
   | TNullToken _
   | TVariable _
   | TPartial _
   | TFieldName _
   | TLetLHS _
+  | TPatternInteger _
+  | TPatternNullToken _
+  | TPatternVariable _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
+  | TPatternFloatWhole (mID, id, str) ->
+      let str = removeCharAt str offset in
+      (replacePatternFloatWhole str mID id ast, left s)
+  | TPatternFloatFraction (mID, id, str) ->
+      let str = removeCharAt str offset in
+      (replacePatternFloatFraction str mID id ast, left s)
   | TFloatWhole (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatWhole str id ast, left s)
@@ -1437,9 +1816,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
       (ast, s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ ->
+  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (Token.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
@@ -1464,8 +1843,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TFieldOp id ->
       (removeField id ast, s)
-  | TFloatPoint id ->
-      (removePointFromFloat id ast, s)
   | TString (id, str) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
@@ -1476,8 +1853,20 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TPatternString (mID, id, str) ->
+      let target s =
+        (* if we're in front of the quotes vs within it *)
+        if offset == 0 then s else left s
+      in
+      if str = ""
+      then
+        (ast |> replacePattern mID id ~newPat:(FPBlank (mID, newID)), target s)
+      else
+        let str = removeCharAt str (offset - 1) in
+        (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
   | TRecordField _
   | TInteger _
+  | TPatternInteger _
   | TTrue _
   | TFalse _
   | TNullToken _
@@ -1485,13 +1874,27 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TFieldName _
   | TLetLHS _
+  | TPatternNullToken _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
+  | TFloatPoint id ->
+      (removePointFromFloat id ast, s)
   | TFloatWhole (id, str) ->
       (replaceFloatWhole (f str) id ast, s)
   | TFloatFraction (id, str) ->
       (replaceFloatFraction (f str) id ast, s)
+  | TPatternFloatPoint (mID, id) ->
+      (removePatternPointFromFloat mID id ast, s)
+  | TPatternFloatFraction (mID, id, str) ->
+      (replacePatternFloatFraction (f str) mID id ast, s)
+  | TPatternFloatWhole (mID, id, str) ->
+      (replacePatternFloatWhole (f str) mID id ast, s)
   | TConstructorName _ ->
+      (ast, s)
+  | TPatternBlank _ | TPatternConstructorName _ ->
       (ast, s)
 
 
@@ -1513,7 +1916,9 @@ let doRight
   | TLetKeyword _
   | TPlaceholder _
   | TBlank _
-  | TLambdaArrow _ ->
+  | TLambdaArrow _
+  | TMatchSep _
+  | TMatchKeyword _ ->
     ( match next with
     | None ->
         moveToAfter current s
@@ -1551,7 +1956,18 @@ let doRight
   | TThreadPipe _
   | TLambdaVar _
   | TLambdaSymbol _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TPatternBlank _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
     ( match next with
     | Some n when pos + 1 >= current.endPos ->
         moveToStart n s
@@ -1592,7 +2008,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   let letterStr = String.fromChar letter in
   let offset =
     match ti.token with
-    | TString _ ->
+    | TString _ | TPatternString _ ->
         pos - ti.startPos - 1
     | _ ->
         pos - ti.startPos
@@ -1628,9 +2044,15 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   (* Ignore invalid situations *)
   | TString _ when offset < 0 ->
       (ast, s)
+  | TPatternString _ when offset < 0 ->
+      (ast, s)
   | TInteger _ when not (isNumber letterStr) ->
       (ast, s)
   | TInteger _ when '0' = letter && offset = 0 ->
+      (ast, s)
+  | TPatternInteger _ when not (isNumber letterStr) ->
+      (ast, s)
+  | TPatternInteger _ when '0' = letter && offset = 0 ->
       (ast, s)
   | TFloatWhole _ when not (isNumber letterStr) ->
       (ast, s)
@@ -1638,7 +2060,15 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TFloatFraction _ when not (isNumber letterStr) ->
       (ast, s)
+  | TPatternFloatWhole _ when not (isNumber letterStr) ->
+      (ast, s)
+  | TPatternFloatWhole _ when '0' = letter && offset = 0 ->
+      (ast, s)
+  | TPatternFloatFraction _ when not (isNumber letterStr) ->
+      (ast, s)
   | TVariable _ when not (isIdentifierChar letterStr) ->
+      (ast, s)
+  | TPatternVariable _ when not (isIdentifierChar letterStr) ->
       (ast, s)
   | TLetLHS _ when not (isIdentifierChar letterStr) ->
       (ast, s)
@@ -1656,13 +2086,18 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TVariable _
   | TPartial _
   | TString _
+  | TPatternString _
   | TLetLHS _
   | TTrue _
   | TFalse _
+  | TPatternTrue _
+  | TPatternFalse _
   | TNullToken _
+  | TPatternNullToken _
+  | TPatternVariable _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
-  | TInteger (_, i) ->
+  | TPatternInteger (_, _, i) | TInteger (_, i) ->
       let newLength =
         f i |> safe_int_of_string |> string_of_int |> String.length
       in
@@ -1674,6 +2109,23 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatFraction (f str) id ast, right)
   | TFloatPoint id ->
       (insertAtFrontOfFloatFraction letterStr id ast, right)
+  | TPatternFloatWhole (mID, id, str) ->
+      (replacePatternFloatWhole (f str) mID id ast, right)
+  | TPatternFloatFraction (mID, id, str) ->
+      (replacePatternFloatFraction (f str) mID id ast, right)
+  | TPatternFloatPoint (mID, id) ->
+      (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
+  | TPatternConstructorName _ ->
+      (ast, s)
+  | TPatternBlank (mID, pID) ->
+      let newPat =
+        if letter = '"'
+        then FPString (mID, newID, "")
+        else if isNumber letterStr
+        then FPInteger (mID, newID, letterStr |> safe_int_of_string)
+        else FPVariable (mID, newID, letterStr)
+      in
+      (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)
   | TNewline
   | TIfKeyword _
@@ -1697,7 +2149,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSymbol _
   | TLambdaArrow _
   | TConstructorName _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TMatchSep _
+  | TMatchKeyword _ ->
       (ast, s)
 
 
@@ -1747,7 +2201,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
      * should convert them to a partial which retains the old object *)
     match (key, toTheLeft, toTheRight) with
     (* Deleting *)
-    | K.Backspace, L (TString _, ti), _ when pos = ti.endPos ->
+    | K.Backspace, L (TPatternString _, ti), _
+    | K.Backspace, L (TString _, ti), _
+      when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordField (_, _, ""), ti) ->
@@ -1841,7 +2297,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, moveOneRight pos s)
     (* Lambda-specific insertions *)
     (* String-specific insertions *)
-    | K.DoubleQuote, _, R (TString _, ti) when pos = ti.endPos - 1 ->
+    | K.DoubleQuote, _, R (TPatternString _, ti)
+    | K.DoubleQuote, _, R (TString _, ti)
+      when pos = ti.endPos - 1 ->
         (* Allow pressing quote to go over the last quote *)
         (ast, moveOneRight pos s)
     (* Field access *)
@@ -1853,6 +2311,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s)
+    | K.Period, L (TPatternInteger (mID, id, _), ti), _ ->
+        let offset = pos - ti.startPos in
+        (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Binop specific *)
     | K.Percent, L (_, toTheLeft), _
     | K.Minus, L (_, toTheLeft), _

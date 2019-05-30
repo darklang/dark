@@ -950,6 +950,20 @@ and integrationTestState =
 (* Fluid *)
 and fluidName = string
 
+(* match id, then the pattern id. We have a pattern id cause they can be
+ * nested. *)
+and fluidPattern =
+  | FPVariable of id * id * fluidName
+  | FPConstructor of id * id * fluidName * fluidPattern list
+  (* TODO: support char *)
+  | FPInteger of id * id * int
+  | FPBool of id * id * bool
+  | FPString of id * id * string
+  | FPFloat of id * id * string * string
+  | FPNull of id * id
+  | FPBlank of id * id
+  | FPOldPattern of id * pattern
+
 and fluidExpr =
   (* Several of these expressions have extra IDs for roundtripping to the old expr *)
   | EInteger of id * int
@@ -975,6 +989,8 @@ and fluidExpr =
   | EThread of id * fluidExpr list
   (* The 2nd ID is extra for the name *)
   | EConstructor of id * id * fluidName * fluidExpr list
+  (* TODO: add ID for fluidPattern *)
+  | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
   | EOldExpr of expr
 
 and placeholder = string * string
@@ -1016,7 +1032,7 @@ and fluidToken =
   | TLambdaSep of id
   | TLambdaArrow of id
   | TLambdaSymbol of id
-  | TLambdaVar of id * string
+  | TLambdaVar of id * int * string
   | TListOpen of id
   | TListClose of id
   | TListSep of id
@@ -1024,6 +1040,19 @@ and fluidToken =
   | TRecordOpen of id
   | TRecordField of id * int * string
   | TRecordSep of id * int
+  | TMatchKeyword of id
+  | TMatchSep of id
+  | TPatternVariable of id * id * string
+  | TPatternConstructorName of id * id * string
+  | TPatternInteger of id * id * string
+  | TPatternString of id * id * string
+  | TPatternTrue of id * id
+  | TPatternFalse of id * id
+  | TPatternNullToken of id * id
+  | TPatternFloatWhole of id * id * string
+  | TPatternFloatPoint of id * id
+  | TPatternFloatFraction of id * id * string
+  | TPatternBlank of id * id
   | TRecordClose of id
   | TConstructorName of id * string
 
