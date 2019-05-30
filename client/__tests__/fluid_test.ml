@@ -151,6 +151,9 @@ let () =
     EBinOp
       (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail)
   in
+  let aConstructor =
+    EConstructor (gid (), gid (), "Just", [EBlank (gid ())])
+  in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -470,6 +473,18 @@ let () =
         aFullBinOp
         (press K.Delete 6)
         ("___", 5) ;
+      () ) ;
+  describe "Constructors" (fun () ->
+      t
+        "backspace on a constructor deletes the constructor"
+        aConstructor
+        (press K.Backspace 4)
+        ("___", 0) ;
+      t
+        "delete on a constructor deletes the constructor"
+        aConstructor
+        (press K.Delete 0)
+        ("___", 0) ;
       () ) ;
   describe "Lambdas" (fun () ->
       t "backspace over lambda symbol" aLambda (backspace 1) ("___", 0) ;
