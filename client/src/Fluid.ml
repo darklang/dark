@@ -1243,12 +1243,14 @@ let removeField (id : id) (ast : ast) : ast =
           fail "not a fieldAccess" )
 
 
-let deleteFunction (id : id) (ast : ast) : ast =
+let deleteWithArguments (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
       | EFnCall (_, _, _, _) ->
           EBlank (gid ())
       | EBinOp (_, _, _, _, _) ->
+          EBlank (gid ())
+      | EConstructor (_, _, _, _) ->
           EBlank (gid ())
       | _ ->
           fail "not a fncall " )
@@ -1773,7 +1775,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordSep _
   | TSep
   | TThreadPipe _
-  | TConstructorName _
   | TLambdaSep _
   | TPatternBlank _
   | TPatternConstructorName _ ->
@@ -1787,9 +1788,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBinOp (id, _) ->
       (* TODO this should move to the start of the new blank, but we don't know
        * where it is at the moment. *)
-      (deleteFunction id ast, moveToStart ti s |> left)
-  | TFnName (id, _, _) ->
-      (deleteFunction id ast, moveToStart ti s)
+      (deleteWithArguments id ast, moveToStart ti s |> left)
+  | TConstructorName (id, _) | TFnName (id, _, _) ->
+      (deleteWithArguments id ast, moveToStart ti s)
   | TString _
   | TPatternString _
   | TRecordField _
@@ -1857,9 +1858,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBinOp (id, _) ->
       (* TODO this should move to the start of the new blank, but we don't know
        * where it is at the moment. *)
-      (deleteFunction id ast, moveToStart ti s |> left)
-  | TFnName (id, _, _) ->
-      (deleteFunction id ast, moveToStart ti s)
+      (deleteWithArguments id ast, moveToStart ti s |> left)
+  | TConstructorName (id, _) | TFnName (id, _, _) ->
+      (deleteWithArguments id ast, moveToStart ti s)
   | TFieldOp id ->
       (removeField id ast, s)
   | TString (id, str) ->
@@ -1911,8 +1912,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, s)
   | TPatternFloatWhole (mID, id, str) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
-  | TConstructorName _ ->
-      (ast, s)
   | TPatternBlank _ | TPatternConstructorName _ ->
       (ast, s)
 
