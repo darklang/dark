@@ -1243,6 +1243,17 @@ let removeField (id : id) (ast : ast) : ast =
           fail "not a fieldAccess" )
 
 
+let deleteFunction (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EFnCall (_, _, _, _) ->
+          EBlank (gid ())
+      | EBinOp (_, _, _, _, _) ->
+          EBlank (gid ())
+      | _ ->
+          fail "not a fncall " )
+
+
 let removeRecordField (id : id) (index : int) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
@@ -1747,10 +1758,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordField (id, i, "") when pos = ti.startPos ->
       ( removeRecordField id i ast
       , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
-  | TBinOp _
   | TBlank _
   | TPlaceholder _
-  | TFnName _
   | TIndent _
   | TIndentToHere _
   | TIndented _
@@ -1775,6 +1784,12 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, left s)
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
+  | TBinOp (id, _) ->
+      (* TODO this should move to the start of the new blank, but we don't know
+       * where it is at the moment. *)
+      (deleteFunction id ast, moveToStart ti s |> left)
+  | TFnName (id, _, _) ->
+      (deleteFunction id ast, moveToStart ti s)
   | TString _
   | TPatternString _
   | TRecordField _
@@ -1822,10 +1837,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removeEmptyExpr (Token.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
-  | TBinOp _
   | TBlank _
   | TPlaceholder _
-  | TFnName _
   | TIndent _
   | TIndentToHere _
   | TIndented _
@@ -1841,6 +1854,12 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TThreadPipe _
   | TLambdaSep _ ->
       (ast, s)
+  | TBinOp (id, _) ->
+      (* TODO this should move to the start of the new blank, but we don't know
+       * where it is at the moment. *)
+      (deleteFunction id ast, moveToStart ti s |> left)
+  | TFnName (id, _, _) ->
+      (deleteFunction id ast, moveToStart ti s)
   | TFieldOp id ->
       (removeField id ast, s)
   | TString (id, str) ->
