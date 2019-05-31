@@ -143,4 +143,13 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
       url
       (Encoders.sendPresenceParams av)
   in
-  Tea.Http.send (fun _ -> TriggerSendPresenceCallback (Ok ())) request
+  (* If origin is https://darklang.com, then we're in prod (or ngrok, running
+   * against prod) and
+   * presence.darklang.com's CORS rules will allow this request. If not, we're
+   * in local, and both CORS and auth (session, canvas_id) will not work against
+   * presence.darklang.com. By putting the conditional here instead of at the
+   * beginning of the function, we still exercise the message and request
+   * generating code locally. *)
+  if m.origin = "https://darklang.com"
+  then Tea.Http.send (fun _ -> TriggerSendPresenceCallback (Ok ())) request
+  else Tea.Cmd.none

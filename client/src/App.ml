@@ -52,6 +52,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; toplevels = []
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
+    ; origin = location.origin
     ; environment
     ; csrfToken
     ; browserId = createBrowserId }

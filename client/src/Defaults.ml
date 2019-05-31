@@ -104,6 +104,7 @@ let defaultModel : model =
   ; canvasProps = defaultCanvasProps
   ; canvasName = "builtwithdark"
   ; userContentHost = "builtwithdark.com"
+  ; origin = ""
   ; environment = "none"
   ; csrfToken = "UNSET_CSRF"
   ; routingTableOpenDetails = StrSet.empty
