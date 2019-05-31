@@ -1161,6 +1161,7 @@ and model =
   ; canvasProps : canvasProps
   ; canvasName : string
   ; userContentHost : string
+  ; origin : string
   ; environment : string
   ; csrfToken : string
   ; routingTableOpenDetails : StrSet.t
