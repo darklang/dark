@@ -423,11 +423,12 @@ let refilter
   in
   let index =
     (* Clear the highlight conditions *)
-    if queryString <> ""
+    if queryString = ""
        (* when we had previously highlighted something due to any actual match *)
        (* or this condition previously held and nothing has changed *)
-       && (queryString <> oldQueryString || old.index <> None)
-    then
+       || (queryString = oldQueryString && old.index = None)
+    then None
+    else
       (* If an entry is highlighted, and you press another *)
       (* valid key for that entry, keep it highlighted *)
       match oldHighlightNewPos with
@@ -442,7 +443,6 @@ let refilter
             (* we matched something but its gone, go to top of *)
             (* list *)
           else Some 0
-    else None
   in
   { old with
     index
