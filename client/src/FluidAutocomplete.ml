@@ -426,7 +426,7 @@ let refilter
     if queryString = ""
        (* when we had previously highlighted something due to any actual match *)
        (* or this condition previously held and nothing has changed *)
-       || (queryString = oldQueryString && old.index = None)
+       || (old.index = None && queryString = oldQueryString)
     then None
     else
       (* If an entry is highlighted, and you press another *)
