@@ -3,6 +3,17 @@ module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
 
+let tlidOf (page : page) : tlid option =
+  match page with
+  | Architecture ->
+      None
+  | FocusedFn tlid
+  | FocusedHandler (tlid, _)
+  | FocusedDB (tlid, _)
+  | FocusedType tlid ->
+      Some tlid
+
+
 let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   let center =
     match page with
