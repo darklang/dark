@@ -23,18 +23,6 @@ let reraise e =
   Caml.Printexc.raise_with_backtrace e bt
 
 
-let reraise_as_pageable e =
-  let bt = get_backtrace () in
-  let wrapped_e =
-    match e with
-    | Libcommon.Pageable.PageableExn _ ->
-        e
-    | _ ->
-        Libcommon.Pageable.PageableExn e
-  in
-  Caml.Printexc.raise_with_backtrace wrapped_e bt
-
-
 type captured = backtrace * exn
 
 (* -------------------- *)
@@ -108,6 +96,22 @@ let rec to_string exc =
       e |> exception_data_to_yojson |> Yojson.Safe.pretty_to_string
   | e ->
       Exn.to_string e
+
+
+let reraise_as_pageable e =
+  let bt = get_backtrace () in
+  let wrapped_e =
+    match e with
+    | Libcommon.Pageable.PageableExn _ ->
+        e
+    | DarkException de
+      when de.tipe = DarkClient || de.tipe = UserCode || de.tipe = EndUser ->
+        (* Allow things that are not our fault to go through without paging *)
+        e
+    | _ ->
+        Libcommon.Pageable.PageableExn e
+  in
+  Caml.Printexc.raise_with_backtrace wrapped_e bt
 
 
 let raise_
