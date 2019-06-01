@@ -90,37 +90,10 @@ let parseLocation (loc : Web.Location.location) : page option =
   |> Option.orElse (architecture ())
 
 
-let changeLocation (m : model) (loc : Web.Location.location) : modification =
+let changeLocation (loc : Web.Location.location) : modification =
   let mPage = parseLocation loc in
-  match mPage with
-  | Some (FocusedFn id) ->
-    ( match Functions.find m id with
-    | None ->
-        DisplayError "No function with this id"
-    | _ ->
-        SetPage (FocusedFn id) )
-  | Some (FocusedHandler (id, center)) ->
-    ( match TL.get m id with
-    | None ->
-        DisplayError "No toplevel with this id"
-    | _ ->
-        SetPage (FocusedHandler (id, center)) )
-  | Some (FocusedDB (id, center)) ->
-    ( match TL.get m id with
-    | None ->
-        DisplayError "No DB with this id"
-    | _ ->
-        SetPage (FocusedDB (id, center)) )
-  | Some (FocusedType id) ->
-    ( match TL.get m id with
-    | None ->
-        DisplayError "No Type with this id"
-    | _ ->
-        SetPage (FocusedType id) )
-  | Some Architecture ->
-      SetPage Architecture
-  | None ->
-      NoChange
+  Option.map ~f:(fun x -> SetPage x) mPage
+  |> Option.withDefault ~default:NoChange
 
 
 let parseCanvasName (loc : Web.Location.location) : string =

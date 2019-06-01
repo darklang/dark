@@ -486,7 +486,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
-        (Page.setPage m m.currentPage page, Cmd.none)
+        let pagePresent =
+          match Page.tlidOf page with
+          | None ->
+              true
+          | Some tlid ->
+              TL.get m tlid <> None
+        in
+        if pagePresent
+        then (Page.setPage m m.currentPage page, Cmd.none)
+        else
+          ( Page.setPage m m.currentPage Architecture
+          , Url.updateUrl Architecture )
     | Select (tlid, p) ->
         let cursorState =
           if p = None && VariantTesting.isFluid m.tests
@@ -1379,7 +1390,7 @@ let update_ (msg : msg) (m : model) : modification =
           {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
           )
   | LocationChange loc ->
-      Url.changeLocation m loc
+      Url.changeLocation loc
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
