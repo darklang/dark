@@ -430,7 +430,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadPayload _ ->
               true
           | Http.Aborted ->
-              true
+              errorImportance = ImportantError
         in
         let msg = msg ^ " (" ^ context ^ ")" in
         let custom =
