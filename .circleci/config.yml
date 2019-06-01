@@ -2,9 +2,31 @@ version: 2.1
 executors:
   my-executor:
     docker:
-      - image: docker:stable-git
+      - image: circleci/golang:latest
 
 commands:
+  #########################
+  # Get 'step' data into honeycomb
+  #########################
+  with_job_span:
+    parameters:
+      steps:
+        type: steps
+    steps:
+      - attach_workspace:
+          at: buildevents
+      - run:
+          name: starting span for job
+          command: |
+            echo "STEP_START=$(date +%s)" >> $BASH_ENV
+            echo "STEP_SPAN_ID=$(echo $CIRCLE_JOB | sum | cut -f 1 -d \ )" >> $BASH_ENV
+      - run: echo "PATH=$PATH:/home/circleci/project/buildevents/bin" >> $BASH_ENV
+      - steps: << parameters.steps >>
+      - run:
+          name: finishing span for job
+          command: buildevents step $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID $STEP_START $CIRCLE_JOB
+          when: always
+
   ##########################
   # Getting into the remote container
   ##########################
@@ -86,13 +108,7 @@ commands:
           env \
           | grep 'DOCKER\|NO_PROXY' \
           | sed 's/^/export /' \
-          > /root/docker-env
-
-      - run:
-          name: Install outer container utilities
-          # coreutils for gnu date
-          command: |
-            apk add --update bash coreutils jq
+          > /home/circleci/docker-env
 
       - run:
           name: "Setup cache names"
@@ -110,26 +126,24 @@ commands:
     steps:
       - run:
           name: Build container if necessary
-          command: scripts/builder
+          command: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID build-container -- scripts/builder
       - run:
           name: Run background container
-          command: scripts/builder --ci-serve
+          command: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID run-bg-container -- scripts/builder --ci-serve
           background: true
   wait-for-container:
     steps:
       - run:
           name: "Wait for container"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 5m scripts/wait-until-container-ready
+          # --foreground because this is run in a script by circle
+          command: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID wait-until-container-ready -- timeout --foreground 5m scripts/wait-until-container-ready
   wait-for-server:
     steps:
       - wait-for-container
       - run:
           name: "Wait for server"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 5m scripts/wait-until-server-ready
+          # --foreground because this is run in a script by circle
+          command: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID wait-until-server-ready -- timeout --foreground 5m scripts/wait-until-server-ready
   auth-with-gcp:
     steps:
       - run:
@@ -137,191 +151,217 @@ commands:
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
             docker cp gcloud-service-key.json dark-dev:/home/dark/app/gcloud-service-key.json
-            scripts/run-in-docker gcloud auth activate-service-account --key-file /home/dark/app/gcloud-service-key.json
+            buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID gcp-auth -- scripts/run-in-docker gcloud auth activate-service-account --key-file /home/dark/app/gcloud-service-key.json
 
 ##########################
 # Actual workflow
 ##########################
 jobs:
+  setup:
+    executor: my-executor
+    steps:
+      - run: |
+          mkdir -p buildevents/bin
+          date +%s > buildevents/build_start
+      - run: go get github.com/honeycombio/buildevents/
+      - run: cp $GOPATH/bin/buildevents buildevents/bin/
+      - persist_to_workspace:
+          root: buildevents
+          paths:
+            - build_start
+            - bin/buildevents
+
   build-stroller:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v10-stroller-{{ checksum "rundir/today-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus1-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus2-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "stroller/target" }
-      - clean-caches: { path: "cargo" }
-      - run:
-          name: Set up volume for cargo
-          command: |
-            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
-            docker cp cargo dark_rust_cargo:/usr/local/cargo
-            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
-            rm -Rf cargo
-      - copy-into-container
-      - run: scripts/builder --compile-stroller --test
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml
-      - assert-clean-worktree
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp dark_rust_cargo:/usr/local/cargo cargo
-      - save_cache:
-          name: "Save cargolock-specific stroller cache"
-          paths:
-            - stroller/target
-            - cargo
-          key: v10-stroller-{{ checksum "stroller/Cargo.lock" }}
-      - save_cache:
-          name: "Save daily stroller cache"
-          paths:
-            - stroller/target
-            - cargo
-          key: v10-stroller-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for deploy
-            - stroller/target/release/dark-stroller
+      - with_job_span:
+          steps:
+            - initialize
+            - restore_cache:
+                keys:
+                  - v11-stroller-{{ checksum "stroller/Cargo.lock" }}
+                  - v11-stroller-{{ checksum "rundir/today-timestamp" }}
+                  - v11-stroller-{{ checksum "rundir/minus1-timestamp" }}
+                  - v11-stroller-{{ checksum "rundir/minus2-timestamp" }}
+                  - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
+            - clean-caches: { path: "stroller/target" }
+            - clean-caches: { path: "cargo" }
+            - run:
+                name: Set up volume for cargo
+                command: |
+                  docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
+                  docker cp cargo dark_rust_cargo:/usr/local/cargo
+                  docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
+                  rm -Rf cargo
+            - copy-into-container
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID compile-and-test-stroller -- scripts/builder --compile-stroller --test
+            - run-background-container
+            - wait-for-container
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID gcp-build-containers -- scripts/gcp-build-containers --skip-ocaml
+            - assert-clean-worktree
+            - run:
+                name: Copy out generated files and caches
+                command: |
+                  docker cp vols:/home/dark/app/stroller/target stroller/
+                  docker cp dark_rust_cargo:/usr/local/cargo cargo
+            - save_cache:
+                name: "Save cargolock-specific stroller cache"
+                paths:
+                  - stroller/target
+                  - cargo
+                key: v11-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - save_cache:
+                name: "Save daily stroller cache"
+                paths:
+                  - stroller/target
+                  - cargo
+                key: v11-stroller-{{ checksum "rundir/today-timestamp" }}
+            - persist_to_workspace:
+                root: "."
+                paths:
+                  # Just enough for deploy
+                  - stroller/target/release/dark-stroller
 
 
   build-backend:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v6-backend-{{ checksum "rundir/today-timestamp" }}
-            - v6-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-backend-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "backend/_build" }
-      # appsupport is needed for a unit test
-      - run: touch backend/static/appsupport.js
-      - copy-into-container
-      - run: scripts/builder --compile-backend --test
-    # - run-background-container
-    # - wait-for-container
-    # - run: scripts/gcp-build-containers --skip-stroller
-      - assert-clean-worktree
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            docker cp vols:/home/dark/app/backend/_build backend/
-            docker cp vols:/home/dark/app/backend/static/. backend/static
-      - save_cache:
-          name: "Save daily backend cache"
-          paths: [ "backend/_build" ]
-          key: v6-backend-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/_build/default/bin
-            - backend/static/analysis.js
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
+      - with_job_span:
+          steps:
+            - initialize
+            - restore_cache:
+                keys:
+                  - v7-backend-{{ checksum "rundir/today-timestamp" }}
+                  - v7-backend-{{ checksum "rundir/minus1-timestamp" }}
+                  - v7-backend-{{ checksum "rundir/minus2-timestamp" }}
+                  - v7-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - clean-caches: { path: "backend/_build" }
+            # appsupport is needed for a unit test
+            - run: touch backend/static/appsupport.js
+            - copy-into-container
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID compile-and-test-backend -- scripts/builder --compile-backend --test
+          # - run-background-container
+          # - wait-for-container
+          # - run: scripts/gcp-build-containers --skip-stroller
+            - assert-clean-worktree
+            - run:
+                name: Copy out generated files and caches
+                command: |
+                  docker cp vols:/home/dark/app/backend/_build backend/
+                  docker cp vols:/home/dark/app/backend/static/. backend/static
+            - save_cache:
+                name: "Save daily backend cache"
+                paths: [ "backend/_build" ]
+                key: v7-backend-{{ checksum "rundir/today-timestamp" }}
+            - persist_to_workspace:
+                root: "."
+                paths:
+                  # Just enough for integration tests and deploy
+                  - backend/_build/default/bin
+                  - backend/static/analysis.js
+            - run:
+                name: Copy out artifacts
+                when: always
+                command: |
+                  mkdir -p artifacts
+                  docker cp vols:/home/dark/app/rundir artifacts/rundir
+            - store_artifacts:
+                path: artifacts
+            - store_test_results:
+                path: artifacts/rundir/test_results
 
   build-postgres-honeytail:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
-      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail . && docker run -t dark-gcp-postgres-honeytail python test_logs.py
+      - with_job_span:
+          steps:
+            - initialize
+            - restore_cache:
+                keys:
+                  - v7-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
+                  - v7-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
+                  - v7-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
+                  - v7-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
+            - run: cd postgres-honeytail; buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID postgres-honeytail-build -- docker build -t dark-gcp-postgres-honeytail .
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID postgres-honeytail-test -- docker run -t dark-gcp-postgres-honeytail python test_logs.py
 
   check-nginx-conf:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /etc/nginx -v /etc/nginx/conf.d --name nginxvols nginx:1.15.3 /bin/true
-            docker cp scripts/support/base-nginx.conf nginxvols:/etc/nginx/nginx.conf
-            docker cp scripts/support/nginx.conf nginxvols:/etc/nginx/conf.d/nginx.conf
-      - run: scripts/support/test-nginx.sh
+      - with_job_span:
+          steps:
+            - initialize
+            # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+            - run:
+                name: Copy app directory into dev container
+                command: |
+                  docker create -v /etc/nginx -v /etc/nginx/conf.d --name nginxvols nginx:1.15.3 /bin/true
+                  docker cp scripts/support/base-nginx.conf nginxvols:/etc/nginx/nginx.conf
+                  docker cp scripts/support/nginx.conf nginxvols:/etc/nginx/conf.d/nginx.conf
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID test-nginx -- scripts/support/test-nginx.sh
 
   build-client:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "rundir/today-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "client/node_modules" }
-      - clean-caches: { path: "client/lib" }
-      - copy-into-container
-      - run: scripts/builder --compile-client --test
-      - run-background-container
-      - wait-for-container
-      - assert-clean-worktree
-      - run: scripts/support/shellchecker # run here cause its the fastest
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            docker cp vols:/home/dark/app/client/node_modules client
-            docker cp vols:/home/dark/app/client/lib client
-            docker cp vols:/home/dark/app/backend/static/. backend/static
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths: [ "client/node_modules" ]
-          key: v8-client-{{ checksum "client/package.json" }}
-      - save_cache:
-          name: "Save daily client cache"
-          paths: [ "client/node_modules" ]
-          key: v8-client-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/static/app.css
-            - backend/static/app.js
-            - backend/static/appsupport.js
-            - backend/static/fetcher.js
-            - backend/static/analysiswrapper.js
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir
-            cp backend/static/etags.json artifacts
-            ls -la backend/static > artifacts/asset-list.txt
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
+      - with_job_span:
+          steps:
+            - initialize
+            - restore_cache:
+                keys:
+                  - v9-client-{{ checksum "client/package.json" }}
+                  - v9-client-{{ checksum "rundir/today-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - clean-caches: { path: "client/node_modules" }
+            - clean-caches: { path: "client/lib" }
+            - copy-into-container
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID compile-and-test-client -- scripts/builder --compile-client --test
+            - run-background-container
+            - wait-for-container
+            - assert-clean-worktree
+            - run: scripts/support/shellchecker # run here cause its the fastest
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID shellchecker -- scripts/support/shellchecker # run here cause its the fastest
+            - run:
+                name: Copy out generated files and caches
+                command: |
+                  docker cp vols:/home/dark/app/client/node_modules client
+                  docker cp vols:/home/dark/app/client/lib client
+                  docker cp vols:/home/dark/app/backend/static/. backend/static
+            - save_cache:
+                name: "Save packagejson-specific cache"
+                paths: [ "client/node_modules" ]
+                key: v9-client-{{ checksum "client/package.json" }}
+            - save_cache:
+                name: "Save daily client cache"
+                paths: [ "client/node_modules" ]
+                key: v9-client-{{ checksum "rundir/today-timestamp" }}
+            - persist_to_workspace:
+                root: "."
+                paths:
+                  # Just enough for integration tests and deploy
+                  - backend/static/app.css
+                  - backend/static/app.js
+                  - backend/static/appsupport.js
+                  - backend/static/fetcher.js
+                  - backend/static/analysiswrapper.js
+            - run:
+                name: Copy out artifacts
+                when: always
+                command: |
+                  mkdir -p artifacts
+                  docker cp vols:/home/dark/app/rundir artifacts/rundir
+                  cp backend/static/etags.json artifacts
+                  ls -la backend/static > artifacts/asset-list.txt
+            - store_artifacts:
+                path: artifacts
+            - store_test_results:
+                path: artifacts/rundir/test_results
 
 
 
@@ -330,35 +370,37 @@ jobs:
     parallelism: 4
     steps:
       - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - restore_cache: # get testcafe
-          keys:
-            - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "rundir/today-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
-      - copy-into-container
-      - run-background-container
+      - with_job_span:
+          steps:
+            - initialize
+            - attach_workspace: { at: "." }
+            - restore_cache: # get testcafe
+                keys:
+                  - v9-client-{{ checksum "client/package.json" }}
+                  - v9-client-{{ checksum "rundir/today-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - copy-into-container
+            - run-background-container
 
-      - wait-for-server
-      - run:
-          name: Run integration tests
-          shell: bash
-          command: |
-            # get full list of tests
-            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > rundir/all-tests
-            # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
-            # concat them into a pattern (note: $TESTS is deliberately unquoted)
-            PATTERN=$(printf -- "^%s$|" $TESTS)
-            # remove last char
-            PATTERN=${PATTERN%?}
-            scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
-      - assert-clean-worktree
+            - wait-for-server
+            - run:
+                name: Run integration tests
+                shell: bash
+                command: |
+                  # get full list of tests
+                  grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > rundir/all-tests
+                  # split them using timing info
+                  TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
+                  # concat them into a pattern (note: $TESTS is deliberately unquoted)
+                  PATTERN=$(printf -- "^%s$|" $TESTS)
+                  # remove last char
+                  PATTERN=${PATTERN%?}
+                  buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID integration-tests -- scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+            - assert-clean-worktree
 
-      - extract-and-save-artifacts
+            - extract-and-save-artifacts
 
 
 
@@ -366,49 +408,63 @@ jobs:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - copy-into-container
-      - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
-      - auth-with-gcp
-      - run: scripts/run-in-docker scripts/push-assets-to-cdn
-      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
-      # Save the image IDs for deployment later
-      - run: |
-          mkdir gcr-image-ids
-          docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
-          docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
-          docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
-          docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
-          docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-          docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
-      - persist_to_workspace:
-          root: "."
-          paths: [ gcr-image-ids ]
+      - with_job_span:
+          steps:
+            - initialize
+            - attach_workspace: { at: "." }
+            - copy-into-container
+            - run-background-container
+            # Now that the workspaces have combined, we need to regenerate etags.json
+            - wait-for-server
+            - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID gcp-build-containers -- scripts/run-in-docker scripts/gcp-build-containers
+            - auth-with-gcp
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID push-assets-to-cdn -- scripts/run-in-docker scripts/push-assets-to-cdn
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID push-images-to-gcr -- scripts/run-in-docker scripts/gcp-push-images-to-gcr
+            # Save the image IDs for deployment later
+            - run: |
+                mkdir gcr-image-ids
+                docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
+                docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
+                docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+                docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
+                docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+                docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+            - persist_to_workspace:
+                root: "."
+                paths: [ gcr-image-ids ]
 
 
   deploy:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - copy-into-container
-      - run-background-container
-      - wait-for-container
-      - auth-with-gcp
+      - with_job_span:
+          steps:
+            - initialize
+            - attach_workspace: { at: "." }
+            - copy-into-container
+            - run-background-container
+            - wait-for-container
+            - auth-with-gcp
+            - run: |
+                buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID gke-deploy -- \
+                  scripts/run-in-docker scripts/gke-deploy       \
+                    --server-image-id=`cat gcr-image-ids/server` \
+                    --qw-image-id=`cat gcr-image-ids/qw`     \
+                    --cron-image-id=`cat gcr-image-ids/cron`   \
+                    --stroller-image-id=`cat gcr-image-ids/stroller` \
+                    --tunnel-image-id=`cat gcr-image-ids/tunnel` \
+                    --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
+
+  final:
+    executor: my-executor
+    steps:
+      - attach_workspace:
+          at: buildevents
       - run: |
-          scripts/run-in-docker scripts/gke-deploy       \
-            --server-image-id=`cat gcr-image-ids/server` \
-            --qw-image-id=`    cat gcr-image-ids/qw`     \
-            --cron-image-id=`  cat gcr-image-ids/cron`   \
-            --stroller-image-id=`cat gcr-image-ids/stroller` \
-            --tunnel-image-id=`cat gcr-image-ids/tunnel` \
-            --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
+          BUILD_START=$(cat buildevents/build_start)
+          buildevents build $CIRCLE_WORKFLOW_ID $BUILD_START success
 
 
 workflows:
@@ -416,11 +472,22 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - check-nginx-conf
-      - build-backend
-      - build-client
-      - build-stroller
-      - build-postgres-honeytail
+      - setup
+      - check-nginx-conf:
+          requires:
+            - setup
+      - build-backend:
+          requires:
+            - setup
+      - build-client:
+          requires:
+            - setup
+      - build-stroller:
+          requires:
+            - setup
+      - build-postgres-honeytail:
+          requires:
+            - setup
 
       # expensive tests
       - integration-tests:
@@ -445,6 +512,21 @@ workflows:
           filters:
             branches:
               only: master
+          requires:
+            - integration-tests
+            - push-to-gcp
+
+      - final:
+          filters:
+            branches:
+              only: master
+          requires:
+            - deploy
+
+      - final:
+          filters:
+            branches:
+              ignore: master
           requires:
             - integration-tests
             - push-to-gcp

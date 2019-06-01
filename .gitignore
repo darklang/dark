@@ -26,3 +26,6 @@ tunnel.yaml
 # Files that get created on CI. We check that status is clean so need to list these.
 /client/node_modules
 /stroller/target
+/buildevents
+bin/
+build_start
