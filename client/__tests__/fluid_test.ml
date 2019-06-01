@@ -473,6 +473,22 @@ let () =
         aFullBinOp
         (press K.Delete 6)
         ("___", 5) ;
+      t
+        "plus becomes ++ (String::append) if left is a string"
+        oneCharStr
+        (press K.Plus 3)
+        ("\"c\" ++ ___", 7) ;
+      t
+        "plus becomes + (Int::add) for non strings"
+        aShortInt
+        (press K.Plus 1)
+        ("1 + ___", 4) ;
+      t
+        "& becomes && (Bool::and)"
+        trueBool
+        (press K.Ampersand 4)
+        ("true && ___", 8) ;
+      t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || ___", 8) ;
       () ) ;
   describe "Constructors" (fun () ->
       t

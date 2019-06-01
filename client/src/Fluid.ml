@@ -1530,8 +1530,15 @@ let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
   | None ->
       ast
   | Some c ->
-      wrap id ast ~f:(fun expr ->
-          EBinOp (gid (), String.fromChar c, expr, newB (), NoRail) )
+      let fnName =
+        if c = '&' then "&&" else if c = '|' then "||" else String.fromChar c
+      in
+      wrap id ast ~f:(fun expr -> EBinOp (gid (), fnName, expr, newB (), NoRail)
+      )
+
+
+let convertToStringAppend (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr -> EBinOp (gid (), "++", expr, newB (), NoRail))
 
 
 let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
@@ -2333,6 +2340,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Binop specific *)
+    | K.Plus, L (TString (id, _str), _), _ ->
+        (convertToStringAppend id ast, s |> moveTo (pos + 4))
     | K.Percent, L (_, toTheLeft), _
     | K.Minus, L (_, toTheLeft), _
     | K.Plus, L (_, toTheLeft), _
@@ -2340,9 +2349,12 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.ForwardSlash, L (_, toTheLeft), _
     | K.LessThan, L (_, toTheLeft), _
     | K.GreaterThan, L (_, toTheLeft), _
+    | K.Ampersand, L (_, toTheLeft), _
+    | K.Pipe, L (_, toTheLeft), _
       when onEdge ->
+        let posOffset = if key = K.Ampersand || key = K.Pipe then 4 else 3 in
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
-        , s |> moveTo (pos + 3) )
+        , s |> moveTo (pos + posOffset) )
     (* End of line *)
     | K.Enter, _, R (TNewline, _) ->
         (ast, moveOneRight pos s)
