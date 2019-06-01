@@ -3,11 +3,12 @@
 
 set -euo pipefail
 
+DIR=$1
 
 # shellcheck disable=SC2010
-MLFILES=$(ls backend/*/*.ml | grep -v test.ml)
+MLFILES=$(ls "${DIR}"/*/*.ml | grep -v test.ml | grep -v __tests__ )
 
-LETS=$(grep -P -h '^let ' backend/*/*.ml{,i} \
+LETS=$(grep -P -h '^let ' "${DIR}"/*/*.ml{,i} \
         | sed 's/\s*let\s*//' \
         | awk '{print $1;}' \
         | sort \
