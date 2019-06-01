@@ -78,19 +78,6 @@ type response_or_redirect_params =
       ; body : string }
   | Redirect of {uri : Uri.t; headers : Header.t option}
 
-let new_respond_params
-    ?(resp_headers = Header.init ())
-    ~(execution_id : Types.id)
-    status
-    (body : string) : response_or_redirect_params =
-  Respond {resp_headers; execution_id; status; body}
-
-
-let new_redirect_params ?(headers : Cohttp.Header.t option) ~(uri : Uri.t) :
-    response_or_redirect_params =
-  Redirect {uri; headers}
-
-
 let respond_or_redirect (params : response_or_redirect_params) =
   match params with
   | Redirect {uri; headers} ->
@@ -1458,8 +1445,6 @@ let k8s_handler req ~execution_id ~stopper =
   | _ ->
       respond ~execution_id `Not_found ""
 
-
-let req_method_is_head (req : CRequest.t) = CRequest.meth req = `HEAD
 
 let coalesce_head_to_get (req : CRequest.t) : CRequest.t =
   let verb = req |> CRequest.meth in

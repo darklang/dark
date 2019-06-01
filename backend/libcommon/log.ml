@@ -313,17 +313,6 @@ let fataL = pP ~level:`Fatal
 
 let succesS = pP ~level:`Success
 
-let log_exception
-    ?bt ?(pp = Exn.to_string) (name : string) (trace_id : string) (e : exn) =
-  let backtrace =
-    match bt with Some bt -> bt | None -> Caml.Printexc.get_raw_backtrace ()
-  in
-  erroR
-    ~bt:backtrace
-    name
-    ~params:[("exception", pp e); ("execution_id", trace_id)]
-
-
 (* Add to the current set of thread-local log annotations. *)
 (* We make no attempt whatsoever to deal with dupe keys, except to put new ones
  * later in the ordering *)

@@ -253,10 +253,6 @@ let allBlanks (tl : toplevel) : pointerData list =
   tl |> allData |> List.filter ~f:P.isBlank
 
 
-let blanksWhere (fn : pointerData -> bool) (tl : toplevel) : pointerData list =
-  tl |> allBlanks |> List.filter ~f:fn
-
-
 let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
 
 let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last

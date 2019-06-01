@@ -45,31 +45,6 @@ let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
 let moveToOrigin : modification = MoveCanvasTo Defaults.origin
 
-(* Gets coordinates of the corners of outer box and inner box.
-  Inner box is enclosed withing outer box, if and only if
-  all 4 corners (points) of the inner box lay within the outer box boundaries.
- *)
-let isEnclosed (outer : box) (inner : box) : bool =
-  let ptInside (px, py) =
-    let oOrigin, oSize = outer in
-    let ox1, oy1 = (oOrigin.x, oOrigin.y) in
-    let ox2 = ox1 + oSize.w in
-    let oy2 = oy1 + oSize.h in
-    ox1 < px && px < ox2 && oy1 < py && py < oy2
-  in
-  let iOrigin, iSize = inner in
-  let right = iOrigin.x + iSize.w in
-  let bottom = iOrigin.y + iSize.h in
-  let topLeft = (iOrigin.x, iOrigin.y) in
-  let topRight = (right, iOrigin.y) in
-  let bottomLeft = (iOrigin.x, bottom) in
-  let bottomRight = (right, bottom) in
-  ptInside topLeft
-  || ptInside topRight
-  || ptInside bottomLeft
-  || ptInside bottomRight
-
-
 (* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
   Default values (when we can't find get elements from dom) are based on
   min-widths defined in app.less. At some point we will want to find a
