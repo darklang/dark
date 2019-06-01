@@ -15,27 +15,6 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
   |> List.hd_exn
 
 
-let fetch_by_field ~state fieldname fieldvalue db =
-  if Unicode_string.equal fieldname (Unicode_string.of_string_exn "id")
-  then
-    let skey =
-      match fieldvalue with
-      | DStr s ->
-          Unicode_string.to_string s
-      | x ->
-          Exception.user
-            ( "Expected an ID or a String at 'id' but got: "
-            ^ (x |> Dval.tipe_of |> Dval.tipe_to_string) )
-    in
-    User_db.get_many ~state db [skey]
-  else
-    User_db.query_by_one
-      ~state
-      db
-      (Unicode_string.to_string fieldname)
-      fieldvalue
-
-
 let replacements =
   [ ( "DB::insert"
     , InProcess (fun _ -> Exception.user "DB::insert is DEPRECATED") )

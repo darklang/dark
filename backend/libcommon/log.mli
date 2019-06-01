@@ -102,13 +102,5 @@ val succesS :
   -> string
   -> unit
 
-val log_exception :
-     ?bt:Caml.Printexc.raw_backtrace
-  -> ?pp:(exn -> string)
-  -> string
-  -> string
-  -> exn
-  -> unit
-
 val add_log_annotations :
   (string * Yojson.Safe.json) list -> (unit -> 'a) -> 'a

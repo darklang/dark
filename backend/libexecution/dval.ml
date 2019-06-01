@@ -285,14 +285,6 @@ let empty_dobj : dval = DObj DvalMap.empty
 (* ------------------------- *)
 (* Json *)
 (* ------------------------- *)
-let is_json_primitive (dv : dval) : bool =
-  match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DStr _ ->
-      true
-  (* everything else is a list, an actual object, or a wrapped object *)
-  | _ ->
-      false
-
 
 (* The "unsafe" variations here are bad. They encode data ambiguously, and
  * though we mostly have the decoding right, it's brittle and unsafe.  This

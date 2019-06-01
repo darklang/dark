@@ -174,15 +174,6 @@ type permissions =
   | CanAccessOperations
   | NoPermission
 
-let get_permissions ~(auth_domain : string) ~(username : username) () :
-    permissions =
-  if can_access_operations ~username
-  then CanAccessOperations
-  else if can_edit_canvas ~auth_domain ~username
-  then CanEdit
-  else NoPermission
-
-
 let authenticate ~(username : username) ~(password : string) : bool =
   valid_user ~username ~password
 

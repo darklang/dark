@@ -35,14 +35,6 @@ let () =
           in
           expect (freeVariables (F (id1, Match (e, pats))))
           |> toEqual [(id4, "request")] ) ;
-      test "isThreadBlank for thread" (fun () ->
-          expect (isThreadBlank (F (id1, Thread [Blank id2])) id2)
-          |> toEqual true ) ;
-      test "isThreadBlank for blank" (fun () ->
-          expect (isThreadBlank (Blank id1) id1) |> toEqual false ) ;
-      test "isThreadBlank for thread non-blank" (fun () ->
-          expect (isThreadBlank (F (id1, Thread [F (id2, Value "")])) id2)
-          |> toEqual false ) ;
       test "replacing a function in a thread works" (fun () ->
           expect
             (let replacement =

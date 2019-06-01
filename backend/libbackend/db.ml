@@ -101,10 +101,6 @@ let rec escape (param : param) : string =
       "false"
 
 
-let cast_expression_for (dv : Types.RuntimeT.dval) : string option =
-  if Dval.is_json_primitive dv then None else Some "::jsonb"
-
-
 let rec to_sql param : string =
   match param with
   | Int i ->

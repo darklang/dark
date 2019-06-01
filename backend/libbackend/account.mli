@@ -19,10 +19,6 @@ val authenticate : username:username -> password:string -> bool
 (* hash a password to the format expected in account documents. *)
 val hash_password : string -> string
 
-(* get the permissions that username has in authdomain *)
-val get_permissions :
-  auth_domain:string -> username:username -> unit -> permissions
-
 val can_access_operations : username:string -> bool
 
 val can_edit_canvas : auth_domain:string -> username:string -> bool

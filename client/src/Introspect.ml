@@ -39,14 +39,6 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
     toplevels
 
 
-let tlidStrOfRefersTo (r : refersTo) : string =
-  match r with
-  | ToDB (TLID tlid, _, _, _) ->
-      tlid
-  | ToEvent (TLID tlid, _, _, _) ->
-      tlid
-
-
 let idOfRefersTo (r : refersTo) : id =
   match r with ToDB (_, _, _, id) -> id | ToEvent (_, _, _, id) -> id
 
