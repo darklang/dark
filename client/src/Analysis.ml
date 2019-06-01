@@ -367,7 +367,7 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
   let userFns = m.userFunctions in
   let userTipes = m.userTipes in
   let trace = getTrace m tlid traceID in
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   match (tl.data, trace) with
   | TLHandler h, Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->

@@ -187,7 +187,7 @@ let move
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
     =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> Option.orElse (TL.rootOf tl)
@@ -223,7 +223,7 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
 
 let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
     modification =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   match tl.data with
   | TLDB db ->
       enterDB m db tl id
@@ -266,7 +266,7 @@ let moveAndEnter
 
 
 let body (m : model) (tlid : tlid) : id option =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   match tl.data with TLHandler h -> Some (B.toID h.ast) | _ -> None
 
 
@@ -280,7 +280,7 @@ let moveUp ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 let moveDown ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
     modification =
   let default =
-    TL.getTL m tlid |> TL.allData |> List.head |> Option.map ~f:P.toID
+    TL.getExn m tlid |> TL.allData |> List.head |> Option.map ~f:P.toID
   in
   let moveFn = match andEnter with false -> move | true -> moveAndEnter in
   moveFn m tlid mId (moveUpDown Down) default
@@ -304,7 +304,7 @@ let moveLeft ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 (* Move AST-wide *)
 (* ------------------------------- *)
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> Option.andThen ~f:(TL.getParentOf tl)
@@ -317,7 +317,7 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
 (* ------------------------------- *)
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> TL.getNextBlank tl
@@ -326,7 +326,7 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
 
 
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> TL.getNextBlank tl
@@ -336,7 +336,7 @@ let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
 
 let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> TL.getPrevBlank tl
@@ -345,7 +345,7 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
 
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   pd
   |> TL.getPrevBlank tl
@@ -363,7 +363,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   | Some id ->
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       ( match P.typeOf pd with
       | DBColType ->
