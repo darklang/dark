@@ -1558,7 +1558,7 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
       DisplayAndReportHttpError
-        ("TriggerSendPresenceCallback", ImportantError, err, Js.Json.null)
+        ("TriggerSendPresenceCallback", IgnorableError, err, Js.Json.null)
   | FluidMouseClick ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
