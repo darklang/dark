@@ -73,7 +73,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       { m with
         currentPage = newPage
       ; cursorState = Selecting (tlid, None)
@@ -85,7 +85,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
   *)
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       calculatePanOffset m tl newPage
   | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
   | FocusedHandler (otlid, _), FocusedDB (tlid, _)
@@ -98,7 +98,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       if otlid = tlid
       then m
       else
-        let tl = TL.getTL m tlid in
+        let tl = TL.getExn m tlid in
         calculatePanOffset m tl newPage
   | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture

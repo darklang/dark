@@ -26,7 +26,7 @@ let fromFlagged (pick : pick) (expr : expr) : expr =
 let start (m : model) : modification =
   match unwrapCursorState m.cursorState with
   | Selecting (tlid, Some id) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       let msgId = gid () in
       let newPd = P.exprmap (toFlagged msgId) pd in
@@ -48,7 +48,7 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
   | None ->
       NoChange
   | Some tlid ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       let newPd = P.exprmap (fromFlagged pick) pd in
       let newTL = TL.replace pd newPd tl in
