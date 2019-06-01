@@ -35,13 +35,19 @@ let exception_info_to_yojson info =
 
 
 type exception_tipe =
+  (* Error in server code, or in talking to the server. *)
   | DarkServer
-  (* error while talking to the server *)
+  (* Error in User_db handling *)
   | DarkStorage
-  (* error in User_db handling *)
+  (* Error made by user, client-side. Does not include errors where the
+   * client is broken and is communicating with the server incorrectly. *)
   | DarkClient
-  (* Error made by client *)
-  | UserCode
+  (* Error made by Dark code written by the user, which may be running in
+   * production or in the client. An example is calling a function with the
+   * wrong parameter types. *)
+  | Code
+  (* Error made by an enduser in how they talk to the system, such as
+   * calling with invalid JSON. *)
   | EndUser
 [@@deriving show, eq]
 
@@ -53,8 +59,8 @@ let exception_tipe_to_yojson t =
       `String "storage"
   | DarkClient ->
       `String "client"
-  | UserCode ->
-      `String "userCode"
+  | Code ->
+      `String "code"
   | EndUser ->
       `String "endUser"
 
@@ -67,7 +73,7 @@ let should_log (et : exception_tipe) : bool =
       true
   | DarkClient ->
       true
-  | UserCode ->
+  | Code ->
       false
   | EndUser ->
       false
@@ -105,7 +111,7 @@ let reraise_as_pageable e =
     | Libcommon.Pageable.PageableExn _ ->
         e
     | DarkException de
-      when de.tipe = DarkClient || de.tipe = UserCode || de.tipe = EndUser ->
+      when de.tipe = DarkClient || de.tipe = Code || de.tipe = EndUser ->
         (* Allow things that are not our fault to go through without paging *)
         e
     | _ ->
@@ -149,7 +155,7 @@ let internal = raise_ DarkServer
 
 let client = raise_ DarkClient
 
-let user = raise_ UserCode
+let code = raise_ Code
 
 let storage = raise_ DarkStorage
 

@@ -19,7 +19,7 @@ let internal_fn ((name, f) : string * (exec_state * dval list -> dval)) =
             es.account_id
             |> Uuidm.to_string
             |> Format.sprintf "User not found with id: %s"
-            |> Exception.user
+            |> Exception.code
         | Some username ->
             if Account.can_access_operations ~username
             then (
@@ -35,7 +35,7 @@ let internal_fn ((name, f) : string * (exec_state * dval list -> dval)) =
               username
               |> Format.sprintf
                    "User executed an internal function but isn't an admin: %s"
-              |> Exception.user ) )
+              |> Exception.code ) )
 
 
 let replacements =

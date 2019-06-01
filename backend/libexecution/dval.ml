@@ -238,7 +238,7 @@ let unsafe_tipe_of_yojson (json : Yojson.Safe.json) =
   | `String s ->
       Ok (s |> String.lowercase |> tipe_of_string)
   | _ ->
-      Exception.user "Invalid tipe"
+      Exception.code "Invalid tipe"
 
 
 (* ------------------------- *)
@@ -277,7 +277,7 @@ let obj_merge (l : dval) (r : dval) : dval =
   | DObj l, DNull ->
       DObj l
   | _ ->
-      Exception.user "was expecting objs"
+      Exception.code "was expecting objs"
 
 
 let empty_dobj : dval = DObj DvalMap.empty
@@ -718,7 +718,7 @@ let to_pretty_machine_json_v1 dval =
 
 let of_unknown_json_v0 str =
   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson with e ->
-    Exception.user ~actual:str ("Invalid json: " ^ Exception.to_string e)
+    Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
 
 
 let rec show dv =
@@ -837,7 +837,7 @@ let to_string_exn dv : string =
   | DStr s ->
       Unicode_string.to_string s
   | _ ->
-      Exception.user "expecting str" ~actual:(to_developer_repr_v0 dv)
+      Exception.code "expecting str" ~actual:(to_developer_repr_v0 dv)
 
 
 let to_dval_pairs_exn dv : (string * dval) list =
@@ -845,7 +845,7 @@ let to_dval_pairs_exn dv : (string * dval) list =
   | DObj obj ->
       DvalMap.to_list obj
   | _ ->
-      Exception.user "expecting str" ~actual:(to_developer_repr_v0 dv)
+      Exception.code "expecting str" ~actual:(to_developer_repr_v0 dv)
 
 
 let to_string_pairs_exn dv : (string * string) list =
@@ -938,7 +938,7 @@ let dval_to_query (dv : dval) : (string * string list) list =
              | _ ->
                  (k, [to_url_string_exn value]) )
   | _ ->
-      Exception.user "attempting to use non-object as query param"
+      Exception.code "attempting to use non-object as query param"
 
 
 let to_form_encoding (dv : dval) : string =
