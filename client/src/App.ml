@@ -400,26 +400,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let displayError =
           match e with
-          | Http.BadUrl _ ->
+          | Http.BadUrl _ | Http.BadPayload _ ->
               true
-          | Http.Timeout ->
-              errorImportance = ImportantError
-          | Http.NetworkError ->
+          | Http.Timeout | Http.NetworkError | Http.Aborted ->
               errorImportance = ImportantError
           | Http.BadStatus response ->
               if response.status.code = 502
               then errorImportance = ImportantError
               else true
-          | Http.BadPayload _ ->
-              true
-          | Http.Aborted ->
-              errorImportance = ImportantError
         in
         let shouldRollbar =
           match e with
-          | Http.BadUrl _ ->
-              true
-          | Http.Timeout ->
+          | Http.BadUrl _ | Http.Timeout | Http.BadPayload _ ->
               true
           | Http.NetworkError ->
               (* Don't rollbar if the internet is down *)
@@ -427,8 +419,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadStatus response ->
               (* Don't rollbar if you aren't logged in *)
               response.status.code <> 401
-          | Http.BadPayload _ ->
-              true
           | Http.Aborted ->
               errorImportance = ImportantError
         in
