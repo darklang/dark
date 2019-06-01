@@ -426,7 +426,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               false
           | Http.BadStatus response ->
               (* Don't rollbar if you aren't logged in *)
-              if response.status.code = 401 then false else true
+              response.status.code <> 401
           | Http.BadPayload _ ->
               true
           | Http.Aborted ->
