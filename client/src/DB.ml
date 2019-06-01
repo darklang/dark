@@ -46,10 +46,6 @@ let isLocked (m : model) (TLID tlid : tlid) : bool =
   not (StrSet.has ~value:tlid m.unlockedDBs)
 
 
-let isMigrating (db : dB) : bool =
-  match db.activeMigration with Some _ -> true | None -> false
-
-
 let isMigrationCol (db : dB) (id : id) : bool =
   match db.activeMigration with
   | Some schema ->

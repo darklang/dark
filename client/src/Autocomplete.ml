@@ -322,7 +322,6 @@ let qLiteral (s : string) : autocompleteItem option =
 (* let urlPathValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/]+" *)
 
 (* allow : for parameter names. TODO: do better job parsing here *)
-let eventNameSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]"
 
 let nonEventNameSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
 

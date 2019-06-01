@@ -20,10 +20,6 @@ let listNext ~(value : 'a) (l : 'a list) : 'a option =
   |> Option.andThen ~f:(fun (index : int) -> List.getAt ~index l)
 
 
-let listPreviousWrap ~(value : 'a) (l : 'a list) : 'a option =
-  l |> listPrevious ~value |> Option.orElse (List.last l)
-
-
 let listNextWrap ~(value : 'a) (l : 'a list) : 'a option =
   l |> listNext ~value |> Option.orElse (List.head l)
 

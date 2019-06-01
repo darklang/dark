@@ -28,8 +28,6 @@ val unsafe_tipe_to_yojson : Types.RuntimeT.tipe -> Yojson.Safe.json
 val unsafe_tipe_of_yojson :
   Yojson.Safe.json -> (Types.RuntimeT.tipe, 'a) Core_kernel._result
 
-val is_json_primitive : Types.RuntimeT.dval -> bool
-
 (* ------------------------- *)
 (* Representations *)
 (* ------------------------- *)

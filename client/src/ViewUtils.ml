@@ -192,16 +192,6 @@ let eventNoPropagation
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
-let eventNoDefault
-    ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
-    msg Vdom.property =
-  Patched_tea_html.onWithOptions
-    ~key
-    event
-    {stopPropagation = false; preventDefault = true}
-    (Decoders.wrapDecoder (decodeClickEvent constructor))
-
-
 let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
     msg Vdom.property =
   Patched_tea_html.onWithOptions
