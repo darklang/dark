@@ -33,10 +33,6 @@ val stats_count : account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> int
 val stats_pluck :
   account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> dval option
 
-val coerce_key_value_pair_to_legacy_object : dval list -> dval
-
-val coerce_dlist_of_kv_pairs_to_legacy_object : dval -> dval
-
 (* DB schema modifications *)
 val create : string -> tlid -> DbT.db
 
@@ -57,8 +53,6 @@ val delete_col : id -> DbT.db -> DbT.db
 val unlocked : Uuidm.t -> Uuidm.t -> DbT.db list -> DbT.db list
 
 val find_db : DbT.db list -> string -> DbT.db option
-
-val find_db_exn : DbT.db list -> string -> DbT.db
 
 val create_migration : id -> id -> DbT.col list -> DbT.db -> DbT.db
 

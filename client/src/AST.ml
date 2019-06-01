@@ -742,11 +742,6 @@ let rec wrapInThread (id : id) (expr : expr) : expr =
   else traverse (wrapInThread id) expr
 
 
-(* Is PointerData a blank inside a thread *)
-let isThreadBlank (expr : expr) (p : id) : bool =
-  expr |> listThreadBlanks |> List.member ~value:p
-
-
 let grandparentIsThread (expr : expr) (parent : expr option) : bool =
   parent
   |> Option.map ~f:(fun p ->
@@ -879,11 +874,6 @@ let within (e : nExpr) (id : id) : bool =
   |> allData
   |> List.map ~f:P.toID
   |> List.member ~value:id
-
-
-let deleteExpr (p : pointerData) (expr : expr) (id : id) : expr =
-  let replacement = P.emptyD_ id (P.typeOf p) in
-  replace p replacement expr
 
 
 let rec clonePattern (pattern : pattern) : pattern =

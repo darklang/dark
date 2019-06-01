@@ -88,8 +88,6 @@ val exists :
  * work, so we need to escape manually *)
 val escape : param -> string
 
-val cast_expression_for : Types.RuntimeT.dval -> string option
-
 val array_separator : string
 
 val date_of_sqlstring : string -> Core_kernel.Time.t

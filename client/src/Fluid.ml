@@ -622,14 +622,6 @@ let eToString (s : state) (e : ast) : string =
   |> String.join ~sep:""
 
 
-let eToStructure (s : state) (e : fluidExpr) : string =
-  e
-  |> toTokens s
-  |> List.map ~f:(fun ti ->
-         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
-  |> String.join ~sep:""
-
-
 (* -------------------- *)
 (* Patterns *)
 (* -------------------- *)
@@ -1663,8 +1655,6 @@ let acSetIndex (i : int) (s : state) : state =
   {s with ac = {s.ac with index = Some i}; upDownCol = None}
 
 
-let acMoveToStart (s : state) : state = {s with ac = {s.ac with index = Some 0}}
-
 let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
 
 let acMoveUp (s : state) : state =
@@ -2023,8 +2013,6 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
   let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
   moveTo pos {s with upDownCol = Some col}
 
-
-let isRealCharacter (letter : string) : bool = String.length letter = 1
 
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =

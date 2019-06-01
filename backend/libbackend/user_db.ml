@@ -20,42 +20,6 @@ let find_db (tables : db list) (table_name : string) : db option =
       Ast.blank_to_string d.name = String.capitalize table_name )
 
 
-let find_db_exn (tables : db list) (table_name : string) : db =
-  find_db tables table_name
-  |> Option.value_exn
-       ~message:
-         ( "table not found "
-         ^ table_name
-         ^ " in tables: "
-         ^ Libcommon.Log.dump tables )
-
-
-let coerce_key_value_pair_to_legacy_object pair =
-  match pair with
-  | [DStr s; DObj o] ->
-      let id = DStr s in
-      DObj (Map.set ~key:"id" ~data:id o)
-  | err ->
-      Exception.internal
-        ( "Unexpected shape, unable to coerce to legacy format: "
-        ^ Libcommon.Log.dump err )
-
-
-let coerce_dlist_of_kv_pairs_to_legacy_object dv =
-  match dv with
-  | DList pairs ->
-      pairs
-      |> List.map ~f:(function
-             | DList pair ->
-                 coerce_key_value_pair_to_legacy_object pair
-             | _ ->
-                 Exception.internal
-                   "bad format from internal fetch, unable to coerce to legacy format" )
-      |> DList
-  | _ ->
-      Exception.internal "bad fetch"
-
-
 (* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)
@@ -78,23 +42,6 @@ let cols_for (db : db) : (string * tipe) list =
              Some (name, tipe)
          | _ ->
              None )
-
-
-let dv_to_id col (dv : dval) : Uuidm.t =
-  match dv with
-  | DStr str ->
-      (* This is what you get for accidentally
-                     implementating a dynamic language *)
-      let uuid =
-        match Uuidm.of_string (Unicode_string.to_string str) with
-        | Some id ->
-            id
-        | None ->
-            Exception.user (type_error_msg col TStr dv)
-      in
-      uuid
-  | _ ->
-      Exception.user (type_error_msg col TStr dv)
 
 
 let rec query ~state db query_obj : dval =

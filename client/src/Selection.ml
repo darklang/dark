@@ -49,14 +49,6 @@ let selectNextToplevel (m : model) (cur : tlid option) : modification =
   match next with Some nextId -> Select (nextId, None) | None -> Deselect
 
 
-let selectPrevToplevel (m : model) (cur : tlid option) : modification =
-  let tls = List.map ~f:(fun x -> x.id) m.toplevels in
-  let next =
-    cur |> Option.andThen ~f:(fun value -> Util.listPreviousWrap ~value tls)
-  in
-  match next with Some nextId -> Select (nextId, None) | None -> Deselect
-
-
 (* ------------------------------- *)
 (* Move direction-wise *)
 (* ------------------------------- *)
