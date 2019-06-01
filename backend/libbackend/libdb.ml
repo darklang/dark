@@ -17,23 +17,23 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
 
 let replacements =
   [ ( "DB::insert"
-    , InProcess (fun _ -> Exception.user "DB::insert is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::insert is DEPRECATED") )
   ; ( "DB::delete"
-    , InProcess (fun _ -> Exception.user "DB::delete is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::delete is DEPRECATED") )
   ; ( "DB::deleteAll"
-    , InProcess (fun _ -> Exception.user "DB::deleteAll is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::deleteAll is DEPRECATED") )
   ; ( "DB::update"
-    , InProcess (fun _ -> Exception.user "DB::update is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::update is DEPRECATED") )
   ; ( "DB::fetchBy"
-    , InProcess (fun _ -> Exception.user "DB::fetchBy is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::fetchBy is DEPRECATED") )
   ; ( "DB::fetchOneBy"
-    , InProcess (fun _ -> Exception.user "DB::fetchOneBy is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::fetchOneBy is DEPRECATED") )
   ; ( "DB::fetchByMany"
-    , InProcess (fun _ -> Exception.user "DB::fetchByMany is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::fetchByMany is DEPRECATED") )
   ; ( "DB::fetchOneByMany"
-    , InProcess (fun _ -> Exception.user "DB::fetchOneByMany is DEPRECATED") )
+    , InProcess (fun _ -> Exception.code "DB::fetchOneByMany is DEPRECATED") )
   ; ( "DB::fetchAll"
-    , InProcess (fun _ -> Exception.user "DB::fetchAll is DEPRECATED") )
-  ; ("DB::keys", InProcess (fun _ -> Exception.user "DB::keys is DEPRECATED"))
+    , InProcess (fun _ -> Exception.code "DB::fetchAll is DEPRECATED") )
+  ; ("DB::keys", InProcess (fun _ -> Exception.code "DB::keys is DEPRECATED"))
   ; ( "DB::schema"
-    , InProcess (fun _ -> Exception.user "DB::schema is DEPRECATED") ) ]
+    , InProcess (fun _ -> Exception.code "DB::schema is DEPRECATED") ) ]
