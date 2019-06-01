@@ -387,15 +387,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           match e with
           | Http.BadUrl url ->
               Some url
-          | Http.Timeout ->
-              None
-          | Http.NetworkError ->
-              None
-          | Http.BadStatus response ->
+          | Http.BadStatus response | Http.BadPayload (_, response) ->
               Some response.url
-          | Http.BadPayload (_, response) ->
-              Some response.url
-          | Http.Aborted ->
+          | Http.Aborted | Http.Timeout | Http.NetworkError ->
               None
         in
         let displayError =
