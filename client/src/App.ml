@@ -304,7 +304,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         then Native.Location.reload true ;
         ( {m with error = updateError m.error error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
-    | DisplayAndReportHttpError (context, ignoreCommon, e, params) ->
+    | DisplayAndReportHttpError (context, errorImportance, e, params) ->
         let body (body : Tea.Http.responseBody) =
           let maybe name m =
             match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
@@ -403,15 +403,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Http.BadUrl _ ->
               true
           | Http.Timeout ->
-              not ignoreCommon
+              errorImportance = ImportantError
           | Http.NetworkError ->
-              not ignoreCommon
+              errorImportance = ImportantError
           | Http.BadStatus response ->
-              if response.status.code = 502 then not ignoreCommon else true
+              if response.status.code = 502
+              then errorImportance = ImportantError
+              else true
           | Http.BadPayload _ ->
               true
           | Http.Aborted ->
-              not ignoreCommon
+              errorImportance = ImportantError
         in
         let shouldRollbar =
           match e with
@@ -1349,26 +1351,29 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateDBStats result ]
   | AddOpRPCCallback (_, params, Error err) ->
       DisplayAndReportHttpError
-        ("RPC", false, err, Encoders.addOpRPCParams params)
+        ("RPC", ImportantError, err, Encoders.addOpRPCParams params)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->
       DisplayAndReportHttpError
         ( "ExecuteFunction"
-        , false
+        , ImportantError
         , err
         , Encoders.executeFunctionRPCParams params )
   | TriggerCronRPCCallback (Error err) ->
-      DisplayAndReportHttpError ("TriggerCron", false, err, Js.Json.null)
+      DisplayAndReportHttpError
+        ("TriggerCron", ImportantError, err, Js.Json.null)
   | InitialLoadRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpError ("InitialLoad", false, err, Js.Json.null)
+      DisplayAndReportHttpError
+        ("InitialLoad", ImportantError, err, Js.Json.null)
   | GetUnlockedDBsRPCCallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
-        ; DisplayAndReportHttpError ("GetUnlockedDBs", true, err, Js.Json.null)
-        ]
+        ; DisplayAndReportHttpError
+            ("GetUnlockedDBs", IgnorableError, err, Js.Json.null) ]
   | Delete404RPCCallback (params, Error err) ->
-      DisplayAndReportHttpError ("Delete404", false, err, Encoders.fof params)
+      DisplayAndReportHttpError
+        ("Delete404", ImportantError, err, Encoders.fof params)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (w, h) | WindowOnLoad (w, h) ->
@@ -1553,7 +1558,7 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
       DisplayAndReportHttpError
-        ("TriggerSendPresenceCallback", false, err, Js.Json.null)
+        ("TriggerSendPresenceCallback", ImportantError, err, Js.Json.null)
   | FluidMouseClick ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
