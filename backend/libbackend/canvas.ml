@@ -136,7 +136,7 @@ let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
       | TL.DB db ->
           TL.DB (f db)
       | _ ->
-          Exception.client "Provided ID is not for a DB"
+          Exception.internal "Provided ID is not for a DB"
     in
     {tl with data}
   in
