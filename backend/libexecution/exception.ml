@@ -35,8 +35,9 @@ let exception_info_to_yojson info =
 
 
 type exception_tipe =
-  (* Error in server code, or in talking to the server. *)
-  | DarkServer
+  (* Error in the dark system, including server code, or errors caused by
+   * the client talking to the server incorrectly. *)
+  | DarkInternal
   (* Error in User_db handling *)
   | DarkStorage
   (* Error made by user, client-side. Does not include errors where the
@@ -53,7 +54,7 @@ type exception_tipe =
 
 let exception_tipe_to_yojson t =
   match t with
-  | DarkServer ->
+  | DarkInternal ->
       `String "server"
   | DarkStorage ->
       `String "storage"
@@ -67,7 +68,7 @@ let exception_tipe_to_yojson t =
 
 let should_log (et : exception_tipe) : bool =
   match et with
-  | DarkServer ->
+  | DarkInternal ->
       true
   | DarkStorage ->
       true
@@ -151,7 +152,7 @@ let raise_
       Caml.Printexc.raise_with_backtrace (DarkException e) bt
 
 
-let internal = raise_ DarkServer
+let internal = raise_ DarkInternal
 
 let client = raise_ DarkClient
 
