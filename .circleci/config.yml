@@ -2,7 +2,7 @@ version: 2.1
 executors:
   my-executor:
     docker:
-      - image: circleci/golang:latest
+      - image: circleci/buildpack-deps:18.10-curl
 
 commands:
   #########################
@@ -163,8 +163,8 @@ jobs:
       - run: |
           mkdir -p buildevents/bin
           date +%s > buildevents/build_start
-      - run: go get github.com/honeycombio/buildevents/
-      - run: cp $GOPATH/bin/buildevents buildevents/bin/
+      - run: curl -L -o buildevents/bin/buildevents https://github.com/honeycombio/buildevents/releases/latest/download/buildevents
+      - run: chmod 755 buildevents/bin/buildevents
       - persist_to_workspace:
           root: buildevents
           paths:
