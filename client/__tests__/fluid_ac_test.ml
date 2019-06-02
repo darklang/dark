@@ -496,6 +496,7 @@ let () =
               |> toEqual [true; true] ) ;
           (* TODO: not yet working in fluid
            * test "functions have DB names in the autocomplete" (fun () ->
+          test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = EBlank blankid in
               let fntlid = TLID "fn123" in
