@@ -397,7 +397,7 @@ jobs:
                   PATTERN=$(printf -- "^%s$|" $TESTS)
                   # remove last char
                   PATTERN=${PATTERN%?}
-                  buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID integration-tests -- scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+                  scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
             - assert-clean-worktree
 
             - extract-and-save-artifacts
