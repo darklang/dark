@@ -879,14 +879,34 @@ let () =
         (presses [K.Letter 'r'; K.Tab] 0)
         ("request == ___", 11) ;
       t
-        "autocomplete bin-op moves to start of first blank"
+        "autocomplete enter on bin-op moves to start of first blank"
         (EBlank (gid ()))
         (presses [K.Letter '='; K.Enter] 0)
         ("___ == ___", 0) ;
       t
-        "autocomplete bin-op moves to start of first blank 2"
+        "autocomplete tab on bin-op moves to start of first blank"
+        (EBlank (gid ()))
+        (presses [K.Letter '='; K.Tab] 0)
+        ("___ == ___", 0) ;
+      t
+        "autocomplete space on bin-op moves to start of first blank"
+        (EBlank (gid ()))
+        (presses [K.Letter '='; K.Space] 0)
+        ("___ == ___", 0) ;
+      t
+        "autocomplete enter on bin-op moves to start of first blank 2"
         emptyLet
         (presses [K.Letter '<'; K.Enter] 10)
+        ("let *** = ___ < ___\n5", 10) ;
+      t
+        "autocomplete tab on bin-op moves to start of first blank 2"
+        emptyLet
+        (presses [K.Letter '<'; K.Tab] 10)
+        ("let *** = ___ < ___\n5", 10) ;
+      t
+        "autocomplete space on bin-op moves to start of first blank 2"
+        emptyLet
+        (presses [K.Letter '<'; K.Space] 10)
         ("let *** = ___ < ___\n5", 10) ;
       t
         "variable moves to right place"
