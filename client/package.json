@@ -14,7 +14,7 @@
     "testcafe": "1.2.0"
   },
   "dependencies": {
-    "@glennsl/bs-json": "3.0.0",
+    "@glennsl/bs-json": "4.0.0",
     "bs-fetch": "^0.3.1",
     "bs-uuid": "^0.3.1",
     "bs-webapi": "^0.15.2",
