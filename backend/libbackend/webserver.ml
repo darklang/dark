@@ -1231,7 +1231,7 @@ let admin_api_handler
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (execute_function ~execution_id canvas body) )
-  | `POST, ["api"; canvas; "trigger_cron"] ->
+  | `POST, ["api"; canvas; "trigger_handler"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (trigger_cron ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_trace_data"] ->
